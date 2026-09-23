@@ -48,6 +48,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/sync/notification-publishes",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/notification-follow-ups",
       "schedule": "15 * * * *"
     },
@@ -61,6 +65,14 @@
     },
     {
       "path": "/sync/task-schedules",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/project-closes",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/calendar-invalidations",
       "schedule": "* * * * *"
     },
     {

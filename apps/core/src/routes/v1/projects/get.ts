@@ -12,7 +12,7 @@ import {
   encodeProjectActivityCursor,
   type ProjectActivityRow,
   projectActivityPageQuery,
-  projectActivityVisibility,
+  projectNameCountQuery,
 } from "@/helpers/project-activity";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -28,7 +28,7 @@ import {
 } from "@/schemas/project.schema";
 import {
   createProjectListCountsInclude,
-  resolveProjectReaderVisibility,
+  resolveProjectReaderAccess,
 } from "@/types/project";
 
 const query = cursorPaginationQuerySchema
@@ -41,6 +41,17 @@ const query = cursorPaginationQuerySchema
         param: { name: "cursor", in: "query" },
         description:
           "Opaque activity cursor returned in nextCursor by the previous page",
+      }),
+    q: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .optional()
+      .openapi({
+        param: { name: "q", in: "query" },
+        description:
+          "Case-insensitive substring match on the project name, applied across the whole workspace before pagination",
       }),
   })
   .openapi("ProjectPaginationQuery");
@@ -75,48 +86,78 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { cursor, take } = parseCursorPagination(queryParams);
 
-    const where = { workspaceId: workspaceContext.workspaceId };
+    const search = queryParams.q;
+    const workspaceId = workspaceContext.workspaceId;
     const takePlusOne = take + 1;
-    const visibility = await resolveProjectReaderVisibility(
-      c.var.authContext,
-      workspaceContext.workspaceId,
-    );
+    const { prismaWhere: visibility, sqlWhere: activityVisibility } =
+      await resolveProjectReaderAccess(
+        c.var.authContext,
+        workspaceContext.workspaceId,
+      );
     const projectListCountsInclude = createProjectListCountsInclude(
       workspaceContext.workspaceId,
       visibility,
     );
-
-    const activityVisibility = await projectActivityVisibility(
-      c.var.authContext,
-      workspaceContext.workspaceId,
-    );
     const ranked = await prisma.$queryRaw<ProjectActivityRow[]>(
       projectActivityPageQuery({
-        workspaceId: workspaceContext.workspaceId,
+        workspaceId,
         cursor,
         take: takePlusOne,
         visibility: activityVisibility,
+        search,
       }),
     );
     const page = ranked.slice(0, take);
-    const [rows, count] = await Promise.all([
+    // A Pin belongs to a person (ADR 0036), so only a user context resolves
+    // one. A coworker or vendor reading the same list sees every row unpinned
+    // rather than seeing the bound user's Pins as its own.
+    const readerUserId =
+      c.var.authContext.actor === "user" ? c.var.authContext.userId : null;
+    const [rows, count, stars] = await Promise.all([
       prisma.project.findMany({
-        where: { ...where, id: { in: page.map((row) => row.id) } },
+        where: { workspaceId, id: { in: page.map((row) => row.id) } },
         include: projectListCountsInclude,
       }),
-      prisma.project.count({ where }),
+      // Prisma `contains` compiles to unescaped ILIKE, so `%` / `_` in `q`
+      // would inflate the total relative to the escaped ranked query.
+      search
+        ? prisma
+            .$queryRaw<Array<{ count: bigint }>>(
+              projectNameCountQuery(workspaceId, search),
+            )
+            .then((result) => Number(result[0]?.count ?? 0n))
+        : prisma.project.count({ where: { workspaceId } }),
+      // Bounded by the page, and served by the (userId, projectId) unique
+      // index, so this never grows with how much the reader has Pinned.
+      readerUserId
+        ? prisma.projectStar.findMany({
+            where: {
+              userId: readerUserId,
+              projectId: { in: page.map((row) => row.id) },
+            },
+            select: { projectId: true, starredAt: true },
+          })
+        : Promise.resolve([]),
     ]);
     const byId = new Map(rows.map((row) => [row.id, row]));
-    const projects = page.flatMap(({ id }) => {
-      const project = byId.get(id);
-      return project ? [project] : [];
-    });
+    const starredAtByProjectId = new Map(
+      stars.map((star) => [star.projectId, star.starredAt]),
+    );
+    const projectsWithCounts = page.flatMap(({ id, lastActivityAt }) => {
+      const row = byId.get(id);
+      if (!row) return [];
 
-    const projectsWithCounts = projects.map(({ _count, ...project }) => ({
-      ...mapProjectForApi(project),
-      taskCount: _count.tasks,
-      jobCount: _count.jobs,
-    }));
+      const { _count, ...project } = row;
+      return [
+        {
+          ...mapProjectForApi(project),
+          taskCount: _count.tasks,
+          jobCount: _count.jobs,
+          lastActivityAt,
+          starredAt: starredAtByProjectId.get(id) ?? null,
+        },
+      ];
+    });
     const paginationMeta = createPaginationMeta(
       page,
       count,

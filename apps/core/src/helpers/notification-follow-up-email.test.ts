@@ -1,5 +1,8 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
@@ -277,6 +280,42 @@ describe("buildFollowUpEmail", () => {
     expect(textIn(email?.html ?? "")).toContain(
       "Invoice run stopped a day ago because it needs you",
     );
+  });
+
+  it("sends a low-balance reminder to the credits tab, naming what was left", async () => {
+    const email = await buildFollowUpEmail(
+      input({
+        kind: NotificationKind.BILLING,
+        referenceId: "org-1",
+        messageKey: BILLING_FOLLOW_UP_MESSAGE_KEY,
+        sourceMessageKey: BILLING_LOW_BALANCE_MESSAGE_KEY,
+        messageParams: { credits: 42 },
+        metadata: { workspaceId: "ws-1", organizationId: "org-1" },
+      }),
+    );
+
+    expect(email?.subject).toBe(
+      "Sokosumi - Your billing still needs your attention",
+    );
+    expect(textIn(email?.html ?? "")).toContain(
+      "Your credits were running low a day ago, with 42 left",
+    );
+    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/billing?tab=credits`);
+  });
+
+  it("does not mail a failed payment, which Stripe already mailed", async () => {
+    const email = await buildFollowUpEmail(
+      input({
+        kind: NotificationKind.BILLING,
+        referenceId: "user-1",
+        messageKey: BILLING_FOLLOW_UP_MESSAGE_KEY,
+        sourceMessageKey: BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+        messageParams: {},
+        metadata: { workspaceId: "ws-1", organizationId: null },
+      }),
+    );
+
+    expect(email).toBeNull();
   });
 
   it("has no email for a message key that is not a reminder", async () => {

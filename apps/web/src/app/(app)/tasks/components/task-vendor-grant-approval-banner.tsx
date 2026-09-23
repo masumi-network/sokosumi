@@ -9,7 +9,7 @@ import {
   approveOrganizationVendorGrant,
   denyMyVendorGrant,
   denyOrganizationVendorGrant,
-} from "@/lib/actions/vendor-grant-action";
+} from "@/lib/actions/workspace-approval-action";
 
 interface TaskVendorGrantApprovalBannerProps {
   grantId: string;

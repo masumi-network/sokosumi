@@ -25,6 +25,10 @@ const baseEnvSchema = z.object({
   // Database
   DATABASE_URL: z.url(),
 
+  // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
+  REDIS_URL: z.string().optional(),
+  KV_URL: z.string().optional(),
+
   WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
 
   // Vercel (optional; Better Auth base URL on Preview)
@@ -72,6 +76,15 @@ const baseEnvSchema = z.object({
   MICROSOFT_CLIENT_SECRET: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.email().default("noreply@sokosumi.com"),
+
+  /**
+   * Credits under which a wallet is told it is running low (SOK-932).
+   *
+   * The same number web draws its low-credit label at
+   * (`NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD`), so the feed and the sidebar
+   * agree about what low means. Zero switches the notification off.
+   */
+  LOW_CREDITS_THRESHOLD: z.coerce.number().min(0).default(100),
 
   // Sentry
   SENTRY_DSN: z.url().optional(),
@@ -255,11 +268,24 @@ function isDeployedEnvironment(value: z.infer<typeof baseEnvSchema>): boolean {
  * Previews are throwaway and are the one deployment where Cloudflare's test
  * keys are a reasonable choice — they let an agent drive the sign-in form
  * without answering a human check. Production has no such excuse.
+ *
+ * On Vercel, `NODE_ENV` is "production" for every deployment, previews
+ * included, so it cannot tell the two apart and `VERCEL_ENV` is the only
+ * honest signal. Reading both with `||` made every preview a production one,
+ * which killed the very case the paragraph above describes: a preview holding
+ * the always-passes secret exited at boot, so every route answered
+ * FUNCTION_INVOCATION_FAILED instead of warning.
+ *
+ * Off Vercel there is no `VERCEL_ENV`, and `NODE_ENV` is the only signal
+ * there is.
  */
 function isProductionEnvironment(
   value: z.infer<typeof baseEnvSchema>,
 ): boolean {
-  return value.NODE_ENV === "production" || value.VERCEL_ENV === "production";
+  if (value.VERCEL_ENV) {
+    return value.VERCEL_ENV === "production";
+  }
+  return value.NODE_ENV === "production";
 }
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {

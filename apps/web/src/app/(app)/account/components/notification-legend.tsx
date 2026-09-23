@@ -181,6 +181,16 @@ function ChannelExplainer({
       </PopoverTrigger>
       <PopoverContent
         align="center"
+        // Above the name rather than below it. The legend is the head of the
+        // grid it explains, so a panel opening downwards lands on the very
+        // cells the reader came to press: 288px of sentences over the In app,
+        // Push and Email columns of the first rows under it.
+        //
+        // Radix still flips back down when the legend is too near the top of
+        // the viewport to hold the panel. That is left on: a panel clipped by
+        // the top edge says less than one standing over a row, and the reader
+        // can scroll away from the flip.
+        side="top"
         className="w-72 space-y-1.5 p-3 text-xs"
         // The panel takes the close over from the name. The pointer arrives
         // here inside the wait the leave started, and this stops it; leaving
@@ -248,17 +258,18 @@ function ChannelExplainer({
 }
 
 /**
- * The columns, named once at the top of an open group.
+ * The columns, named at the top of an open group and once over the rows that
+ * answer on the card.
  *
  * Every row right-aligns its cells into the same three columns, so one line of
- * names over them names the cells of the whole group. The names are where the
+ * names over them names every cell under it. The names are where the
  * explanation belongs: a channel means the same thing on every kind under it.
  *
  * Each name holds the width of the column it sits over, so the word and the
  * cells under it share both edges. Under the line is the rule the rows are
  * divided by, which is what makes it read as a head rather than as a gap.
  *
- * The left column is named too, over the kinds rather than over cells. Three
+ * The left column is named too, over the names rather than over cells. Three
  * words crowded against the right edge of an otherwise empty band read as
  * something that fell off the row above; named on both sides, the band is a
  * head. A phone has no width to spare for the word, and the names of the
@@ -268,8 +279,9 @@ function ChannelExplainer({
  * The one name on the page whose explanation is up.
  *
  * Held over every legend rather than inside one, because the page draws a
- * legend per open group and the pointer crosses between them: sweeping down a
- * column from one group's name to the next left the first panel counting down
+ * legend per open group and one over the rows on the card, and the pointer
+ * crosses between them: sweeping down a column from one head's name to the
+ * next left the first panel counting down
  * while the second stood up, which is the pair of 288px panels this state
  * exists to stop.
  */
@@ -290,11 +302,15 @@ export function ChannelLegendScope({ children }: { children: ReactNode }) {
 
 export function ChannelLegend({
   pushBlock,
-  named = false,
+  named,
 }: {
   pushBlock: PushBlock | null;
-  /** The rows under this head carry their kind's name. */
-  named?: boolean;
+  /**
+   * What the names in the left column under this head are, so the word over
+   * them starts where they do: a kind inside a fold, indented under its group,
+   * or a row on the card itself.
+   */
+  named?: "kind" | "row";
 }) {
   const t = useTranslations("App.Account.Notifications");
   const shared = useContext(OpenExplainer);
@@ -339,9 +355,14 @@ export function ChannelLegend({
       className="text-muted-foreground flex items-end justify-end gap-2 pt-2.5 pb-1.5 text-xs"
     >
       {named ? (
-        // Lined up with the kind names below it, which is the whole of what it
-        // is doing here.
-        <span className="hidden min-w-0 flex-1 pr-3 pl-6 @xl:block @xl:pl-10">
+        // Lined up with the names below it, which is the whole of what it is
+        // doing here.
+        <span
+          className={cn(
+            "hidden min-w-0 flex-1 pr-3 pl-6 @xl:block",
+            named === "kind" && "@xl:pl-10",
+          )}
+        >
           {t("channelsKindLabel")}
         </span>
       ) : null}

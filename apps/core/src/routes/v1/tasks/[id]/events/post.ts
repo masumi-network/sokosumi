@@ -23,9 +23,12 @@ import {
   isCardanoV2SourceReady,
 } from "@/helpers/agent";
 import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
+import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
   conflict,
   errorResponseWithExtensionsSchema,
+  internalServerError,
   unprocessableEntity,
 } from "@/helpers/error";
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
@@ -51,6 +54,8 @@ import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { getEnvSecrets, redactDeep } from "@/lib/secret-redaction";
+import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
@@ -219,7 +224,7 @@ async function mapCreatedTaskEventForResponse(
     include: taskEventApiInclude,
   });
   if (!row) {
-    throw new Error(`Task event not found after create: ${eventId}`);
+    throw internalServerError(`Task event not found after create: ${eventId}`);
   }
   return mapTaskEvent(row);
 }
@@ -427,7 +432,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       let taskPaymentClaimId: string | null = null;
       if (chargedMasumiPayment && masumiPayment !== undefined) {
         if (!transactionId) {
-          throw new Error("Charged Masumi task payment has no transaction");
+          throw internalServerError(
+            "Charged Masumi task payment has no transaction",
+          );
         }
         taskPaymentClaimId = await createTaskPaymentClaim({
           network: getEnv().NETWORK,
@@ -504,10 +511,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         userId: task.ownerId,
+        organizationId: task.organizationId,
+        workspaceId: task.workspaceId,
         projectId: task.projectId,
         masumiPayment: payment,
         taskPaymentClaimId,
         pausedForInsufficientBalance,
+        charged: transactionId !== null,
       };
     }, "Task changed by a concurrent request. Please retry.").catch((error) => {
       if (
@@ -523,10 +533,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const {
       event,
       userId,
+      organizationId,
+      workspaceId,
       projectId,
       masumiPayment,
       taskPaymentClaimId,
       pausedForInsufficientBalance,
+      charged,
     } = transactionResult;
 
     if (event.status === TaskStatus.COMPLETED && projectId) {
@@ -548,7 +561,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (event.status) {
+      await deliverCalendarInvalidationsNow(workspaceId);
       waitUntil(notifyTaskStatusEvent(taskId, event.id, event.status));
+    }
+
+    if (charged) {
+      waitUntil(notifyLowBalanceAfterCharge({ userId, organizationId }));
     }
 
     // Unreachable by construction (a charged payment always writes its claim
@@ -630,12 +648,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             return;
           }
           if (result.status === "retry_scheduled") {
-            console.warn("[tasks] masumi task payment: retry scheduled", {
-              taskId,
-              taskEventId,
-              claimId: taskPaymentClaimId,
-              reason: result.reason,
-            });
+            // The processor returns the full reason. Redact it before applying
+            // the stdout cap; the database cap does not protect this log.
+            console.warn(
+              "[tasks] masumi task payment: retry scheduled",
+              redactDeep(
+                {
+                  taskId,
+                  taskEventId,
+                  claimId: taskPaymentClaimId,
+                  reason: formatUpstreamErrorForLog(result.reason),
+                },
+                getEnvSecrets(),
+              ),
+            );
           }
         } catch (error) {
           // Durable PENDING claim remains recoverable by cron. Never refund an

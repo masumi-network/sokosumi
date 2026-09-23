@@ -39,9 +39,20 @@ export const PROJECTS_BROWSE_LAYOUT_CLASS =
   "bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
 /**
- * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.
+ * Header row of the browse card: filter, sort label, and the desktop create
+ * control on one line, divided from the rows it labels. Shared by live
+ * `ProjectsView` and the Instant skeleton so the swap keeps its 52px height
+ * (`h-8` control inside `py-2.5`).
  */
-export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border divide-y px-2";
+export const PROJECTS_BROWSE_HEADER_ROW_CLASS =
+  "border-border flex items-center gap-3 border-b px-4 py-2.5";
+
+/**
+ * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.
+ * No horizontal padding: the rows carry their own `px-4`, so both the dividers
+ * and the row hover run the full width of the card, as the tasks list does.
+ */
+export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border divide-y";
 
 /**
  * Row geometry shared by live `ProjectListItem`, Instant skeleton, and Drive lists

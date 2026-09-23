@@ -60,6 +60,7 @@
   --color-senary: var(--senary);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-disabled-foreground: var(--disabled-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -357,6 +358,13 @@
   --senary: hsla(0, 0.0%, 97.1%, 1);
   --muted: hsla(300, 0%, 96%, 1);
   --muted-foreground: hsla(0, 0.0%, 44.0%, 1);
+  /* An icon-only control that cannot be pressed. The usual `disabled:opacity-50`
+     carries a disabled button because the fill and border stay to hold it; a
+     lone icon at that opacity measures 1.99:1 here and stops reading as an
+     icon. This is the step below --muted-foreground that still clears 3:1 on
+     --card and on --card-background: 3.23 and 3.10. --tertiary is not it,
+     measuring 1.94 in light. */
+  --disabled-foreground: hsla(0, 0.0%, 56.0%, 1);
   --accent: hsla(300, 0%, 96%, 1);
   --accent-foreground: hsla(330, 0%, 9%, 1);
   --destructive: hsla(0, 74%, 42%, 1);
@@ -606,6 +614,9 @@
   --senary: hsla(0, 0.0%, 8.8%, 1);
   --muted: hsla(0, 0%, 15%, 1);
   --muted-foreground: hsla(0, 0.0%, 72.0%, 1);
+  /* 3.45 on --card and 3.12 on --card-background. --tertiary at 41.6% lands
+     within a step of this in dark; it is light mode the two disagree about. */
+  --disabled-foreground: hsla(0, 0.0%, 40.0%, 1);
   --accent: hsla(0, 0%, 15%, 1);
   --accent-foreground: hsla(0, 0%, 98%, 1);
   --destructive: hsla(0, 84%, 60%, 1);
@@ -739,19 +750,6 @@
   .workspace-calendar-theme:not([data-view="agenda"]) > * {
     min-width: 49rem;
   }
-}
-
-/*
- * The agenda (list view) renders a dot element before every event, and
- * FullCalendar joins class-name options across theme and user layers, so no
- * option can remove it. The event element is the listitem without an
- * aria-label (the day group carries one); the dot is its first child when
- * the content follows it. Hiding it also drops the row's 12px flex gap.
- */
-.workspace-calendar-theme[data-view="agenda"]
-  [role="listitem"]:not([aria-label])
-  > :first-child:not(:only-child) {
-  display: none;
 }
 
 @media (hover: hover) {
@@ -1028,6 +1026,12 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
    the mark when it ends. */
 [data-chat-message-list] {
   --chat-jump-hold: 4500ms;
+  /* A reader scroll ends the hold early. The mark and the spotlight fade out
+     over this rather than being cut, which reads as a snap. Keep in sync with
+     ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS in
+     apps/web/src/app/(app)/chat/utils/room-message-highlight.ts, which drops
+     the mark when it ends. */
+  --chat-jump-leave: 320ms;
   --chat-jump-dim-opacity: 0.5;
   --chat-jump-dim-blur: 1.5px;
 }
@@ -1040,7 +1044,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   --chat-jump-dim-blur: 2.5px;
 }
 
-[data-message-id][data-search-landed="true"] {
+[data-message-id][data-search-landed] {
   /* Dark runs stronger: a light primary over a 4% ground lifts far less than
      the same mix of a saturated primary over white. */
   --chat-jump-wash-lead: 16%;
@@ -1048,7 +1052,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   --chat-jump-wash-edge: 10%;
 }
 
-.dark [data-message-id][data-search-landed="true"] {
+.dark [data-message-id][data-search-landed] {
   --chat-jump-wash-lead: 26%;
   --chat-jump-wash-mid: 20%;
   --chat-jump-wash-edge: 18%;
@@ -1056,7 +1060,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 
 /* Wash: tint holds its strength all the way to the right edge so a wide row
    stays marked instead of trailing off. Opens from the centre. */
-[data-message-id][data-search-landed="true"]::before {
+[data-message-id][data-search-landed]::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -1076,7 +1080,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 }
 
 /* Rail: marks where the row starts. */
-[data-message-id][data-search-landed="true"]::after {
+[data-message-id][data-search-landed]::after {
   content: "";
   position: absolute;
   top: 0.1875rem;
@@ -1091,9 +1095,23 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 
 /* Spotlight: the rest of the transcript steps back while the hold lasts. It
    runs on the same timeline as the mark, so the dim never outlives it. */
-[data-chat-message-list]:has([data-search-landed="true"])
-[data-message-id]:not([data-search-landed="true"]) {
+[data-chat-message-list]:has([data-search-landed])
+[data-message-id]:not([data-search-landed]) {
   animation: chat-jump-dim var(--chat-jump-hold) ease-out forwards;
+}
+
+/* Leaving: the reader scrolled, so the hold ends early. The wash, the rail and
+   the spotlight run out on one short clock rather than being cut off mid
+   animation. Written after the rules above, which carry the same weight, so
+   these replace the hold's animation while the mark is still on the row. */
+[data-message-id][data-search-landed="leaving"]::before,
+[data-message-id][data-search-landed="leaving"]::after {
+  animation: chat-jump-leave var(--chat-jump-leave) ease-out forwards;
+}
+
+[data-chat-message-list]:has([data-search-landed="leaving"])
+  [data-message-id]:not([data-search-landed]) {
+  animation: chat-jump-undim var(--chat-jump-leave) ease-out forwards;
 }
 
 @keyframes chat-jump-wash {
@@ -1136,6 +1154,26 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   }
 }
 
+/* The leave pair. Both start from the state the hold keeps for most of its
+   run, which is where a reader scroll finds them: the mark at full strength,
+   the other rows stepped back. */
+@keyframes chat-jump-leave {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes chat-jump-undim {
+  from {
+    opacity: var(--chat-jump-dim-opacity);
+    filter: blur(var(--chat-jump-dim-blur));
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
 @keyframes chat-jump-rail {
   0% {
     opacity: 0;
@@ -1159,15 +1197,22 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
    no spotlight — dimming the surrounding text would take it under the contrast
    floor for the whole hold, which the rail and wash already do without. */
 @media (prefers-reduced-motion: reduce) {
-  [data-message-id][data-search-landed="true"]::before,
-  [data-message-id][data-search-landed="true"]::after {
+  [data-message-id][data-search-landed]::before,
+  [data-message-id][data-search-landed]::after {
     animation: none;
     opacity: 1;
     transform: none;
   }
 
-  [data-chat-message-list]:has([data-search-landed="true"])
-    [data-message-id]:not([data-search-landed="true"]) {
+  /* Leaving drops the mark where the hold would have dropped it: at once, with
+     nothing to watch on the way out. */
+  [data-message-id][data-search-landed="leaving"]::before,
+  [data-message-id][data-search-landed="leaving"]::after {
+    opacity: 0;
+  }
+
+  [data-chat-message-list]:has([data-search-landed])
+    [data-message-id]:not([data-search-landed]) {
     animation: none;
     opacity: 1;
     filter: none;

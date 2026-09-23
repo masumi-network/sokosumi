@@ -25,6 +25,7 @@ const {
   serializableTransactionMock,
   memberFindFirstMock,
   requireTaskScheduleWriteAccessMock,
+  notifyTaskCalendarActionMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
   findNextReleaseableOccurrenceMock,
@@ -39,6 +40,7 @@ const {
   serializableTransactionMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   requireTaskScheduleWriteAccessMock: vi.fn(),
+  notifyTaskCalendarActionMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
   findNextReleaseableOccurrenceMock: vi.fn(),
@@ -58,6 +60,7 @@ vi.mock("@/helpers/access-control", () => ({
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
   lockTaskRows: lockTaskRowsMock,
+  requireOpenCalendarProject: vi.fn(),
 }));
 
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
@@ -65,6 +68,9 @@ vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
   findNextReleaseableOccurrence: findNextReleaseableOccurrenceMock,
   replaceTaskSchedulePlannedOccurrences:
     replaceTaskSchedulePlannedOccurrencesMock,
+}));
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskCalendarAction: notifyTaskCalendarActionMock,
 }));
 
 vi.mock("@/lib/db/transaction", () => ({
@@ -212,6 +218,8 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     lockTaskRowsMock.mockResolvedValue(true);
     requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
+      ownerId: "user_123",
+      name: "Scheduled task",
       status: TaskStatus.QUEUED,
       workspaceId: WORKSPACE_ID,
       projectId: null,
@@ -729,6 +737,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
 
   it("replays an exact operation after a one-time occurrence was promoted", async () => {
     taskEventFindUniqueMock.mockResolvedValue({
+      id: "evt_1",
       schedulePayload: {
         requestFingerprint: createTaskScheduleRequestFingerprint({
           action: "reschedule_occurrence",
@@ -765,6 +774,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
       state: TaskScheduleOccurrenceState.SKIPPED,
     });
     taskEventFindUniqueMock.mockResolvedValue({
+      id: "evt_1",
       schedulePayload: {
         requestFingerprint: createTaskScheduleRequestFingerprint({
           action: "skip_occurrence",
@@ -805,10 +815,14 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     expect(occurrenceUpdateMock).not.toHaveBeenCalled();
     expect(taskUpdateMock).not.toHaveBeenCalled();
     expect(taskEventCreateMock).not.toHaveBeenCalled();
+    expect(notifyTaskCalendarActionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: "evt_1" }),
+    );
   });
 
   it("rejects reusing an operation identity for different semantics", async () => {
     taskEventFindUniqueMock.mockResolvedValue({
+      id: "evt_other",
       schedulePayload: { requestFingerprint: "different" },
     });
 
@@ -828,5 +842,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     expect(response.status).toBe(200);
     expect(occurrenceUpdateMock).not.toHaveBeenCalled();
     expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
+    expect(notifyTaskCalendarActionMock).not.toHaveBeenCalled();
   });
 });

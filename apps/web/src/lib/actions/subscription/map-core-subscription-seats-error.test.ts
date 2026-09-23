@@ -1,7 +1,7 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 import { toSubscriptionSeatsActionError } from "./map-core-subscription-seats-error";
@@ -41,6 +41,31 @@ describe("toSubscriptionSeatsActionError", () => {
       expected: {
         code: CommonErrorCode.UNAUTHORIZED,
         message: "You are not a member of this organization",
+      },
+    },
+    {
+      label: "concurrency_conflict",
+      error: new CoreApiRequestError(
+        "Seat update lost a concurrent update. Try again.",
+        {
+          kind: "concurrency_conflict",
+          status: 409,
+        },
+      ),
+      expected: {
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Another seat change was in progress. Try again.",
+      },
+    },
+    {
+      label: "a 409 without a kind",
+      error: new CoreApiRequestError(
+        "Seat update lost a concurrent update. Try again.",
+        { status: 409 },
+      ),
+      expected: {
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Another seat change was in progress. Try again.",
       },
     },
     {

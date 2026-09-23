@@ -122,6 +122,9 @@ public final class WorkspaceState: ObservableObject {
   private(set) var transcriptLoadTask: Task<Void, Never>?
   private(set) var olderPageTask: Task<Void, Never>?
   private(set) var transcriptRefreshTask: Task<Void, Never>?
+  /// The chained gap-page loads (row 04a); `historyGapRequest` tells the last one to clear it.
+  var historyGapTask: Task<Void, Never>?
+  var historyGapRequest = 0
   private var timelineObservation: AnyCancellable?
 
   /// Room the transcript pane shows. Nil clears the pane.
@@ -214,21 +217,21 @@ public final class WorkspaceState: ObservableObject {
   private var hasLoaded = false
   private var workspaceLoadTask: Task<Void, Never>?
 
-  /// Stable per-install Ably `clientInstanceId` (ADR 0003): persisted on
+  /// Stable per-install realtime `clientInstanceId` (ADR 0003): persisted on
   /// first launch, reused after, so this Mac is one `{userId}:{instanceId}`
   /// device in every token it mints.
-  let ablyClientInstanceId: String
+  let realtimeClientInstanceId: String
 
   /// Creates a workspace coordinator. The host app must inject its authenticated
   /// client provider; the default resolves no client.
   public init(
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
-    instanceStore: AblyClientInstanceIdStore = UserDefaultsAblyClientInstanceIdStore()
+    instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore()
   ) {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
-    ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
+    realtimeClientInstanceId = getOrCreateRealtimeClientInstanceId(store: instanceStore)
     for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
@@ -590,6 +593,7 @@ public final class WorkspaceState: ObservableObject {
     transcriptLoadTask = nil
     olderPageTask = nil
     transcriptRefreshTask = nil
+    historyGapTask = nil
     realtime?.watchRoom(nil)
     transcriptError = nil
     clearOutbound()
@@ -613,6 +617,7 @@ public final class WorkspaceState: ObservableObject {
     timeline.reset(roomId: room.id)
     olderPageTask = nil
     transcriptRefreshTask = nil
+    historyGapTask = nil
     let generation = transcriptGeneration
     clearOutbound()
     realtime?.watchRoom(room.id)
@@ -645,6 +650,7 @@ public final class WorkspaceState: ObservableObject {
       // Web's visibilitychange: hidden publishes afk at once, visible counts as activity.
       presence.setVisible(readAttention.isVisible)
       publishPresence(force: true)
+      realtime?.setInFront(readAttention.isVisible)
     }
   }
 
@@ -738,15 +744,14 @@ public final class WorkspaceState: ObservableObject {
     else {
       return
     }
-    let instanceId = ablyClientInstanceId
+    let instanceId = realtimeClientInstanceId
     let service = service
     let provider: RealtimeTokenProvider = { slug in
-      let token = try await service.fetchAblyToken(
+      try await service.fetchAblyToken(
         client: client,
         clientInstanceId: instanceId,
         organizationSlug: slug
       )
-      return AblyTokenFields(token)
     }
     let (stream, continuation) = AsyncStream.makeStream(of: ResolvedRealtimeDelivery.self)
     let connection = factory()
@@ -759,6 +764,7 @@ public final class WorkspaceState: ObservableObject {
       onEvent: { event in continuation.yield(event) }
     )
     connection.setMembershipRooms(Set(rooms.map(\.id)))
+    connection.setInFront(readAttention.isVisible)
     realtimeStreamTask?.cancel()
     realtimeStreamTask = Task {
       for await event in stream {
@@ -907,7 +913,10 @@ public final class WorkspaceState: ObservableObject {
   public func refreshTranscript(auth: AuthState) {
     guard transcriptRoomId != nil else { return }
     guard !directStream.isBusy || thread.parent != nil else { return }
-    if transcriptLoading || transcriptLoadingOlder || transcriptRefreshing || transcriptLoadTask != nil || olderPageTask != nil || transcriptRefreshTask != nil {
+    // A gap page in flight does not drop the refresh: the timeline holds it
+    // and runs it once the gap settles (`RoomTimeline.pendingLatestRefresh`).
+    if transcriptLoading || transcriptLoadingOlder || (transcriptRefreshing && !timeline.isFillingGap)
+      || transcriptLoadTask != nil || olderPageTask != nil || transcriptRefreshTask != nil {
       return
     }
     let generation = transcriptGeneration

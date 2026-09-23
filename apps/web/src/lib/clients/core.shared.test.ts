@@ -4,6 +4,11 @@ import {
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   getCoworkers as coreGetCoworkers,
+  getCoworkersById as coreGetCoworkersById,
+  getProjectsByIdClose as coreGetProjectsByIdClose,
+  postProjectsByIdClose as corePostProjectsByIdClose,
+  postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
+  postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
   postTasksScheduled as corePostTasksScheduled,
   putTasksByIdCalendarSchedule as corePutTasksByIdCalendarSchedule,
   putTasksByIdCalendarSource as corePutTasksByIdCalendarSource,
@@ -21,6 +26,11 @@ vi.mock("@/lib/clients/generated/core", async (importOriginal) => {
     deleteAdminInvoice: vi.fn(),
     deleteTasksByIdSchedule: vi.fn(),
     getCoworkers: vi.fn(),
+    getCoworkersById: vi.fn(),
+    getProjectsByIdClose: vi.fn(),
+    postProjectsByIdClose: vi.fn(),
+    postProjectsByIdCloseCancelOwed: vi.fn(),
+    postProjectsByIdCloseRetry: vi.fn(),
     postTasksScheduled: vi.fn(),
     putTasksByIdCalendarSchedule: vi.fn(),
     putTasksByIdCalendarSource: vi.fn(),
@@ -55,6 +65,27 @@ describe("createCoreClient owned coworkers", () => {
 
     expect(coreGetCoworkers).toHaveBeenCalledWith({
       client: {},
+      query: { scope: "owned" },
+      cache: "no-store",
+    });
+  });
+
+  it("requests owned coworker by id with no-store caching", async () => {
+    vi.mocked(coreGetCoworkersById).mockResolvedValue({
+      data: {
+        data: { id: "cow_1" },
+        meta: { timestamp: new Date(), requestId: "req_1" },
+      },
+      response: { ok: true, status: 200 } as Response,
+    } as never);
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await core.getOwnedCoworkerById("cow_1");
+
+    expect(coreGetCoworkersById).toHaveBeenCalledWith({
+      client: {},
+      path: { id: "cow_1" },
       query: { scope: "owned" },
       cache: "no-store",
     });
@@ -146,6 +177,87 @@ describe("createCoreClient revision-safe schedule mutations", () => {
           "idempotency-key": "123e4567-e89b-42d3-a456-426614174000",
           "x-sokosumi-schedule-revision": "3",
         },
+      }),
+    );
+  });
+});
+
+describe("createCoreClient project close lifecycle", () => {
+  const status = {
+    id: "123e4567-e89b-42d3-a456-426614174001",
+    projectId: "123e4567-e89b-42d3-a456-426614174002",
+    state: "CLOSING" as const,
+    cutoffAt: new Date("2026-09-14T10:00:00.000Z"),
+    reason: null,
+    attempts: 0,
+    failure: null,
+    completedAt: null,
+    projectRevision: 4,
+    owedOccurrenceCount: 2,
+  };
+
+  it("reads close status without caching", async () => {
+    vi.mocked(coreGetProjectsByIdClose).mockResolvedValue({
+      data: { data: status },
+      response: { ok: true, status: 200 } as Response,
+    } as never);
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await core.getProjectsByIdClose(status.projectId);
+
+    expect(coreGetProjectsByIdClose).toHaveBeenCalledWith({
+      client: {},
+      path: { id: status.projectId },
+      cache: "no-store",
+    });
+  });
+
+  it("sends close and recovery bodies unchanged", async () => {
+    for (const mutation of [
+      corePostProjectsByIdClose,
+      corePostProjectsByIdCloseRetry,
+      corePostProjectsByIdCloseCancelOwed,
+    ]) {
+      vi.mocked(mutation).mockResolvedValue({
+        data: { data: status },
+        response: { ok: true, status: 200 } as Response,
+      } as never);
+    }
+    const core = createCoreClient(async () => ({}) as Client);
+    const closeBody = {
+      operationId: "123e4567-e89b-42d3-a456-426614174003",
+      expectedProjectRevision: 3,
+      reason: "Campaign complete",
+    };
+    const recoveryBody = {
+      operationId: "123e4567-e89b-42d3-a456-426614174004",
+      expectedProjectRevision: 4,
+      reason: "Reviewed the blocked series",
+    };
+
+    await core.postProjectsByIdClose(status.projectId, closeBody);
+    await core.postProjectsByIdCloseRetry(status.projectId, recoveryBody);
+    await core.postProjectsByIdCloseCancelOwed(status.projectId, recoveryBody);
+
+    expect(corePostProjectsByIdClose).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client: {},
+        path: { id: status.projectId },
+        body: closeBody,
+      }),
+    );
+    expect(corePostProjectsByIdCloseRetry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client: {},
+        path: { id: status.projectId },
+        body: recoveryBody,
+      }),
+    );
+    expect(corePostProjectsByIdCloseCancelOwed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client: {},
+        path: { id: status.projectId },
+        body: recoveryBody,
       }),
     );
   });

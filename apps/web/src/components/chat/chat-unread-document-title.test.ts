@@ -53,6 +53,28 @@ describe("countChatRoomsWithUnreadAttention", () => {
     ).toBe(2);
   });
 
+  // The tab title has to agree with the rows it summarises (ADR-0037).
+  it("does not count a room whose only unread is in threads", () => {
+    expect(
+      countChatRoomsWithUnreadAttention([
+        { id: "a", unreadCount: 3, channelUnreadCount: 0 },
+      ]),
+    ).toBe(0);
+  });
+
+  it("counts a room where a thread reply mentions the reader", () => {
+    expect(
+      countChatRoomsWithUnreadAttention([
+        {
+          id: "a",
+          unreadCount: 1,
+          channelUnreadCount: 0,
+          unreadMentionCount: 1,
+        },
+      ]),
+    ).toBe(1);
+  });
+
   it("skips muted rooms even when they have unread", () => {
     expect(
       countChatRoomsWithUnreadAttention([

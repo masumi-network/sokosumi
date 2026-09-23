@@ -6,20 +6,28 @@ import {
   NextJobAction,
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
-import type { Job } from "../generated/prisma/client.js";
+import type { Job, Prisma } from "../generated/prisma/client.js";
 import {
-  type FreeJobWithStatus,
-  type JobEventForListSummary,
-  type JobEventForStatusCompute,
-  type JobEventWithRelations,
-  type JobForStatusCompute,
   type JobWithEvents,
-  type JobWithPurchase,
+  type JobWithListSummaryRelations,
   type JobWithSokosumiStatus,
-  type JobWithTransaction,
-  type PaidJobWithStatus,
+  jobForStatusComputeSelect,
+  jobWithPurchase,
+  jobWithTransaction,
 } from "../types/job.js";
 import { JOB_SYNC_PAYMENT_GRACE_MS } from "./job-sync.js";
+
+type JobForStatusCompute = Prisma.JobGetPayload<{
+  select: typeof jobForStatusComputeSelect;
+}>;
+type JobEventForStatusCompute = JobForStatusCompute["events"][number];
+type JobEventForListSummary = JobWithListSummaryRelations["events"][number];
+type JobWithPurchase = Prisma.JobGetPayload<{
+  include: typeof jobWithPurchase;
+}>;
+type JobWithTransaction = Prisma.JobGetPayload<{
+  include: typeof jobWithTransaction;
+}>;
 
 function hasPaymentWindowExpired(
   job: Pick<Job, "createdAt" | "payByTime">,
@@ -29,16 +37,7 @@ function hasPaymentWindowExpired(
   return paymentDeadline.getTime() < now.getTime() - JOB_SYNC_PAYMENT_GRACE_MS;
 }
 
-/**
- * Returns the latest (most recent) job event from a job's events array.
- *
- * This helper assumes that events are ordered descending by `createdAt`,
- * which is enforced by event `orderBy` in `jobWithEvents` / `jobForStatusComputeSelect`.
- * The latest event is the first element in the array.
- *
- * @param job - An object containing an `events` array.
- * @returns The latest event, or `undefined` if the events array is empty.
- */
+// Events are ordered createdAt desc, so the latest event is events.at(0).
 function getLatestJobEvent(job: {
   events: readonly JobEventForStatusCompute[];
 }): JobEventForStatusCompute | undefined {
@@ -60,17 +59,6 @@ function checkPaymentStatus(
   return null;
 }
 
-/**
- * Determines the next actionable status for a job based on its `nextAction` property.
- *
- * Maps the job's `nextAction` to a corresponding `JobStatus` if applicable.
- * - Returns `PAYMENT_PENDING` if the next action is related to funds locking.
- * - Returns `REFUND_PENDING` if the next action is related to refund requests (set/unset).
- * - Returns `null` for actions that do not correspond to a specific status or are not actionable.
- *
- * @param job - The job object to evaluate.
- * @returns The corresponding `JobStatus` if the next action maps to a status, otherwise `null`.
- */
 function checkNextAction(
   job: Pick<JobForStatusCompute, "purchase">,
 ): SokosumiJobStatus | null {
@@ -101,27 +89,6 @@ function checkNextAction(
   }
 }
 
-/**
- * Determines the job status when the on-chain status is FUNDS_LOCKED.
- *
- * This function evaluates the agent's job status and relevant job timestamps to derive the most accurate
- * status for a job whose funds have been locked on-chain. The logic prioritizes agent-reported statuses,
- * but also considers timeouts and unlock times for fallback states.
- *
- * Status resolution order:
- * 1. If the agent status is AWAITING_INPUT, return INPUT_REQUIRED.
- * 2. If the agent status is COMPLETED, return COMPLETED.
- * 3. If the agent status is FAILED, return FAILED.
- * 4. If none of the above, check for time-based failure or output pending:
- *    - If `externalDisputeUnlockTime` is set and has passed (with a 10-minute grace period), return FAILED.
- *    - If `submitResultTime` is set and has passed (with a 10-minute grace period), return RESULT_PENDING.
- * 5. If none of the above, return PROCESSING.
- *
- * @param job - The job object containing relevant timestamps and metadata.
- * @param agentJobStatus - The current status reported by the agent, or null if unavailable.
- * @param now - The current date/time for comparison.
- * @returns The resolved JobStatus for the FUNDS_LOCKED state.
- */
 function getFundsLockedJobStatus(
   job: Pick<Job, "externalDisputeUnlockTime" | "submitResultTime">,
   latestJobEvent: JobEventForStatusCompute,
@@ -164,31 +131,6 @@ function getFundsLockedJobStatus(
   }
 }
 
-/**
- * Computes the overall status of a job by combining on-chain status, agent-reported status,
- * and internal error/next-action state. This function is the authoritative source for determining
- * the current lifecycle state of a job, and is used throughout the application for UI and logic.
- *
- * The resolution order is as follows:
- * 1. If the job has been refunded (`refundedTransactionId` is set), return REFUND_RESOLVED.
- * 2. If the job has not started (no purchase), return a payment-related status (see `checkPaymentStatus`).
- * 3. If the job has a next action, return the corresponding status (see `checkNextAction`).
- * 4. Otherwise, resolve based on the on-chain status and agent status:
- *    - null: return PAYMENT_PENDING while the purchase remains unresolved on-chain.
- *    - FUNDS_LOCKED: Use `getFundsLockedJobStatus` for further resolution.
- *    - RESULT_SUBMITTED / WITHDRAW_AUTHORIZED (withdrawal authorized but not
- *      yet executed): If agent completed, return COMPLETED; else RESULT_PENDING.
- *    - FUNDS_WITHDRAWN: If agent completed, return COMPLETED; else FAILED.
- *    - FUNDS_OR_DATUM_INVALID: return PAYMENT_FAILED.
- *    - REFUND_REQUESTED / REFUND_AUTHORIZED (refund authorized but not yet
- *      withdrawn): return REFUND_PENDING.
- *    - REFUND_WITHDRAWN: return REFUND_RESOLVED.
- *    - DISPUTED: return DISPUTE_PENDING.
- *    - DISPUTED_WITHDRAWN: return DISPUTE_RESOLVED.
- *
- * @param job - The job object containing all relevant status and metadata.
- * @returns The resolved JobStatus for the job.
- */
 export function computeJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
   switch (job.jobType) {
     case JobType.FREE:
@@ -311,7 +253,7 @@ export function getResult(job: {
 
 function getInitiatedEvent(
   job: JobWithEvents,
-): JobEventWithRelations | undefined {
+): JobWithEvents["events"][number] | undefined {
   const lastEvent = job.events.at(-1);
   if (!lastEvent || lastEvent.status !== AgentJobStatus.INITIATED) {
     return undefined;
@@ -401,9 +343,9 @@ export function mapJobWithStatus(
 
   switch (job.jobType) {
     case JobType.PAID:
-      return baseJobWithStatus as PaidJobWithStatus;
+      return baseJobWithStatus as JobWithSokosumiStatus;
     case JobType.FREE:
-      return baseJobWithStatus as FreeJobWithStatus;
+      return baseJobWithStatus as JobWithSokosumiStatus;
     default: {
       const _exhaustive: never = job.jobType;
       throw new Error(`Unhandled job type: ${_exhaustive}`);

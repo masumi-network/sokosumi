@@ -36,28 +36,6 @@ final class StubTokenTransport: TokenEndpointTransport, @unchecked Sendable {
   }
 }
 
-final class InMemoryTokenStore: TokenStore, @unchecked Sendable {
-  private(set) var saved: OAuthTokens?
-  var saveError: (any Error)?
-
-  func load() -> OAuthTokens? {
-    saved
-  }
-
-  func save(_ tokens: OAuthTokens) throws {
-    if let saveError {
-      throw saveError
-    }
-    saved = tokens
-  }
-
-  @discardableResult
-  func clear() -> Bool {
-    saved = nil
-    return true
-  }
-}
-
 /// Store whose deletion never confirms (unreadable Keychain): tokens stay.
 final class FailingClearStore: TokenStore, @unchecked Sendable {
   private(set) var saved: OAuthTokens?

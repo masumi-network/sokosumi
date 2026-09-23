@@ -4,7 +4,6 @@ import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { ChatLanding } from "@/app/chat/components/landing/chat-landing";
 import { ChatLandingMobile } from "@/app/chat/components/landing/chat-landing.mobile";
 import { resolveLandingGreetingName } from "@/app/chat/components/landing/landing-content";
-import { firstSearchValue } from "@/app/chat/load-room-messages";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { getSession } from "@/lib/auth/auth.server";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -36,7 +35,8 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   await connection();
 
   const [query, session] = await Promise.all([searchParams, getSession()]);
-  const notice = firstSearchValue(query.notice);
+  const notice =
+    (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
   const landingNotice = <ChatLandingNotice notice={notice} />;
 
   const activeOrganizationId = await userService.getActiveOrganizationId();

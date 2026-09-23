@@ -1,5 +1,5 @@
 import type { InputColorSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { ColorPicker } from "@/components/ui/color-picker";
 
@@ -9,7 +9,7 @@ export function ColorInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.COLOR, InputColorSchemaType>) {
+}: JobInputComponentProps<typeof InputType.COLOR, InputColorSchemaType>) {
   const { data } = jobInputSchema;
   const defaultColor = data?.default ?? "#000000";
 

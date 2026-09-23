@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
-const schemaPath = join(packageRoot, "prisma/schema.prisma");
+const schemaPath = join(packageRoot, "prisma/notification.prisma");
 const migrationPath = join(
   packageRoot,
   "prisma/migrations/20260908010000_notification_kind_reference_index/migration.sql",
@@ -14,7 +14,7 @@ function notificationModel(): string {
   const schema = readFileSync(schemaPath, "utf8");
   const match = schema.match(/model Notification\s*\{([\s\S]*?)\n\}/);
 
-  expect(match, "model Notification in schema.prisma").toBeTruthy();
+  expect(match, "model Notification in notification.prisma").toBeTruthy();
 
   return match?.[1] ?? "";
 }
@@ -25,7 +25,7 @@ describe("chat notification lookup by room", () => {
    * notifications carry, for every recipient at once. Without this index that
    * read is a sequential scan of every notification in the product.
    */
-  it("schema.prisma indexes notifications by kind and referenceId", () => {
+  it("notification.prisma indexes notifications by kind and referenceId", () => {
     expect(notificationModel()).toContain("@@index([kind, referenceId])");
   });
 

@@ -7,11 +7,9 @@ import {
   fetchTasks,
 } from "../../api/services/task-service.js";
 import {
-  applyListFilters,
   type CommandContext,
   type CommandOptions,
   formatDate,
-  isJson,
   option,
   optionString,
   parsePositiveInteger,
@@ -172,28 +170,14 @@ export async function runTasksCommand({
       },
       signal,
     );
-    const filtered = applyListFilters(tasks, {
-      search: option(options, "search", "q"),
-      limit,
-      fields: (item) => {
-        const value = record(item);
-        return [
-          value.id,
-          value.name,
-          value.description,
-          value.status,
-          value.coworkerId,
-          value.coworkerName,
-        ];
-      },
-    });
-    if (isJson({ json })) writeJson(stdout, { tasks: filtered });
-    else printTaskList(stdout, filtered);
+    const listed = limit === undefined ? tasks : tasks.slice(0, limit);
+    if (json) writeJson(stdout, { tasks: listed });
+    else printTaskList(stdout, listed);
     return;
   }
   if (command === "create") {
     const coworkerId = optionString(options, "coworker-id");
-    const description = optionString(options, "description", "desc");
+    const description = optionString(options, "description");
     if (!coworkerId)
       throw new Error("--coworker-id is required for `tasks create`");
     if (!description)
@@ -213,30 +197,30 @@ export async function runTasksCommand({
       typeof id === "string" && id
         ? await collectTaskDetails(client, id, signal)
         : {};
-    if (isJson({ json })) writeJson(stdout, { task, ...details });
+    if (json) writeJson(stdout, { task, ...details });
     else printTask(stdout, task, details);
     return;
   }
-  const id = positionalId || optionString(options, "id", "task-id");
+  const id = positionalId || optionString(options, "id");
   if (command === "get") {
     if (!id) throw new Error("task id is required for `tasks get`");
     const { task } = await fetchTask(client, id, signal);
     const details = await collectTaskDetails(client, id, signal);
-    if (isJson({ json })) writeJson(stdout, { task, ...details });
+    if (json) writeJson(stdout, { task, ...details });
     else printTask(stdout, task, details);
     return;
   }
   if (command === "events") {
     if (!id) throw new Error("task id is required for `tasks events`");
     const { events } = await fetchTaskEvents(client, id, signal);
-    if (isJson({ json })) writeJson(stdout, { events });
+    if (json) writeJson(stdout, { events });
     else printEvents(stdout, events);
     return;
   }
   if (command === "jobs") {
     if (!id) throw new Error("task id is required for `tasks jobs`");
     const { jobs } = await fetchTaskJobs(client, id, signal);
-    if (isJson({ json })) writeJson(stdout, { jobs });
+    if (json) writeJson(stdout, { jobs });
     else printJobList(stdout, jobs);
     return;
   }
@@ -252,7 +236,7 @@ export async function runTasksCommand({
       { comment, status },
       signal,
     );
-    if (isJson({ json })) writeJson(stdout, { event });
+    if (json) writeJson(stdout, { event });
     else
       writeText(stdout, [
         `Created task event ${String(record(event).id || "")}`.trim(),

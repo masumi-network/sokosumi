@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  renderAccessRequestEmail,
   renderChatRoomInvitationEmail,
   renderJobFailureNotificationEmail,
+  renderLowBalanceEmail,
   renderMagicLinkEmail,
   renderOrganizationInvitationEmail,
   renderResetPasswordEmail,
   renderVerificationEmail,
 } from "../index.js";
+import { DARK_PALETTE, LIGHT_PALETTE } from "../theme/index.js";
 
 describe("email renderers", () => {
   it("renders verification emails with a subject and html body", async () => {
@@ -24,9 +27,17 @@ describe("email renderers", () => {
     expect(rendered.html).toContain(
       'src="https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-wordmark-black.png"',
     );
-    expect(rendered.html).toContain('alt="Sokosumi kanji"');
+    expect(rendered.html).toMatch(
+      /<img alt=""[^>]*sokosumi-logo-kanji-black\.png/,
+    );
+    expect(rendered.html).toContain('lang="en"');
     expect(rendered.html).toContain('alt="Sokosumi"');
-    expect(rendered.html).toContain("background-color:rgb(245,243,250)");
+    expect(rendered.html).toContain(
+      `background-color:${LIGHT_PALETTE.pageBackground}`,
+    );
+    expect(rendered.html).toContain(
+      `background-color: ${DARK_PALETTE.surface} !important`,
+    );
     expect(rendered.html).toContain("Verify your email address");
     expect(rendered.html).toContain("Hello Andreas");
     expect(rendered.html).toContain("https://example.com/verify");
@@ -40,6 +51,8 @@ describe("email renderers", () => {
     });
 
     expect(rendered.subject).toBe("Sokosumi - Passwort zurücksetzen");
+    expect(rendered.html).not.toContain('lang="en"');
+    expect(rendered.html).toContain('lang="de"');
     expect(rendered.html).toContain("Hallo Andreas");
     expect(rendered.html).toContain("Dein Passwort zur\u00fccksetzen");
   });
@@ -63,8 +76,12 @@ describe("email renderers", () => {
     });
 
     expect(rendered.subject).toBe("Sokosumi - Sign in to your account");
-    expect(rendered.html).toContain("background-color:rgb(106,54,255)");
-    expect(rendered.html).toContain("background-color:rgb(248,245,255)");
+    expect(rendered.html).toContain(
+      `background-color:${LIGHT_PALETTE.accentSolid};border-radius:10px`,
+    );
+    expect(rendered.html).toContain(
+      `background-color:${LIGHT_PALETTE.accent};font-size:0`,
+    );
     expect(rendered.html).toContain("Hello Andreas");
     expect(rendered.html).not.toContain("one-time token");
     expect(rendered.html).not.toContain("secret-token");
@@ -115,9 +132,52 @@ describe("email renderers", () => {
       resultHash: "result-hash",
     });
 
-    expect(rendered.subject).toBe("Job Failure Notification - job-id");
+    expect(rendered.subject).toBe("Sokosumi - Job job-id failed");
     expect(rendered.html).toContain("agent-blockchain-id");
     expect(rendered.html).toContain("&quot;error&quot;: &quot;failure&quot;");
     expect(rendered.html).toContain("result-hash");
+  });
+
+  it("renders a low-balance billing email with the remaining credits", async () => {
+    const rendered = await renderLowBalanceEmail({
+      actionUrl: "https://app.sokosumi.com/billing?tab=credits",
+      credits: 12,
+      locale: "en",
+      recipientName: "Sandro",
+    });
+
+    expect(rendered.subject).toBe("Sokosumi - Your credits are running low");
+    expect(rendered.html).toContain("Hi Sandro");
+    expect(rendered.html).toContain("12");
+    expect(rendered.html).toContain(
+      "https://app.sokosumi.com/billing?tab=credits",
+    );
+  });
+
+  it("links the notification settings from the footer", async () => {
+    const rendered = await renderAccessRequestEmail({
+      actionUrl: "https://example.com/requests",
+      locale: "en",
+      recipientName: "Andreas",
+      request: "vendor",
+      settingsUrl: "https://example.com/account/notifications",
+    });
+
+    expect(rendered.html).toContain(
+      'href="https://example.com/account/notifications"',
+    );
+    expect(rendered.html).toContain(">your notification settings</a>.");
+  });
+
+  it("leaves the footer link out when no settings url is known", async () => {
+    const rendered = await renderAccessRequestEmail({
+      actionUrl: "https://example.com/requests",
+      locale: "en",
+      recipientName: "Andreas",
+      request: "vendor",
+    });
+
+    expect(rendered.html).not.toContain("your notification settings</a>");
+    expect(rendered.html).toContain("your notification settings.");
   });
 });

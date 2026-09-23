@@ -5,7 +5,7 @@ import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CreateOrganizationWizard } from "@/components/organizations";
+import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,7 +27,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import useModal from "@/hooks/use-modal";
-import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";

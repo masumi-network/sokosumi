@@ -1,0 +1,3523 @@
+{
+  "date": "2026-09-21",
+  "base_commit": "e7ec006938a2f0a9f419da39e236b2eb24282468",
+  "product_change": "Early failed-shell-with-source-ID guard in WorkspaceState.canRetryMention; views and existing positive eligibility check unchanged.",
+  "changed_source_sha256": "82252f2634d536be1f47e099234c1e49f81dd3f3b971071c522c4da252679a78",
+  "environment": "Apple M4 Pro, 24 GiB, macOS 27.0 (26A428), Xcode 27.0 (27A266a), arm64 Release -O; both code coverage settings NO. Same environment as original M6 audit.",
+  "method": "Retained account-free harness with a new counter at the copied mentionRetrySources getter. Lookup: 21 batches of 100 calls per count and mode in separate before/after processes. Trace: first 120 wheel events, full early phase bounded by process-scoped unified logs; one paired run, not an FPS measurement. Unprofiled: six cases, plain/mixed at 50/500/2000.",
+  "lookup": {
+    "before": [
+      {
+        "allowed": 0,
+        "count": 50,
+        "mix": "plain",
+        "mode": "existing",
+        "per_call_ms": {
+          "max": 0.00548291667655576,
+          "n": 21,
+          "p50": 0.004205416698823683,
+          "p95": 0.004657083336496726,
+          "total": 0.09058958341483958
+        },
+        "phase": "lookup",
+        "retry_source_collections": 2100
+      },
+      {
+        "allowed": 0,
+        "count": 50,
+        "mix": "plain",
+        "mode": "reject-ordinary-first",
+        "per_call_ms": {
+          "max": 0.00017291669792030007,
+          "n": 21,
+          "p50": 8.166665793396533e-05,
+          "p95": 8.249997335951775e-05,
+          "total": 0.0018087499483954161
+        },
+        "phase": "lookup",
+        "retry_source_collections": 0
+      },
+      {
+        "allowed": 0,
+        "count": 500,
+        "mix": "plain",
+        "mode": "existing",
+        "per_call_ms": {
+          "max": 0.03228041670809034,
+          "n": 21,
+          "p50": 0.029066666684229858,
+          "p95": 0.032268750001094304,
+          "total": 0.6214595832716441
+        },
+        "phase": "lookup",
+        "retry_source_collections": 2100
+      },
+      {
+        "allowed": 0,
+        "count": 500,
+        "mix": "plain",
+        "mode": "reject-ordinary-first",
+        "per_call_ms": {
+          "max": 9.750001481734216e-05,
+          "n": 21,
+          "p50": 7.916671165730804e-05,
+          "p95": 8.000002708286047e-05,
+          "total": 0.0016808334476081654
+        },
+        "phase": "lookup",
+        "retry_source_collections": 0
+      },
+      {
+        "allowed": 0,
+        "count": 2000,
+        "mix": "plain",
+        "mode": "existing",
+        "per_call_ms": {
+          "max": 0.12874541665951256,
+          "n": 21,
+          "p50": 0.11733999999705702,
+          "p95": 0.12554791661386844,
+          "total": 2.4643124998692656
+        },
+        "phase": "lookup",
+        "retry_source_collections": 2100
+      },
+      {
+        "allowed": 0,
+        "count": 2000,
+        "mix": "plain",
+        "mode": "reject-ordinary-first",
+        "per_call_ms": {
+          "max": 0.00010625000868458301,
+          "n": 21,
+          "p50": 8.08333425084129e-05,
+          "p95": 8.25000461190939e-05,
+          "total": 0.0017291667609242722
+        },
+        "phase": "lookup",
+        "retry_source_collections": 0
+      }
+    ],
+    "after": [
+      {
+        "allowed": 0,
+        "count": 50,
+        "mix": "plain",
+        "mode": "existing",
+        "per_call_ms": {
+          "max": 0.000345833323081024,
+          "n": 21,
+          "p50": 0.0002654166746651754,
+          "p95": 0.0002758332993835211,
+          "total": 0.005671666731359437
+        },
+        "phase": "lookup",
+        "retry_source_collections": 0
+      },
+      {
+        "allowed": 0,
+        "count": 50,
+        "mix": "plain",
+        "mode": "reject-ordinary-first",
+        "per_call_ms": {
+          "max": 0.00027791669708676636,
+          "n": 21,
+          "p50": 8.291666745208204e-05,
+          "p95": 0.00011208336218260229,
+          "total": 0.001967916832654737
+        },
+        "phase": "lookup",
+        "retry_source_collections": 0
+      },
+      {
+        "allowed": 0,
+        "count": 500,
+        "mix": "plain",
+        "mode": "existing",
+        "per_call_ms": {
+          "max": 0.0002775000029942021,
+          "n": 21,
+          "p50": 0.0002662499900907278,
+          "p95": 0.00027083333407063037,
+          "total": 0.00560958324058447
+        },
+        "phase": "lookup",
+        "retry_source_collections": 0
+      },
+      {
+        "allowed": 0,
+        "count": 500,
+        "mix": "plain",
+        "mode": "reject-ordinary-first",
+        "per_call_ms": {
+          "max": 8.916664228308946e-05,
+          "n": 21,
+          "p50": 8.541668648831546e-05,
+          "p95": 8.625000191386789e-05,
+          "total": 0.0017937499796971679
+        },
+        "phase": "lookup",
+        "retry_source_collections": 0
+      },
+      {
+        "allowed": 0,
+        "count": 2000,
+        "mix": "plain",
+        "mode": "existing",
+        "per_call_ms": {
+          "max": 0.00028875001589767635,
+          "n": 21,
+          "p50": 0.00027125002816319466,
+          "p95": 0.00027333328034728765,
+          "total": 0.0057183331227861345
+        },
+        "phase": "lookup",
+        "retry_source_collections": 0
+      },
+      {
+        "allowed": 0,
+        "count": 2000,
+        "mix": "plain",
+        "mode": "reject-ordinary-first",
+        "per_call_ms": {
+          "max": 0.00020916661014780402,
+          "n": 21,
+          "p50": 8.708331733942032e-05,
+          "p95": 0.00010083334927912802,
+          "total": 0.001966666604857892
+        },
+        "phase": "lookup",
+        "retry_source_collections": 0
+      }
+    ]
+  },
+  "traces": {
+    "before": {
+      "run": {
+        "number": 1,
+        "template": "Time Profiler",
+        "duration_s": 16.030035,
+        "start_date": "2026-09-21T13:09:21.663+02:00",
+        "end_date": "2026-09-21T13:09:37.693+02:00",
+        "schemas": [
+          "OSSignpostIntervals",
+          "PointsOfInterestEvents",
+          "StateReportingIntervals",
+          "device-thermal-state-intervals",
+          "dyld-library-load",
+          "hang-risks",
+          "kdebug",
+          "kdebug-strings",
+          "life-cycle-period",
+          "os-log",
+          "os-signpost",
+          "os-signpost-arg",
+          "potential-hangs",
+          "process-info",
+          "runloop-events",
+          "thread-info",
+          "tick",
+          "time-profile",
+          "time-sample"
+        ]
+      },
+      "phases": [
+        {
+          "timestamp": "2026-09-21 13:09:31.036468+0200",
+          "message": "BEGIN 2000 plain early"
+        },
+        {
+          "timestamp": "2026-09-21 13:09:36.263612+0200",
+          "message": "END 2000 plain early"
+        }
+      ],
+      "window_ns": [
+        9373468000,
+        14600612000
+      ],
+      "main_samples": 4329,
+      "main_weight_ms": 4329.0,
+      "app_inclusive_top40": [
+        {
+          "symbol": "ForEachChild.updateValue()",
+          "ms": 570.0,
+          "percent_main_weight": 13.17
+        },
+        {
+          "symbol": "closure #1 in ForEachChild.updateValue()",
+          "ms": 548.0,
+          "percent_main_weight": 12.66
+        },
+        {
+          "symbol": "closure #2 in closure #1 in closure #1 in closure #1 in RoomTimelineView.messageList.getter",
+          "ms": 540.0,
+          "percent_main_weight": 12.47
+        },
+        {
+          "symbol": "partial apply for thunk for @escaping @callee_guaranteed (@unowned Int, @in_guaranteed Components.Schemas.ChatRoomMessage) -> (@out IDView<ModifiedContent<VStack<TupleView<(ModifiedContent<ModifiedContent<ModifiedContent<<<opaque return type of View.buttonStyle<A>(_:)>>.0, _EnvironmentKeyTransformModifier<Bool>>, _FlexFrameLayout>, _PaddingLayout>?, DaySeparatorRow?, _ConditionalContent<ModifiedContent<MembershipStatusRow, _PaddingLayout>, MessageRowView>)>>, _BackgroundModifier<(<<opaque return type of View.onScrollVisibilityChange(threshold:_:)>>.0)?>>, String>)",
+          "ms": 540.0,
+          "percent_main_weight": 12.47
+        },
+        {
+          "symbol": "thunk for @escaping @callee_guaranteed (@unowned Int, @in_guaranteed Components.Schemas.ChatRoomMessage) -> (@out IDView<ModifiedContent<VStack<TupleView<(ModifiedContent<ModifiedContent<ModifiedContent<<<opaque return type of View.buttonStyle<A>(_:)>>.0, _EnvironmentKeyTransformModifier<Bool>>, _FlexFrameLayout>, _PaddingLayout>?, DaySeparatorRow?, _ConditionalContent<ModifiedContent<MembershipStatusRow, _PaddingLayout>, MessageRowView>)>>, _BackgroundModifier<(<<opaque return type of View.onScrollVisibilityChange(threshold:_:)>>.0)?>>, String>)",
+          "ms": 540.0,
+          "percent_main_weight": 12.47
+        },
+        {
+          "symbol": "closure #1 in closure #2 in closure #1 in closure #1 in closure #1 in RoomTimelineView.messageList.getter",
+          "ms": 538.0,
+          "percent_main_weight": 12.43
+        },
+        {
+          "symbol": "RoomTimelineView.mentionRetryAction(for:)",
+          "ms": 498.0,
+          "percent_main_weight": 11.5
+        },
+        {
+          "symbol": "initializeWithCopy for Components.Schemas.ChatRoomMessage",
+          "ms": 434.0,
+          "percent_main_weight": 10.03
+        },
+        {
+          "symbol": "RoomTimelineView.preparedMessages.getter",
+          "ms": 377.0,
+          "percent_main_weight": 8.71
+        },
+        {
+          "symbol": "closure #1 in RoomTimelineView.messageList.getter",
+          "ms": 358.0,
+          "percent_main_weight": 8.27
+        },
+        {
+          "symbol": "MessageRowView.body.getter",
+          "ms": 299.0,
+          "percent_main_weight": 6.91
+        },
+        {
+          "symbol": "destroy for Components.Schemas.ChatRoomMessage",
+          "ms": 273.0,
+          "percent_main_weight": 6.31
+        },
+        {
+          "symbol": "ForEachState.forEachItem(from:style:do:)",
+          "ms": 166.0,
+          "percent_main_weight": 3.83
+        },
+        {
+          "symbol": "specialized ForEachList.applyNodes(from:style:list:transform:to:)",
+          "ms": 164.0,
+          "percent_main_weight": 3.79
+        },
+        {
+          "symbol": "protocol witness for ViewList.applyNodes(from:style:list:transform:to:) in conformance ForEachList<A, B, C>",
+          "ms": 164.0,
+          "percent_main_weight": 3.79
+        },
+        {
+          "symbol": "RoomTimelineView.body.getter",
+          "ms": 153.0,
+          "percent_main_weight": 3.53
+        },
+        {
+          "symbol": "closure #1 in closure #1 in RoomTimelineView.messageList.getter",
+          "ms": 132.0,
+          "percent_main_weight": 3.05
+        },
+        {
+          "symbol": "closure #1 in closure #1 in closure #1 in RoomTimelineView.messageList.getter",
+          "ms": 132.0,
+          "percent_main_weight": 3.05
+        },
+        {
+          "symbol": "RoomTimelineView.transcriptBody.getter",
+          "ms": 130.0,
+          "percent_main_weight": 3.0
+        },
+        {
+          "symbol": "closure #3 in MessageRowView.body.getter",
+          "ms": 120.0,
+          "percent_main_weight": 2.77
+        },
+        {
+          "symbol": "closure #1 in ForEachState.applyNodes(from:style:list:transform:to:)",
+          "ms": 118.0,
+          "percent_main_weight": 2.73
+        },
+        {
+          "symbol": "closure #1 in closure #3 in MessageRowView.body.getter",
+          "ms": 107.0,
+          "percent_main_weight": 2.47
+        },
+        {
+          "symbol": "MessageRowView.actionControls(compact:)",
+          "ms": 102.0,
+          "percent_main_weight": 2.36
+        },
+        {
+          "symbol": "closure #1 in MessageRowView.actionControls(compact:)",
+          "ms": 93.0,
+          "percent_main_weight": 2.15
+        },
+        {
+          "symbol": "closure #3 in RoomTimelineView.preparedMessages.getter",
+          "ms": 92.0,
+          "percent_main_weight": 2.13
+        },
+        {
+          "symbol": "static Components.Schemas.ChatRoomMessage.__derived_struct_equals(_:_:)",
+          "ms": 54.0,
+          "percent_main_weight": 1.25
+        },
+        {
+          "symbol": "protocol witness for Rule.value.getter in conformance ForEachState<A, B, C>.Info.Init",
+          "ms": 53.0,
+          "percent_main_weight": 1.22
+        },
+        {
+          "symbol": "ForEachState.Info.Init.value.getter",
+          "ms": 53.0,
+          "percent_main_weight": 1.22
+        },
+        {
+          "symbol": "MessageRowView.messageAction(_:symbol:focus:compact:action:)",
+          "ms": 53.0,
+          "percent_main_weight": 1.22
+        },
+        {
+          "symbol": "ForEachState.update(view:flags:)",
+          "ms": 52.0,
+          "percent_main_weight": 1.2
+        },
+        {
+          "symbol": "specialized static PreparedTranscript.Input.__derived_struct_equals(_:_:)",
+          "ms": 48.0,
+          "percent_main_weight": 1.11
+        },
+        {
+          "symbol": "ForEachState.item(at:offset:)",
+          "ms": 46.0,
+          "percent_main_weight": 1.06
+        },
+        {
+          "symbol": "closure #3 in closure #1 in RoomTimelineView.messageList.getter",
+          "ms": 35.0,
+          "percent_main_weight": 0.81
+        },
+        {
+          "symbol": "closure #1 in RoomTimelineView.preparedMessages.getter",
+          "ms": 33.0,
+          "percent_main_weight": 0.76
+        },
+        {
+          "symbol": "partial apply for closure #1 in ForEachState.update(view:flags:)",
+          "ms": 30.0,
+          "percent_main_weight": 0.69
+        },
+        {
+          "symbol": "specialized static Components.Schemas.ChatRoomMessageSender.__derived_enum_equals(_:_:)",
+          "ms": 29.0,
+          "percent_main_weight": 0.67
+        },
+        {
+          "symbol": "MessageRowView.quickReactionButton(_:position:)",
+          "ms": 28.0,
+          "percent_main_weight": 0.65
+        },
+        {
+          "symbol": "closure #1 in closure #1 in MessageRowView.actionControls(compact:)",
+          "ms": 28.0,
+          "percent_main_weight": 0.65
+        },
+        {
+          "symbol": "closure #1 in ForEachState.update(view:flags:)",
+          "ms": 28.0,
+          "percent_main_weight": 0.65
+        },
+        {
+          "symbol": "RoomTimelineView.quoteTarget.getter",
+          "ms": 26.0,
+          "percent_main_weight": 0.6
+        }
+      ],
+      "counters": [
+        {
+          "bodies": 19,
+          "count": 2000,
+          "document_height": 141333,
+          "mix": "plain",
+          "phase": "load",
+          "prepare": [
+            {
+              "ms": 221.99383332917932,
+              "parsed": 2000,
+              "visited": 2000
+            }
+          ],
+          "retry_source_collections": 72,
+          "room_bodies": 2,
+          "unique": 19,
+          "bottom_sentinels": {
+            "fixture-1998": 1,
+            "fixture-1999": 1
+          }
+        },
+        {
+          "bodies_per_display_callback": {
+            "max": 32,
+            "n": 120,
+            "p50": 14,
+            "p95": 15,
+            "total": 1512
+          },
+          "bodies_per_tick": {
+            "max": 31,
+            "n": 120,
+            "p50": 14,
+            "p95": 15,
+            "total": 1527
+          },
+          "count": 2000,
+          "display_interval_ms": {
+            "max": 73.69050000124844,
+            "n": 119,
+            "p50": 42.581874993629754,
+            "p95": 53.77949999819975,
+            "total": 5158.0985833352315
+          },
+          "document_height": 141376,
+          "end_y": 133550.5,
+          "geometry_action_ms": {
+            "max": 0.01695833634585142,
+            "n": 135,
+            "p50": 0.004875000740867108,
+            "p95": 0.007708331395406276,
+            "total": 0.6932916949153878
+          },
+          "geometry_transform_ms": {
+            "max": 0.0008333372534252703,
+            "n": 226,
+            "p50": 0.0003333334461785853,
+            "p95": 0.0005833353498019278,
+            "total": 0.08133333176374435
+          },
+          "layout_ms": {
+            "max": 8.15037500433391,
+            "n": 120,
+            "p50": 0.02283333014929667,
+            "p95": 0.030041665013413876,
+            "total": 10.943958317511715
+          },
+          "mix": "plain",
+          "phase": "early",
+          "prepare": [],
+          "retry_source_collections": 4022,
+          "room_bodies": 106,
+          "scans_ms": {
+            "input": {
+              "max": 0.19804166367975995,
+              "n": 106,
+              "p50": 0.17012500029522926,
+              "p95": 0.18345833086641505,
+              "total": 18.14774999365909
+            },
+            "preparedMessages": {
+              "max": 1.2890833313576877,
+              "n": 424,
+              "p50": 0.9076249989448115,
+              "p95": 1.043999996909406,
+              "total": 383.7045833133743
+            }
+          },
+          "start_y": 140750.5,
+          "step_ms": {
+            "max": 93.39700000418816,
+            "n": 120,
+            "p50": 42.11145832960028,
+            "p95": 54.73720833106199,
+            "total": 5226.483249978628
+          },
+          "ticks": 120,
+          "unique": 122,
+          "bottom_sentinels": {
+            "fixture-1998": 9,
+            "fixture-1999": 7
+          }
+        },
+        {
+          "bodies_per_display_callback": {
+            "max": 47,
+            "n": 329,
+            "p50": 29,
+            "p95": 29,
+            "total": 9419
+          },
+          "bodies_per_tick": {
+            "max": 47,
+            "n": 332,
+            "p50": 29,
+            "p95": 29,
+            "total": 9419
+          },
+          "count": 2000,
+          "display_interval_ms": {
+            "max": 173.98354166653007,
+            "n": 328,
+            "p50": 94.87804166565184,
+            "p95": 111.12891666562064,
+            "total": 31307.040333333134
+          },
+          "document_height": 140107,
+          "end_y": 0,
+          "geometry_action_ms": {
+            "max": 0.021458334231283516,
+            "n": 405,
+            "p50": 0.0077500008046627045,
+            "p95": 0.011124997399747372,
+            "total": 3.1542082360829227
+          },
+          "geometry_transform_ms": {
+            "max": 0.0011250012903474271,
+            "n": 662,
+            "p50": 0.00037500285543501377,
+            "p95": 0.0006666668923571706,
+            "total": 0.2676250151125714
+          },
+          "layout_ms": {
+            "max": 36.24849999323487,
+            "n": 332,
+            "p50": 0.026625006285030395,
+            "p95": 0.043541665945667773,
+            "total": 45.906666658993345
+          },
+          "mix": "plain",
+          "phase": "traverse",
+          "prepare": [],
+          "retry_source_collections": 17915,
+          "room_bodies": 329,
+          "scans_ms": {
+            "input": {
+              "max": 0.3492083342280239,
+              "n": 329,
+              "p50": 0.17300000035902485,
+              "p95": 0.19574999896576628,
+              "total": 57.91674997453811
+            },
+            "preparedMessages": {
+              "max": 1.8877916663768701,
+              "n": 1316,
+              "p50": 0.9103750053327531,
+              "p95": 1.0662499989848584,
+              "total": 1194.748874855577
+            }
+          },
+          "start_y": 133550.5,
+          "step_ms": {
+            "max": 156.10783333249856,
+            "n": 332,
+            "p50": 94.3260833300883,
+            "p95": 111.47516666824231,
+            "total": 31345.502833275532
+          },
+          "ticks": 332,
+          "unique": 1900,
+          "bottom_sentinels": {
+            "fixture-1998": 0,
+            "fixture-1999": 0
+          }
+        },
+        {
+          "bodies_per_display_callback": {
+            "max": 16,
+            "n": 120,
+            "p50": 14,
+            "p95": 15,
+            "total": 1442
+          },
+          "bodies_per_tick": {
+            "max": 16,
+            "n": 120,
+            "p50": 14,
+            "p95": 15,
+            "total": 1442
+          },
+          "count": 2000,
+          "display_interval_ms": {
+            "max": 74.53925000299932,
+            "n": 119,
+            "p50": 42.865791663643904,
+            "p95": 61.1668749988894,
+            "total": 5083.320624995395
+          },
+          "document_height": 140153,
+          "end_y": 0,
+          "geometry_action_ms": {
+            "max": 0.016416663129348308,
+            "n": 130,
+            "p50": 0.005875001079402864,
+            "p95": 0.010916664905380458,
+            "total": 0.8318333275383338
+          },
+          "geometry_transform_ms": {
+            "max": 0.001916669134516269,
+            "n": 221,
+            "p50": 0.00037500285543501377,
+            "p95": 0.0007083290256559849,
+            "total": 0.09395832603331655
+          },
+          "layout_ms": {
+            "max": 46.7930000013439,
+            "n": 120,
+            "p50": 0.023958338715601712,
+            "p95": 0.04108333814656362,
+            "total": 49.93083335284609
+          },
+          "mix": "plain",
+          "phase": "late",
+          "prepare": [],
+          "retry_source_collections": 2206,
+          "room_bodies": 101,
+          "scans_ms": {
+            "input": {
+              "max": 0.36137500137556344,
+              "n": 101,
+              "p50": 0.1725833280943334,
+              "p95": 0.19870833057211712,
+              "total": 18.05999998759944
+            },
+            "preparedMessages": {
+              "max": 1.960166664503049,
+              "n": 404,
+              "p50": 0.9015000032377429,
+              "p95": 1.143916670116596,
+              "total": 372.327958320966
+            }
+          },
+          "start_y": 0,
+          "step_ms": {
+            "max": 70.83983332995558,
+            "n": 120,
+            "p50": 46.1349583347328,
+            "p95": 58.66733333823504,
+            "total": 5154.85408337554
+          },
+          "ticks": 120,
+          "unique": 35,
+          "bottom_sentinels": {
+            "fixture-1998": 0,
+            "fixture-1999": 0
+          }
+        },
+        {
+          "bodies_per_display_callback": {
+            "max": 0,
+            "n": 61,
+            "p50": 0,
+            "p95": 0,
+            "total": 0
+          },
+          "bodies_per_tick": {
+            "max": 0,
+            "n": 60,
+            "p50": 0,
+            "p95": 0,
+            "total": 0
+          },
+          "count": 2000,
+          "display_interval_ms": {
+            "max": 16.666625000652857,
+            "n": 60,
+            "p50": 16.666625000652857,
+            "p95": 16.666625000652857,
+            "total": 999.9975000027916
+          },
+          "document_height": 140158,
+          "end_y": 0,
+          "geometry_action_ms": {
+            "max": 0,
+            "n": 0,
+            "p50": 0,
+            "p95": 0,
+            "total": 0
+          },
+          "geometry_transform_ms": {
+            "max": 0,
+            "n": 0,
+            "p50": 0,
+            "p95": 0,
+            "total": 0
+          },
+          "layout_ms": {
+            "max": 0.1316666675847955,
+            "n": 60,
+            "p50": 0.06383333675330505,
+            "p95": 0.08820833318168297,
+            "total": 3.9299583368119784
+          },
+          "mix": "plain",
+          "phase": "idle",
+          "prepare": [],
+          "retry_source_collections": 0,
+          "room_bodies": 0,
+          "scans_ms": {},
+          "start_y": 0,
+          "step_ms": {
+            "max": 17.62758332915837,
+            "n": 60,
+            "p50": 17.226416668563616,
+            "p95": 17.314500000793487,
+            "total": 1026.8492083559977
+          },
+          "ticks": 60,
+          "unique": 0,
+          "bottom_sentinels": {
+            "fixture-1998": 0,
+            "fixture-1999": 0
+          }
+        },
+        {
+          "bodies": 30,
+          "count": 2000,
+          "mix": "plain",
+          "phase": "reaction",
+          "prepare": [
+            {
+              "ms": 0.6238749992917292,
+              "parsed": 0,
+              "visited": 2000
+            }
+          ],
+          "retry_source_collections": 35,
+          "room_bodies": 3,
+          "wall_ms": 788.5752916699857
+        }
+      ]
+    },
+    "after": {
+      "run": {
+        "number": 1,
+        "template": "Time Profiler",
+        "duration_s": 20.957235,
+        "start_date": "2026-09-21T13:12:37.581+02:00",
+        "end_date": "2026-09-21T13:12:58.538+02:00",
+        "schemas": [
+          "OSSignpostIntervals",
+          "PointsOfInterestEvents",
+          "StateReportingIntervals",
+          "device-thermal-state-intervals",
+          "dyld-library-load",
+          "hang-risks",
+          "kdebug",
+          "kdebug-strings",
+          "life-cycle-period",
+          "os-log",
+          "os-signpost",
+          "os-signpost-arg",
+          "potential-hangs",
+          "process-info",
+          "runloop-events",
+          "thread-info",
+          "tick",
+          "time-profile",
+          "time-sample"
+        ]
+      },
+      "phases": [
+        {
+          "timestamp": "2026-09-21 13:12:48.334031+0200",
+          "message": "BEGIN 2000 plain early"
+        },
+        {
+          "timestamp": "2026-09-21 13:12:53.548545+0200",
+          "message": "END 2000 plain early"
+        }
+      ],
+      "window_ns": [
+        10753031000,
+        15967545000
+      ],
+      "main_samples": 4107,
+      "main_weight_ms": 4107.0,
+      "app_inclusive_top40": [
+        {
+          "symbol": "RoomTimelineView.preparedMessages.getter",
+          "ms": 389.0,
+          "percent_main_weight": 9.47
+        },
+        {
+          "symbol": "closure #1 in RoomTimelineView.messageList.getter",
+          "ms": 363.0,
+          "percent_main_weight": 8.84
+        },
+        {
+          "symbol": "MessageRowView.body.getter",
+          "ms": 290.0,
+          "percent_main_weight": 7.06
+        },
+        {
+          "symbol": "initializeWithCopy for Components.Schemas.ChatRoomMessage",
+          "ms": 174.0,
+          "percent_main_weight": 4.24
+        },
+        {
+          "symbol": "RoomTimelineView.body.getter",
+          "ms": 160.0,
+          "percent_main_weight": 3.9
+        },
+        {
+          "symbol": "RoomTimelineView.transcriptBody.getter",
+          "ms": 137.0,
+          "percent_main_weight": 3.34
+        },
+        {
+          "symbol": "closure #1 in closure #1 in closure #1 in RoomTimelineView.messageList.getter",
+          "ms": 125.0,
+          "percent_main_weight": 3.04
+        },
+        {
+          "symbol": "closure #1 in closure #1 in RoomTimelineView.messageList.getter",
+          "ms": 125.0,
+          "percent_main_weight": 3.04
+        },
+        {
+          "symbol": "specialized ForEachList.applyNodes(from:style:list:transform:to:)",
+          "ms": 119.0,
+          "percent_main_weight": 2.9
+        },
+        {
+          "symbol": "protocol witness for ViewList.applyNodes(from:style:list:transform:to:) in conformance ForEachList<A, B, C>",
+          "ms": 119.0,
+          "percent_main_weight": 2.9
+        },
+        {
+          "symbol": "ForEachState.forEachItem(from:style:do:)",
+          "ms": 119.0,
+          "percent_main_weight": 2.9
+        },
+        {
+          "symbol": "closure #3 in MessageRowView.body.getter",
+          "ms": 117.0,
+          "percent_main_weight": 2.85
+        },
+        {
+          "symbol": "closure #3 in RoomTimelineView.preparedMessages.getter",
+          "ms": 107.0,
+          "percent_main_weight": 2.61
+        },
+        {
+          "symbol": "destroy for Components.Schemas.ChatRoomMessage",
+          "ms": 102.0,
+          "percent_main_weight": 2.48
+        },
+        {
+          "symbol": "closure #1 in closure #3 in MessageRowView.body.getter",
+          "ms": 102.0,
+          "percent_main_weight": 2.48
+        },
+        {
+          "symbol": "ForEachChild.updateValue()",
+          "ms": 100.0,
+          "percent_main_weight": 2.43
+        },
+        {
+          "symbol": "MessageRowView.actionControls(compact:)",
+          "ms": 98.0,
+          "percent_main_weight": 2.39
+        },
+        {
+          "symbol": "closure #1 in ForEachState.applyNodes(from:style:list:transform:to:)",
+          "ms": 93.0,
+          "percent_main_weight": 2.26
+        },
+        {
+          "symbol": "closure #1 in MessageRowView.actionControls(compact:)",
+          "ms": 93.0,
+          "percent_main_weight": 2.26
+        },
+        {
+          "symbol": "closure #1 in ForEachChild.updateValue()",
+          "ms": 81.0,
+          "percent_main_weight": 1.97
+        },
+        {
+          "symbol": "protocol witness for Rule.value.getter in conformance ForEachState<A, B, C>.Info.Init",
+          "ms": 57.0,
+          "percent_main_weight": 1.39
+        },
+        {
+          "symbol": "ForEachState.update(view:flags:)",
+          "ms": 57.0,
+          "percent_main_weight": 1.39
+        },
+        {
+          "symbol": "ForEachState.Info.Init.value.getter",
+          "ms": 57.0,
+          "percent_main_weight": 1.39
+        },
+        {
+          "symbol": "static Components.Schemas.ChatRoomMessage.__derived_struct_equals(_:_:)",
+          "ms": 55.0,
+          "percent_main_weight": 1.34
+        },
+        {
+          "symbol": "specialized static PreparedTranscript.Input.__derived_struct_equals(_:_:)",
+          "ms": 53.0,
+          "percent_main_weight": 1.29
+        },
+        {
+          "symbol": "MessageRowView.messageAction(_:symbol:focus:compact:action:)",
+          "ms": 51.0,
+          "percent_main_weight": 1.24
+        },
+        {
+          "symbol": "closure #2 in closure #1 in closure #1 in closure #1 in RoomTimelineView.messageList.getter",
+          "ms": 46.0,
+          "percent_main_weight": 1.12
+        },
+        {
+          "symbol": "thunk for @escaping @callee_guaranteed (@unowned Int, @in_guaranteed Components.Schemas.ChatRoomMessage) -> (@out IDView<ModifiedContent<VStack<TupleView<(ModifiedContent<ModifiedContent<ModifiedContent<<<opaque return type of View.buttonStyle<A>(_:)>>.0, _EnvironmentKeyTransformModifier<Bool>>, _FlexFrameLayout>, _PaddingLayout>?, DaySeparatorRow?, _ConditionalContent<ModifiedContent<MembershipStatusRow, _PaddingLayout>, MessageRowView>)>>, _BackgroundModifier<(<<opaque return type of View.onScrollVisibilityChange(threshold:_:)>>.0)?>>, String>)",
+          "ms": 46.0,
+          "percent_main_weight": 1.12
+        },
+        {
+          "symbol": "partial apply for thunk for @escaping @callee_guaranteed (@unowned Int, @in_guaranteed Components.Schemas.ChatRoomMessage) -> (@out IDView<ModifiedContent<VStack<TupleView<(ModifiedContent<ModifiedContent<ModifiedContent<<<opaque return type of View.buttonStyle<A>(_:)>>.0, _EnvironmentKeyTransformModifier<Bool>>, _FlexFrameLayout>, _PaddingLayout>?, DaySeparatorRow?, _ConditionalContent<ModifiedContent<MembershipStatusRow, _PaddingLayout>, MessageRowView>)>>, _BackgroundModifier<(<<opaque return type of View.onScrollVisibilityChange(threshold:_:)>>.0)?>>, String>)",
+          "ms": 46.0,
+          "percent_main_weight": 1.12
+        },
+        {
+          "symbol": "protocol witness for ViewList.edit(forID:since:) in conformance ForEachList<A, B, C>",
+          "ms": 45.0,
+          "percent_main_weight": 1.1
+        },
+        {
+          "symbol": "ForEachState.LazyEdits.edit(for:)",
+          "ms": 45.0,
+          "percent_main_weight": 1.1
+        },
+        {
+          "symbol": "ForEachState.LazyEdits.finalized()",
+          "ms": 45.0,
+          "percent_main_weight": 1.1
+        },
+        {
+          "symbol": "ForEachList.edit(forID:since:)",
+          "ms": 45.0,
+          "percent_main_weight": 1.1
+        },
+        {
+          "symbol": "partial apply for closure #1 in ForEachState.EditsBuilder.finalize()",
+          "ms": 45.0,
+          "percent_main_weight": 1.1
+        },
+        {
+          "symbol": "ForEachState.EditsBuilder.finalize()",
+          "ms": 45.0,
+          "percent_main_weight": 1.1
+        },
+        {
+          "symbol": "ForEachState.edit(forID:since:)",
+          "ms": 45.0,
+          "percent_main_weight": 1.1
+        },
+        {
+          "symbol": "closure #1 in ForEachState.EditsBuilder.finalize()",
+          "ms": 43.0,
+          "percent_main_weight": 1.05
+        },
+        {
+          "symbol": "closure #1 in closure #2 in closure #1 in closure #1 in closure #1 in RoomTimelineView.messageList.getter",
+          "ms": 42.0,
+          "percent_main_weight": 1.02
+        },
+        {
+          "symbol": "closure #1 in closure #1 in MessageRowView.actionControls(compact:)",
+          "ms": 40.0,
+          "percent_main_weight": 0.97
+        },
+        {
+          "symbol": "MessageRowView.quickReactionButton(_:position:)",
+          "ms": 39.0,
+          "percent_main_weight": 0.95
+        }
+      ],
+      "counters": [
+        {
+          "bodies": 19,
+          "count": 2000,
+          "document_height": 141333,
+          "mix": "plain",
+          "phase": "load",
+          "prepare": [
+            {
+              "ms": 221.93220834014937,
+              "parsed": 2000,
+              "visited": 2000
+            }
+          ],
+          "retry_source_collections": 0,
+          "room_bodies": 2,
+          "unique": 19,
+          "bottom_sentinels": {
+            "fixture-1998": 1,
+            "fixture-1999": 1
+          }
+        },
+        {
+          "bodies_per_display_callback": {
+            "max": 31,
+            "n": 119,
+            "p50": 14,
+            "p95": 15,
+            "total": 1511
+          },
+          "bodies_per_tick": {
+            "max": 31,
+            "n": 120,
+            "p50": 14,
+            "p95": 15,
+            "total": 1526
+          },
+          "count": 2000,
+          "display_interval_ms": {
+            "max": 65.90745833091205,
+            "n": 118,
+            "p50": 44.01408333797008,
+            "p95": 57.61933333269553,
+            "total": 5149.987124998006
+          },
+          "document_height": 141376,
+          "end_y": 133550.5,
+          "geometry_action_ms": {
+            "max": 0.04154166526859626,
+            "n": 134,
+            "p50": 0.00549999822396785,
+            "p95": 0.010249998013023287,
+            "total": 0.8582499722251669
+          },
+          "geometry_transform_ms": {
+            "max": 0.0010833318810909986,
+            "n": 225,
+            "p50": 0.00041666498873382807,
+            "p95": 0.0006666668923571706,
+            "total": 0.093666763859801
+          },
+          "layout_ms": {
+            "max": 9.515291669231374,
+            "n": 120,
+            "p50": 0.024291664885822684,
+            "p95": 0.039541671867482364,
+            "total": 12.724833301035687
+          },
+          "mix": "plain",
+          "phase": "early",
+          "prepare": [],
+          "retry_source_collections": 0,
+          "room_bodies": 106,
+          "scans_ms": {
+            "input": {
+              "max": 0.20083333947695792,
+              "n": 106,
+              "p50": 0.17083332932088524,
+              "p95": 0.19333333329996094,
+              "total": 18.333125015487894
+            },
+            "preparedMessages": {
+              "max": 1.6119166684802622,
+              "n": 424,
+              "p50": 0.9129583340836689,
+              "p95": 1.1077083327108994,
+              "total": 389.06575003056787
+            }
+          },
+          "start_y": 140750.5,
+          "step_ms": {
+            "max": 87.47179166675778,
+            "n": 120,
+            "p50": 43.847791661391966,
+            "p95": 55.4462500003865,
+            "total": 5213.935583313287
+          },
+          "ticks": 120,
+          "unique": 122,
+          "bottom_sentinels": {
+            "fixture-1998": 9,
+            "fixture-1999": 7
+          }
+        },
+        {
+          "bodies_per_display_callback": {
+            "max": 41,
+            "n": 331,
+            "p50": 29,
+            "p95": 29,
+            "total": 9446
+          },
+          "bodies_per_tick": {
+            "max": 41,
+            "n": 332,
+            "p50": 29,
+            "p95": 29,
+            "total": 9446
+          },
+          "count": 2000,
+          "display_interval_ms": {
+            "max": 144.33658334019128,
+            "n": 330,
+            "p50": 87.74983333569253,
+            "p95": 109.37020833080169,
+            "total": 29711.027208337327
+          },
+          "document_height": 140107,
+          "end_y": 0,
+          "geometry_action_ms": {
+            "max": 0.018250000721309334,
+            "n": 406,
+            "p50": 0.008041664841584861,
+            "p95": 0.011249998351559043,
+            "total": 3.251750022172928
+          },
+          "geometry_transform_ms": {
+            "max": 0.0011250012903474271,
+            "n": 666,
+            "p50": 0.0003749955794773996,
+            "p95": 0.0006250047590583563,
+            "total": 0.26008319400716573
+          },
+          "layout_ms": {
+            "max": 43.690291669918224,
+            "n": 332,
+            "p50": 0.027416666853241622,
+            "p95": 0.041125000279862434,
+            "total": 53.44591668836074
+          },
+          "mix": "plain",
+          "phase": "traverse",
+          "prepare": [],
+          "retry_source_collections": 0,
+          "room_bodies": 331,
+          "scans_ms": {
+            "input": {
+              "max": 0.511916667164769,
+              "n": 331,
+              "p50": 0.17554166697664186,
+              "p95": 0.20504166604951024,
+              "total": 60.01575007394422
+            },
+            "preparedMessages": {
+              "max": 2.062666666461155,
+              "n": 1324,
+              "p50": 0.9293749972130172,
+              "p95": 1.0943750021397136,
+              "total": 1222.4659583735047
+            }
+          },
+          "start_y": 133550.5,
+          "step_ms": {
+            "max": 138.2157083353377,
+            "n": 332,
+            "p50": 89.48108333424898,
+            "p95": 103.59091666759923,
+            "total": 29771.5954582236
+          },
+          "ticks": 332,
+          "unique": 1900,
+          "bottom_sentinels": {
+            "fixture-1998": 0,
+            "fixture-1999": 0
+          }
+        },
+        {
+          "bodies_per_display_callback": {
+            "max": 15,
+            "n": 119,
+            "p50": 14,
+            "p95": 15,
+            "total": 1441
+          },
+          "bodies_per_tick": {
+            "max": 15,
+            "n": 120,
+            "p50": 14,
+            "p95": 15,
+            "total": 1441
+          },
+          "count": 2000,
+          "display_interval_ms": {
+            "max": 62.441291665891185,
+            "n": 118,
+            "p50": 43.07137500290992,
+            "p95": 53.28195833135396,
+            "total": 4735.375958334771
+          },
+          "document_height": 140153,
+          "end_y": 0,
+          "geometry_action_ms": {
+            "max": 0.01183333370136097,
+            "n": 129,
+            "p50": 0.005333335138857365,
+            "p95": 0.008458337106276304,
+            "total": 0.7197500235633925
+          },
+          "geometry_transform_ms": {
+            "max": 0.0008333372534252703,
+            "n": 220,
+            "p50": 0.0003333334461785853,
+            "p95": 0.0006249974831007421,
+            "total": 0.08274998981505632
+          },
+          "layout_ms": {
+            "max": 45.62591666763183,
+            "n": 120,
+            "p50": 0.0234166654990986,
+            "p95": 0.03562500205589458,
+            "total": 48.60662503779167
+          },
+          "mix": "plain",
+          "phase": "late",
+          "prepare": [],
+          "retry_source_collections": 0,
+          "room_bodies": 101,
+          "scans_ms": {
+            "input": {
+              "max": 0.3641666698968038,
+              "n": 101,
+              "p50": 0.1752500029397197,
+              "p95": 0.19566666742321104,
+              "total": 18.059791684208903
+            },
+            "preparedMessages": {
+              "max": 1.9588333307183348,
+              "n": 404,
+              "p50": 0.910708331502974,
+              "p95": 1.0801250027725473,
+              "total": 373.49774988979334
+            }
+          },
+          "start_y": 0,
+          "step_ms": {
+            "max": 62.7769166676444,
+            "n": 120,
+            "p50": 39.99383333575679,
+            "p95": 53.088874999957625,
+            "total": 4787.907541664026
+          },
+          "ticks": 120,
+          "unique": 35,
+          "bottom_sentinels": {
+            "fixture-1998": 0,
+            "fixture-1999": 0
+          }
+        },
+        {
+          "bodies_per_display_callback": {
+            "max": 0,
+            "n": 61,
+            "p50": 0,
+            "p95": 0,
+            "total": 0
+          },
+          "bodies_per_tick": {
+            "max": 0,
+            "n": 60,
+            "p50": 0,
+            "p95": 0,
+            "total": 0
+          },
+          "count": 2000,
+          "display_interval_ms": {
+            "max": 16.666625000652857,
+            "n": 60,
+            "p50": 16.666625000652857,
+            "p95": 16.666625000652857,
+            "total": 999.9974999955157
+          },
+          "document_height": 140158,
+          "end_y": 0,
+          "geometry_action_ms": {
+            "max": 0,
+            "n": 0,
+            "p50": 0,
+            "p95": 0,
+            "total": 0
+          },
+          "geometry_transform_ms": {
+            "max": 0,
+            "n": 0,
+            "p50": 0,
+            "p95": 0,
+            "total": 0
+          },
+          "layout_ms": {
+            "max": 0.1350416714558378,
+            "n": 60,
+            "p50": 0.060458332882262766,
+            "p95": 0.09758333180798218,
+            "total": 4.004333313787356
+          },
+          "mix": "plain",
+          "phase": "idle",
+          "prepare": [],
+          "retry_source_collections": 0,
+          "room_bodies": 0,
+          "scans_ms": {},
+          "start_y": 0,
+          "step_ms": {
+            "max": 18.040375005512033,
+            "n": 60,
+            "p50": 17.213625003932975,
+            "p95": 17.31650000147056,
+            "total": 1024.9900833150605
+          },
+          "ticks": 60,
+          "unique": 0,
+          "bottom_sentinels": {
+            "fixture-1998": 0,
+            "fixture-1999": 0
+          }
+        },
+        {
+          "bodies": 30,
+          "count": 2000,
+          "mix": "plain",
+          "phase": "reaction",
+          "prepare": [
+            {
+              "ms": 0.5012916662963107,
+              "parsed": 0,
+              "visited": 2000
+            }
+          ],
+          "retry_source_collections": 0,
+          "room_bodies": 3,
+          "wall_ms": 807.5240416656015
+        }
+      ]
+    }
+  },
+  "unprofiled_after": [
+    {
+      "bodies": 18,
+      "count": 50,
+      "document_height": 3643,
+      "mix": "plain",
+      "phase": "load",
+      "prepare": [
+        {
+          "ms": 8.32316666492261,
+          "parsed": 50,
+          "visited": 50
+        }
+      ],
+      "retry_source_collections": 0,
+      "room_bodies": 2,
+      "unique": 18,
+      "bottom_sentinels": {
+        "fixture-48": 1,
+        "fixture-49": 1
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 39,
+        "n": 52,
+        "p50": 14,
+        "p95": 15,
+        "total": 650
+      },
+      "bodies_per_tick": {
+        "max": 39,
+        "n": 51,
+        "p50": 14,
+        "p95": 15,
+        "total": 650
+      },
+      "count": 50,
+      "display_interval_ms": {
+        "max": 66.89316666597733,
+        "n": 51,
+        "p50": 33.333250001305714,
+        "p95": 33.86491666606162,
+        "total": 1599.9959999971907
+      },
+      "document_height": 3677,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0.025791669031605124,
+        "n": 58,
+        "p50": 0.004458328476175666,
+        "p95": 0.007291666406672448,
+        "total": 0.2838333384715952
+      },
+      "geometry_transform_ms": {
+        "max": 0.0008333299774676561,
+        "n": 98,
+        "p50": 0.0003333334461785853,
+        "p95": 0.0004999965312890708,
+        "total": 0.03174996527377516
+      },
+      "layout_ms": {
+        "max": 7.899708332843147,
+        "n": 51,
+        "p50": 0.021291663870215416,
+        "p95": 0.02887499431381002,
+        "total": 8.998624980449677
+      },
+      "mix": "plain",
+      "phase": "early",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 45,
+      "scans_ms": {
+        "input": {
+          "max": 0.08125000022118911,
+          "n": 45,
+          "p50": 0.055666670959908515,
+          "p95": 0.06112499977461994,
+          "total": 2.566916671639774
+        },
+        "preparedMessages": {
+          "max": 0.040708335291128606,
+          "n": 180,
+          "p50": 0.026416666514705867,
+          "p95": 0.0345833323081024,
+          "total": 4.993333408492617
+        }
+      },
+      "start_y": 3061,
+      "step_ms": {
+        "max": 78.95787500456208,
+        "n": 51,
+        "p50": 32.591374998446554,
+        "p95": 45.546916662715375,
+        "total": 1627.1629583352478
+      },
+      "ticks": 51,
+      "unique": 50,
+      "bottom_sentinels": {
+        "fixture-48": 8,
+        "fixture-49": 8
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 11,
+        "n": 1,
+        "p50": 11,
+        "p95": 11,
+        "total": 11
+      },
+      "bodies_per_tick": {
+        "max": 11,
+        "n": 1,
+        "p50": 11,
+        "p95": 11,
+        "total": 11
+      },
+      "count": 50,
+      "display_interval_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "document_height": 3657,
+      "end_y": -28,
+      "geometry_action_ms": {
+        "max": 0.005416666681412607,
+        "n": 1,
+        "p50": 0.005416666681412607,
+        "p95": 0.005416666681412607,
+        "total": 0.005416666681412607
+      },
+      "geometry_transform_ms": {
+        "max": 0.00045833439799025655,
+        "n": 2,
+        "p50": 0.00024999462766572833,
+        "p95": 0.00024999462766572833,
+        "total": 0.0007083290256559849
+      },
+      "layout_ms": {
+        "max": 27.68758332967991,
+        "n": 1,
+        "p50": 27.68758332967991,
+        "p95": 27.68758332967991,
+        "total": 27.68758332967991
+      },
+      "mix": "plain",
+      "phase": "traverse",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 1,
+      "scans_ms": {
+        "input": {
+          "max": 0.13979167124489322,
+          "n": 1,
+          "p50": 0.13979167124489322,
+          "p95": 0.13979167124489322,
+          "total": 0.13979167124489322
+        },
+        "preparedMessages": {
+          "max": 0.09770833275979385,
+          "n": 4,
+          "p50": 0.04708333290182054,
+          "p95": 0.06558333552675322,
+          "total": 0.2564166716183536
+        }
+      },
+      "start_y": 0,
+      "step_ms": {
+        "max": 44.861125003080815,
+        "n": 1,
+        "p50": 44.861125003080815,
+        "p95": 44.861125003080815,
+        "total": 44.861125003080815
+      },
+      "ticks": 1,
+      "unique": 11,
+      "bottom_sentinels": {
+        "fixture-48": 0,
+        "fixture-49": 0
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 16,
+        "n": 119,
+        "p50": 14,
+        "p95": 15,
+        "total": 1431
+      },
+      "bodies_per_tick": {
+        "max": 16,
+        "n": 120,
+        "p50": 14,
+        "p95": 15,
+        "total": 1431
+      },
+      "count": 50,
+      "display_interval_ms": {
+        "max": 58.49545833916636,
+        "n": 118,
+        "p50": 33.333250001305714,
+        "p95": 49.99987500195857,
+        "total": 3816.657124996709
+      },
+      "document_height": 3657,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0.015916666598059237,
+        "n": 132,
+        "p50": 0.005875001079402864,
+        "p95": 0.009499999578110874,
+        "total": 0.8132083603413776
+      },
+      "geometry_transform_ms": {
+        "max": 0.0020000006770715117,
+        "n": 219,
+        "p50": 0.0003333334461785853,
+        "p95": 0.0006666668923571706,
+        "total": 0.08662504114909098
+      },
+      "layout_ms": {
+        "max": 27.47395833284827,
+        "n": 120,
+        "p50": 0.02404166298219934,
+        "p95": 0.03854167152894661,
+        "total": 30.506916635204107
+      },
+      "mix": "plain",
+      "phase": "late",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 100,
+      "scans_ms": {
+        "input": {
+          "max": 0.12491666711866856,
+          "n": 100,
+          "p50": 0.06229166319826618,
+          "p95": 0.07599999662488699,
+          "total": 6.356458354275674
+        },
+        "preparedMessages": {
+          "max": 0.07487500261049718,
+          "n": 400,
+          "p50": 0.02666666841832921,
+          "p95": 0.03841666330117732,
+          "total": 11.573041694646236
+        }
+      },
+      "start_y": 0,
+      "step_ms": {
+        "max": 54.21333333652001,
+        "n": 120,
+        "p50": 32.41337500367081,
+        "p95": 47.595333329809364,
+        "total": 3875.8191666274797
+      },
+      "ticks": 120,
+      "unique": 35,
+      "bottom_sentinels": {
+        "fixture-48": 0,
+        "fixture-49": 0
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 0,
+        "n": 62,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "bodies_per_tick": {
+        "max": 0,
+        "n": 60,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "count": 50,
+      "display_interval_ms": {
+        "max": 16.666625000652857,
+        "n": 61,
+        "p50": 16.666625000652857,
+        "p95": 16.666625000652857,
+        "total": 1016.6641250034445
+      },
+      "document_height": 3658,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "geometry_transform_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "layout_ms": {
+        "max": 0.0965416693361476,
+        "n": 60,
+        "p50": 0.06129166285973042,
+        "p95": 0.07791666575940326,
+        "total": 3.756291676836554
+      },
+      "mix": "plain",
+      "phase": "idle",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 0,
+      "scans_ms": {},
+      "start_y": 0,
+      "step_ms": {
+        "max": 17.554666672367603,
+        "n": 60,
+        "p50": 17.21704166266136,
+        "p95": 17.397833333234303,
+        "total": 1023.396666671033
+      },
+      "ticks": 60,
+      "unique": 0,
+      "bottom_sentinels": {
+        "fixture-48": 0,
+        "fixture-49": 0
+      }
+    },
+    {
+      "bodies": 30,
+      "count": 50,
+      "mix": "plain",
+      "phase": "reaction",
+      "prepare": [
+        {
+          "ms": 0.035250006476417184,
+          "parsed": 0,
+          "visited": 50
+        }
+      ],
+      "retry_source_collections": 0,
+      "room_bodies": 3,
+      "wall_ms": 801.7461666677264
+    },
+    {
+      "bodies": 16,
+      "count": 50,
+      "document_height": 9220,
+      "mix": "mixed",
+      "phase": "load",
+      "prepare": [
+        {
+          "ms": 7.746041665086523,
+          "parsed": 50,
+          "visited": 50
+        }
+      ],
+      "retry_source_collections": 0,
+      "room_bodies": 4,
+      "unique": 8,
+      "bottom_sentinels": {
+        "fixture-48": 1,
+        "fixture-49": 1
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 8,
+        "n": 130,
+        "p50": 1,
+        "p95": 7,
+        "total": 234
+      },
+      "bodies_per_tick": {
+        "max": 12,
+        "n": 120,
+        "p50": 1,
+        "p95": 7,
+        "total": 235
+      },
+      "count": 50,
+      "display_interval_ms": {
+        "max": 40.80945833266014,
+        "n": 129,
+        "p50": 16.666625000652857,
+        "p95": 33.33324999402976,
+        "total": 2333.3274999968125
+      },
+      "document_height": 9447,
+      "end_y": 1437.5,
+      "geometry_action_ms": {
+        "max": 0.012583332136273384,
+        "n": 175,
+        "p50": 0.004958332283422351,
+        "p95": 0.009000003046821803,
+        "total": 0.8701250117155723
+      },
+      "geometry_transform_ms": {
+        "max": 0.0007083363016135991,
+        "n": 191,
+        "p50": 0.0003333334461785853,
+        "p95": 0.0006250047590583563,
+        "total": 0.06645836401730776
+      },
+      "layout_ms": {
+        "max": 18.379041663138196,
+        "n": 120,
+        "p50": 0.030083334422670305,
+        "p95": 0.054666663345415145,
+        "total": 27.16995835362468
+      },
+      "mix": "mixed",
+      "phase": "early",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 34,
+      "scans_ms": {
+        "input": {
+          "max": 0.0862916640471667,
+          "n": 34,
+          "p50": 0.062416671426035464,
+          "p95": 0.07116666529327631,
+          "total": 2.147166662325617
+        },
+        "preparedMessages": {
+          "max": 0.04820833419216797,
+          "n": 136,
+          "p50": 0.02691667032195255,
+          "p95": 0.039874998037703335,
+          "total": 3.9784166583558545
+        }
+      },
+      "start_y": 8637.5,
+      "step_ms": {
+        "max": 44.51354166667443,
+        "n": 120,
+        "p50": 17.17974999337457,
+        "p95": 30.28891666326672,
+        "total": 2353.222250014369
+      },
+      "ticks": 120,
+      "unique": 40,
+      "bottom_sentinels": {
+        "fixture-48": 5,
+        "fixture-49": 4
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 12,
+        "n": 7,
+        "p50": 9,
+        "p95": 11,
+        "total": 59
+      },
+      "bodies_per_tick": {
+        "max": 12,
+        "n": 8,
+        "p50": 8,
+        "p95": 11,
+        "total": 66
+      },
+      "count": 50,
+      "display_interval_ms": {
+        "max": 76.38808333285851,
+        "n": 6,
+        "p50": 42.160041666647885,
+        "p95": 57.8397083299933,
+        "total": 299.9992499971995
+      },
+      "document_height": 11644,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0.01012500433716923,
+        "n": 27,
+        "p50": 0.005374997272156179,
+        "p95": 0.007875001756474376,
+        "total": 0.139083327667322
+      },
+      "geometry_transform_ms": {
+        "max": 0.0008333299774676561,
+        "n": 28,
+        "p50": 0.00037500285543501377,
+        "p95": 0.0006249974831007421,
+        "total": 0.011416675988584757
+      },
+      "layout_ms": {
+        "max": 7.69558332831366,
+        "n": 8,
+        "p50": 0.031291667255572975,
+        "p95": 6.5154999974765815,
+        "total": 20.88233333779499
+      },
+      "mix": "mixed",
+      "phase": "traverse",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 8,
+      "scans_ms": {
+        "input": {
+          "max": 0.06258332723518834,
+          "n": 8,
+          "p50": 0.05891666660318151,
+          "p95": 0.061833336076233536,
+          "total": 0.47212500066962093
+        },
+        "preparedMessages": {
+          "max": 0.06066666537662968,
+          "n": 32,
+          "p50": 0.026249996153637767,
+          "p95": 0.03979166649514809,
+          "total": 0.9722083050291985
+        }
+      },
+      "start_y": 1437.5,
+      "step_ms": {
+        "max": 75.01258332922589,
+        "n": 8,
+        "p50": 40.11374999390682,
+        "p95": 60.15912500151899,
+        "total": 363.64416666765464
+      },
+      "ticks": 8,
+      "unique": 19,
+      "bottom_sentinels": {
+        "fixture-48": 0,
+        "fixture-49": 0
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 9,
+        "n": 126,
+        "p50": 0,
+        "p95": 7,
+        "total": 241
+      },
+      "bodies_per_tick": {
+        "max": 9,
+        "n": 120,
+        "p50": 1,
+        "p95": 7,
+        "total": 241
+      },
+      "count": 50,
+      "display_interval_ms": {
+        "max": 33.333250001305714,
+        "n": 125,
+        "p50": 16.666625000652857,
+        "p95": 33.33324999402976,
+        "total": 2216.6611249995185
+      },
+      "document_height": 11835,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0.011374999303370714,
+        "n": 158,
+        "p50": 0.005625006451737136,
+        "p95": 0.008875002095010132,
+        "total": 0.824041708256118
+      },
+      "geometry_transform_ms": {
+        "max": 0.0007916678441688418,
+        "n": 158,
+        "p50": 0.0003749955794773996,
+        "p95": 0.0006666668923571706,
+        "total": 0.06141664198366925
+      },
+      "layout_ms": {
+        "max": 10.830374994839076,
+        "n": 120,
+        "p50": 0.034249998861923814,
+        "p95": 0.06154167203931138,
+        "total": 22.94770834123483
+      },
+      "mix": "mixed",
+      "phase": "late",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 37,
+      "scans_ms": {
+        "input": {
+          "max": 0.07441666821250692,
+          "n": 37,
+          "p50": 0.06070833478588611,
+          "p95": 0.0740416653570719,
+          "total": 2.290958342200611
+        },
+        "preparedMessages": {
+          "max": 0.040958329918794334,
+          "n": 148,
+          "p50": 0.026791662094183266,
+          "p95": 0.036249999538995326,
+          "total": 4.244583324179985
+        }
+      },
+      "start_y": 0,
+      "step_ms": {
+        "max": 29.77525000460446,
+        "n": 120,
+        "p50": 17.2017083314131,
+        "p95": 27.766583334596362,
+        "total": 2255.6010416228673
+      },
+      "ticks": 120,
+      "unique": 12,
+      "bottom_sentinels": {
+        "fixture-48": 0,
+        "fixture-49": 0
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 0,
+        "n": 61,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "bodies_per_tick": {
+        "max": 0,
+        "n": 60,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "count": 50,
+      "display_interval_ms": {
+        "max": 16.666625000652857,
+        "n": 60,
+        "p50": 16.666625000652857,
+        "p95": 16.666625000652857,
+        "total": 999.9975000027916
+      },
+      "document_height": 11828,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "geometry_transform_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "layout_ms": {
+        "max": 0.10749999637482688,
+        "n": 60,
+        "p50": 0.0666666601318866,
+        "p95": 0.08533333311788738,
+        "total": 4.204041673801839
+      },
+      "mix": "mixed",
+      "phase": "idle",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 0,
+      "scans_ms": {},
+      "start_y": 0,
+      "step_ms": {
+        "max": 17.46929166984046,
+        "n": 60,
+        "p50": 17.227249998541083,
+        "p95": 17.33329166745534,
+        "total": 1022.6482916550594
+      },
+      "ticks": 60,
+      "unique": 0,
+      "bottom_sentinels": {
+        "fixture-48": 0,
+        "fixture-49": 0
+      }
+    },
+    {
+      "bodies": 12,
+      "count": 50,
+      "mix": "mixed",
+      "phase": "reaction",
+      "prepare": [
+        {
+          "ms": 0.04258332774043083,
+          "parsed": 0,
+          "visited": 50
+        }
+      ],
+      "retry_source_collections": 0,
+      "room_bodies": 3,
+      "wall_ms": 788.9579583352315
+    },
+    {
+      "bodies": 19,
+      "count": 500,
+      "document_height": 35396,
+      "mix": "plain",
+      "phase": "load",
+      "prepare": [
+        {
+          "ms": 55.78041666740319,
+          "parsed": 500,
+          "visited": 500
+        }
+      ],
+      "retry_source_collections": 0,
+      "room_bodies": 2,
+      "unique": 19,
+      "bottom_sentinels": {
+        "fixture-498": 1,
+        "fixture-499": 1
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 25,
+        "n": 120,
+        "p50": 14,
+        "p95": 16,
+        "total": 1526
+      },
+      "bodies_per_tick": {
+        "max": 25,
+        "n": 120,
+        "p50": 14,
+        "p95": 16,
+        "total": 1541
+      },
+      "count": 500,
+      "display_interval_ms": {
+        "max": 61.499833333073184,
+        "n": 119,
+        "p50": 33.333250001305714,
+        "p95": 49.99987500195857,
+        "total": 4199.989499997173
+      },
+      "document_height": 35445,
+      "end_y": 27613,
+      "geometry_action_ms": {
+        "max": 0.02300000051036477,
+        "n": 133,
+        "p50": 0.005208334187045693,
+        "p95": 0.010208335879724473,
+        "total": 0.7962917079566978
+      },
+      "geometry_transform_ms": {
+        "max": 0.0009583309292793274,
+        "n": 225,
+        "p50": 0.00041666498873382807,
+        "p95": 0.0006666668923571706,
+        "total": 0.09416673128725961
+      },
+      "layout_ms": {
+        "max": 15.608916663040873,
+        "n": 120,
+        "p50": 0.02420833334326744,
+        "p95": 0.036249999538995326,
+        "total": 21.394083312770817
+      },
+      "mix": "plain",
+      "phase": "early",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 106,
+      "scans_ms": {
+        "input": {
+          "max": 0.15025000175228342,
+          "n": 106,
+          "p50": 0.08733333379495889,
+          "p95": 0.09929166117217392,
+          "total": 9.435041647520848
+        },
+        "preparedMessages": {
+          "max": 0.4502500014496036,
+          "n": 424,
+          "p50": 0.21745833510067314,
+          "p95": 0.26033333415398374,
+          "total": 95.13124996010447
+        }
+      },
+      "start_y": 34813,
+      "step_ms": {
+        "max": 62.0228749976377,
+        "n": 120,
+        "p50": 34.641458332771435,
+        "p95": 49.98716666159453,
+        "total": 4263.6803750137915
+      },
+      "ticks": 120,
+      "unique": 122,
+      "bottom_sentinels": {
+        "fixture-498": 7,
+        "fixture-499": 5
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 40,
+        "n": 70,
+        "p50": 29,
+        "p95": 34,
+        "total": 2018
+      },
+      "bodies_per_tick": {
+        "max": 40,
+        "n": 70,
+        "p50": 29,
+        "p95": 34,
+        "total": 2018
+      },
+      "count": 500,
+      "display_interval_ms": {
+        "max": 108.53662499721395,
+        "n": 69,
+        "p50": 84.54233333759475,
+        "p95": 95.8295000018552,
+        "total": 5788.71491667087
+      },
+      "document_height": 35141,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0.025166664272546768,
+        "n": 101,
+        "p50": 0.008041664841584861,
+        "p95": 0.010833333362825215,
+        "total": 0.775291642639786
+      },
+      "geometry_transform_ms": {
+        "max": 0.0010833318810909986,
+        "n": 144,
+        "p50": 0.00041666498873382807,
+        "p95": 0.0006666668923571706,
+        "total": 0.06162499630590901
+      },
+      "layout_ms": {
+        "max": 33.300958333711606,
+        "n": 70,
+        "p50": 0.02841666719177738,
+        "p95": 0.045416665670927614,
+        "total": 35.42441671015695
+      },
+      "mix": "plain",
+      "phase": "traverse",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 70,
+      "scans_ms": {
+        "input": {
+          "max": 0.20741666958201677,
+          "n": 70,
+          "p50": 0.09029166540130973,
+          "p95": 0.12358333333395422,
+          "total": 6.728208325512242
+        },
+        "preparedMessages": {
+          "max": 0.6809999977122061,
+          "n": 280,
+          "p50": 0.22620832896791399,
+          "p95": 0.3065416676690802,
+          "total": 65.8003333301167
+        }
+      },
+      "start_y": 27613,
+      "step_ms": {
+        "max": 108.99004167004023,
+        "n": 70,
+        "p50": 85.13274999859277,
+        "p95": 96.69804166333051,
+        "total": 5839.6720416494645
+      },
+      "ticks": 70,
+      "unique": 402,
+      "bottom_sentinels": {
+        "fixture-498": 0,
+        "fixture-499": 0
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 17,
+        "n": 120,
+        "p50": 14,
+        "p95": 16,
+        "total": 1459
+      },
+      "bodies_per_tick": {
+        "max": 17,
+        "n": 120,
+        "p50": 14,
+        "p95": 16,
+        "total": 1459
+      },
+      "count": 500,
+      "display_interval_ms": {
+        "max": 49.99987500195857,
+        "n": 119,
+        "p50": 33.333250001305714,
+        "p95": 49.99987500195857,
+        "total": 4075.7952499989187
+      },
+      "document_height": 35162,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0.012583332136273384,
+        "n": 130,
+        "p50": 0.005375004548113793,
+        "p95": 0.008708339009899646,
+        "total": 0.7580417004646733
+      },
+      "geometry_transform_ms": {
+        "max": 0.0009166687959805131,
+        "n": 221,
+        "p50": 0.00045833439799025655,
+        "p95": 0.0006666668923571706,
+        "total": 0.0983749414444901
+      },
+      "layout_ms": {
+        "max": 31.57483333052369,
+        "n": 120,
+        "p50": 0.02425000275252387,
+        "p95": 0.03616666799644008,
+        "total": 34.66766665223986
+      },
+      "mix": "plain",
+      "phase": "late",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 101,
+      "scans_ms": {
+        "input": {
+          "max": 0.19187499856343493,
+          "n": 101,
+          "p50": 0.08787499973550439,
+          "p95": 0.10437499440740794,
+          "total": 9.143666618911084
+        },
+        "preparedMessages": {
+          "max": 0.5412500031525269,
+          "n": 404,
+          "p50": 0.2170416628359817,
+          "p95": 0.2662083352333866,
+          "total": 92.09020833077375
+        }
+      },
+      "start_y": 0,
+      "step_ms": {
+        "max": 51.763041665253695,
+        "n": 120,
+        "p50": 34.55925000162097,
+        "p95": 50.30424999858951,
+        "total": 4114.024083341064
+      },
+      "ticks": 120,
+      "unique": 35,
+      "bottom_sentinels": {
+        "fixture-498": 0,
+        "fixture-499": 0
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 0,
+        "n": 61,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "bodies_per_tick": {
+        "max": 0,
+        "n": 60,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "count": 500,
+      "display_interval_ms": {
+        "max": 16.666625000652857,
+        "n": 60,
+        "p50": 16.666625000652857,
+        "p95": 16.666625000652857,
+        "total": 999.9974999955157
+      },
+      "document_height": 35165,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "geometry_transform_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "layout_ms": {
+        "max": 0.11458333028713241,
+        "n": 60,
+        "p50": 0.07516666664741933,
+        "p95": 0.09212499571731314,
+        "total": 4.380333339213394
+      },
+      "mix": "plain",
+      "phase": "idle",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 0,
+      "scans_ms": {},
+      "start_y": 0,
+      "step_ms": {
+        "max": 17.65608333516866,
+        "n": 60,
+        "p50": 17.26050000434043,
+        "p95": 17.35345833003521,
+        "total": 1025.1224583480507
+      },
+      "ticks": 60,
+      "unique": 0,
+      "bottom_sentinels": {
+        "fixture-498": 0,
+        "fixture-499": 0
+      }
+    },
+    {
+      "bodies": 31,
+      "count": 500,
+      "mix": "plain",
+      "phase": "reaction",
+      "prepare": [
+        {
+          "ms": 0.14329166151583195,
+          "parsed": 0,
+          "visited": 500
+        }
+      ],
+      "retry_source_collections": 0,
+      "room_bodies": 3,
+      "wall_ms": 792.2225000002072
+    },
+    {
+      "bodies": 44,
+      "count": 500,
+      "document_height": 92451,
+      "mix": "mixed",
+      "phase": "load",
+      "prepare": [
+        {
+          "ms": 59.72841666516615,
+          "parsed": 500,
+          "visited": 500
+        }
+      ],
+      "retry_source_collections": 0,
+      "room_bodies": 6,
+      "unique": 12,
+      "bottom_sentinels": {
+        "fixture-498": 3,
+        "fixture-499": 5
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 7,
+        "n": 128,
+        "p50": 0,
+        "p95": 6,
+        "total": 219
+      },
+      "bodies_per_tick": {
+        "max": 8,
+        "n": 120,
+        "p50": 1,
+        "p95": 6,
+        "total": 219
+      },
+      "count": 500,
+      "display_interval_ms": {
+        "max": 33.333250001305714,
+        "n": 127,
+        "p50": 16.666625000652857,
+        "p95": 33.333250001305714,
+        "total": 2333.3274999968125
+      },
+      "document_height": 92678,
+      "end_y": 84668.5,
+      "geometry_action_ms": {
+        "max": 0.017708334780763835,
+        "n": 175,
+        "p50": 0.0060416641645133495,
+        "p95": 0.009750001481734216,
+        "total": 1.0117082565557212
+      },
+      "geometry_transform_ms": {
+        "max": 0.0013750031939707696,
+        "n": 188,
+        "p50": 0.00045833439799025655,
+        "p95": 0.0007499984349124134,
+        "total": 0.08312500722240657
+      },
+      "layout_ms": {
+        "max": 17.740249997586943,
+        "n": 120,
+        "p50": 0.03458333958406001,
+        "p95": 0.08737500320421532,
+        "total": 27.995750038826372
+      },
+      "mix": "mixed",
+      "phase": "early",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 34,
+      "scans_ms": {
+        "input": {
+          "max": 0.20312499691499397,
+          "n": 34,
+          "p50": 0.09283333201892674,
+          "p95": 0.11066666775150225,
+          "total": 3.2787083109724335
+        },
+        "preparedMessages": {
+          "max": 0.48637500003678724,
+          "n": 136,
+          "p50": 0.22870833345223218,
+          "p95": 0.29475000337697566,
+          "total": 32.60491671244381
+        }
+      },
+      "start_y": 91868.5,
+      "step_ms": {
+        "max": 35.418458333879244,
+        "n": 120,
+        "p50": 17.214875006175134,
+        "p95": 30.0456250042771,
+        "total": 2356.4202917186776
+      },
+      "ticks": 120,
+      "unique": 36,
+      "bottom_sentinels": {
+        "fixture-498": 4,
+        "fixture-499": 4
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 32,
+        "n": 233,
+        "p50": 10,
+        "p95": 14,
+        "total": 2273
+      },
+      "bodies_per_tick": {
+        "max": 22,
+        "n": 257,
+        "p50": 9,
+        "p95": 14,
+        "total": 2273
+      },
+      "count": 500,
+      "display_interval_ms": {
+        "max": 92.85250000539236,
+        "n": 232,
+        "p50": 45.7953750010347,
+        "p95": 66.66650000261143,
+        "total": 10683.102125003643
+      },
+      "document_height": 118879,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0.019500002963468432,
+        "n": 732,
+        "p50": 0.00429166539106518,
+        "p95": 0.008208335202652961,
+        "total": 3.0516666811308824
+      },
+      "geometry_transform_ms": {
+        "max": 0.011083335266448557,
+        "n": 844,
+        "p50": 0.0003333334461785853,
+        "p95": 0.0005833353498019278,
+        "total": 0.2796248300001025
+      },
+      "layout_ms": {
+        "max": 21.274458333209623,
+        "n": 257,
+        "p50": 0.02666666841832921,
+        "p95": 5.196666665142402,
+        "total": 183.9279999912833
+      },
+      "mix": "mixed",
+      "phase": "traverse",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 232,
+      "scans_ms": {
+        "input": {
+          "max": 0.23987500026123598,
+          "n": 232,
+          "p50": 0.08379166683880612,
+          "p95": 0.096916664915625,
+          "total": 19.958624980063178
+        },
+        "preparedMessages": {
+          "max": 0.5892499975743704,
+          "n": 928,
+          "p50": 0.222958333324641,
+          "p95": 0.26841666840482503,
+          "total": 212.58591657533543
+        }
+      },
+      "start_y": 84668.5,
+      "step_ms": {
+        "max": 81.72962499520509,
+        "n": 257,
+        "p50": 41.07920833484968,
+        "p95": 60.91424999613082,
+        "total": 10691.182916707476
+      },
+      "ticks": 257,
+      "unique": 467,
+      "bottom_sentinels": {
+        "fixture-498": 0,
+        "fixture-499": 0
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 9,
+        "n": 128,
+        "p50": 0,
+        "p95": 7,
+        "total": 237
+      },
+      "bodies_per_tick": {
+        "max": 8,
+        "n": 120,
+        "p50": 1,
+        "p95": 7,
+        "total": 237
+      },
+      "count": 500,
+      "display_interval_ms": {
+        "max": 33.333250001305714,
+        "n": 127,
+        "p50": 16.666625000652857,
+        "p95": 16.666625000652857,
+        "total": 2233.3277500001714
+      },
+      "document_height": 118953,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0.01533333124825731,
+        "n": 158,
+        "p50": 0.006000002031214535,
+        "p95": 0.009458330168854445,
+        "total": 0.9395416709594429
+      },
+      "geometry_transform_ms": {
+        "max": 0.0008749993867240846,
+        "n": 158,
+        "p50": 0.00041667226469144225,
+        "p95": 0.0006250047590583563,
+        "total": 0.06837499677203596
+      },
+      "layout_ms": {
+        "max": 21.36649999738438,
+        "n": 120,
+        "p50": 0.03716666833497584,
+        "p95": 0.07225000445032492,
+        "total": 28.015958341711666
+      },
+      "mix": "mixed",
+      "phase": "late",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 37,
+      "scans_ms": {
+        "input": {
+          "max": 0.25112500588875264,
+          "n": 37,
+          "p50": 0.09404167212778702,
+          "p95": 0.12308333680266514,
+          "total": 3.7035416971775703
+        },
+        "preparedMessages": {
+          "max": 0.6097500008763745,
+          "n": 148,
+          "p50": 0.22883333440404385,
+          "p95": 0.2968333355966024,
+          "total": 35.52791668334976
+        }
+      },
+      "start_y": 0,
+      "step_ms": {
+        "max": 38.54895832773764,
+        "n": 120,
+        "p50": 17.2011249960633,
+        "p95": 26.761624998471234,
+        "total": 2273.400583297189
+      },
+      "ticks": 120,
+      "unique": 11,
+      "bottom_sentinels": {
+        "fixture-498": 0,
+        "fixture-499": 0
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 0,
+        "n": 62,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "bodies_per_tick": {
+        "max": 0,
+        "n": 60,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "count": 500,
+      "display_interval_ms": {
+        "max": 16.666625000652857,
+        "n": 61,
+        "p50": 16.666625000652857,
+        "p95": 16.666625000652857,
+        "total": 1016.6641250034445
+      },
+      "document_height": 118927,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "geometry_transform_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "layout_ms": {
+        "max": 0.11637500574579462,
+        "n": 60,
+        "p50": 0.07091667066561058,
+        "p95": 0.09120833419729024,
+        "total": 4.391291680803988
+      },
+      "mix": "mixed",
+      "phase": "idle",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 0,
+      "scans_ms": {},
+      "start_y": 0,
+      "step_ms": {
+        "max": 17.906749999383464,
+        "n": 60,
+        "p50": 17.231291669304483,
+        "p95": 17.35545833071228,
+        "total": 1024.8908750218106
+      },
+      "ticks": 60,
+      "unique": 0,
+      "bottom_sentinels": {
+        "fixture-498": 0,
+        "fixture-499": 0
+      }
+    },
+    {
+      "bodies": 12,
+      "count": 500,
+      "mix": "mixed",
+      "phase": "reaction",
+      "prepare": [
+        {
+          "ms": 0.1929166683112271,
+          "parsed": 0,
+          "visited": 500
+        }
+      ],
+      "retry_source_collections": 0,
+      "room_bodies": 3,
+      "wall_ms": 780.2714999997988
+    },
+    {
+      "bodies": 21,
+      "count": 2000,
+      "document_height": 141333,
+      "mix": "plain",
+      "phase": "load",
+      "prepare": [
+        {
+          "ms": 219.33995833387598,
+          "parsed": 2000,
+          "visited": 2000
+        }
+      ],
+      "retry_source_collections": 0,
+      "room_bodies": 2,
+      "unique": 19,
+      "bottom_sentinels": {
+        "fixture-1998": 1,
+        "fixture-1999": 1
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 25,
+        "n": 120,
+        "p50": 14,
+        "p95": 15,
+        "total": 1508
+      },
+      "bodies_per_tick": {
+        "max": 25,
+        "n": 120,
+        "p50": 14,
+        "p95": 15,
+        "total": 1524
+      },
+      "count": 2000,
+      "display_interval_ms": {
+        "max": 62.64641666348325,
+        "n": 119,
+        "p50": 45.38324999884935,
+        "p95": 51.55529166950146,
+        "total": 5099.987250003323
+      },
+      "document_height": 141381,
+      "end_y": 133550.5,
+      "geometry_action_ms": {
+        "max": 0.01833333953982219,
+        "n": 132,
+        "p50": 0.006000002031214535,
+        "p95": 0.009916671842802316,
+        "total": 0.8131667273119092
+      },
+      "geometry_transform_ms": {
+        "max": 0.0009583309292793274,
+        "n": 225,
+        "p50": 0.00045833439799025655,
+        "p95": 0.0007083363016135991,
+        "total": 0.1071249062079005
+      },
+      "layout_ms": {
+        "max": 9.417208333616145,
+        "n": 120,
+        "p50": 0.02370833681197837,
+        "p95": 0.0335000004270114,
+        "total": 12.365166650852188
+      },
+      "mix": "plain",
+      "phase": "early",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 105,
+      "scans_ms": {
+        "input": {
+          "max": 0.2076666714856401,
+          "n": 105,
+          "p50": 0.1730833391775377,
+          "p95": 0.18583333439892158,
+          "total": 18.288208346348256
+        },
+        "preparedMessages": {
+          "max": 1.371208330965601,
+          "n": 420,
+          "p50": 0.9270000009564683,
+          "p95": 1.0706666653277352,
+          "total": 388.9982084001531
+        }
+      },
+      "start_y": 140750.5,
+      "step_ms": {
+        "max": 73.4142500004964,
+        "n": 120,
+        "p50": 42.96162499667844,
+        "p95": 54.81591667194152,
+        "total": 5151.888041647908
+      },
+      "ticks": 120,
+      "unique": 122,
+      "bottom_sentinels": {
+        "fixture-1998": 8,
+        "fixture-1999": 7
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 35,
+        "n": 332,
+        "p50": 29,
+        "p95": 35,
+        "total": 10274
+      },
+      "bodies_per_tick": {
+        "max": 36,
+        "n": 332,
+        "p50": 29,
+        "p95": 35,
+        "total": 10274
+      },
+      "count": 2000,
+      "display_interval_ms": {
+        "max": 118.58066666900413,
+        "n": 331,
+        "p50": 86.16970833827509,
+        "p95": 106.54795833397657,
+        "total": 29070.661458332324
+      },
+      "document_height": 140131,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0.020125000446569175,
+        "n": 389,
+        "p50": 0.00808333425084129,
+        "p95": 0.011374999303370714,
+        "total": 3.110708188614808
+      },
+      "geometry_transform_ms": {
+        "max": 0.0010833318810909986,
+        "n": 668,
+        "p50": 0.00041667226469144225,
+        "p95": 0.0006666668923571706,
+        "total": 0.28949999978067353
+      },
+      "layout_ms": {
+        "max": 41.02516666171141,
+        "n": 332,
+        "p50": 0.02649999805726111,
+        "p95": 0.04145833372604102,
+        "total": 50.522708355856594
+      },
+      "mix": "plain",
+      "phase": "traverse",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 332,
+      "scans_ms": {
+        "input": {
+          "max": 0.4297916602808982,
+          "n": 332,
+          "p50": 0.1723749955999665,
+          "p95": 0.20070833124918863,
+          "total": 58.78687500808155
+        },
+        "preparedMessages": {
+          "max": 2.418291667709127,
+          "n": 1328,
+          "p50": 0.8924166686483659,
+          "p95": 1.0648333336575888,
+          "total": 1206.400291499449
+        }
+      },
+      "start_y": 133550.5,
+      "step_ms": {
+        "max": 118.11854166444391,
+        "n": 332,
+        "p50": 87.7172916661948,
+        "p95": 100.08974999800557,
+        "total": 29115.629916683247
+      },
+      "ticks": 332,
+      "unique": 1902,
+      "bottom_sentinels": {
+        "fixture-1998": 0,
+        "fixture-1999": 0
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 31,
+        "n": 119,
+        "p50": 14,
+        "p95": 17,
+        "total": 1518
+      },
+      "bodies_per_tick": {
+        "max": 30,
+        "n": 120,
+        "p50": 15,
+        "p95": 16,
+        "total": 1518
+      },
+      "count": 2000,
+      "display_interval_ms": {
+        "max": 70.9546666694223,
+        "n": 118,
+        "p50": 43.48829165974166,
+        "p95": 59.10687499999767,
+        "total": 4905.694000000949
+      },
+      "document_height": 140172,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0.015958336007315665,
+        "n": 127,
+        "p50": 0.005958332621958107,
+        "p95": 0.0107916712295264,
+        "total": 0.8309166878461838
+      },
+      "geometry_transform_ms": {
+        "max": 0.001416665327269584,
+        "n": 221,
+        "p50": 0.00045833439799025655,
+        "p95": 0.0007916678441688418,
+        "total": 0.10491663124412298
+      },
+      "layout_ms": {
+        "max": 36.912041665345896,
+        "n": 120,
+        "p50": 0.02479166869306937,
+        "p95": 0.04212500061839819,
+        "total": 69.43312496878207
+      },
+      "mix": "plain",
+      "phase": "late",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 102,
+      "scans_ms": {
+        "input": {
+          "max": 0.37420833541546017,
+          "n": 102,
+          "p50": 0.17099999968195334,
+          "p95": 0.1995833299588412,
+          "total": 18.049958343908656
+        },
+        "preparedMessages": {
+          "max": 2.098125005431939,
+          "n": 408,
+          "p50": 0.9286250060540624,
+          "p95": 1.1379583374946378,
+          "total": 382.522458297899
+        }
+      },
+      "start_y": 0,
+      "step_ms": {
+        "max": 88.98958333884366,
+        "n": 120,
+        "p50": 42.11083333211718,
+        "p95": 55.69291666324716,
+        "total": 4951.569999997446
+      },
+      "ticks": 120,
+      "unique": 35,
+      "bottom_sentinels": {
+        "fixture-1998": 0,
+        "fixture-1999": 0
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 0,
+        "n": 61,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "bodies_per_tick": {
+        "max": 0,
+        "n": 60,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "count": 2000,
+      "display_interval_ms": {
+        "max": 16.666625000652857,
+        "n": 60,
+        "p50": 16.666625000652857,
+        "p95": 16.666625000652857,
+        "total": 999.9975000027916
+      },
+      "document_height": 140177,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "geometry_transform_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "layout_ms": {
+        "max": 0.15212500147754326,
+        "n": 60,
+        "p50": 0.061833336076233536,
+        "p95": 0.08649999654153362,
+        "total": 3.6184999989927746
+      },
+      "mix": "plain",
+      "phase": "idle",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 0,
+      "scans_ms": {},
+      "start_y": 0,
+      "step_ms": {
+        "max": 17.449833336286247,
+        "n": 60,
+        "p50": 17.190999999002088,
+        "p95": 17.26816666632658,
+        "total": 1020.9323750095791
+      },
+      "ticks": 60,
+      "unique": 0,
+      "bottom_sentinels": {
+        "fixture-1998": 0,
+        "fixture-1999": 0
+      }
+    },
+    {
+      "bodies": 34,
+      "count": 2000,
+      "mix": "plain",
+      "phase": "reaction",
+      "prepare": [
+        {
+          "ms": 0.6833750012447126,
+          "parsed": 0,
+          "visited": 2000
+        }
+      ],
+      "retry_source_collections": 0,
+      "room_bodies": 3,
+      "wall_ms": 800.8278749985038
+    },
+    {
+      "bodies": 41,
+      "count": 2000,
+      "document_height": 368989,
+      "mix": "mixed",
+      "phase": "load",
+      "prepare": [
+        {
+          "ms": 226.42283333698288,
+          "parsed": 2000,
+          "visited": 2000
+        }
+      ],
+      "retry_source_collections": 0,
+      "room_bodies": 6,
+      "unique": 11,
+      "bottom_sentinels": {
+        "fixture-1998": 3,
+        "fixture-1999": 3
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 7,
+        "n": 127,
+        "p50": 0,
+        "p95": 6,
+        "total": 225
+      },
+      "bodies_per_tick": {
+        "max": 11,
+        "n": 120,
+        "p50": 1,
+        "p95": 6,
+        "total": 225
+      },
+      "count": 2000,
+      "display_interval_ms": {
+        "max": 33.333250001305714,
+        "n": 126,
+        "p50": 16.666625000652857,
+        "p95": 33.333250001305714,
+        "total": 2466.895249999652
+      },
+      "document_height": 369215,
+      "end_y": 361206.5,
+      "geometry_action_ms": {
+        "max": 0.02662499900907278,
+        "n": 175,
+        "p50": 0.003833338269032538,
+        "p95": 0.00808333425084129,
+        "total": 0.7535833428846672
+      },
+      "geometry_transform_ms": {
+        "max": 0.0009166687959805131,
+        "n": 191,
+        "p50": 0.0003333334461785853,
+        "p95": 0.0006666668923571706,
+        "total": 0.06254163599805906
+      },
+      "layout_ms": {
+        "max": 36.06008333736099,
+        "n": 120,
+        "p50": 0.02404166298219934,
+        "p95": 0.05283333302941173,
+        "total": 43.47199994663242
+      },
+      "mix": "mixed",
+      "phase": "early",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 34,
+      "scans_ms": {
+        "input": {
+          "max": 0.36950000503566116,
+          "n": 34,
+          "p50": 0.17349999689031392,
+          "p95": 0.19449999672360718,
+          "total": 6.118624994996935
+        },
+        "preparedMessages": {
+          "max": 2.8314166702330112,
+          "n": 136,
+          "p50": 0.9041250013979152,
+          "p95": 1.0820000024978071,
+          "total": 128.22420837619575
+        }
+      },
+      "start_y": 368406.5,
+      "step_ms": {
+        "max": 52.359624998643994,
+        "n": 120,
+        "p50": 17.52854166261386,
+        "p95": 32.620666665025055,
+        "total": 2519.698874973983
+      },
+      "ticks": 120,
+      "unique": 36,
+      "bottom_sentinels": {
+        "fixture-1998": 5,
+        "fixture-1999": 5
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 40,
+        "n": 947,
+        "p50": 10,
+        "p95": 15,
+        "total": 9599
+      },
+      "bodies_per_tick": {
+        "max": 28,
+        "n": 1084,
+        "p50": 9,
+        "p95": 14,
+        "total": 9603
+      },
+      "count": 2000,
+      "display_interval_ms": {
+        "max": 121.67987500288291,
+        "n": 946,
+        "p50": 51.54341666639084,
+        "p95": 76.20741667051334,
+        "total": 50917.331416669185
+      },
+      "document_height": 482064,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0.046875000407453626,
+        "n": 3083,
+        "p50": 0.00466666097054258,
+        "p95": 0.009041665180120617,
+        "total": 14.194625138770789
+      },
+      "geometry_transform_ms": {
+        "max": 0.004333327524363995,
+        "n": 3593,
+        "p50": 0.0003749955794773996,
+        "p95": 0.0006666668923571706,
+        "total": 1.2774582646670751
+      },
+      "layout_ms": {
+        "max": 27.104666667582933,
+        "n": 1084,
+        "p50": 0.029541668482124805,
+        "p95": 4.5389583392534405,
+        "total": 579.9395831782022
+      },
+      "mix": "mixed",
+      "phase": "traverse",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 945,
+      "scans_ms": {
+        "input": {
+          "max": 0.3951250037061982,
+          "n": 945,
+          "p50": 0.17249999655177817,
+          "p95": 0.20166666945442557,
+          "total": 166.19950007589068
+        },
+        "preparedMessages": {
+          "max": 4.219583337544464,
+          "n": 3780,
+          "p50": 0.9418749978067353,
+          "p95": 1.1472916667116806,
+          "total": 3569.0397500802646
+        }
+      },
+      "start_y": 361206.5,
+      "step_ms": {
+        "max": 96.9426666633808,
+        "n": 1084,
+        "p50": 48.6753333316301,
+        "p95": 69.71750000229804,
+        "total": 50981.79508333851
+      },
+      "ticks": 1084,
+      "unique": 1967,
+      "bottom_sentinels": {
+        "fixture-1998": 0,
+        "fixture-1999": 0
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 9,
+        "n": 120,
+        "p50": 0,
+        "p95": 7,
+        "total": 239
+      },
+      "bodies_per_tick": {
+        "max": 9,
+        "n": 120,
+        "p50": 1,
+        "p95": 7,
+        "total": 239
+      },
+      "count": 2000,
+      "display_interval_ms": {
+        "max": 49.99987500195857,
+        "n": 119,
+        "p50": 16.666625000652857,
+        "p95": 33.333250001305714,
+        "total": 2733.326499997929
+      },
+      "document_height": 481949,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0.017625003238208592,
+        "n": 157,
+        "p50": 0.010166666470468044,
+        "p95": 0.014583332813344896,
+        "total": 1.5337917211581953
+      },
+      "geometry_transform_ms": {
+        "max": 0.0010000003385357559,
+        "n": 157,
+        "p50": 0.0006666596163995564,
+        "p95": 0.0008333372534252703,
+        "total": 0.0984166981652379
+      },
+      "layout_ms": {
+        "max": 17.49083332833834,
+        "n": 120,
+        "p50": 0.03554167051333934,
+        "p95": 0.07208333408925682,
+        "total": 23.72799996373942
+      },
+      "mix": "mixed",
+      "phase": "late",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 37,
+      "scans_ms": {
+        "input": {
+          "max": 0.25695833028294146,
+          "n": 37,
+          "p50": 0.21787500008940697,
+          "p95": 0.23491666070185602,
+          "total": 8.10912498855032
+        },
+        "preparedMessages": {
+          "max": 1.4243749974411912,
+          "n": 148,
+          "p50": 1.1316666641505435,
+          "p95": 1.278208328585606,
+          "total": 166.61483335337834
+        }
+      },
+      "start_y": 0,
+      "step_ms": {
+        "max": 47.7022916675196,
+        "n": 120,
+        "p50": 19.9176666646963,
+        "p95": 36.38712499378016,
+        "total": 2765.780249959789
+      },
+      "ticks": 120,
+      "unique": 11,
+      "bottom_sentinels": {
+        "fixture-1998": 0,
+        "fixture-1999": 0
+      }
+    },
+    {
+      "bodies_per_display_callback": {
+        "max": 0,
+        "n": 61,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "bodies_per_tick": {
+        "max": 0,
+        "n": 60,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "count": 2000,
+      "display_interval_ms": {
+        "max": 16.666625000652857,
+        "n": 60,
+        "p50": 16.666625000652857,
+        "p95": 16.666625000652857,
+        "total": 999.9974999955157
+      },
+      "document_height": 481915,
+      "end_y": 0,
+      "geometry_action_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "geometry_transform_ms": {
+        "max": 0,
+        "n": 0,
+        "p50": 0,
+        "p95": 0,
+        "total": 0
+      },
+      "layout_ms": {
+        "max": 0.13112500164425,
+        "n": 60,
+        "p50": 0.03458333958406001,
+        "p95": 0.0832083314890042,
+        "total": 2.803624956868589
+      },
+      "mix": "mixed",
+      "phase": "idle",
+      "prepare": [],
+      "retry_source_collections": 0,
+      "room_bodies": 0,
+      "scans_ms": {},
+      "start_y": 0,
+      "step_ms": {
+        "max": 18.662375005078502,
+        "n": 60,
+        "p50": 17.17724999616621,
+        "p95": 17.281333333812654,
+        "total": 1022.0744582838961
+      },
+      "ticks": 60,
+      "unique": 0,
+      "bottom_sentinels": {
+        "fixture-1998": 0,
+        "fixture-1999": 0
+      }
+    },
+    {
+      "bodies": 12,
+      "count": 2000,
+      "mix": "mixed",
+      "phase": "reaction",
+      "prepare": [
+        {
+          "ms": 1.2137083322159015,
+          "parsed": 0,
+          "visited": 2000
+        }
+      ],
+      "retry_source_collections": 0,
+      "room_bodies": 3,
+      "wall_ms": 804.0708750049816
+    }
+  ],
+  "verification": {
+    "workspace_tests": {
+      "result": "Passed",
+      "total": 858,
+      "failures": 0,
+      "skipped": 0,
+      "app": 99,
+      "core_api": 1,
+      "auth": 35,
+      "chat": 553,
+      "realtime": 48,
+      "workspace": 122
+    },
+    "release_probe_build": "Passed",
+    "ios_workspace_build": {
+      "scheme": "SokosumiWorkspace",
+      "sdk": "iphoneos",
+      "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
+      "result": "Passed"
+    },
+    "swiftformat": "Passed, 0 of 378 files require formatting",
+    "swiftlint": "Passed, strict, no cache, 0 violations in 378 files",
+    "harness_extraction_replay": "Passed; extracted probe files match built sources",
+    "project_and_package_products": "Unchanged"
+  }
+}

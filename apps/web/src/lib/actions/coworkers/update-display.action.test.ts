@@ -57,7 +57,9 @@ describe("developer coworker actions", () => {
     const { updateDeveloperCoworkerDisplayAction } = await import(
       "./update-display.action"
     );
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     getOwnedCoworkerByIdMock.mockResolvedValue(null);
 
@@ -143,7 +145,9 @@ describe("developer coworker actions", () => {
     const { updateDeveloperCoworkerDisplayAction } = await import(
       "./update-display.action"
     );
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     getOwnedCoworkerByIdMock.mockResolvedValue({ id: "cow_123" });
 
@@ -169,7 +173,9 @@ describe("developer coworker actions", () => {
     const { updateDeveloperCoworkerDisplayAction } = await import(
       "./update-display.action"
     );
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     getOwnedCoworkerByIdMock.mockResolvedValue({ id: "cow_123" });
 
@@ -196,7 +202,9 @@ describe("developer coworker actions", () => {
     const { updateDeveloperCoworkerDisplayAction } = await import(
       "./update-display.action"
     );
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     const result = await updateDeveloperCoworkerDisplayAction({
       session,
@@ -221,10 +229,10 @@ describe("developer coworker actions", () => {
     const { updateDeveloperCoworkerDisplayAction } = await import(
       "./update-display.action"
     );
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
-    const { COWORKER_IMAGE_MAX_SIZE_BYTES } = await import(
-      "@/lib/constants/coworker-image"
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
     );
+    const { COWORKER_IMAGE_MAX_SIZE_BYTES } = await import("@sokosumi/utils");
 
     const oversizedImage = new File(
       [new Uint8Array(COWORKER_IMAGE_MAX_SIZE_BYTES + 1)],

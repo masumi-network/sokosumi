@@ -9,6 +9,7 @@ import {
 
 import { requireTaskScheduleWriteAccess } from "@/helpers/access-control";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -16,6 +17,7 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { ok } from "@/helpers/response";
 import { validateTaskAssigneeAssignment } from "@/helpers/task";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
+import { notifyTaskCalendarAction } from "@/helpers/task-notifications";
 import {
   computeScheduleNextRun,
   isDueRunPastScheduleEnd,
@@ -144,10 +146,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
       if (replayPayload) {
         const storedResponse = taskScheduleSourceMutationSchema.safeParse(
-          replayPayload.response,
+          replayPayload.payload.response,
         );
         if (storedResponse.success) {
-          return storedResponse.data;
+          return {
+            response: storedResponse.data,
+            notification: {
+              eventId: replayPayload.eventId,
+              actorUserId: replayPayload.actorUserId,
+              ownerId: currentTask.ownerId,
+              taskName: currentTask.name,
+            },
+          };
         }
         throw conflict("The original Calendar source move cannot be replayed", {
           kind: CORE_API_ERROR_KINDS.IDEMPOTENCY_CONFLICT,
@@ -272,7 +282,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         scheduleRevision: updatedTask.scheduleRevision,
         canceledFutureExceptionCount: retired.canceledCount,
       });
-      await tx.taskEvent.create({
+      const event = await tx.taskEvent.create({
         data: {
           taskId: id,
           ...resolveTaskEventActorFields(authContext),
@@ -292,7 +302,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         select: { id: true },
       });
 
-      return mutationResponse;
+      return {
+        response: mutationResponse,
+        notification: {
+          eventId: event.id,
+          actorUserId: userContext?.userId ?? null,
+          ownerId: currentTask.ownerId,
+          taskName: currentTask.name,
+        },
+      };
     }, "Task source changed during Calendar move").catch((error: unknown) => {
       if (error instanceof TaskScheduleOccurrenceLimitError) {
         throw badRequest(error.message);
@@ -300,6 +318,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw error;
     });
 
-    return ok(c, response);
+    await Promise.all([
+      notifyTaskCalendarAction({
+        taskId: id,
+        taskName: response.notification.taskName,
+        ownerId: response.notification.ownerId,
+        actorUserId: response.notification.actorUserId,
+        eventId: response.notification.eventId,
+        messageKey: "Notifications.Task.scheduleSourceChangedByMember",
+        action: "move_source",
+      }),
+      deliverCalendarInvalidationsNow(existingTask.workspaceId),
+    ]);
+
+    return ok(c, response.response);
   });
 }

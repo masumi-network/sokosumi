@@ -36,6 +36,8 @@ import {
 import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  listUnreadThreadsOfRoomsWithThreadUnread,
+  unreadCountFields,
 } from "./room-unread";
 
 /**
@@ -103,10 +105,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const takePlusOne = take + 1;
     const organizationId = userContext.organizationId;
 
-    // Avoid interactive transaction on this read-only path — chat index loads
-    // listRooms in parallel with members + coworkers; interactive txs hold a
-    // pool connection and also forbid Promise.all inside (#2559 / P2028).
-    // Membership gate + list/count/unread do not need a shared snapshot.
     let organizationRole: string | null = null;
     if (organizationId) {
       const membership = await resolveMemberOrganizationById({
@@ -178,15 +176,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           .filter((id): id is string => id != null),
       ),
     ];
+    // Started here so the unread Threads can wait on it alone, beside the
+    // other reads rather than after them.
+    const unreadCountsRead = getChatRoomUnreadCounts(roomIds, userId, prisma);
     const [
       unreadCounts,
+      unreadThreads,
       unreadMentionCounts,
       sidebarFlags,
       pinnedMessageCounts,
       peerInActiveOrganizationFlags,
       organizations,
     ] = await Promise.all([
-      getChatRoomUnreadCounts(roomIds, userId, prisma),
+      unreadCountsRead,
+      unreadCountsRead.then((counts) =>
+        listUnreadThreadsOfRoomsWithThreadUnread(counts, userId, prisma),
+      ),
       getChatRoomUnreadMentionCounts(roomIds, userId, prisma),
       getChatRoomSidebarFlags(roomIds, userId, prisma),
       getChatRoomPinnedMessageCounts(roomIds, prisma),
@@ -218,7 +223,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         rooms.map((room) => {
           const flags = sidebarFlags.get(room.id);
           return mapChatRoom(room, userId, {
-            unreadCount: unreadCounts.get(room.id) ?? 0,
+            ...unreadCountFields(unreadCounts.get(room.id)),
+            unreadThreads: unreadThreads.get(room.id),
             unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
             starredAt: flags?.starredAt ?? null,
             pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,

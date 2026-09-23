@@ -1,18 +1,17 @@
 import { isDeepStrictEqual } from "node:util";
 
-import * as Sentry from "@sentry/node";
 import {
   Channel,
-  NotificationKind,
   type Prisma,
   TaskScheduleEventKind,
   TaskStatus,
 } from "@sokosumi/database";
 import { err, ok, type Result } from "neverthrow";
 
+import { deliverTaskCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
-import { createNotification } from "@/helpers/notifications";
 import { validateTaskAssigneeAssignment } from "@/helpers/task";
+import { notifyTaskCalendarAction } from "@/helpers/task-notifications";
 import {
   buildTaskScheduleMetadata,
   computeScheduleNextRun,
@@ -24,7 +23,6 @@ import {
   replaceTaskSchedulePlannedOccurrences,
   TaskScheduleOccurrenceLimitError,
 } from "@/helpers/task-schedule-occurrence-index";
-import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { TaskScheduleInput } from "@/schemas/task-schedule.schema";
 
@@ -45,6 +43,7 @@ export interface TaskScheduleQuarantineActionSuccess {
   taskName: string;
   eventId: string;
   ownerId: string;
+  actorUserId: string | null;
   replayed: boolean;
 }
 
@@ -105,6 +104,7 @@ async function findExistingAction(
     select: {
       id: true,
       schedulePayload: true,
+      userId: true,
     },
   });
   if (!existing) {
@@ -123,6 +123,7 @@ async function findExistingAction(
     taskName: existing.schedulePayload.taskName,
     eventId: existing.id,
     ownerId: existing.schedulePayload.ownerId,
+    actorUserId: existing.userId,
     replayed: true,
   });
 }
@@ -210,55 +211,19 @@ async function lockAndReloadQuarantine(
 
 async function notifyQuarantineAction(
   result: TaskScheduleQuarantineActionSuccess,
-  operatorId: string,
 ): Promise<void> {
-  if (result.ownerId === operatorId) {
-    return;
-  }
-
-  try {
-    const accessibleTask = await prisma.task.findFirst({
-      where: {
-        id: result.taskId,
-        ownerId: result.ownerId,
-        workspace: {
-          OR: [
-            { userId: result.ownerId },
-            {
-              organization: {
-                members: { some: { userId: result.ownerId } },
-              },
-            },
-          ],
-        },
-      },
-      select: { id: true },
-    });
-    if (!accessibleTask) {
-      return;
-    }
-
-    await createNotification({
-      userId: result.ownerId,
-      kind: NotificationKind.TASK,
-      referenceId: result.taskId,
-      eventId: result.eventId,
-      messageKey:
-        result.status === "repaired"
-          ? "Notifications.Task.scheduleRepaired"
-          : "Notifications.Task.scheduleRemovedByOperator",
-      messageParams: { taskName: result.taskName },
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      extra: {
-        taskId: result.taskId,
-        eventId: result.eventId,
-        ownerId: result.ownerId,
-        action: result.status,
-      },
-    });
-  }
+  await notifyTaskCalendarAction({
+    taskId: result.taskId,
+    taskName: result.taskName,
+    ownerId: result.ownerId,
+    actorUserId: result.actorUserId,
+    eventId: result.eventId,
+    messageKey:
+      result.status === "repaired"
+        ? "Notifications.Task.scheduleRepaired"
+        : "Notifications.Task.scheduleRemovedByOperator",
+    action: result.status,
+  });
 }
 
 export async function repairTaskScheduleQuarantine(
@@ -377,13 +342,17 @@ export async function repairTaskScheduleQuarantine(
         taskName: lockedQuarantine.task.name,
         eventId: event.id,
         ownerId: lockedQuarantine.task.ownerId,
+        actorUserId: input.operatorId,
         replayed: false,
       });
     },
     "Task schedule quarantine changed concurrently",
   );
   if (result.isOk()) {
-    await notifyQuarantineAction(result.value, input.operatorId);
+    await Promise.all([
+      notifyQuarantineAction(result.value),
+      deliverTaskCalendarInvalidationsNow(result.value.taskId),
+    ]);
   }
   return result;
 }
@@ -460,13 +429,17 @@ export async function removeTaskScheduleQuarantine(
         taskName: lockedQuarantine.task.name,
         eventId: event.id,
         ownerId: lockedQuarantine.task.ownerId,
+        actorUserId: input.operatorId,
         replayed: false,
       });
     },
     "Task schedule quarantine changed concurrently",
   );
   if (result.isOk()) {
-    await notifyQuarantineAction(result.value, input.operatorId);
+    await Promise.all([
+      notifyQuarantineAction(result.value),
+      deliverTaskCalendarInvalidationsNow(result.value.taskId),
+    ]);
   }
   return result;
 }

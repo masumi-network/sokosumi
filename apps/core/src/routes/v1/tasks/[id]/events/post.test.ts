@@ -26,6 +26,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const {
   calculateCentsFromMasumiAmountStringsMock,
   createNotificationMock,
+  deliverCalendarInvalidationsNowMock,
   processTaskPaymentClaimMock,
   createTaskPaymentClaimMock,
   createTaskEventTransactionMock,
@@ -46,6 +47,7 @@ const {
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
   createNotificationMock: vi.fn(),
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   processTaskPaymentClaimMock: vi.fn(),
   createTaskPaymentClaimMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
@@ -74,6 +76,10 @@ const {
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
+}));
+
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCollaboration: requireTaskCollaborationMock,
   requireTaskStatusWriteAccess: requireTaskStatusWriteAccessMock,
@@ -83,6 +89,13 @@ vi.mock("@/helpers/access-control", () => ({
 
 vi.mock("@/helpers/notifications", () => ({
   createNotification: createNotificationMock,
+}));
+
+const notifyLowBalanceAfterChargeMock = vi.fn().mockResolvedValue(undefined);
+
+vi.mock("@/helpers/billing-notifications", () => ({
+  notifyLowBalanceAfterCharge: (...args: unknown[]) =>
+    notifyLowBalanceAfterChargeMock(...args),
 }));
 
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
@@ -240,6 +253,7 @@ function createTask(
     assigneeUserId: string | null;
     status: TaskStatus;
     ownerId: string;
+    workspaceId: string;
     projectId: string | null;
     metadata: string | null;
     nextRunAt: Date | null;
@@ -253,6 +267,7 @@ function createTask(
     assigneeSokoBotId: null,
     assigneeUserId: null,
     ownerId: USER_ID,
+    workspaceId: "ws_123",
     organizationId: null,
     projectId: null,
     metadata: null,
@@ -443,6 +458,7 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith("ws_123");
     expect(tx.taskEvent.create).toHaveBeenCalled();
     expect(tx.task.updateMany).toHaveBeenCalled();
   });
@@ -484,8 +500,11 @@ describe("POST /{id}/events", () => {
     expect(waitUntilCapturedPromises).toHaveLength(1);
     await waitUntilCapturedPromises[0];
 
+    // A status change takes no credits, so it never checks the balance.
+    expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
     expect(createNotificationMock).toHaveBeenCalledWith({
       userId: USER_ID,
+      workspaceId: "ws_123",
       kind: NotificationKind.TASK,
       referenceId: TASK_ID,
       eventId: "event_input_required",
@@ -967,7 +986,7 @@ describe("POST /{id}/events", () => {
       .mockResolvedValueOnce("txn_first")
       .mockResolvedValueOnce("txn_second");
     requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.RUNNING }),
+      createTask({ status: TaskStatus.RUNNING, organizationId: "org-1" }),
     );
 
     const app = createApp({
@@ -992,6 +1011,15 @@ describe("POST /{id}/events", () => {
     expect(createTaskEventTransactionMock).toHaveBeenCalledTimes(2);
     expect(tx.taskEvent.create).toHaveBeenCalledTimes(2);
     expect(tx.task.updateMany).not.toHaveBeenCalled();
+    // Each committed charge checks the wallet it came out of, after the
+    // response, on the task owner's wallet rather than the caller's.
+    expect(waitUntilCapturedPromises).toHaveLength(2);
+    await Promise.all(waitUntilCapturedPromises);
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledTimes(2);
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+      userId: USER_ID,
+      organizationId: "org-1",
+    });
   });
 
   it("auto-sets OUT_OF_CREDITS on credit-only when balance is insufficient mid-run", async () => {
@@ -2579,6 +2607,54 @@ describe("POST /{id}/events", () => {
     expect(processTaskPaymentClaimMock).toHaveBeenCalledTimes(1);
     await Promise.all(waitUntilCapturedPromises);
     expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("caps the retry reason written to stdout", async () => {
+    processTaskPaymentClaimMock.mockResolvedValue({
+      status: "retry_scheduled",
+      reason: "x".repeat(20_000),
+    });
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            id: "evt_retry",
+            status: TaskStatus.COMPLETED,
+            transactionId: "txn_retry",
+          }),
+        ),
+      },
+      task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_retry");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const app = createApp({
+        actor: "coworker",
+        coworkerId: COWORKER_ID,
+        vendorId: TEST_VENDOR_ID,
+      });
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: TaskStatus.COMPLETED,
+          masumiPayment: validMasumiPaymentBody,
+        }),
+      });
+      expect(response.status).toBe(201);
+      await Promise.all(waitUntilCapturedPromises);
+      const logged = warnSpy.mock.calls.find(
+        (call) => call[0] === "[tasks] masumi task payment: retry scheduled",
+      );
+      expect(logged).toBeDefined();
+      const payload = logged?.[1] as { reason: string };
+      expect(payload.reason.length).toBeLessThanOrEqual(2_000);
+      expect(payload.reason).toContain("[truncated]");
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("returns 201 and publishes when durable processor refunds a permanent failure", async () => {

@@ -9,13 +9,19 @@ import {
 
 import { requireTaskScheduleWriteAccess } from "@/helpers/access-control";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
-import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
+import {
+  lockCalendarScope,
+  lockTaskRows,
+  requireOpenCalendarProject,
+} from "@/helpers/calendar-locks";
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
+import { notifyTaskCalendarAction } from "@/helpers/task-notifications";
 import {
   buildTaskScheduleMetadataV2,
   computeScheduleNextRun,
@@ -30,7 +36,7 @@ import {
 import {
   canonicalTaskScheduleInput,
   createTaskScheduleRequestFingerprint,
-  isTaskScheduleOperationReplay,
+  readTaskScheduleOperationReplay,
 } from "@/helpers/task-schedule-operation";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -100,7 +106,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma,
     );
 
-    const task = await serializableTransaction(async (tx) => {
+    const result = await serializableTransaction(async (tx) => {
       if (
         !(await lockCalendarScope(tx, existingTask.workspaceId, [
           existingTask.projectId,
@@ -125,21 +131,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       // A retry replays before any state check: the first attempt already
       // applied this operation and may have moved the Task and its revision on.
-      if (
-        await isTaskScheduleOperationReplay(tx, {
-          taskId: id,
-          operationId,
-          requestFingerprint,
-        })
-      ) {
-        return await tx.task.findUniqueOrThrow({
+      const replay = await readTaskScheduleOperationReplay(tx, {
+        taskId: id,
+        operationId,
+        requestFingerprint,
+      });
+      if (replay) {
+        const task = await tx.task.findUniqueOrThrow({
           where: { id },
           include: buildTaskIncludeForViewer(
             authContext,
             currentTask.workspaceId,
           ),
         });
+        return {
+          task,
+          notification: {
+            eventId: replay.eventId,
+            actorUserId: replay.actorUserId,
+            ownerId: currentTask.ownerId,
+            taskName: currentTask.name,
+          },
+        };
       }
+      await requireOpenCalendarProject(
+        tx,
+        currentTask.workspaceId,
+        currentTask.projectId,
+      );
       validateScheduleInput(schedule);
       if (expectedScheduleRevision !== currentTask.scheduleRevision) {
         throw conflict(
@@ -237,7 +256,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         changedAt,
       );
 
-      await tx.taskEvent.create({
+      const event = await tx.taskEvent.create({
         data: {
           taskId: id,
           ...resolveTaskEventActorFields(authContext),
@@ -256,7 +275,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         select: { id: true },
       });
-      return updatedTask;
+      return {
+        task: updatedTask,
+        notification: {
+          eventId: event.id,
+          actorUserId: userContext?.userId ?? null,
+          ownerId: currentTask.ownerId,
+          taskName: currentTask.name,
+        },
+      };
     }, "Task schedule changed during Calendar update").catch(
       (error: unknown) => {
         if (error instanceof TaskScheduleOccurrenceLimitError) {
@@ -266,6 +293,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     );
 
-    return ok(c, taskSchema.parse(mapTask(task, authContext)));
+    await Promise.all([
+      notifyTaskCalendarAction({
+        taskId: id,
+        taskName: result.notification.taskName,
+        ownerId: result.notification.ownerId,
+        actorUserId: result.notification.actorUserId,
+        eventId: result.notification.eventId,
+        messageKey: "Notifications.Task.scheduleUpdatedByMember",
+        action: "update_schedule",
+      }),
+      deliverCalendarInvalidationsNow(existingTask.workspaceId),
+    ]);
+
+    return ok(c, taskSchema.parse(mapTask(result.task, authContext)));
   });
 }

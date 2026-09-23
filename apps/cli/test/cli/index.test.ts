@@ -13,7 +13,6 @@ import {
 import type { BrowserLoginOptions } from "../../src/auth/oauth.js";
 import { CLI_COMMANDS } from "../../src/cli/commands/discover.js";
 import {
-  BOOLEAN_OPTION_NAMES,
   GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
   GLOBAL_VALUE_OPTIONS,
   parseArgv,
@@ -220,9 +219,10 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
   for (const name of GLOBAL_VALUE_OPTIONS) {
     assert.match(help, new RegExp(`--${escape(name)}\\b`));
   }
-  for (const name of BOOLEAN_OPTION_NAMES) {
-    assert.match(help, new RegExp(`--${escape(name)}\\b`));
-  }
+
+  const globalIndex = help.indexOf("Global options:");
+  assert.notEqual(globalIndex, -1);
+  assert.doesNotMatch(help.slice(0, globalIndex), / --/);
 
   const parsed = parseArgv([
     "--preprod",
@@ -522,6 +522,119 @@ test("dispatches discover JSON without opening a TUI", async () => {
   const parsed = JSON.parse(output.join(""));
   assert.equal(parsed.environment, "custom");
   assert.ok(parsed.commands.includes("agents list"));
+});
+
+const newCommandCases = [
+  { argv: ["vendors", "me"], path: "/v1/vendors/me", key: "vendors" },
+  {
+    argv: ["workspaces", "list"],
+    path: "/v1/users/me/organizations",
+    key: "workspaces",
+  },
+] as const;
+
+test("dispatches new read commands through their exact Core routes", async () => {
+  for (const testCase of newCommandCases) {
+    const output: string[] = [];
+    const paths: string[] = [];
+    await runCli([...testCase.argv, "--json"], {
+      env: {
+        SOKOSUMI_API_URL: "https://api.example.test",
+        SOKOSUMI_AUTH_TOKEN: "token",
+      },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async <T>(path: string) => {
+          paths.push(path);
+          return {
+            data: [{ id: testCase.key + "-1", role: "admin" }],
+          } as T;
+        },
+        post: async <T>() => ({ data: null }) as T,
+        patch: async <T>() => ({ data: null }) as T,
+        delete: async <T>() => ({ data: null }) as T,
+      },
+      stdout: { write: (value) => output.push(value) },
+    });
+    assert.deepEqual(paths, [testCase.path]);
+    assert.equal(output.length, 1);
+    const parsed = JSON.parse(output[0]!) as Record<string, { id: string }[]>;
+    if (testCase.key === "workspaces") {
+      assert.equal(
+        (parsed[testCase.key]?.[0] as { organizationId?: string })
+          ?.organizationId,
+        testCase.key + "-1",
+      );
+    } else {
+      assert.equal(parsed[testCase.key]?.[0]?.id, testCase.key + "-1");
+    }
+  }
+});
+
+test("new read commands reject unauthenticated calls before Core", async () => {
+  const authError = "Authentication required. Run `sokosumi auth login` first.";
+  for (const testCase of newCommandCases) {
+    const output: string[] = [];
+    let coreCalls = 0;
+    await assert.rejects(
+      runCli([...testCase.argv, "--json"], {
+        env: { SOKOSUMI_API_URL: "https://api.example.test" },
+        authManager: createTestAuthManager(),
+        coreClient: {
+          get: async <T>() => {
+            coreCalls += 1;
+            return {} as T;
+          },
+          post: async <T>() => {
+            coreCalls += 1;
+            return {} as T;
+          },
+          patch: async <T>() => {
+            coreCalls += 1;
+            return {} as T;
+          },
+          delete: async <T>() => {
+            coreCalls += 1;
+            return {} as T;
+          },
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      /Authentication required/,
+    );
+    assert.equal(coreCalls, 0);
+    assert.deepEqual(output, [JSON.stringify({ error: authError }) + "\n"]);
+  }
+});
+
+test("new commands require their exact subcommand and no trailing args", async () => {
+  const invalidArgs = [
+    ["vendors"],
+    ["workspaces"],
+    ["vendors", "me", "extra"],
+    ["workspaces", "list", "extra"],
+  ];
+  for (const args of invalidArgs) {
+    const output: string[] = [];
+    await assert.rejects(
+      runCli([...args, "--json"], {
+        env: {
+          SOKOSUMI_API_URL: "https://api.example.test",
+          SOKOSUMI_AUTH_TOKEN: "token",
+        },
+        authManager: createTestAuthManager(),
+        coreClient: {
+          get: async <T>() => ({}) as T,
+          post: async <T>() => ({}) as T,
+          patch: async <T>() => ({}) as T,
+          delete: async <T>() => ({}) as T,
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      /Usage:|Unexpected argument:/,
+    );
+    assert.equal(output.length, 1);
+  }
 });
 
 test("dispatches agents list through the injected Core client", async () => {

@@ -1,3 +1,4 @@
+import { NOTIFICATION_EMAIL_CATEGORIES } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 // The generated index re-exports types only, and this needs the category list
@@ -11,6 +12,7 @@ import {
   cellsFor,
   type GroupSpec,
   groupPreset,
+  type KindChannels,
   type KindSpec,
   NOTIFICATION_GROUPS,
   type NotificationCategory,
@@ -19,6 +21,7 @@ import {
   presetChanges,
   presetPushes,
   presetStops,
+  type StoredChannel,
   sameChannels,
   withChannel,
 } from "./notification-delivery";
@@ -27,7 +30,7 @@ const MENTION: KindSpec = {
   category: "CHAT_MENTION",
   labelKey: "kindChatMention",
   hintKey: "kindChatMentionHint",
-  email: "NONE",
+  email: "CHANNEL",
 };
 
 /** The group as the page holds it: these pin the table the reader presses. */
@@ -53,6 +56,14 @@ function preset(groupId: string, id: Preset): PresetSpec {
 
 function categories(kinds: readonly KindSpec[]): NotificationCategory[] {
   return kinds.map((kind) => kind.category);
+}
+
+/** The kinds as the page hands them to a preset: each on the channels given. */
+function rows(
+  kinds: readonly KindSpec[],
+  channels: readonly StoredChannel[] = [],
+): KindChannels[] {
+  return kinds.map((spec) => ({ spec, channels }));
 }
 
 function cells(...rows: [string, string, boolean][]) {
@@ -279,6 +290,24 @@ describe("NOTIFICATION_GROUPS", () => {
 
     expect(pushed).toEqual([]);
   });
+
+  /**
+   * The one billing notice worth interrupting for is also the one a reader
+   * must not lose: a wallet that runs out stops their work. So every stop but
+   * Off keeps it in the app, and the two loud stops put it on the device.
+   */
+  it("keeps billing that waits on the reader at every stop but Off", () => {
+    const reach = group("BILLING").presets.map(
+      (one) => `${one.id} ${one.reach.BILLING_ATTENTION}`,
+    );
+
+    expect(reach).toEqual([
+      "MOST PUSH",
+      "ESSENTIAL PUSH",
+      "APP_ONLY IN_APP",
+      "OFF NONE",
+    ]);
+  });
 });
 
 describe("groupPreset", () => {
@@ -290,6 +319,30 @@ describe("groupPreset", () => {
           ["TASK_ATTENTION", "OS_BANNER", true],
           ["TASK_COMPLETED", "IN_APP", true],
           ["TASK_COMPLETED", "OS_BANNER", true],
+          ["TASK_UPDATE", "IN_APP", true],
+          ["TASK_UPDATE", "OS_BANNER", false],
+        ),
+        group("TASK").presets,
+        group("TASK").kinds,
+      ),
+    ).toBe("MOST");
+  });
+
+  /**
+   * No situation writes the email cells, so none of them is read here. A
+   * reader who turned one row's email off is still exactly on Most, and the
+   * rail says so rather than Custom.
+   */
+  it("reads the group by the cells a situation speaks for", () => {
+    expect(
+      groupPreset(
+        cells(
+          ["TASK_ATTENTION", "IN_APP", true],
+          ["TASK_ATTENTION", "OS_BANNER", true],
+          ["TASK_ATTENTION", "EMAIL", false],
+          ["TASK_COMPLETED", "IN_APP", true],
+          ["TASK_COMPLETED", "OS_BANNER", true],
+          ["TASK_COMPLETED", "EMAIL", true],
           ["TASK_UPDATE", "IN_APP", true],
           ["TASK_UPDATE", "OS_BANNER", false],
         ),
@@ -404,11 +457,14 @@ describe("groupPreset", () => {
 
 describe("presetChanges", () => {
   /**
-   * The whole group, every cell of it. The reader's own cells are not read:
-   * that is what lets the rail name the situation the group is in.
+   * The whole group, every cell the situation speaks for. The channels each
+   * kind is on now are not read for those: that is what lets the rail name
+   * the situation the group is in.
    */
   it("writes the situation on every kind of the group", () => {
-    expect(presetChanges(preset("TASK", "MOST"), group("TASK").kinds)).toEqual([
+    expect(
+      presetChanges(preset("TASK", "MOST"), rows(group("TASK").kinds)),
+    ).toEqual([
       { category: "TASK_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
       { category: "TASK_COMPLETED", channels: ["IN_APP", "OS_BANNER"] },
       { category: "TASK_UPDATE", channels: ["IN_APP"] },
@@ -416,20 +472,46 @@ describe("presetChanges", () => {
   });
 
   it("silences the group", () => {
-    expect(presetChanges(preset("CHAT", "OFF"), group("CHAT").kinds)).toEqual([
+    expect(
+      presetChanges(
+        preset("CHAT", "OFF"),
+        rows(group("CHAT").kinds, ["IN_APP", "OS_BANNER"]),
+      ),
+    ).toEqual([
       { category: "CHAT_ROOM_MESSAGE", channels: [] },
       { category: "CHAT_MENTION", channels: [] },
       { category: "CHAT_DIRECT_MESSAGE", channels: [] },
     ]);
   });
 
+  /**
+   * A situation is about Sokosumi and the device, and says nothing about the
+   * inbox. So Off quiets a row and leaves its email as the reader set it,
+   * rather than switching their emails off without saying so.
+   */
+  it("carries each kind's email cell over as it was", () => {
+    const [attention, completed, update] = group("TASK").kinds;
+
+    expect(
+      presetChanges(preset("TASK", "OFF"), [
+        { spec: attention, channels: ["IN_APP", "OS_BANNER", "EMAIL"] },
+        { spec: completed, channels: ["IN_APP"] },
+        { spec: update, channels: ["IN_APP"] },
+      ]),
+    ).toEqual([
+      { category: "TASK_ATTENTION", channels: ["EMAIL"] },
+      { category: "TASK_COMPLETED", channels: [] },
+      { category: "TASK_UPDATE", channels: [] },
+    ]);
+  });
+
   /** A press says nothing about a kind its situation never named. */
   it("leaves a kind the situation does not name alone", () => {
     expect(
-      presetChanges(preset("TASK", "OFF"), [
-        ...group("TASK").kinds,
-        MENTION,
-      ]).map((change) => change.category),
+      presetChanges(
+        preset("TASK", "OFF"),
+        rows([...group("TASK").kinds, MENTION]),
+      ).map((change) => change.category),
     ).toEqual(["TASK_ATTENTION", "TASK_COMPLETED", "TASK_UPDATE"]);
   });
 });
@@ -481,21 +563,38 @@ describe("presetStops", () => {
 
 describe("NOTIFICATION_GROUPS", () => {
   /**
-   * A preset writes the reaches it names and nothing else, and `REACH_CHANNELS`
-   * names no email. So a group that both offers presets and stores an email
-   * cell would switch that cell off on every press of a situation, silently.
-   *
-   * Today the reminder row is the only one that stores email and its group
-   * offers no presets. This is what makes adding a preset there fail here
-   * rather than in somebody's inbox (SOK-916).
+   * The rows that draw an email cell are the categories Core mails, and Core
+   * keeps that list (`NOTIFICATION_EMAIL_CATEGORIES`). This file is a test,
+   * so it reads the list rather than pinning a copy: a row moved onto or off
+   * it fails here in the same change, rather than drawing a cell Core
+   * ignores or hiding one it reads (SOK-1090, SOK-916, SOK-1142). App code
+   * still cannot take this import; the page keeps its own vocabulary. Both
+   * sides are sorted, because the page orders its rows for the reader and
+   * Core orders its list for itself.
    */
-  it("offers no preset over a row that stores its own email cell", () => {
-    const offending = NOTIFICATION_GROUPS.filter(
-      (group) =>
-        group.presets.length > 0 &&
-        group.kinds.some((kind) => kind.email === "CHANNEL"),
-    ).map((group) => group.id);
+  it("offers the email cell on the rows Core mails", () => {
+    expect(
+      NOTIFICATION_GROUPS.flatMap((group) =>
+        group.kinds
+          .filter((kind) => kind.email === "CHANNEL")
+          .map((kind) => kind.category),
+      ).toSorted(),
+    ).toEqual([...NOTIFICATION_EMAIL_CATEGORIES].toSorted());
+  });
 
-    expect(offending).toEqual([]);
+  /**
+   * Every other row says where its email really comes from, or it is a
+   * coming-soon cell again: a promise the row behind it does not keep.
+   */
+  it("marks every row it does not mail as arriving from elsewhere", () => {
+    const mailed = new Set<string>(NOTIFICATION_EMAIL_CATEGORIES);
+
+    expect(
+      NOTIFICATION_GROUPS.flatMap((group) =>
+        group.kinds
+          .filter((kind) => !mailed.has(kind.category))
+          .map((kind) => `${kind.category} ${kind.email}`),
+      ),
+    ).toEqual(["BILLING_UPDATE EXTERNAL"]);
   });
 });

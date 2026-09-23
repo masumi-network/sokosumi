@@ -108,14 +108,14 @@ export function redactDeep<T>(value: T, secrets: readonly string[]): T {
   if (secrets.length === 0) {
     return value;
   }
-  return walk(value, secrets, 0, new WeakSet<object>()) as T;
+  return walk(value, secrets, 0, new WeakMap<object, object>()) as T;
 }
 
 function walk(
   value: unknown,
   secrets: readonly string[],
   depth: number,
-  seen: WeakSet<object>,
+  clones: WeakMap<object, object>,
 ): unknown {
   if (typeof value === "string") {
     return redactSecrets(value, secrets);
@@ -123,13 +123,21 @@ function walk(
   if (value === null || typeof value !== "object") {
     return value;
   }
-  if (depth >= MAX_REDACTION_DEPTH || seen.has(value)) {
+  const clone = clones.get(value);
+  if (clone) {
+    return clone;
+  }
+  if (depth >= MAX_REDACTION_DEPTH) {
     return value;
   }
-  seen.add(value);
 
   if (Array.isArray(value)) {
-    return value.map((item) => walk(item, secrets, depth + 1, seen));
+    const redacted: unknown[] = new Array(value.length);
+    clones.set(value, redacted);
+    value.forEach((item, index) => {
+      redacted[index] = walk(item, secrets, depth + 1, clones);
+    });
+    return redacted;
   }
   // Anything with a custom prototype (a Date, a Buffer, a class instance) is
   // left alone: rebuilding it as a plain object would corrupt the event.
@@ -139,8 +147,9 @@ function walk(
   }
 
   const redacted: Record<string, unknown> = {};
+  clones.set(value, redacted);
   for (const [key, item] of Object.entries(value)) {
-    redacted[key] = walk(item, secrets, depth + 1, seen);
+    redacted[key] = walk(item, secrets, depth + 1, clones);
   }
   return redacted;
 }

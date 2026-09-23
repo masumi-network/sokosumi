@@ -1,10 +1,15 @@
 export {
+  CALENDAR_ACCESS_REVOKED_EVENT_NAME,
+  CALENDAR_INVALIDATED_EVENT_NAME,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeChatTypingChannelName,
   makeOrgPresenceChannelName,
+  makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  makeWorkspaceCalendarChannelName,
   type NotificationChannelEnvironment,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
@@ -32,6 +37,12 @@ export type {
   SessionRecord,
   SessionUser,
 } from "./better-auth-types.js";
+export {
+  BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+  BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
+} from "./billing-notification-message-keys.js";
 export { CALENDAR_BETA_ORGANIZATION_SLUG } from "./calendar-beta.js";
 export {
   CALENDAR_CLIENT_VERSION,
@@ -77,6 +88,7 @@ export {
   type ChatPresenceState,
   isValidAblyClientInstanceId,
   type PresenceConnectionInput,
+  parseUserIdFromAblyPresenceClientId,
 } from "./chat-presence.js";
 export { CHAT_PRESENCE_ONLINE_WINDOW_MS } from "./chat-presence-windows.js";
 export {
@@ -105,6 +117,7 @@ export {
   type ChatRoomQuoteAttachment,
 } from "./chat-room-quote-snippet.js";
 export { MAX_LISTED_CHAT_REACTION_REACTORS } from "./chat-room-reactions.js";
+export { CHAT_ROOM_READ_EVENT_NAME } from "./chat-room-read-event.js";
 export {
   buildChatRoomUnfurlSnapshotPathname,
   CHAT_ROOM_UNFURL_SNAPSHOT_MAX_SIZE_BYTES,
@@ -238,6 +251,7 @@ export {
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "./notification-feed-kinds.js";
 export {
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_DIRECT_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,

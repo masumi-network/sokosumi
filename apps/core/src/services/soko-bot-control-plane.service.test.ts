@@ -193,6 +193,13 @@ vi.mock("@/services/soko-bot-billing.service", () => ({
   requireSokoBotTurnFunding: vi.fn(),
 }));
 
+const notifyLowBalanceAfterChargeMock = vi.fn().mockResolvedValue(undefined);
+
+vi.mock("@/helpers/billing-notifications", () => ({
+  notifyLowBalanceAfterCharge: (...args: unknown[]) =>
+    notifyLowBalanceAfterChargeMock(...args),
+}));
+
 import { ExternalTurnClassifier } from "@/lib/soko-bot/classifier";
 import {
   type BuiltContextPacket,
@@ -2677,6 +2684,82 @@ describe("SokoBotControlPlane lifecycle", () => {
         data: { consecutiveFailures: { increment: 1 } },
       }),
     );
+    // The turn cost nothing, so settling it never checks the balance.
+    expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
+  });
+
+  it("checks the owner's wallet for a low balance after a charged turn settled", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      sokoBotId: BOT_ID,
+      userId: "user_1",
+      eveSessionId: "session_1",
+      startedAt: new Date(Date.now() - 5_000),
+      costUsdMicros: 0n,
+      status: "RUNNING",
+      leaseToken: "lease_1",
+      scheduleRun: null,
+    });
+    turnUpdateManyMock.mockResolvedValue({ count: 1 });
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+    recordUsageMock.mockResolvedValue({
+      chargedCents: 5n,
+      expectedCents: 5n,
+      shortfall: false,
+    });
+    let insideTransaction = false;
+    let notifiedInsideTransaction: boolean | null = null;
+    transactionMock.mockImplementation(
+      async (
+        callback: (tx: ReturnType<typeof transactionClient>) => unknown,
+      ) => {
+        insideTransaction = true;
+        try {
+          return await callback(transactionClient());
+        } finally {
+          insideTransaction = false;
+        }
+      },
+    );
+    notifyLowBalanceAfterChargeMock.mockImplementationOnce(async () => {
+      notifiedInsideTransaction = insideTransaction;
+    });
+
+    const settled = await new SokoBotControlPlane().expireTurn("turn_1");
+
+    expect(settled).toBe(true);
+    // After the transaction, on the personal wallet Soko Bot turns bill.
+    expect(notifiedInsideTransaction).toBe(false);
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      organizationId: null,
+    });
+  });
+
+  it("checks the wallet for a charge that committed even when settlement lost its lease", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      sokoBotId: BOT_ID,
+      userId: "user_1",
+      eveSessionId: "session_1",
+      startedAt: new Date(Date.now() - 5_000),
+      costUsdMicros: 0n,
+      status: "RUNNING",
+      leaseToken: "lease_1",
+      scheduleRun: null,
+    });
+    turnUpdateManyMock.mockResolvedValue({ count: 0 });
+    recordUsageMock.mockResolvedValue({
+      chargedCents: 5n,
+      expectedCents: 5n,
+      shortfall: false,
+    });
+
+    const settled = await new SokoBotControlPlane().expireTurn("turn_1");
+
+    expect(settled).toBe(false);
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      organizationId: null,
+    });
   });
 
   it("settles a no-session cancellation only under its current lease", async () => {

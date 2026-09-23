@@ -5,6 +5,15 @@ import {
   isPushSupported,
 } from "@/lib/utils/notification-service-worker";
 
+import {
+  forgetPushPreference,
+  hasPushPreference,
+  rememberPushPreference,
+  wantsPushHere,
+} from "./push-preference.client";
+
+import { revokePushRenewal } from "./push-renewal.client";
+
 import { isPushWorkPending, notePushTeardown } from "./push-work-queue.client";
 
 /**
@@ -22,6 +31,79 @@ import { isPushWorkPending, notePushTeardown } from "./push-work-queue.client";
  */
 const ABLY_DEVICE_IDENTITY_TOKEN_KEY = "ably.push.deviceIdentityToken";
 const UNRESOLVED_PUSH_REPAIR_KEY = "sokosumi.push.unresolvedRepair";
+const PUSH_DEVICE_OWNER_KEY = "sokosumi.push.deviceOwner";
+
+/**
+ * The id `ably@2.28.0` keeps for this browser's device (`build/push.js:263`).
+ *
+ * Asked instead of the identity token when the question is who a device
+ * belongs to, because the id is what a channel subscription is keyed on
+ * (`build/push.js:74-77`) and the id is what outlives a release. Only a
+ * deregistration that lands calls `resetId()`; one the sign-out cap cuts
+ * leaves the id in storage beside a device record Ably still holds, with the
+ * previous reader's channel still bound to it. Registering again reuses that
+ * id, so the next reader's channel joins theirs rather than replacing it.
+ */
+const ABLY_DEVICE_ID_KEY = "ably.push.deviceId";
+
+/** Whether this browser has ever been given a device id. */
+export function hasAblyPushDeviceId(): boolean {
+  try {
+    return localStorage.getItem(ABLY_DEVICE_ID_KEY) !== null;
+  } catch {
+    // Reading storage throws outright where the browser blocks site data.
+    return false;
+  }
+}
+
+/**
+ * The reader this browser's Ably registration was last registered for.
+ *
+ * Ably's own answer cannot be used for this. The registration carries a
+ * clientId, but the health check reads it authenticated as the device rather
+ * than with `push-admin`, and such a read comes back without the field
+ * (SOK-1152). Asking Ably who owns the device therefore returns nothing
+ * whichever reader asks, so the answer has to be kept here.
+ *
+ * What it guards is a browser two readers share. An explicit sign-out
+ * releases the registration, but a session that expires on its own releases
+ * nothing, by design: the reader who comes back finds push still on. The
+ * token left behind is the previous reader's, and an activation that reused
+ * it would subscribe the next reader's channel beside the previous reader's
+ * on one device, which delivers both readers' banners to whoever holds the
+ * browser.
+ */
+export function readPushDeviceOwner(): string | null {
+  try {
+    return localStorage.getItem(PUSH_DEVICE_OWNER_KEY);
+  } catch {
+    // A browser that blocks site data carries no registration to own.
+    return null;
+  }
+}
+
+/**
+ * Say who this browser's registration belongs to, once it is theirs.
+ *
+ * Written before the device is bound to this reader's notifications channel,
+ * which is the step that makes it theirs, rather than at the end of the run.
+ * A step after the binding can still throw, and the name left behind would
+ * then be the reader this run took the device from: their next activation
+ * would read a device of their own, skip the replacement, and bind a second
+ * channel beside the first.
+ *
+ * Nothing erases it, because nothing here can erase what it names. Forgetting
+ * the registration drops the identity token and leaves the device id, so a
+ * name dropped with the token would leave the next reader reading an
+ * unclaimed device and joining the previous reader's channel on it. The name
+ * is replaced by whoever registers next, which is the only event that changes
+ * the answer.
+ */
+export function rememberPushDeviceOwner(userId: string): void {
+  // Abort before channel binding if storage cannot record the new owner.
+  // A stale owner could otherwise add their channel to this reader's device.
+  localStorage.setItem(PUSH_DEVICE_OWNER_KEY, userId);
+}
 
 /** A failed repair may remove Ably's token before it restores the subscription. */
 export function hasUnresolvedPushRepair(): boolean {
@@ -235,10 +317,27 @@ export async function releasePushDeviceOnSignOut(
       return;
     }
 
+    // The second arm carries a reader from before preferences existed: a
+    // registration with no preference beside it is the only trace of the
+    // consent they gave. A teardown already under way is the one case where
+    // that trace lies. `deactivatePush` forgets the preference first and
+    // clears the registration at the end of its asynchronous work, so a
+    // sign-out inside that window reads the same shape and would write the
+    // consent this reader just withdrew back for the next session to resume.
+    if (
+      wantsPushHere(userId) ||
+      (!hasPushPreference() &&
+        hasAblyPushRegistration() &&
+        !hasUnfinishedPushTeardown())
+    ) {
+      rememberPushPreference(userId, true);
+    }
+
     // Cancel work already running in another tab even when this tab reads
     // no subscription or token during that activation's reset.
     notePushTeardown();
     notePushTeardownStarted();
+    await revokePushRenewal();
 
     // Asked before the reads below, because it says whether they can be
     // believed. An activation clears both the subscription and the token
@@ -259,7 +358,7 @@ export async function releasePushDeviceOnSignOut(
     // the sign-out go before this settles. The alternative for a late
     // rejection is no handler at all.
     await waitForRelease(
-      deactivatePush(userId).catch((error) => {
+      deactivatePush(userId, { preservePreference: true }).catch((error) => {
         console.error("Failed to release the push device on sign out", error);
       }),
     );
@@ -310,6 +409,7 @@ export async function releasePushDeviceOnSignOut(
  * record on Ably, which its own delivery prunes.
  */
 export async function dropBrowserPushSubscriptionOnAccountDeletion(): Promise<void> {
+  forgetPushPreference();
   try {
     // Said before anything is read, and whatever the reads would have said.
     // A token beside a browser with no subscription is the one shape
@@ -320,6 +420,7 @@ export async function dropBrowserPushSubscriptionOnAccountDeletion(): Promise<vo
     // sign in here gets push turned on for them over a deleted account's
     // device. Both calls are local and cannot fail on the network.
     notePushTeardown();
+    await revokePushRenewal();
     forgetAblyPushRegistration();
 
     // Both reads are local too, so a reader who never enabled push pays

@@ -29,11 +29,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  type ActionError,
-  CommonErrorCode,
-  JobErrorCode,
-} from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { requestRefundJob } from "@/lib/actions/job/action";
 import type { Job } from "@/lib/clients/generated/core";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";

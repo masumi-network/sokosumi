@@ -1,5 +1,7 @@
 export * from "./renderers/index.js";
 export type {
+  BillingFollowUpReason,
   JobFailureNotificationEmailProps,
-  TaskFollowUpReason,
+  TaskAttentionReason,
+  TaskUpdateReason,
 } from "./types.js";

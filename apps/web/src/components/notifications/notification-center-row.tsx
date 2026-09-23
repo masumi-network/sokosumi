@@ -10,8 +10,11 @@ import {
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
-import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
+import {
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  isPendingWorkspaceApprovalNotification,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+} from "@/lib/utils/workspace-approval";
 
 interface NotificationCenterRowProps {
   notification: NotificationItem;
@@ -39,14 +42,19 @@ export function NotificationCenterRow({
   timeLabel,
   onClick,
 }: NotificationCenterRowProps) {
-  const showVendorGrantActions = isPendingVendorGrantNotification(notification);
-  const showCoworkerAccessActions =
-    isPendingCoworkerAccessNotification(notification);
+  const showVendorGrantActions = isPendingWorkspaceApprovalNotification(
+    notification,
+    VENDOR_GRANT_PENDING_MESSAGE_KEY,
+  );
+  const showCoworkerAccessActions = isPendingWorkspaceApprovalNotification(
+    notification,
+    COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  );
   const showPendingAccessActions =
     showVendorGrantActions || showCoworkerAccessActions;
   const rowClassName = cn(
-    "group/row hover:bg-accent flex w-full items-start text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
-    isPending && "bg-accent opacity-80",
+    "group/row hover:bg-card-background-hover flex w-full items-start text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
+    isPending && "bg-card-background-hover opacity-80",
     showPendingAccessActions ? "cursor-default" : "cursor-pointer",
   );
 
@@ -62,16 +70,20 @@ export function NotificationCenterRow({
         {showPendingAccessActions ? (
           <button
             type="button"
-            className="hover:bg-card-background -mx-1 cursor-pointer rounded-md px-1 text-left"
+            className="hover:bg-card-background-hover -mx-1 cursor-pointer rounded-md px-1 text-left"
             onClick={() => onClick(notification)}
           >
-            <p className="text-sm">{message}</p>
-            <p className="text-muted-foreground text-xs">{timeLabel}</p>
+            <p className="text-sm text-pretty">{message}</p>
+            <p className="text-muted-foreground text-xs tabular-nums">
+              {timeLabel}
+            </p>
           </button>
         ) : (
           <>
-            <p className="text-sm">{message}</p>
-            <p className="text-muted-foreground text-xs">{timeLabel}</p>
+            <p className="text-sm text-pretty">{message}</p>
+            <p className="text-muted-foreground text-xs tabular-nums">
+              {timeLabel}
+            </p>
           </>
         )}
         {showVendorGrantActions ? (

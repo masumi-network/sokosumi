@@ -6,6 +6,7 @@ const getSessionMock = vi.fn();
 const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const getWorkspaceCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
+const listTasksMock = vi.fn();
 const listCoworkersMock = vi.fn();
 const listTaskAssigneeMemberOptionsMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
@@ -64,6 +65,7 @@ vi.mock("@/lib/services/task.service", () => ({
   taskService: {
     getWorkspaceCalendar: (query: unknown) => getWorkspaceCalendarMock(query),
     getWorkspaceCalendarSources: () => getWorkspaceCalendarSourcesMock(),
+    listTasks: (params: unknown) => listTasksMock(params),
   },
 }));
 
@@ -88,7 +90,17 @@ describe("CalendarPage", () => {
         total: 0,
       },
     });
-    getWorkspaceCalendarSourcesMock.mockResolvedValue([]);
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "workspace:workspace-1",
+        sourceType: "WORKSPACE",
+        isSchedulable: true,
+      },
+    ]);
+    listTasksMock.mockResolvedValue({
+      tasks: [],
+      pagination: null,
+    });
     listCoworkersMock.mockResolvedValue([]);
     listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
     getProjectFilterOptionsMock.mockResolvedValue([]);
@@ -113,8 +125,36 @@ describe("CalendarPage", () => {
     expect(getProjectFilterOptionsMock).toHaveBeenCalledOnce();
   });
 
+  it("passes the exact active workspace and user identities to Calendar realtime", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org-1" },
+      user: { id: "user-1" },
+    });
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "workspace:workspace-1",
+        sourceType: "WORKSPACE",
+        isSchedulable: true,
+      },
+    ]);
+
+    render(await CalendarPage({ searchParams: Promise.resolve({}) }));
+
+    expect(workspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentUserId: "user-1",
+        workspaceId: "workspace-1",
+      }),
+    );
+  });
+
   it("offers only schedulable Projects in the shared task modal", async () => {
     getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "workspace:workspace-1",
+        sourceType: "WORKSPACE",
+        isSchedulable: true,
+      },
       {
         sourceId: "project:project-1",
         sourceType: "PROJECT",
@@ -160,23 +200,72 @@ describe("CalendarPage", () => {
     );
   });
 
-  it("still renders Calendar items when Calendar sources fail to load", async () => {
-    getWorkspaceCalendarMock.mockResolvedValue({
-      items: [{ id: "occurrence-1" }],
-      pagination: null,
+  it("does not render without a workspace source", async () => {
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([]);
+
+    await expect(
+      CalendarPage({ searchParams: Promise.resolve({}) }),
+    ).rejects.toThrow("Calendar workspace source unavailable");
+    expect(workspaceCalendarMock).not.toHaveBeenCalled();
+  });
+
+  it("loads schedule series instead of occurrences for the Schedules view", async () => {
+    listTasksMock.mockResolvedValue({
+      tasks: [{ id: "task-1", name: "Daily task" }],
+      pagination: {
+        cursor: null,
+        limit: 100,
+        total: 1,
+        nextCursor: null,
+      },
     });
-    getWorkspaceCalendarSourcesMock.mockRejectedValue(
-      new Error("Calendar sources unavailable"),
-    );
 
-    render(await CalendarPage({ searchParams: Promise.resolve({}) }));
-
-    expect(workspaceCalendarMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        items: [{ id: "occurrence-1" }],
-        sources: [],
+    render(
+      await CalendarPage({
+        searchParams: Promise.resolve({
+          assigneeId: "coworker-1",
+          assigneeUserId: "user-2",
+          projectId: "project-1",
+          scope: "owned",
+          status: "READY",
+          view: "schedules",
+        }),
       }),
     );
+
+    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
+    expect(listTasksMock).toHaveBeenCalledWith({
+      hasSchedule: true,
+      sort: "nextRunAt",
+      scope: "owned",
+      projectId: "project-1",
+      status: "READY",
+      assigneeId: "coworker-1",
+      assigneeUserId: "user-2",
+      limit: 100,
+    });
+    expect(workspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [],
+        pagination: null,
+        scheduledTasks: [{ id: "task-1", name: "Daily task" }],
+        scheduledTasksPagination: {
+          cursor: null,
+          limit: 100,
+          total: 1,
+          nextCursor: null,
+        },
+      }),
+    );
+  });
+
+  it("keeps loading occurrences for the other Calendar views", async () => {
+    await CalendarPage({
+      searchParams: Promise.resolve({ view: "week" }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledOnce();
+    expect(listTasksMock).not.toHaveBeenCalled();
   });
 
   it("passes the selected non-Project source filter to the initial Calendar read", async () => {

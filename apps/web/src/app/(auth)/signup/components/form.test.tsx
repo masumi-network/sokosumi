@@ -57,7 +57,7 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/lib/actions/errors", () => ({
+vi.mock("@/lib/actions/errors/error-codes/auth", () => ({
   AuthErrorCode: {
     EMAIL_DOMAIN_NOT_ALLOWED: "EMAIL_DOMAIN_NOT_ALLOWED",
     TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED",

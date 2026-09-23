@@ -1,5 +1,11 @@
 import type { Prisma } from "@sokosumi/database";
 
+import { conflict } from "@/helpers/error";
+
+interface CalendarProjectReadClient {
+  project: Pick<Prisma.TransactionClient["project"], "findFirst">;
+}
+
 export async function lockCalendarScope(
   tx: Prisma.TransactionClient,
   workspaceId: string,
@@ -50,4 +56,20 @@ export async function lockTaskRows(
   }
 
   return true;
+}
+
+export async function requireOpenCalendarProject(
+  tx: CalendarProjectReadClient,
+  workspaceId: string,
+  projectId: string | null,
+): Promise<void> {
+  if (!projectId) return;
+
+  const project = await tx.project.findFirst({
+    where: { id: projectId, workspaceId },
+    select: { closingAt: true, closedAt: true },
+  });
+  if (!project || project.closingAt || project.closedAt) {
+    throw conflict("Cannot change a schedule in a closing or closed Project");
+  }
 }

@@ -35,6 +35,8 @@ import {
   assertChatRoomContentMessage,
   readMembershipFromMetadata,
 } from "./membership-status";
+// Type only: `room-unread` imports this module at runtime.
+import type { ChatRoomUnreadThreads } from "./room-unread";
 
 export const chatRoomUserSelect = {
   id: true,
@@ -131,6 +133,14 @@ export const chatRoomInclude = {
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
+  /**
+   * Room read receipts. Loaded on every room-returning route, including the
+   * paginated list that does not render them: one include, one mapper, one
+   * test, and Prisma fetches it in the same query as the roster. `markedUnread`
+   * is deliberately not read here — a reader's private reminder does not rewind
+   * their Room last-read, so it must not rewind what others see.
+   */
+  readStates: { select: { userId: true, lastReadAt: true } },
 } as const satisfies Prisma.ChatRoomInclude;
 
 export const chatRoomMessageInclude = {
@@ -198,7 +208,14 @@ function resolveUserPresence(
 }
 
 export interface MapChatRoomAttentionOptions {
+  /** The sum: `channelUnreadCount + threadUnreadCount`. */
   unreadCount?: number;
+  /** Room unread: top-level messages after Room last-read (ADR-0037). */
+  channelUnreadCount?: number;
+  /** Thread unread: gated replies after each Thread's Look (ADR-0037). */
+  threadUnreadCount?: number;
+  /** The room's unread Threads for the sidebar, capped, with the true count. */
+  unreadThreads?: ChatRoomUnreadThreads;
   unreadMentionCount?: number;
   starredAt?: Date | null;
   pinnedMessageCount?: number;
@@ -236,6 +253,12 @@ export function mapChatRoom(
 ) {
   const {
     unreadCount = 0,
+    threadUnreadCount = 0,
+    // A caller that states only the sum gets it as Room unread. Bold follows
+    // this half, so the other default, zero, would quietly stop a row bolding
+    // while its total said otherwise.
+    channelUnreadCount = Math.max(0, unreadCount - threadUnreadCount),
+    unreadThreads = { threads: [], unreadThreadCount: 0 },
     unreadMentionCount = 0,
     starredAt = null,
     pinnedMessageCount = 0,
@@ -245,6 +268,15 @@ export function mapChatRoom(
     organizationName = null,
     peerInActiveOrganization = false,
   } = attention;
+
+  const myAccess = resolveMyAccess(room, currentUserId, myAccessOverride);
+  // Read times do not cross the organization boundary: a guest viewer on an
+  // External channel sees no Room read receipts at all, their own included.
+  const lastReadByUserId = new Map<string, Date>(
+    myAccess === "guest"
+      ? []
+      : room.readStates.map((state) => [state.userId, state.lastReadAt]),
+  );
 
   return {
     id: room.id,
@@ -264,13 +296,19 @@ export function mapChatRoom(
     createdAt: room.createdAt,
     updatedAt: room.updatedAt,
     unreadCount,
+    channelUnreadCount,
+    threadUnreadCount,
+    unreadThreadCount: unreadThreads.unreadThreadCount,
+    unreadThreads: unreadThreads.threads,
     unreadMentionCount,
     starredAt,
     pinnedMessageCount,
     mutedAt,
     markedUnread,
     peerInActiveOrganization,
-    myAccess: resolveMyAccess(room, currentUserId, myAccessOverride),
+    myAccess,
+    // Driven by the roster, not by the read-state table: a member who left
+    // keeps their row but vanishes from the receipts with no cleanup.
     userMembers: room.userMembers.map((member) => ({
       id: member.user.id,
       name: member.user.name,
@@ -279,6 +317,7 @@ export function mapChatRoom(
       presence: resolveUserPresence(member.user, currentUserId),
       access:
         member.access === "guest" ? ("guest" as const) : ("member" as const),
+      lastReadAt: lastReadByUserId.get(member.userId) ?? null,
     })),
     coworkerMembers: room.coworkerMembers.map(({ coworker }) => ({
       id: coworker.id,
@@ -488,6 +527,9 @@ export async function mapChatRoomWithSidebarFlags(
   tx: Prisma.TransactionClient | typeof prisma,
   attention: {
     unreadCount?: number;
+    channelUnreadCount?: number;
+    threadUnreadCount?: number;
+    unreadThreads?: ChatRoomUnreadThreads;
     unreadMentionCount?: number;
     activeOrganizationId?: string | null;
     organizationName?: string | null;
@@ -508,6 +550,9 @@ export async function mapChatRoomWithSidebarFlags(
 
   return mapChatRoom(room, userId, {
     unreadCount: attention.unreadCount ?? 0,
+    channelUnreadCount: attention.channelUnreadCount,
+    threadUnreadCount: attention.threadUnreadCount,
+    unreadThreads: attention.unreadThreads,
     unreadMentionCount: attention.unreadMentionCount ?? 0,
     starredAt: flags?.starredAt ?? null,
     pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
@@ -521,6 +566,14 @@ export async function mapChatRoomWithSidebarFlags(
 export function mapChatRoomMessage(
   message: ChatRoomMessageWithSender,
   currentUserId?: string,
+  /**
+   * The viewer's unread replies under this parent. Passed in rather than
+   * derived: it depends on the viewer's Look baseline and Participant status,
+   * which the Prisma include cannot express. Left out of the payload when the
+   * caller did not compute it, so a client can tell "none unread" from "not
+   * known here" and keep the count it already has.
+   */
+  threadUnreadReplyCount?: number,
 ) {
   const sender = (() => {
     if (message.senderUser) {
@@ -624,6 +677,7 @@ export function mapChatRoomMessage(
           reactors: reaction.reactors,
         })),
     threadReplyCount: message._count.replies,
+    ...(threadUnreadReplyCount === undefined ? {} : { threadUnreadReplyCount }),
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
     metadata: isDeleted ? null : publicChatRoomMessageMetadata(metadata),
     quote: isDeleted ? null : readQuoteFromMetadata(metadata),
@@ -1035,16 +1089,6 @@ export function canManageChatRoomLifecycle(options: {
   role: string;
 }): boolean {
   return isOrganizationOwnerOrAdmin(options.role);
-}
-
-/**
- * Permanent delete removes the room and cascaded children for everyone.
- * Same elevation as archive/restore — organization owner/admin only.
- */
-export function canPermanentlyDeleteChatRoom(options: {
-  role: string;
-}): boolean {
-  return canManageChatRoomLifecycle(options);
 }
 
 export function chatRoomPatchTouchesSettings(body: {

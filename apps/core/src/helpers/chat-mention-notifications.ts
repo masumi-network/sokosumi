@@ -20,7 +20,8 @@ export interface EmitChatMentionNotificationsParams {
   organizationId: string | null;
   messageId: string;
   content: string;
-  authorUserId: string;
+  /** Human author to skip. Null when a Coworker or a Soko Bot wrote. */
+  authorUserId: string | null;
   authorName: string;
   mentionedUserIds: readonly string[];
 }

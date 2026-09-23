@@ -1,40 +1,15 @@
 import { z } from "@hono/zod-openapi";
 import { PrismaRaw } from "@sokosumi/database/client";
-import { badRequest, forbidden } from "@/helpers/error";
-import {
-  buildCoworkerTaskAccessSql,
-  buildHumanTaskVisibilitySql,
-} from "@/helpers/task-visibility";
-import { hasGrantedWorkspaceAccess } from "@/helpers/vendor-grants";
+import { badRequest } from "@/helpers/error";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { resolveProjectReaderAccess } from "@/types/project";
 
 export async function projectActivityVisibility(
   auth: AuthenticationContext,
   workspaceId: string,
 ): Promise<{ task: PrismaRaw.Sql; job: PrismaRaw.Sql }> {
-  if (auth.actor === "user" || auth.actor === "sokoBot") {
-    const task = buildHumanTaskVisibilitySql(auth.userId);
-    return {
-      task,
-      job: PrismaRaw.sql`AND (j."taskId" IS NULL OR (TRUE ${task}))`,
-    };
-  }
-  if (auth.actor !== "coworker") throw forbidden("Unsupported project reader");
-  const hasWorkspaceGrant = auth.context
-    ? await hasGrantedWorkspaceAccess({ vendorId: auth.vendorId, workspaceId })
-    : false;
-  return {
-    task: buildCoworkerTaskAccessSql({ ...auth, hasWorkspaceGrant }),
-    // Same parent-task rule as buildCoworkerJobParentTaskWhere. A workspace
-    // grant does not broaden the Job reader set.
-    job: PrismaRaw.sql`AND (
-      t."assigneeId" = ${auth.coworkerId}
-      OR (t.visibility = 'PRIVATE' AND EXISTS (
-        SELECT 1 FROM coworker c
-        WHERE c.id = t."assigneeId" AND c."vendorId" = ${auth.vendorId}::uuid
-      ))
-    )`,
-  };
+  const { sqlWhere } = await resolveProjectReaderAccess(auth, workspaceId);
+  return sqlWhere;
 }
 
 const projectActivityCursorSchema = z.object({
@@ -79,6 +54,31 @@ interface ProjectActivityPageParams {
   cursor?: string;
   take: number;
   visibility: { task: PrismaRaw.Sql; job: PrismaRaw.Sql };
+  search?: string;
+}
+
+/**
+ * ILIKE treats `%` and `_` as wildcards, so a name search for "50%" would
+ * otherwise match everything after "50". Escaping them (and the escape
+ * character itself) keeps the query a literal substring match.
+ */
+export function projectNameSearchPattern(search: string): string {
+  const escaped = search.replace(/[\\%_]/g, (match) => `\\${match}`);
+  return `%${escaped}%`;
+}
+
+export function projectNameSearchClause(search: string) {
+  return PrismaRaw.sql`AND p.name ILIKE ${projectNameSearchPattern(search)} ESCAPE '\\'`;
+}
+
+/** Same predicate as the ranked page query, so pagination.total cannot drift. */
+export function projectNameCountQuery(workspaceId: string, search: string) {
+  return PrismaRaw.sql`
+    SELECT COUNT(*)::bigint AS count
+    FROM project p
+    WHERE p."workspaceId" = ${workspaceId}::uuid
+      ${projectNameSearchClause(search)}
+  `;
 }
 
 /** Global database ordering, before LIMIT. Metadata/report refreshes do not
@@ -91,6 +91,7 @@ export function projectActivityPageQuery({
   cursor,
   take,
   visibility,
+  search,
 }: ProjectActivityPageParams) {
   const boundary = cursor
     ? decodeProjectActivityCursor(cursor, workspaceId)
@@ -120,6 +121,7 @@ export function projectActivityPageQuery({
       SELECT p.id, GREATEST(p."createdAt", MAX(a.at)) AS "lastActivityAt"
       FROM project p LEFT JOIN activity a ON a."projectId" = p.id
       WHERE p."workspaceId" = ${workspaceId}::uuid
+      ${search ? projectNameSearchClause(search) : PrismaRaw.empty}
       GROUP BY p.id, p."createdAt"
     )
     SELECT r.id, r."lastActivityAt" FROM ranked r

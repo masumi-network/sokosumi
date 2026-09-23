@@ -39,6 +39,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useLocale: () => "en",
+  // The roster rows state each member's Room last-read as a relative time.
+  useFormatter: () => ({
+    relativeTime: (date: Date) => date.toISOString(),
+  }),
 }));
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
@@ -90,6 +94,14 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
 
 vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
   useChatRoomRealtime: () => undefined,
+}));
+
+vi.mock("@/lib/ably/use-room-typing", () => ({
+  useRoomTyping: () => ({
+    typistIds: [],
+    handleComposerChange: () => {},
+    handleStopTyping: () => {},
+  }),
 }));
 
 vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({

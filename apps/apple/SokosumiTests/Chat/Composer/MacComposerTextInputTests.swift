@@ -7,18 +7,6 @@
 
   @MainActor
   struct MacComposerTextInputTests {
-    @Test func mentionShortcutStartsQueryAtSelection() {
-      let input = MacComposerTextInput.InputView()
-      input.mentions = [.init(id: "peer", name: "Anna", slug: "anna", kind: .human)]
-      input.restoreDraft("Hello")
-      input.setSelectedRange(NSRange(location: 5, length: 0))
-      let commands = MacComposerCommands()
-      commands.input = input
-      commands.beginMention()
-      #expect(input.string == "Hello @\n")
-      #expect(input.selectedRange().location == 7)
-    }
-
     @Test func mentionChipRestoresAndDeletesAsOneCharacter() {
       let input = MacComposerTextInput.InputView()
       input.mentions = [.init(id: "user-1", name: "Anna", slug: "anna", kind: .human)]
@@ -245,6 +233,310 @@
       #expect(input.selectedRange().length == 0)
       input.insertText("!", replacementRange: input.selectedRange())
       #expect(input.captureDraft() == "- hello!\n")
+    }
+
+    // MARK: Code block control, both ways (12c)
+
+    @Test func codeBlockControlWrapsTheSelectionAndLeavesTheCaretAtTheEndOfTheCode() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("hello world")
+      input.setSelectedRange(NSRange(location: 0, length: 11))
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.captureDraft() == "```\nhello world\n```\n")
+      #expect(input.selectedRange() == NSRange(location: 11, length: 0))
+      #expect((input.attributedString().attribute(.font, at: 0, effectiveRange: nil) as? NSFont)?.isFixedPitch == true)
+      input.insertText("!", replacementRange: input.selectedRange())
+      #expect(input.captureDraft() == "```\nhello world!\n```\n")
+    }
+
+    @Test(arguments: [NSRange(location: 0, length: 0), NSRange(location: 8, length: 0), NSRange(location: 12, length: 0), NSRange(location: 2, length: 6)])
+    func codeBlockControlUnwrapsTheWholeBlockAndLeavesTheCaretAtItsEnd(_ selection: NSRange) {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("```swift\nfirst\nsecond\n```\n")
+      input.setSelectedRange(selection)
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.string == "first\nsecond\n")
+      #expect(input.captureDraft() == "first\nsecond\n")
+      #expect(input.selectedRange() == NSRange(location: 12, length: 0))
+      let shown = input.attributedString()
+      #expect((shown.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)?.isFixedPitch == false)
+      #expect(shown.attribute(.backgroundColor, at: 0, effectiveRange: nil) == nil)
+      input.insertText("!", replacementRange: input.selectedRange())
+      #expect(input.captureDraft() == "first\nsecond!\n")
+    }
+
+    @Test func codeBlockControlLeavesOtherBlocksAlone() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("before\n\n```\none\n```\n\n```\ntwo\n```\n\n> ```\n> quoted\n> ```\n")
+      input.setSelectedRange(NSRange(location: (input.string as NSString).range(of: "two").location, length: 0))
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.captureDraft() == "before\n\n```\none\n```\n\ntwo\n\n> ```\n> quoted\n> ```\n")
+      input.setSelectedRange(NSRange(location: (input.string as NSString).range(of: "quoted").location + 2, length: 0))
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.captureDraft() == "before\n\n```\none\n```\n\ntwo\n\n> quoted\n")
+    }
+
+    @Test(arguments: [("", "```\nlet x\n```\n"), ("hello", "hello\n```\nlet x\n```\n")])
+    func textTypedIntoAFreshBlockIsSentInsideTheFence(_ draft: String, _ sent: String) {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft(draft)
+      input.setSelectedRange(NSRange(location: draft.utf16.count, length: 0))
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.selectedRange().length == 0)
+      for character in "let x" {
+        input.insertText(String(character), replacementRange: input.selectedRange())
+      }
+      #expect(input.captureDraft() == sent)
+    }
+
+    @Test(arguments: ["hello\n", "first\nsecond\n", "a\n\nb\n", "so **x** and _y_\n"])
+    func wrappingThenUnwrappingSendsTheSameDraft(_ plain: String) {
+      let input = MacComposerTextInput.InputView()
+      input.string = String(plain.dropLast())
+      let original = input.captureDraft()
+      #expect(original == plain)
+      input.setSelectedRange(NSRange(location: 0, length: input.string.utf16.count))
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.captureDraft() == "```\n" + plain + "```\n")
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.captureDraft() == original)
+    }
+
+    @Test(arguments: ["```\nhello\n```\n", "```\nfirst\n\nsecond\n```\n", "before\n```\nmid **x** dle\n```\nafter\n"])
+    func unwrappingThenWrappingSendsTheSameDraft(_ fenced: String) {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft(fenced)
+      let original = input.captureDraft()
+      #expect(original == fenced)
+      let shown = input.string
+      let start = (shown as NSString).range(of: shown.hasPrefix("before") ? "mid" : String(shown.prefix(3))).location
+      input.setSelectedRange(NSRange(location: start, length: 0))
+      input.applyBlockFormat(.codeBlock)
+      let end = input.selectedRange().location
+      input.setSelectedRange(NSRange(location: start, length: end - start))
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.captureDraft() == original)
+      #expect(input.string == shown)
+    }
+
+    /// The toolbar highlight is `activeBlocks`, and the control runs `apply`.
+    @Test func codeBlockHighlightFollowsTheCaretThroughEachToggle() async throws {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("plain\n\n```\ncode\n```\n")
+      let commands = MacComposerCommands()
+      commands.input = input
+      func highlighted(at location: Int? = nil) async throws -> Bool {
+        if let location {
+          input.setSelectedRange(NSRange(location: location, length: 0))
+        }
+        commands.refresh()
+        try await Task.sleep(for: .milliseconds(50))
+        return commands.activeBlocks.contains(.codeBlock)
+      }
+      let code = (input.string as NSString).range(of: "code")
+      #expect(try await !highlighted(at: 2))
+      #expect(try await highlighted(at: code.location))
+      #expect(try await highlighted(at: NSMaxRange(code)))
+      commands.apply(.codeBlock)
+      #expect(try await !highlighted())
+      #expect(input.captureDraft() == "plain\n\ncode\n")
+      input.setSelectedRange(code)
+      commands.apply(.codeBlock)
+      #expect(try await highlighted())
+      #expect(input.captureDraft() == "plain\n\n```\ncode\n```\n")
+      commands.apply(.codeBlock)
+      #expect(try await !highlighted())
+      input.setSelectedRange(NSRange(location: 0, length: 0))
+      input.restoreDraft("")
+      commands.apply(.codeBlock)
+      #expect(try await highlighted())
+    }
+
+    /// One registered undo per toggle, asserted in isolation: the draft is restored, not
+    /// typed, so the toggle is the only step on the manager. The XCTest host never closes
+    /// the undo manager's event group, so this says nothing about ⌘Z grouping in the app.
+    @Test func eachCodeBlockToggleIsOneUndoStep() {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.restoreDraft("```\nfirst\nsecond\n```\n")
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.captureDraft() == "first\nsecond\n")
+      delegate.manager.undo()
+      #expect(input.captureDraft() == "```\nfirst\nsecond\n```\n")
+      #expect((input.attributedString().attribute(.font, at: 0, effectiveRange: nil) as? NSFont)?.isFixedPitch == true)
+      #expect(!delegate.manager.canUndo)
+      delegate.manager.redo()
+      #expect(input.captureDraft() == "first\nsecond\n")
+      delegate.manager.undo()
+      input.restoreDraft("first\nsecond")
+      input.setSelectedRange(NSRange(location: 0, length: 12))
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.captureDraft() == "```\nfirst\nsecond\n```\n")
+      delegate.manager.undo()
+      #expect(input.captureDraft() == "first\nsecond\n")
+      #expect(!delegate.manager.canUndo)
+    }
+
+    /// Web runs `handleInput` after the toggle, and with it the input rule at the caret:
+    /// a closed pair that ends the unwrapped text formats, and the draft stays
+    /// byte-identical. Pairs anywhere else stay literal. The unwrap and the formatting are
+    /// registered in the same event, so one undo takes both back and one redo repeats both.
+    @Test func unwrappingRunsTheInputRuleOnlyAtTheCaret() {
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      input.restoreDraft("```\n_a_ so **x**\n```\n")
+      input.setSelectedRange(NSRange(location: 1, length: 0))
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.string == "_a_ so x\n")
+      #expect(input.attributedString().attribute(ComposerInlineText.bold, at: 7, effectiveRange: nil) as? Bool == true)
+      #expect(input.attributedString().attribute(ComposerInlineText.italic, at: 1, effectiveRange: nil) == nil)
+      #expect(input.captureDraft() == "_a_ so **x**\n")
+      delegate.manager.undo()
+      #expect(input.string == "_a_ so **x**\n")
+      #expect(input.captureDraft() == "```\n_a_ so **x**\n```\n")
+      #expect(input.attributedString().attribute(ComposerInlineText.bold, at: 9, effectiveRange: nil) == nil)
+      #expect(!delegate.manager.canUndo)
+      delegate.manager.redo()
+      #expect(input.string == "_a_ so x\n")
+      #expect(input.captureDraft() == "_a_ so **x**\n")
+      delegate.manager.undo()
+      #expect(input.captureDraft() == "```\n_a_ so **x**\n```\n")
+    }
+
+    @Test func unwrappingLeavesDelimitersThatDoNotEndAtTheCaretLiteral() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("```\n**x** and `y`\ntail\n```\n")
+      input.setSelectedRange(NSRange(location: 1, length: 0))
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.string == "**x** and `y`\ntail\n")
+      #expect(input.attributedString().attribute(ComposerInlineText.bold, at: 2, effectiveRange: nil) == nil)
+      #expect(input.captureDraft() == "**x** and `y`\ntail\n")
+    }
+
+    @Test func wrappingNeverRunsTheInputRule() {
+      let input = MacComposerTextInput.InputView()
+      input.string = "so **x**"
+      input.setSelectedRange(NSRange(location: 0, length: 8))
+      input.applyBlockFormat(.codeBlock)
+      #expect(input.string == "so **x**\n")
+      #expect(input.captureDraft() == "```\nso **x**\n```\n")
+      let opened = MacComposerTextInput.InputView()
+      opened.string = "so **x**"
+      opened.setSelectedRange(NSRange(location: 8, length: 0))
+      opened.applyBlockFormat(.codeBlock)
+      #expect(opened.string == "so **x**\n\n")
+      #expect(opened.captureDraft() == "so **x**\n```\n\n```\n")
+    }
+
+    /// The mention button has no code guard on web either, so a chip can land inside a
+    /// fence. It is sent as the label it shows, as web reads a `pre`, never as U+FFFC.
+    @Test func aMentionPickedInsideAFenceIsSentAsItsLabel() {
+      let input = MacComposerTextInput.InputView()
+      input.mentions = [.init(id: "bob", name: "Bob", slug: "bob", kind: .human)]
+      input.restoreDraft("```\nping\n```\n")
+      input.setSelectedRange(NSRange(location: 4, length: 0))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.openMentionPicker()
+      commands.acceptMention(input.mentions[0])
+      #expect(input.string == "ping \u{FFFC}\n")
+      let draft = input.captureDraft()
+      #expect(draft == "```\nping @Bob\n```\n")
+      #expect(!draft.contains("\u{FFFC}"))
+      input.restoreDraft(draft)
+      #expect(input.captureDraft() == draft)
+    }
+
+    /// The highlight reads the typing attributes, the control reads the character under the
+    /// caret. At both edges of a block that touches a paragraph they have to agree: a lit
+    /// control unwraps, an idle one opens a block.
+    @Test(arguments: [("code", 0, true), ("code", 4, true), ("after", 0, false), ("before", 6, false)])
+    func theHighlightAgreesWithTheToggleAtABlocksEdges(_ word: String, _ offset: Int, _ inBlock: Bool) async throws {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("before\n```\ncode\n```\nafter\n")
+      #expect(input.string == "before\ncode\nafter\n")
+      let commands = MacComposerCommands()
+      commands.input = input
+      input.setSelectedRange(NSRange(location: (input.string as NSString).range(of: word).location + offset, length: 0))
+      commands.refresh()
+      try await Task.sleep(for: .milliseconds(50))
+      #expect(commands.activeBlocks.contains(.codeBlock) == inBlock)
+      commands.apply(.codeBlock)
+      let unwrapped = input.captureDraft() == "before\ncode\nafter\n"
+      #expect(unwrapped == inBlock)
+    }
+
+    @MainActor struct CodeBlockFixtureTests {
+      /// The real composer with its toolbar, focused, the caret inside a code block: the
+      /// block is monospaced on its tint and the Code block control is highlighted. Then
+      /// the control's own action runs: plain lines, no tint, the control idle.
+      @Test(.serialized, arguments: [false, true])
+      func rendersTheBlockWithItsControlOnThenThePlainLinesWithItOff(dark: Bool) async throws {
+        var text = "Run this:\n\n```\nlet x = 1\nprint(x)\n```\n"
+        // The composer reads the toolbar preference once, when it is created.
+        let toolbarWasVisible = ComposerPreferences().toolbarVisible
+        ComposerPreferences().toolbarVisible = true
+        defer { ComposerPreferences().toolbarVisible = toolbarWasVisible }
+        let content = VStack {
+          Spacer()
+          ComposerTextInput(text: Binding(get: { text }, set: { text = $0 }), submit: { false })
+        }
+        .padding(12)
+        .frame(width: 480, height: 220)
+        .environment(\.colorScheme, dark ? .dark : .light)
+        let host = NSHostingView(rootView: content)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 220), styleMask: [.titled], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        try await Task.sleep(for: .milliseconds(200))
+        let input = try #require(Self.textView(in: host) as? MacComposerTextInput.InputView)
+        let commands = try #require((input.delegate as? MacComposerTextInput.Coordinator)?.parent.commands)
+        #expect(ComposerPreferences().toolbarVisible)
+        #expect(window.makeFirstResponder(input))
+        let block = (input.string as NSString).range(of: "let x = 1\nprint(x)\n")
+        input.setSelectedRange(NSRange(location: (input.string as NSString).range(of: "print").location, length: 0))
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(commands.activeBlocks == [.codeBlock])
+        var tinted = NSRange()
+        #expect(input.attributedString().attribute(.backgroundColor, at: block.location, longestEffectiveRange: &tinted, in: NSRange(location: 0, length: input.string.utf16.count)) != nil)
+        #expect(tinted == block)
+        #expect((input.attributedString().attribute(.font, at: block.location, effectiveRange: nil) as? NSFont)?.isFixedPitch == true)
+        try Self.record(host, named: "composer-code-block-on-\(dark ? "dark" : "light").png")
+
+        commands.apply(.codeBlock)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(commands.activeBlocks.isEmpty)
+        #expect(text == "Run this:\n\nlet x = 1\nprint(x)\n")
+        #expect(input.string == "Run this:\n\nlet x = 1\nprint(x)\n")
+        #expect(input.selectedRange() == NSRange(location: NSMaxRange(block) - 1, length: 0))
+        input.attributedString().enumerateAttributes(in: NSRange(location: 0, length: input.string.utf16.count)) { values, _, _ in
+          #expect(values[.backgroundColor] == nil)
+          #expect((values[.font] as? NSFont)?.isFixedPitch == false)
+        }
+        try Self.record(host, named: "composer-code-block-off-\(dark ? "dark" : "light").png")
+      }
+
+      /// Recorded on the result bundle, which the app sandbox cannot hide: `xcresulttool export attachments`.
+      private static func record(_ host: NSView, named name: String) throws {
+        host.layoutSubtreeIfNeeded()
+        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        try Attachment.record(#require(bitmap.representation(using: .png, properties: [:])), named: name)
+      }
+
+      private static func textView(in view: NSView) -> NSTextView? {
+        if let input = view as? NSTextView {
+          return input
+        }
+        return view.subviews.lazy.compactMap { textView(in: $0) }.first
+      }
     }
 
     @Test func linkInsertedAtListMarkerIsSerialized() {

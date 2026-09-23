@@ -192,6 +192,35 @@ describe("Turnstile deployment configuration", () => {
     );
   });
 
+  /**
+   * The shape a real Vercel preview has: Vercel builds every deployment with
+   * NODE_ENV=production, previews included, so only VERCEL_ENV tells them
+   * apart. Reading both with `||` made a preview look like production, and
+   * Core exited at boot — every route answering FUNCTION_INVOCATION_FAILED
+   * rather than serving with a warning. The test above misses it because it
+   * leaves NODE_ENV alone.
+   */
+  it("warns but boots on a Vercel preview, where NODE_ENV is production too", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
+
+    expect(validateEnv().TURNSTILE_SECRET_KEY).toBe(
+      TURNSTILE_ALWAYS_PASS_SECRET,
+    );
+    expect(consoleWarn).toHaveBeenCalledWith(
+      expect.stringContaining("always-passes testing secret"),
+    );
+  });
+
+  it("still refuses a Vercel production build holding the test secret", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
+
+    expectInvalidEnvironment("always-passes testing secret");
+  });
+
   it("stays quiet about the test secret on a local machine", () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
@@ -220,5 +249,23 @@ describe("Turnstile deployment configuration", () => {
     validateEnv();
 
     expect(consoleWarn).not.toHaveBeenCalled();
+  });
+});
+
+describe("Redis environment", () => {
+  it("leaves Redis urls optional", () => {
+    vi.stubEnv("REDIS_URL", undefined);
+    vi.stubEnv("KV_URL", undefined);
+    const config = validateEnv();
+    expect(config.REDIS_URL).toBeUndefined();
+    expect(config.KV_URL).toBeUndefined();
+  });
+
+  it("preserves REDIS_URL and KV_URL", () => {
+    vi.stubEnv("REDIS_URL", "redis://primary");
+    vi.stubEnv("KV_URL", "redis://kv");
+    const config = validateEnv();
+    expect(config.REDIS_URL).toBe("redis://primary");
+    expect(config.KV_URL).toBe("redis://kv");
   });
 });

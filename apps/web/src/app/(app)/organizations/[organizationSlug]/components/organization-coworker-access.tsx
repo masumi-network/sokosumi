@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/card";
 import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import { coworkerAccessService } from "@/lib/services/coworker-access.service";
-import { toCoworkerAccessEntries } from "@/lib/utils/coworker-access-display";
 
 interface OrganizationCoworkerAccessProps {
   organizationId: string;
@@ -44,8 +43,6 @@ export async function OrganizationCoworkerAccess({
     );
   }
 
-  const entries = toCoworkerAccessEntries(rows);
-
   return (
     <Card id="coworker-early-access">
       <CardHeader className="space-y-2">
@@ -56,7 +53,7 @@ export async function OrganizationCoworkerAccess({
         <section className="space-y-3">
           <h3 className="text-sm font-medium">{t("coworkersTitle")}</h3>
           <CoworkerAccessList
-            entries={entries}
+            rows={rows}
             mode="organization"
             organizationId={organizationId}
             emptyLabel={t("coworkersEmpty")}

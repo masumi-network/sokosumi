@@ -147,7 +147,11 @@ describe("HistoryListItem", () => {
       />,
     );
 
-    expect(screen.getByRole("link")).toHaveAttribute("href", "/tasks/task-1");
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute("href", "/tasks/task-1");
+    expect(link.className.split(/\s+/)).toContain(
+      "hover:bg-card-background-hover",
+    );
   });
 
   it("renders archived task rows without a link", () => {

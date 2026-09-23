@@ -10,21 +10,10 @@ import Testing
 
 private let timestamp = "2026-01-01T00:00:00.000Z"
 
-private struct MemoryTokenStore: TokenStore {
-  var tokens: OAuthTokens?
-  func load() -> OAuthTokens? {
-    tokens
-  }
-
-  func save(_: OAuthTokens) throws {}
-  func clear() -> Bool {
-    true
-  }
-}
-
 @MainActor
 private final class ScriptedTransport: ClientTransport {
   private(set) var operationIDs: [String] = []
+  private(set) var paths: [String] = []
   private(set) var bodies: [Data] = []
   private var responses: [(Int, String)]
   var remainingStubs: Int {
@@ -68,7 +57,7 @@ private final class ScriptedTransport: ClientTransport {
   }
 
   func send(
-    _: HTTPRequest,
+    _ request: HTTPRequest,
     body: HTTPBody?,
     baseURL _: URL,
     operationID: String
@@ -81,6 +70,7 @@ private final class ScriptedTransport: ClientTransport {
       }
     }
     operationIDs.append(operationID)
+    paths.append(request.path ?? "")
     if let body, let bytes = try? await Array(collecting: body, upTo: 1_000_000) {
       bodies.append(Data(bytes))
     } else {
@@ -214,7 +204,7 @@ private func ephemeralState(
   )
   state.readAttention.setVisible(visible, window: UUID())
   state.clientResolver = { client }
-  return (state, AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport, defaults)
+  return (state, AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport, defaults)
 }
 
 /// Settles the fire-and-forget transcript tasks `openRoom` / `loadOlder`
@@ -482,7 +472,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func clientProviderReceivesCurrentAuthOnEveryResolution() throws {
-    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
+    let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: ScriptedTransport([]))
     var available = true
     var calls = 0
@@ -962,7 +952,7 @@ struct WorkspaceStateTests {
 
   @Test func missingThreadClientEndsInitialLoading() throws {
     let (state, _, _, _) = try ephemeralState([])
-    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
+    let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     state.clientResolver = nil
     #expect(state.resolveClient(auth: auth) == nil)
     state.thread.timeline.reset(roomId: "room", parentMessageId: "parent")
@@ -1346,7 +1336,8 @@ struct WorkspaceStateTests {
     #expect(state.transcriptMessages.first?.deletedAt != nil)
     await state.directStream.task?.value
     #expect(state.directStream.overlayMessages.isEmpty)
-    #expect(Set(state.displayedTranscript.map(\.id)) == ["persisted", "root"])
+    // Row 19a: the deleted root stays in state and as the open thread's tombstone, not in the room transcript.
+    #expect(state.displayedTranscript.map(\.id) == ["persisted"])
     #expect(state.transcriptMessages.first { $0.id == "root" }?.deletedAt != nil)
     #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages", "post/chats/rooms/{id}/stream", "get/chats/rooms/{id}/messages"])
     state.clearTranscript()
@@ -1700,7 +1691,7 @@ extension WorkspaceStateTests {
 
 extension WorkspaceStateTests {
   @Test(arguments: [false, true])
-  func deletionPreservesParentAndThreadTombstones(reply: Bool) async throws {
+  func deletionDropsTheRowAndKeepsTheThreadRootTombstone(reply: Bool) async throws {
     let roomId = "550e8400-e29b-41d4-a716-446655440000"
     let messageId = "550e8400-e29b-41d4-a716-446655440123"
     let response = createdMessageBody(id: messageId, roomId: roomId, content: "")
@@ -1730,12 +1721,16 @@ extension WorkspaceStateTests {
     #expect(state.thread.parent != nil)
     if reply {
       #expect(state.thread.timeline.messages.first?.deletedAt != nil)
+      #expect(state.displayedThreadReplies.isEmpty)
+      #expect(state.displayedTranscript.map(\.id) == ["parent"])
       #expect(state.timeline.messages.first?.content == "Original")
       #expect(state.timeline.messages.first?.threadReplyCount == 0)
       #expect(state.thread.parent?.threadReplyCount == 0)
       #expect(state.thread.parent?.threadLastReplyAt == nil)
     } else {
       #expect(state.timeline.messages.first?.deletedAt != nil)
+      #expect(state.displayedTranscript.isEmpty)
+      // Web renders the deleted parent above the divider as "This message was deleted".
       #expect(state.thread.parent?.deletedAt != nil)
     }
   }
@@ -1749,7 +1744,10 @@ extension WorkspaceStateTests {
     state.timeline.messages = [source]
     state.messageEditing.start(source, userId: "user_1")
     state.messageEditing.draft = "Unsaved"
+    #expect(state.displayedTranscript.map(\.id) == ["message"])
     await #expect(throws: (any Error).self) { try await state.deleteMessage(source, auth: auth) }
+    // Deletion is not optimistic (web awaits the server action too): a refusal leaves the row on screen.
+    #expect(state.displayedTranscript.map(\.id) == ["message"])
     #expect(state.timeline.messages.first?.content == "Original")
     #expect(state.timeline.messages.first?.deletedAt == nil)
     #expect(state.messageEditing.draft == "Unsaved")
@@ -2167,7 +2165,7 @@ extension WorkspaceStateTests {
 extension WorkspaceStateTests {
   @Test func searchWithoutClientReportsFailureForTheSubmittedQuery() async {
     let state = WorkspaceState(clientProvider: { _ in nil })
-    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
+    let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     state.timeline.reset(roomId: "room")
     let search = RoomSearch()
     await state.searchMessages("  matching  ", roomId: "room", search: search, auth: auth)
@@ -2197,6 +2195,31 @@ extension WorkspaceStateTests {
     #expect(Set(state.thread.timeline.messages.map(\.id)) == ["old", "recent"])
     #expect(state.thread.timeline.historyGapMessageIds == ["recent"])
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/threads/{parentMessageId}/messages" }.count == 2)
+  }
+
+  /// Row 19a: the search hit still carries its old body, so the loaded thread row decides.
+  @Test func searchReplyDeletedSinceTheSearchIsUnavailable() async throws {
+    let parentRow = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
+    let deleted = transcriptMessage(id: "old", roomId: "room", content: "")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+      .replacingOccurrences(of: "\"deletedAt\":null", with: "\"deletedAt\":\"2026-01-02T00:00:00.000Z\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [parentRow], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [deleted], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.jumpToMessage("parent", auth: auth))
+    var hit = try #require(state.transcriptMessages.first)
+    hit.id = "old"
+    hit.content = "Old"
+    hit.parentMessageId = "parent"
+    #expect(try await state.openMessageReply(hit, auth: auth) == .unavailable)
+    let loaded = try #require(state.thread.timeline.messages.first { $0.id == "old" })
+    #expect(!shouldKeepPersistedMessage(loaded))
+    #expect(state.thread.jumpTarget == nil)
+    #expect(state.displayedThreadReplies.isEmpty)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/threads/{parentMessageId}/messages" }.count == 1)
   }
 
   @Test func searchReplyCannotOpenAfterRoomSwitch() async throws {
@@ -2268,6 +2291,34 @@ extension WorkspaceStateTests {
     #expect(try await state.openMessage("missing", auth: auth) == .unavailable)
     #expect(state.messageJump == nil)
     #expect(transport.operationIDs.count == 1)
+  }
+
+  /// Row 19a: a quote or link to a deleted message has no row to land on, so it stops before the context load.
+  @Test func deletedMessageLinkIsUnavailableWithoutContextRequest() async throws {
+    let deleted = createdMessageBody(id: "gone", roomId: "room", content: "")
+      .replacingOccurrences(of: "\"deletedAt\":null", with: "\"deletedAt\":\"2026-01-02T00:00:00.000Z\"")
+    let (state, auth, transport, _) = try ephemeralState([(200, deleted)], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.openMessage("gone", auth: auth) == .unavailable)
+    #expect(state.messageJump == nil)
+    #expect(transport.operationIDs.count == 1)
+  }
+
+  @Test func realtimeDeleteDropsTheOpenRoomRow() throws {
+    let (state, _, _, _) = try ephemeralState([], visible: false)
+    defer { state.reset() }
+    var first = chatRoomMessage(from: .init(clientTurnId: "first", roomId: "room", content: "First",
+                                            sender: .init(id: "user_2", name: "Ada", email: "ada@example.com", presence: .online)))
+    first.id = "first"
+    var target = first
+    target.id = "target"
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [first, target]
+    #expect(state.displayedTranscript.map(\.id) == ["first", "target"])
+    state.applyRealtimeMessage(roomId: "room", eventType: .delete, message: tombstoneTranscriptMessage(target, now: Date(timeIntervalSince1970: 1_700_000_000)))
+    #expect(state.displayedTranscript.map(\.id) == ["first"])
+    #expect(state.transcriptMessages.map(\.id) == ["first", "target"])
   }
 
   @Test func messageLinkResolvesReplyOutsideLoadedHistory() async throws {
@@ -2682,6 +2733,42 @@ private func mentionRetryFixture(sourceSenderId: String = "user_1", retryRespons
 }
 
 extension WorkspaceStateTests {
+  @Test func retryEligibilityRejectsRowsWithoutAFailedMentionSource() async throws {
+    let (state, _, _) = try await mentionRetryFixture(retryResponses: [])
+    defer { state.reset() }
+    let source = try #require(state.timeline.messages.first)
+    let shell = try #require(state.timeline.messages.last)
+    #expect(!state.canRetryMention(source))
+    #expect(!state.canRetryMention(CoworkerMentionShell.retrying(shell, startedAt: source.createdAt)))
+
+    var orphan = shell
+    orphan.metadata = try .init(additionalProperties: ["mention_id": .init(unvalidatedValue: "mention_1"), "mention_failed": .init(unvalidatedValue: true)])
+    #expect(!state.canRetryMention(orphan))
+    state.timeline.messages = [shell]
+    #expect(!state.canRetryMention(shell))
+  }
+
+  @Test(arguments: [false, true])
+  func retryEligibilityFindsSourceOnlyInOpenThread(reply: Bool) async throws {
+    let (state, _, _) = try await mentionRetryFixture(retryResponses: [])
+    defer { state.reset() }
+    var source = try #require(state.timeline.messages.first)
+    let shell = try #require(state.timeline.messages.last)
+    state.timeline.messages = [shell]
+    var parent = source
+    if reply {
+      parent.id = "thread-parent"
+      source.parentMessageId = parent.id
+    }
+    state.thread.open(parent)
+    if reply {
+      state.thread.timeline.messages = [source]
+    }
+    #expect(state.canRetryMention(shell))
+    state.thread.close()
+    #expect(!state.canRetryMention(shell))
+  }
+
   @Test(arguments: [false, true])
   func retryMentionFlipsTheShellThenMergesTheSource(reply: Bool) async throws {
     let (state, auth, transport) = try await mentionRetryFixture(retryResponses: [(200, envelope(mentionSourceJSON(id: "source", senderId: "user_1", status: "pending")))])
@@ -2697,12 +2784,13 @@ extension WorkspaceStateTests {
     #expect(CoworkerMentionShell(message: shell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
 
     transport.pauseMentionRetry = true
-    let retry = Task { try await state.retryMention(shell, auth: auth) }
+    let now = Date(timeIntervalSince1970: 1_700_000_123.456)
+    let retry = Task { try await state.retryMention(shell, auth: auth, now: now) }
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
     let inFlight = reply ? state.thread.timeline.messages.first : state.timeline.messages.last
-    #expect(try CoworkerMentionShell(message: #require(inFlight))?.isThinking == true)
+    #expect(try CoworkerMentionShell(message: #require(inFlight)) == .thinking(startedAt: now))
     #expect(try !canQuoteMessage(#require(inFlight)))
     #expect(state.pendingMentionRetries.count == 1)
     // A second click while the POST is in flight must not send another request.
@@ -2800,7 +2888,11 @@ extension WorkspaceStateTests {
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (201, createdMessageBody(id: "saved", roomId: you, content: "")),
       (200, roomsBody(names: ["general", "You"])),
-      (200, transcriptPageBody(messages: [transcriptMessage(id: "saved", roomId: you, content: "")], nextCursor: nil))
+      // A send-to-self row has no body by design; its quote is what keeps it in the transcript (row 19a).
+      (200, transcriptPageBody(messages: [
+        transcriptMessage(id: "saved", roomId: you, content: "")
+          .replacingOccurrences(of: "\"quote\":null", with: #""quote":{"messageId":"source","authorName":"Ada","snippet":"Keep","roomId":"550e8400-e29b-41d4-a716-446655440000"}"#)
+      ], nextCursor: nil))
     ], visible: false)
     defer { state.reset() }
     await state.reload(auth: auth)
@@ -3069,5 +3161,113 @@ extension WorkspaceStateTests {
     let base = try #require(URL(string: "https://app.sokosumi.com"))
     #expect(await state.messageLinkQuote(pasted: "just words", roomId: target, webBaseURL: base, auth: auth) == nil)
     #expect(!transport.operationIDs.contains("get/chats/rooms/{id}/messages/{messageId}"))
+  }
+}
+
+/// Row 04a: the history gap row loads itself once it is in view, keeps a failure on the row and reloads on Try again.
+@MainActor
+extension WorkspaceStateTests {
+  private static let latestPage = (200, transcriptPageBody(messages: [transcriptMessage(id: "z", roomId: "room", content: "Latest")], nextCursor: "z"))
+  private static let jumpWindow = (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned")], nextCursor: "a"))
+
+  /// The latest page and a jump window with the history between them missing: one gap, on `z`.
+  private func stateWithGap(_ responses: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let (state, auth, transport, _) = try ephemeralState([Self.latestPage, Self.jumpWindow] + responses, visible: false)
+    state.timeline.reset(roomId: "room")
+    let client = try #require(state.resolveClient(auth: auth))
+    try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
+    #expect(try await state.jumpToMessage("a", auth: auth))
+    #expect(state.timeline.historyGapMessageIds == ["z"])
+    return (state, auth, transport)
+  }
+
+  private func gapPages(_ transport: ScriptedTransport) -> [String] {
+    transport.paths.filter { $0.contains("cursor=") }.compactMap { path in
+      path.split(separator: "?").last?.split(separator: "&").first { $0.hasPrefix("cursor=") }.map(String.init)
+    }
+  }
+
+  @Test func aVisibleHistoryGapLoadsItselfOnceAndAgainWhenItMoves() async throws {
+    let (state, auth, transport) = try await stateWithGap([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Between")], nextCursor: "m")),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "b", roomId: "room", content: "After")], nextCursor: "a"))
+    ])
+    defer { state.reset() }
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .loading)
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=z"], "Once per arming, and never twice for one in-flight request.")
+    #expect(state.timeline.historyGapMessageIds == ["m"], "The page stopped short of the jump window, so the gap moved to its oldest row.")
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .idle)
+    #expect(state.transcriptError == nil)
+
+    state.setHistoryGapVisible(before: "m", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=z", "cursor=m"])
+    #expect(state.timeline.historyGapMessageIds.isEmpty)
+    #expect(state.timeline.boundaryLoads == TranscriptBoundaryLoads())
+    #expect(state.historyGapTask == nil)
+  }
+
+  @Test func aFailedHistoryGapWaitsForTryAgainWithoutATranscriptError() async throws {
+    let (state, auth, transport) = try await stateWithGap([
+      (500, "{}"),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "m", roomId: "room", content: "Between")], nextCursor: "a"))
+    ])
+    defer { state.reset() }
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .failed)
+    #expect(state.transcriptError == nil, "No banner above the transcript and nothing for an alert to show.")
+    #expect(state.timeline.failedPage == nil)
+    #expect(state.timeline.historyGapMessageIds == ["z"])
+    #expect(state.transcriptMessages.map(\.id) == ["a", "z"])
+
+    state.setHistoryGapVisible(before: "z", false, auth: auth)
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=z"], "A failed row does not load itself again.")
+
+    state.loadHistoryGap(before: "z", auth: auth)
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .loading)
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=z", "cursor=z"])
+    #expect(state.timeline.historyGapMessageIds.isEmpty)
+    #expect(state.transcriptMessages.map(\.id) == ["a", "m", "z"])
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .idle)
+  }
+
+  @Test func twoVisibleGapsLoadOneAfterTheOther() async throws {
+    let (state, auth, transport) = try await stateWithGap([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Middle")], nextCursor: "m")),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "b", roomId: "room", content: "After")], nextCursor: "a")),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Middle"), transcriptMessage(id: "n", roomId: "room", content: "Later")], nextCursor: "m"))
+    ])
+    defer { state.reset() }
+    #expect(try await state.jumpToMessage("m", auth: auth))
+    #expect(state.timeline.historyGapMessageIds == ["m", "z"])
+    state.setHistoryGapVisible(before: "m", true, auth: auth)
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    #expect(state.timeline.boundaryLoads.status(of: "m") == .loading)
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .idle, "The second gap waits; the timeline admits one page at a time.")
+    await state.historyGapTask?.value
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=m", "cursor=z"])
+    #expect(state.timeline.historyGapMessageIds.isEmpty)
+    #expect(state.transcriptMessages.map(\.id) == ["a", "b", "m", "n", "z"])
+  }
+
+  @Test func leavingTheRoomForgetsTheGapRows() async throws {
+    let (state, auth, _) = try await stateWithGap([(500, "{}")])
+    defer { state.reset() }
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .failed)
+    state.clearTranscript()
+    #expect(state.timeline.boundaryLoads == TranscriptBoundaryLoads())
+    #expect(state.historyGapTask == nil)
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    #expect(state.timeline.boundaryLoads == TranscriptBoundaryLoads(), "No transcript, no gap rows.")
   }
 }

@@ -6,6 +6,7 @@ import prisma from "@/lib/db/prisma";
 const {
   acquireLockMock,
   syncCardanoV2RailReadinessMock,
+  syncCalendarInvalidationsMock,
   syncEnterpriseContractRenewalMock,
   syncFreeSubscriptionRenewalMock,
   releaseLockMock,
@@ -19,12 +20,14 @@ const {
   prismaTransactionMock,
   sendFollowUpsMock,
   purgeExpiredTaskX402PaymentHeadersMock,
+  syncProjectClosesMock,
   syncDueTaskSchedulesMock,
   reconcileScheduleHistoryMock,
   validateActiveSchedulesMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
+  syncCalendarInvalidationsMock: vi.fn(),
   syncEnterpriseContractRenewalMock: vi.fn(),
   syncFreeSubscriptionRenewalMock: vi.fn(),
   releaseLockMock: vi.fn(),
@@ -38,6 +41,7 @@ const {
   prismaTransactionMock: vi.fn(),
   sendFollowUpsMock: vi.fn(),
   purgeExpiredTaskX402PaymentHeadersMock: vi.fn(),
+  syncProjectClosesMock: vi.fn(),
   syncDueTaskSchedulesMock: vi.fn(),
   reconcileScheduleHistoryMock: vi.fn(),
   validateActiveSchedulesMock: vi.fn(),
@@ -61,6 +65,12 @@ vi.mock("@/config/env", () => ({
     LOCK_TIMEOUT: LOCK_TIMEOUT_MS,
     LOCK_TIMEOUT_BUFFER: LOCK_TIMEOUT_BUFFER_MS,
   }),
+}));
+
+vi.mock("@/services/notification-publish-sync.service", () => ({
+  retryNotificationPublishes: vi
+    .fn()
+    .mockResolvedValue({ examined: 0, published: 0, skipped: 0 }),
 }));
 
 vi.mock("@/services/notification-follow-up-sync.service", () => ({
@@ -144,6 +154,18 @@ vi.mock("@/services/task-x402-payment.purge", () => ({
 vi.mock("@/services/task-schedules-sync", () => ({
   taskSchedulesSyncService: {
     syncDueSchedules: syncDueTaskSchedulesMock,
+  },
+}));
+
+vi.mock("@/services/project-close-sync.service", () => ({
+  projectCloseSyncService: {
+    syncProjectCloses: syncProjectClosesMock,
+  },
+}));
+
+vi.mock("@/services/calendar-invalidation-outbox.service", () => ({
+  calendarInvalidationOutboxService: {
+    syncInvalidations: syncCalendarInvalidationsMock,
   },
 }));
 
@@ -244,6 +266,17 @@ describe("sync routes", () => {
       promoted: 0,
       cloned: 0,
       durationMs: 0,
+    });
+    syncProjectClosesMock.mockResolvedValue({
+      claimed: 0,
+      processedSeries: 0,
+      closed: 0,
+      failed: 0,
+    });
+    syncCalendarInvalidationsMock.mockResolvedValue({
+      claimed: 0,
+      published: 0,
+      failed: 0,
     });
     reconcileScheduleHistoryMock.mockResolvedValue({
       scanned: 0,
@@ -361,12 +394,52 @@ describe("sync routes", () => {
     expect(reconcileScheduleHistoryMock).toHaveBeenCalledWith({
       shouldContinue: expect.any(Function),
     });
+    expect(syncCalendarInvalidationsMock).toHaveBeenCalledWith({
+      newestFirst: true,
+      shouldContinue: expect.any(Function),
+    });
     expect(syncDueTaskSchedulesMock.mock.invocationCallOrder[0]).toBeLessThan(
       validateActiveSchedulesMock.mock.invocationCallOrder[0],
     );
     expect(
       validateActiveSchedulesMock.mock.invocationCallOrder[0],
     ).toBeLessThan(reconcileScheduleHistoryMock.mock.invocationCallOrder[0]);
+    expect(
+      reconcileScheduleHistoryMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(syncCalendarInvalidationsMock.mock.invocationCallOrder[0]);
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+  });
+
+  it("runs the leased Project close worker", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/project-closes", {
+      headers: { Authorization: "Bearer test-cron-secret" },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncProjectClosesMock).toHaveBeenCalledWith({
+      abortSignal: expect.any(AbortSignal),
+      deadlineMs: expect.any(Number),
+      shouldContinue: expect.any(Function),
+    });
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+  });
+
+  it("runs the durable Calendar invalidation publisher", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/calendar-invalidations",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncCalendarInvalidationsMock).toHaveBeenCalledWith({
+      shouldContinue: expect.any(Function),
+    });
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 

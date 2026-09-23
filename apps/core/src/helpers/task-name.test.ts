@@ -98,6 +98,21 @@ describe("resolveTaskName", () => {
     );
   });
 
+  it("falls back when generation throws trailing bytes", async () => {
+    generateTaskNameMock.mockRejectedValue(new Error("479 trailing bytes"));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      expect(await resolveTaskName({ description: "First line\nsecond" })).toBe(
+        "First line",
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("cleans a heading first line when generation is missing", async () => {
     generateTaskNameMock.mockResolvedValue(null);
     expect(

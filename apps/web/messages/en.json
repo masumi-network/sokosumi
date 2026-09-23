@@ -787,10 +787,16 @@
       "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 unread notification and account notice} other {# unread notifications and account notice}}",
       "title": "Notifications",
       "pageTitle": "Notifications",
+      "pageDescription": "Updates from your tasks, agents and workspace.",
       "emptyState": "No notifications yet",
+      "emptyStateDescription": "Nothing has arrived yet. Task results and workspace requests show up here as they happen.",
       "emptyUnreadState": "You're all caught up",
+      "emptyUnreadStateDescription": "Nothing here is unread. Everything you have read stays in All.",
       "emptyNeedsYouState": "Nothing is waiting on you",
+      "emptyNeedsYouStateDescription": "Nothing is waiting for your answer. Requests that need you appear here.",
       "viewAll": "View all notifications",
+      "showAll": "Show all",
+      "showOlder": "Show older notifications",
       "justNow": "Just now",
       "loading": "Loading...",
       "markAllRead": "Mark all read",
@@ -820,6 +826,8 @@
       "browserPermissionRequesting": "Waiting for permission…",
       "browserPermissionDeniedTitle": "Browser notifications are blocked",
       "browserPermissionDeniedDescription": "Notifications for this site are blocked in your browser. Open your browser’s notification settings for Sokosumi to allow them.",
+      "browserPermissionInstallTitle": "Add Sokosumi to your Home Screen",
+      "browserPermissionInstallDescription": "On iPhone and iPad, alerts only arrive in the installed app. Tap the Share button, then Add to Home Screen.",
       "pushQuietTitle": "Push notifications stopped in this browser",
       "pushQuietDescription": "This browser lost its push subscription, so updates do not arrive here. Your other devices may still get them.",
       "pushQuietRestore": "Turn push back on",
@@ -1439,6 +1447,11 @@
         "expandPrompt": "Show full message",
         "collapsePrompt": "Show less",
         "authorize": "Authorize",
+        "typing": {
+          "one": "{name} is typing…",
+          "two": "{first} and {second} are typing…",
+          "many": "Several people are typing…"
+        },
         "reasoning": {
           "processing": "Processing...",
           "thinking": "Thinking...",
@@ -1528,8 +1541,6 @@
         "approvePartialError": "Approved {approved} of {total} vendors. Some approvals failed — refresh and try again."
       },
       "Actions": {
-        "add": "New Task",
-        "addTask": "New Task",
         "loading": "Loading...",
         "loadMore": "Load More",
         "showGuide": "Show guide"
@@ -2078,6 +2089,17 @@
       "list": {
         "loadMore": "Load more",
         "loading": "Loading projects...",
+        "filter": {
+          "placeholder": "Filter projects",
+          "clear": "Clear filter",
+          "noMatches": "No projects match \"{query}\"."
+        },
+        "sortedBy": "Sorted by recent activity",
+        "lastActivity": "Last activity",
+        "created": "Created",
+        "pin": "Pin project",
+        "unpin": "Unpin project",
+        "pinError": "Could not change the Pin. Try again.",
         "stats": {
           "tasks": "Tasks",
           "jobs": "Jobs",
@@ -2209,7 +2231,8 @@
           "removed": "Brand context removed",
           "removeDialog": {
             "title": "Remove brand context?",
-            "description": "This removes the project's DESIGN.md file."
+            "description": "This removes the project's DESIGN.md file.",
+            "cancel": "Cancel"
           },
           "upload": "Upload",
           "moreActions": "Brand actions"
@@ -2299,20 +2322,58 @@
           "moreActions": "More actions",
           "viewDetails": "View details",
           "edit": "Edit",
-          "delete": "Delete",
+          "close": "Close project",
           "remove": "Remove",
           "confirmRemoveJob": "Remove this job from the project?"
         },
-        "deleteDialog": {
-          "title": "Delete project",
-          "description": "This will delete the project. Linked tasks and jobs will remain available outside the project.",
-          "confirm": "Delete",
-          "cancel": "Cancel"
+        "close": {
+          "dialog": {
+            "title": "Close project?",
+            "description": "Work scheduled before the close cutoff will finish. Work at or after the cutoff will be canceled, and the project cannot be reopened.",
+            "reasonLabel": "Reason (optional)",
+            "reasonPlaceholder": "Why is this project closing?",
+            "confirm": "Close project",
+            "cancel": "Keep project open",
+            "success": "Project close started",
+            "error": "Unable to close the project. Review its latest state and try again."
+          },
+          "status": {
+            "CLOSING": {
+              "title": "Project is closing",
+              "description": "{count, plural, =0 {No owed occurrences remain} one {# owed occurrence remains} other {# owed occurrences remain}} before the {cutoff} cutoff. Work at or after the cutoff is being canceled."
+            },
+            "CLOSE_FAILED": {
+              "title": "Project close needs attention",
+              "descriptionWithCancel": "Scheduled work is paused at the {cutoff} cutoff. Retry the close, or cancel only the blocked owed work.",
+              "descriptionRetryOnly": "Scheduled work is paused at the {cutoff} cutoff. Retry the close to continue."
+            },
+            "CLOSED": {
+              "title": "Project closed",
+              "description": "Closed {completedAt}. Calendar history is retained."
+            }
+          },
+          "recovery": {
+            "retryAction": "Retry close",
+            "cancelOwedAction": "Cancel owed work",
+            "reasonLabel": "Reason",
+            "reasonPlaceholder": "Explain why this recovery action is needed",
+            "reasonRequired": "Enter a reason for this recovery action.",
+            "keepFailed": "Keep close paused",
+            "success": "Project close resumed",
+            "error": "Unable to resume the project close. Review its latest state and try again.",
+            "retry": {
+              "title": "Retry project close?",
+              "description": "The close worker will retry the blocked scheduled work from the same cutoff."
+            },
+            "cancelOwed": {
+              "title": "Cancel owed work?",
+              "description": "Only the blocked work owed before the cutoff will be canceled. This cannot be undone."
+            }
+          }
         },
         "errors": {
           "create": "Failed to create project",
           "update": "Failed to update project",
-          "delete": "Failed to delete project",
           "addJob": "Failed to add job",
           "removeJob": "Failed to remove job",
           "addTask": "Failed to add task",
@@ -2355,6 +2416,8 @@
           "taskManager": "Tasks",
           "projects": "Projects",
           "allProjects": "All projects",
+          "projectsPanel": "Your projects",
+          "pinnedProjects": "Pinned",
           "recentProjects": "Recent projects",
           "history": "History",
           "drive": "Files",
@@ -4128,6 +4191,9 @@
         "pushBannerDeniedBody": "Sokosumi cannot ask again. Allow notifications for this site in your browser settings. Your other devices may still get them.",
         "pushBannerUnsupportedTitle": "This browser cannot show push notifications",
         "pushBannerUnsupportedBody": "Push notifications do not arrive here, whatever the rows below say. Your other devices may still get them.",
+        "pushBannerInstallableTitle": "Add Sokosumi to your Home Screen to get push notifications",
+        "pushBannerInstallableBody": "On iPhone and iPad, push notifications only arrive in the installed app. Tap the Share button, then Add to Home Screen, and open Sokosumi from there. Your other devices may still get them.",
+        "pushInstallableHint": "Add Sokosumi to your Home Screen to get these on this device.",
         "deviceBannerTitle": "Push notifications are on in this browser. Your other devices are unaffected.",
         "deviceBannerAction": "Turn off",
         "deviceDisabledSuccess": "Push notifications off in this browser",
@@ -4150,6 +4216,8 @@
         "kindTaskCompletedHint": "A task finished the work you asked for.",
         "kindTaskUpdate": "Other task updates",
         "kindTaskUpdateHint": "Anything else a task reports, like failing or being canceled. Nothing for you to do.",
+        "kindProjectUpdate": "Project updates",
+        "kindProjectUpdateHint": "A project finishes closing or needs another close attempt.",
         "kindChatRoomMessage": "Every message in your rooms",
         "kindChatRoomMessageHint": "Anyone posts in a room you are in. Off unless you turn it on.",
         "kindChatMention": "Mentions",
@@ -4168,6 +4236,16 @@
         "presetTaskEssentialHint": "Only tasks waiting on you arrive as a push. Completed tasks and other updates arrive in the app only.",
         "presetTaskAppOnlyHint": "Every task notification arrives in the app. None of them arrive as a push.",
         "presetTaskOffHint": "No task notification arrives, in the app or as a push. Open the group to turn a single one back on.",
+        "groupBilling": "Billing",
+        "groupBillingDescription": "Credits running low, payments, and top-ups.",
+        "kindBillingAttention": "Billing waiting on you",
+        "kindBillingAttentionHint": "Your credits are running low, or a payment did not go through. Work stops if nothing changes.",
+        "kindBillingUpdate": "Other billing updates",
+        "kindBillingUpdateHint": "A top-up landed, or your subscription is set to end. Nothing for you to do.",
+        "presetBillingMostHint": "Billing waiting on you and other billing updates arrive in the app and as a push.",
+        "presetBillingEssentialHint": "Only billing waiting on you arrives as a push. Other billing updates arrive in the app only.",
+        "presetBillingAppOnlyHint": "Every billing notification arrives in the app. None of them arrive as a push.",
+        "presetBillingOffHint": "No billing notification arrives, in the app or as a push. Open the group to turn a single one back on.",
         "presetChatMostHint": "Every message in your rooms arrives in the app. Mentions and direct messages arrive as a push as well.",
         "presetChatEssentialHint": "Mentions and direct messages arrive as a push. Every message in your rooms is off.",
         "presetChatAppOnlyHint": "Mentions and direct messages arrive in the app. Every message in your rooms is off, and nothing arrives as a push.",
@@ -4179,19 +4257,19 @@
         "presetAriaLabel": "What you get from {group}",
         "presetMenuCustomLabel": "{group} · set one by one",
         "channelInApp": "In app",
-        "channelInAppHint": "Inside Sokosumi, not on your device.",
+        "channelInAppHint": "Shows up in your Sokosumi notifications.",
         "channelPush": "Push",
-        "channelPushHint": "On your device, even when Sokosumi is closed.",
+        "channelPushHint": "A banner from your device, even when Sokosumi is closed.",
+        "channelEmailExternalLabel": "Email, always on for {kind}",
+        "channelEmailExternalHint": "Stripe sends these receipts and cancellations. There is nothing to set here.",
         "channelEmail": "Email",
-        "channelEmailHint": "Where Sokosumi emails you. Reminders carry their own cell, and so do marketing emails. No other kind here is mailed yet.",
+        "channelEmailHint": "Sent to your inbox. Only notifications you haven't read get an email.",
         "channelsKindLabel": "Notification",
         "channelsLegendLabel": "What the columns mean",
         "channelsAnnounce": "{kind}: {channels}",
         "channelsNone": "none",
         "channelCellLabel": "{channel} for {kind}",
         "channelUnavailableLabel": "{channel}, not used for {kind}",
-        "channelEmailSoonLabel": "Email, not sent for {kind} yet",
-        "channelEmailSoonHint": "Sokosumi does not send an email for this notification yet.",
         "deliveryAriaLabel": "Delivery for {kind}",
         "newsDeliveryAriaLabel": "Delivery for marketing emails",
         "kindFollowUp": "Reminders",
@@ -4200,7 +4278,7 @@
       "ChatDisplay": {
         "title": "Chat display",
         "roomUnreadCountTitle": "Show unread message counts",
-        "roomUnreadCountDescription": "Muted chats and the chat you have open stay quiet. Your notifications do not change.",
+        "roomUnreadCountDescription": "Shown on every chat with unread messages. Muted chats stay quiet, and your notifications do not change.",
         "loading": "Saving preference...",
         "error": "Could not save that change. Check your connection and try again.",
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
@@ -5375,6 +5453,13 @@
         "afk": "Away",
         "offline": "Offline"
       },
+      "ThreadRows": {
+        "label": "Unread threads in {name}",
+        "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}",
+        "moreThreads": "{count, plural, one {# more unread thread} other {# more unread threads}}",
+        "mentions": "{count, plural, one {# mention} other {# mentions}}",
+        "untitled": "Thread"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5384,6 +5469,7 @@
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
         "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "newReplyCount": "{count, plural, one {# new reply} other {# new replies}}",
         "mute": "Mute thread",
         "unmute": "Unmute thread",
         "muted": "Muted"
@@ -5522,12 +5608,20 @@
       "RoomRoster": {
         "open": "Members",
         "title": "Members",
+        "humansTitle": "People",
+        "agentsTitle": "Coworkers",
         "close": "Close members",
         "empty": "No members to show.",
         "message": "Message {name}",
         "copy": "Copy {value}",
         "copySuccess": "Copied to clipboard",
         "copyError": "Could not copy."
+      },
+      "SeenBy": {
+        "summary": "{count, plural, one {Seen by # person} other {Seen by # people}}",
+        "readersTitle": "Read by",
+        "readAt": "Last read {time}",
+        "notRead": "Not read yet"
       },
       "UnreadThreads": {
         "open": "Threads",
@@ -5539,10 +5633,13 @@
         "error": "Could not load threads. Try again.",
         "markAllReadError": "Could not mark unread threads as read. Try again.",
         "loadOlder": "Load older threads",
+        "groupUnread": "Unread",
+        "groupEarlier": "Earlier",
+        "groupUnreadEmpty": "All caught up.",
         "startedBy": "Started by {name}",
-        "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}",
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
-        "unreadThreadsCapped": "More than {max} unread threads"
+        "unreadThreadsCapped": "More than {max} unread threads",
+        "newReplies": "{count, plural, one {# new} other {# new}}"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
@@ -6211,7 +6308,8 @@
       "view": {
         "month": "Month",
         "week": "Week",
-        "agenda": "Agenda"
+        "agenda": "Agenda",
+        "schedules": "Schedules"
       },
       "source": {
         "label": "Source",
@@ -6232,7 +6330,6 @@
         "moveNotAllowed": "Only the task owner can reschedule it."
       },
       "create": {
-        "title": "Schedule a task",
         "fab": "Schedule a task"
       },
       "edit": {
@@ -6278,7 +6375,15 @@
         "label": "Time zone"
       },
       "empty": {
-        "title": "No scheduled releases match these filters."
+        "title": "No scheduled releases match these filters.",
+        "schedulesTitle": "No schedules match these filters."
+      },
+      "schedules": {
+        "nextRun": "Next run",
+        "noNextRun": "No upcoming run",
+        "edit": "Edit schedule",
+        "openTask": "Open task",
+        "loadMore": "Load more"
       },
       "pagination": {
         "error": "Unable to load more events."
@@ -6289,8 +6394,8 @@
         "retry": "Try again"
       },
       "agenda": {
-        "backToTop": "Back to top",
-        "today": "Today"
+        "upcoming": "Coming up next",
+        "loading": "Loading…"
       }
     },
     "You": {
@@ -6474,8 +6579,23 @@
         "canceled": "{taskName} was canceled",
         "scheduleRepaired": "The schedule for {taskName} was repaired",
         "scheduleRemovedByOperator": "The schedule for {taskName} was removed after review",
+        "scheduleUpdatedByMember": "A teammate updated the schedule for {taskName}",
+        "scheduleRemovedByMember": "A teammate removed the schedule for {taskName}",
+        "scheduleSourceChangedByMember": "A teammate moved {taskName} to another calendar source",
+        "scheduleOccurrenceChangedByMember": "A teammate changed an occurrence of {taskName}",
         "assigned": "You were assigned {taskName}",
         "followUp": "{taskName} is still waiting for you"
+      },
+      "Billing": {
+        "lowBalance": "Your credits are running low: {credits} left",
+        "paymentFailed": "A subscription payment failed",
+        "creditsAdded": "{credits} credits were added to your balance",
+        "subscriptionEnding": "Your subscription ends when the current period does",
+        "followUp": "Your billing still needs your attention"
+      },
+      "Project": {
+        "closed": "{projectName} is now closed",
+        "closeFailed": "{projectName} could not finish closing"
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",

@@ -68,7 +68,7 @@ private struct MessageMarkdownContent: View {
       if let count = jumboEmojiCount(source) {
         Text(source.trimmingCharacters(in: .whitespacesAndNewlines)).font(.system(size: emojiSize(count)))
       } else if let document = preparedDocument ?? document {
-        ExpandableMessageBody(source: source, clampHeight: !document.containsAttachments) {
+        ExpandableMessageBody(source: source, clampHeight: document.clampsLongBody) {
           MarkdownBlocksView(blocks: document.blocks)
         }
       } else {
@@ -137,11 +137,10 @@ private struct MarkdownBlockView: View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
           ForEach(block.children) { row in
             GridRow {
-              ForEach(columns.indices, id: \.self) { index in
-                let cell = row.children.first { $0.kind == .tableCell(columnIndex: index) }
-                attachmentContent(cell?.text ?? AttributedString())
+              ForEach(row.children) { cell in
+                attachmentContent(cell.text)
                   .fontWeight(row.kind == .tableHeaderRow ? .semibold : .regular)
-                  .gridColumnAlignment(tableAlignment(columns[index].alignment))
+                  .gridColumnAlignment(tableAlignment(columnAlignment(for: cell, in: columns)))
               }
             }
           }
@@ -217,6 +216,18 @@ private struct MarkdownBlockView: View {
     case 5: .subheadline
     default: .footnote
     }
+  }
+
+  private func columnAlignment(
+    for cell: MessageMarkdownBlock,
+    in columns: [PresentationIntent.TableColumn]
+  ) -> PresentationIntent.TableColumn.Alignment {
+    guard case let .tableCell(columnIndex) = cell.kind,
+          columns.indices.contains(columnIndex)
+    else {
+      return .left
+    }
+    return columns[columnIndex].alignment
   }
 
   private func tableAlignment(_ alignment: PresentationIntent.TableColumn.Alignment) -> HorizontalAlignment {

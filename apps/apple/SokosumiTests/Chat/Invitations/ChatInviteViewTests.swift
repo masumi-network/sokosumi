@@ -40,10 +40,6 @@
         #expect(!model.loading && model.loadError == nil)
         try await Task.sleep(for: .milliseconds(100))
         host.layoutSubtreeIfNeeded()
-        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("chat-invite-\(pending ? "pending" : "not-found")-\(dark ? "dark" : "light").png"))
       }
     }
   }

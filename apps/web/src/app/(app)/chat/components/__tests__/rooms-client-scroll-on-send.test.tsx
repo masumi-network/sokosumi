@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -71,6 +71,14 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
 
 vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
   useChatRoomRealtime: () => undefined,
+}));
+
+vi.mock("@/lib/ably/use-room-typing", () => ({
+  useRoomTyping: () => ({
+    typistIds: [],
+    handleComposerChange: () => {},
+    handleStopTyping: () => {},
+  }),
 }));
 
 vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
@@ -365,7 +373,7 @@ const organization = {
 
 function renderRoomsClient(room: ChatRoom) {
   return render(
-    <OrganizationSeatProvider hasAssignedSeat={true}>
+    <OrganizationSeatContext value={true}>
       <RoomsClient
         activeOrganization={organization}
         rooms={[room]}
@@ -378,7 +386,7 @@ function renderRoomsClient(room: ChatRoom) {
         messages={[]}
         messagesNextCursor={null}
       />
-    </OrganizationSeatProvider>,
+    </OrganizationSeatContext>,
   );
 }
 

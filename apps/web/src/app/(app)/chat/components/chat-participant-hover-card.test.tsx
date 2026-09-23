@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import type { ChatParticipantHoverProfile } from "./room-helpers";
@@ -223,7 +223,7 @@ describe("ChatParticipantHoverCard", () => {
 
   it("shows Message for a coworker without human direct access", () => {
     render(
-      <OrganizationSeatProvider hasAssignedSeat={true}>
+      <OrganizationSeatContext value={true}>
         <ChatParticipantHoverCard
           profile={coworkerProfile}
           currentUserId="user-1"
@@ -231,7 +231,7 @@ describe("ChatParticipantHoverCard", () => {
         >
           <span>Hannah</span>
         </ChatParticipantHoverCard>
-      </OrganizationSeatProvider>,
+      </OrganizationSeatContext>,
     );
 
     expect(screen.getByRole("button", { name: "Message" })).toBeInTheDocument();
@@ -241,14 +241,14 @@ describe("ChatParticipantHoverCard", () => {
     const user = userEvent.setup();
     const onOpenDirect = vi.fn();
     render(
-      <OrganizationSeatProvider hasAssignedSeat={true}>
+      <OrganizationSeatContext value={true}>
         <ChatParticipantHoverCard
           profile={coworkerProfile}
           onOpenDirect={onOpenDirect}
         >
           <span>Hannah</span>
         </ChatParticipantHoverCard>
-      </OrganizationSeatProvider>,
+      </OrganizationSeatContext>,
     );
 
     await user.click(screen.getByRole("button", { name: "Message" }));
@@ -258,7 +258,7 @@ describe("ChatParticipantHoverCard", () => {
 
   it("disables Message while another direct open is busy", () => {
     render(
-      <OrganizationSeatProvider hasAssignedSeat={true}>
+      <OrganizationSeatContext value={true}>
         <ChatParticipantHoverCard
           profile={coworkerProfile}
           onOpenDirect={vi.fn()}
@@ -266,7 +266,7 @@ describe("ChatParticipantHoverCard", () => {
         >
           <span>Hannah</span>
         </ChatParticipantHoverCard>
-      </OrganizationSeatProvider>,
+      </OrganizationSeatContext>,
     );
 
     expect(screen.getByRole("button", { name: "Message" })).toBeDisabled();

@@ -2305,9 +2305,40 @@ export type ChatRoom = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.
+     * Total unread from others: channelUnreadCount + threadUnreadCount. Prefer the two halves; this stays the sum for existing clients. Soft-deleted excluded. ADR-0013, ADR-0037.
      */
     unreadCount: number;
+    /**
+     * Room unread: non-self top-level messages after room lastReadAt. Excludes Thread replies. Drives sidebar bold. ADR-0037.
+     */
+    channelUnreadCount?: number;
+    /**
+     * Thread unread: non-self replies in Threads the viewer Participates in, after the per-Thread Look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.
+     */
+    threadUnreadCount?: number;
+    /**
+     * How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.
+     */
+    unreadThreadCount?: number;
+    /**
+     * Up to 3 unread Threads in this room, newest unread reply first, for the sidebar's inset rows. Same eligibility as threadUnreadCount. `unreadThreadCount` is the true number; this list is capped. ADR-0037.
+     */
+    unreadThreads?: Array<{
+        parentMessageId: string;
+        /**
+         * The oldest reply still unread in this Thread: where opening it lands.
+         */
+        firstUnreadReplyId: string;
+        /**
+         * The parent message's raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.
+         */
+        parentContent: string;
+        unreadReplyCount: number;
+        /**
+         * How many of this Thread's unread replies name the viewer. Counted from the replies, so a Look clears it; the room's unreadMentionCount is counted from notifications, which Room last-read clears.
+         */
+        unreadMentionCount?: number;
+    }>;
     /**
      * Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.
      */
@@ -2355,6 +2386,10 @@ export type ChatRoomUserParticipant = {
     image: string | null;
     presence: ChatRoomPresence;
     access?: ChatRoomAccess & unknown;
+    /**
+     * Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer's room access is `guest`. Absent on message senders.
+     */
+    lastReadAt?: Date | null;
 };
 
 export const ChatRoomPresence = {
@@ -2564,6 +2599,10 @@ export type ChatRoomPinnedMessageListItem = {
         mentions: Array<ChatRoomMessageMention>;
         reactions: Array<ChatRoomMessageReaction>;
         threadReplyCount: number;
+        /**
+         * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
+         */
+        threadUnreadReplyCount?: number;
         threadLastReplyAt: Date | null;
         metadata: {
             [key: string]: unknown;
@@ -2780,6 +2819,10 @@ export type ChatRoomMessage = {
     mentions: Array<ChatRoomMessageMention>;
     reactions: Array<ChatRoomMessageReaction>;
     threadReplyCount: number;
+    /**
+     * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
+     */
+    threadUnreadReplyCount?: number;
     threadLastReplyAt: Date | null;
     metadata: {
         [key: string]: unknown;
@@ -3862,7 +3905,7 @@ export type NotificationPreference = {
     /**
      * What the notification is about
      */
-    category: 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM' | 'FOLLOW_UP';
+    category: 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'PROJECT_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'BILLING_ATTENTION' | 'BILLING_UPDATE' | 'SYSTEM' | 'FOLLOW_UP';
     /**
      * Where it is delivered: in the app, as an OS banner (which also needs pushOptIn), or by email (offered only on the categories that mail)
      */
@@ -4461,6 +4504,14 @@ export type AcceptChatRoomGuestInviteLink = {
 export type ProjectListItem = Project & {
     taskCount: number;
     jobCount: number;
+    /**
+     * Latest visible task/job event, ready task output or project lifecycle event. Equals createdAt when the project has no activity yet, which is also the list ordering key.
+     */
+    lastActivityAt: Date;
+    /**
+     * When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.
+     */
+    starredAt: Date | null;
 };
 
 export type ProjectLatestUpdate = {
@@ -4570,6 +4621,13 @@ export type ProjectJobStatusCount = {
     status: SokosumiJobStatus;
 };
 
+export type StarredProject = Project & {
+    /**
+     * When this reader Pinned the project. Ascending is the order the sidebar flyout draws Pins in.
+     */
+    starredAt: Date;
+};
+
 export type AddProjectJobRequest = {
     jobId: string;
 };
@@ -4639,6 +4697,42 @@ export type WorkspaceCalendarItem = {
     timeAccuracy: 'EXACT' | 'APPROXIMATE';
 };
 
+export type ProjectCloseStatus = {
+    id: string;
+    projectId: string;
+    state: 'CLOSING' | 'CLOSE_FAILED' | 'CLOSED';
+    cutoffAt: Date;
+    reason: string | null;
+    attempts: number;
+    failure: ProjectCloseFailure;
+    completedAt: Date | null;
+    projectRevision: number;
+    owedOccurrenceCount: number;
+};
+
+export type ProjectCloseFailure = {
+    seriesTaskId: string | null;
+    message: string;
+} | null;
+
+export type ProjectCloseRequest = {
+    /**
+     * Browser-minted idempotency key for this operation
+     */
+    operationId: string;
+    expectedProjectRevision: number;
+    reason?: string;
+};
+
+export type ProjectCloseRecoveryRequest = {
+    /**
+     * Browser-minted idempotency key for this operation
+     */
+    operationId: string;
+    expectedProjectRevision: number;
+    reason: string;
+};
+
 export type ProjectNeedsAttention = {
     /**
      * Linked non-archived tasks. Same meaning as ProjectListItem.taskCount.
@@ -4654,6 +4748,11 @@ export type ProjectNeedsAttention = {
     items: Array<HistoryItem>;
 };
 
+export type ProjectStar = {
+    projectId: string;
+    starredAt: Date | null;
+};
+
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
@@ -4665,11 +4764,6 @@ export type PatchProjectRequest = {
     description?: string | null;
     websiteUrl?: string | null;
     logo?: string | null;
-};
-
-export type ProjectDeleted = {
-    id: string;
-    deleted: true;
 };
 
 export type Job = {
@@ -4906,7 +5000,8 @@ export const NotificationKind = {
     TASK: 'TASK',
     BILLING: 'BILLING',
     SYSTEM: 'SYSTEM',
-    CHAT: 'CHAT'
+    CHAT: 'CHAT',
+    PROJECT: 'PROJECT'
 } as const;
 
 /**
@@ -6286,6 +6381,18 @@ export type WorkspaceCalendarSource = {
      * Whether this source may be selected to create a Task through POST /v1/tasks/scheduled. Unschedulable sources remain available for Calendar event display and filtering.
      */
     isSchedulable: boolean;
+};
+
+export type CalendarIdentityLabels = Array<CalendarIdentityLabel>;
+
+export type CalendarIdentityLabel = {
+    ref: string;
+    state: 'current_member' | 'former_member' | 'unknown';
+    label?: string;
+};
+
+export type CalendarIdentityLabelsRequest = {
+    refs: Array<string>;
 };
 
 export type WorkspaceOrganization = {
@@ -9500,6 +9607,21 @@ export type UnassignAdminOrganizationMemberSeatErrors = {
             method: string;
         };
     };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type UnassignAdminOrganizationMemberSeatError = UnassignAdminOrganizationMemberSeatErrors[keyof UnassignAdminOrganizationMemberSeatErrors];
@@ -9580,6 +9702,21 @@ export type AssignAdminOrganizationMemberSeatErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -10382,6 +10519,21 @@ export type ListAdminTaskPaymentClaimsRequiringReviewErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
         error: string;
         message: string;
         kind?: string;
@@ -11748,10 +11900,6 @@ export type GetAgentsByIdReviewsData = {
          * Maximum number of commented reviews to return
          */
         limit?: number;
-        /**
-         * Number of commented reviews to skip
-         */
-        offset?: number | null;
     };
     url: '/agents/{id}/reviews';
 };
@@ -23352,9 +23500,20 @@ export type PostEnterpriseContractsByIdActivateErrors = {
         };
     };
     /**
-     * Activation blocked by an active organization subscription (see blocker in response body)
+     * Conflict. Branch on `kind`: enterprise_activation_blocked (an active organization subscription blocks activation, see blocker in the response body), concurrency_conflict (serializable-transaction contention while assigning seats, retry the SAME request unchanged).
      */
-    409: EnterpriseContractActivationConflictResponse;
+    409: EnterpriseContractActivationConflictResponse | {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unprocessable Entity
      */
@@ -24693,7 +24852,7 @@ export type GetUsersByIdPreferencesResponses = {
              */
             pushOptIn: boolean;
             /**
-             * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
+             * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
              */
             showRoomUnreadCount: boolean;
             /**
@@ -24722,7 +24881,7 @@ export type PatchUsersByIdPreferencesData = {
          */
         pushOptIn?: boolean;
         /**
-         * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
+         * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
          */
         showRoomUnreadCount?: boolean;
         /**
@@ -24826,7 +24985,7 @@ export type PatchUsersByIdPreferencesResponses = {
              */
             pushOptIn: boolean;
             /**
-             * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
+             * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
              */
             showRoomUnreadCount: boolean;
             /**
@@ -28027,6 +28186,21 @@ export type DeleteOrganizationsByIdMembersByMemberIdSeatErrors = {
         };
     };
     /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -28127,6 +28301,21 @@ export type PutOrganizationsByIdMembersByMemberIdSeatErrors = {
      * Not Found - Organization or member not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -30119,6 +30308,21 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
         };
     };
     /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -30881,6 +31085,10 @@ export type GetProjectsData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        /**
+         * Case-insensitive substring match on the project name, applied across the whole workspace before pagination
+         */
+        q?: string;
     };
     url: '/projects';
 };
@@ -31121,6 +31329,85 @@ export type GetProjectsStatsResponses = {
 };
 
 export type GetProjectsStatsResponse = GetProjectsStatsResponses[keyof GetProjectsStatsResponses];
+
+export type GetProjectsStarredData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/projects/starred';
+};
+
+export type GetProjectsStarredErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsStarredError = GetProjectsStarredErrors[keyof GetProjectsStarredErrors];
+
+export type GetProjectsStarredResponses = {
+    /**
+     * The reader's Pinned projects
+     */
+    200: {
+        data: Array<StarredProject>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsStarredResponse = GetProjectsStarredResponses[keyof GetProjectsStarredResponses];
 
 export type PostProjectsByIdJobsData = {
     body?: AddProjectJobRequest;
@@ -31911,6 +32198,426 @@ export type GetProjectsByIdCalendarResponses = {
 
 export type GetProjectsByIdCalendarResponse = GetProjectsByIdCalendarResponses[keyof GetProjectsByIdCalendarResponses];
 
+export type GetProjectsByIdCloseData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/close';
+};
+
+export type GetProjectsByIdCloseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdCloseError = GetProjectsByIdCloseErrors[keyof GetProjectsByIdCloseErrors];
+
+export type GetProjectsByIdCloseResponses = {
+    /**
+     * Project close status
+     */
+    200: {
+        data: ProjectCloseStatus;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdCloseResponse = GetProjectsByIdCloseResponses[keyof GetProjectsByIdCloseResponses];
+
+export type PostProjectsByIdCloseData = {
+    body?: ProjectCloseRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/close';
+};
+
+export type PostProjectsByIdCloseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdCloseError = PostProjectsByIdCloseErrors[keyof PostProjectsByIdCloseErrors];
+
+export type PostProjectsByIdCloseResponses = {
+    /**
+     * Project close status
+     */
+    200: {
+        data: ProjectCloseStatus;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdCloseResponse = PostProjectsByIdCloseResponses[keyof PostProjectsByIdCloseResponses];
+
+export type PostProjectsByIdCloseRetryData = {
+    body?: ProjectCloseRecoveryRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/close/retry';
+};
+
+export type PostProjectsByIdCloseRetryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdCloseRetryError = PostProjectsByIdCloseRetryErrors[keyof PostProjectsByIdCloseRetryErrors];
+
+export type PostProjectsByIdCloseRetryResponses = {
+    /**
+     * Project close status
+     */
+    200: {
+        data: ProjectCloseStatus;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdCloseRetryResponse = PostProjectsByIdCloseRetryResponses[keyof PostProjectsByIdCloseRetryResponses];
+
+export type PostProjectsByIdCloseCancelOwedData = {
+    body?: ProjectCloseRecoveryRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/close/cancel-owed';
+};
+
+export type PostProjectsByIdCloseCancelOwedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdCloseCancelOwedError = PostProjectsByIdCloseCancelOwedErrors[keyof PostProjectsByIdCloseCancelOwedErrors];
+
+export type PostProjectsByIdCloseCancelOwedResponses = {
+    /**
+     * Project close status
+     */
+    200: {
+        data: ProjectCloseStatus;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdCloseCancelOwedResponse = PostProjectsByIdCloseCancelOwedResponses[keyof PostProjectsByIdCloseCancelOwedResponses];
+
 export type GetProjectsByIdNeedsAttentionData = {
     body?: never;
     headers?: {
@@ -32000,6 +32707,198 @@ export type GetProjectsByIdNeedsAttentionResponses = {
 
 export type GetProjectsByIdNeedsAttentionResponse = GetProjectsByIdNeedsAttentionResponses[keyof GetProjectsByIdNeedsAttentionResponses];
 
+export type DeleteProjectsByIdStarData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/star';
+};
+
+export type DeleteProjectsByIdStarErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdStarError = DeleteProjectsByIdStarErrors[keyof DeleteProjectsByIdStarErrors];
+
+export type DeleteProjectsByIdStarResponses = {
+    /**
+     * Project unstarred
+     */
+    200: {
+        data: ProjectStar;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteProjectsByIdStarResponse = DeleteProjectsByIdStarResponses[keyof DeleteProjectsByIdStarResponses];
+
+export type PostProjectsByIdStarData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/star';
+};
+
+export type PostProjectsByIdStarErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdStarError = PostProjectsByIdStarErrors[keyof PostProjectsByIdStarErrors];
+
+export type PostProjectsByIdStarResponses = {
+    /**
+     * Project starred
+     */
+    200: {
+        data: ProjectStar;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdStarResponse = PostProjectsByIdStarResponses[keyof PostProjectsByIdStarResponses];
+
 export type DeleteProjectsByIdData = {
     body?: never;
     headers?: {
@@ -32047,21 +32946,6 @@ export type DeleteProjectsByIdErrors = {
         };
     };
     /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Conflict
      */
     409: {
@@ -32079,22 +32963,6 @@ export type DeleteProjectsByIdErrors = {
 };
 
 export type DeleteProjectsByIdError = DeleteProjectsByIdErrors[keyof DeleteProjectsByIdErrors];
-
-export type DeleteProjectsByIdResponses = {
-    /**
-     * Project deleted
-     */
-    200: {
-        data: ProjectDeleted;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteProjectsByIdResponse = DeleteProjectsByIdResponses[keyof DeleteProjectsByIdResponses];
 
 export type GetProjectsByIdData = {
     body?: never;
@@ -38316,7 +39184,12 @@ export type GetCoworkersByIdData = {
     path: {
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * When 'owned', return the coworker only if it is active and accessible via vendor membership (vendor admin: all vendor coworkers; developer: assigned only; user-authenticated only). Omit to retrieve any coworker by ID.
+         */
+        scope?: 'owned';
+    };
     url: '/coworkers/{id}';
 };
 
@@ -38337,9 +39210,39 @@ export type GetCoworkersByIdErrors = {
         };
     };
     /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -39113,6 +40016,10 @@ export type GetTasksData = {
          * Filter by task visibility. Omitted applies no visibility restriction beyond the caller access predicate. Explicit PUBLIC or PRIVATE narrows the list. PRIVATE still respects the caller visibility predicate.
          */
         visibility?: 'PUBLIC' | 'PRIVATE';
+        /**
+         * When true, only tasks with an active schedule series (metadata or nextRunAt set). When false, only tasks without one. Omit to return all tasks.
+         */
+        hasSchedule?: 'true' | 'false';
         /**
          * Filter tasks by assignee coworker ID
          */
@@ -45058,6 +45965,96 @@ export type GetWorkspacesCalendarSourcesResponses = {
 };
 
 export type GetWorkspacesCalendarSourcesResponse = GetWorkspacesCalendarSourcesResponses[keyof GetWorkspacesCalendarSourcesResponses];
+
+export type PostWorkspacesByIdCalendarIdentityLabelsData = {
+    body?: CalendarIdentityLabelsRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/workspaces/{id}/calendar/identity-labels';
+};
+
+export type PostWorkspacesByIdCalendarIdentityLabelsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostWorkspacesByIdCalendarIdentityLabelsError = PostWorkspacesByIdCalendarIdentityLabelsErrors[keyof PostWorkspacesByIdCalendarIdentityLabelsErrors];
+
+export type PostWorkspacesByIdCalendarIdentityLabelsResponses = {
+    /**
+     * Access-scoped Calendar identity labels
+     */
+    200: {
+        data: CalendarIdentityLabels;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostWorkspacesByIdCalendarIdentityLabelsResponse = PostWorkspacesByIdCalendarIdentityLabelsResponses[keyof PostWorkspacesByIdCalendarIdentityLabelsResponses];
 
 export type GetWorkspacesByIdData = {
     body?: never;

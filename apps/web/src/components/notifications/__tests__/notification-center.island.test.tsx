@@ -14,7 +14,7 @@ import { HeaderNotificationBell } from "@/app/components/header/header-notificat
 import { NotificationsPageContent } from "@/app/notifications/page-content";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { NOTIFICATION_VIEW_STORAGE_KEY } from "@/contexts/notification-view-storage";
-import type { NotificationEventData } from "@/lib/ably";
+import type { NotificationEventData } from "@/lib/ably/schema";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 
 /**
@@ -84,8 +84,13 @@ vi.mock("@/contexts/account-notice-provider", () => ({
 vi.mock("@/app/components/account-notice-row", () => ({
   AccountNoticeRow: () => <p>account notice</p>,
 }));
+// A marker rather than null: the primer's own states belong to its own
+// test, but where the frame puts it is this file's business, and a null
+// mock cannot be found to be in the wrong place.
 vi.mock("@/app/components/notification-browser-permission-primer", () => ({
-  NotificationBrowserPermissionPrimer: () => null,
+  NotificationBrowserPermissionPrimer: () => (
+    <div data-testid="notification-permission-primer" />
+  ),
 }));
 vi.mock("@/lib/utils/notification-message", () => ({
   // The key, unless the row carries a label: rows that share a real key
@@ -97,6 +102,10 @@ vi.mock("@/lib/utils/notification-message", () => ({
 vi.mock("@/lib/utils/notification-time", () => ({
   useNotificationTimeFormatter: () => () => "today",
 }));
+vi.mock("@/lib/ably/use-notification-front-presence", () => ({
+  useNotificationFrontPresence: () => undefined,
+}));
+
 vi.mock("@/lib/ably/use-notification-realtime", () => ({
   useNotificationRealtime: ({
     onNotification,
@@ -398,7 +407,7 @@ describe("Notification Center, both frames", () => {
     });
 
     await renderPage();
-    const actions = screen.getByTestId("notifications-page-actions");
+    const actions = screen.getByTestId("notifications-page-header");
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "markRead: mine" }));
@@ -407,7 +416,7 @@ describe("Notification Center, both frames", () => {
     // The button goes, its row stays: a row that left with it would pull the
     // whole list up under the reader's pointer.
     expect(screen.queryByRole("button", { name: "markAllRead" })).toBeNull();
-    expect(screen.getByTestId("notifications-page-actions")).toBe(actions);
+    expect(screen.getByTestId("notifications-page-header")).toBe(actions);
   });
 
   it("puts a row back and says so when marking it read fails", async () => {
@@ -993,7 +1002,10 @@ describe("Notification Center view filter", () => {
     });
   });
 
-  it("gives an empty Unread page no action row to hold space for", async () => {
+  // The heading names the page whether or not there is anything to list.
+  // Mark all read is the part that has nothing to act on, so it is the part
+  // that goes.
+  it("keeps the page heading on an empty Unread page, without its button", async () => {
     getNotificationsMock.mockResolvedValue(page([]));
 
     await renderPage();
@@ -1002,7 +1014,8 @@ describe("Notification Center view filter", () => {
     await settle();
 
     expect(screen.getByText("emptyUnreadState")).toBeTruthy();
-    expect(screen.queryByTestId("notifications-page-actions")).toBeNull();
+    expect(screen.getByRole("heading", { name: "pageTitle" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "markAllRead" })).toBeNull();
   });
 
   it("drops a read row once a keyboard reader tabs off it", async () => {
@@ -1225,6 +1238,57 @@ describe("Notification Center view filter", () => {
       expect(screen.queryByText("emptyUnreadState")).toBeNull();
     },
   );
+
+  it.each(FRAMES)(
+    "hands focus to the view strip when Show all empties the %s",
+    async (_, mount) => {
+      getNotificationsMock.mockResolvedValue(
+        page([row("mine", { isRead: true })]),
+      );
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([]));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      getNotificationsMock.mockResolvedValue(
+        page([row("mine", { isRead: true })]),
+      );
+      // The button leaves with the empty state it sits in. Without a new
+      // home for focus it falls to <body>, and a keyboard reader loses
+      // their place in the list they just asked to see.
+      await user.click(screen.getByRole("button", { name: "showAll" }));
+      await settle();
+
+      await waitFor(() => {
+        expect(document.activeElement).toBe(
+          screen.getByRole("tab", { name: "filterAll" }),
+        );
+      });
+    },
+  );
+
+  // The page names itself before it says anything else. A notice or a push
+  // primer above the heading pushed the title down the screen, so the first
+  // thing a reader met was an aside about a setting.
+  it("puts the page heading above every notice on it", async () => {
+    accountNoticeMock.mockReturnValue({ notice: { tone: "warning" } });
+    getNotificationsMock.mockResolvedValue(
+      page([row("mine", { isRead: true })]),
+    );
+
+    await renderPage();
+
+    const header = screen.getByTestId("notifications-page-header");
+    const notice = screen.getByText("account notice");
+
+    expect(header.parentElement?.firstElementChild).toBe(header);
+    expect(
+      header.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 
   it("leaves both empty states out under an account notice", async () => {
     accountNoticeMock.mockReturnValue({ notice: { tone: "warning" } });

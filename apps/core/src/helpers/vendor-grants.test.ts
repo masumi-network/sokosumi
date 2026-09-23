@@ -387,6 +387,7 @@ describe("vendor-grants helpers", () => {
     workspaceFindUnique.mockResolvedValue({
       userId: null,
       organizationId: "org_1",
+      organization: { slug: "acme" },
     });
     createNotificationMock.mockResolvedValue({ created: true });
 
@@ -404,6 +405,12 @@ describe("vendor-grants helpers", () => {
         referenceId: "workspace-grant",
         messageParams: expect.objectContaining({
           permission: VendorPermissionApi.WORKSPACE,
+        }),
+        // The review page the notification links to resolves by slug, in
+        // the app and in the email alike, so the id alone is a 404.
+        metadata: expect.objectContaining({
+          organizationId: "org_1",
+          organizationSlug: "acme",
         }),
       }),
       expect.anything(),
@@ -699,6 +706,7 @@ describe("vendor-grants helpers", () => {
     workspaceFindUnique.mockResolvedValue({
       userId: null,
       organizationId: "org_1",
+      organization: { slug: "acme" },
     });
     createNotificationMock.mockResolvedValue({ created: true });
 

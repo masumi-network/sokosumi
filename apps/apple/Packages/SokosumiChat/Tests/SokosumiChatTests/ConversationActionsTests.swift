@@ -103,6 +103,43 @@ struct ConversationActionsTests {
     #expect(state.rooms[0].mutedAt == nil)
   }
 
+  /// Web's open room: selecting it is not a read (ADR 0026), so the row resolves to the same
+  /// bold, badge and opt-in count as before the selection — also with only residual thread
+  /// unread left, which Core folds into `unreadCount` (ADR 0013) — and Mark unread stays off.
+  @Test func openRoomKeepsItsAttention() async throws {
+    let state = try await sidebar()
+    func attention(showUnreadCount: Bool = true) -> RoomAttention {
+      let room = state.rooms[0]
+      return resolveRoomAttention(
+        unreadCount: room.unreadCount, unreadMentionCount: room.unreadMentionCount, markedUnread: room.markedUnread,
+        isMuted: room.mutedAt != nil, showUnreadCount: showUnreadCount
+      )
+    }
+    let closed = attention()
+    #expect(closed == .init(bold: true, badgeCount: 1, unreadTextCount: 4))
+    state.selectedRoomId = testRoomId
+    #expect(attention() == closed)
+    #expect(attention(showUnreadCount: false) == .init(bold: true, badgeCount: 1))
+    #expect(!state.canPerform(.markUnread, roomId: testRoomId))
+    // A read that leaves one Participant thread reply behind: bold and "· 1", no badge.
+    state.rooms[0].unreadCount = 1
+    state.rooms[0].unreadMentionCount = 0
+    #expect(attention() == .init(bold: true, badgeCount: 0, unreadTextCount: 1))
+    // Genuinely read, then marked unread elsewhere: quiet, then bold without a number.
+    state.rooms[0].unreadCount = 0
+    #expect(attention() == .init(bold: false, badgeCount: 0))
+    state.rooms[0].markedUnread = true
+    #expect(attention() == .init(bold: true, badgeCount: 0))
+    // Muting the open room silences it, and Mark unread stays off for muted rooms.
+    state.rooms[0].unreadCount = 250
+    state.rooms[0].unreadMentionCount = 250
+    #expect(attention().badgeLabel == "99+")
+    state.rooms[0].mutedAt = Date(timeIntervalSince1970: 0)
+    #expect(attention() == .init(bold: false, badgeCount: 0))
+    state.selectedRoomId = nil
+    #expect(!state.canPerform(.markUnread, roomId: testRoomId))
+  }
+
   @Test func availabilityMatchesWeb() async throws {
     let state = try await sidebar()
     #expect(state.canPerform(.pin, roomId: testRoomId))
@@ -245,6 +282,23 @@ struct ConversationActionsTests {
     await muteTransport.release()
     try await muteTask.value
     #expect(muted.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
+  }
+
+  @Test func optimisticPinUsesInjectedNow() async throws {
+    let state = try await sidebar()
+    let now = Date(timeIntervalSince1970: 1_788_868_800)
+    let token = try #require(UUID(uuidString: "550e8400-e29b-41d4-a716-446655440999"))
+    let transport = PausedSidebarTransport()
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let task = Task {
+      try await state.perform(
+        .pin, roomId: testRoomId, client: client, organizationSlug: nil, now: now, makeId: { token }
+      )
+    }
+    await transport.waitForRequest()
+    #expect(state.rooms[0].starredAt == now)
+    await transport.release()
+    try await task.value
   }
 
   @Test func actionSettlementDoesNotEndWorkspaceSwitchLoading() async throws {

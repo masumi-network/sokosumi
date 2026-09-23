@@ -44,8 +44,8 @@ The same binary will cover listing, Hire, and Job for Agent developers. That wor
 - Talks to Core only. No Prisma, no `@sokosumi/database`, no Postgres from the CLI.
 - Complements `/developer`. API keys, OAuth clients, docs, Coworkers, and vendor Tasks remain on the web.
 - The human at the keyboard authenticates with Better Auth API keys and/or OAuth access tokens, not web session cookies.
-- `coworker_*` keys belong to the Coworker process. The developer CLI session does not use them. A separate runtime invocation contract requires approval; no developer-auth fallback.
-- Workspace identity is `sokosumi` / bin `sokosumi` in `apps/cli`. The package stays private until separate official release work. See [`SPEC.md`](./SPEC.md).
+- `coworker_*` keys belong to the Coworker process. The developer CLI session does not use them. Runtime identity/invocation is [ADR 0005](docs/adr/0005-coworker-runtime-identity-and-invocation-contract.md); no developer-auth fallback.
+- Workspace identity is `@sokosumi/cli` / bin `sokosumi` in `apps/cli`. The package stays private until separate official release work. See [`SPEC.md`](./SPEC.md).
 
 ## Out of this vision
 

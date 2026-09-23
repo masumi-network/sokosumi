@@ -87,7 +87,7 @@ export function ProjectModuleTiles({
         const className = cn(
           "bg-card-background border-border min-w-0 rounded-xl border p-4",
           href
-            ? "hover:bg-card-background transition-colors"
+            ? "hover:bg-card-background-hover transition-colors"
             : "cursor-default opacity-70",
         );
 

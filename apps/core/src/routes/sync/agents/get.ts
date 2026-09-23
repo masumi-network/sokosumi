@@ -8,7 +8,7 @@ import { syncX402BuySideReadiness } from "@/services/agent-sync.x402-readiness";
 
 import { handleSyncRequest } from "../handler.js";
 
-export const AGENTS_SYNC_LOCK_KEY = "agents-sync";
+const AGENTS_SYNC_LOCK_KEY = "agents-sync";
 // Projection versions use distinct cursor keys so old and new binaries cannot
 // advance each other's cursors during a rolling deployment. Bump the suffix
 // whenever already-synced registry rows require a full replay.

@@ -8,8 +8,10 @@ import {
 import { useTranslations } from "next-intl";
 import {
   type ClipboardEvent,
+  type Dispatch,
   type FormEvent,
   type Ref,
+  type SetStateAction,
   useCallback,
   useImperativeHandle,
   useMemo,
@@ -49,6 +51,8 @@ import {
   type PendingRoomQuote,
   type RoomMentionParticipant,
 } from "./room-helpers";
+import { RoomTypingLine } from "./room-typing-line";
+import { useRoomTypingContext } from "./room-typing-provider";
 
 export interface RoomSessionSendRequest {
   content: string;
@@ -156,11 +160,21 @@ export function RoomSessionComposer({
   openingDirectParticipantKey,
 }: RoomSessionComposerProps) {
   const t = useTranslations("App.Channels");
+  // Inert unless a RoomTypingProvider is mounted around this composer, which
+  // is how the Thread composer stays silent (ADR-0033).
+  const {
+    enabled: typingEnabled,
+    typistIds,
+    handleComposerChange,
+    handleStopTyping,
+  } = useRoomTypingContext();
   const [composerValue, setComposerValue] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<
     RoomComposerAttachment[]
   >([]);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
+  /** Set while a toolbar control inserts text, so it is not read as typing. */
+  const toolbarInsertRef = useRef(false);
 
   const composeDraft = useMemo<ComposeDraft>(
     () => ({
@@ -191,6 +205,42 @@ export function RoomSessionComposer({
       }
     },
   });
+
+  /**
+   * Genuine composer input only. Draft hydrate and failed-send restore set
+   * `composerValue` directly, so neither announces Typing — which is what
+   * keeps opening a room you abandoned a Draft in silent.
+   */
+  const handleComposerValueChange = useCallback<
+    Dispatch<SetStateAction<string>>
+  >(
+    (action) => {
+      setComposerValue(action);
+      if (typeof action !== "string") {
+        return;
+      }
+      // An emoji the toolbar dropped in is not text the person typed, so it
+      // must not announce Typing (ADR-0033).
+      if (toolbarInsertRef.current) {
+        toolbarInsertRef.current = false;
+        return;
+      }
+      handleComposerChange(action.trim().length > 0);
+    },
+    [handleComposerChange],
+  );
+
+  const handleToolbarInsert = useCallback(() => {
+    toolbarInsertRef.current = true;
+    // The insert dispatches its input event synchronously, so only a change in
+    // this task may claim the flag. Clearing it straight after stops a failed
+    // or no-op insert from leaving the flag set and swallowing the next real
+    // keystroke. Failing this way announces Typing once too often rather than
+    // going silent when somebody is genuinely typing.
+    queueMicrotask(() => {
+      toolbarInsertRef.current = false;
+    });
+  }, []);
 
   // The pasted link the pending quote replaced, so removing that quote can put
   // the link back as plain text.
@@ -255,6 +305,9 @@ export function RoomSessionComposer({
 
   function handleClearPendingQuote() {
     if (quotedLink && quotedLink.messageId === pendingQuote?.messageId) {
+      // Putting the link back is the app restoring text, not the person
+      // typing it, so it must not announce Typing (ADR-0033).
+      handleToolbarInsert();
       composerRef.current?.insertText(
         composerValue.trim().length === 0
           ? quotedLink.linkText
@@ -308,6 +361,8 @@ export function RoomSessionComposer({
     latest.current.paste += 1;
     setQuotedLink(null);
     clearDraft();
+    // The message has arrived, so the line must not outlive what it promised.
+    handleStopTyping();
 
     const result = await onSend({
       content,
@@ -327,12 +382,20 @@ export function RoomSessionComposer({
 
   return (
     // Text pastes bubble here after the editor inserted them as plain text.
+    // `contents` keeps the Typing line a layout sibling of the composer card.
     <div className="contents" onPaste={(event) => void handlePaste(event)}>
       <RoomComposer
         ref={composerRef}
+        typingLine={
+          typingEnabled ? (
+            <RoomTypingLine typistIds={typistIds} usersById={usersById} />
+          ) : null
+        }
         roomId={roomId}
         value={composerValue}
-        onValueChange={setComposerValue}
+        onValueChange={handleComposerValueChange}
+        onEditorBlur={handleStopTyping}
+        onToolbarInsert={handleToolbarInsert}
         mentions={mentions}
         usersById={usersById}
         usersBySlug={usersBySlug}

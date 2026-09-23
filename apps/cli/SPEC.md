@@ -6,7 +6,7 @@
 ## §C CONSTRAINTS
 - live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md constraints](VISION.md#constraints)
 - talk Core HTTP only. ⊥ Prisma, ⊥ `@sokosumi/database`, ⊥ Postgres from CLI. [VISION.md constraints](VISION.md#constraints)
-- package identity ∈ {private workspace name: `sokosumi`, package path: `apps/cli`, bin: `sokosumi`}; npm publication ⊥ current slice.
+- package identity ∈ {private workspace name: `@sokosumi/cli`, package path: `apps/cli`, bin: `sokosumi`}; npm publication ⊥ current slice.
 - CLI source/tests ∈ TypeScript. Typecheck required.
 - OAuth tokens & user API keys ∈ OS vault. Linux persistent auth → Secret Service. ⊥ plaintext credential file.
 - non-secret preferences ∈ optional `~/.sokosumi/config.json`. Accepted keys: `apiUrl`, `authUrl`, `webUrl`, `mainnetOAuthClientId`, `preprodOAuthClientId`. ⊥ token/key/client-secret fields.
@@ -26,20 +26,21 @@
 
 ## §I INTERFACES
 
-- cmd: `sokosumi` (no args) → Ink: auth method → OAuth target or API-key target detection → signed-in Dashboard, Agents, Coworkers, Tasks, Jobs, Account, Register a Coworker, Sign out
+- cmd: `sokosumi` (no args) → Ink: auth method → OAuth target or API-key target detection → signed-in Register a Coworker, Vendors, Workspaces, Sign out
 - cmd: `auth login` → browser OAuth or env/stdin user API key
 - cmd: `auth status` → text/JSON auth state
 - cmd: `auth logout` → clear target-scoped local credentials; server key revocation separate
 - cmd: `discover` → command catalog + Core resource snapshot; partial resource failure → JSON/text errors
 - `agents list|hire`, `coworkers list|register|update|api-key|me`, `tasks list|create|get|events|jobs|comment`, `jobs list|get|input` → Core HTTP; `--json` → JSON-only stdout
+- `vendors me` → administered Vendor memberships only; `workspaces list` → organization-workspace candidates with `organizationId`; text or one JSON document
 - global: `--json`, `--api-url`, `--preprod`, `--client-id`, `--api-key-stdin`
 - env: `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID`, `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, `SOKOSUMI_OAUTH_CLIENT_ID`, `SOKOSUMI_AUTH_URL`, `SOKOSUMI_API_URL`, `SOKOSUMI_API_KEY`; hosted OAuth IDs: mainnet `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; hosted auth base = selected API URL + `/auth`
 - design: external `I-Want-You-Desing-Tui-Sokosumi` bundle primary file `sokosumi-tui-v1.html`; companions `DESIGN-HANDOFF.md`, `DESIGN-MANIFEST.json`, `brand-spec.md`; visual source only, ⊥ runtime asset.
 - file: `~/.sokosumi/config.json` → non-secret preferences only
 - headless JSON fields: `authenticated`, `authMethod`, `apiKeyAvailable`, `target`, `apiUrl`, `expiresAt`
-- pkg: private workspace `sokosumi` @ `apps/cli` → source build emits bin `sokosumi`; npm publication ⊥ current slice
+- pkg: private workspace `@sokosumi/cli` @ `apps/cli` → source build emits bin `sokosumi`; npm publication ⊥ current slice
 
-[PROPOSED] Runtime connection, delegated auth, chat transport, general x402 purchase, and seller settlement interfaces need approved Core/runtime contracts before implementation. No new command or credential type is advertised here.
+[VERIFIED: ADR 0005, 2026-09-21] Runtime identity/invocation contract approved: runtime bearer ∈ `coworker_*` only; developer OAuth/user API keys ⊥ runtime Core calls; session grant ⊥ identity; no short-lived developer-delegation JWT. Chat transport, general x402 purchase, and seller settlement interfaces still need their own approved contracts before implementation.
 
 ## §V INVARIANTS
 V1: CLI auth ∈ {OAuth access token, OAuth refresh token, user API key}. ⊥ session cookie. ⊥ `coworker_*` key.
@@ -87,15 +88,15 @@ V42: every headless Core-backed command resolves initial auth before any Core ca
 V43: TUI explicit target selection (flag/env/API URL) is authoritative; a prefixed API key cannot rewrite it and a mismatched prefix rejects before login.
 V44: untagged API keys require an explicit target (`--preprod` or `--api-url`) before auth status/login; ⊥ implicit hosted-default acceptance.
 V45: raw API-key input treats `q` as key data; Ctrl+C/Esc cancel the active input without accepting the partial key.
-V46: dashboard resource counts use finite Core pagination metadata totals when present; fallback to current-page length only when metadata has no usable total.
+V46: [Deferred 2026-09-21; stale vs current signed-in home; no dashboard] dashboard resource counts use finite Core pagination metadata totals when present; fallback to current-page length only when metadata has no usable total.
 V47: error redaction recursively replaces credential-shaped fields regardless of casing/separators/nesting, and credential values do not remain in rendered/serialized errors.
 V48: source CLI runtime ∉ {npm registry request, package-manager child process, self-update install}; secrets cannot cross removed updater boundary.
 V49: unsupported inline option values are rejected without echoing the supplied value in diagnostics, including `--json` output.
 V50: leaving API-key input/target selection by Ctrl+C/Esc clears the pending full key before any later TUI action; ⊥ stale key reuse.
 V51: explicit custom `--api-url` target rejects target-coded mainnet/preprod environment or stored API keys before bootstrap proceeds.
 V52: OAuth completion observing an aborted/canceled login cannot save credentials or transition the TUI to authenticated/success.
-V53: every Ink/React TUI layout prop ∈ the installed Ink/React type surface; `pnpm --filter ./apps/cli build` passes without unsupported props such as `marginRight` or `maxWidth`.
-V54: every React/Ink TUI test callback passed to a component prop is assignable to the installed component prop type; `pnpm --filter ./apps/cli typecheck` passes without strict-function-variance failures.
+V53: every Ink/React TUI layout prop ∈ the installed Ink/React type surface; `pnpm --filter @sokosumi/cli build` passes without unsupported props such as `marginRight` or `maxWidth`.
+V54: every React/Ink TUI test callback passed to a component prop is assignable to the installed component prop type; `pnpm --filter @sokosumi/cli typecheck` passes without strict-function-variance failures.
 V55: every user-visible `apiUrl` in auth login/status, discover, and TUI output passes the canonical `sanitizeApiUrl`; userinfo, fragments, and credential-shaped query keys never appear.
 V57: custom vault scope material = lowercase-hex encoding of `sanitizeApiUrl(apiUrl)`; userinfo, fragments, and credential-shaped query values never enter keyring account names while distinct sanitized URLs remain distinct.
 V58: reserved `coworker_*` API keys are rejected before any auth-manager/Core call and never accepted or saved by CLI login.
@@ -120,12 +121,21 @@ V74: seller submits usage pricing with waitlist application; new public price ve
 V75: x402 funding explicitly selected ∈ {workspace credits, runtime-held wallet}; no silent fallback. Supported rails/assets, authorization, spending limits still apply to external services.
 V76: customer debit ≠ seller settlement; paid-graduation evidence must prove service delivery and intended seller receipt. Coworker-reported amount alone is not customer price authorization.
 V77: public paid runtime isolated from developer credentials; trusted private same-user session not advertised as isolated. Container/cloud label alone proves nothing.
-V78: runtime secrets never in argv, model-visible output, logs, or non-secret config; ephemeral secrets in memory, persistent secrets in OS vault; delivery contract requires approval.
+V78: runtime secrets never in argv, model-visible output, logs, or non-secret config; session-only → memory; retained/hosted → OS vault (ADR 0005).
+V79: `vendors me` → preserve Vendor memberships + roles; registration selection later requires role = `admin`; `workspaces list` identity = `organizationId`; organization metadata ∉ output; non-array list or missing required identity → fail; `--json` → one document.
+V80: shared discovery handler ! exact subcommand before Core call; bare `vendors` / `workspaces` → reject.
+
+[VERIFIED: ADR 0005, 2026-09-21]
+V81: runtime bearer ∈ `coworker_*` only; developer OAuth/user API key (`soko_*`, incl. SOK-1135 mint) ⊥ runtime Core calls; short-lived developer-delegation JWT ⊥ approved contract (ADR 0005).
+V82: session grant ⊥ Coworker identity and key material; expiry/disconnect remove temporary authority only; reconnect requires authorization (ADR 0005).
+V83: mint/rotate/revoke `coworker_*` ∈ developer auth only (interactive or headless); runtime ⊥ self-mint (ADR 0005).
+V84: CLI/TUI/skill share in-process handlers; ⊥ recursive CLI entrypoint; runtime adapters → Core HTTP with `coworker_*` (ADR 0005).
+V85: `coworkers register` requires ≥1 organization workspace and `--vendor-id` ∈ administered (`admin`) memberships; foreign/non-admin Vendor ⊥ before Core create; `--create-vendor` requires `--confirm-create-vendor` then refuses (no Core developer self-service create); blocked copy → ask existing Vendor admin to add you as admin (platform admin create = fallback).
 
 ## §T TASKS
 
 id|status|task|cites
-T1|x|package spec; private workspace package `sokosumi`, path `apps/cli`, binary `sokosumi`|V7,I
+T1|x|package spec; private workspace package `@sokosumi/cli`, path `apps/cli`, binary `sokosumi`|V7,I
 T2|x|scaffold `apps/cli` package (ESM, Ink, pinned deps)|V7,I
 T3|x|OAuth PKCE + loopback + keychain|V1,V4,V8
 T4|x|`auth login` / `auth logout` + `--json`|I,V1
@@ -154,13 +164,15 @@ T26|x|remove npm-global updater, prompt, tests, and runtime package-manager call
 T27|.|DEFERRED 2026-09-18; not completed or integration prerequisite: redesign Ink TUI against external v1 bundle: terminal chrome, sign-in, tabs/workspace, state variants, PTY widths|V40,V41,I
 T28|~|align CLI React types pin with workspace and sync lockfile|V64
 
-T29|.|approve runtime identity/invocation contract; evaluate delegation without changing developer-key guards|V1,V6,V58,V66,V77,V78
+T29|x|approve runtime identity/invocation contract; reject short-lived developer-delegation JWT; keep developer-key guards|V1,V6,V58,V66,V77,V78,V81,V82,V83,V84
 T30|.|Core prerequisites and CLI private setup: Vendor/workspace authority, self-service registration, session lifecycle|V67,V68,V70
 T31|.|active-session Task/Job operations and automatic worker; prove recovery and authorization separately|V66,V69,V77,V78
 T32|.|approve chat transport; implement permitted direct/chat-channel/group participation and revocation|V69,V70,V77
 T33|.|approve Masumi funding/custody contract; general x402 services within authorized rails and limits|V70,V75,V76
 T34|.|Core seller usage-price authorization, version review, settlement and controlled payment evidence|V73,V74,V76
 T35|.|Core readiness derivation, capability evidence, waitlist review; CLI exposes status without self-approval|V70,V71,V72
+T36|x|CLI read-only administered Vendor + organization-workspace discovery|V18,V19,V42,V67,V79,V80,I
+T37|x|CLI registration gates: workspace required, admin Vendor only, refuse inventing Vendor create|V67,V79,V85,I
 
 ## §B BUGS
 
@@ -189,7 +201,7 @@ B21|2026-09-11|Core-backed headless dispatch discarded `resolveInitialAuth`'s un
 B22|2026-09-11|TUI API-key login inferred a prefixed key's target even after an explicit target was selected, allowing the key to override the chosen Core host|V43
 B23|2026-09-11|legacy untagged API keys fell through the hosted default without proving which target they belonged to|V44
 B24|2026-09-11|raw API-key q/cancel handling could accept the wrong terminal action or leave a partial key input active|V45
-B25|2026-09-11|dashboard counted only the current Core page, so paginated resources displayed page length instead of metadata totals|V46
+B25|2026-09-11|DEFERRED 2026-09-21 (no dashboard on current signed-in home): dashboard counted only the current Core page, so paginated resources displayed page length instead of metadata totals|V46
 B26|2026-09-11|credential-shaped error fields were redacted only for limited casing/flat shapes, leaking nested or separator variants|V47
 B27|2026-09-11|npm self-update inherited process secrets/configuration and allowed package lifecycle scripts during install|V48
 B28|2026-09-11|unsupported `--name=value` options exposed the supplied value in parser diagnostics|V49
@@ -209,3 +221,8 @@ B41|2026-09-11|npm updater built command lines from user-controlled environment 
 B42|2026-09-11|CLI pinned `@types/react@19.2.18` beside workspace `19.3.0` ∴ Web build/typecheck saw unrelated React `Key`/`Ref` types|V64
 B43|2026-09-11|updater bin tests used manifest `2.1.4` as both current/latest ∴ update path did not run and 3 CLI tests failed|V38
 B44|2026-09-12|GNOME `secret-tool` lookup returns status 1 with empty stderr for a missing item; text-only detection rejected a healthy empty vault|V65
+B45|2026-09-20|admin-only Vendor filter exposed dispatch fixture without role; expected candidate disappeared|V79
+B46|2026-09-20|direct workspace guard used multiline form rejected by Biome formatter|§C Biome
+B47|2026-09-20|optional direct-handler guard accepted bare `vendors` / `workspaces` calls|V80
+B48|2026-09-20|workspace JSON forwarded arbitrary organization metadata without allowlist|V79
+B49|2026-09-20|admin-only discovery conflated membership listing with later registration selection|V79

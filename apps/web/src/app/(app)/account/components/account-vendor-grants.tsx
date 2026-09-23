@@ -10,7 +10,7 @@ import { VendorGrantVendorList } from "@/components/vendor-grants/vendor-grant-v
 import type { VendorGrant } from "@/lib/clients/generated/core";
 import { vendorService } from "@/lib/services/vendor.service";
 import { vendorGrantService } from "@/lib/services/vendor-grant.service";
-import { groupVendorGrantsByVendor } from "@/lib/utils/vendor-grant-display";
+import { groupVendorGrantsByVendor } from "@/lib/utils/workspace-approval";
 
 import { PersonalVendorGrantForm } from "./account-vendor-grant-actions";
 

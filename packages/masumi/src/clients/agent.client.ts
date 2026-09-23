@@ -73,9 +73,6 @@ export interface AgentJobStartFailure {
   message: string;
 }
 
-/** Failure phase for `provide_input`, with same retry-safety semantics as start_job. */
-export type AgentJobInputFailure = AgentJobStartFailure;
-
 function unreachable(message: string): AgentJobStartFailure {
   return { kind: "unreachable", message };
 }
@@ -345,7 +342,7 @@ export function createAgentClient(config?: AgentClientConfig) {
       jobId: string,
       inputSchema: string,
       inputData: InputSchemaType,
-    ): Promise<Result<ProvideInputResponseSchemaType, AgentJobInputFailure>> {
+    ): Promise<Result<ProvideInputResponseSchemaType, AgentJobStartFailure>> {
       const provideInputUrlResult = getAgentUrlWithPathComponent(
         agent,
         "provide_input",

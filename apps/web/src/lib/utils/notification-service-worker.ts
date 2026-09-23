@@ -224,6 +224,11 @@ export interface ShowNotificationInput {
 let registrationPromise: Promise<ServiceWorkerRegistration | null> | null =
   null;
 
+/** A storage failure can require unregistering the push worker during logout. */
+export function forgetNotificationServiceWorker(): void {
+  registrationPromise = null;
+}
+
 export function isServiceWorkerSupported(): boolean {
   return typeof navigator !== "undefined" && "serviceWorker" in navigator;
 }
@@ -241,6 +246,103 @@ export function isPushSupported(): boolean {
     isServiceWorkerSupported() &&
     getBrowserNotificationPermission() !== "unsupported"
   );
+}
+
+/**
+ * Whether installing this app is what stands between this browser and push.
+ *
+ * True on an iPhone or iPad outside the installed web app. WebKit ships Web
+ * Push to Home Screen web apps alone, so the reader is not on a browser that
+ * cannot do this: they are one Add to Home Screen away from it, and the
+ * generic "this browser cannot" is the wrong thing to tell them.
+ *
+ * `navigator.standalone` is what this asks. Safari for iOS and iPadOS defines
+ * it and no engine off those platforms does, so an Android in-app web view
+ * and a touchscreen laptop are both out: each has touch, which is why this
+ * does not ask about touch, and neither has this. Its value then separates
+ * the two Apple cases, a tab from an installed app, which is the line this is
+ * drawn on.
+ *
+ * The property belongs to the browser rather than to the platform, so a
+ * third-party browser on iOS may not set it, and since 16.4 those can add a
+ * web app to the Home Screen too. `isAppleBrowserUserAgent` picks those up,
+ * and only where the property is absent. Whether an embedded web view sets
+ * it, and to what, is not determined; one that set it to false would put an
+ * instruction in front of a reader whose share sheet cannot carry it out.
+ *
+ * Nothing here reads the user agent. iPadOS sends Safari's macOS string, and
+ * a reader who taps Request Desktop Website gives an iPhone the same, so
+ * anything read off that string answers false for exactly the devices this is
+ * for.
+ *
+ * The one case it cannot see is iOS below 16.4, where the app is installed and
+ * push still does not exist. `standalone` is true there, so the reader is left
+ * on the generic message, which is the truthful answer for them.
+ */
+export function isPushInstallable(): boolean {
+  if (isPushSupported() || !isServiceWorkerSupported()) {
+    return false;
+  }
+
+  const standalone = readAppleStandalone();
+  // True is the installed app and false is the reader this is for. Undefined
+  // is every other platform, and the browsers on this one that do not set it.
+  if (standalone !== undefined) {
+    return standalone === false;
+  }
+
+  return isAppleBrowserUserAgent();
+}
+
+/**
+ * Whether the user agent names a browser that exists on iOS and iPadOS alone.
+ *
+ * The one user-agent read here, and the last resort: it runs only where
+ * `navigator.standalone` is absent, so on a browser that sets the property
+ * this never runs and decides nothing. Since 16.4 a third-party browser on
+ * iOS can add a web app to the Home Screen, so these readers have somewhere
+ * to go, and the name is what is left to find them by.
+ *
+ * A feature would be narrower if one fitted. WebKit's own `GestureEvent` is
+ * proprietary and an Android web view has none, but macOS Safari has it, so
+ * it answers true for a desktop this must not speak to. The names do separate
+ * those, which is why they are what is read.
+ *
+ * Each token exists on iOS alone. Desktop Chrome says `Chrome`, Android Edge
+ * `EdgA`, desktop Edge `Edg`, desktop Firefox `Firefox`: `Edg` is a substring
+ * of `EdgiOS` and not the reverse, so none of them collides. Brave and
+ * DuckDuckGo are left out on purpose, because they send the same token on
+ * Android, where an install instruction is out of scope.
+ *
+ * Two limits, recorded rather than fixed. Firefox Focus and Klar send
+ * `FxiOS` as well, and whether their share sheet carries the action is not
+ * determined; if it does not, their reader is the one case here that meets an
+ * instruction they cannot follow. Brave, DuckDuckGo, Opera and Firefox for
+ * iOS on an iPad send no token in this list, so their readers keep today's
+ * message: a miss rather than a wrong answer.
+ */
+function isAppleBrowserUserAgent(): boolean {
+  return APPLE_ONLY_BROWSER_TOKENS.some((token) =>
+    navigator.userAgent.includes(token),
+  );
+}
+
+/**
+ * Chrome, Firefox and Edge for iOS, which ship under names of their own.
+ *
+ * Chrome keeps `CriOS` when the reader asks for the desktop site, so that
+ * reader is found here too. The rest of its string turns into Safari's macOS
+ * one, which is why nothing below reads the platform out of it.
+ */
+const APPLE_ONLY_BROWSER_TOKENS = ["CriOS", "FxiOS", "EdgiOS"] as const;
+
+/**
+ * `navigator.standalone`, which is not in the DOM library because no standard
+ * defines it. Read through one narrowing rather than a global declaration, so
+ * the non-standard property stays visible at the only place that wants it.
+ */
+function readAppleStandalone(): boolean | undefined {
+  return (navigator as Navigator & { standalone?: boolean }).standalone;
 }
 
 async function register(): Promise<ServiceWorkerRegistration | null> {
@@ -372,47 +474,16 @@ export async function closeNotificationGroup(
 }
 
 /**
- * Whether showing this banner replaces a *different* notification, and so owes
- * the reader a second alert.
- *
- * A room is one tag, so two things replace a banner there and only one of them
- * should make a sound. A newer message replacing an older one is the reason
- * `renotify` exists. The push catching up with the banner this page already
- * drew is the same notification arriving down the other transport, and the two
- * collapse by tag on purpose; re-alerting for that would sound twice for one
- * message.
- *
- * Identity rather than timing, so a page banner and the push that catches up
- * with it agree however they are ordered, as long as one has been shown before
- * the other asks. When both read before either shows, which is possible on an
- * unfocused tab where the push and the Ably event land together, both see the
- * older notification and both re-alert. That is one extra sound on a message
- * that made none at all before, and closing it would need the two sources to
- * agree with each other rather than with the screen.
- *
- * A push that arrives late for a notification the page has already replaced is
- * the same kind of disagreement in the other direction: identity says the two
- * differ, so it re-alerts and puts the older content back on screen. The tag
- * collapse did that replacement before this change too; what is new is the
- * sound on it. Ordering the two by `createdAt` would miss every banner drawn
- * before that field existed, which are the ones a reader has had on screen
- * longest.
- *
- * Outside chat the tag is the notification id itself, so the displayed banner
- * matches and this answers false, unless that banner's data no longer parses.
- * One drawn by an older build re-alerts once, which is the safe direction.
- *
- * Both failure directions answer false. Nothing displayed means nothing is
- * being replaced, and a fresh banner alerts on its own. A lookup that throws
- * is a guess, and a missed sound is recoverable where a doubled one is not.
- *
- * The worker keeps its own copy of this rule, because it renders the banner
- * for a closed app and cannot import from here.
+ * New chat messages can share one notification row. Compare message IDs so
+ * each arrival alerts, while push and realtime copies of that arrival do not.
+ * Older banners without message identity re-alert rather than hide an arrival.
+ * A failed lookup also prefers an extra alert. Other kinds deduplicate by row ID.
+ * The static worker mirrors this rule because it cannot import TypeScript.
  */
 async function shouldRenotify(
   registration: ServiceWorkerRegistration,
   tag: string,
-  id: string,
+  incoming: NotificationTarget,
 ): Promise<boolean> {
   try {
     const banners = await registration.getNotifications({ tag });
@@ -422,11 +493,19 @@ async function shouldRenotify(
 
     return !banners.some((banner) => {
       const target = notificationTargetSchema.safeParse(banner.data);
-      return target.success && target.data.id === id;
+      if (!target.success || target.data.id !== incoming.id) return false;
+      if (incoming.kind !== NotificationKind.CHAT) return true;
+      const previousMessageId = target.data.metadata?.messageId;
+      const incomingMessageId = incoming.metadata?.messageId;
+      return (
+        typeof previousMessageId === "string" &&
+        previousMessageId.length > 0 &&
+        previousMessageId === incomingMessageId
+      );
     });
   } catch (error) {
     console.error("Failed to read the displayed notifications", error);
-    return false;
+    return true;
   }
 }
 
@@ -463,7 +542,7 @@ export async function showNotification({
       data: target,
       // Left off entirely rather than sent as false: false is the default, and
       // a browser that does not know the option reads no flag either way.
-      ...((await shouldRenotify(registration, tag, target.id)) && {
+      ...((await shouldRenotify(registration, tag, target)) && {
         renotify: true,
       }),
     });

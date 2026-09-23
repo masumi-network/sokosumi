@@ -20,10 +20,10 @@ interface ChannelSpec {
  * means the kind does not arrive. The one pairing the row does not offer is a
  * push with no entry behind it: see `withChannel`.
  *
- * Email is drawn beside these and is not one of them. The one row that offers
- * it, the reminder row, writes a cell of this matrix like any other, on the
- * `EMAIL` channel. It does not belong in a column every row draws, because
- * most rows have no email behind them at all. See `KindSpec.email`.
+ * Email is drawn beside these and is not one of them. A row that offers it
+ * writes a cell of this matrix like any other, on the `EMAIL` channel. It does
+ * not belong in a column every row draws, because some rows have no email
+ * behind them at all. See `KindSpec.email`.
  *
  * A channel Core adds later needs a cell here. Without one it is drawn
  * nowhere, and `cellsFor` still writes it `enabled: false` on every press from
@@ -35,7 +35,7 @@ export const CHANNEL_SPECS: readonly ChannelSpec[] = [
 ];
 
 /**
- * The email cell, for the one row that writes it into the matrix (SOK-916).
+ * The email cell, for the rows that write it into the matrix.
  *
  * The same shape as the specs above, because the cell is the same thing: a
  * channel of this category, written by the same press. It sits apart from them
@@ -51,11 +51,11 @@ export const EMAIL_CHANNEL_SPEC: ChannelSpec = {
  * The channels this page writes.
  *
  * Every channel the matrix stores, not only the two the grid draws icons for.
- * `EMAIL` is here and absent from `CHANNEL_SPECS` on purpose: one row writes
- * it, so it gets no column, but every write from this page sends a category's
- * whole set of channels and a channel missing from this list would be written
- * `enabled: false` by any press on the row. Listing it is what stops a press
- * on In app silently switching a reader's reminder emails off.
+ * `EMAIL` is here and absent from `CHANNEL_SPECS` on purpose: not every row
+ * writes it, so it gets no column, but every write from this page sends a
+ * category's whole set of channels and a channel missing from this list would
+ * be written `enabled: false` by any press on the row. Listing it is what
+ * stops a press on In app silently switching a reader's emails off.
  *
  * The cost: a press on a row that mails nothing stores an `EMAIL` cell of its
  * own, set off. Core reads no email cell for those categories, so the row does
@@ -76,28 +76,38 @@ const STORED_CHANNELS: readonly StoredChannel[] = [
  * wakes the devices that can push. Only the words change: the cell says why
  * nothing will arrive here, and that the reader's other devices still hear it.
  *
- * The third one is the browser's own doing rather than a refusal: signing out
+ * The second is an iPhone or iPad outside the installed app. It is not a
+ * browser that cannot: WebKit ships Web Push to Home Screen web apps alone, so
+ * the reader is one Add to Home Screen away, and it takes the instruction the
+ * first one has nothing to offer.
+ *
+ * The last one is the browser's own doing rather than a refusal: signing out
  * drops this browser's subscription, and clearing site data drops it without
  * asking anyone. The account consent stands through both, so the cells stay on
  * and this browser hears nothing until something subscribes it again.
  */
-export type PushBlock = "unsupported" | "denied" | "unsubscribed";
+export type PushBlock =
+  | "unsupported"
+  | "installable"
+  | "denied"
+  | "unsubscribed";
 
 /** Why nothing arrives here, in the reader's terms. */
 export const PUSH_BLOCK_HINT_KEY: Record<PushBlock, string> = {
   unsupported: "pushUnsupported",
+  installable: "pushInstallableHint",
   denied: "pushBlockedHint",
   unsubscribed: "pushUnsubscribedHint",
 };
 
 /**
- * Where a row's email answer is kept: this matrix, or nowhere.
+ * Where a row's email answer is kept: this matrix, or somewhere else.
  *
  * Two rather than a boolean, so a cell knows whether it can be pressed at all.
  * A third value stood for the job rows, which wrote one account-wide switch.
  * SOK-930 took the job notifications away, and the switch with them.
  */
-export type EmailControl = "CHANNEL" | "NONE";
+export type EmailControl = "CHANNEL" | "EXTERNAL";
 
 export interface KindSpec {
   category: NotificationCategory;
@@ -107,12 +117,18 @@ export interface KindSpec {
   /**
    * What this row's email cell writes, if anything.
    *
-   * `CHANNEL` is the reminder row (SOK-916). Its email is a cell of the same
-   * matrix as In app and Push, on the `EMAIL` channel, so it is the reader's
-   * answer for that row alone and nothing else moves with it.
+   * `CHANNEL` is a row Sokosumi mails: what is addressed to the reader, the
+   * reminders about it (SOK-1090, SOK-916), and billing that waits on the
+   * reader (SOK-932). Its email is a cell of the same matrix as In app and
+   * Push, on the `EMAIL` channel, so it is the reader's answer for that row
+   * alone and nothing else moves with it.
    *
-   * `NONE` is every other row. Nothing mails them, and the row says so rather
-   * than offering a control that would reach nothing.
+   * `EXTERNAL` is a row somebody else mails. The cell shows the email as
+   * always on and cannot be pressed, because there is nothing here to
+   * configure: Stripe already writes those receipts and cancellations. Core's
+   * `NOTIFICATION_EMAIL_CATEGORIES` is the list `CHANNEL` has to agree with:
+   * a row on that list and not marked `CHANNEL` here hides a cell Core reads,
+   * and the other way round draws a cell Core ignores.
    */
   email: EmailControl;
 }
@@ -123,6 +139,7 @@ export interface KindSpec {
  * Three rungs rather than a set of channels, because a preset is a situation
  * rather than a row of switches: the kind is off, it is in Sokosumi, or it is
  * on the device as well. `REACH_CHANNELS` turns each into the cells it means.
+ * Email is not a rung: see `PRESET_CHANNELS`.
  */
 type Reach = "NONE" | "IN_APP" | "PUSH";
 
@@ -169,9 +186,10 @@ export interface PresetSpec {
  * is none of it. What Most reaches differs by group, because what a reader opts
  * into differs; the word does not, because the amount it means does not.
  *
- * None of them touches email, which only the reminder row offers. So the
- * loudest of these is loud in Sokosumi and on the device, and a reader who
- * picks it is not signing up for a mailbox as well.
+ * None of them touches email. So the loudest of these is loud in Sokosumi and
+ * on the device, and a reader who picks it is not signing up for a mailbox as
+ * well; and Off quiets the app and the device while the inbox keeps what the
+ * reader set for it. See `PRESET_CHANNELS`.
  */
 export type Preset = "MOST" | "ESSENTIAL" | "APP_ONLY" | "OFF";
 
@@ -215,19 +233,19 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "TASK_ATTENTION",
         labelKey: "kindTaskAttention",
         hintKey: "kindTaskAttentionHint",
-        email: "NONE",
+        email: "CHANNEL",
       },
       {
         category: "TASK_COMPLETED",
         labelKey: "kindTaskCompleted",
         hintKey: "kindTaskCompletedHint",
-        email: "NONE",
+        email: "CHANNEL",
       },
       {
         category: "TASK_UPDATE",
         labelKey: "kindTaskUpdate",
         hintKey: "kindTaskUpdateHint",
-        email: "NONE",
+        email: "CHANNEL",
       },
     ],
     // The same four ids every other group offers, and deliberately: a reader
@@ -281,19 +299,19 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "CHAT_ROOM_MESSAGE",
         labelKey: "kindChatRoomMessage",
         hintKey: "kindChatRoomMessageHint",
-        email: "NONE",
+        email: "CHANNEL",
       },
       {
         category: "CHAT_MENTION",
         labelKey: "kindChatMention",
         hintKey: "kindChatMentionHint",
-        email: "NONE",
+        email: "CHANNEL",
       },
       {
         category: "CHAT_DIRECT_MESSAGE",
         labelKey: "kindChatDirectMessage",
         hintKey: "kindChatDirectMessageHint",
-        email: "NONE",
+        email: "CHANNEL",
       },
     ],
     // Chat is read where it is written, so these turn on the app rather than
@@ -341,6 +359,76 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
     ],
   },
   {
+    id: "BILLING",
+    labelKey: "groupBilling",
+    descriptionKey: "groupBillingDescription",
+    kinds: [
+      {
+        category: "BILLING_ATTENTION",
+        labelKey: "kindBillingAttention",
+        hintKey: "kindBillingAttentionHint",
+        email: "CHANNEL",
+      },
+      {
+        category: "BILLING_UPDATE",
+        labelKey: "kindBillingUpdate",
+        hintKey: "kindBillingUpdateHint",
+        email: "EXTERNAL",
+      },
+    ],
+    // The task ladder with one rung fewer: two rows, so Most and Essential
+    // differ only in whether a top-up or a plan that ends reaches the device.
+    // A wallet that ran low or a payment that failed is the one billing
+    // notice worth interrupting for, and every stop but Off keeps it in-app.
+    presets: [
+      {
+        id: "MOST",
+        hintKey: "presetBillingMostHint",
+        reach: {
+          BILLING_ATTENTION: "PUSH",
+          BILLING_UPDATE: "PUSH",
+        },
+      },
+      {
+        id: "ESSENTIAL",
+        hintKey: "presetBillingEssentialHint",
+        reach: {
+          BILLING_ATTENTION: "PUSH",
+          BILLING_UPDATE: "IN_APP",
+        },
+      },
+      {
+        id: "APP_ONLY",
+        hintKey: "presetBillingAppOnlyHint",
+        reach: {
+          BILLING_ATTENTION: "IN_APP",
+          BILLING_UPDATE: "IN_APP",
+        },
+      },
+      {
+        id: "OFF",
+        hintKey: "presetBillingOffHint",
+        reach: {
+          BILLING_ATTENTION: "NONE",
+          BILLING_UPDATE: "NONE",
+        },
+      },
+    ],
+  },
+  {
+    id: "PROJECT",
+    labelKey: "kindProjectUpdate",
+    kinds: [
+      {
+        category: "PROJECT_UPDATE",
+        labelKey: "kindProjectUpdate",
+        hintKey: "kindProjectUpdateHint",
+        email: "CHANNEL",
+      },
+    ],
+    presets: [],
+  },
+  {
     id: "SYSTEM",
     labelKey: "kindSystem",
     kinds: [
@@ -348,7 +436,7 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "SYSTEM",
         labelKey: "kindSystem",
         hintKey: "kindSystemHint",
-        email: "NONE",
+        email: "CHANNEL",
       },
     ],
     // A group of one is drawn as a plain row with its own cells. A rail over
@@ -457,17 +545,37 @@ export function withChannel(
  * it `enabled: false` for the whole group, and this page would quietly turn
  * off a channel it never showed.
  *
- * `EMAIL` is deliberately absent, and is the one case of that rule this page
- * can hold rather than state: the only row that stores an email cell is the
- * reminder row, and its group offers no presets, so no press here can reach
- * it. A test pins that pairing, so giving the reminder row a preset fails
- * rather than silently switching a reader's reminder emails off.
+ * `EMAIL` is deliberately absent: a preset speaks for the channels in
+ * `PRESET_CHANNELS` and leaves the rest as the reader had them.
  */
 const REACH_CHANNELS: Record<Reach, readonly StoredChannel[]> = {
   NONE: [],
   IN_APP: ["IN_APP"],
   PUSH: ["IN_APP", "OS_BANNER"],
 };
+
+/**
+ * The channels a preset speaks for.
+ *
+ * A preset is a situation in Sokosumi and on the device, and says nothing
+ * about the inbox. So a press of one writes these two channels on every kind
+ * of the group and carries each kind's email cell over as it was, and the
+ * rail reads the group by these two alone. Without that, every preset would
+ * switch a reader's emails off without saying so, because no preset's reach
+ * names the inbox, and a reader who left one row's email on would see Custom
+ * over a group that is otherwise exactly on Most.
+ */
+const PRESET_CHANNELS: readonly StoredChannel[] = ["IN_APP", "OS_BANNER"];
+
+/** The channels of `channels` that a preset speaks for, or does not. */
+function presetPart(
+  channels: readonly StoredChannel[],
+  spoken: boolean,
+): StoredChannel[] {
+  return channels.filter(
+    (channel) => PRESET_CHANNELS.includes(channel) === spoken,
+  );
+}
 
 /**
  * The channels a preset gives one kind, or nothing for a kind it does not name.
@@ -489,9 +597,10 @@ function presetChannels(
  * The situation the stored cells are in, or that the reader set the kinds one
  * by one.
  *
- * Every cell has to match. A preset that only nearly fits would light up while
- * the group is doing something else, and the reader would read the word rather
- * than the rows and believe it.
+ * Every cell a preset speaks for has to match. A preset that only nearly fits
+ * would light up while the group is doing something else, and the reader
+ * would read the word rather than the rows and believe it. The email cells are
+ * not read: no preset writes them (`PRESET_CHANNELS`).
  */
 export function groupPreset(
   cells: readonly NotificationPreference[],
@@ -505,7 +614,10 @@ export function groupPreset(
 
         return (
           channels !== null &&
-          sameChannels(categoryChannels(cells, kind.category), channels)
+          sameChannels(
+            presetPart(categoryChannels(cells, kind.category), true),
+            channels,
+          )
         );
       }),
     )?.id ?? "CUSTOM"
@@ -538,21 +650,36 @@ export function cellsFor(
   });
 }
 
+/** One kind of a group, with the channels it is on now. */
+export interface KindChannels {
+  spec: KindSpec;
+  channels: readonly StoredChannel[];
+}
+
 /**
  * The cells a preset writes: every kind of the group, wherever it puts them.
  *
- * The reader's own cells are not consulted. A preset is the whole situation
- * rather than a filter over the one before it, which is what lets the rail say
- * which one the group is in: pick it, and the cells say exactly this.
+ * The reader's own cells are read for one thing only: the channels a preset
+ * does not speak for (`PRESET_CHANNELS`), which each kind keeps as it had
+ * them. For the rest a preset is the whole situation rather than a filter
+ * over the one before it, which is what lets the rail say which one the group
+ * is in: pick it, and the cells say exactly this.
  */
 export function presetChanges(
   preset: PresetSpec,
-  kinds: readonly KindSpec[],
+  kinds: readonly KindChannels[],
 ): DeliveryChange[] {
   return kinds.flatMap((kind) => {
-    const channels = presetChannels(preset, kind);
+    const channels = presetChannels(preset, kind.spec);
 
-    return channels ? [{ category: kind.category, channels }] : [];
+    return channels
+      ? [
+          {
+            category: kind.spec.category,
+            channels: [...channels, ...presetPart(kind.channels, false)],
+          },
+        ]
+      : [];
   });
 }
 

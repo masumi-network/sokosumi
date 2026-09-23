@@ -46,7 +46,7 @@ vi.mock("./organization-remove-button", () => ({
   default: () => <button type="button">Delete</button>,
 }));
 
-vi.mock("@/components/organizations", () => ({
+vi.mock("@/components/organizations/organization-logo", () => ({
   OrganizationLogo: () => <span aria-hidden="true">Logo</span>,
 }));
 
@@ -61,7 +61,7 @@ vi.mock("@/components/copyable-value", () => ({
   ),
 }));
 
-vi.mock("@/components/design-md", () => ({
+vi.mock("@/components/design-md/design-md-profile-section", () => ({
   DesignMdProfileSection: ({
     canManage,
     owner,

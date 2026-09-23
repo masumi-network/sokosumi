@@ -15,6 +15,7 @@ import {
   requireTaskAssignableSokoBot,
   requireTaskAssignableUser,
 } from "@/helpers/access-control";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import {
   conflict,
@@ -371,8 +372,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           nextRunAt: task.nextRunAt,
         });
       }
-      return { task: updatedTask, previousAssigneeUserId };
+      return {
+        task: updatedTask,
+        previousAssigneeUserId,
+        workspaceId: task.workspaceId,
+      };
     });
+    await deliverCalendarInvalidationsNow(result.workspaceId);
 
     if (result.previousAssigneeUserId !== result.task.assigneeUserId) {
       if (result.previousAssigneeUserId) {

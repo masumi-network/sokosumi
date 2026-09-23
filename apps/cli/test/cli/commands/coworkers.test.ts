@@ -34,7 +34,17 @@ test("coworkers list emits JSON and applies search/limit", async () => {
 test("V21: coworkers register emits the Core vendorId request field", async () => {
   let requestBody: unknown;
   const client: CoreHttpClient = {
-    get: async <T>() => ({ data: {} }) as T,
+    get: async <T>(path: string) => {
+      if (path.includes("/vendors/me")) {
+        return { data: [{ id: "vendor-1", name: "Acme", role: "admin" }] } as T;
+      }
+      if (path.includes("/organizations")) {
+        return {
+          data: [{ id: "org-1", name: "Acme Org", role: "owner" }],
+        } as T;
+      }
+      return { data: {} } as T;
+    },
     post: async <T>(_path: string, body: unknown) => {
       requestBody = body;
       return {
@@ -71,24 +81,144 @@ test("V21: coworkers register emits the Core vendorId request field", async () =
 
 test("V21: coworkers register rejects a missing vendor ID before Core request", async () => {
   let postCalled = false;
-  const client = clientWith({ data: {} });
-  const guardedClient: CoreHttpClient = {
-    ...client,
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      if (path.includes("/organizations")) {
+        return {
+          data: [{ id: "org-1", name: "Acme Org", role: "owner" }],
+        } as T;
+      }
+      if (path.includes("/vendors/me")) {
+        return { data: [{ id: "vendor-1", role: "admin" }] } as T;
+      }
+      return { data: {} } as T;
+    },
     post: async <T>() => {
       postCalled = true;
       return { data: {} } as T;
     },
+    patch: async <T>() => ({ data: {} }) as T,
+    delete: async <T>() => ({ data: {} }) as T,
   };
 
   await assert.rejects(
     () =>
       runCoworkersCommand({
-        client: guardedClient,
+        client,
         stdout: { write() {} },
         subcommand: "register",
         options: { name: "Ops Agent" },
       }),
     /vendor id is required/,
+  );
+  assert.equal(postCalled, false);
+});
+
+test("TestV67 coworkers register blocks when no organization workspace exists", async () => {
+  let postCalled = false;
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      if (path.includes("/organizations")) return { data: [] } as T;
+      return { data: [{ id: "vendor-1", role: "admin" }] } as T;
+    },
+    post: async <T>() => {
+      postCalled = true;
+      return { data: {} } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+    delete: async <T>() => ({ data: {} }) as T,
+  };
+
+  await assert.rejects(
+    () =>
+      runCoworkersCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "register",
+        options: { name: "Ops Agent", "vendor-id": "vendor-1" },
+      }),
+    /organization workspace/,
+  );
+  assert.equal(postCalled, false);
+});
+
+test("TestV67 coworkers register rejects non-admin Vendor before Core create", async () => {
+  let postCalled = false;
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      if (path.includes("/organizations")) {
+        return {
+          data: [{ id: "org-1", name: "Acme Org", role: "owner" }],
+        } as T;
+      }
+      if (path.includes("/vendors/me")) {
+        return {
+          data: [{ id: "vendor-1", name: "Acme", role: "developer" }],
+        } as T;
+      }
+      return { data: {} } as T;
+    },
+    post: async <T>() => {
+      postCalled = true;
+      return { data: {} } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+    delete: async <T>() => ({ data: {} }) as T,
+  };
+
+  await assert.rejects(
+    () =>
+      runCoworkersCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "register",
+        options: { name: "Ops Agent", "vendor-id": "vendor-1" },
+      }),
+    /requires admin/,
+  );
+  assert.equal(postCalled, false);
+});
+
+test("TestV67 coworkers register refuses --create-vendor without inventing Core policy", async () => {
+  let postCalled = false;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: [] }) as T,
+    post: async <T>() => {
+      postCalled = true;
+      return { data: {} } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+    delete: async <T>() => ({ data: {} }) as T,
+  };
+
+  await assert.rejects(
+    () =>
+      runCoworkersCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "register",
+        options: {
+          name: "Ops Agent",
+          "vendor-id": "vendor-1",
+          "create-vendor": true,
+        },
+      }),
+    /explicit confirmation/,
+  );
+  await assert.rejects(
+    () =>
+      runCoworkersCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "register",
+        options: {
+          name: "Ops Agent",
+          "vendor-id": "vendor-1",
+          "create-vendor": true,
+          "confirm-create-vendor": true,
+        },
+      }),
+    /no developer self-service Vendor create/,
   );
   assert.equal(postCalled, false);
 });
@@ -287,7 +417,17 @@ test("coworkers api-key text output masks the token", async () => {
 test("coworkers register --create-api-key mints and returns the key", async () => {
   const calls: { path: string; body: unknown }[] = [];
   const client: CoreHttpClient = {
-    get: async <T>() => ({ data: {} }) as T,
+    get: async <T>(path: string) => {
+      if (path.includes("/vendors/me")) {
+        return { data: [{ id: "vendor-1", name: "Acme", role: "admin" }] } as T;
+      }
+      if (path.includes("/organizations")) {
+        return {
+          data: [{ id: "org-1", name: "Acme Org", role: "owner" }],
+        } as T;
+      }
+      return { data: {} } as T;
+    },
     post: async <T>(path: string, body: unknown) => {
       calls.push({ path, body });
       if (path.endsWith("/api-keys"))

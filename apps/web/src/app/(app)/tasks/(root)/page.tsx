@@ -33,7 +33,7 @@ import { parseTasksTab } from "@/app/tasks/utils/tasks-tab";
 import { getSession } from "@/lib/auth/auth.server";
 import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 import { coworkerService } from "@/lib/services/coworker.service";
-import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
+import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
@@ -303,7 +303,8 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     ownerBot,
     { fallbackName: t("sokoBot"), vendorName: t("sokoBots") },
   );
-  const canCreateTask = await hasAssignedOrganizationSeat(activeOrganizationId);
+  const canCreateTask =
+    await organizationSeatService.hasAssignedSeat(activeOrganizationId);
   const initialCreateTaskOpen = create === "true";
   const resolvedAssigneeSlug = assigneeSlugParam ?? legacyCoworkerSlugParam;
   const initialAssigneeId =
@@ -401,8 +402,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
             },
           },
           columns: columnLabels,
-          add: t("Actions.add"),
-          addTask: t("Actions.addTask"),
           dragError: t("Errors.updateStatus"),
           scheduleActiveError: t("Errors.scheduleActive"),
           loadMoreError: t("Errors.loadMore"),

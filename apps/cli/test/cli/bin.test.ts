@@ -135,7 +135,7 @@ test("direct JSON headless errors do not add a stderr copy", () => {
   assert.equal(result.status, 1);
   assert.deepEqual(JSON.parse(result.stdout), {
     error:
-      "Usage: sokosumi discover | agents list | coworkers | tasks | jobs | auth login|status|logout",
+      "Usage: sokosumi discover | agents list | coworkers | vendors me | workspaces list | tasks | jobs | auth login|status|logout",
   });
   assert.equal(result.stderr, "");
 });

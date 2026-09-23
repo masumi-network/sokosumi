@@ -5,6 +5,7 @@ import { isAblyChannelLifecycleErrorMessage } from "@/lib/sentry/ably-channel-li
 import { isExpectedChatStreamSurfaceError } from "@/lib/sentry/chat-stream-surface-errors";
 import { getSentryErrorEventMessage } from "@/lib/sentry/error-event-message";
 import { isExpectedClientNoiseErrorMessage } from "@/lib/sentry/expected-request-errors";
+import { redactResetPasswordToken } from "@/lib/sentry/reset-password-token-redaction";
 import {
   isBrowserHistoryRateLimitError,
   isFirefoxBridgeError,
@@ -186,5 +187,5 @@ export function beforeSendClientEvent(
     return null;
   }
 
-  return event;
+  return redactResetPasswordToken(event);
 }

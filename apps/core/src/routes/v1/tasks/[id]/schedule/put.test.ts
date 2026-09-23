@@ -17,6 +17,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   createTaskSchedulePlannedOccurrencesMock,
+  deliverCalendarInvalidationsNowMock,
   prismaTransactionMock,
   memberFindFirstMock,
   taskUpdateMock,
@@ -27,8 +28,11 @@ const {
   quarantineFindUniqueMock,
   replaceTaskSchedulePlannedOccurrencesMock,
   retireTaskScheduleFutureOccurrencesMock,
+  notifyTaskCalendarActionMock,
+  taskEventCreateMock,
 } = vi.hoisted(() => ({
   createTaskSchedulePlannedOccurrencesMock: vi.fn(),
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   taskUpdateMock: vi.fn(),
@@ -39,6 +43,8 @@ const {
   quarantineFindUniqueMock: vi.fn(),
   replaceTaskSchedulePlannedOccurrencesMock: vi.fn(),
   retireTaskScheduleFutureOccurrencesMock: vi.fn(),
+  notifyTaskCalendarActionMock: vi.fn(),
+  taskEventCreateMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -58,6 +64,15 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
   lockTaskRows: lockTaskRowsMock,
+  requireOpenCalendarProject: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
+}));
+
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskCalendarAction: notifyTaskCalendarActionMock,
 }));
 
 vi.mock("@/helpers/task-schedule-occurrence-index", async (importOriginal) => {
@@ -272,6 +287,7 @@ function installLedgerTransaction(
   prismaTransactionMock.mockImplementation(async (callback) =>
     callback({
       task: { update: taskUpdateMock },
+      taskEvent: { create: taskEventCreateMock },
       taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
       taskScheduleOccurrence: ledger.client,
     }),
@@ -387,6 +403,7 @@ describe("PUT /tasks/{id}/schedule", () => {
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback({
         task: { update: taskUpdateMock },
+        taskEvent: { create: taskEventCreateMock },
         taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
         taskScheduleOccurrence: { deleteMany: vi.fn(), createMany: vi.fn() },
       }),
@@ -394,6 +411,9 @@ describe("PUT /tasks/{id}/schedule", () => {
     taskUpdateMock.mockImplementation(async ({ data }) =>
       createTaskResult(data.metadata, data.nextRunAt),
     );
+    taskEventCreateMock.mockResolvedValue({ id: "event_1" });
+    notifyTaskCalendarActionMock.mockResolvedValue(undefined);
+    deliverCalendarInvalidationsNowMock.mockResolvedValue(undefined);
   });
 
   it("allows task scheduling outside the Calendar beta", async () => {
@@ -697,6 +717,51 @@ describe("PUT /tasks/{id}/schedule", () => {
           scheduleRevision: { increment: 1 },
         }),
       }),
+    );
+  });
+
+  it("audits the change, notifies another owner, and delivers its invalidation", async () => {
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.READY,
+      assigneeId: "cow_123",
+      ownerId: "owner_123",
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      projectId: null,
+    });
+
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        taskId: TASK_ID,
+        userId: "user_123",
+        scheduleKind: "CREATED",
+        schedulePayload: expect.objectContaining({ action: "save_schedule" }),
+      }),
+      select: { id: true },
+    });
+    expect(notifyTaskCalendarActionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: "user_123",
+        eventId: "event_1",
+        messageKey: "Notifications.Task.scheduleUpdatedByMember",
+      }),
+    );
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      WORKSPACE_ID,
     );
   });
 

@@ -19,6 +19,7 @@ const {
   serializableTransactionMock,
   memberFindFirstMock,
   requireTaskScheduleWriteAccessMock,
+  notifyTaskCalendarActionMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
   quarantineFindUniqueMock,
@@ -31,6 +32,7 @@ const {
   serializableTransactionMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   requireTaskScheduleWriteAccessMock: vi.fn(),
+  notifyTaskCalendarActionMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
   quarantineFindUniqueMock: vi.fn(),
@@ -48,10 +50,14 @@ vi.mock("@/helpers/access-control", () => ({
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
   lockTaskRows: lockTaskRowsMock,
+  requireOpenCalendarProject: vi.fn(),
 }));
 
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
   retireTaskScheduleFutureOccurrences: retireTaskScheduleFutureOccurrencesMock,
+}));
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskCalendarAction: notifyTaskCalendarActionMock,
 }));
 
 vi.mock("@/lib/db/transaction", () => ({
@@ -166,6 +172,8 @@ describe("DELETE /tasks/{id}/schedule", () => {
     memberFindFirstMock.mockResolvedValue({ id: "member_123" });
     requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
+      ownerId: "user_123",
+      name: "Scheduled task",
       status: TaskStatus.READY,
       workspaceId: WORKSPACE_ID,
       projectId: null,
@@ -407,6 +415,8 @@ describe("DELETE /tasks/{id}/schedule", () => {
     taskEventCreateMock.mockClear();
     retireTaskScheduleFutureOccurrencesMock.mockClear();
     taskEventFindUniqueMock.mockResolvedValue({
+      id: "evt_1",
+      userId: "original_actor",
       schedulePayload: storedPayload,
     });
     requireTaskScheduleWriteAccessMock.mockResolvedValue({
@@ -427,7 +437,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
           scheduleOperationId: OPERATION_ID,
         },
       },
-      select: { schedulePayload: true },
+      select: { id: true, schedulePayload: true, userId: true },
     });
     expect(taskUpdateMock).not.toHaveBeenCalled();
     expect(taskEventCreateMock).not.toHaveBeenCalled();
@@ -435,10 +445,17 @@ describe("DELETE /tasks/{id}/schedule", () => {
     expect(taskFindUniqueOrThrowMock).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: TASK_ID } }),
     );
+    expect(notifyTaskCalendarActionMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        actorUserId: "original_actor",
+        eventId: "evt_1",
+      }),
+    );
   });
 
   it("rejects an idempotency key already used for a different series operation", async () => {
     taskEventFindUniqueMock.mockResolvedValue({
+      id: "evt_other",
       schedulePayload: {
         action: "update_schedule",
         requestFingerprint: "0".repeat(64),

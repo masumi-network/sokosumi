@@ -25,7 +25,7 @@ import {
   clearRoomReadOverlays,
   rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
-import { chatRoomMessageEventDataSchema } from "@/lib/ably";
+import { chatRoomMessageEventDataSchema } from "@/lib/ably/schema";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import type {
   ChatRoom,
@@ -89,6 +89,14 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
 
 vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
   useChatRoomRealtime: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/use-room-typing", () => ({
+  useRoomTyping: () => ({
+    typistIds: [],
+    handleComposerChange: () => {},
+    handleStopTyping: () => {},
+  }),
 }));
 
 vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({

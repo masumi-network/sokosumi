@@ -13,7 +13,7 @@
       "subject": "Sokosumi - E-Mail-Adresse bestätigen",
       "title": "Deine E-Mail-Adresse bestätigen",
       "greeting": "Hallo {name}",
-      "message": "Bitte bestätige deine E-Mail-Adresse, indem du auf den Button unten klickst. So stellen wir die Sicherheit deines Accounts sicher.",
+      "message": "Bestätige deine E-Mail-Adresse über den Button unten. So bleibt dein Account sicher.",
       "button": "E-Mail bestätigen",
       "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
       "footer": "Wenn du kein Konto erstellt hast, kannst du diese E-Mail ignorieren."
@@ -22,7 +22,7 @@
       "subject": "Sokosumi - Organisationseinladung",
       "title": "Tritt {invitorUsername} bei {organizationName} bei",
       "greeting": "Hallo",
-      "message": "Du wurdest eingeladen, {organizationName} auf Sokosumi beizutreten. Klicke auf den Button unten, um die Einladung anzunehmen.",
+      "message": "Du wurdest eingeladen, {organizationName} auf Sokosumi beizutreten. Nimm die Einladung über den Button unten an.",
       "button": "Einladung annehmen",
       "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
       "footer": "Wenn du diese Einladung nicht angefordert hast, kannst du diese E-Mail ignorieren."
@@ -43,7 +43,7 @@
       "subject": "Sokosumi - Channel-Einladung",
       "title": "Tritt {channelName} bei {organizationName} bei",
       "greeting": "Hallo",
-      "message": "{invitorUsername} hat dich eingeladen, dem Channel {channelName} von {organizationName} auf Sokosumi beizutreten. Klicke auf den Button unten, um die Einladung anzunehmen.",
+      "message": "{invitorUsername} hat dich eingeladen, dem Channel {channelName} von {organizationName} auf Sokosumi beizutreten. Nimm die Einladung über den Button unten an.",
       "button": "Einladung annehmen",
       "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
       "footer": "Wenn du diese Einladung nicht angefordert hast, kannst du diese E-Mail ignorieren."
@@ -51,10 +51,10 @@
   },
   "jobs": {
     "failureNotification": {
-      "subject": "Job-Fehlerbenachrichtigung - {jobId}",
+      "subject": "Sokosumi - Job {jobId} fehlgeschlagen",
       "preview": "Job {jobId} ist fehlgeschlagen",
-      "title": "Job-Fehlerbenachrichtigung",
-      "description": "Ein Job ist fehlgeschlagen. Hier sind die technischen Details:",
+      "title": "Dein Job ist fehlgeschlagen",
+      "description": "Das hat der Job gemeldet.",
       "network": "Netzwerk:",
       "agentName": "Agent-Name:",
       "agentId": "Agent-ID:",
@@ -69,14 +69,150 @@
     }
   },
   "notifications": {
-    "followUp": {
+    "shared": {
       "linkInstructions": "Oder kopiere diese URL in deinen Browser:",
-      "footer": "Du erhältst diese E-Mail, weil Erinnerungen in deinen Benachrichtigungseinstellungen aktiviert sind.",
       "greeting": "Hallo {name}",
       "greetingWithoutName": "Hallo",
       "fallbackAuthorName": "Jemand",
       "fallbackRoomName": "einer Unterhaltung",
       "fallbackTaskName": "Deine Aufgabe",
+      "fallbackCoworkerName": "ein Coworker",
+      "fallbackProjectName": "Dein Projekt"
+    },
+    "event": {
+      "footer": "Du erhältst diese E-Mail, weil diese Benachrichtigung in <settings>deinen Benachrichtigungseinstellungen</settings> aktiviert ist.",
+      "mention": {
+        "subject": "Sokosumi - {authorName} hat dich in {roomName} erwähnt",
+        "title": "Du wurdest erwähnt",
+        "body": "{authorName} hat dich in {roomName} erwähnt.",
+        "button": "Unterhaltung öffnen"
+      },
+      "directMessage": {
+        "subject": "Sokosumi - {authorName} hat dir eine Nachricht gesendet",
+        "title": "Neue Direktnachricht",
+        "body": "{authorName} hat dir eine Direktnachricht gesendet.",
+        "button": "Unterhaltung öffnen"
+      },
+      "roomMessage": {
+        "one": {
+          "subject": "Sokosumi - {authorName} hat in {roomName} geschrieben",
+          "title": "Eine neue Nachricht",
+          "body": "{authorName} hat in {roomName} geschrieben."
+        },
+        "many": {
+          "subject": "Sokosumi - {count} ungelesene Nachrichten in {roomName}",
+          "title": "Ungelesene Nachrichten",
+          "body": "Du hast {count} ungelesene Nachrichten in {roomName}."
+        },
+        "button": "Unterhaltung öffnen"
+      },
+      "task": {
+        "button": "Aufgabe öffnen",
+        "projectLabel": "Projekt",
+        "attention": {
+          "title": "Eine Aufgabe braucht dich",
+          "reasons": {
+            "assigned": {
+              "subject": "Sokosumi - Dir wurde {taskName} zugewiesen",
+              "body": "Dir wurde {taskName} zugewiesen."
+            },
+            "inputRequired": {
+              "subject": "Sokosumi - {coworkerName} benötigt deinen Input für {taskName}",
+              "body": "{taskName} hat angehalten, weil {coworkerName} deine Eingabe braucht."
+            },
+            "approvalRequired": {
+              "subject": "Sokosumi - {coworkerName} benötigt deine Freigabe für {taskName}",
+              "body": "{taskName} hat angehalten, weil {coworkerName} deine Freigabe braucht."
+            },
+            "authenticationRequired": {
+              "subject": "Sokosumi - {coworkerName} benötigt eine Anmeldung von dir für {taskName}",
+              "body": "{taskName} hat angehalten, weil {coworkerName} eine Anmeldung von dir braucht."
+            },
+            "outOfCredits": {
+              "subject": "Sokosumi - {taskName} hat keine Credits mehr",
+              "body": "{taskName} hat angehalten, weil die Credits aufgebraucht sind."
+            },
+            "scheduleRemovedByOperator": {
+              "subject": "Sokosumi - Der Zeitplan für {taskName} wurde entfernt",
+              "body": "Der Zeitplan für {taskName} wurde nach einer Prüfung entfernt."
+            }
+          }
+        },
+        "completed": {
+          "subject": "Sokosumi - {coworkerName} hat {taskName} abgeschlossen",
+          "title": "Aufgabe abgeschlossen",
+          "body": "{coworkerName} hat {taskName} abgeschlossen."
+        },
+        "update": {
+          "title": "Aufgabenaktualisierung",
+          "reasons": {
+            "failed": {
+              "subject": "Sokosumi - {taskName} ist fehlgeschlagen",
+              "body": "{taskName} ist fehlgeschlagen."
+            },
+            "canceled": {
+              "subject": "Sokosumi - {taskName} wurde abgebrochen",
+              "body": "{taskName} wurde abgebrochen."
+            },
+            "scheduleRepaired": {
+              "subject": "Sokosumi - Der Zeitplan für {taskName} wurde repariert",
+              "body": "Der Zeitplan für {taskName} wurde repariert."
+            },
+            "scheduleRemovedByOperator": {
+              "subject": "Sokosumi - Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
+              "body": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt."
+            },
+            "scheduleUpdatedByMember": {
+              "subject": "Sokosumi - Ein Teammitglied hat den Zeitplan für {taskName} aktualisiert",
+              "body": "Ein Teammitglied hat den Zeitplan für {taskName} aktualisiert."
+            },
+            "scheduleRemovedByMember": {
+              "subject": "Sokosumi - Ein Teammitglied hat den Zeitplan für {taskName} entfernt",
+              "body": "Ein Teammitglied hat den Zeitplan für {taskName} entfernt."
+            },
+            "scheduleSourceChangedByMember": {
+              "subject": "Sokosumi - Ein Teammitglied hat {taskName} in eine andere Kalenderquelle verschoben",
+              "body": "Ein Teammitglied hat {taskName} in eine andere Kalenderquelle verschoben."
+            },
+            "scheduleOccurrenceChangedByMember": {
+              "subject": "Sokosumi - Ein Teammitglied hat einen Termin von {taskName} geändert",
+              "body": "Ein Teammitglied hat einen Termin von {taskName} geändert."
+            },
+            "updated": {
+              "subject": "Sokosumi - {taskName} hat sich geändert",
+              "body": "{taskName} hat sich geändert."
+            }
+          }
+        }
+      },
+      "accessRequest": {
+        "title": "Zugriffsanfrage",
+        "button": "Anfrage prüfen",
+        "vendor": {
+          "subject": "Sokosumi - {requesterName} hat Zugriff auf deinen Workspace angefragt",
+          "body": "{requesterName} hat Vendor-Zugriff auf deinen Workspace angefragt."
+        },
+        "coworker": {
+          "subject": "Sokosumi - {requesterName} hat Zugriff auf deinen Workspace angefragt",
+          "body": "{requesterName} hat Coworker-Frühzugang zu deinem Workspace angefragt."
+        }
+      },
+      "project": {
+        "button": "Projekt öffnen",
+        "closed": {
+          "title": "Projekt geschlossen",
+          "subject": "Sokosumi - {projectName} ist jetzt geschlossen",
+          "body": "Das Schließen von {projectName} ist abgeschlossen. Öffne das Projekt, um den Verlauf anzusehen."
+        },
+        "closeFailed": {
+          "title": "Projekt konnte nicht geschlossen werden",
+          "subject": "Sokosumi - {projectName} konnte nicht vollständig geschlossen werden",
+          "body": "{projectName} konnte auch nach mehreren Versuchen nicht vollständig geschlossen werden. Öffne das Projekt, um das Problem zu prüfen und das Schließen erneut zu versuchen."
+        }
+      }
+    },
+    "followUp": {
+      "footer": "Du erhältst diese E-Mail, weil Erinnerungen in <settings>deinen Benachrichtigungseinstellungen</settings> aktiviert sind.",
       "mention": {
         "subject": "Sokosumi - {authorName} wartet weiterhin auf dich in {roomName}",
         "preview": "{authorName} hat dich vor einem Tag in {roomName} erwähnt.",
@@ -84,11 +220,25 @@
         "body": "{authorName} hat dich vor einem Tag in {roomName} erwähnt, und du hast die Nachricht noch nicht geöffnet.",
         "button": "Unterhaltung öffnen"
       },
+      "mentionMany": {
+        "subject": "Sokosumi - {count} Erwähnungen warten noch auf dich in {roomName}",
+        "preview": "Du wurdest vor einem Tag {count}-mal in {roomName} erwähnt.",
+        "title": "Wartet noch auf dich",
+        "body": "Du hast {count} ungelesene Erwähnungen in {roomName} von vor einem Tag und hast sie noch nicht geöffnet.",
+        "button": "Unterhaltung öffnen"
+      },
       "directMessage": {
         "subject": "Sokosumi - {authorName} wartet weiterhin auf deine Antwort",
         "preview": "{authorName} hat dir vor einem Tag eine Nachricht geschickt.",
         "title": "Wartet weiterhin auf deine Antwort",
         "body": "{authorName} hat dir vor einem Tag eine Direktnachricht geschickt, und du hast sie noch nicht geöffnet.",
+        "button": "Unterhaltung öffnen"
+      },
+      "directMessageMany": {
+        "subject": "Sokosumi - {count} Nachrichten von {authorName} warten noch",
+        "preview": "{authorName} hat dir vor einem Tag {count} Nachrichten gesendet.",
+        "title": "Wartet noch auf deine Antwort",
+        "body": "Du hast {count} ungelesene Nachrichten von {authorName} von vor einem Tag und hast sie noch nicht geöffnet.",
         "button": "Unterhaltung öffnen"
       },
       "task": {
@@ -107,7 +257,29 @@
           "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde vor einem Tag nach einer Prüfung entfernt, und du hast den Hinweis noch nicht geöffnet."
         }
       },
-      "fallbackCoworkerName": "ein Coworker"
+      "billing": {
+        "subject": "Sokosumi - Deine Abrechnung braucht weiterhin deine Aufmerksamkeit",
+        "preview": "Deine Abrechnung hat vor einem Tag deine Aufmerksamkeit gebraucht.",
+        "title": "Braucht weiterhin deine Aufmerksamkeit",
+        "body": "Deine Abrechnung hat vor einem Tag deine Aufmerksamkeit gebraucht, und du hast den Hinweis noch nicht geöffnet.",
+        "button": "Abrechnung öffnen",
+        "reasons": {
+          "lowBalance": "Deine Credits wurden vor einem Tag knapp, es waren noch {credits} übrig, und du hast den Hinweis noch nicht geöffnet."
+        }
+      }
+    },
+    "billing": {
+      "linkInstructions": "Oder kopiere diese URL in deinen Browser:",
+      "footer": "Du erhältst diese E-Mail, weil Abrechnungshinweise in <settings>deinen Benachrichtigungseinstellungen</settings> aktiviert sind.",
+      "greeting": "Hallo {name}",
+      "greetingWithoutName": "Hallo",
+      "lowBalance": {
+        "subject": "Sokosumi - Deine Credits werden knapp",
+        "preview": "Du hast noch {credits} Credits.",
+        "title": "Credits werden knapp",
+        "body": "Deine Credits werden knapp. Es sind noch {credits} übrig. Die Arbeit stoppt, wenn sie aufgebraucht sind.",
+        "button": "Credits aufladen"
+      }
     }
   }
 }

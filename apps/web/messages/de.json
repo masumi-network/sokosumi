@@ -771,10 +771,16 @@
       "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 ungelesene Benachrichtigung und Kontohinweis} other {# ungelesene Benachrichtigungen und Kontohinweis}}",
       "title": "Benachrichtigungen",
       "pageTitle": "Benachrichtigungen",
+      "pageDescription": "Updates zu deinen Aufgaben, Agenten und deinem Workspace.",
       "emptyState": "Noch keine Benachrichtigungen",
+      "emptyStateDescription": "Bisher ist nichts angekommen. Aufgabenergebnisse und Workspace-Anfragen erscheinen hier, sobald sie eintreffen.",
       "emptyUnreadState": "Du bist auf dem Laufenden",
+      "emptyUnreadStateDescription": "Hier ist nichts ungelesen. Alles Gelesene bleibt unter Alle.",
       "emptyNeedsYouState": "Nichts wartet auf dich",
+      "emptyNeedsYouStateDescription": "Nichts wartet auf deine Antwort. Anfragen, die dich brauchen, erscheinen hier.",
       "viewAll": "Alle Benachrichtigungen anzeigen",
+      "showAll": "Alle anzeigen",
+      "showOlder": "Ältere Benachrichtigungen anzeigen",
       "justNow": "Gerade eben",
       "loading": "Lädt...",
       "markAllRead": "Alle als gelesen markieren",
@@ -804,6 +810,8 @@
       "browserPermissionRequesting": "Warte auf Berechtigung…",
       "browserPermissionDeniedTitle": "Browser-Benachrichtigungen sind blockiert",
       "browserPermissionDeniedDescription": "Benachrichtigungen für diese Website sind in deinem Browser blockiert. Öffne die Browser-Benachrichtigungseinstellungen für Sokosumi, um sie zuzulassen.",
+      "browserPermissionInstallTitle": "Füge Sokosumi zum Home-Bildschirm hinzu",
+      "browserPermissionInstallDescription": "Auf iPhone und iPad kommen Benachrichtigungen nur in der installierten App an. Tippe auf „Teilen“, dann auf „Zum Home-Bildschirm“.",
       "pushQuietTitle": "Push-Benachrichtigungen kommen in diesem Browser nicht mehr an",
       "pushQuietDescription": "Dieser Browser hat sein Push-Abonnement verloren, daher kommen hier keine Updates an. Deine anderen Geräte erhalten sie möglicherweise weiterhin.",
       "pushQuietRestore": "Push wieder einschalten",
@@ -1430,6 +1438,11 @@
         "downloadGeneratedImage": "Generiertes Bild herunterladen",
         "expandPrompt": "Vollständige Nachricht anzeigen",
         "collapsePrompt": "Weniger anzeigen",
+        "typing": {
+          "one": "{name} schreibt gerade …",
+          "two": "{first} und {second} schreiben gerade …",
+          "many": "Mehrere Personen schreiben gerade …"
+        },
         "reasoning": {
           "processing": "Wird verarbeitet...",
           "thinking": "Denkt nach...",
@@ -1528,8 +1541,6 @@
         "approvePartialError": "{approved} von {total} Vendors genehmigt. Einige Freigaben sind fehlgeschlagen — bitte aktualisieren und erneut versuchen."
       },
       "Actions": {
-        "add": "Neue Aufgabe",
-        "addTask": "Neue Aufgabe",
         "loading": "Wird geladen...",
         "loadMore": "Mehr laden",
         "showGuide": "Show guide"
@@ -2078,6 +2089,17 @@
       "list": {
         "loadMore": "Mehr laden",
         "loading": "Projekte werden geladen...",
+        "filter": {
+          "placeholder": "Projekte filtern",
+          "clear": "Filter zurücksetzen",
+          "noMatches": "Keine Projekte passen zu „{query}“."
+        },
+        "sortedBy": "Nach letzter Aktivität sortiert",
+        "lastActivity": "Letzte Aktivität",
+        "created": "Erstellt",
+        "pin": "Projekt anheften",
+        "unpin": "Anheften aufheben",
+        "pinError": "Anheften konnte nicht geändert werden. Bitte erneut versuchen.",
         "stats": {
           "tasks": "Tasks",
           "jobs": "Jobs",
@@ -2209,7 +2231,8 @@
           "removed": "Markenkontext entfernt",
           "removeDialog": {
             "title": "Markenkontext entfernen?",
-            "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt."
+            "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt.",
+            "cancel": "Abbrechen"
           },
           "upload": "Hochladen",
           "moreActions": "Brand-Aktionen"
@@ -2299,20 +2322,58 @@
           "moreActions": "Weitere Aktionen",
           "viewDetails": "Details anzeigen",
           "edit": "Bearbeiten",
-          "delete": "Löschen",
+          "close": "Projekt schließen",
           "remove": "Entfernen",
           "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?"
         },
-        "deleteDialog": {
-          "title": "Projekt löschen",
-          "description": "Dieses Projekt wird gelöscht. Verknüpfte Tasks und Jobs bleiben außerhalb des Projekts verfügbar.",
-          "confirm": "Löschen",
-          "cancel": "Abbrechen"
+        "close": {
+          "dialog": {
+            "title": "Projekt schließen?",
+            "description": "Arbeit, die vor dem Schließungszeitpunkt geplant ist, wird abgeschlossen. Arbeit ab diesem Zeitpunkt wird abgebrochen und das Projekt kann nicht erneut geöffnet werden.",
+            "reasonLabel": "Grund (optional)",
+            "reasonPlaceholder": "Warum wird dieses Projekt geschlossen?",
+            "confirm": "Projekt schließen",
+            "cancel": "Projekt geöffnet lassen",
+            "success": "Projektschließung gestartet",
+            "error": "Das Projekt konnte nicht geschlossen werden. Prüfe den aktuellen Status und versuche es erneut."
+          },
+          "status": {
+            "CLOSING": {
+              "title": "Projekt wird geschlossen",
+              "description": "{count, plural, =0 {Keine ausstehenden Ausführungen verbleiben} one {# ausstehende Ausführung verbleibt} other {# ausstehende Ausführungen verbleiben}} vor dem Schließungszeitpunkt {cutoff}. Arbeit ab diesem Zeitpunkt wird abgebrochen."
+            },
+            "CLOSE_FAILED": {
+              "title": "Projektschließung erfordert Aufmerksamkeit",
+              "descriptionWithCancel": "Geplante Arbeit ist am Schließungszeitpunkt {cutoff} pausiert. Wiederhole die Schließung oder brich nur die blockierte ausstehende Arbeit ab.",
+              "descriptionRetryOnly": "Geplante Arbeit ist am Schließungszeitpunkt {cutoff} pausiert. Wiederhole die Schließung, um fortzufahren."
+            },
+            "CLOSED": {
+              "title": "Projekt geschlossen",
+              "description": "Geschlossen am {completedAt}. Der Kalenderverlauf bleibt erhalten."
+            }
+          },
+          "recovery": {
+            "retryAction": "Schließung wiederholen",
+            "cancelOwedAction": "Ausstehende Arbeit abbrechen",
+            "reasonLabel": "Grund",
+            "reasonPlaceholder": "Begründe, warum diese Wiederherstellungsaktion nötig ist",
+            "reasonRequired": "Gib einen Grund für diese Wiederherstellungsaktion ein.",
+            "keepFailed": "Schließung pausiert lassen",
+            "success": "Projektschließung fortgesetzt",
+            "error": "Die Projektschließung konnte nicht fortgesetzt werden. Prüfe den aktuellen Status und versuche es erneut.",
+            "retry": {
+              "title": "Projektschließung wiederholen?",
+              "description": "Der Schließungsprozess versucht die blockierte geplante Arbeit ab demselben Schließungszeitpunkt erneut."
+            },
+            "cancelOwed": {
+              "title": "Ausstehende Arbeit abbrechen?",
+              "description": "Nur die blockierte, vor dem Schließungszeitpunkt fällige Arbeit wird abgebrochen. Dies kann nicht rückgängig gemacht werden."
+            }
+          }
         },
         "errors": {
           "create": "Projekt konnte nicht erstellt werden",
           "update": "Projekt konnte nicht aktualisiert werden",
-          "delete": "Projekt konnte nicht gelöscht werden",
           "addJob": "Job konnte nicht hinzugefügt werden",
           "removeJob": "Job konnte nicht entfernt werden",
           "addTask": "Task konnte nicht hinzugefügt werden",
@@ -2355,6 +2416,8 @@
           "taskManager": "Aufgaben",
           "projects": "Projekte",
           "allProjects": "Alle Projekte",
+          "projectsPanel": "Deine Projekte",
+          "pinnedProjects": "Angeheftet",
           "recentProjects": "Zuletzt verwendete Projekte",
           "history": "Verlauf",
           "drive": "Dateien",
@@ -4092,6 +4155,9 @@
         "pushBannerDeniedBody": "Sokosumi kann nicht erneut fragen. Erlaube Benachrichtigungen für diese Website in den Browser-Einstellungen. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
         "pushBannerUnsupportedTitle": "Dieser Browser kann keine Push-Benachrichtigungen anzeigen",
         "pushBannerUnsupportedBody": "Push-Benachrichtigungen kommen hier nicht an, egal was die Zeilen unten sagen. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
+        "pushBannerInstallableTitle": "Füge Sokosumi zum Home-Bildschirm hinzu, um Push-Benachrichtigungen zu bekommen",
+        "pushBannerInstallableBody": "Auf iPhone und iPad kommen Push-Benachrichtigungen nur in der installierten App an. Tippe auf „Teilen“, dann auf „Zum Home-Bildschirm“, und öffne Sokosumi von dort. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
+        "pushInstallableHint": "Füge Sokosumi zum Home-Bildschirm hinzu, um diese auf diesem Gerät zu bekommen.",
         "deviceBannerTitle": "Push-Benachrichtigungen sind in diesem Browser aktiviert. Deine anderen Geräte sind davon nicht betroffen.",
         "deviceBannerAction": "Deaktivieren",
         "deviceDisabledSuccess": "Push-Benachrichtigungen in diesem Browser aus",
@@ -4114,6 +4180,8 @@
         "kindTaskCompletedHint": "Eine Aufgabe hat die Arbeit erledigt, um die du gebeten hast.",
         "kindTaskUpdate": "Andere Aufgaben-Updates",
         "kindTaskUpdateHint": "Alles andere, was eine Aufgabe meldet, zum Beispiel fehlgeschlagen oder abgebrochen. Für dich gibt es nichts zu tun.",
+        "kindProjectUpdate": "Projekt-Updates",
+        "kindProjectUpdateHint": "Ein Projekt wurde geschlossen oder benötigt einen weiteren Schließversuch.",
         "kindChatRoomMessage": "Jede Nachricht in deinen Räumen",
         "kindChatRoomMessageHint": "Jeder Beitrag in einem Raum, in dem du bist. Standardmäßig aus.",
         "kindChatMention": "Erwähnungen",
@@ -4132,6 +4200,16 @@
         "presetTaskEssentialHint": "Nur Aufgaben, die auf dich warten, kommen als Push an. Abgeschlossene Aufgaben und andere Updates kommen nur in der App an.",
         "presetTaskAppOnlyHint": "Jede Aufgaben-Benachrichtigung kommt in der App an. Keine davon kommt als Push an.",
         "presetTaskOffHint": "Keine Aufgaben-Benachrichtigung kommt an, weder in der App noch als Push. Öffne die Gruppe, um eine einzelne wieder einzuschalten.",
+        "groupBilling": "Abrechnung",
+        "groupBillingDescription": "Knappe Credits, Zahlungen und Aufladungen.",
+        "kindBillingAttention": "Abrechnung, die auf dich wartet",
+        "kindBillingAttentionHint": "Deine Credits werden knapp, oder eine Zahlung ist fehlgeschlagen. Die Arbeit stoppt, wenn sich nichts ändert.",
+        "kindBillingUpdate": "Andere Abrechnungs-Updates",
+        "kindBillingUpdateHint": "Eine Aufladung ist angekommen, oder dein Abo endet zum Ende der Laufzeit. Für dich gibt es nichts zu tun.",
+        "presetBillingMostHint": "Abrechnung, die auf dich wartet, und andere Abrechnungs-Updates kommen in der App und als Push an.",
+        "presetBillingEssentialHint": "Nur Abrechnung, die auf dich wartet, kommt als Push an. Andere Abrechnungs-Updates kommen nur in der App an.",
+        "presetBillingAppOnlyHint": "Jede Abrechnungs-Benachrichtigung kommt in der App an. Keine davon kommt als Push an.",
+        "presetBillingOffHint": "Keine Abrechnungs-Benachrichtigung kommt an, weder in der App noch als Push. Öffne die Gruppe, um eine einzelne wieder einzuschalten.",
         "presetChatMostHint": "Jede Nachricht in deinen Räumen kommt in der App an. Erwähnungen und Direktnachrichten kommen zusätzlich als Push an.",
         "presetChatEssentialHint": "Erwähnungen und Direktnachrichten kommen als Push an. Jede Nachricht in deinen Räumen ist aus.",
         "presetChatAppOnlyHint": "Erwähnungen und Direktnachrichten kommen in der App an. Jede Nachricht in deinen Räumen ist aus, und nichts kommt als Push an.",
@@ -4143,19 +4221,19 @@
         "presetAriaLabel": "Was du von {group} bekommst",
         "presetMenuCustomLabel": "{group} · einzeln gesetzt",
         "channelInApp": "In der App",
-        "channelInAppHint": "In Sokosumi, nicht auf deinem Gerät.",
+        "channelInAppHint": "Erscheint in deinen Sokosumi-Benachrichtigungen.",
         "channelPush": "Push",
-        "channelPushHint": "Auf deinem Gerät, auch wenn Sokosumi geschlossen ist.",
+        "channelPushHint": "Ein Banner von deinem Gerät, auch wenn Sokosumi geschlossen ist.",
+        "channelEmailExternalLabel": "E-Mail, immer an für {kind}",
+        "channelEmailExternalHint": "Stripe sendet diese Belege und Kündigungen. Hier gibt es nichts einzustellen.",
         "channelEmail": "E-Mail",
-        "channelEmailHint": "Wohin Sokosumi dir E-Mails schickt. Erinnerungen haben eine eigene Zelle, Marketing-E-Mails ebenso. Andere Arten werden hier noch nicht per E-Mail verschickt.",
+        "channelEmailHint": "Geht an deinen Posteingang. Nur ungelesene Benachrichtigungen bekommen eine E-Mail.",
         "channelsKindLabel": "Benachrichtigung",
         "channelsLegendLabel": "Was die Spalten bedeuten",
         "channelsAnnounce": "{kind}: {channels}",
         "channelsNone": "keine",
         "channelCellLabel": "{channel} für {kind}",
         "channelUnavailableLabel": "{channel}, nicht für {kind}",
-        "channelEmailSoonLabel": "E-Mail, noch nicht für {kind}",
-        "channelEmailSoonHint": "Sokosumi sendet für diese Benachrichtigung noch keine E-Mail.",
         "deliveryAriaLabel": "Zustellung für {kind}",
         "newsDeliveryAriaLabel": "Zustellung für Marketing-E-Mails",
         "kindFollowUp": "Erinnerungen",
@@ -4164,7 +4242,7 @@
       "ChatDisplay": {
         "title": "Chat-Anzeige",
         "roomUnreadCountTitle": "Anzahl ungelesener Nachrichten anzeigen",
-        "roomUnreadCountDescription": "Stummgeschaltete Chats und der geöffnete Chat bleiben ruhig. An deinen Benachrichtigungen ändert sich nichts.",
+        "roomUnreadCountDescription": "Wird bei jedem Chat mit ungelesenen Nachrichten angezeigt. Stummgeschaltete Chats bleiben ruhig, und an deinen Benachrichtigungen ändert sich nichts.",
         "loading": "Einstellung wird gespeichert...",
         "error": "Die Änderung konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
         "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
@@ -5375,6 +5453,13 @@
         "afk": "Away",
         "offline": "Offline"
       },
+      "ThreadRows": {
+        "label": "Ungelesene Threads in {name}",
+        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}",
+        "moreThreads": "{count, plural, one {# weiterer ungelesener Thread} other {# weitere ungelesene Threads}}",
+        "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
+        "untitled": "Thread"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5384,6 +5469,7 @@
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
         "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "newReplyCount": "{count, plural, one {# neue Antwort} other {# neue Antworten}}",
         "mute": "Thread stummschalten",
         "unmute": "Stummschaltung aufheben",
         "muted": "Stummgeschaltet"
@@ -5522,12 +5608,20 @@
       "RoomRoster": {
         "open": "Mitglieder",
         "title": "Mitglieder",
+        "humansTitle": "Personen",
+        "agentsTitle": "Coworker",
         "close": "Mitglieder schließen",
         "empty": "Keine Mitglieder vorhanden.",
         "message": "Nachricht an {name}",
         "copy": "{value} kopieren",
         "copySuccess": "In die Zwischenablage kopiert",
         "copyError": "Kopieren fehlgeschlagen."
+      },
+      "SeenBy": {
+        "summary": "{count, plural, one {Von # Person gelesen} other {Von # Personen gelesen}}",
+        "readersTitle": "Gelesen von",
+        "readAt": "Zuletzt gelesen {time}",
+        "notRead": "Noch nicht gelesen"
       },
       "UnreadThreads": {
         "open": "Threads",
@@ -5539,10 +5633,13 @@
         "error": "Threads konnten nicht geladen werden. Bitte erneut versuchen.",
         "markAllReadError": "Ungelesene Threads konnten nicht als gelesen markiert werden. Bitte erneut versuchen.",
         "loadOlder": "Ältere Threads laden",
+        "groupUnread": "Ungelesen",
+        "groupEarlier": "Früher",
+        "groupUnreadEmpty": "Alles gelesen.",
         "startedBy": "Gestartet von {name}",
-        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}",
         "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
-        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads"
+        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
+        "newReplies": "{count, plural, one {# neue} other {# neue}}"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
@@ -6211,7 +6308,8 @@
       "view": {
         "month": "Monat",
         "week": "Woche",
-        "agenda": "Agenda"
+        "agenda": "Agenda",
+        "schedules": "Zeitpläne"
       },
       "source": {
         "label": "Quelle",
@@ -6232,7 +6330,6 @@
         "moveNotAllowed": "Nur der Besitzer der Aufgabe kann sie neu planen."
       },
       "create": {
-        "title": "Task planen",
         "fab": "Task planen"
       },
       "edit": {
@@ -6278,7 +6375,15 @@
         "label": "Zeitzone"
       },
       "empty": {
-        "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
+        "title": "Keine geplanten Freigaben entsprechen diesen Filtern.",
+        "schedulesTitle": "Keine Zeitpläne entsprechen diesen Filtern."
+      },
+      "schedules": {
+        "nextRun": "Nächster Lauf",
+        "noNextRun": "Kein nächster Lauf",
+        "edit": "Zeitplan bearbeiten",
+        "openTask": "Aufgabe öffnen",
+        "loadMore": "Mehr laden"
       },
       "pagination": {
         "error": "Weitere Ereignisse konnten nicht geladen werden."
@@ -6289,8 +6394,8 @@
         "retry": "Erneut versuchen"
       },
       "agenda": {
-        "backToTop": "Nach oben",
-        "today": "Heute"
+        "upcoming": "Als Nächstes",
+        "loading": "Wird geladen…"
       }
     },
     "You": {
@@ -6474,8 +6579,23 @@
         "canceled": "{taskName} wurde abgebrochen",
         "scheduleRepaired": "Der Zeitplan für {taskName} wurde repariert",
         "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
+        "scheduleUpdatedByMember": "Ein Teammitglied hat den Zeitplan für {taskName} aktualisiert",
+        "scheduleRemovedByMember": "Ein Teammitglied hat den Zeitplan für {taskName} entfernt",
+        "scheduleSourceChangedByMember": "Ein Teammitglied hat {taskName} in eine andere Kalenderquelle verschoben",
+        "scheduleOccurrenceChangedByMember": "Ein Teammitglied hat einen Termin von {taskName} geändert",
         "assigned": "Dir wurde {taskName} zugewiesen",
         "followUp": "{taskName} wartet weiterhin auf dich"
+      },
+      "Billing": {
+        "lowBalance": "Deine Credits werden knapp: noch {credits}",
+        "paymentFailed": "Eine Abo-Zahlung ist fehlgeschlagen",
+        "creditsAdded": "{credits} Credits wurden deinem Guthaben hinzugefügt",
+        "subscriptionEnding": "Dein Abo endet mit der aktuellen Laufzeit",
+        "followUp": "Deine Abrechnung braucht weiterhin deine Aufmerksamkeit"
+      },
+      "Project": {
+        "closed": "{projectName} ist jetzt geschlossen",
+        "closeFailed": "{projectName} konnte nicht vollständig geschlossen werden"
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",

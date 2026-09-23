@@ -71,7 +71,6 @@ struct ConversationSidebarView: View {
               }
             }
           }
-          // Channels section only for organization workspaces, mirroring web.
           if workspaces.selection?.workspace.organizationId != nil {
             Section {
               sectionHeader("Channels", section: .channels, closedAttention: resolveSectionAttention(partitioned.channels))
@@ -220,7 +219,7 @@ struct ConversationSidebarView: View {
       get: { workspaces.sidebar.actionError != nil },
       set: {
         if !$0 {
-          workspaces.sidebar.clearActionError()
+          Task { @MainActor in workspaces.sidebar.clearActionError() }
         }
       }
     )) {
@@ -385,7 +384,6 @@ struct ConversationSidebarView: View {
       unreadMentionCount: room.unreadMentionCount,
       markedUnread: room.markedUnread,
       isMuted: room.mutedAt != nil,
-      isActive: room.id == workspaces.selectedRoomId,
       showUnreadCount: workspaces.chatDisplay.showsRoomUnreadCount
     )
     return Label {
@@ -425,13 +423,22 @@ struct ConversationSidebarView: View {
     .labelStyle(RoomRowLabelStyle())
     .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
     .tag(room.id)
-    .badge(attention.badgeCount)
+    .badge(mentionBadge(attention))
     .contextMenu {
       // Reorder mode: the handle stands where the status does and the row menu is not offered.
       if pinned == nil {
         roomActions(room)
       }
     }
+  }
+
+  /// The mention badge as text, so it caps at "99+" like every other chat count. `nil` draws no
+  /// badge, as the zero `Int` badge did; VoiceOver hears web's spoken form, not "99 plus".
+  private func mentionBadge(_ attention: RoomAttention) -> Text? {
+    guard let label = attention.badgeLabel, let spoken = attention.badgeAccessibilityLabel else {
+      return nil
+    }
+    return Text(verbatim: label).accessibilityLabel(spoken)
   }
 
   /// Web's handle takes the drag and the Up/Down keys. `List` drags the whole row natively, so the
@@ -634,7 +641,7 @@ struct DirectRoomAvatarStack: View {
   private static let markSize: CGFloat = 8
 
   let participants: [DirectRoomAvatarParticipant]
-  /// Self Directs show no mark, like web.
+  /// Self Directs show no mark.
   var showsPresence = true
   /// Live org map (userId → online/afk); humans fall back to their snapshot.
   var livePresence: [String: Components.Schemas.ChatRoomPresence] = [:]

@@ -1,5 +1,10 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
+  BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+  BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
@@ -92,6 +97,12 @@ describe("toNotificationCategory", () => {
     expect(
       toNotificationCategory(NotificationKind.JOB, JOB_FOLLOW_UP_MESSAGE_KEY),
     ).toBe("FOLLOW_UP");
+    expect(
+      toNotificationCategory(
+        NotificationKind.BILLING,
+        BILLING_FOLLOW_UP_MESSAGE_KEY,
+      ),
+    ).toBe("FOLLOW_UP");
   });
 
   /**
@@ -120,8 +131,16 @@ describe("toNotificationCategory", () => {
       "Notifications.Task.approvalRequired",
       "Notifications.Task.authenticationRequired",
       "Notifications.Task.outOfCredits",
-      "Notifications.Task.scheduleRemovedByOperator",
     ]);
+  });
+
+  it("keeps operator schedule removal on the quiet update row", () => {
+    const messageKey = "Notifications.Task.scheduleRemovedByOperator";
+
+    expect(TASK_ATTENTION_MESSAGE_KEYS).not.toContain(messageKey);
+    expect(toNotificationCategory(NotificationKind.TASK, messageKey)).toBe(
+      "TASK_UPDATE",
+    );
   });
 
   it("puts every listed attention key on the loud row", () => {
@@ -151,6 +170,15 @@ describe("toNotificationCategory", () => {
     ).toBe("SYSTEM");
   });
 
+  it("maps project lifecycle notifications to project updates", () => {
+    expect(
+      toNotificationCategory(
+        NotificationKind.PROJECT,
+        "Notifications.Project.closed",
+      ),
+    ).toBe("PROJECT_UPDATE");
+  });
+
   it("splits chat by message key, because the reader chooses between them", () => {
     expect(
       toNotificationCategory(NotificationKind.CHAT, CHAT_MENTION_MESSAGE_KEY),
@@ -178,10 +206,45 @@ describe("toNotificationCategory", () => {
     ).toBeNull();
   });
 
-  it("has no category for billing, which nothing emits yet", () => {
+  /**
+   * Written out rather than read from the constant, so moving a key between
+   * the two lists is a test change and not a silent one.
+   */
+  it("splits billing into what waits on the reader and what does not", () => {
     expect(
-      toNotificationCategory(NotificationKind.BILLING, "whatever"),
-    ).toBeNull();
+      toNotificationCategory(
+        NotificationKind.BILLING,
+        BILLING_LOW_BALANCE_MESSAGE_KEY,
+      ),
+    ).toBe("BILLING_ATTENTION");
+    expect(
+      toNotificationCategory(
+        NotificationKind.BILLING,
+        BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+      ),
+    ).toBe("BILLING_ATTENTION");
+    expect(
+      toNotificationCategory(
+        NotificationKind.BILLING,
+        BILLING_CREDITS_ADDED_MESSAGE_KEY,
+      ),
+    ).toBe("BILLING_UPDATE");
+    expect(
+      toNotificationCategory(
+        NotificationKind.BILLING,
+        BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
+      ),
+    ).toBe("BILLING_UPDATE");
+  });
+
+  /** The safe way round: an unknown key is never louder than the reader asked for. */
+  it("files a billing key it does not know under the quiet row", () => {
+    expect(
+      toNotificationCategory(
+        NotificationKind.BILLING,
+        "Notifications.Billing.wat",
+      ),
+    ).toBe("BILLING_UPDATE");
   });
 
   /**
@@ -190,13 +253,15 @@ describe("toNotificationCategory", () => {
    */
   it("has an answer for every kind Core can store", () => {
     const EXPECTED: Record<NotificationKind, NotificationCategory | null> = {
-      // Read with the mention key, which is no task key, so that one answers
-      // with its quiet row. A job answers with nothing at all (SOK-930).
+      // Read with the mention key, which is no task key and no billing key,
+      // so those two answer with their quiet rows. A job answers with nothing
+      // at all (SOK-930).
       JOB: null,
       TASK: "TASK_UPDATE",
+      PROJECT: "PROJECT_UPDATE",
       SYSTEM: "SYSTEM",
       CHAT: "CHAT_MENTION",
-      BILLING: null,
+      BILLING: "BILLING_UPDATE",
     };
 
     for (const kind of Object.values(NotificationKind)) {
@@ -212,16 +277,17 @@ describe("resolveNotificationDelivery", () => {
 
   /**
    * The device is what a reader asks for, one group at a time. Until they do,
-   * a stored nothing is Sokosumi and no banner, whatever consent stands.
+   * a stored nothing is Sokosumi and the inbox and no banner, whatever
+   * consent stands.
    */
-  it("delivers in Sokosumi and nowhere else for a reader who set nothing", () => {
+  it("delivers in Sokosumi and the inbox, and not on the device, for a reader who set nothing", () => {
     expect(
       resolveNotificationDelivery({
         category: "TASK_ATTENTION",
         preferences: NO_PREFERENCES,
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false, email: false });
+    ).toEqual({ inApp: true, osBanner: false, email: true });
   });
 
   it("withholds the banner without account-wide push consent", () => {
@@ -233,7 +299,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: false,
       }),
-    ).toEqual({ inApp: true, osBanner: false, email: false });
+    ).toEqual({ inApp: true, osBanner: false, email: true });
   });
 
   it("stops delivering in-app when the reader turned that cell off", () => {
@@ -246,7 +312,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: false, osBanner: true, email: false });
+    ).toEqual({ inApp: false, osBanner: true, email: true });
   });
 
   it("stops interrupting when the reader turned that banner cell off", () => {
@@ -268,10 +334,12 @@ describe("resolveNotificationDelivery", () => {
         preferences: [
           { category: "CHAT_MENTION", channel: "IN_APP", enabled: false },
           { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
+          { category: "CHAT_MENTION", channel: "EMAIL", enabled: false },
+          { category: "CHAT_DIRECT_MESSAGE", channel: "EMAIL", enabled: true },
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false, email: false });
+    ).toEqual({ inApp: true, osBanner: false, email: true });
   });
 
   it("falls back to the defaults for a notification with no category", () => {
@@ -298,22 +366,61 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false, email: false });
+    ).toEqual({ inApp: true, osBanner: false, email: true });
   });
 
   /**
    * The row Core will never mail. A stored cell saying otherwise is somebody's
    * old preference or a write the page should not have made, and it must not
-   * turn into an email.
+   * turn into an email. Billing news is the lasting example: Stripe already
+   * mails it (see "does not email billing news" below).
    */
   it("ignores a stored email cell on a category that does not mail", () => {
     expect(
       resolveNotificationDelivery({
-        category: "SYSTEM",
-        preferences: [{ category: "SYSTEM", channel: "EMAIL", enabled: true }],
+        category: "BILLING_UPDATE",
+        preferences: [
+          { category: "BILLING_UPDATE", channel: "EMAIL", enabled: true },
+        ],
         pushOptIn: true,
       }),
     ).toEqual({ inApp: true, osBanner: false, email: false });
+  });
+});
+
+describe("resolveNotificationDelivery chat email", () => {
+  /**
+   * Chat email is opt-in. A mention and a direct message already reach the
+   * reader in Sokosumi and on the device, so a reader who stored nothing is
+   * not mailed about them as well.
+   */
+  it("sends no chat email to a reader who stored nothing", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "CHAT_MENTION",
+        preferences: [],
+        pushOptIn: true,
+      }).email,
+    ).toBe(false);
+    expect(
+      resolveNotificationDelivery({
+        category: "CHAT_DIRECT_MESSAGE",
+        preferences: [],
+        pushOptIn: true,
+      }).email,
+    ).toBe(false);
+  });
+
+  it("mails a mention once the reader turns that cell on", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "CHAT_MENTION",
+        preferences: [
+          { category: "CHAT_MENTION", channel: "EMAIL", enabled: true },
+        ],
+        pushOptIn: false,
+      }).email,
+    ).toBe(true);
   });
 });
 
@@ -380,19 +487,43 @@ describe("resolveNotificationDelivery for a reminder", () => {
 
     expect(delivery.inApp).toBe(true);
   });
+});
 
-  it("sends no email for a category that has no email to send", () => {
-    // Even with the row switched on. Nothing emails a task attention
-    // notification, so a stored row saying otherwise decides nothing.
+describe("resolveNotificationDelivery for billing", () => {
+  it("emails billing that waits on the reader when they have set nothing", () => {
     expect(
       resolveNotificationDelivery({
-        category: "TASK_ATTENTION",
+        category: "BILLING_ATTENTION",
+        preferences: [],
+        pushOptIn: false,
+      }),
+    ).toEqual({ inApp: true, osBanner: false, email: true });
+  });
+
+  it("does not email billing news, which Stripe already mails", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "BILLING_UPDATE",
         preferences: [
-          { category: "TASK_ATTENTION", channel: "EMAIL", enabled: true },
+          { category: "BILLING_UPDATE", channel: "EMAIL", enabled: true },
         ],
         pushOptIn: false,
       }).email,
     ).toBe(false);
+  });
+});
+
+describe("resolveNotificationDelivery email gate", () => {
+  it("mails a task update to a reader who has set nothing", () => {
+    // Task updates are the quiet outcomes a reader still wants to hear about:
+    // canceled, failed, repaired. They default on, like the other task rows.
+    expect(
+      resolveNotificationDelivery({
+        category: "TASK_UPDATE",
+        preferences: [],
+        pushOptIn: false,
+      }).email,
+    ).toBe(true);
   });
 });
 
@@ -407,13 +538,32 @@ describe("resolveNotificationMatrix email column", () => {
     ]);
   });
 
-  it("offers that cell switched on, so reminders reach an inbox by default", () => {
+  /**
+   * Written out rather than looped over the exported lists: the defaults are
+   * the decision, and a loop over `NOTIFICATION_EMAIL_CATEGORIES` cannot
+   * notice a category quietly changing its mind.
+   */
+  it("offers every email cell on except the chat ones, which wait to be asked", () => {
     const emailCells = resolveNotificationMatrix([]).filter(
       (cell) => cell.channel === "EMAIL",
     );
 
-    expect(emailCells.every((cell) => cell.enabled)).toBe(true);
-    expect(emailCells.length).toBeGreaterThan(0);
+    expect(
+      Object.fromEntries(
+        emailCells.map((cell) => [cell.category, cell.enabled]),
+      ),
+    ).toEqual({
+      TASK_ATTENTION: true,
+      TASK_COMPLETED: true,
+      TASK_UPDATE: true,
+      PROJECT_UPDATE: true,
+      CHAT_ROOM_MESSAGE: false,
+      CHAT_MENTION: false,
+      CHAT_DIRECT_MESSAGE: false,
+      BILLING_ATTENTION: true,
+      SYSTEM: true,
+      FOLLOW_UP: true,
+    });
   });
 });
 
@@ -551,4 +701,26 @@ describe("resolveNotificationMatrix", () => {
         .every((cell) => cell.enabled),
     ).toBe(true);
   });
+});
+
+describe("calendar email preferences", () => {
+  it.each(["TASK_UPDATE", "PROJECT_UPDATE"] as const)(
+    "honors %s email opt-out independently of push",
+    (category) => {
+      expect(
+        resolveNotificationDelivery({
+          category,
+          preferences: [],
+          pushOptIn: false,
+        }).email,
+      ).toBe(true);
+      expect(
+        resolveNotificationDelivery({
+          category,
+          preferences: [{ category, channel: "EMAIL", enabled: false }],
+          pushOptIn: true,
+        }).email,
+      ).toBe(false);
+    },
+  );
 });

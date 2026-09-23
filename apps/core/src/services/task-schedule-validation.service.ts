@@ -59,6 +59,7 @@ async function validateTask(taskId: string): Promise<boolean> {
         nextRunAt: true,
         archivedAt: true,
         scheduleQuarantine: { select: { id: true } },
+        project: { select: { closingAt: true, closedAt: true } },
       },
     });
     if (
@@ -66,7 +67,9 @@ async function validateTask(taskId: string): Promise<boolean> {
       task.archivedAt ||
       task.scheduleQuarantine ||
       task.workspaceId !== candidate.workspaceId ||
-      task.projectId !== candidate.projectId
+      task.projectId !== candidate.projectId ||
+      task.project?.closingAt ||
+      task.project?.closedAt
     ) {
       return false;
     }

@@ -64,10 +64,8 @@ Use `--metadata-json` or `--metadata-file` for coworker metadata. Use repeated `
 ## Endpoint map
 
 - `GET /v1/agents`
-- `GET /v1/agents/:agentId/input-schema`
-- `POST /v1/agents/:agentId/jobs`
+- `POST /v1/agents/:agentId/jobs` (`agents hire` fetches `GET /v1/agents/:agentId/input-schema` internally)
 - `GET /v1/coworkers`
-- `GET /v1/coworkers/:coworkerId`
 - `POST /v1/tasks`
 - `GET /v1/tasks`
 - `GET /v1/tasks/:taskId`

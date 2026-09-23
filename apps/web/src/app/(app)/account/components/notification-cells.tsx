@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Bell,
-  type LucideIcon,
-  Mail,
-  MailClock,
-  Smartphone,
-} from "lucide-react";
+import { Bell, type LucideIcon, Mail, Smartphone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useMemo, useState } from "react";
 
@@ -38,7 +32,7 @@ import type { KindChoice } from "./use-notification-delivery";
  * the finger has already made, which is the one part of it a reader feels.
  */
 const CELL =
-  "focus-visible:border-ring focus-visible:ring-ring-halo flex size-9 shrink-0 items-center justify-center rounded-md border transition-[color,background-color,border-color,scale] ease-out outline-none focus-visible:ring-[3px]";
+  "focus-visible:border-ring focus-visible:ring-ring-halo flex size-8 shrink-0 items-center justify-center rounded-md border transition-[color,background-color,border-color,scale] ease-out outline-none focus-visible:ring-[3px]";
 /**
  * The squeeze a cell gives back while it is held.
  *
@@ -54,8 +48,14 @@ const CELL_OFF =
  * Nothing to press, and the lightest of the three: a filled cell is on, an
  * outlined one is off, and this one carries no box at all. A border here would
  * make the one cell that cannot be pressed the most drawn of the row.
+ *
+ * The icon is a step lighter than the one in an off cell as well. Without it
+ * the two differ by the border alone, so the only thing separating "off" from
+ * "not available here" is a line measuring about 3:1 on the card (3.00 light,
+ * 3.01 dark), and a reader who reads the icon rather than the box sees no
+ * difference at all.
  */
-const CELL_DEAD = "text-muted-foreground cursor-default border-transparent";
+const CELL_DEAD = "text-disabled-foreground cursor-default border-transparent";
 /**
  * The column a cell stands in, holding one width for the cell and its name.
  *
@@ -74,6 +74,17 @@ const CELL_DEAD = "text-muted-foreground cursor-default border-transparent";
 export const CELL_TRACK = "flex w-12 shrink-0 justify-center @xl:w-18";
 
 /**
+ * The width of all three columns at once, for the one control that answers
+ * for all three.
+ *
+ * Three tracks and the two `gap-2` between them: 3 x 48 + 16 is 160px, and
+ * from `@xl` 3 x 72 + 16 is 232px. Kept here, next to the track it is derived
+ * from, because the two cannot drift apart without the answers down the card
+ * ending at two widths.
+ */
+export const CELL_TRACK_SPAN = "w-40 @xl:w-58";
+
+/**
  * The face of each channel in the grid.
  *
  * Written out per channel rather than carried on `CHANNEL_SPECS`, which the
@@ -85,8 +96,8 @@ export const CELL_TRACK = "flex w-12 shrink-0 justify-center @xl:w-18";
 export const CHANNEL_ICON: Record<StoredChannel, LucideIcon> = {
   IN_APP: Bell,
   OS_BANNER: Smartphone,
-  // Drawn in the email column rather than beside the other two, because only
-  // the reminder row stores this channel. `CHANNEL_SPECS` is what decides the
+  // Drawn in the email column rather than beside the other two, because not
+  // every row stores this channel. `CHANNEL_SPECS` is what decides the
   // columns, and `EMAIL` is deliberately absent from it.
   EMAIL: Mail,
 };
@@ -100,21 +111,27 @@ export interface EmailChoice {
 }
 
 /**
- * A cell with nothing to press, and a reason a reader can reach.
+ * A cell the reader cannot press, and a reason they can reach.
  *
  * Kept in the row rather than dropped, so the column has no hole in it and the
  * row still says what that channel would mean here. The reason opens on hover
  * and on focus, and it is the cell's own description, because a native title
  * waits a second, never opens on a phone, and never opens on focus.
+ *
+ * `on` is the one that arrives anyway: a channel somebody else mails. Drawn
+ * filled like a cell that is on, because that is what it is saying, while the
+ * shape and the disabled state keep it from reading as something to press.
  */
-function DeadCell({
+function UnpressableCell({
   icon: Icon,
   label,
   hint,
+  on = false,
 }: {
   icon: LucideIcon;
   label: string;
   hint: string;
+  on?: boolean;
 }) {
   const hintId = useId();
 
@@ -129,7 +146,7 @@ function DeadCell({
           aria-disabled="true"
           aria-label={label}
           aria-describedby={hintId}
-          className={cn(CELL, CELL_DEAD)}
+          className={cn(CELL, on ? cn(CELL_ON, "cursor-default") : CELL_DEAD)}
         >
           <Icon className="size-4" aria-hidden="true" />
         </button>
@@ -157,7 +174,7 @@ export function UnusedChannelCells({ kind }: { kind: string }) {
   return (
     <>
       {CHANNEL_SPECS.map((spec) => (
-        <DeadCell
+        <UnpressableCell
           key={spec.id}
           icon={CHANNEL_ICON[spec.id]}
           label={t("channelUnavailableLabel", {
@@ -247,7 +264,7 @@ export function EmailCell({
  * cannot see the row would otherwise never learn. So every change says where
  * the kind now arrives, once, in the reader's own words.
  */
-function KindCells({
+export function KindCells({
   kind,
   pushBlock,
   onToggle,
@@ -261,8 +278,8 @@ function KindCells({
   const label = t(kind.spec.labelKey);
   const pushHintId = useId();
 
-  // The cells this row draws, which is the columns plus the reminder row's own
-  // email cell (SOK-916). One list rather than a cell drawn beside the loop,
+  // The cells this row draws, which is the columns plus the email cell of a
+  // row that mails. One list rather than a cell drawn beside the loop,
   // so the press, the state and the sentence the row speaks all read the same
   // set. Last in the list, which is where the email column sits on every other
   // row.
@@ -344,9 +361,11 @@ function KindCells({
   /**
    * The email column on this row, which is one of two different things.
    *
-   * `NONE` has nothing behind it and says so. `CHANNEL` is already drawn, by
-   * the loop over `cellSpecs`, because that one is a cell of the matrix like
-   * the two beside it and is written by the same path (SOK-916).
+   * `EXTERNAL` is mail somebody else sends, always, and the cell says so
+   * rather than offering a switch that reaches nothing (SOK-1142). `CHANNEL`
+   * is already drawn, by the loop over `cellSpecs`, because that one is a
+   * cell of the matrix like the two beside it and is written by the same
+   * path.
    */
   function emailCell() {
     if (kind.spec.email === "CHANNEL") {
@@ -354,10 +373,11 @@ function KindCells({
     }
 
     return (
-      <DeadCell
-        icon={MailClock}
-        label={t("channelEmailSoonLabel", { kind: label })}
-        hint={t("channelEmailSoonHint")}
+      <UnpressableCell
+        on
+        icon={Mail}
+        label={t("channelEmailExternalLabel", { kind: label })}
+        hint={t("channelEmailExternalHint")}
       />
     );
   }
@@ -430,19 +450,17 @@ function KindCells({
  * carries every channel, so a reader compares along a row as well as down a
  * column, and no kind's answer sits somewhere else.
  *
- * `showNames` is off for a group of one kind, whose name is already the row
- * the grid sits in.
+ * Only a group of more than one kind folds, so every row here is named. A
+ * group of one is a row on the card itself, with its cells on it.
  */
 export function ChannelGrid({
   kinds,
   pushBlock,
-  showNames,
   heads,
   onToggle,
 }: {
   kinds: readonly KindChoice[];
   pushBlock: PushBlock | null;
-  showNames: boolean;
   /** The column names, drawn once above the rows. */
   heads?: ReactNode;
   onToggle: (kind: KindChoice, channel: StoredChannel, on: boolean) => void;
@@ -451,9 +469,8 @@ export function ChannelGrid({
 
   return (
     // The rule under the column names is what makes them a head rather than a
-    // band of loose words, and a group of one kind has the same head as a
-    // group of five. Between rows it only ever falls where there is a second
-    // row to divide from.
+    // band of loose words. Between rows it only ever falls where there is a
+    // second row to divide from.
     <div className="divide-y">
       {heads}
       {kinds.map((kind) => (
@@ -464,14 +481,14 @@ export function ChannelGrid({
           key={kind.spec.category}
           className="flex flex-col gap-2 py-2 @xl:flex-row @xl:items-center @xl:justify-end @xl:gap-2"
         >
-          {showNames ? (
-            <div className="min-w-0 pr-3 pl-6 break-words @xl:flex-1 @xl:pl-10">
-              <p className="text-sm leading-5">{t(kind.spec.labelKey)}</p>
-              <p className="text-muted-foreground text-sm leading-5">
-                {t(kind.spec.hintKey)}
-              </p>
-            </div>
-          ) : null}
+          <div className="min-w-0 pr-3 pl-6 break-words @xl:flex-1 @xl:pl-10">
+            {/* At 400 under a group name at 500, so a kind reads as
+                belonging to the group above it. */}
+            <p className="text-sm leading-5">{t(kind.spec.labelKey)}</p>
+            <p className="text-muted-foreground text-sm leading-5">
+              {t(kind.spec.hintKey)}
+            </p>
+          </div>
           <KindCells
             kind={kind}
             pushBlock={pushBlock}

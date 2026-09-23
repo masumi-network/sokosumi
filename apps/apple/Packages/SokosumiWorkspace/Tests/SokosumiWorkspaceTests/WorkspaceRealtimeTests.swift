@@ -13,18 +13,6 @@ private let roomA = "550e8400-e29b-41d4-a716-446655440700"
 private let roomB = "550e8400-e29b-41d4-a716-446655440701"
 private let realtimeWindow = UUID()
 
-private struct RealtimeMemoryTokenStore: TokenStore {
-  var tokens: OAuthTokens?
-  func load() -> OAuthTokens? {
-    tokens
-  }
-
-  func save(_: OAuthTokens) throws {}
-  func clear() -> Bool {
-    true
-  }
-}
-
 private final class RealtimeScriptedTransport: ClientTransport, @unchecked Sendable {
   private(set) var operationIDs: [String] = []
   private(set) var requests: [HTTPRequest] = []
@@ -208,11 +196,11 @@ private func realtimeState(
   defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(
     savedRoom: SavedRoomSelection(defaults: defaults),
-    instanceStore: MemoryAblyClientInstanceIdStore(stored: instanceId)
+    instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId)
   )
   state.setWindowVisible(true, window: realtimeWindow)
   state.clientResolver = { client }
-  return (state, AuthState(configuration: nil, store: RealtimeMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport)
+  return (state, AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport)
 }
 
 private func waitForRealtimeIdle(_ state: WorkspaceState) async {
@@ -240,6 +228,7 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
   private(set) var disconnectCount = 0
   private(set) var presenceOrganizations: [String?] = []
   private(set) var publishedPresence: [ChatPresenceMemberData] = []
+  private(set) var inFront: [Bool] = []
   private var handler: RealtimeEventHandler?
 
   func connect(
@@ -277,6 +266,10 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
 
   func publishPresence(_ data: ChatPresenceMemberData) {
     publishedPresence.append(data)
+  }
+
+  func setInFront(_ inFront: Bool) {
+    self.inFront.append(inFront)
   }
 
   func disconnect() {
@@ -586,7 +579,7 @@ struct WorkspaceRealtimeTests {
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 3)
   }
 
-  @Test func envelopeDeleteTombstonesOnScreenRow() async throws {
+  @Test func envelopeDeleteDropsOnScreenRow() async throws {
     let targetId = "550e8400-e29b-41d4-a716-446655440719"
     let (state, auth, _) = try realtimeState([
       (200, realtimeAccessBody()),
@@ -599,9 +592,12 @@ struct WorkspaceRealtimeTests {
     ])
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
+    #expect(state.displayedTranscript.map(\.id) == [targetId])
     state.applyRealtimeEnvelope(
       .init(eventType: .delete, messageId: targetId, roomId: roomA)
     )
+    // Row 19a: state keeps the tombstone (patches still address it); the transcript drops it like web.
+    #expect(state.displayedTranscript.isEmpty)
     #expect(state.transcriptMessages.count == 1)
     #expect(state.transcriptMessages[0].content.isEmpty)
     #expect(state.transcriptMessages[0].deletedAt != nil)
@@ -633,6 +629,31 @@ struct WorkspaceRealtimeTests {
     #expect(state.transcriptRoomId == nil)
     #expect(state.transcriptMessages.isEmpty)
     #expect(fake.membershipRooms.last == [roomB])
+  }
+
+  @Test func windowVisibilityDrivesNotificationPresence() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState([
+      (200, realtimeAccessBody()),
+      (200, realtimeOrgsBody),
+      (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])),
+      (200, realtimeReadBody(id: roomA))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    // The window was visible before the socket existed, so the connection is
+    // told at connect rather than waiting for the next change.
+    #expect(fake.inFront == [true])
+
+    state.setWindowVisible(false, window: realtimeWindow)
+    #expect(fake.inFront == [true, false])
+    state.setWindowVisible(true, window: realtimeWindow)
+    #expect(fake.inFront == [true, false, true])
+    state.reset()
   }
 
   @Test func pendingSidebarResponseCannotRestoreRevokedRoom() async throws {
@@ -780,11 +801,11 @@ struct WorkspaceRealtimeTests {
   }
 
   @Test func instanceIdIsStableAcrossStates() {
-    let store = MemoryAblyClientInstanceIdStore()
+    let store = MemoryRealtimeClientInstanceIdStore()
     let first = WorkspaceState(instanceStore: store)
     let second = WorkspaceState(instanceStore: store)
-    #expect(first.ablyClientInstanceId == second.ablyClientInstanceId)
-    #expect(isValidAblyClientInstanceId(first.ablyClientInstanceId))
+    #expect(first.realtimeClientInstanceId == second.realtimeClientInstanceId)
+    #expect(isValidRealtimeClientInstanceId(first.realtimeClientInstanceId))
   }
 
   @Test func tokenMintUsesInstanceIdAndPersonalOmitsOrgHeader() async throws {
