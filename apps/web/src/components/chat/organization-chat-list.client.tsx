@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useId, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   acceptChatRoomInvitationAction,
@@ -173,6 +173,8 @@ export function OrganizationChatList({
   const [externalOpen, setExternalOpen] = useState(true);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [filterPass, setFilterPass] = useState(EMPTY_UNREAD_FILTER_PASS);
+  // The app sidebar and the mobile `/chat` page each mount this list.
+  const inboxReadLabelId = useId();
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
@@ -437,7 +439,7 @@ export function OrganizationChatList({
             {caughtUp ? (
               // Everything left is read: say why it is still listed.
               <p
-                id="unread-inbox-read-label"
+                id={inboxReadLabelId}
                 className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pb-1 text-xs font-medium"
               >
                 {t("UnreadNav.justRead")}
@@ -445,7 +447,7 @@ export function OrganizationChatList({
             ) : null}
             <SidebarMenu
               data-slot="unread-inbox"
-              aria-labelledby={caughtUp ? "unread-inbox-read-label" : undefined}
+              aria-labelledby={caughtUp ? inboxReadLabelId : undefined}
               className="gap-0"
             >
               {inboxRooms.map((room) => {

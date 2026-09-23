@@ -21,6 +21,8 @@ const unreadChannel = makeRoom({
   myAccess: "member",
   unreadCount: 2,
   channelUnreadCount: 2,
+  // Newer than #design, so the filter's order is activity, not id.
+  updatedAt: new Date("2026-09-23T09:00:00.000Z"),
 });
 const threadsOnlyChannel = makeRoom({
   id: "design",
@@ -93,12 +95,11 @@ describe("OrganizationChatList All unreads filter", () => {
       organizationId: "org-1",
       rooms,
     });
-    expect(rowLabels()).toEqual(["design", "general", "launch", "room"]);
+    expect(rowLabels()).toEqual(["launch", "design", "general", "room"]);
 
     await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
 
-    expect(inboxRows(container).sort()).toEqual(["design", "launch"]);
-    expect(rowLabels().sort()).toEqual(["design", "launch"]);
+    expect(inboxRows(container)).toEqual(["launch", "design"]);
     expect(screen.queryByText("App.Channels.title")).not.toBeInTheDocument();
     expect(
       screen.queryByText("App.Channels.directMessages"),
@@ -170,7 +171,7 @@ describe("OrganizationChatList All unreads filter", () => {
     await userEvent.click(toggle);
     await userEvent.click(toggle);
 
-    expect(rowLabels()).toEqual(["design", "general", "launch", "room"]);
+    expect(rowLabels()).toEqual(["launch", "design", "general", "room"]);
   });
 });
 
@@ -189,9 +190,7 @@ describe("OrganizationChatList All unreads read in place", () => {
       rooms: start,
     });
     await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
-    const order = inboxRows(container);
-    expect(order.sort()).toEqual(["design", "launch"]);
-    const [first, second] = inboxRows(container);
+    expect(inboxRows(container)).toEqual(["launch", "design"]);
 
     // #launch is read: it stays in its place, dimmed.
     const launchRead = [read(unreadChannel), threadsOnlyChannel, readChannel];
@@ -202,9 +201,8 @@ describe("OrganizationChatList All unreads read in place", () => {
         rooms: launchRead,
       }),
     );
-    const dim = (label?: string) =>
-      label === "launch" ? "launch (read)" : label;
-    expect(inboxRows(container)).toEqual([dim(first), dim(second)]);
+    // Its read moved `updatedAt` on, and it still does not jump.
+    expect(inboxRows(container)).toEqual(["launch (read)", "design"]);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     // #design too: caught up, both still one click away, still in place.
@@ -217,10 +215,7 @@ describe("OrganizationChatList All unreads read in place", () => {
     rerender(
       createOrganizationChatList({ organizationId: "org-1", rooms: allRead }),
     );
-    expect(inboxRows(container)).toEqual([
-      `${first} (read)`,
-      `${second} (read)`,
-    ]);
+    expect(inboxRows(container)).toEqual(["launch (read)", "design (read)"]);
     expect(screen.getByRole("status")).toHaveTextContent(
       "App.Channels.UnreadNav.caughtUp",
     );
