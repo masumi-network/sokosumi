@@ -24,19 +24,51 @@ const { openAttachmentMock } = vi.hoisted(() => ({
   openAttachmentMock: vi.fn(),
 }));
 
-// The real body carries attachment tiles, links and players; stand in for
-// one of each kind of control.
-vi.mock("./room-message-row", () => ({
-  ChannelMessageText: ({ content }: { content: string }) => (
-    <span>
-      {content}
-      <button type="button" onClick={openAttachmentMock}>
-        View document budget.pdf
-      </button>
-      <a href="https://blob.example.com/budget.xlsx">budget.xlsx</a>
-    </span>
-  ),
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values?.fileName ? `${key} ${values.fileName}` : key,
 }));
+
+// The real body carries attachment tiles, links and players. A real image
+// tile opening a real gallery viewer, wired as ChannelMessageText wires them
+// (the viewer is portaled, so its clicks still bubble through React), plus
+// stand-ins for the other controls.
+vi.mock("./room-message-row", async () => {
+  const { useState } = await import("react");
+  const { FileChipMiniPreviewFrame } = await import(
+    "@/components/ui/file-chip-mini-preview"
+  );
+  const { ImageViewer } = await import("@/components/ui/image-viewer");
+  const imageUrl = "https://blob.example.com/uploads/chart.png";
+
+  function ChannelMessageText({ content }: { content: string }) {
+    const [openImageSrc, setOpenImageSrc] = useState<string | null>(null);
+    return (
+      <span>
+        {content}
+        <FileChipMiniPreviewFrame
+          url={imageUrl}
+          fileName="chart.png"
+          mediaType="image/png"
+          onOpenImage={() => {
+            setOpenImageSrc(imageUrl);
+          }}
+        />
+        <ImageViewer
+          images={[{ src: imageUrl, alt: "chart.png" }]}
+          activeSrc={openImageSrc}
+          onActiveSrcChange={setOpenImageSrc}
+        />
+        <button type="button" onClick={openAttachmentMock}>
+          View document budget.pdf
+        </button>
+        <a href="https://blob.example.com/budget.xlsx">budget.xlsx</a>
+      </span>
+    );
+  }
+
+  return { ChannelMessageText };
+});
 
 const labels = {
   title: "Pinned Messages",
@@ -190,6 +222,25 @@ describe("PinnedMessagesPanel", () => {
     fireEvent.click(screen.getByRole("link", { name: "budget.xlsx" }));
 
     expect(openAttachmentMock).toHaveBeenCalledOnce();
+    expect(onJump).not.toHaveBeenCalled();
+  });
+
+  it("opens and uses the image viewer without jumping", async () => {
+    const user = userEvent.setup();
+    const onJump = vi.fn(async () => true);
+    renderPanel(onJump);
+
+    await user.click(
+      await screen.findByRole("button", { name: "viewImage chart.png" }),
+    );
+    await screen.findByTestId("image-viewer");
+    await user.click(screen.getByRole("button", { name: "zoomIn" }));
+    // A click on the stage closes the viewer; it must not jump either.
+    await user.click(screen.getByTestId("image-viewer-stage"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
+    });
     expect(onJump).not.toHaveBeenCalled();
   });
 

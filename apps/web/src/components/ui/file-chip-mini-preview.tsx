@@ -4,7 +4,7 @@ import { getExtensionFromUrl } from "@sokosumi/utils";
 import { X } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { type MouseEvent, type ReactNode, useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { canUseNextImageSrc } from "@/config/next-image";
 import { DocumentViewer } from "@/components/ui/document-viewer";
@@ -74,12 +74,6 @@ function FileChipMiniPreviewTrigger({
   const extension = getExtensionFromUrl(fileName ?? url);
   const useLargeImage = variant === "large" && isImage;
 
-  function handleOpenImageClick(event: MouseEvent<HTMLButtonElement>): void {
-    // The pinned-message row is a button. Opening must not jump away.
-    event.stopPropagation();
-    onOpenImage();
-  }
-
   // The large preview sizes itself from the bytes; remembered, a remount in
   // a virtualized list reserves the box instead of growing a frame later.
   const largeImageSize = useRememberedImageSize(useLargeImage ? url : undefined);
@@ -91,7 +85,7 @@ function FileChipMiniPreviewTrigger({
           type="button"
           aria-label={t("viewImage", { fileName: resolvedFileName })}
           className={cn(previewTriggerClassName, largeImageTriggerClassName)}
-          onClick={handleOpenImageClick}
+          onClick={onOpenImage}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -111,7 +105,7 @@ function FileChipMiniPreviewTrigger({
         type="button"
         aria-label={t("viewImage", { fileName: resolvedFileName })}
         className={cn(previewTriggerClassName, sizeClass)}
-        onClick={handleOpenImageClick}
+        onClick={onOpenImage}
       >
         <div className="relative size-full overflow-hidden">
           {canUseNextImage ? (
