@@ -126,7 +126,7 @@ describe("OrganizationChatList All unreads filter", () => {
 
   // The open room stays listed so reading it never pulls it away, but it is
   // there because it is open, not because it holds anything unread.
-  it("says caught up with only the open room left, and lists that room as read", async () => {
+  it("says caught up with only the open room left, and lists that room undimmed while open", async () => {
     harnessPathname.current = `/chat/rooms/${readChannel.id}`;
     listRoomsMock.mockResolvedValue(emptyListResult([readChannel, readDirect]));
     const { container } = renderOrganizationChatList({
@@ -136,7 +136,8 @@ describe("OrganizationChatList All unreads filter", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
 
-    expect(inboxRows(container)).toEqual(["general (read)"]);
+    // Dimmed, its highlight would read as disabled.
+    expect(inboxRows(container)).toEqual(["general"]);
     expect(screen.getByRole("status")).toHaveTextContent(
       "App.Channels.UnreadNav.caughtUp",
     );
@@ -340,8 +341,35 @@ describe("OrganizationChatList All unreads pinned rooms", () => {
       createOrganizationChatList({ organizationId: "org-1", rooms: start }),
     );
 
-    expect(pinnedRows(container)).toEqual(["handbook (read)", "ops"]);
+    expect(pinnedRows(container)).toEqual(["handbook", "ops"]);
     expect(inboxRows(container)).toEqual(["launch"]);
+
+    // Left for another room, it dims where it is.
+    harnessPathname.current = `/chat/rooms/${unreadChannel.id}`;
+    rerender(
+      createOrganizationChatList({ organizationId: "org-1", rooms: start }),
+    );
+    expect(pinnedRows(container)).toEqual(["handbook (read)", "ops"]);
+  });
+
+  it("puts a pending invitation above Pinned, with what needs the reader", async () => {
+    const invitation = makeInvitation();
+    listPendingMock.mockResolvedValue({ ok: true, value: [invitation] });
+    listRoomsMock.mockResolvedValue(emptyListResult([pinnedRead]));
+    const { container } = renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: [pinnedRead],
+      pendingInvitations: [invitation],
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
+
+    const external = await screen.findByText("Partners");
+    expect(
+      external.compareDocumentPosition(
+        container.querySelector('[data-slot="unread-inbox-pinned"]') as Node,
+      ),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("is not caught up while a pinned room alone is unread", async () => {

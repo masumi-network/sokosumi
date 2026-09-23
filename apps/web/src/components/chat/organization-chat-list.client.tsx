@@ -336,6 +336,12 @@ export function OrganizationChatList({
   const inboxPinnedRooms = unreadOnly ? pinned : [];
   const isUnreadRoom = (room: ChatRoom) =>
     unreadRooms.some((row) => row.id === room.id);
+  // Read rooms dim, but not the open one: dimmed, its highlight reads as
+  // disabled.
+  const inboxItemProps = (room: ChatRoom) =>
+    isUnreadRoom(room) || room.id === activeRoomId
+      ? undefined
+      : READ_INBOX_ROOM_ITEM_PROPS;
   const pinnedRoomIds = pinned.map((room) => room.id);
   // Reordering lives on the full Pinned section's header, which the filter
   // replaces; its Pinned group shows every pin, fixed.
@@ -469,39 +475,11 @@ export function OrganizationChatList({
               aria-labelledby={caughtUp ? inboxReadLabelId : undefined}
               className="gap-0"
             >
-              {inboxRooms.map((room) => {
-                const read = !isUnreadRoom(room);
-                return (
-                  <ChatRoomSidebarRow
-                    key={room.id}
-                    {...roomRowProps(room)}
-                    itemProps={read ? READ_INBOX_ROOM_ITEM_PROPS : undefined}
-                  />
-                );
-              })}
-            </SidebarMenu>
-          </div>
-        ) : null}
-        {inboxPinnedRooms.length > 0 ? (
-          <div>
-            <p
-              id={inboxPinnedLabelId}
-              className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pb-1 text-xs font-medium"
-            >
-              {t("pinned")}
-            </p>
-            <SidebarMenu
-              data-slot="unread-inbox-pinned"
-              aria-labelledby={inboxPinnedLabelId}
-              className="gap-0"
-            >
-              {inboxPinnedRooms.map((room) => (
+              {inboxRooms.map((room) => (
                 <ChatRoomSidebarRow
                   key={room.id}
                   {...roomRowProps(room)}
-                  itemProps={
-                    isUnreadRoom(room) ? undefined : READ_INBOX_ROOM_ITEM_PROPS
-                  }
+                  itemProps={inboxItemProps(room)}
                 />
               ))}
             </SidebarMenu>
@@ -714,6 +692,31 @@ export function OrganizationChatList({
           </Collapsible>
         ) : null}
 
+        {/* After External: a pending invitation waits on the reader, as an
+            unread room does. */}
+        {inboxPinnedRooms.length > 0 ? (
+          <div>
+            <p
+              id={inboxPinnedLabelId}
+              className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pb-1 text-xs font-medium"
+            >
+              {t("pinned")}
+            </p>
+            <SidebarMenu
+              data-slot="unread-inbox-pinned"
+              aria-labelledby={inboxPinnedLabelId}
+              className="gap-0"
+            >
+              {inboxPinnedRooms.map((room) => (
+                <ChatRoomSidebarRow
+                  key={room.id}
+                  {...roomRowProps(room)}
+                  itemProps={inboxItemProps(room)}
+                />
+              ))}
+            </SidebarMenu>
+          </div>
+        ) : null}
         {hasOrganization && !unreadOnly && sortedArchivedChannels.length > 0 ? (
           <Collapsible
             open={archivedSectionOpen}
