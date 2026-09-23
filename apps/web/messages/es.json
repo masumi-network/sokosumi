@@ -845,7 +845,10 @@
       "zoomReset": "Restablecer zoom",
       "more": "Más opciones",
       "openInNewTab": "Abrir en una pestaña nueva",
-      "copyImage": "Copiar imagen"
+      "copyImage": "Copiar imagen",
+      "previous": "Imagen anterior",
+      "next": "Imagen siguiente",
+      "position": "{current} / {total}"
     },
     "DocumentViewer": {
       "title": "Documento",

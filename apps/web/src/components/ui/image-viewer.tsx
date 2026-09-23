@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  ChevronLeft,
+  ChevronRight,
   Download,
   Ellipsis,
   ImageIcon,
@@ -11,7 +13,12 @@ import {
   XIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import {
+  type KeyboardEvent,
+  type PointerEvent,
+  useRef,
+  useState,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -29,12 +36,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-interface ImageViewerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+export interface ImageViewerImage {
   src: string;
   alt: string;
   downloadFilename?: string;
+}
+
+interface ImageViewerProps {
+  images: readonly ImageViewerImage[];
+  /** The open image; `null`, or a src missing from `images`, keeps it closed. */
+  activeSrc: string | null;
+  onActiveSrcChange: (src: string | null) => void;
   className?: string;
 }
 
@@ -42,9 +54,17 @@ interface ViewerUiState {
   zoom: number;
 }
 
+/** Horizontal travel, in CSS pixels, that turns a touch into a swipe. */
+const SWIPE_THRESHOLD = 50;
+
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.25;
+
+// aria-disabled, not disabled: a disabled button drops focus to the body,
+// and the arrow keys stop reaching the viewer after clicking to an end.
+const stepButtonClassName =
+  "absolute top-1/2 size-11 -translate-y-1/2 rounded-full bg-scrim-strong text-on-media hover:bg-scrim hover:text-on-media aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-scrim-strong";
 
 const toolbarButtonClassName =
   "size-9 shrink-0 rounded-full text-on-media hover:bg-on-media-quaternary hover:text-on-media";
@@ -121,15 +141,21 @@ function ImageViewerChrome({
   src,
   alt,
   downloadFilename,
-  onOpenChange,
-}: {
-  src: string;
-  alt: string;
-  downloadFilename?: string;
-  onOpenChange: (open: boolean) => void;
+  position,
+  total,
+  onClose,
+  onPrevious,
+  onNext,
+}: ImageViewerImage & {
+  position: number;
+  total: number;
+  onClose: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
 }) {
   const t = useTranslations("Components.ImageViewer");
   const [{ zoom }, setUiState] = useState<ViewerUiState>({ zoom: 1 });
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const displayName = downloadFilename ?? alt;
 
   function setZoom(nextZoom: number): void {
@@ -149,7 +175,37 @@ function ImageViewerChrome({
   }
 
   function handleStageClick(): void {
-    onOpenChange(false);
+    onClose();
+  }
+
+  // A zoomed image is being inspected, not browsed, so only 100% swipes:
+  // neither the viewer's zoom nor a browser pinch-zoom of the page.
+  function handleStagePointerDown(event: PointerEvent<HTMLDivElement>): void {
+    const pageScale = window.visualViewport?.scale ?? 1;
+    swipeStartRef.current =
+      event.pointerType !== "mouse" && zoom === 1 && pageScale === 1
+        ? { x: event.clientX, y: event.clientY }
+        : null;
+  }
+
+  function handleStagePointerUp(event: PointerEvent<HTMLDivElement>): void {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start) {
+      return;
+    }
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+    const isSwipe =
+      Math.abs(deltaX) >= SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY);
+    if (!isSwipe) {
+      return;
+    }
+    if (deltaX < 0) {
+      onNext();
+    } else {
+      onPrevious();
+    }
   }
 
   function handlePrint(): void {
@@ -188,6 +244,11 @@ function ImageViewerChrome({
             </Button>
           </DialogClose>
           <ImageIcon className="size-4 shrink-0 opacity-80" aria-hidden="true" />
+          {total > 1 ? (
+            <span className="shrink-0 text-sm text-on-media-muted tabular-nums">
+              {t("position", { current: position, total })}
+            </span>
+          ) : null}
           <span className="truncate text-sm">{displayName}</span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -235,9 +296,14 @@ function ImageViewerChrome({
         </div>
       </div>
       <div
-        className="relative flex min-h-0 flex-1 items-center justify-center bg-media-ground"
+        className="relative flex min-h-0 flex-1 touch-pinch-zoom items-center justify-center bg-media-ground"
         data-testid="image-viewer-stage"
         onClick={handleStageClick}
+        onPointerDown={handleStagePointerDown}
+        onPointerUp={handleStagePointerUp}
+        onPointerCancel={() => {
+          swipeStartRef.current = null;
+        }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -296,15 +362,68 @@ function ImageViewerChrome({
 }
 
 export function ImageViewer({
-  open,
-  onOpenChange,
-  src,
-  alt,
-  downloadFilename,
+  images,
+  activeSrc,
+  onActiveSrcChange,
   className,
 }: ImageViewerProps) {
+  const t = useTranslations("Components.ImageViewer");
+  const activeIndex = images.findIndex((image) => image.src === activeSrc);
+  const activeImage = images[activeIndex];
+  const previousImage =
+    activeIndex > 0 ? images[activeIndex - 1] : undefined;
+  const nextImage =
+    activeIndex >= 0 ? images[activeIndex + 1] : undefined;
+
+  function handleClose(): void {
+    onActiveSrcChange(null);
+  }
+
+  function handlePrevious(): void {
+    if (previousImage) {
+      onActiveSrcChange(previousImage.src);
+    }
+  }
+
+  function handleNext(): void {
+    if (nextImage) {
+      onActiveSrcChange(nextImage.src);
+    }
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    // The More menu portals out of the viewer but still bubbles here through
+    // React; its own arrow keys must not step the image.
+    const fromViewer =
+      event.target instanceof Node && event.currentTarget.contains(event.target);
+    if (
+      !fromViewer ||
+      event.defaultPrevented ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey
+    ) {
+      return;
+    }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      handlePrevious();
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      handleNext();
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={activeImage !== undefined}
+      onOpenChange={(open) => {
+        if (!open) {
+          handleClose();
+        }
+      }}
+    >
       <DialogContent
         showCloseButton={false}
         className={cn(
@@ -312,14 +431,58 @@ export function ImageViewer({
           className,
         )}
         data-testid="image-viewer"
+        onKeyDown={handleKeyDown}
       >
-        <ImageViewerChrome
-          key={src}
-          src={src}
-          alt={alt}
-          downloadFilename={downloadFilename}
-          onOpenChange={onOpenChange}
-        />
+        {activeImage ? (
+          <ImageViewerChrome
+            key={activeImage.src}
+            {...activeImage}
+            position={activeIndex + 1}
+            total={images.length}
+            onClose={handleClose}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+          />
+        ) : null}
+        {[previousImage, nextImage].map((image) =>
+          image ? (
+            // A hidden img still fetches, so stepping shows a cached image.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={image.src}
+              src={image.src}
+              alt=""
+              hidden
+              data-preload
+            />
+          ) : null,
+        )}
+        {images.length > 1 ? (
+          <>
+            <Button
+              type="button"
+              aria-label={t("previous")}
+              aria-disabled={previousImage === undefined || undefined}
+              className={cn(stepButtonClassName, "left-4")}
+              size="icon"
+              variant="ghost"
+              onClick={handlePrevious}
+            >
+              <ChevronLeft className="size-5" aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              aria-label={t("next")}
+              aria-disabled={nextImage === undefined || undefined}
+              className={cn(stepButtonClassName, "right-4")}
+              size="icon"
+              variant="ghost"
+              onClick={handleNext}
+            >
+              <ChevronRight className="size-5" aria-hidden="true" />
+            </Button>
+          </>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

@@ -68,6 +68,7 @@ import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
 import { resolveQuickReactions } from "@/app/chat/utils/quick-reactions";
 import {
   type RoomMessageFilesSegment,
+  type RoomMessageSegment,
   segmentRoomMessageContent,
 } from "@/app/chat/utils/room-message-segments";
 import { AuroraOrb } from "@/components/aurora-orb";
@@ -97,6 +98,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileChipMiniPreviewFrame } from "@/components/ui/file-chip-mini-preview";
 import { FileTypeIcon } from "@/components/ui/file-icon";
+import {
+  ImageViewer,
+  type ImageViewerImage,
+} from "@/components/ui/image-viewer";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import {
   Sheet,
@@ -266,6 +271,34 @@ function isLargeSoloImageFilesSegment(
   }
   const soloLink = segment.links[0];
   return classifyFilePreview(soloLink.url, soloLink.fileName).isImage;
+}
+
+/**
+ * The Message image gallery: every image link across the body's attachment
+ * rows, in body order. A file linked twice is one image.
+ */
+function messageImageGallery(
+  segments: readonly RoomMessageSegment[],
+): ImageViewerImage[] {
+  const imagesBySrc = new Map<string, ImageViewerImage>();
+  for (const segment of segments) {
+    if (segment.kind !== "files") {
+      continue;
+    }
+    for (const link of segment.links) {
+      if (
+        !imagesBySrc.has(link.url) &&
+        classifyFilePreview(link.url, link.fileName).isImage
+      ) {
+        imagesBySrc.set(link.url, {
+          src: link.url,
+          alt: link.fileName,
+          downloadFilename: link.fileName,
+        });
+      }
+    }
+  }
+  return [...imagesBySrc.values()];
 }
 
 function hasLargeSoloImageAttachment(content: string): boolean {
@@ -658,7 +691,17 @@ export function ChannelMessageText({
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
 }) {
+  const [openImageSrc, setOpenImageSrc] = useState<string | null>(null);
   const segments = segmentRoomMessageContent(content);
+  const galleryImages = messageImageGallery(segments);
+  // The open image left the message (edited out or deleted): forget it, so an
+  // edit that brings the file back does not reopen the viewer by itself.
+  if (
+    openImageSrc !== null &&
+    !galleryImages.some((image) => image.src === openImageSrc)
+  ) {
+    setOpenImageSrc(null);
+  }
 
   if (segments.length === 1 && segments[0].kind === "text") {
     return (
@@ -718,6 +761,9 @@ export function ChannelMessageText({
                     fileName={link.fileName}
                     variant={useLargeImage ? "large" : "thumb"}
                     sizeClass={useLargeImage ? undefined : "size-16"}
+                    onOpenImage={() => {
+                      setOpenImageSrc(link.url);
+                    }}
                   />
                 ))}
               </div>
@@ -729,6 +775,13 @@ export function ChannelMessageText({
           }
         }
       })}
+      {galleryImages.length > 0 ? (
+        <ImageViewer
+          images={galleryImages}
+          activeSrc={openImageSrc}
+          onActiveSrcChange={setOpenImageSrc}
+        />
+      ) : null}
     </>
   );
 }
