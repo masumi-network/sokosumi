@@ -280,6 +280,9 @@ export function OrganizationChatList({
   const pinnedRoomIds = pinned.map((room) => room.id);
   // Reordering a filtered list would move rooms relative to ones it hides.
   const canReorderPinned = pinnedOpen && pinned.length > 1 && !unreadOnly;
+  // A pending invitation stays under the filter, and keeps External open: it
+  // is addressed to the reader and waits on them, which is why a closed
+  // section already marks it as a mention (`resolveSectionAttention`).
   const caughtUp =
     unreadOnly &&
     pinned.length +

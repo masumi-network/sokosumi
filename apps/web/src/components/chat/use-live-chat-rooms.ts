@@ -35,10 +35,10 @@ import type { ChatRoom } from "@/lib/clients/generated/core";
 /** Poll cadence while the Ably connection is unavailable. */
 const LIVE_CHAT_ROOMS_FALLBACK_MS = 15_000;
 
-function getInitialRoomsFromSessionSnapshot(): ChatRoom[] {
+function getInitialRoomsFromSessionSnapshot(): ChatRoom[] | null {
   const snapshot = getLatestMembershipVisibleRoomsSnapshot();
   if (snapshot == null) {
-    return [];
+    return null;
   }
   return applyRoomReadOverlays([...snapshot.rooms]);
 }
@@ -52,13 +52,16 @@ function getInitialRoomsFromSessionSnapshot(): ChatRoom[] {
  * this mirrors its rows. Without one (the phone, away from the Chats list) it
  * runs the same read on the same schedule itself, and applies the same room
  * read and rooms-changed events the list does.
+ *
+ * Null until a first read or a session snapshot says what the rooms are, so
+ * a reader in no room (an empty list) is not mistaken for one not read yet.
  */
-export function useLiveChatRooms(): ChatRoom[] {
+export function useLiveChatRooms(): ChatRoom[] | null {
   const { data: session } = useSession();
   const currentUserId = session?.user.id ?? "";
   const organizationId = session?.session.activeOrganizationId ?? null;
   const latestAppliedRefreshRef = useRef(0);
-  const [rooms, setRooms] = useState<ChatRoom[]>(
+  const [rooms, setRooms] = useState<ChatRoom[] | null>(
     getInitialRoomsFromSessionSnapshot,
   );
 
@@ -110,7 +113,7 @@ export function useLiveChatRooms(): ChatRoom[] {
         snapshot.currentUserId === currentUserId &&
         snapshot.organizationId === organizationId
         ? applyRoomReadOverlays([...snapshot.rooms])
-        : [],
+        : null,
     );
   }, [scope, currentUserId, organizationId]);
 
@@ -154,17 +157,19 @@ export function useLiveChatRooms(): ChatRoom[] {
       }
 
       setRooms((current) =>
-        applyRoomReadOverlays(
-          current.map((room) => {
-            if (room.id !== detail.roomId) return room;
-            const updated = detail.room ?? {
-              ...room,
-              ...roomAttentionAfterRead(room),
-            };
-            if (!detail.room) rememberRoomRead(updated);
-            return updated;
-          }),
-        ),
+        current === null
+          ? null
+          : applyRoomReadOverlays(
+              current.map((room) => {
+                if (room.id !== detail.roomId) return room;
+                const updated = detail.room ?? {
+                  ...room,
+                  ...roomAttentionAfterRead(room),
+                };
+                if (!detail.room) rememberRoomRead(updated);
+                return updated;
+              }),
+            ),
       );
     };
 
@@ -181,9 +186,11 @@ export function useLiveChatRooms(): ChatRoom[] {
       const removedRoomId = detail?.removedRoomId;
       if (removedRoomId) {
         setRooms((current) =>
-          applyRoomReadOverlays(
-            current.filter((row) => row.id !== removedRoomId),
-          ),
+          current === null
+            ? null
+            : applyRoomReadOverlays(
+                current.filter((row) => row.id !== removedRoomId),
+              ),
         );
         return;
       }
@@ -193,6 +200,8 @@ export function useLiveChatRooms(): ChatRoom[] {
         // The answers that land here do not count what is unread, so the
         // room keeps what the title already counted for it.
         setRooms((current) => {
+          // One room is not the list; the first read still decides it.
+          if (current === null) return null;
           const held = current.find((row) => row.id === room.id);
           const without = current.filter((row) => row.id !== room.id);
           return applyRoomReadOverlays([

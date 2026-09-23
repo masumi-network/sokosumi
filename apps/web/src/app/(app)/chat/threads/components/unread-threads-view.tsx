@@ -27,14 +27,15 @@ export function UnreadThreadsView({
   currentUserId,
 }: UnreadThreadsViewProps) {
   const t = useTranslations("App.Channels.ThreadsView");
+  // Null until the live read lands; an empty list is an answer, not a gap.
   const liveRooms = useLiveChatRooms();
-  const roomsLive = liveRooms.length > 0;
+  const roomsLive = liveRooms !== null;
 
   return (
     <div className="flex flex-col gap-5 pb-4">
       <ChatUnreadViewHeader title={t("title")} />
       <UnreadThreadsList
-        rooms={roomsLive ? liveRooms : initialRooms}
+        rooms={liveRooms ?? initialRooms}
         roomsLive={roomsLive}
         initial={
           initialPage ? { page: initialPage, rooms: initialRooms } : null

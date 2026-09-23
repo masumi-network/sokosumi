@@ -9,6 +9,8 @@ interface UseChatTabUnreadPresenceResult {
 }
 
 export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
-  const unreadRoomCount = countChatRoomsWithUnreadAttention(useLiveChatRooms());
+  const unreadRoomCount = countChatRoomsWithUnreadAttention(
+    useLiveChatRooms() ?? [],
+  );
   return { showUnreadDot: unreadRoomCount > 0, unreadRoomCount };
 }

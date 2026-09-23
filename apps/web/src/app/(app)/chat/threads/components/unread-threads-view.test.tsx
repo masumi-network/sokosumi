@@ -11,7 +11,7 @@ import type { ChatUnreadThreadsPage } from "@/lib/services/chat-room.service";
 import { UnreadThreadsView } from "./unread-threads-view";
 
 const { liveRooms, fetchUnreadThreadsMock } = vi.hoisted(() => ({
-  liveRooms: { current: [] as ChatRoom[] },
+  liveRooms: { current: null as ChatRoom[] | null },
   fetchUnreadThreadsMock: vi.fn(),
 }));
 
@@ -92,7 +92,7 @@ function renderView(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  liveRooms.current = [];
+  liveRooms.current = null;
   fetchUnreadThreadsMock.mockResolvedValue(page());
 });
 
@@ -120,6 +120,15 @@ describe("UnreadThreadsView", () => {
 
     expect(screen.getByText("You’re all caught up")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Unread threads" })).toBeNull();
+  });
+
+  // An empty live read is an answer: the reader is in no room now, and the
+  // cached rooms the server rendered with must not stand in for it.
+  it("says the reader is caught up when the live read finds no room", () => {
+    liveRooms.current = [];
+    renderView();
+
+    expect(screen.getByText("You’re all caught up")).toBeInTheDocument();
   });
 
   it("drops a Thread whose room the reader has muted since", async () => {

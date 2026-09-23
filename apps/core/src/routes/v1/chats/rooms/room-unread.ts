@@ -417,8 +417,9 @@ export interface ChatUnreadThreadsPage {
  * The same rows the sidebar lists per room, uncapped and ranked across rooms
  * by newest unread reply. The cursor is a parent id and pages by its place in
  * that ranking. A cursor Thread that was read since has no place left, and the
- * page after it comes back empty; the view reads again from the top whenever
- * the counts move, so that end is never the last word.
+ * page after it comes back empty, with the total still stated; the view reads
+ * again from the top whenever the counts move, so that end is never the last
+ * word.
  */
 export async function listUnreadThreadsAcrossRooms(
   roomIds: readonly string[],
@@ -437,28 +438,37 @@ export async function listUnreadThreadsAcrossRooms(
   const limitPlaceholder = `$${uniqueRoomIds.length + 2}`;
   const cursorPlaceholder = `$${uniqueRoomIds.length + 3}::uuid`;
 
+  // The total rides a one-row count joined to the page, so an empty page
+  // still says how many Threads are unread; that row's page columns are null.
   const rows = await tx.$queryRawUnsafe<
-    Array<UnreadThreadRow & { totalThreadCount: number | bigint }>
+    Array<
+      | (UnreadThreadRow & { totalThreadCount: number | bigint })
+      | { parentMessageId: null; totalThreadCount: number | bigint }
+    >
   >(
     `
     WITH unread AS (
       ${sqlUnreadThreadsByParent(roomIdPlaceholders, userIdPlaceholder)}
+    ),
+    page AS (
+      SELECT unread.*
+      FROM unread
+      ${
+        cursor
+          ? `WHERE ("lastUnreadAt", "parentMessageId") < (
+        SELECT cursor_thread."lastUnreadAt", cursor_thread."parentMessageId"
+        FROM unread cursor_thread
+        WHERE cursor_thread."parentMessageId" = ${cursorPlaceholder}
+      )`
+          : ""
+      }
+      ORDER BY "lastUnreadAt" DESC, "parentMessageId" DESC
+      LIMIT ${limitPlaceholder}
     )
-    SELECT
-      unread.*,
-      (SELECT COUNT(*) FROM unread)::int AS "totalThreadCount"
-    FROM unread
-    ${
-      cursor
-        ? `WHERE ("lastUnreadAt", "parentMessageId") < (
-      SELECT cursor_thread."lastUnreadAt", cursor_thread."parentMessageId"
-      FROM unread cursor_thread
-      WHERE cursor_thread."parentMessageId" = ${cursorPlaceholder}
-    )`
-        : ""
-    }
-    ORDER BY "lastUnreadAt" DESC, "parentMessageId" DESC
-    LIMIT ${limitPlaceholder}
+    SELECT page.*, totals."totalThreadCount"
+    FROM (SELECT COUNT(*)::int AS "totalThreadCount" FROM unread) totals
+    LEFT JOIN page ON true
+    ORDER BY page."lastUnreadAt" DESC, page."parentMessageId" DESC
   `,
     ...uniqueRoomIds,
     userId,
@@ -466,8 +476,12 @@ export async function listUnreadThreadsAcrossRooms(
     ...(cursor ? [cursor] : []),
   );
 
-  const hasMore = rows.length > limit;
-  const threads = rows.slice(0, limit).map((row) => ({
+  const pageRows = rows.filter(
+    (row): row is UnreadThreadRow & { totalThreadCount: number | bigint } =>
+      row.parentMessageId !== null,
+  );
+  const hasMore = pageRows.length > limit;
+  const threads = pageRows.slice(0, limit).map((row) => ({
     roomId: row.roomId,
     ...mapUnreadThreadRow(row),
   }));

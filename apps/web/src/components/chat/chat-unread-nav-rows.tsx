@@ -92,6 +92,7 @@ export function ChatUnreadNavRows({
   const markAllTargets = rooms
     .map((room) => ({ roomId: room.id, ...roomUnreadReads(room) }))
     .filter((target) => target.readRoom || target.lookThreads);
+  const showMarkAll = unreadOnly && markAllTargets.length > 0;
 
   function handleMarkAllRead() {
     startMarking(async () => {
@@ -247,9 +248,18 @@ export function ChatUnreadNavRows({
             {unreadOnly ? (
               <span className="sr-only">{t("filterOn")}</span>
             ) : null}
+            {/* Mark all stands over the row's end, so the label stops short
+                of it rather than running underneath. */}
+            {showMarkAll ? (
+              <span
+                aria-hidden
+                data-slot="mark-all-spacer"
+                className="group-data-[collapsible=icon]:hidden size-7 shrink-0"
+              />
+            ) : null}
           </button>
         </SidebarMenuButton>
-        {unreadOnly && markAllTargets.length > 0 ? (
+        {showMarkAll ? (
           <div className="group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 -translate-y-1/2">
             <button
               type="button"

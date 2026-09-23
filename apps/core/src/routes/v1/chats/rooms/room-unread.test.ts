@@ -741,6 +741,31 @@ describe("listUnreadThreadsAcrossRooms", () => {
     ]);
   });
 
+  // A cursor Thread read since has no place left in the ranking, so its page
+  // is empty. The total still counts every unread Thread (PR #5119 review).
+  it("states the total even when the page after the cursor is empty", async () => {
+    const queryRawUnsafe = vi.fn().mockResolvedValue([
+      {
+        roomId: null,
+        parentMessageId: null,
+        firstUnreadReplyId: null,
+        parentContent: null,
+        unreadReplyCount: null,
+        unreadMentionCount: null,
+        totalThreadCount: 5,
+      },
+    ]);
+
+    const page = await listUnreadThreadsAcrossRooms(
+      ["room-a"],
+      "user_1",
+      { $queryRawUnsafe: queryRawUnsafe } as never,
+      { cursor: PARENT_A, limit: 20 },
+    );
+
+    expect(page).toEqual({ threads: [], nextCursor: null, total: 5 });
+  });
+
   it("reads nothing when the reader is in no room", async () => {
     const queryRawUnsafe = vi.fn();
 

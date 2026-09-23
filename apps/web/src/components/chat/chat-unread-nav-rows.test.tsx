@@ -195,9 +195,12 @@ describe("ChatUnreadNavRows", () => {
     unmount();
 
     renderRows(rooms, { unreadOnly: true });
+    const toggle = screen.getByRole("button", { name: /^All unreads/ });
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    // The label keeps clear of the button standing over the row's end.
     expect(
-      screen.getByRole("button", { name: /^All unreads/ }),
-    ).toHaveAttribute("aria-pressed", "true");
+      toggle.querySelector('[data-slot="mark-all-spacer"]'),
+    ).not.toBeNull();
     await userEvent.click(
       screen.getByRole("button", { name: "Mark all as read" }),
     );
