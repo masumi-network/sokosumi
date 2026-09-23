@@ -38,6 +38,12 @@ vi.mock("@/lib/utils/compose-upload.client", () => ({
   uploadComposeAttachments: vi.fn(),
 }));
 
+// DriveFilePicker calls useSession; the real session atom's unmount timer
+// can fire after happy-dom tears down `window`.
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null }),
+}));
+
 vi.mock("@/contexts/lazy-ably-provider", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));

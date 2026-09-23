@@ -62,6 +62,12 @@ vi.mock("@/components/chat/composer-add-link-dialog", () => ({
   ComposerAddLinkDialog: () => null,
 }));
 
+// DriveFilePicker calls useSession; the real session atom's unmount timer
+// can fire after happy-dom tears down `window`.
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null }),
+}));
+
 const coworkerMention: MentionRecordEntry<RoomMentionParticipant> = {
   value: "Elena",
   slug: "elena",
