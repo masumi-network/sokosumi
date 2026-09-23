@@ -217,8 +217,14 @@ export function computeIntervalNextRun(
   }
 
   const daysSinceAnchor = calendarDaysBetween(anchorAt, from, timeZone);
-  const periods = Math.floor(daysSinceAnchor / intervalDays) + 1;
-  return addCalendarDays(anchorAt, periods * intervalDays, timeZone);
+  // The calendar day of an interval can still be ahead of `from`. Step forward
+  // only once that slot's local time has passed (or is exactly `from`).
+  const periods = Math.floor(daysSinceAnchor / intervalDays);
+  const candidate = addCalendarDays(anchorAt, periods * intervalDays, timeZone);
+  if (candidate > from) {
+    return candidate;
+  }
+  return addCalendarDays(anchorAt, (periods + 1) * intervalDays, timeZone);
 }
 
 function resolveRecurringIntervalDays(

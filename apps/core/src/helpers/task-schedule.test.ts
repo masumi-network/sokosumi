@@ -36,6 +36,15 @@ describe("task-schedule helpers", () => {
     );
   });
 
+  it("keeps today's interval slot when that local time is still ahead", () => {
+    const anchorAt = new Date("2026-06-01T09:00:00.000Z");
+    const from = new Date("2026-06-05T08:00:00.000Z");
+
+    expect(computeIntervalNextRun(anchorAt, 2, from)).toEqual(
+      new Date("2026-06-05T09:00:00.000Z"),
+    );
+  });
+
   it("keeps local wall-clock time across DST boundaries", () => {
     const anchorAt = new Date("2026-03-07T14:00:00.000Z");
     const from = new Date("2026-03-07T15:00:00.000Z");
