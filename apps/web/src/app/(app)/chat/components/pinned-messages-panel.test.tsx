@@ -255,7 +255,7 @@ describe("PinnedMessagesPanel", () => {
       "pointer-events-none",
       "relative",
       "z-[1]",
-      "[&_:is(a,button,audio,video,[role=button],[data-slot=hover-card-trigger])]:pointer-events-auto",
+      "[&_:is(a,button,input:enabled,select,textarea,summary,audio,video,[role=button],[tabindex],[data-slot=hover-card-trigger],pre,.overflow-x-auto)]:pointer-events-auto",
     );
   });
 

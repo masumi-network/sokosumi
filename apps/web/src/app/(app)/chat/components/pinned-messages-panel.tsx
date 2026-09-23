@@ -238,7 +238,10 @@ export function PinnedMessagesPanel({
           // sit inside the jump button. The header is the button; its
           // ::after stretches over the row so a click anywhere jumps. The
           // body is layered above that and lets clicks through to it, except
-          // on its own controls (the drive card's layering).
+          // on its own controls (the drive card's layering). Those are named
+          // by kind, not by component: anything natively interactive or
+          // focusable, hover-card triggers, and horizontal scrollers (code
+          // blocks, tables), which need the pointer to scroll.
           return (
             <div
               key={item.messageId}
@@ -278,7 +281,7 @@ export function PinnedMessagesPanel({
                   id={bodyId}
                   data-testid="pinned-message-body"
                   className={cn(
-                    "pointer-events-none relative z-[1] mt-1 line-clamp-6 text-sm [&_:is(a,button,audio,video,[role=button],[data-slot=hover-card-trigger])]:pointer-events-auto",
+                    "pointer-events-none relative z-[1] mt-1 line-clamp-6 text-sm [&_:is(a,button,input:enabled,select,textarea,summary,audio,video,[role=button],[tabindex],[data-slot=hover-card-trigger],pre,.overflow-x-auto)]:pointer-events-auto",
                     quoteOnly &&
                       "border-primary-tertiary text-muted-foreground border-l-2 pl-2.5",
                   )}
