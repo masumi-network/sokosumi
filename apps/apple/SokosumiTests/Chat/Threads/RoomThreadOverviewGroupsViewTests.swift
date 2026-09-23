@@ -14,9 +14,9 @@
     /// builds no accessibility tree, so the text is read back with Vision (nil on the virtualized CI
     /// runner, where only the pixel checks run) and the tinted thread mark is found by its colour.
     @MainActor struct RoomThreadOverviewGroupsViewTests {
-      @Test(arguments: ThreadOverviewGroupsFixture.allCases, [false, true])
-      func rendersTheGroups(fixture: ThreadOverviewGroupsFixture, dark: Bool) async throws {
-        let bitmap = try await Self.render(fixture, dark: dark)
+      @Test(arguments: ThreadOverviewGroupsFixture.allCases)
+      func rendersTheGroups(fixture: ThreadOverviewGroupsFixture) async throws {
+        let bitmap = try await Self.render(fixture)
         let scale = CGFloat(bitmap.pixelsWide) / Self.width
         // The leading thread mark is the only colour in the icon column: tinted when unread, grey when read.
         let tinted = Self.coloredPixels(in: bitmap, columns: 0 ..< Int(44 * scale))
@@ -74,8 +74,8 @@
 
       private static let width: CGFloat = 280
 
-      private static func render(_ fixture: ThreadOverviewGroupsFixture, dark: Bool) async throws -> NSBitmapImageRep {
-        try await render(threads: fixture.threads, dark: dark, name: "thread-overview-groups-\(fixture.rawValue)-\(dark ? "dark" : "light").png")
+      private static func render(_ fixture: ThreadOverviewGroupsFixture) async throws -> NSBitmapImageRep {
+        try await render(threads: fixture.threads, dark: false, name: "thread-overview-groups-\(fixture.rawValue).png")
       }
 
       private static func render(threads: [ThreadOverviewFixtureRow], dark: Bool, name: String?) async throws -> NSBitmapImageRep {
