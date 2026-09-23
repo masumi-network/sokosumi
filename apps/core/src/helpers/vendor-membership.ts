@@ -137,15 +137,34 @@ export async function requireCoworkerBelongsToVendor(
 }
 
 /**
- * Block removing or demoting the last vendor admin. `tx` is required and must
- * be the caller's Serializable write transaction: on the default client two
- * concurrent requests can both see two admins and leave the vendor with none.
+ * Serialize membership changes with account deletion. Deletion locks each
+ * Vendor row before it rechecks admin membership and cascades the user row.
  */
-export async function assertCanRemoveOrDemoteVendorAdmin(
+export async function lockVendorMembershipMutation(
   vendorId: string,
-  targetUserId: string,
   tx: Prisma.TransactionClient,
 ): Promise<void> {
+  await tx.$queryRaw`
+    SELECT "id"
+    FROM "vendor"
+    WHERE "id" = ${vendorId}::uuid
+    FOR UPDATE
+  `;
+}
+
+/**
+ * Block removing or demoting the last vendor admin. `tx` is required and must
+ * be the caller's Serializable write transaction. The Vendor row lock also
+ * serializes this change with account deletion's in-transaction admin check.
+ */
+export async function assertCanChangeVendorMembership(
+  vendorId: string,
+  targetUserId: string,
+  nextRole: "admin" | "developer" | null,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  await lockVendorMembershipMutation(vendorId, tx);
+
   const membership = await tx.vendorMember.findFirst({
     where: { vendorId, userId: targetUserId },
     select: { role: true },
@@ -155,7 +174,7 @@ export async function assertCanRemoveOrDemoteVendorAdmin(
     throw notFound("Vendor member not found");
   }
 
-  if (membership.role !== "admin") {
+  if (membership.role !== "admin" || nextRole === "admin") {
     return;
   }
 

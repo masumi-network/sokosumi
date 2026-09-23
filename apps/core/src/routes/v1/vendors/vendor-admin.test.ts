@@ -37,6 +37,7 @@ const {
   userFindUniqueMock,
   userFindFirstMock,
   transactionMock,
+  txQueryRawMock,
   txVendorMemberFindFirstMock,
   txVendorMemberCountMock,
   txVendorMemberFindUniqueMock,
@@ -60,6 +61,7 @@ const {
   userFindUniqueMock: vi.fn(),
   userFindFirstMock: vi.fn(),
   transactionMock: vi.fn(),
+  txQueryRawMock: vi.fn(),
   txVendorMemberFindFirstMock: vi.fn(),
   txVendorMemberCountMock: vi.fn(),
   txVendorMemberFindUniqueMock: vi.fn(),
@@ -169,11 +171,13 @@ describe("vendor admin APIs", () => {
     });
     txVendorMemberDeleteMock.mockResolvedValue({ id: "vm_dev" });
     txCoworkerAssignmentDeleteManyMock.mockResolvedValue({ count: 1 });
+    txQueryRawMock.mockResolvedValue([]);
     // The tx double uses its own spies so a write that slips back onto the
     // top-level client fails the SOK-1024 assertions below.
     transactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
         callback({
+          $queryRaw: txQueryRawMock,
           coworkerAssignment: {
             deleteMany: txCoworkerAssignmentDeleteManyMock,
           },

@@ -1,11 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapVendorMember } from "@/helpers/vendor";
 import {
-  assertCanRemoveOrDemoteVendorAdmin,
+  assertCanChangeVendorMembership,
   requireVendorAdminMembership,
 } from "@/helpers/vendor-membership";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -78,22 +77,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Serializable so the role read, the last-admin check, and the update
     // commit as one unit (SOK-1024).
     const member = await serializableTransaction(async (tx) => {
-      const existing = await tx.vendorMember.findUnique({
-        where: {
-          vendorId_userId: {
-            vendorId: id,
-            userId,
-          },
-        },
-        select: { role: true },
-      });
-      if (!existing) {
-        throw notFound("Vendor member not found");
-      }
-
-      if (existing.role === "admin" && body.role !== "admin") {
-        await assertCanRemoveOrDemoteVendorAdmin(id, userId, tx);
-      }
+      await assertCanChangeVendorMembership(id, userId, body.role, tx);
 
       return tx.vendorMember.update({
         where: {

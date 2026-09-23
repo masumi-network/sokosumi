@@ -7,6 +7,7 @@ import type { createPrismaClient } from "@sokosumi/database/client";
 import { APIError } from "better-auth/api";
 
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
+import { lockVendorMembershipMutation } from "@/helpers/vendor-membership";
 import { deleteTaskFileIfOwned } from "@/lib/blob";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
@@ -91,6 +92,39 @@ export async function prepareTasksForUserDeletion(
           WHERE "id" = ${userId}
           FOR UPDATE
         `;
+
+        // The preflight last-admin check can become stale before this
+        // transaction starts. Lock every Vendor the user belongs to in a
+        // stable order, then recheck current admin memberships before the
+        // User cascade. Role changes and member removals take the same Vendor
+        // row lock, so one concurrent operation must observe the other's
+        // committed state.
+        const vendorMemberships = await tx.vendorMember.findMany({
+          where: { userId },
+          select: { vendorId: true },
+          orderBy: { vendorId: "asc" },
+        });
+        for (const { vendorId } of vendorMemberships) {
+          await lockVendorMembershipMutation(vendorId, tx);
+        }
+
+        const adminMemberships = await tx.vendorMember.findMany({
+          where: { userId, role: "admin" },
+          select: { vendorId: true },
+        });
+        for (const { vendorId } of adminMemberships) {
+          const adminCount = await tx.vendorMember.count({
+            where: { vendorId, role: "admin" },
+          });
+          if (adminCount <= 1) {
+            throw new APIError("BAD_REQUEST", {
+              code: "USER_IS_LAST_VENDOR_ADMIN",
+              message:
+                "Promote another Vendor member to admin before deleting your account.",
+            });
+          }
+        }
+
         await tx.$queryRaw`
           SELECT "id"
           FROM "task"

@@ -3,7 +3,7 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import {
-  assertCanRemoveOrDemoteVendorAdmin,
+  assertCanChangeVendorMembership,
   buildAccessibleCoworkerMembershipOr,
   buildAccessibleCoworkersWhere,
   requireAssignableVendorMembership,
@@ -249,10 +249,12 @@ describe("requireCoworkerBelongsToVendor", () => {
   });
 });
 
-describe("assertCanRemoveOrDemoteVendorAdmin", () => {
+describe("assertCanChangeVendorMembership", () => {
+  const txQueryRaw = vi.fn();
   const txVendorMemberFindFirst = vi.fn();
   const txVendorMemberCount = vi.fn();
   const tx = {
+    $queryRaw: txQueryRaw,
     vendorMember: {
       findFirst: txVendorMemberFindFirst,
       count: txVendorMemberCount,
@@ -261,6 +263,7 @@ describe("assertCanRemoveOrDemoteVendorAdmin", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    txQueryRaw.mockResolvedValue([]);
   });
 
   it("allows demoting a non-last admin", async () => {
@@ -268,7 +271,12 @@ describe("assertCanRemoveOrDemoteVendorAdmin", () => {
     txVendorMemberCount.mockResolvedValue(2);
 
     await expect(
-      assertCanRemoveOrDemoteVendorAdmin(TEST_VENDOR_ID, "user_123", tx),
+      assertCanChangeVendorMembership(
+        TEST_VENDOR_ID,
+        "user_123",
+        "developer",
+        tx,
+      ),
     ).resolves.toBeUndefined();
   });
 
@@ -277,7 +285,12 @@ describe("assertCanRemoveOrDemoteVendorAdmin", () => {
     txVendorMemberCount.mockResolvedValue(1);
 
     await expect(
-      assertCanRemoveOrDemoteVendorAdmin(TEST_VENDOR_ID, "user_123", tx),
+      assertCanChangeVendorMembership(
+        TEST_VENDOR_ID,
+        "user_123",
+        "developer",
+        tx,
+      ),
     ).rejects.toMatchObject({
       status: 400,
       message: "Cannot remove or demote the last vendor admin",
@@ -288,7 +301,7 @@ describe("assertCanRemoveOrDemoteVendorAdmin", () => {
     txVendorMemberFindFirst.mockResolvedValue(null);
 
     await expect(
-      assertCanRemoveOrDemoteVendorAdmin(TEST_VENDOR_ID, "user_123", tx),
+      assertCanChangeVendorMembership(TEST_VENDOR_ID, "user_123", null, tx),
     ).rejects.toMatchObject({ status: 404 });
     expect(txVendorMemberCount).not.toHaveBeenCalled();
   });
@@ -298,7 +311,12 @@ describe("assertCanRemoveOrDemoteVendorAdmin", () => {
     txVendorMemberCount.mockResolvedValue(1);
 
     await expect(
-      assertCanRemoveOrDemoteVendorAdmin(TEST_VENDOR_ID, "user_123", tx),
+      assertCanChangeVendorMembership(
+        TEST_VENDOR_ID,
+        "user_123",
+        "developer",
+        tx,
+      ),
     ).rejects.toMatchObject({ status: 400 });
 
     expect(txVendorMemberFindFirst).toHaveBeenCalledWith({
@@ -310,5 +328,26 @@ describe("assertCanRemoveOrDemoteVendorAdmin", () => {
     });
     expect(vendorMemberFindFirstMock).not.toHaveBeenCalled();
     expect(vendorMemberCountMock).not.toHaveBeenCalled();
+  });
+
+  it("locks the Vendor before reading a membership role change", async () => {
+    txVendorMemberFindFirst.mockResolvedValue({ role: "developer" });
+
+    await expect(
+      assertCanChangeVendorMembership(TEST_VENDOR_ID, "user_123", "admin", tx),
+    ).resolves.toBeUndefined();
+
+    const [lockStrings, ...lockValues] = txQueryRaw.mock.calls[0] as [
+      TemplateStringsArray,
+      ...unknown[],
+    ];
+    expect(lockStrings.join("?")).toMatch(
+      /FROM "vendor"[\s\S]*WHERE "id" = \?[\s\S]*FOR UPDATE/,
+    );
+    expect(lockValues).toEqual([TEST_VENDOR_ID]);
+    expect(txQueryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      txVendorMemberFindFirst.mock.invocationCallOrder[0],
+    );
+    expect(txVendorMemberCount).not.toHaveBeenCalled();
   });
 });

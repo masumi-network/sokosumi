@@ -20,6 +20,8 @@ const {
   chatRoomUpdateMock,
   chatRoomDeleteMock,
   userDeleteManyMock,
+  vendorMemberFindManyMock,
+  vendorMemberCountMock,
   queryRawMock,
   transactionMock,
   deleteTaskFileIfOwnedMock,
@@ -39,6 +41,8 @@ const {
   chatRoomUpdateMock: vi.fn(),
   chatRoomDeleteMock: vi.fn(),
   userDeleteManyMock: vi.fn(),
+  vendorMemberFindManyMock: vi.fn(),
+  vendorMemberCountMock: vi.fn(),
   queryRawMock: vi.fn(),
   transactionMock: vi.fn(),
   deleteTaskFileIfOwnedMock: vi.fn(),
@@ -64,6 +68,8 @@ describe("prepareTasksForUserDeletion", () => {
     chatRoomUpdateMock.mockResolvedValue({});
     chatRoomDeleteMock.mockResolvedValue({});
     userDeleteManyMock.mockResolvedValue({ count: 1 });
+    vendorMemberFindManyMock.mockResolvedValue([]);
+    vendorMemberCountMock.mockResolvedValue(0);
     queryRawMock.mockResolvedValue([]);
     deleteTaskFileIfOwnedMock.mockResolvedValue(undefined);
     transactionMock.mockImplementation(async (callback) =>
@@ -95,6 +101,10 @@ describe("prepareTasksForUserDeletion", () => {
         },
         user: {
           deleteMany: userDeleteManyMock,
+        },
+        vendorMember: {
+          findMany: vendorMemberFindManyMock,
+          count: vendorMemberCountMock,
         },
       }),
     );
@@ -156,6 +166,43 @@ describe("prepareTasksForUserDeletion", () => {
     expect(taskDeleteManyMock.mock.invocationCallOrder[0]).toBeLessThan(
       userDeleteManyMock.mock.invocationCallOrder[0],
     );
+  });
+
+  it("rechecks last Vendor admin status under Vendor locks before deleting (V87)", async () => {
+    const vendorId = "01960001-0001-7001-8001-000000000001";
+    vendorMemberFindManyMock.mockResolvedValue([{ vendorId }]);
+    vendorMemberCountMock.mockResolvedValue(1);
+
+    await expect(
+      prepareTasksForUserDeletion("user_delete", {
+        $transaction: transactionMock,
+      } as never),
+    ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({
+        code: "USER_IS_LAST_VENDOR_ADMIN",
+        message: expect.stringContaining("Promote another Vendor member"),
+      }),
+    });
+
+    const vendorLockIndex = queryRawMock.mock.calls.findIndex(([strings]) =>
+      (strings as TemplateStringsArray).join("?").includes('FROM "vendor"'),
+    );
+    expect(vendorLockIndex).toBeGreaterThanOrEqual(0);
+    const [vendorLockStrings, ...vendorLockValues] = queryRawMock.mock.calls[
+      vendorLockIndex
+    ] as [TemplateStringsArray, ...unknown[]];
+    expect(vendorLockStrings.join("?")).toMatch(
+      /FROM "vendor"[\s\S]*WHERE "id" = \?[\s\S]*FOR UPDATE/,
+    );
+    expect(vendorLockValues).toEqual([vendorId]);
+    expect(queryRawMock.mock.invocationCallOrder[vendorLockIndex]).toBeLessThan(
+      vendorMemberFindManyMock.mock.invocationCallOrder[1],
+    );
+    expect(vendorMemberCountMock).toHaveBeenCalledWith({
+      where: { vendorId, role: "admin" },
+    });
+    expect(userDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("treats a concurrent delete that already removed the user as a no-op", async () => {

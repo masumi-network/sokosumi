@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse } from "@/helpers/openapi";
 import {
-  assertCanRemoveOrDemoteVendorAdmin,
+  assertCanChangeVendorMembership,
   requireVendorAdminMembership,
 } from "@/helpers/vendor-membership";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -54,7 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Serializable so the last-admin check and the delete commit as one unit
     // (SOK-1024).
     await serializableTransaction(async (tx) => {
-      await assertCanRemoveOrDemoteVendorAdmin(id, userId, tx);
+      await assertCanChangeVendorMembership(id, userId, null, tx);
       await tx.coworkerAssignment.deleteMany({
         where: {
           userId,
