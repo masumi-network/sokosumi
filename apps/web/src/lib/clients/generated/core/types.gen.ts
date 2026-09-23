@@ -2296,6 +2296,14 @@ export type ChatRoom = {
      * Deterministic key for direct rooms; null for normal rooms.
      */
     directKey: string | null;
+    /**
+     * Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.
+     */
+    isGroupDirect: boolean;
+    /**
+     * Group name shared by every member of a group Direct, shown in place of the member list. Null when unnamed, and always null for Channels and other Directs.
+     */
+    groupName: string | null;
     topic: string | null;
     /**
      * Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests), or `"matched"` (org-less, roster-only). Null for direct rooms.
@@ -2617,6 +2625,7 @@ export type ChatRoomPinnedMessageListItem = {
         } | null;
         quote: ChatRoomMessageQuote;
         membership: ChatRoomMessageMembership;
+        groupNameChange: ChatRoomMessageGroupNameChange;
         /**
          * Link preview cards scraped from message URLs (absent while pending).
          */
@@ -2705,6 +2714,18 @@ export type ChatRoomMessageMembershipSubject = {
     name: string;
 };
 
+export type ChatRoomMessageGroupNameChange = {
+    action: 'named' | 'cleared';
+    /**
+     * The new Group name; null when it was cleared.
+     */
+    name: string | null;
+    actor: {
+        id: string;
+        name: string;
+    };
+} | null;
+
 export type ChatRoomMessageUnfurl = {
     url: string;
     title: string;
@@ -2730,6 +2751,10 @@ export type UpdateChatRoomRequest = {
      * Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.
      */
     sokoBotIds?: Array<string>;
+    /**
+     * Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.
+     */
+    groupName?: string | null;
 };
 
 /**
@@ -2841,6 +2866,7 @@ export type ChatRoomMessage = {
     } | null;
     quote: ChatRoomMessageQuote;
     membership: ChatRoomMessageMembership;
+    groupNameChange: ChatRoomMessageGroupNameChange;
     /**
      * Link preview cards scraped from message URLs (absent while pending).
      */

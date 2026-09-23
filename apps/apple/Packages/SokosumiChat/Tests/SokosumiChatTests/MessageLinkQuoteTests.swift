@@ -13,7 +13,7 @@ struct MessageLinkQuoteTests {
 
   private func room(_ id: String, members: [String], guests: [Components.Schemas.ChatRoomUserParticipant] = [], organizationId: String? = "org",
                     discoverability: Components.Schemas.ChatRoom.DiscoverabilityPayload? = ._private) -> Components.Schemas.ChatRoom {
-    Components.Schemas.ChatRoom(id: id, organizationId: organizationId, name: id, kind: .channel, isSelfDirect: false,
+    Components.Schemas.ChatRoom(id: id, organizationId: organizationId, name: id, kind: .channel, isSelfDirect: false, isGroupDirect: false,
                                 discoverability: discoverability, createdByUserId: "me",
                                 createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0,
                                 markedUnread: false, myAccess: .member,

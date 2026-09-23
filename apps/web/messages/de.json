@@ -5684,6 +5684,16 @@
         "joined": "{name} ist beigetreten",
         "left": "{name} hat den Channel verlassen"
       },
+      "GroupName": {
+        "rename": "Umbenennen",
+        "dialogTitle": "Gruppe benennen",
+        "dialogDescription": "Alle in der Gruppe sehen diesen Namen statt der Mitgliederliste. Lass das Feld leer, um wieder die Mitglieder anzuzeigen.",
+        "label": "Gruppenname",
+        "save": "Speichern",
+        "saveFailed": "Die Gruppe konnte nicht benannt werden.",
+        "named": "{name} hat die Gruppe {groupName} genannt",
+        "cleared": "{name} hat den Gruppennamen entfernt"
+      },
       "External": {
         "title": "Extern",
         "accept": "Annehmen",

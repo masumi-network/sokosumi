@@ -40,6 +40,9 @@ private func makeRoom(
   id: String,
   name: String,
   kind: Components.Schemas.ChatRoom.KindPayload = .channel,
+  isSelfDirect: Bool = false,
+  isGroupDirect: Bool = false,
+  groupName: String? = nil,
   discoverability: Components.Schemas.ChatRoom.DiscoverabilityPayload? = ._public,
   myAccess: Components.Schemas.ChatRoomAccess = .member,
   unreadCount: Int = 0,
@@ -55,7 +58,7 @@ private func makeRoom(
   .init(
     id: id,
     name: name,
-    kind: kind, isSelfDirect: false,
+    kind: kind, isSelfDirect: isSelfDirect, isGroupDirect: isGroupDirect, groupName: groupName,
     discoverability: kind == .channel ? discoverability : nil,
     createdByUserId: "user_1",
     createdAt: baseDate,
@@ -212,6 +215,21 @@ struct SidebarRoomsTests {
       ]
     )
     #expect(roomDisplayName(room, currentUserId: "me") == "Ann, Bob, Cat and 1 more")
+  }
+
+  @Test func namedGroupDirectShowsItsGroupName() {
+    let members = [makePeer(id: "me", name: "Me"), makePeer(id: "a", name: "Ann"), makePeer(id: "b", name: "Bob")]
+    let named = makeRoom(id: "d1", name: "Ann, Bob", kind: .direct, isGroupDirect: true, groupName: "Launch crew", peers: members)
+    #expect(roomDisplayName(named, currentUserId: "me") == "Launch crew")
+    let unnamed = makeRoom(id: "d2", name: "Ann, Bob", kind: .direct, isGroupDirect: true, peers: members)
+    #expect(roomDisplayName(unnamed, currentUserId: "me") == "Ann, Bob")
+  }
+
+  @Test func oneToOneAndSelfDirectsKeepTheirNames() {
+    let oneToOne = makeRoom(id: "d1", name: "Ann", kind: .direct, peers: [makePeer(id: "me", name: "Me"), makePeer(id: "a", name: "Ann")])
+    #expect(roomDisplayName(oneToOne, currentUserId: "me") == "Ann")
+    let selfDirect = makeRoom(id: "d2", name: "Me", kind: .direct, isSelfDirect: true, peers: [makePeer(id: "me", name: "Me")])
+    #expect(roomDisplayName(selfDirect, currentUserId: "me") == "Me")
   }
 
   @Test func oneToOneDirectAvatarExcludesSelfAndKeepsPeerImage() {

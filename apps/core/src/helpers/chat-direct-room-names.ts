@@ -35,29 +35,42 @@ interface Participant {
  * A reader who is the only member left gets no entry, so the caller keeps the
  * stored name for them. That matches web, which falls back to the room's own
  * name when the list it builds is empty.
+ *
+ * A group Direct with a Group name is called that by every reader, as it is
+ * on every reader's screen (ADR-0040).
  */
 export async function loadDirectRoomNamesByReader(params: {
   roomId: string;
   readerUserIds: readonly string[];
 }): Promise<ReadonlyMap<string, string>> {
-  // Three reads at once rather than one after another. Prisma cannot batch
-  // across models, so this is three round trips either way; what it saves is
+  // Four reads at once rather than one after another. Prisma cannot batch
+  // across models, so this is four round trips either way; what it saves is
   // waiting for each before starting the next, on the path a sent message
   // takes. No read here depends on another.
-  const [humanMembers, coworkerMembers, sokoBotMembers] = await Promise.all([
-    prisma.chatRoomUserMember.findMany({
-      where: { roomId: params.roomId },
-      select: { user: { select: { id: true, name: true, email: true } } },
-    }),
-    prisma.chatRoomCoworkerMember.findMany({
-      where: { roomId: params.roomId },
-      select: { coworker: { select: { id: true, name: true } } },
-    }),
-    prisma.chatRoomSokoBotMember.findMany({
-      where: { roomId: params.roomId },
-      select: { sokoBot: { select: { id: true, name: true } } },
-    }),
-  ]);
+  const [room, humanMembers, coworkerMembers, sokoBotMembers] =
+    await Promise.all([
+      prisma.chatRoom.findUnique({
+        where: { id: params.roomId },
+        select: { groupName: true },
+      }),
+      prisma.chatRoomUserMember.findMany({
+        where: { roomId: params.roomId },
+        select: { user: { select: { id: true, name: true, email: true } } },
+      }),
+      prisma.chatRoomCoworkerMember.findMany({
+        where: { roomId: params.roomId },
+        select: { coworker: { select: { id: true, name: true } } },
+      }),
+      prisma.chatRoomSokoBotMember.findMany({
+        where: { roomId: params.roomId },
+        select: { sokoBot: { select: { id: true, name: true } } },
+      }),
+    ]);
+
+  const groupName = room?.groupName;
+  if (groupName) {
+    return new Map(params.readerUserIds.map((userId) => [userId, groupName]));
+  }
 
   const humans: Participant[] = humanMembers.map(({ user }) => ({
     id: user.id,
