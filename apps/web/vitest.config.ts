@@ -34,6 +34,7 @@ const DOM_TEST_TS = [
   "src/lib/utils/visual-viewport-keyboard.test.ts",
   "src/lib/utils/composer-*.test.ts",
   "src/lib/ui-preferences/sidebar-state.test.ts",
+  "src/lib/ui-preferences/chat-unreads-filter.test.ts",
   "src/lib/analytics/consent.test.ts",
   "src/lib/auth/auth.utils.test.ts",
   "src/lib/auth/finish-auth.client.test.ts",
