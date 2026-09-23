@@ -145,11 +145,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unprocessableEntity("around cannot be combined with q or cursor");
     }
 
-    // Avoid interactive transaction on this read-only path — room page loads
-    // messages in parallel with room + members (SOKOSUMI-Q9). Membership gate
-    // + page query do not need a shared snapshot. Concurrent findMany/count on
-    // the default client is fine; Promise.all inside interactive txs is not
-    // (#2559).
     await requireChatRoomUserMembership(id, userContext.userId, prisma);
     // Shared per-user budget across rooms and credentials (SOK-1060). Runs
     // after authorization so 401/403/404 keep their status, before the reads

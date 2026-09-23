@@ -31,7 +31,6 @@ const {
   jobFindFirstMock,
   jobUpdateMock,
   jobUpdateManyMock,
-  deleteProjectBlobsMock,
   deleteProjectBriefingBlobMock,
   ensureProjectFilesTokenMock,
   uploadProjectBriefingFileMock,
@@ -46,7 +45,6 @@ const {
   jobFindFirstMock: vi.fn(),
   jobUpdateMock: vi.fn(),
   jobUpdateManyMock: vi.fn(),
-  deleteProjectBlobsMock: vi.fn(),
   deleteProjectBriefingBlobMock: vi.fn(),
   ensureProjectFilesTokenMock: vi.fn(),
   uploadProjectBriefingFileMock: vi.fn(),
@@ -57,7 +55,6 @@ vi.mock("@/helpers/calendar-invalidation", () => ({
 }));
 
 vi.mock("@/lib/project-files-blob", () => ({
-  deleteProjectBlobs: deleteProjectBlobsMock,
   deleteProjectBriefingBlob: deleteProjectBriefingBlobMock,
   ensureProjectFilesToken: ensureProjectFilesTokenMock,
   uploadProjectBriefingFile: uploadProjectBriefingFileMock,
@@ -464,7 +461,6 @@ describe("DELETE /projects/{id}", () => {
     expect(body.kind).toBe("project_deletion_removed");
     expect(transactionMock).not.toHaveBeenCalled();
     expect(projectDeleteManyMock).not.toHaveBeenCalled();
-    expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
     expect(deliverCalendarInvalidationsNowMock).not.toHaveBeenCalled();
   });
 
