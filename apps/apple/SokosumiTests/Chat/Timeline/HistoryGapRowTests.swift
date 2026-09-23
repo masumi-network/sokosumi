@@ -42,6 +42,13 @@
         let beforeBitmap = try renderedBitmap(host)
         let before = try #require(beforeBitmap.cgImage)
         let gapRowTop = try gapRowTop(in: beforeBitmap)
+        // The rows compared for the reading position: from an eighth of the render to 60 pt above the gap row,
+        // at most half way. Points, not pixels: the CI runner renders at 1x.
+        let scale = before.height / Int(host.bounds.height)
+        let firstRow = before.height / 8
+        let lastRow = min(before.height / 2, Int(Double(before.height) * gapRowTop) - 60 * scale)
+        try #require(lastRow > firstRow + 100 * scale,
+                     "The gap row must leave rows above it to compare: rows \(firstRow)..<\(lastRow) of \(before.height) at \(scale)x, gap row at \(gapRowTop).")
 
         try #require(state.timeline.messages.count == 60)
         GapPageProtocol.release()
@@ -54,7 +61,7 @@
         #expect(GapPageProtocol.olderRequests == 0, "The row above the oldest range did not load on its own.")
         try await Task.sleep(for: .milliseconds(300))
         host.layoutSubtreeIfNeeded()
-        try await expectStableReadingPosition(host, before: before, above: gapRowTop)
+        try await expectStableReadingPosition(host, before: before, rows: firstRow ..< lastRow, scale: scale)
       }
 
       /// Where the gap row sits in the render, as a fraction of the height from the top: the rows compared for
@@ -130,9 +137,14 @@
         note("Try again clicked at its OCR box")
       }
 
-      private func expectStableReadingPosition(_ host: NSView, before: CGImage, above gapRowTop: Double) async throws {
+      private func expectStableReadingPosition(_ host: NSView, before: CGImage, rows: Range<Int>, scale: Int) async throws {
         let after = try snapshot(host)
-        let shift = try await Task.detached { try Self.renderedShift(before: before, after: after, above: gapRowTop) }.value
+        try #require(before.width == after.width && before.height == after.height && before.bitsPerPixel == 32 && after.bitsPerPixel == 32,
+                     "The renders must match: \(before.width)x\(before.height)x\(before.bitsPerPixel) and \(after.width)x\(after.height)x\(after.bitsPerPixel).")
+        // The detached task records no issues: it has no test to attribute them to.
+        let match = try #require(await Task.detached { Self.renderedShift(before: before, after: after, rows: rows, scale: scale) }.value, "The renders have no pixel data.")
+        try #require(match.identifiable, "The fixture must render identifiable text.")
+        let shift = match.shift
         if abs(shift) > 2 {
           Attachment.record(before, named: "gap-fill-before.png")
           Attachment.record(after, named: "gap-fill-after.png")
@@ -301,20 +313,14 @@
       }
 
       /// Compares the rows above the gap row that entered at the bottom. Lazy stacks estimate their
-      /// total height, so visible pixels are compared instead of the scroll offset.
-      private nonisolated static func renderedShift(before: CGImage, after: CGImage, above gapRowTop: Double) throws -> Int {
-        let firstData = try #require(before.dataProvider?.data)
-        let secondData = try #require(after.dataProvider?.data)
+      /// total height, so visible pixels are compared instead of the scroll offset. Nil without pixel data.
+      private nonisolated static func renderedShift(before: CGImage, after: CGImage, rows: Range<Int>, scale: Int) -> (shift: Int, identifiable: Bool)? {
+        guard let firstData = before.dataProvider?.data, let secondData = after.dataProvider?.data else { return nil }
         defer { withExtendedLifetime((firstData, secondData)) {} }
-        let first = try #require(CFDataGetBytePtr(firstData))
-        let second = try #require(CFDataGetBytePtr(secondData))
-        try #require(before.width == after.width && before.height == after.height)
-        try #require(before.bitsPerPixel == after.bitsPerPixel && before.bitsPerPixel == 32)
-        let lastRow = min(before.height / 2, Int(Double(before.height) * gapRowTop) - 120)
-        try #require(lastRow > before.height / 8 + 200, "The gap row must leave rows above it to compare.")
+        guard let first = CFDataGetBytePtr(firstData), let second = CFDataGetBytePtr(secondData) else { return nil }
         func difference(_ shift: Int) -> Int {
           var total = 0
-          for row in stride(from: before.height / 8, to: lastRow, by: 3) {
+          for row in stride(from: rows.lowerBound, to: rows.upperBound, by: 3) {
             for column in stride(from: before.width / 12, to: before.width / 3, by: 4) {
               let firstOffset = row * before.bytesPerRow + column * 4
               let secondOffset = (row + shift) * after.bytesPerRow + column * 4
@@ -325,9 +331,8 @@
           }
           return total
         }
-        let shift = try #require((-100 ... 100).min { difference($0) < difference($1) })
-        try #require(difference(shift) < difference(shift + 20), "The fixture must render identifiable text.")
-        return shift
+        guard let shift = (-50 * scale ... 50 * scale).min(by: { difference($0) < difference($1) }) else { return nil }
+        return (shift, difference(shift) < difference(shift + 10 * scale))
       }
 
       private func message(_ index: Int) -> Components.Schemas.ChatRoomMessage {
