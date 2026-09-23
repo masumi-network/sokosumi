@@ -28,6 +28,7 @@ import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dial
 import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
+import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
 import {
   AlertDialog,
@@ -64,7 +65,10 @@ import type {
   ChatRoomInvitation,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { getActiveRoomIdFromPathname } from "./active-room-id";
+import {
+  getActiveRoomIdFromPathname,
+  getActiveRoomIdFromSelection,
+} from "./active-room-id";
 import { ChannelKindGlyph } from "./channel-discoverability-icon";
 import { ChannelRoomMark } from "./channel-room-mark";
 import {
@@ -146,6 +150,7 @@ export function OrganizationChatList({
   const tExternal = useTranslations("App.Channels.External");
   const tActions = useTranslations("App.Channels.Actions");
   const pathname = usePathname();
+  const selectedPath = useRoomSelection();
   const router = useRouter();
   const { setOpen } = useSidebar();
   const hasOrganization = Boolean(organizationId);
@@ -279,7 +284,11 @@ export function OrganizationChatList({
     });
   }
 
-  const activeRoomId = getActiveRoomIdFromPathname(pathname);
+  // The highlight moves on click, before the route commits. Dim follows
+  // that, or a read room stays faded under the bar until pathname catches up.
+  const activeRoomId = selectedPath
+    ? getActiveRoomIdFromSelection(selectedPath)
+    : getActiveRoomIdFromPathname(pathname);
   // All unreads (SOK-1159): the rooms a read would still change, newest
   // activity first. One answer for what the filter lists and whether the
   // reader is caught up, so the two cannot disagree.
@@ -301,13 +310,15 @@ export function OrganizationChatList({
     () => partitionRoomsForSidebar(roomRows),
     [roomRows],
   );
-  // The filter is Pinned over one flat list, not the sections: a heading
-  // over one or two rooms is noise. Pinned holds every pinned room, fixed, in
-  // the reader's own order, so reaching one never means switching the filter
-  // off; the flat list never takes a pinned room, so none shows twice or
-  // moves out of Pinned when it is opened or turns unread. In the flat list
-  // each room keeps the place it first took in the pass and dims there once
-  // read. Switching the filter off ends the pass.
+  // The filter is one flat list with Pinned under it, not the sections: a
+  // heading over one or two rooms is noise. Pinned stays last, so the
+  // caught-up message leads and nothing moves when the reader gets there.
+  // Pinned holds every pinned room, fixed, in the reader's own order, so
+  // reaching one never means switching the filter off; the flat list never
+  // takes a pinned room, so none shows twice or moves out of Pinned when it
+  // is opened or turns unread. In the flat list each room keeps the place it
+  // first took in the pass and dims there once read. Switching the filter
+  // off ends the pass.
   const pinnedIds = new Set(pinned.map((room) => room.id));
   const nextFilterPass = unreadOnly
     ? advanceUnreadFilterPass(filterPass, {
@@ -335,6 +346,12 @@ export function OrganizationChatList({
   const inboxPinnedRooms = unreadOnly ? pinned : [];
   const isUnreadRoom = (room: ChatRoom) =>
     unreadRooms.some((row) => row.id === room.id);
+  // Read rooms dim, but not the open one: dimmed, its highlight reads as
+  // disabled.
+  const inboxItemProps = (room: ChatRoom) =>
+    isUnreadRoom(room) || room.id === activeRoomId
+      ? undefined
+      : READ_INBOX_ROOM_ITEM_PROPS;
   const pinnedRoomIds = pinned.map((room) => room.id);
   // Reordering lives on the full Pinned section's header, which the filter
   // replaces; its Pinned group shows every pin, fixed.
@@ -433,31 +450,6 @@ export function OrganizationChatList({
           unreadOnly={unreadOnly}
           onUnreadOnlyChange={setUnreadOnly}
         />
-        {inboxPinnedRooms.length > 0 ? (
-          <div>
-            <p
-              id={inboxPinnedLabelId}
-              className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pb-1 text-xs font-medium"
-            >
-              {t("pinned")}
-            </p>
-            <SidebarMenu
-              data-slot="unread-inbox-pinned"
-              aria-labelledby={inboxPinnedLabelId}
-              className="gap-0"
-            >
-              {inboxPinnedRooms.map((room) => (
-                <ChatRoomSidebarRow
-                  key={room.id}
-                  {...roomRowProps(room)}
-                  itemProps={
-                    isUnreadRoom(room) ? undefined : READ_INBOX_ROOM_ITEM_PROPS
-                  }
-                />
-              ))}
-            </SidebarMenu>
-          </div>
-        ) : null}
         {caughtUp ? (
           // A message, not a row: nothing here opens. The way back to every
           // room is the tinted All unreads row right above it.
@@ -493,16 +485,13 @@ export function OrganizationChatList({
               aria-labelledby={caughtUp ? inboxReadLabelId : undefined}
               className="gap-0"
             >
-              {inboxRooms.map((room) => {
-                const read = !isUnreadRoom(room);
-                return (
-                  <ChatRoomSidebarRow
-                    key={room.id}
-                    {...roomRowProps(room)}
-                    itemProps={read ? READ_INBOX_ROOM_ITEM_PROPS : undefined}
-                  />
-                );
-              })}
+              {inboxRooms.map((room) => (
+                <ChatRoomSidebarRow
+                  key={room.id}
+                  {...roomRowProps(room)}
+                  itemProps={inboxItemProps(room)}
+                />
+              ))}
             </SidebarMenu>
           </div>
         ) : null}
@@ -713,6 +702,31 @@ export function OrganizationChatList({
           </Collapsible>
         ) : null}
 
+        {/* After External: a pending invitation waits on the reader, as an
+            unread room does. */}
+        {inboxPinnedRooms.length > 0 ? (
+          <div>
+            <p
+              id={inboxPinnedLabelId}
+              className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pb-1 text-xs font-medium"
+            >
+              {t("pinned")}
+            </p>
+            <SidebarMenu
+              data-slot="unread-inbox-pinned"
+              aria-labelledby={inboxPinnedLabelId}
+              className="gap-0"
+            >
+              {inboxPinnedRooms.map((room) => (
+                <ChatRoomSidebarRow
+                  key={room.id}
+                  {...roomRowProps(room)}
+                  itemProps={inboxItemProps(room)}
+                />
+              ))}
+            </SidebarMenu>
+          </div>
+        ) : null}
         {hasOrganization && !unreadOnly && sortedArchivedChannels.length > 0 ? (
           <Collapsible
             open={archivedSectionOpen}
