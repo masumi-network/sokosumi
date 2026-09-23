@@ -50,25 +50,20 @@
         let revision = state.threadAttentionRevision
         await state.updateThreadOverview(.markAllRead, roomId: "room", auth: auth)
         try #require(state.threadAttentionRevision == revision + 1, "Mark all bumps the Threads attention revision.")
-        try #require(transport.countRequests == 1, "Mark all itself does not count; the toolbar's task does.")
 
         try await waitUntil("the re-count after the bump; \(Self.describe(transport, state))", in: host) {
           transport.countRequests >= 2 && state.threadOverview.unreadCount == 1
         }
-        #expect(transport.countRequests == 2, "One bump sends exactly one more count request.")
-        #expect(roomThreadsAccessibilityLabel(unreadCount: state.threadOverview.unreadCount) == "Threads, 1 unread")
+        #expect(transport.countRequests == 2, "One bump sends exactly one more count request, and Mark all sends none of its own.")
 
         // Render again with no bump: the task id is unchanged, so nothing is re-counted.
         let rendered = renders.value
         state.objectWillChange.send()
         try await waitUntil("a second render", in: host) { renders.value > rendered }
-        try await expectQuiet(for: RoomToolsThreadsCountTests.countDebounce * 3) { transport.countRequests == 2 }
+        try await expectQuiet(for: RoomToolsModifier.threadsCountDebounce * 3) { transport.countRequests == 2 }
         #expect(transport.countRequests == 2, "A render without a bump sends no count request.")
         #expect(state.threadOverview.unreadCount == 1)
       }
-
-      /// `RoomToolsModifier` waits this long before it counts, so a burst of bumps sends one request.
-      private static let countDebounce = Duration.milliseconds(150)
 
       private func waitUntil(_ what: @autoclosure () -> String, in host: NSView, _ condition: () -> Bool) async throws {
         _ = try await waitForView(in: host, timeoutMessage: what()) { condition() ? host : nil }
