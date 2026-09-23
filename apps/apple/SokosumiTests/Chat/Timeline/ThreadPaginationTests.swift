@@ -216,6 +216,14 @@
     }
 
     override func startLoading() {
+      // The thread view reads its mute (row 24b); only reply pages are counted and scripted here.
+      guard request.url?.path.hasSuffix("/messages") == true else {
+        if let url = request.url, let response = HTTPURLResponse(url: url, statusCode: 404, httpVersion: nil, headerFields: nil) {
+          client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+          client?.urlProtocolDidFinishLoading(self)
+        }
+        return
+      }
       let number = Self.requests.withLock { $0 += 1
         return $0
       }
