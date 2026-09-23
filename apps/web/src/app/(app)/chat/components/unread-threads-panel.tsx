@@ -29,11 +29,10 @@ interface UnreadThreadsPanelProps {
  *
  * Unread threads show as a primary badge holding the count on the button's
  * corner, the same badge the notification bell wears in the same filled
- * primary, so one header states counts one way. Opening the panel does not hide
- * it: looking at a
- * list is not reading it, so the badge stands until a Look or a Mark all
- * actually zeroes the count. The sidebar row makes the same call for the room
- * it is open on.
+ * primary, so one header states counts one way. Opening the panel does not
+ * hide it: looking at a list is not reading it, so the badge stands until a
+ * Look or a Mark all actually zeroes the count. The sidebar row makes the same
+ * call for the room it is open on.
  *
  * The badge shows even for a reader who switched numeric counts off. That
  * switch thins the sidebar, where every room would otherwise carry a number;
