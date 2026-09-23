@@ -431,6 +431,11 @@ export function ImageViewer({
           className,
         )}
         data-testid="image-viewer"
+        // The pinned-message row is a button. This dialog is portaled, but
+        // React still bubbles the click to that row and would jump away.
+        onClick={(event) => {
+          event.stopPropagation();
+        }}
         onKeyDown={handleKeyDown}
       >
         {activeImage ? (

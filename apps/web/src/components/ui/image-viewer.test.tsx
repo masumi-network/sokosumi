@@ -248,6 +248,24 @@ describe("ImageViewer", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("does not activate an ancestor click from inside the viewer", async () => {
+      const user = userEvent.setup();
+      const onAncestorClick = vi.fn();
+      render(
+        <div onClick={onAncestorClick}>
+          <GalleryHarness initialSrc="https://example.com/panel.jpg" />
+        </div>,
+      );
+
+      await user.click(screen.getByRole("button", { name: "Next image" }));
+      expect(shownImageName()).toBe("crowd.jpg");
+      expect(onAncestorClick).not.toHaveBeenCalled();
+
+      await user.click(screen.getByTestId("image-viewer-stage"));
+      expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
+      expect(onAncestorClick).not.toHaveBeenCalled();
+    });
+
     it("steps with the arrow buttons and stops at the ends", async () => {
       const user = userEvent.setup();
       render(<GalleryHarness initialSrc="https://example.com/stage.jpg" />);
