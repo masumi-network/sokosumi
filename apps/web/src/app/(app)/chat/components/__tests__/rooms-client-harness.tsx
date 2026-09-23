@@ -1,6 +1,6 @@
 import { type RenderOptions, render } from "@testing-library/react";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
-import { type Mock, vi } from "vitest";
+import { beforeEach, type Mock, vi } from "vitest";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -376,6 +376,10 @@ export function resetRoomsClientMocks() {
   sendStreamMessage.mockReturnValue(true);
   useChatRoomRealtimeMock.mockReset();
 }
+
+beforeEach(() => {
+  resetRoomsClientMocks();
+});
 
 export function createRoomsClient(
   overrides?: Partial<RoomsClientProps>,
