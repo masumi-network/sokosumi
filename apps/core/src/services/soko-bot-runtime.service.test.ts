@@ -328,6 +328,7 @@ vi.mock("@/helpers/task-notifications", () => ({
   notifyTaskStatusEvent: notifyTaskStatusEventMock,
 }));
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishTaskEventData: publishTaskEventDataMock,
 }));
 vi.mock("@/helpers/chat-direct-message-notifications", () => ({

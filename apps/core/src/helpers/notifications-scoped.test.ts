@@ -70,6 +70,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishNotificationEvent: (...args: unknown[]) => publishMock(...args),
 }));
 

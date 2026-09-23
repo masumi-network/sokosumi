@@ -31,7 +31,7 @@ test("coworkers list emits JSON and applies search/limit", async () => {
   assert.equal(parsed.coworkers[0].name, "Research");
 });
 
-test("V21: coworkers register emits the Core vendorId request field", async () => {
+test("coworkers register emits the Core vendorId request field", async () => {
   let requestBody: unknown;
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
@@ -79,7 +79,7 @@ test("V21: coworkers register emits the Core vendorId request field", async () =
   assert.deepEqual(parsed.coworker.capabilities, ["tasks"]);
 });
 
-test("V21: coworkers register rejects a missing vendor ID before Core request", async () => {
+test("coworkers register rejects a missing vendor ID before Core request", async () => {
   let postCalled = false;
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
@@ -114,7 +114,7 @@ test("V21: coworkers register rejects a missing vendor ID before Core request", 
   assert.equal(postCalled, false);
 });
 
-test("TestV67 coworkers register blocks when no organization workspace exists", async () => {
+test("coworkers register blocks when no organization workspace exists", async () => {
   let postCalled = false;
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
@@ -142,7 +142,7 @@ test("TestV67 coworkers register blocks when no organization workspace exists", 
   assert.equal(postCalled, false);
 });
 
-test("TestV67 coworkers register rejects non-admin Vendor before Core create", async () => {
+test("coworkers register rejects non-admin Vendor before Core create", async () => {
   let postCalled = false;
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
@@ -179,7 +179,7 @@ test("TestV67 coworkers register rejects non-admin Vendor before Core create", a
   assert.equal(postCalled, false);
 });
 
-test("TestV67 coworkers register refuses --create-vendor without inventing Core policy", async () => {
+test("coworkers register refuses --create-vendor without inventing Core policy", async () => {
   let postCalled = false;
   const client: CoreHttpClient = {
     get: async <T>() => ({ data: [] }) as T,

@@ -47,7 +47,7 @@ that reads as text on the page. In dark mode those pull opposite ways, so one
 token cannot do both: white on the text red measures 3.43, under the 4.5 floor.
 
 The rule is absolute. A modifier on any colour utility is a bug, including on
-the neutrals, and `color-tokens.test.ts` fails on it.
+the neutrals, and `src-walk-guards.test.ts` fails on it.
 
 Where a surface genuinely has to show what sits behind it, the alpha lives in
 the token, not at the call site:
@@ -140,7 +140,7 @@ pickers are data, not UI color. Those keep their literals.
 
 ### Guard
 
-`apps/web/src/lib/utils/__tests__/color-tokens.test.ts` fails the build on
+`apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts` fails the build on
 five things. Each is its own test case, and a call-site failure prints the
 file, the line number, and the offending line:
 

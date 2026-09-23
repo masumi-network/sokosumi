@@ -29,6 +29,7 @@ const TaskScheduleOccurrenceLimitErrorMock = vi.hoisted(
 );
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishTaskEventData: publishTaskEventDataMock,
 }));
 
