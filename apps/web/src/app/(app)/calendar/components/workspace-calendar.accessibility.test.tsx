@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { describe, expect, it, vi } from "vitest";
 import type {
+  TaskListItem,
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
@@ -119,6 +120,54 @@ const SOURCES: WorkspaceCalendarSource[] = [
     isSchedulable: true,
   },
 ];
+
+const SCHEDULED_TASK: TaskListItem = {
+  id: "task-1",
+  createdAt: new Date("2030-01-02T09:00:00.000Z"),
+  updatedAt: new Date("2030-01-02T09:00:00.000Z"),
+  ownerId: "user-1",
+  owner: { id: "user-1", name: "Ada", image: null },
+  userId: "user-1",
+  user: { id: "user-1", name: "Ada", image: null },
+  organizationId: null,
+  organization: null,
+  projectId: null,
+  project: null,
+  assigneeId: null,
+  assigneeSokoBotId: null,
+  assigneeUserId: null,
+  assignee: null,
+  coworkerId: null,
+  coworker: null,
+  creator: {
+    type: "user",
+    id: "user-1",
+    user: { id: "user-1", name: "Ada", image: null },
+  },
+  sokoBotId: null,
+  sokoBot: null,
+  name: "Prepare release notes",
+  description: null,
+  status: "QUEUED",
+  visibility: "PUBLIC",
+  grantResumeStatus: null,
+  pendingVendorGrantId: null,
+  metadata: JSON.stringify({
+    version: 1,
+    scheduledAt: "2030-01-02T09:00:00.000Z",
+    mode: "recurring",
+    expr: "0 9 * * *",
+    timezone: "UTC",
+  }),
+  nextRunAt: new Date("2030-01-03T09:00:00.000Z"),
+  workspace: {
+    id: "workspace-1",
+    organizationId: null,
+    organization: null,
+  },
+  jobsCount: 0,
+  commentsCount: 0,
+};
 
 function renderCalendar(view: "month" | "week" | "agenda") {
   return render(
@@ -242,5 +291,38 @@ describe("WorkspaceCalendar accessibility", () => {
       request.resolve({ ok: true, value: { taskId: ITEM.taskId } });
       await request.promise;
     });
+  });
+
+  it("offers every Calendar view including Schedules", () => {
+    renderCalendar("month");
+
+    for (const view of ["month", "week", "agenda", "schedules"]) {
+      expect(
+        screen.getByRole("tab", { name: `view.${view}` }),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it("opens the series editor from an owned schedule row", async () => {
+    const user = userEvent.setup();
+    getTaskByIdMock.mockResolvedValue({
+      data: { id: SCHEDULED_TASK.id, metadata: SCHEDULED_TASK.metadata },
+    });
+
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC&view=schedules">
+        <WorkspaceCalendar
+          currentUserId="user-1"
+          initialDate="2030-01-02"
+          items={[]}
+          scheduledTasks={[SCHEDULED_TASK]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "schedules.edit" }));
+
+    expect(await screen.findByRole("dialog")).toHaveTextContent("edit.title");
   });
 });

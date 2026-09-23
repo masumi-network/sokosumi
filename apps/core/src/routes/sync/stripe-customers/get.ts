@@ -4,7 +4,7 @@ import { stripeCustomerSyncService } from "@/services/stripe-customer-sync.servi
 
 import { handleSyncRequest } from "../handler.js";
 
-export const STRIPE_CUSTOMERS_SYNC_LOCK_KEY = "stripe-customers-sync";
+const STRIPE_CUSTOMERS_SYNC_LOCK_KEY = "stripe-customers-sync";
 
 export default function mount(app: Hono) {
   app.get("/stripe-customers", async (c) => {

@@ -6308,7 +6308,8 @@
       "view": {
         "month": "Monat",
         "week": "Woche",
-        "agenda": "Agenda"
+        "agenda": "Agenda",
+        "schedules": "Zeitpläne"
       },
       "source": {
         "label": "Quelle",
@@ -6374,7 +6375,15 @@
         "label": "Zeitzone"
       },
       "empty": {
-        "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
+        "title": "Keine geplanten Freigaben entsprechen diesen Filtern.",
+        "schedulesTitle": "Keine Zeitpläne entsprechen diesen Filtern."
+      },
+      "schedules": {
+        "nextRun": "Nächster Lauf",
+        "noNextRun": "Kein nächster Lauf",
+        "edit": "Zeitplan bearbeiten",
+        "openTask": "Aufgabe öffnen",
+        "loadMore": "Mehr laden"
       },
       "pagination": {
         "error": "Weitere Ereignisse konnten nicht geladen werden."

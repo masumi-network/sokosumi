@@ -323,6 +323,98 @@ describe("task.service", () => {
     });
   });
 
+  it("forwards the active-schedule filter and next-run sort to the core client", async () => {
+    coreClientMock.getTasks.mockResolvedValue({
+      data: [buildTask()],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 100,
+          total: 1,
+          nextCursor: null,
+        },
+      },
+    });
+
+    const { taskService } = await import("./task.service");
+    await taskService.listTasks({
+      hasSchedule: true,
+      sort: "nextRunAt",
+      scope: "workspace",
+      limit: 100,
+    });
+
+    expect(coreClientMock.getTasks).toHaveBeenCalledWith({
+      status: undefined,
+      assigneeId: undefined,
+      q: undefined,
+      scope: "workspace",
+      cursor: undefined,
+      limit: 100,
+      projectId: undefined,
+      sort: "nextRunAt",
+      hasSchedule: "true",
+    });
+  });
+
+  it("omits the schedule filter when it is not requested", async () => {
+    coreClientMock.getTasks.mockResolvedValue({
+      data: [],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 100,
+          total: 0,
+          nextCursor: null,
+        },
+      },
+    });
+
+    const { taskService } = await import("./task.service");
+    await taskService.listTasks({ limit: 100 });
+
+    expect(coreClientMock.getTasks).toHaveBeenCalledWith({
+      status: undefined,
+      assigneeId: undefined,
+      q: undefined,
+      scope: undefined,
+      cursor: undefined,
+      limit: 100,
+      projectId: undefined,
+      sort: undefined,
+      hasSchedule: undefined,
+    });
+  });
+
+  it("forwards an explicit unscheduled filter to the core client", async () => {
+    coreClientMock.getTasks.mockResolvedValue({
+      data: [],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 100,
+          total: 0,
+          nextCursor: null,
+        },
+      },
+    });
+
+    const { taskService } = await import("./task.service");
+    await taskService.listTasks({ hasSchedule: false, limit: 100 });
+
+    expect(coreClientMock.getTasks).toHaveBeenCalledWith({
+      status: undefined,
+      assigneeId: undefined,
+      q: undefined,
+      scope: undefined,
+      cursor: undefined,
+      limit: 100,
+      projectId: undefined,
+      sort: undefined,
+      hasSchedule: "false",
+    });
+  });
+
   it("forwards jobs filters to the core client", async () => {
     const job = {
       id: "job-1",
