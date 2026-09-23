@@ -16,7 +16,7 @@ public struct ChatService: Sendable {
   public init() {}
 
   /// `GET /users/me/workspace-access`.
-  public func fetchAccess(client: Client) async throws -> Components.Schemas.WorkspaceAccess {
+  private func fetchAccess(client: Client) async throws -> Components.Schemas.WorkspaceAccess {
     let response = try await client.getUsersIdWorkspaceAccess(
       .init(path: .init(id: "me"))
     )
@@ -90,7 +90,7 @@ public struct ChatService: Sendable {
 
   /// Session user (`GET /users/me`): id excludes yourself from Direct
   /// display names, name/email feed the "me" section and Settings.
-  public func fetchCurrentUser(client: Client) async throws -> Components.Schemas.User {
+  private func fetchCurrentUser(client: Client) async throws -> Components.Schemas.User {
     let response = try await client.getUsersId(.init(path: .init(id: "me")))
     switch response {
     case let .ok(okResponse):
@@ -128,7 +128,7 @@ public struct ChatService: Sendable {
     return .init(access: access, organizations: organizations, currentUser: user, defaultSelection: selection)
   }
 
-  public func fetchPreferredOrganization(client: Client) async throws -> String? {
+  private func fetchPreferredOrganization(client: Client) async throws -> String? {
     let response = try await client.getUsersIdPreferredOrganization(.init(path: .init(id: "me")))
     switch response {
     case let .ok(value): return try value.body.json.data.organizationId
