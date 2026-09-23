@@ -615,6 +615,8 @@ model SocialPost {
 
   scheduledByUserId String?
   scheduledByUser   User?   @relation("SocialPostScheduledByUser", fields: [scheduledByUserId], references: [id], onDelete: SetNull)
+  scheduledByCoworkerId String?
+  scheduledByCoworker Coworker? @relation("SocialPostScheduledByCoworker", fields: [scheduledByCoworkerId], references: [id], onDelete: Restrict)
 
   canceledAt          DateTime?
   publishedAt         DateTime?
@@ -645,6 +647,7 @@ model SocialPost {
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
   @@index([scheduledByUserId])
+  @@index([scheduledByCoworkerId])
   @@map("social_post")
 }
 
@@ -1789,6 +1792,7 @@ model Coworker {
   chatRoomMemberships     ChatRoomCoworkerMember[]
   chatRoomMessages        ChatRoomMessage[]        @relation("ChatRoomCoworkerSender")
   chatRoomMentions        ChatRoomMention[]
+  scheduledSocialPosts SocialPost[] @relation("SocialPostScheduledByCoworker")
 
   @@index([archivedAt])
   @@index([vendorId])

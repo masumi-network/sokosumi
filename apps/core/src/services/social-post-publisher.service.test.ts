@@ -1,13 +1,14 @@
 import { SsrfError } from "@sokosumi/net";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   ComposioApiError,
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
 } from "@/clients/composio.client";
+import { forbidden } from "@/helpers/error";
 
 const {
+  publishingAccessMock,
   attemptFindFirstMock,
   attemptAggregateMock,
   attemptCreateMock,
@@ -18,6 +19,7 @@ const {
   socialPostUpdateManyMock,
   ssrfSafeFetchMock,
 } = vi.hoisted(() => ({
+  publishingAccessMock: vi.fn(),
   attemptFindFirstMock: vi.fn(),
   attemptAggregateMock: vi.fn(),
   attemptCreateMock: vi.fn(),
@@ -32,6 +34,10 @@ const {
 vi.mock("@sokosumi/net", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/net")>()),
   ssrfSafeFetch: ssrfSafeFetchMock,
+}));
+
+vi.mock("@/helpers/social-post-access", () => ({
+  requireSocialPostPublishingAccess: publishingAccessMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -1044,6 +1050,7 @@ describe("social post publisher service", () => {
           status: "PUBLISHING",
           scheduledAt: NOW,
           scheduledByUserId: USER_ID,
+          scheduledByCoworkerId: null,
           attemptCount: 0,
           nextAttemptAt: null,
           lastError: null,
@@ -1226,5 +1233,57 @@ describe("social post publisher service", () => {
       });
       expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
     });
+  });
+  it("checks delegation immediately before publishing a coworker-scheduled post", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        scheduledByUserId: USER_ID,
+        scheduledByCoworker: { id: "cow_123", vendorId: "vendor_123" },
+        workspace: { organizationId: null },
+      })
+      .mockResolvedValue(null);
+    publishingAccessMock.mockResolvedValue(undefined);
+    const { publishDueSocialPosts } = await loadService();
+    const result = await publishDueSocialPosts(syncContext);
+    expect(publishingAccessMock).toHaveBeenCalledWith(
+      {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: "vendor_123",
+        context: { userId: USER_ID, organizationId: null },
+      },
+      WORKSPACE_ID,
+    );
+    expect(result.published).toBe(1);
+  });
+  it("fails revoked coworker schedules without contacting X", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        scheduledByUserId: USER_ID,
+        scheduledByCoworker: { id: "cow_123", vendorId: "vendor_123" },
+        workspace: { organizationId: null },
+      })
+      .mockResolvedValue(null);
+    publishingAccessMock.mockRejectedValue(forbidden("Grant revoked"));
+    const { publishDueSocialPosts } = await loadService();
+    const result = await publishDueSocialPosts(syncContext);
+    expect(result.failed).toBe(1);
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data).toMatchObject({
+      status: "FAILED",
+      nextAttemptAt: null,
+    });
+    expect(attemptCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          outcome: "authorization_revoked",
+          toolSlug: null,
+        }),
+      }),
+    );
   });
 });
