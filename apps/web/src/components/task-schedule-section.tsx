@@ -673,7 +673,9 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
         {scheduleOption !== "custom" && (
           <div className="mb-4 space-y-3">
             <div className="flex flex-col gap-2">
-              <Label htmlFor={pickDateTimeId}>{t("pickDateTime")}</Label>
+              <Label htmlFor={pickDateTimeId}>
+                {props.recurringOnly ? t("firstRun") : t("pickDateTime")}
+              </Label>
               <Input
                 id={pickDateTimeId}
                 type="datetime-local"

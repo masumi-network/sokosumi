@@ -2031,6 +2031,7 @@
           "custom": "Custom cron"
         },
         "pickDateTime": "Run once at",
+        "firstRun": "Primera ejecución",
         "timeOfDay": "Time of day",
         "repeatEvery": "Repeat every",
         "repeatOn": "Repeat on",

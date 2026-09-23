@@ -219,7 +219,7 @@ describe("TaskScheduleDialog", () => {
     const user = userEvent.setup();
     renderDialog({ schedule: SCHEDULE });
 
-    fireEvent.change(screen.getByLabelText("pickDateTime"), {
+    fireEvent.change(screen.getByLabelText("firstRun"), {
       target: { value: "2030-01-14T10:45" },
     });
     await user.click(screen.getByRole("button", { name: "save" }));
