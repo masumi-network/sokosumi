@@ -37,6 +37,7 @@ vi.mock("@/helpers/notification-email-dispatch", () => ({
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishCalendarAccessRevoked: publishAccessRevokedMock,
   publishCalendarInvalidationToUsers: publishMock,
 }));
