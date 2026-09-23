@@ -34,8 +34,8 @@ export function hydrateChatRoomMessageFromRealtime(
     metadata: message.metadata,
     quote: message.quote as ChatRoomMessage["quote"],
     membership: message.membership as ChatRoomMessage["membership"],
-    groupNameChange:
-      message.groupNameChange as ChatRoomMessage["groupNameChange"],
+    groupNameChange: (message.groupNameChange ??
+      null) as ChatRoomMessage["groupNameChange"],
     unfurls: message.unfurls as ChatRoomMessage["unfurls"],
   };
 }
