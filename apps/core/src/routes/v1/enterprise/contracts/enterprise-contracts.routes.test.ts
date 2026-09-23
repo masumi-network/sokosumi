@@ -440,6 +440,54 @@ describe("enterprise contract admin routes", () => {
       );
     });
 
+    it("activates in a serializable transaction", async () => {
+      const app = createContractsApp();
+
+      const response = await app.request(
+        `http://localhost/${CONTRACT_ID}/activate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        },
+      );
+
+      // Activation auto-assigns seats, and Postgres only aborts a
+      // serialization anomaly when both sides run at this level (SOK-1007).
+      expect(response.status).toBe(200);
+      expect(prismaTransactionMock.mock.calls).toHaveLength(1);
+      expect(prismaTransactionMock.mock.calls[0]?.[1]).toEqual({
+        isolationLevel: "Serializable",
+      });
+    });
+
+    it("returns 409 when activation keeps losing the serialization race", async () => {
+      prismaTransactionMock.mockRejectedValue(
+        Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+      );
+      vi.useFakeTimers();
+      try {
+        const app = createContractsApp();
+        const pending = app.request(
+          `http://localhost/${CONTRACT_ID}/activate`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          },
+        );
+        await vi.runAllTimersAsync();
+        const response = await pending;
+
+        expect(response.status).toBe(409);
+        expect(await response.json()).toMatchObject({
+          kind: "concurrency_conflict",
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("returns 404 when activation fails with a not-found lifecycle error", async () => {
       activateEnterpriseContractMock.mockRejectedValue(
         new EnterpriseContractNotFoundError(),

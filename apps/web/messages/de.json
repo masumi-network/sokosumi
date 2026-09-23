@@ -771,10 +771,16 @@
       "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 ungelesene Benachrichtigung und Kontohinweis} other {# ungelesene Benachrichtigungen und Kontohinweis}}",
       "title": "Benachrichtigungen",
       "pageTitle": "Benachrichtigungen",
+      "pageDescription": "Updates zu deinen Aufgaben, Agenten und deinem Workspace.",
       "emptyState": "Noch keine Benachrichtigungen",
+      "emptyStateDescription": "Bisher ist nichts angekommen. Aufgabenergebnisse und Workspace-Anfragen erscheinen hier, sobald sie eintreffen.",
       "emptyUnreadState": "Du bist auf dem Laufenden",
+      "emptyUnreadStateDescription": "Hier ist nichts ungelesen. Alles Gelesene bleibt unter Alle.",
       "emptyNeedsYouState": "Nichts wartet auf dich",
+      "emptyNeedsYouStateDescription": "Nichts wartet auf deine Antwort. Anfragen, die dich brauchen, erscheinen hier.",
       "viewAll": "Alle Benachrichtigungen anzeigen",
+      "showAll": "Alle anzeigen",
+      "showOlder": "Ältere Benachrichtigungen anzeigen",
       "justNow": "Gerade eben",
       "loading": "Lädt...",
       "markAllRead": "Alle als gelesen markieren",
@@ -804,6 +810,8 @@
       "browserPermissionRequesting": "Warte auf Berechtigung…",
       "browserPermissionDeniedTitle": "Browser-Benachrichtigungen sind blockiert",
       "browserPermissionDeniedDescription": "Benachrichtigungen für diese Website sind in deinem Browser blockiert. Öffne die Browser-Benachrichtigungseinstellungen für Sokosumi, um sie zuzulassen.",
+      "browserPermissionInstallTitle": "Füge Sokosumi zum Home-Bildschirm hinzu",
+      "browserPermissionInstallDescription": "Auf iPhone und iPad kommen Benachrichtigungen nur in der installierten App an. Tippe auf „Teilen“, dann auf „Zum Home-Bildschirm“.",
       "pushQuietTitle": "Push-Benachrichtigungen kommen in diesem Browser nicht mehr an",
       "pushQuietDescription": "Dieser Browser hat sein Push-Abonnement verloren, daher kommen hier keine Updates an. Deine anderen Geräte erhalten sie möglicherweise weiterhin.",
       "pushQuietRestore": "Push wieder einschalten",
@@ -1533,8 +1541,6 @@
         "approvePartialError": "{approved} von {total} Vendors genehmigt. Einige Freigaben sind fehlgeschlagen — bitte aktualisieren und erneut versuchen."
       },
       "Actions": {
-        "add": "Neue Aufgabe",
-        "addTask": "Neue Aufgabe",
         "loading": "Wird geladen...",
         "loadMore": "Mehr laden",
         "showGuide": "Show guide"
@@ -4149,6 +4155,9 @@
         "pushBannerDeniedBody": "Sokosumi kann nicht erneut fragen. Erlaube Benachrichtigungen für diese Website in den Browser-Einstellungen. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
         "pushBannerUnsupportedTitle": "Dieser Browser kann keine Push-Benachrichtigungen anzeigen",
         "pushBannerUnsupportedBody": "Push-Benachrichtigungen kommen hier nicht an, egal was die Zeilen unten sagen. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
+        "pushBannerInstallableTitle": "Füge Sokosumi zum Home-Bildschirm hinzu, um Push-Benachrichtigungen zu bekommen",
+        "pushBannerInstallableBody": "Auf iPhone und iPad kommen Push-Benachrichtigungen nur in der installierten App an. Tippe auf „Teilen“, dann auf „Zum Home-Bildschirm“, und öffne Sokosumi von dort. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
+        "pushInstallableHint": "Füge Sokosumi zum Home-Bildschirm hinzu, um diese auf diesem Gerät zu bekommen.",
         "deviceBannerTitle": "Push-Benachrichtigungen sind in diesem Browser aktiviert. Deine anderen Geräte sind davon nicht betroffen.",
         "deviceBannerAction": "Deaktivieren",
         "deviceDisabledSuccess": "Push-Benachrichtigungen in diesem Browser aus",
@@ -6320,7 +6329,6 @@
         "moveNotAllowed": "Nur der Besitzer der Aufgabe kann sie neu planen."
       },
       "create": {
-        "title": "Task planen",
         "fab": "Task planen"
       },
       "edit": {

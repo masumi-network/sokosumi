@@ -248,6 +248,103 @@ export function isPushSupported(): boolean {
   );
 }
 
+/**
+ * Whether installing this app is what stands between this browser and push.
+ *
+ * True on an iPhone or iPad outside the installed web app. WebKit ships Web
+ * Push to Home Screen web apps alone, so the reader is not on a browser that
+ * cannot do this: they are one Add to Home Screen away from it, and the
+ * generic "this browser cannot" is the wrong thing to tell them.
+ *
+ * `navigator.standalone` is what this asks. Safari for iOS and iPadOS defines
+ * it and no engine off those platforms does, so an Android in-app web view
+ * and a touchscreen laptop are both out: each has touch, which is why this
+ * does not ask about touch, and neither has this. Its value then separates
+ * the two Apple cases, a tab from an installed app, which is the line this is
+ * drawn on.
+ *
+ * The property belongs to the browser rather than to the platform, so a
+ * third-party browser on iOS may not set it, and since 16.4 those can add a
+ * web app to the Home Screen too. `isAppleBrowserUserAgent` picks those up,
+ * and only where the property is absent. Whether an embedded web view sets
+ * it, and to what, is not determined; one that set it to false would put an
+ * instruction in front of a reader whose share sheet cannot carry it out.
+ *
+ * Nothing here reads the user agent. iPadOS sends Safari's macOS string, and
+ * a reader who taps Request Desktop Website gives an iPhone the same, so
+ * anything read off that string answers false for exactly the devices this is
+ * for.
+ *
+ * The one case it cannot see is iOS below 16.4, where the app is installed and
+ * push still does not exist. `standalone` is true there, so the reader is left
+ * on the generic message, which is the truthful answer for them.
+ */
+export function isPushInstallable(): boolean {
+  if (isPushSupported() || !isServiceWorkerSupported()) {
+    return false;
+  }
+
+  const standalone = readAppleStandalone();
+  // True is the installed app and false is the reader this is for. Undefined
+  // is every other platform, and the browsers on this one that do not set it.
+  if (standalone !== undefined) {
+    return standalone === false;
+  }
+
+  return isAppleBrowserUserAgent();
+}
+
+/**
+ * Whether the user agent names a browser that exists on iOS and iPadOS alone.
+ *
+ * The one user-agent read here, and the last resort: it runs only where
+ * `navigator.standalone` is absent, so on a browser that sets the property
+ * this never runs and decides nothing. Since 16.4 a third-party browser on
+ * iOS can add a web app to the Home Screen, so these readers have somewhere
+ * to go, and the name is what is left to find them by.
+ *
+ * A feature would be narrower if one fitted. WebKit's own `GestureEvent` is
+ * proprietary and an Android web view has none, but macOS Safari has it, so
+ * it answers true for a desktop this must not speak to. The names do separate
+ * those, which is why they are what is read.
+ *
+ * Each token exists on iOS alone. Desktop Chrome says `Chrome`, Android Edge
+ * `EdgA`, desktop Edge `Edg`, desktop Firefox `Firefox`: `Edg` is a substring
+ * of `EdgiOS` and not the reverse, so none of them collides. Brave and
+ * DuckDuckGo are left out on purpose, because they send the same token on
+ * Android, where an install instruction is out of scope.
+ *
+ * Two limits, recorded rather than fixed. Firefox Focus and Klar send
+ * `FxiOS` as well, and whether their share sheet carries the action is not
+ * determined; if it does not, their reader is the one case here that meets an
+ * instruction they cannot follow. Brave, DuckDuckGo, Opera and Firefox for
+ * iOS on an iPad send no token in this list, so their readers keep today's
+ * message: a miss rather than a wrong answer.
+ */
+function isAppleBrowserUserAgent(): boolean {
+  return APPLE_ONLY_BROWSER_TOKENS.some((token) =>
+    navigator.userAgent.includes(token),
+  );
+}
+
+/**
+ * Chrome, Firefox and Edge for iOS, which ship under names of their own.
+ *
+ * Chrome keeps `CriOS` when the reader asks for the desktop site, so that
+ * reader is found here too. The rest of its string turns into Safari's macOS
+ * one, which is why nothing below reads the platform out of it.
+ */
+const APPLE_ONLY_BROWSER_TOKENS = ["CriOS", "FxiOS", "EdgiOS"] as const;
+
+/**
+ * `navigator.standalone`, which is not in the DOM library because no standard
+ * defines it. Read through one narrowing rather than a global declaration, so
+ * the non-standard property stays visible at the only place that wants it.
+ */
+function readAppleStandalone(): boolean | undefined {
+  return (navigator as Navigator & { standalone?: boolean }).standalone;
+}
+
 async function register(): Promise<ServiceWorkerRegistration | null> {
   try {
     const registration = await navigator.serviceWorker.register(

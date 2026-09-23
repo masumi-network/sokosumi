@@ -787,10 +787,16 @@
       "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 unread notification and account notice} other {# unread notifications and account notice}}",
       "title": "Notifications",
       "pageTitle": "Notifications",
+      "pageDescription": "Updates from your tasks, agents and workspace.",
       "emptyState": "No notifications yet",
+      "emptyStateDescription": "Nothing has arrived yet. Task results and workspace requests show up here as they happen.",
       "emptyUnreadState": "You're all caught up",
+      "emptyUnreadStateDescription": "Nothing here is unread. Everything you have read stays in All.",
       "emptyNeedsYouState": "Nothing is waiting on you",
+      "emptyNeedsYouStateDescription": "Nothing is waiting for your answer. Requests that need you appear here.",
       "viewAll": "View all notifications",
+      "showAll": "Show all",
+      "showOlder": "Show older notifications",
       "justNow": "Just now",
       "loading": "Loading...",
       "markAllRead": "Mark all read",
@@ -820,6 +826,8 @@
       "browserPermissionRequesting": "Waiting for permission…",
       "browserPermissionDeniedTitle": "Browser notifications are blocked",
       "browserPermissionDeniedDescription": "Notifications for this site are blocked in your browser. Open your browser’s notification settings for Sokosumi to allow them.",
+      "browserPermissionInstallTitle": "Add Sokosumi to your Home Screen",
+      "browserPermissionInstallDescription": "On iPhone and iPad, alerts only arrive in the installed app. Tap the Share button, then Add to Home Screen.",
       "pushQuietTitle": "Push notifications stopped in this browser",
       "pushQuietDescription": "This browser lost its push subscription, so updates do not arrive here. Your other devices may still get them.",
       "pushQuietRestore": "Turn push back on",
@@ -1533,8 +1541,6 @@
         "approvePartialError": "Approved {approved} of {total} vendors. Some approvals failed — refresh and try again."
       },
       "Actions": {
-        "add": "New Task",
-        "addTask": "New Task",
         "loading": "Loading...",
         "loadMore": "Load More",
         "showGuide": "Show guide"
@@ -4185,6 +4191,9 @@
         "pushBannerDeniedBody": "Sokosumi cannot ask again. Allow notifications for this site in your browser settings. Your other devices may still get them.",
         "pushBannerUnsupportedTitle": "This browser cannot show push notifications",
         "pushBannerUnsupportedBody": "Push notifications do not arrive here, whatever the rows below say. Your other devices may still get them.",
+        "pushBannerInstallableTitle": "Add Sokosumi to your Home Screen to get push notifications",
+        "pushBannerInstallableBody": "On iPhone and iPad, push notifications only arrive in the installed app. Tap the Share button, then Add to Home Screen, and open Sokosumi from there. Your other devices may still get them.",
+        "pushInstallableHint": "Add Sokosumi to your Home Screen to get these on this device.",
         "deviceBannerTitle": "Push notifications are on in this browser. Your other devices are unaffected.",
         "deviceBannerAction": "Turn off",
         "deviceDisabledSuccess": "Push notifications off in this browser",
@@ -6320,7 +6329,6 @@
         "moveNotAllowed": "Only the task owner can reschedule it."
       },
       "create": {
-        "title": "Schedule a task",
         "fab": "Schedule a task"
       },
       "edit": {

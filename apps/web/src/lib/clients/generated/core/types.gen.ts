@@ -9607,6 +9607,21 @@ export type UnassignAdminOrganizationMemberSeatErrors = {
             method: string;
         };
     };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type UnassignAdminOrganizationMemberSeatError = UnassignAdminOrganizationMemberSeatErrors[keyof UnassignAdminOrganizationMemberSeatErrors];
@@ -9687,6 +9702,21 @@ export type AssignAdminOrganizationMemberSeatErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -23470,9 +23500,20 @@ export type PostEnterpriseContractsByIdActivateErrors = {
         };
     };
     /**
-     * Activation blocked by an active organization subscription (see blocker in response body)
+     * Conflict. Branch on `kind`: enterprise_activation_blocked (an active organization subscription blocks activation, see blocker in the response body), concurrency_conflict (serializable-transaction contention while assigning seats, retry the SAME request unchanged).
      */
-    409: EnterpriseContractActivationConflictResponse;
+    409: EnterpriseContractActivationConflictResponse | {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unprocessable Entity
      */
@@ -28145,6 +28186,21 @@ export type DeleteOrganizationsByIdMembersByMemberIdSeatErrors = {
         };
     };
     /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -28245,6 +28301,21 @@ export type PutOrganizationsByIdMembersByMemberIdSeatErrors = {
      * Not Found - Organization or member not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -30225,6 +30296,21 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
      * Not Found - Organization not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
