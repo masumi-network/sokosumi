@@ -104,6 +104,7 @@ function room() {
     slug: "launch-room",
     kind: "channel",
     directKey: null,
+    groupName: null,
     topic: null,
     createdByUserId: USER_ID,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -207,6 +208,26 @@ describe("GET /chats/rooms/{id}", () => {
       unreadMentionCount: 1,
       starredAt: null,
       markedUnread: false,
+    });
+  });
+
+  it("carries a group Direct's Group name", async () => {
+    roomFindFirstMock.mockResolvedValue({
+      ...room(),
+      name: "Ben, Cara",
+      slug: null,
+      kind: "direct",
+      directKey: `direct:v2:user:${USER_ID}:user:user_ben:user:user_cara`,
+      groupName: "Launch crew",
+    });
+
+    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toMatchObject({
+      groupName: "Launch crew",
+      isGroupDirect: true,
     });
   });
 

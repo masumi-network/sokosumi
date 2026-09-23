@@ -181,6 +181,16 @@ export const chatRoomSchema = z
       description: "Deterministic key for direct rooms; null for normal rooms.",
       example: "user_123:user_456",
     }),
+    isGroupDirect: z.boolean().openapi({
+      description:
+        "Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.",
+      example: false,
+    }),
+    groupName: z.string().nullable().openapi({
+      description:
+        "Group name shared by every member of a group Direct, shown in place of the member list. Null when unnamed, and always null for Channels and other Directs.",
+      example: "Launch crew",
+    }),
     topic: z.string().nullable().openapi({ example: "Weekly launch planning" }),
     // Inline nullable enum — do not use chatRoomDiscoverabilitySchema.nullable()
     // or the shared ChatRoomDiscoverability component gains null.
@@ -453,6 +463,11 @@ export const updateChatRoomRequestSchema = z
           "Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.",
         example: ["01960001-0001-7001-8001-000000000099"],
       }),
+    groupName: z.string().trim().max(80).nullable().optional().openapi({
+      description:
+        "Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.",
+      example: "Launch crew",
+    }),
   })
   .openapi("UpdateChatRoomRequest");
 
@@ -576,6 +591,18 @@ export const chatRoomMessageMembershipSubjectSchema = z
   ])
   .openapi("ChatRoomMessageMembershipSubject");
 
+/** Durable Group name change under metadata.groupNameChange, promoted on the DTO. */
+export const chatRoomMessageGroupNameChangeSchema = z
+  .object({
+    action: z.enum(["named", "cleared"]),
+    name: z.string().nullable().openapi({
+      description: "The new Group name; null when it was cleared.",
+      example: "Launch crew",
+    }),
+    actor: z.object({ id: z.string(), name: z.string() }),
+  })
+  .openapi("ChatRoomMessageGroupNameChange");
+
 /** Durable channel join/leave snapshot under metadata.membership, promoted on the DTO. */
 export const chatRoomMessageMembershipSchema = z
   .object({
@@ -643,6 +670,7 @@ export const chatRoomMessageSchema = z
     metadata: z.record(z.string(), z.any()).nullable(),
     quote: chatRoomMessageQuoteSchema.nullable(),
     membership: chatRoomMessageMembershipSchema.nullable(),
+    groupNameChange: chatRoomMessageGroupNameChangeSchema.nullable(),
     unfurls: z.array(chatRoomMessageUnfurlSchema).max(3).nullable().openapi({
       description:
         "Link preview cards scraped from message URLs (absent while pending).",

@@ -108,6 +108,7 @@ function guestRoomRow() {
     slug: "external-client",
     kind: "channel",
     directKey: null,
+    groupName: null,
     topic: null,
     discoverability: "external",
     createdByUserId: "user_host",
@@ -147,6 +148,7 @@ function personalDirectRow() {
     slug: "bob",
     kind: "direct",
     directKey: `${USER_ID}:${PEER_USER_ID}`,
+    groupName: null,
     topic: null,
     discoverability: null,
     createdByUserId: USER_ID,
@@ -590,6 +592,28 @@ describe("GET /chats/rooms", () => {
         userId: { in: [PEER_USER_ID] },
       },
       select: { userId: true },
+    });
+  });
+
+  it("lists a group Direct with its Group name", async () => {
+    roomFindManyMock.mockResolvedValue([
+      {
+        ...personalDirectRow(),
+        directKey: `direct:v2:user:${PEER_USER_ID}:user:${USER_ID}:user:user_cara`,
+        groupName: "Launch crew",
+      },
+    ]);
+    roomCountMock.mockResolvedValue(1);
+    memberFindManyMock.mockResolvedValue([]);
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0]).toMatchObject({
+      id: PERSONAL_DIRECT_ID,
+      groupName: "Launch crew",
+      isGroupDirect: true,
     });
   });
 

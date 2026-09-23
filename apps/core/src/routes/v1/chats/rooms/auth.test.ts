@@ -412,6 +412,7 @@ describe("chat room user auth guards", () => {
       slug: "general",
       kind: "channel",
       directKey: null,
+      groupName: null,
       topic: null,
       createdByUserId: USER_ID,
       createdAt: new Date("2025-01-01T00:00:00.000Z"),
