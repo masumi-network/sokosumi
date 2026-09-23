@@ -74,7 +74,14 @@ import {
 } from "@/app/tasks/utils/tasks-tab";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 
 import {
@@ -1278,16 +1285,16 @@ export function TasksView({
     >
       <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <TabsList className="bg-card-background flex items-center gap-1 self-start rounded-lg p-1">
+          <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-fit")}>
             <TabsTrigger
               value="tasks"
-              className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
             >
               {labels.tabs.tasks}
             </TabsTrigger>
             <TabsTrigger
               value="jobs"
-              className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
             >
               {labels.tabs.jobs}
             </TabsTrigger>

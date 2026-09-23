@@ -155,7 +155,7 @@ export function CalendarScheduleList({
 
             return (
               <Card
-                className="gap-3 py-4"
+                className="bg-background gap-3 py-4"
                 data-testid="calendar-schedule-row"
                 key={task.id}
               >

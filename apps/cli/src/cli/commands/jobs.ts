@@ -150,7 +150,7 @@ export async function runJobsCommand({
     return;
   }
   if (command === "input") {
-    const id = positionalId || optionString(options, "id", "job-id");
+    const id = positionalId || optionString(options, "id");
     if (!id) throw new Error("job id is required for `jobs input`");
     const eventId = optionString(options, "event-id")?.trim();
     if (!eventId) throw new Error("--event-id is required for `jobs input`");
@@ -178,7 +178,7 @@ export async function runJobsCommand({
     return;
   }
   if (command === "get") {
-    const id = positionalId || optionString(options, "id", "job-id");
+    const id = positionalId || optionString(options, "id");
     if (!id) throw new Error("job id is required for `jobs get`");
     const { job } = await fetchJob(client, id, signal);
     const details =

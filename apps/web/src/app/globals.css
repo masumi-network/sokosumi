@@ -752,32 +752,6 @@
   }
 }
 
-/*
- * The agenda (list view) renders a dot element before every event, and
- * FullCalendar joins class-name options across theme and user layers, so no
- * option can remove it. The event element is the listitem without an
- * aria-label (the day group carries one); the dot is its first child when
- * the content follows it. Hiding it also drops the row's 12px flex gap.
- */
-.workspace-calendar-theme[data-view="agenda"]
-  [role="listitem"]:not([aria-label])
-  > :first-child:not(:only-child) {
-  display: none;
-}
-
-/*
- * Below md the app header is fixed over the scrolling main (see
- * APP_MAIN_MOBILE_PT_CLASS). The agenda day header is both the element the
- * view scrolls to for today and FullCalendar's sticky header (top: 0), so
- * both land under the fixed header without this offset.
- */
-@media (width < 48rem) {
-  .workspace-calendar-theme[data-view="agenda"] [data-date] {
-    top: calc(5rem + env(safe-area-inset-top));
-    scroll-margin-top: calc(5rem + env(safe-area-inset-top));
-  }
-}
-
 @media (hover: hover) {
   .workspace-calendar-theme[data-can-create="true"]
     [role="gridcell"][data-date]:hover {
