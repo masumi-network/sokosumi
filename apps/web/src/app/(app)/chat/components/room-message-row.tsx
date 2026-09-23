@@ -2197,12 +2197,15 @@ function SenderFace({
   orbSize,
   className,
   fallbackClassName,
+  monogram = false,
 }: {
   sender: MessageSenderProfile;
   /** Rendered pixels for the orb: twice the CSS size, for dense screens. */
   orbSize: number;
   className: string;
   fallbackClassName: string;
+  /** One initial instead of two, for faces too small to fit both. */
+  monogram?: boolean;
 }) {
   if (sender.kind === "sokoBot" && sender.avatarSeed && !sender.image) {
     return (
@@ -2218,7 +2221,7 @@ function SenderFace({
     <Avatar className={className}>
       <AvatarImage src={sender.image ?? undefined} alt="" />
       <AvatarFallback className={fallbackClassName}>
-        {getInitials(sender.name)}
+        {getInitials(sender.name).slice(0, monogram ? 1 : 2)}
       </AvatarFallback>
     </Avatar>
   );
@@ -2289,10 +2292,12 @@ function ThreadReplyBar({
                 <SenderFace
                   sender={profile}
                   orbSize={32}
-                  // The ring is the page colour, so overlapping faces stay
-                  // apart on the tinted bar as well as on the plain one.
-                  className="ring-background size-4 ring-2"
-                  fallbackClassName="text-[0.5rem]"
+                  // A hairline in the page colour keeps overlapping faces
+                  // apart; any thicker reads as a halo on the tinted bar.
+                  className="ring-background size-4 ring-1"
+                  // Grey like the read-receipt faces, not the bar's link blue.
+                  fallbackClassName="bg-muted text-muted-foreground text-[0.5rem]"
+                  monogram
                 />
               </span>
             );
