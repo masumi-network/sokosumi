@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { isValidElement, type ReactNode } from "react";
@@ -84,13 +84,11 @@ vi.mock("@/components/ui/sheet", () => ({
     asChild === true && isValidElement(children) ? children : <>{children}</>,
 }));
 
-// Content inline rather than on hover: when the card opens belongs to the
-// primitive. These rows decide whether there is a card and what it holds.
-vi.mock("@/components/ui/hover-card", () => ({
-  HoverCard: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  HoverCardTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
-  HoverCardContent: ({ children }: { children: ReactNode }) => (
-    <div data-testid="rail-flyout-content">{children}</div>
+// A marker, not the list: what it fetches and draws belongs to
+// `unread-threads-list`. These rows decide where it opens and what it reads.
+vi.mock("@/components/chat/unread-threads-list", () => ({
+  UnreadThreadsList: ({ rooms }: { rooms: ChatRoom[] }) => (
+    <div data-testid="unread-threads-list" data-room-count={rooms.length} />
   ),
 }));
 
@@ -124,26 +122,46 @@ function renderRows(
   );
 }
 
-function threadsLink() {
-  const link = screen
-    .getAllByRole("link")
-    .find((candidate) => candidate.getAttribute("href") === "/chat/threads");
-  if (!link) throw new Error("no Threads link");
-  return link;
+/** The Threads row: the popover trigger on the desktop, a link on the phone. */
+function threadsRow() {
+  const row = [
+    ...screen.queryAllByRole("button"),
+    ...screen.queryAllByRole("link"),
+  ].find((candidate) => candidate.textContent?.includes("Threads"));
+  if (!row) throw new Error("no Threads row");
+  return row;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sidebarMock.isMobile = false;
   markAllActionMock.mockResolvedValue({ ok: true, value: null });
   navigation.pathname = "/chat/rooms/room-1";
   sidebarMock.state = "expanded";
 });
 
 describe("ChatUnreadNavRows", () => {
-  it("links to the Threads view", () => {
+  it("opens the unread Threads beside the row on the desktop", async () => {
+    const rooms = [makeRoom({ unreadThreadCount: 1 })];
+    renderRows(rooms);
+
+    const trigger = threadsRow();
+    expect(trigger.tagName).toBe("BUTTON");
+    expect(screen.queryByTestId("unread-threads-list")).toBeNull();
+    await userEvent.click(trigger);
+
+    expect(screen.getByTestId("unread-threads-list")).toHaveAttribute(
+      "data-room-count",
+      "1",
+    );
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("goes to the Threads page on the phone, which has no side to open into", () => {
+    sidebarMock.isMobile = true;
     renderRows([]);
 
-    expect(threadsLink()).toHaveAttribute("href", "/chat/threads");
+    expect(threadsRow()).toHaveAttribute("href", "/chat/threads");
   });
 
   it("toggles the All unreads filter rather than navigating", async () => {
@@ -212,7 +230,7 @@ describe("ChatUnreadNavRows", () => {
     expect(
       container.querySelector('[data-slot="unread-threads-count"]'),
     ).toHaveTextContent("3");
-    expect(threadsLink()).toHaveTextContent("3 unread threads");
+    expect(threadsRow()).toHaveTextContent("3 unread threads");
   });
 
   it("draws the @ pill when a Thread names the reader", () => {
@@ -227,7 +245,7 @@ describe("ChatUnreadNavRows", () => {
     expect(
       count?.querySelector('[data-slot="mention-pill"]'),
     ).toHaveTextContent("1");
-    expect(threadsLink()).toHaveTextContent("1 mention, 2 unread threads");
+    expect(threadsRow()).toHaveTextContent("1 mention, 2 unread threads");
   });
 
   it("shows no count when nothing is unread, or only in a muted room", () => {
@@ -244,30 +262,11 @@ describe("ChatUnreadNavRows", () => {
     ).toBeNull();
   });
 
-  it("lists the Threads with their rooms in the collapsed rail's flyout", () => {
-    sidebarMock.state = "collapsed";
-    renderRows([
-      makeRoom({
-        id: "a",
-        name: "sokosumi",
-        unreadThreadCount: 7,
-        unreadThreads: [unreadThread("a1")],
-      }),
-    ]);
-
-    const flyout = screen.getByTestId("rail-flyout-content");
-    const row = within(flyout).getByRole("link", { name: /Thread a1/ });
-    expect(row).toHaveAttribute("href", "/chat/rooms/a?message=a1-reply");
-    expect(row).toHaveTextContent("#sokosumi");
-    expect(
-      within(flyout).getByRole("link", { name: "6 more unread threads" }),
-    ).toHaveAttribute("href", "/chat/threads");
-  });
-
   it("marks the entry the reader is on", () => {
+    sidebarMock.isMobile = true;
     navigation.pathname = "/chat/threads";
     renderRows([]);
 
-    expect(threadsLink()).toHaveAttribute("aria-current", "page");
+    expect(threadsRow()).toHaveAttribute("aria-current", "page");
   });
 });

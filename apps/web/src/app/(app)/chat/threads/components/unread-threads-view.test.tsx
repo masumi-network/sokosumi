@@ -19,7 +19,7 @@ vi.mock("@/components/chat/use-live-chat-rooms", () => ({
   useLiveChatRooms: () => liveRooms.current,
 }));
 
-vi.mock("./fetch-chat-unread-threads", () => ({
+vi.mock("@/components/chat/fetch-chat-unread-threads", () => ({
   fetchChatUnreadThreads: (...args: unknown[]) =>
     fetchUnreadThreadsMock(...args),
 }));

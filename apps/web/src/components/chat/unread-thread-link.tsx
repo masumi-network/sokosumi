@@ -9,7 +9,6 @@ import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-prev
 import { RowCountMark } from "@/components/chat/mention-count-pill";
 import { ThreadIconCircle } from "@/components/chat/thread-icon-circle";
 import type { ChatRoom } from "@/lib/clients/generated/core";
-import { cn } from "@/lib/utils";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 
 /** What a row reads off one unread Thread, wherever it came from. */
@@ -25,18 +24,11 @@ interface UnreadThreadLinkProps {
   thread: UnreadThreadLinkThread;
   room: ChatRoom;
   currentUserId: string;
-  /**
-   * `md` is the Threads view's row, in the room Thread list's style (SOK-1158).
-   * `sm` is the collapsed rail's flyout, as tight as the inset rows it stands
-   * in for.
-   */
-  size: "sm" | "md";
 }
 
 /**
  * One unread Thread that names its room, for the surfaces that gather
- * Threads from every room (SOK-1159): the Threads view and the rail flyout
- * on the Threads entry. Under a room the room goes without saying, and
+ * Threads from every room (SOK-1159): the Threads popover and page. Under a room the room goes without saying, and
  * `ChatRoomThreadRows` draws those; here it is what replaces the nesting.
  *
  * The link is the one a chat notification uses, the Thread's first unread
@@ -50,7 +42,6 @@ export function UnreadThreadLink({
   thread,
   room,
   currentUserId,
-  size,
 }: UnreadThreadLinkProps) {
   const t = useTranslations("App.Channels.ThreadRows");
   const tChannels = useTranslations("App.Channels");
@@ -71,28 +62,16 @@ export function UnreadThreadLink({
       href={chatRoomMessageHref(room.id, thread.firstUnreadReplyId)}
       data-slot="unread-thread-link"
       data-mention={mentions > 0 ? "true" : undefined}
-      className={cn(
-        "hover:bg-accent flex w-full min-w-0 items-start rounded-md text-left",
-        size === "md"
-          ? "bg-card-background gap-2.5 px-2 py-2 text-sm"
-          : "gap-2 px-2 py-1.5 text-xs",
-      )}
+      // The room Thread list's unread row (SOK-1158): the tint marks it unread.
+      className="hover:bg-accent bg-card-background flex w-full min-w-0 items-start gap-2.5 rounded-md px-2 py-2 text-left text-sm"
     >
-      {/* The Thread list tints every unread row; the flyout keeps the inset
-          rows' rule, where only a Thread that names the reader turns primary. */}
       <ThreadIconCircle
-        tone={size === "md" || mentions > 0 ? "attention" : "quiet"}
+        tone="attention"
         glyph={mentions > 0 ? "mention" : "thread"}
-        size={size}
-        className={size === "sm" ? "mt-px" : undefined}
+        size="md"
       />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span
-          className={cn(
-            "text-foreground min-w-0 font-semibold",
-            size === "md" ? "line-clamp-2" : "truncate",
-          )}
-        >
+        <span className="text-foreground line-clamp-2 min-w-0 font-semibold">
           {label}
         </span>
         <span className="text-muted-foreground truncate text-xs">

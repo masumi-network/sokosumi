@@ -5467,7 +5467,6 @@
         "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
         "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
-        "moreThreads": "{count, plural, one {# weiterer ungelesener Thread} other {# weitere ungelesene Threads}}",
         "filterOn": "Nur ungelesene werden angezeigt",
         "markAllRead": "Alle als gelesen markieren",
         "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
