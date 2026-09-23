@@ -311,9 +311,12 @@ async function processDueTask(
         candidateMetadata?.version === 2 ||
         calendarBetaEnabled
       ) {
-        const scopeLocked = await lockCalendarScope(tx, candidate.workspaceId, [
-          candidate.projectId,
-        ]);
+        const scopeLocked = await lockCalendarScope(
+          tx,
+          candidate.workspaceId,
+          [candidate.projectId],
+          candidate.ownerId,
+        );
         if (!scopeLocked || !(await lockTaskRows(tx, [candidate.id]))) {
           return { outcome: "skipped", publishEvents: [] };
         }

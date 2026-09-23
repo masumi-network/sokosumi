@@ -16,7 +16,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useFormatter: () => ({ dateTime: () => "1:28 AM" }),
+  useFormatter: () => ({
+    dateTime: () => "1:28 AM",
+    relativeTime: () => "4m ago",
+  }),
+  useNow: () => new Date("2026-07-01T15:04:00.000Z"),
   useTranslations: () => (key: string) => key,
 }));
 
