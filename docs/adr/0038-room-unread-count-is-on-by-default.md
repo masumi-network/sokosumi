@@ -17,6 +17,8 @@ A chat sidebar row shows its numeric **Room unread** unless the reader switched 
 
 **What the switch says.** Its description read "Muted chats and the chat you have open stay quiet", which ADR-0027's correction of 2026-09-11 had already made untrue: the open chat is not quiet, only a muted one is. It now reads "Shown on every chat with unread messages. Muted chats stay quiet, and your notifications do not change."
 
+**The switch governs the sidebar only.** The room header's Threads icon badges its unread thread count for every reader, the switch notwithstanding (added 2026-09-23). The switch exists to thin a list where every row would carry a number; the header has one Threads control, and its count is what makes it worth opening. The icon's spoken name already stated the count regardless of the switch.
+
 **Expanded, then contracted.** The first migration (`20260921233000`) added the new column. The old one stayed in the table, neither read nor written, so a rollback of that deploy found every reader's old value where it left it. The second migration (`20260922090000`) dropped the old column and the Better Auth field declared for it, after Core no longer selected it on preferences reads. There is nothing to roll back to: the value it held was the ADR-0027 opt-in, which the new default made moot for every reader.
 
 **Known limitation, carried from ADR-0026 and ADR-0027:** an in-flight back-navigation can paint fully-read and then leftover, which a reader sees as the number moving once. Under ADR-0027 only readers who asked for the number saw that. Now everyone who has not switched it off does.
