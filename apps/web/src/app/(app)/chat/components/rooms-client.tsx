@@ -433,10 +433,12 @@ function RetainedRoomsClient({
   const [pending, setPending] = useState<ChatRoomMessage[]>([]);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
+  // Shells go first: mergeRoomMessages keeps local shells only from its
+  // existing side, and confirms them from incoming server rows.
   const transcript = useMemo(
     () => ({
       ...entry.transcript,
-      messages: mergeRoomMessages(entry.transcript.messages, pending),
+      messages: mergeRoomMessages(pending, entry.transcript.messages),
     }),
     [entry.transcript, pending],
   );
@@ -447,7 +449,7 @@ function RetainedRoomsClient({
       cache.setTranscript(roomId, lifetime, (confirmed) => {
         const current = {
           ...confirmed,
-          messages: mergeRoomMessages(confirmed.messages, pendingRef.current),
+          messages: mergeRoomMessages(pendingRef.current, confirmed.messages),
         };
         const next = typeof update === "function" ? update(current) : update;
         const shells = next.messages.filter(isOutboundLocalMessage);
