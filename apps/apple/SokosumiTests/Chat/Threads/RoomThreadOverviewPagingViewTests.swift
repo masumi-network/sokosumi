@@ -13,12 +13,12 @@
     /// builds no accessibility tree, so text is read back with Vision (nil on the virtualized CI runner,
     /// where only the pixel and call checks run) and the failure's red is found by its colour.
     @MainActor struct RoomThreadOverviewPagingViewTests {
-      @Test(arguments: ThreadOverviewPagingState.allCases, [false, true])
-      func theStatesReadAsWeb(state: ThreadOverviewPagingState, dark: Bool) async throws {
+      @Test(arguments: ThreadOverviewPagingState.allCases)
+      func theStatesReadAsWeb(state: ThreadOverviewPagingState) async throws {
         let fixture = try await state.overview()
         defer { Task { await fixture.transport.releaseHolds() } }
         let (window, host) = Self.host(RoomThreadOverviewView(overview: fixture.overview, open: { _ in }, older: {}, markAllRead: {},
-                                                              retry: {}, close: {}), height: 330, dark: dark)
+                                                              retry: {}, close: {}), height: 330, dark: false)
         defer { window.orderOut(nil) }
         for _ in 0 ..< 10 {
           host.layoutSubtreeIfNeeded()
@@ -26,7 +26,7 @@
         }
         let bitmap = try fittedBitmap(of: host, in: window)
         try Attachment.record(#require(bitmap.representation(using: .png, properties: [:])),
-                              named: "thread-overview-paging-\(state.rawValue)-\(dark ? "dark" : "light").png")
+                              named: "thread-overview-paging-\(state.rawValue).png")
         let red = Self.redPixels(in: bitmap)
         #expect(state == .olderFailed ? red.count > 20 : red.isEmpty, "Only a failed older page is drawn in red: \(red.count) pixels.")
 

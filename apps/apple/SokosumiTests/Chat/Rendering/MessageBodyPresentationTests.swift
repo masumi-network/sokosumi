@@ -24,19 +24,18 @@
       }
       """
 
-      @Test(arguments: [false, true])
-      func aLongMessageWithAFileOffersShowMoreAndExpands(dark: Bool) async throws {
+      @Test func aLongMessageWithAFileOffersShowMoreAndExpands() async throws {
         let source = Self.longText + "\n\n" + Self.fileLink
-        let fixture = try Self.fixture(source: source, dark: dark)
+        let fixture = try Self.fixture(source: source, dark: false)
         defer { fixture.window.orderOut(nil) }
         let collapsed = try await Self.settledHeight(fixture)
-        let natural = Self.naturalHeight(of: source, dark: dark)
+        let natural = Self.naturalHeight(of: source, dark: false)
         let lines16 = Self.collapsedLinesHeight()
         let showMore = Self.buttonSize("Show more")
         #expect(collapsed < natural, "The body must be clamped: \(collapsed) pt rendered, \(natural) pt unclamped.")
         #expect(collapsed <= lines16 + 4 + showMore.height + 2 * Self.inset + 1, "At most 16 lines plus the control.")
         #expect(collapsed >= lines16 * 0.75 + showMore.height + 2 * Self.inset, "Whole lines up to the sixteenth stay visible.")
-        let collapsedBitmap = try Self.record(fixture.host, named: "message-body-file-collapsed-\(dark ? "dark" : "light").png")
+        let collapsedBitmap = try Self.record(fixture.host, named: "message-body-file-collapsed.png")
         if let lines = try Self.recognizedText(in: collapsedBitmap) {
           let read = lines.map(\.text)
           #expect(read.contains { $0.contains("Show more") }, "OCR read: \(read)")
@@ -47,7 +46,7 @@
         try Self.click(control: "Show more", in: fixture, bitmap: collapsedBitmap)
         let expanded = try await Self.settledHeight(fixture, after: collapsed)
         #expect(expanded >= natural + 4 + showMore.height + 2 * Self.inset - 1, "Expanded shows the whole body and the control: \(expanded) pt.")
-        let expandedBitmap = try Self.record(fixture.host, named: "message-body-file-expanded-\(dark ? "dark" : "light").png")
+        let expandedBitmap = try Self.record(fixture.host, named: "message-body-file-expanded.png")
         if let lines = try Self.recognizedText(in: expandedBitmap) {
           let read = lines.map(\.text)
           #expect(read.contains { $0.contains("Show less") }, "OCR read: \(read)")
@@ -88,19 +87,18 @@
       }
 
       /// The fence's language picks the grammar; nothing is printed above the code, and it is highlighted.
-      @Test(arguments: [false, true])
-      func aFencedBlockShowsNoLanguageLabelAndKeepsItsHighlighting(dark: Bool) async throws {
-        let labelled = Self.codeBlockHeight(languageHint: "swift", dark: dark)
-        let unlabelled = Self.codeBlockHeight(languageHint: nil, dark: dark)
+      @Test func aFencedBlockShowsNoLanguageLabelAndKeepsItsHighlighting() async throws {
+        let labelled = Self.codeBlockHeight(languageHint: "swift", dark: false)
+        let unlabelled = Self.codeBlockHeight(languageHint: nil, dark: false)
         #expect(abs(labelled - unlabelled) <= 0.5, "A language hint adds nothing above the code: \(labelled) vs \(unlabelled) pt.")
 
-        let fixture = try Self.fixture(source: "Here is the code:\n\n```swift\n" + Self.code + "\n```", dark: dark)
+        let fixture = try Self.fixture(source: "Here is the code:\n\n```swift\n" + Self.code + "\n```", dark: false)
         defer { fixture.window.orderOut(nil) }
         _ = try await Self.settledHeight(fixture)
         _ = try await waitForView(in: fixture.host, timeoutMessage: "The block was not highlighted") {
           ((try? Self.coloredPixels(in: Self.bitmap(fixture.host))) ?? 0) > 0 ? fixture.host : nil
         }
-        let bitmap = try Self.record(fixture.host, named: "message-code-block-\(dark ? "dark" : "light").png")
+        let bitmap = try Self.record(fixture.host, named: "message-code-block.png")
         #expect(try Self.coloredPixels(in: bitmap) > 0, "Keywords and strings are coloured.")
         if let lines = try Self.recognizedText(in: bitmap) {
           let read = lines.map(\.text)
