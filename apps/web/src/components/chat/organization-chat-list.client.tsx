@@ -5,6 +5,7 @@ import {
   ArrowUpDown,
   Building2,
   Check,
+  CheckCheck,
   Ellipsis,
   Globe2,
   Hash,
@@ -74,6 +75,7 @@ import {
   ChatSidebarSectionContent,
   ChatSidebarSectionHeader,
 } from "./chat-sidebar-section-header";
+import { ChatUnreadNavRows } from "./chat-unread-nav-rows";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 import {
   listOrganizationChatRoomsAction,
@@ -86,8 +88,12 @@ import {
   PinnedRoomsDndContext,
   SortablePinnedRoomRow,
 } from "./pinned-rooms-dnd";
-import { resolveSectionAttention } from "./room-attention";
+import { resolveSectionAttention, roomUnreadReads } from "./room-attention";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
+import {
+  advanceUnreadFilterPass,
+  EMPTY_UNREAD_FILTER_PASS,
+} from "./unread-filter-pass";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 
 /** Stable empty default — inline `= []` is a new array every render and
@@ -159,6 +165,9 @@ export function OrganizationChatList({
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
   const [externalOpen, setExternalOpen] = useState(true);
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [filterPass, setFilterPass] = useState(EMPTY_UNREAD_FILTER_PASS);
+  const [justReadOpen, setJustReadOpen] = useState(true);
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
@@ -171,7 +180,6 @@ export function OrganizationChatList({
   const [_isRestoring, startRestoreTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
   const [_isRespondingInvite, startInviteResponseTransition] = useTransition();
-  const activeRoomId = getActiveRoomIdFromPathname(pathname);
   function handleRestoreRoom(room: ChatRoom) {
     if (restoringRoomId || deletingRoomId) {
       return;
@@ -260,12 +268,58 @@ export function OrganizationChatList({
     });
   }
 
+  const activeRoomId = getActiveRoomIdFromPathname(pathname);
   const { pinned, directMessages, namedChannels, externalJoined } = useMemo(
-    () => partitionRoomsForSidebar(roomRows),
-    [roomRows],
+    () =>
+      partitionRoomsForSidebar(
+        // All unreads (SOK-1159): the same sections, holding only the rooms
+        // a read would still change. The open room stays: it is the one being
+        // read, and dropping it would pull the row out from under the reader.
+        unreadOnly
+          ? roomRows.filter((room) => {
+              const { readRoom, lookThreads } = roomUnreadReads(room);
+              return readRoom || lookThreads || room.id === activeRoomId;
+            })
+          : roomRows,
+      ),
+    [roomRows, unreadOnly, activeRoomId],
   );
+  // The filter's pass (SOK-1159): rooms read since it was switched on move to
+  // Just read rather than vanishing. Switching it off ends the pass.
+  const nextFilterPass = unreadOnly
+    ? advanceUnreadFilterPass(filterPass, {
+        unreadIds: roomRows
+          .filter((room) => {
+            const { readRoom, lookThreads } = roomUnreadReads(room);
+            return readRoom || lookThreads;
+          })
+          .map((room) => room.id),
+        activeRoomId,
+      })
+    : EMPTY_UNREAD_FILTER_PASS;
+  if (nextFilterPass !== filterPass) {
+    setFilterPass(nextFilterPass);
+  }
+  const justReadRooms = nextFilterPass.justRead.flatMap((id) => {
+    // The open room keeps its place in its own section while it is read.
+    const room =
+      id === activeRoomId ? undefined : roomRows.find((row) => row.id === id);
+    return room ? [room] : [];
+  });
   const pinnedRoomIds = pinned.map((room) => room.id);
-  const canReorderPinned = pinnedOpen && pinned.length > 1;
+  // Reordering a filtered list would move rooms relative to ones it hides.
+  const canReorderPinned = pinnedOpen && pinned.length > 1 && !unreadOnly;
+  // A pending invitation stays under the filter, and keeps External open: it
+  // is addressed to the reader and waits on them, which is why a closed
+  // section already marks it as a mention (`resolveSectionAttention`).
+  const caughtUp =
+    unreadOnly &&
+    pinned.length +
+      namedChannels.length +
+      externalJoined.length +
+      directMessages.length +
+      pendingRows.length ===
+      0;
   // The mode ends with the toggle that leaves it (section closed, or fewer
   // than two pins). Otherwise it would come back by itself, unasked, the
   // next time a second room is pinned.
@@ -346,6 +400,46 @@ export function OrganizationChatList({
   return (
     <SidebarGroup className="w-full">
       <SidebarGroupContent className="space-y-2">
+        <ChatUnreadNavRows
+          rooms={roomRows}
+          currentUserId={currentUserId}
+          dismissSheetOnNavigate={dismissSheetOnNavigate}
+          unreadOnly={unreadOnly}
+          onUnreadOnlyChange={setUnreadOnly}
+        />
+        {caughtUp ? (
+          // Laid out as a row, on the sidebar's own axes: the mark in the
+          // icon slot, the words on the label column, and the way back to
+          // every room where a row keeps its action.
+          <div className="group-data-[collapsible=icon]:hidden">
+            <div className={SIDEBAR_ROW_CLASS}>
+              <SidebarRowSlot>
+                <span className="bg-primary-quaternary text-primary-variant grid size-5 place-items-center rounded-full">
+                  <CheckCheck className="size-3" aria-hidden />
+                </span>
+              </SidebarRowSlot>
+              <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
+                {t("UnreadNav.caughtUp")}
+              </span>
+              <button
+                type="button"
+                aria-label={t("UnreadNav.showAllChats")}
+                onClick={() => setUnreadOnly(false)}
+                className="text-primary-variant ring-sidebar-ring shrink-0 rounded-sm px-1 text-xs font-medium underline-offset-2 outline-hidden hover:underline focus-visible:ring-2"
+              >
+                {t("UnreadNav.showAll")}
+              </button>
+            </div>
+            <p
+              className={cn(
+                SIDEBAR_ROW_LABEL_INSET_CLASS,
+                "text-muted-foreground pr-2 text-xs",
+              )}
+            >
+              {t("UnreadNav.nothingUnread", { count: roomRows.length })}
+            </p>
+          </div>
+        ) : null}
         {pinned.length > 0 ? (
           <Collapsible open={pinnedOpen} onOpenChange={setPinnedOpen}>
             <ChatSidebarSectionHeader
@@ -420,7 +514,7 @@ export function OrganizationChatList({
           </Collapsible>
         ) : null}
 
-        {hasOrganization ? (
+        {hasOrganization && (!unreadOnly || namedChannels.length > 0) ? (
           <Collapsible
             open={channelSectionOpen}
             onOpenChange={setChannelSectionOpen}
@@ -546,7 +640,7 @@ export function OrganizationChatList({
           </Collapsible>
         ) : null}
 
-        {hasOrganization && sortedArchivedChannels.length > 0 ? (
+        {hasOrganization && !unreadOnly && sortedArchivedChannels.length > 0 ? (
           <Collapsible
             open={archivedSectionOpen}
             onOpenChange={setArchivedSectionOpen}
@@ -725,41 +819,63 @@ export function OrganizationChatList({
           </AlertDialogContent>
         </AlertDialog>
 
-        <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
-          {/*
+        {!unreadOnly || directMessages.length > 0 ? (
+          <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
+            {/*
             Sidebar rows = messaged history only. `+` opens Start New Direct
             in place (org members + coworkers, 1:1 coworker / group humans).
             Personal workspace still mounts the picker with empty members
             (coworkers only).
           */}
-          <ChatSidebarSectionHeader
-            isOpen={directOpen}
-            railIcon={MessageCircle}
-            closedAttention={resolveSectionAttention(directMessages)}
-            createAction={<CreateDirectDialog />}
-          >
-            {t("directMessages")}
-          </ChatSidebarSectionHeader>
-          <ChatSidebarSectionContent>
-            <SidebarMenu className="gap-0">
-              {directMessages.map((room) => (
-                <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
-              ))}
-              {directMessages.length === 0 ? (
-                <SidebarMenuItem>
-                  <div
-                    className={cn(
-                      SIDEBAR_ROW_LABEL_INSET_CLASS,
-                      "text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 text-xs",
-                    )}
-                  >
-                    {t("Empty.noDirectMessages")}
-                  </div>
-                </SidebarMenuItem>
-              ) : null}
-            </SidebarMenu>
-          </ChatSidebarSectionContent>
-        </Collapsible>
+            <ChatSidebarSectionHeader
+              isOpen={directOpen}
+              railIcon={MessageCircle}
+              closedAttention={resolveSectionAttention(directMessages)}
+              createAction={<CreateDirectDialog />}
+            >
+              {t("directMessages")}
+            </ChatSidebarSectionHeader>
+            <ChatSidebarSectionContent>
+              <SidebarMenu className="gap-0">
+                {directMessages.map((room) => (
+                  <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
+                ))}
+                {directMessages.length === 0 ? (
+                  <SidebarMenuItem>
+                    <div
+                      className={cn(
+                        SIDEBAR_ROW_LABEL_INSET_CLASS,
+                        "text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 text-xs",
+                      )}
+                    >
+                      {t("Empty.noDirectMessages")}
+                    </div>
+                  </SidebarMenuItem>
+                ) : null}
+              </SidebarMenu>
+            </ChatSidebarSectionContent>
+          </Collapsible>
+        ) : null}
+
+        {justReadRooms.length > 0 ? (
+          // Read during this pass of the filter, newest first, dimmed: one
+          // click back, until the filter is switched off.
+          <Collapsible open={justReadOpen} onOpenChange={setJustReadOpen}>
+            <ChatSidebarSectionHeader
+              isOpen={justReadOpen}
+              railIcon={CheckCheck}
+            >
+              {t("UnreadNav.justRead")}
+            </ChatSidebarSectionHeader>
+            <ChatSidebarSectionContent>
+              <SidebarMenu data-slot="just-read" className="gap-0 opacity-60">
+                {justReadRooms.map((room) => (
+                  <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
+                ))}
+              </SidebarMenu>
+            </ChatSidebarSectionContent>
+          </Collapsible>
+        ) : null}
       </SidebarGroupContent>
     </SidebarGroup>
   );

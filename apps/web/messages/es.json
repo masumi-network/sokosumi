@@ -295,7 +295,8 @@
       "docs": "Documentación",
       "drive": "Archivos",
       "soko-bots": "Soko Bots",
-      "calendar": "Calendario"
+      "calendar": "Calendario",
+      "threads": "Hilos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -5463,6 +5464,32 @@
         "moreThreads": "{count, plural, one {# hilo más sin leer} other {# hilos más sin leer}}",
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
         "untitled": "Hilo"
+      },
+      "UnreadNav": {
+        "label": "Sin leer",
+        "threads": "Hilos",
+        "allUnreads": "Todo lo no leído",
+        "unreadThreads": "{count, plural, one {# hilo sin leer} other {# hilos sin leer}}",
+        "unreadThreadsCapped": "Más de {max} hilos sin leer",
+        "mentions": "{count, plural, one {# mención} other {# menciones}}",
+        "filterOn": "Mostrando solo lo no leído",
+        "markAllRead": "Marcar todo como leído",
+        "markAllReadError": "No se pudo marcar todo como leído.",
+        "caughtUp": "Todo al día",
+        "allThreads": "Todos los hilos",
+        "showAllChats": "Mostrar todos los chats",
+        "showAll": "Mostrar todo",
+        "nothingUnread": "{count, plural, one {Nada sin leer en # chat} other {Nada sin leer en # chats}}",
+        "justRead": "Recién leídos"
+      },
+      "ThreadsView": {
+        "title": "Hilos",
+        "listLabel": "Hilos sin leer",
+        "empty": "Estás al día",
+        "emptyDescription": "Las respuestas nuevas en hilos en los que participas aparecen aquí.",
+        "loadMore": "Mostrar más",
+        "loadError": "No se pudieron cargar los hilos sin leer.",
+        "retry": "Reintentar"
       },
       "Thread": {
         "title": "Thread",
