@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 
 import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
 import { resolveUnreadThreadsAttention } from "@/components/chat/room-attention";
+import { ThreadGroupEmpty } from "@/components/chat/thread-list-row";
 import { UnreadThreadLink } from "@/components/chat/unread-thread-link";
 import { Button } from "@/components/ui/button";
 import type { ChatRoom } from "@/lib/clients/generated/core";
@@ -143,9 +144,7 @@ export function UnreadThreadsList({
             description={t("emptyDescription")}
           />
         ) : (
-          <p className="text-muted-foreground px-2 text-sm">
-            {tGroups("groupUnreadEmpty")}
-          </p>
+          <ThreadGroupEmpty>{tGroups("groupUnreadEmpty")}</ThreadGroupEmpty>
         )
       ) : query.isError && threads.length === 0 ? (
         <div className="flex flex-col items-start gap-2">
@@ -168,7 +167,7 @@ export function UnreadThreadsList({
         <>
           <ul
             aria-label={t("listLabel")}
-            className="flex flex-col gap-1"
+            className="flex flex-col gap-0.5"
             data-testid="unread-threads-list"
           >
             {threads.map((thread) => {

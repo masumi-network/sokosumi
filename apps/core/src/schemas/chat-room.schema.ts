@@ -859,6 +859,10 @@ export const chatUnreadThreadSchema = chatRoomUnreadThreadSchema
     roomId: z.string().uuid().openapi({
       description: "The room the Thread is in.",
     }),
+    lastUnreadAt: dateTimeSchema.openapi({
+      description:
+        "When the newest unread reply in this Thread came (a responded coworker mention's answer time where later). The list ranks by it.",
+    }),
   })
   .openapi("ChatUnreadThread");
 

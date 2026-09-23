@@ -10624,6 +10624,12 @@ export const ChatUnreadThreadSchema = {
             type: 'string',
             format: 'uuid',
             description: 'The room the Thread is in.'
+        },
+        lastUnreadAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the newest unread reply in this Thread came (a responded coworker mention\'s answer time where later). The list ranks by it.'
         }
     },
     required: [
@@ -10631,7 +10637,8 @@ export const ChatUnreadThreadSchema = {
         'firstUnreadReplyId',
         'parentContent',
         'unreadReplyCount',
-        'roomId'
+        'roomId',
+        'lastUnreadAt'
     ]
 } as const;
 

@@ -2990,6 +2990,10 @@ export type ChatUnreadThread = {
      * The room the Thread is in.
      */
     roomId: string;
+    /**
+     * When the newest unread reply in this Thread came (a responded coworker mention's answer time where later). The list ranks by it.
+     */
+    lastUnreadAt: Date;
 };
 
 export type ChatEarlierThread = {

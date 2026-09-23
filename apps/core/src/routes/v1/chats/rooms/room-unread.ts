@@ -4,7 +4,6 @@ import { CHAT_ROOM_BADGE_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 import {
   CHAT_ROOM_UNREAD_THREAD_CAP,
   CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS,
-  type ChatUnreadThread,
 } from "@/schemas/chat-room.schema";
 
 import {
@@ -257,6 +256,8 @@ export interface ChatRoomUnreadThreadPreview {
   unreadReplyCount: number;
   /** How many of those unread replies name the viewer. */
   unreadMentionCount: number;
+  /** When the newest unread reply came: what the list ranks by. */
+  lastUnreadAt: Date;
 }
 
 export interface ChatRoomUnreadThreads {
@@ -317,6 +318,7 @@ interface UnreadThreadRow {
   parentContent: string;
   unreadReplyCount: number | bigint;
   unreadMentionCount: number | bigint | null;
+  lastUnreadAt: Date;
 }
 
 function mapUnreadThreadRow(row: UnreadThreadRow): ChatRoomUnreadThreadPreview {
@@ -326,6 +328,7 @@ function mapUnreadThreadRow(row: UnreadThreadRow): ChatRoomUnreadThreadPreview {
     parentContent: row.parentContent,
     unreadReplyCount: Number(row.unreadReplyCount),
     unreadMentionCount: Number(row.unreadMentionCount ?? 0),
+    lastUnreadAt: row.lastUnreadAt,
   };
 }
 
@@ -380,6 +383,7 @@ export async function listChatRoomUnreadThreads(
       "parentContent",
       "unreadReplyCount",
       "unreadMentionCount",
+      "lastUnreadAt",
       "unreadThreadCount",
       "unreadThreadMentionCount"
     FROM ranked
@@ -401,9 +405,14 @@ export async function listChatRoomUnreadThreads(
   return byRoom;
 }
 
+/** An unread Thread with the room it is in, for the cross-room list. */
+export interface UnreadThreadInRoom extends ChatRoomUnreadThreadPreview {
+  roomId: string;
+}
+
 export interface ChatUnreadThreadsPage {
   /** Newest unread reply first. */
-  threads: ChatUnreadThread[];
+  threads: UnreadThreadInRoom[];
   /** The last Thread's parent id when more follow, else null. */
   nextCursor: string | null;
   /** Every unread Thread across the rooms, not only this page. */

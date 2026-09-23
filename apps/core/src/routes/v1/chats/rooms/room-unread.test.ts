@@ -673,6 +673,7 @@ describe("listUnreadThreadsAcrossRooms", () => {
       parentContent: "should be vendor-wide",
       unreadReplyCount: BigInt(2),
       unreadMentionCount: BigInt(1),
+      lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
       totalThreadCount: BigInt(7),
     };
   }
@@ -701,6 +702,7 @@ describe("listUnreadThreadsAcrossRooms", () => {
           parentContent: "should be vendor-wide",
           unreadReplyCount: 2,
           unreadMentionCount: 1,
+          lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
         },
       ],
       nextCursor: PARENT_A,

@@ -1190,7 +1190,13 @@ export const postChatsRoomsByIdFilesResponseTransformer = async (data: any): Pro
     return data;
 };
 
+const chatUnreadThreadSchemaResponseTransformer = (data: any) => {
+    data.lastUnreadAt = new Date(data.lastUnreadAt);
+    return data;
+};
+
 export const getChatsThreadsUnreadResponseTransformer = async (data: any): Promise<GetChatsThreadsUnreadResponse> => {
+    data.data = data.data.map((item: any) => chatUnreadThreadSchemaResponseTransformer(item));
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

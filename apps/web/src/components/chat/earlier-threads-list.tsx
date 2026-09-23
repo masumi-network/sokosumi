@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
+import { ThreadGroupHeading } from "@/components/chat/thread-list-row";
 import { EarlierThreadLink } from "@/components/chat/unread-thread-link";
 import { unreadThreadsFingerprint } from "@/components/chat/unread-threads-list";
 import { Button } from "@/components/ui/button";
@@ -60,13 +61,10 @@ export function EarlierThreadsList({
   }
 
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-2">
-      <h2
-        id={headingId}
-        className="text-muted-foreground px-2 text-xs font-medium tracking-wide uppercase"
-      >
+    <section aria-labelledby={headingId} className="flex flex-col">
+      <ThreadGroupHeading id={headingId}>
         {t("groupEarlier")}
-      </h2>
+      </ThreadGroupHeading>
       {query.isError && threads.length === 0 ? (
         <div className="flex flex-col items-start gap-2 px-2">
           <p className="text-muted-foreground text-sm">{t("error")}</p>
@@ -82,7 +80,7 @@ export function EarlierThreadsList({
       ) : (
         <>
           <ul
-            className="flex flex-col gap-1"
+            className="flex flex-col gap-0.5"
             data-testid="earlier-threads-list"
           >
             {threads.map((thread) => {

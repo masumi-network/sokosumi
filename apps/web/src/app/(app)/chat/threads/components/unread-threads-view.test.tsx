@@ -57,6 +57,7 @@ function page(): ChatUnreadThreadsPage {
         parentContent: "added it into linear",
         unreadReplyCount: 1,
         unreadMentionCount: 0,
+        lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
       },
       {
         roomId: "room-sokosumi",
@@ -65,6 +66,7 @@ function page(): ChatUnreadThreadsPage {
         parentContent: "should be vendor-wide",
         unreadReplyCount: 2,
         unreadMentionCount: 1,
+        lastUnreadAt: new Date("2026-09-23T08:00:00.000Z"),
       },
     ],
     nextCursor: null,
@@ -113,7 +115,9 @@ describe("UnreadThreadsView", () => {
     ]);
     expect(rows[0]).toHaveTextContent("added it into linear");
     expect(rows[0]).toHaveTextContent("#design");
-    expect(rows[1]).toHaveTextContent("1 mention, 2 unread replies");
+    // What is new leads the details, in words; the @ pill is spoken as text.
+    expect(rows[1]).toHaveTextContent("2 new");
+    expect(rows[1]).toHaveTextContent("1 mention");
   });
 
   it("says the reader is caught up once the rooms hold no unread Thread", () => {

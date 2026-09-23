@@ -68,6 +68,7 @@ function unreadRow(roomId: string, parentMessageId: string) {
     parentContent: "added it into linear",
     unreadReplyCount: 2,
     unreadMentionCount: 0,
+    lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
     totalThreadCount: 5,
   };
 }
@@ -98,6 +99,7 @@ describe("GET /chats/threads/unread", () => {
         parentContent: "added it into linear",
         unreadReplyCount: 2,
         unreadMentionCount: 0,
+        lastUnreadAt: "2026-09-23T09:00:00.000Z",
       },
     ]);
     expect(body.meta.pagination).toEqual({

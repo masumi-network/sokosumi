@@ -456,10 +456,16 @@ describe("ThreadListPanel", () => {
     renderPanel();
 
     const headings = await screen.findAllByTestId("thread-list-group-heading");
-    expect(headings.map((heading) => heading.textContent)).toEqual([
-      labels.groupUnread,
-      labels.groupEarlier,
-    ]);
+    // By accessible name: the Unread heading also draws its count, which is
+    // hidden from speech.
+    expect(
+      screen
+        .getAllByRole("heading", { level: 3 })
+        .map((heading) => heading.textContent?.replace(/\d+$/, "")),
+    ).toEqual([labels.groupUnread, labels.groupEarlier]);
+    expect(
+      screen.getByRole("heading", { level: 3, name: labels.groupUnread }),
+    ).toBe(headings[0]);
     expect(headings[0].tagName).toBe("H3");
 
     // The unread row is under Unread, the read one under Earlier: in document
