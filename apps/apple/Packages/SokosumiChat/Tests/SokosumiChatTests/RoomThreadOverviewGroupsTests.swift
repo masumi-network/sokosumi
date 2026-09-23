@@ -38,7 +38,7 @@ struct RoomThreadOverviewGroupsTests {
 
   @Test(arguments: [
     ([Int](), Headings(unread: false, caughtUp: false, earlier: false)), // a room with no threads: only its empty state
-    ([0, 0], Headings(unread: true, caughtUp: true, earlier: true)), // all read: "All caught up." under Unread
+    ([0, 0], Headings(unread: true, caughtUp: true, earlier: true)), // all read: "All caught up" under Unread
     ([2, 1], Headings(unread: true, caughtUp: false, earlier: false)), // all unread: Unread alone
     ([3, 0], Headings(unread: true, caughtUp: false, earlier: true)) // mixed
   ])
