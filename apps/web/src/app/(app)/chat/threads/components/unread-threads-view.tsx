@@ -3,7 +3,6 @@
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
 import {
   ChatCaughtUp,
@@ -55,9 +54,10 @@ export function UnreadThreadsView({
   const rooms = liveRooms.length > 0 ? liveRooms : initialRooms;
   const roomsById = new Map(rooms.map((room) => [room.id, room]));
   const fingerprint = unreadThreadsFingerprint(rooms);
-  // The server's page answers the rooms as they were when it was read; once
-  // they move, it no longer does.
-  const [initialFingerprint] = useState(fingerprint);
+  // initialData is fresh for the app query client's 60s staleTime. Only the
+  // rooms this page was rendered with may claim it; a live fingerprint that
+  // has already moved must read Core, or the stale page sticks.
+  const serverFingerprint = unreadThreadsFingerprint(initialRooms);
   const { threadCount } = resolveUnreadThreadsAttention(rooms);
 
   const query = useInfiniteQuery({
@@ -66,7 +66,7 @@ export function UnreadThreadsView({
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     initialData:
-      initialPage && fingerprint === initialFingerprint
+      initialPage && fingerprint === serverFingerprint
         ? { pages: [initialPage], pageParams: [undefined] }
         : undefined,
     placeholderData: keepPreviousData,
