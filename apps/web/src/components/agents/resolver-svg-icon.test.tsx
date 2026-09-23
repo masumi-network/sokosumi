@@ -294,8 +294,6 @@ describe("ResolverSVGIcon", () => {
     });
   });
 
-  it.skip("should handle server-side rendering without DOMPurify", async () => {});
-
   it("should accept SVG based on content-type header", async () => {
     const validSvg = "<svg><circle/></svg>";
     mockFetch.mockResolvedValueOnce({

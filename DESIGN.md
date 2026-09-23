@@ -236,7 +236,7 @@ Borders-first, then soft glow — **never** dramatic drop shadows.
   everywhere else. `main` also sets `scrollbar-gutter: stable`: it is the scroll container, so
   without that the scrollbar takes its width out of the content box on the right only and
   every rule stops further from the right edge than the left. Guard:
-  `apps/web/src/lib/utils/__tests__/full-bleed-rules.test.ts`.
+  `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
   A centred column inside a `max-w-*` wrapper keeps its own padding and is out of scope: no
   rule crosses the view there.
 - Avatars are **circular** for people; square source art is shown **whole** (no crop).
