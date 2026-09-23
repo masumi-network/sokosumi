@@ -111,7 +111,10 @@ import {
   shouldFlashOutboundSentCheck,
 } from "@/app/chat/utils/outbound-room-message";
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
-import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
+import {
+  applyReplySoftDeleteToParentIfUnchanged,
+  applyReplyToParentThreadPreview,
+} from "@/app/chat/utils/parent-thread-preview";
 import {
   mergeConfirmedReaction,
   overlayPendingReactions,
@@ -1896,11 +1899,7 @@ function RoomView({
   ) {
     const updateParent = (message: ChatRoomMessage): ChatRoomMessage =>
       message.id === parentMessageId
-        ? {
-            ...message,
-            threadReplyCount: message.threadReplyCount + 1,
-            threadLastReplyAt: reply.createdAt,
-          }
+        ? applyReplyToParentThreadPreview(message, reply)
         : message;
 
     setMessagesState((current) => current.map(updateParent));
