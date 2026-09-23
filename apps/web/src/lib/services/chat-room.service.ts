@@ -5,6 +5,7 @@ import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   AcceptChatRoomGuestInviteLink,
   ChannelSlugAvailability,
+  ChatEarlierThread,
   ChatRoom,
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
@@ -15,6 +16,7 @@ import type {
   ChatRoomThread,
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
+  ChatUnreadThread,
   CreateChatRoomGuestInviteLinkRequest,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
@@ -46,6 +48,25 @@ export interface ChatRoomsPage {
 export interface ChatRoomThreadsPage {
   threads: ChatRoomThread[];
   nextCursor: string | null;
+}
+
+export interface ChatUnreadThreadsPage {
+  threads: ChatUnreadThread[];
+  nextCursor: string | null;
+}
+
+export interface ChatEarlierThreadsPage {
+  threads: ChatEarlierThread[];
+  nextCursor: string | null;
+}
+
+/** Which of a room's two reads Mark all as read needs for it (ADR-0037). */
+export interface ChatUnreadRoomRead {
+  roomId: string;
+  /** Room read: its channel, mentions and notifications. */
+  readRoom: boolean;
+  /** Mark all threads: Looks the Threads it Participates in. */
+  lookThreads: boolean;
 }
 
 export const chatRoomService = (() => {
@@ -473,6 +494,55 @@ export const chatRoomService = (() => {
     return response.data.count;
   });
 
+  /** One page of the reader's unread Threads across rooms (SOK-1159). */
+  async function listUnreadThreads(options?: {
+    cursor?: string;
+  }): Promise<ChatUnreadThreadsPage> {
+    const response = await coreClient.getChatUnreadThreads({
+      limit: THREAD_LIST_PAGE_LIMIT,
+      cursor: options?.cursor,
+    });
+    return {
+      threads: response.data,
+      nextCursor: response.meta?.pagination?.nextCursor ?? null,
+    };
+  }
+
+  /** One page of the reader's read Threads across rooms: the Earlier group. */
+  async function listEarlierThreads(options?: {
+    cursor?: string;
+  }): Promise<ChatEarlierThreadsPage> {
+    const response = await coreClient.getChatEarlierThreads({
+      limit: THREAD_LIST_PAGE_LIMIT,
+      cursor: options?.cursor,
+    });
+    return {
+      threads: response.data,
+      nextCursor: response.meta?.pagination?.nextCursor ?? null,
+    };
+  }
+
+  /**
+   * All unreads' Mark all as read (SOK-1159): each room through the same
+   * reads the room itself offers, so notifications, read receipts and email
+   * cancellation behave exactly as reading the room would. Every read runs;
+   * the first failure is thrown once they have all settled.
+   */
+  async function markAllUnreadRead(
+    rooms: readonly ChatUnreadRoomRead[],
+  ): Promise<void> {
+    const reads = rooms.flatMap(({ roomId, readRoom, lookThreads }) => [
+      ...(readRoom ? [markRead(roomId)] : []),
+      ...(lookThreads ? [markAllUnreadThreadsRead(roomId)] : []),
+    ]);
+    const failed = (await Promise.allSettled(reads)).find(
+      (read) => read.status === "rejected",
+    );
+    if (failed) {
+      throw failed.reason;
+    }
+  }
+
   async function markThreadRead(
     roomId: string,
     parentMessageId: string,
@@ -597,6 +667,9 @@ export const chatRoomService = (() => {
     listRooms,
     listThreads,
     countUnreadThreads,
+    listUnreadThreads,
+    listEarlierThreads,
+    markAllUnreadRead,
     listThreadMessages,
     getMessage,
     getThread,

@@ -253,7 +253,11 @@ describe("ThreadListPanel", () => {
 
     renderPanel();
 
-    fireEvent.click(await screen.findByTestId("thread-list-load-older"));
+    fireEvent.click(
+      within(await screen.findByTestId("thread-list-load-more")).getByRole(
+        "button",
+      ),
+    );
     await waitFor(() => {
       expect(listThreadsActionMock).toHaveBeenLastCalledWith(ROOM_ID, {
         cursor: "cursor-1",
@@ -261,8 +265,91 @@ describe("ThreadListPanel", () => {
     });
     expect(await screen.findByText("Last month")).toBeInTheDocument();
     expect(
-      screen.queryByTestId("thread-list-load-older"),
+      screen.queryByTestId("thread-list-load-more"),
     ).not.toBeInTheDocument();
+  });
+
+  it("resumes scroll-loading after a failed older page is retried", async () => {
+    const olderId = "550e8400-e29b-41d4-a716-446655440098";
+    listThreadsActionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
+              hasLooked: true,
+            }),
+          ],
+          nextCursor: "cursor-1",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { message: labels.error },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: olderId,
+                content: "Last month",
+              }),
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
+              hasLooked: true,
+            }),
+          ],
+          nextCursor: "cursor-2",
+        },
+      });
+
+    renderPanel();
+
+    const loadOlder = async () => {
+      fireEvent.click(
+        within(await screen.findByTestId("thread-list-load-more")).getByRole(
+          "button",
+        ),
+      );
+    };
+    await loadOlder();
+    expect(await screen.findByRole("alert")).toHaveTextContent(labels.error);
+
+    await loadOlder();
+    expect(await screen.findByText("Last month")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByTestId("thread-list-load-more")).toHaveTextContent(
+      labels.loadOlder,
+    );
+  });
+
+  it("does not turn a failed mark-all into a failed older page", async () => {
+    listThreadsActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        threads: [threadItem()],
+        nextCursor: "cursor-1",
+      },
+    });
+    markAllUnreadThreadsReadActionMock.mockResolvedValue({
+      ok: false,
+      error: { message: labels.markAllReadError },
+    });
+
+    renderPanel();
+
+    fireEvent.click(await screen.findByTestId("thread-list-mark-all-read"));
+    expect(await screen.findByTestId("thread-list-error")).toHaveTextContent(
+      labels.markAllReadError,
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("thread-list-load-more")).getByRole("button"),
+    ).toHaveTextContent(labels.loadOlder);
   });
 
   it("selects a row and marks all unread", async () => {
@@ -388,7 +475,7 @@ describe("ThreadListPanel", () => {
     expect(after[1]).toHaveTextContent("Older unread");
     expect(after[1]).toHaveTextContent("2 replies");
     expect(after[1]).not.toHaveTextContent("unread replies");
-    expect(screen.getByTestId("thread-list-load-older")).toBeInTheDocument();
+    expect(screen.getByTestId("thread-list-load-more")).toBeInTheDocument();
   });
 
   it("shows unread chrome and Mark all for never-looked Participant threads", async () => {
@@ -456,10 +543,16 @@ describe("ThreadListPanel", () => {
     renderPanel();
 
     const headings = await screen.findAllByTestId("thread-list-group-heading");
-    expect(headings.map((heading) => heading.textContent)).toEqual([
-      labels.groupUnread,
-      labels.groupEarlier,
-    ]);
+    // By accessible name: the Unread heading also draws its count, which is
+    // hidden from speech.
+    expect(
+      screen
+        .getAllByRole("heading", { level: 3 })
+        .map((heading) => heading.textContent?.replace(/\d+$/, "")),
+    ).toEqual([labels.groupUnread, labels.groupEarlier]);
+    expect(
+      screen.getByRole("heading", { level: 3, name: labels.groupUnread }),
+    ).toBe(headings[0]);
     expect(headings[0].tagName).toBe("H3");
 
     // The unread row is under Unread, the read one under Earlier: in document
