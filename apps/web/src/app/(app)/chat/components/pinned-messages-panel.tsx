@@ -199,7 +199,7 @@ export function PinnedMessagesPanel({
               type="button"
               variant="ghost"
               size="icon"
-              className="text-muted-foreground size-8 shrink-0"
+              className="text-muted-foreground relative z-[1] size-8 shrink-0"
               aria-label={labels.unpin}
               onClick={() => {
                 void (async () => {
@@ -233,22 +233,30 @@ export function PinnedMessagesPanel({
           const isJumping = jumpingMessageId === item.messageId;
           const quoteOnly =
             message.content.trim().length === 0 ? message.quote : null;
+          const bodyId = `pinned-message-body-${item.messageId}`;
+          // The body holds its own buttons, links and players, so it cannot
+          // sit inside the jump button. The header is the button; its
+          // ::after stretches over the row so a click anywhere jumps. The
+          // body is layered above that and lets clicks through to it, except
+          // on its own controls (the drive card's layering). Those are named
+          // by kind, not by component: anything natively interactive or
+          // focusable, hover-card triggers, and horizontal scrollers (code
+          // blocks, tables), which need the pointer to scroll.
           return (
             <div
               key={item.messageId}
-              className={cn(
-                "border-border hover:bg-card-background mb-3 flex w-full items-start gap-1 rounded-lg border p-3 text-left",
-              )}
+              className="border-border hover:bg-card-background relative mb-3 flex w-full items-start gap-1 rounded-lg border p-3"
             >
-              <button
-                type="button"
-                className="min-w-0 flex-1 text-left"
-                aria-busy={isJumping}
-                onClick={() => {
-                  void handleJump(item.messageId);
-                }}
-              >
-                <div className="flex min-w-0 items-baseline gap-2">
+              <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  className="flex w-full min-w-0 cursor-pointer items-baseline gap-2 text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
+                  aria-busy={isJumping}
+                  aria-describedby={bodyId}
+                  onClick={() => {
+                    void handleJump(item.messageId);
+                  }}
+                >
                   <span className="truncate text-sm font-medium">
                     {sender.name}
                   </span>
@@ -262,7 +270,7 @@ export function PinnedMessagesPanel({
                       {formatTimeAgo(new Date(message.createdAt))}
                     </span>
                   )}
-                </div>
+                </button>
                 {/* A quote can be the whole message; show what was quoted. */}
                 {quoteOnly ? (
                   <div className="text-foreground mt-1 truncate text-xs font-semibold">
@@ -270,11 +278,13 @@ export function PinnedMessagesPanel({
                   </div>
                 ) : null}
                 <div
-                  className={
-                    quoteOnly
-                      ? "border-primary-tertiary text-muted-foreground mt-1 line-clamp-6 border-l-2 pl-2.5 text-sm"
-                      : "mt-1 line-clamp-6 text-sm"
-                  }
+                  id={bodyId}
+                  data-testid="pinned-message-body"
+                  className={cn(
+                    "pointer-events-none relative z-[1] mt-1 line-clamp-6 text-sm [&_:is(a,button,input:enabled,select,textarea,summary,audio,video,[role=button],[tabindex],[data-slot=hover-card-trigger],pre,.overflow-x-auto)]:pointer-events-auto",
+                    quoteOnly &&
+                      "border-primary-tertiary text-muted-foreground border-l-2 pl-2.5",
+                  )}
                 >
                   <ChannelMessageText
                     content={quoteOnly ? quoteOnly.snippet : message.content}
@@ -291,7 +301,7 @@ export function PinnedMessagesPanel({
                     openingDirectParticipantKey={openingDirectParticipantKey}
                   />
                 </div>
-              </button>
+              </div>
               {unpinControl}
             </div>
           );
