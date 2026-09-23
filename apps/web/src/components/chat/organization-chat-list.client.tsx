@@ -323,12 +323,14 @@ export function OrganizationChatList({
     ? [
         ...nextFilterPass.seen,
         // The open room is listed while it is open, read or not.
-        ...(activeRoomId &&
-        !pinnedIds.has(activeRoomId) &&
-        !nextFilterPass.seen.includes(activeRoomId)
+        ...(activeRoomId && !nextFilterPass.seen.includes(activeRoomId)
           ? [activeRoomId]
           : []),
-      ].flatMap((id) => roomRows.find((row) => row.id === id) ?? [])
+      ]
+        // A room pinned during the pass leaves this list. `seen` keeps its
+        // place, so unpinning puts it back where it was.
+        .filter((id) => !pinnedIds.has(id))
+        .flatMap((id) => roomRows.find((row) => row.id === id) ?? [])
     : [];
   const inboxPinnedRooms = unreadOnly ? pinned : [];
   const isUnreadRoom = (room: ChatRoom) =>

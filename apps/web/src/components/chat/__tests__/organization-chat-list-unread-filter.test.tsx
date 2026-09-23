@@ -284,6 +284,47 @@ describe("OrganizationChatList All unreads pinned rooms", () => {
     );
   });
 
+  it("moves a room out of the flat list when it is pinned during the pass", async () => {
+    const start = [unreadChannel, readChannel];
+    listRoomsMock.mockResolvedValue(emptyListResult(start));
+    const { container, rerender } = renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: start,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
+    expect(inboxRows(container)).toEqual(["launch"]);
+    expect(pinnedRows(container)).toEqual([]);
+
+    const launchPinned = [
+      makeRoom({
+        ...unreadChannel,
+        starredAt: new Date("2026-09-02T00:00:00.000Z"),
+      }),
+      readChannel,
+    ];
+    listRoomsMock.mockResolvedValue(emptyListResult(launchPinned));
+    rerender(
+      createOrganizationChatList({
+        organizationId: "org-1",
+        rooms: launchPinned,
+      }),
+    );
+
+    expect(pinnedRows(container)).toEqual(["launch"]);
+    expect(inboxRows(container)).toEqual([]);
+    expect(rowLabels()).toEqual(["launch"]);
+
+    // Unpin puts it back in the flat list, in the place the pass kept.
+    rerender(
+      createOrganizationChatList({
+        organizationId: "org-1",
+        rooms: start,
+      }),
+    );
+    expect(pinnedRows(container)).toEqual([]);
+    expect(inboxRows(container)).toEqual(["launch"]);
+  });
+
   it("keeps an opened pinned room in Pinned, where it was", async () => {
     harnessPathname.current = `/chat/rooms/${pinnedRead.id}`;
     const start = [unreadChannel, pinnedRead, pinnedUnread];
