@@ -16,7 +16,7 @@ const { createTaskScheduleMock, updateTaskScheduleMock, toastMock } =
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
-  useFormatter: () => ({ dateTime: () => "formatted" }),
+  useFormatter: () => ({ dateTime: (date: Date) => date.toISOString() }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -213,6 +213,54 @@ describe("TaskScheduleDialog", () => {
     expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
       "rule",
     );
+  });
+
+  describe("every N days", () => {
+    // 09:00 UTC is 10:00 in Berlin in January.
+    const EVERY_THREE_DAYS: TaskSchedule = {
+      ...SCHEDULE,
+      rule: {
+        ...SCHEDULE.rule,
+        expr: "0 10 * * *",
+        intervalDays: 3,
+        anchorAt: new Date("2030-01-07T09:00:00.000Z"),
+      },
+    };
+
+    it("previews every third day from the anchor, not every day", () => {
+      renderDialog({ schedule: EVERY_THREE_DAYS });
+
+      const preview = screen
+        .getAllByRole("listitem")
+        .map((item) => item.textContent);
+      expect(preview).toEqual([
+        "2030-01-07T09:00:00.000Z",
+        "2030-01-10T09:00:00.000Z",
+        "2030-01-13T09:00:00.000Z",
+      ]);
+    });
+
+    it("runs at the time of day the form shows, which Core reads from the anchor", async () => {
+      const user = userEvent.setup();
+      renderDialog({ schedule: EVERY_THREE_DAYS });
+
+      const timeOfDay = screen.getByLabelText("timeOfDay");
+      expect(timeOfDay).toHaveValue("10:00");
+      fireEvent.change(timeOfDay, { target: { value: "07:15" } });
+      await user.click(screen.getByRole("button", { name: "save" }));
+
+      await waitFor(() =>
+        expect(updateTaskScheduleMock).toHaveBeenCalledOnce(),
+      );
+      expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+        rule: {
+          expr: "15 7 * * *",
+          intervalDays: 3,
+          anchorAt: new Date("2030-01-07T06:15:00.000Z"),
+          timezone: "Europe/Berlin",
+        },
+      });
+    });
   });
 
   it("sends the new rule when the time changes", async () => {

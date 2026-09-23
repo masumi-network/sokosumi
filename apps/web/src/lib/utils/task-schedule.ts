@@ -233,14 +233,17 @@ function recurringRuleToSelection(
       : undefined,
   };
 
-  // Every-N-days uses a daily cron plus an anchor. The daily preset would
-  // replace that anchor with the next local slot and shift the series on save.
+  // Every-N-days runs at its anchor's local time; the cron's time is unused.
+  // The daily preset would replace that anchor with the next local slot and
+  // shift the series, so it starts from the anchor, with the daily cron the
+  // form's builder writes for that time (older rules can carry another one).
   if (rule.intervalDays != null && rule.intervalDays > 1 && rule.anchorAt) {
-    selection.oneTimeLocalIso = utcToDateTimeLocalInTimezone(
+    const anchorLocalIso = utcToDateTimeLocalInTimezone(
       new Date(rule.anchorAt),
       rule.timezone,
     );
-    selection.customCronExpr = rule.expr;
+    selection.oneTimeLocalIso = anchorLocalIso;
+    selection.cron = `${Number(anchorLocalIso.slice(14, 16))} ${Number(anchorLocalIso.slice(11, 13))} * * *`;
   } else if (derivedPreset) {
     selection.oneTimeLocalIso = derivedPreset.iso;
   } else {
