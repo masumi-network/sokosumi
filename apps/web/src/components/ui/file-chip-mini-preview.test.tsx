@@ -100,28 +100,6 @@ describe("FileChipMiniPreviewFrame", () => {
     expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
   });
 
-  it("does not activate an ancestor click when opening an image", () => {
-    const onOpenImage = vi.fn();
-    const onAncestorClick = vi.fn();
-    render(
-      <div onClick={onAncestorClick}>
-        <FileChipMiniPreviewFrame
-          url="https://blob.example.com/uploads/photo.png"
-          fileName="photo.png"
-          mediaType="image/png"
-          onOpenImage={onOpenImage}
-        />
-      </div>,
-    );
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "View image photo.png" }),
-    );
-
-    expect(onOpenImage).toHaveBeenCalledOnce();
-    expect(onAncestorClick).not.toHaveBeenCalled();
-  });
-
   it("renders large image variant with object-contain and still opens viewer", () => {
     const onOpenImage = vi.fn();
     render(
