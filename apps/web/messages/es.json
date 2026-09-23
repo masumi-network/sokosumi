@@ -5633,10 +5633,13 @@
         "error": "No se pudieron cargar los hilos. Inténtalo de nuevo.",
         "markAllReadError": "No se pudieron marcar los hilos no leídos como leídos. Inténtalo de nuevo.",
         "loadOlder": "Cargar hilos anteriores",
+        "groupUnread": "Sin leer",
+        "groupEarlier": "Anteriores",
+        "groupUnreadEmpty": "Todo al día.",
         "startedBy": "Iniciado por {name}",
-        "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}",
         "unreadThreads": "{count, plural, one {# hilo no leído} other {# hilos no leídos}}",
-        "unreadThreadsCapped": "Más de {max} hilos no leídos"
+        "unreadThreadsCapped": "Más de {max} hilos no leídos",
+        "newReplies": "{count, plural, one {# nueva} other {# nuevas}}"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
@@ -6305,7 +6308,8 @@
       "view": {
         "month": "Mes",
         "week": "Semana",
-        "agenda": "Agenda"
+        "agenda": "Agenda",
+        "schedules": "Programaciones"
       },
       "source": {
         "label": "Origen",
@@ -6371,7 +6375,15 @@
         "label": "Zona horaria"
       },
       "empty": {
-        "title": "Ninguna ejecución programada coincide con estos filtros."
+        "title": "Ninguna ejecución programada coincide con estos filtros.",
+        "schedulesTitle": "Ninguna programación coincide con estos filtros."
+      },
+      "schedules": {
+        "nextRun": "Próxima ejecución",
+        "noNextRun": "Sin próxima ejecución",
+        "edit": "Editar programación",
+        "openTask": "Abrir tarea",
+        "loadMore": "Cargar más"
       },
       "pagination": {
         "error": "No se pudieron cargar más eventos."
@@ -6382,8 +6394,8 @@
         "retry": "Intentar de nuevo"
       },
       "agenda": {
-        "backToTop": "Volver arriba",
-        "today": "Hoy"
+        "upcoming": "A continuación",
+        "loading": "Cargando…"
       }
     },
     "You": {

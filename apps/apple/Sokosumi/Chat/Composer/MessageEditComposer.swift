@@ -26,7 +26,6 @@
           Text("Message exceeds the 10,000-character limit.").font(.caption).foregroundStyle(.red)
         }
       }
-      .accessibilityLabel("Edit message")
     }
 
     private func cancelUnchanged() {

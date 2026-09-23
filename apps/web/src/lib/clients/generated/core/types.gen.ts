@@ -40017,6 +40017,10 @@ export type GetTasksData = {
          */
         visibility?: 'PUBLIC' | 'PRIVATE';
         /**
+         * When true, only tasks with an active schedule series (metadata or nextRunAt set). When false, only tasks without one. Omit to return all tasks.
+         */
+        hasSchedule?: 'true' | 'false';
+        /**
          * Filter tasks by assignee coworker ID
          */
         assigneeId?: string;
