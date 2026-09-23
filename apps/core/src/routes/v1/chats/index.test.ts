@@ -22,10 +22,11 @@ describe("chats routes OpenAPI contract", () => {
     expect(doc.paths?.["/rooms/{id}/stream"]).toBeDefined();
   });
 
-  it("exposes the cross-room unread Threads read", () => {
+  it("exposes the cross-room Threads reads", () => {
     const doc = chatsRouter.getOpenAPI31Document(openApiInfo);
 
     expect(doc.paths?.["/threads/unread"]?.get).toBeDefined();
+    expect(doc.paths?.["/threads/earlier"]?.get).toBeDefined();
   });
 
   it("exposes invitee invitation routes", () => {

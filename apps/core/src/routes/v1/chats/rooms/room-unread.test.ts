@@ -12,6 +12,7 @@ import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
   listChatRoomUnreadThreads,
+  listEarlierThreadsAcrossRooms,
   listUnreadThreadsAcrossRooms,
   markAllChatRoomThreadsRead,
   setChatRoomThreadMuted,
@@ -822,5 +823,99 @@ describe("listChatRoomUnreadThreads", () => {
       unreadThreadCount: 4,
       unreadThreadMentionCount: 2,
     });
+  });
+});
+
+describe("listEarlierThreadsAcrossRooms", () => {
+  const PARENT = "550e8400-e29b-41d4-a716-4466554400e1";
+  const LAST_REPLY = "550e8400-e29b-41d4-a716-4466554400e2";
+  const lastReplyAt = new Date("2026-09-23T09:00:00.000Z");
+
+  function earlierRow(parentMessageId: string) {
+    return {
+      roomId: "room-a",
+      parentMessageId,
+      parentContent: "we support max 1GB",
+      replyCount: BigInt(6),
+      lastReplyAt,
+      lastReplyId: LAST_REPLY,
+      totalThreadCount: BigInt(9),
+    };
+  }
+
+  it("lists the reader's read Threads across rooms, newest reply first, one page", async () => {
+    const queryRawUnsafe = vi
+      .fn()
+      .mockResolvedValue([earlierRow(PARENT), earlierRow("next")]);
+
+    const page = await listEarlierThreadsAcrossRooms(
+      ["room-a"],
+      "user_1",
+      { $queryRawUnsafe: queryRawUnsafe } as never,
+      { limit: 1 },
+    );
+
+    expect(page).toEqual({
+      threads: [
+        {
+          roomId: "room-a",
+          parentMessageId: PARENT,
+          parentContent: "we support max 1GB",
+          replyCount: 6,
+          lastReplyAt,
+          lastReplyId: LAST_REPLY,
+        },
+      ],
+      nextCursor: PARENT,
+      total: 9,
+    });
+  });
+
+  it("states the total even when the page after the cursor is empty", async () => {
+    const queryRawUnsafe = vi
+      .fn()
+      .mockResolvedValue([{ parentMessageId: null, totalThreadCount: 4 }]);
+
+    const page = await listEarlierThreadsAcrossRooms(
+      ["room-a"],
+      "user_1",
+      { $queryRawUnsafe: queryRawUnsafe } as never,
+      { cursor: PARENT, limit: 20 },
+    );
+
+    expect(page).toEqual({ threads: [], nextCursor: null, total: 4 });
+    expect(queryRawUnsafe.mock.calls[0]?.slice(-2)).toEqual([21, PARENT]);
+  });
+
+  it("reads nothing when the reader is in no room", async () => {
+    const queryRawUnsafe = vi.fn();
+
+    const page = await listEarlierThreadsAcrossRooms(
+      [],
+      "user_1",
+      { $queryRawUnsafe: queryRawUnsafe } as never,
+      { limit: 20 },
+    );
+
+    expect(page).toEqual({ threads: [], nextCursor: null, total: 0 });
+    expect(queryRawUnsafe).not.toHaveBeenCalled();
+  });
+
+  // Tripwire (SOK-1159): Earlier is the reader's Participant Threads less the
+  // unread ones, and the unread ones are the unread list's own fragment, so a
+  // Thread is in exactly one of the two groups. Keep this to those two gates.
+  it("still takes Participant (ADR-0013) and leaves out the unread fragment", async () => {
+    const queryRawUnsafe = vi.fn().mockResolvedValue([]);
+
+    await listEarlierThreadsAcrossRooms(
+      ["room-a"],
+      "user_1",
+      { $queryRawUnsafe: queryRawUnsafe } as never,
+      { limit: 20 },
+    );
+
+    const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
+    expect(sql).toContain("own_reply");
+    expect(sql).toContain('thread_read."mutedAt" IS NULL');
   });
 });

@@ -1,8 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useId } from "react";
 
 import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
+import { EarlierThreadsList } from "@/components/chat/earlier-threads-list";
 import { UnreadThreadsList } from "@/components/chat/unread-threads-list";
 import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
 import type { ChatRoom } from "@/lib/clients/generated/core";
@@ -17,9 +19,10 @@ interface UnreadThreadsViewProps {
 }
 
 /**
- * The Threads page (SOK-1159): where the Threads entry lands on the phone,
- * which has no side for the desktop popover to open into, and the address a
- * link to the list can share. The list is the popover's.
+ * The Threads page (SOK-1159): every Thread the reader is part of, the
+ * unread ones first and then Earlier, as a room's own Thread list groups
+ * them. Where the Threads row goes on click, and the only way in on the
+ * phone. Its unread group is the flyout's list.
  */
 export function UnreadThreadsView({
   initialPage,
@@ -27,21 +30,38 @@ export function UnreadThreadsView({
   currentUserId,
 }: UnreadThreadsViewProps) {
   const t = useTranslations("App.Channels.ThreadsView");
+  const tGroups = useTranslations("App.Channels.UnreadThreads");
+  const unreadHeadingId = useId();
   // Null until the live read lands; an empty list is an answer, not a gap.
   const liveRooms = useLiveChatRooms();
   const roomsLive = liveRooms !== null;
 
+  const rooms = liveRooms ?? initialRooms;
+
   return (
     <div className="flex flex-col gap-5 pb-4">
       <ChatUnreadViewHeader title={t("title")} />
-      <UnreadThreadsList
-        rooms={liveRooms ?? initialRooms}
-        roomsLive={roomsLive}
-        initial={
-          initialPage ? { page: initialPage, rooms: initialRooms } : null
-        }
-        currentUserId={currentUserId}
-      />
+      <section
+        aria-labelledby={unreadHeadingId}
+        className="flex flex-col gap-2"
+      >
+        <h2
+          id={unreadHeadingId}
+          className="text-muted-foreground px-2 text-xs font-medium tracking-wide uppercase"
+        >
+          {tGroups("groupUnread")}
+        </h2>
+        <UnreadThreadsList
+          rooms={rooms}
+          roomsLive={roomsLive}
+          initial={
+            initialPage ? { page: initialPage, rooms: initialRooms } : null
+          }
+          currentUserId={currentUserId}
+          variant="page"
+        />
+      </section>
+      <EarlierThreadsList rooms={rooms} currentUserId={currentUserId} />
     </div>
   );
 }

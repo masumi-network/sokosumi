@@ -540,6 +540,139 @@ export async function roomUnreadFields(
   };
 }
 
+export interface ChatEarlierThread {
+  roomId: string;
+  parentMessageId: string;
+  /** The parent's raw content, cut short. The client builds the label. */
+  parentContent: string;
+  replyCount: number;
+  lastReplyAt: Date;
+  /** Where opening the Thread lands: its newest reply. */
+  lastReplyId: string;
+}
+
+export interface ChatEarlierThreadsPage {
+  /** Newest reply first. */
+  threads: ChatEarlierThread[];
+  nextCursor: string | null;
+  total: number;
+}
+
+/**
+ * The reader's Threads with nothing unread, across rooms: the Earlier group
+ * under the Threads view's unread ones (SOK-1159), as a room's own Thread
+ * list groups its Threads.
+ *
+ * The reader's Participant Threads (ADR-0013), less every Thread the unread
+ * fragment finds, so a Thread is in exactly one of the two groups. Ranked by
+ * newest reply and paged by parent id, the way the unread list pages; the
+ * total rides a joined count, so an empty page past a stale cursor still
+ * states it.
+ */
+export async function listEarlierThreadsAcrossRooms(
+  roomIds: readonly string[],
+  userId: string,
+  tx: Prisma.TransactionClient,
+  options: { cursor?: string; limit: number },
+): Promise<ChatEarlierThreadsPage> {
+  const uniqueRoomIds = normalizeUniqueStrings(roomIds);
+  if (uniqueRoomIds.length === 0) {
+    return { threads: [], nextCursor: null, total: 0 };
+  }
+
+  const { cursor, limit } = options;
+  const roomIdPlaceholders = sqlRoomIdPlaceholders(uniqueRoomIds.length);
+  const userIdPlaceholder = `$${uniqueRoomIds.length + 1}`;
+  const limitPlaceholder = `$${uniqueRoomIds.length + 2}`;
+  const cursorPlaceholder = `$${uniqueRoomIds.length + 3}::uuid`;
+
+  type EarlierRow = {
+    roomId: string;
+    parentMessageId: string;
+    parentContent: string;
+    replyCount: number | bigint;
+    lastReplyAt: Date;
+    lastReplyId: string;
+    totalThreadCount: number | bigint;
+  };
+  const rows = await tx.$queryRawUnsafe<
+    Array<
+      EarlierRow | { parentMessageId: null; totalThreadCount: number | bigint }
+    >
+  >(
+    `
+    WITH unread_parent AS (
+      SELECT DISTINCT parent.id
+      ${sqlUnreadThreadReplies(roomIdPlaceholders, userIdPlaceholder)}
+    ),
+    earlier AS (
+      SELECT
+        parent."roomId" AS "roomId",
+        parent.id AS "parentMessageId",
+        LEFT(parent.content, ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS})
+          AS "parentContent",
+        COUNT(reply.id)::int AS "replyCount",
+        MAX(reply."createdAt") AS "lastReplyAt",
+        (ARRAY_AGG(reply.id ORDER BY reply."createdAt" DESC, reply.id DESC))[1]
+          AS "lastReplyId"
+      FROM "chat_room_message" reply
+      INNER JOIN "chat_room_message" parent
+        ON parent.id = reply."parentMessageId"
+        AND parent."roomId" = reply."roomId"
+      WHERE reply."roomId" IN (${roomIdPlaceholders})
+        AND reply."deletedAt" IS NULL
+        AND parent."deletedAt" IS NULL
+        AND parent."parentMessageId" IS NULL
+        AND ${sqlViewerIsThreadParticipant(userIdPlaceholder)}
+        AND parent.id NOT IN (SELECT id FROM unread_parent)
+      -- parent.id is the primary key, so its other columns ride along.
+      GROUP BY parent.id
+    ),
+    page AS (
+      SELECT earlier.*
+      FROM earlier
+      ${
+        cursor
+          ? `WHERE ("lastReplyAt", "parentMessageId") < (
+        SELECT cursor_thread."lastReplyAt", cursor_thread."parentMessageId"
+        FROM earlier cursor_thread
+        WHERE cursor_thread."parentMessageId" = ${cursorPlaceholder}
+      )`
+          : ""
+      }
+      ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC
+      LIMIT ${limitPlaceholder}
+    )
+    SELECT page.*, totals."totalThreadCount"
+    FROM (SELECT COUNT(*)::int AS "totalThreadCount" FROM earlier) totals
+    LEFT JOIN page ON true
+    ORDER BY page."lastReplyAt" DESC, page."parentMessageId" DESC
+  `,
+    ...uniqueRoomIds,
+    userId,
+    limit + 1,
+    ...(cursor ? [cursor] : []),
+  );
+
+  const pageRows = rows.filter(
+    (row): row is EarlierRow => row.parentMessageId !== null,
+  );
+  const hasMore = pageRows.length > limit;
+  const threads = pageRows.slice(0, limit).map((row) => ({
+    roomId: row.roomId,
+    parentMessageId: row.parentMessageId,
+    parentContent: row.parentContent,
+    replyCount: Number(row.replyCount),
+    lastReplyAt: row.lastReplyAt,
+    lastReplyId: row.lastReplyId,
+  }));
+  return {
+    threads,
+    nextCursor: hasMore ? (threads.at(-1)?.parentMessageId ?? null) : null,
+    total: Number(rows[0]?.totalThreadCount ?? 0),
+  };
+}
+
 export interface ChatRoomThreadAggregate {
   parentMessageId: string;
   replyCount: number;

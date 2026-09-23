@@ -2992,6 +2992,21 @@ export type ChatUnreadThread = {
     roomId: string;
 };
 
+export type ChatEarlierThread = {
+    roomId: string;
+    parentMessageId: string;
+    /**
+     * The parent message's raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.
+     */
+    parentContent: string;
+    replyCount: number;
+    lastReplyAt: Date;
+    /**
+     * The Thread's newest reply: where opening it lands.
+     */
+    lastReplyId: string;
+};
+
 export type CreditCheckoutSession = {
     url: string;
 };
@@ -20802,6 +20817,109 @@ export type GetChatsThreadsUnreadResponses = {
 };
 
 export type GetChatsThreadsUnreadResponse = GetChatsThreadsUnreadResponses[keyof GetChatsThreadsUnreadResponses];
+
+export type GetChatsThreadsEarlierData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * The last Thread's `parentMessageId` from the previous page (`nextCursor`).
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/chats/threads/earlier';
+};
+
+export type GetChatsThreadsEarlierErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsThreadsEarlierError = GetChatsThreadsEarlierErrors[keyof GetChatsThreadsEarlierErrors];
+
+export type GetChatsThreadsEarlierResponses = {
+    /**
+     * Read Threads across rooms
+     */
+    200: {
+        data: Array<ChatEarlierThread>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsThreadsEarlierResponse = GetChatsThreadsEarlierResponses[keyof GetChatsThreadsEarlierResponses];
 
 export type CreateCreditCheckoutSessionData = {
     body?: CreateCreditCheckoutSession;

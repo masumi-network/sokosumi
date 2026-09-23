@@ -12,10 +12,10 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { chatUnreadThreadSchema } from "@/schemas/chat-room.schema";
+import { chatEarlierThreadSchema } from "@/schemas/chat-room.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
-import { listUnreadThreadsAcrossRooms } from "../../rooms/room-unread";
+import { listEarlierThreadsAcrossRooms } from "../../rooms/room-unread";
 import { readerThreadRoomIds } from "../reader-thread-rooms";
 
 const querySchema = cursorPaginationQuerySchema.extend({
@@ -33,17 +33,17 @@ const querySchema = cursorPaginationQuerySchema.extend({
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "get",
-    path: "/unread",
+    path: "/earlier",
     description:
-      "The current user's unread Threads across every room the sidebar lists for them, less rooms they muted. Newest unread reply first. Same Participant- and mute-gated eligibility as each room's threadUnreadCount, so the Threads view lists exactly what the rooms count (SOK-1159, ADR-0037).",
+      "The current user's Threads with nothing unread, across the rooms the sidebar lists for them less rooms they muted: the Participant Threads (ADR-0013) that `GET /chats/threads/unread` leaves out. Newest reply first. The Threads view's Earlier group (SOK-1159).",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        z.array(chatUnreadThreadSchema),
-        "Unread Threads across rooms",
+        z.array(chatEarlierThreadSchema),
+        "Read Threads across rooms",
       ),
       400: jsonErrorResponse("Invalid request"),
       401: jsonErrorResponse("Unauthorized"),
@@ -56,18 +56,17 @@ const route = withOrganizationSlugHeaderParameter(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
-    const queryParams = c.req.valid("query");
-    const { cursor, take } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(c.req.valid("query"));
     const userId = userContext.userId;
 
-    const page = await listUnreadThreadsAcrossRooms(
+    const page = await listEarlierThreadsAcrossRooms(
       await readerThreadRoomIds(userId, userContext.organizationId),
       userId,
       prisma,
       { cursor, limit: take },
     );
 
-    return ok(c, z.array(chatUnreadThreadSchema).parse(page.threads), {
+    return ok(c, z.array(chatEarlierThreadSchema).parse(page.threads), {
       cursor: cursor ?? null,
       limit: take,
       total: page.total,

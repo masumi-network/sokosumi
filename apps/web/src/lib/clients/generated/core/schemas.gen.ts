@@ -10635,6 +10635,46 @@ export const ChatUnreadThreadSchema = {
     ]
 } as const;
 
+export const ChatEarlierThreadSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentContent: {
+            type: 'string',
+            description: 'The parent message\'s raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.'
+        },
+        replyCount: {
+            type: 'integer',
+            minimum: 1
+        },
+        lastReplyAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastReplyId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The Thread\'s newest reply: where opening it lands.'
+        }
+    },
+    required: [
+        'roomId',
+        'parentMessageId',
+        'parentContent',
+        'replyCount',
+        'lastReplyAt',
+        'lastReplyId'
+    ]
+} as const;
+
 export const CreditCheckoutSessionSchema = {
     type: 'object',
     properties: {

@@ -295,7 +295,8 @@
       "docs": "Documentación",
       "drive": "Archivos",
       "soko-bots": "Soko Bots",
-      "calendar": "Calendario"
+      "calendar": "Calendario",
+      "threads": "Hilos"
     },
     "Jobs": {
       "StatusBadge": {

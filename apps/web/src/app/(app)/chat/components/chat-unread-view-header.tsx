@@ -1,7 +1,5 @@
 import { CheckCheck } from "lucide-react";
 
-import { cn } from "@/lib/utils";
-
 interface ChatUnreadViewHeaderProps {
   title: string;
 }
@@ -14,40 +12,22 @@ export function ChatUnreadViewHeader({ title }: ChatUnreadViewHeaderProps) {
 interface ChatCaughtUpProps {
   title: string;
   description?: string;
-  /** `page` for the Threads view; `sidebar` for the Threads flyout. */
-  size?: "page" | "sidebar";
 }
 
 /**
- * What a drained unread Threads list says: the Threads view and its flyout
- * (SOK-1159). Draining is the point of both, so it
- * reads as done rather than as missing, in the same tinted mark.
+ * What the Threads flyout says with nothing unread (SOK-1159): draining is
+ * the point of it, so it reads as done rather than as missing.
  */
-export function ChatCaughtUp({
-  title,
-  description,
-  size = "page",
-}: ChatCaughtUpProps) {
-  const sidebar = size === "sidebar";
+export function ChatCaughtUp({ title, description }: ChatCaughtUpProps) {
   return (
     <div
       data-testid="chat-caught-up"
-      className={cn(
-        "flex flex-col items-center text-center",
-        sidebar ? "gap-1.5 px-4 py-6" : "gap-2 px-4 py-12",
-      )}
+      className="flex flex-col items-center gap-1.5 px-4 py-6 text-center"
     >
-      <span
-        className={cn(
-          "bg-primary-quaternary text-primary-variant grid place-items-center rounded-full",
-          sidebar ? "size-8" : "size-10",
-        )}
-      >
-        <CheckCheck className={sidebar ? "size-4" : "size-5"} aria-hidden />
+      <span className="bg-primary-quaternary text-primary-variant grid size-8 place-items-center rounded-full">
+        <CheckCheck className="size-4" aria-hidden />
       </span>
-      <p className={sidebar ? "text-sm font-medium" : "font-semibold"}>
-        {title}
-      </p>
+      <p className="text-sm font-medium">{title}</p>
       {description ? (
         <p className="text-muted-foreground max-w-xs text-sm text-pretty">
           {description}

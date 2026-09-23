@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import type { ChatUnreadThreadsPage } from "@/lib/services/chat-room.service";
 
-import { fetchChatUnreadThreads } from "./fetch-chat-unread-threads";
+import { fetchChatUnreadThreads } from "./fetch-chat-threads";
 
 interface UnreadThreadsListProps {
   /** The reader's rooms: names each row's room and drives the refetch. */
@@ -30,8 +30,11 @@ interface UnreadThreadsListProps {
     rooms: readonly ChatRoom[];
   } | null;
   currentUserId: string;
-  /** `sidebar` for the flyout, whose caught-up state is the compact one. */
-  size?: "page" | "sidebar";
+  /**
+   * `flyout` says a drained list with the caught-up mark; `page` with one
+   * line under its Unread heading, since the Earlier group follows it.
+   */
+  variant: "flyout" | "page";
 }
 
 /**
@@ -40,7 +43,7 @@ interface UnreadThreadsListProps {
  * Core again then and not otherwise: the next sidebar poll is what drives it,
  * the way it drives the inset rows.
  */
-function unreadThreadsFingerprint(rooms: readonly ChatRoom[]): string {
+export function unreadThreadsFingerprint(rooms: readonly ChatRoom[]): string {
   return rooms
     .filter((room) => room.mutedAt == null)
     .map((room) => `${room.id}:${room.threadUnreadCount ?? 0}`)
@@ -96,9 +99,10 @@ export function UnreadThreadsList({
   roomsLive,
   initial = null,
   currentUserId,
-  size = "page",
+  variant,
 }: UnreadThreadsListProps) {
   const t = useTranslations("App.Channels.ThreadsView");
+  const tGroups = useTranslations("App.Channels.UnreadThreads");
   const roomsById = new Map(rooms.map((room) => [room.id, room]));
   const { threadCount } = resolveUnreadThreadsAttention(rooms);
   // Live rooms at zero already answer: nothing to ask Core.
@@ -133,11 +137,16 @@ export function UnreadThreadsList({
   return (
     <>
       {caughtUp ? (
-        <ChatCaughtUp
-          title={t("empty")}
-          description={t("emptyDescription")}
-          size={size}
-        />
+        variant === "flyout" ? (
+          <ChatCaughtUp
+            title={t("empty")}
+            description={t("emptyDescription")}
+          />
+        ) : (
+          <p className="text-muted-foreground px-2 text-sm">
+            {tGroups("groupUnreadEmpty")}
+          </p>
+        )
       ) : query.isError && threads.length === 0 ? (
         <div className="flex flex-col items-start gap-2">
           <p className="text-muted-foreground text-sm">{t("loadError")}</p>

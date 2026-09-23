@@ -27,6 +27,7 @@ import type {
   GetChatsRoomsChannelSlugAvailabilityData,
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
+  GetChatsThreadsEarlierData,
   GetChatsThreadsUnreadData,
   GetCoworkersData,
   GetEnterpriseContractsData,
@@ -189,6 +190,7 @@ import {
   getChatsRoomsByIdThreadsUnreadCount as coreGetChatsRoomsByIdThreadsUnreadCount,
   getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
+  getChatsThreadsEarlier as coreGetChatsThreadsEarlier,
   getChatsThreadsUnread as coreGetChatsThreadsUnread,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getCouponDetails as coreGetCouponDetails,
@@ -1047,6 +1049,21 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch unread threads",
+    );
+  }
+
+  async function getChatEarlierThreads(
+    query?: GetChatsThreadsEarlierData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsThreadsEarlier({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch earlier threads",
     );
   }
 
@@ -5219,6 +5236,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThreads,
     getChatRoomThreadsUnreadCount,
     getChatUnreadThreads,
+    getChatEarlierThreads,
     getChatRooms,
     getChannelSlugAvailability,
     getDiscoverableChatRooms,

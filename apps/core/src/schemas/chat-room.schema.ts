@@ -862,6 +862,25 @@ export const chatUnreadThreadSchema = chatRoomUnreadThreadSchema
   })
   .openapi("ChatUnreadThread");
 
+/**
+ * A Thread the reader is part of with nothing unread, for the Threads view's
+ * Earlier group (SOK-1159).
+ */
+export const chatEarlierThreadSchema = z
+  .object({
+    roomId: z.string().uuid(),
+    parentMessageId: z.string().uuid(),
+    parentContent: z.string().openapi({
+      description: `The parent message's raw content, cut to ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS} characters. May hold mention tokens and may be empty; the client builds the label.`,
+    }),
+    replyCount: z.number().int().min(1),
+    lastReplyAt: dateTimeSchema,
+    lastReplyId: z.string().uuid().openapi({
+      description: "The Thread's newest reply: where opening it lands.",
+    }),
+  })
+  .openapi("ChatEarlierThread");
+
 /** Cheap unread-thread count. Same Participant-gated set as `unread=true`. */
 export const chatRoomThreadsUnreadCountSchema = z
   .object({

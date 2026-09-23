@@ -221,7 +221,7 @@ export function ChatUnreadNavRows({
                   rooms={rooms}
                   roomsLive
                   currentUserId={currentUserId}
-                  size="sidebar"
+                  variant="flyout"
                 />
                 <div className="bg-border h-px" />
                 <Link

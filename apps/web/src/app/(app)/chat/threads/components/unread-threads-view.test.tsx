@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,18 +10,22 @@ import type { ChatUnreadThreadsPage } from "@/lib/services/chat-room.service";
 
 import { UnreadThreadsView } from "./unread-threads-view";
 
-const { liveRooms, fetchUnreadThreadsMock } = vi.hoisted(() => ({
-  liveRooms: { current: null as ChatRoom[] | null },
-  fetchUnreadThreadsMock: vi.fn(),
-}));
+const { liveRooms, fetchUnreadThreadsMock, fetchEarlierThreadsMock } =
+  vi.hoisted(() => ({
+    liveRooms: { current: null as ChatRoom[] | null },
+    fetchUnreadThreadsMock: vi.fn(),
+    fetchEarlierThreadsMock: vi.fn(),
+  }));
 
 vi.mock("@/components/chat/use-live-chat-rooms", () => ({
   useLiveChatRooms: () => liveRooms.current,
 }));
 
-vi.mock("@/components/chat/fetch-chat-unread-threads", () => ({
+vi.mock("@/components/chat/fetch-chat-threads", () => ({
   fetchChatUnreadThreads: (...args: unknown[]) =>
     fetchUnreadThreadsMock(...args),
+  fetchChatEarlierThreads: (...args: unknown[]) =>
+    fetchEarlierThreadsMock(...args),
 }));
 
 vi.mock("next/link", () => ({
@@ -94,6 +98,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   liveRooms.current = null;
   fetchUnreadThreadsMock.mockResolvedValue(page());
+  fetchEarlierThreadsMock.mockResolvedValue({ threads: [], nextCursor: null });
 });
 
 describe("UnreadThreadsView", () => {
@@ -118,7 +123,7 @@ describe("UnreadThreadsView", () => {
     ];
     renderView();
 
-    expect(screen.getByText("You’re all caught up")).toBeInTheDocument();
+    expect(screen.getByText("All caught up.")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Unread threads" })).toBeNull();
     // The live rooms already said so; Core is not asked.
     expect(fetchUnreadThreadsMock).not.toHaveBeenCalled();
@@ -130,7 +135,7 @@ describe("UnreadThreadsView", () => {
     liveRooms.current = [];
     renderView();
 
-    expect(screen.getByText("You’re all caught up")).toBeInTheDocument();
+    expect(screen.getByText("All caught up.")).toBeInTheDocument();
   });
 
   it("drops a Thread whose room the reader has muted since", async () => {
@@ -158,5 +163,45 @@ describe("UnreadThreadsView", () => {
     const list = await screen.findByRole("list", { name: "Unread threads" });
     expect(within(list).getAllByRole("link")).toHaveLength(2);
     expect(fetchUnreadThreadsMock).toHaveBeenCalledWith(undefined);
+  });
+});
+
+describe("UnreadThreadsView Earlier group", () => {
+  it("lists the reader's read Threads under the unread ones, opening at the newest reply", async () => {
+    fetchEarlierThreadsMock.mockResolvedValue({
+      threads: [
+        {
+          roomId: "room-design",
+          parentMessageId: "p-old",
+          parentContent: "we support max 1GB",
+          replyCount: 6,
+          lastReplyAt: new Date("2026-09-23T09:00:00.000Z"),
+          lastReplyId: "r-old",
+        },
+      ],
+      nextCursor: null,
+    });
+    renderView();
+
+    const list = await screen.findByTestId("earlier-threads-list");
+    const row = within(list).getByRole("link");
+    expect(row).toHaveAttribute(
+      "href",
+      "/chat/rooms/room-design?message=r-old",
+    );
+    expect(row).toHaveTextContent("we support max 1GB");
+    expect(row).toHaveTextContent("#design");
+    expect(row).toHaveTextContent("6 replies");
+    expect(
+      screen.getByRole("heading", { name: "Earlier" }),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves the group out while the reader has no read Thread", async () => {
+    renderView();
+
+    await screen.findByRole("list", { name: "Unread threads" });
+    await waitFor(() => expect(fetchEarlierThreadsMock).toHaveBeenCalled());
+    expect(screen.queryByRole("heading", { name: "Earlier" })).toBeNull();
   });
 });

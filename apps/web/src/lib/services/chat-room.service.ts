@@ -5,6 +5,7 @@ import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   AcceptChatRoomGuestInviteLink,
   ChannelSlugAvailability,
+  ChatEarlierThread,
   ChatRoom,
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
@@ -51,6 +52,11 @@ export interface ChatRoomThreadsPage {
 
 export interface ChatUnreadThreadsPage {
   threads: ChatUnreadThread[];
+  nextCursor: string | null;
+}
+
+export interface ChatEarlierThreadsPage {
+  threads: ChatEarlierThread[];
   nextCursor: string | null;
 }
 
@@ -502,6 +508,20 @@ export const chatRoomService = (() => {
     };
   }
 
+  /** One page of the reader's read Threads across rooms: the Earlier group. */
+  async function listEarlierThreads(options?: {
+    cursor?: string;
+  }): Promise<ChatEarlierThreadsPage> {
+    const response = await coreClient.getChatEarlierThreads({
+      limit: THREAD_LIST_PAGE_LIMIT,
+      cursor: options?.cursor,
+    });
+    return {
+      threads: response.data,
+      nextCursor: response.meta?.pagination?.nextCursor ?? null,
+    };
+  }
+
   /**
    * All unreads' Mark all as read (SOK-1159): each room through the same
    * reads the room itself offers, so notifications, read receipts and email
@@ -648,6 +668,7 @@ export const chatRoomService = (() => {
     listThreads,
     countUnreadThreads,
     listUnreadThreads,
+    listEarlierThreads,
     markAllUnreadRead,
     listThreadMessages,
     getMessage,
