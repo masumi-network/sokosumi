@@ -111,7 +111,10 @@ import {
   shouldFlashOutboundSentCheck,
 } from "@/app/chat/utils/outbound-room-message";
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
-import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
+import {
+  applyReplySoftDeleteToParentIfUnchanged,
+  applyReplyToParentThreadPreview,
+} from "@/app/chat/utils/parent-thread-preview";
 import {
   mergeConfirmedReaction,
   overlayPendingReactions,
@@ -121,6 +124,7 @@ import {
 } from "@/app/chat/utils/pending-reactions";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomMentionNames as buildRoomMentionNames } from "@/app/chat/utils/room-mention-names";
+import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type {
   RoomTranscriptCache,
   RoomTranscriptEntry,
@@ -184,7 +188,6 @@ import {
   type ChatRoomMessageLink,
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
-import { MembershipStatusRow } from "./membership-status-row";
 import {
   canOpenHumanDirectFromSelectedRoom,
   openDirectWithParticipant,
@@ -237,6 +240,7 @@ import {
   RoomShellLayout,
 } from "./room-shell-layout";
 import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
+import { RoomStatusRow } from "./room-status-row";
 import { RoomTypingProvider } from "./room-typing-provider";
 import { ThreadPanel } from "./thread-panel";
 import type { TranscriptPosition } from "./transcript-viewport";
@@ -430,10 +434,12 @@ function RetainedRoomsClient({
   const [pending, setPending] = useState<ChatRoomMessage[]>([]);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
+  // Shells go first: mergeRoomMessages keeps local shells only from its
+  // existing side, and confirms them from incoming server rows.
   const transcript = useMemo(
     () => ({
       ...entry.transcript,
-      messages: mergeRoomMessages(entry.transcript.messages, pending),
+      messages: mergeRoomMessages(pending, entry.transcript.messages),
     }),
     [entry.transcript, pending],
   );
@@ -444,7 +450,7 @@ function RetainedRoomsClient({
       cache.setTranscript(roomId, lifetime, (confirmed) => {
         const current = {
           ...confirmed,
-          messages: mergeRoomMessages(confirmed.messages, pendingRef.current),
+          messages: mergeRoomMessages(pendingRef.current, confirmed.messages),
         };
         const next = typeof update === "function" ? update(current) : update;
         const shells = next.messages.filter(isOutboundLocalMessage);
@@ -1896,11 +1902,7 @@ function RoomView({
   ) {
     const updateParent = (message: ChatRoomMessage): ChatRoomMessage =>
       message.id === parentMessageId
-        ? {
-            ...message,
-            threadReplyCount: message.threadReplyCount + 1,
-            threadLastReplyAt: reply.createdAt,
-          }
+        ? applyReplyToParentThreadPreview(message, reply)
         : message;
 
     setMessagesState((current) => current.map(updateParent));
@@ -2106,9 +2108,12 @@ function RoomView({
   });
 
   useRoomUrlAsk({
-    // Channels only, the way the row that asks is. A direct room has no
-    // dialog to open, so it has no ask to read either.
-    roomId: selectedRoom?.kind === "channel" ? selectedRoom.id : null,
+    // Channels and group Directs only, the way the row that asks is. Any
+    // other Direct has no dialog to open, so it has no ask to read either.
+    roomId:
+      selectedRoom?.kind === "channel" || selectedRoom?.isGroupDirect
+        ? selectedRoom.id
+        : null,
     ready: rosterPromise == null || deferredRoster != null,
     pathname,
     searchParams,
@@ -3039,8 +3044,8 @@ function RoomView({
               formatDaySeparator={formatDaySeparator}
             />
           ) : null}
-          {message.membership != null ? (
-            <MembershipStatusRow message={message} />
+          {isRoomStatusMessage(message) ? (
+            <RoomStatusRow message={message} />
           ) : (
             <ChatMessageRow
               message={message}

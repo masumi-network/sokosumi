@@ -31,7 +31,7 @@ private func makeRoom(id: String) -> Components.Schemas.ChatRoom {
   .init(
     id: id,
     name: id,
-    kind: .channel, isSelfDirect: false,
+    kind: .channel, isSelfDirect: false, isGroupDirect: false,
     createdByUserId: "user_1",
     createdAt: Date(timeIntervalSince1970: 1_700_000_000),
     updatedAt: Date(timeIntervalSince1970: 1_700_000_000),

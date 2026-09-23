@@ -86,9 +86,13 @@ const chatRoomMessageFullEventMessageSchema = z
     reactions: z.array(z.unknown()),
     threadReplyCount: z.number().int().min(0),
     threadLastReplyAt: z.string().nullable(),
+    threadRepliers: z.array(z.unknown()).optional(),
     metadata: z.record(z.string(), z.unknown()).nullable(),
     quote: z.unknown().nullable(),
     membership: z.unknown().nullable(),
+    // Optional: Web and Core deploy apart, and an event from a Core without
+    // Group names must still parse.
+    groupNameChange: z.unknown().nullable().optional(),
     unfurls: z.array(chatRoomMessageUnfurlEventSchema).max(3).nullable(),
   })
   .passthrough();

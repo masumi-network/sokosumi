@@ -1,3 +1,5 @@
+import CoreAPI
+import SokosumiChat
 import SwiftUI
 
 #if os(macOS)
@@ -24,12 +26,12 @@ import SwiftUI
     }
   }
 
-  /// Centered join/leave status, like web `MembershipStatusRow`.
-  struct MembershipStatusRow: View {
-    let text: String
+  /// Centered join/leave or Group name change status, like web `RoomStatusRow`.
+  struct RoomStatusRow: View {
+    let text: Text
 
     var body: some View {
-      Text(text)
+      text
         .font(.caption)
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity)
@@ -37,4 +39,23 @@ import SwiftUI
     }
   }
 
+  /// The status row a message renders as, or nil for a chat bubble.
+  func roomStatusText(_ message: Components.Schemas.ChatRoomMessage) -> Text? {
+    if let status = membershipStatusText(message) {
+      return Text(status)
+    }
+    return GroupNameChangeStatus(message).map(groupNameChangeText)
+  }
+
+  /// A Group name change row: "{actor} named the group {name}" / "{actor} removed the group name".
+  func groupNameChangeText(_ status: GroupNameChangeStatus) -> Text {
+    switch status {
+    case let .named(actor, name):
+      Text("\(actor) named the group \(name)", tableName: groupNameTable,
+           comment: "Timeline status row. First argument: who named the group Direct; second: the new name.")
+    case let .cleared(actor):
+      Text("\(actor) removed the group name", tableName: groupNameTable,
+           comment: "Timeline status row. Argument: who cleared the group Direct's name.")
+    }
+  }
 #endif

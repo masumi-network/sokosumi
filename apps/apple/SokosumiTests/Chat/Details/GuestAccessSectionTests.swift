@@ -10,7 +10,7 @@
     @MainActor struct GuestAccessSectionTests {
       private func externalRoom(guestName: String, topic: String? = nil) throws -> Components.Schemas.ChatRoom {
         try Components.Schemas.ChatRoom(
-          id: "fixture", organizationId: "org", name: "Partners", slug: "partners", kind: .channel, isSelfDirect: false,
+          id: "fixture", organizationId: "org", name: "Partners", slug: "partners", kind: .channel, isSelfDirect: false, isGroupDirect: false,
           topic: topic, discoverability: .external, createdByUserId: "me",
           createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
           markedUnread: false, myAccess: .member,

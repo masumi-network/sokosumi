@@ -1,0 +1,294 @@
+name: CI
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+concurrency:
+  # A new push to the same PR cancels the queued or running run for the old commit.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Tests mock their dependencies and inject their own env defaults, so a
+  # placeholder is enough for any config that reads DATABASE_URL at import time.
+  DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
+
+# Build, Biome, Typecheck and the Tests legs share one workflow so a push
+# pays for one `Detect JS changes` runner instead of three.
+#
+# One job per leg, each gated by a job-level `if:` on its own path filter.
+# A job skipped by `if:` never gets a runner, yet still reports its check
+# under its real name (`Test Web`, …), and the ruleset accepts a skipped
+# check — Apple's required `Xcode test` merges skipped on every JS PR. A
+# matrix could not do this: it expands after the job-level `if:`, so a
+# skipped matrix reports one `Test ${{ matrix.target.name }}` placeholder.
+#
+# Each gate is `!= 'false'` rather than `== 'true'`: when `changes` fails,
+# its outputs are empty and every leg runs instead of skipping silently.
+# `!cancelled()` stops a superseded run from starting legs.
+#
+# Build, Biome, Typecheck, Test Web, Test Core and Test Packages are
+# required. Test CLI, Test Local env, Test CI config and Test Cloud agent
+# db are advisory — not merge gates. See docs/agents/delivery.md.
+jobs:
+  changes:
+    name: Detect JS changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    # workflow_dispatch has no PR diff, so it runs every leg.
+    outputs:
+      js: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.js }}
+      web: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.web }}
+      core: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.core }}
+      packages: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.packages }}
+      cli: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.cli }}
+      local-env: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.local-env }}
+      cloud-agent-db: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.cloud-agent-db }}
+      # Markdown-only PRs still run the doc-script check.
+      ci-config: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.ci-config }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Detect JS-relevant changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # 'every' is required: with the default 'some', the '!' exclusion
+          # patterns in js-paths-filter.yml would not exclude anything. The
+          # advisory filters are brace lists, one pattern each, for the
+          # same reason.
+          predicate-quantifier: "every"
+          filters: .github/js-paths-filter.yml
+
+  web:
+    name: Test Web
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.web != 'false' }}
+    runs-on: ubuntu-latest
+    # id-token lets Setup exchange OIDC for the Turborepo remote cache.
+    permissions: &turbo-permissions
+      contents: read
+      id-token: write
+    steps:
+      - &checkout
+        name: Checkout repository
+        uses: actions/checkout@v7
+
+      - &setup
+        name: Setup
+        uses: ./.github/actions/setup
+        with:
+          turbo_team: ${{ vars.TURBO_TEAM }}
+
+      - name: Run Tests
+        run: pnpm exec turbo run test:ci --filter=web
+
+  core:
+    name: Test Core
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.core != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    services:
+      postgres: &postgres
+        image: postgres:17
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: job_sync_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run Tests
+        run: pnpm exec turbo run test:ci --filter=@sokosumi/core
+
+      # Apply migrations so Calendar erasure also exercises the actual cascade
+      # and outbox triggers, which prisma db push does not install.
+      - name: Test Projects API and Calendar erasure against PostgreSQL
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
+          DATABASE_URL_UNPOOLED: "postgresql://user:password@localhost:5432/job_sync_test"
+        run: |
+          pnpm --filter @sokosumi/database exec prisma migrate deploy
+          RUN_DATABASE_INTEGRATION_TESTS=true pnpm --filter core test src/routes/v1/projects/get.postgres.test.ts src/helpers/project-activity.postgres.test.ts src/helpers/calendar-erasure.postgres.test.ts
+
+  packages:
+    name: Test Packages
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.packages != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    services:
+      postgres: *postgres
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run Tests
+        run: pnpm exec turbo run test:ci --filter="./packages/*"
+
+      - name: Test job sync against PostgreSQL
+        env:
+          JOB_SYNC_TEST_DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
+        run: pnpm --filter @sokosumi/database exec vitest run src/helpers/job-sync.postgres.test.ts
+
+  cli:
+    name: Test CLI
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.cli != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run Tests
+        run: pnpm exec turbo run test:ci --filter=@sokosumi/cli
+
+      # apps/cli is excluded from the `js` filter, so Typecheck, Biome and
+      # Build all skip on a CLI-only PR. These three steps carry that
+      # coverage instead — without them the CLI would merge on `tsx --test`
+      # alone, which strips types rather than checking them.
+      - name: Typecheck the CLI
+        run: pnpm --filter @sokosumi/cli typecheck
+
+      - name: Lint the CLI
+        run: pnpm exec biome check apps/cli
+
+      # Build and launch the compiled binary: the Build job never runs it, and
+      # skips it outright on a CLI-only PR, while the CLI test suite exercises
+      # source via tsx rather than dist.
+      - name: Smoke the built CLI
+        run: |
+          pnpm --filter @sokosumi/cli build
+          node apps/cli/dist/bin/sokosumi.js --version
+
+  local-env:
+    name: Test Local env
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.local-env != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run Tests
+        run: pnpm local-env:test
+
+  ci-config:
+    name: Test CI config
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.ci-config != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run Tests
+        run: pnpm ci:test
+
+  cloud-agent-db:
+    name: Test Cloud agent db
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.cloud-agent-db != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run Tests
+        run: pnpm cloud-agent-db:test
+
+  build:
+    name: Build
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.js != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      # A plain background container, not a `services:` entry: services
+      # block the first step for ~23s (image pull plus health checks),
+      # while this boots during checkout and Setup.
+      - name: Start PostgreSQL
+        run: >-
+          nohup docker run --name postgres --publish 5432:5432
+          --env POSTGRES_USER=user --env POSTGRES_PASSWORD=password
+          --env POSTGRES_DB=sokosumi postgres:17 > /tmp/postgres.log 2>&1 &
+
+      - *checkout
+      - *setup
+
+      - name: Load build env
+        run: grep -v '^#' .github/ci-build.env >> "$GITHUB_ENV"
+
+      # Next 16.3 writes a Turbopack build cache to .next/cache.
+      # next-build-cache.yml saves one from main and PRs restore the newest.
+      # Skipped when web is unchanged: turbo then replays web#build from the
+      # remote cache.
+      - name: Restore Next.js build cache
+        if: needs.changes.outputs.web != 'false'
+        uses: actions/cache/restore@v6
+        with:
+          path: apps/web/.next/cache
+          key: js-next-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: js-next-${{ runner.os }}-${{ runner.arch }}-
+
+      # TCP, not the socket: the image's init server listens on the socket
+      # only and restarts before the real server comes up.
+      - name: Wait for PostgreSQL
+        run: timeout 120 bash -c 'until docker exec postgres pg_isready --host 127.0.0.1 --username user; do sleep 1; done' || { cat /tmp/postgres.log; exit 1; }
+
+      - name: Run Prisma Migrate
+        run: pnpm prisma:migrate:dev
+
+      - name: Run Build
+        run: pnpm build
+
+  biome:
+    name: Biome
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.js != 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout
+
+      # Biome is one binary with no workspace dependencies: nested
+      # biome.json files extend the root and the Grit plugin is a repo
+      # file. So no Setup and no install. setup-biome takes the exact
+      # version from package.json: it cannot parse pnpm 12's
+      # two-document pnpm-lock.yaml.
+      - name: Install Biome
+        uses: biomejs/setup-biome@v2
+
+      - name: Run Biome checks
+        run: biome check .
+
+  typecheck:
+    name: Typecheck
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.js != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run TypeScript typecheck
+        run: pnpm typecheck

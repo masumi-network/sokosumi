@@ -218,7 +218,26 @@ import SwiftUI
                            onAccepted: { scrollIntent.followLatest() })
             .id(parent.id)
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+          if let failure = workspaces.thread.mute?.failure {
+            ThreadMuteFailureRow(message: failure.message) { workspaces.thread.dismissMuteFailure() }
+          }
+        }
         .navigationTitle("Thread")
+        .toolbar {
+          if let mute = workspaces.thread.mute, let isMuted = mute.isMuted {
+            ToolbarItem {
+              ThreadMuteToggle(isMuted: isMuted, isPending: mute.isPending) {
+                Task { await workspaces.toggleThreadMute(auth: auth) }
+              }
+            }
+          }
+        }
+        // Stored replies only. A pending shell reads too early (404) and the stored row that replaces it
+        // does not change the displayed count, so the bell would never appear.
+        .task(id: [parent.id, String(liveThreadReplyCount(messages))]) {
+          await workspaces.readThreadMuteIfNeeded(auth: auth)
+        }
         .onChange(of: parent.id) { _, _ in pendingQuote = nil
           jumpError = nil
         }
@@ -292,15 +311,15 @@ import SwiftUI
           if hasGap {
             // Web's thread panel has no gap row (a reply jump is Apple's), so this stays a
             // tap; the row and its failure follow the room's gap row.
-            TranscriptBoundaryRow(isGap: true, status: workspaces.thread.timeline.boundaryLoads.status(of: message.id)) {
+            PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.thread.timeline.boundaryLoads.status(of: message.id)) {
               workspaces.loadThreadPage(.boundary(message.id), auth: auth)
             }
           }
           if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
             DaySeparatorRow(label: label)
           }
-          if let status = membershipStatusText(message) {
-            MembershipStatusRow(text: status)
+          if let status = roomStatusText(message) {
+            RoomStatusRow(text: status)
           } else {
             MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.documents[message.id], message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                            outbound: shell, sentAt: outbox.sentAt[message.id],

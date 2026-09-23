@@ -1,25 +1,52 @@
-# Shared by test.yml, build.yml, and lint.yml (dorny/paths-filter).
+# Read by the `changes` job in ci.yml (dorny/paths-filter).
 # Pair with `predicate-quantifier: every` at the call site so the `!`
 # exclusions actually exclude (default `some` would ignore them).
-js:
+js: &js
   - "**"
   - "!apps/apple/**"
   - "!docs/**"
   - "!**/*.md"
   - "!apps/cli/**"
 
-# Markdown the JS filter excludes. One positive pattern, so `every` at
-# the call site is the same as `some`. Test CI config uses this so
-# docs-only PRs still run the doc-script check.
-docs:
-  - "**/*.md"
-
 # apps/cli has no workspace dependencies — only external packages and its
 # own tsconfig — so nothing outside this folder can break its tests, and
 # nothing in it can break the rest of the repo. That symmetry is why it is
 # both its own filter and a `js` exclusion. Because `js` excludes it, root
 # `pnpm build`, `pnpm typecheck` and `pnpm check` never see the CLI on a
-# CLI-only PR — the Test CLI matrix leg runs those itself instead. One
-# positive pattern, so `every` at the call site is the same as `some`.
+# CLI-only PR — the Test CLI job runs those itself instead. One positive
+# pattern, so `every` at the call site is the same as `some`.
 cli:
   - "apps/cli/**"
+
+# Per-leg filters for the required test jobs. Each is `js` minus the
+# sibling apps its turbo filter cannot reach: web and core share no
+# workspace dependency in either direction, and packages depend on
+# neither app. Root files, packages, and CI changes still run all three.
+web:
+  - *js
+  - "!apps/core/**"
+
+core:
+  - *js
+  - "!apps/web/**"
+
+packages:
+  - *js
+  - "!apps/web/**"
+  - "!apps/core/**"
+
+# Advisory legs: the files their `node --test` suites import or read.
+# These are positive lists, so `every` needs one pattern each — a file
+# matches the filter when it matches any of the patterns. See the
+# `predicate-quantifier` note in ci.yml.
+local-env:
+  - "{scripts/local-env/**,apps/web/.env.example,apps/core/.env.example,package.json}"
+
+cloud-agent-db:
+  - "{scripts/cloud-agent-db/**,package.json}"
+
+# The doc-script check reads every Markdown file and package.json; the
+# turbo and Vercel contract tests read the workflows, turbo.json, the
+# workspace file, both vercel.json files, and the web build wrapper.
+ci-config:
+  - "{*.md,**/*.md,*.mdc,**/*.mdc,package.json,**/package.json,.github/**,scripts/ci/**,turbo.json,pnpm-workspace.yaml,apps/*/vercel.json,apps/web/scripts/**}"

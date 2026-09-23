@@ -295,7 +295,8 @@
       "docs": "Documentación",
       "drive": "Archivos",
       "soko-bots": "Soko Bots",
-      "calendar": "Calendario"
+      "calendar": "Calendario",
+      "threads": "Hilos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -845,7 +846,11 @@
       "zoomReset": "Restablecer zoom",
       "more": "Más opciones",
       "openInNewTab": "Abrir en una pestaña nueva",
-      "copyImage": "Copiar imagen"
+      "copyImage": "Copiar imagen",
+      "previous": "Imagen anterior",
+      "next": "Imagen siguiente",
+      "position": "{current} / {total}",
+      "stepAnnouncement": "Imagen {current} de {total}, {name}"
     },
     "DocumentViewer": {
       "title": "Documento",
@@ -5460,6 +5465,29 @@
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
         "untitled": "Hilo"
       },
+      "UnreadNav": {
+        "label": "Sin leer",
+        "threads": "Hilos",
+        "allUnreads": "No leídos",
+        "unreadThreads": "{count, plural, one {# hilo sin leer} other {# hilos sin leer}}",
+        "unreadThreadsCapped": "Más de {max} hilos sin leer",
+        "mentions": "{count, plural, one {# mención} other {# menciones}}",
+        "filterOn": "Mostrando solo lo no leído",
+        "markAllRead": "Marcar todo como leído",
+        "markAllReadError": "No se pudo marcar todo como leído.",
+        "caughtUp": "Todo al día",
+        "allThreads": "Todos los hilos",
+        "justRead": "Recién leídos"
+      },
+      "ThreadsView": {
+        "title": "Hilos",
+        "listLabel": "Hilos sin leer",
+        "empty": "Estás al día",
+        "emptyDescription": "Las respuestas nuevas en hilos en los que participas aparecen aquí.",
+        "loadMore": "Mostrar más",
+        "loadError": "No se pudieron cargar los hilos sin leer.",
+        "retry": "Reintentar"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5635,7 +5663,7 @@
         "loadOlder": "Cargar hilos anteriores",
         "groupUnread": "Sin leer",
         "groupEarlier": "Anteriores",
-        "groupUnreadEmpty": "Todo al día.",
+        "groupUnreadEmpty": "Todo al día",
         "startedBy": "Iniciado por {name}",
         "unreadThreads": "{count, plural, one {# hilo no leído} other {# hilos no leídos}}",
         "unreadThreadsCapped": "Más de {max} hilos no leídos",
@@ -5654,6 +5682,16 @@
       "MembershipStatus": {
         "joined": "{name} se unió",
         "left": "{name} salió"
+      },
+      "GroupName": {
+        "rename": "Cambiar nombre",
+        "dialogTitle": "Poner nombre al grupo",
+        "dialogDescription": "Todos en el grupo ven este nombre en lugar de la lista de miembros. Déjalo vacío para volver a mostrar a los miembros.",
+        "label": "Nombre del grupo",
+        "save": "Guardar",
+        "saveFailed": "No se pudo poner nombre al grupo.",
+        "named": "{name} llamó al grupo {groupName}",
+        "cleared": "{name} quitó el nombre del grupo"
       },
       "External": {
         "title": "Externo",

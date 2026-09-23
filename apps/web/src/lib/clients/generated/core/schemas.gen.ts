@@ -8481,6 +8481,19 @@ export const ChatRoomSchema = {
             description: 'Deterministic key for direct rooms; null for normal rooms.',
             example: 'user_123:user_456'
         },
+        isGroupDirect: {
+            type: 'boolean',
+            description: 'Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.',
+            example: false
+        },
+        groupName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Group name shared by every member of a group Direct, shown in place of the member list. Null when unnamed, and always null for Channels and other Directs.',
+            example: 'Launch crew'
+        },
         topic: {
             type: [
                 'string',
@@ -8543,6 +8556,13 @@ export const ChatRoomSchema = {
             default: 0,
             description: 'How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.',
             example: 4
+        },
+        unreadThreadMentionCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Unread Thread replies naming the viewer, across every unread Thread in this room, including those past the `unreadThreads` cap. Counted from the replies, so a Look clears it. SOK-1159.',
+            example: 1
         },
         unreadThreads: {
             type: 'array',
@@ -8657,6 +8677,8 @@ export const ChatRoomSchema = {
         'kind',
         'isSelfDirect',
         'directKey',
+        'isGroupDirect',
+        'groupName',
         'topic',
         'discoverability',
         'createdByUserId',
@@ -9431,6 +9453,14 @@ export const ChatRoomPinnedMessageListItemSchema = {
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z'
                 },
+                threadRepliers: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageSender'
+                    },
+                    maxItems: 3,
+                    description: 'Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.'
+                },
                 metadata: {
                     type: [
                         'object',
@@ -9443,6 +9473,9 @@ export const ChatRoomPinnedMessageListItemSchema = {
                 },
                 membership: {
                     $ref: '#/components/schemas/ChatRoomMessageMembership'
+                },
+                groupNameChange: {
+                    $ref: '#/components/schemas/ChatRoomMessageGroupNameChange'
                 },
                 unfurls: {
                     type: [
@@ -9473,6 +9506,7 @@ export const ChatRoomPinnedMessageListItemSchema = {
                 'metadata',
                 'quote',
                 'membership',
+                'groupNameChange',
                 'unfurls'
             ]
         }
@@ -9827,6 +9861,50 @@ export const ChatRoomMessageMembershipSubjectSchema = {
     ]
 } as const;
 
+export const ChatRoomMessageGroupNameChangeSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        action: {
+            type: 'string',
+            enum: [
+                'named',
+                'cleared'
+            ]
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The new Group name; null when it was cleared.',
+            example: 'Launch crew'
+        },
+        actor: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ]
+        }
+    },
+    required: [
+        'action',
+        'name',
+        'actor'
+    ]
+} as const;
+
 export const ChatRoomMessageUnfurlSchema = {
     type: 'object',
     properties: {
@@ -9932,6 +10010,15 @@ export const UpdateChatRoomRequestSchema = {
             example: [
                 '01960001-0001-7001-8001-000000000099'
             ]
+        },
+        groupName: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 80,
+            description: 'Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.',
+            example: 'Launch crew'
         }
     }
 } as const;
@@ -10240,6 +10327,14 @@ export const ChatRoomMessageSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        threadRepliers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageSender'
+            },
+            maxItems: 3,
+            description: 'Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.'
+        },
         metadata: {
             type: [
                 'object',
@@ -10252,6 +10347,9 @@ export const ChatRoomMessageSchema = {
         },
         membership: {
             $ref: '#/components/schemas/ChatRoomMessageMembership'
+        },
+        groupNameChange: {
+            $ref: '#/components/schemas/ChatRoomMessageGroupNameChange'
         },
         unfurls: {
             type: [
@@ -10282,6 +10380,7 @@ export const ChatRoomMessageSchema = {
         'metadata',
         'quote',
         'membership',
+        'groupNameChange',
         'unfurls'
     ]
 } as const;
@@ -10568,6 +10667,94 @@ export const CreateChatRoomFileUploadSessionRequestSchema = {
         'filename',
         'contentType',
         'size'
+    ]
+} as const;
+
+export const ChatUnreadThreadSchema = {
+    type: 'object',
+    properties: {
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        firstUnreadReplyId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The oldest reply still unread in this Thread: where opening it lands.'
+        },
+        parentContent: {
+            type: 'string',
+            description: 'The parent message\'s raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.'
+        },
+        unreadReplyCount: {
+            type: 'integer',
+            minimum: 1
+        },
+        unreadMentionCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'How many of this Thread\'s unread replies name the viewer. Counted from the replies, so a Look clears it; the room\'s unreadMentionCount is counted from notifications, which Room last-read clears.'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The room the Thread is in.'
+        },
+        lastUnreadAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the newest unread reply in this Thread came (a responded coworker mention\'s answer time where later). The list ranks by it.'
+        }
+    },
+    required: [
+        'parentMessageId',
+        'firstUnreadReplyId',
+        'parentContent',
+        'unreadReplyCount',
+        'roomId',
+        'lastUnreadAt'
+    ]
+} as const;
+
+export const ChatEarlierThreadSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentContent: {
+            type: 'string',
+            description: 'The parent message\'s raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.'
+        },
+        replyCount: {
+            type: 'integer',
+            minimum: 1
+        },
+        lastReplyAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastReplyId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The Thread\'s newest reply: where opening it lands.'
+        }
+    },
+    required: [
+        'roomId',
+        'parentMessageId',
+        'parentContent',
+        'replyCount',
+        'lastReplyAt',
+        'lastReplyId'
     ]
 } as const;
 

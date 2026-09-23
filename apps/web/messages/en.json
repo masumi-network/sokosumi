@@ -311,7 +311,8 @@
       "docs": "Documentation",
       "drive": "Files",
       "soko-bots": "Soko Bots",
-      "calendar": "Calendar"
+      "calendar": "Calendar",
+      "threads": "Threads"
     },
     "Jobs": {
       "StatusBadge": {
@@ -853,7 +854,11 @@
       "zoomReset": "Reset zoom",
       "more": "More options",
       "openInNewTab": "Open in new tab",
-      "copyImage": "Copy image"
+      "copyImage": "Copy image",
+      "previous": "Previous image",
+      "next": "Next image",
+      "position": "{current} / {total}",
+      "stepAnnouncement": "Image {current} of {total}, {name}"
     },
     "DocumentViewer": {
       "title": "Document",
@@ -5460,6 +5465,29 @@
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
         "untitled": "Thread"
       },
+      "UnreadNav": {
+        "label": "Unread",
+        "threads": "Threads",
+        "allUnreads": "Unreads",
+        "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
+        "unreadThreadsCapped": "More than {max} unread threads",
+        "mentions": "{count, plural, one {# mention} other {# mentions}}",
+        "filterOn": "Showing unread only",
+        "markAllRead": "Mark all as read",
+        "markAllReadError": "Could not mark everything as read.",
+        "caughtUp": "All caught up",
+        "allThreads": "All threads",
+        "justRead": "Read just now"
+      },
+      "ThreadsView": {
+        "title": "Threads",
+        "listLabel": "Unread threads",
+        "empty": "You're all caught up",
+        "emptyDescription": "New replies in threads you're part of show up here.",
+        "loadMore": "Show more",
+        "loadError": "Could not load unread threads.",
+        "retry": "Try again"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5635,7 +5663,7 @@
         "loadOlder": "Load older threads",
         "groupUnread": "Unread",
         "groupEarlier": "Earlier",
-        "groupUnreadEmpty": "All caught up.",
+        "groupUnreadEmpty": "All caught up",
         "startedBy": "Started by {name}",
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
         "unreadThreadsCapped": "More than {max} unread threads",
@@ -5654,6 +5682,16 @@
       "MembershipStatus": {
         "joined": "{name} joined",
         "left": "{name} left"
+      },
+      "GroupName": {
+        "rename": "Rename",
+        "dialogTitle": "Name this group",
+        "dialogDescription": "Everyone in the group sees this name instead of the member list. Leave it empty to show the members again.",
+        "label": "Group name",
+        "save": "Save",
+        "saveFailed": "Could not name the group.",
+        "named": "{name} named the group {groupName}",
+        "cleared": "{name} removed the group name"
       },
       "External": {
         "title": "External",

@@ -6,25 +6,40 @@ import {
 import type { createPrismaClient } from "@sokosumi/database/client";
 import { APIError } from "better-auth/api";
 
+import {
+  CalendarErasureBlockedError,
+  type CalendarErasureCleanup,
+  cleanupCalendarErasureResources,
+  eraseWorkspaceCalendarData,
+  lockWorkspaceCalendarForErasure,
+} from "@/helpers/calendar-erasure";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
-import { deleteTaskFileIfOwned } from "@/lib/blob";
+import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
 
-/**
- * The statuses the sweep below may hard-delete. Kept as one list so the
- * unresolved-payment guard (`notIn`) and the sweep (`in`) can never disagree:
- * anything outside this list blocks deletion, fail-closed. When the enum
- * grows (the planned EXPIRED_UNUSED, say), a row in the new status blocks the
- * deletion and pages ops until this code learns whether it is sweepable —
- * instead of being silently destroyed while it may still represent money in
- * flight, or leaking past the sweep into a raw RESTRICT-FK 500.
- */
-export const SWEEPABLE_X402_STATUSES = [
-  TaskX402PaymentStatus.VERIFIED,
-  TaskX402PaymentStatus.FAILED,
-  TaskX402PaymentStatus.REFUNDED,
-];
+function throwPendingX402PaymentDeletionBlocker(
+  userId: string,
+  paymentId: string,
+): never {
+  Sentry.captureMessage(
+    "Account deletion blocked by a pending x402 task payment",
+    {
+      level: "error",
+      tags: { error_type: "user_deletion_blocked_by_x402_pending" },
+      extra: {
+        userId,
+        taskX402PaymentId: paymentId,
+        resolveEndpoint: `POST /v1/admin/task-x402-payments/${paymentId}/resolve`,
+      },
+    },
+  );
+  throw new APIError("BAD_REQUEST", {
+    code: "TASK_X402_PAYMENT_PENDING",
+    message:
+      "A task payment is still pending; contact support to have it resolved, then delete your account again.",
+  });
+}
 
 /**
  * Clear creator RESTRICT blockers and delete the user in one transaction.
@@ -61,9 +76,9 @@ export async function prepareTasksForUserDeletion(
   userId: string,
   prisma: PrismaClient,
 ): Promise<void> {
-  let ownedTaskFiles: Array<{ fileUrl: string | null; taskId: string }>;
+  let cleanup: CalendarErasureCleanup;
   try {
-    ownedTaskFiles = await prisma.$transaction(
+    cleanup = await prisma.$transaction(
       async (tx) => {
         // Serialize account deletion with both halves of x402 payment creation:
         //
@@ -91,12 +106,46 @@ export async function prepareTasksForUserDeletion(
           WHERE "id" = ${userId}
           FOR UPDATE
         `;
+        const affectedWorkspaces = await tx.$queryRaw<
+          Array<{ id: string; userId: string | null }>
+        >`
+          SELECT workspace.id, workspace."userId"
+          FROM "workspace" AS workspace
+          WHERE workspace.id IN (
+            SELECT id FROM "workspace" WHERE "userId" = ${userId}
+            UNION
+            SELECT "workspaceId" FROM "task" WHERE "ownerId" = ${userId}
+          )
+          ORDER BY workspace.id ASC
+          FOR UPDATE OF workspace
+        `;
+        await tx.$queryRaw`
+          SELECT project.id
+          FROM "project" AS project
+          WHERE project.id IN (
+            SELECT workspace_project.id
+            FROM "project" AS workspace_project
+            JOIN "workspace" ON workspace.id = workspace_project."workspaceId"
+            WHERE workspace."userId" = ${userId}
+            UNION
+            SELECT "projectId" FROM "task" WHERE "ownerId" = ${userId}
+          )
+          ORDER BY project.id ASC
+          FOR UPDATE OF project
+        `;
+
         await tx.$queryRaw`
           SELECT "id"
           FROM "task"
           WHERE "ownerId" = ${userId}
+          ORDER BY id ASC
           FOR UPDATE
         `;
+        for (const workspace of affectedWorkspaces) {
+          if (workspace.userId === userId) {
+            await lockWorkspaceCalendarForErasure(tx, workspace.id);
+          }
+        }
         // Three UNIONed arms rather than one join with an OR across charge,
         // refund and task: a disjunction whose branches live in three different
         // joined relations cannot be served by any index, so the single-query
@@ -234,23 +283,10 @@ export async function prepareTasksForUserDeletion(
           // wakes should not have to go find out which lever to pull, and this is
           // a GDPR erasure request stalled until they do.
           if (unresolvedX402Payment.status === TaskX402PaymentStatus.PENDING) {
-            Sentry.captureMessage(
-              "Account deletion blocked by a pending x402 task payment",
-              {
-                level: "error",
-                tags: { error_type: "user_deletion_blocked_by_x402_pending" },
-                extra: {
-                  userId,
-                  taskX402PaymentId: unresolvedX402Payment.id,
-                  resolveEndpoint: `POST /v1/admin/task-x402-payments/${unresolvedX402Payment.id}/resolve`,
-                },
-              },
+            throwPendingX402PaymentDeletionBlocker(
+              userId,
+              unresolvedX402Payment.id,
             );
-            throw new APIError("BAD_REQUEST", {
-              code: "TASK_X402_PAYMENT_PENDING",
-              message:
-                "A task payment is still pending; contact support to have it resolved, then delete your account again.",
-            });
           }
           // A status this code does not recognize: some later deploy added an
           // enum member and this branch has not been taught whether it is
@@ -449,6 +485,30 @@ export async function prepareTasksForUserDeletion(
           select: { fileUrl: true, taskId: true },
         });
 
+        const cleanup: CalendarErasureCleanup = {
+          scheduledEmails: [],
+          taskFiles: ownedFiles,
+        };
+        for (const workspace of affectedWorkspaces) {
+          if (workspace.userId === userId) {
+            const workspaceCleanup = await eraseWorkspaceCalendarData(
+              tx,
+              workspace.id,
+            );
+            cleanup.scheduledEmails.push(...workspaceCleanup.scheduledEmails);
+            // Owned files were captured across all workspaces above. Also retain
+            // any other-owner files removed with the personal workspace.
+            const ownedFileKeys = new Set(
+              cleanup.taskFiles.map((file) => `${file.taskId}:${file.fileUrl}`),
+            );
+            cleanup.taskFiles.push(
+              ...workspaceCleanup.taskFiles.filter(
+                (file) => !ownedFileKeys.has(`${file.taskId}:${file.fileUrl}`),
+              ),
+            );
+          }
+        }
+
         await tx.task.deleteMany({
           where: { ownerId: userId },
         });
@@ -485,8 +545,16 @@ export async function prepareTasksForUserDeletion(
         // no-op. Keeping this delete inside the lock/sweep transaction closes
         // the otherwise-unprotected gap after beforeDelete returns.
         await tx.user.deleteMany({ where: { id: userId } });
+        // Pending revocations in surviving organization workspaces still own
+        // delayed-email cancellation. Keep them until the outbox delivers them.
+        await tx.calendarInvalidationOutbox.deleteMany({
+          where: {
+            payload: { path: ["userId"], equals: userId },
+            publishedAt: { not: null },
+          },
+        });
 
-        return ownedFiles;
+        return cleanup;
       },
       // Prisma's default interactive-transaction timeout is 5 s, and this
       // callback stopped being a handful of indexed lookups when the x402
@@ -499,6 +567,38 @@ export async function prepareTasksForUserDeletion(
       { maxWait: 5_000, timeout: 30_000 },
     );
   } catch (error) {
+    // Workspace payment checks run before the account-wide guards.
+    // Preserve the account deletion error contract for their blockers.
+    if (error instanceof CalendarErasureBlockedError) {
+      if (error.blocker === "task_payment_pending") {
+        throwPendingX402PaymentDeletionBlocker(userId, error.paymentId);
+      }
+      if (error.blocker === "task_payment_unresolved") {
+        Sentry.captureMessage(
+          "Account deletion blocked by an x402 task payment in an unhandled status",
+          {
+            level: "error",
+            tags: { error_type: "user_deletion_blocked_by_x402_unhandled" },
+            extra: {
+              userId,
+              taskX402PaymentId: error.paymentId,
+              status: error.paymentStatus,
+            },
+          },
+        );
+      }
+      throw error.blocker === "task_payment_authorization_live"
+        ? new APIError("BAD_REQUEST", {
+            code: "TASK_X402_PAYMENT_AUTHORIZATION_LIVE",
+            message:
+              "A signed task payment authorization is still live. Retry account deletion after it expires, or contact support.",
+          })
+        : new APIError("BAD_REQUEST", {
+            code: "TASK_X402_PAYMENT_UNRESOLVED",
+            message:
+              "A task payment is in a state that blocks account deletion. Contact support, then delete your account again.",
+          });
+    }
     if (isPrismaTransactionConflict(error)) {
       // Deliberately NOT an x402-specific code: this catch wraps the whole
       // transaction, and a write conflict or deadlock can just as well come
@@ -515,12 +615,5 @@ export async function prepareTasksForUserDeletion(
     throw error;
   }
 
-  await Promise.all(
-    ownedTaskFiles
-      .filter(
-        (file): file is { fileUrl: string; taskId: string } =>
-          file.fileUrl !== null,
-      )
-      .map((file) => deleteTaskFileIfOwned(file.fileUrl, file.taskId)),
-  );
+  await cleanupCalendarErasureResources(cleanup);
 }

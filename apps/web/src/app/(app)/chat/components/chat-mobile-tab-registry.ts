@@ -6,7 +6,10 @@ import {
   MessageCircle,
 } from "lucide-react";
 
-import { classifyChatChromeSurface } from "@/app/chat/utils/chat-route-base";
+import {
+  CHAT_THREADS_PATH,
+  classifyChatChromeSurface,
+} from "@/app/chat/utils/chat-route-base";
 
 type SearchParamsLike =
   | URLSearchParams
@@ -166,8 +169,11 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     href: "/chat",
     labelKey: "chats",
     icon: MessageCircle,
+    // Threads sits above the room list in this tab, so the tab stays lit
+    // while the reader is in it.
     isActive: (pathname, searchParams) =>
-      classifyChatChromeSurface(pathname, searchParams) === "chats",
+      classifyChatChromeSurface(pathname, searchParams) === "chats" ||
+      pathname === CHAT_THREADS_PATH,
   },
   {
     id: "projects",

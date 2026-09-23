@@ -12,7 +12,8 @@ struct ConversationSidebarView: View {
   @State private var startDirect: CompositionPresentation?
   @State private var createChannel: CompositionPresentation?
   @State private var browseChannels: CompositionPresentation?
-  @State private var editChannel: EditChannelPresentation?
+  @State private var editChannel: RoomEditPresentation?
+  @State private var nameGroup: RoomEditPresentation?
   @State private var lifecycle: ChannelLifecycleRequest?
   @State private var invitationFailure: InvitationFailure?
 
@@ -37,21 +38,29 @@ struct ConversationSidebarView: View {
     // Web lists pending invitations above joined external rooms, in every workspace.
     let invitations = workspaces.pendingInvitations.invitations
     VStack(spacing: 0) {
-      List(selection: Binding(
-        get: { workspaces.selectedRoomId },
+      List(selection: Binding<SidebarDestination?>(
+        get: {
+          workspaces.sidebar.showsThreadsView ? .threads : workspaces.selectedRoomId.map(SidebarDestination.room)
+        },
         set: { newValue in
           // List writes selection during its own update. Publishing
           // selectedRoomId / openRoom there trips SwiftUI's
           // "Publishing changes from within view updates" runtime issue.
           // Nil is structural (collapsed section / missing tag), not a
           // user deselect — skip it so the open transcript stays.
-          guard let newValue else { return }
-          // Reorder mode: a press moves the room, so Pinned rows stop navigating (web).
-          if workspaces.sidebar.pinnedReorderMode, partitioned.pinned.contains(where: { $0.id == newValue }) {
+          switch newValue {
+          case nil:
             return
-          }
-          Task { @MainActor in
-            workspaces.selectRoom(newValue, auth: auth)
+          case .threads:
+            Task { @MainActor in workspaces.showThreadsView() }
+          case let .room(id):
+            // Reorder mode: a press moves the room, so Pinned rows stop navigating (web).
+            if workspaces.sidebar.pinnedReorderMode, partitioned.pinned.contains(where: { $0.id == id }) {
+              return
+            }
+            Task { @MainActor in
+              await workspaces.showRoom(id, auth: auth)
+            }
           }
         }
       )) {
@@ -59,6 +68,10 @@ struct ConversationSidebarView: View {
         if workspaces.roomsLoading, workspaces.rooms.isEmpty {
           ProgressView("Loading rooms…")
         } else {
+          // Web's `ChatUnreadNavRows`: above every section, not a room, so no room menu.
+          Section {
+            threadsRow
+          }
           // Web: every pinned room of any kind, in the reader's own order; hidden when nothing is pinned.
           if !partitioned.pinned.isEmpty {
             Section {
@@ -93,7 +106,7 @@ struct ConversationSidebarView: View {
                   PendingInvitationRow(
                     invitation: invitation,
                     responding: workspaces.invitationResponse?.invitationId == invitation.id ? workspaces.invitationResponse?.action : nil,
-                    busy: workspaces.channelMutationInFlight
+                    busy: workspaces.roomMutationInFlight
                   ) { respondToInvitation($0, invitation: invitation) }
                 }
                 ForEach(partitioned.external, id: \.id) { room in
@@ -110,7 +123,7 @@ struct ConversationSidebarView: View {
                   ArchivedChannelRow(
                     room: room,
                     pending: workspaces.channelLifecycle?.roomId == room.id,
-                    busy: workspaces.channelMutationInFlight,
+                    busy: workspaces.roomMutationInFlight,
                     canDelete: workspaces.archivedChannels.canDelete
                   ) { requestLifecycle($0, room: room) }
                 }
@@ -137,14 +150,14 @@ struct ConversationSidebarView: View {
           Button("New chat", systemImage: "square.and.pencil") {
             startDirect = .init(id: workspaces.compositionContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
           }
-          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.channelMutationInFlight)
+          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.roomMutationInFlight)
           .help("New chat")
         }
         ToolbarItem {
           Button("Create channel", systemImage: "number") {
             createChannel = .init(id: workspaces.compositionContext, hasOrganization: true)
           }
-          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.channelMutationInFlight)
+          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.roomMutationInFlight)
           .help("Create channel")
         }
         ToolbarItem {
@@ -207,6 +220,7 @@ struct ConversationSidebarView: View {
       lifecycle = nil
     }
     .modifier(EditChannelSheet(presentation: $editChannel))
+    .modifier(NameGroupSheet(presentation: $nameGroup))
     .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
     .task(id: SidebarCollectionsLoadKey(context: workspaces.compositionContext, ready: workspaces.phase == .ready && !workspaces.roomsLoading)) {
       guard workspaces.phase == .ready, !workspaces.roomsLoading else { return }
@@ -243,7 +257,7 @@ struct ConversationSidebarView: View {
 
   /// Web accepts or declines in place: the row leaves the list on success and Core's message surfaces on failure.
   private func respondToInvitation(_ action: InvitationAction, invitation: Components.Schemas.ChatRoomInvitation) {
-    guard !workspaces.channelMutationInFlight else { return }
+    guard !workspaces.roomMutationInFlight else { return }
     let context = workspaces.compositionContext
     Task { @MainActor in
       do {
@@ -254,7 +268,7 @@ struct ConversationSidebarView: View {
       } catch is CancellationError {
         // The workspace changed underneath the request; nothing to report.
       } catch {
-        invitationFailure = .init(action: action, message: channelErrorMessage(error))
+        invitationFailure = .init(action: action, message: chatErrorMessage(error))
       }
     }
   }
@@ -302,7 +316,7 @@ struct ConversationSidebarView: View {
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
         .frame(width: 20)
-        .disabled(workspaces.phase != .ready || workspaces.channelMutationInFlight)
+        .disabled(workspaces.phase != .ready || workspaces.roomMutationInFlight)
         .help("Browse channels")
       }
     }
@@ -422,7 +436,6 @@ struct ConversationSidebarView: View {
     .presenceAccessibilityValue(directPresence(room, showsDirectAvatars: showsDirectAvatars))
     .labelStyle(RoomRowLabelStyle())
     .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
-    .tag(room.id)
     .badge(mentionBadge(attention))
     .contextMenu {
       // Reorder mode: the handle stands where the status does and the row menu is not offered.
@@ -430,6 +443,46 @@ struct ConversationSidebarView: View {
         roomActions(room)
       }
     }
+    // Outermost, so the List reads it as the row's selection value.
+    .tag(SidebarDestination.room(room.id))
+  }
+
+  /// Web's Threads entry (`ChatUnreadNavRows`, SOK-1159): opens the chat-level Threads view in the detail
+  /// column. It carries the one number a room row does, from the rooms alone: the mention badge where an
+  /// unread Thread names the reader, the muted count of unread Threads otherwise, nothing at zero; bold
+  /// while any Thread is unread. VoiceOver hears web's words for both.
+  private var threadsRow: some View {
+    let attention = resolveUnreadThreadsAttention(workspaces.rooms)
+    return Label {
+      HStack(spacing: 6) {
+        Text("Threads")
+          .lineLimit(1)
+          .fontWeight(attention.threadCount > 0 ? .bold : .regular)
+        Spacer(minLength: 0)
+        if attention.mentionCount == 0, attention.threadCount > 0 {
+          Text(roomCountLabel(attention.threadCount))
+            .font(.caption.weight(.semibold)).monospacedDigit()
+            .foregroundStyle(.secondary)
+            .accessibilityHidden(true)
+        }
+      }
+    } icon: {
+      Image(systemName: "bubble.left.and.bubble.right")
+        .foregroundStyle(.secondary)
+        .frame(width: DirectRoomAvatarStack.faceSize, height: DirectRoomAvatarStack.faceSize)
+    }
+    .labelStyle(RoomRowLabelStyle())
+    .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+    .badge(threadsMentionBadge(attention))
+    // With a badge, the badge speaks for the row; otherwise the row carries web's words for its count.
+    .accessibilityValue(attention.mentionCount > 0 ? "" : attention.accessibilityLabel)
+    .tag(SidebarDestination.threads)
+  }
+
+  /// The Threads row's mention badge, drawn like a room's, spoken as web's "N mentions, N unread threads".
+  private func threadsMentionBadge(_ attention: UnreadThreadsAttention) -> Text? {
+    guard attention.mentionCount > 0 else { return nil }
+    return Text(verbatim: roomCountLabel(attention.mentionCount)).accessibilityLabel(attention.accessibilityLabel)
   }
 
   /// The mention badge as text, so it caps at "99+" like every other chat count. `nil` draws no
@@ -507,8 +560,16 @@ struct ConversationSidebarView: View {
       Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id, auth: auth) }
     }
     .disabled(!workspaces.sidebar.canPerform(room.mutedAt == nil ? .mute : .unmute, roomId: room.id))
-    if ChannelEditPermissions.isEditable(room) || ChannelEditPermissions.canLeave(room) {
+    if ChannelEditPermissions.isEditable(room) || ChannelEditPermissions.canLeave(room) || GroupNameDraft.canName(room) {
       Divider()
+    }
+    if GroupNameDraft.canName(room) {
+      Button {
+        nameGroup = .init(id: workspaces.compositionContext, roomId: room.id)
+      } label: {
+        NameGroupLabel()
+      }
+      .disabled(workspaces.roomMutationInFlight)
     }
     if ChannelEditPermissions.isEditable(room) {
       Button("Channel settings…", systemImage: "gearshape") {
@@ -519,12 +580,12 @@ struct ConversationSidebarView: View {
       Button("Leave channel…", systemImage: "rectangle.portrait.and.arrow.right") {
         lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: .leave)
       }
-      .disabled(workspaces.channelMutationInFlight)
+      .disabled(workspaces.roomMutationInFlight)
     }
   }
 
   private func requestLifecycle(_ action: ChannelLifecycleAction, room: Components.Schemas.ChatRoom) {
-    guard !workspaces.channelMutationInFlight else { return }
+    guard !workspaces.roomMutationInFlight else { return }
     lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: action)
   }
 
@@ -567,6 +628,12 @@ struct ConversationSidebarView: View {
     .buttonStyle(.plain)
     .accessibilityValue(presenceLabel(workspaces.presence.selfPresence))
   }
+}
+
+/// What a sidebar row opens in the detail column: the chat-level Threads view or a room.
+enum SidebarDestination: Hashable {
+  case threads
+  case room(String)
 }
 
 /// The reader's opt-in Room unread count (web `RoomUnreadCount`): text, not a

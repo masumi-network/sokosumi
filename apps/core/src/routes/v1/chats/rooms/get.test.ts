@@ -108,6 +108,7 @@ function guestRoomRow() {
     slug: "external-client",
     kind: "channel",
     directKey: null,
+    groupName: null,
     topic: null,
     discoverability: "external",
     createdByUserId: "user_host",
@@ -147,6 +148,7 @@ function personalDirectRow() {
     slug: "bob",
     kind: "direct",
     directKey: `${USER_ID}:${PEER_USER_ID}`,
+    groupName: null,
     topic: null,
     discoverability: null,
     createdByUserId: USER_ID,
@@ -245,6 +247,7 @@ describe("GET /chats/rooms", () => {
       [
         {
           roomId: room.id,
+          lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
           parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
           firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
           parentContent: "Vendor-wide rollout",
@@ -253,6 +256,7 @@ describe("GET /chats/rooms", () => {
         },
         {
           roomId: room.id,
+          lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
           parentMessageId: "550e8400-e29b-41d4-a716-446655440b02",
           firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c02",
           parentContent: "Into Linear",
@@ -294,6 +298,7 @@ describe("GET /chats/rooms", () => {
     roomCountMock.mockResolvedValue(1);
     const preview = (n: number, unreadMentionCount: number) => ({
       roomId: room.id,
+      lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
       parentMessageId: `550e8400-e29b-41d4-a716-446655440b0${n}`,
       firstUnreadReplyId: `550e8400-e29b-41d4-a716-446655440c0${n}`,
       parentContent: `Thread ${n}`,
@@ -329,6 +334,7 @@ describe("GET /chats/rooms", () => {
     roomCountMock.mockResolvedValue(1);
     const preview = (n: number) => ({
       roomId: room.id,
+      lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
       parentMessageId: `550e8400-e29b-41d4-a716-446655440b0${n}`,
       firstUnreadReplyId: `550e8400-e29b-41d4-a716-446655440c0${n}`,
       parentContent: `Thread ${n}`,
@@ -590,6 +596,28 @@ describe("GET /chats/rooms", () => {
         userId: { in: [PEER_USER_ID] },
       },
       select: { userId: true },
+    });
+  });
+
+  it("lists a group Direct with its Group name", async () => {
+    roomFindManyMock.mockResolvedValue([
+      {
+        ...personalDirectRow(),
+        directKey: `direct:v2:user:${PEER_USER_ID}:user:${USER_ID}:user:user_cara`,
+        groupName: "Launch crew",
+      },
+    ]);
+    roomCountMock.mockResolvedValue(1);
+    memberFindManyMock.mockResolvedValue([]);
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0]).toMatchObject({
+      id: PERSONAL_DIRECT_ID,
+      groupName: "Launch crew",
+      isGroupDirect: true,
     });
   });
 

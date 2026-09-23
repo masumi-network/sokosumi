@@ -27,6 +27,9 @@ import SwiftUI
     @State private var jumpRequestId: UUID?
     @State private var jumpTask: Task<Void, Never>?
 
+    /// How long the Threads trigger waits before it counts, so a burst of attention bumps sends one request.
+    static let threadsCountDebounce: Duration = .milliseconds(150)
+
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
     }
@@ -52,7 +55,7 @@ import SwiftUI
           await workspaces.updateThreadOverview(.load, roomId: roomId, auth: auth)
         }
         .task(id: scope + [String(workspaces.threadAttentionRevision), String(destination == .threads), workspaces.thread.parent?.id ?? ""]) {
-          do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
+          do { try await Task.sleep(for: Self.threadsCountDebounce) } catch { return }
           await workspaces.updateThreadOverview(.count, roomId: roomId, auth: auth)
         }
         .task(id: scope + [String(destination == .threads)]) {

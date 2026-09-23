@@ -295,7 +295,8 @@
       "docs": "Dokumentation",
       "drive": "Dateien",
       "soko-bots": "Soko Bots",
-      "calendar": "Kalender"
+      "calendar": "Kalender",
+      "threads": "Threads"
     },
     "Jobs": {
       "StatusBadge": {
@@ -774,7 +775,7 @@
       "pageDescription": "Updates zu deinen Aufgaben, Agenten und deinem Workspace.",
       "emptyState": "Noch keine Benachrichtigungen",
       "emptyStateDescription": "Bisher ist nichts angekommen. Aufgabenergebnisse und Workspace-Anfragen erscheinen hier, sobald sie eintreffen.",
-      "emptyUnreadState": "Du bist auf dem Laufenden",
+      "emptyUnreadState": "Du hast alles gelesen",
       "emptyUnreadStateDescription": "Hier ist nichts ungelesen. Alles Gelesene bleibt unter Alle.",
       "emptyNeedsYouState": "Nichts wartet auf dich",
       "emptyNeedsYouStateDescription": "Nichts wartet auf deine Antwort. Anfragen, die dich brauchen, erscheinen hier.",
@@ -845,7 +846,11 @@
       "zoomReset": "Zoom zurücksetzen",
       "more": "Weitere Optionen",
       "openInNewTab": "In neuem Tab öffnen",
-      "copyImage": "Bild kopieren"
+      "copyImage": "Bild kopieren",
+      "previous": "Vorheriges Bild",
+      "next": "Nächstes Bild",
+      "position": "{current} / {total}",
+      "stepAnnouncement": "Bild {current} von {total}, {name}"
     },
     "DocumentViewer": {
       "title": "Dokument",
@@ -5460,6 +5465,29 @@
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
         "untitled": "Thread"
       },
+      "UnreadNav": {
+        "label": "Ungelesen",
+        "threads": "Threads",
+        "allUnreads": "Ungelesene",
+        "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
+        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
+        "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
+        "filterOn": "Nur ungelesene werden angezeigt",
+        "markAllRead": "Alle als gelesen markieren",
+        "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
+        "caughtUp": "Alles gelesen",
+        "allThreads": "Alle Threads",
+        "justRead": "Gerade gelesen"
+      },
+      "ThreadsView": {
+        "title": "Threads",
+        "listLabel": "Ungelesene Threads",
+        "empty": "Du hast alles gelesen",
+        "emptyDescription": "Neue Antworten in Threads, an denen du beteiligt bist, erscheinen hier.",
+        "loadMore": "Mehr anzeigen",
+        "loadError": "Ungelesene Threads konnten nicht geladen werden.",
+        "retry": "Erneut versuchen"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5635,7 +5663,7 @@
         "loadOlder": "Ältere Threads laden",
         "groupUnread": "Ungelesen",
         "groupEarlier": "Früher",
-        "groupUnreadEmpty": "Alles gelesen.",
+        "groupUnreadEmpty": "Alles gelesen",
         "startedBy": "Gestartet von {name}",
         "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
         "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
@@ -5654,6 +5682,16 @@
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
         "left": "{name} hat den Channel verlassen"
+      },
+      "GroupName": {
+        "rename": "Umbenennen",
+        "dialogTitle": "Gruppe benennen",
+        "dialogDescription": "Alle in der Gruppe sehen diesen Namen statt der Mitgliederliste. Lass das Feld leer, um wieder die Mitglieder anzuzeigen.",
+        "label": "Gruppenname",
+        "save": "Speichern",
+        "saveFailed": "Die Gruppe konnte nicht benannt werden.",
+        "named": "{name} hat die Gruppe {groupName} genannt",
+        "cleared": "{name} hat den Gruppennamen entfernt"
       },
       "External": {
         "title": "Extern",

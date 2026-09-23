@@ -41,7 +41,7 @@ public final class RoomTimeline: ObservableObject {
   /// The row above the oldest loaded range (web's boundary with `isGap: false`).
   /// Its failure stays a transcript error too: that keeps the automatic older
   /// load off until the reader asks again.
-  public var oldestBoundaryStatus: TranscriptBoundaryStatus {
+  public var oldestBoundaryStatus: PageBoundaryStatus {
     if isLoadingOlder {
       return .loading
     }

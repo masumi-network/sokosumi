@@ -1,20 +1,22 @@
+import "./rooms-client-harness";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
-import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { setMessageReactionAction } from "@/app/chat/actions";
 import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
-import { RoomsClient } from "@/app/chat/components/rooms-client";
 import { clearMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
 import { chatRoomMessageEventDataSchema } from "@/lib/ably/schema";
-import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import type {
-  ChatRoom,
   ChatRoomMessage,
   ChatRoomMessageReaction,
-  Organization,
 } from "@/lib/clients/generated/core";
+import { RoomsClient } from "../rooms-client";
+import {
+  roomsClientBaseProps,
+  setMessageReactionAction,
+  toast,
+  useChatRoomRealtimeMock,
+} from "./rooms-client-harness";
 
 /**
  * A tap shows the viewer's Reaction at once and only the server's answer
@@ -26,22 +28,6 @@ const { fetchRoomMessagesMock } = vi.hoisted(() => ({
   fetchRoomMessagesMock: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
-    refresh: vi.fn(),
-  }),
-  usePathname: () => "/chat/rooms/room-channel",
-  useSearchParams: () => new URLSearchParams(),
-}));
-
-const translate = (key: string) => key;
-vi.mock("next-intl", () => ({
-  useTranslations: () => translate,
-  useLocale: () => "en",
-}));
-
 vi.mock("@/app/chat/components/room-search-panel", () => ({
   RoomSearchPanel: () => null,
 }));
@@ -50,100 +36,8 @@ vi.mock("@/app/chat/components/unread-threads-panel", () => ({
   UnreadThreadsPanel: () => null,
 }));
 
-vi.mock("@/app/chat/components/day-separator", () => ({
-  default: () => null,
-}));
-
-vi.mock("@/hooks/use-is-apple-platform", () => ({
-  default: () => false,
-}));
-
-vi.mock("@/hooks/use-mobile", () => ({
-  useIsMobileMedia: () => false,
-}));
-
-vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
-  useHeaderRoomSlotHost: () => null,
-}));
-
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  useRegisterBreadcrumbOverride: () => undefined,
-}));
-
-vi.mock("@/contexts/lazy-ably-provider", () => ({
-  default: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
-  useChatRoomRealtime: vi.fn(),
-}));
-
-vi.mock("@/lib/ably/use-room-typing", () => ({
-  useRoomTyping: () => ({
-    typistIds: [],
-    handleComposerChange: () => {},
-    handleStopTyping: () => {},
-  }),
-}));
-
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
-  useSelectedRoomChannelHealth: () => undefined,
-}));
-
-vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
-  useClientLocalCalendarReady: () => true,
-}));
-
-vi.mock(
-  "@/app/chat/components/transcript-viewport",
-  () => import("./transcript-viewport-stub"),
-);
-
-vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
-  readStoredStreamParentMessageId: () => null,
-  useCoworkerDirectRoomStream: () => ({
-    streamOverlayMessages: [],
-    isStreaming: false,
-    activeStreamParentMessageId: null,
-    sendStreamMessage: vi.fn(),
-    consumePendingStreamMessage: vi.fn(),
-  }),
-}));
-
-vi.mock("@/app/chat/actions", () => ({
-  countUnreadThreadsAction: vi.fn(async () => ({
-    ok: true as const,
-    value: 0,
-  })),
-  deleteRoomMessageAction: vi.fn(),
-  editRoomMessageAction: vi.fn(),
-  listRoomMessagesAction: vi.fn(async () => ({
-    ok: true,
-    value: { messages: [], nextCursor: null },
-  })),
-  listThreadMessagesAction: vi.fn(),
-  markThreadReadAction: vi.fn(),
-  pinRoomMessageAction: vi.fn(),
-  retryRoomMentionAction: vi.fn(),
-  sendRoomMessageAction: vi.fn(),
-  setMessageReactionAction: vi.fn(),
-  unpinRoomMessageAction: vi.fn(),
-}));
-
 vi.mock("@/components/chat/fetch-room-messages", () => ({
   fetchRoomMessages: fetchRoomMessagesMock,
-}));
-
-vi.mock("@/components/chat/organization-chat-list.actions", () => ({
-  markOrganizationChatRoomReadAction: vi.fn(async (roomId: string) => ({
-    ok: true as const,
-    value: {
-      id: roomId,
-      unreadCount: 0,
-      unreadMentionCount: 0,
-      markedUnread: false,
-    },
-  })),
 }));
 
 vi.mock("../room-file-drop-zone", () => ({
@@ -195,25 +89,6 @@ vi.mock("../edit-channel-dialog", () => ({
   ),
 }));
 
-vi.mock("../chat-participant-hover-card", () => ({
-  ChatParticipantHoverCard: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-}));
-
-vi.mock("@/components/chat/channel-discoverability-icon", () => ({
-  ChannelDiscoverabilityIcon: () => null,
-}));
-
-vi.mock("@/components/chat/live-member-presence-dot", () => ({
-  LiveMemberPresenceDot: () => null,
-  LiveMemberPresenceText: () => null,
-}));
-
-vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
-}));
-
 /** `emoji count reacted names` per entry, e.g. `👍 2 me Bob,Ada`. */
 function summarize(reactions: ChatRoomMessageReaction[]): string {
   return reactions
@@ -222,41 +97,6 @@ function summarize(reactions: ChatRoomMessageReaction[]): string {
         `${entry.emoji} ${entry.count} ${entry.reactedByCurrentUser ? "me" : "-"} ${entry.reactors.map((reactor) => reactor.name).join(",")}`,
     )
     .join("|");
-}
-
-function channelRoom(): ChatRoom {
-  return {
-    id: "room-channel",
-    organizationId: "org-1",
-    organizationName: "Acme",
-    name: "general",
-    slug: "general",
-    kind: "channel",
-    directKey: null,
-    topic: null,
-    discoverability: "public",
-    createdByUserId: "user-1",
-    createdAt: new Date("2026-07-01T12:00:00.000Z"),
-    updatedAt: new Date("2026-07-01T12:00:00.000Z"),
-    unreadCount: 0,
-    unreadMentionCount: 0,
-    starredAt: null,
-    mutedAt: null,
-    markedUnread: false,
-    isSelfDirect: false,
-    myAccess: "member",
-    userMembers: [
-      {
-        id: "user-1",
-        name: "Ada",
-        email: "user-1@example.com",
-        image: null,
-        presence: "offline",
-      },
-    ],
-    coworkerMembers: [],
-    sokoBotMembers: [],
-  };
 }
 
 function message(
@@ -279,6 +119,7 @@ function message(
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: {
       type: "user",
@@ -300,24 +141,7 @@ const BOB_THUMBS: ChatRoomMessageReaction = {
   reactors: [{ id: "user-2", name: "Bob" }],
 };
 
-const organization = {
-  id: "org-1",
-  name: "Acme",
-  slug: "acme",
-} as Organization;
-
-const baseProps = {
-  activeOrganization: organization,
-  rooms: [channelRoom()],
-  organizationMembers: [] as [],
-  currentUserId: "user-1",
-  coworkers: [] as [],
-  selectedRoomId: "room-channel",
-  messageLoadFailed: false,
-  membersLoadFailed: false,
-  messages: [message("m1")],
-  messagesNextCursor: null as string | null,
-};
+const baseProps = roomsClientBaseProps({ messages: [message("m1")] });
 
 type ReactionResult = Awaited<ReturnType<typeof setMessageReactionAction>>;
 
@@ -508,7 +332,7 @@ describe("RoomsClient pending reactions", () => {
         ],
       },
     });
-    const options = vi.mocked(useChatRoomRealtime).mock.calls.at(-1)?.[0];
+    const options = useChatRoomRealtimeMock.mock.calls.at(-1)?.[0];
     await act(async () => {
       options?.onMessage?.(event);
     });

@@ -32,7 +32,7 @@ public func messageQuote(from message: Components.Schemas.ChatRoomMessage) -> Co
 /// `showActions`; a failed shell keeps quote/pin/reactions.
 public func canQuoteMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
   message.deletedAt == nil && !isOutboundLocalMessage(message)
-    && !message.id.hasPrefix("stream:") && message.membership == nil
+    && !message.id.hasPrefix("stream:") && !isRoomStatusMessage(message)
     && CoworkerMentionShell(message: message)?.isThinking != true
 }
 

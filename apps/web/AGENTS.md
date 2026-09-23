@@ -349,7 +349,7 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
   literals, no opacity modifiers on color utilities. Use the alpha-baked ramp step
   (`-tertiary` / `-quaternary` / `-quinary`) and add a token when none fits, in both theme
   blocks and in the `@theme inline` bridge. Guard:
-  `src/lib/utils/__tests__/color-tokens.test.ts`. See `.cursor/rules/color-tokens.mdc`.
+  `src/lib/utils/__tests__/src-walk-guards.test.ts`. See `.cursor/rules/color-tokens.mdc`.
 - Ensure dark/light mode compatibility
 - Use `size-*` utilities instead of `h-* w-*`
 - **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See `.cursor/rules/dynamic-type.mdc` and `apps/web/src/lib/utils/dynamic-type.ts`.
@@ -488,7 +488,7 @@ When implementing or reviewing UI in this app, load and follow these app-scoped 
 
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other approved pure helpers from `@sokosumi/utils` directly; no passthrough files. See [Core DTO boundary](#core-dto-boundary).
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
-- [Whole pixels](../../.cursor/rules/whole-pixels.mdc) – no fractional `px` on a layout or border length; guard `src/lib/utils/__tests__/whole-pixels.test.ts`
+- [Whole pixels](../../.cursor/rules/whole-pixels.mdc) – no fractional `px` on a layout or border length; guard `src/lib/utils/__tests__/src-walk-guards.test.ts`
 - [Effects](.cursor/rules/effects.mdc)
 - [Translations](../../.agents/skills/translations/) – next-intl cleanup and locale parity
 - [Locale-safe formatting](.cursor/rules/i18n-formatting.mdc) – `useFormatter` / `getFormatter`; avoid bare `toLocaleString()` in client components

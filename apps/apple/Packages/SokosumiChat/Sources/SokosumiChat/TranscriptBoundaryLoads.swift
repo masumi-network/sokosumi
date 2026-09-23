@@ -1,7 +1,8 @@
 import Foundation
 
-/// A transcript boundary row's state: web's `TranscriptBoundaryStatus`.
-public enum TranscriptBoundaryStatus: Equatable, Sendable {
+/// A paging boundary row's state: web's `TranscriptBoundaryStatus` for the transcript and
+/// `ThreadListLoadMoreStatus` for the thread overview, which have the same three cases.
+public enum PageBoundaryStatus: Equatable, Sendable {
   case idle, loading, failed
 }
 
@@ -13,7 +14,7 @@ public enum TranscriptBoundaryStatus: Equatable, Sendable {
 /// again, so a refused or failed request cannot loop, and a failed row waits
 /// for Try again.
 public struct TranscriptBoundaryLoads: Equatable, Sendable {
-  private var statuses: [String: TranscriptBoundaryStatus] = [:]
+  private var statuses: [String: PageBoundaryStatus] = [:]
   /// Visible gap rows in the order they scrolled into view.
   private var visible: [String] = []
   /// Visible rows whose one automatic request has not been spent.
@@ -21,7 +22,7 @@ public struct TranscriptBoundaryLoads: Equatable, Sendable {
 
   public init() {}
 
-  public func status(of cursorMessageId: String) -> TranscriptBoundaryStatus {
+  public func status(of cursorMessageId: String) -> PageBoundaryStatus {
     statuses[cursorMessageId] ?? .idle
   }
 

@@ -238,6 +238,10 @@ _Avoid_: Active pill, selected dot, a left-edge selection bar (that edge is the 
 A chat sidebar section's heading on the collapsed sidebar rail: one 32px square holding the section's icon (Channels `#`, External a building, Direct Messages a speech bubble, Archived a box), named by its tooltip, which opens and closes the section there as the titled heading does expanded. Every section has one, so the sections below keep their place when the sidebar toggles. It stands where the expanded heading's row stood, so it also marks where one section ends and the next begins. Dimmed while its section is closed. A closed section that holds something for the reader says so on its heading, by the rules its rooms follow: the Rail attention pill beside the rail square, bold on the expanded title; a pending External invitation counts as a mention. Archived's square is the one that expands the sidebar instead of opening in place: its rows never reach the rail, because they are static and their Restore and Delete live in a menu no 32px square has room for, so opening it there would dim a square and show nothing.
 _Avoid_: Forcing sections open on the rail, a hairline divider between sections, the globe as the External icon (that is the Channel tile's corner mark), archived rows on the rail, a section with no rail square (everything under it then jumps on a toggle)
 
+**Unreads filter**:
+The chat list's switch between All and Unreads: on, it keeps only rooms with Room unread or an unread Thread, with Pinned always shown. The reader's choice is remembered per browser — one value for every organisation, shared by the sidebar and the phone's Chats page — and never flips by itself: with nothing unread it stays on and the list reads All caught up.
+_Avoid_: Inbox, unread view, resetting to All when caught up, a per-organisation or per-account setting
+
 **Rail actions**:
 What the collapsed sidebar rail lets the reader do: go somewhere (a nav destination, a Chat room), open or close a chat section, and expand the sidebar (the logo, a pending External invitation's tile, or the Archived section's square). Everything that changes a room or makes one lives in the expanded sidebar only: the room menu (mark unread, pin, mute, edit, leave), Create channel, Browse channels, Start a Direct, and an invitation's Accept and Decline. A 32px square has no room for a second control beside its mark, and one press on the logo brings all of them back. Decided, not an oversight.
 _Avoid_: A right-click or long-press room menu on the rail, a `+` square under a Rail section header, Accept and Decline in a rail popover
@@ -251,8 +255,12 @@ A platform user on one External channel’s room roster who is not a Member of t
 _Avoid_: External user, outsider, limited collaborator, org guest (there is no org-level guest role)
 
 **Direct**:
-A chat room whose identity is its participant set, not a Channel name. Self Direct, human 1:1, multi-human group, coworker 1:1, or personal assistant 1:1. Has no Channel slug.
+A chat room whose identity is its participant set, not a Channel name. Self Direct, human 1:1, multi-human group, coworker 1:1, or personal assistant 1:1. Has no Channel slug. A group Direct may carry a Group name; the name labels it but never identifies it.
 _Avoid_: Conversation (retired), treating a DM as a Channel
+
+**Group name**:
+An optional shared label on a group Direct, seen by every member in place of the member list. Any member may set, change, or clear it while the Direct is not archived, and each change is recorded in the room with who made it. Clearing it restores the member list. A Direct is a group Direct because it was started for three or more humans, so one that later shrinks keeps its Group name. Naming does not turn the Direct into a Channel: it stays under Direct Messages, private, slug-free, and keeps its members; starting a Direct with the same people opens the named one ([ADR-0040](docs/adr/0040-group-name-is-separate-from-stored-room-name.md)).
+_Avoid_: Channel name, nickname (a Group name is shared, not per-reader), room title
 
 **Self Direct**:
 One private Personal Direct per user for notes and to-dos, with that user as its sole human member and no AI members. Identified by a canonical self key, not by remaining member count. Shared across available workspaces without requiring a personal Workspace. Created on demand, survives Organization exit, and is removed by account deletion. Shown as “You”; sending notes triggers no self-notifications or AI work.
@@ -375,6 +383,10 @@ _Avoid_: Hidden unfurl, dismissed Quote, edited message, composer opt-out
 **Unfurl snapshot**:
 Sokosumi's own stored copy of an unfurl's preview image, taken when the unfurl is scraped. The card shows the snapshot, never the source image.
 _Avoid_: Cached image, proxied image, hotlinked image, og:image (when meaning the copy)
+
+**Message image gallery**:
+The distinct image attachments of one room message, in body order across all its attachment rows, stepped through one at a time in the image viewer. Never other file kinds, a quote's or unfurl's image, or another message's images.
+_Avoid_: Lightbox, carousel, room gallery (the gallery is one message, never the room), slideshow
 
 ### Chat outbound delivery
 
