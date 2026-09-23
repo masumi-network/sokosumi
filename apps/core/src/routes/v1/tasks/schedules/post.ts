@@ -20,7 +20,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/schedules",
     description:
-      "Create a Task Schedule: a repeating rule plus the blueprint of the Task each Occurrence creates.",
+      "Create a Task Schedule: a repeating rule plus the blueprint of the Task each Run creates.",
     tags: ["Task Schedules"],
     request: {
       body: {

@@ -4,6 +4,7 @@ import {
   type Prisma,
   type TaskSchedule,
   TaskScheduleEndsMode,
+  type TaskScheduleOccurrence,
   TaskScheduleOccurrenceState,
   TaskScheduleState,
   TaskStatus,
@@ -21,12 +22,12 @@ import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
 /**
- * The Occurrence ledger of Task Schedules (ADR 0041): which Occurrences are
+ * The Run ledger of Task Schedules (ADR 0041): which Runs are
  * planned, and the release that turns each due one into a Task.
  *
- * An Active schedule keeps its planned Occurrences projected over the
- * calendar horizon, and always at least the next one. `nextOccurrenceAt` is
- * the earliest planned Occurrence, so the release scan wakes exactly when one
+ * An Active schedule keeps its planned Runs projected over the
+ * calendar horizon, and always at least the next one. `nextRunAt` is
+ * the earliest planned Run, so the release scan wakes exactly when one
  * is due.
  */
 
@@ -42,19 +43,19 @@ type RuleState = Pick<
   | "anchorAt"
   | "endsMode"
   | "endsOn"
-  | "targetOccurrenceCount"
+  | "targetRunCount"
   | "releasedCount"
 >;
 
-/** First Occurrence after `from`, or null once the end rule is reached. */
-export function computeNextOccurrence(
+/** First Run after `from`, or null once the end rule is reached. */
+export function computeNextScheduleRun(
   schedule: RuleState,
   from: Date,
 ): Date | null {
   if (
     schedule.endsMode === TaskScheduleEndsMode.AFTER &&
-    schedule.targetOccurrenceCount != null &&
-    schedule.releasedCount >= schedule.targetOccurrenceCount
+    schedule.targetRunCount != null &&
+    schedule.releasedCount >= schedule.targetRunCount
   ) {
     return null;
   }
@@ -85,30 +86,34 @@ export function computeNextOccurrence(
 /**
  * Rule times after `from` up to the horizon, at most `limit` of them, and the
  * first one even beyond the horizon when `includeFirst`. A dense rule is
- * capped instead of refused; the plan rolls forward on every release.
+ * capped instead of refused; the plan rolls forward on every release. Times
+ * in `occupied` already have a Run (a skipped one, say) and are
+ * passed over without counting against an end-after-N rule.
  */
-function projectOccurrenceTimes(
+function projectRunTimes(
   schedule: RuleState,
   from: Date,
   {
     horizonEnd,
     limit,
     includeFirst,
+    occupied,
   }: {
     horizonEnd: Date;
     limit: number;
     includeFirst: boolean;
+    occupied: ReadonlySet<number>;
   },
 ): Date[] {
   const times: Date[] = [];
-  let next = computeNextOccurrence(schedule, from);
+  let next = computeNextScheduleRun(schedule, from);
   while (
     next &&
     ((includeFirst && times.length === 0) || next < horizonEnd) &&
     times.length < limit
   ) {
-    times.push(next);
-    next = computeNextOccurrence(
+    if (!occupied.has(next.getTime())) times.push(next);
+    next = computeNextScheduleRun(
       { ...schedule, releasedCount: schedule.releasedCount + times.length },
       next,
     );
@@ -120,41 +125,49 @@ type ProjectedSchedule = RuleState &
   Pick<TaskSchedule, "id" | "epochId" | "workspaceId" | "projectId">;
 
 /**
- * Extends the schedule's plan in its current epoch up to the horizon after
- * `now`, and returns the earliest planned Occurrence. Only the missing tail
- * is written: every insert runs the calendar invalidation trigger, even one
- * a conflict would skip.
+ * Plans the schedule's current epoch up to the horizon after `now`, and
+ * returns the earliest planned Run. Only rule times without an
+ * Run are written: every insert runs the calendar invalidation
+ * trigger, even one a conflict would skip.
  */
-export async function projectTaskScheduleOccurrences(
+export async function projectTaskScheduleRuns(
   tx: Prisma.TransactionClient,
   schedule: ProjectedSchedule,
   now: Date,
 ): Promise<Date | null> {
-  // Every planned Occurrence counts against an end-after-N rule, including
-  // one owed from a run that stopped partway or from before a rule edit.
+  // Every planned Run counts against an end-after-N rule, including
+  // one owed from a release that stopped partway or from before a rule edit.
   const plannedCount = await tx.taskScheduleOccurrence.count({
     where: {
       scheduleId: schedule.id,
       state: TaskScheduleOccurrenceState.PLANNED,
     },
   });
-  const last = await tx.taskScheduleOccurrence.findFirst({
+  // A rule time can already hold a Run: planned, moved, or skipped.
+  // It is not planned again, and a skipped one frees its place under an
+  // end-after-N rule.
+  const occupied = await tx.taskScheduleOccurrence.findMany({
     where: {
       scheduleId: schedule.id,
       epochId: schedule.epochId,
-      state: TaskScheduleOccurrenceState.PLANNED,
       originalScheduledAt: { gt: now },
     },
-    orderBy: [{ originalScheduledAt: "desc" }],
-    select: { originalScheduledAt: true },
+    select: { state: true, originalScheduledAt: true },
   });
-  const times = projectOccurrenceTimes(
+  const times = projectRunTimes(
     { ...schedule, releasedCount: schedule.releasedCount + plannedCount },
-    last?.originalScheduledAt ?? now,
+    now,
     {
       horizonEnd: new Date(now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS),
       limit: MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES - plannedCount,
-      includeFirst: last == null,
+      includeFirst: !occupied.some(
+        (row) => row.state === TaskScheduleOccurrenceState.PLANNED,
+      ),
+      occupied: new Set(
+        occupied.flatMap((row) =>
+          row.originalScheduledAt ? [row.originalScheduledAt.getTime()] : [],
+        ),
+      ),
     },
   );
   if (times.length > 0) {
@@ -183,26 +196,139 @@ export async function projectTaskScheduleOccurrences(
   return next?.effectiveScheduledAt ?? null;
 }
 
+/** Whether the Run is still skipped, or planned at a moved time. */
+export function isRunException(
+  run: Pick<
+    TaskScheduleOccurrence,
+    "state" | "originalScheduledAt" | "effectiveScheduledAt"
+  >,
+): boolean {
+  return (
+    run.state === TaskScheduleOccurrenceState.SKIPPED ||
+    (run.state === TaskScheduleOccurrenceState.PLANNED &&
+      run.originalScheduledAt?.getTime() !== run.effectiveScheduledAt.getTime())
+  );
+}
+
 /**
- * Drops planned Occurrences, or only those after `after`, so a rule edit
- * still releases the ones already owed. Released ones and their Tasks stay.
+ * Takes a schedule's planned Runs off the plan; released ones and
+ * their Tasks stay. With `keepOwed`, ones already due still release, as after
+ * a rule edit. Skipped and moved ones were someone's decision: a pause keeps
+ * them for the resume, and a rule edit or an end cancels them into the
+ * history.
  */
-export async function removePlannedTaskScheduleOccurrences(
+export async function stopPlannedTaskScheduleRuns(
   tx: Prisma.TransactionClient,
   scheduleId: string,
-  after?: Date,
+  now: Date,
+  {
+    keepOwed,
+    exceptions,
+  }: { keepOwed: boolean; exceptions: "keep" | "cancel" },
 ): Promise<void> {
-  await tx.taskScheduleOccurrence.deleteMany({
+  const rows = await tx.taskScheduleOccurrence.findMany({
+    where: {
+      scheduleId,
+      OR: [
+        {
+          state: TaskScheduleOccurrenceState.PLANNED,
+          ...(keepOwed ? { effectiveScheduledAt: { gt: now } } : {}),
+        },
+        {
+          state: TaskScheduleOccurrenceState.SKIPPED,
+          effectiveScheduledAt: { gt: now },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      state: true,
+      originalScheduledAt: true,
+      effectiveScheduledAt: true,
+    },
+  });
+  const ordinaryIds = rows
+    .filter((row) => !isRunException(row))
+    .map((row) => row.id);
+  const exceptionIds = rows
+    .filter((row) => isRunException(row))
+    .map((row) => row.id);
+  if (ordinaryIds.length > 0) {
+    await tx.taskScheduleOccurrence.deleteMany({
+      where: { id: { in: ordinaryIds } },
+    });
+  }
+  if (exceptions === "cancel" && exceptionIds.length > 0) {
+    await tx.taskScheduleOccurrence.updateMany({
+      where: { id: { in: exceptionIds } },
+      data: { state: TaskScheduleOccurrenceState.CANCELED },
+    });
+  }
+}
+
+/**
+ * On resume, a move whose time passed while the schedule was Paused is
+ * missed, like the rule's own Runs then: it is canceled, not made up.
+ */
+export async function cancelMissedTaskScheduleRuns(
+  tx: Prisma.TransactionClient,
+  scheduleId: string,
+  now: Date,
+): Promise<void> {
+  await tx.taskScheduleOccurrence.updateMany({
     where: {
       scheduleId,
       state: TaskScheduleOccurrenceState.PLANNED,
-      ...(after ? { effectiveScheduledAt: { gt: after } } : {}),
+      effectiveScheduledAt: { lte: now },
+    },
+    data: { state: TaskScheduleOccurrenceState.CANCELED },
+  });
+}
+
+/**
+ * Keeps an end-after-N plan at N once a restored Run counts again: the
+ * Runs planned last, which took the skipped one's place, go. `keepId`
+ * is the restored one, which the person asked for.
+ */
+export async function trimPlannedTaskScheduleRuns(
+  tx: Prisma.TransactionClient,
+  schedule: Pick<
+    TaskSchedule,
+    "id" | "endsMode" | "targetRunCount" | "releasedCount"
+  >,
+  keepId: string,
+): Promise<void> {
+  if (
+    schedule.endsMode !== TaskScheduleEndsMode.AFTER ||
+    schedule.targetRunCount == null
+  ) {
+    return;
+  }
+  const planned = await tx.taskScheduleOccurrence.findMany({
+    where: {
+      scheduleId: schedule.id,
+      state: TaskScheduleOccurrenceState.PLANNED,
+    },
+    orderBy: [{ originalScheduledAt: "desc" }],
+    select: { id: true },
+  });
+  const excess =
+    schedule.releasedCount + planned.length - schedule.targetRunCount;
+  if (excess <= 0) return;
+  await tx.taskScheduleOccurrence.deleteMany({
+    where: {
+      id: {
+        in: planned
+          .filter((row) => row.id !== keepId)
+          .slice(0, excess)
+          .map((row) => row.id),
+      },
     },
   });
 }
 
-/** Planned Occurrences follow the blueprint's project on the calendar. */
-export async function moveTaskScheduleOccurrencesToProject(
+/** Planned Runs follow the blueprint's project on the calendar. */
+export async function moveTaskScheduleRunsToProject(
   tx: Prisma.TransactionClient,
   schedule: Pick<TaskSchedule, "id" | "workspaceId" | "projectId">,
 ): Promise<void> {
@@ -258,7 +384,7 @@ function canContinue(options: TaskScheduleReleaseOptions): boolean {
 function releasableWhere(now: Date): Prisma.TaskScheduleWhereInput {
   return {
     state: TaskScheduleState.ACTIVE,
-    nextOccurrenceAt: { lte: now },
+    nextRunAt: { lte: now },
     OR: [{ projectId: null }, { project: { closingAt: null, closedAt: null } }],
   };
 }
@@ -299,9 +425,9 @@ function createTaskFromBlueprint(
 }
 
 /**
- * Releases up to {@link MAX_RELEASES_PER_TRANSACTION} due Occurrences of one
- * schedule in one transaction. Each Occurrence is claimed by moving it from
- * planned to released, so a retried run never creates a second Task for it,
+ * Releases up to {@link MAX_RELEASES_PER_TRANSACTION} due Runs of one
+ * schedule in one transaction. Each Run is claimed by moving it from
+ * planned to released, so a retried release never creates a second Task for it,
  * and the schedule is claimed by its revision, so a concurrent edit, pause,
  * or end rolls the release back. No Seat check (ADR 0020).
  */
@@ -317,7 +443,7 @@ async function releaseSchedule(
       });
       if (!schedule) return { tasks: [], ended: false };
 
-      // Any epoch: a rule edit keeps the Occurrences already owed.
+      // Any epoch: a rule edit keeps the Runs already owed.
       const due = await tx.taskScheduleOccurrence.findMany({
         where: {
           scheduleId: id,
@@ -330,12 +456,12 @@ async function releaseSchedule(
       });
 
       const tasks: ReleasedTask[] = [];
-      for (const occurrence of due) {
+      for (const run of due) {
         if (!canContinue(options)) break;
         const task = await createTaskFromBlueprint(tx, schedule);
         const { count } = await tx.taskScheduleOccurrence.updateMany({
           where: {
-            id: occurrence.id,
+            id: run.id,
             state: TaskScheduleOccurrenceState.PLANNED,
           },
           data: {
@@ -348,13 +474,13 @@ async function releaseSchedule(
       }
 
       const releasedCount = schedule.releasedCount + tasks.length;
-      const nextOccurrenceAt = await projectTaskScheduleOccurrences(
+      const nextRunAt = await projectTaskScheduleRuns(
         tx,
         { ...schedule, releasedCount },
         now,
       );
-      // No planned Occurrence left means the end rule is met.
-      const ended = nextOccurrenceAt === null;
+      // No planned Run left means the end rule is met.
+      const ended = nextRunAt === null;
       const { count } = await tx.taskSchedule.updateMany({
         where: {
           id,
@@ -363,7 +489,7 @@ async function releaseSchedule(
         },
         data: {
           releasedCount,
-          nextOccurrenceAt,
+          nextRunAt,
           state: ended ? TaskScheduleState.ENDED : TaskScheduleState.ACTIVE,
         },
       });
@@ -402,7 +528,7 @@ async function announceReleasedTasks(tasks: ReleasedTask[]): Promise<void> {
 
 export const taskScheduleReleaseService = {
   /**
-   * Behind the `/sync/task-schedules` cron: releases the due Occurrences of
+   * Behind the `/sync/task-schedules` cron: releases the due Runs of
    * every Active Task Schedule, and Ends the ones whose end rule is met.
    */
   async releaseDueSchedules(
@@ -421,7 +547,7 @@ export const taskScheduleReleaseService = {
           // fill every later read and starve schedules behind them.
           ...(attempted.size > 0 ? { id: { notIn: [...attempted] } } : {}),
         },
-        orderBy: [{ nextOccurrenceAt: "asc" }, { id: "asc" }],
+        orderBy: [{ nextRunAt: "asc" }, { id: "asc" }],
         take: TASK_SCHEDULE_RELEASE_BATCH_SIZE,
         select: { id: true },
       });

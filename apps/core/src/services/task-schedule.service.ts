@@ -4,6 +4,8 @@ import {
   type Prisma,
   type TaskSchedule,
   TaskScheduleEndsMode,
+  type TaskScheduleOccurrence,
+  TaskScheduleOccurrenceState,
   TaskScheduleState,
   TaskVisibility,
 } from "@sokosumi/database";
@@ -27,6 +29,7 @@ import {
 } from "@/helpers/pagination";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { validateScheduleInput } from "@/helpers/task-schedule";
+import { CALENDAR_OCCURRENCE_HORIZON_MS } from "@/helpers/task-schedule-occurrence-index";
 import {
   buildCoworkerPrivateTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
@@ -47,7 +50,9 @@ import type {
   CreateTaskScheduleRequest,
   TaskScheduleListQuery,
   TaskScheduleRule,
+  TaskScheduleRunListQuery,
   UpdateTaskScheduleRequest,
+  UpdateTaskScheduleRunRequest,
 } from "@/schemas/task-schedule.schema";
 import {
   creatorFields,
@@ -56,10 +61,13 @@ import {
   type TaskDomainActor,
 } from "@/services/task-domain.service";
 import {
-  moveTaskScheduleOccurrencesToProject,
-  projectTaskScheduleOccurrences,
-  removePlannedTaskScheduleOccurrences,
-} from "@/services/task-schedule-occurrences.service";
+  cancelMissedTaskScheduleRuns,
+  isRunException,
+  moveTaskScheduleRunsToProject,
+  projectTaskScheduleRuns,
+  stopPlannedTaskScheduleRuns,
+  trimPlannedTaskScheduleRuns,
+} from "@/services/task-schedule-runs.service";
 
 /**
  * Task Schedule operations (ADR 0041). Owns who may see and change a
@@ -135,7 +143,7 @@ function toDomainActor(actor: ScheduleActor): TaskDomainActor {
 /**
  * The rule is checked with the same validation as the per-Task schedule it
  * replaces: timezone, cron or interval anchor, and an end date after the
- * first Occurrence.
+ * first Run.
  */
 function validateRule(rule: TaskScheduleRule): void {
   validateScheduleInput({
@@ -149,13 +157,13 @@ function validateRule(rule: TaskScheduleRule): void {
           ? "after"
           : "never",
     endsOn: rule.endsOn ?? undefined,
-    occurrences: rule.targetOccurrenceCount ?? undefined,
+    occurrences: rule.targetRunCount ?? undefined,
     intervalDays: rule.intervalDays ?? undefined,
     anchorAt: rule.anchorAt ?? undefined,
   });
 }
 
-/** Every new rule starts a new epoch of Occurrences. */
+/** Every new rule starts a new epoch of Runs. */
 function ruleColumns(rule: TaskScheduleRule, now: Date) {
   return {
     expr: rule.expr,
@@ -166,7 +174,7 @@ function ruleColumns(rule: TaskScheduleRule, now: Date) {
     epochId: randomUUID(),
     endsMode: rule.endsMode,
     endsOn: rule.endsOn ? new Date(rule.endsOn) : null,
-    targetOccurrenceCount: rule.targetOccurrenceCount ?? null,
+    targetRunCount: rule.targetRunCount ?? null,
   };
 }
 
@@ -227,11 +235,7 @@ export async function createTaskSchedule(
     return await tx.taskSchedule.update({
       where: { id: schedule.id },
       data: {
-        nextOccurrenceAt: await projectTaskScheduleOccurrences(
-          tx,
-          schedule,
-          now,
-        ),
+        nextRunAt: await projectTaskScheduleRuns(tx, schedule, now),
       },
     });
   });
@@ -311,6 +315,39 @@ export async function listTaskSchedules(
   };
 }
 
+export async function listTaskScheduleRuns(
+  vars: RouteVars,
+  id: string,
+  query: TaskScheduleRunListQuery,
+) {
+  const actor = await resolveScheduleActor(vars);
+  await findReadableSchedule(actor, id);
+  const { cursor, take, skip } = parseCursorPagination(query);
+  const where: Prisma.TaskScheduleOccurrenceWhereInput = {
+    scheduleId: id,
+    effectiveScheduledAt: {
+      gte: query.from ? new Date(query.from) : undefined,
+      lt: query.to ? new Date(query.to) : undefined,
+    },
+  };
+  const [rows, total] = await Promise.all([
+    prisma.taskScheduleOccurrence.findMany({
+      where,
+      take: take + 1,
+      skip,
+      cursor: cursor ? { id: cursor } : undefined,
+      orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
+    }),
+    prisma.taskScheduleOccurrence.count({ where }),
+  ]);
+  const hasMore = rows.length > take;
+  const runs = rows.slice(0, take);
+  return {
+    runs,
+    pagination: createPaginationMeta(runs, total, take, hasMore, cursor),
+  };
+}
+
 /**
  * People change only the schedules they own, as they do Tasks. A Coworker
  * changes the acting member's schedules it created or whose assignee is in
@@ -348,8 +385,14 @@ function throwStateConflict(message: string): never {
   });
 }
 
+function throwRevisionConflict(): never {
+  throw conflict("Task Schedule changed since it was read", {
+    kind: CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT,
+  });
+}
+
 /**
- * Revision-checked edit. Changes future Occurrences only: Tasks already
+ * Revision-checked edit. Changes future Runs only: Tasks already
  * created keep their values, and a new rule counts from now.
  */
 export async function updateTaskSchedule(
@@ -370,11 +413,11 @@ export async function updateTaskSchedule(
     const now = new Date();
     const rule = input.rule ? ruleColumns(input.rule, now) : undefined;
     if (
-      rule?.targetOccurrenceCount != null &&
-      rule.targetOccurrenceCount <= current.releasedCount
+      rule?.targetRunCount != null &&
+      rule.targetRunCount <= current.releasedCount
     ) {
       throw unprocessableEntity(
-        "targetOccurrenceCount must be greater than the Occurrences already released",
+        "targetRunCount must be greater than the Runs already released",
       );
     }
 
@@ -405,27 +448,24 @@ export async function updateTaskSchedule(
       },
     });
     if (count === 0) {
-      throw conflict("Task Schedule changed since it was read", {
-        kind: CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT,
-      });
+      throwRevisionConflict();
     }
     const updated = await tx.taskSchedule.findUniqueOrThrow({ where: { id } });
 
-    // The old rule's future Occurrences go; ones already owed still release,
-    // and released ones and their Tasks stay. A Paused schedule plans again
-    // on resume.
+    // The old rule's future Runs go, its skips and moves into the
+    // history; ones already owed still release, and released ones and their
+    // Tasks stay. A Paused schedule plans again on resume.
     let schedule = updated;
     if (input.rule) {
-      await removePlannedTaskScheduleOccurrences(tx, id, now);
+      await stopPlannedTaskScheduleRuns(tx, id, now, {
+        keepOwed: true,
+        exceptions: "cancel",
+      });
       if (updated.state === TaskScheduleState.ACTIVE) {
         schedule = await tx.taskSchedule.update({
           where: { id },
           data: {
-            nextOccurrenceAt: await projectTaskScheduleOccurrences(
-              tx,
-              updated,
-              now,
-            ),
+            nextRunAt: await projectTaskScheduleRuns(tx, updated, now),
           },
         });
       }
@@ -433,7 +473,7 @@ export async function updateTaskSchedule(
     // Owed rows survive a rule edit, so a project change in the same request
     // still has to move them. New rows already use the updated project.
     if (input.projectId !== undefined) {
-      await moveTaskScheduleOccurrencesToProject(tx, schedule);
+      await moveTaskScheduleRunsToProject(tx, schedule);
     }
     return schedule;
   });
@@ -467,10 +507,11 @@ const STATE_ACTIONS: Record<
 };
 
 /**
- * Pause stops Occurrences without losing the schedule; resume picks up at the
- * first Occurrence after now (missed ones are not made up), or Ends the
- * schedule when its end rule passed meanwhile; end is final. Pause and end
- * drop the planned Occurrences; resume plans them again.
+ * Pause stops Runs without losing the schedule; resume picks up at the
+ * first Run after now (missed ones are not made up), or Ends the
+ * schedule when its end rule passed meanwhile; end is final. Pause drops the
+ * planned Runs but keeps skips and moves; resume plans again. End
+ * cancels skips and moves into the history.
  */
 export async function changeTaskScheduleState(
   vars: RouteVars,
@@ -489,22 +530,29 @@ export async function changeTaskScheduleState(
       );
     }
 
-    const nextOccurrenceAt =
+    const now = new Date();
+    if (to === TaskScheduleState.ACTIVE) {
+      await cancelMissedTaskScheduleRuns(tx, id, now);
+    }
+    const nextRunAt =
       to === TaskScheduleState.ACTIVE
-        ? await projectTaskScheduleOccurrences(tx, current, new Date())
+        ? await projectTaskScheduleRuns(tx, current, now)
         : null;
     // Resuming past the end rule ends the schedule instead.
     const state =
-      to === TaskScheduleState.ACTIVE && !nextOccurrenceAt
+      to === TaskScheduleState.ACTIVE && !nextRunAt
         ? TaskScheduleState.ENDED
         : to;
-    if (!nextOccurrenceAt) {
-      await removePlannedTaskScheduleOccurrences(tx, id);
+    if (state !== TaskScheduleState.ACTIVE) {
+      await stopPlannedTaskScheduleRuns(tx, id, now, {
+        keepOwed: false,
+        exceptions: state === TaskScheduleState.PAUSED ? "keep" : "cancel",
+      });
     }
 
     const { count } = await tx.taskSchedule.updateMany({
       where: { id, state: current.state },
-      data: { state, nextOccurrenceAt, revision: { increment: 1 } },
+      data: { state, nextRunAt, revision: { increment: 1 } },
     });
     if (count === 0) {
       throw conflict("Task Schedule changed since it was read", {
@@ -512,6 +560,154 @@ export async function changeTaskScheduleState(
       });
     }
     return await tx.taskSchedule.findUniqueOrThrow({ where: { id } });
+  });
+}
+
+function actorColumns(actor: ScheduleActor) {
+  return actor.kind === "user"
+    ? { actorUserId: actor.userId, actorCoworkerId: null }
+    : { actorUserId: null, actorCoworkerId: actor.coworkerId };
+}
+
+const RUN_ACTION_LABELS: Record<
+  UpdateTaskScheduleRunRequest["action"],
+  string
+> = { skip: "skipped", move: "moved", restore: "restored" };
+
+/**
+ * The row an action leaves behind. Only an upcoming Run that has not
+ * created its Task changes: a planned one can be skipped or moved, and a
+ * skipped or moved one restored. A skip keeps the Run's time, a move
+ * keeps the rule's time in `originalScheduledAt`, and a restore puts the
+ * Run back at the rule's time. The time it ends up at must be in the
+ * future and inside the projection horizon.
+ */
+function runAfterAction(
+  run: TaskScheduleOccurrence,
+  input: UpdateTaskScheduleRunRequest,
+  now: Date,
+): { state: TaskScheduleOccurrenceState; effectiveScheduledAt: Date } {
+  const changeable =
+    input.action === "restore"
+      ? isRunException(run)
+      : run.state === TaskScheduleOccurrenceState.PLANNED;
+  if (
+    !changeable ||
+    run.releasedTaskId !== null ||
+    run.effectiveScheduledAt <= now
+  ) {
+    throw conflict(
+      `This Run cannot be ${RUN_ACTION_LABELS[input.action]} from its current state`,
+      { kind: CORE_API_ERROR_KINDS.SCHEDULE_RUN_STATE_CONFLICT },
+    );
+  }
+
+  const target =
+    input.action === "skip"
+      ? run.effectiveScheduledAt
+      : input.action === "move"
+        ? new Date(input.scheduledAt)
+        : run.originalScheduledAt;
+  if (
+    !target ||
+    target <= now ||
+    target.getTime() >= now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS
+  ) {
+    throw unprocessableEntity(
+      "The Run's time must be in the future and inside the projection horizon",
+      { kind: CORE_API_ERROR_KINDS.SCHEDULE_RUN_TARGET_INVALID },
+    );
+  }
+  return {
+    state:
+      input.action === "skip"
+        ? TaskScheduleOccurrenceState.SKIPPED
+        : TaskScheduleOccurrenceState.PLANNED,
+    effectiveScheduledAt: target,
+  };
+}
+
+/**
+ * Skip, move, or restore one upcoming Run (ADR 0041). The exception is
+ * recorded on the Run row, with who made it; the rule stays as it is.
+ */
+export async function changeTaskScheduleRun(
+  vars: RouteVars,
+  id: string,
+  runId: string,
+  input: UpdateTaskScheduleRunRequest,
+): Promise<{ revision: number; run: TaskScheduleOccurrence }> {
+  const actor = await resolveScheduleActor(vars);
+
+  return await prisma.$transaction(async (tx) => {
+    const current = await findReadableSchedule(actor, id, tx);
+    requireScheduleWriteAccess(actor, current);
+    if (current.state !== TaskScheduleState.ACTIVE) {
+      throwStateConflict(
+        "Only the Runs of an Active Task Schedule can be changed",
+      );
+    }
+    if (current.revision !== input.expectedRevision) {
+      throwRevisionConflict();
+    }
+    const run = await tx.taskScheduleOccurrence.findFirst({
+      where: { id: runId, scheduleId: id },
+    });
+    if (!run) {
+      throw notFound("Run not found");
+    }
+
+    const now = new Date();
+    const next = runAfterAction(run, input, now);
+    // Run first, then schedule: the release locks them in the same
+    // order. Claiming the schedule by its release count as well makes a
+    // release that committed since the read a conflict, so the plan below
+    // never counts against a stale count.
+    const { count } = await tx.taskScheduleOccurrence.updateMany({
+      where: {
+        id: runId,
+        state: run.state,
+        releasedTaskId: null,
+      },
+      data: { ...next, ...actorColumns(actor) },
+    });
+    if (count !== 1) {
+      throw conflict("This Run changed since it was read", {
+        kind: CORE_API_ERROR_KINDS.SCHEDULE_RUN_STATE_CONFLICT,
+      });
+    }
+    const { count: claimed } = await tx.taskSchedule.updateMany({
+      where: {
+        id,
+        state: TaskScheduleState.ACTIVE,
+        revision: input.expectedRevision,
+        releasedCount: current.releasedCount,
+      },
+      data: { revision: { increment: 1 } },
+    });
+    if (claimed !== 1) {
+      throw conflict("Task Schedule changed since it was read", {
+        kind: CORE_API_ERROR_KINDS.CONCURRENCY_CONFLICT,
+      });
+    }
+
+    await trimPlannedTaskScheduleRuns(tx, current, runId);
+    // With its last Run skipped, the schedule still wakes then, so the
+    // release Ends it on time and the skip can be restored until then.
+    await tx.taskSchedule.update({
+      where: { id },
+      data: {
+        nextRunAt:
+          (await projectTaskScheduleRuns(tx, current, now)) ??
+          next.effectiveScheduledAt,
+      },
+    });
+    return {
+      revision: input.expectedRevision + 1,
+      run: await tx.taskScheduleOccurrence.findUniqueOrThrow({
+        where: { id: runId },
+      }),
+    };
   });
 }
 
@@ -550,11 +746,11 @@ export function mapTaskSchedule(schedule: TaskSchedule) {
       anchorAt: schedule.anchorAt,
       endsMode: schedule.endsMode,
       endsOn: schedule.endsOn,
-      targetOccurrenceCount: schedule.targetOccurrenceCount,
+      targetRunCount: schedule.targetRunCount,
     },
     ruleEffectiveFrom: schedule.ruleEffectiveFrom,
     releasedCount: schedule.releasedCount,
-    nextOccurrenceAt: schedule.nextOccurrenceAt,
+    nextRunAt: schedule.nextRunAt,
     revision: schedule.revision,
     name: schedule.name,
     description: schedule.description,
@@ -565,5 +761,18 @@ export function mapTaskSchedule(schedule: TaskSchedule) {
     assigneeUserId: schedule.assigneeUserId,
     createdAt: schedule.createdAt,
     updatedAt: schedule.updatedAt,
+  };
+}
+
+export function mapTaskScheduleRun(run: TaskScheduleOccurrence) {
+  return {
+    id: run.id,
+    state: run.state,
+    originalScheduledAt: run.originalScheduledAt,
+    effectiveScheduledAt: run.effectiveScheduledAt,
+    releasedTaskId: run.releasedTaskId,
+    actorUserId: run.actorUserId,
+    actorCoworkerId: run.actorCoworkerId,
+    updatedAt: run.updatedAt,
   };
 }

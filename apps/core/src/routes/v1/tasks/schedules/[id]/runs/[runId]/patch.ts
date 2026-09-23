@@ -7,32 +7,32 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import {
-  taskScheduleParamsSchema,
-  taskScheduleSchema,
-  updateTaskScheduleRequestSchema,
+  taskScheduleRunParamsSchema,
+  taskScheduleRunUpdateSchema,
+  updateTaskScheduleRunRequestSchema,
 } from "@/schemas/task-schedule.schema";
 import {
-  mapTaskSchedule,
-  updateTaskSchedule,
+  changeTaskScheduleRun,
+  mapTaskScheduleRun,
 } from "@/services/task-schedule.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "patch",
-    path: "/schedules/{id}",
+    path: "/schedules/{id}/runs/{runId}",
     description:
-      "Change a Task Schedule's rule or blueprint. Revision-checked; changes future Runs only.",
+      "Skip, move, or restore one upcoming Run without changing the rule. Only future Runs that have not created their Task, inside the projection horizon, of an Active schedule. Revision-checked.",
     tags: ["Task Schedules"],
     request: {
-      params: taskScheduleParamsSchema,
+      params: taskScheduleRunParamsSchema,
       body: {
         content: {
-          "application/json": { schema: updateTaskScheduleRequestSchema },
+          "application/json": { schema: updateTaskScheduleRunRequestSchema },
         },
       },
     },
     responses: {
-      200: jsonSuccessResponse(taskScheduleSchema, "Task Schedule updated"),
+      200: jsonSuccessResponse(taskScheduleRunUpdateSchema, "Run changed"),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -45,11 +45,19 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const schedule = await updateTaskSchedule(
+    const { id, runId } = c.req.valid("param");
+    const { revision, run } = await changeTaskScheduleRun(
       c.var,
-      c.req.valid("param").id,
+      id,
+      runId,
       c.req.valid("json"),
     );
-    return ok(c, taskScheduleSchema.parse(mapTaskSchedule(schedule)));
+    return ok(
+      c,
+      taskScheduleRunUpdateSchema.parse({
+        revision,
+        run: mapTaskScheduleRun(run),
+      }),
+    );
   });
 }

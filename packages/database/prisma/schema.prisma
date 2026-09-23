@@ -1638,16 +1638,17 @@ model Coworker {
   assignments     CoworkerAssignment[]
   workspaceAccess CoworkerWorkspaceAccess[]
 
-  assignedTasks         Task[]                   @relation("TaskAssignee")
-  createdTasks          Task[]                   @relation("TaskCreatorCoworker")
-  assignedTaskSchedules TaskSchedule[]           @relation("TaskScheduleAssignee")
-  createdTaskSchedules  TaskSchedule[]           @relation("TaskScheduleCreatorCoworker")
-  taskEvents            TaskEvent[]
-  uploadedTaskFiles     TaskFile[]               @relation("TaskFileUploadedByCoworker")
-  coworkerUsages        CoworkerUsage[]
-  chatRoomMemberships   ChatRoomCoworkerMember[]
-  chatRoomMessages      ChatRoomMessage[]        @relation("ChatRoomCoworkerSender")
-  chatRoomMentions      ChatRoomMention[]
+  assignedTasks           Task[]                   @relation("TaskAssignee")
+  createdTasks            Task[]                   @relation("TaskCreatorCoworker")
+  assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssignee")
+  createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorCoworker")
+  changedTaskScheduleRuns TaskScheduleOccurrence[] @relation("TaskScheduleOccurrenceActorCoworker")
+  taskEvents              TaskEvent[]
+  uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByCoworker")
+  coworkerUsages          CoworkerUsage[]
+  chatRoomMemberships     ChatRoomCoworkerMember[]
+  chatRoomMessages        ChatRoomMessage[]        @relation("ChatRoomCoworkerSender")
+  chatRoomMentions        ChatRoomMention[]
 
   @@index([archivedAt])
   @@index([vendorId])
@@ -2518,7 +2519,7 @@ model Task {
   scheduleQuarantine         TaskScheduleQuarantine?
   scheduleCreateOperation    TaskScheduleCreateOperation?
 
-  /// Task Schedule whose Occurrence created this Task. Deleting the schedule
+  /// Task Schedule whose Run created this Task. Deleting the schedule
   /// keeps the Task (ADR 0041).
   scheduleId String?       @db.Uuid
   schedule   TaskSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
@@ -2557,7 +2558,7 @@ enum TaskScheduleEndsMode {
   AFTER
 }
 
-/// A repeating rule plus the blueprint of the Task each Occurrence creates
+/// A repeating rule plus the blueprint of the Task each Run creates
 /// (ADR 0041). Not a Task: it has no Task status, only its own state.
 model TaskSchedule {
   id        String   @id @default(uuid(7)) @db.Uuid
@@ -2594,19 +2595,19 @@ model TaskSchedule {
   anchorAt          DateTime
   ruleEffectiveFrom DateTime
   /// Identity of the current rule. A rule edit starts a new epoch, so its
-  /// Occurrences never collide with those of the rule it replaced.
+  /// Runs never collide with those of the rule it replaced.
   epochId           String   @db.Uuid
 
-  endsMode              TaskScheduleEndsMode @default(NEVER)
-  endsOn                DateTime?
-  targetOccurrenceCount Int?
-  releasedCount         Int                  @default(0)
-  nextOccurrenceAt      DateTime?
+  endsMode       TaskScheduleEndsMode @default(NEVER)
+  endsOn         DateTime?
+  targetRunCount Int?
+  releasedCount  Int                  @default(0)
+  nextRunAt      DateTime?
 
   /// Optimistic concurrency token for PATCH.
   revision Int @default(0)
 
-  /// Blueprint of the Task each Occurrence creates.
+  /// Blueprint of the Task each Run creates.
   name        String
   description String?
   projectId   String?        @db.Uuid
@@ -2621,10 +2622,10 @@ model TaskSchedule {
   assigneeUserId    String?
   assigneeUser      User?     @relation("TaskScheduleAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
 
-  tasks       Task[]
-  occurrences TaskScheduleOccurrence[]
+  tasks Task[]
+  runs  TaskScheduleOccurrence[]
 
-  @@index([state, nextOccurrenceAt])
+  @@index([state, nextRunAt])
   @@index([workspaceId, createdAt, id])
   @@index([projectId])
   @@index([organizationId])
@@ -2772,10 +2773,14 @@ model TaskScheduleOccurrence {
   sourceAccuracy    CalendarSourceAccuracy @default(EXACT)
   timeAccuracy      CalendarTimeAccuracy   @default(EXACT)
 
-  actorUserId  String?
-  actorUser    User?   @relation("TaskScheduleOccurrenceActor", fields: [actorUserId], references: [id], onDelete: SetNull)
-  timezone     String?
-  ruleSnapshot Json?
+  /// Who last skipped, moved, or restored this Occurrence: a person or a
+  /// Coworker vendor, at most one of them.
+  actorUserId     String?
+  actorUser       User?     @relation("TaskScheduleOccurrenceActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorCoworkerId String?
+  actorCoworker   Coworker? @relation("TaskScheduleOccurrenceActorCoworker", fields: [actorCoworkerId], references: [id], onDelete: SetNull)
+  timezone        String?
+  ruleSnapshot    Json?
 
   @@unique([seriesTaskId, epochId, originalScheduledAt], map: "task_schedule_occurrence_series_epoch_original_key")
   @@unique([scheduleId, epochId, originalScheduledAt], map: "task_schedule_occurrence_schedule_epoch_original_key")
@@ -2786,6 +2791,7 @@ model TaskScheduleOccurrence {
   @@index([sourceProjectId, effectiveScheduledAt, id], map: "task_schedule_occurrence_project_effective_id_idx")
   @@index([state, effectiveScheduledAt, id])
   @@index([actorUserId])
+  @@index([actorCoworkerId])
   @@map("task_schedule_occurrence")
 }
 

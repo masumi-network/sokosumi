@@ -5873,11 +5873,11 @@ export type TaskSchedule = {
         anchorAt: Date;
         endsMode: TaskScheduleEndsMode;
         endsOn: Date | null;
-        targetOccurrenceCount: number | null;
+        targetRunCount: number | null;
     };
     ruleEffectiveFrom: Date;
     releasedCount: number;
-    nextOccurrenceAt: Date | null;
+    nextRunAt: Date | null;
     revision: number;
     name: string;
     description: string | null;
@@ -5928,7 +5928,7 @@ export type CreateTaskScheduleRequest = {
 
 export type TaskScheduleRule = {
     /**
-     * Cron expression for Occurrences, read in `timezone`
+     * Cron expression for Runs, read in `timezone`
      */
     expr: string;
     /**
@@ -5936,22 +5936,22 @@ export type TaskScheduleRule = {
      */
     timezone?: string;
     /**
-     * When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields
+     * When greater than 1, a Run every N calendar days from anchorAt at its local time, instead of the cron day fields
      */
     intervalDays?: number | null;
     /**
-     * First Occurrence for intervalDays rules (required when intervalDays > 1)
+     * First Run for intervalDays rules (required when intervalDays > 1)
      */
     anchorAt?: Date | null;
     endsMode?: TaskScheduleEndsMode;
     /**
-     * Last possible Occurrence when endsMode is ON
+     * Last possible Run when endsMode is ON
      */
     endsOn?: Date | null;
     /**
-     * Total Occurrences when endsMode is AFTER
+     * Total Runs when endsMode is AFTER
      */
-    targetOccurrenceCount?: number | null;
+    targetRunCount?: number | null;
 };
 
 export type UpdateTaskScheduleRequest = {
@@ -5978,11 +5978,11 @@ export type UpdateTaskScheduleRequest = {
 };
 
 /**
- * Replaces the whole rule; timezone and endsMode are required. Changes future Occurrences only; Tasks already created stay as they are.
+ * Replaces the whole rule; timezone and endsMode are required. Changes future Runs only; Tasks already created stay as they are.
  */
 export type TaskScheduleRuleReplacement = {
     /**
-     * Cron expression for Occurrences, read in `timezone`
+     * Cron expression for Runs, read in `timezone`
      */
     expr: string;
     /**
@@ -5990,22 +5990,83 @@ export type TaskScheduleRuleReplacement = {
      */
     timezone: string;
     /**
-     * When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields
+     * When greater than 1, a Run every N calendar days from anchorAt at its local time, instead of the cron day fields
      */
     intervalDays?: number | null;
     /**
-     * First Occurrence for intervalDays rules (required when intervalDays > 1)
+     * First Run for intervalDays rules (required when intervalDays > 1)
      */
     anchorAt?: Date | null;
     endsMode: TaskScheduleEndsMode;
     /**
-     * Last possible Occurrence when endsMode is ON
+     * Last possible Run when endsMode is ON
      */
     endsOn?: Date | null;
     /**
-     * Total Occurrences when endsMode is AFTER
+     * Total Runs when endsMode is AFTER
      */
-    targetOccurrenceCount?: number | null;
+    targetRunCount?: number | null;
+};
+
+export type TaskScheduleRun = {
+    id: string;
+    /**
+     * PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit or by ending the schedule, or a move whose time passed while the schedule was Paused)
+     */
+    state: 'PLANNED' | 'SKIPPED' | 'CANCELED' | 'RELEASED';
+    /**
+     * Time the rule planned
+     */
+    originalScheduledAt: Date | null;
+    /**
+     * Time the Run holds; differs from the rule when moved
+     */
+    effectiveScheduledAt: Date;
+    /**
+     * Task this Run created
+     */
+    releasedTaskId: string | null;
+    /**
+     * Person who last skipped, moved, or restored it
+     */
+    actorUserId: string | null;
+    /**
+     * Coworker that last skipped, moved, or restored it
+     */
+    actorCoworkerId: string | null;
+    updatedAt: Date;
+};
+
+export type TaskScheduleRunUpdate = {
+    /**
+     * Task Schedule revision after the change
+     */
+    revision: number;
+    run: TaskScheduleRun;
+};
+
+export type UpdateTaskScheduleRunRequest = {
+    /**
+     * Task Schedule revision observed by the caller
+     */
+    expectedRevision: number;
+    action: 'skip';
+} | {
+    /**
+     * Task Schedule revision observed by the caller
+     */
+    expectedRevision: number;
+    action: 'move';
+    /**
+     * New time. Strictly future and inside the projection horizon.
+     */
+    scheduledAt: Date;
+} | {
+    /**
+     * Task Schedule revision observed by the caller
+     */
+    expectedRevision: number;
+    action: 'restore';
 };
 
 /**
@@ -41584,6 +41645,247 @@ export type PostTasksSchedulesByIdEndResponses = {
 };
 
 export type PostTasksSchedulesByIdEndResponse = PostTasksSchedulesByIdEndResponses[keyof PostTasksSchedulesByIdEndResponses];
+
+export type GetTasksSchedulesByIdRunsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * Only Runs at or after this time
+         */
+        from?: Date;
+        /**
+         * Only Runs before this time
+         */
+        to?: Date;
+    };
+    url: '/tasks/schedules/{id}/runs';
+};
+
+export type GetTasksSchedulesByIdRunsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksSchedulesByIdRunsError = GetTasksSchedulesByIdRunsErrors[keyof GetTasksSchedulesByIdRunsErrors];
+
+export type GetTasksSchedulesByIdRunsResponses = {
+    /**
+     * Runs
+     */
+    200: {
+        data: Array<TaskScheduleRun>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksSchedulesByIdRunsResponse = GetTasksSchedulesByIdRunsResponses[keyof GetTasksSchedulesByIdRunsResponses];
+
+export type PatchTasksSchedulesByIdRunsByRunIdData = {
+    body?: UpdateTaskScheduleRunRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        runId: string;
+    };
+    query?: never;
+    url: '/tasks/schedules/{id}/runs/{runId}';
+};
+
+export type PatchTasksSchedulesByIdRunsByRunIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchTasksSchedulesByIdRunsByRunIdError = PatchTasksSchedulesByIdRunsByRunIdErrors[keyof PatchTasksSchedulesByIdRunsByRunIdErrors];
+
+export type PatchTasksSchedulesByIdRunsByRunIdResponses = {
+    /**
+     * Run changed
+     */
+    200: {
+        data: TaskScheduleRunUpdate;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchTasksSchedulesByIdRunsByRunIdResponse = PatchTasksSchedulesByIdRunsByRunIdResponses[keyof PatchTasksSchedulesByIdRunsByRunIdResponses];
 
 export type PostTasksScheduledData = {
     body?: CreateScheduledTaskRequest;

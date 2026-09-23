@@ -251,7 +251,7 @@ export async function readWorkspaceCalendar(
       }
     : null;
   const persistedOccurrenceBaseWhere = {
-    // Task Schedule Occurrences are not on the calendar yet (SOK-1170).
+    // Task Schedule Runs are not on the calendar yet (SOK-1170).
     seriesTaskId: { not: null },
     sourceWorkspaceId: workspaceId,
     ...sourceFilter,

@@ -78,7 +78,7 @@ interface StoredProject {
 
 interface Store {
   schedules: TaskSchedule[];
-  occurrences: TaskScheduleOccurrence[];
+  runs: TaskScheduleOccurrence[];
   /** Tasks the release created, with their nested events. */
   tasks: StoredTask[];
   /** Coworkers that exist, keyed by id, with their vendor. */
@@ -94,7 +94,7 @@ interface Store {
 function emptyStore(): Store {
   return {
     schedules: [],
-    occurrences: [],
+    runs: [],
     tasks: [],
     coworkers: new Map([[COWORKER_ID, { vendorId: VENDOR_ID }]]),
     sokoBots: new Map([
@@ -137,9 +137,9 @@ export function seedTaskSchedule(
     epochId: randomUUID(),
     endsMode: TaskScheduleEndsMode.NEVER,
     endsOn: null,
-    targetOccurrenceCount: null,
+    targetRunCount: null,
     releasedCount: 0,
-    nextOccurrenceAt: new Date("2030-01-07T09:00:00.000Z"),
+    nextRunAt: new Date("2030-01-07T09:00:00.000Z"),
     revision: 0,
     name: "Weekly report",
     description: null,
@@ -155,7 +155,7 @@ export function seedTaskSchedule(
 }
 
 /** A ledger row of `schedule` in its current epoch, planned at `at`. */
-export function seedOccurrence(
+export function seedRun(
   schedule: TaskSchedule,
   at: Date,
   overrides: Partial<TaskScheduleOccurrence> = {},
@@ -181,20 +181,19 @@ export function seedOccurrence(
     sourceAccuracy: CalendarSourceAccuracy.EXACT,
     timeAccuracy: CalendarTimeAccuracy.EXACT,
     actorUserId: null,
+    actorCoworkerId: null,
     timezone: schedule.timezone,
     ruleSnapshot: null,
     ...overrides,
   };
-  taskScheduleTestDb.occurrences.push(row);
+  taskScheduleTestDb.runs.push(row);
   return row;
 }
 
 /** Ledger rows of a schedule, oldest first. */
-export function occurrencesOf(scheduleId: string): TaskScheduleOccurrence[] {
-  return sortOccurrences(
-    taskScheduleTestDb.occurrences.filter(
-      (row) => row.scheduleId === scheduleId,
-    ),
+export function runsOf(scheduleId: string): TaskScheduleOccurrence[] {
+  return sortRuns(
+    taskScheduleTestDb.runs.filter((row) => row.scheduleId === scheduleId),
   );
 }
 
@@ -205,7 +204,11 @@ function matchesValue(actual: unknown, expected: unknown): boolean {
     return actual instanceof Date && actual.getTime() === expected.getTime();
   }
   if (expected !== null && typeof expected === "object") {
-    const filter = expected as Record<string, unknown>;
+    // Prisma ignores undefined operators; an empty filter matches any row.
+    const filter = Object.fromEntries(
+      Object.entries(expected).filter(([, value]) => value !== undefined),
+    );
+    if (Object.keys(filter).length === 0) return true;
     // SQL semantics: `col <> x` is never true for a NULL column.
     if ("not" in filter) {
       return actual != null && !matchesValue(actual, filter.not);
@@ -248,9 +251,7 @@ function matchesRow<Row extends object>(row: Row, where: Where = {}): boolean {
   });
 }
 
-function sortOccurrences(
-  rows: TaskScheduleOccurrence[],
-): TaskScheduleOccurrence[] {
+function sortRuns(rows: TaskScheduleOccurrence[]): TaskScheduleOccurrence[] {
   return [...rows].sort(
     (a, b) =>
       a.effectiveScheduledAt.getTime() - b.effectiveScheduledAt.getTime() ||
@@ -340,9 +341,9 @@ const taskSchedule = {
         intervalDays: null,
         endsMode: TaskScheduleEndsMode.NEVER,
         endsOn: null,
-        targetOccurrenceCount: null,
+        targetRunCount: null,
         releasedCount: 0,
-        nextOccurrenceAt: null,
+        nextRunAt: null,
         revision: 0,
         description: null,
         projectId: null,
@@ -434,32 +435,32 @@ const taskSchedule = {
   }),
 };
 
-function occurrenceKey(row: Partial<TaskScheduleOccurrence>): string {
+function runKey(row: Partial<TaskScheduleOccurrence>): string {
   return `${row.scheduleId}:${row.epochId}:${row.originalScheduledAt?.toISOString()}`;
 }
 
 const taskScheduleOccurrence = {
   count: vi.fn(
     async ({ where }: { where: Where }) =>
-      taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where))
-        .length,
-  ),
-  findMany: vi.fn(async ({ where, take }: { where: Where; take?: number }) =>
-    sortOccurrences(
-      taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where)),
-    ).slice(0, take),
+      taskScheduleTestDb.runs.filter((row) => matchesRow(row, where)).length,
   ),
   /** Sorts by effective time, or latest rule time first when asked. */
-  findFirst: vi.fn(
+  findMany: vi.fn(
     async ({
       where,
+      take,
+      skip,
+      cursor,
       orderBy,
     }: {
       where: Where;
+      take?: number;
+      skip?: number;
+      cursor?: { id: string };
       orderBy?: Record<string, "asc" | "desc">[];
     }) => {
-      const rows = sortOccurrences(
-        taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where)),
+      let rows = sortRuns(
+        taskScheduleTestDb.runs.filter((row) => matchesRow(row, where)),
       );
       if (orderBy?.[0]?.originalScheduledAt === "desc") {
         rows.sort(
@@ -468,8 +469,24 @@ const taskScheduleOccurrence = {
             (a.originalScheduledAt?.getTime() ?? 0),
         );
       }
-      return rows[0] ?? null;
+      if (cursor) {
+        const index = rows.findIndex((row) => row.id === cursor.id);
+        rows = rows.slice(index + (skip ?? 0));
+      }
+      return rows.slice(0, take);
     },
+  ),
+  findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
+    const row = taskScheduleTestDb.runs.find((r) => r.id === where.id);
+    if (!row) throw new Error(`No TaskScheduleOccurrence ${where.id}`);
+    return row;
+  }),
+  findFirst: vi.fn(
+    async (args: {
+      where: Where;
+      orderBy?: Record<string, "asc" | "desc">[];
+    }): Promise<TaskScheduleOccurrence | null> =>
+      (await taskScheduleOccurrence.findMany(args))[0] ?? null,
   ),
   /** Enforces the (scheduleId, epochId, originalScheduledAt) unique key. */
   createMany: vi.fn(
@@ -482,17 +499,13 @@ const taskScheduleOccurrence = {
     }) => {
       let count = 0;
       for (const input of data) {
-        const key = occurrenceKey(input);
-        if (
-          taskScheduleTestDb.occurrences.some(
-            (row) => occurrenceKey(row) === key,
-          )
-        ) {
+        const key = runKey(input);
+        if (taskScheduleTestDb.runs.some((row) => runKey(row) === key)) {
           if (skipDuplicates) continue;
-          throw new Error(`Duplicate Occurrence ${key}`);
+          throw new Error(`Duplicate Run ${key}`);
         }
         const now = new Date();
-        taskScheduleTestDb.occurrences.push({
+        taskScheduleTestDb.runs.push({
           id: randomUUID(),
           createdAt: now,
           updatedAt: now,
@@ -507,6 +520,7 @@ const taskScheduleOccurrence = {
           sourceAccuracy: CalendarSourceAccuracy.EXACT,
           timeAccuracy: CalendarTimeAccuracy.EXACT,
           actorUserId: null,
+          actorCoworkerId: null,
           timezone: null,
           ruleSnapshot: null,
           ...input,
@@ -518,21 +532,19 @@ const taskScheduleOccurrence = {
   ),
   updateMany: vi.fn(async ({ where, data }: { where: Where; data: Data }) => {
     let count = 0;
-    taskScheduleTestDb.occurrences = taskScheduleTestDb.occurrences.map(
-      (row) => {
-        if (!matchesRow(row, where)) return row;
-        count += 1;
-        return { ...row, ...data, updatedAt: new Date() };
-      },
-    );
+    taskScheduleTestDb.runs = taskScheduleTestDb.runs.map((row) => {
+      if (!matchesRow(row, where)) return row;
+      count += 1;
+      return { ...row, ...data, updatedAt: new Date() };
+    });
     return { count };
   }),
   deleteMany: vi.fn(async ({ where }: { where: Where }) => {
-    const before = taskScheduleTestDb.occurrences.length;
-    taskScheduleTestDb.occurrences = taskScheduleTestDb.occurrences.filter(
+    const before = taskScheduleTestDb.runs.length;
+    taskScheduleTestDb.runs = taskScheduleTestDb.runs.filter(
       (row) => !matchesRow(row, where),
     );
-    return { count: before - taskScheduleTestDb.occurrences.length };
+    return { count: before - taskScheduleTestDb.runs.length };
   }),
 };
 
@@ -628,12 +640,12 @@ export const taskScheduleTestPrisma = {
     async (fn: (tx: typeof taskScheduleTestPrisma) => Promise<unknown>) => {
       // Rows are replaced, never mutated, so copying the arrays is a snapshot.
       const schedules = [...taskScheduleTestDb.schedules];
-      const occurrences = [...taskScheduleTestDb.occurrences];
+      const runs = [...taskScheduleTestDb.runs];
       const tasks = [...taskScheduleTestDb.tasks];
       try {
         return await fn(taskScheduleTestPrisma);
       } catch (error) {
-        Object.assign(taskScheduleTestDb, { schedules, occurrences, tasks });
+        Object.assign(taskScheduleTestDb, { schedules, runs, tasks });
         throw error;
       }
     },

@@ -20,7 +20,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/schedules/{id}/pause",
     description:
-      "Pause an Active Task Schedule. No Occurrence creates a Task while it is Paused.",
+      "Pause an Active Task Schedule. No Run creates a Task while it is Paused.",
     tags: ["Task Schedules"],
     request: { params: taskScheduleParamsSchema },
     responses: {

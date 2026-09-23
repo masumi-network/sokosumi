@@ -19977,7 +19977,7 @@ export const TaskScheduleSchema = {
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z'
                 },
-                targetOccurrenceCount: {
+                targetRunCount: {
                     type: [
                         'integer',
                         'null'
@@ -19991,7 +19991,7 @@ export const TaskScheduleSchema = {
                 'anchorAt',
                 'endsMode',
                 'endsOn',
-                'targetOccurrenceCount'
+                'targetRunCount'
             ]
         },
         ruleEffectiveFrom: {
@@ -20002,7 +20002,7 @@ export const TaskScheduleSchema = {
         releasedCount: {
             type: 'integer'
         },
-        nextOccurrenceAt: {
+        nextRunAt: {
             type: [
                 'string',
                 'null'
@@ -20074,7 +20074,7 @@ export const TaskScheduleSchema = {
         'rule',
         'ruleEffectiveFrom',
         'releasedCount',
-        'nextOccurrenceAt',
+        'nextRunAt',
         'revision',
         'name',
         'description',
@@ -20181,7 +20181,7 @@ export const TaskScheduleRuleSchema = {
         expr: {
             type: 'string',
             minLength: 1,
-            description: 'Cron expression for Occurrences, read in `timezone`',
+            description: 'Cron expression for Runs, read in `timezone`',
             example: '0 9 * * 1'
         },
         timezone: {
@@ -20197,7 +20197,7 @@ export const TaskScheduleRuleSchema = {
                 'null'
             ],
             exclusiveMinimum: 0,
-            description: 'When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields',
+            description: 'When greater than 1, a Run every N calendar days from anchorAt at its local time, instead of the cron day fields',
             example: 2
         },
         anchorAt: {
@@ -20207,7 +20207,7 @@ export const TaskScheduleRuleSchema = {
             ],
             format: 'date-time',
             example: '2026-10-01T07:00:00.000Z',
-            description: 'First Occurrence for intervalDays rules (required when intervalDays > 1)'
+            description: 'First Run for intervalDays rules (required when intervalDays > 1)'
         },
         endsMode: {
             $ref: '#/components/schemas/TaskScheduleEndsMode'
@@ -20219,15 +20219,15 @@ export const TaskScheduleRuleSchema = {
             ],
             format: 'date-time',
             example: '2026-12-31T23:59:59.000Z',
-            description: 'Last possible Occurrence when endsMode is ON'
+            description: 'Last possible Run when endsMode is ON'
         },
-        targetOccurrenceCount: {
+        targetRunCount: {
             type: [
                 'integer',
                 'null'
             ],
             exclusiveMinimum: 0,
-            description: 'Total Occurrences when endsMode is AFTER',
+            description: 'Total Runs when endsMode is AFTER',
             example: 10
         }
     },
@@ -20306,7 +20306,7 @@ export const TaskScheduleRuleReplacementSchema = {
         expr: {
             type: 'string',
             minLength: 1,
-            description: 'Cron expression for Occurrences, read in `timezone`',
+            description: 'Cron expression for Runs, read in `timezone`',
             example: '0 9 * * 1'
         },
         timezone: {
@@ -20321,7 +20321,7 @@ export const TaskScheduleRuleReplacementSchema = {
                 'null'
             ],
             exclusiveMinimum: 0,
-            description: 'When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields',
+            description: 'When greater than 1, a Run every N calendar days from anchorAt at its local time, instead of the cron day fields',
             example: 2
         },
         anchorAt: {
@@ -20331,7 +20331,7 @@ export const TaskScheduleRuleReplacementSchema = {
             ],
             format: 'date-time',
             example: '2026-10-01T07:00:00.000Z',
-            description: 'First Occurrence for intervalDays rules (required when intervalDays > 1)'
+            description: 'First Run for intervalDays rules (required when intervalDays > 1)'
         },
         endsMode: {
             $ref: '#/components/schemas/TaskScheduleEndsMode'
@@ -20343,15 +20343,15 @@ export const TaskScheduleRuleReplacementSchema = {
             ],
             format: 'date-time',
             example: '2026-12-31T23:59:59.000Z',
-            description: 'Last possible Occurrence when endsMode is ON'
+            description: 'Last possible Run when endsMode is ON'
         },
-        targetOccurrenceCount: {
+        targetRunCount: {
             type: [
                 'integer',
                 'null'
             ],
             exclusiveMinimum: 0,
-            description: 'Total Occurrences when endsMode is AFTER',
+            description: 'Total Runs when endsMode is AFTER',
             example: 10
         }
     },
@@ -20360,7 +20360,174 @@ export const TaskScheduleRuleReplacementSchema = {
         'timezone',
         'endsMode'
     ],
-    description: 'Replaces the whole rule; timezone and endsMode are required. Changes future Occurrences only; Tasks already created stay as they are.'
+    description: 'Replaces the whole rule; timezone and endsMode are required. Changes future Runs only; Tasks already created stay as they are.'
+} as const;
+
+export const TaskScheduleRunSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'PLANNED',
+                'SKIPPED',
+                'CANCELED',
+                'RELEASED'
+            ],
+            description: 'PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit or by ending the schedule, or a move whose time passed while the schedule was Paused)',
+            example: 'PLANNED'
+        },
+        originalScheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Time the rule planned'
+        },
+        effectiveScheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Time the Run holds; differs from the rule when moved'
+        },
+        releasedTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Task this Run created'
+        },
+        actorUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Person who last skipped, moved, or restored it'
+        },
+        actorCoworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Coworker that last skipped, moved, or restored it'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'state',
+        'originalScheduledAt',
+        'effectiveScheduledAt',
+        'releasedTaskId',
+        'actorUserId',
+        'actorCoworkerId',
+        'updatedAt'
+    ]
+} as const;
+
+export const TaskScheduleRunUpdateSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Task Schedule revision after the change',
+            example: 4
+        },
+        run: {
+            $ref: '#/components/schemas/TaskScheduleRun'
+        }
+    },
+    required: [
+        'revision',
+        'run'
+    ]
+} as const;
+
+export const UpdateTaskScheduleRunRequestSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Task Schedule revision observed by the caller',
+                    example: 3
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'skip'
+                    ]
+                }
+            },
+            required: [
+                'expectedRevision',
+                'action'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Task Schedule revision observed by the caller',
+                    example: 3
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'move'
+                    ]
+                },
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-10-02T09:00:00.000Z',
+                    description: 'New time. Strictly future and inside the projection horizon.'
+                }
+            },
+            required: [
+                'expectedRevision',
+                'action',
+                'scheduledAt'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Task Schedule revision observed by the caller',
+                    example: 3
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'restore'
+                    ]
+                }
+            },
+            required: [
+                'expectedRevision',
+                'action'
+            ],
+            description: 'Puts a skipped or moved Run back at the rule\'s time, which must still be ahead.'
+        }
+    ]
 } as const;
 
 export const CreateTaskContextSchema = {

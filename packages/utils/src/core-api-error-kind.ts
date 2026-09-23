@@ -34,6 +34,8 @@ export const CORE_API_ERROR_KINDS = {
     "schedule_occurrence_not_reschedulable",
   SCHEDULE_OCCURRENCE_STATE_CONFLICT: "schedule_occurrence_state_conflict",
   SCHEDULE_OCCURRENCE_TARGET_INVALID: "schedule_occurrence_target_invalid",
+  SCHEDULE_RUN_STATE_CONFLICT: "schedule_run_state_conflict",
+  SCHEDULE_RUN_TARGET_INVALID: "schedule_run_target_invalid",
   SCHEDULE_QUARANTINED: "schedule_quarantined",
   SCHEDULE_QUARANTINE_CONFLICT: "schedule_quarantine_conflict",
   QUEUED_REQUIRES_SCHEDULE: "queued_requires_schedule",

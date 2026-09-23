@@ -5,9 +5,9 @@ import {
   COWORKER_ID,
   MEMBER_ID,
   OWNER_ID,
-  occurrencesOf,
   PROJECT_ID,
   resetTaskScheduleTestDb,
+  runsOf,
   SOKO_BOT_AUTH,
   SOKO_BOT_ID,
   taskScheduleTestDb,
@@ -56,7 +56,7 @@ describe("POST /tasks/schedules", () => {
     resetTaskScheduleTestDb();
   });
 
-  it("creates an Active schedule with the rule, blueprint, and next Occurrence", async () => {
+  it("creates an Active schedule with the rule, blueprint, and next Run", async () => {
     const response = await post({
       name: "Weekly report",
       description: "Summarise the week",
@@ -83,16 +83,16 @@ describe("POST /tasks/schedules", () => {
         timezone: "Europe/Berlin",
         endsMode: "NEVER",
         endsOn: null,
-        targetOccurrenceCount: null,
+        targetRunCount: null,
       },
     });
-    const next = new Date(data.nextOccurrenceAt as string);
+    const next = new Date(data.nextRunAt as string);
     expect(next.getTime()).toBeGreaterThan(Date.now());
     expect(next.getUTCDay()).toBe(1);
     expect(taskScheduleTestDb.schedules).toHaveLength(1);
   });
 
-  describe("Occurrences", () => {
+  describe("Runs", () => {
     beforeEach(() => {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(new Date("2030-01-01T00:00:00.000Z"));
@@ -102,7 +102,7 @@ describe("POST /tasks/schedules", () => {
       vi.useRealTimers();
     });
 
-    it("plans the Occurrences over the calendar horizon", async () => {
+    it("plans the Runs over the calendar horizon", async () => {
       const response = await post({
         name: "Weekly report",
         projectId: PROJECT_ID,
@@ -111,10 +111,10 @@ describe("POST /tasks/schedules", () => {
 
       expect(response.status).toBe(201);
       const schedule = taskScheduleTestDb.schedules[0];
-      const occurrences = occurrencesOf(schedule?.id ?? "");
+      const runs = runsOf(schedule?.id ?? "");
       // Every Monday from Jan 7 to Mar 25: the 90-day horizon ends Apr 1.
-      expect(occurrences).toHaveLength(12);
-      expect(occurrences[0]).toMatchObject({
+      expect(runs).toHaveLength(12);
+      expect(runs[0]).toMatchObject({
         epochId: schedule?.epochId,
         originalScheduledAt: new Date("2030-01-07T09:00:00.000Z"),
         effectiveScheduledAt: new Date("2030-01-07T09:00:00.000Z"),
@@ -123,27 +123,25 @@ describe("POST /tasks/schedules", () => {
         sourceProjectId: PROJECT_ID,
         timezone: "UTC",
       });
-      expect(occurrences.at(-1)?.effectiveScheduledAt).toEqual(
+      expect(runs.at(-1)?.effectiveScheduledAt).toEqual(
         new Date("2030-03-25T09:00:00.000Z"),
       );
-      expect(schedule?.nextOccurrenceAt).toEqual(
-        new Date("2030-01-07T09:00:00.000Z"),
-      );
+      expect(schedule?.nextRunAt).toEqual(new Date("2030-01-07T09:00:00.000Z"));
     });
 
-    it("plans no more Occurrences than the end rule allows", async () => {
+    it("plans no more Runs than the end rule allows", async () => {
       await post({
         name: "Three reports",
         rule: {
           expr: "0 9 * * 1",
           timezone: "UTC",
           endsMode: "AFTER",
-          targetOccurrenceCount: 3,
+          targetRunCount: 3,
         },
       });
 
       expect(
-        occurrencesOf(taskScheduleTestDb.schedules[0]?.id ?? "").map(
+        runsOf(taskScheduleTestDb.schedules[0]?.id ?? "").map(
           (row) => row.effectiveScheduledAt,
         ),
       ).toEqual([
@@ -153,14 +151,14 @@ describe("POST /tasks/schedules", () => {
       ]);
     });
 
-    it("plans the next Occurrence even beyond the horizon", async () => {
+    it("plans the next Run even beyond the horizon", async () => {
       await post({
         name: "Yearly review",
         rule: { expr: "0 9 1 7 *", timezone: "UTC" },
       });
 
       expect(
-        occurrencesOf(taskScheduleTestDb.schedules[0]?.id ?? "").map(
+        runsOf(taskScheduleTestDb.schedules[0]?.id ?? "").map(
           (row) => row.effectiveScheduledAt,
         ),
       ).toEqual([new Date("2030-07-01T09:00:00.000Z")]);
@@ -181,7 +179,7 @@ describe("POST /tasks/schedules", () => {
         422,
       ],
       [
-        "endsMode AFTER without targetOccurrenceCount",
+        "endsMode AFTER without targetRunCount",
         { expr: "0 9 * * 1", endsMode: "AFTER" },
         422,
       ],
@@ -206,16 +204,16 @@ describe("POST /tasks/schedules", () => {
       expect(taskScheduleTestDb.schedules).toHaveLength(0);
     });
 
-    it("stores an end rule after N Occurrences", async () => {
+    it("stores an end rule after N Runs", async () => {
       const response = await post({
         name: "Weekly report",
-        rule: { ...WEEKLY_RULE, endsMode: "AFTER", targetOccurrenceCount: 4 },
+        rule: { ...WEEKLY_RULE, endsMode: "AFTER", targetRunCount: 4 },
       });
 
       expect(response.status).toBe(201);
       expect(taskScheduleTestDb.schedules[0]).toMatchObject({
         endsMode: "AFTER",
-        targetOccurrenceCount: 4,
+        targetRunCount: 4,
         endsOn: null,
       });
     });

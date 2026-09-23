@@ -4,10 +4,11 @@ import {
   COWORKER_AUTH,
   COWORKER_ID,
   MEMBER_ID,
-  occurrencesOf,
+  OWNER_ID,
   PROJECT_ID,
   resetTaskScheduleTestDb,
-  seedOccurrence,
+  runsOf,
+  seedRun,
   seedTaskSchedule,
   taskScheduleTestDb,
   taskScheduleTestPrisma,
@@ -62,7 +63,7 @@ describe("PATCH /tasks/schedules/{id}", () => {
     resetTaskScheduleTestDb();
   });
 
-  describe("Occurrences", () => {
+  describe("Runs", () => {
     const RELEASED_AT = new Date("2029-12-31T09:00:00.000Z");
 
     beforeEach(() => {
@@ -80,7 +81,7 @@ describe("PATCH /tasks/schedules/{id}", () => {
     ) {
       const schedule = seedTaskSchedule({
         releasedCount: 1,
-        nextOccurrenceAt: new Date("2030-01-07T09:00:00.000Z"),
+        nextRunAt: new Date("2030-01-07T09:00:00.000Z"),
         ...overrides,
       });
       taskScheduleTestDb.tasks.push({
@@ -89,16 +90,16 @@ describe("PATCH /tasks/schedules/{id}", () => {
         name: schedule.name,
         events: [],
       });
-      const released = seedOccurrence(schedule, RELEASED_AT, {
+      const released = seedRun(schedule, RELEASED_AT, {
         state: "RELEASED",
         releasedTaskId: "task_released",
       });
-      seedOccurrence(schedule, new Date("2030-01-07T09:00:00.000Z"));
-      seedOccurrence(schedule, new Date("2030-01-14T09:00:00.000Z"));
+      seedRun(schedule, new Date("2030-01-07T09:00:00.000Z"));
+      seedRun(schedule, new Date("2030-01-14T09:00:00.000Z"));
       return { schedule, released };
     }
 
-    it("replans a new rule and leaves released Occurrences and their Tasks untouched", async () => {
+    it("replans a new rule and leaves released Runs and their Tasks untouched", async () => {
       const { schedule, released } = seedRunningSchedule();
       const tasksBefore = structuredClone(taskScheduleTestDb.tasks);
 
@@ -111,18 +112,16 @@ describe("PATCH /tasks/schedules/{id}", () => {
       expect(response.status).toBe(200);
       const row = stored(schedule.id);
       expect(row?.epochId).not.toBe(schedule.epochId);
-      expect(row?.nextOccurrenceAt).toEqual(
-        new Date("2030-01-04T07:00:00.000Z"),
-      );
-      const [first, ...planned] = occurrencesOf(schedule.id);
+      expect(row?.nextRunAt).toEqual(new Date("2030-01-04T07:00:00.000Z"));
+      const [first, ...planned] = runsOf(schedule.id);
       expect(first).toEqual(released);
       expect(planned.length).toBeGreaterThan(0);
-      for (const occurrence of planned) {
-        expect(occurrence).toMatchObject({
+      for (const run of planned) {
+        expect(run).toMatchObject({
           state: "PLANNED",
           epochId: row?.epochId,
         });
-        expect(occurrence.effectiveScheduledAt.getUTCDay()).toBe(5);
+        expect(run.effectiveScheduledAt.getUTCDay()).toBe(5);
       }
       expect(planned[0]?.effectiveScheduledAt).toEqual(
         new Date("2030-01-04T07:00:00.000Z"),
@@ -132,27 +131,47 @@ describe("PATCH /tasks/schedules/{id}", () => {
       expect(taskScheduleTestPrisma.task.updateMany).not.toHaveBeenCalled();
     });
 
-    it("keeps an Occurrence already owed under the old rule", async () => {
+    it("cancels the old rule's upcoming skipped and moved Runs and keeps them", async () => {
       const { schedule } = seedRunningSchedule();
-      const owed = seedOccurrence(
-        schedule,
-        new Date("2029-12-31T23:00:00.000Z"),
-      );
+      const skipped = seedRun(schedule, new Date("2030-01-21T09:00:00.000Z"), {
+        state: "SKIPPED",
+        actorUserId: OWNER_ID,
+      });
+      const moved = seedRun(schedule, new Date("2030-01-28T09:00:00.000Z"), {
+        effectiveScheduledAt: new Date("2030-01-29T09:00:00.000Z"),
+      });
 
       await patch(schedule.id, {
         expectedRevision: 0,
         rule: { expr: "0 7 * * 5", timezone: "UTC", endsMode: "NEVER" },
       });
 
-      expect(occurrencesOf(schedule.id)).toContainEqual(owed);
-      expect(stored(schedule.id)?.nextOccurrenceAt).toEqual(
-        owed.effectiveScheduledAt,
-      );
+      const rows = runsOf(schedule.id);
+      expect(rows.find((row) => row.id === skipped.id)?.state).toBe("CANCELED");
+      expect(rows.find((row) => row.id === moved.id)?.state).toBe("CANCELED");
+      expect(
+        rows.filter(
+          (row) => row.state === "PLANNED" && row.epochId === schedule.epochId,
+        ),
+      ).toEqual([]);
     });
 
-    it("counts an owed Occurrence against a new end after N", async () => {
+    it("keeps a Run already owed under the old rule", async () => {
       const { schedule } = seedRunningSchedule();
-      seedOccurrence(schedule, new Date("2029-12-31T23:00:00.000Z"));
+      const owed = seedRun(schedule, new Date("2029-12-31T23:00:00.000Z"));
+
+      await patch(schedule.id, {
+        expectedRevision: 0,
+        rule: { expr: "0 7 * * 5", timezone: "UTC", endsMode: "NEVER" },
+      });
+
+      expect(runsOf(schedule.id)).toContainEqual(owed);
+      expect(stored(schedule.id)?.nextRunAt).toEqual(owed.effectiveScheduledAt);
+    });
+
+    it("counts an owed Run against a new end after N", async () => {
+      const { schedule } = seedRunningSchedule();
+      seedRun(schedule, new Date("2029-12-31T23:00:00.000Z"));
 
       await patch(schedule.id, {
         expectedRevision: 0,
@@ -160,22 +179,22 @@ describe("PATCH /tasks/schedules/{id}", () => {
           expr: "0 7 * * 5",
           timezone: "UTC",
           endsMode: "AFTER",
-          targetOccurrenceCount: 3,
+          targetRunCount: 3,
         },
       });
 
       // 1 released + 1 owed leaves room for one more under the new rule.
       expect(
-        occurrencesOf(schedule.id)
+        runsOf(schedule.id)
           .filter((row) => row.effectiveScheduledAt > new Date())
           .map((row) => row.effectiveScheduledAt),
       ).toEqual([new Date("2030-01-04T07:00:00.000Z")]);
     });
 
-    it("drops a Paused schedule's planned Occurrences until it resumes", async () => {
+    it("drops a Paused schedule's planned Runs until it resumes", async () => {
       const { schedule, released } = seedRunningSchedule({
         state: "PAUSED",
-        nextOccurrenceAt: null,
+        nextRunAt: null,
       });
 
       await patch(schedule.id, {
@@ -183,16 +202,13 @@ describe("PATCH /tasks/schedules/{id}", () => {
         rule: { expr: "0 7 * * 5", timezone: "UTC", endsMode: "NEVER" },
       });
 
-      expect(occurrencesOf(schedule.id)).toEqual([released]);
-      expect(stored(schedule.id)?.nextOccurrenceAt).toBeNull();
+      expect(runsOf(schedule.id)).toEqual([released]);
+      expect(stored(schedule.id)?.nextRunAt).toBeNull();
     });
 
-    it("moves an owed Occurrence when the rule and project change together", async () => {
+    it("moves an owed Run when the rule and project change together", async () => {
       const { schedule } = seedRunningSchedule();
-      const owed = seedOccurrence(
-        schedule,
-        new Date("2029-12-31T23:00:00.000Z"),
-      );
+      const owed = seedRun(schedule, new Date("2029-12-31T23:00:00.000Z"));
 
       await patch(schedule.id, {
         expectedRevision: 0,
@@ -201,7 +217,7 @@ describe("PATCH /tasks/schedules/{id}", () => {
       });
 
       expect(
-        occurrencesOf(schedule.id).find((row) => row.id === owed.id),
+        runsOf(schedule.id).find((row) => row.id === owed.id),
       ).toMatchObject({
         state: "PLANNED",
         sourceType: "PROJECT",
@@ -209,7 +225,7 @@ describe("PATCH /tasks/schedules/{id}", () => {
       });
     });
 
-    it("moves the planned Occurrences to the blueprint's new project", async () => {
+    it("moves the planned Runs to the blueprint's new project", async () => {
       const { schedule, released } = seedRunningSchedule();
 
       await patch(schedule.id, {
@@ -217,14 +233,14 @@ describe("PATCH /tasks/schedules/{id}", () => {
         projectId: PROJECT_ID,
       });
 
-      const [first, ...planned] = occurrencesOf(schedule.id);
+      const [first, ...planned] = runsOf(schedule.id);
       expect(first).toEqual(released);
       expect(planned.map((row) => row.effectiveScheduledAt)).toEqual([
         new Date("2030-01-07T09:00:00.000Z"),
         new Date("2030-01-14T09:00:00.000Z"),
       ]);
-      for (const occurrence of planned) {
-        expect(occurrence).toMatchObject({
+      for (const run of planned) {
+        expect(run).toMatchObject({
           sourceType: "PROJECT",
           sourceProjectId: PROJECT_ID,
         });
@@ -233,11 +249,11 @@ describe("PATCH /tasks/schedules/{id}", () => {
 
     it("keeps the plan when only the blueprint text changes", async () => {
       const { schedule } = seedRunningSchedule();
-      const before = occurrencesOf(schedule.id);
+      const before = runsOf(schedule.id);
 
       await patch(schedule.id, { expectedRevision: 0, name: "Renamed" });
 
-      expect(occurrencesOf(schedule.id)).toEqual(before);
+      expect(runsOf(schedule.id)).toEqual(before);
     });
   });
 
@@ -279,14 +295,14 @@ describe("PATCH /tasks/schedules/{id}", () => {
       releasedCount: 3,
     });
     expect(row?.ruleEffectiveFrom.getTime()).toBeGreaterThanOrEqual(before);
-    expect(row?.nextOccurrenceAt?.getTime()).toBeGreaterThan(before);
-    expect(row?.nextOccurrenceAt?.getUTCDay()).toBe(5);
+    expect(row?.nextRunAt?.getTime()).toBeGreaterThan(before);
+    expect(row?.nextRunAt?.getUTCDay()).toBe(5);
   });
 
-  it("keeps a paused schedule without a next Occurrence", async () => {
+  it("keeps a paused schedule without a next Run", async () => {
     const schedule = seedTaskSchedule({
       state: "PAUSED",
-      nextOccurrenceAt: null,
+      nextRunAt: null,
     });
 
     await patch(schedule.id, {
@@ -294,7 +310,7 @@ describe("PATCH /tasks/schedules/{id}", () => {
       rule: { expr: "0 7 * * 5", timezone: "UTC", endsMode: "NEVER" },
     });
 
-    expect(stored(schedule.id)?.nextOccurrenceAt).toBeNull();
+    expect(stored(schedule.id)?.nextRunAt).toBeNull();
   });
 
   it("replaces the whole assignee when one assignee field is sent", async () => {
@@ -361,7 +377,7 @@ describe("PATCH /tasks/schedules/{id}", () => {
     expect(response.status).toBe(400);
   });
 
-  it("rejects an Occurrence count already reached", async () => {
+  it("rejects a Run count already reached", async () => {
     const schedule = seedTaskSchedule({ releasedCount: 5 });
 
     const response = await patch(schedule.id, {
@@ -370,7 +386,7 @@ describe("PATCH /tasks/schedules/{id}", () => {
         expr: "0 9 * * 1",
         timezone: "UTC",
         endsMode: "AFTER",
-        targetOccurrenceCount: 5,
+        targetRunCount: 5,
       },
     });
 

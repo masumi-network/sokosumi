@@ -62,7 +62,7 @@ describe("GET /tasks/schedules/{id}", () => {
         state: "ACTIVE",
         assigneeId: COWORKER_ID,
         rule: { expr: "0 9 * * 1", timezone: "UTC", endsMode: "NEVER" },
-        nextOccurrenceAt: "2030-01-07T09:00:00.000Z",
+        nextRunAt: "2030-01-07T09:00:00.000Z",
       },
     });
   });

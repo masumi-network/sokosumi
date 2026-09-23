@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   MEMBER_ID,
-  occurrencesOf,
   resetTaskScheduleTestDb,
-  seedOccurrence,
+  runsOf,
+  seedRun,
   seedTaskSchedule,
   taskScheduleTestDb,
   userAuth,
@@ -54,35 +54,49 @@ describe("POST /tasks/schedules/{id}/pause", () => {
     resetTaskScheduleTestDb();
   });
 
-  it("pauses an Active schedule and clears its next Occurrence", async () => {
+  it("pauses an Active schedule and clears its next Run", async () => {
     const schedule = seedTaskSchedule();
 
     const response = await send(schedule.id);
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      data: { state: "PAUSED", nextOccurrenceAt: null, revision: 1 },
+      data: { state: "PAUSED", nextRunAt: null, revision: 1 },
     });
   });
 
-  it("drops the planned Occurrences and keeps the released ones", async () => {
+  it("drops the planned Runs and keeps the released ones", async () => {
     const schedule = seedTaskSchedule({ releasedCount: 1 });
-    const released = seedOccurrence(
-      schedule,
-      new Date("2029-12-31T09:00:00.000Z"),
-      { state: "RELEASED", releasedTaskId: "task_released" },
-    );
-    seedOccurrence(schedule, new Date("2030-01-07T09:00:00.000Z"));
+    const released = seedRun(schedule, new Date("2029-12-31T09:00:00.000Z"), {
+      state: "RELEASED",
+      releasedTaskId: "task_released",
+    });
+    seedRun(schedule, new Date("2030-01-07T09:00:00.000Z"));
 
     await send(schedule.id);
 
-    expect(occurrencesOf(schedule.id)).toEqual([released]);
+    expect(runsOf(schedule.id)).toEqual([released]);
+  });
+
+  it("keeps skipped and moved Runs for the resume", async () => {
+    const schedule = seedTaskSchedule();
+    const moved = seedRun(schedule, new Date("2030-01-07T09:00:00.000Z"), {
+      effectiveScheduledAt: new Date("2030-01-08T09:00:00.000Z"),
+    });
+    const skipped = seedRun(schedule, new Date("2030-01-14T09:00:00.000Z"), {
+      state: "SKIPPED",
+    });
+    seedRun(schedule, new Date("2030-01-21T09:00:00.000Z"));
+
+    await send(schedule.id);
+
+    expect(runsOf(schedule.id)).toEqual([moved, skipped]);
   });
 
   it.each(["PAUSED", "ENDED"] as const)(
     "rejects pausing a %s schedule",
     async (state) => {
-      const schedule = seedTaskSchedule({ state, nextOccurrenceAt: null });
+      const schedule = seedTaskSchedule({ state, nextRunAt: null });
 
       const response = await send(schedule.id);
 

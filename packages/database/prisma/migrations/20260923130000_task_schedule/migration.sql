@@ -33,9 +33,9 @@ CREATE TABLE "task_schedule" (
     "ruleEffectiveFrom" TIMESTAMP(3) NOT NULL,
     "endsMode" "TaskScheduleEndsMode" NOT NULL DEFAULT 'NEVER',
     "endsOn" TIMESTAMP(3),
-    "targetOccurrenceCount" INTEGER,
+    "targetRunCount" INTEGER,
     "releasedCount" INTEGER NOT NULL DEFAULT 0,
-    "nextOccurrenceAt" TIMESTAMP(3),
+    "nextRunAt" TIMESTAMP(3),
     "revision" INTEGER NOT NULL DEFAULT 0,
     "name" TEXT NOT NULL,
     "description" TEXT,
@@ -49,7 +49,7 @@ CREATE TABLE "task_schedule" (
 );
 
 -- CreateIndex
-CREATE INDEX "task_schedule_state_nextOccurrenceAt_idx" ON "task_schedule"("state", "nextOccurrenceAt");
+CREATE INDEX "task_schedule_state_nextRunAt_idx" ON "task_schedule"("state", "nextRunAt");
 
 -- CreateIndex
 CREATE INDEX "task_schedule_workspaceId_createdAt_id_idx" ON "task_schedule"("workspaceId", "createdAt", "id");
@@ -141,9 +141,9 @@ ALTER TABLE "task_schedule" ADD CONSTRAINT "task_schedule_assignee_at_most_one_c
 
 -- The end rule carries exactly the field its mode needs.
 ALTER TABLE "task_schedule" ADD CONSTRAINT "task_schedule_end_rule_check" CHECK (
-  ("endsMode" = 'NEVER' AND "endsOn" IS NULL AND "targetOccurrenceCount" IS NULL)
-  OR ("endsMode" = 'ON' AND "endsOn" IS NOT NULL AND "targetOccurrenceCount" IS NULL)
-  OR ("endsMode" = 'AFTER' AND "endsOn" IS NULL AND "targetOccurrenceCount" > 0)
+  ("endsMode" = 'NEVER' AND "endsOn" IS NULL AND "targetRunCount" IS NULL)
+  OR ("endsMode" = 'ON' AND "endsOn" IS NOT NULL AND "targetRunCount" IS NULL)
+  OR ("endsMode" = 'AFTER' AND "endsOn" IS NULL AND "targetRunCount" > 0)
 );
 
 ALTER TABLE "task_schedule" ADD CONSTRAINT "task_schedule_counts_check" CHECK (

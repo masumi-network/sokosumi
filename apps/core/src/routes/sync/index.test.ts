@@ -159,7 +159,7 @@ vi.mock("@/services/task-schedules-sync", () => ({
   },
 }));
 
-vi.mock("@/services/task-schedule-occurrences.service", () => ({
+vi.mock("@/services/task-schedule-runs.service", () => ({
   taskScheduleReleaseService: {
     releaseDueSchedules: releaseDueTaskSchedulesMock,
   },

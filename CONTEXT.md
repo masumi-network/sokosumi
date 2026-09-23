@@ -107,12 +107,12 @@ The one time a Task is set to start, instead of now. A Task has at most one; it 
 _Avoid_: Schedule, scheduled task (for a single Task), once mode
 
 **Task Schedule**:
-A repeating rule plus the blueprint of the Task it makes: each Occurrence creates a new Task from that blueprint. Not a Task; it has no Task status, only Active, Paused, or Ended. Editing it changes future Occurrences only.
+A repeating rule plus the blueprint of the Task it makes: each Run creates a new Task from that blueprint. Not a Task; it has no Task status, only Active, Paused, or Ended. Editing it changes future Runs only.
 _Avoid_: Recurring task, series task, template Task, automation
 
-**Occurrence**:
-One point in time at which a Task Schedule creates a Task. A single Occurrence can be skipped, moved, or restored without changing the rule.
-_Avoid_: Run (reserved against Jobs and Tasks), instance
+**Run** (of a Task Schedule):
+One point in time at which a Task Schedule creates a Task. A single Run can be skipped, moved, or restored without changing the rule. The Run only creates the Task; the work happens when the Task is picked up, which is not part of the Run. Distinct from a Task's Run at and from a Job.
+_Avoid_: Occurrence, instance
 
 ### Task payments
 
