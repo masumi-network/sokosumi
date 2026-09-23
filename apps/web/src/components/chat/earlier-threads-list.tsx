@@ -13,6 +13,20 @@ import type { ChatRoom } from "@/lib/clients/generated/core";
 
 import { fetchChatEarlierThreads } from "./fetch-chat-threads";
 
+/**
+ * The Earlier group's key: the unread one, which moves as Threads cross
+ * between the groups, and each room's last activity, since a reply that
+ * changes no count (the reader's own) still reorders the read Threads. Only
+ * the page reads Earlier, so the extra reads stay there.
+ */
+export function earlierThreadsFingerprint(rooms: readonly ChatRoom[]): string {
+  const lastActivity = rooms
+    .filter((room) => room.mutedAt == null)
+    .map((room) => `${room.id}@${new Date(room.updatedAt).getTime()}`)
+    .join(",");
+  return `${unreadThreadsFingerprint(rooms)}|${lastActivity}`;
+}
+
 interface EarlierThreadsListProps {
   rooms: readonly ChatRoom[];
   currentUserId: string;
@@ -35,7 +49,7 @@ export function EarlierThreadsList({
   const roomsById = new Map(rooms.map((room) => [room.id, room]));
 
   const query = useInfiniteQuery({
-    queryKey: ["chat", "earlier-threads", unreadThreadsFingerprint(rooms)],
+    queryKey: ["chat", "earlier-threads", earlierThreadsFingerprint(rooms)],
     queryFn: ({ pageParam }) => fetchChatEarlierThreads(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,

@@ -210,6 +210,30 @@ describe("UnreadThreadsView", () => {
   });
 });
 
+// A page whose rows all drop out (their room is gone from the list) says
+// nothing about the pages after it (PR #5119 review).
+describe("UnreadThreadsView with a filtered page", () => {
+  it("keeps paging rather than saying caught up while another page follows", () => {
+    renderView({
+      threads: [
+        {
+          roomId: "room-left",
+          parentMessageId: "p-left",
+          firstUnreadReplyId: "r-left",
+          parentContent: "in a room the reader left",
+          unreadReplyCount: 1,
+          unreadMentionCount: 0,
+          lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
+        },
+      ],
+      nextCursor: "p-left",
+    });
+
+    expect(screen.queryByText("All caught up.")).toBeNull();
+    expect(screen.getByTestId("thread-list-load-more")).toBeInTheDocument();
+  });
+});
+
 describe("UnreadThreadsView Earlier group", () => {
   it("lists the reader's read Threads under the unread ones, opening at the newest reply", async () => {
     fetchEarlierThreadsMock.mockResolvedValue({

@@ -40,15 +40,26 @@ interface UnreadThreadsListProps {
 }
 
 /**
- * What the rooms say about their unread Threads, as one string. It changes
- * exactly when a Thread is read, muted or gains a reply, so the list reads
- * Core again then and not otherwise: the next sidebar poll is what drives it,
- * the way it drives the inset rows.
+ * What the rooms say about their unread Threads, as one string: per room its
+ * reply and Thread totals and the Threads it lists. It moves exactly when a
+ * Thread is read, muted or gains a reply, including a read and a new reply
+ * that leave the totals level, so the list reads Core again then and not on
+ * every message. The next sidebar poll is what drives it, the way it drives
+ * the inset rows.
  */
 export function unreadThreadsFingerprint(rooms: readonly ChatRoom[]): string {
   return rooms
     .filter((room) => room.mutedAt == null)
-    .map((room) => `${room.id}:${room.threadUnreadCount ?? 0}`)
+    .map((room) =>
+      [
+        room.id,
+        room.threadUnreadCount ?? 0,
+        room.unreadThreadCount ?? 0,
+        ...(room.unreadThreads ?? []).map(
+          (thread) => `${thread.parentMessageId}/${thread.unreadReplyCount}`,
+        ),
+      ].join(":"),
+    )
     .join(",");
 }
 
@@ -136,6 +147,8 @@ export function UnreadThreadsList({
     roomsSayCaughtUp ||
     (query.isSuccess &&
       threads.length === 0 &&
+      // A page whose rows were all dropped says nothing while another follows.
+      !query.hasNextPage &&
       (fetched.length === 0 || rooms.length > 0));
 
   return (
