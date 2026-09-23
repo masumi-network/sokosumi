@@ -149,7 +149,6 @@ import {
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
-import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
@@ -2952,7 +2951,6 @@ function RoomView({
     ],
   );
 
-  const showRoomUnreadCount = useShowRoomUnreadCount();
   const unreadThreadCount = useUnreadThreadCount(
     selectedRoom?.id ?? null,
     `${threadUnreadGeneration}:${threadListOpen}`,
@@ -2967,7 +2965,6 @@ function RoomView({
         onJumpToMessage={handleSearchJump}
         threadListOpen={threadListOpen}
         unreadThreadCount={unreadThreadCount}
-        showUnreadCount={showRoomUnreadCount}
         pinnedOpen={pinnedOpen}
         onTogglePinned={handleTogglePinned}
         onToggleThreadList={() => showThreadList({ toggle: true })}
