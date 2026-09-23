@@ -4,6 +4,7 @@ import {
   type PendingRoomQuote,
   pendingQuoteFromMessage,
 } from "@/app/chat/components/room-helpers";
+import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
 import type { ChatRoomMessageLink } from "@/lib/utils/notification-href";
 
@@ -49,7 +50,7 @@ export async function resolveMessageLinkQuote({
   }
 
   const message = await loadMessage(link.roomId, link.messageId);
-  if (!message || message.deletedAt != null || message.membership != null) {
+  if (!message || message.deletedAt != null || isRoomStatusMessage(message)) {
     return null;
   }
 

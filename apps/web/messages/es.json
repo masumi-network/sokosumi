@@ -5659,6 +5659,16 @@
         "joined": "{name} se unió",
         "left": "{name} salió"
       },
+      "GroupName": {
+        "nameGroup": "Poner nombre al grupo",
+        "dialogTitle": "Poner nombre al grupo",
+        "dialogDescription": "Todos en el grupo ven este nombre en lugar de la lista de miembros. Déjalo vacío para volver a mostrar a los miembros.",
+        "label": "Nombre del grupo",
+        "save": "Guardar",
+        "saveFailed": "No se pudo poner nombre al grupo.",
+        "named": "{name} llamó al grupo {groupName}",
+        "cleared": "{name} quitó el nombre del grupo"
+      },
       "External": {
         "title": "Externo",
         "accept": "Aceptar",

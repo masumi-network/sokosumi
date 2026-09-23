@@ -5659,6 +5659,16 @@
         "joined": "{name} joined",
         "left": "{name} left"
       },
+      "GroupName": {
+        "nameGroup": "Name this group",
+        "dialogTitle": "Name this group",
+        "dialogDescription": "Everyone in the group sees this name instead of the member list. Leave it empty to show the members again.",
+        "label": "Group name",
+        "save": "Save",
+        "saveFailed": "Could not name the group.",
+        "named": "{name} named the group {groupName}",
+        "cleared": "{name} removed the group name"
+      },
       "External": {
         "title": "External",
         "accept": "Accept",

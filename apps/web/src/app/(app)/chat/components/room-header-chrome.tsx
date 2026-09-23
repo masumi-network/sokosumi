@@ -18,12 +18,17 @@ import type {
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { EditChannelDialog } from "./edit-channel-dialog";
+import { NameGroupDialog } from "./name-group-dialog";
 import { orderRosterByReadRecency } from "./order-roster-by-read-recency";
 import { PinnedMessagesHeaderButton } from "./pinned-messages-panel";
 import { getRoomParticipantPreviews } from "./room-helpers";
 import { ROOM_ROSTER_PANEL_ID } from "./room-roster-panel";
 import { RoomSearchPanel } from "./room-search-panel";
 import { UnreadThreadsPanel } from "./unread-threads-panel";
+
+/** The room title as the way into its settings: a Channel's, or a group Direct's name. */
+const ROOM_TITLE_BUTTON_CLASS =
+  "text-foreground [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-card-background flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2";
 
 function RoomParticipantStack({
   room,
@@ -185,15 +190,33 @@ export function RoomHeaderChrome({
                 room={room}
                 currentUserId={currentUserId}
               />
-            ) : (
+            ) : room.isGroupDirect ? null : (
               <MessageCircle className="text-muted-foreground size-4 shrink-0" />
             )}
-            <p
-              className="text-foreground min-w-0 truncate text-sm"
-              data-testid="room-open-title"
-            >
-              {displayName}
-            </p>
+            {room.isGroupDirect ? (
+              <NameGroupDialog
+                room={room}
+                open={editOpen}
+                onOpenChange={onEditOpenChange}
+              >
+                <button
+                  type="button"
+                  className={ROOM_TITLE_BUTTON_CLASS}
+                  title={t("GroupName.nameGroup")}
+                  data-testid="room-open-title"
+                >
+                  <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+                  <span className="min-w-0 truncate">{displayName}</span>
+                </button>
+              </NameGroupDialog>
+            ) : (
+              <p
+                className="text-foreground min-w-0 truncate text-sm"
+                data-testid="room-open-title"
+              >
+                {displayName}
+              </p>
+            )}
           </>
         ) : (
           <>
@@ -215,7 +238,7 @@ export function RoomHeaderChrome({
               <button
                 type="button"
                 className={cn(
-                  "text-foreground [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-card-background flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2",
+                  ROOM_TITLE_BUTTON_CLASS,
                   channelTopic && "shrink-0",
                 )}
                 title={t("editChannel")}

@@ -8481,6 +8481,19 @@ export const ChatRoomSchema = {
             description: 'Deterministic key for direct rooms; null for normal rooms.',
             example: 'user_123:user_456'
         },
+        isGroupDirect: {
+            type: 'boolean',
+            description: 'Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.',
+            example: false
+        },
+        groupName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Group name shared by every member of a group Direct, shown in place of the member list. Null when unnamed, and always null for Channels and other Directs.',
+            example: 'Launch crew'
+        },
         topic: {
             type: [
                 'string',
@@ -8657,6 +8670,8 @@ export const ChatRoomSchema = {
         'kind',
         'isSelfDirect',
         'directKey',
+        'isGroupDirect',
+        'groupName',
         'topic',
         'discoverability',
         'createdByUserId',
@@ -9452,6 +9467,9 @@ export const ChatRoomPinnedMessageListItemSchema = {
                 membership: {
                     $ref: '#/components/schemas/ChatRoomMessageMembership'
                 },
+                groupNameChange: {
+                    $ref: '#/components/schemas/ChatRoomMessageGroupNameChange'
+                },
                 unfurls: {
                     type: [
                         'array',
@@ -9481,6 +9499,7 @@ export const ChatRoomPinnedMessageListItemSchema = {
                 'metadata',
                 'quote',
                 'membership',
+                'groupNameChange',
                 'unfurls'
             ]
         }
@@ -9835,6 +9854,50 @@ export const ChatRoomMessageMembershipSubjectSchema = {
     ]
 } as const;
 
+export const ChatRoomMessageGroupNameChangeSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        action: {
+            type: 'string',
+            enum: [
+                'named',
+                'cleared'
+            ]
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The new Group name; null when it was cleared.',
+            example: 'Launch crew'
+        },
+        actor: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ]
+        }
+    },
+    required: [
+        'action',
+        'name',
+        'actor'
+    ]
+} as const;
+
 export const ChatRoomMessageUnfurlSchema = {
     type: 'object',
     properties: {
@@ -9940,6 +10003,15 @@ export const UpdateChatRoomRequestSchema = {
             example: [
                 '01960001-0001-7001-8001-000000000099'
             ]
+        },
+        groupName: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 80,
+            description: 'Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.',
+            example: 'Launch crew'
         }
     }
 } as const;
@@ -10269,6 +10341,9 @@ export const ChatRoomMessageSchema = {
         membership: {
             $ref: '#/components/schemas/ChatRoomMessageMembership'
         },
+        groupNameChange: {
+            $ref: '#/components/schemas/ChatRoomMessageGroupNameChange'
+        },
         unfurls: {
             type: [
                 'array',
@@ -10298,6 +10373,7 @@ export const ChatRoomMessageSchema = {
         'metadata',
         'quote',
         'membership',
+        'groupNameChange',
         'unfurls'
     ]
 } as const;

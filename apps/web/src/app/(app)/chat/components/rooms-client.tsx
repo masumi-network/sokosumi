@@ -124,6 +124,7 @@ import {
 } from "@/app/chat/utils/pending-reactions";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomMentionNames as buildRoomMentionNames } from "@/app/chat/utils/room-mention-names";
+import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type {
   RoomTranscriptCache,
   RoomTranscriptEntry,
@@ -187,7 +188,6 @@ import {
   type ChatRoomMessageLink,
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
-import { MembershipStatusRow } from "./membership-status-row";
 import {
   canOpenHumanDirectFromSelectedRoom,
   openDirectWithParticipant,
@@ -240,6 +240,7 @@ import {
   RoomShellLayout,
 } from "./room-shell-layout";
 import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
+import { RoomStatusRow } from "./room-status-row";
 import { RoomTypingProvider } from "./room-typing-provider";
 import { ThreadPanel } from "./thread-panel";
 import type { TranscriptPosition } from "./transcript-viewport";
@@ -3038,8 +3039,8 @@ function RoomView({
               formatDaySeparator={formatDaySeparator}
             />
           ) : null}
-          {message.membership != null ? (
-            <MembershipStatusRow message={message} />
+          {isRoomStatusMessage(message) ? (
+            <RoomStatusRow message={message} />
           ) : (
             <ChatMessageRow
               message={message}
