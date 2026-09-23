@@ -6,43 +6,6 @@ import type { Prisma } from "../generated/prisma/client.js";
 import { chatRoomGuestInviteLinkRepository } from "./chat-room-guest-invite-link.repository.js";
 
 describe("chatRoomGuestInviteLinkRepository", () => {
-  it("listInviteLinksByRoomId queries by roomId ordered by createdAt desc", async () => {
-    let findManyArgs: unknown;
-    const rows = [
-      {
-        id: "link_1",
-        token: "tok_1",
-        roomId: "room_1",
-        createdByUserId: "user_1",
-        createdAt: new Date("2026-08-01T12:00:00.000Z"),
-        expiresAt: new Date("2026-08-08T12:00:00.000Z"),
-        revokedAt: null,
-        maxUses: null,
-        useCount: 0,
-      },
-    ];
-    const tx = {
-      chatRoomGuestInviteLink: {
-        findMany: async (args: unknown) => {
-          findManyArgs = args;
-          return rows;
-        },
-      },
-    } as unknown as Prisma.TransactionClient;
-
-    const result =
-      await chatRoomGuestInviteLinkRepository.listInviteLinksByRoomId(
-        "room_1",
-        tx,
-      );
-
-    assert.equal(result, rows);
-    assert.deepEqual(findManyArgs, {
-      where: { roomId: "room_1" },
-      orderBy: { createdAt: "desc" },
-    });
-  });
-
   it("tryConsumeInviteLink increments when live and under maxUses", async () => {
     let updateManyArgs: unknown;
     const tx = {

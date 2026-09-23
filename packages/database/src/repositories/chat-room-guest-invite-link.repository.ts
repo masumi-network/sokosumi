@@ -72,16 +72,6 @@ export const chatRoomGuestInviteLinkRepository = (() => {
     });
   }
 
-  async function listInviteLinksByRoomId(
-    roomId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<ChatRoomGuestInviteLink[]> {
-    return await tx.chatRoomGuestInviteLink.findMany({
-      where: { roomId },
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
   /**
    * Count links that still block convert-off-external: not revoked and not past
    * expiresAt. Depleted links still count (token exists until expiry/revoke).
@@ -118,7 +108,6 @@ export const chatRoomGuestInviteLinkRepository = (() => {
     getInviteLinkByToken,
     tryConsumeInviteLink,
     revokeInviteLink,
-    listInviteLinksByRoomId,
     countLiveInviteLinksByRoomId,
     countRecentCreatesByUser,
   };
