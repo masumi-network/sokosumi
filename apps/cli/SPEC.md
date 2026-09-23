@@ -130,7 +130,10 @@ V81: runtime bearer ∈ `coworker_*` only; developer OAuth/user API key (`soko_*
 V82: session grant ⊥ Coworker identity and key material; expiry/disconnect remove temporary authority only; reconnect requires authorization (ADR 0005).
 V83: mint/rotate/revoke `coworker_*` ∈ developer auth only (interactive or headless); runtime ⊥ self-mint (ADR 0005).
 V84: CLI/TUI/skill share in-process handlers; ⊥ recursive CLI entrypoint; runtime adapters → Core HTTP with `coworker_*` (ADR 0005).
-V85: `coworkers register` requires ≥1 organization workspace and `--vendor-id` ∈ administered (`admin`) memberships; foreign/non-admin Vendor ⊥ before Core create; register ⊥ Vendor create (developer Vendor create is standalone `vendors create` → `POST /v1/vendors`, caller admin); Coworker create ∈ platform admin only; blocked copy → `vendors create` or ask existing Vendor admin to add you as admin.
+V85: `coworkers register` requires ≥1 organization workspace and `--vendor-id` ∈ administered (`admin`) memberships; foreign/non-admin Vendor ⊥ before Core create; register ⊥ Vendor create (developer Vendor create is standalone `vendors create` → `POST /v1/vendors`, caller admin); Coworker create ∈ platform admin only; blocked copy points to `vendors create` for Vendor setup.
+V86: registration gate copy ⊥ Vendor member-invite / role-promotion instructions; CLI has no invite/accept command.
+V87: account deletion locks every current Vendor membership in stable `vendorId` order, then rechecks each admin count inside the same transaction before the User cascade; membership role changes/removals lock the same Vendor row.
+V88: Vendor invite acceptance reads the current verified account email inside its Serializable transaction before matching and accepting the invite; a stale pre-transaction email ⊥ authorization.
 
 ## §T TASKS
 
@@ -226,3 +229,6 @@ B46|2026-09-20|direct workspace guard used multiline form rejected by Biome form
 B47|2026-09-20|optional direct-handler guard accepted bare `vendors` / `workspaces` calls|V80
 B48|2026-09-20|workspace JSON forwarded arbitrary organization metadata without allowlist|V79
 B49|2026-09-20|admin-only discovery conflated membership listing with later registration selection|V79
+B50|2026-09-23|VERIFIED diff: gate copy said `member invite or role promote`; INFERRED from Coworkers usage `list`, `register`, `update`, `api-key`, `me` (`src/cli/index.ts:152-156`): CLI has no invite/accept command|V86
+B51|2026-09-23|VERIFIED test output: V87 regression resolved `undefined` instead of rejecting when the in-transaction admin count was one|V87
+B52|2026-09-23|VERIFIED test output: V88 regression returned HTTP 201 after the email changed before the acceptance transaction; expected 404|V88

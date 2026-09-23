@@ -74,7 +74,7 @@ test("TestV67 registration accepts only an administered Vendor", () => {
   );
 });
 
-test("TestV67 registration gate copy tells how to get workspace and Vendor admin", () => {
+test("TestV86 registration gate copy avoids unsupported Vendor invite guidance", () => {
   assert.match(
     describeRegistrationWorkspaceRequirement("https://app.example.test"),
     /workspace switcher/,
@@ -91,9 +91,9 @@ test("TestV67 registration gate copy tells how to get workspace and Vendor admin
     describeRegistrationAdminVendorRequirement("https://app.example.test"),
     /creating a Coworker still requires a platform admin/,
   );
-  assert.match(
+  assert.doesNotMatch(
     describeRegistrationAdminVendorRequirement("https://app.example.test"),
-    /existing Vendor admin to add you as admin/,
+    /invite|role[- ]promot(e|ion)/i,
   );
   assert.doesNotMatch(
     describeRegistrationAdminVendorRequirement("https://app.example.test"),

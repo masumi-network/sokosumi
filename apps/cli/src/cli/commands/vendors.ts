@@ -5,21 +5,15 @@ import {
 } from "../../api/services/vendor-service.js";
 import {
   type CommandContext,
+  type CommandOptions,
+  optionString,
   writeJson,
   writeText,
 } from "./command-helpers.js";
 
 export interface VendorsCommandContext extends CommandContext {
   subcommand?: string;
-  options?: Record<string, unknown>;
-}
-
-function optionString(
-  options: Record<string, unknown> | undefined,
-  key: string,
-): string | undefined {
-  const value = options?.[key];
-  return typeof value === "string" ? value : undefined;
+  options?: CommandOptions;
 }
 
 function printVendors(
@@ -56,7 +50,7 @@ export async function runVendorsCommand({
     if (json) writeJson(stdout, { vendor });
     else {
       writeText(stdout, [
-        `Created vendor ${vendor.name || "Unnamed Vendor"} [${vendor.id}]`,
+        `Vendor ${vendor.name || "Unnamed Vendor"} [${vendor.id}]`,
         vendor.slug ? `slug: ${vendor.slug}` : undefined,
         `role: ${vendor.role}`,
       ]);

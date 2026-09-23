@@ -82,8 +82,40 @@ test("vendors create posts name and slug then prints admin membership", async ()
   });
   assert.deepEqual(posted, { name: "Acme Labs", slug: "acme-labs" });
   assert.deepEqual(output, [
-    "Created vendor Acme Labs [vendor-new]\nslug: acme-labs\nrole: admin\n",
+    "Vendor Acme Labs [vendor-new]\nslug: acme-labs\nrole: admin\n",
   ]);
+});
+
+test("vendors create uses the last repeated option value", async () => {
+  let posted: unknown;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: [] }) as T,
+    post: async <T>(_path: string, body: unknown) => {
+      posted = body;
+      return {
+        data: {
+          id: "vendor-new",
+          name: "Acme Labs",
+          slug: "acme-labs",
+          role: "admin",
+        },
+      } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+    delete: async <T>() => ({ data: {} }) as T,
+  };
+
+  await runVendorsCommand({
+    client,
+    stdout: { write: () => {} },
+    subcommand: "create",
+    options: {
+      name: ["Old Name", "Acme Labs"],
+      slug: ["old-name", "acme-labs"],
+    },
+  });
+
+  assert.deepEqual(posted, { name: "Acme Labs", slug: "acme-labs" });
 });
 
 test("TestV79 workspaces JSON allowlists organization identity fields", async () => {

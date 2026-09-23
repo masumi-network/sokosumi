@@ -33,8 +33,7 @@ export function describeRegistrationWorkspaceRequirement(
  * How to become a Vendor admin before registration.
  *
  * Primary unblock: create a Vendor (`sokosumi vendors create` / Core
- * `POST /v1/vendors`) or ask an existing Vendor admin to invite you
- * (`POST /v1/vendors/{id}/invites`). Coworker create is still platform-admin only.
+ * `POST /v1/vendors`). Coworker create is still platform-admin only.
  * Web Developer → Vendors is hidden unless you already have admin membership
  * (`getDeveloperVendorAdminAccess`); do not send blocked users there.
  */
@@ -45,7 +44,7 @@ export function describeRegistrationAdminVendorRequirement(
   const developerHome = base
     ? `Developer in the web app starts at ${base}${WEB_DEVELOPER_DEFAULT_ROUTE} (Docs, OAuth clients, API keys, Coworkers, Tasks). Vendors appears there only after you already have admin.`
     : "In the Sokosumi web app, Developer shows Docs, OAuth clients, API keys, Coworkers, and Tasks. Vendors appears only after you already have admin.";
-  return `Registration requires Vendor role admin. Check memberships under Vendors here or \`sokosumi vendors me\`. Create one with \`sokosumi vendors create --name NAME --slug SLUG\`, or ask an existing Vendor admin to add you as admin on their Vendor (member invite or role promote). Note: creating a Coworker still requires a platform admin. ${developerHome}`;
+  return `Registration requires Vendor role admin. Check memberships under Vendors here or \`sokosumi vendors me\`. Create one with \`sokosumi vendors create --name NAME --slug SLUG\`. Note: creating a Coworker still requires a platform admin. ${developerHome}`;
 }
 
 /**

@@ -222,7 +222,18 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
 
   const globalIndex = help.indexOf("Global options:");
   assert.notEqual(globalIndex, -1);
-  assert.doesNotMatch(help.slice(0, globalIndex), / --/);
+  const commandUsage = help.slice(0, globalIndex);
+  assert.match(
+    commandUsage,
+    /^  sokosumi vendors create --name NAME --slug SLUG$/m,
+  );
+  assert.doesNotMatch(
+    commandUsage.replace(
+      "  sokosumi vendors create --name NAME --slug SLUG\n",
+      "",
+    ),
+    / --/,
+  );
 
   const parsed = parseArgv([
     "--preprod",

@@ -155,7 +155,7 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
   "vendors me": "",
-  "vendors create": "[options]",
+  "vendors create": "--name NAME --slug SLUG",
   "workspaces list": "",
   "tasks list": "[options]",
   "tasks create": "",
