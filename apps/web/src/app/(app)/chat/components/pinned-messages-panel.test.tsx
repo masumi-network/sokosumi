@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ChatRoomMessage,
@@ -19,9 +20,21 @@ vi.mock("@/lib/utils/datetime.client", () => ({
   }),
 }));
 
+const { openAttachmentMock } = vi.hoisted(() => ({
+  openAttachmentMock: vi.fn(),
+}));
+
+// The real body carries attachment tiles, links and players; stand in for
+// one of each kind of control.
 vi.mock("./room-message-row", () => ({
   ChannelMessageText: ({ content }: { content: string }) => (
-    <span>{content}</span>
+    <span>
+      {content}
+      <button type="button" onClick={openAttachmentMock}>
+        View document budget.pdf
+      </button>
+      <a href="https://blob.example.com/budget.xlsx">budget.xlsx</a>
+    </span>
   ),
 }));
 
@@ -106,6 +119,7 @@ function renderPanel(onJump: (messageId: string) => Promise<boolean>) {
 
 describe("PinnedMessagesPanel", () => {
   beforeEach(() => {
+    openAttachmentMock.mockReset();
     listPinnedMessagesActionMock.mockReset();
     listPinnedMessagesActionMock.mockResolvedValue({
       ok: true,
@@ -153,5 +167,59 @@ describe("PinnedMessagesPanel", () => {
       "false",
     );
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("keeps the body's controls outside the jump button", async () => {
+    renderPanel(vi.fn(async () => true));
+
+    const jump = await screen.findByRole("button", { name: /Ada/ });
+    const body = screen.getByTestId("pinned-message-body");
+
+    expect(jump.querySelector("a, button, audio, video")).toBeNull();
+    expect(jump).not.toContainElement(body);
+    expect(jump).toHaveAccessibleDescription(/Budget review/);
+  });
+
+  it("opens an attachment without jumping", async () => {
+    const onJump = vi.fn(async () => true);
+    renderPanel(onJump);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "View document budget.pdf" }),
+    );
+    fireEvent.click(screen.getByRole("link", { name: "budget.xlsx" }));
+
+    expect(openAttachmentMock).toHaveBeenCalledOnce();
+    expect(onJump).not.toHaveBeenCalled();
+  });
+
+  it("lays the body over the row's jump target, letting only its controls take clicks", async () => {
+    renderPanel(vi.fn(async () => true));
+
+    const jump = await screen.findByRole("button", { name: /Ada/ });
+    // The button's ::after stretches over the row; jsdom has no layout, so
+    // pin the classes that make the row clickable around the body.
+    expect(jump).toHaveClass("after:absolute", "after:inset-0");
+    expect(screen.getByTestId("pinned-message-body")).toHaveClass(
+      "pointer-events-none",
+      "relative",
+      "z-[1]",
+      "[&_:is(a,button,audio,video,[role=button],[data-slot=hover-card-trigger])]:pointer-events-auto",
+    );
+  });
+
+  it("jumps from the keyboard", async () => {
+    const user = userEvent.setup();
+    const onJump = vi.fn(async () => true);
+    renderPanel(onJump);
+
+    await screen.findByRole("button", { name: /Ada/ });
+    await user.tab(); // close
+    await user.tab();
+    expect(screen.getByRole("button", { name: /Ada/ })).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+
+    expect(onJump).toHaveBeenCalledExactlyOnceWith(MESSAGE_ID);
   });
 });
