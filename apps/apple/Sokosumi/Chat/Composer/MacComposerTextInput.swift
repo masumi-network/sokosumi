@@ -7,7 +7,7 @@
   struct MacComposerTextInput: NSViewRepresentable {
     @Binding var text: String
     @Environment(\.isEnabled) private var isEnabled
-    var submitOnModifier = false
+    var modifierReturnSubmits = false
     var cancel: (() -> Void)?
     var onBlur: (() -> Void)?
     let submit: () -> Bool
@@ -45,14 +45,13 @@
       input.autoresizingMask = [.width]
       input.textContainer?.widthTracksTextView = true
       input.textContainerInset = NSSize(width: 2, height: 2)
-      input.setAccessibilityLabel("Message")
       input.delegate = context.coordinator
       commands?.input = input
       input.openLinkEditor = { [weak commands] in commands?.beginLink() }
       input.suggestionKeyHandler = { [weak commands] key in commands?.handleSuggestionKey(key) ?? false }
       input.formattingDidChange = { [weak commands] in commands?.refresh() }
       input.submit = submit
-      input.submitOnModifier = submitOnModifier
+      input.modifierReturnSubmits = modifierReturnSubmits
       input.cancel = cancel
       input.isEditable = isEnabled
       input.placeholder = placeholder
@@ -70,7 +69,7 @@
       context.coordinator.parent = self
       guard let input = scroll.documentView as? InputView else { return }
       input.submit = submit
-      input.submitOnModifier = submitOnModifier
+      input.modifierReturnSubmits = modifierReturnSubmits
       input.cancel = cancel
       input.isEditable = isEnabled
       input.placeholder = placeholder
@@ -174,7 +173,15 @@
       private var preservesRawDraft = false
       private(set) var serializedDraft = ""
       var submit: () -> Bool = { false }
-      var submitOnModifier = false
+      /// The inline edit composer, as web's `modifierEnterSubmits`: Return saves with or without
+      /// Command/Control, and only Shift inserts a line. Sets the VoiceOver name and key help too.
+      var modifierReturnSubmits = false {
+        didSet {
+          setAccessibilityLabel(modifierReturnSubmits ? "Edit message" : "Message")
+          setAccessibilityHelp(modifierReturnSubmits ? "Return to save, Escape to cancel, Shift-Return for a new line." : nil)
+        }
+      }
+
       var cancel: (() -> Void)?
       var openLinkEditor: (() -> Void)?
       var formattingDidChange: (() -> Void)?
@@ -612,8 +619,8 @@
           super.keyDown(with: event)
           return
         }
-        let modified = !event.modifierFlags.isDisjoint(with: [.shift, .command, .control])
-        let submits = submitOnModifier ? event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control) : !modified
+        // Option never counts, as web never reads Alt for Enter.
+        let submits = event.modifierFlags.isDisjoint(with: modifierReturnSubmits ? [.shift] : [.shift, .command, .control])
         if !submits {
           if let edit = ComposerBlockText.exitingQuote(attributedString(), selection: selectedRange()), !preservesRawDraft {
             breakUndoCoalescing()
