@@ -263,6 +263,7 @@ afterEach(() => {
   cleanup();
   window.localStorage.clear();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("Notification Center, both frames", () => {
@@ -968,11 +969,9 @@ describe("Notification Center view filter", () => {
       );
       await settle();
 
+      await user.unhover(screen.getByText("mine"));
       vi.useFakeTimers();
       try {
-        await userEvent
-          .setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
-          .unhover(screen.getByText("mine"));
         await act(async () => {
           await vi.advanceTimersByTimeAsync(300);
         });

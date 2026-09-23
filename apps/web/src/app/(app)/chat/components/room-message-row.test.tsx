@@ -2087,9 +2087,6 @@ describe("ChatMessageRow", () => {
   it("does not cancel on blur when draft is dirty", async () => {
     vi.useFakeTimers();
     try {
-      const user = userEvent.setup({
-        advanceTimers: vi.advanceTimersByTime.bind(vi),
-      });
       const onCancelEdit = vi.fn();
 
       renderRow({
@@ -2105,8 +2102,8 @@ describe("ChatMessageRow", () => {
 
       const editor = screen.getByRole("textbox");
       editor.focus();
-      await user.tab();
       await act(async () => {
+        fireEvent.blur(editor);
         await vi.advanceTimersByTimeAsync(200);
       });
       expect(onCancelEdit).not.toHaveBeenCalled();
@@ -2118,9 +2115,6 @@ describe("ChatMessageRow", () => {
   it("does not cancel on blur when live DOM is dirty but draft prop is stale", async () => {
     vi.useFakeTimers();
     try {
-      const user = userEvent.setup({
-        advanceTimers: vi.advanceTimersByTime.bind(vi),
-      });
       const onCancelEdit = vi.fn();
 
       renderRow({
@@ -2137,8 +2131,8 @@ describe("ChatMessageRow", () => {
       const editor = screen.getByRole("textbox");
       editor.focus();
       editor.textContent = "Original fixed live";
-      await user.tab();
       await act(async () => {
+        fireEvent.blur(editor);
         await vi.advanceTimersByTimeAsync(200);
       });
       expect(onCancelEdit).not.toHaveBeenCalled();
