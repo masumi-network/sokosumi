@@ -75,6 +75,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const userAuth = requireUserAuthContext(c.var.authContext);
+    if (cursor !== undefined && !z.string().uuid().safeParse(cursor).success) {
+      throw badRequest("Invalid pagination cursor");
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: userAuth.userId },

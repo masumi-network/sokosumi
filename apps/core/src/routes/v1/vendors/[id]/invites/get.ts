@@ -86,6 +86,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await requireVendorAdminMembership(userAuth.userId, id);
 
     const where = livePendingVendorInviteWhere(id);
+    if (cursor !== undefined && !z.string().uuid().safeParse(cursor).success) {
+      throw badRequest("Invalid pagination cursor");
+    }
     const cursorInvite = cursor
       ? await prisma.vendorMemberInvite.findFirst({
           where: { AND: [where, { id: cursor }] },

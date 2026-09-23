@@ -605,7 +605,39 @@ describe("vendor member invites", () => {
     );
 
     expect(response.status).toBe(400);
+    expect(db.inviteFindFirstMock).not.toHaveBeenCalled();
     expect(db.inviteFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed UUID cursors for vendor invitations before querying", async () => {
+    const app = createApp(adminAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/invites?cursor=missing`,
+    );
+
+    expect(response.status).toBe(400);
+    expect(db.inviteFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts UUIDv7 cursors for vendor invitations", async () => {
+    const cursor = "01960001-0001-7001-8001-000000000001";
+    db.inviteFindFirstMock.mockResolvedValue({ id: cursor });
+
+    const app = createApp(adminAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/invites?cursor=${cursor}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(db.inviteFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            expect.objectContaining({ id: cursor }),
+          ]),
+        }),
+      }),
+    );
   });
 
   it("returns no pending invitations to an unverified email", async () => {
