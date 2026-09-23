@@ -233,8 +233,9 @@ import SwiftUI
             }
           }
         }
-        // Read while unknown, and again when the reply count moves: a parent's first reply makes it a thread.
-        .task(id: [parent.id, String(messages.count)]) {
+        // Stored replies only. A pending shell reads too early (404) and the stored row that replaces it
+        // does not change the displayed count, so the bell would never appear.
+        .task(id: [parent.id, String(liveThreadReplyCount(messages))]) {
           await workspaces.readThreadMuteIfNeeded(auth: auth)
         }
         .onChange(of: parent.id) { _, _ in pendingQuote = nil

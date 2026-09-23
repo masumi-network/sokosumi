@@ -111,6 +111,49 @@ struct ThreadMuteStateTests {
   }
 }
 
+/// The mute read keys off stored replies. A pending shell and the stored row that replaces it display as
+/// one row, so the displayed count never moves again and a read started on the shell 404s for good.
+struct LiveThreadReplyCountTests {
+  private let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
+
+  @Test func aPendingShellAndAStreamOverlayAreNotReplies() {
+    var parent = chatRoomMessage(from: OutboundShell(clientTurnId: "parent", roomId: testRoomId, content: "Parent", sender: sender))
+    parent.id = "parent"
+    let pending = chatRoomMessage(from: OutboundShell(
+      clientTurnId: "turn", roomId: testRoomId, parentMessageId: "parent", content: "Reply", sender: sender
+    ))
+    var stream = pending
+    stream.id = "stream:turn"
+    var stored = pending
+    stored.id = "reply"
+    #expect(liveThreadReplyCount([parent, pending]) == 0)
+    #expect(liveThreadReplyCount([parent, stream]) == 0)
+    #expect(liveThreadReplyCount([parent, pending, stream, stored]) == 1)
+    #expect([parent, pending].count == [parent, stored].count)
+  }
+
+  @Test @MainActor func confirmingTheFirstReplyLeavesTheDisplayedCountUnchanged() async throws {
+    let rows = try await fetchTestMessages([
+      testMessageJSON(id: rootId, content: "Parent", sender: testUserSender(name: "Ada", email: "ada@example.com"))
+    ])
+    let session = ThreadSession()
+    #expect(try session.open(#require(rows.first)))
+    let replyBody = testCreatedMessageBody(id: "reply", content: "Reply", clientMessageId: "unused")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(rootId)\"")
+    let client = try makeTestClient(TestTransport([(201, replyBody)]))
+    #expect(session.send("Reply", client: client, organizationSlug: nil, sender: sender, settled: { _ in }))
+    let before = [session.parent].compactMap(\.self) + session.displayedReplies
+    #expect(before.count == 2)
+    #expect(liveThreadReplyCount(before) == 0)
+    while session.outbox.isSending {
+      await Task.yield()
+    }
+    let after = [session.parent].compactMap(\.self) + session.displayedReplies
+    #expect(after.count == before.count)
+    #expect(liveThreadReplyCount(after) == 1)
+  }
+}
+
 /// The mute routes at the OpenAPI transport boundary.
 struct ThreadMuteServiceTests {
   @Test(arguments: [true, false])
