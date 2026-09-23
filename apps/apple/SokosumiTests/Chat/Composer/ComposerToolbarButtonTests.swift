@@ -11,28 +11,37 @@
     @MainActor struct ComposerToolbarButtonTests {
       private static let padding: CGFloat = 8
 
-      @Test(arguments: [(dark: false, key: false), (dark: false, key: true), (dark: true, key: false), (dark: true, key: true)])
-      func emojiIconIsAnOutlineInTheNeighboursGrey(dark: Bool, key: Bool) async throws {
-        let fixture = try await Self.fixture(dark: dark, key: key)
+      /// Only a non-key window: no test window becomes key in the test host, so key-window rendering stays unverified.
+      @Test(arguments: [false, true])
+      func emojiIconIsAnOutlineInTheNeighboursGrey(dark: Bool) async throws {
+        let fixture = try await Self.fixture(dark: dark)
         defer { fixture.window.orderOut(nil) }
-        let name = "composer-toolbar-\(dark ? "dark" : "light")-\(key ? "key" : "nonkey").png"
+        let name = "composer-toolbar-\(dark ? "dark" : "light").png"
         let bitmap = try Self.record(fixture.host, named: name)
         let background = try #require(Self.color(in: bitmap, column: 1, row: 1))
         let emoji = try #require(Self.ink(in: bitmap, button: 0, fixture: fixture, background: background), "The emoji icon did not draw.")
         let neighbour = try #require(Self.ink(in: bitmap, button: 1, fixture: fixture, background: background), "The formatting icon did not draw.")
-        let context = "\(name), window key: \(fixture.window.isKeyWindow)"
+        let reference = try #require(Self.ink(in: bitmap, button: 2, fixture: fixture, background: background), "The reference icon did not draw.")
 
         // A disc inks about 78 % of its bounding box, the outlined face about a third.
-        #expect(emoji.coverage < 0.5, "\(Int(emoji.coverage * 100)) % of the face's bounds is inked, so it draws as a disc (\(context)).")
-        #expect(abs(emoji.contrast - neighbour.contrast) < 0.08,
-                "The emoji ink (\(emoji.contrast)) differs from its neighbour's (\(neighbour.contrast)) against the background (\(context)).")
+        #expect(emoji.coverage < 0.5, "\(Int(emoji.coverage * 100)) % of the face's bounds is inked, so it draws as a disc (\(name)).")
+        for (label, ink) in [("emoji", emoji), ("formatting", neighbour)] {
+          #expect(abs(ink.contrast - reference.contrast) < 0.08,
+                  "The \(label) ink (\(ink.contrast)) differs from the plain `.secondary` reference (\(reference.contrast)) (\(name)).")
+        }
       }
 
       /// The emoji button beside the formatting toggle, as `ComposerTextInput` lays them out, alone in a window.
-      private static func fixture(dark: Bool, key: Bool) async throws -> ToolbarFixture {
+      /// A third cell draws `textformat` the way the toolbar did before the fix, as the independent grey reference.
+      private static func fixture(dark: Bool) async throws -> ToolbarFixture {
         let content = HStack(spacing: 0) {
           ComposerToolbarButton(title: "Emoji & Symbols", symbol: "face.smiling") {}
           ComposerToolbarButton(title: "Show formatting", symbol: "textformat") {}
+          Image(systemName: "textformat")
+            .font(.body)
+            .imageScale(.medium)
+            .foregroundStyle(.secondary)
+            .frame(width: 28, height: 28)
         }
         .padding(padding)
         .background(.background)
@@ -41,17 +50,13 @@
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 80, height: 44), styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         window.contentView = host
-        if key {
-          window.makeKeyAndOrderFront(nil)
-        } else {
-          window.orderFront(nil)
-        }
+        window.orderFront(nil)
         let fixture = ToolbarFixture(window: window, host: host)
         _ = try await waitForView(in: host, timeoutMessage: "The toolbar buttons did not draw") {
           window.setContentSize(host.fittingSize)
           host.layoutSubtreeIfNeeded()
           guard let bitmap = try? Self.bitmap(host), let background = Self.color(in: bitmap, column: 1, row: 1) else { return nil }
-          return Self.ink(in: bitmap, button: 1, fixture: fixture, background: background) == nil ? nil : host
+          return Self.ink(in: bitmap, button: 2, fixture: fixture, background: background) == nil ? nil : host
         }
         return fixture
       }
