@@ -86,6 +86,7 @@ const chatRoomMessageFullEventMessageSchema = z
     reactions: z.array(z.unknown()),
     threadReplyCount: z.number().int().min(0),
     threadLastReplyAt: z.string().nullable(),
+    threadRepliers: z.array(z.unknown()).optional(),
     metadata: z.record(z.string(), z.unknown()).nullable(),
     quote: z.unknown().nullable(),
     membership: z.unknown().nullable(),

@@ -185,7 +185,14 @@ export async function createScheduledTaskInTransaction(
       throw notFound("Project not found");
     }
   }
-  if (!(await lockCalendarScope(tx, input.workspaceId, [projectId]))) {
+  if (
+    !(await lockCalendarScope(
+      tx,
+      input.workspaceId,
+      [projectId],
+      input.creator.userContext.userId,
+    ))
+  ) {
     throw conflict(
       "Task Calendar source changed during scheduled Task creation",
     );

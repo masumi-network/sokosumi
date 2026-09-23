@@ -92,9 +92,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const result = await prisma
       .$transaction(async (tx) => {
-        const locked = await lockCalendarScope(tx, existingTask.workspaceId, [
-          existingTask.projectId,
-        ]);
+        const locked = await lockCalendarScope(
+          tx,
+          existingTask.workspaceId,
+          [existingTask.projectId],
+          userContext?.userId,
+        );
         if (!locked) {
           throw conflict("Task Calendar source changed during schedule update");
         }

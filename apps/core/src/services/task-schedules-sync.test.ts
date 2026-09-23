@@ -302,6 +302,7 @@ describe("taskSchedulesSyncService", () => {
       expect.any(Object),
       "workspace-1",
       ["project-1"],
+      "user-1",
     );
     expect(mockTaskUpdateMany).not.toHaveBeenCalled();
     expect(mockTaskCreate).not.toHaveBeenCalled();
@@ -354,6 +355,7 @@ describe("taskSchedulesSyncService", () => {
       expect.any(Object),
       "workspace-1",
       ["project-1"],
+      "user-1",
     );
     expect(lockTaskRowsMock).toHaveBeenCalledWith(expect.any(Object), [
       candidate.id,
@@ -1609,6 +1611,7 @@ describe("taskSchedulesSyncService", () => {
       expect.any(Object),
       "workspace-1",
       ["project-1"],
+      "user-external",
     );
     expect(mockTaskCreate).not.toHaveBeenCalled();
     expect(mockTaskScheduleOccurrenceCreate).not.toHaveBeenCalled();
