@@ -159,8 +159,11 @@ public final class RoomReadAttention: ObservableObject {
     return true
   }
 
+  /// With a thread open this Looks it first. `threadLooked` runs as soon as a Look reaches Core, whatever
+  /// happens to the room read after it (web's `onThreadLooked`), so the Threads trigger re-counts.
   @discardableResult
-  public func readIfNeeded(room: Components.Schemas.ChatRoom, content: Content, historyReadable: Bool, client: Client, organizationSlug: String?) async throws -> Bool {
+  public func readIfNeeded(room: Components.Schemas.ChatRoom, content: Content, historyReadable: Bool, client: Client, organizationSlug: String?,
+                           threadLooked: () -> Void = {}) async throws -> Bool {
     let next = Marker(roomId: room.id, content: content)
     if marker != next || !historyReadable {
       marker = nil
@@ -169,6 +172,9 @@ public final class RoomReadAttention: ObservableObject {
     marker = next
     let attempt = generation
     let lookError = await lookThread(roomId: room.id, content: content, client: client, organizationSlug: organizationSlug)
+    if content.parentMessageId != nil, lookError == nil {
+      threadLooked()
+    }
     guard attempt == generation, marker == next, isVisible, !Task.isCancelled else {
       clearMarker(matching: next)
       return false
