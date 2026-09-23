@@ -18,6 +18,7 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -129,41 +130,47 @@ async function operation<T>(
       }),
     )
     .digest("hex");
-  return serializableTransaction(async (tx) => {
-    // A transaction-scoped lock also serializes the first use of an absent key.
-    await tx.$queryRaw(
-      PrismaRaw.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${actor.workspaceId}:${actor.actorId}:${key}`}, 0))::text`,
-    );
-    const previous = await tx.tableOperation.findUnique({
-      where: {
-        workspaceId_actorId_key: {
+  try {
+    return await serializableTransaction(async (tx) => {
+      // A transaction-scoped lock also serializes the first use of an absent key.
+      await tx.$queryRaw(
+        PrismaRaw.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${actor.workspaceId}:${actor.actorId}:${key}`}, 0))::text`,
+      );
+      const previous = await tx.tableOperation.findUnique({
+        where: {
+          workspaceId_actorId_key: {
+            workspaceId: actor.workspaceId,
+            actorId: actor.actorId,
+            key,
+          },
+        },
+      });
+      if (previous) {
+        if (previous.requestHash !== requestHash)
+          throw conflict("Retry key was already used for different input");
+        await requireDataTable(actor, previous.tableId, tx);
+        return previous.result as T;
+      }
+      const batchId = randomUUID();
+      const { tableId, result } = await run(tx, batchId);
+      await tx.tableOperation.create({
+        data: {
+          id: batchId,
           workspaceId: actor.workspaceId,
           actorId: actor.actorId,
           key,
+          requestHash,
+          tableId,
+          result: json(result),
         },
-      },
-    });
-    if (previous) {
-      if (previous.requestHash !== requestHash)
-        throw conflict("Retry key was already used for different input");
-      await requireDataTable(actor, previous.tableId, tx);
-      return previous.result as T;
-    }
-    const batchId = randomUUID();
-    const { tableId, result } = await run(tx, batchId);
-    await tx.tableOperation.create({
-      data: {
-        id: batchId,
-        workspaceId: actor.workspaceId,
-        actorId: actor.actorId,
-        key,
-        requestHash,
-        tableId,
-        result: json(result),
-      },
-    });
-    return result;
-  }, "Table changed concurrently. Reload and retry.");
+      });
+      return result;
+    }, "Table changed concurrently. Reload and retry.");
+  } catch (error) {
+    if (isPrismaUniqueViolation(error))
+      throw conflict("Table identifier already exists");
+    throw error;
+  }
 }
 
 function changeData(
@@ -222,6 +229,11 @@ function assertUnique(ids: string[], label: string) {
   if (new Set(ids).size !== ids.length)
     throw unprocessableEntity(`Duplicate ${label}`);
 }
+function suppliedIds(rows: readonly { id?: string }[]): string[] {
+  const ids: string[] = [];
+  for (const row of rows) if (typeof row.id === "string") ids.push(row.id);
+  return ids;
+}
 function assertEditable(table: { archivedAt: Date | null }) {
   if (table.archivedAt) throw conflict("Restore this table before editing");
 }
@@ -263,6 +275,7 @@ export async function createDataTable(
       columns.map((column) => column.id),
       "column IDs",
     );
+    assertUnique(suppliedIds(body.rows), "row IDs");
     const table = await tx.dataTable.create({
       data: {
         workspaceId: actor.workspaceId,
@@ -521,7 +534,7 @@ export async function batchTableRows(
       if (scope && body.insert.length)
         throw forbidden("Selected-row tasks cannot insert rows");
       assertUnique(
-        body.patch.map((row) => row.id),
+        [...suppliedIds(body.insert), ...body.patch.map((row) => row.id)],
         "row IDs",
       );
       const columns = table.columns.map((column) =>

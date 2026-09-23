@@ -43,6 +43,7 @@ const f = vi.hoisted(() => {
     batch: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    get: vi.fn(),
     push: vi.fn(),
   };
 });
@@ -98,7 +99,7 @@ vi.mock("@/lib/services/data-table.client", () => ({
     create: f.create,
     update: f.update,
     projects: vi.fn(),
-    get: vi.fn(),
+    get: (...args: unknown[]) => f.get(...args),
     query: vi.fn(),
     history: vi.fn(),
     agents: vi.fn(),
@@ -464,4 +465,81 @@ it("R1: column dialog freezes ambiguous input and retries its original schema", 
   fireEvent.click(screen.getByRole("button", { name: "retry" }));
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   expect(f.update.mock.calls[1]).toEqual(f.update.mock.calls[0]);
+});
+it("column conflict cannot be acknowledged when latest-table reload fails", async () => {
+  f.update.mockRejectedValueOnce({ error: "Conflict" });
+  f.get.mockRejectedValueOnce(new Error("reload failed"));
+  const table = {
+    id: f.column.tableId,
+    workspaceId: "ws",
+    title: "Table",
+    description: "",
+    version: 1,
+    columns: [f.column],
+    views: [],
+    archivedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    projectId: null,
+    createdBy: "user",
+  };
+  render(
+    <TableColumnDialog
+      table={table}
+      column={f.column}
+      onClose={vi.fn()}
+      onSaved={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "save" }));
+  await waitFor(() => expect(f.get).toHaveBeenCalledOnce());
+  expect(screen.getByRole("button", { name: "reviewLatest" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "save" })).toBeDisabled();
+});
+it("column conflict reload shows latest columns before rebuilding a save", async () => {
+  f.update.mockRejectedValueOnce({ error: "Conflict" }).mockResolvedValue({});
+  f.get.mockResolvedValueOnce({
+    id: f.column.tableId,
+    workspaceId: "ws",
+    title: "Table",
+    description: "",
+    version: 2,
+    columns: [{ ...f.column, name: "Latest" }],
+    views: [],
+    archivedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    projectId: null,
+    createdBy: "user",
+  });
+  const table = {
+    id: f.column.tableId,
+    workspaceId: "ws",
+    title: "Table",
+    description: "",
+    version: 1,
+    columns: [f.column],
+    views: [],
+    archivedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    projectId: null,
+    createdBy: "user",
+  };
+  render(
+    <TableColumnDialog
+      table={table}
+      column={f.column}
+      onClose={vi.fn()}
+      onSaved={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "save" }));
+  await waitFor(() =>
+    expect(screen.getByText("Latest · types.text")).toBeInTheDocument(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "reviewLatest" }));
+  fireEvent.click(screen.getByRole("button", { name: "save" }));
+  await waitFor(() => expect(f.update).toHaveBeenCalledTimes(2));
+  expect(f.update.mock.calls[1][1].version).toBe(2);
 });

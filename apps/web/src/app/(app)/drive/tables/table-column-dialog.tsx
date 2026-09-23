@@ -30,16 +30,32 @@ export function TableColumnDialog({
   onSaved: () => void;
 }) {
   const t = useTranslations("App.Tables");
-  const [baseTable] = useState(table);
+  const [baseTable, setBaseTable] = useState(table);
+  const [latestTable, setLatestTable] = useState<DataTable>();
   const [name, setName] = useState(column?.name ?? "");
   const [description, setDescription] = useState(column?.description ?? "");
   const [type, setType] = useState<TableColumn["type"]>(column?.type ?? "text");
   const [options, setOptions] = useState(column?.options?.join("; ") ?? "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [reviewConflict, setReviewConflict] = useState(false);
   const [request, setRequest] =
     useState<Parameters<typeof dataTableService.update>[1]>();
   const [columnId] = useState(() => column?.id ?? crypto.randomUUID());
+  async function reloadLatest() {
+    setLatestTable(undefined);
+    setPending(true);
+    try {
+      const latest = await dataTableService.get(table.id);
+      setBaseTable(latest);
+      setLatestTable(latest);
+      setError("");
+    } catch (error) {
+      setError(tableError(error, t));
+    } finally {
+      setPending(false);
+    }
+  }
   async function handleSave() {
     setPending(true);
     try {
@@ -67,7 +83,18 @@ export function TableColumnDialog({
       onSaved();
       onClose();
     } catch (error) {
-      if (isTableRejection(error)) setRequest(undefined);
+      if (isTableRejection(error)) {
+        setRequest(undefined);
+        if (
+          error &&
+          typeof error === "object" &&
+          "error" in error &&
+          error.error === "Conflict"
+        ) {
+          setReviewConflict(true);
+          await reloadLatest();
+        }
+      }
       setError(tableError(error, t));
     } finally {
       setPending(false);
@@ -85,7 +112,39 @@ export function TableColumnDialog({
           <DialogTitle>{column ? t("editColumn") : t("addColumn")}</DialogTitle>
           <DialogDescription>{t("columnDescription")}</DialogDescription>
         </DialogHeader>
-        <fieldset disabled={pending || !!request} className="grid gap-4">
+        {reviewConflict && (
+          <div role="alert" className="grid gap-2 rounded-md border p-3">
+            <p className="text-sm">{t("columnConflictReview")}</p>
+            <ul className="text-muted-foreground grid gap-1 text-sm">
+              {latestTable?.columns.map((item) => (
+                <li key={item.id}>
+                  {item.name} · {t(`types.${item.type}`)}
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => void reloadLatest()}
+              >
+                {t("reloadLatest")}
+              </Button>
+              <Button
+                type="button"
+                disabled={pending || !latestTable}
+                onClick={() => setReviewConflict(false)}
+              >
+                {t("reviewLatest")}
+              </Button>
+            </div>
+          </div>
+        )}
+        <fieldset
+          disabled={pending || !!request || reviewConflict}
+          className="grid gap-4"
+        >
           <div className="grid gap-2">
             <Label htmlFor="column-name">{t("columnName")}</Label>
             <Input
@@ -136,7 +195,10 @@ export function TableColumnDialog({
           )}
         </fieldset>
         <DialogFooter>
-          <Button onClick={() => void handleSave()} disabled={pending}>
+          <Button
+            onClick={() => void handleSave()}
+            disabled={pending || reviewConflict}
+          >
             {pending ? t("saving") : request ? t("retry") : t("save")}
           </Button>
         </DialogFooter>

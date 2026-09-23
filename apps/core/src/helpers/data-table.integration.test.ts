@@ -81,6 +81,72 @@ describe.runIf(enabled)("native tables PostgreSQL invariants", () => {
       createDataTable(actor, { ...body, title: "Other" }),
     ).rejects.toThrow("Retry key");
   });
+  it("rejects duplicate supplied row IDs before creating a table", async () => {
+    const rowId = randomUUID();
+    const body = input();
+    body.title = `Duplicate ${randomUUID()}`;
+    body.rows = [
+      { id: rowId, values: { [nameId]: "one" }, evidence: {} },
+      { id: rowId, values: { [nameId]: "two" }, evidence: {} },
+    ];
+    await expect(createDataTable(actor, body)).rejects.toThrow(
+      "Duplicate row IDs",
+    );
+    expect(
+      await prisma.dataTable.count({
+        where: { workspaceId, title: body.title },
+      }),
+    ).toBe(0);
+  });
+  it("generates distinct IDs for multiple rows without supplied IDs", async () => {
+    const table = await createDataTable(actor, input());
+    const result = await batchTableRows(
+      actor,
+      table.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        insert: [
+          { values: { [nameId]: "one" } },
+          { values: { [nameId]: "two" } },
+        ],
+      }),
+    );
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0].id).not.toBe(result.rows[1].id);
+  });
+  it("maps a supplied row ID collision to a generic conflict atomically", async () => {
+    const first = await createDataTable(actor, input());
+    const rowId = randomUUID();
+    await batchTableRows(
+      actor,
+      first.id,
+      tableBatchSchema.parse({
+        key: randomUUID(),
+        insert: [{ id: rowId, values: { [nameId]: "first" }, evidence: {} }],
+      }),
+    );
+    nameId = randomUUID();
+    numberId = randomUUID();
+    const second = await createDataTable(actor, input());
+    await expect(
+      batchTableRows(
+        actor,
+        second.id,
+        tableBatchSchema.parse({
+          key: randomUUID(),
+          insert: [
+            { id: rowId, values: { [nameId]: "collision" }, evidence: {} },
+          ],
+        }),
+      ),
+    ).rejects.toThrow("Table identifier already exists");
+    expect(await prisma.tableRow.count({ where: { tableId: second.id } })).toBe(
+      0,
+    );
+    expect(
+      await prisma.tableChange.count({ where: { tableId: second.id } }),
+    ).toBe(1);
+  });
   it("deduplicates concurrent inserts and keeps audit atomic", async () => {
     const table = await createDataTable(actor, input());
     const batch = tableBatchSchema.parse({

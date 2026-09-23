@@ -73,7 +73,12 @@ export function parseTableInput(
         throw new Error("Use YYYY-MM-DD");
       return text;
     case "url": {
-      const url = new URL(text);
+      let url: URL;
+      try {
+        url = new URL(text);
+      } catch {
+        throw new Error("Invalid URL");
+      }
       if (!["http:", "https:"].includes(url.protocol))
         throw new Error("Use HTTP or HTTPS");
       return text;
