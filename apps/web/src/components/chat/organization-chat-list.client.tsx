@@ -269,31 +269,40 @@ export function OrganizationChatList({
   }
 
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
-  const { pinned, directMessages, namedChannels, externalJoined } = useMemo(
+  // All unreads (SOK-1159): the rooms a read would still change. One answer
+  // for what the sections keep, what Just read tracks and whether the reader
+  // is caught up, so the three cannot disagree.
+  const unreadRoomIds = useMemo(
     () =>
-      partitionRoomsForSidebar(
-        // All unreads (SOK-1159): the same sections, holding only the rooms
-        // a read would still change. The open room stays: it is the one being
-        // read, and dropping it would pull the row out from under the reader.
-        unreadOnly
-          ? roomRows.filter((room) => {
-              const { readRoom, lookThreads } = roomUnreadReads(room);
-              return readRoom || lookThreads || room.id === activeRoomId;
-            })
-          : roomRows,
-      ),
-    [roomRows, unreadOnly, activeRoomId],
-  );
-  // The filter's pass (SOK-1159): rooms read since it was switched on move to
-  // Just read rather than vanishing. Switching it off ends the pass.
-  const nextFilterPass = unreadOnly
-    ? advanceUnreadFilterPass(filterPass, {
-        unreadIds: roomRows
+      new Set(
+        roomRows
           .filter((room) => {
             const { readRoom, lookThreads } = roomUnreadReads(room);
             return readRoom || lookThreads;
           })
           .map((room) => room.id),
+      ),
+    [roomRows],
+  );
+  const { pinned, directMessages, namedChannels, externalJoined } = useMemo(
+    () =>
+      partitionRoomsForSidebar(
+        // The same sections, holding only those rooms. The open room stays:
+        // it is the one being read, and dropping it would pull the row out
+        // from under the reader.
+        unreadOnly
+          ? roomRows.filter(
+              (room) => unreadRoomIds.has(room.id) || room.id === activeRoomId,
+            )
+          : roomRows,
+      ),
+    [roomRows, unreadOnly, unreadRoomIds, activeRoomId],
+  );
+  // The filter's pass (SOK-1159): rooms read since it was switched on move to
+  // Just read rather than vanishing. Switching it off ends the pass.
+  const nextFilterPass = unreadOnly
+    ? advanceUnreadFilterPass(filterPass, {
+        unreadIds: [...unreadRoomIds],
         activeRoomId,
       })
     : EMPTY_UNREAD_FILTER_PASS;
@@ -312,14 +321,10 @@ export function OrganizationChatList({
   // A pending invitation stays under the filter, and keeps External open: it
   // is addressed to the reader and waits on them, which is why a closed
   // section already marks it as a mention (`resolveSectionAttention`).
+  // Caught up is about what is unread, not what is listed: the open room
+  // stays in its section after it is read, and must not hold the message off.
   const caughtUp =
-    unreadOnly &&
-    pinned.length +
-      namedChannels.length +
-      externalJoined.length +
-      directMessages.length +
-      pendingRows.length ===
-      0;
+    unreadOnly && unreadRoomIds.size === 0 && pendingRows.length === 0;
   // The mode ends with the toggle that leaves it (section closed, or fewer
   // than two pins). Otherwise it would come back by itself, unasked, the
   // next time a second room is pinned.

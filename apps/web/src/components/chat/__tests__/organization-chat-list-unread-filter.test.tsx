@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   createOrganizationChatList,
   emptyListResult,
+  harnessPathname,
   listRoomsMock,
   makeRoom,
   renderOrganizationChatList,
@@ -97,6 +98,24 @@ describe("OrganizationChatList All unreads filter", () => {
       "aria-pressed",
       "false",
     );
+  });
+
+  // The open room stays listed so reading it never pulls it away, but it is
+  // there because it is open, not because it holds anything unread.
+  it("says caught up with only the open room left, and keeps that room", async () => {
+    harnessPathname.current = `/chat/rooms/${readChannel.id}`;
+    listRoomsMock.mockResolvedValue(emptyListResult([readChannel, readDirect]));
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: [readChannel, readDirect],
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
+
+    expect(rowLabels()).toEqual(["general"]);
+    expect(
+      screen.getByText("App.Channels.UnreadNav.caughtUp"),
+    ).toBeInTheDocument();
   });
 
   it("puts every room back when turned off", async () => {
