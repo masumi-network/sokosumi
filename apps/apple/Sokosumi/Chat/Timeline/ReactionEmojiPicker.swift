@@ -86,6 +86,7 @@ import SwiftUI
       } label: {
         Image(systemName: symbol)
           .font(.title3)
+          .schemeStableSymbolGlyph(.primary)
           .frame(maxWidth: .infinity)
           .frame(height: 30)
           .background(selectedCategory == category ? Color.accentColor.opacity(0.16) : .clear, in: .rect(cornerRadius: 6))

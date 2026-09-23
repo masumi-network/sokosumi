@@ -16,7 +16,10 @@ import {
   SidebarRailSelectionBar,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ROW_FIXED_LABEL_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
@@ -78,7 +81,8 @@ export default function PersonalAssistantNav({
                   <span
                     className={cn(
                       SIDEBAR_ROW_LABEL_CLASS,
-                      "truncate font-medium",
+                      SIDEBAR_ROW_FIXED_LABEL_CLASS,
+                      "font-medium",
                     )}
                   >
                     {t("sokoBot")}
