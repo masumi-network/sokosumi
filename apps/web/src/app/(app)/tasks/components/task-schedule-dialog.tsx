@@ -87,9 +87,21 @@ export function TaskScheduleDialog({
   const [projectId, setProjectId] = useState<string | null>(
     blueprint.projectId ?? null,
   );
-  const [assigneeValue, setAssigneeValue] = useState(
-    taskScheduleAssigneeId(blueprint) ?? "",
-  );
+  const [assigneeValue, setAssigneeValue] = useState(() => {
+    const assigneeId = taskScheduleAssigneeId(blueprint) ?? "";
+    // A private schedule cannot assign a member. Drop that assignee rather
+    // than saving the private Task's name and description as a public one.
+    if (
+      !schedule &&
+      canCreatePrivate &&
+      blueprint.visibility === TaskVisibility.PRIVATE &&
+      blueprint.assigneeUserId &&
+      assigneeId === blueprint.assigneeUserId
+    ) {
+      return "";
+    }
+    return assigneeId;
+  });
   const [isPrivate, setIsPrivate] = useState(
     blueprint.visibility === TaskVisibility.PRIVATE,
   );

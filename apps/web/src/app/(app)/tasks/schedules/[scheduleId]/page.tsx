@@ -34,6 +34,8 @@ import { taskService } from "@/lib/services/task.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 
 const UPCOMING_RUNS_LIMIT = 10;
+// ponytail: one max page, then drop CANCELED. Page further if a schedule can cancel more than 100 future runs.
+const UPCOMING_RUNS_FETCH_LIMIT = 100;
 const CREATED_TASKS_LIMIT = 20;
 
 interface TaskScheduleDetailPageProps {
@@ -78,7 +80,7 @@ async function TaskScheduleDetailContent({
     getProjectFilterOptions(schedule.projectId),
     taskScheduleService.listUpcomingRuns(schedule.id, {
       from: new Date(),
-      limit: UPCOMING_RUNS_LIMIT,
+      limit: UPCOMING_RUNS_FETCH_LIMIT,
     }),
     taskService.listTasks({
       scheduleId: schedule.id,
@@ -94,7 +96,9 @@ async function TaskScheduleDetailContent({
   const project = projectOptions.find(
     (option) => option.id === schedule.projectId,
   );
-  const upcomingRuns = runs.filter((run) => run.state !== "CANCELED");
+  const upcomingRuns = runs
+    .filter((run) => run.state !== "CANCELED")
+    .slice(0, UPCOMING_RUNS_LIMIT);
 
   return (
     <div className="min-h-full w-full">

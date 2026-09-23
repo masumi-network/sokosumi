@@ -230,6 +230,33 @@ describe("TaskScheduleDialog", () => {
     });
   });
 
+  it("keeps a private Task private instead of assigning its member", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      canCreatePrivate: true,
+      coworkerOptions: [COWORKER, MEMBER],
+      initialBlueprint: {
+        name: "Confidential",
+        visibility: "PRIVATE",
+        assigneeUserId: MEMBER.id,
+      },
+    });
+
+    expect(screen.getByRole("switch")).toBeChecked();
+    await user.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() => expect(createTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(createTaskScheduleMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Confidential",
+        visibility: "PRIVATE",
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+      }),
+    );
+  });
+
   it("offers no workspace member as assignee of a private schedule", async () => {
     const user = userEvent.setup();
     renderDialog({
