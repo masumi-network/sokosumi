@@ -84,7 +84,11 @@ public final class RoomThreadOverview: ObservableObject {
     }
   }
 
-  public func markAllRead(client: Client, roomId: String, organizationSlug: String?, mentions: MessageMentions? = nil) async throws {
+  /// Once Core accepted, `looked` tells the room before the first page reloads, as web's
+  /// `onAllThreadsLooked`: the room re-counts the Threads trigger and posts its read. The count here waits
+  /// for that re-count, because Mark all skips a muted thread with an unread mention.
+  public func markAllRead(client: Client, roomId: String, organizationSlug: String?, mentions: MessageMentions? = nil,
+                          looked: () async -> Void) async throws {
     guard !isMarkingRead, !isLoading, !Task.isCancelled else { return }
     let request = generation
     isMarkingRead = true
@@ -98,10 +102,9 @@ public final class RoomThreadOverview: ObservableObject {
       try await ChatService().markAllThreadsRead(client: client, roomId: roomId, organizationSlug: organizationSlug)
       guard request == generation, !Task.isCancelled else { return }
       countGeneration += 1
-      unreadCount = 0
-      try await loadPage(client: client, roomId: roomId, organizationSlug: organizationSlug, mentions: mentions)
+      await looked()
       guard request == generation, !Task.isCancelled else { return }
-      try await refreshCount(client: client, roomId: roomId, organizationSlug: organizationSlug)
+      try await loadPage(client: client, roomId: roomId, organizationSlug: organizationSlug, mentions: mentions)
     } catch {
       guard request == generation, !Task.isCancelled else { return }
       failure = error
