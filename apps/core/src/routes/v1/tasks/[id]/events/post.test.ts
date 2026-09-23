@@ -113,6 +113,7 @@ vi.mock("@/helpers/task-credits", async (importOriginal) => {
 });
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishTaskEventData: publishTaskEventDataMock,
 }));
 
