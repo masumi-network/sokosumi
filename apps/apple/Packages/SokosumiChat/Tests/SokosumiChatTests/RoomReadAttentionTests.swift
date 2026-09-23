@@ -99,6 +99,37 @@ struct RoomReadAttentionTests {
     #expect(state.applying(to: [room]).first?.unreadCount == 1)
   }
 
+  /// Row 24c: web's `lookThread` reports every Look that reaches Core, the automatic one included, so the
+  /// header Threads trigger re-counts (`onThreadLooked`). A refused Look reports nothing; a room read that
+  /// fails after a Look does not take the report back.
+  @Test func everyAutomaticLookThatReachesCoreIsReported() async throws {
+    let room = try await room()
+    let state = RoomReadAttention()
+    state.setVisible(true, window: UUID())
+    let lookBody = """
+    {"data":{"parentMessageId":"root","lastReadAt":"\(testTimestamp)"},"meta":{"timestamp":"\(testTimestamp)","requestId":"test"}}
+    """
+    let transport = TestTransport([(200, attentionBody(unread: 3)),
+                                   (200, lookBody), (200, attentionBody(unread: 2)),
+                                   (503, "{}"), (200, attentionBody(unread: 2)),
+                                   (200, lookBody), (503, "{}")])
+    let client = try makeTestClient(transport)
+    var looked: [Int] = []
+    func read(_ content: RoomReadAttention.Content) async {
+      _ = try? await state.readIfNeeded(room: room, content: content, historyReadable: true, client: client, organizationSlug: nil,
+                                        threadLooked: { looked.append(transport.requests.count) })
+    }
+    await read(.init(messages: [.init(id: "m", content: "Room")]))
+    #expect(looked.isEmpty, "No thread open, no Look.")
+    await read(.init(messages: [], parentMessageId: "root", replies: [.init(id: "r1", content: "First")]))
+    #expect(looked == [2], "Reported as soon as the Look answers, before the room read.")
+    await read(.init(messages: [], parentMessageId: "root", replies: [.init(id: "r2", content: "Second")]))
+    #expect(looked == [2], "A refused Look reports nothing.")
+    await read(.init(messages: [], parentMessageId: "root", replies: [.init(id: "r3", content: "Third")]))
+    #expect(looked == [2, 6], "The Look counts even when the room read after it fails.")
+    #expect(transport.requests.count == 7)
+  }
+
   @Test func failedThreadLookStillReadsRoomAndRetriesAttention() async throws {
     let room = try await room()
     let state = RoomReadAttention()
