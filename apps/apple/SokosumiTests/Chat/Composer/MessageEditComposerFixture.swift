@@ -71,11 +71,7 @@
 
     /// The window fitted to the composer, then drawn.
     func bitmap() throws -> NSBitmapImageRep {
-      window.setContentSize(host.fittingSize)
-      host.layoutSubtreeIfNeeded()
-      let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-      host.cacheDisplay(in: host.bounds, to: bitmap)
-      return bitmap
+      try fittedBitmap(of: host, in: window)
     }
 
     /// Recorded on the result bundle, which the app sandbox cannot hide: `xcresulttool export attachments`.
@@ -118,17 +114,7 @@
 
     /// Clicks the point at bitmap pixel `pixel`.
     func click(atPixel pixel: CGPoint, in bitmap: NSBitmapImageRep) {
-      let scale = scale(of: bitmap)
-      var point = CGPoint(x: pixel.x / scale, y: pixel.y / scale)
-      if !host.isFlipped {
-        point.y = host.bounds.height - point.y
-      }
-      let location = host.convert(point, to: nil)
-      for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-        guard let event = NSEvent.mouseEvent(with: type, location: location, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                                             windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) else { continue }
-        window.sendEvent(event)
-      }
+      clickPixel(pixel, of: bitmap, drawnFrom: host, in: window)
     }
 
     private static func inputView(in view: NSView) -> MacComposerTextInput.InputView? {
@@ -136,6 +122,32 @@
         return input
       }
       return view.subviews.lazy.compactMap { inputView(in: $0) }.first
+    }
+  }
+
+  /// `window` fitted to `host`, then `host` drawn.
+  @MainActor
+  func fittedBitmap(of host: NSView, in window: NSWindow) throws -> NSBitmapImageRep {
+    window.setContentSize(host.fittingSize)
+    host.layoutSubtreeIfNeeded()
+    let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+    host.cacheDisplay(in: host.bounds, to: bitmap)
+    return bitmap
+  }
+
+  /// A mouse down and up at bitmap pixel `pixel` (origin top left) of a bitmap drawn from `host`.
+  @MainActor
+  func clickPixel(_ pixel: CGPoint, of bitmap: NSBitmapImageRep, drawnFrom host: NSView, in window: NSWindow) {
+    let scale = CGFloat(bitmap.pixelsWide) / host.bounds.width
+    var point = CGPoint(x: pixel.x / scale, y: pixel.y / scale)
+    if !host.isFlipped {
+      point.y = host.bounds.height - point.y
+    }
+    let location = host.convert(point, to: nil)
+    for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+      guard let event = NSEvent.mouseEvent(with: type, location: location, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                           windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) else { continue }
+      window.sendEvent(event)
     }
   }
 

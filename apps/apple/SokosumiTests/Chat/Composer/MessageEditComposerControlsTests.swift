@@ -3,6 +3,7 @@
   import CoreAPI
   @testable import Sokosumi
   import SokosumiChat
+  import SwiftUI
   import Testing
 
   /// One drawn control: its bounds in bitmap pixels, how strongly it stands out from the background and
@@ -15,6 +16,11 @@
     var center: CGPoint {
       CGPoint(x: rect.midX, y: rect.midY)
     }
+  }
+
+  @MainActor private final class ClickCounts {
+    var saves = 0
+    var cancels = 0
   }
 
   extension NativeWindowTests {
@@ -141,6 +147,52 @@
         #expect(EditRequestProtocol.requests == [Self.patch], "Save sent nothing more.")
       }
 
+      // The composer-level tests above prove the outcome, but `commit()` and `cancel()` already ignore an
+      // over-limit draft and a save in flight, so a control that still fired would pass them. These host
+      // `MessageEditControls` alone with counting closures.
+
+      @Test func enabledControlsFireOnceEach() async throws {
+        let counts = try await Self.clickControls(canSave: true)
+        #expect(counts.saves == 1)
+        #expect(counts.cancels == 1)
+      }
+
+      @Test func aDisabledSaveIgnoresClicksWhileCancelStillFires() async throws {
+        let counts = try await Self.clickControls(canSave: false)
+        #expect(counts.saves == 0, "The disabled ✓ fired.")
+        #expect(counts.cancels == 1)
+      }
+
+      /// The composer disables its whole input while a save is in flight.
+      @Test func bothIgnoreClicksInsideADisabledComposer() async throws {
+        let counts = try await Self.clickControls(canSave: true, composerDisabled: true)
+        #expect(counts.saves == 0, "✓ fired inside a disabled composer.")
+        #expect(counts.cancels == 0, "✕ fired inside a disabled composer.")
+      }
+
+      /// Hosts the controls alone, clicks ✓ then ✕, and returns how often each closure ran.
+      private static func clickControls(canSave: Bool, composerDisabled: Bool = false) async throws -> (saves: Int, cancels: Int) {
+        let counts = ClickCounts()
+        let content = MessageEditControls(canSave: canSave, save: { counts.saves += 1 }, cancel: { counts.cancels += 1 })
+          .disabled(composerDisabled)
+          .padding(16)
+          .background(.background)
+        let host = NSHostingView(rootView: content)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 120, height: 60), styleMask: [.titled], backing: .buffered, defer: false)
+        defer { window.orderOut(nil) }
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        let bitmap = try fittedBitmap(of: host, in: window)
+        let scale = CGFloat(bitmap.pixelsWide) / host.bounds.width
+        let controls = drawnControls(in: bitmap, region: CGRect(x: 0, y: 0, width: bitmap.pixelsWide, height: bitmap.pixelsHigh), scale: scale)
+        try #require(controls.count == 2, "Found \(controls.map(\.rect)).")
+        clickPixel(controls[1].center, of: bitmap, drawnFrom: host, in: window)
+        clickPixel(controls[0].center, of: bitmap, drawnFrom: host, in: window)
+        // A button runs its action on mouse up; give any deferred delivery time before counting.
+        try await Task.sleep(for: .milliseconds(200))
+        return (counts.saves, counts.cancels)
+      }
+
       /// The inner right edge of the composer frame (16 pt host padding, 1 pt stroke) in pixels.
       private static func frameRight(_ fixture: MessageEditComposerFixture, bitmap: NSBitmapImageRep) -> CGFloat {
         (fixture.host.bounds.width - 16 - 1) * fixture.scale(of: bitmap)
@@ -152,11 +204,16 @@
         let scale = fixture.scale(of: bitmap)
         let field = fixture.fieldRect(in: bitmap)
         let line = try fixture.firstLineRect(in: bitmap)
-        let minX = Int(field.maxX) + 1
-        let maxX = Int(frameRight(fixture, bitmap: bitmap)) - 1
-        let minY = max(0, Int(line.minY - 8 * scale))
-        let maxY = min(bitmap.pixelsHigh, Int(line.maxY + 8 * scale))
-        guard minX < maxX, let background = bitmap.colorAt(x: maxX - 1, y: minY)?.usingColorSpace(.sRGB) else { return [] }
+        let minX = field.maxX + 1, maxX = frameRight(fixture, bitmap: bitmap) - 1
+        let minY = max(0, line.minY - 8 * scale), maxY = min(CGFloat(bitmap.pixelsHigh), line.maxY + 8 * scale)
+        return drawnControls(in: bitmap, region: CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY), scale: scale)
+      }
+
+      /// Ink in `region` (bitmap pixels, origin top left) against its top-right pixel, grouped into runs of
+      /// columns at least 4 pt wide, left to right.
+      private static func drawnControls(in bitmap: NSBitmapImageRep, region: CGRect, scale: CGFloat) -> [DrawnControl] {
+        let minX = Int(region.minX), maxX = Int(region.maxX), minY = Int(region.minY), maxY = Int(region.maxY)
+        guard minX < maxX, minY < maxY, let background = bitmap.colorAt(x: maxX - 1, y: minY)?.usingColorSpace(.sRGB) else { return [] }
         func difference(_ column: Int, _ row: Int) -> (ink: CGFloat, colored: Bool) {
           guard let color = bitmap.colorAt(x: column, y: row)?.usingColorSpace(.sRGB) else { return (0, false) }
           let channels = [color.redComponent, color.greenComponent, color.blueComponent]
