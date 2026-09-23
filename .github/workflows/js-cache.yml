@@ -11,6 +11,8 @@ permissions:
 # copy of each and cannot fill the repo's 10 GB and evict Apple's
 # macOS-mint-* entry.
 on:
+  # TEMP: measurement only, reverted before review.
+  pull_request:
   push:
     branches: [main]
     paths:
