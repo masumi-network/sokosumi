@@ -3427,7 +3427,7 @@ extension WorkspaceStateTests {
     #expect(transport.operationIDs.last == "post/chats/rooms/{id}/threads/read")
     #expect(state.threadAttentionRevision == revision)
     #expect(state.rooms.first?.unreadCount == 3)
-    #expect(state.threadOverview.items.first?.unreadReplyCount == 2 && state.threadOverview.failure != nil)
+    #expect(state.threadOverview.items.first?.unreadReplyCount == 2 && state.threadOverview.failureMessage != nil)
     #expect(transport.remainingStubs == 0)
   }
 }

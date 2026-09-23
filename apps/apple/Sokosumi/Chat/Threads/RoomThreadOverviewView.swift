@@ -2,6 +2,10 @@ import CoreAPI
 import SokosumiChat
 import SwiftUI
 
+/// The room's thread overview, web's `ThreadListPanel`: the rows under Unread and Earlier (row 24d), and
+/// paging and failures as web shows them (row 24e). The paging row after the last thread loads the next page
+/// by itself once it scrolls into view, keeps a failed page on that row with a retry, and a failed first page
+/// replaces the list.
 struct RoomThreadOverviewView: View {
   @ObservedObject var overview: RoomThreadOverview
   let open: (Components.Schemas.ChatRoomMessage) -> Void
@@ -10,6 +14,8 @@ struct RoomThreadOverviewView: View {
   let retry: () -> Void
   let close: () -> Void
   @State private var hoveredId: String?
+  /// The paging row is on screen, web's `IntersectionObserver` on `ThreadListLoadMore`.
+  @State private var pagingRowVisible = false
 
   var body: some View {
     let groups = overview.groups
@@ -18,8 +24,9 @@ struct RoomThreadOverviewView: View {
         Text("Threads").font(.headline)
         Spacer()
         if !groups.unread.isEmpty {
-          Button("Mark all as read", action: markAllRead)
-            .disabled(overview.isMarkingRead || overview.isLoading)
+          // Web's button reads its loading label while Mark all and the reload after it run.
+          Button(overview.isMarkingRead ? "Loading threads…" : "Mark all as read", action: markAllRead)
+            .disabled(overview.isMarkingRead || overview.isLoading || overview.olderPageStatus == .loading)
         }
         Button("Close threads", systemImage: "xmark", action: close)
           .labelStyle(.iconOnly).buttonStyle(.borderless).help("Close threads")
@@ -29,11 +36,8 @@ struct RoomThreadOverviewView: View {
         LazyVStack(alignment: .leading, spacing: 4) {
           if overview.isLoading, overview.items.isEmpty {
             ProgressView("Loading threads…").frame(maxWidth: .infinity).padding()
-          } else if let failure = overview.failure {
-            VStack(alignment: .leading, spacing: 8) {
-              Text(friendlyMessage(for: failure)).foregroundStyle(.secondary)
-              Button("Retry", action: retry)
-            }.padding()
+          } else if let failure = overview.failureMessage {
+            listFailure(failure)
           } else if overview.items.isEmpty {
             Text("No threads yet.").foregroundStyle(.secondary).padding()
           }
@@ -58,13 +62,37 @@ struct RoomThreadOverviewView: View {
             }
           }
           if overview.nextCursor != nil {
-            Button(overview.isLoading ? "Loading…" : "Load older threads", action: older)
-              .disabled(overview.isLoading || overview.isMarkingRead)
-              .frame(maxWidth: .infinity).padding(8)
+            pagingRow
           }
         }.padding(8)
       }
     }.font(.callout)
+  }
+
+  /// Web's `ThreadListLoadMore`: asks for the next page once it is in view, once per arming. It re-arms when
+  /// it goes idle again or the last row changes, and a failed page waits for the reader's click.
+  private var pagingRow: some View {
+    PageBoundaryRow(copy: .olderThreads, status: overview.olderPageStatus, load: older)
+      .onScrollVisibilityChange(threshold: 0.01) { pagingRowVisible = $0 }
+      .onDisappear { pagingRowVisible = false }
+      .onChange(of: OlderPageArming(visible: pagingRowVisible, armed: overview.loadsOlderAutomatically,
+                                    lastThreadId: overview.items.last?.parentMessage.id), initial: true) { _, arming in
+        guard arming.visible, arming.armed else { return }
+        Task { @MainActor in older() }
+      }
+  }
+
+  /// The list's own error in place of the rows (a failed first page) or over them (a failed Mark all), centred
+  /// as web shows it. Web offers no control for a failed first page; Apple keeps its Retry there, as the
+  /// transcript keeps one for a failed latest page (row 04a). A failed Mark all is retried by Mark all itself.
+  private func listFailure(_ message: String) -> some View {
+    VStack(spacing: 8) {
+      Text(message).foregroundStyle(.secondary).multilineTextAlignment(.center)
+      if overview.items.isEmpty {
+        Button("Retry", action: retry)
+      }
+    }
+    .frame(maxWidth: .infinity).padding(.horizontal, 8).padding(.vertical, 16)
   }
 
   private func row(_ item: Components.Schemas.ChatRoomThread) -> some View {
@@ -178,4 +206,12 @@ private struct RoomThreadOverviewMark: View {
       .background(isUnread ? Color.accentColor.opacity(0.15) : .clear, in: .circle)
       .accessibilityHidden(true)
   }
+}
+
+/// What web's `useLoadWhenVisible` watches: the paging row in view while armed. A change to the last thread
+/// re-arms it even when the row never left the screen.
+private struct OlderPageArming: Equatable {
+  let visible: Bool
+  let armed: Bool
+  let lastThreadId: String?
 }

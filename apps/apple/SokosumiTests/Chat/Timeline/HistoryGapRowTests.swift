@@ -169,17 +169,17 @@
       @Test(arguments: [false, true])
       func theRowsReadAsWebInEachState(dark: Bool) async throws {
         let rows = VStack(spacing: 0) {
-          TranscriptBoundaryRow(isGap: true, status: .idle) {}
+          PageBoundaryRow(copy: .transcript(isGap: true), status: .idle) {}
           Divider()
-          TranscriptBoundaryRow(isGap: true, status: .loading) {}
+          PageBoundaryRow(copy: .transcript(isGap: true), status: .loading) {}
           Divider()
-          TranscriptBoundaryRow(isGap: true, status: .failed) {}
+          PageBoundaryRow(copy: .transcript(isGap: true), status: .failed) {}
           Divider()
-          TranscriptBoundaryRow(isGap: false, status: .idle) {}
+          PageBoundaryRow(copy: .transcript(isGap: false), status: .idle) {}
           Divider()
-          TranscriptBoundaryRow(isGap: false, status: .loading) {}
+          PageBoundaryRow(copy: .transcript(isGap: false), status: .loading) {}
           Divider()
-          TranscriptBoundaryRow(isGap: false, status: .failed) {}
+          PageBoundaryRow(copy: .transcript(isGap: false), status: .failed) {}
         }
         .padding(12)
         .background(.background)

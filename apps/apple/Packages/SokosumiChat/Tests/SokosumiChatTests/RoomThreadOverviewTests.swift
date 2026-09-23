@@ -41,23 +41,175 @@ struct RoomThreadOverviewTests {
     #expect(queries.map { $0.first { $0.name == "cursor" }?.value } == [nil, "older"])
   }
 
-  @Test func loadFailureKeepsOlderItemsAndAllowsRetry() async throws {
+  /// Row 24e: web's `handleLoadOlder` keeps a failed older page on its row (`olderFailed`), apart from the
+  /// list's own error, and stops loading by itself until the reader retries; a retry that lands leaves the
+  /// row idle, so loading on scroll resumes.
+  @Test func aFailedOlderPageStaysOnItsRowAndARetryResumesPaging() async throws {
     let transport = TestTransport([
-      (200, testMessagesPageBody(messages: [threadJSON(id: "first", unread: 0)], nextCursor: "older")),
-      (403, #"{"error":"Forbidden","message":"No access"}"#),
-      (200, testMessagesPageBody(messages: [], nextCursor: nil))
+      (200, testMessagesPageBody(messages: [threadJSON(id: "first", unread: 2), threadJSON(id: "second", unread: 0)], nextCursor: "older")),
+      (500, #"{"error":"Internal","message":"boom"}"#),
+      (200, testMessagesPageBody(messages: [threadJSON(id: "third", unread: 0)], nextCursor: "oldest"))
     ])
     let overview = RoomThreadOverview()
     let client = try makeTestClient(transport)
     try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil)
-    do {
+    #expect(overview.loadsOlderAutomatically)
+    await #expect(throws: (any Error).self) {
       try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil, older: true)
-      Issue.record("Expected forbidden error")
-    } catch {}
-    #expect(overview.failure != nil && !overview.isLoading)
-    #expect(overview.items.count == 1)
+    }
+    #expect(overview.olderPageStatus == .failed)
+    #expect(overview.failureMessage == nil, "An older page never raises the list's own error.")
+    #expect(overview.items.map(\.parentMessage.id) == ["first", "second"] && overview.nextCursor == "older")
+    #expect(overview.groups.unread.count == 1 && overview.groups.earlier.count == 1, "The groups keep their rows.")
+    #expect(!overview.isLoading && !overview.loadsOlderAutomatically, "A failed row waits for the reader.")
+
     try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil, older: true)
-    #expect(overview.failure == nil && overview.nextCursor == nil)
+    #expect(overview.olderPageStatus == .idle && overview.loadsOlderAutomatically)
+    #expect(overview.items.map(\.parentMessage.id) == ["first", "second", "third"] && overview.nextCursor == "oldest")
+    #expect(transport.requests.map { URLComponents(string: $0.request.path ?? "")?.queryItems?.first { $0.name == "cursor" }?.value } == [nil, "older", "older"],
+            "The retry asks for the page that failed.")
+  }
+
+  /// An older page in flight is the row's own loading: the list is not reloading, Mark all waits for it and
+  /// the row does not ask twice.
+  @Test func anOlderPageInFlightIsTheRowsOwnLoading() async throws {
+    let overview = RoomThreadOverview()
+    try await overview.load(client: makeTestClient(TestTransport([
+      (200, testMessagesPageBody(messages: [threadJSON(id: "first", unread: 2)], nextCursor: "older"))
+    ])), roomId: testRoomId, organizationSlug: nil)
+    let held = PausedOverviewTransport(body: testMessagesPageBody(messages: [threadJSON(id: "second", unread: 0)], nextCursor: nil))
+    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let older = Task { try await overview.load(client: heldClient, roomId: testRoomId, organizationSlug: nil, older: true) }
+    await held.waitForRequest()
+    #expect(overview.olderPageStatus == .loading)
+    #expect(!overview.isLoading, "The first page is not loading, so the list keeps its rows and headings.")
+    #expect(!overview.loadsOlderAutomatically)
+    let idle = TestTransport([])
+    try await overview.load(client: makeTestClient(idle), roomId: testRoomId, organizationSlug: nil, older: true)
+    try await overview.markAllRead(client: makeTestClient(idle), roomId: testRoomId, organizationSlug: nil, looked: {})
+    #expect(idle.requests.isEmpty, "Neither a second older page nor Mark all starts while the page loads.")
+    await held.release()
+    try await older.value
+    #expect(overview.olderPageStatus == .idle && overview.items.map(\.parentMessage.id) == ["first", "second"])
+    #expect(overview.nextCursor == nil && !overview.loadsOlderAutomatically)
+  }
+
+  /// Web's `loadFirstPage`: a failed first page clears the rows and the cursor, so no heading, Mark all or
+  /// paging row is left, and says Core's message, or web's copy when Core sent none.
+  @Test(arguments: [
+    [overviewCoreError("You are not a member of this room"), "403", "You are not a member of this room"],
+    ["not json", "200", "Could not load threads. Try again."]
+  ])
+  func aFailedFirstPageClearsTheList(example: [String]) async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [threadJSON(id: "first", unread: 2), threadJSON(id: "second", unread: 0)], nextCursor: "older")),
+      (500, #"{"error":"Internal","message":"boom"}"#),
+      (Int(example[1]) ?? 500, example[0])
+    ])
+    let overview = RoomThreadOverview()
+    let client = try makeTestClient(transport)
+    try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil)
+    _ = try? await overview.load(client: client, roomId: testRoomId, organizationSlug: nil, older: true)
+    await #expect(throws: (any Error).self) {
+      try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil)
+    }
+    #expect(overview.items.isEmpty && overview.previews.isEmpty && overview.nextCursor == nil)
+    #expect(!overview.groups.showsUnreadHeading && !overview.groups.showsEarlierHeading && overview.groups.unread.isEmpty)
+    #expect(overview.failureMessage == example[2])
+    #expect(overview.olderPageStatus == .idle, "A first page forgets the failed older row.")
+    #expect(!overview.isLoading && !overview.loadsOlderAutomatically)
+  }
+
+  /// Mark all reloads through the same first page, so a failed reload clears the list the same way; a
+  /// reopened overview (Back from a thread) reloads through it too.
+  @Test func aFailedReloadAfterMarkAllClearsTheList() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [threadJSON(id: "first", unread: 2)], nextCursor: "older")),
+      (200, #"{"data":{"markedCount":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#),
+      (500, overviewCoreError("Reload refused"))
+    ])
+    let overview = RoomThreadOverview()
+    let client = try makeTestClient(transport)
+    try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil)
+    var looked = 0
+    await #expect(throws: (any Error).self) {
+      try await overview.markAllRead(client: client, roomId: testRoomId, organizationSlug: nil, looked: { looked += 1 })
+    }
+    #expect(looked == 1, "Core accepted Mark all, so the room heard of it.")
+    #expect(overview.items.isEmpty && overview.nextCursor == nil && !overview.groups.showsUnreadHeading)
+    #expect(overview.failureMessage == "Reload refused")
+    #expect(!overview.isMarkingRead && !overview.isLoading)
+  }
+
+  /// Web's `handleMarkAllRead`: a refused Mark all keeps the rows under the list's error, with Core's message
+  /// or web's copy; it is not an older-page failure, so paging stays armed, and an older page does not
+  /// clear it. The next first page does.
+  @Test(arguments: [
+    [overviewCoreError("Only members can do that"), "403", "Only members can do that"],
+    ["not json", "200", "Could not mark unread threads as read. Try again."]
+  ])
+  func aFailedMarkAllKeepsTheRows(example: [String]) async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [threadJSON(id: "first", unread: 2)], nextCursor: "older")),
+      (Int(example[1]) ?? 500, example[0]),
+      (200, testMessagesPageBody(messages: [threadJSON(id: "second", unread: 0)], nextCursor: "oldest")),
+      (200, testMessagesPageBody(messages: [threadJSON(id: "first", unread: 2)], nextCursor: "older"))
+    ])
+    let overview = RoomThreadOverview()
+    let client = try makeTestClient(transport)
+    try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil)
+    await #expect(throws: (any Error).self) {
+      try await overview.markAllRead(client: client, roomId: testRoomId, organizationSlug: nil, looked: {})
+    }
+    #expect(overview.failureMessage == example[2])
+    #expect(overview.items.map(\.parentMessage.id) == ["first"] && overview.groups.unread.count == 1)
+    #expect(overview.olderPageStatus == .idle && overview.loadsOlderAutomatically)
+    try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil, older: true)
+    #expect(overview.failureMessage == example[2], "An older page leaves the list's error alone, as on web.")
+    try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil)
+    #expect(overview.failureMessage == nil)
+  }
+
+  /// A first page supersedes an older page in flight: the late page neither appends nor fails the row.
+  @Test(arguments: [true, false])
+  func aFirstPageSupersedesAnOlderPageInFlight(lateFailure: Bool) async throws {
+    let overview = RoomThreadOverview()
+    try await overview.load(client: makeTestClient(TestTransport([
+      (200, testMessagesPageBody(messages: [threadJSON(id: "first", unread: 2)], nextCursor: "older"))
+    ])), roomId: testRoomId, organizationSlug: nil)
+    let held = PausedOverviewTransport(body: lateFailure ? #"{"error":"Internal","message":"late"}"# : testMessagesPageBody(messages: [threadJSON(id: "late", unread: 0)], nextCursor: "late-cursor"),
+                                       status: lateFailure ? .internalServerError : .ok)
+    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let older = Task { try await overview.load(client: heldClient, roomId: testRoomId, organizationSlug: nil, older: true) }
+    await held.waitForRequest()
+    try await overview.load(client: makeTestClient(TestTransport([
+      (200, testMessagesPageBody(messages: [threadJSON(id: "fresh", unread: 0)], nextCursor: "fresh-cursor"))
+    ])), roomId: testRoomId, organizationSlug: nil)
+    #expect(overview.olderPageStatus == .idle, "The reload leaves the row idle while the stale page is out.")
+    await held.release()
+    _ = try? await older.value
+    #expect(overview.items.map(\.parentMessage.id) == ["fresh"] && overview.nextCursor == "fresh-cursor")
+    #expect(overview.olderPageStatus == .idle && overview.failureMessage == nil && overview.loadsOlderAutomatically)
+  }
+
+  /// A reset drops a late older-page outcome, success or failure.
+  @Test(arguments: [true, false])
+  func resetDropsALateOlderPage(lateFailure: Bool) async throws {
+    let overview = RoomThreadOverview()
+    try await overview.load(client: makeTestClient(TestTransport([
+      (200, testMessagesPageBody(messages: [threadJSON(id: "first", unread: 2)], nextCursor: "older"))
+    ])), roomId: testRoomId, organizationSlug: nil)
+    let held = PausedOverviewTransport(body: lateFailure ? #"{"error":"Internal","message":"late"}"# : testMessagesPageBody(messages: [threadJSON(id: "late", unread: 0)], nextCursor: nil),
+                                       status: lateFailure ? .internalServerError : .ok)
+    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let older = Task { try await overview.load(client: heldClient, roomId: testRoomId, organizationSlug: nil, older: true) }
+    await held.waitForRequest()
+    overview.reset()
+    #expect(overview.olderPageStatus == .idle)
+    await held.release()
+    _ = try? await older.value
+    #expect(overview.items.isEmpty && overview.nextCursor == nil)
+    #expect(overview.olderPageStatus == .idle && overview.failureMessage == nil)
   }
 
   @Test func firstPageReloadRemovesObsoletePreviews() async throws {
@@ -137,7 +289,7 @@ struct RoomThreadOverviewTests {
     #expect(looked == 0, "A refused Mark all tells the room nothing.")
     #expect(overview.items.first?.unreadReplyCount == 2)
     #expect(overview.unreadCount == 1)
-    #expect(overview.failure != nil && !overview.isMarkingRead)
+    #expect(overview.failureMessage != nil && !overview.isMarkingRead)
     #expect(transport.requests.count == 3)
   }
 
@@ -175,7 +327,7 @@ struct RoomThreadOverviewTests {
     #expect(overview.items.isEmpty && overview.previews.isEmpty)
     #expect(overview.nextCursor == nil && overview.unreadCount == 0)
     #expect(!overview.isLoading && !overview.isMarkingRead)
-    #expect(overview.failure == nil)
+    #expect(overview.failureMessage == nil)
     #expect(await transport.requestCount == 1)
   }
 
@@ -220,14 +372,21 @@ struct RoomThreadOverviewTests {
   }
 }
 
+/// Core's error envelope carrying `message`, which the overview shows as web does.
+private func overviewCoreError(_ message: String) -> String {
+  #"{"error":"Forbidden","message":"\#(message)","meta":{"timestamp":"\#(testTimestamp)","requestId":"req-1","path":"/v1/chats/rooms/room/threads","method":"GET"}}"#
+}
+
 private actor PausedOverviewTransport: ClientTransport {
   let body: String
+  let status: HTTPResponse.Status
   private var waiter: CheckedContinuation<Void, Never>?
   private var observer: CheckedContinuation<Void, Never>?
   private(set) var requestCount = 0
 
-  init(body: String) {
+  init(body: String, status: HTTPResponse.Status = .ok) {
     self.body = body
+    self.status = status
   }
 
   func waitForRequest() async {
@@ -249,6 +408,6 @@ private actor PausedOverviewTransport: ClientTransport {
       observer?.resume()
       observer = nil
     }
-    return (HTTPResponse(status: .ok), HTTPBody(body))
+    return (HTTPResponse(status: status), HTTPBody(body))
   }
 }
