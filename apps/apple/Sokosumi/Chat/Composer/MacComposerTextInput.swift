@@ -17,6 +17,13 @@
     var channels: [ComposerChannel] = []
     var mentions: [ComposerMention] = []
 
+    static let textInset = NSSize(width: 2, height: 2)
+
+    /// One body line plus the text container's insets: the height of the field's first line of text.
+    static var firstLineHeight: CGFloat {
+      NSLayoutManager().defaultLineHeight(for: .preferredFont(forTextStyle: .body)) + textInset.height * 2
+    }
+
     func makeCoordinator() -> Coordinator {
       Coordinator(self)
     }
@@ -44,7 +51,7 @@
       input.isHorizontallyResizable = false
       input.autoresizingMask = [.width]
       input.textContainer?.widthTracksTextView = true
-      input.textContainerInset = NSSize(width: 2, height: 2)
+      input.textContainerInset = Self.textInset
       input.delegate = context.coordinator
       commands?.input = input
       input.openLinkEditor = { [weak commands] in commands?.beginLink() }
