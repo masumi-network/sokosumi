@@ -40,6 +40,7 @@ function parentMessage(counts: ThreadFields): ChatRoomMessage {
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: {
       type: "user",

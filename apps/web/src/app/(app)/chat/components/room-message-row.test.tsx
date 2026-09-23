@@ -164,6 +164,7 @@ function userMessage(
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: {
       type: "user",

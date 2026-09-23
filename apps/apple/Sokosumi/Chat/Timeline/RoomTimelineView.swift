@@ -205,8 +205,8 @@ import SwiftUI
                 if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
                   DaySeparatorRow(label: label)
                 }
-                if let status = membershipStatusText(message) {
-                  MembershipStatusRow(text: status)
+                if let status = roomStatusText(message) {
+                  RoomStatusRow(text: status)
                     .padding(.horizontal, 12)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }

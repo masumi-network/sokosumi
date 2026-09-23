@@ -34,6 +34,7 @@ import {
 
 import {
   assertChatRoomContentMessage,
+  readGroupNameChangeFromMetadata,
   readMembershipFromMetadata,
 } from "./membership-status";
 // Type only: `room-unread` imports this module at runtime.
@@ -199,7 +200,7 @@ export const chatRoomMessageInclude = {
   },
 } as const satisfies Prisma.ChatRoomMessageInclude;
 
-type ChatRoomWithMembers = Prisma.ChatRoomGetPayload<{
+export type ChatRoomWithMembers = Prisma.ChatRoomGetPayload<{
   include: typeof chatRoomInclude;
 }>;
 
@@ -306,6 +307,8 @@ export function mapChatRoom(
     kind: room.kind as "channel" | "direct",
     directKey: room.directKey,
     isSelfDirect: isSelfDirectRoom(room),
+    isGroupDirect: isGroupDirectRoom(room),
+    groupName: room.groupName,
     topic: room.topic,
     discoverability: mapChatRoomDiscoverability(
       room.kind,
@@ -746,6 +749,9 @@ export function mapChatRoomMessage(
     metadata: isDeleted ? null : publicChatRoomMessageMetadata(metadata),
     quote: isDeleted ? null : readQuoteFromMetadata(metadata),
     membership: isDeleted ? null : readMembershipFromMetadata(metadata),
+    groupNameChange: isDeleted
+      ? null
+      : readGroupNameChangeFromMetadata(metadata),
     unfurls: isDeleted ? null : readUnfurlsFromMetadata(metadata),
   };
 }
@@ -1083,6 +1089,33 @@ export function isSelfDirectRoom(room: ChatRoomWithMembers): boolean {
   );
 }
 
+const DIRECT_PARTICIPANT_KEY_PREFIX = "direct:v2:";
+
+/**
+ * A Direct started for three or more humans, read from its participant key
+ * rather than its live roster: a group that shrank through Organization exit
+ * keeps its key, so it stays a group Direct and keeps its Group name.
+ */
+export function isGroupDirectRoom(room: {
+  kind: string;
+  directKey: string | null;
+}): boolean {
+  if (
+    room.kind !== "direct" ||
+    !room.directKey?.startsWith(DIRECT_PARTICIPANT_KEY_PREFIX)
+  ) {
+    return false;
+  }
+  // `type:id` pairs; ids are UUIDs, so ":" only ever separates.
+  const parts = room.directKey
+    .slice(DIRECT_PARTICIPANT_KEY_PREFIX.length)
+    .split(":");
+  const humanCount = parts.filter(
+    (part, index) => index % 2 === 0 && part === "user",
+  ).length;
+  return humanCount >= 3;
+}
+
 export function buildDirectRoomKey(userIdA: string, userIdB: string): string {
   return [userIdA, userIdB].sort().join(":");
 }
@@ -1145,7 +1178,7 @@ export function buildDirectParticipantRoomKey(params: {
     ...sokoBotIds.map((sokoBotId) => `sokoBot:${sokoBotId}`),
   ].sort();
 
-  return `direct:v2:${participantKeys.join(":")}`;
+  return `${DIRECT_PARTICIPANT_KEY_PREFIX}${participantKeys.join(":")}`;
 }
 
 export function buildDirectRoomName(names: readonly string[]): string {
@@ -1349,6 +1382,7 @@ export async function requireArchivedChatRoomUserAccess(
 const chatRoomWriteSelect = {
   id: true,
   name: true,
+  groupName: true,
   organizationId: true,
   slug: true,
   kind: true,

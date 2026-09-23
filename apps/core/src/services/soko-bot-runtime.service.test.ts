@@ -2710,6 +2710,52 @@ describe("SokoBotRuntimeService chat reading", () => {
     expect(where.archivedAt).toBeNull();
   });
 
+  it("lists a named group by its Group name", async () => {
+    chatRoomFindManyMock.mockResolvedValue([
+      {
+        id: "room_1",
+        name: "Ada, Ben",
+        groupName: "Launch crew",
+        kind: "direct",
+        updatedAt: new Date("2026-09-23T10:00:00.000Z"),
+        _count: { messages: 3 },
+      },
+      {
+        id: "room_2",
+        name: "Ada, Cara",
+        groupName: null,
+        kind: "direct",
+        updatedAt: new Date("2026-09-23T09:00:00.000Z"),
+        _count: { messages: 1 },
+      },
+    ]);
+
+    const result = await new SokoBotRuntimeService()["listChats"]({
+      turn: SCOPE_TURN,
+    } as never);
+
+    expect(result.rooms.map((room) => room.name)).toEqual([
+      "Launch crew",
+      "Ada, Cara",
+    ]);
+  });
+
+  it("names a read group by its Group name", async () => {
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_1",
+      name: "Ada, Ben",
+      groupName: "Launch crew",
+    });
+    chatMessageFindManyMock.mockResolvedValue([]);
+
+    const result = await new SokoBotRuntimeService()["readChat"](
+      { turn: SCOPE_TURN } as never,
+      { roomId: "room_1" },
+    );
+
+    expect(result.name).toBe("Launch crew");
+  });
+
   it("refuses to read a room the bot does not belong to", async () => {
     // The model supplies the room id, so membership is re-checked per call.
     chatRoomFindFirstMock.mockResolvedValue(null);

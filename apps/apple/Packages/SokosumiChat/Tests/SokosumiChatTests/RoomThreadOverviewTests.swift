@@ -227,7 +227,7 @@ struct RoomThreadOverviewTests {
 
   @Test func markAllReadReloadPreservesResolvedMentionPreview() async throws {
     let user = Components.Schemas.ChatRoomUserParticipant(id: "AbCdEfGhIjKlMnOpQrStUvWxYz012345", name: "Anna Smith", email: "anna@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: testRoomId, name: "Room", kind: .direct, isSelfDirect: false, createdByUserId: "AbCdEfGhIjKlMnOpQrStUvWxYz012345", createdAt: Date(), updatedAt: Date(),
+    let room = Components.Schemas.ChatRoom(id: testRoomId, name: "Room", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "AbCdEfGhIjKlMnOpQrStUvWxYz012345", createdAt: Date(), updatedAt: Date(),
                                            unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
                                            userMembers: [user], coworkerMembers: [], sokoBotMembers: [])
     let transport = TestTransport([

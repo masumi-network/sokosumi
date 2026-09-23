@@ -60,10 +60,10 @@ interface NotificationEmptyStateProps {
  * that, the shortest reading of "You're all caught up" is that the list was
  * emptied.
  *
- * The page's permission primer already offers the push pitch above this
- * card, so nothing here repeats it. The way back is labelled "Show all",
- * not "View all notifications": the panel's footer link already carries
- * those words, and it goes to the page rather than switching the view.
+ * The permission primer makes the push pitch on Needs you, so nothing here
+ * repeats it. The way back is labelled "Show all", not "View all
+ * notifications": the panel's footer link already carries those words, and
+ * it goes to the page rather than switching the view.
  */
 export function NotificationEmptyState({
   view,

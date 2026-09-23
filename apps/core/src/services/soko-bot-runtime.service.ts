@@ -812,6 +812,7 @@ export class SokoBotRuntimeService {
       select: {
         id: true,
         name: true,
+        groupName: true,
         kind: true,
         updatedAt: true,
         _count: { select: { messages: true } },
@@ -820,7 +821,7 @@ export class SokoBotRuntimeService {
     return {
       rooms: rooms.map((room) => ({
         roomId: room.id,
-        name: room.name,
+        name: room.groupName ?? room.name,
         kind: room.kind,
         messages: room._count.messages,
         lastActivityAt: room.updatedAt.toISOString(),
@@ -875,6 +876,7 @@ export class SokoBotRuntimeService {
       select: {
         id: true,
         name: true,
+        groupName: true,
         kind: true,
         organizationId: true,
         sokoBotMembers: {
@@ -896,7 +898,7 @@ export class SokoBotRuntimeService {
     const bot = room.sokoBotMembers?.[0]?.sokoBot;
     return {
       id: room.id,
-      name: room.name,
+      name: room.groupName ?? room.name,
       kind: room.kind,
       sokoBotId,
       organizationId: room.organizationId ?? null,

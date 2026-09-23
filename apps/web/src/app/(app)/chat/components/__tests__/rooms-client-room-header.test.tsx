@@ -252,6 +252,8 @@ function channelRoom(): ChatRoom {
     slug: "general",
     kind: "channel",
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: "public",
@@ -339,6 +341,8 @@ describe("RoomsClient edit channel deep link", () => {
     renderRoom({
       ...humanDirectRoom(),
       isSelfDirect: true,
+      isGroupDirect: false,
+      groupName: null,
       userMembers: [participant("user-1", "Ada")],
       organizationId: null,
     });
