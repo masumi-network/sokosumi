@@ -70,9 +70,13 @@
       private static func render(_ rooms: [Components.Schemas.ChatRoom], dark: Bool, name: String? = nil) async throws -> NSBitmapImageRep {
         let state = try await workspace(rooms)
         let size = NSRect(x: 0, y: 0, width: 260, height: 500)
+        // The List paints its own background; the account footer below it has none, because in the app the
+        // split view's sidebar column shows through. Hosted bare, it would record as transparent pixels, so the
+        // fixture puts the appearance's window background behind the whole sidebar.
         let host = NSHostingView(rootView: ConversationSidebarView()
           .environmentObject(state).environmentObject(AuthState())
           .frame(width: size.width, height: size.height)
+          .background(.background)
           .environment(\.colorScheme, dark ? .dark : .light))
         let window = NSWindow(contentRect: size, styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
@@ -111,6 +115,11 @@
           .init(bold: true, badgeCount: 1)
         ])
         let bitmap = try await Self.render(rooms, dark: dark, name: "sidebar-room-attention-\(dark ? "dark" : "light").png")
+        // The account footer below the List is drawn on the appearance's background, not left transparent: a
+        // viewer shows transparency as white, which hid the dark footer's light "Me".
+        let footer = try #require(bitmap.colorAt(x: bitmap.pixelsWide - 40, y: bitmap.pixelsHigh - 30)?.usingColorSpace(.deviceRGB))
+        #expect(footer.alphaComponent == 1, "Footer background alpha: \(footer.alphaComponent)")
+        #expect(dark ? footer.brightnessComponent < 0.5 : footer.brightnessComponent > 0.5, "Footer brightness: \(footer.brightnessComponent)")
         // Vision reads text only on a local run (the CI runner returns nil); pixels carry the other tests.
         guard let lines = try RoomThreadOverviewGroupsViewTests.recognizedText(in: bitmap) else { return }
         /// Web draws the count in the badge's column, so the name ends its text line (Vision reads the globe
