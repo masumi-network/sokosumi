@@ -55,7 +55,7 @@ test("vendors me emits stable text output", async () => {
   ]);
 });
 
-test("TestV79 vendors me describes an empty membership result", async () => {
+test("vendors me describes an empty membership result", async () => {
   const output: string[] = [];
   await runVendorsCommand({
     client: clientWith({ data: [] }),
@@ -66,7 +66,7 @@ test("TestV79 vendors me describes an empty membership result", async () => {
   assert.deepEqual(output, ["No vendors found.\n"]);
 });
 
-test("TestV79 workspaces JSON allowlists organization identity fields", async () => {
+test("workspaces JSON allowlists organization identity fields", async () => {
   const output: string[] = [];
   await runWorkspacesCommand({
     client: clientWith({
@@ -135,7 +135,7 @@ test("workspaces list describes an empty organization workspace candidate result
   assert.deepEqual(output, ["No organization workspaces found.\n"]);
 });
 
-test("TestV80 direct discovery handlers require explicit subcommands", async () => {
+test("direct discovery handlers require explicit subcommands", async () => {
   const stdout = { write: (_value: string) => {} };
   await assert.rejects(
     runVendorsCommand({ client: clientWith({ data: [] }), stdout }),
