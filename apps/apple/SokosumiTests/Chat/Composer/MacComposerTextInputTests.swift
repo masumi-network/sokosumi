@@ -836,21 +836,81 @@
       #expect(input.string == "first\nsecond")
     }
 
-    @Test func editingReturnInsertsLineAndCommandReturnSavesWithoutClearing() throws {
+    /// Option-Return keeps sending from the message composer, as web ignores Alt there (row 18a leaves it alone).
+    @Test func optionReturnSendsFromTheMessageComposer() throws {
       let input = MacComposerTextInput.InputView()
-      input.submitOnModifier = true
-      input.string = "Original"
-      input.setSelectedRange(NSRange(location: 8, length: 0))
+      input.string = "message"
+      var submissions = 0
+      input.submit = { submissions += 1
+        return true
+      }
+      try input.keyDown(with: returnEvent(.option))
+      #expect(submissions == 1)
+      #expect(input.string.isEmpty)
+    }
+
+    /// Row 18a: web's edit composer (`modifierEnterSubmits`) saves on Return and treats
+    /// Command/Control as an alias; Option is never read. A save does not clear the draft.
+    @Test(arguments: [NSEvent.ModifierFlags(), .command, .control, .option])
+    func editingReturnSavesWithoutClearing(_ modifiers: NSEvent.ModifierFlags) throws {
+      let input = editInput("Original")
       var submissions = 0
       input.submit = { submissions += 1
         return false
       }
-      try input.keyDown(with: returnEvent())
+      try input.keyDown(with: returnEvent(modifiers))
+      #expect(submissions == 1)
+      #expect(input.string == "Original")
+    }
+
+    /// Shift inserts a line in the edit composer, also with Command or Control held (web: Shift wins).
+    @Test(arguments: [NSEvent.ModifierFlags.shift, [.shift, .command], [.shift, .control]])
+    func editingShiftReturnInsertsLine(_ modifiers: NSEvent.ModifierFlags) throws {
+      let input = editInput("Original")
+      var submissions = 0
+      input.submit = { submissions += 1
+        return true
+      }
+      try input.keyDown(with: returnEvent(modifiers))
       #expect(submissions == 0)
       #expect(input.string == "Original\n")
-      try input.keyDown(with: returnEvent(.command))
-      #expect(submissions == 1)
-      #expect(input.string == "Original\n")
+    }
+
+    /// Return that commits marked text (an input method) never saves, as web skips `isComposing`.
+    @Test func editingReturnWhileComposingDoesNotSave() throws {
+      let input = editInput("")
+      var submissions = 0
+      input.submit = { submissions += 1
+        return true
+      }
+      input.setMarkedText("か", selectedRange: NSRange(location: 1, length: 0), replacementRange: input.selectedRange())
+      #expect(input.hasMarkedText())
+      try input.keyDown(with: returnEvent())
+      #expect(submissions == 0)
+    }
+
+    /// Return with the suggestion list open accepts the highlighted row and does not save.
+    @Test func editingReturnAcceptsTheOpenSuggestionWithoutSaving() throws {
+      let input = editInput("")
+      input.mentions = [.init(id: "user-1", name: "Anna", slug: "anna", kind: .human)]
+      input.string = "@an"
+      input.setSelectedRange(NSRange(location: 3, length: 0))
+      let commands = MacComposerCommands()
+      commands.input = input
+      input.suggestionKeyHandler = { [weak commands] key in commands?.handleSuggestionKey(key) ?? false }
+      var submissions = 0
+      input.submit = { submissions += 1
+        return true
+      }
+      try input.keyDown(with: returnEvent())
+      #expect(submissions == 0)
+      #expect(input.captureDraft().contains("@user-1"))
+      try input.keyDown(with: returnEvent())
+      #expect(submissions == 1, "With the list closed, the next Return saves.")
+    }
+
+    @Test func editingEscapeCancels() throws {
+      let input = editInput("Original")
       var cancelled = false
       input.cancel = { cancelled = true }
       let escape = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
@@ -858,6 +918,25 @@
                                                  charactersIgnoringModifiers: "\u{1B}", isARepeat: false, keyCode: 53))
       input.keyDown(with: escape)
       #expect(cancelled)
+    }
+
+    /// Web's aria label: "Edit message. Enter to save, Escape to cancel, Shift+Enter for a new line."
+    @Test func editingInputNamesItsKeys() {
+      let input = editInput("Original")
+      #expect(input.accessibilityLabel() == "Edit message")
+      #expect(input.accessibilityHelp() == "Return to save, Escape to cancel, Shift-Return for a new line.")
+      let message = MacComposerTextInput.InputView()
+      message.modifierReturnSubmits = false
+      #expect(message.accessibilityLabel() == "Message")
+      #expect(message.accessibilityHelp() == nil)
+    }
+
+    private func editInput(_ text: String) -> MacComposerTextInput.InputView {
+      let input = MacComposerTextInput.InputView()
+      input.modifierReturnSubmits = true
+      input.string = text
+      input.setSelectedRange(NSRange(location: text.utf16.count, length: 0))
+      return input
     }
 
     private func returnEvent(_ modifiers: NSEvent.ModifierFlags = []) throws -> NSEvent {

@@ -27,7 +27,7 @@ import SwiftUI
 
     var body: some View {
       ComposerLayout {
-        MacComposerTextInput(text: $text, submitOnModifier: cancelEdit != nil, cancel: cancelEdit, onBlur: onBlur, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage, onPaste: onPaste, insertion: insertion)
+        MacComposerTextInput(text: $text, modifierReturnSubmits: cancelEdit != nil, cancel: cancelEdit, onBlur: onBlur, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage, onPaste: onPaste, insertion: insertion)
       } formatting: {
         if toolbarVisible {
           ComposerFormatToolbar(commands: commands)
