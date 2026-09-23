@@ -540,9 +540,6 @@ export function OrganizationChatList({
                         <span className="text-foreground min-w-0 truncate font-medium">
                           {t("UnreadNav.caughtUp")}
                         </span>
-                        <span className="text-muted-foreground ml-auto shrink-0 text-xs">
-                          {t("UnreadNav.chatCount", { count: roomRows.length })}
-                        </span>
                       </div>
                     </motion.div>
                   ) : null}
