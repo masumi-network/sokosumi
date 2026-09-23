@@ -5468,7 +5468,7 @@
       "UnreadNav": {
         "label": "Ungelesen",
         "threads": "Threads",
-        "allUnreads": "Alle ungelesenen",
+        "allUnreads": "Ungelesene",
         "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
         "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",

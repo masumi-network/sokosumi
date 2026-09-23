@@ -5468,7 +5468,7 @@
       "UnreadNav": {
         "label": "Sin leer",
         "threads": "Hilos",
-        "allUnreads": "Todo lo no leído",
+        "allUnreads": "No leídos",
         "unreadThreads": "{count, plural, one {# hilo sin leer} other {# hilos sin leer}}",
         "unreadThreadsCapped": "Más de {max} hilos sin leer",
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
