@@ -40,7 +40,7 @@ struct RoomThreadOverviewView: View {
           if groups.showsUnreadHeading {
             Section {
               if groups.isCaughtUp {
-                Text("All caught up.")
+                Text("All caught up")
                   .font(.caption).foregroundStyle(.secondary)
                   .frame(maxWidth: .infinity).padding(.vertical, 8)
               } else {
