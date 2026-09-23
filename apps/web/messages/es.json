@@ -1523,7 +1523,8 @@
       },
       "Tabs": {
         "tasks": "Tasks",
-        "jobs": "Jobs"
+        "jobs": "Jobs",
+        "schedules": "Programaciones"
       },
       "Columns": {
         "backlog": "Pendiente",
@@ -1772,7 +1773,9 @@
           "waitExternal": "Esperar factor externo",
           "resumeRunning": "Reanudar",
           "resumeReady": "Volver a Lista",
-          "markComplete": "Marcar como completada"
+          "markComplete": "Marcar como completada",
+          "repeat": "Repetir",
+          "repeatError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo."
         },
         "ShareModal": {
           "title": "Share task",
@@ -1865,7 +1868,9 @@
           "moveSourceError": "No se pudo mover esta programación. Actualiza la tarea e inténtalo de nuevo."
         },
         "files": "Archivos",
-        "assignee": "Responsable"
+        "assignee": "Responsable",
+        "fromSchedule": "De la programación {name}",
+        "fromHiddenSchedule": "De una programación"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -2091,6 +2096,84 @@
         "back": "Back",
         "addTaskHint": "Start by adding a task",
         "elenaAvatarAlt": "Elena avatar"
+      },
+      "Schedules": {
+        "stateFilter": "Estado de la programación",
+        "filterAll": "Todas",
+        "state": {
+          "ACTIVE": "Activa",
+          "PAUSED": "En pausa",
+          "ENDED": "Finalizada"
+        },
+        "newSchedule": "Nueva programación",
+        "loading": "Cargando programaciones…",
+        "empty": "Todavía no hay programaciones. Una programación crea una tarea nueva en cada ejecución.",
+        "loadMore": "Cargar más",
+        "loadingMore": "Cargando…",
+        "loadMoreError": "No se pudieron cargar más programaciones.",
+        "nextRun": "Próxima ejecución {datetime}",
+        "noNextRun": "Sin próxima ejecución",
+        "unassigned": "Sin asignar",
+        "unavailableAssignee": "Responsable no disponible",
+        "Dialog": {
+          "createTitle": "Nueva programación",
+          "editTitle": "Editar programación",
+          "createDescription": "Cada ejecución crea una tarea nueva con estos datos.",
+          "futureOnlyNotice": "Los cambios solo afectan a las ejecuciones futuras. Las tareas ya creadas no cambian.",
+          "name": "Nombre",
+          "description": "Descripción",
+          "assignee": "Responsable",
+          "create": "Crear programación",
+          "save": "Guardar cambios",
+          "created": "Programación creada",
+          "saved": "Programación guardada",
+          "errors": {
+            "stale": "Esta programación cambió en otro lugar. Recarga la página e inténtalo de nuevo.",
+            "saveFailed": "No se pudo guardar la programación."
+          }
+        },
+        "Actions": {
+          "edit": "Editar",
+          "pause": "Pausar",
+          "resume": "Reanudar",
+          "end": "Finalizar",
+          "delete": "Eliminar",
+          "paused": "Programación en pausa",
+          "resumed": "Programación reanudada",
+          "ended": "Programación finalizada",
+          "deleted": "Programación eliminada",
+          "failed": "No se pudo actualizar la programación. Inténtalo de nuevo.",
+          "confirmEndTitle": "¿Finalizar esta programación?",
+          "confirmEndDescription": "Dejará de crear tareas para siempre y se descartarán sus ejecuciones omitidas o movidas. Las tareas ya creadas se conservan.",
+          "confirmDeleteTitle": "¿Eliminar esta programación?",
+          "confirmDeleteDescription": "Se eliminan la programación y sus próximas ejecuciones. Las tareas ya creadas se conservan, sin vínculo con ella.",
+          "confirmEnd": "Finalizar programación",
+          "confirmDelete": "Eliminar programación",
+          "cancel": "Cancelar"
+        },
+        "Detail": {
+          "back": "Programaciones",
+          "upcomingRuns": "Próximas ejecuciones",
+          "noUpcomingRuns": "Todavía no hay ejecuciones planificadas.",
+          "noUpcomingRunsInactive": "No hay ejecuciones planificadas mientras la programación está en pausa o finalizada.",
+          "runSkipped": "Omitida",
+          "runMoved": "Movida",
+          "createdTasks": "Tareas creadas",
+          "noCreatedTasks": "Todavía no se han creado tareas.",
+          "properties": "Propiedades",
+          "state": "Estado",
+          "rule": "Se repite",
+          "timezone": "Zona horaria",
+          "nextRun": "Próxima ejecución",
+          "ends": "Termina",
+          "assignee": "Responsable",
+          "project": "Proyecto",
+          "noProject": "Sin proyecto",
+          "released": "Ejecuciones hasta ahora",
+          "endsOn": "El {date}",
+          "endsAfter": "Tras {count, plural, one {# ejecución} other {# ejecuciones}}",
+          "endsNever": "Nunca"
+        }
       }
     },
     "Projects": {

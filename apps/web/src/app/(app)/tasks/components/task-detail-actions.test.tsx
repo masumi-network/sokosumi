@@ -45,6 +45,29 @@ const {
   },
 }));
 
+const { loadTaskScheduleDialogOptionsMock, scheduleDialogPropsMock } =
+  vi.hoisted(() => ({
+    loadTaskScheduleDialogOptionsMock: vi.fn(),
+    scheduleDialogPropsMock: vi.fn(),
+  }));
+
+vi.mock("@/app/tasks/actions", () => ({
+  loadTaskScheduleDialogOptions: loadTaskScheduleDialogOptionsMock,
+}));
+
+vi.mock("@/app/tasks/components/task-schedule-dialog", () => ({
+  TaskScheduleDialog: (props: { onSaved?: (scheduleId: string) => void }) => {
+    scheduleDialogPropsMock(props);
+    return (
+      <div role="dialog" aria-label="schedule dialog">
+        <button type="button" onClick={() => props.onSaved?.("schedule-9")}>
+          save schedule
+        </button>
+      </div>
+    );
+  },
+}));
+
 vi.mock("@/components/modals/global-modals-context", () => ({
   useGlobalModalsContext: () => ({
     showCalendarClientUpgradeModal: showCalendarClientUpgradeModalMock,
@@ -2052,5 +2075,54 @@ describe("TaskDetailActions", () => {
     await user.click(actionsButton);
 
     expect(screen.queryByRole("menuitem", { name: "Related" })).toBeNull();
+  });
+
+  describe("Repeat", () => {
+    const blueprint = {
+      name: "Review onboarding",
+      description: "Check the new accounts",
+      projectId: null,
+      visibility: "PUBLIC" as const,
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+    };
+
+    it("opens the Task Schedule dialog prefilled from the Task and leaves the Task alone", async () => {
+      const user = userEvent.setup();
+      const options = { coworkerOptions, projectOptions: [] };
+      loadTaskScheduleDialogOptionsMock.mockResolvedValue(options);
+      renderActions({ repeatBlueprint: blueprint });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "repeat" }));
+
+      await screen.findByRole("dialog", { name: "schedule dialog" });
+      expect(scheduleDialogPropsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          initialBlueprint: blueprint,
+          coworkerOptions,
+          projectOptions: [],
+        }),
+      );
+
+      await user.click(screen.getByRole("button", { name: "save schedule" }));
+
+      expect(pushMock).toHaveBeenCalledWith("/tasks/schedules/schedule-9");
+      // The original Task is neither changed nor linked to the schedule.
+      expect(setTaskStatusFromDrag).not.toHaveBeenCalled();
+      expect(createTaskLink).not.toHaveBeenCalled();
+      expect(createTaskAndLink).not.toHaveBeenCalled();
+      expect(deleteTask).not.toHaveBeenCalled();
+    });
+
+    it("is not offered where no schedule can be created", async () => {
+      const user = userEvent.setup();
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(screen.queryByRole("menuitem", { name: "repeat" })).toBeNull();
+    });
   });
 });

@@ -20,6 +20,10 @@ import {
   sanitizeJobAgentIdForPersistedFilter,
 } from "@/app/tasks/utils/jobs-filters";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
+import {
+  parseTaskScheduleStateFilter,
+  TASK_SCHEDULES_PAGE_LIMIT,
+} from "@/app/tasks/utils/task-schedules-filters";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
   firstQueryString,
@@ -37,6 +41,7 @@ import { organizationSeatService } from "@/lib/services/organization-seat.servic
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
+import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
   parseTasksDensity,
@@ -62,6 +67,7 @@ interface TasksPageProps {
     agentId?: string | string[];
     jobStatus?: string | string[];
     tab?: string | string[];
+    scheduleState?: string | string[];
   }>;
 }
 
@@ -110,6 +116,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     agentId,
     jobStatus,
     tab,
+    scheduleState,
   } = await searchParams;
   const initialTab = parseTasksTab(tab);
   const [
@@ -247,7 +254,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     personalAssistantFallback: t("personalAssistant"),
   };
 
-  const [tasksPageResult, parkedTasksPage] = await Promise.all([
+  const [tasksPageResult, parkedTasksPage, schedulesPage] = await Promise.all([
     defaultViewMode === "list"
       ? getTasksListPage(listPageParams).then((page) => ({
           mode: "list" as const,
@@ -280,6 +287,13 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           limit: 1,
         })
       : Promise.resolve({ tasks: [], pagination: null }),
+    initialTab === "schedules"
+      ? taskScheduleService.listSchedules({
+          projectId: activeFilters.projectId,
+          state: parseTaskScheduleStateFilter(scheduleState),
+          limit: TASK_SCHEDULES_PAGE_LIMIT,
+        })
+      : Promise.resolve(null),
   ]);
 
   const tasks =
@@ -335,6 +349,8 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       <TasksView
         tasks={tasks}
         initialTab={initialTab}
+        schedules={schedulesPage?.schedules ?? null}
+        schedulesNextCursor={schedulesPage?.nextCursor ?? null}
         listNextCursor={listNextCursor}
         columnNextCursorById={columnNextCursorById}
         columns={KANBAN_COLUMNS}
@@ -357,6 +373,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           tabs: {
             tasks: t("Tabs.tasks"),
             jobs: t("Tabs.jobs"),
+            schedules: t("Tabs.schedules"),
           },
           filters: {
             title: t("Filters.title"),

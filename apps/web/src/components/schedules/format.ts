@@ -22,6 +22,8 @@ export interface ScheduleTitleInput {
   scheduleType: string;
   cron?: string | null;
   timezone: string;
+  /** A rule every N calendar days keeps its day step here, not in the cron. */
+  intervalDays?: number | null;
 }
 
 export function computeScheduleTitleInfo(
@@ -40,6 +42,12 @@ export function computeScheduleTitleInfo(
         formatter,
         s.timezone,
       );
+      if (s.intervalDays != null && s.intervalDays > 1) {
+        return {
+          key: "dailyEveryNWithTime",
+          values: { n: s.intervalDays, time },
+        };
+      }
       return { key: "dailyWithTime", values: { time } };
     }
     case "weeklyAtTime": {

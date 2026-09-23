@@ -162,7 +162,7 @@ const CANCELED_SCHEDULED_TASK: TaskWithCoworker = {
 };
 
 const labels = {
-  tabs: { tasks: "Tasks", jobs: "Jobs" },
+  tabs: { tasks: "Tasks", jobs: "Jobs", schedules: "Schedules" },
   filters: {
     title: "Filters",
     searchPlaceholder: "Search",

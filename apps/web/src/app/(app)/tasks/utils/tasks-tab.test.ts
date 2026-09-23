@@ -12,6 +12,10 @@ describe("parseTasksTab", () => {
     expect(parseTasksTab("jobs")).toBe("jobs");
   });
 
+  it("returns schedules when tab=schedules", () => {
+    expect(parseTasksTab("schedules")).toBe("schedules");
+  });
+
   it("defaults to tasks for missing or unknown values", () => {
     expect(parseTasksTab(undefined)).toBe(DEFAULT_TASKS_TAB);
     expect(parseTasksTab("tasks")).toBe(DEFAULT_TASKS_TAB);

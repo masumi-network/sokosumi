@@ -15,6 +15,7 @@ import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskFiles } from "@/app/tasks/components/task-files";
+import { TaskFromSchedule } from "@/app/tasks/components/task-from-schedule";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
@@ -139,16 +140,21 @@ export async function TaskDetailView({
               taskName={task.name}
               backLabel={t("back")}
               parentLink={
-                parentTask ? (
-                  <p className="text-muted-foreground text-sm">
-                    <Link
-                      href={`/tasks/${parentTask.id}`}
-                      className="text-primary hover:underline"
-                    >
-                      {t("clonedFrom", { name: parentTask.name })}
-                    </Link>
-                  </p>
-                ) : null
+                <>
+                  {parentTask ? (
+                    <p className="text-muted-foreground text-sm">
+                      <Link
+                        href={`/tasks/${parentTask.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {t("clonedFrom", { name: parentTask.name })}
+                      </Link>
+                    </p>
+                  ) : null}
+                  <Suspense fallback={null}>
+                    <TaskFromSchedule scheduleId={task.scheduleId} />
+                  </Suspense>
+                </>
               }
               actions={
                 <Suspense fallback={<TaskDetailActionsFallback />}>
@@ -645,6 +651,21 @@ async function TaskDetailActionsSlot({
       isTaskOwner={session?.user.id === task.ownerId}
       isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
       hasActiveSchedule={hasActiveTaskSchedule(task.metadata, task.nextRunAt)}
+      repeatBlueprint={
+        !forceReadOnly && hasAssignedSeat
+          ? {
+              name: task.name,
+              description: task.description
+                ? removeTaskContextAttachmentLinks(task.description)
+                : null,
+              projectId: task.projectId,
+              visibility: task.visibility,
+              assigneeId: task.assigneeId,
+              assigneeSokoBotId: task.assigneeSokoBotId,
+              assigneeUserId: task.assigneeUserId,
+            }
+          : undefined
+      }
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),

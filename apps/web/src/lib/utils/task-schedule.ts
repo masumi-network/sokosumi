@@ -1,7 +1,12 @@
 import { isValidTimezone, parseTaskScheduleMetadata } from "@sokosumi/utils";
 import { CronExpressionParser as cronParser } from "cron-parser";
-import type { TaskScheduleInput } from "@/lib/clients/generated/core/types.gen";
-import { DOW, type Dow, parseCron } from "@/lib/schedules/cron";
+import type {
+  TaskSchedule,
+  TaskScheduleInput,
+  TaskScheduleRule,
+  TaskScheduleRuleReplacement,
+} from "@/lib/clients/generated/core/types.gen";
+import { DOW, parseCron } from "@/lib/schedules/cron";
 import {
   endOfLocalDateInTimezone,
   parseDateTimeLocalParts,
@@ -67,51 +72,6 @@ function derivePresetFromCron(cron: string): {
     default:
       return null;
   }
-}
-
-function deriveBuilderStateFromCron(cron: string): {
-  unit: "day" | "week" | "month";
-  count: number;
-  weekdays: Dow[];
-  hour: number;
-  minute: number;
-} | null {
-  const parts = cron.trim().split(/\s+/);
-  if (parts.length !== 5) return null;
-  const [minuteStr, hourStr, dom, mon, dow] = parts;
-  const minute = Number(minuteStr);
-  const hour = Number(hourStr);
-  if (!Number.isFinite(minute) || !Number.isFinite(hour)) return null;
-
-  if (dom === "*" && mon === "*" && /[A-Z,]+/.test(dow)) {
-    const weekdays = dow.split(",").filter(Boolean) as Dow[];
-    return { unit: "week", count: 1, weekdays, hour, minute };
-  }
-
-  const dailyEvery = dom.startsWith("*/") ? Number(dom.slice(2)) : Number.NaN;
-  if (mon === "*" && dow === "*" && Number.isFinite(dailyEvery)) {
-    return {
-      unit: "day",
-      count: Math.max(1, Number(dailyEvery)),
-      weekdays: ["MON"],
-      hour,
-      minute,
-    };
-  }
-
-  const monthlyEvery = mon.startsWith("*/") ? Number(mon.slice(2)) : Number.NaN;
-  const domNum = Number(dom);
-  if (Number.isFinite(monthlyEvery) && Number.isFinite(domNum) && dow === "*") {
-    return {
-      unit: "month",
-      count: Math.max(1, Number(monthlyEvery)),
-      weekdays: ["MON"],
-      hour,
-      minute,
-    };
-  }
-
-  return null;
 }
 
 function isValidCalendarDateTime(value: string | undefined): boolean {
@@ -225,26 +185,50 @@ export function metadataToSelection(
     };
   }
 
-  const derivedPreset = derivePresetFromCron(parsed.expr);
-  const remainingOccurrences =
-    parsed.version === 1
-      ? parsed.occurrences
-      : parsed.targetReleaseCount == null
-        ? undefined
-        : Math.max(parsed.targetReleaseCount - parsed.epochReleaseCount, 0);
+  return recurringRuleToSelection({
+    expr: parsed.expr,
+    timezone: parsed.timezone,
+    endsMode: parsed.endsMode,
+    endsOn: parsed.endsOn,
+    intervalDays: parsed.intervalDays,
+    anchorAt: parsed.anchorAt,
+    endAfterOccurrences:
+      parsed.version === 1
+        ? parsed.occurrences
+        : parsed.targetReleaseCount == null
+          ? undefined
+          : Math.max(parsed.targetReleaseCount - parsed.epochReleaseCount, 0),
+  });
+}
+
+interface RecurringRuleFields {
+  expr: string;
+  timezone: string;
+  endsMode: TaskScheduleEndsMode;
+  endsOn?: Date | string | null;
+  intervalDays?: number | null;
+  anchorAt?: Date | string | null;
+  endAfterOccurrences?: number;
+}
+
+/** The schedule form's starting state for an existing repeating rule. */
+function recurringRuleToSelection(
+  rule: RecurringRuleFields,
+): TaskScheduleSelection {
+  const derivedPreset = derivePresetFromCron(rule.expr);
   const selection: TaskScheduleSelection = {
     mode: "recurring",
-    timezone: parsed.timezone,
-    cron: parsed.expr,
-    endsMode: parsed.endsMode,
-    endAfterOccurrences: remainingOccurrences,
-    ...(parsed.intervalDays != null && parsed.intervalDays > 1
-      ? { intervalDays: parsed.intervalDays }
+    timezone: rule.timezone,
+    cron: rule.expr,
+    endsMode: rule.endsMode,
+    endAfterOccurrences: rule.endAfterOccurrences,
+    ...(rule.intervalDays != null && rule.intervalDays > 1
+      ? { intervalDays: rule.intervalDays }
       : {}),
-    endOnLocalDate: parsed.endsOn
+    endOnLocalDate: rule.endsOn
       ? utcToDateTimeLocalInTimezone(
-          new Date(parsed.endsOn),
-          parsed.timezone,
+          new Date(rule.endsOn),
+          rule.timezone,
         ).slice(0, 10)
       : undefined,
   };
@@ -252,24 +236,71 @@ export function metadataToSelection(
   if (derivedPreset) {
     selection.oneTimeLocalIso = derivedPreset.iso;
   } else if (
-    parsed.intervalDays != null &&
-    parsed.intervalDays > 1 &&
-    parsed.anchorAt
+    rule.intervalDays != null &&
+    rule.intervalDays > 1 &&
+    rule.anchorAt
   ) {
     selection.oneTimeLocalIso = utcToDateTimeLocalInTimezone(
-      new Date(parsed.anchorAt),
-      parsed.timezone,
+      new Date(rule.anchorAt),
+      rule.timezone,
     );
-    selection.customCronExpr = parsed.expr;
+    selection.customCronExpr = rule.expr;
   } else {
-    selection.customCronExpr = parsed.expr;
-    const derived = deriveBuilderStateFromCron(parsed.expr);
-    if (derived) {
-      selection.cron = parsed.expr;
-    }
+    selection.customCronExpr = rule.expr;
   }
 
   return selection;
+}
+
+const ENDS_MODE_FROM_RULE = {
+  NEVER: TaskScheduleEndsMode.NEVER,
+  ON: TaskScheduleEndsMode.ON,
+  AFTER: TaskScheduleEndsMode.AFTER,
+} as const satisfies Record<
+  TaskScheduleRule["endsMode"] & string,
+  TaskScheduleEndsMode
+>;
+
+const ENDS_MODE_TO_RULE = {
+  [TaskScheduleEndsMode.NEVER]: "NEVER",
+  [TaskScheduleEndsMode.ON]: "ON",
+  [TaskScheduleEndsMode.AFTER]: "AFTER",
+} as const satisfies Record<TaskScheduleEndsMode, TaskScheduleRule["endsMode"]>;
+
+/** The schedule form's starting state for a Task Schedule's rule. */
+export function taskScheduleRuleToSelection(
+  rule: TaskSchedule["rule"],
+): TaskScheduleSelection {
+  return recurringRuleToSelection({
+    expr: rule.expr,
+    timezone: rule.timezone,
+    endsMode: ENDS_MODE_FROM_RULE[rule.endsMode],
+    endsOn: rule.endsOn,
+    intervalDays: rule.intervalDays,
+    anchorAt: rule.anchorAt,
+    endAfterOccurrences: rule.targetRunCount ?? undefined,
+  });
+}
+
+/**
+ * The Task Schedule rule for what the schedule form holds, or null when it is
+ * incomplete or invalid. A one-time pick has no rule: a schedule repeats.
+ */
+export function selectionToTaskScheduleRule(
+  selection: TaskScheduleSelection,
+): TaskScheduleRuleReplacement | null {
+  if (selection.mode !== "recurring") return null;
+  const body = selectionToApiBody(selection);
+  if (!body || body.mode !== "recurring") return null;
+  return {
+    expr: body.expr,
+    timezone: body.timezone ?? selection.timezone,
+    endsMode: ENDS_MODE_TO_RULE[body.endsMode ?? TaskScheduleEndsMode.NEVER],
+    endsOn: body.endsOn ?? null,
+    targetRunCount: body.occurrences ?? null,
+    intervalDays: body.intervalDays ?? null,
+    anchorAt: body.anchorAt ?? null,
+  };
 }
 
 export function selectionToApiBody(

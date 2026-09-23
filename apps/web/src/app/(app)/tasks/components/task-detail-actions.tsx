@@ -20,6 +20,7 @@ import {
   LucideSquareMousePointer,
   OctagonMinus,
   Pencil,
+  Repeat,
   RotateCcw,
   SquareArrowRightExit,
   SquareMinus,
@@ -32,7 +33,9 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
+import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
   AlertDialog,
@@ -92,6 +95,10 @@ import {
   TaskLinkTaskPickerDialog,
 } from "./task-link-task-picker-dialog";
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
+import {
+  type TaskScheduleBlueprintPrefill,
+  TaskScheduleDialog,
+} from "./task-schedule-dialog";
 import { TaskShareButton } from "./task-share-button";
 import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
 
@@ -150,6 +157,11 @@ interface TaskDetailActionsProps {
   isTaskOwner?: boolean;
   isOrgOwnerOrAdmin?: boolean;
   hasActiveSchedule?: boolean;
+  /**
+   * The Task as a Task Schedule blueprint, for "Repeat". Omitted where the
+   * viewer cannot create a schedule; the Task itself is never changed.
+   */
+  repeatBlueprint?: TaskScheduleBlueprintPrefill;
 }
 
 export function TaskDetailActions({
@@ -176,6 +188,7 @@ export function TaskDetailActions({
   isTaskOwner = false,
   isOrgOwnerOrAdmin = false,
   hasActiveSchedule = false,
+  repeatBlueprint,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
@@ -218,6 +231,22 @@ export function TaskDetailActions({
   const [pendingRemoveLinkId, setPendingRemoveLinkId] = useState<string | null>(
     null,
   );
+  const [repeatOptions, setRepeatOptions] = useState<{
+    coworkerOptions: CoworkerOption[];
+    projectOptions: ProjectFilterOption[];
+  } | null>(null);
+  const [isRepeatLoading, startRepeatTransition] = useTransition();
+
+  const handleRepeat = () => {
+    startRepeatTransition(async () => {
+      try {
+        setRepeatOptions(await loadTaskScheduleDialogOptions());
+      } catch (error) {
+        console.error("Failed to load Task Schedule options", error);
+        toast.error(tDetailActions("repeatError"));
+      }
+    });
+  };
 
   const canMutateTask = !isReadOnly;
   // Status, archive, and workspace move belong to the schedule series while one
@@ -283,6 +312,7 @@ export function TaskDetailActions({
   const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
   const canRemoveParent = canManageRelations && parentLinks.length > 0;
   const hasOverflowMenuActions =
+    repeatBlueprint !== undefined ||
     statusActions.length > 0 ||
     canEdit ||
     canManageRelations ||
@@ -579,6 +609,20 @@ export function TaskDetailActions({
               </DropdownMenuItem>
             ) : null}
 
+            {repeatBlueprint ? (
+              <DropdownMenuItem
+                disabled={actionsDisabled || isRepeatLoading}
+                onSelect={handleRepeat}
+              >
+                {isRepeatLoading ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Repeat className="size-4" aria-hidden />
+                )}
+                {tDetailActions("repeat")}
+              </DropdownMenuItem>
+            ) : null}
+
             {statusActions.map((action) => {
               const StatusIcon = action.requiresComment
                 ? RotateCcw
@@ -601,7 +645,7 @@ export function TaskDetailActions({
               );
             })}
 
-            {(canEdit || statusActions.length > 0) &&
+            {(canEdit || repeatBlueprint || statusActions.length > 0) &&
             (canManageRelations || canMove) ? (
               <DropdownMenuSeparator />
             ) : null}
@@ -883,6 +927,7 @@ export function TaskDetailActions({
             {canArchiveTask &&
             (statusActions.length > 0 ||
               canEdit ||
+              repeatBlueprint ||
               canManageRelations ||
               canMove) ? (
               <DropdownMenuSeparator />
@@ -956,6 +1001,19 @@ export function TaskDetailActions({
           organizations={organizations ?? []}
           hasPersonalWorkspace={hasPersonalWorkspace}
           personalWorkspaceLabel={personalWorkspaceLabel}
+        />
+      ) : null}
+
+      {repeatBlueprint && repeatOptions ? (
+        <TaskScheduleDialog
+          initialBlueprint={repeatBlueprint}
+          coworkerOptions={repeatOptions.coworkerOptions}
+          projectOptions={repeatOptions.projectOptions}
+          canCreatePrivate={currentOrganizationId != null}
+          onClose={() => setRepeatOptions(null)}
+          onSaved={(scheduleId) =>
+            router.push(`/tasks/schedules/${scheduleId}`)
+          }
         />
       ) : null}
 

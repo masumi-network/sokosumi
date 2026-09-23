@@ -234,6 +234,11 @@ interface TaskScheduleSectionProps {
   onClearSchedule?: () => void;
   canClearSchedule?: boolean;
   hideHeader?: boolean;
+  /** Drops the one-time option: a Task Schedule always repeats. */
+  recurringOnly?: boolean;
+  saveLabel?: string;
+  /** Blocks saving for reasons outside the rule, such as a missing name. */
+  saveDisabled?: boolean;
 }
 
 export function TaskScheduleSection(props: TaskScheduleSectionProps) {
@@ -684,7 +689,9 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="one-time">{t("option.oneTime")}</SelectItem>
+            {props.recurringOnly ? null : (
+              <SelectItem value="one-time">{t("option.oneTime")}</SelectItem>
+            )}
             <SelectItem value="daily">{presetDisplayLabels.daily}</SelectItem>
             <SelectItem value="weekly">{presetDisplayLabels.weekly}</SelectItem>
             <SelectItem value="monthly">
@@ -977,10 +984,10 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
           <Button
             type="button"
             onClick={handleSave}
-            disabled={!isValid}
+            disabled={!isValid || props.saveDisabled}
             aria-invalid={!isValid}
           >
-            {t("save")}
+            {props.saveLabel ?? t("save")}
           </Button>
         </div>
       </div>

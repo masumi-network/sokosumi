@@ -1523,7 +1523,8 @@
       },
       "Tabs": {
         "tasks": "Tasks",
-        "jobs": "Jobs"
+        "jobs": "Jobs",
+        "schedules": "Schedules"
       },
       "Columns": {
         "backlog": "Backlog",
@@ -1773,7 +1774,9 @@
           "waitExternal": "Wait on external",
           "resumeRunning": "Resume running",
           "resumeReady": "Back to Ready",
-          "markComplete": "Mark complete"
+          "markComplete": "Mark complete",
+          "repeat": "Repeat",
+          "repeatError": "Couldn't open the schedule form. Try again."
         },
         "ShareModal": {
           "title": "Share task",
@@ -1865,7 +1868,9 @@
           "moveSourceError": "Unable to move this schedule. Refresh the task and try again."
         },
         "files": "Files",
-        "assignee": "Assignee"
+        "assignee": "Assignee",
+        "fromSchedule": "From schedule {name}",
+        "fromHiddenSchedule": "From a schedule"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -2091,6 +2096,84 @@
         "back": "Back",
         "addTaskHint": "Start by adding a task",
         "elenaAvatarAlt": "Elena avatar"
+      },
+      "Schedules": {
+        "stateFilter": "Schedule state",
+        "filterAll": "All",
+        "state": {
+          "ACTIVE": "Active",
+          "PAUSED": "Paused",
+          "ENDED": "Ended"
+        },
+        "newSchedule": "New schedule",
+        "loading": "Loading schedules…",
+        "empty": "No schedules here yet. A schedule creates a new task every time it runs.",
+        "loadMore": "Load more",
+        "loadingMore": "Loading…",
+        "loadMoreError": "Couldn't load more schedules.",
+        "nextRun": "Next run {datetime}",
+        "noNextRun": "No upcoming run",
+        "unassigned": "Unassigned",
+        "unavailableAssignee": "Unavailable assignee",
+        "Dialog": {
+          "createTitle": "New schedule",
+          "editTitle": "Edit schedule",
+          "createDescription": "Each run creates a new task from these details.",
+          "futureOnlyNotice": "Changes apply to future runs only. Tasks already created stay as they are.",
+          "name": "Name",
+          "description": "Description",
+          "assignee": "Assignee",
+          "create": "Create schedule",
+          "save": "Save changes",
+          "created": "Schedule created",
+          "saved": "Schedule saved",
+          "errors": {
+            "stale": "This schedule changed somewhere else. Reload the page and try again.",
+            "saveFailed": "Couldn't save the schedule."
+          }
+        },
+        "Actions": {
+          "edit": "Edit",
+          "pause": "Pause",
+          "resume": "Resume",
+          "end": "End",
+          "delete": "Delete",
+          "paused": "Schedule paused",
+          "resumed": "Schedule resumed",
+          "ended": "Schedule ended",
+          "deleted": "Schedule deleted",
+          "failed": "Couldn't update the schedule. Try again.",
+          "confirmEndTitle": "End this schedule?",
+          "confirmEndDescription": "It stops creating tasks for good, and its skipped or moved runs are dropped. Tasks it already created stay.",
+          "confirmDeleteTitle": "Delete this schedule?",
+          "confirmDeleteDescription": "The schedule and its upcoming runs are removed. Tasks it already created stay, no longer linked to it.",
+          "confirmEnd": "End schedule",
+          "confirmDelete": "Delete schedule",
+          "cancel": "Cancel"
+        },
+        "Detail": {
+          "back": "Schedules",
+          "upcomingRuns": "Upcoming runs",
+          "noUpcomingRuns": "No runs planned yet.",
+          "noUpcomingRunsInactive": "No runs are planned while the schedule is paused or ended.",
+          "runSkipped": "Skipped",
+          "runMoved": "Moved",
+          "createdTasks": "Tasks created",
+          "noCreatedTasks": "No tasks created yet.",
+          "properties": "Properties",
+          "state": "State",
+          "rule": "Repeats",
+          "timezone": "Time zone",
+          "nextRun": "Next run",
+          "ends": "Ends",
+          "assignee": "Assignee",
+          "project": "Project",
+          "noProject": "No project",
+          "released": "Runs so far",
+          "endsOn": "On {date}",
+          "endsAfter": "After {count, plural, one {# run} other {# runs}}",
+          "endsNever": "Never"
+        }
       }
     },
     "Projects": {

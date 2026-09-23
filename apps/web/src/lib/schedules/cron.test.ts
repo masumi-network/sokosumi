@@ -62,4 +62,21 @@ describe("computeScheduleTitleInfo", () => {
       },
     });
   });
+
+  it("names the day step of an every-N-days rule, which the cron does not carry", () => {
+    const info = computeScheduleTitleInfo(
+      {
+        scheduleType: "CRON",
+        cron: "0 9 * * *",
+        timezone: "UTC",
+        intervalDays: 3,
+      },
+      formatter,
+    );
+
+    expect(info).toEqual({
+      key: "dailyEveryNWithTime",
+      values: { n: 3, time: expect.any(String) },
+    });
+  });
 });
