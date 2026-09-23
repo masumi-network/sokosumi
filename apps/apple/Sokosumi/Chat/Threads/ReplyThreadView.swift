@@ -299,8 +299,8 @@ import SwiftUI
           if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
             DaySeparatorRow(label: label)
           }
-          if let status = membershipStatusText(message) {
-            MembershipStatusRow(text: status)
+          if let status = roomStatusText(message) {
+            RoomStatusRow(text: status)
           } else {
             MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.documents[message.id], message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                            outbound: shell, sentAt: outbox.sentAt[message.id],

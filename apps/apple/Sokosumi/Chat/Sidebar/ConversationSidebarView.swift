@@ -12,7 +12,8 @@ struct ConversationSidebarView: View {
   @State private var startDirect: CompositionPresentation?
   @State private var createChannel: CompositionPresentation?
   @State private var browseChannels: CompositionPresentation?
-  @State private var editChannel: EditChannelPresentation?
+  @State private var editChannel: RoomEditPresentation?
+  @State private var nameGroup: RoomEditPresentation?
   @State private var lifecycle: ChannelLifecycleRequest?
   @State private var invitationFailure: InvitationFailure?
 
@@ -207,6 +208,7 @@ struct ConversationSidebarView: View {
       lifecycle = nil
     }
     .modifier(EditChannelSheet(presentation: $editChannel))
+    .modifier(NameGroupSheet(presentation: $nameGroup))
     .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
     .task(id: SidebarCollectionsLoadKey(context: workspaces.compositionContext, ready: workspaces.phase == .ready && !workspaces.roomsLoading)) {
       guard workspaces.phase == .ready, !workspaces.roomsLoading else { return }
@@ -507,8 +509,16 @@ struct ConversationSidebarView: View {
       Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id, auth: auth) }
     }
     .disabled(!workspaces.sidebar.canPerform(room.mutedAt == nil ? .mute : .unmute, roomId: room.id))
-    if ChannelEditPermissions.isEditable(room) || ChannelEditPermissions.canLeave(room) {
+    if ChannelEditPermissions.isEditable(room) || ChannelEditPermissions.canLeave(room) || GroupNameDraft.canName(room) {
       Divider()
+    }
+    if GroupNameDraft.canName(room) {
+      Button {
+        nameGroup = .init(id: workspaces.compositionContext, roomId: room.id)
+      } label: {
+        NameGroupLabel()
+      }
+      .disabled(workspaces.channelMutationInFlight)
     }
     if ChannelEditPermissions.isEditable(room) {
       Button("Channel settings…", systemImage: "gearshape") {

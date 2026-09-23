@@ -12,7 +12,8 @@ struct RoomDetailsView: View {
   @State private var errorMessage: String?
   @State private var directRequestId: UUID?
   @State private var selectedProfile: ChatParticipantProfile?
-  @State private var editChannel: EditChannelPresentation?
+  @State private var editChannel: RoomEditPresentation?
+  @State private var nameGroup: RoomEditPresentation?
   @State private var lifecycle: ChannelLifecycleRequest?
 
   var body: some View {
@@ -44,6 +45,21 @@ struct RoomDetailsView: View {
             }
           }
         }
+        if GroupNameDraft.canName(room) {
+          Section {
+            if let groupName = room.groupName {
+              Text(groupName).font(.headline)
+            }
+            Button {
+              nameGroup = .init(id: workspaces.compositionContext, roomId: room.id)
+            } label: {
+              NameGroupLabel()
+            }
+            .disabled(workspaces.channelMutationInFlight)
+          } header: {
+            Text("Group", tableName: groupNameTable, comment: "Members inspector section for a group Direct's name.")
+          }
+        }
         Section {
           let members = RoomRoster.members(in: room)
           if members.isEmpty {
@@ -60,6 +76,7 @@ struct RoomDetailsView: View {
     }
     .popover(item: $selectedProfile) { ParticipantDetailsView(profile: $0) }
     .modifier(EditChannelSheet(presentation: $editChannel))
+    .modifier(NameGroupSheet(presentation: $nameGroup))
     .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
     .onDisappear { directRequestId = nil }
     .onChange(of: room.id) { _, _ in
@@ -67,6 +84,7 @@ struct RoomDetailsView: View {
       errorMessage = nil
       selectedProfile = nil
       editChannel = nil
+      nameGroup = nil
       lifecycle = nil
     }
   }

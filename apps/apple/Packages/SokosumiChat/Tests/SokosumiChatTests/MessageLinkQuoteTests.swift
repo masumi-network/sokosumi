@@ -7,7 +7,7 @@ struct MessageLinkQuoteTests {
   private let base = URL(string: "https://app.sokosumi.com")!
 
   private func room(_ id: String, members: [String]) -> Components.Schemas.ChatRoom {
-    Components.Schemas.ChatRoom(id: id, name: id, kind: .channel, isSelfDirect: false, createdByUserId: "me",
+    Components.Schemas.ChatRoom(id: id, name: id, kind: .channel, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me",
                                 createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0,
                                 markedUnread: false, myAccess: .member,
                                 userMembers: members.map { .init(id: $0, name: $0, email: "\($0)@example.com", image: nil, presence: .online) },

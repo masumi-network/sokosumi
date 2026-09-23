@@ -19,7 +19,7 @@ private func messageSenderKey(_ message: Components.Schemas.ChatRoomMessage) -> 
 /// True when `current` renders as a continuation of `previous` (no avatar /
 /// name / wall-clock; the group header time covers the burst). Mirrors web
 /// `isMessageContinuation`: same sender, same calendar day, `0 <= gap < 5m`,
-/// never across membership rows.
+/// never across status rows.
 public func isMessageContinuation(
   previous: Components.Schemas.ChatRoomMessage?,
   current: Components.Schemas.ChatRoomMessage,
@@ -27,8 +27,8 @@ public func isMessageContinuation(
   calendar: Calendar = .current
 ) -> Bool {
   guard let previous else { return false }
-  // Membership status rows are not chat bubbles; never continue across them.
-  if previous.membership != nil || current.membership != nil {
+  // Status rows are not chat bubbles; never continue across them.
+  if isRoomStatusMessage(previous) || isRoomStatusMessage(current) {
     return false
   }
   guard let previousKey = messageSenderKey(previous),
@@ -81,6 +81,28 @@ public func daySeparatorLabel(
     formatter.dateFormat = "dd/MM/yyyy"
   }
   return formatter.string(from: date)
+}
+
+/// A senderless status row (join/leave or Group name change): centered text, never
+/// reacted to, edited, quoted or grouped with a neighbour.
+public func isRoomStatusMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+  message.membership != nil || message.groupNameChange != nil
+}
+
+/// A Group name change row (ADR-0040): "{actor} named the group {name}" /
+/// "{actor} removed the group name". The app words it through its String Catalog.
+public enum GroupNameChangeStatus: Equatable, Sendable {
+  case named(actor: String, name: String)
+  case cleared(actor: String)
+
+  public init?(_ message: Components.Schemas.ChatRoomMessage) {
+    guard let change = message.groupNameChange else { return nil }
+    if change.action == .named, let name = change.name, !name.isEmpty {
+      self = .named(actor: change.actor.name, name: name)
+    } else {
+      self = .cleared(actor: change.actor.name)
+    }
+  }
 }
 
 /// Centered status text for join/leave rows ("{name} joined" / "{name} left").

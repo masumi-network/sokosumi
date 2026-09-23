@@ -373,7 +373,26 @@ public final class WorkspaceState: ObservableObject {
     }
     let request = draft.updateRequest(permissions: permissions, currentUserId: currentUserId)
     let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
-      try await ChatService().updateChannel(client: client, roomId: roomId, request: request, organizationSlug: slug)
+      try await ChatService().updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
+    }
+    if let index = rooms.firstIndex(where: { $0.id == room.id }) {
+      rooms[index] = room
+    }
+    return true
+  }
+
+  /// Names or clears a group Direct's Group name (ADR-0040) in any workspace, then takes Core's room in place like `updateChannel`.
+  public func nameGroup(_ draft: GroupNameDraft, roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    guard canStartMutation(context: context) else { return false }
+    updatingChannel = true
+    defer {
+      if context == compositionContext {
+        updatingChannel = false
+      }
+    }
+    let slug = selection?.workspace.organizationSlug
+    let room = try await workspaceOperation(context: context, auth: auth) { client in
+      try await ChatService().updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
     }
     if let index = rooms.firstIndex(where: { $0.id == room.id }) {
       rooms[index] = room
@@ -868,6 +887,11 @@ public final class WorkspaceState: ObservableObject {
     }
     if eventType == .create, roomId != transcriptRoomId {
       sidebarRecovery.requestRefresh()
+    }
+    // Another member's rename retitles the open room now; other rows follow the sidebar refresh.
+    if eventType == .create, roomId == transcriptRoomId, let index = rooms.firstIndex(where: { $0.id == roomId }),
+       let renamed = rooms[index].applyingGroupNameChange(message) {
+      rooms[index] = renamed
     }
     guard roomId == transcriptRoomId, message.roomId == transcriptRoomId, !directStream.isBusy || eventType == .delete else { return }
     let result = applyRealtimeFullEvent(
