@@ -70,7 +70,7 @@ describe("OrganizationChatList All unreads filter", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("says the reader is caught up when nothing is left", async () => {
+  it("says the reader is caught up when nothing is left, with the way back", async () => {
     listRoomsMock.mockResolvedValue(emptyListResult([readChannel, readDirect]));
     renderOrganizationChatList({
       organizationId: "org-1",
@@ -83,6 +83,19 @@ describe("OrganizationChatList All unreads filter", () => {
     expect(
       screen.getByText("App.Channels.UnreadNav.caughtUp"),
     ).toBeInTheDocument();
+
+    // The way back is on the empty state itself.
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "App.Channels.UnreadNav.showAllChats",
+      }),
+    );
+
+    expect(rowLabels()).toEqual(["general", "room"]);
+    expect(screen.getByRole("button", { name: "All unreads" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("puts every room back when turned off", async () => {

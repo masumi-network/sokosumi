@@ -1,4 +1,7 @@
 import { CheckCheck } from "lucide-react";
+import type { ReactNode } from "react";
+
+import { cn } from "@/lib/utils";
 
 interface ChatUnreadViewHeaderProps {
   title: string;
@@ -11,26 +14,50 @@ export function ChatUnreadViewHeader({ title }: ChatUnreadViewHeaderProps) {
 
 interface ChatCaughtUpProps {
   title: string;
-  description: string;
+  description?: string;
+  /** A way onward, drawn under the words. */
+  action?: ReactNode;
+  /** `page` for the Threads view; `sidebar` for the unread filter's list. */
+  size?: "page" | "sidebar";
 }
 
 /**
- * What the Threads view says once there is nothing left: the list drained, which is
- * the point of them, so it reads as done rather than as missing.
+ * What a drained unread list says: the Threads view, and the sidebar under
+ * the All unreads filter (SOK-1159). Draining is the point of both, so it
+ * reads as done rather than as missing, in the same tinted mark.
  */
-export function ChatCaughtUp({ title, description }: ChatCaughtUpProps) {
+export function ChatCaughtUp({
+  title,
+  description,
+  action,
+  size = "page",
+}: ChatCaughtUpProps) {
+  const sidebar = size === "sidebar";
   return (
     <div
       data-testid="chat-caught-up"
-      className="flex flex-col items-center gap-2 px-4 py-12 text-center"
+      className={cn(
+        "flex flex-col items-center text-center",
+        sidebar ? "gap-1.5 px-4 py-6" : "gap-2 px-4 py-12",
+      )}
     >
-      <span className="bg-primary-quaternary text-primary-variant grid size-10 place-items-center rounded-full">
-        <CheckCheck className="size-5" aria-hidden />
+      <span
+        className={cn(
+          "bg-primary-quaternary text-primary-variant grid place-items-center rounded-full",
+          sidebar ? "size-8" : "size-10",
+        )}
+      >
+        <CheckCheck className={sidebar ? "size-4" : "size-5"} aria-hidden />
       </span>
-      <p className="font-semibold">{title}</p>
-      <p className="text-muted-foreground max-w-xs text-sm text-pretty">
-        {description}
+      <p className={sidebar ? "text-sm font-medium" : "font-semibold"}>
+        {title}
       </p>
+      {description ? (
+        <p className="text-muted-foreground max-w-xs text-sm text-pretty">
+          {description}
+        </p>
+      ) : null}
+      {action}
     </div>
   );
 }

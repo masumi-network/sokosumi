@@ -5471,7 +5471,8 @@
         "markAllRead": "Marcar todo como leído",
         "markAllReadError": "No se pudo marcar todo como leído.",
         "caughtUp": "Estás al día",
-        "allThreads": "Todos los hilos"
+        "allThreads": "Todos los hilos",
+        "showAllChats": "Mostrar todos los chats"
       },
       "ThreadsView": {
         "title": "Hilos",

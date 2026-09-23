@@ -25,6 +25,7 @@ import {
 } from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
 import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
+import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
@@ -379,14 +380,23 @@ export function OrganizationChatList({
           onUnreadOnlyChange={setUnreadOnly}
         />
         {caughtUp ? (
-          <p
-            className={cn(
-              SIDEBAR_ROW_LABEL_INSET_CLASS,
-              "text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 text-xs",
-            )}
-          >
-            {t("UnreadNav.caughtUp")}
-          </p>
+          // Every room is hidden now, so the caught-up state carries the way
+          // back to them rather than leaving the reader to find the toggle.
+          <div className="group-data-[collapsible=icon]:hidden">
+            <ChatCaughtUp
+              size="sidebar"
+              title={t("UnreadNav.caughtUp")}
+              action={
+                <button
+                  type="button"
+                  onClick={() => setUnreadOnly(false)}
+                  className="text-muted-foreground hover:text-foreground ring-sidebar-ring rounded-sm text-xs underline-offset-2 outline-hidden hover:underline focus-visible:ring-2"
+                >
+                  {t("UnreadNav.showAllChats")}
+                </button>
+              }
+            />
+          </div>
         ) : null}
         {pinned.length > 0 ? (
           <Collapsible open={pinnedOpen} onOpenChange={setPinnedOpen}>
