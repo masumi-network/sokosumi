@@ -1,10 +1,9 @@
-# ADR 0038: Core stays on Vercel Fluid; the job queue is deferred
+# ADR 0039: Core stays on Vercel Fluid; the job queue is deferred
 
 - Status: Accepted
 - Date: 2026-09-19
 - Amended: 2026-09-20 (queue deferred)
-- Renumbered from ADR-0033 on 2026-09-22; that number belongs to Typing.
-  Filename keeps the original slug.
+- Renumbered from ADR-0033 to ADR-0039; ADR-0033 belongs to Typing.
 
 Core keeps its stack: **Hono + `@hono/zod-openapi`, TypeScript, Zod 4, Prisma
 on Postgres, Better Auth, Vitest, Biome, Turborepo, evlog, Vercel AI SDK**,
