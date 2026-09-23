@@ -8,7 +8,7 @@
   import SwiftUI
   import Testing
 
-  private enum TranscriptGrowthPosition {
+  private enum ReadingPosition {
     case pinned
     case scrolledUp
     case activeScroll
@@ -41,7 +41,7 @@
         try await assertGrowth(position: .pinned, thread: true, lines: 10)
       }
 
-      private func assertGrowth(position: TranscriptGrowthPosition, thread: Bool, lines: Int) async throws {
+      private func assertGrowth(position: ReadingPosition, thread: Bool, lines: Int) async throws {
         let readingHistory = position == .scrolledUp || position == .activeScroll
         let state = fixtureState(thread: thread)
         let host = NSHostingView(rootView: Group {

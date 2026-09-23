@@ -253,14 +253,14 @@
         defer { window.orderOut(nil) }
         let input = try await Self.loadedInput(in: host)
         #expect(window.makeFirstResponder(input))
-        let typed = "so **bd** _it_ ~~sk~~ `cd` x"
+        let typed = "so **bold** _italic_ ~~strike~~ `code` done"
         try await Self.runAsEvents(Self.keystrokes(typed, in: window))
-        _ = try await waitForView(in: host, timeoutMessage: "Expected editor \(String(reflecting: "so bd it sk cd x")) and draft \(String(reflecting: typed + "\n")); got editor \(String(reflecting: input.string)) and draft \(String(reflecting: text))") {
-          input.string == "so bd it sk cd x" && text == typed + "\n" ? input : nil
+        _ = try await waitForView(in: host, timeoutMessage: "Expected editor \(String(reflecting: "so bold italic strike code done")) and draft \(String(reflecting: typed + "\n")); got editor \(String(reflecting: input.string)) and draft \(String(reflecting: text))") {
+          input.string == "so bold italic strike code done" && text == typed + "\n" ? input : nil
         }
-        #expect(input.string == "so bd it sk cd x")
+        #expect(input.string == "so bold italic strike code done")
         let shown = input.attributedString()
-        for (word, style) in [("bd", ComposerInlineText.Style.bold), ("it", .italic), ("sk", .strikethrough), ("cd", .code)] {
+        for (word, style) in [("bold", ComposerInlineText.Style.bold), ("italic", .italic), ("strike", .strikethrough), ("code", .code)] {
           let range = (input.string as NSString).range(of: word)
           var effective = NSRange()
           #expect(shown.attribute(style.attribute, at: range.location, longestEffectiveRange: &effective, in: NSRange(location: 0, length: shown.length)) as? Bool == true)
