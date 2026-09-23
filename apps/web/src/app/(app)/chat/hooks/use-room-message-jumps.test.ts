@@ -62,6 +62,7 @@ function message(): ChatRoomMessage {
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
   };
 }

@@ -131,8 +131,9 @@ private func compareParticipants(
 }
 
 /// Sidebar display name mirroring web's `getRoomDisplayName`: channels and
-/// external rooms use the stored name; Directs list the participants with
-/// yourself excluded (humans by name-or-email, then coworkers, then bots).
+/// external rooms use the stored name; a named group Direct shows its Group
+/// name (ADR-0040); other Directs list the participants with yourself
+/// excluded (humans by name-or-email, then coworkers, then bots).
 /// A self-only Direct falls back to the stored name — which is why several
 /// distinct self-note rooms can all read as your own name.
 public func roomDisplayName(
@@ -140,6 +141,9 @@ public func roomDisplayName(
   currentUserId: String
 ) -> String {
   guard room.kind == .direct else { return room.name }
+  if let groupName = room.groupName, !groupName.isEmpty {
+    return groupName
+  }
   let names = directRoomOtherParticipants(room, currentUserId: currentUserId).map(\.name)
   if names.isEmpty {
     let target = room.userMembers.first { $0.id != currentUserId }

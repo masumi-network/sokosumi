@@ -274,7 +274,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               mentionedUserIds: [] as string[],
               room: {
                 id: room.id,
-                name: room.name,
+                name: room.groupName ?? room.name,
                 organizationId: room.organizationId,
                 kind: room.kind,
                 memberUserIds: room.userMembers.map((member) => member.userId),
@@ -468,7 +468,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           mentionedUserIds,
           room: {
             id: room.id,
-            name: room.name,
+            name: room.groupName ?? room.name,
             organizationId: room.organizationId,
             kind: room.kind,
             memberUserIds: room.userMembers.map((member) => member.userId),

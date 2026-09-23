@@ -20,7 +20,7 @@
         _ id: String, _ name: String, unread: Int = 0, mentions: Int = 0, marked: Bool = false, muted: Bool = false
       ) -> Components.Schemas.ChatRoom {
         .init(
-          id: id, name: name, kind: .channel, isSelfDirect: false, discoverability: .external,
+          id: id, name: name, kind: .channel, isSelfDirect: false, isGroupDirect: false, discoverability: .external,
           createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: unread, unreadMentionCount: mentions,
           mutedAt: muted ? .distantPast : nil, markedUnread: marked, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
         )

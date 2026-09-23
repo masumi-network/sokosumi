@@ -3,14 +3,11 @@
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { AccountNoticeRow } from "@/app/components/account-notice-row";
-import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
+import { NotificationNeedsYouRequests } from "@/app/components/notification-needs-you-requests";
 import { NotificationCenterList } from "@/components/notifications/notification-center-list";
 import { NotificationCenterViewFilter } from "@/components/notifications/notification-center-view-filter";
 import { useMarkAllRead } from "@/components/notifications/use-mark-all-read";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { useAccountNotice } from "@/contexts/account-notice-provider";
 
 interface NotificationPanelContentProps {
   onClose: () => void;
@@ -28,23 +25,16 @@ export function NotificationPanelContent({
   onClose,
 }: NotificationPanelContentProps) {
   const t = useTranslations("Components.NotificationCenter");
-  const { notice } = useAccountNotice();
   const { unreadCount, isMarkingAllRead, handleMarkAllRead } = useMarkAllRead();
 
   return (
     <>
-      {notice !== null ? (
-        <>
-          <AccountNoticeRow variant="panel" onActionComplete={onClose} />
-          <Separator />
-        </>
-      ) : null}
       {/* One height with or without Mark all read, which is taller than
           the title. The header used to grow and shrink as the last unread
           row changed, and move the whole list with it. Nothing else shares
           the row, so the button can leave without moving a thing. The
           popover's own 16px inset carries on here, so the title, the
-          strip, the primer, and the button's outer edge share one line. */}
+          strip, and the button's outer edge share one line. */}
       <div className="flex min-h-12 items-center justify-between gap-3 px-4 py-2">
         {/* A heading, not a paragraph, and the page's own tracking on it.
             The two frames list the same rows, so the panel names them the
@@ -75,16 +65,7 @@ export function NotificationPanelContent({
       {/* The strip carries the line under it, so it stands in for the
           separator between the header and the list. */}
       <NotificationCenterViewFilter />
-      {/* The rows below bring their own padding, but a card sitting flush
-          on the first one reads as part of the list, so 8px separates the
-          two. When a notice leaves a view with nothing to list, the list
-          renders nothing and the scroll box hides itself, and this margin
-          then falls between the card and the View all footer, which is the
-          one place it stacks with padding of its own. */}
-      <NotificationBrowserPermissionPrimer
-        className="mx-4 mt-3 mb-2"
-        onNavigate={onClose}
-      />
+      <NotificationNeedsYouRequests variant="panel" onNavigate={onClose} />
       {/* The scroll container the boundary row watches: reaching the end of
           it is what asks for the page of older rows. It carries the line
           under it, so when the list has nothing to say under an account
