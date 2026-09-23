@@ -4,7 +4,7 @@ import { getExtensionFromUrl } from "@sokosumi/utils";
 import { X } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState } from "react";
+import { type MouseEvent, type ReactNode, useState } from "react";
 
 import { canUseNextImageSrc } from "@/config/next-image";
 import { DocumentViewer } from "@/components/ui/document-viewer";
@@ -33,6 +33,11 @@ export interface FileChipMiniPreviewProps {
   variant?: FileChipMiniPreviewVariant;
   onRemove?: () => void;
   removeLabel?: string;
+}
+
+interface FileChipMiniPreviewFrameProps extends FileChipMiniPreviewProps {
+  /** The caller owns the image viewer, e.g. a message's image gallery. */
+  onOpenImage: () => void;
 }
 
 const previewTriggerClassName =
@@ -68,6 +73,13 @@ function FileChipMiniPreviewTrigger({
   );
   const extension = getExtensionFromUrl(fileName ?? url);
   const useLargeImage = variant === "large" && isImage;
+
+  function handleOpenImageClick(event: MouseEvent<HTMLButtonElement>): void {
+    // The pinned-message row is a button. Opening must not jump away.
+    event.stopPropagation();
+    onOpenImage();
+  }
+
   // The large preview sizes itself from the bytes; remembered, a remount in
   // a virtualized list reserves the box instead of growing a frame later.
   const largeImageSize = useRememberedImageSize(useLargeImage ? url : undefined);
@@ -79,7 +91,7 @@ function FileChipMiniPreviewTrigger({
           type="button"
           aria-label={t("viewImage", { fileName: resolvedFileName })}
           className={cn(previewTriggerClassName, largeImageTriggerClassName)}
-          onClick={onOpenImage}
+          onClick={handleOpenImageClick}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -99,7 +111,7 @@ function FileChipMiniPreviewTrigger({
         type="button"
         aria-label={t("viewImage", { fileName: resolvedFileName })}
         className={cn(previewTriggerClassName, sizeClass)}
-        onClick={onOpenImage}
+        onClick={handleOpenImageClick}
       >
         <div className="relative size-full overflow-hidden">
           {canUseNextImage ? (
@@ -167,14 +179,14 @@ function FileChipMiniPreviewShell({
   variant = "thumb",
   onRemove,
   removeLabel = "Remove file",
+  onOpenImage,
   wrapTrigger,
-}: FileChipMiniPreviewProps & {
+}: FileChipMiniPreviewFrameProps & {
   wrapTrigger?: (trigger: ReactNode) => ReactNode;
 }) {
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
   const resolvedFileName = fileName ?? url.split("/").pop() ?? url;
-  const { isImage, documentKind } = classifyFilePreview(
+  const { documentKind } = classifyFilePreview(
     url,
     fileName,
     mediaType,
@@ -187,9 +199,7 @@ function FileChipMiniPreviewShell({
       mediaType={mediaType}
       sizeClass={sizeClass}
       variant={variant}
-      onOpenImage={() => {
-        setIsViewerOpen(true);
-      }}
+      onOpenImage={onOpenImage}
       onOpenDocument={() => {
         setIsDocumentViewerOpen(true);
       }}
@@ -214,15 +224,6 @@ function FileChipMiniPreviewShell({
           <TooltipContent side="top">{removeLabel}</TooltipContent>
         </Tooltip>
       ) : null}
-      {isImage ? (
-        <ImageViewer
-          open={isViewerOpen}
-          onOpenChange={setIsViewerOpen}
-          src={url}
-          alt={resolvedFileName}
-          downloadFilename={resolvedFileName}
-        />
-      ) : null}
       {documentKind ? (
         <DocumentViewer
           open={isDocumentViewerOpen}
@@ -242,7 +243,7 @@ function FileChipMiniPreviewShell({
  * inline player; images and documents keep the compact thumbnail frame.
  * Composer drafts use {@link FileChipMiniPreview} (always compact).
  */
-export function FileChipMiniPreviewFrame(props: FileChipMiniPreviewProps) {
+export function FileChipMiniPreviewFrame(props: FileChipMiniPreviewFrameProps) {
   const { isVideo, isAudio } = classifyFilePreview(
     props.url,
     props.fileName,
@@ -268,26 +269,43 @@ export function FileChipMiniPreviewFrame(props: FileChipMiniPreviewProps) {
 }
 
 export function FileChipMiniPreview(props: FileChipMiniPreviewProps) {
+  const [openImageSrc, setOpenImageSrc] = useState<string | null>(null);
   const resolvedFileName =
     props.fileName ?? props.url.split("/").pop() ?? props.url;
   const prettySize = formatBytes(props.size);
 
   return (
-    <FileChipMiniPreviewShell
-      {...props}
-      wrapTrigger={(trigger) => (
-        <Tooltip>
-          <TooltipTrigger asChild>{trigger}</TooltipTrigger>
-          <TooltipContent side="top" className="max-w-64">
-            <div className="flex flex-col">
-              <span className="truncate">{resolvedFileName}</span>
-              {prettySize ? (
-                <span className="text-primary-solid-foreground">{prettySize}</span>
-              ) : null}
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      )}
-    />
+    <>
+      <FileChipMiniPreviewShell
+        {...props}
+        onOpenImage={() => {
+          setOpenImageSrc(props.url);
+        }}
+        wrapTrigger={(trigger) => (
+          <Tooltip>
+            <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+            <TooltipContent side="top" className="max-w-64">
+              <div className="flex flex-col">
+                <span className="truncate">{resolvedFileName}</span>
+                {prettySize ? (
+                  <span className="text-primary-solid-foreground">{prettySize}</span>
+                ) : null}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      />
+      <ImageViewer
+        images={[
+          {
+            src: props.url,
+            alt: resolvedFileName,
+            downloadFilename: resolvedFileName,
+          },
+        ]}
+        activeSrc={openImageSrc}
+        onActiveSrcChange={setOpenImageSrc}
+      />
+    </>
   );
 }

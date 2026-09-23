@@ -46,6 +46,9 @@ vi.mock("next-intl", () => ({
       if (key === "jump" && values) {
         return `Jump to message from ${values.author}`;
       }
+      if (key === "position" && values) {
+        return `${values.current} / ${values.total}`;
+      }
       if (key === "MentionAll.label") {
         return "Everyone";
       }
@@ -105,19 +108,23 @@ vi.mock("@/components/ui/file-chip-mini-preview", () => ({
     fileName,
     sizeClass,
     variant,
+    onOpenImage,
   }: {
     fileName: string;
     url: string;
     sizeClass?: string;
     variant?: "thumb" | "large";
+    onOpenImage: () => void;
   }) => (
-    <span
+    <button
+      type="button"
       data-testid="chip"
       data-variant={variant ?? "thumb"}
       data-size-class={sizeClass ?? ""}
+      onClick={onOpenImage}
     >
       {fileName}
-    </span>
+    </button>
   ),
 }));
 
@@ -1298,6 +1305,93 @@ describe("ChatMessageRow", () => {
     const chip = screen.getByTestId("chip");
     expect(chip).toHaveAttribute("data-variant", "thumb");
     expect(chip).toHaveAttribute("data-size-class", "size-16");
+  });
+
+  describe("message image gallery", () => {
+    function openedImageName(): string | null {
+      return (
+        screen
+          .getByTestId("image-viewer-stage")
+          .querySelector("img[data-zoom]")
+          ?.getAttribute("alt") ?? null
+      );
+    }
+
+    it("steps through the message's images across rows, skipping other files", async () => {
+      const user = userEvent.setup();
+      renderRow({
+        message: userMessage({
+          content: [
+            "Three photos from yesterday",
+            "[stage.jpg](https://cdn.example/stage.jpg) [panel.jpg](https://cdn.example/panel.jpg) [agenda.pdf](https://cdn.example/agenda.pdf)",
+            "",
+            "And the room:",
+            "[crowd.jpg](https://cdn.example/crowd.jpg)",
+          ].join("\n"),
+        }),
+      });
+
+      await user.click(screen.getByRole("button", { name: "panel.jpg" }));
+
+      expect(openedImageName()).toBe("panel.jpg");
+      expect(screen.getByTestId("image-viewer-toolbar")).toHaveTextContent(
+        "2 / 3",
+      );
+
+      await user.keyboard("{ArrowRight}");
+      expect(openedImageName()).toBe("crowd.jpg");
+    });
+
+    it("closes when an edit removes the open image and stays closed when it returns", async () => {
+      const user = userEvent.setup();
+      const withImages = userMessage({
+        content:
+          "[stage.jpg](https://cdn.example/stage.jpg) [panel.jpg](https://cdn.example/panel.jpg)",
+      });
+      const row = (message: ChatRoomMessage) => (
+        <ChatMessageRow
+          message={message}
+          coworkersById={new Map()}
+          coworkersBySlug={new Map()}
+          onToggleReaction={vi.fn()}
+        />
+      );
+      const { rerender } = render(row(withImages));
+
+      await user.click(screen.getByRole("button", { name: "panel.jpg" }));
+      expect(openedImageName()).toBe("panel.jpg");
+
+      rerender(
+        row({
+          ...withImages,
+          content: "[stage.jpg](https://cdn.example/stage.jpg)",
+        }),
+      );
+      expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
+
+      rerender(row(withImages));
+      expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
+    });
+
+    it("counts an image linked twice once", async () => {
+      const user = userEvent.setup();
+      renderRow({
+        message: userMessage({
+          content: [
+            "[stage.jpg](https://cdn.example/stage.jpg) [panel.jpg](https://cdn.example/panel.jpg)",
+            "",
+            "again:",
+            "[stage.jpg](https://cdn.example/stage.jpg)",
+          ].join("\n"),
+        }),
+      });
+
+      await user.click(screen.getAllByRole("button", { name: "stage.jpg" })[1]);
+
+      expect(screen.getByTestId("image-viewer-toolbar")).toHaveTextContent(
+        "1 / 2",
+      );
+    });
   });
 
   it("does not line-clamp bodies that include a large solo image attachment", () => {

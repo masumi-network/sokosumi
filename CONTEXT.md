@@ -376,6 +376,10 @@ _Avoid_: Hidden unfurl, dismissed Quote, edited message, composer opt-out
 Sokosumi's own stored copy of an unfurl's preview image, taken when the unfurl is scraped. The card shows the snapshot, never the source image.
 _Avoid_: Cached image, proxied image, hotlinked image, og:image (when meaning the copy)
 
+**Message image gallery**:
+The distinct image attachments of one room message, in body order across all its attachment rows, stepped through one at a time in the image viewer. Never other file kinds, a quote's or unfurl's image, or another message's images.
+_Avoid_: Lightbox, carousel, room gallery (the gallery is one message, never the room), slideshow
+
 ### Chat outbound delivery
 
 **Outbound delivery status**:
