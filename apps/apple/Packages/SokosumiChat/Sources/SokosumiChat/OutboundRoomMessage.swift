@@ -59,6 +59,14 @@ public func isOutboundLocalMessage(_ message: Components.Schemas.ChatRoomMessage
   message.id.hasPrefix(outboundLocalIdPrefix)
 }
 
+/// Stored replies in a thread column. A pending shell or stream overlay is not one: Core 404s a mute
+/// read until a reply is stored, and swapping the shell for that row does not change the displayed count.
+public func liveThreadReplyCount(_ messages: [Components.Schemas.ChatRoomMessage]) -> Int {
+  messages.count(where: { message in
+    message.parentMessageId != nil && !isOutboundLocalMessage(message) && !message.id.hasPrefix("stream:")
+  })
+}
+
 /// Web's `shouldKeepPersistedMessage` (merge-room-messages.ts): a persisted row
 /// stays in a transcript only with a visible body, a quote, a membership
 /// status, or as a coworker mention shell. Core blanks all of these on delete,

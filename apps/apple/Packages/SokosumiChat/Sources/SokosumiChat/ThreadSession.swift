@@ -15,6 +15,8 @@ public final class ThreadSession: ObservableObject {
 
   @Published public private(set) var jumpTarget: JumpTarget?
   @Published public private(set) var parent: Message?
+  /// The reader's mute on this thread; nil while no thread is open.
+  @Published public private(set) var mute: ThreadMuteState?
   public let timeline = RoomTimeline()
   public let outbox: RoomOutbox
   public let recovery = ChatRefreshScheduler()
@@ -42,6 +44,7 @@ public final class ThreadSession: ObservableObject {
     }
     close()
     parent = message
+    mute = ThreadMuteState(roomId: message.roomId, parentMessageId: message.id)
     timeline.reset(roomId: message.roomId, parentMessageId: message.id)
     return true
   }
@@ -64,6 +67,47 @@ public final class ThreadSession: ObservableObject {
     outbox.reset()
     timeline.reset()
     parent = nil
+    mute = nil
+  }
+
+  /// Reads the mute while it is unknown. A 404 (the parent has no live reply yet) keeps it unknown, so the
+  /// caller reads again when the first reply lands.
+  public func readMute(client: Client, organizationSlug: String?) async throws {
+    guard let parent, mute?.needsRead == true else { return }
+    let generation = timeline.generation
+    let thread = try await service.getThread(
+      client: client, roomId: parent.roomId, parentMessageId: parent.id, organizationSlug: organizationSlug
+    )
+    guard generation == timeline.generation else { return }
+    mute?.read(mutedAt: thread.mutedAt)
+  }
+
+  /// Flips the mute at once and asks Core for it; returns whether Core changed it, which moves the room's
+  /// unread even after the reader left the thread. A failure reverts and keeps the failure for the view.
+  @discardableResult
+  public func toggleMute(client: Client, organizationSlug: String?) async throws -> Bool {
+    guard let parent, let muted = mute?.beginToggle() else { return false }
+    let generation = timeline.generation
+    do {
+      let thread = if muted {
+        try await service.muteThread(client: client, roomId: parent.roomId, parentMessageId: parent.id, organizationSlug: organizationSlug)
+      } else {
+        try await service.unmuteThread(client: client, roomId: parent.roomId, parentMessageId: parent.id, organizationSlug: organizationSlug)
+      }
+      if generation == timeline.generation {
+        mute?.settle(mutedAt: thread.mutedAt)
+      }
+      return true
+    } catch {
+      if generation == timeline.generation {
+        mute?.fail()
+      }
+      throw error
+    }
+  }
+
+  public func dismissMuteFailure() {
+    mute?.dismissFailure()
   }
 
   /// Serialize page reads. Initial thread attention precedes the first GET;
