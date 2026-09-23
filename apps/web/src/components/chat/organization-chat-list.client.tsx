@@ -104,7 +104,10 @@ const EMPTY_PENDING_INVITATIONS: ChatRoomInvitation[] = [];
 const ARCHIVED_TRAILING_CONTROL_CLASS =
   "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center after:absolute after:-inset-1.5 md:size-7 md:after:hidden";
 
-/** A room read during the All unreads pass: listed in its place, dimmed. */
+/**
+ * A room the All unreads filter lists with nothing unread: read during the
+ * pass, or pinned. Dimmed.
+ */
 const READ_INBOX_ROOM_ITEM_PROPS = {
   "data-read": "true",
   className: "opacity-60",
@@ -175,6 +178,7 @@ export function OrganizationChatList({
   const [filterPass, setFilterPass] = useState(EMPTY_UNREAD_FILTER_PASS);
   // The app sidebar and the mobile `/chat` page each mount this list.
   const inboxReadLabelId = useId();
+  const inboxPinnedLabelId = useId();
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
@@ -318,6 +322,12 @@ export function OrganizationChatList({
           : []),
       ].flatMap((id) => roomRows.find((row) => row.id === id) ?? [])
     : [];
+  // Pinned rooms stay one click away under the filter, so reaching one never
+  // means switching it off. Only those the list above does not already hold,
+  // in the reader's own pin order.
+  const inboxPinnedRooms = unreadOnly
+    ? pinned.filter((room) => !inboxRooms.some((row) => row.id === room.id))
+    : [];
   const pinnedRoomIds = pinned.map((room) => room.id);
   // Reordering a filtered list would move rooms relative to ones it hides.
   const canReorderPinned = pinnedOpen && pinned.length > 1 && !unreadOnly;
@@ -325,7 +335,7 @@ export function OrganizationChatList({
   // reader from being caught up: it is addressed to them and waits on them,
   // which is why a closed section already marks it as a mention
   // (`resolveSectionAttention`). Caught up is about what is unread, not what
-  // is listed: rooms read in the pass stay listed, dimmed.
+  // is listed: rooms read in the pass and pinned rooms stay listed, dimmed.
   const caughtUp =
     unreadOnly && unreadRooms.length === 0 && pendingRows.length === 0;
   // The mode ends with the toggle that leaves it (section closed, or fewer
@@ -460,6 +470,29 @@ export function OrganizationChatList({
                   />
                 );
               })}
+            </SidebarMenu>
+          </div>
+        ) : null}
+        {inboxPinnedRooms.length > 0 ? (
+          <div>
+            <p
+              id={inboxPinnedLabelId}
+              className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pb-1 text-xs font-medium"
+            >
+              {t("pinned")}
+            </p>
+            <SidebarMenu
+              data-slot="unread-inbox-pinned"
+              aria-labelledby={inboxPinnedLabelId}
+              className="gap-0"
+            >
+              {inboxPinnedRooms.map((room) => (
+                <ChatRoomSidebarRow
+                  key={room.id}
+                  {...roomRowProps(room)}
+                  itemProps={READ_INBOX_ROOM_ITEM_PROPS}
+                />
+              ))}
             </SidebarMenu>
           </div>
         ) : null}
