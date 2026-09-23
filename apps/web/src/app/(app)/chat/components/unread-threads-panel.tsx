@@ -5,6 +5,7 @@ import {
   ROOM_COUNT_CAP,
   roomCountLabel,
 } from "@/components/chat/room-count-label";
+import { CornerCountBadge } from "@/components/common/corner-count-badge";
 import { Button } from "@/components/ui/button";
 
 export interface UnreadThreadsPanelLabels {
@@ -26,8 +27,10 @@ interface UnreadThreadsPanelProps {
 /**
  * The room-header threads trigger.
  *
- * Unread threads show as a `bg-primary` badge holding the count, overlapping the
- * glyph's top-right corner. Opening the panel does not hide it: looking at a
+ * Unread threads show as a primary badge holding the count on the button's
+ * corner, the same badge the notification bell wears in the same filled
+ * primary, so one header states counts one way. Opening the panel does not hide
+ * it: looking at a
  * list is not reading it, so the badge stands until a Look or a Mark all
  * actually zeroes the count. The sidebar row makes the same call for the room
  * it is open on.
@@ -38,14 +41,12 @@ interface UnreadThreadsPanelProps {
  * The sidebar row still honours the switch; this control deliberately does
  * not (ADR-0038).
  *
- * It is not a `MentionCountPill`. That pill says *you were named*: a tint with
- * an `@`, capped at 9 to fit a sidebar row's hole. This is a solid fill that
- * says *how much*, capped where the room counts cap. It is also smaller than
- * the notification bell's badge: its geometry is the thread-unread mock's,
- * sized to sit on a 16px glyph's corner in a row of header icons.
+ * It shares `MentionCountPill`'s geometry but not its colour. That pill says
+ * *you were named*: a tint with an `@`, capped at 9. This is a solid fill that
+ * says *how much*, capped where the room counts cap.
  *
- * The unread statement rides the button's `aria-label`, so the badge is
- * `aria-hidden`. A label on the button replaces anything its children say, so
+ * The unread statement rides the button's `aria-label`; the badge is hidden
+ * from it. A label on the button replaces anything its children say, so
  * `sr-only` text inside would never be announced.
  *
  * Past the cap the name says "more than 99" rather than the exact figure,
@@ -78,15 +79,14 @@ export function UnreadThreadsPanel({
     >
       <MessagesSquare className="size-4" />
       {hasUnread ? (
-        // Ringed in the header's own ground so the badge keeps its edge where
-        // it overlaps the glyph's corner.
-        <span
-          aria-hidden="true"
+        // The ghost Button's 1px border moves the anchor in a pixel; the
+        // offset puts the badge where the bell's sits.
+        <CornerCountBadge
           data-testid="unread-threads-badge"
-          className="bg-primary text-primary-foreground ring-background absolute -top-px -right-0.5 inline-flex h-2.75 min-w-2.75 items-center justify-center rounded-full px-1 text-[0.625rem] leading-none font-bold tabular-nums ring-2"
+          className="bg-primary-solid text-primary-solid-foreground -top-0.75 -right-0.75"
         >
           {roomCountLabel(unreadCount)}
-        </span>
+        </CornerCountBadge>
       ) : null}
     </Button>
   );
