@@ -253,7 +253,9 @@ export function ChatUnreadNavRows({
             under the pointer and the press, expanded and on the rail. The
             classes go on the button primitive, whose merge lets them replace
             its own hover fill; on the child they would only sit beside it,
-            and the grey would win. */}
+            and the grey would win. Before React reads the remembered filter,
+            the boot script's mark tints it the same way, so it does not
+            flip from off to on as the page hydrates. */}
         <SidebarMenuButton
           asChild
           tooltip={t("allUnreads")}
@@ -265,7 +267,10 @@ export function ChatUnreadNavRows({
                   "active:bg-primary-quaternary active:text-primary-variant",
                   "group-data-[collapsible=icon]:hover:bg-primary-quaternary group-data-[collapsible=icon]:active:bg-primary-quaternary",
                 ]
-              : THREADS_ROW_CLASS,
+              : [
+                  THREADS_ROW_CLASS,
+                  "chat-unreads-boot:bg-primary-quaternary chat-unreads-boot:text-primary-variant chat-unreads-boot:font-medium",
+                ],
           )}
         >
           <button

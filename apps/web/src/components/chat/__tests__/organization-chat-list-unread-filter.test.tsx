@@ -3,6 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+  parseChatUnreadsFilterCookieHeader,
+  serializeChatUnreadsFilterCookie,
+} from "@/lib/ui-preferences/chat-unreads-filter";
+
+import {
   createOrganizationChatList,
   emptyListResult,
   harnessPathname,
@@ -179,6 +185,57 @@ describe("OrganizationChatList All unreads filter", () => {
     await userEvent.click(toggle);
 
     expect(rowLabels()).toEqual(["launch", "design", "general", "room"]);
+  });
+});
+
+// The reader's choice is remembered per browser, so a reload opens where they
+// left off.
+describe("OrganizationChatList remembered Unreads filter", () => {
+  beforeEach(() => {
+    resetOrganizationChatListMocks();
+    listRoomsMock.mockResolvedValue(emptyListResult(rooms));
+  });
+
+  it("opens on the filter when the reader left it on", () => {
+    document.cookie = serializeChatUnreadsFilterCookie(true);
+
+    const { container } = renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms,
+    });
+
+    expect(screen.getByRole("button", { name: "All unreads" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(inboxRows(container)).toEqual(["launch", "design"]);
+  });
+
+  // The boot mark only covers the prerendered All list until React reads the
+  // cookie; left behind, it would hide All if the filter later goes off.
+  it("drops the page's boot mark once the list shows the remembered filter", () => {
+    document.cookie = serializeChatUnreadsFilterCookie(true);
+    document.documentElement.setAttribute(
+      CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+      "",
+    );
+
+    renderOrganizationChatList({ organizationId: "org-1", rooms });
+
+    expect(
+      document.documentElement.hasAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE),
+    ).toBe(false);
+  });
+
+  it("remembers the reader switching it on and off", async () => {
+    renderOrganizationChatList({ organizationId: "org-1", rooms });
+    const toggle = screen.getByRole("button", { name: "All unreads" });
+
+    await userEvent.click(toggle);
+    expect(parseChatUnreadsFilterCookieHeader(document.cookie)).toBe(true);
+
+    await userEvent.click(toggle);
+    expect(parseChatUnreadsFilterCookieHeader(document.cookie)).toBe(false);
   });
 });
 
