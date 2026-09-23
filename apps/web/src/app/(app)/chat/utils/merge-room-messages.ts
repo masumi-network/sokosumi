@@ -1,10 +1,9 @@
+import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
-
 import {
   isFailedMentionThoughtShell,
   isPersistedMentionThoughtShell,
 } from "./coworker-thought";
-
 import {
   confirmOutboundMessage,
   filterResolvedOutbound,
@@ -179,11 +178,6 @@ function isSavedQuoteMessage(message: ChatRoomMessage): boolean {
   return message.quote != null;
 }
 
-/** Channel join/leave rows must stay even if content is empty. */
-function isMembershipStatusMessage(message: ChatRoomMessage): boolean {
-  return message.membership != null;
-}
-
 /**
  * Empty coworker shells for a mention stay while the Thought streams and after
  * it fails: Core keeps the failed bubble so "Failed to reply" and Retry can
@@ -201,7 +195,7 @@ function isMentionCoworkerShell(message: ChatRoomMessage): boolean {
 
 function shouldKeepPersistedMessage(message: ChatRoomMessage): boolean {
   return (
-    isMembershipStatusMessage(message) ||
+    isRoomStatusMessage(message) ||
     hasVisibleMessageBody(message) ||
     isSavedQuoteMessage(message) ||
     isMentionCoworkerShell(message)

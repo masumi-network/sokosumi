@@ -70,7 +70,7 @@ import {
 } from "@/services/task-schedule-runs.service";
 
 /**
- * Task Schedule operations (ADR 0040). Owns who may see and change a
+ * Task Schedule operations (ADR 0041). Owns who may see and change a
  * schedule, and which state moves are legal; routes only parse and respond.
  *
  * Access: every caller passes the organization Seat gate for the member it
@@ -628,7 +628,7 @@ function runAfterAction(
 }
 
 /**
- * Skip, move, or restore one upcoming Run (ADR 0040). The exception is
+ * Skip, move, or restore one upcoming Run (ADR 0041). The exception is
  * recorded on the Run row, with who made it; the rule stays as it is.
  */
 export async function changeTaskScheduleRun(
@@ -713,7 +713,7 @@ export async function changeTaskScheduleRun(
 
 /**
  * Tasks the schedule created stay; the database sets their `scheduleId` to
- * null (ADR 0040).
+ * null (ADR 0041).
  */
 export async function deleteTaskSchedule(
   vars: RouteVars,

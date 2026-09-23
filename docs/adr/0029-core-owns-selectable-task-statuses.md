@@ -1,6 +1,6 @@
 # ADR 0029: Core computes selectable Task statuses per actor
 
-- Status: Accepted; schedule rules amended by [ADR 0040](0040-recurring-rules-move-to-task-schedule.md)
+- Status: Accepted; schedule rules amended by [ADR 0041](0041-recurring-rules-move-to-task-schedule.md)
 - Date: 2026-09-15
 
 The Task DTO carries `selectableStatuses`: the statuses the requesting actor may move that Task to right now, computed by Core from the Task's status, assignee, and schedule plus the actor kind. The same function gates `POST /v1/tasks/{id}/events` for non-agent actors, so a person can only set a status the picker would have offered. Web keeps no status rules of its own beyond the reopen-comment prompt, which shapes the UI before the request and is enforced in Core as well.

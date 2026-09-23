@@ -5477,8 +5477,6 @@
         "markAllReadError": "No se pudo marcar todo como leído.",
         "caughtUp": "Todo al día",
         "allThreads": "Todos los hilos",
-        "showAllChats": "Mostrar todos los chats",
-        "showAll": "Mostrar todo",
         "nothingUnread": "{count, plural, one {Nada sin leer en # chat} other {Nada sin leer en # chats}}",
         "justRead": "Recién leídos"
       },
@@ -5685,6 +5683,16 @@
       "MembershipStatus": {
         "joined": "{name} se unió",
         "left": "{name} salió"
+      },
+      "GroupName": {
+        "rename": "Cambiar nombre",
+        "dialogTitle": "Poner nombre al grupo",
+        "dialogDescription": "Todos en el grupo ven este nombre en lugar de la lista de miembros. Déjalo vacío para volver a mostrar a los miembros.",
+        "label": "Nombre del grupo",
+        "save": "Guardar",
+        "saveFailed": "No se pudo poner nombre al grupo.",
+        "named": "{name} llamó al grupo {groupName}",
+        "cleared": "{name} quitó el nombre del grupo"
       },
       "External": {
         "title": "Externo",

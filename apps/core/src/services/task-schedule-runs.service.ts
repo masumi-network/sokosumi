@@ -22,7 +22,7 @@ import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
 /**
- * The Run ledger of Task Schedules (ADR 0040): which Runs are
+ * The Run ledger of Task Schedules (ADR 0041): which Runs are
  * planned, and the release that turns each due one into a Task.
  *
  * An Active schedule keeps its planned Runs projected over the

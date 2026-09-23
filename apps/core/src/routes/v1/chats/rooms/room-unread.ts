@@ -221,6 +221,9 @@ export async function getChatRoomUnreadCounts(
       WHERE message."roomId" IN (${roomIdPlaceholders})
         AND message."parentMessageId" IS NULL
         AND message."deletedAt" IS NULL
+        -- A Group name change has no sender, so it would be unread even for
+        -- whoever made it; a rename never marks the room unread.
+        AND message."metadata"->'groupNameChange' IS NULL
         AND ${sqlMessageAttentionAt("message")} > COALESCE(read_state."lastReadAt", '-infinity'::timestamp)
         AND (message."senderUserId" IS NULL OR message."senderUserId" <> ${userIdPlaceholder})
 

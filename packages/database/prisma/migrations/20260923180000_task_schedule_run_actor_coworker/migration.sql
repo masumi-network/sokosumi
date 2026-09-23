@@ -1,4 +1,4 @@
--- ADR 0040: Run exceptions are recorded on the Run row, not as Task events,
+-- ADR 0041: Run exceptions are recorded on the Run row, not as Task events,
 -- so the row also names a Coworker vendor that made one.
 
 -- AlterTable

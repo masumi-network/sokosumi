@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { cn } from "@/lib/utils";
 
@@ -32,13 +33,18 @@ interface NotificationCenterViewFilterProps {
  * the rail on an unread row, so the strip and the rows say "unread" in one
  * voice. A single-choice control on purpose: each view is a different list.
  * Needs you is not "unread": a row stays there, read or not, until the
- * request it stands for is answered.
+ * request it stands for is answered. An account notice is one of those
+ * requests: it lives on Needs you, so it counts on that tab. The push primer
+ * does not: it is an offer, and a blocked or iPhone browser would carry the
+ * count for good.
  */
 export function NotificationCenterViewFilter({
   className,
 }: NotificationCenterViewFilterProps) {
   const t = useTranslations("Components.NotificationCenter");
   const { view, setView, unreadCount, needsActionCount } = useNotifications();
+  const { notice } = useAccountNotice();
+  const needsYouCount = needsActionCount + (notice !== null ? 1 : 0);
 
   function handleValueChange(next: string): void {
     if (next === "all" || next === "unread" || next === "needs-action") {
@@ -63,8 +69,8 @@ export function NotificationCenterViewFilter({
         </TabsTrigger>
         <TabsTrigger value="needs-action" className={TRIGGER_CLASS_NAME}>
           {t("filterNeedsYou")}
-          {needsActionCount > 0 ? (
-            <span className={COUNT_CLASS_NAME}>{needsActionCount}</span>
+          {needsYouCount > 0 ? (
+            <span className={COUNT_CLASS_NAME}>{needsYouCount}</span>
           ) : null}
         </TabsTrigger>
       </TabsList>

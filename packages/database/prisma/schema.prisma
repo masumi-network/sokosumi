@@ -2520,7 +2520,7 @@ model Task {
   scheduleCreateOperation    TaskScheduleCreateOperation?
 
   /// Task Schedule whose Run created this Task. Deleting the schedule
-  /// keeps the Task (ADR 0040).
+  /// keeps the Task (ADR 0041).
   scheduleId String?       @db.Uuid
   schedule   TaskSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
 
@@ -2559,7 +2559,7 @@ enum TaskScheduleEndsMode {
 }
 
 /// A repeating rule plus the blueprint of the Task each Run creates
-/// (ADR 0040). Not a Task: it has no Task status, only its own state.
+/// (ADR 0041). Not a Task: it has no Task status, only its own state.
 model TaskSchedule {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -2744,7 +2744,7 @@ model TaskScheduleOccurrence {
   seriesTaskId String?
   seriesTask   Task?   @relation("ScheduleOccurrenceSeries", fields: [seriesTaskId], references: [id], onDelete: Cascade)
 
-  /// Task Schedule this Occurrence belongs to; replaces seriesTaskId (ADR 0040).
+  /// Task Schedule this Occurrence belongs to; replaces seriesTaskId (ADR 0041).
   scheduleId String?       @db.Uuid
   schedule   TaskSchedule? @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
@@ -3483,6 +3483,9 @@ model ChatRoom {
   slug                   String?
   kind                   String    @default("channel")
   directKey              String?
+  /// Group name of a group Direct (ADR-0040). Null means unnamed; always null
+  /// for channels (CHECK). Separate from `name`, the Direct creation snapshot.
+  groupName              String?
   /// Remote coworker Conversations API id for streaming 1:1 directs (not used for channel mention threads).
   providerConversationId String?
   topic                  String?
