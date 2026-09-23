@@ -105,7 +105,14 @@ struct RoomThreadOverviewView: View {
       .contentShape(.rect)
     }
     .buttonStyle(.plain)
-    .onHover { hoveredId = $0 ? item.parentMessage.id : nil }
+    .onHover { hovering in
+      // Only this row's own exit clears it: moving between rows can deliver the next row's enter first.
+      if hovering {
+        hoveredId = item.parentMessage.id
+      } else if hoveredId == item.parentMessage.id {
+        hoveredId = nil
+      }
+    }
   }
 
   /// Web's `threadListRowClassName`: the unread rows are the one place the list spends the accent, deepening
