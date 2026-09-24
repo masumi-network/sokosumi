@@ -234,17 +234,18 @@ describe("RoomSeenByLine", () => {
 
     const toggle = await screen.findByTestId("room-seen-by-pending-toggle");
     expect(toggle).toHaveTextContent("2 not yet");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(
       screen.queryByTestId("room-seen-by-pending-user-lagging"),
     ).not.toBeInTheDocument();
 
     await user.click(toggle);
 
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(
-      screen.getByTestId("room-seen-by-pending-user-lagging"),
-    ).toBeInTheDocument();
+    // The rows replace the summary rather than opening under it, and take
+    // the focus the vanished button held.
+    expect(toggle).not.toBeInTheDocument();
+    const lagging = screen.getByTestId("room-seen-by-pending-user-lagging");
+    expect(lagging).toBeInTheDocument();
+    expect(lagging.closest("ul")).toHaveFocus();
     expect(
       screen.getByTestId("room-seen-by-pending-user-never"),
     ).toBeInTheDocument();
