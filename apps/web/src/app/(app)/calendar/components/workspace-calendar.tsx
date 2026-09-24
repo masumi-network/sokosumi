@@ -422,13 +422,9 @@ function CalendarEvent({
             </span>
           ) : null}
           {accuracyMarker}
-          <span className="text-muted-foreground min-w-0 truncate">
+          <span className="text-muted-foreground min-w-0 flex-1 truncate">
             {sourceName}
           </span>
-        </span>
-        <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
-        <span className="flex w-full min-w-0 items-center gap-1">
-          {peopleStack}
           <TaskStatusBadge
             status={
               item.state === "SKIPPED" ? TaskStatus.CANCELED : item.taskStatus
@@ -441,6 +437,10 @@ function CalendarEvent({
             showLabel={false}
             className="size-5 justify-center p-0"
           />
+        </span>
+        <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
+        <span className="flex w-full min-w-0 items-center gap-1">
+          {peopleStack}
           {menuButton}
         </span>
       </div>
