@@ -20,6 +20,7 @@ const item: SocialPostCalendarItem = {
   status: "SCHEDULED",
   projectName: "Launch project",
   scheduledByName: "Albina",
+  scheduledByImage: null,
   attachmentCount: 2,
 };
 
@@ -46,12 +47,14 @@ describe("Social post calendar event", () => {
       "href",
       "/projects/project/social?postId=post#social-post-post",
     );
-    expect(screen.getByRole("img", { name: "X" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "X · @team" })).toBeInTheDocument();
     expect(screen.queryByText("Social post")).not.toBeInTheDocument();
     expect(screen.getByText("12:00 PM")).toBeInTheDocument();
     expect(screen.getByText("Launch news")).toBeInTheDocument();
-    expect(screen.getByText("@team")).toBeInTheDocument();
-    expect(screen.getByText("Launch project")).toBeInTheDocument();
+    expect(screen.getByTitle("Scheduled by Albina")).toBeInTheDocument();
+    expect(screen.getByTitle("Project: Launch project")).toHaveTextContent(
+      "Launch project",
+    );
     expect(screen.getByText("Scheduled by Albina")).toBeInTheDocument();
     expect(screen.getByText("2 attachments")).toBeInTheDocument();
     expect(screen.getByText("Scheduled")).toBeInTheDocument();
