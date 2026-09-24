@@ -71,6 +71,7 @@ private struct MessageMarkdownContent: View {
         ExpandableMessageBody(source: source, clampHeight: document.clampsLongBody) {
           MarkdownBlocksView(blocks: document.blocks)
         }
+        .messageImageGallery(document.imageGallery)
       } else {
         ProgressView()
           .controlSize(.small)
