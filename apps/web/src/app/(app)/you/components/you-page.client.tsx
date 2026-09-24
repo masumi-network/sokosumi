@@ -160,6 +160,12 @@ export function YouPageClient({
 
         <nav aria-label={tYou("title")} className="space-y-6">
           <MobileStackedMenuGroup>
+            <MobileStackedMenuLink
+              href={TASK_SCHEDULES_PATH}
+              icon={<Repeat className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("schedules")}
+              testId="you-schedules"
+            />
             {calendarMenuEnabled ? (
               <MobileStackedMenuLink
                 href={CALENDAR_HREF}
@@ -168,12 +174,6 @@ export function YouPageClient({
                 testId="you-calendar"
               />
             ) : null}
-            <MobileStackedMenuLink
-              href={TASK_SCHEDULES_PATH}
-              icon={<Repeat className="size-4 shrink-0" aria-hidden />}
-              label={tMenu("schedules")}
-              testId="you-schedules"
-            />
             <MobileStackedMenuLink
               href={DRIVE_HREF}
               icon={<HardDrive className="size-4 shrink-0" aria-hidden />}

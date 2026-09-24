@@ -251,8 +251,8 @@ describe("MenuItems search action", () => {
       "exploreAgents",
       "projects",
       "taskManager",
-      "calendar",
       "schedules",
+      "calendar",
       "drive",
       "history",
     ];
@@ -268,7 +268,7 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("orders primary destinations Search, Agents, Projects, Tasks, Calendar, Schedules, History", () => {
+  it("orders primary destinations Search, Agents, Projects, Tasks, Schedules, Calendar, History", () => {
     const { container } = renderMenu(true, true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -279,8 +279,8 @@ describe("MenuItems search action", () => {
       "exploreAgents",
       "projects",
       "taskManager",
-      "calendar",
       "schedules",
+      "calendar",
       "history",
     ];
     const positions = primaryOrder.map((label) =>
@@ -369,8 +369,8 @@ describe("MenuItems search action", () => {
       // it there.
       "",
       "taskManager",
-      "calendar",
       "schedules",
+      "calendar",
       "drive",
       "history",
     ]);
