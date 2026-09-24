@@ -267,6 +267,8 @@ function CalendarEvent({
   const [menuOpen, setMenuOpen] = useState(false);
   // Where a mouse drag began on a card FullCalendar will not move.
   const dragAttemptOrigin = useRef<{ x: number; y: number } | null>(null);
+  // That drag's pointerup still clicks. Do not treat it as a tap.
+  const suppressClick = useRef(false);
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
   const sourceMarker = (
     <SourceMarker decorative source={source} sourceName={sourceName} />
@@ -322,6 +324,7 @@ function CalendarEvent({
   // say which ones move once the mouse has clearly started.
   const dragAttemptHandlers = {
     onPointerDown: (event: PointerEvent) => {
+      suppressClick.current = false;
       dragAttemptOrigin.current =
         event.pointerType !== "touch" && !isChangeableRun(item)
           ? { x: event.clientX, y: event.clientY }
@@ -339,6 +342,7 @@ function CalendarEvent({
         return;
       }
       dragAttemptOrigin.current = null;
+      suppressClick.current = true;
       toast.info(t("event.moveNotAllowed"));
     },
     onPointerUp: () => {
@@ -382,7 +386,13 @@ function CalendarEvent({
           "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2",
         )}
         data-testid="calendar-event"
-        onClick={() => onOpen(`/tasks/${taskId}`)}
+        onClick={() => {
+          if (suppressClick.current) {
+            suppressClick.current = false;
+            return;
+          }
+          onOpen(`/tasks/${taskId}`);
+        }}
         type="button"
         {...dragAttemptHandlers}
       >

@@ -151,7 +151,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("sonner", () => ({
-  toast: { error: (...args: unknown[]) => toastErrorMock(...args) },
+  toast: {
+    error: (...args: unknown[]) => toastErrorMock(...args),
+    info: vi.fn(),
+  },
 }));
 
 vi.mock("@/app/tasks/components/create-task-modal", () => ({
@@ -684,6 +687,40 @@ describe("WorkspaceCalendar editing", () => {
       screen.getByRole("menuitem", { name: "event.openSchedule" }),
     );
     expect(pushMock).toHaveBeenLastCalledWith("/schedules/schedule-1");
+  });
+
+  it("opens a Task on tap but not after a drag the calendar will not move", () => {
+    renderCalendar({ items: [RELEASED_ITEM] });
+    const card = screen.getByRole("button", {
+      name: "Prepare release notes, Release planning",
+    });
+
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 3,
+      clientY: 0,
+    });
+    fireEvent.click(card);
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task-1");
+
+    pushMock.mockClear();
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 20,
+      clientY: 0,
+    });
+    fireEvent.click(card);
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
   it("shows a Queued Task at its Run at, opening the Task directly", async () => {
