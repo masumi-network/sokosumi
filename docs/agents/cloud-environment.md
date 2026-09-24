@@ -1,4 +1,4 @@
-# Cursor Cloud environment
+# Cloud environment
 
 Required when the matching trigger in [AGENTS.md](../../AGENTS.md) applies.
 Commands and backticked paths are relative to the repository root unless stated otherwise.
