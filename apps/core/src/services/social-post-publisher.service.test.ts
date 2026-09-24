@@ -783,6 +783,8 @@ describe("social post publisher service", () => {
       expect(persistedValue).not.toContain("dXNlcjpwYXNz");
       expect(persistedValue).not.toContain("my secret");
     }
+  });
+
   describe("media", () => {
     function claimWithMedia(media: unknown[]) {
       socialPostFindFirstMock.mockReset();
