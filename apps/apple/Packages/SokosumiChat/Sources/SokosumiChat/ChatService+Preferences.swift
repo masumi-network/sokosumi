@@ -7,12 +7,6 @@ struct UserPreferencesSnapshot: Equatable, Sendable {
   var showRoomUnreadCount: Bool
   var pushOptIn: Bool
   var cells: [Components.Schemas.NotificationPreference]
-
-  init(showRoomUnreadCount: Bool, pushOptIn: Bool, cells: [Components.Schemas.NotificationPreference]) {
-    self.showRoomUnreadCount = showRoomUnreadCount
-    self.pushOptIn = pushOptIn
-    self.cells = cells
-  }
 }
 
 extension ChatService {
