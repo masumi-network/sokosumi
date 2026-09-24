@@ -111,7 +111,6 @@ export function TaskScheduleDialog({
       schedule
         ? taskScheduleRuleToSelection(schedule.rule)
         : {
-            mode: "recurring",
             timezone: getDefaultTimezone(),
             cron: NEW_SCHEDULE_CRON,
           },
@@ -161,7 +160,7 @@ export function TaskScheduleDialog({
             expectedRevision: schedule.revision,
             // Replacing the rule drops skipped and moved Runs, so an edit
             // that leaves it alone does not send it.
-            ...(hasTaskScheduleChanged(initialSelection, selection, true)
+            ...(hasTaskScheduleChanged(initialSelection, selection)
               ? { rule }
               : {}),
           })

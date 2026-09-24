@@ -14,8 +14,6 @@ import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
-import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
-import { parseTaskScheduleSelection } from "@/lib/utils/task-schedule";
 
 interface FullCalendarProps {
   borderless?: boolean;
@@ -416,7 +414,7 @@ describe("WorkspaceCalendar editing", () => {
     );
   });
 
-  it("opens the shared task modal with a locked Project and clicked schedule", async () => {
+  it("opens the shared task modal with a locked Project and the clicked Run at", async () => {
     const user = userEvent.setup();
     renderCalendar({ lockedProjectId: "project-1" });
 
@@ -426,15 +424,11 @@ describe("WorkspaceCalendar editing", () => {
 
     expect(openCreateTaskModalMock).toHaveBeenCalledWith({
       projectId: "project-1",
-      schedule: {
-        mode: "once",
-        oneTimeLocalIso: "2030-01-02T09:00",
-        timezone: "UTC",
-      },
+      runAt: { localIso: "2030-01-02T09:00", timezone: "UTC" },
     });
   });
 
-  it("opens create with a schedulable once-time when the clicked hour is already past", () => {
+  it("opens create with a future Run at when the clicked hour is already past", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
     render(
@@ -452,23 +446,12 @@ describe("WorkspaceCalendar editing", () => {
       screen.getAllByRole("button", { name: "past hour calendar slot" })[0],
     );
 
-    const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
-      schedule: TaskScheduleSelection;
-    };
-    expect(schedule.schedule).toEqual({
-      mode: "once",
-      oneTimeLocalIso: "2026-09-08T18:06",
-      timezone: "Europe/Prague",
-    });
-
-    vi.advanceTimersByTime(2 * 60 * 1000);
-    expect(parseTaskScheduleSelection(schedule.schedule)).toEqual({
-      mode: "once",
-      runAt: new Date("2026-09-08T16:06:00.000Z"),
+    expect(openCreateTaskModalMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      runAt: { localIso: "2026-09-08T18:06", timezone: "Europe/Prague" },
     });
   });
 
-  it("opens create with a schedulable once-time when month midnight is already past", () => {
+  it("opens create with a future Run at when month midnight is already past", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
     render(
@@ -486,17 +469,12 @@ describe("WorkspaceCalendar editing", () => {
       screen.getAllByRole("button", { name: "past midnight calendar slot" })[0],
     );
 
-    const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
-      schedule: TaskScheduleSelection;
-    };
-    expect(schedule.schedule.oneTimeLocalIso).toBe("2026-09-08T18:06");
-    expect(parseTaskScheduleSelection(schedule.schedule)).toEqual({
-      mode: "once",
-      runAt: new Date("2026-09-08T16:06:00.000Z"),
+    expect(openCreateTaskModalMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      runAt: { localIso: "2026-09-08T18:06", timezone: "Europe/Prague" },
     });
   });
 
-  it("keeps a future clicked hour as the seeded once-time", () => {
+  it("keeps a future clicked hour as the prefilled Run at", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
     render(
@@ -516,11 +494,7 @@ describe("WorkspaceCalendar editing", () => {
 
     expect(openCreateTaskModalMock).toHaveBeenCalledWith({
       projectId: undefined,
-      schedule: {
-        mode: "once",
-        oneTimeLocalIso: "2026-09-08T19:00",
-        timezone: "Europe/Prague",
-      },
+      runAt: { localIso: "2026-09-08T19:00", timezone: "Europe/Prague" },
     });
   });
 

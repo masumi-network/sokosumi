@@ -90,7 +90,7 @@ import {
 } from "@/lib/schedules/timezones";
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import { cn } from "@/lib/utils";
-import { schedulableOnceLocalIso } from "@/lib/utils/task-schedule";
+import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
 import {
   type ChangeableRun,
   changeRun,
@@ -825,12 +825,11 @@ export function WorkspaceCalendar({
     void setState({ projectId: null, sourceId }, { shallow: false });
   }
 
-  function openCreateDialog(oneTimeLocalIso: string) {
+  function openCreateDialog(localIso: string) {
     handleOpenWithDefaults({
       projectId: selectedCreateProjectId,
-      schedule: {
-        mode: "once",
-        oneTimeLocalIso: schedulableOnceLocalIso(oneTimeLocalIso, timeZone),
+      runAt: {
+        localIso: schedulableRunAtLocalIso(localIso, timeZone),
         timezone: timeZone,
       },
     });
