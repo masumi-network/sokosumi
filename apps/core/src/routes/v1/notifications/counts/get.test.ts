@@ -76,11 +76,12 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
  * Answers the notification lookups by what they ask for: the actionable keys
  * get the rows that asked the reader something, and the single-key stale
  * access lookups get nothing. Counts answer by whether the where narrows to
- * ids, so unread and needs-action can be told apart.
+ * ids or to message keys, so unread, needs-action and mentions can be told
+ * apart.
  */
 function answerLookups(
   actionable: Array<{ id: string; messageKey: string; referenceId: string }>,
-  counts: { unread: number; needsAction: number },
+  counts: { unread: number; needsAction: number; mentions: number },
 ) {
   notificationFindManyMock.mockImplementation(
     async ({ where }: { where: { messageKey?: unknown } }) => {
@@ -92,8 +93,10 @@ function answerLookups(
     },
   );
   notificationCountMock.mockImplementation(
-    async ({ where }: { where: { id?: unknown } }) =>
-      where.id === undefined ? counts.unread : counts.needsAction,
+    async ({ where }: { where: { id?: unknown; messageKey?: unknown } }) => {
+      if (where.messageKey !== undefined) return counts.mentions;
+      return where.id === undefined ? counts.unread : counts.needsAction;
+    },
   );
 }
 
@@ -112,7 +115,7 @@ describe("GET /notifications/counts", () => {
    * SOK-1097 user stories 3, 25 and 33. One request for the bell and both
    * tabs, and the needs-action number counts the same rows the list shows.
    */
-  it("returns the unread and needs-action counts for the reader", async () => {
+  it("returns the unread, needs-action and mentions counts for the reader", async () => {
     answerLookups(
       [
         {
@@ -126,7 +129,7 @@ describe("GET /notifications/counts", () => {
           referenceId: "task_done",
         },
       ],
-      { unread: 5, needsAction: 1 },
+      { unread: 5, needsAction: 1, mentions: 2 },
     );
     taskFindManyMock.mockResolvedValue([{ id: "task_waiting" }]);
 
@@ -148,11 +151,25 @@ describe("GET /notifications/counts", () => {
         id: { in: ["n_task"] },
       },
     });
+    // The Mentions tab counts what is still unread under it.
+    expect(notificationCountMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_123",
+        ...notificationFeedWhere(),
+        isRead: false,
+        messageKey: {
+          in: [
+            "Notifications.Chat.mentioned",
+            "Notifications.Chat.mentionedFollowUp",
+          ],
+        },
+      },
+    });
 
     const body = (await response.json()) as {
-      data: { unread: number; needsAction: number };
+      data: { unread: number; needsAction: number; mentions: number };
     };
-    expect(body.data).toEqual({ unread: 5, needsAction: 1 });
+    expect(body.data).toEqual({ unread: 5, needsAction: 1, mentions: 2 });
   });
 
   it("excludes resolved vendor-grant notifications from both counts", async () => {
