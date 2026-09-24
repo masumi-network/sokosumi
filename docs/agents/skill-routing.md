@@ -76,8 +76,6 @@ Hybrid mapping: native Linear statuses for needs-triage (Triage) and wontfix (Ca
 
 Single-context: live `CONTEXT.md` + `docs/adr/` at the repo root. See [`docs/agents/domain.md`](./domain.md).
 
-**Instruction layout:** [`docs/agents/context-budget.md`](./context-budget.md) — which former root `AGENTS.md` sections live in which task-specific doc.
-
 **Cloud agent database:** [`docs/agents/cloud-agent-database.md`](../../docs/agents/cloud-agent-database.md) — ephemeral Neon branch per agent run via `DATABASE_URL`, provision/teardown, 72h idle TTL.
 
 **Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](../../docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds. [`docs/coworker/coworker-workspace-access-api.md`](../../docs/coworker/coworker-workspace-access-api.md) — coworker early access (per-workspace pilot, not VendorGrant).

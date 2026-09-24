@@ -6160,8 +6160,6 @@
       "Chat": {
         "defaultName": "Soko Bot",
         "avatarAlt": "Soko Bot",
-        "legacyDivider": "{count, plural, one {# mensaje anterior importado de tu asistente previo} other {# mensajes anteriores importados de tu asistente previo}}",
-        "toolSteps": "{count, plural, one {# paso} other {# pasos}}",
         "answeredIn": "{seconds}s",
         "copy": "Copiar",
         "copied": "Copiado",

@@ -4,32 +4,35 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPutTaskShareById from "./put";
 
-const { authContextState, requireMutableTaskOwnershipMock, upsertForTaskMock } =
-  vi.hoisted(() => ({
-    authContextState: {
-      current: {
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-        role: "user",
-      } as
-        | {
-            actor: "user";
-            userId: string;
-            organizationId: string | null;
-            role: string;
-          }
-        | {
-            actor: "coworker";
-            coworkerId: string;
-            vendorId: string;
-            context: { userId: string; organizationId: string | null };
-          }
-        | null,
-    },
-    requireMutableTaskOwnershipMock: vi.fn(),
-    upsertForTaskMock: vi.fn(),
-  }));
+const {
+  authContextState,
+  requireMutableTaskOwnershipMock,
+  publicShareUpsertMock,
+} = vi.hoisted(() => ({
+  authContextState: {
+    current: {
+      actor: "user",
+      userId: "user_123",
+      organizationId: "org_123",
+      role: "user",
+    } as
+      | {
+          actor: "user";
+          userId: string;
+          organizationId: string | null;
+          role: string;
+        }
+      | {
+          actor: "coworker";
+          coworkerId: string;
+          vendorId: string;
+          context: { userId: string; organizationId: string | null };
+        }
+      | null,
+  },
+  requireMutableTaskOwnershipMock: vi.fn(),
+  publicShareUpsertMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
   requireMutableTaskOwnership: (...args: unknown[]) =>
@@ -71,17 +74,14 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   };
 });
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  publicShareRepository: {
-    upsertForTask: (...args: unknown[]) => upsertForTaskMock(...args),
-  },
-}));
-
 vi.mock("@/lib/db/prisma", async () => ({
   default: {
     member: {
       findUnique: (await import("@/test-fixtures/organization-membership"))
         .stubMemberFindUnique,
+    },
+    publicShare: {
+      upsert: (...args: unknown[]) => publicShareUpsertMock(...args),
     },
   },
 }));
@@ -106,7 +106,7 @@ describe("PUT /tasks/{id}/share", () => {
       ownerId: "user_123",
       pendingVendorGrantId: null,
     });
-    upsertForTaskMock.mockResolvedValue({
+    publicShareUpsertMock.mockResolvedValue({
       id: "share_123",
       taskId: "tsk_123",
       token: "public-share-token",
@@ -131,10 +131,11 @@ describe("PUT /tasks/{id}/share", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(upsertForTaskMock).toHaveBeenCalledWith(
-      "tsk_123",
-      true,
-      expect.any(Object),
+    expect(publicShareUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { taskId: "tsk_123" },
+        update: { allowSearchIndexing: true },
+      }),
     );
     expect(body.data).toMatchObject({
       id: "share_123",
@@ -164,7 +165,7 @@ describe("PUT /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(upsertForTaskMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 
   it("returns 401 for unauthenticated requests", async () => {
@@ -182,7 +183,7 @@ describe("PUT /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(401);
-    expect(upsertForTaskMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the task is not owned by the caller", async () => {
@@ -203,7 +204,7 @@ describe("PUT /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(upsertForTaskMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the task does not exist", async () => {
@@ -224,7 +225,7 @@ describe("PUT /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(upsertForTaskMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
@@ -248,6 +249,6 @@ describe("PUT /tasks/{id}/share", () => {
 
     expect(response.status).toBe(403);
     expect(requireMutableTaskOwnershipMock).not.toHaveBeenCalled();
-    expect(upsertForTaskMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 });
