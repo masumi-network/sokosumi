@@ -153,30 +153,6 @@ describe("mapTaskLinkForTask", () => {
     });
   });
 
-  it("maps schedule relations relative to the current task", () => {
-    expect(
-      mapTaskLinkForTask(
-        "tsk_a",
-        createLink({
-          type: TaskLinkType.SCHEDULE,
-        }),
-      ),
-    ).toMatchObject({
-      relation: "schedule_run",
-    });
-
-    expect(
-      mapTaskLinkForTask(
-        "tsk_b",
-        createLink({
-          type: TaskLinkType.SCHEDULE,
-        }),
-      ),
-    ).toMatchObject({
-      relation: "schedule_series",
-    });
-  });
-
   it("maps duplicate relations symmetrically", () => {
     expect(
       mapTaskLinkForTask(
@@ -326,6 +302,20 @@ describe("mapTaskLinksForTask", () => {
         archivedAt: null,
       },
     });
+  });
+
+  it("leaves out the old series' SCHEDULE links (ADR 0041)", () => {
+    const related = createLink({ id: "tl_related" });
+    const series = createLink({
+      id: "tl_series",
+      fromTaskId: "tsk_template",
+      toTaskId: "tsk_a",
+      type: TaskLinkType.SCHEDULE,
+    });
+
+    expect(
+      mapTaskLinksForTask([related], [series]).map((link) => link.id),
+    ).toEqual(["tl_related"]);
   });
 
   it("throws when a mapped list is missing a peer task relation", () => {

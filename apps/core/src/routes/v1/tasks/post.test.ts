@@ -122,8 +122,6 @@ function buildMapTaskResponse(task: {
     description: task.description ?? null,
     status: task.status ?? TaskStatus.DRAFT,
     visibility: TaskVisibility.PUBLIC,
-    metadata: null,
-    nextRunAt: null,
     credits: 0,
     events: [],
     jobs: [],

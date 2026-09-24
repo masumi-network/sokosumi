@@ -2,94 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TaskScheduleEndsMode } from "@/lib/types/task-schedule";
 import {
-  getTaskScheduleOperationId,
   hasTaskScheduleChanged,
-  metadataToSelection,
+  parseTaskScheduleSelection,
   schedulableOnceLocalIso,
-  selectionToApiBody,
   taskScheduleRuleToSelection,
 } from "@/lib/utils/task-schedule";
 
 afterEach(() => {
   vi.useRealTimers();
-});
-
-describe("metadataToSelection", () => {
-  it("uses the effective time and timezone from version 2 one-time metadata", () => {
-    const selection = metadataToSelection(
-      JSON.stringify({
-        version: 2,
-        epochId: "123e4567-e89b-42d3-a456-426614174000",
-        mode: "once",
-        createdAt: "2026-06-01T08:00:00.000Z",
-        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-        timezone: "America/New_York",
-        sourceRunAt: "2026-06-24T18:00:00.000Z",
-        effectiveRunAt: "2026-06-24T19:30:00.000Z",
-      }),
-      "UTC",
-    );
-
-    expect(selection).toEqual({
-      mode: "once",
-      timezone: "America/New_York",
-      oneTimeLocalIso: "2026-06-24T15:30",
-    });
-  });
-
-  it("maps version 2 recurring metadata to its remaining release count", () => {
-    const selection = metadataToSelection(
-      JSON.stringify({
-        version: 2,
-        epochId: "123e4567-e89b-42d3-a456-426614174001",
-        mode: "recurring",
-        createdAt: "2026-06-01T08:00:00.000Z",
-        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-        timezone: "UTC",
-        expr: "0 9 * * *",
-        endsMode: "after",
-        targetReleaseCount: 5,
-        epochReleaseCount: 2,
-        anchorAt: "2026-06-01T09:00:00.000Z",
-      }),
-      "Europe/Berlin",
-    );
-
-    expect(selection).toMatchObject({
-      mode: "recurring",
-      timezone: "UTC",
-      cron: "0 9 * * *",
-      endsMode: "after",
-      endAfterOccurrences: 3,
-    });
-  });
-
-  it("submits the remaining occurrence count, not the original target", () => {
-    // A full-series edit starts a new epoch and resets `epochReleaseCount`, so
-    // resubmitting the original target would restore already-consumed runs.
-    const selection = metadataToSelection(
-      JSON.stringify({
-        version: 2,
-        epochId: "123e4567-e89b-42d3-a456-426614174001",
-        mode: "recurring",
-        createdAt: "2026-06-01T08:00:00.000Z",
-        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-        timezone: "UTC",
-        expr: "0 9 * * *",
-        endsMode: "after",
-        targetReleaseCount: 5,
-        epochReleaseCount: 2,
-        anchorAt: "2026-06-01T09:00:00.000Z",
-      }),
-      "Europe/Berlin",
-    );
-
-    expect(selectionToApiBody(selection)).toMatchObject({
-      mode: "recurring",
-      endsMode: "after",
-      occurrences: 3,
-    });
-  });
 });
 
 describe("taskScheduleRuleToSelection", () => {
@@ -112,7 +32,7 @@ describe("taskScheduleRuleToSelection", () => {
       oneTimeLocalIso: "2026-06-01T09:00",
       cron: "0 9 * * *",
     });
-    expect(selectionToApiBody(selection)).toMatchObject({
+    expect(parseTaskScheduleSelection(selection)).toMatchObject({
       intervalDays: 3,
       anchorAt: new Date("2026-06-01T09:00:00.000Z"),
       expr: "0 9 * * *",
@@ -140,12 +60,12 @@ describe("taskScheduleRuleToSelection with an older every-N-days rule", () => {
   });
 });
 
-describe("selectionToApiBody", () => {
+describe("parseTaskScheduleSelection", () => {
   it("converts one-time schedules using the selected timezone", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
 
-    const body = selectionToApiBody({
+    const body = parseTaskScheduleSelection({
       mode: "once",
       timezone: "America/New_York",
       oneTimeLocalIso: "2026-06-24T15:30",
@@ -161,7 +81,7 @@ describe("selectionToApiBody", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
 
-    const body = selectionToApiBody({
+    const body = parseTaskScheduleSelection({
       mode: "recurring",
       timezone: "America/New_York",
       cron: "30 15 * * *",
@@ -179,7 +99,7 @@ describe("selectionToApiBody", () => {
   });
 
   it("sends interval metadata for every-N-days schedules", () => {
-    const body = selectionToApiBody({
+    const body = parseTaskScheduleSelection({
       mode: "recurring",
       timezone: "America/New_York",
       oneTimeLocalIso: "2026-06-24T09:00",
@@ -199,7 +119,7 @@ describe("selectionToApiBody", () => {
 
   it("rejects malformed recurring selections", () => {
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "recurring",
         timezone: "UTC",
         cron: "not a cron expression",
@@ -213,7 +133,7 @@ describe("selectionToApiBody", () => {
     vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
 
     expect(() =>
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "once",
         timezone: "Not/AZone",
         oneTimeLocalIso: "2026-06-24T15:30",
@@ -221,7 +141,7 @@ describe("selectionToApiBody", () => {
     ).not.toThrow();
 
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "once",
         timezone: "Not/AZone",
         oneTimeLocalIso: "2026-06-24T15:30",
@@ -234,7 +154,7 @@ describe("selectionToApiBody", () => {
     vi.setSystemTime(new Date("2026-06-24T12:00:00.000Z"));
 
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "once",
         timezone: "UTC",
         oneTimeLocalIso: "2026-06-24T11:59",
@@ -247,28 +167,28 @@ describe("selectionToApiBody", () => {
     vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
 
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "once",
         timezone: "Europe/Prague",
         oneTimeLocalIso: "2026-09-08T00:00",
       }),
     ).toBeNull();
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "once",
         timezone: "Europe/Prague",
         oneTimeLocalIso: "2026-09-08T12:00",
       }),
     ).toBeNull();
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "once",
         timezone: "Europe/Prague",
         oneTimeLocalIso: "2026-09-08T18:00",
       }),
     ).toBeNull();
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "once",
         timezone: "Europe/Prague",
         oneTimeLocalIso: "2026-09-08T19:00",
@@ -284,7 +204,7 @@ describe("selectionToApiBody", () => {
     vi.setSystemTime(new Date("2026-06-24T12:00:00.000Z"));
 
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "recurring",
         timezone: "UTC",
         cron: "0 9 * * *",
@@ -299,7 +219,7 @@ describe("selectionToApiBody", () => {
     vi.setSystemTime(new Date("2026-06-24T12:00:00.000Z"));
 
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "recurring",
         timezone: "UTC",
         cron: "0 9 * * *",
@@ -314,7 +234,7 @@ describe("selectionToApiBody", () => {
     vi.setSystemTime(new Date("2026-06-24T12:00:00.000Z"));
 
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "recurring",
         timezone: "UTC",
         cron: "0 9 * * *",
@@ -331,7 +251,7 @@ describe("selectionToApiBody", () => {
     vi.setSystemTime(new Date("2026-06-24T12:00:00.000Z"));
 
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "recurring",
         timezone: "UTC",
         cron: "0 9 * * *",
@@ -349,7 +269,7 @@ describe("selectionToApiBody", () => {
 
   it("rejects calendar-invalid local date-times", () => {
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "once",
         timezone: "UTC",
         oneTimeLocalIso: "2026-02-31T09:00",
@@ -363,7 +283,7 @@ describe("selectionToApiBody", () => {
 
     for (const oneTimeLocalIso of ["2026-03-08T02:30", "2026-11-01T01:30"]) {
       expect(
-        selectionToApiBody({
+        parseTaskScheduleSelection({
           mode: "once",
           timezone: "America/New_York",
           oneTimeLocalIso,
@@ -373,32 +293,6 @@ describe("selectionToApiBody", () => {
         runAt: expect.any(Date),
       });
     }
-  });
-});
-
-describe("getTaskScheduleOperationId", () => {
-  it("reuses an ID for the same rule and mints one when the rule changes", () => {
-    const randomUUID = vi
-      .spyOn(crypto, "randomUUID")
-      .mockReturnValueOnce("123e4567-e89b-42d3-a456-426614174000")
-      .mockReturnValueOnce("123e4567-e89b-42d3-a456-426614174001");
-    const operation = { current: null };
-    const daily = {
-      mode: "recurring" as const,
-      timezone: "UTC",
-      cron: "0 9 * * *",
-    };
-
-    expect(getTaskScheduleOperationId(daily, operation)).toBe(
-      "123e4567-e89b-42d3-a456-426614174000",
-    );
-    expect(getTaskScheduleOperationId(daily, operation)).toBe(
-      "123e4567-e89b-42d3-a456-426614174000",
-    );
-    expect(
-      getTaskScheduleOperationId({ ...daily, cron: "0 10 * * *" }, operation),
-    ).toBe("123e4567-e89b-42d3-a456-426614174001");
-    expect(randomUUID).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -432,7 +326,7 @@ describe("schedulableOnceLocalIso", () => {
     vi.advanceTimersByTime(2 * 60 * 1000);
 
     expect(
-      selectionToApiBody({
+      parseTaskScheduleSelection({
         mode: "once",
         timezone: "Europe/Prague",
         oneTimeLocalIso: snapped,

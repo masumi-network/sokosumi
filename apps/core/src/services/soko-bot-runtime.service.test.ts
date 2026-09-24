@@ -349,7 +349,8 @@ vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
   emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
 }));
-vi.mock("@/helpers/task-link", () => ({
+vi.mock("@/helpers/task-link", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/task-link")>()),
   mapTaskLinkRelationToWriteData: vi.fn(),
 }));
 vi.mock("@sokosumi/masumi", () => ({
@@ -1149,10 +1150,14 @@ describe("SokoBotRuntimeService authorization", () => {
         archivedAt: null,
         ...buildSokoBotAudienceTaskVisibilityWhere(SCOPE.userId, askedByKind),
       };
+      // Retired SCHEDULE links (left for SOK-1174) never reach the bot.
+      const liveLink = { type: { not: "SCHEDULE" } };
       const visiblePeerWhere = {
+        ...liveLink,
         toTask: { is: visiblePeerTask },
       };
       const visibleFromPeerWhere = {
+        ...liveLink,
         fromTask: { is: visiblePeerTask },
       };
       taskFindFirstMock.mockImplementation(

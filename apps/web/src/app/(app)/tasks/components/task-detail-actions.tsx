@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CORE_API_ERROR_KINDS,
   isTaskArchivableStatus,
   isTaskEditableStatus,
   type TaskAssigneeKind,
@@ -78,10 +79,7 @@ import {
 } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
-import {
-  type TaskMutationErrorKind,
-  taskScheduleSeriesFeedbackKey,
-} from "@/lib/utils/task-schedule-feedback";
+import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
@@ -157,7 +155,6 @@ interface TaskDetailActionsProps {
   forceReadOnly?: boolean;
   isTaskOwner?: boolean;
   isOrgOwnerOrAdmin?: boolean;
-  hasActiveSchedule?: boolean;
   /**
    * The Task as a Task Schedule blueprint, for "Repeat". Omitted where the
    * viewer cannot create a schedule; the Task itself is never changed.
@@ -188,14 +185,12 @@ export function TaskDetailActions({
   forceReadOnly = false,
   isTaskOwner = false,
   isOrgOwnerOrAdmin = false,
-  hasActiveSchedule = false,
   repeatBlueprint,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const tTasks = useTranslations("App.Tasks");
-  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const router = useRouter();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const isMobile = useIsMobile();
@@ -250,16 +245,9 @@ export function TaskDetailActions({
   };
 
   const canMutateTask = !isReadOnly;
-  // Status, archive, and workspace move belong to the schedule series while one
-  // is live — Core rejects them with `schedule_active`. Editing fields and
-  // managing relations stay available.
-  const canManageLifecycle = !hasActiveSchedule;
-  const availableStatusActions = canManageLifecycle
-    ? getTaskStatusActions(status, labels, {
-        assigneeKind:
-          assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
-      })
-    : [];
+  const availableStatusActions = getTaskStatusActions(status, labels, {
+    assigneeKind: assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
+  });
   const statusActions = canMutateTask
     ? availableStatusActions
     : canCancel
@@ -276,9 +264,8 @@ export function TaskDetailActions({
     isOrgOwnerOrAdmin,
   });
   const canArchiveTask =
-    canManageLifecycle &&
-    (canArchiveParked ||
-      (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly));
+    canArchiveParked ||
+    (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly);
   const isFinalized =
     status === TaskStatus.COMPLETED ||
     status === TaskStatus.FAILED ||
@@ -286,27 +273,22 @@ export function TaskDetailActions({
   const canManageRelations = canMutateTask && !isFinalized;
   const canMove =
     canMutateTask &&
-    canManageLifecycle &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(
       currentOrganizationId,
       organizations,
       hasPersonalWorkspace,
     ) > 0;
-  // Manual parent only — schedule_series is system-managed and not removable.
   const parentLinks = useMemo(
     () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
     [taskLinks],
   );
-  // System schedule edges (template→run and run→series) cannot be removed by users.
   const removableTaskLinks = useMemo(
     () =>
       taskLinks.filter(
         (link) =>
           link.peerTask.archivedAt === null &&
-          link.relation !== TaskLinkRelation.CHILD &&
-          link.relation !== TaskLinkRelation.SCHEDULE_SERIES &&
-          link.relation !== TaskLinkRelation.SCHEDULE_RUN,
+          link.relation !== TaskLinkRelation.CHILD,
       ),
     [taskLinks],
   );
@@ -374,17 +356,16 @@ export function TaskDetailActions({
   };
 
   /**
-   * A rejected status write is a state, not a crash: every stable series kind
-   * gets its own localized recovery, and only a stale client gets the reload
-   * modal.
+   * A rejected status write is a state, not a crash: a stale status list gets
+   * the status error, and only a stale client gets the reload modal.
    */
   const reportStatusRejection = (kind: TaskMutationErrorKind) => {
-    const feedbackKey = taskScheduleSeriesFeedbackKey(kind);
-    if (!feedbackKey) {
-      showCalendarClientUpgradeModal();
+    if (kind === CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE) {
+      toast.error(tTasks("Errors.updateStatus"));
+      router.refresh();
       return;
     }
-    toast.error(tSeries(feedbackKey));
+    showCalendarClientUpgradeModal();
   };
 
   const handleStatusToggle = (action: TaskStatusAction) => {

@@ -3,7 +3,6 @@ import {
   type GrantResumeStatus,
   type Prisma,
   type Task,
-  type TaskScheduleEventKind,
   TaskStatus,
   TaskVisibility,
   VendorGrantStatus,
@@ -13,7 +12,6 @@ import {
   hasAssigneeValue,
   isAgentOnlyTaskStatus,
   isTaskEditableStatus,
-  type TaskScheduleMetadata,
 } from "@sokosumi/utils";
 
 import {
@@ -72,15 +70,6 @@ export interface CreateTaskDomainInput {
   /** Set together with QUEUED: the one time the Task moves to Ready. */
   runAt?: Date | null;
   channel?: Channel;
-  schedule?: {
-    metadata: TaskScheduleMetadata;
-    nextRunAt: Date;
-    event: {
-      scheduleKind: TaskScheduleEventKind;
-      scheduleOperationId: string;
-      schedulePayload: Prisma.InputJsonObject;
-    };
-  };
 }
 
 export interface UpdateTaskDomainInput {
@@ -358,15 +347,12 @@ export async function createTaskForActor(
       visibility,
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
       pendingVendorGrantId: pendingGrant?.pendingVendorGrantId ?? null,
-      metadata: input.schedule ? JSON.stringify(input.schedule.metadata) : null,
-      nextRunAt: input.schedule?.nextRunAt ?? null,
       runAt: input.runAt ?? null,
       events: {
         create: {
           status,
           comment: null,
           channel: input.channel ?? Channel.SOKOSUMI,
-          ...input.schedule?.event,
           ...eventActorFields(input.actor),
         },
       },

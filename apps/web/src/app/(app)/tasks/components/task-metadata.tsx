@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
-import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
@@ -30,7 +29,6 @@ interface TaskMetadataLabels {
   credits: string;
   created: string;
   updated: string;
-  schedule: string;
   personalAssistantFallback: string;
   formatSokoBotRole: (values: { owner: string }) => string;
 }
@@ -44,8 +42,6 @@ interface TaskMetadataTask {
   assignee: Task["assignee"];
   creator: Task["creator"];
   credits: Task["credits"];
-  metadata?: string | null;
-  nextRunAt?: Date | null;
 }
 
 interface TaskCreatorDisplay {
@@ -311,19 +307,6 @@ export function TaskMetadata({
           <span className="text-right text-sm font-medium tabular-nums">
             {creditsDisplay}
           </span>
-        </div>
-      ) : null}
-
-      {task.metadata || task.nextRunAt ? (
-        <div className="flex items-start justify-between gap-4">
-          <span className="text-muted-foreground text-sm">
-            {labels.schedule}
-          </span>
-          <TaskScheduleDisplay
-            className="text-right"
-            metadata={task.metadata}
-            nextRunAt={task.nextRunAt ?? null}
-          />
         </div>
       ) : null}
 

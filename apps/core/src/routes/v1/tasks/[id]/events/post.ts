@@ -38,7 +38,7 @@ import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
   mapTaskEvent,
-  validateQueuedRequiresSchedule,
+  validateQueuedRequiresRunAt,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "@/helpers/task";
@@ -48,8 +48,6 @@ import {
   chargeTaskCreditsOrMarkOutOfCredits,
 } from "@/helpers/task-event-charge";
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
-import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
-import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -258,7 +256,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       409: jsonErrorResponse("Conflict"),
       422: {
         description:
-          "Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_schedule (Queued requested without an active schedule; no pause event in `data`).",
+          "Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_run_at (Queued requested on a Task without a Run at; no pause event in `data`).",
         content: {
           "application/json": {
             schema: errorResponseWithExtensionsSchema({
@@ -338,18 +336,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (status !== undefined) {
-        // A live series owns the Task's lifecycle. The one generic transition it
-        // still accepts is READY → QUEUED: that keeps the series releasable and
-        // is how a scheduled Task is normalized (SOK-1033). Cancel, archive, and
-        // every other status move must go through the schedule endpoints.
-        if (
-          !(task.status === TaskStatus.READY && status === TaskStatus.QUEUED)
-        ) {
-          assertTaskScheduleInactive(
-            task,
-            "Remove or replace the schedule before changing this Task's status",
-          );
-        }
         validateStatusTransition(task.status, status);
         validateTaskAssigneeAssignment({
           status,
@@ -357,11 +343,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           assigneeSokoBotId: task.assigneeSokoBotId,
           assigneeUserId: task.assigneeUserId,
         });
-        validateQueuedRequiresSchedule({
-          status,
-          metadata: task.metadata,
-          nextRunAt: task.nextRunAt,
-        });
+        validateQueuedRequiresRunAt({ status, runAt: task.runAt });
 
         // A person may only set what the status picker offered (ADR 0029).
         if (
@@ -485,13 +467,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           expectedStatus: task.status,
           eventStatus,
         });
-
-        if (
-          task.status === TaskStatus.QUEUED &&
-          eventStatus !== TaskStatus.QUEUED
-        ) {
-          await removeTaskSchedulePlannedOccurrences(tx, taskId);
-        }
       }
 
       const payment =

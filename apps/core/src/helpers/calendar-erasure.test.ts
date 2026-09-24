@@ -15,7 +15,6 @@ function createTransaction() {
   const taskScheduleOccurrenceDeleteMany = vi.fn();
   const taskLinkDeleteMany = vi.fn();
   const taskX402PaymentDeleteMany = vi.fn();
-  const taskScheduleQuarantineDeleteMany = vi.fn();
   const taskScheduleCreateOperationDeleteMany = vi.fn();
   const taskEventDeleteMany = vi.fn();
   const taskDeleteMany = vi.fn();
@@ -40,9 +39,6 @@ function createTransaction() {
         deleteMany: taskScheduleOccurrenceDeleteMany,
       },
       taskLink: { deleteMany: taskLinkDeleteMany },
-      taskScheduleQuarantine: {
-        deleteMany: taskScheduleQuarantineDeleteMany,
-      },
       taskScheduleCreateOperation: {
         deleteMany: taskScheduleCreateOperationDeleteMany,
       },
@@ -70,7 +66,6 @@ function createTransaction() {
       taskScheduleOccurrenceDeleteMany,
       taskLinkDeleteMany,
       taskX402PaymentDeleteMany,
-      taskScheduleQuarantineDeleteMany,
       taskScheduleCreateOperationDeleteMany,
       taskEventDeleteMany,
       taskDeleteMany,

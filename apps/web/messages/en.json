@@ -1562,8 +1562,7 @@
         "updateStatus": "Failed to update task status",
         "loadMore": "Failed to load more tasks",
         "loadCreateTask": "Failed to load create task form",
-        "loadJobs": "Failed to load jobs",
-        "scheduleActive": "This task runs on a schedule. Change or remove its schedule before moving it."
+        "loadJobs": "Failed to load jobs"
       },
       "Card": {
         "comments": "Comments",
@@ -1767,9 +1766,7 @@
             "parent": "Parent task",
             "subtask": "Sub-task",
             "duplicate": "Duplicate",
-            "addSubtask": "Add sub-task",
-            "scheduleRun": "Scheduled run",
-            "scheduleSeries": "Schedule"
+            "addSubtask": "Add sub-task"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Start working",
@@ -1813,7 +1810,6 @@
           "switchError": "Failed to switch workspace. Please try again."
         },
         "clonedFrom": "Cloned from {name}",
-        "schedule": "Schedule",
         "VendorGrantApproval": {
           "title": "Vendor access approval required",
           "description": "A coworker created this task but does not have permission to create tasks in this workspace yet. Approve vendor access to activate it.",
@@ -1830,45 +1826,6 @@
           "title": "Waiting for vendor access approval",
           "description": "This task is blocked until a workspace owner or admin approves vendor access.",
           "descriptionWithCoworker": "{coworkerName} created this task. It is blocked until a workspace owner or admin approves vendor access."
-        },
-        "ScheduleSeries": {
-          "title": "Schedule",
-          "calendar": "Calendar",
-          "repeats": "Repeats",
-          "timezone": "Time zone",
-          "nextRun": "Next run",
-          "removed": "This schedule was removed. Past runs are kept below.",
-          "tabsLabel": "Schedule runs",
-          "upcomingTab": "Upcoming",
-          "historyTab": "History",
-          "upcomingListLabel": "Upcoming runs",
-          "historyListLabel": "Past runs",
-          "upcomingEmpty": "No upcoming runs. New runs appear here as the schedule projects them.",
-          "upcomingEmptyRemoved": "No upcoming runs — this schedule was removed.",
-          "historyEmpty": "No past runs. Released, canceled, and missed runs appear here.",
-          "loadMore": "Load more",
-          "loading": "Loading",
-          "loadMoreError": "Unable to load more runs. Check your connection and try again.",
-          "occurrencesError": "Runs could not be loaded. Refresh the page to try again.",
-          "movedFrom": "Moved from {original}",
-          "statePlanned": "Planned",
-          "stateSkipped": "Skipped",
-          "stateCanceled": "Canceled",
-          "stateReleased": "Released",
-          "stateMissed": "Missed",
-          "archivedRun": "Archived",
-          "move": "Move",
-          "skip": "Skip",
-          "restore": "Restore",
-          "mutationError": "Unable to change this run. Please try again.",
-          "moveSource": "Move calendar",
-          "moveSourceTitle": "Move this schedule?",
-          "moveSourceLabel": "Destination calendar",
-          "moveSourceDescription": "Choose the calendar this schedule should release into. Moving it cancels {count, plural, =0 {no changed upcoming runs} one {# changed upcoming run} other {# changed upcoming runs}}. Past and released runs stay where they are.",
-          "moveSourceCancel": "Keep current calendar",
-          "moveSourceConfirm": "Move schedule",
-          "moveSourceSuccess": "Schedule moved to its new calendar.",
-          "moveSourceError": "Unable to move this schedule. Refresh the task and try again."
         },
         "files": "Files",
         "assignee": "Assignee",
@@ -1989,37 +1946,6 @@
         "title": "Schedule",
         "description": "Plan a one-time or recurring run.",
         "clearSchedule": "Remove schedule",
-        "series": {
-          "discardTitle": "Discard {count, plural, one {# changed run} other {# changed runs}}?",
-          "discardDescription": "Saving a new rule for the whole series cancels {count, plural, one {the upcoming run you moved or skipped} other {the # upcoming runs you moved or skipped}}. Runs that already happened are kept.",
-          "discardCancel": "Keep current schedule",
-          "discardConfirm": "Save and discard",
-          "revisionConflict": "This schedule changed somewhere else. Reload the task, reopen the schedule, and apply your change again.",
-          "quarantined": "This schedule is paused for repair and cannot be changed. Contact support to restore it.",
-          "operationConflict": "This save was already sent with different details. Reopen the schedule and try again.",
-          "activeSeries": "This task runs on a schedule. Change or remove its schedule first.",
-          "unknownCount": "We could not check which upcoming runs a new rule would cancel. Reload the page, reopen the schedule, and try again.",
-          "occurrenceLocked": "This occurrence can no longer be changed.",
-          "occurrenceTargetInvalid": "That time is not a valid target."
-        },
-        "occurrenceMove": {
-          "title": "Move occurrence",
-          "description": "Choose a new time for this run.",
-          "label": "New time",
-          "confirm": "Move occurrence",
-          "cancel": "Cancel",
-          "invalid": "Choose a valid date and time.",
-          "error": "Unable to move this occurrence. Please try again."
-        },
-        "occurrenceRestore": {
-          "title": "Restore occurrence",
-          "description": "Restore this run at its original time, or choose another future time.",
-          "label": "Restored time",
-          "confirm": "Restore occurrence",
-          "cancel": "Cancel",
-          "invalid": "Choose a valid date and time.",
-          "error": "Unable to restore this occurrence. Please try again."
-        },
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",
@@ -2056,13 +1982,6 @@
         },
         "save": "Save",
         "cancel": "Cancel",
-        "card": {
-          "overdue": "Overdue",
-          "dueInMinutes": "Due in {minutes, plural, one {# minute} other {# minutes}}",
-          "dueInHours": "Due in {hours, plural, one {# hour} other {# hours}}",
-          "tomorrowAt": "Tomorrow at {time}",
-          "nextRunAt": "Next run: {datetime}"
-        },
         "errors": {
           "required": "This field is required.",
           "futureDateTime": "Select a future date and time.",

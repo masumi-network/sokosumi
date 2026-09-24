@@ -40,8 +40,6 @@ export interface TaskWithCoworker {
   descriptionPlain?: string | null;
   events: TaskEvent[];
   agents: CoreAgentDto[];
-  metadata?: string | null;
-  nextRunAt?: string | null;
   /** ISO Run at of a Queued Task. */
   runAt?: string | null;
 }

@@ -43,7 +43,6 @@ import type {
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
-  GetTasksByIdScheduleOccurrencesData,
   GetTasksData,
   GetTasksSchedulesByIdRunsData,
   GetTasksSchedulesData,
@@ -51,7 +50,6 @@ import type {
   GetWorkspacesCalendarData,
   JudgeSokoBotLabTurnRequest,
   ListAdminTaskX402PaymentsData,
-  MutateTaskScheduleOccurrenceRequest,
   Notice,
   PaginationMetadata,
   PatchAdminVendorData,
@@ -86,17 +84,13 @@ import type {
   PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
-  PostTasksScheduledData,
   PostUsersByIdFilesData,
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
   PostWorkspacesDesignMdAdhocData,
-  PutCalendarTaskScheduleRequest,
-  PutCalendarTaskScheduleSourceRequest,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutProjectsByIdDesignMdData,
-  PutTaskScheduleRequest,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   RefundAdminTaskX402PaymentData,
@@ -160,7 +154,6 @@ import {
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
-  deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   deleteTasksSchedulesById as coreDeleteTasksSchedulesById,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
@@ -252,7 +245,6 @@ import {
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
-  getTasksByIdScheduleOccurrences as coreGetTasksByIdScheduleOccurrences,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
   getTasksSchedules as coreGetTasksSchedules,
   getTasksSchedulesById as coreGetTasksSchedulesById,
@@ -318,7 +310,6 @@ import {
   patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
-  patchTasksByIdScheduleOccurrencesByOccurrenceId as corePatchTasksByIdScheduleOccurrencesByOccurrenceId,
   patchTasksSchedulesById as corePatchTasksSchedulesById,
   patchTasksSchedulesByIdRunsByRunId as corePatchTasksSchedulesByIdRunsByRunId,
   patchVendor as corePatchVendor,
@@ -377,7 +368,6 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
-  postTasksScheduled as corePostTasksScheduled,
   postTasksSchedules as corePostTasksSchedules,
   postTasksSchedulesByIdEnd as corePostTasksSchedulesByIdEnd,
   postTasksSchedulesByIdPause as corePostTasksSchedulesByIdPause,
@@ -405,9 +395,6 @@ import {
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
-  putTasksByIdCalendarSchedule as corePutTasksByIdCalendarSchedule,
-  putTasksByIdCalendarSource as corePutTasksByIdCalendarSource,
-  putTasksByIdSchedule as corePutTasksByIdSchedule,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
@@ -486,8 +473,8 @@ function transformTaskListResponseEnvelope(data: any) {
   data.data = (data.data ?? []).map((item: any) => {
     item.createdAt = toDate(item.createdAt);
     item.updatedAt = toDate(item.updatedAt);
-    if (item.nextRunAt) {
-      item.nextRunAt = toDate(item.nextRunAt);
+    if (item.runAt) {
+      item.runAt = toDate(item.runAt);
     }
 
     return item;
@@ -504,8 +491,8 @@ function transformTaskResponseEnvelope(data: any) {
 
   task.createdAt = toDate(task.createdAt);
   task.updatedAt = toDate(task.updatedAt);
-  if (task.nextRunAt) {
-    task.nextRunAt = toDate(task.nextRunAt);
+  if (task.runAt) {
+    task.runAt = toDate(task.runAt);
   }
   task.events = task.events.map((event: any) => ({
     ...event,
@@ -3507,22 +3494,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function createScheduledTask(
-    body: NonNullable<PostTasksScheduledData["body"]>,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostTasksScheduled({
-          client,
-          body,
-          responseTransformer: async (data) =>
-            transformTaskResponseEnvelope(data),
-        }),
-      "Failed to create scheduled task",
-    );
-  }
-
   async function createTaskEvent(
     id: string,
     body: {
@@ -3626,121 +3597,6 @@ export function createCoreClient(getClient: GetCoreClient) {
             transformTaskResponseEnvelope(data),
         }),
       "Failed to delete task",
-    );
-  }
-
-  async function putTaskSchedule(id: string, body: PutTaskScheduleRequest) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePutTasksByIdSchedule({
-          client,
-          path: { id },
-          body,
-          responseTransformer: async (data) =>
-            transformTaskResponseEnvelope(data),
-        }),
-      "Failed to save task schedule",
-    );
-  }
-
-  async function putTaskCalendarSchedule(
-    id: string,
-    body: PutCalendarTaskScheduleRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePutTasksByIdCalendarSchedule({
-          client,
-          path: { id },
-          body,
-          responseTransformer: async (data) =>
-            transformTaskResponseEnvelope(data),
-        }),
-      "Failed to save Calendar task schedule",
-    );
-  }
-
-  async function putTaskCalendarSource(
-    id: string,
-    body: PutCalendarTaskScheduleSourceRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePutTasksByIdCalendarSource({
-          client,
-          path: { id },
-          body,
-        }),
-      "Failed to move Calendar task source",
-    );
-  }
-
-  /**
-   * Series removal has no body, so its idempotency identity and observed
-   * revision travel as request metadata. A custom revision header avoids
-   * deployment platforms applying HTTP `If-Match` semantics themselves.
-   */
-  async function deleteTaskSchedule(
-    id: string,
-    precondition: {
-      operationId: string;
-      expectedScheduleRevision: number;
-    },
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreDeleteTasksByIdSchedule({
-          client,
-          path: { id },
-          headers: {
-            "idempotency-key": precondition.operationId,
-            "x-sokosumi-schedule-revision": String(
-              precondition.expectedScheduleRevision,
-            ),
-          },
-          responseTransformer: async (data) =>
-            transformTaskResponseEnvelope(data),
-        }),
-      "Failed to clear task schedule",
-    );
-  }
-
-  async function getTaskScheduleOccurrences(
-    id: string,
-    query: GetTasksByIdScheduleOccurrencesData["query"],
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetTasksByIdScheduleOccurrences({
-          client,
-          path: { id },
-          query,
-          cache: "no-store",
-        }),
-      "Failed to fetch task schedule occurrences",
-    );
-  }
-
-  async function mutateTaskScheduleOccurrence(
-    id: string,
-    occurrenceId: string,
-    body: MutateTaskScheduleOccurrenceRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePatchTasksByIdScheduleOccurrencesByOccurrenceId({
-          client,
-          path: { id, occurrenceId },
-          body,
-          cache: "no-store",
-        }),
-      "Failed to mutate task schedule occurrence",
     );
   }
 
@@ -5337,7 +5193,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     createOrganizationLogoUploadSession,
     createVendorLogoUploadSession,
     createTask,
-    createScheduledTask,
     createTaskFileUploadSession,
     createTaskLink,
     createTaskEvent,
@@ -5348,7 +5203,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteTaskShare,
     deleteTaskLink,
     deleteTask,
-    deleteTaskSchedule,
     getChatRoom,
     getChatRoomInvitations,
     getChatRoomMessages,
@@ -5560,17 +5414,12 @@ export function createCoreClient(getClient: GetCoreClient) {
     revokeMyOauthConsent,
     getTaskById,
     getTaskLinks,
-    getTaskScheduleOccurrences,
     getTaskWorkspace,
     getTasks,
     getTasksSummary,
     patchTask,
     putJobShare,
-    putTaskCalendarSchedule,
-    putTaskCalendarSource,
-    putTaskSchedule,
     putTaskShare,
-    mutateTaskScheduleOccurrence,
     listTaskSchedules,
     createTaskSchedule,
     getTaskSchedule,

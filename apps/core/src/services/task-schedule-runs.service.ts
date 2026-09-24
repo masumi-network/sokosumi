@@ -1,5 +1,8 @@
 import * as Sentry from "@sentry/node";
 import {
+  CalendarSourceAccuracy,
+  CalendarSourceType,
+  CalendarTimeAccuracy,
   Channel,
   type Prisma,
   type TaskSchedule,
@@ -13,11 +16,6 @@ import {
 import { computeNextRun } from "@/helpers/cron";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { computeIntervalNextRun } from "@/helpers/task-schedule";
-import {
-  CALENDAR_OCCURRENCE_HORIZON_MS,
-  getOccurrenceSource,
-  MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES,
-} from "@/helpers/task-schedule-occurrence-index";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
@@ -31,9 +29,29 @@ import prisma from "@/lib/db/prisma";
  * is due.
  */
 
+/** How far ahead planned Runs are projected, and the calendar can look. */
+export const RUN_HORIZON_MS = 90 * 24 * 60 * 60 * 1000;
+/** Most planned Runs one schedule keeps over the horizon. */
+const MAX_PLANNED_RUNS = 2_000;
 export const TASK_SCHEDULE_RELEASE_BATCH_SIZE = 25;
 /** Keeps one transaction well inside Prisma's interactive timeout. */
 const MAX_RELEASES_PER_TRANSACTION = 50;
+
+/** Calendar source of the Runs a schedule plans: its project, or its workspace. */
+function getRunSource(schedule: {
+  workspaceId: string;
+  projectId: string | null;
+}) {
+  return {
+    sourceWorkspaceId: schedule.workspaceId,
+    sourceType: schedule.projectId
+      ? CalendarSourceType.PROJECT
+      : CalendarSourceType.WORKSPACE,
+    sourceProjectId: schedule.projectId,
+    sourceAccuracy: CalendarSourceAccuracy.EXACT,
+    timeAccuracy: CalendarTimeAccuracy.EXACT,
+  };
+}
 
 type RuleState = Pick<
   TaskSchedule,
@@ -158,8 +176,8 @@ export async function projectTaskScheduleRuns(
     { ...schedule, releasedCount: schedule.releasedCount + plannedCount },
     now,
     {
-      horizonEnd: new Date(now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS),
-      limit: MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES - plannedCount,
+      horizonEnd: new Date(now.getTime() + RUN_HORIZON_MS),
+      limit: MAX_PLANNED_RUNS - plannedCount,
       includeFirst: !occupied.some(
         (row) => row.state === TaskScheduleRunState.PLANNED,
       ),
@@ -179,7 +197,7 @@ export async function projectTaskScheduleRuns(
         effectiveScheduledAt: at,
         state: TaskScheduleRunState.PLANNED,
         scheduleVersion: 2,
-        ...getOccurrenceSource(schedule),
+        ...getRunSource(schedule),
         timezone: schedule.timezone,
       })),
       skipDuplicates: true,
@@ -337,7 +355,7 @@ export async function moveTaskScheduleRunsToProject(
       scheduleId: schedule.id,
       state: TaskScheduleRunState.PLANNED,
     },
-    data: getOccurrenceSource(schedule),
+    data: getRunSource(schedule),
   });
 }
 

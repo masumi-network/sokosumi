@@ -5,13 +5,12 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
-  getTaskStatusUpdateDataForEvent,
   mapTask,
   mapTaskEvent,
   mapTaskEventActor,
   mapTaskFile,
   taskAssigneeKind,
-  validateQueuedRequiresSchedule,
+  validateQueuedRequiresRunAt,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "./task";
@@ -71,19 +70,6 @@ describe("validateStatusTransition", () => {
   });
 });
 
-describe("getTaskStatusUpdateDataForEvent", () => {
-  it("clears schedule fields when canceling", () => {
-    expect(getTaskStatusUpdateDataForEvent(TaskStatus.CANCELED)).toEqual({
-      status: TaskStatus.CANCELED,
-      metadata: null,
-      nextRunAt: null,
-    });
-    expect(getTaskStatusUpdateDataForEvent(TaskStatus.READY)).toEqual({
-      status: TaskStatus.READY,
-    });
-  });
-});
-
 describe("validateTaskAssigneeAssignment", () => {
   it("resolves coworker, human, and unset kinds", () => {
     expect(taskAssigneeKind({ assigneeId: "cow_1" })).toBe("coworker");
@@ -131,33 +117,24 @@ describe("validateTaskAssigneeAssignment", () => {
     ).not.toThrow();
   });
 
-  it("rejects QUEUED without an active schedule", () => {
+  it("rejects QUEUED without a Run at", () => {
     expect(() =>
-      validateQueuedRequiresSchedule({
-        status: TaskStatus.QUEUED,
-        metadata: null,
-        nextRunAt: null,
-      }),
-    ).toThrow("A schedule is required before moving a task to Queued");
+      validateQueuedRequiresRunAt({ status: TaskStatus.QUEUED, runAt: null }),
+    ).toThrow("Set a Run at on the task to move it to Queued");
   });
 
-  it("allows QUEUED when nextRunAt is set", () => {
+  it("allows QUEUED when the Task has a Run at", () => {
     expect(() =>
-      validateQueuedRequiresSchedule({
+      validateQueuedRequiresRunAt({
         status: TaskStatus.QUEUED,
-        metadata: null,
-        nextRunAt: new Date("2099-01-01T09:00:00.000Z"),
+        runAt: new Date("2099-01-01T09:00:00.000Z"),
       }),
     ).not.toThrow();
   });
 
-  it("ignores non-QUEUED statuses for the schedule guard", () => {
+  it("ignores non-QUEUED statuses for the Run at guard", () => {
     expect(() =>
-      validateQueuedRequiresSchedule({
-        status: TaskStatus.READY,
-        metadata: null,
-        nextRunAt: null,
-      }),
+      validateQueuedRequiresRunAt({ status: TaskStatus.READY, runAt: null }),
     ).not.toThrow();
   });
 

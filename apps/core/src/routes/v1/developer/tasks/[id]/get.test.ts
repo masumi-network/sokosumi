@@ -132,9 +132,6 @@ function createTask() {
     name: "Quarterly report",
     description: null,
     status: TaskStatus.RUNNING,
-    metadata: null,
-    nextRunAt: null,
-    scheduleRevision: 0,
     events: [],
     jobs: [],
     workspace: {

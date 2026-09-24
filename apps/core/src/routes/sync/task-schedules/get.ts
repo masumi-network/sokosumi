@@ -1,10 +1,7 @@
 import type { Hono } from "hono";
 
 import { calendarInvalidationOutboxService } from "@/services/calendar-invalidation-outbox.service";
-import { taskScheduleReconciliationService } from "@/services/task-schedule-reconciliation.service";
 import { taskScheduleReleaseService } from "@/services/task-schedule-runs.service";
-import { taskScheduleValidationService } from "@/services/task-schedule-validation.service";
-import { taskSchedulesSyncService } from "@/services/task-schedules-sync";
 
 import { handleSyncRequest } from "../handler.js";
 
@@ -16,38 +13,20 @@ export default function mount(app: Hono) {
       c,
       TASK_SCHEDULES_SYNC_LOCK_KEY,
       async (context) => {
-        const result = await taskSchedulesSyncService.syncDueSchedules({
+        const executionOptions = {
           abortSignal: context.abortSignal,
           deadlineMs: context.deadlineMs,
           shouldContinue: context.shouldContinue,
-        });
-
-        const scheduleRelease = context.shouldContinue()
-          ? await taskScheduleReleaseService.releaseDueSchedules({
-              abortSignal: context.abortSignal,
-              deadlineMs: context.deadlineMs,
-              shouldContinue: context.shouldContinue,
-            })
-          : null;
+        };
+        const scheduleRelease =
+          await taskScheduleReleaseService.releaseDueSchedules(
+            executionOptions,
+          );
 
         const runAtRelease = context.shouldContinue()
-          ? await taskScheduleReleaseService.releaseDueRunAts({
-              abortSignal: context.abortSignal,
-              deadlineMs: context.deadlineMs,
-              shouldContinue: context.shouldContinue,
-            })
+          ? await taskScheduleReleaseService.releaseDueRunAts(executionOptions)
           : null;
 
-        const validation = context.shouldContinue()
-          ? await taskScheduleValidationService.validateActiveSchedules({
-              shouldContinue: context.shouldContinue,
-            })
-          : null;
-        const reconciliation = context.shouldContinue()
-          ? await taskScheduleReconciliationService.reconcileScheduleHistory({
-              shouldContinue: context.shouldContinue,
-            })
-          : null;
         const invalidations = context.shouldContinue()
           ? await calendarInvalidationOutboxService.syncInvalidations({
               newestFirst: true,
@@ -56,12 +35,9 @@ export default function mount(app: Hono) {
           : null;
 
         console.info("[sync/task-schedules] Completed sync", {
-          ...result,
           scheduleRelease,
           runAtRelease,
           invalidations,
-          validation,
-          reconciliation,
         });
       },
     );

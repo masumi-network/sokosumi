@@ -20,10 +20,6 @@ vi.mock("@/components/modals/global-modals-context", () => ({
   }),
 }));
 
-vi.mock("@/components/task-schedule-display", () => ({
-  TaskScheduleDisplay: () => <span>Daily (1:47 PM)</span>,
-}));
-
 vi.mock("@/components/aurora-orb", () => ({
   AssistantOrb: ({ seed, alt }: { seed: string | null; alt?: string }) => (
     <div data-testid="assistant-orb" data-seed={seed ?? ""} aria-label={alt} />
@@ -63,7 +59,6 @@ const baseLabels = {
   credits: "Credits",
   created: "Created",
   updated: "Updated",
-  schedule: "Schedule",
   personalAssistantFallback: "Personal assistant",
   formatSokoBotRole: ({ owner }: { owner: string }) =>
     `${owner}'s personal assistant`,
@@ -121,8 +116,6 @@ function createTask(
     organization: null,
     assignee,
     credits: overrides.credits ?? 0,
-    metadata: null,
-    nextRunAt: null,
   };
 }
 

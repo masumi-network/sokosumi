@@ -2,7 +2,6 @@ import { Prisma, ProjectCloseOperationState } from "@sokosumi/database";
 
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
-import { isSchedulableTaskStatus } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type {
@@ -36,29 +35,22 @@ function normalizeOptionalReason(reason: string | undefined): string | null {
   return reason?.trim() || null;
 }
 
+/** A failed close batch names the Task Schedule it could not close. */
 function parseFailure(
   value: Prisma.JsonValue | null,
 ): ProjectCloseStatus["failure"] {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
-  const seriesTaskId = value.seriesTaskId;
+  const scheduleId = value.scheduleId ?? null;
   const message = value.message;
   if (
-    (seriesTaskId !== null && typeof seriesTaskId !== "string") ||
+    (scheduleId !== null && typeof scheduleId !== "string") ||
     typeof message !== "string"
   ) {
     return null;
   }
-  return { seriesTaskId, message };
-}
-
-/** The Task Schedule a failed close batch names; the API shows only series. */
-function parseFailedScheduleId(value: Prisma.JsonValue | null): string | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-  return typeof value.scheduleId === "string" ? value.scheduleId : null;
+  return { scheduleId, message };
 }
 
 async function mapStatus(
@@ -72,10 +64,7 @@ async function mapStatus(
       state: "PLANNED",
       effectiveScheduledAt: { lt: operation.cutoffAt },
       // A Paused Task Schedule's Runs never fire, not even at close.
-      OR: [
-        { seriesTask: { status: "QUEUED" } },
-        { schedule: { state: "ACTIVE" } },
-      ],
+      schedule: { state: "ACTIVE" },
     },
   });
 
@@ -284,8 +273,13 @@ async function recoverProjectClose(
       throw conflict("Project close is not waiting for recovery");
     }
 
-    const failedScheduleId = parseFailedScheduleId(operation.failureSummary);
-    if (action === "cancel-owed" && failedScheduleId) {
+    if (action === "cancel-owed") {
+      const failedScheduleId = parseFailure(
+        operation.failureSummary,
+      )?.scheduleId;
+      if (!failedScheduleId) {
+        throw conflict("Project close has no failed Task Schedule to cancel");
+      }
       // The close Ends the schedule on its next pass, with nothing owed left.
       await tx.taskScheduleRun.updateMany({
         where: {
@@ -295,60 +289,6 @@ async function recoverProjectClose(
         },
         data: { state: "CANCELED" },
       });
-    } else if (action === "cancel-owed") {
-      const failure = parseFailure(operation.failureSummary);
-      if (!failure?.seriesTaskId) {
-        throw conflict("Project close has no failed series to cancel");
-      }
-      await tx.taskScheduleRun.updateMany({
-        where: {
-          seriesTaskId: failure.seriesTaskId,
-          sourceProjectId: project.id,
-          scheduleVersion: 2,
-          OR: [
-            {
-              state: "PLANNED",
-              effectiveScheduledAt: { lt: operation.cutoffAt },
-            },
-            {
-              state: { in: ["PLANNED", "SKIPPED"] },
-              effectiveScheduledAt: { gte: operation.cutoffAt },
-            },
-          ],
-        },
-        data: { state: "CANCELED" },
-      });
-      await tx.taskScheduleRun.deleteMany({
-        where: {
-          seriesTaskId: failure.seriesTaskId,
-          sourceProjectId: project.id,
-          scheduleVersion: 1,
-          state: "PLANNED",
-        },
-      });
-      await tx.taskScheduleQuarantine.deleteMany({
-        where: { taskId: failure.seriesTaskId },
-      });
-      const failedTask = await tx.task.findFirst({
-        where: { id: failure.seriesTaskId, projectId: project.id },
-        select: { status: true },
-      });
-      if (failedTask) {
-        await tx.task.updateMany({
-          where: {
-            id: failure.seriesTaskId,
-            projectId: project.id,
-          },
-          data: {
-            ...(isSchedulableTaskStatus(failedTask.status)
-              ? { status: "DRAFT" }
-              : {}),
-            metadata: null,
-            nextRunAt: null,
-            scheduleRevision: { increment: 1 },
-          },
-        });
-      }
     }
 
     const nextRevision = await tx.project.update({
@@ -365,12 +305,6 @@ async function recoverProjectClose(
         leasedAt: null,
         nextAttemptAt: new Date(),
         failureSummary: Prisma.DbNull,
-        ...(action === "cancel-owed" && !failedScheduleId
-          ? {
-              seriesCursor: parseFailure(operation.failureSummary)
-                ?.seriesTaskId,
-            }
-          : {}),
       },
     });
     await tx.projectEvent.create({

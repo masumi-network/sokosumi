@@ -1,4 +1,4 @@
-import { TaskLinkType } from "@sokosumi/database";
+import { type Prisma, TaskLinkType } from "@sokosumi/database";
 
 import { badRequest } from "@/helpers/error";
 import {
@@ -8,6 +8,34 @@ import {
   type UserWritableTaskLinkRelationResponse,
 } from "@/schemas/task-link.schema";
 import type { TaskLinkPeerTaskRow, TaskLinkRow } from "@/types/task-link";
+
+/**
+ * Links a Task still has. The cutover kept the old series' SCHEDULE links
+ * until SOK-1174 drops the type; `Task.scheduleId` replaced them (ADR 0041).
+ */
+export const liveTaskLinkWhere = {
+  type: { not: TaskLinkType.SCHEDULE },
+} satisfies Prisma.TaskLinkWhereInput;
+
+/**
+ * A retired series edge still occupies `task_link_task_pair_key`. Reads hide
+ * it, so creating a live link on that pair drops the edge first.
+ */
+export async function deleteRetiredScheduleLink(
+  tx: Prisma.TransactionClient,
+  taskId: string,
+  peerTaskId: string,
+): Promise<void> {
+  await tx.taskLink.deleteMany({
+    where: {
+      type: TaskLinkType.SCHEDULE,
+      OR: [
+        { fromTaskId: taskId, toTaskId: peerTaskId },
+        { fromTaskId: peerTaskId, toTaskId: taskId },
+      ],
+    },
+  });
+}
 
 interface TaskLinkWriteData {
   fromTaskId: string;
@@ -34,13 +62,9 @@ function mapTaskLinkRelation(
       return outgoing ? "parent" : "child";
     case TaskLinkType.DUPLICATE:
       return "duplicate";
-    case TaskLinkType.SCHEDULE:
-      // from = template, to = run
-      return outgoing ? "schedule_run" : "schedule_series";
-    default: {
-      const _exhaustive: never = type;
-      return _exhaustive;
-    }
+    default:
+      // mapTaskLinksForTask drops the SCHEDULE links left for SOK-1174.
+      throw new Error(`Task link type ${type} has no relation`);
   }
 }
 
@@ -177,8 +201,13 @@ export function mapTaskLinksForTask(
   linksFrom: TaskLinkRow[],
   linksTo: TaskLinkRow[],
 ): TaskLinkResponse[] {
+  const isLive = (link: TaskLinkRow) => link.type !== TaskLinkType.SCHEDULE;
   return [
-    ...linksFrom.map((link) => mapTaskLinkForTask(link.fromTaskId, link)),
-    ...linksTo.map((link) => mapTaskLinkForTask(link.toTaskId, link)),
+    ...linksFrom
+      .filter(isLive)
+      .map((link) => mapTaskLinkForTask(link.fromTaskId, link)),
+    ...linksTo
+      .filter(isLive)
+      .map((link) => mapTaskLinkForTask(link.toTaskId, link)),
   ];
 }

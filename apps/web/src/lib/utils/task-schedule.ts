@@ -1,8 +1,7 @@
-import { isValidTimezone, parseTaskScheduleMetadata } from "@sokosumi/utils";
+import { isValidTimezone } from "@sokosumi/utils";
 import { CronExpressionParser as cronParser } from "cron-parser";
 import type {
   TaskSchedule,
-  TaskScheduleInput,
   TaskScheduleRule,
   TaskScheduleRuleReplacement,
 } from "@/lib/clients/generated/core/types.gen";
@@ -166,40 +165,19 @@ function getFirstUpcomingRecurringOccurrence(
   return getFirstUpcomingCronOccurrence(expr, timezone, now);
 }
 
-export function metadataToSelection(
-  metadata: string | null | undefined,
-  defaultTimezone: string,
-): TaskScheduleSelection {
-  const parsed = parseTaskScheduleMetadata(metadata);
-  if (!parsed) {
-    return { mode: "none", timezone: defaultTimezone };
-  }
-
-  if (parsed.mode === "once") {
-    const timezone = parsed.version === 2 ? parsed.timezone : defaultTimezone;
-    const runAt = parsed.version === 2 ? parsed.effectiveRunAt : parsed.runAt;
-    return {
-      mode: "once",
-      timezone,
-      oneTimeLocalIso: utcToDateTimeLocalInTimezone(new Date(runAt), timezone),
+/** A complete, valid schedule form: one start time, or a repeating rule. */
+type ParsedTaskScheduleSelection =
+  | { mode: "once"; runAt: Date }
+  | {
+      mode: "recurring";
+      expr: string;
+      timezone?: string;
+      endsMode?: TaskScheduleEndsMode;
+      endsOn?: Date;
+      occurrences?: number;
+      intervalDays?: number;
+      anchorAt?: Date;
     };
-  }
-
-  return recurringRuleToSelection({
-    expr: parsed.expr,
-    timezone: parsed.timezone,
-    endsMode: parsed.endsMode,
-    endsOn: parsed.endsOn,
-    intervalDays: parsed.intervalDays,
-    anchorAt: parsed.anchorAt,
-    endAfterOccurrences:
-      parsed.version === 1
-        ? parsed.occurrences
-        : parsed.targetReleaseCount == null
-          ? undefined
-          : Math.max(parsed.targetReleaseCount - parsed.epochReleaseCount, 0),
-  });
-}
 
 interface RecurringRuleFields {
   expr: string;
@@ -291,22 +269,22 @@ export function selectionToTaskScheduleRule(
   selection: TaskScheduleSelection,
 ): TaskScheduleRuleReplacement | null {
   if (selection.mode !== "recurring") return null;
-  const body = selectionToApiBody(selection);
-  if (!body || body.mode !== "recurring") return null;
+  const parsed = parseTaskScheduleSelection(selection);
+  if (!parsed || parsed.mode !== "recurring") return null;
   return {
-    expr: body.expr,
-    timezone: body.timezone ?? selection.timezone,
-    endsMode: ENDS_MODE_TO_RULE[body.endsMode ?? TaskScheduleEndsMode.NEVER],
-    endsOn: body.endsOn ?? null,
-    targetRunCount: body.occurrences ?? null,
-    intervalDays: body.intervalDays ?? null,
-    anchorAt: body.anchorAt ?? null,
+    expr: parsed.expr,
+    timezone: parsed.timezone ?? selection.timezone,
+    endsMode: ENDS_MODE_TO_RULE[parsed.endsMode ?? TaskScheduleEndsMode.NEVER],
+    endsOn: parsed.endsOn ?? null,
+    targetRunCount: parsed.occurrences ?? null,
+    intervalDays: parsed.intervalDays ?? null,
+    anchorAt: parsed.anchorAt ?? null,
   };
 }
 
-export function selectionToApiBody(
+export function parseTaskScheduleSelection(
   selection: TaskScheduleSelection,
-): TaskScheduleInput | null {
+): ParsedTaskScheduleSelection | null {
   const timezone = selection.timezone.trim();
   if (!isValidTimezone(timezone)) return null;
   const now = new Date();
@@ -392,36 +370,13 @@ export function selectionToApiBody(
   return null;
 }
 
-export interface TaskScheduleOperationIdentity {
-  key: string;
-  operationId: string;
-}
-
-export interface TaskScheduleOperationIdentityRef {
-  current: TaskScheduleOperationIdentity | null;
-}
-
-/** Keeps one browser-minted operation ID across retries of the same rule. */
-export function getTaskScheduleOperationId(
-  selection: TaskScheduleSelection,
-  operation: TaskScheduleOperationIdentityRef,
-): string {
-  const schedule =
-    selection.mode === "none" ? null : selectionToApiBody(selection);
-  const key = schedule ? JSON.stringify(schedule) : "none";
-  if (operation.current?.key !== key) {
-    operation.current = { key, operationId: crypto.randomUUID() };
-  }
-  return operation.current.operationId;
-}
-
 const ONCE_SCHEDULE_LEAD_MS = 5 * 60 * 1000;
 const ONCE_SCHEDULE_RETRY_MS = 60_000;
 const ONCE_SCHEDULE_MAX_ATTEMPTS = 5;
 
 function isSchedulableOnce(oneTimeLocalIso: string, timezone: string): boolean {
   return Boolean(
-    selectionToApiBody({
+    parseTaskScheduleSelection({
       mode: "once",
       timezone,
       oneTimeLocalIso,
@@ -469,20 +424,20 @@ export function isValidCronExpression(expr: string, timezone: string): boolean {
   }
 }
 
-function normalizeScheduleApiBodyValue(value: unknown): unknown {
+function normalizeParsedScheduleValue(value: unknown): unknown {
   if (value instanceof Date) {
     return value.toISOString();
   }
 
   if (Array.isArray(value)) {
-    return value.map(normalizeScheduleApiBodyValue);
+    return value.map(normalizeParsedScheduleValue);
   }
 
   if (value && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value).map(([key, entryValue]) => [
         key,
-        normalizeScheduleApiBodyValue(entryValue),
+        normalizeParsedScheduleValue(entryValue),
       ]),
     );
   }
@@ -490,9 +445,9 @@ function normalizeScheduleApiBodyValue(value: unknown): unknown {
   return value;
 }
 
-function areScheduleApiBodiesEqual(
-  left: TaskScheduleInput | null,
-  right: TaskScheduleInput | null,
+function areParsedSchedulesEqual(
+  left: ParsedTaskScheduleSelection | null,
+  right: ParsedTaskScheduleSelection | null,
 ): boolean {
   if (left === null && right === null) {
     return true;
@@ -503,8 +458,8 @@ function areScheduleApiBodiesEqual(
   }
 
   return (
-    JSON.stringify(normalizeScheduleApiBodyValue(left)) ===
-    JSON.stringify(normalizeScheduleApiBodyValue(right))
+    JSON.stringify(normalizeParsedScheduleValue(left)) ===
+    JSON.stringify(normalizeParsedScheduleValue(right))
   );
 }
 
@@ -521,9 +476,9 @@ export function hasTaskScheduleChanged(
     return true;
   }
 
-  const originalBody = selectionToApiBody(original);
-  const currentBody = selectionToApiBody(current);
-  return !areScheduleApiBodiesEqual(originalBody, currentBody);
+  const originalSchedule = parseTaskScheduleSelection(original);
+  const currentSchedule = parseTaskScheduleSelection(current);
+  return !areParsedSchedulesEqual(originalSchedule, currentSchedule);
 }
 
 export { DOW };

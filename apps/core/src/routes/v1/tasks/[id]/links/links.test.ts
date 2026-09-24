@@ -27,6 +27,7 @@ const {
   taskFindFirstMock,
   taskFindUniqueMock,
   taskLinkCreateMock,
+  taskLinkDeleteManyMock,
   taskLinkDeleteMock,
   taskLinkFindUniqueMock,
   taskLinkUpdateMock,
@@ -37,6 +38,7 @@ const {
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   taskLinkCreateMock: vi.fn(),
+  taskLinkDeleteManyMock: vi.fn(),
   taskLinkDeleteMock: vi.fn(),
   taskLinkFindUniqueMock: vi.fn(),
   taskLinkUpdateMock: vi.fn(),
@@ -157,6 +159,7 @@ function mockTx() {
     },
     taskLink: {
       create: taskLinkCreateMock,
+      deleteMany: taskLinkDeleteManyMock,
       findUnique: taskLinkFindUniqueMock,
       delete: taskLinkDeleteMock,
       update: taskLinkUpdateMock,
@@ -693,6 +696,15 @@ describe("POST /tasks/{id}/links", () => {
     });
 
     expect(response.status).toBe(201);
+    expect(taskLinkDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        type: TaskLinkType.SCHEDULE,
+        OR: [
+          { fromTaskId: "tsk_a", toTaskId: "tsk_b" },
+          { fromTaskId: "tsk_b", toTaskId: "tsk_a" },
+        ],
+      },
+    });
     expect(taskLinkCreateMock).toHaveBeenCalledWith({
       data: {
         fromTaskId: "tsk_a",
@@ -1087,31 +1099,6 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(response.status).toBe(403);
     expect(taskLinkDeleteMock).not.toHaveBeenCalled();
   });
-
-  it("returns 400 when deleting a system SCHEDULE link", async () => {
-    taskLinkFindUniqueMock.mockResolvedValue({
-      id: "tl_schedule",
-      fromTaskId: "tsk_template",
-      toTaskId: "tsk_run",
-      type: TaskLinkType.SCHEDULE,
-      note: null,
-    });
-
-    const app = createUserApp();
-    mountDeleteTaskLink(app);
-
-    const response = await app.request(
-      "http://localhost/tsk_template/links/tl_schedule",
-      {
-        method: "DELETE",
-      },
-    );
-
-    expect(response.status).toBe(400);
-    expect(taskLinkDeleteMock).not.toHaveBeenCalled();
-    const body = await response.json();
-    expect(body.message).toContain("system-managed");
-  });
 });
 
 describe("PATCH /tasks/{id}/links/{linkId}", () => {
@@ -1155,6 +1142,31 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       name: "Task B",
       status: TaskStatus.RUNNING,
     });
+  });
+
+  it("returns 404 for a leftover series SCHEDULE link", async () => {
+    taskLinkFindUniqueMock.mockResolvedValue({
+      id: "tl_series",
+      fromTaskId: "tsk_a",
+      toTaskId: "tsk_b",
+      type: TaskLinkType.SCHEDULE,
+      note: null,
+    });
+
+    const app = createUserApp();
+    mountPatchTaskLink(app);
+
+    const response = await app.request(
+      "http://localhost/tsk_a/links/tl_series",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: "keep" }),
+      },
+    );
+
+    expect(response.status).toBe(404);
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 when the link metadata is updated", async () => {
@@ -1401,34 +1413,5 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
         type: TaskLinkType.PARENT,
       },
     });
-  });
-
-  it("returns 400 when patching a system SCHEDULE link", async () => {
-    taskLinkFindUniqueMock.mockResolvedValue({
-      id: "tl_schedule",
-      fromTaskId: "tsk_template",
-      toTaskId: "tsk_run",
-      type: TaskLinkType.SCHEDULE,
-      note: null,
-    });
-
-    const app = createUserApp();
-    mountPatchTaskLink(app);
-
-    const response = await app.request(
-      "http://localhost/tsk_template/links/tl_schedule",
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          relation: "parent",
-        }),
-      },
-    );
-
-    expect(response.status).toBe(400);
-    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
-    const body = await response.json();
-    expect(body.message).toContain("system-managed");
   });
 });

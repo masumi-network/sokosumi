@@ -15,7 +15,7 @@ import type {
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
-import { selectionToApiBody } from "@/lib/utils/task-schedule";
+import { parseTaskScheduleSelection } from "@/lib/utils/task-schedule";
 
 interface FullCalendarProps {
   borderless?: boolean;
@@ -480,7 +480,7 @@ describe("WorkspaceCalendar editing", () => {
     });
 
     vi.advanceTimersByTime(2 * 60 * 1000);
-    expect(selectionToApiBody(schedule.schedule)).toEqual({
+    expect(parseTaskScheduleSelection(schedule.schedule)).toEqual({
       mode: "once",
       runAt: new Date("2026-09-08T16:06:00.000Z"),
     });
@@ -508,7 +508,7 @@ describe("WorkspaceCalendar editing", () => {
       schedule: TaskScheduleSelection;
     };
     expect(schedule.schedule.oneTimeLocalIso).toBe("2026-09-08T18:06");
-    expect(selectionToApiBody(schedule.schedule)).toEqual({
+    expect(parseTaskScheduleSelection(schedule.schedule)).toEqual({
       mode: "once",
       runAt: new Date("2026-09-08T16:06:00.000Z"),
     });

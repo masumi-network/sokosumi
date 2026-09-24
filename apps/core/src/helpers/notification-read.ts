@@ -5,7 +5,6 @@ import { waitUntil } from "@vercel/functions";
 
 import {
   TASK_ATTENTION_MESSAGE_KEYS,
-  TASK_SCHEDULE_REMOVED_MESSAGE_KEY,
   TASK_TERMINAL_MESSAGE_KEYS,
 } from "@/helpers/notification-delivery";
 import {
@@ -65,23 +64,6 @@ export async function markNotificationsRead(
 }
 
 /**
- * The task attention keys cleared when work resumes or a run ends.
- *
- * Every one of them except the operator-removed schedule. That row is about
- * the schedule rather than about the run: the operator took the schedule away
- * and the owner has to put it back. Resuming or ending a run does not restore
- * the schedule.
- * It is written with no status condition for the same reason.
- *
- * Archiving does end it, because nobody can open an archived task at all.
- * That case passes the full list itself, at `markTaskArchivedRead`.
- */
-export const TASK_RUN_ATTENTION_MESSAGE_KEYS: readonly string[] =
-  TASK_ATTENTION_MESSAGE_KEYS.filter(
-    (key) => key !== TASK_SCHEDULE_REMOVED_MESSAGE_KEY,
-  );
-
-/**
  * The attention rows a settled record leaves behind, by the key that settled it.
  *
  * One map rather than a list plus a switch, for the same reason the follow-up
@@ -91,7 +73,7 @@ export const TASK_RUN_ATTENTION_MESSAGE_KEYS: readonly string[] =
 const ATTENTION_KEYS_CLEARED_BY = new Map<string, readonly string[]>([
   ...TASK_TERMINAL_MESSAGE_KEYS.map((key): [string, readonly string[]] => [
     key,
-    TASK_RUN_ATTENTION_MESSAGE_KEYS,
+    TASK_ATTENTION_MESSAGE_KEYS,
   ]),
 ]);
 

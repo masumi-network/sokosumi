@@ -92,7 +92,6 @@ describe("notification emails", () => {
       "authenticationRequired",
       "inputRequired",
       "outOfCredits",
-      "scheduleRemovedByOperator",
     ] as const;
 
     for (const reason of reasons) {
@@ -278,12 +277,7 @@ describe("notification emails", () => {
   });
 
   it("has a sentence for every update reason, including the fallback", async () => {
-    const reasons = [
-      "canceled",
-      "failed",
-      "scheduleRepaired",
-      "updated",
-    ] as const;
+    const reasons = ["canceled", "failed", "updated"] as const;
 
     for (const reason of reasons) {
       const rendered = await renderTaskUpdateEmail({
@@ -345,16 +339,7 @@ describe("calendar email templates", () => {
   it.each(["en", "de", "es"])(
     "renders every update template in %s",
     async (locale) => {
-      const reasons = [
-        "failed",
-        "canceled",
-        "scheduleRepaired",
-        "scheduleRemovedByOperator",
-        "scheduleUpdatedByMember",
-        "scheduleRemovedByMember",
-        "scheduleSourceChangedByMember",
-        "scheduleOccurrenceChangedByMember",
-      ] as const;
+      const reasons = ["failed", "canceled", "updated"] as const;
       for (const reason of reasons) {
         const email = await renderTaskUpdateEmail({
           actionUrl: TASK_URL,
@@ -368,7 +353,6 @@ describe("calendar email templates", () => {
         expect(email.html).not.toContain("<script>");
         expect(email.html).not.toContain("notifications.event");
         expect(email.html).not.toContain("{taskName}");
-        if (locale !== "en") expect(email.subject).not.toContain("A teammate");
       }
       for (const outcome of ["closed", "closeFailed"] as const) {
         const email = await renderProjectUpdateEmail({

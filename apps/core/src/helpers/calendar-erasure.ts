@@ -230,9 +230,6 @@ export async function eraseWorkspaceCalendarData(
       status: { in: SWEEPABLE_X402_STATUSES },
     },
   });
-  await tx.taskScheduleQuarantine.deleteMany({
-    where: { task: { workspaceId } },
-  });
   await tx.taskScheduleCreateOperation.deleteMany({ where: { workspaceId } });
   await tx.taskEvent.deleteMany({ where: { task: { workspaceId } } });
   await tx.task.deleteMany({ where: { workspaceId } });

@@ -169,7 +169,6 @@ export function mapTaskToTaskWithCoworker(
   const descriptionPlain = strippedDescription || null;
   const createdAt = task.createdAt.toISOString();
   const updatedAt = task.updatedAt.toISOString();
-  const nextRunAt = task.nextRunAt?.toISOString() ?? null;
   const runAt = task.runAt?.toISOString() ?? null;
 
   return {
@@ -182,9 +181,7 @@ export function mapTaskToTaskWithCoworker(
     project: task.project ?? null,
     createdAt,
     updatedAt,
-    nextRunAt,
     runAt,
-    metadata: task.metadata ?? null,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,
     share: "share" in task ? (task.share ?? null) : null,

@@ -35,15 +35,6 @@ export const CHAT_ROOM_BADGE_MESSAGE_KEYS: readonly string[] = [
 ];
 
 /**
- * The key an operator-removed schedule carries.
- *
- * Named on its own because it is the one attention key a run does not end:
- * it asks the owner to put a schedule back, which no run answers.
- */
-export const TASK_SCHEDULE_REMOVED_MESSAGE_KEY =
-  "Notifications.Task.scheduleRemovedByOperator";
-
-/**
  * The task keys that wait on the reader.
  *
  * A task that needs input, approval, authentication or credits stops until the

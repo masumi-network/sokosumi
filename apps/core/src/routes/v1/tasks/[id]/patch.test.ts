@@ -25,7 +25,6 @@ const {
   notifyTaskHumanAssigneeMock,
   prismaTransactionMock,
   projectFindFirstMock,
-  refreshTaskSchedulePlannedOccurrencesMock,
   requireTaskAssignableCoworkerMock,
   requireTaskAssignableSokoBotMock,
   requireTaskAssignableUserMock,
@@ -40,7 +39,6 @@ const {
   notifyTaskHumanAssigneeMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
-  refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
   requireTaskAssignableSokoBotMock: vi.fn(),
   requireTaskAssignableUserMock: vi.fn(),
@@ -77,11 +75,6 @@ vi.mock("@/helpers/task", async (importOriginal) => {
     mapTask: mapTaskMock,
   };
 });
-
-vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
-  refreshTaskSchedulePlannedOccurrences:
-    refreshTaskSchedulePlannedOccurrencesMock,
-}));
 
 vi.mock("@/helpers/task-notifications", () => ({
   markTaskAssignedRead: markTaskAssignedReadMock,
@@ -154,8 +147,6 @@ function createTaskApi(projectId: string | null = null) {
     description: null,
     status: TaskStatus.DRAFT,
     visibility: TaskVisibility.PUBLIC,
-    metadata: null,
-    nextRunAt: null,
     grantResumeStatus: null,
     pendingVendorGrantId: null,
     credits: 0,
@@ -263,16 +254,16 @@ describe("patchTaskRequestSchema", () => {
     expect(result.assigneeUserId).toBe("user_123");
   });
 
-  it("accepts expectedScheduleRevision alongside an edited field", () => {
+  it("strips the retired expectedScheduleRevision field", () => {
     const result = patchTaskRequestSchema.parse({
-      name: "Renamed series",
+      name: "Renamed task",
       expectedScheduleRevision: 3,
     });
 
-    expect(result.expectedScheduleRevision).toBe(3);
+    expect(result).toEqual({ name: "Renamed task" });
   });
 
-  it("rejects expectedScheduleRevision as the only patch field", () => {
+  it("rejects the retired expectedScheduleRevision as the only patch field", () => {
     expect(() => {
       patchTaskRequestSchema.parse({ expectedScheduleRevision: 3 });
     }).toThrow();
@@ -317,12 +308,8 @@ describe("PATCH /tasks/{id}", () => {
       ownerId: "user_123",
       description: null,
       visibility: TaskVisibility.PUBLIC,
-      metadata: null,
-      nextRunAt: null,
-      scheduleRevision: 0,
     });
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
-    refreshTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
     resolveEffectiveDesignMdMock.mockResolvedValue(null);
     taskUpdateMock.mockResolvedValue(createTaskApi(PROJECT_ID));
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
@@ -451,7 +438,6 @@ describe("PATCH /tasks/{id}", () => {
 
     expect(response.status).toBe(409);
     expect(taskUpdateMock).not.toHaveBeenCalled();
-    expect(refreshTaskSchedulePlannedOccurrencesMock).not.toHaveBeenCalled();
   });
 
   it("moves a task directly between projects", async () => {
@@ -482,16 +468,9 @@ describe("PATCH /tasks/{id}", () => {
         }),
       }),
     );
-    expect(refreshTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        id: "tsk_123",
-        projectId: PROJECT_ID,
-      }),
-    );
   });
 
-  it("updates metadata for a queued task", async () => {
+  it("updates fields of a queued task", async () => {
     const app = createApp();
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
@@ -787,9 +766,6 @@ describe("PATCH /tasks/{id}", () => {
       ownerId: "user_123",
       description: `[DESIGN.md](${designMdUrl})\n\nOld prose`,
       visibility: TaskVisibility.PUBLIC,
-      metadata: null,
-      nextRunAt: null,
-      scheduleRevision: 0,
     });
     projectFindFirstMock.mockResolvedValue({
       id: PROJECT_ID,
@@ -835,9 +811,6 @@ describe("PATCH /tasks/{id}", () => {
       ownerId: "user_123",
       description: `[DESIGN.md](${designMdUrl})\n\nKeep prose`,
       visibility: TaskVisibility.PUBLIC,
-      metadata: null,
-      nextRunAt: null,
-      scheduleRevision: 0,
     });
     projectFindFirstMock.mockResolvedValue({
       id: PROJECT_ID,
@@ -885,9 +858,6 @@ describe("PATCH /tasks/{id}", () => {
       ownerId: "user_123",
       description: `[DESIGN.md](${staleBrandUrl})\n\nKeep prose`,
       visibility: TaskVisibility.PUBLIC,
-      metadata: null,
-      nextRunAt: null,
-      scheduleRevision: 0,
     });
     projectFindFirstMock.mockResolvedValue({
       id: PROJECT_ID,
@@ -934,9 +904,6 @@ describe("PATCH /tasks/{id}", () => {
       ownerId: "user_123",
       description: `[DESIGN.md](${designMdUrl})\n\nOld prose that must clear`,
       visibility: TaskVisibility.PUBLIC,
-      metadata: null,
-      nextRunAt: null,
-      scheduleRevision: 0,
     });
     projectFindFirstMock.mockResolvedValue({
       id: PROJECT_ID,
@@ -980,9 +947,6 @@ describe("PATCH /tasks/{id}", () => {
       ownerId: "user_123",
       description: "Existing prose",
       visibility: TaskVisibility.PUBLIC,
-      metadata: null,
-      nextRunAt: null,
-      scheduleRevision: 0,
     });
     projectFindFirstMock.mockResolvedValue({
       id: PROJECT_ID,
@@ -1008,22 +972,11 @@ describe("PATCH /tasks/{id}", () => {
   });
 });
 
-describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {
-  const ACTIVE_SCHEDULE_METADATA = JSON.stringify({
-    version: 2,
-    epochId: "11111111-1111-4111-8111-111111111111",
-    mode: "recurring",
-    createdAt: "2026-09-01T09:00:00.000Z",
-    ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
-    timezone: "UTC",
-    expr: "0 9 * * *",
-    endsMode: "never",
-    anchorAt: "2026-09-01T09:00:00.000Z",
-    epochReleaseCount: 0,
-  });
+describe("PATCH /tasks/{id} Queued Task with a Run at (ADR 0041)", () => {
+  const taskEventCreateMock = vi.fn();
 
-  function seriesTask(overrides: Record<string, unknown> = {}) {
-    return {
+  function mockQueuedTask(overrides: Record<string, unknown> = {}) {
+    requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.QUEUED,
       assigneeId: "cow_123",
@@ -1031,27 +984,33 @@ describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {
       assigneeUserId: null,
       projectId: null,
       workspaceId: WORKSPACE_ID,
-      metadata: ACTIVE_SCHEDULE_METADATA,
-      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
-      scheduleRevision: 3,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: null,
+      visibility: TaskVisibility.PUBLIC,
+      runAt: new Date("2099-01-05T09:00:00.000Z"),
+      scheduleId: null,
       ...overrides,
-    };
+    });
   }
 
-  function mockSeriesTask(overrides: Record<string, unknown> = {}) {
-    requireTaskOwnershipMock.mockResolvedValue(seriesTask(overrides));
-  }
-
-  function createSeriesApp() {
+  function patch(body: Record<string, unknown>) {
     const app = createApp();
     app.onError(errorHandler);
-    return app;
+    return app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  function writtenData() {
+    return taskUpdateMock.mock.calls[0]?.[0].data;
   }
 
   beforeEach(() => {
     vi.clearAllMocks();
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
-    refreshTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
     taskUpdateMock.mockResolvedValue({
       ...createTaskApi(null),
       status: TaskStatus.QUEUED,
@@ -1061,186 +1020,51 @@ describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {
       return await callback({
         project: { findFirst: projectFindFirstMock },
         task: { update: taskUpdateMock },
+        taskEvent: { create: taskEventCreateMock },
       });
     });
-    mockSeriesTask();
+    mockQueuedTask();
   });
 
-  it("requires expectedScheduleRevision for an active-series field edit", async () => {
-    const response = await createSeriesApp().request(
-      "http://localhost/tsk_123",
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Renamed series" }),
-      },
-    );
-
-    expect(response.status).toBe(409);
-    expect((await response.json()).kind).toBe("schedule_revision_conflict");
-    expect(taskUpdateMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects a stale expectedScheduleRevision", async () => {
-    const response = await createSeriesApp().request(
-      "http://localhost/tsk_123",
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: "Renamed series",
-          expectedScheduleRevision: 2,
-        }),
-      },
-    );
-
-    expect(response.status).toBe(409);
-    expect((await response.json()).kind).toBe("schedule_revision_conflict");
-    expect(taskUpdateMock).not.toHaveBeenCalled();
-  });
-
-  it("increments the schedule revision on an accepted active-series edit", async () => {
-    const response = await createSeriesApp().request(
-      "http://localhost/tsk_123",
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: "Renamed series",
-          expectedScheduleRevision: 3,
-        }),
-      },
-    );
+  it("edits a field without a revision and keeps the Task Queued", async () => {
+    const response = await patch({ name: "Renamed task" });
 
     expect(response.status).toBe(200);
-    expect(taskUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          name: "Renamed series",
-          scheduleRevision: { increment: 1 },
-        }),
-      }),
-    );
+    expect(writtenData()).toEqual({ name: "Renamed task" });
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
   });
 
-  it("compares the revision against the post-lock re-read, not the pre-lock snapshot", async () => {
-    const { lockCalendarScope, lockTaskRows } = await import(
-      "@/helpers/calendar-locks"
-    );
+  it("moves it into a project", async () => {
+    const response = await patch({ projectId: PROJECT_ID });
 
-    // The pre-lock snapshot still carries the revision the client sent; a
-    // concurrent release bumps the row before the locks are granted. Only a
-    // comparison against the post-lock re-read rejects this request.
-    requireTaskOwnershipMock
-      .mockResolvedValueOnce(seriesTask({ scheduleRevision: 2 }))
-      .mockResolvedValueOnce(seriesTask({ scheduleRevision: 3 }));
-
-    const response = await createSeriesApp().request(
-      "http://localhost/tsk_123",
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: "Renamed series",
-          expectedScheduleRevision: 2,
-        }),
-      },
-    );
-
-    expect(response.status).toBe(409);
-    expect((await response.json()).kind).toBe("schedule_revision_conflict");
-    expect(taskUpdateMock).not.toHaveBeenCalled();
-
-    // Pre-lock read → Calendar scope lock → Task row lock → post-lock re-read.
-    expect(requireTaskOwnershipMock).toHaveBeenCalledTimes(2);
-    expect(lockTaskRows).toHaveBeenCalledWith(expect.anything(), ["tsk_123"]);
-    const [preLockRead, postLockRead] =
-      requireTaskOwnershipMock.mock.invocationCallOrder;
-    const calendarLockOrder =
-      vi.mocked(lockCalendarScope).mock.invocationCallOrder[0];
-    const taskLockOrder = vi.mocked(lockTaskRows).mock.invocationCallOrder[0];
-    expect(preLockRead).toBeLessThan(calendarLockOrder);
-    expect(calendarLockOrder).toBeLessThan(taskLockOrder);
-    expect(taskLockOrder).toBeLessThan(postLockRead);
+    expect(response.status).toBe(200);
+    expect(writtenData()).toEqual({ projectId: PROJECT_ID });
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a Run at on an active series", async () => {
-    const response = await createSeriesApp().request(
-      "http://localhost/tsk_123",
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ runAt: "2099-01-05T09:00:00.000Z" }),
-      },
-    );
+  it("moves it out of its project", async () => {
+    mockQueuedTask({ projectId: PROJECT_ID });
 
-    expect(response.status).toBe(409);
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    const response = await patch({ projectId: null });
+
+    expect(response.status).toBe(200);
+    expect(writtenData()).toEqual({ projectId: null });
+    expect(projectFindFirstMock).not.toHaveBeenCalled();
   });
 
-  it("rejects moving an active series into a project", async () => {
-    const response = await createSeriesApp().request(
-      "http://localhost/tsk_123",
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: PROJECT_ID,
-          expectedScheduleRevision: 3,
-        }),
-      },
-    );
+  it("edits a Task created by a Task Schedule like any other Task", async () => {
+    mockQueuedTask({ scheduleId: "sch_123" });
 
-    expect(response.status).toBe(409);
-    expect((await response.json()).kind).toBe("schedule_active");
-    expect(taskUpdateMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects moving an active series out of its project", async () => {
-    mockSeriesTask({ projectId: PROJECT_ID });
-
-    const response = await createSeriesApp().request(
-      "http://localhost/tsk_123",
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: null,
-          expectedScheduleRevision: 3,
-        }),
-      },
-    );
-
-    expect(response.status).toBe(409);
-    expect((await response.json()).kind).toBe("schedule_active");
-    expect(taskUpdateMock).not.toHaveBeenCalled();
-  });
-
-  it("does not require or increment a revision when no series is active", async () => {
-    mockSeriesTask({
-      status: TaskStatus.DRAFT,
-      metadata: null,
-      nextRunAt: null,
-      scheduleRevision: 3,
+    const response = await patch({
+      name: "Renamed run",
+      projectId: PROJECT_ID,
     });
 
-    const response = await createSeriesApp().request(
-      "http://localhost/tsk_123",
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Renamed draft" }),
-      },
-    );
-
     expect(response.status).toBe(200);
-    expect(taskUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.not.objectContaining({
-          scheduleRevision: expect.anything(),
-        }),
-      }),
-    );
+    expect(writtenData()).toEqual({
+      name: "Renamed run",
+      projectId: PROJECT_ID,
+    });
   });
 });
 
@@ -1284,9 +1108,6 @@ describe("PATCH /tasks/{id} Run at", () => {
       ownerId: "user_123",
       description: null,
       visibility: TaskVisibility.PUBLIC,
-      metadata: null,
-      nextRunAt: null,
-      scheduleRevision: 0,
       runAt: null,
       ...overrides,
     });

@@ -5,7 +5,6 @@ vi.mock("server-only", () => ({}));
 import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 
 const coreClientMock = {
-  createScheduledTask: vi.fn(),
   createTaskLink: vi.fn(),
   createTask: vi.fn(),
   createTaskEvent: vi.fn(),
@@ -323,41 +322,7 @@ describe("task.service", () => {
     });
   });
 
-  it("forwards the active-schedule filter and next-run sort to the core client", async () => {
-    coreClientMock.getTasks.mockResolvedValue({
-      data: [buildTask()],
-      meta: {
-        pagination: {
-          cursor: null,
-          limit: 100,
-          total: 1,
-          nextCursor: null,
-        },
-      },
-    });
-
-    const { taskService } = await import("./task.service");
-    await taskService.listTasks({
-      hasSchedule: true,
-      sort: "nextRunAt",
-      scope: "workspace",
-      limit: 100,
-    });
-
-    expect(coreClientMock.getTasks).toHaveBeenCalledWith({
-      status: undefined,
-      assigneeId: undefined,
-      q: undefined,
-      scope: "workspace",
-      cursor: undefined,
-      limit: 100,
-      projectId: undefined,
-      sort: "nextRunAt",
-      hasSchedule: "true",
-    });
-  });
-
-  it("omits the schedule filter when it is not requested", async () => {
+  it("forwards list defaults to the core client", async () => {
     coreClientMock.getTasks.mockResolvedValue({
       data: [],
       meta: {
@@ -382,36 +347,6 @@ describe("task.service", () => {
       limit: 100,
       projectId: undefined,
       sort: undefined,
-      hasSchedule: undefined,
-    });
-  });
-
-  it("forwards an explicit unscheduled filter to the core client", async () => {
-    coreClientMock.getTasks.mockResolvedValue({
-      data: [],
-      meta: {
-        pagination: {
-          cursor: null,
-          limit: 100,
-          total: 0,
-          nextCursor: null,
-        },
-      },
-    });
-
-    const { taskService } = await import("./task.service");
-    await taskService.listTasks({ hasSchedule: false, limit: 100 });
-
-    expect(coreClientMock.getTasks).toHaveBeenCalledWith({
-      status: undefined,
-      assigneeId: undefined,
-      q: undefined,
-      scope: undefined,
-      cursor: undefined,
-      limit: 100,
-      projectId: undefined,
-      sort: undefined,
-      hasSchedule: "false",
     });
   });
 
@@ -569,50 +504,6 @@ describe("task.service", () => {
     expect(created).toEqual(task);
     expect(updated).toEqual({ ...task, name: "Updated task" });
     expect(deleted).toEqual(task);
-  });
-
-  it("serializes an active-series field edit against the observed schedule revision", async () => {
-    const task = buildTask();
-    coreClientMock.patchTask.mockResolvedValue({
-      data: { ...task, name: "Updated task", scheduleRevision: 5 },
-    });
-
-    const { taskService } = await import("./task.service");
-    const updated = await taskService.patchTask("task-1", {
-      name: "Updated task",
-      expectedScheduleRevision: 4,
-    });
-
-    expect(coreClientMock.patchTask).toHaveBeenCalledWith("task-1", {
-      name: "Updated task",
-      expectedScheduleRevision: 4,
-    });
-    // The incremented revision is the precondition for the schedule write that
-    // follows in the same user operation.
-    expect(updated.scheduleRevision).toBe(5);
-  });
-
-  it("forwards scheduled task creation to Core with the caller operation and source", async () => {
-    const task = buildTask();
-    const input = {
-      operationId: "123e4567-e89b-42d3-a456-426614174000",
-      source: { type: "project" as const, projectId: "project-1" },
-      name: "Scheduled task",
-      description: "Prepare the brief",
-      assigneeId: "coworker-1",
-      schedule: {
-        mode: "recurring" as const,
-        expr: "0 9 * * *",
-        timezone: "UTC",
-      },
-    };
-    coreClientMock.createScheduledTask.mockResolvedValue({ data: task });
-
-    const { taskService } = await import("./task.service");
-    const created = await taskService.createScheduledTask(input);
-
-    expect(coreClientMock.createScheduledTask).toHaveBeenCalledWith(input);
-    expect(created).toEqual(task);
   });
 
   it("throws when createTaskEvent returns no data", async () => {

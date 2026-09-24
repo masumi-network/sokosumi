@@ -153,7 +153,7 @@ describe("tasks routes OpenAPI query contract", () => {
     expect(doc.paths?.["/{id}/share"]?.delete?.responses).toHaveProperty("200");
   });
 
-  it("exposes the atomic scheduled Task creation command", () => {
+  it("documents the removed per-Task schedule routes as deprecated 410s", () => {
     const doc = tasksRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -162,16 +162,20 @@ describe("tasks routes OpenAPI query contract", () => {
       },
     });
 
-    const requestSchema = getJsonRequestSchema(doc, "/scheduled", "post") as {
-      properties?: Record<string, unknown>;
-    } | null;
-    const responses = doc.paths?.["/scheduled"]?.post?.responses;
+    const removed = [
+      doc.paths?.["/scheduled"]?.post,
+      doc.paths?.["/{id}/schedule"]?.put,
+      doc.paths?.["/{id}/schedule"]?.delete,
+      doc.paths?.["/{id}/calendar-schedule"]?.put,
+      doc.paths?.["/{id}/calendar-source"]?.put,
+      doc.paths?.["/{id}/schedule/occurrences"]?.get,
+      doc.paths?.["/{id}/schedule/occurrences/{occurrenceId}"]?.patch,
+    ];
 
-    expect(requestSchema?.properties).toHaveProperty("operationId");
-    expect(requestSchema?.properties).toHaveProperty("source");
-    expect(requestSchema?.properties).toHaveProperty("schedule");
-    expect(responses).toHaveProperty("201");
-    expect(responses).toHaveProperty("409");
+    for (const operation of removed) {
+      expect(operation?.deprecated).toBe(true);
+      expect(Object.keys(operation?.responses ?? {})).toEqual(["410"]);
+    }
   });
 
   it("keeps task patch metadata-only and exposes a dedicated workspace update route", () => {
@@ -248,27 +252,5 @@ describe("tasks routes OpenAPI query contract", () => {
     expect(taskLinkSchema?.properties).not.toHaveProperty("fromTaskId");
     expect(taskLinkSchema?.properties).not.toHaveProperty("toTaskId");
     expect(taskLinkSchema?.properties).not.toHaveProperty("peerTaskId");
-  });
-
-  it("documents the schedule occurrence ledger beside the schedule routes", () => {
-    const doc = tasksRouter.getOpenAPI31Document({
-      openapi: "3.1.0",
-      info: {
-        title: "Tasks API",
-        version: "1.0.0",
-      },
-    });
-
-    const operation = doc.paths?.["/{id}/schedule/occurrences"]?.get;
-
-    expect(
-      getQueryDescriptionFromGetOperation(
-        doc,
-        "/{id}/schedule/occurrences",
-        "view",
-      ),
-    ).toContain("upcoming");
-    expect(operation?.responses).toHaveProperty("200");
-    expect(operation?.responses).toHaveProperty("409");
   });
 });

@@ -2,8 +2,6 @@
 
 import {
   buildAdHocDesignMdPrefix,
-  CORE_API_ERROR_KINDS,
-  hasActiveTaskSchedule,
   taskContextSelectionAttachesAnything,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
@@ -18,8 +16,6 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import {
-  type CalendarTaskScheduleSource,
-  type CreateScheduledTaskRequest,
   type CreateTaskContext,
   type Task,
   type TaskLink,
@@ -28,19 +24,12 @@ import {
   type UserWritableTaskLinkRelation,
 } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
-import {
-  type TaskScheduleSeriesPrecondition,
-  taskScheduleService,
-} from "@/lib/services/task-schedule.service";
-import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
-import { selectionToApiBody } from "@/lib/utils/task-schedule";
 import {
   TASK_MUTATION_ERROR_KINDS,
   type TaskMutationErrorKind,
-} from "@/lib/utils/task-schedule-feedback";
+} from "@/lib/utils/task-mutation-error-kinds";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
-import { isUuidString } from "@/lib/utils/uuid";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -87,65 +76,6 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   runAt?: string;
 }
 
-interface CreateScheduledTaskParameters extends AuthenticatedRequest {
-  operationId: string;
-  source: CreateScheduledTaskRequest["source"];
-  description?: string | null;
-  assigneeId?: string | null;
-  assigneeUserId?: string | null;
-  context?: TaskContextSelectionInput;
-  schedule: TaskScheduleSelection;
-}
-
-interface SaveTaskScheduleParameters
-  extends AuthenticatedRequest,
-    TaskScheduleSeriesPrecondition {
-  taskId: string;
-  schedule: TaskScheduleSelection;
-}
-
-interface ClearTaskScheduleParameters
-  extends AuthenticatedRequest,
-    TaskScheduleSeriesPrecondition {
-  taskId: string;
-}
-
-interface MoveCalendarTaskSourceParameters
-  extends AuthenticatedRequest,
-    TaskScheduleSeriesPrecondition {
-  taskId: string;
-  source: CalendarTaskScheduleSource;
-}
-
-interface TaskOccurrenceMutationBase
-  extends AuthenticatedRequest,
-    TaskScheduleSeriesPrecondition {
-  taskId: string;
-  occurrenceId: string;
-}
-
-interface RescheduleTaskOccurrenceParameters
-  extends TaskOccurrenceMutationBase {
-  action: "reschedule";
-  /** Absolute UTC instant the occurrence moves to, as an ISO string. */
-  scheduledAt: string;
-}
-
-interface SkipTaskOccurrenceParameters extends TaskOccurrenceMutationBase {
-  action: "skip";
-}
-
-interface RestoreTaskOccurrenceParameters extends TaskOccurrenceMutationBase {
-  action: "restore";
-  /** Omit to restore the occurrence to its original projected time. */
-  scheduledAt?: string;
-}
-
-type MutateTaskOccurrenceParameters =
-  | RescheduleTaskOccurrenceParameters
-  | SkipTaskOccurrenceParameters
-  | RestoreTaskOccurrenceParameters;
-
 interface TaskMutationError {
   kind: TaskMutationErrorKind;
 }
@@ -158,24 +88,6 @@ export type CreateTaskResult = TaskMutationActionResult<{
 }>;
 type UpdateTaskResult = TaskMutationActionResult<{ taskId: string }>;
 type SetTaskStatusResult = TaskMutationActionResult<{ taskId: string }>;
-type CreateScheduledTaskResult = TaskMutationActionResult<{
-  taskId: string;
-  name: string;
-}>;
-type SaveTaskScheduleResult = TaskMutationActionResult<{
-  taskId: string;
-}>;
-type ClearTaskScheduleResult = TaskMutationActionResult<{
-  taskId: string;
-}>;
-type MoveCalendarTaskSourceResult = TaskMutationActionResult<{
-  taskId: string;
-  scheduleRevision: number;
-}>;
-type MutateTaskOccurrenceResult = TaskMutationActionResult<{
-  taskId: string;
-  scheduleRevision: number;
-}>;
 type CreateTaskAndLinkResult = TaskMutationActionResult<{
   taskId: string;
   createdTaskId: string;
@@ -301,54 +213,6 @@ function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
   if (relatedTaskId) {
     revalidatePath(`/tasks/${relatedTaskId}`);
   }
-}
-
-function revalidateCalendarTaskMutationRoutes(task: Task) {
-  revalidatePath("/calendar");
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${task.id}`);
-
-  if (task.projectId) {
-    revalidatePath(`/projects/${task.projectId}/calendar`);
-  }
-}
-
-function revalidateCalendarSourceMoveRoutes(
-  taskId: string,
-  projectIds: Array<string | null>,
-) {
-  revalidatePath("/calendar");
-  revalidatePath("/projects");
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${taskId}`);
-  for (const projectId of new Set(projectIds.filter(Boolean))) {
-    revalidatePath(`/projects/${projectId}/calendar`);
-  }
-}
-
-/**
- * A logical user operation owns one UUID, minted in the browser and reused
- * across retries so Core can replay it. Server actions never mint one — a
- * fresh identity per invocation would turn every retry into a new operation.
- */
-function requireOperationId(operationId: string | undefined): string {
-  if (!operationId || !isUuidString(operationId)) {
-    throw new Error("Operation ID must be a UUID");
-  }
-  return operationId;
-}
-
-function getActiveScheduleBody(schedule: TaskScheduleSelection) {
-  if (schedule.mode === "none") {
-    throw new Error("Active schedule required");
-  }
-
-  const body = selectionToApiBody(schedule);
-  if (!body) {
-    throw new Error("Invalid schedule");
-  }
-
-  return body;
 }
 
 /**
@@ -686,228 +550,6 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   },
 );
 
-export const createScheduledTask = withSession<
-  CreateScheduledTaskParameters,
-  CreateScheduledTaskResult
->(
-  async ({
-    operationId,
-    source,
-    description,
-    assigneeId,
-    assigneeUserId,
-    context,
-    schedule,
-    session,
-  }) => {
-    const trimmedAssigneeId = assigneeId?.trim() || null;
-    const trimmedAssigneeUserId = assigneeUserId?.trim() || null;
-    const trimmedDescription = description?.trim();
-    requireOperationId(operationId);
-    if (
-      (!trimmedAssigneeId && !trimmedAssigneeUserId) ||
-      (trimmedAssigneeId && trimmedAssigneeUserId)
-    ) {
-      throw new Error("Exactly one assignee is required");
-    }
-
-    const scheduleBody = getActiveScheduleBody(schedule);
-
-    try {
-      const task = await taskService.createScheduledTask({
-        operationId,
-        source,
-        ...(typeof description !== "undefined"
-          ? { description: trimmedDescription || null }
-          : {}),
-        assigneeId: trimmedAssigneeId,
-        ...(trimmedAssigneeUserId
-          ? { assigneeUserId: trimmedAssigneeUserId }
-          : {}),
-        ...(context
-          ? { context: toCoreTaskContext(context, session.user.id) }
-          : {}),
-        schedule: scheduleBody,
-      });
-      revalidateCalendarTaskMutationRoutes(task);
-      return taskMutationSuccess({ taskId: task.id, name: task.name });
-    } catch (error) {
-      const mutationErrorKind = toTaskMutationErrorKind(error);
-      if (mutationErrorKind) {
-        return taskMutationFailure(mutationErrorKind);
-      }
-      rethrowTaskActionError(
-        error,
-        "Failed to create scheduled task",
-        "Failed to create scheduled task",
-      );
-    }
-  },
-);
-
-export const saveCalendarTaskSchedule = withSession<
-  SaveTaskScheduleParameters,
-  SaveTaskScheduleResult
->(async ({ taskId, operationId, expectedScheduleRevision, schedule }) => {
-  const normalizedTaskId = taskId.trim();
-  if (!normalizedTaskId) {
-    throw new Error("Task required");
-  }
-  requireOperationId(operationId);
-
-  const scheduleBody = getActiveScheduleBody(schedule);
-
-  try {
-    const task = await taskScheduleService.editCalendarSeries(
-      normalizedTaskId,
-      { operationId, expectedScheduleRevision },
-      scheduleBody,
-    );
-    revalidateCalendarTaskMutationRoutes(task);
-    return taskMutationSuccess({ taskId: task.id });
-  } catch (error) {
-    const mutationErrorKind = toTaskMutationErrorKind(error);
-    if (mutationErrorKind) {
-      return taskMutationFailure(mutationErrorKind);
-    }
-    rethrowTaskActionError(
-      error,
-      "Failed to save task schedule",
-      "Failed to save task schedule",
-    );
-  }
-});
-
-export const clearTaskSchedule = withSession<
-  ClearTaskScheduleParameters,
-  ClearTaskScheduleResult
->(async ({ taskId, operationId, expectedScheduleRevision }) => {
-  const normalizedTaskId = taskId.trim();
-  if (!normalizedTaskId) {
-    throw new Error("Task required");
-  }
-  requireOperationId(operationId);
-
-  try {
-    const task = await taskScheduleService.removeCalendarSeries(
-      normalizedTaskId,
-      { operationId, expectedScheduleRevision },
-    );
-    revalidateCalendarTaskMutationRoutes(task);
-    return taskMutationSuccess({ taskId: task.id });
-  } catch (error) {
-    const mutationErrorKind = toTaskMutationErrorKind(error);
-    if (mutationErrorKind) {
-      return taskMutationFailure(mutationErrorKind);
-    }
-    rethrowTaskActionError(
-      error,
-      "Failed to clear task schedule",
-      "Failed to clear task schedule",
-    );
-  }
-});
-
-export const moveCalendarTaskSource = withSession<
-  MoveCalendarTaskSourceParameters,
-  MoveCalendarTaskSourceResult
->(async ({ taskId, operationId, expectedScheduleRevision, source }) => {
-  const normalizedTaskId = taskId.trim();
-  if (!normalizedTaskId) {
-    throw new Error("Task required");
-  }
-  requireOperationId(operationId);
-
-  try {
-    const result = await taskScheduleService.moveCalendarSeriesSource(
-      normalizedTaskId,
-      { operationId, expectedScheduleRevision },
-      source,
-    );
-    revalidateCalendarSourceMoveRoutes(normalizedTaskId, [
-      result.previousSource.type === "project"
-        ? result.previousSource.projectId
-        : null,
-      result.source.type === "project" ? result.source.projectId : null,
-    ]);
-    return taskMutationSuccess({
-      taskId: normalizedTaskId,
-      scheduleRevision: result.scheduleRevision,
-    });
-  } catch (error) {
-    const mutationErrorKind = toTaskMutationErrorKind(error);
-    if (mutationErrorKind) {
-      return taskMutationFailure(mutationErrorKind);
-    }
-    rethrowTaskActionError(
-      error,
-      "Failed to move Calendar task source",
-      "Failed to move Calendar task source",
-    );
-  }
-});
-
-export const mutateTaskOccurrence = withSession<
-  MutateTaskOccurrenceParameters,
-  MutateTaskOccurrenceResult
->(async (parameters) => {
-  const { taskId, occurrenceId, operationId, expectedScheduleRevision } =
-    parameters;
-  const normalizedTaskId = taskId.trim();
-  const normalizedOccurrenceId = occurrenceId.trim();
-  if (!normalizedTaskId) {
-    throw new Error("Task required");
-  }
-  if (!normalizedOccurrenceId) {
-    throw new Error("Occurrence required");
-  }
-  requireOperationId(operationId);
-
-  try {
-    const task = await taskService.getTaskById(normalizedTaskId);
-    if (!task) {
-      throw new Error("Task not found");
-    }
-
-    const mutation =
-      parameters.action === "reschedule"
-        ? {
-            action: parameters.action,
-            scheduledAt: new Date(parameters.scheduledAt),
-          }
-        : parameters.action === "restore" && parameters.scheduledAt
-          ? {
-              action: parameters.action,
-              scheduledAt: new Date(parameters.scheduledAt),
-            }
-          : { action: parameters.action };
-    const result = await taskScheduleService.mutateOccurrence(
-      normalizedTaskId,
-      normalizedOccurrenceId,
-      {
-        operationId,
-        expectedScheduleRevision,
-        ...mutation,
-      },
-    );
-    revalidateCalendarTaskMutationRoutes(task);
-    return taskMutationSuccess({
-      taskId: normalizedTaskId,
-      scheduleRevision: result.scheduleRevision,
-    });
-  } catch (error) {
-    const mutationErrorKind = toTaskMutationErrorKind(error);
-    if (mutationErrorKind) {
-      return taskMutationFailure(mutationErrorKind);
-    }
-    rethrowTaskActionError(
-      error,
-      "Failed to change task occurrence",
-      "Failed to change task occurrence",
-    );
-  }
-});
-
 export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
   async ({
     taskId,
@@ -993,20 +635,6 @@ export const setTaskStatusFromDrag = withSession<
     const currentStatus = task.status as TaskStatus;
 
     if (desiredStatus !== currentStatus) {
-      // A live series owns this Task's status. Dropping it in another column
-      // used to silently unschedule it; the drag is now refused so the user
-      // decides what happens to the series. Ready → Queued is the one move
-      // Core still accepts (selectableStatuses / events).
-      if (
-        hasActiveTaskSchedule(task.metadata, task.nextRunAt) &&
-        !(
-          currentStatus === TaskStatus.READY &&
-          desiredStatus === TaskStatus.QUEUED
-        )
-      ) {
-        return taskMutationFailure(CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE);
-      }
-
       const trimmedComment = comment?.trim();
       if (
         userTaskStatusTransitionRequiresComment(currentStatus, desiredStatus) &&
