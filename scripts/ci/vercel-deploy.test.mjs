@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it } from "node:test";
 
+import { apiKeyVariable, projectIdVariable } from "./preview-db-reset.mjs";
 import {
   createGitDeployment,
   deployTargets,
@@ -1205,7 +1206,7 @@ describe("git preview policy", () => {
     assert.doesNotMatch(workflow, /pull_request\.base\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.ref/);
-    for (const jobId of ["comment", "opened"]) {
+    for (const jobId of ["comment", "opened", "reset-db"]) {
       const checkout = checkoutStep(jobBlock(workflow, jobId), jobId);
       assert.match(
         checkout,
@@ -1231,6 +1232,61 @@ describe("git preview policy", () => {
     );
     assert.doesNotMatch(workflow, /lower\(/);
     assert.match(workflow, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
+  });
+
+  it("gives the Neon preview keys only to the comment-gated reset-db job", async () => {
+    const workflow = await readFile(
+      path.join(repoRoot, ".github/workflows/preview-deploy.yml"),
+      "utf8",
+    );
+    const resetJob = jobBlock(workflow, "reset-db");
+    assert.match(resetJob, /github\.event_name == 'issue_comment'/);
+    assert.match(resetJob, /github\.event\.issue\.pull_request/);
+    assert.match(resetJob, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
+    assert.match(
+      resetJob,
+      /startsWith\(github\.event\.comment\.body, '\/reset-db'\)/,
+    );
+    assert.match(resetJob, /^    environment: preview-database$/m);
+    assert.match(
+      checkoutStep(resetJob, "reset-db"),
+      /^\s+persist-credentials: false$/m,
+    );
+    // Lower, the job can end during the script's longest wait, and then no
+    // reply posts.
+    assert.match(resetJob, /^    timeout-minutes: 40$/m);
+    // Resets for one PR run one at a time, and a newer command waits instead
+    // of cancelling a waiting one.
+    assert.match(
+      resetJob,
+      /^ {4}concurrency:\n {6}group: reset-db-\$\{\{ github\.event\.issue\.number \}\}\n {6}cancel-in-progress: false\n {6}queue: max$/m,
+    );
+    // The job passes each name the script reads, from the right store.
+    const env = [
+      ["GITHUB_TOKEN", "secrets.GITHUB_TOKEN"],
+      ["VERCEL_TOKEN", "secrets.VERCEL_TOKEN"],
+      ["VERCEL_ORG_ID", "vars.VERCEL_TEAM_ID"],
+      ...["mainnet", "preprod"].flatMap((network) => [
+        [apiKeyVariable(network), `secrets.${apiKeyVariable(network)}`],
+        [projectIdVariable(network), `vars.${projectIdVariable(network)}`],
+      ]),
+    ];
+    for (const [name, value] of env) {
+      assert.match(
+        resetJob,
+        new RegExp(
+          `^ {10}${name}: \\$\\{\\{ ${value.replace(".", "\\.")} \\}\\}$`,
+          "m",
+        ),
+      );
+    }
+    assert.match(resetJob, /node scripts\/ci\/preview-db-reset\.mjs/);
+    for (const jobId of ["comment", "opened"]) {
+      assert.doesNotMatch(jobBlock(workflow, jobId), /NEON_/);
+    }
+    // NEON_API_KEY is an Actions secret that other workflows read, and Cursor
+    // Cloud agents hold it too. The reset keys live only in the environment.
+    assert.doesNotMatch(workflow, /secrets\.NEON_API_KEY/);
   });
 
   it("treats pull_request_target as an opened-preview event name", () => {
