@@ -7,8 +7,10 @@ const {
   prismaTaskFindFirstMock,
   prismaTaskFindUniqueMock,
   prismaTaskParticipantFindManyMock,
+  prismaTaskEventFindUniqueMock,
   prismaUserFindUniqueMock,
 } = vi.hoisted(() => ({
+  prismaTaskEventFindUniqueMock: vi.fn(),
   createNotificationMock: vi.fn(),
   markAttentionReadMock: vi.fn(),
   markSettledAttentionReadMock: vi.fn(),
@@ -34,6 +36,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: prismaTaskFindFirstMock,
       findUnique: prismaTaskFindUniqueMock,
     },
+    taskEvent: { findUnique: prismaTaskEventFindUniqueMock },
     taskParticipant: { findMany: prismaTaskParticipantFindManyMock },
     user: { findUnique: prismaUserFindUniqueMock },
   },
@@ -48,7 +51,89 @@ import {
   markTaskParticipantRemovedRead,
   notifyTaskCalendarAction,
   notifyTaskHumanAssignee,
+  notifyTaskParticipantsAdded,
 } from "./task-notifications";
+
+describe("notifyTaskParticipantsAdded", () => {
+  const eventCreatedAt = new Date("2026-09-24T12:00:00.000Z");
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prismaTaskEventFindUniqueMock.mockResolvedValue({
+      createdAt: eventCreatedAt,
+    });
+    createNotificationMock.mockResolvedValue({});
+  });
+
+  function taskWithParticipants(userIds: string[]) {
+    return {
+      id: "task_1",
+      name: "Launch",
+      projectId: null,
+      workspaceId: "workspace_1",
+      project: null,
+      participants: userIds.map((userId) => ({ userId })),
+    };
+  }
+
+  it("skips a Task archived or settled after the mentioning event", async () => {
+    prismaTaskFindFirstMock.mockResolvedValue(null);
+
+    await notifyTaskParticipantsAdded("task_1", "event_1", ["user_a"]);
+
+    expect(prismaTaskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "task_1",
+          archivedAt: null,
+          events: {
+            none: {
+              status: { in: ["COMPLETED", "FAILED", "CANCELED"] },
+              createdAt: { gt: eventCreatedAt },
+            },
+          },
+        },
+      }),
+    );
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("only alerts users who are still participants", async () => {
+    prismaTaskFindFirstMock.mockResolvedValue(taskWithParticipants(["user_b"]));
+
+    await notifyTaskParticipantsAdded("task_1", "event_1", [
+      "user_a",
+      "user_b",
+    ]);
+
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_b",
+        messageKey: "Notifications.Task.participantAdded",
+      }),
+    );
+  });
+
+  it("keeps alerting the rest when one user's notification fails", async () => {
+    prismaTaskFindFirstMock.mockResolvedValue(
+      taskWithParticipants(["user_a", "user_b"]),
+    );
+    createNotificationMock
+      .mockRejectedValueOnce(new Error("delivery failed"))
+      .mockResolvedValueOnce({});
+
+    await notifyTaskParticipantsAdded("task_1", "event_1", [
+      "user_a",
+      "user_b",
+    ]);
+
+    expect(createNotificationMock.mock.calls.map(([n]) => n.userId)).toEqual([
+      "user_a",
+      "user_b",
+    ]);
+  });
+});
 
 describe("notifyTaskCalendarAction", () => {
   beforeEach(() => {

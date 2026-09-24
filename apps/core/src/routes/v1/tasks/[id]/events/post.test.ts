@@ -35,6 +35,8 @@ const {
   getCardanoV2ReadySourcesMock,
   getCreditCostsOrThrowMock,
   sokoBotFindFirstMock,
+  prismaTaskEventFindUniqueMock,
+  prismaTaskFindFirstMock,
   prismaTaskFindUniqueMock,
   prismaTransactionMock,
   projectMemoryRefreshMock,
@@ -56,6 +58,8 @@ const {
   getCardanoV2ReadySourcesMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
   sokoBotFindFirstMock: vi.fn(),
+  prismaTaskEventFindUniqueMock: vi.fn(),
+  prismaTaskFindFirstMock: vi.fn(),
   prismaTaskFindUniqueMock: vi.fn().mockResolvedValue({
     id: "tsk_123",
     ownerId: "user_123",
@@ -128,7 +132,11 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
     task: {
+      findFirst: prismaTaskFindFirstMock,
       findUnique: prismaTaskFindUniqueMock,
+    },
+    taskEvent: {
+      findUnique: prismaTaskEventFindUniqueMock,
     },
     sokoBot: {
       findFirst: sokoBotFindFirstMock,
@@ -434,6 +442,21 @@ describe("POST /{id}/events", () => {
       workspaceId: "ws_123",
       owner: { notificationsOptIn: true },
     });
+    prismaTaskEventFindUniqueMock.mockResolvedValue({ createdAt: new Date() });
+    prismaTaskFindFirstMock.mockImplementation(
+      async (args: {
+        select: { participants: { where: { userId: { in: string[] } } } };
+      }) => ({
+        id: "tsk_123",
+        name: "Test task",
+        project: { name: "Test project" },
+        projectId: "proj_123",
+        workspaceId: "ws_123",
+        participants: args.select.participants.where.userId.in.map(
+          (userId) => ({ userId }),
+        ),
+      }),
+    );
     requireTaskCollaborationMock.mockResolvedValue(createTask());
     requireTaskStatusWriteAccessMock.mockImplementation(
       (vars: unknown, taskId: string, tx?: unknown) =>
