@@ -1,8 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { jobRepository } from "@sokosumi/database/repositories";
 
 import { requireAvailableAgentOrThrow } from "@/helpers/agent";
-import { upsertUserAgentReview } from "@/helpers/agent-rating";
+import {
+  doesUserHaveFinishedJobWithAgent,
+  upsertUserAgentReview,
+} from "@/helpers/agent-rating";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { forbidden } from "@/helpers/error";
 import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";
@@ -63,12 +65,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const review = await prisma.$transaction(async (tx) => {
       await requireAvailableAgentOrThrow(id, tx);
 
-      const hasFinishedJob =
-        await jobRepository.doesUserHaveFinishedJobWithAgent(
-          userContext.userId,
-          id,
-          tx,
-        );
+      const hasFinishedJob = await doesUserHaveFinishedJobWithAgent(
+        userContext.userId,
+        id,
+        tx,
+      );
 
       if (!hasFinishedJob) {
         throw forbidden(

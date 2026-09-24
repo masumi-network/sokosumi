@@ -68,7 +68,6 @@ test("discover collects Core resources with stable JSON fields", async () => {
       },
       post: async <T>() => ({ data: null }) as T,
       patch: async <T>() => ({ data: null }) as T,
-      delete: async <T>() => ({ data: null }) as T,
     },
     stdout: { write: (value) => output.push(value) },
     json: true,
@@ -96,7 +95,6 @@ test("discover JSON redacts credential assignments in errors", async () => {
     },
     post: async <T>() => ({}) as T,
     patch: async <T>() => ({}) as T,
-    delete: async <T>() => ({}) as T,
   };
 
   await runDiscoverCommand({

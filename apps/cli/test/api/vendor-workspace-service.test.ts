@@ -13,7 +13,6 @@ function client(paths: string[], response: unknown): CoreHttpClient {
     },
     post: async <T>() => ({}) as T,
     patch: async <T>() => ({}) as T,
-    delete: async <T>() => ({}) as T,
   };
 }
 

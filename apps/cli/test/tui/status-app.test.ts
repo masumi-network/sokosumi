@@ -10,7 +10,10 @@ import {
   AuthManager,
   type OAuthCredentials,
 } from "../../src/auth/auth-manager.js";
-import type { CliTargetConfig } from "../../src/auth/config.js";
+import {
+  assertApiKeyTarget,
+  type CliTargetConfig,
+} from "../../src/auth/config.js";
 import {
   type BrowserLoginOptions,
   DEFAULT_OAUTH_REDIRECT_PATH,
@@ -27,7 +30,6 @@ import {
   buildSignInMenuItems,
   canToggleSignInNetwork,
   displayTargetLabel,
-  explicitApiKeyTargetError,
   isNetworkSelectionLocked,
   nextSignInNetworkConfig,
   oauthCallbackDisplayUri,
@@ -72,21 +74,15 @@ test("TUI explicit target rejects mismatched prefixed API keys", () => {
   const mainnet = resolveHostedTargetConfig({}, "mainnet");
   const preprod = resolveHostedTargetConfig({}, "preprod");
 
-  assert.match(
-    explicitApiKeyTargetError("soko_preprod_secret", mainnet, true) || "",
+  assert.throws(
+    () => assertApiKeyTarget("soko_preprod_secret", mainnet, true),
     /belongs to preprod/,
   );
-  assert.equal(
-    explicitApiKeyTargetError("soko_mainnet_secret", mainnet, true),
-    null,
+  assert.doesNotThrow(() =>
+    assertApiKeyTarget("soko_mainnet_secret", mainnet, true),
   );
-  assert.equal(
-    explicitApiKeyTargetError("soko_preprod_secret", preprod, true),
-    null,
-  );
-  assert.equal(
-    explicitApiKeyTargetError("soko_preprod_secret", mainnet, false),
-    null,
+  assert.doesNotThrow(() =>
+    assertApiKeyTarget("soko_preprod_secret", preprod, true),
   );
 });
 
@@ -119,7 +115,6 @@ function stubCoreClient(): CoreHttpClient {
     get: async <T>() => ({}) as T,
     post: async <T>() => ({}) as T,
     patch: async <T>() => ({}) as T,
-    delete: async <T>() => ({}) as T,
   };
 }
 
@@ -236,19 +231,12 @@ test("env SOKOSUMI_API_URL still validates mismatched API keys when network is u
 
   assert.equal(isNetworkSelectionLocked(config, {}), false);
   assert.equal(targetExplicit, true);
-  assert.match(
-    explicitApiKeyTargetError("soko_preprod_secret", config, targetExplicit) ||
-      "",
+  assert.throws(
+    () => assertApiKeyTarget("soko_preprod_secret", config, targetExplicit),
     /belongs to preprod/,
   );
-  assert.equal(
-    explicitApiKeyTargetError("soko_mainnet_secret", config, targetExplicit),
-    null,
-  );
-  assert.equal(
-    explicitApiKeyTargetError("soko_preprod_secret", config, false),
-    null,
-    "callers must pass targetExplicit=true when SOKOSUMI_API_URL is set",
+  assert.doesNotThrow(() =>
+    assertApiKeyTarget("soko_mainnet_secret", config, targetExplicit),
   );
 });
 

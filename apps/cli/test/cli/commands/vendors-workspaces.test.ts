@@ -10,7 +10,6 @@ function clientWith(response: unknown): CoreHttpClient {
     get: async <T>() => response as T,
     post: async <T>() => ({}) as T,
     patch: async <T>() => ({}) as T,
-    delete: async <T>() => ({}) as T,
   };
 }
 

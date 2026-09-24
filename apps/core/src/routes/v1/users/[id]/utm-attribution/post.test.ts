@@ -27,12 +27,9 @@ vi.mock("@/lib/db/prisma", () => ({
     user: {
       findUnique: userFindUniqueMock,
     },
-  },
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  utmAttributionRepository: {
-    createUTMAttribution: createUTMAttributionMock,
+    uTMAttribution: {
+      upsert: createUTMAttributionMock,
+    },
   },
 }));
 
@@ -109,14 +106,20 @@ describe("POST /users/{id}/utm-attribution", () => {
 
     expect(response.status).toBe(200);
     expect(createUTMAttributionMock).toHaveBeenCalledWith(
-      USER_ID,
       expect.objectContaining({
-        utm_source: "google",
-        utm_medium: "cpc",
-        utm_campaign: "spring_launch",
-        capturedAt: CAPTURED_AT,
+        where: { userId: USER_ID },
+        create: expect.objectContaining({
+          utmSource: "google",
+          utmMedium: "cpc",
+          utmCampaign: "spring_launch",
+          capturedAt: new Date(CAPTURED_AT),
+        }),
+        update: expect.objectContaining({
+          utmSource: "google",
+          utmMedium: "cpc",
+          utmCampaign: "spring_launch",
+        }),
       }),
-      expect.anything(),
     );
 
     const body = await response.json();
@@ -158,14 +161,5 @@ describe("POST /users/{id}/utm-attribution", () => {
 
     expect(response.status).toBe(401);
     expect(createUTMAttributionMock).not.toHaveBeenCalled();
-  });
-
-  it("returns 500 when the repository returns null", async () => {
-    createUTMAttributionMock.mockResolvedValue(null);
-
-    const app = createApp();
-    const response = await post(app, validBody());
-
-    expect(response.status).toBe(500);
   });
 });

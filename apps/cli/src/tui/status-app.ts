@@ -27,6 +27,7 @@ import {
   selectBootRoute,
 } from "../auth/bootstrap.js";
 import {
+  assertApiKeyTarget,
   type CliTargetConfig,
   MAINNET_API_URL,
   PREPROD_API_URL,
@@ -140,18 +141,18 @@ export function resolveHostedTargetConfig(
   });
 }
 
-export function explicitApiKeyTargetError(
+function explicitApiKeyError(
   apiKey: string,
   config: CliTargetConfig,
   targetExplicit: boolean,
 ): string | null {
   if (!targetExplicit) return null;
-  const detectedTarget = targetFromUserApiKey(apiKey);
-  if (!detectedTarget) return null;
-  if (config.target === "custom" || detectedTarget !== config.target) {
-    return `API key belongs to ${detectedTarget}, but the explicit target is ${config.target}.`;
+  try {
+    assertApiKeyTarget(apiKey, config, true);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
   }
-  return null;
 }
 
 export function displayTargetLabel(config: CliTargetConfig): string {
@@ -693,7 +694,7 @@ function StatusApp({
     setApiKeyBuffer("");
     setBusy(false);
     const detectedTarget = targetFromUserApiKey(apiKey);
-    const mismatch = explicitApiKeyTargetError(
+    const mismatch = explicitApiKeyError(
       apiKey,
       selectedConfig,
       targetExplicit,
@@ -727,7 +728,7 @@ function StatusApp({
   const beginApiKeyLogin = () => {
     const envApiKey = String(env.SOKOSUMI_API_KEY || "").trim();
     if (envApiKey) {
-      const mismatch = explicitApiKeyTargetError(
+      const mismatch = explicitApiKeyError(
         envApiKey,
         selectedConfig,
         targetExplicit,
