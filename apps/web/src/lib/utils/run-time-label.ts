@@ -9,9 +9,8 @@ export type RunTimeLabelKey =
 
 /**
  * Relative label for an upcoming start: minutes or hours while it is close,
- * "tomorrow at" for tomorrow, else a date and time. Each caller maps the keys
- * onto its own copy, so a schedule's next run and a Task's Run at share the
- * thresholds without sharing wording.
+ * "tomorrow at" for tomorrow, else a date and time. The caller maps the keys
+ * onto its own copy.
  */
 export function formatRunTimeLabel(
   at: Date,

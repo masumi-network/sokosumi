@@ -107,10 +107,7 @@ import {
   type TasksViewMode,
 } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
-import {
-  type TaskMutationErrorKind,
-  taskScheduleSeriesFeedbackKey,
-} from "@/lib/utils/task-schedule-feedback";
+import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import {
   CreateTaskModal,
   CreateTaskModalProvider,
@@ -317,7 +314,6 @@ interface TasksViewProps {
     loadMore: string;
     loading: string;
     dragError: string;
-    scheduleActiveError: string;
     loadMoreError: string;
     loadJobsError: string;
     reopenToReady: TaskReopenToReadyDialogLabels & {
@@ -365,28 +361,17 @@ export function TasksView({
   const pathname = usePathname();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const searchParams = useSearchParams();
-  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const tTasks = useTranslations("App.Tasks");
   /**
-   * The board already restored the card by the time this runs. Every stable
-   * series kind gets its own recovery — the refused move is named in the
-   * board's own words — and only a stale client gets the reload modal.
+   * The board already restored the card by the time this runs. A refused move
+   * gets the status error; only a stale client gets the reload modal.
    */
   const reportDragRejection = (kind: TaskMutationErrorKind) => {
     if (kind === CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE) {
       toast.error(tTasks("Errors.updateStatus"));
       return;
     }
-    const feedbackKey = taskScheduleSeriesFeedbackKey(kind);
-    if (!feedbackKey) {
-      showCalendarClientUpgradeModal();
-      return;
-    }
-    toast.error(
-      feedbackKey === "activeSeries"
-        ? labels.scheduleActiveError
-        : tSeries(feedbackKey),
-    );
+    showCalendarClientUpgradeModal();
   };
   const [createdProjects, setCreatedProjects] = useState<ProjectFilterOption[]>(
     [],

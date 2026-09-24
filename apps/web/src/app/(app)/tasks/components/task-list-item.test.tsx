@@ -51,8 +51,6 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
     columnId: "todo",
     events: [],
     agents: [],
-    metadata: null,
-    nextRunAt: null,
   };
 }
 

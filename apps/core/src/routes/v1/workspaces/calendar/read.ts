@@ -12,7 +12,6 @@ import {
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { badRequest, notFound } from "@/helpers/error";
-import { CALENDAR_OCCURRENCE_HORIZON_MS } from "@/helpers/task-schedule-occurrence-index";
 import {
   buildHumanTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
@@ -32,6 +31,7 @@ import {
   type TaskScheduleReader,
   taskScheduleVisibilityWhere,
 } from "@/services/task-schedule.service";
+import { RUN_HORIZON_MS } from "@/services/task-schedule-runs.service";
 
 interface CalendarCursor {
   id: string;
@@ -163,10 +163,10 @@ function validateRange(from: string, to: string): { from: Date; to: Date } {
   ) {
     throw badRequest("to must be after from");
   }
-  if (toDate.getTime() - fromDate.getTime() > CALENDAR_OCCURRENCE_HORIZON_MS) {
+  if (toDate.getTime() - fromDate.getTime() > RUN_HORIZON_MS) {
     throw badRequest("Calendar range cannot exceed 90 days");
   }
-  if (toDate.getTime() > Date.now() + CALENDAR_OCCURRENCE_HORIZON_MS) {
+  if (toDate.getTime() > Date.now() + RUN_HORIZON_MS) {
     throw badRequest(
       "Calendar browse range cannot extend beyond the next 90 days",
     );

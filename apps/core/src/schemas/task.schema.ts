@@ -340,18 +340,6 @@ const taskBaseSchema = z.object({
       "Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.",
     example: null,
   }),
-  metadata: z.string().nullable().openapi({
-    description: "Serialized task schedule metadata JSON",
-    example: null,
-  }),
-  nextRunAt: dateTimeSchema.nullable().openapi({
-    description: "Next scheduled run time for queued tasks",
-    example: "2026-06-24T09:00:00.000Z",
-  }),
-  scheduleRevision: z.number().int().nonnegative().default(0).openapi({
-    description: "Revision used for optimistic schedule mutations",
-    example: 0,
-  }),
   runAt: dateTimeSchema.nullable().openapi({
     description:
       "The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.",

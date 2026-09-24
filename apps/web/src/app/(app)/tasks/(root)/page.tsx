@@ -420,7 +420,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           },
           columns: columnLabels,
           dragError: t("Errors.updateStatus"),
-          scheduleActiveError: t("Errors.scheduleActive"),
           loadMoreError: t("Errors.loadMore"),
           loadJobsError: t("Errors.loadJobs"),
           reopenToReady: {

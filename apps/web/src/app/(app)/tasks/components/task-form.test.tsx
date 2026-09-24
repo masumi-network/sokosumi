@@ -1272,7 +1272,7 @@ describe("TaskForm", () => {
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue({
       ok: false,
-      error: { kind: "idempotency_conflict" },
+      error: { kind: "status_not_selectable" },
     });
 
     render(

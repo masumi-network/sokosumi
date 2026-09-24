@@ -252,6 +252,14 @@ describe("GET /workspaces/calendar/sources", () => {
         coworkerFindFirstMock.mockResolvedValue(null);
       },
     ],
+    [
+      "reaches the member through a baseline Task but has no workspace grant",
+      COWORKER_AUTH_CONTEXT,
+      () => {
+        vendorGrantFindUniqueMock.mockResolvedValue(null);
+        taskFindFirstMock.mockResolvedValue({ id: "task_baseline" });
+      },
+    ],
   ])(
     "keeps sources visible but unschedulable when the caller %s",
     async (_reason, authContext, deny) => {

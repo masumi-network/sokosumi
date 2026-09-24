@@ -21,11 +21,8 @@ const {
   sendFollowUpsMock,
   purgeExpiredTaskX402PaymentHeadersMock,
   syncProjectClosesMock,
-  syncDueTaskSchedulesMock,
   releaseDueTaskSchedulesMock,
   releaseDueRunAtsMock,
-  reconcileScheduleHistoryMock,
-  validateActiveSchedulesMock,
 } = vi.hoisted(() => ({
   releaseDueTaskSchedulesMock: vi.fn(),
   releaseDueRunAtsMock: vi.fn(),
@@ -46,9 +43,6 @@ const {
   sendFollowUpsMock: vi.fn(),
   purgeExpiredTaskX402PaymentHeadersMock: vi.fn(),
   syncProjectClosesMock: vi.fn(),
-  syncDueTaskSchedulesMock: vi.fn(),
-  reconcileScheduleHistoryMock: vi.fn(),
-  validateActiveSchedulesMock: vi.fn(),
 }));
 
 /** The mocked `LOCK_TIMEOUT`, which the env mock below hands the handler. */
@@ -155,12 +149,6 @@ vi.mock("@/services/task-x402-payment.purge", () => ({
   },
 }));
 
-vi.mock("@/services/task-schedules-sync", () => ({
-  taskSchedulesSyncService: {
-    syncDueSchedules: syncDueTaskSchedulesMock,
-  },
-}));
-
 vi.mock("@/services/task-schedule-runs.service", () => ({
   taskScheduleReleaseService: {
     releaseDueSchedules: releaseDueTaskSchedulesMock,
@@ -177,18 +165,6 @@ vi.mock("@/services/project-close-sync.service", () => ({
 vi.mock("@/services/calendar-invalidation-outbox.service", () => ({
   calendarInvalidationOutboxService: {
     syncInvalidations: syncCalendarInvalidationsMock,
-  },
-}));
-
-vi.mock("@/services/task-schedule-reconciliation.service", () => ({
-  taskScheduleReconciliationService: {
-    reconcileScheduleHistory: reconcileScheduleHistoryMock,
-  },
-}));
-
-vi.mock("@/services/task-schedule-validation.service", () => ({
-  taskScheduleValidationService: {
-    validateActiveSchedules: validateActiveSchedulesMock,
   },
 }));
 
@@ -273,16 +249,11 @@ describe("sync routes", () => {
       sent: 0,
       reachedEnd: true,
     });
-    syncDueTaskSchedulesMock.mockResolvedValue({
-      promoted: 0,
-      cloned: 0,
-      durationMs: 0,
-    });
     releaseDueTaskSchedulesMock.mockResolvedValue({ released: 0, ended: 0 });
     releaseDueRunAtsMock.mockResolvedValue({ released: 0, failed: 0 });
     syncProjectClosesMock.mockResolvedValue({
       claimed: 0,
-      processedSeries: 0,
+      processedSchedules: 0,
       closed: 0,
       failed: 0,
     });
@@ -290,19 +261,6 @@ describe("sync routes", () => {
       claimed: 0,
       published: 0,
       failed: 0,
-    });
-    reconcileScheduleHistoryMock.mockResolvedValue({
-      scanned: 0,
-      created: 0,
-      finalMissing: 0,
-      initialComplete: true,
-      replayComplete: true,
-      finalComplete: true,
-    });
-    validateActiveSchedulesMock.mockResolvedValue({
-      scanned: 0,
-      quarantined: 0,
-      passComplete: true,
     });
   });
 
@@ -382,7 +340,7 @@ describe("sync routes", () => {
     expect(syncJobsMock).not.toHaveBeenCalled();
   });
 
-  it("runs due schedules, validation, and reconciliation within one deadline", async () => {
+  it("releases due Task Schedules, then Run ats, then Calendar invalidations", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/sync/task-schedules", {
@@ -393,43 +351,23 @@ describe("sync routes", () => {
 
     expect(response.status).toBe(200);
     await flushMicrotasks();
-    expect(syncDueTaskSchedulesMock).toHaveBeenCalledTimes(1);
-    expect(syncDueTaskSchedulesMock).toHaveBeenCalledWith({
+    const executionOptions = {
       abortSignal: expect.any(AbortSignal),
       deadlineMs: expect.any(Number),
       shouldContinue: expect.any(Function),
-    });
-    expect(releaseDueTaskSchedulesMock).toHaveBeenCalledWith({
-      abortSignal: expect.any(AbortSignal),
-      deadlineMs: expect.any(Number),
-      shouldContinue: expect.any(Function),
-    });
-    expect(releaseDueRunAtsMock).toHaveBeenCalledWith({
-      abortSignal: expect.any(AbortSignal),
-      deadlineMs: expect.any(Number),
-      shouldContinue: expect.any(Function),
-    });
-    expect(validateActiveSchedulesMock).toHaveBeenCalledTimes(1);
-    expect(validateActiveSchedulesMock).toHaveBeenCalledWith({
-      shouldContinue: expect.any(Function),
-    });
-    expect(reconcileScheduleHistoryMock).toHaveBeenCalledTimes(1);
-    expect(reconcileScheduleHistoryMock).toHaveBeenCalledWith({
-      shouldContinue: expect.any(Function),
-    });
+    };
+    expect(releaseDueTaskSchedulesMock).toHaveBeenCalledWith(executionOptions);
+    expect(releaseDueRunAtsMock).toHaveBeenCalledWith(executionOptions);
     expect(syncCalendarInvalidationsMock).toHaveBeenCalledWith({
       newestFirst: true,
       shouldContinue: expect.any(Function),
     });
-    expect(syncDueTaskSchedulesMock.mock.invocationCallOrder[0]).toBeLessThan(
-      validateActiveSchedulesMock.mock.invocationCallOrder[0],
+    expect(
+      releaseDueTaskSchedulesMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(releaseDueRunAtsMock.mock.invocationCallOrder[0]);
+    expect(releaseDueRunAtsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      syncCalendarInvalidationsMock.mock.invocationCallOrder[0],
     );
-    expect(
-      validateActiveSchedulesMock.mock.invocationCallOrder[0],
-    ).toBeLessThan(reconcileScheduleHistoryMock.mock.invocationCallOrder[0]);
-    expect(
-      reconcileScheduleHistoryMock.mock.invocationCallOrder[0],
-    ).toBeLessThan(syncCalendarInvalidationsMock.mock.invocationCallOrder[0]);
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 

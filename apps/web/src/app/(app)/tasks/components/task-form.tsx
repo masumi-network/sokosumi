@@ -480,8 +480,8 @@ export function TaskForm({
       const assigneeKindChanged = previousIsAgent !== isAgent || isUnassigned;
 
       // Queued is agent-only, so a person or no one cannot keep a Run at.
-      const nextRunAt = isAgent ? runAt : null;
-      if (nextRunAt !== runAt) {
+      const keptRunAt = isAgent ? runAt : null;
+      if (keptRunAt !== runAt) {
         setRunAt(null);
       }
 
@@ -491,13 +491,13 @@ export function TaskForm({
         (status === TaskStatus.QUEUED &&
           !canSelectQueuedTaskStatus({
             isAgent,
-            hasRunAt: nextRunAt !== null,
+            hasRunAt: keptRunAt !== null,
           }));
       if (shouldResolveStatus) {
         setStatus(
           resolveStatusForAssigneeAndRunAt({
             isAgent,
-            hasRunAt: nextRunAt !== null,
+            hasRunAt: keptRunAt !== null,
           }),
         );
       }
@@ -954,8 +954,8 @@ export function TaskForm({
     router.push("/tasks");
   };
 
-  function handleRunAtApply(nextRunAt: string) {
-    setRunAt(nextRunAt);
+  function handleRunAtApply(value: string) {
+    setRunAt(value);
     setStatus(TaskStatus.QUEUED);
   }
 

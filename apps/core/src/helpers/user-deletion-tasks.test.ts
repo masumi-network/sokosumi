@@ -1023,7 +1023,6 @@ describe("prepareTasksForUserDeletion", () => {
           [
             "taskScheduleRun",
             "taskLink",
-            "taskScheduleQuarantine",
             "taskScheduleCreateOperation",
             "taskEvent",
             "projectEvent",

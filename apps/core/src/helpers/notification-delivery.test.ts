@@ -134,15 +134,6 @@ describe("toNotificationCategory", () => {
     ]);
   });
 
-  it("keeps operator schedule removal on the quiet update row", () => {
-    const messageKey = "Notifications.Task.scheduleRemovedByOperator";
-
-    expect(TASK_ATTENTION_MESSAGE_KEYS).not.toContain(messageKey);
-    expect(toNotificationCategory(NotificationKind.TASK, messageKey)).toBe(
-      "TASK_UPDATE",
-    );
-  });
-
   it("puts every listed attention key on the loud row", () => {
     for (const key of TASK_ATTENTION_MESSAGE_KEYS) {
       expect(toNotificationCategory(NotificationKind.TASK, key)).toBe(

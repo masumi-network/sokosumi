@@ -1,41 +1,19 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { CalendarSourceType } from "@sokosumi/database";
-import { HTTPException } from "hono/http-exception";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { type AuthenticationContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { workspaceCalendarSourceSchema } from "@/schemas/workspace-calendar.schema";
-import { requireScheduledTaskCreator } from "@/services/task-schedule-create.service";
-
-async function isScheduledTaskCreationAllowed(
-  authContext: AuthenticationContext,
-  organizationId: string | null,
-): Promise<boolean> {
-  try {
-    const creator = await requireScheduledTaskCreator(authContext);
-    await requireAssignedOrganizationSeat(
-      creator.userContext.userId,
-      organizationId,
-    );
-    return true;
-  } catch (error) {
-    if (error instanceof HTTPException && error.status === 403) {
-      return false;
-    }
-    throw error;
-  }
-}
+import { canCreateTaskSchedules } from "@/services/task-schedule.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -62,10 +40,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
     await requireCalendarBetaAccess(userContext.userId, prisma);
     const workspaceId = workspaceContext.workspaceId;
-    const isSchedulable = await isScheduledTaskCreationAllowed(
-      c.var.authContext,
-      workspaceContext.organizationId,
-    );
+    const isSchedulable = await canCreateTaskSchedules(c.var);
 
     const [workspace, projects, legacyOccurrence] = await Promise.all([
       prisma.workspace.findUnique({

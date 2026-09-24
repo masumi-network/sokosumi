@@ -1559,8 +1559,7 @@
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
         "loadMore": "Weitere Aufgaben konnten nicht geladen werden",
         "loadCreateTask": "Formular zum Erstellen einer Aufgabe konnte nicht geladen werden",
-        "loadJobs": "Jobs konnten nicht geladen werden",
-        "scheduleActive": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne den Zeitplan, bevor du sie verschiebst."
+        "loadJobs": "Jobs konnten nicht geladen werden"
       },
       "Card": {
         "comments": "Kommentare",
@@ -1763,9 +1762,7 @@
             "parent": "Übergeordnete Aufgabe",
             "subtask": "Unteraufgabe",
             "duplicate": "Duplikat",
-            "addSubtask": "Unteraufgabe hinzufügen",
-            "scheduleRun": "Geplanter Lauf",
-            "scheduleSeries": "Zeitplan"
+            "addSubtask": "Unteraufgabe hinzufügen"
           },
           "personalWorkspace": "Persönlich",
           "startWorking": "Arbeit beginnen",
@@ -1809,7 +1806,6 @@
           "switchError": "Arbeitsbereich konnte nicht gewechselt werden. Bitte versuche es erneut."
         },
         "clonedFrom": "Geklont von {name}",
-        "schedule": "Zeitplan",
         "pendingApproval": "Freigabe ausstehend",
         "VendorGrantApproval": {
           "title": "Freigabe des Vendor-Zugriffs erforderlich",
@@ -1827,45 +1823,6 @@
           "title": "Warten auf Freigabe des Vendor-Zugriffs",
           "description": "Diese Aufgabe ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt.",
           "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt. Sie ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt."
-        },
-        "ScheduleSeries": {
-          "title": "Zeitplan",
-          "calendar": "Kalender",
-          "repeats": "Wiederholung",
-          "timezone": "Zeitzone",
-          "nextRun": "Nächster Lauf",
-          "removed": "Dieser Zeitplan wurde entfernt. Vergangene Läufe bleiben unten erhalten.",
-          "tabsLabel": "Zeitplanläufe",
-          "upcomingTab": "Anstehend",
-          "historyTab": "Verlauf",
-          "upcomingListLabel": "Anstehende Läufe",
-          "historyListLabel": "Vergangene Läufe",
-          "upcomingEmpty": "Keine anstehenden Läufe. Neue Läufe erscheinen hier, sobald der Zeitplan sie einplant.",
-          "upcomingEmptyRemoved": "Keine anstehenden Läufe – dieser Zeitplan wurde entfernt.",
-          "historyEmpty": "Keine vergangenen Läufe. Gestartete, abgebrochene und verpasste Läufe erscheinen hier.",
-          "loadMore": "Mehr laden",
-          "loading": "Wird geladen",
-          "loadMoreError": "Weitere Läufe konnten nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.",
-          "occurrencesError": "Läufe konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
-          "movedFrom": "Verschoben von {original}",
-          "statePlanned": "Geplant",
-          "stateSkipped": "Übersprungen",
-          "stateCanceled": "Abgebrochen",
-          "stateReleased": "Gestartet",
-          "stateMissed": "Verpasst",
-          "archivedRun": "Archiviert",
-          "move": "Verschieben",
-          "skip": "Überspringen",
-          "restore": "Wiederherstellen",
-          "mutationError": "Dieser Lauf konnte nicht geändert werden. Bitte versuche es erneut.",
-          "moveSource": "Kalender wechseln",
-          "moveSourceTitle": "Diesen Zeitplan verschieben?",
-          "moveSourceLabel": "Zielkalender",
-          "moveSourceDescription": "Wähle den Kalender, in dem dieser Zeitplan neue Läufe erstellt. Beim Verschieben werden {count, plural, =0 {keine geänderten anstehenden Läufe} one {# geänderter anstehender Lauf} other {# geänderte anstehende Läufe}} abgebrochen. Vergangene und bereits gestartete Läufe bleiben unverändert.",
-          "moveSourceCancel": "Aktuellen Kalender behalten",
-          "moveSourceConfirm": "Zeitplan verschieben",
-          "moveSourceSuccess": "Der Zeitplan wurde in den neuen Kalender verschoben.",
-          "moveSourceError": "Dieser Zeitplan konnte nicht verschoben werden. Lade die Aufgabe neu und versuche es erneut."
         },
         "files": "Dateien",
         "assignee": "Zuständig",
@@ -1986,37 +1943,6 @@
         "title": "Zeitplan",
         "description": "Einmalige oder wiederkehrende Ausführung planen.",
         "clearSchedule": "Zeitplan entfernen",
-        "series": {
-          "discardTitle": "{count, plural, one {# geänderten Lauf} other {# geänderte Läufe}} verwerfen?",
-          "discardDescription": "Wenn du eine neue Regel für die gesamte Serie speicherst, {count, plural, one {wird der verschobene oder übersprungene bevorstehende Lauf abgebrochen} other {werden die # verschobenen oder übersprungenen bevorstehenden Läufe abgebrochen}}. Bereits erfolgte Läufe bleiben erhalten.",
-          "discardCancel": "Aktuellen Zeitplan behalten",
-          "discardConfirm": "Speichern und verwerfen",
-          "revisionConflict": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Aufgabe neu, öffne den Zeitplan erneut und wende deine Änderung noch einmal an.",
-          "quarantined": "Dieser Zeitplan ist zur Reparatur pausiert und kann nicht geändert werden. Wende dich an den Support, um ihn wiederherzustellen.",
-          "operationConflict": "Diese Speicherung wurde bereits mit anderen Angaben gesendet. Öffne den Zeitplan erneut und versuche es noch einmal.",
-          "activeSeries": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne zuerst ihren Zeitplan.",
-          "unknownCount": "Wir konnten nicht prüfen, welche bevorstehenden Läufe eine neue Regel abbrechen würde. Lade die Seite neu, öffne den Zeitplan erneut und versuche es noch einmal.",
-          "occurrenceLocked": "Dieses Vorkommen kann nicht mehr geändert werden.",
-          "occurrenceTargetInvalid": "Dieser Zeitpunkt ist kein gültiges Ziel."
-        },
-        "occurrenceMove": {
-          "title": "Vorkommen verschieben",
-          "description": "Wähle eine neue Zeit für diesen Lauf.",
-          "label": "Neue Zeit",
-          "confirm": "Vorkommen verschieben",
-          "cancel": "Abbrechen",
-          "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
-          "error": "Dieses Vorkommen konnte nicht verschoben werden. Bitte versuche es erneut."
-        },
-        "occurrenceRestore": {
-          "title": "Vorkommen wiederherstellen",
-          "description": "Stelle diesen Lauf zur ursprünglichen Zeit wieder her oder wähle eine andere zukünftige Zeit.",
-          "label": "Wiederhergestellte Zeit",
-          "confirm": "Vorkommen wiederherstellen",
-          "cancel": "Abbrechen",
-          "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
-          "error": "Dieses Vorkommen konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
-        },
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",
@@ -2053,13 +1979,6 @@
         },
         "save": "Save",
         "cancel": "Cancel",
-        "card": {
-          "overdue": "Überfällig",
-          "dueInMinutes": "Fällig in {minutes, plural, one {# Minute} other {# Minuten}}",
-          "dueInHours": "Fällig in {hours, plural, one {# Stunde} other {# Stunden}}",
-          "tomorrowAt": "Morgen um {time}",
-          "nextRunAt": "Nächste Ausführung: {datetime}"
-        },
         "errors": {
           "required": "This field is required.",
           "futureDateTime": "Select a future date and time.",

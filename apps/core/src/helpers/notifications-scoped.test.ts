@@ -42,7 +42,7 @@ const notification = {
   kind: NotificationKind.TASK,
   referenceId: "task_1",
   eventId: "event_1",
-  messageKey: "Notifications.Task.scheduleUpdatedByMember",
+  messageKey: "Notifications.Task.failed",
   messageParams: JSON.stringify({ taskName: "Plan" }),
   metadata: JSON.stringify({ workspaceId: WORKSPACE_ID }),
   isRead: false,

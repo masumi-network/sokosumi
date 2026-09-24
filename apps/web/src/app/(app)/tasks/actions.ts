@@ -1,6 +1,5 @@
 "use server";
 
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import type { KanbanColumnId } from "@/app/tasks/types/task-board";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
@@ -16,18 +15,9 @@ import {
   sanitizeTasksVisibilityInput,
   TasksScope,
 } from "@/app/tasks/utils/tasks-filters";
-import {
-  TASK_SCHEDULE_OCCURRENCE_PAGE_LIMIT,
-  TASKS_COLUMN_PAGE_LIMIT,
-} from "@/app/tasks/utils/tasks-pagination";
+import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/auth.server";
-import { CoreApiRequestError } from "@/lib/clients/core.request";
-import type {
-  Task,
-  TaskScheduleOccurrence,
-  TaskScheduleOccurrenceView,
-  TaskScheduleState,
-} from "@/lib/clients/generated/core";
+import type { Task, TaskScheduleState } from "@/lib/clients/generated/core";
 import { getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services/agent.service";
@@ -298,66 +288,6 @@ export async function loadJobsTabData(
     agentPreviewById,
     jobAgentOptions,
   };
-}
-
-interface LoadMoreTaskScheduleOccurrencesParams {
-  taskId: string;
-  view: TaskScheduleOccurrenceView;
-  cursor: string;
-}
-
-/**
- * A cursor is keyed to the schedule revision it was minted at, so Core rejects
- * it as `schedule_cursor_stale` once the series changes. That is reported as a
- * state, not an error: the client refreshes the route and starts over from the
- * server-rendered first page.
- */
-export type LoadMoreTaskScheduleOccurrencesResult =
-  | {
-      status: "ok";
-      occurrences: TaskScheduleOccurrence[];
-      nextCursor: string | null;
-    }
-  | { status: "stale" };
-
-export interface TaskScheduleSeriesPreconditionResult {
-  scheduleRevision: number;
-  futureExceptionCount: number;
-}
-
-export async function loadTaskScheduleSeriesPrecondition(
-  taskId: string,
-): Promise<TaskScheduleSeriesPreconditionResult> {
-  return await taskScheduleService.readSeriesState(taskId);
-}
-
-export async function loadMoreTaskScheduleOccurrences({
-  taskId,
-  view,
-  cursor,
-}: LoadMoreTaskScheduleOccurrencesParams): Promise<LoadMoreTaskScheduleOccurrencesResult> {
-  try {
-    const page = await taskScheduleService.listOccurrences(taskId, {
-      view,
-      cursor,
-      limit: TASK_SCHEDULE_OCCURRENCE_PAGE_LIMIT,
-    });
-
-    return {
-      status: "ok",
-      occurrences: page.occurrences,
-      nextCursor: page.nextCursor,
-    };
-  } catch (error) {
-    if (
-      error instanceof CoreApiRequestError &&
-      error.kind === CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE
-    ) {
-      return { status: "stale" };
-    }
-
-    throw error;
-  }
 }
 
 async function loadCreateTaskData(userId: string | null) {

@@ -22,7 +22,6 @@ import {
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
 import {
-  applyTaskListScheduleWhere,
   applyTaskListStatusWhere,
   buildTaskListStatusWhere,
 } from "@/helpers/task-list-filters";
@@ -97,12 +96,12 @@ const projectIdQuerySchema = z
   });
 
 const taskSortQuerySchema = z
-  .enum(["nextRunAt", "createdAt"])
+  .enum(["createdAt"])
   .optional()
   .openapi({
     param: { name: "sort", in: "query" },
     description:
-      "nextRunAt: next scheduled run ascending (nulls last). createdAt: newest created first. Omitted: most recently updated first.",
+      "createdAt: newest created first. Omitted: most recently updated first.",
     example: "createdAt",
   });
 
@@ -126,17 +125,6 @@ const scheduleIdQuerySchema = z
     example: "01960001-0001-7001-8001-000000000042",
   });
 
-const hasScheduleQuerySchema = z
-  .enum(["true", "false"])
-  .optional()
-  .transform((value) => (value === undefined ? undefined : value === "true"))
-  .openapi({
-    param: { name: "hasSchedule", in: "query" },
-    description:
-      "When true, only tasks with an active schedule series (metadata or nextRunAt set). When false, only tasks without one. Omit to return all tasks.",
-    example: "true",
-  });
-
 const query = z
   .object({
     q: taskNameQuerySchema,
@@ -145,7 +133,6 @@ const query = z
     projectId: projectIdQuerySchema,
     sort: taskSortQuerySchema,
     visibility: taskVisibilityQuerySchema,
-    hasSchedule: hasScheduleQuerySchema,
     scheduleId: scheduleIdQuerySchema,
     assigneeId: z
       .string()
@@ -198,7 +185,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List tasks in the active workspace (paginated). hasSchedule=true returns only tasks with an active schedule series (metadata or nextRunAt set); hasSchedule=false returns only tasks without one. Use sort=nextRunAt to order series by their next run.",
+      "List tasks in the active workspace (paginated). Filter by scheduleId for the Tasks a Task Schedule created.",
     tags: ["Tasks"],
     request: {
       query,
@@ -220,7 +207,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeId,
       assigneeSokoBotId,
       assigneeUserId,
-      hasSchedule,
       projectId,
       q,
       scheduleId,
@@ -349,21 +335,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    where = applyTaskListScheduleWhere(where, hasSchedule);
-
     const takePlusOne = take + 1;
     const orderBy =
-      sort === "nextRunAt"
-        ? ([
-            { nextRunAt: { sort: "asc" as const, nulls: "last" as const } },
-            { id: "asc" as const },
-          ] as const)
-        : sort === "createdAt"
-          ? ([{ createdAt: "desc" as const }, { id: "desc" as const }] as const)
-          : ([
-              { updatedAt: "desc" as const },
-              { id: "desc" as const },
-            ] as const);
+      sort === "createdAt"
+        ? ([{ createdAt: "desc" as const }, { id: "desc" as const }] as const)
+        : ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const);
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of
     // loading each task's full event and job graphs.

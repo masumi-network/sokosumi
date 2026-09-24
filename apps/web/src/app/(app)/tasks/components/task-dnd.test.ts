@@ -50,9 +50,6 @@ describe("task-dnd", () => {
   });
 
   describe("isTaskDnDDraggable", () => {
-    const scheduledMetadata = JSON.stringify({
-      schedule: { mode: "daily", timezone: "UTC" },
-    });
     const assignee = {
       id: "cow-1",
       name: "Elena",
@@ -64,30 +61,15 @@ describe("task-dnd", () => {
       expect(
         isTaskDnDDraggable({
           status: TaskStatus.DRAFT,
-          metadata: null,
-          nextRunAt: null,
           assignee: null,
         }),
       ).toBe(true);
     });
 
-    it("disallows scheduled queued backlog tasks", () => {
+    it("allows queued tasks", () => {
       expect(
         isTaskDnDDraggable({
           status: TaskStatus.QUEUED,
-          metadata: scheduledMetadata,
-          nextRunAt: "2026-06-25T09:00:00.000Z",
-          assignee,
-        }),
-      ).toBe(false);
-    });
-
-    it("allows queued tasks without an active schedule", () => {
-      expect(
-        isTaskDnDDraggable({
-          status: TaskStatus.QUEUED,
-          metadata: null,
-          nextRunAt: null,
           assignee,
         }),
       ).toBe(true);
@@ -97,16 +79,12 @@ describe("task-dnd", () => {
       expect(
         isTaskDnDDraggable({
           status: TaskStatus.COMPLETED,
-          metadata: null,
-          nextRunAt: null,
           assignee,
         }),
       ).toBe(true);
       expect(
         isTaskDnDDraggable({
           status: TaskStatus.CANCELED,
-          metadata: null,
-          nextRunAt: null,
           assignee,
         }),
       ).toBe(true);
@@ -116,8 +94,6 @@ describe("task-dnd", () => {
       expect(
         isTaskDnDDraggable({
           status: TaskStatus.COMPLETED,
-          metadata: null,
-          nextRunAt: null,
           assignee: null,
         }),
       ).toBe(false);
@@ -127,8 +103,6 @@ describe("task-dnd", () => {
       expect(
         isTaskDnDDraggable({
           status: TaskStatus.FAILED,
-          metadata: null,
-          nextRunAt: null,
           assignee,
         }),
       ).toBe(false);

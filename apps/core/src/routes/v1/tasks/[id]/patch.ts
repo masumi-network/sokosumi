@@ -2,8 +2,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { Channel, TaskStatus } from "@sokosumi/database";
 import {
-  CORE_API_ERROR_KINDS,
-  hasActiveTaskSchedule,
   isTaskEditableStatus,
   parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
@@ -48,8 +46,6 @@ import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
 } from "@/helpers/task-notifications";
-import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
-import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -99,18 +95,6 @@ export const patchTaskRequestSchema = z
         "Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.",
       example: "2026-06-24T09:00:00.000Z",
     }),
-    /**
-     * Required while the Task has an active Calendar schedule series: the
-     * revision observed by the client, checked under the Calendar/Task locks.
-     */
-    expectedScheduleRevision: z
-      .number()
-      .int()
-      .nonnegative()
-      .optional()
-      .openapi({
-        example: 3,
-      }),
   })
   .superRefine((data, ctx) => {
     refineAssigneeXorConflict(data, ctx);
@@ -187,15 +171,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeSokoBotId,
       assigneeUserId,
       runAt,
-      expectedScheduleRevision,
     } = c.req.valid("json");
-    const editsTaskFields =
-      name !== undefined ||
-      description !== undefined ||
-      context !== undefined ||
-      assigneeId !== undefined ||
-      assigneeSokoBotId !== undefined ||
-      assigneeUserId !== undefined;
 
     const result = await prisma.$transaction(async (tx) => {
       const taskSnapshot = await requireMutableTaskOwnership(
@@ -244,39 +220,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw forbidden("You can only update draft, queued, or ready tasks");
       }
 
-      // A live schedule series owns the Task's placement and its revision:
-      // moving the Calendar source belongs to SOK-887, and field edits must
-      // serialize against release through `expectedScheduleRevision`.
-      const hasActiveSeries = hasActiveTaskSchedule(
-        task.metadata,
-        task.nextRunAt,
-      );
-      if (projectIdWasProvided && (projectId ?? null) !== task.projectId) {
-        assertTaskScheduleInactive(
-          task,
-          "Remove or replace the schedule before moving this Task's Calendar source",
-        );
-      }
-      if (
-        hasActiveSeries &&
-        editsTaskFields &&
-        expectedScheduleRevision !== task.scheduleRevision
-      ) {
-        throw conflict(
-          "The schedule series changed; reload the Task and retry with its current scheduleRevision",
-          { kind: CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT },
-        );
-      }
-
       // Setting a Run at queues the Task; clearing it on a Queued Task sends
       // it back to Draft, since Queued needs a Run at (ADR 0041).
       let runAtWrite: Date | null | undefined;
       let nextStatus = task.status;
       if (runAt !== undefined) {
-        assertTaskScheduleInactive(
-          task,
-          "Remove the schedule before setting this Task's Run at",
-        );
         runAtWrite = runAt === null ? null : parseFutureRunAt(runAt);
         if (runAtWrite) {
           nextStatus = TaskStatus.QUEUED;
@@ -392,9 +340,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...(assigneeWrite ?? {}),
           runAt: runAtWrite,
           ...(nextStatus !== task.status ? { status: nextStatus } : {}),
-          ...(hasActiveSeries && editsTaskFields
-            ? { scheduleRevision: { increment: 1 } }
-            : {}),
         },
         include: buildTaskIncludeForViewer(authContext, task.workspaceId),
       });
@@ -412,16 +357,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...updatedTask,
           events: [...updatedTask.events, statusEvent],
         };
-      }
-      if (projectIdWasProvided) {
-        await refreshTaskSchedulePlannedOccurrences(tx, {
-          id: task.id,
-          workspaceId: task.workspaceId,
-          projectId: projectId ?? null,
-          status: task.status,
-          metadata: task.metadata,
-          nextRunAt: task.nextRunAt,
-        });
       }
       return {
         task: updatedTask,

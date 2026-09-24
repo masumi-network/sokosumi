@@ -39,11 +39,8 @@ function buildTask(
     description: null,
     status,
     visibility: TaskVisibility.PUBLIC,
-    metadata: null,
-    nextRunAt: null,
     runAt: null,
     scheduleId: null,
-    scheduleRevision: 0,
     commentsCount: 0,
     jobsCount: 0,
     grantResumeStatus: null,
@@ -125,12 +122,10 @@ describe("mapTaskToTaskWithCoworker", () => {
   it("serializes Date timestamps to ISO strings", () => {
     const createdAt = new Date("2026-01-01T00:00:00.000Z");
     const updatedAt = new Date("2026-01-01T01:00:00.000Z");
-    const nextRunAt = new Date("2026-06-25T09:00:00.000Z");
     const runAt = new Date("2026-06-26T09:00:00.000Z");
     const task = buildTask(TaskStatus.QUEUED, {
       createdAt,
       updatedAt,
-      nextRunAt,
       runAt,
     });
 
@@ -138,7 +133,6 @@ describe("mapTaskToTaskWithCoworker", () => {
 
     expect(mapped.createdAt).toBe("2026-01-01T00:00:00.000Z");
     expect(mapped.updatedAt).toBe("2026-01-01T01:00:00.000Z");
-    expect(mapped.nextRunAt).toBe("2026-06-25T09:00:00.000Z");
     expect(mapped.runAt).toBe("2026-06-26T09:00:00.000Z");
   });
 

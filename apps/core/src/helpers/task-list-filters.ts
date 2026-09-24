@@ -5,10 +5,6 @@ export interface TaskListStatusFilterParams {
   statuses?: TaskStatus[];
 }
 
-export interface TaskListScheduleFilterParams {
-  hasSchedule?: boolean;
-}
-
 export function buildTaskListStatusWhere(
   params: TaskListStatusFilterParams,
 ): Prisma.TaskWhereInput {
@@ -19,26 +15,6 @@ export function buildTaskListStatusWhere(
   }
 
   return { status: { in: statuses } };
-}
-
-export function buildTaskListScheduleWhere(
-  params: TaskListScheduleFilterParams,
-): Prisma.TaskWhereInput {
-  const { hasSchedule } = params;
-
-  if (hasSchedule === undefined) {
-    return {};
-  }
-
-  if (hasSchedule) {
-    return {
-      OR: [{ metadata: { not: null } }, { nextRunAt: { not: null } }],
-    };
-  }
-
-  return {
-    AND: [{ metadata: null }, { nextRunAt: null }],
-  };
 }
 
 function normalizeAnd(
@@ -76,11 +52,4 @@ export function applyTaskListStatusWhere(
   statusWhere: Prisma.TaskWhereInput,
 ): Prisma.TaskWhereInput {
   return mergeTaskListWhere(where, statusWhere);
-}
-
-export function applyTaskListScheduleWhere(
-  where: Prisma.TaskWhereInput,
-  hasSchedule: boolean | undefined,
-): Prisma.TaskWhereInput {
-  return mergeTaskListWhere(where, buildTaskListScheduleWhere({ hasSchedule }));
 }

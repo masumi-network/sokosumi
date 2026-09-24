@@ -95,7 +95,6 @@ function createTask(
     } | null;
     linksFrom: unknown[];
     linksTo: unknown[];
-    scheduleRevision: number;
     status: TaskStatus;
     runAt: Date | null;
   }>,
@@ -133,9 +132,6 @@ function createTask(
     description: null,
     status: overrides?.status ?? TaskStatus.READY,
     visibility: TaskVisibility.PUBLIC,
-    metadata: null,
-    nextRunAt: null,
-    scheduleRevision: overrides?.scheduleRevision ?? 0,
     runAt: overrides?.runAt ?? null,
     events: [],
     jobs: [],
@@ -280,19 +276,6 @@ describe("GET /tasks/{id}", () => {
         },
       }),
     });
-  });
-
-  it("exposes the current schedule revision on task detail", async () => {
-    viewerTaskIncludeResult = createTask({ scheduleRevision: 4 });
-
-    const app = createApp();
-    mountGetTaskById(app);
-
-    const response = await app.request("http://localhost/tsk_a");
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data.scheduleRevision).toBe(4);
   });
 
   it("carries the Task's Run at", async () => {

@@ -3,13 +3,14 @@ import { randomUUID } from "node:crypto";
 import {
   type Prisma,
   type TaskSchedule,
-  TaskScheduleEndsMode,
   type TaskScheduleRun,
   TaskScheduleRunState,
   TaskScheduleState,
   TaskVisibility,
+  VendorGrantStatus,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { HTTPException } from "hono/http-exception";
 
 import {
   requireCoworkerCapability,
@@ -32,8 +33,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
-import { validateScheduleInput } from "@/helpers/task-schedule";
-import { CALENDAR_OCCURRENCE_HORIZON_MS } from "@/helpers/task-schedule-occurrence-index";
+import { validateTaskScheduleRule } from "@/helpers/task-schedule";
 import {
   buildCoworkerPrivateTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
@@ -69,6 +69,7 @@ import {
   isRunException,
   moveTaskScheduleRunsToProject,
   projectTaskScheduleRuns,
+  RUN_HORIZON_MS,
   stopPlannedTaskScheduleRuns,
   trimPlannedTaskScheduleRuns,
 } from "@/services/task-schedule-runs.service";
@@ -98,7 +99,10 @@ type ScheduleActor = TaskScheduleReader & { workspace: WorkspaceContext };
 
 type RouteVars = EnvVariables["Variables"];
 
-async function resolveScheduleActor(vars: RouteVars): Promise<ScheduleActor> {
+async function resolveScheduleActor(
+  vars: RouteVars,
+  { requestMissingGrant = true }: { requestMissingGrant?: boolean } = {},
+): Promise<ScheduleActor> {
   const { authContext } = vars;
   if (isSokoBotAuthContext(authContext)) {
     throw forbidden("Soko Bots cannot manage Task Schedules");
@@ -112,15 +116,20 @@ async function resolveScheduleActor(vars: RouteVars): Promise<ScheduleActor> {
 
   if (isCoworkerAuthContext(authContext)) {
     await requireCoworkerCapability(authContext.coworkerId, "tasks");
-    await requireGrantedWorkspaceAccessOrRequest({
+    const grant = await getWorkspaceGrant({
       vendorId: authContext.vendorId,
       workspaceId: workspace.workspaceId,
-      requestedByUserId: userContext.userId,
-      grant: await getWorkspaceGrant({
+    });
+    if (requestMissingGrant) {
+      await requireGrantedWorkspaceAccessOrRequest({
         vendorId: authContext.vendorId,
         workspaceId: workspace.workspaceId,
-      }),
-    });
+        requestedByUserId: userContext.userId,
+        grant,
+      });
+    } else if (grant?.status !== VendorGrantStatus.GRANTED) {
+      throw forbidden("This Coworker has no workspace grant here");
+    }
     return {
       kind: "coworker",
       coworkerId: authContext.coworkerId,
@@ -142,29 +151,6 @@ function toDomainActor(actor: ScheduleActor): TaskDomainActor {
         vendorId: actor.vendorId,
         enforceWorkspaceGrant: true,
       };
-}
-
-/**
- * The rule is checked with the same validation as the per-Task schedule it
- * replaces: timezone, cron or interval anchor, and an end date after the
- * first Run.
- */
-function validateRule(rule: TaskScheduleRule): void {
-  validateScheduleInput({
-    mode: "recurring",
-    expr: rule.expr,
-    timezone: rule.timezone,
-    endsMode:
-      rule.endsMode === TaskScheduleEndsMode.ON
-        ? "on"
-        : rule.endsMode === TaskScheduleEndsMode.AFTER
-          ? "after"
-          : "never",
-    endsOn: rule.endsOn ?? undefined,
-    occurrences: rule.targetRunCount ?? undefined,
-    intervalDays: rule.intervalDays ?? undefined,
-    anchorAt: rule.anchorAt ?? undefined,
-  });
 }
 
 /** Every new rule starts a new epoch of Runs. */
@@ -217,12 +203,30 @@ async function requireOpenScheduleProjects(
   }
 }
 
+/**
+ * Whether the caller may create a Task Schedule in the active workspace: the
+ * same gate as create, except that a missing vendor grant is not requested.
+ */
+export async function canCreateTaskSchedules(
+  vars: RouteVars,
+): Promise<boolean> {
+  try {
+    await resolveScheduleActor(vars, { requestMissingGrant: false });
+    return true;
+  } catch (error) {
+    if (error instanceof HTTPException && error.status === 403) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 export async function createTaskSchedule(
   vars: RouteVars,
   input: CreateTaskScheduleRequest,
 ): Promise<TaskSchedule> {
   const actor = await resolveScheduleActor(vars);
-  validateRule(input.rule);
+  validateTaskScheduleRule(input.rule);
   const visibility = resolveVisibility(input.visibility, actor.workspace);
   requireNoHumanAssigneeOnPrivateTask(visibility, input.assigneeUserId);
 
@@ -446,7 +450,7 @@ export async function updateTaskSchedule(
   input: UpdateTaskScheduleRequest,
 ): Promise<TaskSchedule> {
   const actor = await resolveScheduleActor(vars);
-  if (input.rule) validateRule(input.rule);
+  if (input.rule) validateTaskScheduleRule(input.rule);
 
   return await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
@@ -663,7 +667,7 @@ function runAfterAction(
   if (
     !target ||
     target <= now ||
-    target.getTime() >= now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS
+    target.getTime() >= now.getTime() + RUN_HORIZON_MS
   ) {
     throw unprocessableEntity(
       "The Run's time must be in the future and inside the projection horizon",
