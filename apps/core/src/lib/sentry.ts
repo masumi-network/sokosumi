@@ -14,7 +14,26 @@ export function initSentry() {
   Sentry.init({
     dsn: env.SENTRY_DSN,
     environment: env.SENTRY_ENVIRONMENT,
-    sendDefaultPii: true,
+    // v11 dropped `sendDefaultPii`. Keep user identity (the previous
+    // `sendDefaultPii: true` intent) and keep request bodies, cookies,
+    // headers, query strings, GenAI payloads, and query text off — those
+    // leak capability tokens and secrets. `requestDataIntegration` is the
+    // event-level override for the same categories.
+    dataCollection: {
+      userInfo: true,
+      cookies: false,
+      httpHeaders: false,
+      httpBodies: [],
+      urlQueryParams: false,
+      genAI: { inputs: false, outputs: false },
+      databaseQueryData: false,
+      graphQL: { document: false, variables: false },
+      queues: false,
+      stackFrameVariables: false,
+    },
+    // v11 default mutates `error.message` for fetch failures. Keep the
+    // original message in-process; hostname still lands on the Sentry event.
+    enhanceFetchErrorMessages: "report-only",
     // Errors are never sampled. This is the SDK default, and it is written
     // out because the two rates below are not: at 0.005 a reader has every
     // reason to read an unset third rate as sampled too, and to answer a
@@ -23,26 +42,26 @@ export function initSentry() {
     // damaged row, or once per outage, has nothing to spare.
     sampleRate: 1,
     tracesSampleRate: 0.005,
-    profilesSampleRate: 0.005,
+    profileSessionSampleRate: 0.005,
+    profileLifecycle: "trace",
     integrations: [
       nodeProfilingIntegration(),
       // The auto server span is built from the node request before any
-      // middleware runs, so its name and its url.full / http.url /
-      // http.target attributes are the concrete path. Nothing downstream can
-      // reach them: setTransactionName applies to error events only
-      // (scopeData.js skips it when event.type is "transaction"), the
-      // transaction name comes from the span, and beforeSend is never called
-      // for transaction events. `sentryMiddleware` opens its own http.server
-      // span named after the route template, which becomes the root instead.
-      // Outgoing request spans and release sessions are unaffected; only the
-      // incoming server span is dropped.
+      // middleware runs, so its name and its url.full / url.path
+      // attributes are the concrete path. Nothing downstream can reach
+      // them: setTransactionName applies to error events only, streamed
+      // spans skip beforeSend, and beforeSendSpan cannot drop them.
+      // `sentryMiddleware` opens its own http.server span named after the
+      // route template, which becomes the root instead. Outgoing request
+      // spans and release sessions are unaffected; only the incoming
+      // server span is dropped.
       Sentry.httpIntegration({ disableIncomingRequestSpans: true }),
       // The default RequestData integration attaches the raw request URL to
-      // every event, and `sendDefaultPii: true` adds the request headers and
-      // cookies with it. Paths carry capability tokens (share links, invite
-      // links, password reset links) and the headers carry the Authorization
-      // and Cookie values, so none of it may be sent. `sentryMiddleware`
-      // already reports a redacted URL and redacted headers itself.
+      // every event. Paths carry capability tokens (share links, invite
+      // links, password reset links) and the headers carry the
+      // Authorization and Cookie values, so none of it may be sent.
+      // `sentryMiddleware` already reports a redacted URL and redacted
+      // headers itself.
       Sentry.requestDataIntegration({
         include: {
           url: false,
