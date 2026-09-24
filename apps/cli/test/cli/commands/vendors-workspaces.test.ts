@@ -54,6 +54,36 @@ test("vendors me emits stable text output", async () => {
   ]);
 });
 
+test("vendors create posts name and slug then prints admin membership", async () => {
+  let posted: unknown;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: [] }) as T,
+    post: async <T>(_path: string, body: unknown) => {
+      posted = body;
+      return {
+        data: {
+          id: "vendor-new",
+          name: "Acme Labs",
+          slug: "acme-labs",
+          role: "admin",
+        },
+      } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+  };
+  const output: string[] = [];
+  await runVendorsCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    subcommand: "create",
+    options: { name: "Acme Labs", slug: "acme-labs" },
+  });
+  assert.deepEqual(posted, { name: "Acme Labs", slug: "acme-labs" });
+  assert.deepEqual(output, [
+    "Vendor Acme Labs [vendor-new]\nslug: acme-labs\nrole: admin\n",
+  ]);
+});
+
 test("vendors me describes an empty membership result", async () => {
   const output: string[] = [];
   await runVendorsCommand({
@@ -63,6 +93,37 @@ test("vendors me describes an empty membership result", async () => {
   });
 
   assert.deepEqual(output, ["No vendors found.\n"]);
+});
+
+test("vendors create uses the last repeated option value", async () => {
+  let posted: unknown;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: [] }) as T,
+    post: async <T>(_path: string, body: unknown) => {
+      posted = body;
+      return {
+        data: {
+          id: "vendor-new",
+          name: "Acme Labs",
+          slug: "acme-labs",
+          role: "admin",
+        },
+      } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+  };
+
+  await runVendorsCommand({
+    client,
+    stdout: { write: () => {} },
+    subcommand: "create",
+    options: {
+      name: ["Old Name", "Acme Labs"],
+      slug: ["old-name", "acme-labs"],
+    },
+  });
+
+  assert.deepEqual(posted, { name: "Acme Labs", slug: "acme-labs" });
 });
 
 test("workspaces JSON allowlists organization identity fields", async () => {

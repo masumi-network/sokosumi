@@ -4390,6 +4390,7 @@
           "runningSubscription": "Kündige dein laufendes Abo und warte, bis der bezahlte Zeitraum endet.",
           "billingLink": "Zur Abrechnung",
           "userOwnsOrganization": "Übertrage die Owner-Rolle oder lösche jede Organisation, die du besitzt, bevor du deinen Account löschst.",
+          "userIsLastVendorAdmin": "Ernenne ein anderes Vendor-Mitglied zum Admin oder archiviere die Coworker des Vendors, bevor du dein Konto löschst.",
           "inFlightJob": "Warte, bis laufende Jobs abgeschlossen sind, bevor du deinen Account löschst.",
           "unsettledOnChainJob": "Warte, bis On-Chain-Jobkäufe abgeschlossen sind, bevor du deinen Account löschst.",
           "inFlightTask": "Warte, bis laufende Tasks abgeschlossen sind, bevor du deinen Account löschst.",

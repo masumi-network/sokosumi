@@ -6902,11 +6902,55 @@ export const ResolveAdminTaskX402PaymentBodySchema = {
     ]
 } as const;
 
-export const VendorListSchema = {
+export const AdminVendorListSchema = {
     type: 'array',
     items: {
-        $ref: '#/components/schemas/Vendor'
+        $ref: '#/components/schemas/AdminVendor'
     }
+} as const;
+
+export const AdminVendorSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Vendor'
+        },
+        {
+            type: 'object',
+            properties: {
+                listed: {
+                    type: 'boolean',
+                    description: 'Whether this vendor appears in GET /v1/vendors.'
+                }
+            },
+            required: [
+                'listed'
+            ]
+        }
+    ]
+} as const;
+
+export const VendorLogosSchema = {
+    type: 'object',
+    properties: {
+        light: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '/images/logos/serviceplan-logo.png'
+        },
+        dark: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '/images/logos/serviceplan-logo-white.png'
+        }
+    },
+    required: [
+        'light',
+        'dark'
+    ]
 } as const;
 
 export const VendorSchema = {
@@ -6946,30 +6990,6 @@ export const VendorSchema = {
     ]
 } as const;
 
-export const VendorLogosSchema = {
-    type: 'object',
-    properties: {
-        light: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: '/images/logos/serviceplan-logo.png'
-        },
-        dark: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: '/images/logos/serviceplan-logo-white.png'
-        }
-    },
-    required: [
-        'light',
-        'dark'
-    ]
-} as const;
-
 export const CreateVendorRequestSchema = {
     type: 'object',
     properties: {
@@ -7003,13 +7023,15 @@ export const VendorLogosInputSchema = {
             type: [
                 'string',
                 'null'
-            ]
+            ],
+            maxLength: 2048
         },
         dark: {
             type: [
                 'string',
                 'null'
-            ]
+            ],
+            maxLength: 2048
         }
     }
 } as const;
@@ -7032,6 +7054,10 @@ export const PatchVendorRequestSchema = {
         },
         logos: {
             $ref: '#/components/schemas/VendorLogosInput'
+        },
+        listed: {
+            type: 'boolean',
+            description: 'Whether this vendor appears in GET /v1/vendors. Platform admin only.'
         }
     }
 } as const;
@@ -12987,6 +13013,7 @@ export const UserDeletionEvaluationSchema = {
                 enum: [
                     'RUNNING_SUBSCRIPTION',
                     'USER_OWNS_ORGANIZATION',
+                    'USER_IS_LAST_VENDOR_ADMIN',
                     'IN_FLIGHT_JOB',
                     'UNSETTLED_ON_CHAIN_JOB',
                     'IN_FLIGHT_TASK',
@@ -21867,10 +21894,10 @@ export const AblyTokenRequestSchema = {
     ]
 } as const;
 
-export const VendorMembershipListSchema = {
+export const VendorListSchema = {
     type: 'array',
     items: {
-        $ref: '#/components/schemas/VendorMembership'
+        $ref: '#/components/schemas/Vendor'
     }
 } as const;
 
@@ -21898,6 +21925,68 @@ export const VendorMemberRoleSchema = {
     enum: [
         'admin',
         'developer'
+    ]
+} as const;
+
+export const VendorMembershipListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/VendorMembership'
+    }
+} as const;
+
+export const MyVendorInviteListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/MyVendorInvite'
+    }
+} as const;
+
+export const MyVendorInviteSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        role: {
+            $ref: '#/components/schemas/VendorMemberRole'
+        },
+        status: {
+            $ref: '#/components/schemas/VendorMemberInviteStatus'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        vendor: {
+            $ref: '#/components/schemas/Vendor'
+        }
+    },
+    required: [
+        'id',
+        'role',
+        'status',
+        'expiresAt',
+        'createdAt',
+        'vendor'
+    ]
+} as const;
+
+export const VendorMemberInviteStatusSchema = {
+    type: 'string',
+    enum: [
+        'PENDING',
+        'ACCEPTED',
+        'DECLINED',
+        'REVOKED',
+        'EXPIRED'
     ]
 } as const;
 
@@ -21954,16 +22043,56 @@ export const VendorMemberSchema = {
     ]
 } as const;
 
-export const AddVendorMemberRequestSchema = {
+export const VendorMemberInviteSchema = {
     type: 'object',
     properties: {
-        userId: {
+        id: {
             type: 'string',
-            minLength: 1,
-            example: 'user_123'
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        vendorId: {
+            type: 'string',
+            example: '01960001-0001-7001-8001-000000000002'
         },
         email: {
             type: 'string',
+            format: 'email',
+            example: 'dev@example.com'
+        },
+        role: {
+            $ref: '#/components/schemas/VendorMemberRole'
+        },
+        status: {
+            $ref: '#/components/schemas/VendorMemberInviteStatus'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'vendorId',
+        'email',
+        'role',
+        'status',
+        'expiresAt',
+        'createdAt'
+    ]
+} as const;
+
+export const CreateVendorMemberInviteRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string',
+            maxLength: 320,
             format: 'email',
             example: 'dev@example.com'
         },
@@ -21973,11 +22102,21 @@ export const AddVendorMemberRequestSchema = {
                     $ref: '#/components/schemas/VendorMemberRole'
                 },
                 {
-                    description: 'Member role. Defaults to developer when omitted.',
+                    description: 'Role granted on accept. Defaults to developer when omitted.',
                     example: 'developer'
                 }
             ]
         }
+    },
+    required: [
+        'email'
+    ]
+} as const;
+
+export const VendorMemberInviteListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/VendorMemberInvite'
     }
 } as const;
 
@@ -22035,13 +22174,11 @@ export const AssignCoworkerRequestSchema = {
             type: 'string',
             minLength: 1,
             example: 'user_123'
-        },
-        email: {
-            type: 'string',
-            format: 'email',
-            example: 'dev@example.com'
         }
-    }
+    },
+    required: [
+        'userId'
+    ]
 } as const;
 
 export const VendorLogoCleanupResultSchema = {

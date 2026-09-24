@@ -24,7 +24,7 @@ struct ThreadListRow: View {
   var body: some View {
     Button(action: open) {
       HStack(alignment: .top, spacing: 10) {
-        ThreadListMark(isUnread: isUnread, namesReader: mentionCount > 0)
+        ThreadListMark(tone: isUnread ? .attention : .read, namesReader: mentionCount > 0)
         VStack(alignment: .leading, spacing: 4) {
           HStack(alignment: .top) {
             Text(label)
@@ -110,19 +110,34 @@ struct ThreadGroupHeading: View {
 }
 
 /// The leading thread mark, web's `ThreadIconCircle`: the accent tint in a circle while the thread has
-/// unread replies, a bare secondary glyph once read; an `@` in place of the bubble for a thread that names
-/// the reader. Hidden from VoiceOver; the second line says it.
-private struct ThreadListMark: View {
-  let isUnread: Bool
+/// unread replies (`attention`), a neutral circle for the sidebar's plain unread Thread (`quiet`, so a list
+/// under a room stays quiet), a bare secondary glyph once read; an `@` in place of the bubble for a thread
+/// that names the reader. Hidden from VoiceOver; the row says it in words.
+struct ThreadListMark: View {
+  enum Tone {
+    case attention, quiet, read
+  }
+
+  let tone: Tone
   let namesReader: Bool
+  /// Web's `md` on a thread list row; the sidebar's inset rows use `sm`, 18 pt.
+  var diameter: CGFloat = 22
 
   var body: some View {
     Image(systemName: namesReader ? "at" : "bubble.left")
-      .font(.caption)
-      .foregroundStyle(isUnread ? Color.accentColor : Color.secondary)
-      .frame(width: 22, height: 22)
-      .background(isUnread ? Color.accentColor.opacity(0.15) : .clear, in: .circle)
+      .font(diameter < 22 ? .caption2 : .caption)
+      .foregroundStyle(tone == .attention ? Color.accentColor : Color.secondary)
+      .frame(width: diameter, height: diameter)
+      .background(circle, in: .circle)
       .accessibilityHidden(true)
+  }
+
+  private var circle: AnyShapeStyle {
+    switch tone {
+    case .attention: AnyShapeStyle(Color.accentColor.opacity(0.15))
+    case .quiet: AnyShapeStyle(.quaternary)
+    case .read: AnyShapeStyle(.clear)
+    }
   }
 }
 

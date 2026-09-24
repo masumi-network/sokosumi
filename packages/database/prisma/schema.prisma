@@ -75,6 +75,9 @@ model User {
   // Vendor membership and coworker assignments
   vendorMembers       VendorMember[]
   coworkerAssignments CoworkerAssignment[]
+  createdVendors          Vendor[]             @relation("VendorCreatedBy")
+  vendorMemberInvitesSent VendorMemberInvite[] @relation("VendorMemberInviteInvitedBy")
+  vendorMemberInvitesGot  VendorMemberInvite[] @relation("VendorMemberInviteAcceptedBy")
 
   workspace Workspace?
 
@@ -320,10 +323,22 @@ model Vendor {
   logoLight String?
   logoDark  String?
 
+  /// The developer who self-created this vendor (POST /v1/vendors). Null for
+  /// platform-created vendors. Caps self-service vendors per user.
+  createdByUserId String?
+  createdBy       User?   @relation("VendorCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  /// Whether this vendor shows in the global grant picker (GET /v1/vendors).
+  /// Platform-created vendors are listed; self-service vendors stay unlisted
+  /// until a platform admin lists them.
+  listed Boolean @default(true)
+
   coworkers     Coworker[]
   vendorGrants  VendorGrant[]
   vendorMembers VendorMember[]
+  memberInvites VendorMemberInvite[]
 
+  @@unique([createdByUserId], map: "vendor_createdByUserId_key")
   @@map("vendor")
 }
 
@@ -345,6 +360,50 @@ model VendorMember {
   @@index([userId])
   @@index([vendorId, role])
   @@map("vendor_member")
+}
+
+enum VendorMemberInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+/// Pending invitation for a user to join a Vendor as a member. A vendor admin
+/// creates it by email; the row exists whether or not the email maps to a
+/// registered account, so member-add cannot enumerate the user directory. A
+/// VendorMember row is created only when the invitee accepts under their own
+/// auth. One live PENDING invite per (vendorId, email) is enforced by a
+/// partial unique index. Emails are normalized before storage.
+model VendorMemberInvite {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendorId String @db.Uuid
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  /// Normalized (trim + lowercase) invitee email. Not necessarily registered.
+  email String
+  role  VendorMemberRole
+
+  status    VendorMemberInviteStatus @default(PENDING)
+  expiresAt DateTime
+
+  invitedById String?
+  invitedBy   User?   @relation("VendorMemberInviteInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  /// Set on accept: the account that accepted (email matched at accept time).
+  acceptedByUserId String?
+  acceptedBy       User?     @relation("VendorMemberInviteAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+  resolvedAt       DateTime?
+
+  @@unique([vendorId, email], map: "vendor_member_invite_vendorId_email_pending_key", where: { status: "PENDING" })
+  @@index([vendorId, status])
+  @@index([email, status])
+  @@index([invitedById, createdAt])
+  @@map("vendor_member_invite")
 }
 
 /// Vendor workspace access grant (personal or organization). One row per (vendorId, workspaceId).
