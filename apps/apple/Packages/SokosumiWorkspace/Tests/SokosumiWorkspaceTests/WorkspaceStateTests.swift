@@ -1611,9 +1611,15 @@ private func createdMessageBody(id: String, roomId: String, content: String) -> 
   """
 }
 
-private func roomReadBody(id: String, unread: Int, name: String = "general") -> String {
+/// `split` gives the answer ADR 0037's two halves beside the total, with the room's unread Thread count.
+private func roomReadBody(
+  id: String, unread: Int, name: String = "general", split: (channel: Int, threads: Int)? = nil, mentions: Int = 0
+) -> String {
+  let halves = split.map {
+    "\"channelUnreadCount\":\($0.channel),\"threadUnreadCount\":\(unread - $0.channel),\"unreadThreadCount\":\($0.threads),"
+  } ?? ""
   let room = """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),\(halves)"unreadMentionCount":\(mentions),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
   return """
   {"data":\(room),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
@@ -3428,6 +3434,39 @@ extension WorkspaceStateTests {
     #expect(state.threadAttentionRevision == revision)
     #expect(state.rooms.first?.unreadCount == 3)
     #expect(state.threadOverview.items.first?.unreadReplyCount == 2 && state.threadOverview.failureMessage != nil)
+    #expect(transport.remainingStubs == 0)
+  }
+}
+
+/// Row 24g1 (ADR 0037): a thread mute and Mark all end in the room read, and the sidebar row takes Core's
+/// answer whole — the channel half that decides bold, the Thread half and the room's unread Threads.
+extension WorkspaceStateTests {
+  @Test func aThreadMuteSettlesTheRowOnCoresHalves() async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.threadBody(mutedAt: nil)),
+      (200, Self.threadBody(mutedAt: timestamp)),
+      (200, roomReadBody(id: Self.muteRoomId, unread: 2, split: (channel: 0, threads: 1)))
+    ])
+    await state.readThreadMuteIfNeeded(auth: auth)
+    await state.toggleThreadMute(auth: auth)
+    let room = try #require(state.rooms.first)
+    #expect(room.unreadCount == 2 && room.channelUnreadCount == 0 && room.threadUnreadCount == 2 && room.unreadThreadCount == 1)
+    #expect(resolveRoomAttention(room, showUnreadCount: true) == .init(bold: false, badgeCount: 0),
+            "Two Thread replies left, nothing in the channel: the row is quiet.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func markAllSettlesTheRowOnCoresHalves() async throws {
+    let (state, auth, transport) = try await Self.openOverview([
+      (200, Self.markAllBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 1, threads: 0))),
+      (200, Self.threadsPage(unread: 0))
+    ])
+    await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId, auth: auth)
+    let room = try #require(state.rooms.first)
+    #expect(room.channelUnreadCount == 1 && room.threadUnreadCount == 0 && room.unreadThreadCount == 0)
+    #expect(resolveRoomAttention(room, showUnreadCount: true) == .init(bold: true, badgeCount: 0, unreadTextCount: 1),
+            "A channel message that arrived meanwhile keeps the row bold, with its count.")
     #expect(transport.remainingStubs == 0)
   }
 }
