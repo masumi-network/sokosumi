@@ -4,7 +4,7 @@ import { CalendarSync, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { loadMoreTaskSchedules } from "@/app/tasks/actions";
@@ -67,6 +67,9 @@ export function TaskSchedulesView({
     nextCursor,
   });
   const [isLoadingMore, startLoadingMore] = useTransition();
+  // The filter is server state; show the pick until the navigation lands.
+  const [shownState, setShownState] = useOptimistic(selectedState);
+  const [, startFiltering] = useTransition();
 
   function handleStateChange(next: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -77,7 +80,10 @@ export function TaskSchedulesView({
       params.delete(TASK_SCHEDULE_STATE_PARAM);
     }
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname);
+    startFiltering(() => {
+      setShownState(nextState);
+      router.replace(query ? `${pathname}?${query}` : pathname);
+    });
   }
 
   function handleLoadMore() {
@@ -113,7 +119,7 @@ export function TaskSchedulesView({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ToggleGroup
           type="single"
-          value={selectedState ?? ALL_STATES}
+          value={shownState ?? ALL_STATES}
           onValueChange={(next) => {
             if (next) handleStateChange(next);
           }}
