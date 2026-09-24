@@ -349,6 +349,15 @@ function CalendarEvent({
       dragAttemptOrigin.current = null;
     },
   };
+  function onTap(open: () => void) {
+    return () => {
+      if (suppressClick.current) {
+        suppressClick.current = false;
+        return;
+      }
+      open();
+    };
+  }
   const cardContent = (trailing: ReactNode) => (
     <>
       <span className="flex w-full min-w-0 items-center gap-1">
@@ -386,13 +395,7 @@ function CalendarEvent({
           "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2",
         )}
         data-testid="calendar-event"
-        onClick={() => {
-          if (suppressClick.current) {
-            suppressClick.current = false;
-            return;
-          }
-          onOpen(`/tasks/${taskId}`);
-        }}
+        onClick={onTap(() => onOpen(`/tasks/${taskId}`))}
         type="button"
         {...dragAttemptHandlers}
       >
@@ -412,7 +415,7 @@ function CalendarEvent({
       <div
         className={cardClassName}
         data-testid="calendar-event"
-        onClick={() => setMenuOpen(true)}
+        onClick={onTap(() => setMenuOpen(true))}
         {...dragAttemptHandlers}
       >
         {cardContent(menuButton)}

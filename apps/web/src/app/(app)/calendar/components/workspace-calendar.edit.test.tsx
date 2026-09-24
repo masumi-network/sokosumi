@@ -723,6 +723,32 @@ describe("WorkspaceCalendar editing", () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 
+  it("keeps a read-only Run's menu closed after a drag the calendar will not move", () => {
+    renderCalendar({ items: [READ_ONLY_ITEM] });
+    const card = screen.getByTestId("calendar-event");
+
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 20,
+      clientY: 0,
+    });
+    fireEvent.click(card);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.click(card);
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+
   it("shows a Queued Task at its Run at, opening the Task directly", async () => {
     const user = userEvent.setup();
     renderCalendar({ items: [RUN_AT_ITEM] });
