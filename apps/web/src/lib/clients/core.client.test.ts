@@ -308,11 +308,15 @@ describe("core.client", () => {
 
     expect(
       toCoreApiActionError(
-        new CoreApiRequestError("Conversation missing", { status: 404 }),
+        new CoreApiRequestError("Social post changed", {
+          kind: "social_post_revision_conflict",
+          status: 409,
+        }),
       ),
     ).toEqual({
-      code: CommonErrorCode.NOT_FOUND,
-      message: "Conversation missing",
+      code: CommonErrorCode.BAD_INPUT,
+      kind: "social_post_revision_conflict",
+      message: "Social post changed",
     });
 
     expect(

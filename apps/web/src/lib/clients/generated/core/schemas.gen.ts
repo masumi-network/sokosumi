@@ -15972,6 +15972,322 @@ export const DisconnectProjectSocialConnectionResponseSchema = {
     ]
 } as const;
 
+export const SocialPostSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        provider: {
+            type: 'string',
+            enum: [
+                'x'
+            ]
+        },
+        text: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/SocialPostStatus'
+        },
+        scheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Europe/Zurich'
+        },
+        socialConnection: {
+            $ref: '#/components/schemas/SocialPostSocialConnection'
+        },
+        creator: {
+            $ref: '#/components/schemas/SocialPostCreator'
+        },
+        scheduledByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        canceledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        publishedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        publishedExternalId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publishedUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        lastError: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            example: 2
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        canEdit: {
+            type: 'boolean'
+        },
+        canSchedule: {
+            type: 'boolean'
+        },
+        canCancel: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'projectId',
+        'provider',
+        'text',
+        'status',
+        'scheduledAt',
+        'timezone',
+        'socialConnection',
+        'creator',
+        'scheduledByUserId',
+        'canceledAt',
+        'publishedAt',
+        'publishedExternalId',
+        'publishedUrl',
+        'lastError',
+        'revision',
+        'createdAt',
+        'updatedAt',
+        'canEdit',
+        'canSchedule',
+        'canCancel'
+    ]
+} as const;
+
+export const SocialPostStatusSchema = {
+    type: 'string',
+    enum: [
+        'DRAFT',
+        'SCHEDULED',
+        'PUBLISHING',
+        'PUBLISHED',
+        'FAILED',
+        'MISSED',
+        'CANCELED'
+    ]
+} as const;
+
+export const SocialPostSocialConnectionSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
+        },
+        externalHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'sokosumi'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'pending',
+                'active',
+                'reauthorization_required',
+                'disconnected'
+            ],
+            example: 'active'
+        }
+    },
+    required: [
+        'id',
+        'externalHandle',
+        'status'
+    ]
+} as const;
+
+export const SocialPostCreatorSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'user',
+                'coworker',
+                'sokoBot'
+            ],
+            example: 'user'
+        },
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Ada Lovelace'
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'name'
+    ]
+} as const;
+
+export const CreateSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 280,
+            example: 'Shipping the new Calendar today.'
+        },
+        socialConnectionId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
+        }
+    },
+    required: [
+        'text'
+    ]
+} as const;
+
+export const UpdateSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 280,
+            example: 'Shipping the new Calendar today.'
+        },
+        socialConnectionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const ScheduleSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
+        },
+        socialConnectionId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'scheduledAt',
+        'revision'
+    ]
+} as const;
+
+export const CancelSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {
