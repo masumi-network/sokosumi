@@ -59,7 +59,7 @@ struct SidebarThreadRowsTests {
   }
 
   /// One number per row: the muted unread reply count, or the mention badge where a reply names the reader.
-  /// Both are spoken.
+  /// Both are spoken, each once: the row says its replies, the badge says its mentions.
   @Test func drawsOneNumberAndSpeaksBoth() throws {
     let rows = sidebarThreadRows(Self.room([
       .init(parent: "p-1", replies: 3, mentions: 1),
@@ -70,7 +70,7 @@ struct SidebarThreadRowsTests {
     #expect(rows.map(\.mentionCount) == [1, 0, 0, 12])
     #expect(rows.map(\.countLabel) == [nil, "2", "1", nil])
     #expect(rows.map(\.accessibilityValue) == [
-      "1 mention, 3 unread replies", "2 unread replies", "1 unread reply", "12 mentions, 150 unread replies"
+      "3 unread replies", "2 unread replies", "1 unread reply", "150 unread replies"
     ])
     let loud = try #require(sidebarThreadRows(Self.room([.init(parent: "p-1", replies: 150)])).first)
     #expect(loud.countLabel == "99+" && loud.accessibilityValue == "150 unread replies")

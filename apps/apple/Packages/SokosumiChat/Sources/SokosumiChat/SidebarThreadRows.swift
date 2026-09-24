@@ -32,11 +32,10 @@ public struct SidebarThreadRow: Identifiable, Equatable, Sendable {
     mentionCount > 0 ? nil : roomCountLabel(unreadReplyCount)
   }
 
-  /// Web's spoken counts (`ThreadRows.mentions`, `unreadReplies`): both, uncapped.
+  /// Web's spoken reply count (`ThreadRows.unreadReplies`), uncapped. Web also speaks "N mentions" in the row;
+  /// on Apple the mention badge carries that label, so the row does not say it a second time.
   public var accessibilityValue: String {
-    let replies = unreadReplyCount == 1 ? "1 unread reply" : "\(unreadReplyCount) unread replies"
-    guard mentionCount > 0 else { return replies }
-    return "\(mentionCount == 1 ? "1 mention" : "\(mentionCount) mentions"), \(replies)"
+    unreadReplyCount == 1 ? "1 unread reply" : "\(unreadReplyCount) unread replies"
   }
 }
 

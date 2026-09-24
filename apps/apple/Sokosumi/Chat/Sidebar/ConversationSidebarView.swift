@@ -470,7 +470,9 @@ struct ConversationSidebarView: View {
         openURL(url)
       }
     } label: {
+      // `.equatable()`, so the preview is built again only when the row changes, not on every sidebar update.
       SidebarThreadRowLabel(row: row)
+        .equatable()
         .padding(.leading, Self.threadRowIndent)
     }
     .buttonStyle(.plain)

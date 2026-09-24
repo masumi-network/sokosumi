@@ -5,8 +5,8 @@ import SwiftUI
 /// mark, the parent as one line and one number. The mark is quiet, a neutral circle, unless a reply names the
 /// reader: then the accent circle with an `@`, and the row's mention badge instead of the reply count.
 ///
-/// Equatable, so the preview (a run of regular expressions) is built again only when the row changes, not on
-/// every sidebar update.
+/// Equatable, and used with `.equatable()`, so the preview (a run of regular expressions) is built again only
+/// when the row changes, not on every sidebar update.
 struct SidebarThreadRowLabel: View, Equatable {
   /// Web's `sm` thread circle.
   static let markDiameter: CGFloat = 18
@@ -33,7 +33,7 @@ struct SidebarThreadRowLabel: View, Equatable {
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .contentShape(.rect)
-    // Web's link name: the preview, then "N mentions, N unread replies".
+    // Web's link name: the preview, then its unread replies; a mention badge speaks its own count.
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(label)
     .accessibilityValue(row.accessibilityValue)
