@@ -222,7 +222,12 @@ export function TaskScheduleDialog({
               <TaskAssigneePicker
                 value={assigneeValue}
                 options={coworkerOptions.filter(
-                  (option) => option.kind !== "user",
+                  (option) =>
+                    // New schedules cannot pick a member. Keep the member
+                    // already stored on this schedule so an edit still shows
+                    // that person.
+                    option.kind !== "user" ||
+                    option.id === schedule?.assigneeUserId,
                 )}
                 labels={{
                   ariaLabel: t("assignee"),

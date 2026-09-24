@@ -345,6 +345,41 @@ describe("TaskScheduleDialog", () => {
     );
   });
 
+  it("shows the member already on a schedule, hides other members, and keeps them on save", async () => {
+    const user = userEvent.setup();
+    const otherMember: CoworkerOption = {
+      ...MEMBER,
+      id: "user_3",
+      slug: "noah",
+      name: "Noah",
+    };
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        assigneeId: null,
+        assigneeUserId: MEMBER.id,
+      },
+      coworkerOptions: [COWORKER, MEMBER, otherMember],
+    });
+
+    expect(
+      screen.getByRole("combobox", { name: /assignee/ }),
+    ).toHaveTextContent("Maya");
+
+    await user.click(screen.getByRole("combobox", { name: /assignee/ }));
+    expect(screen.getByRole("option", { name: "Maya" })).toBeEnabled();
+    expect(screen.queryByRole("option", { name: "Noah" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: MEMBER.id,
+    });
+  });
+
   it("offers no workspace member as assignee of a private schedule", async () => {
     const user = userEvent.setup();
     renderDialog({
