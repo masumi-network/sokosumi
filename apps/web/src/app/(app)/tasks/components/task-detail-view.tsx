@@ -8,7 +8,10 @@ import {
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { TaskActivitySection } from "@/app/tasks/components/task-activity";
+import {
+  type MentionableUser,
+  TaskActivitySection,
+} from "@/app/tasks/components/task-activity";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
@@ -37,6 +40,7 @@ import {
 } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
+import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import {
   canCancelTaskForViewer,
   canCommentOnTaskForViewer,
@@ -45,6 +49,7 @@ import {
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import { getSession } from "@/lib/auth/auth.server";
+import { TaskVisibility } from "@/lib/clients/generated/core";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -113,6 +118,10 @@ export async function TaskDetailView({
     : organizationSeatService.hasAssignedSeat(
         task.workspace.organizationId ?? null,
       );
+  const mentionableUsersPromise =
+    forceReadOnly || task.visibility === TaskVisibility.PRIVATE
+      ? Promise.resolve([])
+      : listTaskAssigneeMemberOptions(task.workspace.organizationId ?? null);
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const projectPromise = task.projectId
     ? projectService.getProjectById(task.projectId).catch(() => null)
@@ -266,6 +275,7 @@ export async function TaskDetailView({
                 agentsPromise={agentsPromise}
                 sessionPromise={sessionPromise}
                 currentPlanPromise={currentPlanPromise}
+                mentionableUsersPromise={mentionableUsersPromise}
               />
             </Suspense>
           </div>
@@ -478,6 +488,14 @@ async function TaskMetadataSection({
       title={t("properties")}
       taskId={task.id}
       editable={!isReadOnly}
+      canRemoveParticipants={canCommentOnTaskForViewer({
+        taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
+        taskOwnerId: task.ownerId,
+        sessionUserId: session?.user.id,
+        forceReadOnly,
+        taskStatus: task.status,
+        hasAssignedSeat,
+      })}
       task={{
         status: task.status,
         visibility: task.visibility,
@@ -485,6 +503,7 @@ async function TaskMetadataSection({
         owner: task.owner,
         organization: task.organization,
         assignee: task.assignee,
+        participants: task.participants,
         creator: task.creator,
         credits: task.credits,
         metadata: task.metadata,
@@ -509,6 +528,7 @@ async function TaskMetadataSection({
         created: t("created"),
         updated: t("updated"),
         schedule: t("schedule"),
+        participants: t("participants"),
         personalAssistantFallback: tTasks("personalAssistant"),
         formatSokoBotRole: (values) => t("actorSokoBotRole", values),
       }}
@@ -710,6 +730,7 @@ async function TaskActivitySectionContent({
   agentsPromise,
   sessionPromise,
   currentPlanPromise,
+  mentionableUsersPromise,
 }: {
   taskId: string;
   task: Task;
@@ -718,14 +739,17 @@ async function TaskActivitySectionContent({
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
   currentPlanPromise: Promise<SubscriptionPlanName | null>;
+  mentionableUsersPromise: Promise<MentionableUser[]>;
 }) {
-  const [agents, session, viewerPlan, hasAssignedSeat, t] = await Promise.all([
-    agentsPromise,
-    sessionPromise,
-    currentPlanPromise,
-    hasAssignedSeatPromise,
-    getTranslations("App.Tasks.Detail"),
-  ]);
+  const [agents, session, viewerPlan, hasAssignedSeat, mentionableUsers, t] =
+    await Promise.all([
+      agentsPromise,
+      sessionPromise,
+      currentPlanPromise,
+      hasAssignedSeatPromise,
+      mentionableUsersPromise,
+      getTranslations("App.Tasks.Detail"),
+    ]);
   const {
     userById: actorsUserById,
     coworkerById,
@@ -740,15 +764,26 @@ async function TaskActivitySectionContent({
           : null,
       }
     : null;
+  // Participants resolve `@` names in comments even after they leave the workspace.
+  const participantUserById = Object.fromEntries(
+    task.participants.map(({ user }) => [
+      user.id,
+      {
+        name: user.name,
+        image: user.image ? resolveIpfsOrHttpUrl(user.image) : null,
+      },
+    ]),
+  );
+  const knownUserById = { ...participantUserById, ...actorsUserById };
   const userById = currentUser
     ? {
-        ...actorsUserById,
+        ...knownUserById,
         [currentUser.id]: {
           name: currentUser.name,
           image: currentUser.image,
         },
       }
-    : actorsUserById;
+    : knownUserById;
   const agentNameById = buildAgentNameById(agents);
 
   return (
@@ -774,6 +809,7 @@ async function TaskActivitySectionContent({
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
       viewerPlan={viewerPlan}
+      mentionableUsers={mentionableUsers.map(({ id, name }) => ({ id, name }))}
       canComment={canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
         taskOwnerId: task.ownerId,

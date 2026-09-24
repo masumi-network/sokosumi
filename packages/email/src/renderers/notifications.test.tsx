@@ -92,6 +92,7 @@ describe("notification emails", () => {
       "authenticationRequired",
       "inputRequired",
       "outOfCredits",
+      "participantAdded",
       "scheduleRemovedByOperator",
     ] as const;
 

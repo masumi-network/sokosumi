@@ -1868,7 +1868,12 @@
           "moveSourceError": "No se pudo mover esta programación. Actualiza la tarea e inténtalo de nuevo."
         },
         "files": "Archivos",
-        "assignee": "Responsable"
+        "assignee": "Responsable",
+        "participants": "Participantes",
+        "removeParticipant": "Quitar a {name}",
+        "removeParticipantConfirmTitle": "¿Quitar a {name}?",
+        "removeParticipantConfirmDescription": "Dejará de ser participante de esta tarea.",
+        "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo."
       },
       "NewTask": {
         "ContextAttachments": {
@@ -6743,6 +6748,7 @@
         "scheduleSourceChangedByMember": "Un miembro del equipo movió {taskName} a otra fuente de calendario",
         "scheduleOccurrenceChangedByMember": "Un miembro del equipo cambió una ocurrencia de {taskName}",
         "assigned": "Se te asignó {taskName}",
+        "participantAdded": "Te añadieron a {taskName} como participante",
         "followUp": "{taskName} sigue esperándote"
       },
       "Billing": {

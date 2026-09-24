@@ -80,6 +80,7 @@ export type TaskAttentionReason =
   | "authenticationRequired"
   | "inputRequired"
   | "outOfCredits"
+  | "participantAdded"
   | "scheduleRemovedByOperator";
 
 interface TaskEmailProps extends NotificationEmailProps {

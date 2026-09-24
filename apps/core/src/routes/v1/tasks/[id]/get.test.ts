@@ -290,6 +290,7 @@ describe("GET /tasks/{id}", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.scheduleRevision).toBe(4);
+    expect(body.data.participants).toEqual([]);
   });
 
   it("lists the statuses the viewer may set by hand", async () => {
