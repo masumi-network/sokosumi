@@ -20,7 +20,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import {
   createTaskSchedule,
   type TaskScheduleActionError,
@@ -39,6 +38,7 @@ import {
   selectionToTaskScheduleRule,
   taskScheduleRuleToSelection,
 } from "@/lib/utils/task-schedule";
+import { MarkdownEditor } from "./markdown-editor";
 import { TaskAssigneePicker } from "./task-assignee-picker";
 import { TaskProjectSelect } from "./task-project-select";
 
@@ -215,12 +215,12 @@ export function TaskScheduleDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor={descriptionId}>{t("description")}</Label>
-            <Textarea
+            <MarkdownEditor
               id={descriptionId}
+              ariaLabel={t("description")}
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={setDescription}
               placeholder={tNewTask("descriptionPlaceholder")}
-              rows={3}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

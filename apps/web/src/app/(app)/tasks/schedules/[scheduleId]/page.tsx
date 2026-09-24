@@ -6,6 +6,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import TaskDetailLoading from "@/app/tasks/[taskId]/loading";
+import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskScheduleActions } from "@/app/tasks/components/task-schedule-actions";
 import { TaskScheduleStateBadge } from "@/app/tasks/components/task-schedule-state-badge";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
@@ -74,6 +75,7 @@ async function TaskScheduleDetailContent({
     t,
     tSchedule,
     tStatus,
+    tTaskDetail,
     formatter,
   ] = await Promise.all([
     listTaskAssigneeOptions(activeOrganizationId),
@@ -91,6 +93,7 @@ async function TaskScheduleDetailContent({
     getTranslations("App.Tasks.Schedules"),
     getTranslations("App.Tasks.Schedule"),
     getTranslations("App.Tasks.Filters.statusOptions"),
+    getTranslations("App.Tasks.Detail"),
     getFormatter(),
   ]);
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
@@ -127,12 +130,16 @@ async function TaskScheduleDetailContent({
               <h1 className="text-xl leading-tight font-semibold tracking-tight">
                 {schedule.name}
               </h1>
-              {schedule.description ? (
-                <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-                  {schedule.description}
-                </p>
-              ) : null}
             </div>
+
+            {schedule.description ? (
+              <TaskDescription
+                title={tTaskDetail("description")}
+                description={schedule.description}
+                expandLabel={tTaskDetail("expand")}
+                collapseLabel={tTaskDetail("collapse")}
+              />
+            ) : null}
 
             <section className="space-y-3">
               <h2 className="text-muted-foreground text-xs font-medium">
