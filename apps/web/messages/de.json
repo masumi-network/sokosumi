@@ -1868,6 +1868,8 @@
         "assignee": "Zuständig",
         "participants": "Beteiligte",
         "removeParticipant": "{name} entfernen",
+        "removeParticipantConfirmTitle": "{name} entfernen?",
+        "removeParticipantConfirmDescription": "Die Person ist danach nicht mehr an dieser Aufgabe beteiligt.",
         "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut."
       },
       "NewTask": {

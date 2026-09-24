@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -501,7 +501,7 @@ describe("TaskMetadata participants", () => {
     ).toBeNull();
   });
 
-  it("removes a participant through the remove action", async () => {
+  it("removes a participant after confirmation", async () => {
     removeTaskParticipantMock.mockResolvedValue({
       ok: true,
       value: { taskId: "task-1", userId: "user-Bea" },
@@ -515,9 +515,39 @@ describe("TaskMetadata participants", () => {
       screen.getByRole("button", { name: "removeParticipant:Bea" }),
     );
 
+    expect(removeTaskParticipantMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", {
+        name: "removeParticipantConfirmTitle:Bea",
+      }),
+    ).toBeInTheDocument();
+
+    await userEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "removeParticipant:Bea",
+      }),
+    );
+
     expect(removeTaskParticipantMock).toHaveBeenCalledWith({
       taskId: "task-1",
       userId: "user-Bea",
     });
+  });
+
+  it("keeps the participant when remove confirmation is cancelled", async () => {
+    renderTaskMetadata({
+      task: createTask({ participants: people }),
+      canRemoveParticipants: true,
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "removeParticipant:Bea" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "cancel" }));
+
+    expect(removeTaskParticipantMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "removeParticipant:Bea" }),
+    ).toBeInTheDocument();
   });
 });
