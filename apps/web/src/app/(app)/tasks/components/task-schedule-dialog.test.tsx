@@ -75,7 +75,7 @@ const SCHEDULE: TaskSchedule = {
   nextRunAt: new Date("2030-01-14T07:30:00.000Z"),
   revision: 4,
   name: "Weekly report",
-  description: "Summarise the week",
+  description: "**Summarise** the week",
   projectId: null,
   visibility: "PUBLIC",
   assigneeId: "cow_1",
@@ -147,18 +147,18 @@ describe("TaskScheduleDialog", () => {
     expect(onSaved).toHaveBeenCalledWith("new-schedule");
   });
 
-  it("starts from a prefilled blueprint", () => {
+  it("starts from a prefilled blueprint, with its markdown formatted", () => {
     renderDialog({
       initialBlueprint: {
         name: "Review onboarding",
-        description: "Check the new accounts",
+        description: "**Check** the new accounts",
       },
     });
 
     expect(screen.getByLabelText("name")).toHaveValue("Review onboarding");
-    expect(screen.getByLabelText("description")).toHaveValue(
-      "Check the new accounts",
-    );
+    const description = screen.getByRole("textbox", { name: "description" });
+    expect(description).toHaveTextContent("Check the new accounts");
+    expect(description.querySelector("strong")).toHaveTextContent("Check");
   });
 
   it("says an edit changes future Runs only, and saves against the revision it read", async () => {
@@ -176,6 +176,7 @@ describe("TaskScheduleDialog", () => {
         scheduleId: SCHEDULE.id,
         expectedRevision: 4,
         name: "Weekly report",
+        description: "**Summarise** the week",
         assigneeId: "cow_1",
       }),
     );

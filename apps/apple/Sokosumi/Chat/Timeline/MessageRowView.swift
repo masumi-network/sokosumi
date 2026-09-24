@@ -73,7 +73,6 @@ import SwiftUI
     /// Send to yourself. Absent inside the Self Direct and for rows that are not durable.
     var onSendToSelf: (() async throws -> Components.Schemas.ChatRoomMessage)?
     var horizontalInset: CGFloat = 0
-    var streamReasoning: String?
     var streamThinking = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
@@ -243,7 +242,7 @@ import SwiftUI
           } else if isCoworkerMessage(message), message.deletedAt == nil {
             // A persisted mention shell keeps the live Thought header until Core
             // fills the answer; its clock starts at `thought_timing_ms.start`.
-            CoworkerThoughtView(thought: CoworkerThought(message: message, streamedText: streamReasoning),
+            CoworkerThoughtView(thought: CoworkerThought(message: message),
                                 working: streamThinking || mentionShell != nil,
                                 startedAt: mentionShell?.startedAt ?? message.createdAt)
           }

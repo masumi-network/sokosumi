@@ -7,6 +7,8 @@ struct MessageImageView: View {
   let maxSize: CGSize
   /// Fill the width budget and crop the overflow, so a card's image edge lines up with its text at any aspect ratio.
   var fills = false
+  /// Where a fitted image sits in its width budget: leading in a message, centered in the viewer.
+  var alignment: Alignment = .leading
   var onFailure: ((URL) -> Void)?
 
   @Environment(\.displayScale) private var displayScale
@@ -63,7 +65,7 @@ struct MessageImageView: View {
       }
     }
     // Filling wants the whole width budget, so say so: `Color.clear` contributes no ideal width of its own.
-    .frame(idealWidth: fills ? maxSize.width : nil, maxWidth: maxSize.width, maxHeight: maxSize.height, alignment: .leading)
+    .frame(idealWidth: fills ? maxSize.width : nil, maxWidth: maxSize.width, maxHeight: maxSize.height, alignment: alignment)
     .task(id: "\(url)-\(maxSize)-\(displayScale)") {
       let result = await loadImageThumbnail(
         urlString: url.absoluteString,

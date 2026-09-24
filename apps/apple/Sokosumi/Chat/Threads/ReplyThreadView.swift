@@ -304,7 +304,6 @@ import SwiftUI
         let previous = index > 0 && !hasGap ? messages[index - 1] : nil
         let streaming = message.id.hasPrefix("stream:") && isCoworkerMessage(message)
         let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
-        let reasoning = thinking ? (workspaces.directStream.latestThought ?? workspaces.directStream.reasoning) : workspaces.directStream.reasoning
         let outbox = workspaces.thread.outbox
         let shell = outbox.shells.first { $0.id == message.id }
         VStack(alignment: .leading, spacing: 0) {
@@ -334,7 +333,7 @@ import SwiftUI
                            onToggleReaction: reactionAction(for: message),
                            editing: workspaces.messageEditing,
                            onQuoteJump: jumpToQuote, onSendToSelf: sendToSelfAction(for: message),
-                           streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
+                           streamThinking: thinking)
           }
         }
         .id(message.id)
