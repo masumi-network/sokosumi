@@ -2886,9 +2886,18 @@ export type ChatRoomMessage = {
 
 export type ChatRoomThreadsUnreadCount = {
     /**
-     * Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.
+     * Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Equals `threads.length`.
      */
     count: number;
+    /**
+     * Every unread thread in the room with its `unreadReplyCount`. A thread absent from the list has no unread replies for the viewer.
+     */
+    threads: Array<ChatRoomThreadUnreadReplyCount>;
+};
+
+export type ChatRoomThreadUnreadReplyCount = {
+    parentMessageId: string;
+    unreadReplyCount: number;
 };
 
 export type ChatRoomThreadsMarkAll = {
