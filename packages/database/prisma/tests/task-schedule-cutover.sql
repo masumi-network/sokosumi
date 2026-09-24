@@ -1,9 +1,9 @@
 -- Run with psql -v ON_ERROR_STOP=1 -f this-file.sql against a disposable
--- database that has every migration before 20260924120000 applied, e.g. from
+-- database that has every migration before 20260924130000 applied, e.g. from
 -- packages/database/prisma:
 --
 --   for m in migrations/2*/; do
---     [[ "$m" < migrations/20260924120000 ]] &&
+--     [[ "$m" < migrations/20260924130000 ]] &&
 --       psql "$DB" -q -v ON_ERROR_STOP=1 -f "$m/migration.sql"
 --   done
 --
@@ -15,7 +15,7 @@
 DO $$
 BEGIN
   IF to_regclass('"task_schedule_occurrence"') IS NULL THEN
-    RAISE EXCEPTION 'Needs a database migrated up to, not including, 20260924120000_task_schedule_cutover';
+    RAISE EXCEPTION 'Needs a database migrated up to, not including, 20260924130000_task_schedule_cutover';
   END IF;
   IF EXISTS (SELECT FROM "task_schedule") OR EXISTS (SELECT FROM "task") THEN
     RAISE EXCEPTION 'Needs an empty disposable database: the cutover commits, so the fixtures stay';
@@ -232,7 +232,7 @@ INSERT INTO "task_schedule_occurrence" (
 
 -- Cutover -------------------------------------------------------------------
 
-\ir ../migrations/20260924120000_task_schedule_cutover/migration.sql
+\ir ../migrations/20260924130000_task_schedule_cutover/migration.sql
 
 -- Schedules -----------------------------------------------------------------
 
@@ -533,7 +533,7 @@ SELECT
      SELECT id, status, "archivedAt", "scheduleId", "runAt", metadata, "nextRunAt", "scheduleRevision" FROM "task"
    ) AS t) AS tasks;
 
-\ir ../migrations/20260924120000_task_schedule_cutover/migration.sql
+\ir ../migrations/20260924130000_task_schedule_cutover/migration.sql
 
 DO $$
 DECLARE

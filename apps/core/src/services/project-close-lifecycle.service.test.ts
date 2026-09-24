@@ -32,6 +32,11 @@ const {
   taskScheduleRunUpdateManyMock: vi.fn(),
 }));
 
+const retireSocialConnectionsMock = vi.hoisted(() => vi.fn());
+vi.mock("@/services/project-social-connections.service", () => ({
+  retireProjectSocialConnectionsForClose: retireSocialConnectionsMock,
+}));
+
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
 }));
@@ -159,6 +164,14 @@ describe("project close lifecycle", () => {
       reason: " Campaign completed ",
     });
 
+    expect(retireSocialConnectionsMock).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      scope.actorUserId,
+    );
+    expect(
+      retireSocialConnectionsMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(projectCloseOperationCreateMock.mock.invocationCallOrder[0]);
     const created = projectCloseOperationCreateMock.mock.calls[0][0].data;
     expect(projectUpdateMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID },

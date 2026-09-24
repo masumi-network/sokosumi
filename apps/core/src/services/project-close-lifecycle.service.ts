@@ -10,6 +10,8 @@ import type {
   ProjectCloseStatus,
 } from "@/schemas/project-close.schema";
 
+import { retireProjectSocialConnectionsForClose } from "@/services/project-social-connections.service";
+
 interface ProjectCloseScope {
   projectId: string;
   workspaceId: string;
@@ -202,6 +204,11 @@ export async function requestProjectClose(
       },
       select: { projectRevision: true },
     });
+    await retireProjectSocialConnectionsForClose(
+      tx,
+      project.id,
+      scope.actorUserId,
+    );
     const operation = await tx.projectCloseOperation.create({
       data: {
         id: input.operationId,

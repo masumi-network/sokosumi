@@ -2,7 +2,7 @@
 --
 --   psql "$DB" -X -v ON_ERROR_STOP=1 -f task-schedule-cutover-report.sql
 --
--- Before 20260924120000_task_schedule_cutover it says what the migration will
+-- Before 20260924130000_task_schedule_cutover it says what the migration will
 -- do with the data; after it, it checks the result. Every check in the
 -- "must be 0" section is an invariant: anything other than 0 is a finding.
 -- It changes nothing: its only objects are temporary views, and it ends in
