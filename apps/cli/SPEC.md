@@ -1,12 +1,19 @@
 # SPEC
 
 ## §G GOAL
-[REPORTED: user-approved direction, 2026-09-18] Single developer admin CLI; connect existing framework runtimes as Coworkers with optional capabilities, session/private/hosted lifetimes, and tested paid graduation. This amendment defines future requirements, not shipped features. TUI work paused; existing commands and auth guards preserved.
+[REPORTED: user direction, 2026-09-24] Developer CLI + repo Skill onboard an existing remote agent as a private Sokosumi Coworker in a selected Workspace; Hermes first. MPS is the first Sokosumi payment path; prove Coworker wallet receipt before global waitlist; platform admins approve listing. Cardano x402 buyers enter through Sokosumi after MVP. Current Core permissions remain unchanged in this CLI work. This defines target behavior, not shipped features.
 
 ## §C CONSTRAINTS
 - live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md constraints](VISION.md#constraints)
 - talk Core HTTP only. ⊥ Prisma, ⊥ `@sokosumi/database`, ⊥ Postgres from CLI. [VISION.md constraints](VISION.md#constraints)
 - package identity ∈ {private workspace name: `@sokosumi/cli`, package path: `apps/cli`, bin: `sokosumi`}; npm publication ⊥ current slice.
+- [REPORTED: user decision, 2026-09-24] Coworker registration → Sokosumi Preprod only; Mainnet registration → “Preprod only”; unrelated CLI commands remain network-configurable.
+- [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:77-80`] Coworker create → current Core route requires platform admin; this CLI work does not change that permission. A platform-admin-provisioned Coworker can then be managed by its Vendor admin through existing Core routes.
+- [REPORTED: user decision, 2026-09-24] Registration selects an existing Workspace and uses existing access control; report workspace availability only after `GRANTED`. A private Coworker stays unavailable outside granted workspaces until platform approval.
+- [REPORTED: user decision, 2026-09-24] Whitelist mutation and global listing approval → Sokosumi platform admin only; no CLI self-approval or permission bypass.
+- [REPORTED: user decision, 2026-09-24] Sokosumi payment MVP → MPS first. [PROPOSED] Preprod proof of seller receipt to Coworker wallet is required. Task credit debit or MPS purchase record alone ≠ receipt.
+- [REPORTED: user decision, 2026-09-24] External Cardano x402 buyer flow → later; route through Sokosumi. ⊥ direct-to-wallet assumption for MVP.
+- [REPORTED: user decision, 2026-09-24] Skill path = `apps/cli/skills/sokosumi/SKILL.md`. [VERIFIED: `apps/cli/skills/sokosumi/references/distribution.md:1-18`] Skills CLI installs Skill files only. CLI binary distribution path OPEN; user owns landing-page link.
 - CLI source/tests ∈ TypeScript. Typecheck required.
 - OAuth tokens & user API keys ∈ OS vault. Linux persistent auth → Secret Service. ⊥ plaintext credential file.
 - non-secret preferences ∈ optional `~/.sokosumi/config.json`. Accepted keys: `apiUrl`, `authUrl`, `webUrl`, `mainnetOAuthClientId`, `preprodOAuthClientId`. ⊥ token/key/client-secret fields.
@@ -22,6 +29,7 @@
 - complements web `/developer`. ⊥ replace it. [VISION.md constraints](VISION.md#constraints)
 
 - direction authority: docs/adr/0004-coworker-capabilities-and-graduation.md; implementation dependencies: docs/developer-cli-implementation-plan.md. Core owns policy, grants, waitlisting, promotion, and payment authorization.
+- [CORRECTION, REPORTED: user clarification, 2026-09-24] An earlier amendment proposed Preprod Vendor-admin Coworker creation. User clarified that this CLI work keeps Core permissions unchanged. The current create route requires platform admin [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:77-80`]. A platform admin must provision the record before an ordinary Vendor admin can use existing Coworker management routes. Global whitelist remains platform-admin-only.
 - historical external-bundle design constraint above applies only to deferred T27; no redesign prerequisite for integration.
 
 ## §I INTERFACES
@@ -31,8 +39,10 @@
 - cmd: `auth status` → text/JSON auth state
 - cmd: `auth logout` → clear target-scoped local credentials; server key revocation separate
 - cmd: `discover` → command catalog + Core resource snapshot; partial resource failure → JSON/text errors
-- `agents list|hire`, `coworkers list|register|update|api-key|me`, `tasks list|create|get|events|jobs|comment`, `jobs list|get|input` → Core HTTP; `--json` → JSON-only stdout
+- `agents list|hire`, `coworkers list|register|update|api-key|me`, `tasks list|create|get|events|jobs|comment`, `jobs list|get|input` → Core HTTP; Coworker create follows existing Core role checks; target setup selects an administered Vendor + existing Workspace and uses the existing grant route; success requires `GRANTED`; CLI grant support remains T41; `--json` → JSON-only stdout
 - `vendors me` → administered Vendor memberships only; `workspaces list` → organization-workspace candidates with `organizationId`; text or one JSON document
+- remote headless auth → owner approval URL; exact auth-service contract OPEN; developer credential ≠ runtime `coworker_*` key
+- [VERIFIED: `apps/cli/skills/sokosumi/references/distribution.md:1-18`] Skill install: `npx skills add https://github.com/masumi-network/sokosumi --skill sokosumi` → Skill files only; CLI binary install path OPEN
 - global: `--json`, `--api-url`, `--preprod`, `--client-id`, `--api-key-stdin`
 - env: `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID`, `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, `SOKOSUMI_OAUTH_CLIENT_ID`, `SOKOSUMI_AUTH_URL`, `SOKOSUMI_API_URL`, `SOKOSUMI_API_KEY`; hosted OAuth IDs: mainnet `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; hosted auth base = selected API URL + `/auth`
 - design: external `I-Want-You-Desing-Tui-Sokosumi` bundle primary file `sokosumi-tui-v1.html`; companions `DESIGN-HANDOFF.md`, `DESIGN-MANIFEST.json`, `brand-spec.md`; visual source only, ⊥ runtime asset.
@@ -56,7 +66,8 @@ V10: API-key input ∉ argv. Target-coded prefix selects target locally. Legacy 
 V11: OAuth credentials save before user-key mint. Mint failure preserves OAuth session and supports retry.
 V12: user-key mint/rotate/revoke → Core feature with trusted CLI OAuth guard. CLI never mints locally.
 V13: signed-in identity copy = auth method + target + signed-in state. ⊥ email/name on status screen.
-V14: Register menu presets ∈ {pi-sokosumi, Eve, Hermes, OpenClaw}. Those are Coworker runtimes. ⊥ Hire Agent. Workspace connect later.
+[CORRECTION, REPORTED: user clarification, 2026-09-24] Earlier V14 said Workspace connect later. User specified private Workspace-only access at registration. Current CLI does not yet attach Workspace access.
+V14: Register menu presets ∈ {pi-sokosumi, Eve, Hermes, OpenClaw}. Those are Coworker runtimes. ⊥ Hire Agent. Registration selects Workspace and grants access before success.
 V15: vault writes use native secret setters or stdin; credential values ∉ child-process argv and error output.
 V16: hosted target OAuth launch/refresh → registered target client ID (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) by default; explicit `--client-id`, target-specific, or generic `SOKOSUMI_OAUTH_CLIENT_ID` override; resolved ID stays consistent through refresh.
 V17: home config parser accepts only listed non-secret preference keys. ⊥ API key, access token, refresh token, client secret persistence.
@@ -130,11 +141,20 @@ V81: runtime bearer ∈ `coworker_*` only; developer OAuth/user API key (`soko_*
 V82: session grant ⊥ Coworker identity and key material; expiry/disconnect remove temporary authority only; reconnect requires authorization (ADR 0005).
 V83: mint/rotate/revoke `coworker_*` ∈ developer auth only (interactive or headless); runtime ⊥ self-mint (ADR 0005).
 V84: CLI/TUI/skill share in-process handlers; ⊥ recursive CLI entrypoint; runtime adapters → Core HTTP with `coworker_*` (ADR 0005).
-V85: `coworkers register` requires ≥1 organization workspace and `--vendor-id` ∈ administered (`admin`) memberships; foreign/non-admin Vendor ⊥ before Core create; register ⊥ Vendor create (developer Vendor create is standalone `vendors create` → `POST /v1/vendors`, caller admin); Coworker create ∈ platform admin only; blocked copy points to `vendors create` for Vendor setup.
+V85: `vendors me` preserves roles; workspace registration requires an administered (`admin`) Vendor and selected existing Workspace; foreign/non-admin Vendor ⊥ before management calls; Vendor creation remains standalone `vendors create` → Core `POST /v1/vendors`; Coworker record creation follows existing Core role checks.
 V86: registration gate copy ⊥ Vendor member-invite / role-promotion instructions; CLI has no invite/accept command.
 V87: account deletion writes (not only locks) every current Vendor row in stable `vendorId` order, revokes PENDING invites to Vendors the user alone administers, then rechecks V89 inside the same transaction before the User cascade; membership role changes/removals lock the same Vendor row in a Serializable transaction ∴ one queued behind deletion fails serialization and retries on current data; a concurrent invite accept commits first (recheck sees the member) or fails serialization on the revoked invite row.
 V88: Vendor invite acceptance reads the current verified account email inside its Serializable transaction before matching and accepting the invite; a stale pre-transaction email ⊥ authorization.
 V89: account deletion ⊥ while the user is a Vendor's sole admin and the Vendor has another member or an unarchived Coworker; otherwise deletion proceeds and the Vendor stays admin-less. Intentionally looser than member PATCH/DELETE, which never leave 0 admins. Coworker create/unarchive (platform admin only) ⊥ Vendor lock.
+V90: [REPORTED: user decision, 2026-09-24] Coworker registration target = Sokosumi Preprod; Mainnet Register → “Preprod only” and ⊥ create request; unrelated CLI commands remain target-configurable.
+V91: [VERIFIED: source only, `apps/core/src/routes/v1/coworkers/post.ts:77-80,134` and `apps/core/src/routes/v1/coworkers/[id]/whitelist/patch.ts:44`; Preprod deployment not checked] Coworker create uses existing Core authorization; this CLI work adds no create permission. Source sets `isWhitelisted: false`; global whitelist mutation + approval → platform admin only.
+V92: [REPORTED: user decision, 2026-09-24] Workspace registration success → existing Coworker + `GRANTED` access for selected Workspace; failed grant → keep Coworker private and report its ID for recovery; no global visibility without platform whitelist.
+V93: [REPORTED: user decision; PROPOSED receipt gate] Sokosumi payment MVP → MPS first; success evidence → delivered Task + confirmed seller receipt to configured Coworker wallet on Cardano Preprod; credit debit or `TaskPaymentClaim.PURCHASED` alone ⊥ receipt proof.
+V94: [REPORTED: user decision, 2026-09-24] External Cardano x402 buyer flow remains post-MVP and routes through Sokosumi; payment rail requires compatibility proof; direct-to-wallet x402 ⊥ assumed MVP behavior.
+V95: [REPORTED: user decision, 2026-09-24] Global listing requires separate waitlist request + explicit platform-admin approval; request never changes whitelist; no Coworker self-approval.
+V96: [VERIFIED: `apps/cli/skills/sokosumi/references/distribution.md:1-18`] `npx skills add` installs Skill files only; CLI executable requires a separately chosen release/install path.
+V97: [REPORTED: user direction; OPEN auth contract] Hosted-agent auth requires owner browser approval URL; developer auth and runtime `coworker_*` credential stay separate; no credential in model-visible output, argv, or logs.
+V98: [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:77-80`, `apps/core/src/routes/v1/coworkers/coworker-management-access.ts:20-64`, `apps/core/src/routes/v1/coworkers/[id]/workspace-access/post.ts:48-74`] CLI never bypasses Core authorization; current Coworker create requires platform admin; Vendor admins can manage existing Coworkers and grant Workspace access.
 
 ## §T TASKS
 
@@ -169,7 +189,7 @@ T27|.|DEFERRED 2026-09-18; not completed or integration prerequisite: redesign I
 T28|~|align CLI React types pin with workspace and sync lockfile|V64
 
 T29|x|approve runtime identity/invocation contract; reject short-lived developer-delegation JWT; keep developer-key guards|V1,V6,V58,V66,V77,V78,V81,V82,V83,V84
-T30|.|Core prerequisites and CLI private setup: Vendor/workspace authority, self-service registration, session lifecycle|V67,V68,V70
+T30|.|CLI private setup: existing Coworker, administered Vendor, selected Workspace, session lifecycle; preserve current Core role checks|V67,V68,V70,V98
 T31|.|active-session Task/Job operations and automatic worker; prove recovery and authorization separately|V66,V69,V77,V78
 T32|.|approve chat transport; implement permitted direct/chat-channel/group participation and revocation|V69,V70,V77
 T33|.|approve Masumi funding/custody contract; general x402 services within authorized rails and limits|V70,V75,V76
@@ -177,6 +197,15 @@ T34|.|Core seller usage-price authorization, version review, settlement and cont
 T35|.|Core readiness derivation, capability evidence, waitlist review; CLI exposes status without self-approval|V70,V71,V72
 T36|x|CLI read-only administered Vendor + organization-workspace discovery|V18,V19,V42,V67,V79,V80,I
 T37|x|CLI registration gates: workspace required, admin Vendor only; register ⊥ Vendor create; developer Vendor create via standalone `vendors create` → Core `POST /v1/vendors`|V67,V79,V85,I
+T38|.|choose + publish official CLI install path; update repo Skill bootstrap; Skills CLI installs Skill files only|V96,I
+T39|.|remote headless OAuth approval link + safe credential handoff for hosted agent|V81,V84,V97
+T40|.|CLI: enforce Preprod-only registration and show the Mainnet note; preserve target selection for other commands|V90,I
+T41|.|CLI: select administered Vendor + Workspace for an existing authorized Coworker; grant access and report recoverable partial success|V14,V85,V92,I
+T42|.|Hermes adapter: bind existing hosted runtime + handle one authorized Sokosumi Task operation|V66,V84,V92
+T43|.|MPS Preprod path assessment: trace current Sokosumi Task payment to intended seller wallet; record gaps before implementation|V72,V93
+T44|.|global waitlist request + platform-admin approval through confirmed Core surface|V70,V95
+T45|.|later: Cardano x402 buyer reaches Coworker through Sokosumi; prove MPS/SDK compatibility first|V94
+T46|.|MPS-first vertical slice: Sokosumi Task reaches Coworker; verify Cardano Preprod seller receipt in intended Coworker wallet|V93
 
 ## §B BUGS
 
