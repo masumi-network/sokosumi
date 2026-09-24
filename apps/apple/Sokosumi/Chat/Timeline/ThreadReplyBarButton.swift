@@ -20,14 +20,19 @@ struct ThreadReplyBarButton: View {
     // of the minute and understate the age by up to a minute.
     TimelineView(.periodic(from: .now, by: 60)) { context in
       let age = bar.lastReplyAt.map { threadReplyAgeLabel(since: $0, now: context.date, locale: locale) }
-      Button(action: open) {
+      let button = Button(action: open) {
         label(age: age)
       }
       .buttonStyle(.plain)
       .pointerStyle(.link)
       .onHover { isHovered = $0 }
       .accessibilityLabel(bar.label)
-      .accessibilityHint(age ?? "")
+      // Web's `aria-describedby` exists only with an age; without one there is no hint at all.
+      if let age {
+        button.accessibilityHint(age)
+      } else {
+        button
+      }
     }
   }
 
