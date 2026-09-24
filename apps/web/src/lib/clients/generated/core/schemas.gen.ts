@@ -10249,12 +10249,38 @@ export const ChatRoomThreadsUnreadCountSchema = {
         count: {
             type: 'integer',
             minimum: 0,
-            description: 'Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.',
+            description: 'Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Equals `threads.length`.',
             example: 4
+        },
+        threads: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomThreadUnreadReplyCount'
+            },
+            description: 'Every unread thread in the room with its `unreadReplyCount`. A thread absent from the list has no unread replies for the viewer.'
         }
     },
     required: [
-        'count'
+        'count',
+        'threads'
+    ]
+} as const;
+
+export const ChatRoomThreadUnreadReplyCountSchema = {
+    type: 'object',
+    properties: {
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        unreadReplyCount: {
+            type: 'integer',
+            minimum: 1
+        }
+    },
+    required: [
+        'parentMessageId',
+        'unreadReplyCount'
     ]
 } as const;
 
@@ -16698,11 +16724,18 @@ export const NotificationCountsSchema = {
             minimum: 0,
             description: 'Number of feed notifications whose request still waits on the reader',
             example: 2
+        },
+        mentions: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of unread feed notifications where someone named the reader',
+            example: 1
         }
     },
     required: [
         'unread',
-        'needsAction'
+        'needsAction',
+        'mentions'
     ]
 } as const;
 

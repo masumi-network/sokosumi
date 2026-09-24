@@ -1,6 +1,12 @@
 "use client";
 
-import { BellOff, CheckCheck, Inbox, type LucideIcon } from "lucide-react";
+import {
+  AtSign,
+  BellOff,
+  CheckCheck,
+  Inbox,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -30,6 +36,12 @@ const EMPTY_COPY = {
     description: "emptyNeedsYouStateDescription",
     isNarrowed: true,
   },
+  mentions: {
+    icon: AtSign,
+    title: "emptyMentionsState",
+    description: "emptyMentionsStateDescription",
+    isNarrowed: true,
+  },
 } as const satisfies Record<
   NotificationCenterView,
   {
@@ -53,9 +65,9 @@ interface NotificationEmptyStateProps {
 /**
  * What the Notification Center says when it has nothing to list.
  *
- * Three empties, three different things to say. An empty All is a reader
+ * Four empties, four different things to say. An empty All is a reader
  * who has never been sent anything, so it says what will arrive here. An
- * empty Unread or Needs you is a narrowed lens over rows that still exist,
+ * empty Unread, Needs you or Mentions is a narrowed lens over rows that still exist,
  * so each one says where those rows went and offers the way back. Without
  * that, the shortest reading of "You're all caught up" is that the list was
  * emptied.

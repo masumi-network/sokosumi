@@ -971,7 +971,7 @@ export const getChatsRoomsByIdThreads = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Count unread threads in a room (Participant-gated `unreadReplyCount`). Cheap count path: returns a count only, no thread items. Same eligibility as `unread=true` and Mark all. Independent of room mark-read.
+ * Unread threads in a room with each one's Participant-gated `unreadReplyCount`, and their count. No parent messages are hydrated. Same eligibility as `unread=true` and Mark all. Independent of room mark-read.
  */
 export const getChatsRoomsByIdThreadsUnreadCount = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdThreadsUnreadCountData, ThrowOnError>): RequestResult<GetChatsRoomsByIdThreadsUnreadCountResponses, GetChatsRoomsByIdThreadsUnreadCountErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdThreadsUnreadCountResponses, GetChatsRoomsByIdThreadsUnreadCountErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdThreadsUnreadCountResponseTransformer,
@@ -2673,7 +2673,7 @@ export const getNotifications = <ThrowOnError extends boolean = false>(options?:
 });
 
 /**
- * Counts over the interactive session user's in-app notification-center feed: rows still unread, and rows whose request still waits on the reader (the Needs you view). CHAT kind is excluded except for room messages.
+ * Counts over the interactive session user's in-app notification-center feed: rows still unread, rows whose request still waits on the reader (the Needs you view), and unread mentions (the Mentions view). CHAT kind is excluded except for room messages.
  */
 export const getNotificationsCounts = <ThrowOnError extends boolean = false>(options?: Options<GetNotificationsCountsData, ThrowOnError>): RequestResult<GetNotificationsCountsResponses, GetNotificationsCountsErrors, ThrowOnError> => (options?.client ?? client).get<GetNotificationsCountsResponses, GetNotificationsCountsErrors, ThrowOnError>({
     responseTransformer: getNotificationsCountsResponseTransformer,

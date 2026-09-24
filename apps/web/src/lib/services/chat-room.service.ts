@@ -16,6 +16,7 @@ import type {
   ChatRoomThread,
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
+  ChatRoomThreadUnreadReplyCount,
   ChatUnreadThread,
   CreateChatRoomGuestInviteLinkRequest,
   CreateChatRoomMessageRequest,
@@ -487,12 +488,15 @@ export const chatRoomService = (() => {
     };
   });
 
-  const countUnreadThreads = cache(async function countUnreadThreads(
-    roomId: string,
-  ): Promise<number> {
-    const response = await coreClient.getChatRoomThreadsUnreadCount(roomId);
-    return response.data.count;
-  });
+  /** Every unread Thread in a room with its reply count, without parents. */
+  const listUnreadThreadReplyCounts = cache(
+    async function listUnreadThreadReplyCounts(
+      roomId: string,
+    ): Promise<ChatRoomThreadUnreadReplyCount[]> {
+      const response = await coreClient.getChatRoomThreadsUnreadCount(roomId);
+      return response.data.threads;
+    },
+  );
 
   /** One page of the reader's unread Threads across rooms (SOK-1159). */
   async function listUnreadThreads(options?: {
@@ -666,7 +670,7 @@ export const chatRoomService = (() => {
     listRoomInvitations,
     listRooms,
     listThreads,
-    countUnreadThreads,
+    listUnreadThreadReplyCounts,
     listUnreadThreads,
     listEarlierThreads,
     markAllUnreadRead,

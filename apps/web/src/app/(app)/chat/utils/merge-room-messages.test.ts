@@ -4,6 +4,7 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
   applyFullChatRoomMessageEvent,
+  applyThreadUnreadReplyCounts,
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "./merge-room-messages";
@@ -138,6 +139,42 @@ describe("applyFullChatRoomMessageEvent", () => {
 
     expect(next).toHaveLength(1);
     expect(next[0]?.deletedAt).not.toBeNull();
+  });
+});
+
+describe("applyThreadUnreadReplyCounts", () => {
+  function parent(id: string, threadUnreadReplyCount?: number) {
+    return {
+      ...message(id, "2026-07-01T10:00:00.000Z"),
+      threadReplyCount: 3,
+      threadUnreadReplyCount,
+    };
+  }
+
+  it("tints a parent the read names and leaves the rest", () => {
+    const quiet = parent("m2", 0);
+
+    const next = applyThreadUnreadReplyCounts(
+      [parent("m1", 0), quiet],
+      new Map([["m1", 2]]),
+    );
+
+    expect(next[0].threadUnreadReplyCount).toBe(2);
+    expect(next[1]).toBe(quiet);
+  });
+
+  it("clears a parent the read no longer names", () => {
+    const next = applyThreadUnreadReplyCounts([parent("m1", 4)], new Map());
+
+    expect(next[0].threadUnreadReplyCount).toBe(0);
+  });
+
+  it("returns the same list when nothing moved", () => {
+    const messages = [parent("m1", 1), parent("m2"), parent("m3", 0)];
+
+    expect(applyThreadUnreadReplyCounts(messages, new Map([["m1", 1]]))).toBe(
+      messages,
+    );
   });
 });
 
