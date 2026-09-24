@@ -19,6 +19,8 @@ public extension WorkspaceState {
         try await threadOverview.markAllRead(client: client, roomId: roomId, organizationSlug: slug, mentions: rooms.first(where: { $0.id == roomId }).map(MessageMentions.init)) {
           // Web's `onAllThreadsLooked` voids its room read: a failed one never fails Mark all.
           guard roomId == transcriptRoomId else { return }
+          let stillUnread = threadOverview.mutedUnreadParentIds
+          clearThreadUnreadReplies { !stillUnread.contains($0) }
           do {
             try await syncRoomAttentionAfterThreadChange(client: client)
           } catch {
