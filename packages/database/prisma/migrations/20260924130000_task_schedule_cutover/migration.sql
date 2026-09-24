@@ -309,13 +309,20 @@ END;
 $$;
 
 -- Ids this migration mints derive from what they belong to, so a second run
--- finds the rows the first one wrote.
+-- finds the rows the first one wrote. The md5 digest is stamped as an RFC
+-- 9562 version 8 UUID (the version and variant digits): Core validates ids
+-- with that pattern, and a bare md5 fails it about nine times in ten.
 CREATE OR REPLACE FUNCTION pg_temp.cutover_id(kind TEXT, source_id TEXT)
 RETURNS UUID
 LANGUAGE sql
 IMMUTABLE
 AS $$
-  SELECT md5('task-schedule-cutover:' || kind || ':' || source_id)::UUID
+  SELECT (
+    substr(digest, 1, 12) || '8' || substr(digest, 14, 3)
+    || substr('89ab', (('x' || substr(digest, 17, 1))::BIT(4)::INTEGER % 4) + 1, 1)
+    || substr(digest, 18)
+  )::UUID
+  FROM (SELECT md5('task-schedule-cutover:' || kind || ':' || source_id) AS digest) AS source
 $$;
 
 -- 2. The series to move: every non-archived Task whose metadata is a v1 or
