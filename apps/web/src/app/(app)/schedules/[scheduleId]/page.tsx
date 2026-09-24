@@ -16,7 +16,7 @@ import {
   TASK_DETAIL_SHELL_CLASS,
   TASK_DETAIL_SIDEBAR_CLASS,
 } from "@/app/tasks/constants";
-import { listTaskScheduleAssigneeOptions } from "@/app/tasks/utils/task-schedule-assignee-options";
+import { listTaskScheduleAssigneeDisplayOptions } from "@/app/tasks/utils/task-schedule-assignee-options";
 import {
   formatTaskScheduleRule,
   TASK_SCHEDULES_PATH,
@@ -78,7 +78,7 @@ async function TaskScheduleDetailContent({
     tTaskDetail,
     formatter,
   ] = await Promise.all([
-    listTaskScheduleAssigneeOptions(),
+    listTaskScheduleAssigneeDisplayOptions(activeOrganizationId),
     getProjectFilterOptions(schedule.projectId),
     taskScheduleService.listUpcomingRuns(schedule.id, {
       from: new Date(),

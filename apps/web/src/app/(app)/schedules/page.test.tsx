@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
-const listTaskScheduleAssigneeOptionsMock = vi.fn();
+const listTaskScheduleAssigneeDisplayOptionsMock = vi.fn();
 const hasAssignedSeatMock = vi.fn();
 const listSchedulesMock = vi.fn();
 const taskSchedulesViewMock = vi.fn();
@@ -29,7 +29,8 @@ vi.mock("@/lib/helpers/project-filter-options", () => ({
 }));
 
 vi.mock("@/app/tasks/utils/task-schedule-assignee-options", () => ({
-  listTaskScheduleAssigneeOptions: () => listTaskScheduleAssigneeOptionsMock(),
+  listTaskScheduleAssigneeDisplayOptions: (organizationId: string | null) =>
+    listTaskScheduleAssigneeDisplayOptionsMock(organizationId),
 }));
 
 vi.mock("@/lib/services/organization-seat.service", () => ({
@@ -64,7 +65,9 @@ describe("SchedulesPage", () => {
       session: { activeOrganizationId: "org-1" },
     });
     getProjectFilterOptionsMock.mockResolvedValue([PROJECT]);
-    listTaskScheduleAssigneeOptionsMock.mockResolvedValue([]);
+    listTaskScheduleAssigneeDisplayOptionsMock.mockResolvedValue([
+      { id: "user-1", name: "Maya", kind: "user" },
+    ]);
     hasAssignedSeatMock.mockResolvedValue(true);
     listSchedulesMock.mockResolvedValue({
       schedules: [SCHEDULE],
@@ -83,10 +86,14 @@ describe("SchedulesPage", () => {
       state: "PAUSED",
       limit: 50,
     });
+    expect(listTaskScheduleAssigneeDisplayOptionsMock).toHaveBeenCalledWith(
+      "org-1",
+    );
     expect(props).toEqual(
       expect.objectContaining({
         schedules: [SCHEDULE],
         nextCursor: "cursor-2",
+        coworkerOptions: [{ id: "user-1", name: "Maya", kind: "user" }],
         projectOptions: [PROJECT],
         selectedProjectId: PROJECT.id,
         canCreate: true,

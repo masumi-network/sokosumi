@@ -157,7 +157,7 @@ describe("TaskScheduleDialog", () => {
 
   it("shows the assignees supplied by Core", async () => {
     const user = userEvent.setup();
-    renderDialog({ coworkerOptions: [COWORKER, SOKO_BOT] });
+    renderDialog({ coworkerOptions: [COWORKER, SOKO_BOT, MEMBER] });
 
     await user.click(screen.getByRole("combobox", { name: /assignee/ }));
 
