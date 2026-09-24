@@ -89,13 +89,8 @@ export function TaskScheduleDialog({
   );
   const [assigneeValue, setAssigneeValue] = useState(() => {
     const assigneeId = taskScheduleAssigneeId(blueprint) ?? "";
-    // A new schedule only offers agent assignees, even when created from a
-    // Task assigned to a workspace member.
-    if (
-      !schedule &&
-      blueprint.assigneeUserId &&
-      assigneeId === blueprint.assigneeUserId
-    ) {
+    // A legacy member assignee is cleared when editing or repeating a Task.
+    if (blueprint.assigneeUserId && assigneeId === blueprint.assigneeUserId) {
       return "";
     }
     return assigneeId;
@@ -221,14 +216,7 @@ export function TaskScheduleDialog({
               <Label>{t("assignee")}</Label>
               <TaskAssigneePicker
                 value={assigneeValue}
-                options={coworkerOptions.filter(
-                  (option) =>
-                    // New schedules cannot pick a member. Keep the member
-                    // already stored on this schedule so an edit still shows
-                    // that person.
-                    option.kind !== "user" ||
-                    option.id === schedule?.assigneeUserId,
-                )}
+                options={coworkerOptions}
                 labels={{
                   ariaLabel: t("assignee"),
                   unassigned: tNewTask("unassigned"),

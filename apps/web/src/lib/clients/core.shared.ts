@@ -256,6 +256,7 @@ import {
   getShareByToken as coreGetShareByToken,
   getSokoBotTeam as coreGetSokoBotTeam,
   getSubscriptionCatalog as coreGetSubscriptionCatalog,
+  getTaskScheduleAssignees as coreGetTaskScheduleAssignees,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
@@ -3813,6 +3814,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getTaskScheduleAssignees() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetTaskScheduleAssignees({ client, cache: "no-store" }),
+      "Failed to fetch Task Schedule assignees",
+    );
+  }
+
   async function createTaskSchedule(body: CreateTaskScheduleRequest) {
     return executeCoreOperation(
       getClient,
@@ -5633,6 +5642,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     putJobShare,
     putTaskShare,
     listTaskSchedules,
+    getTaskScheduleAssignees,
     createTaskSchedule,
     getTaskSchedule,
     updateTaskSchedule,

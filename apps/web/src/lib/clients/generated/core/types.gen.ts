@@ -5997,6 +5997,16 @@ export const TaskScheduleEndsMode = {
 
 export type TaskScheduleEndsMode = typeof TaskScheduleEndsMode[keyof typeof TaskScheduleEndsMode];
 
+export type TaskScheduleAssignees = {
+    coworkers: Array<Coworker>;
+    sokoBot: {
+        id: string;
+        name: string | null;
+        avatarSeed: string | null;
+        avatarImageUrl: string | null;
+    } | null;
+};
+
 export type CreateTaskScheduleRequest = {
     /**
      * Idempotency key, scoped to the active workspace. A retry with the same key and body returns the schedule the first request made; the same key with a different body or creator is a 409 schedule_operation_conflict.
@@ -6015,7 +6025,7 @@ export type CreateTaskScheduleRequest = {
      */
     assigneeSokoBotId?: string | null;
     /**
-     * Workspace-member assignee of each created Task
+     * Legacy compatibility field. Workspace members cannot be assigned to Task Schedules; send null to clear an existing member assignee.
      */
     assigneeUserId?: string | null;
     rule: TaskScheduleRule;
@@ -6066,7 +6076,7 @@ export type UpdateTaskScheduleRequest = {
      */
     assigneeSokoBotId?: string | null;
     /**
-     * Workspace-member assignee of each created Task
+     * Legacy compatibility field. Workspace members cannot be assigned to Task Schedules; send null to clear an existing member assignee.
      */
     assigneeUserId?: string | null;
     rule?: TaskScheduleRuleReplacement;
@@ -42256,6 +42266,70 @@ export type PostTasksSchedulesResponses = {
 };
 
 export type PostTasksSchedulesResponse = PostTasksSchedulesResponses[keyof PostTasksSchedulesResponses];
+
+export type GetTaskScheduleAssigneesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/tasks/schedules/assignees';
+};
+
+export type GetTaskScheduleAssigneesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTaskScheduleAssigneesError = GetTaskScheduleAssigneesErrors[keyof GetTaskScheduleAssigneesErrors];
+
+export type GetTaskScheduleAssigneesResponses = {
+    /**
+     * Eligible Task Schedule assignees
+     */
+    200: {
+        data: TaskScheduleAssignees;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTaskScheduleAssigneesResponse = GetTaskScheduleAssigneesResponses[keyof GetTaskScheduleAssigneesResponses];
 
 export type DeleteTasksSchedulesByIdData = {
     body?: never;

@@ -30,6 +30,7 @@ import mountPostTaskSchedulePause from "./schedules/[id]/pause/post.js";
 import mountPostTaskScheduleResume from "./schedules/[id]/resume/post.js";
 import mountPatchTaskScheduleRun from "./schedules/[id]/runs/[runId]/patch.js";
 import mountGetTaskScheduleRuns from "./schedules/[id]/runs/get.js";
+import mountGetTaskScheduleAssignees from "./schedules/assignees/get.js";
 import mountGetTaskSchedules from "./schedules/get.js";
 import mountPostTaskSchedule from "./schedules/post.js";
 import mountGetTaskSummary from "./summary/get.js";
@@ -43,6 +44,7 @@ mountGetTasks(app);
 // Before the `/{id}` routes so the literal path cannot be read as a task id.
 mountGetTaskSummary(app);
 mountGetTaskSchedules(app);
+mountGetTaskScheduleAssignees(app);
 mountPostTaskSchedule(app);
 mountGetTaskScheduleById(app);
 mountPatchTaskScheduleById(app);

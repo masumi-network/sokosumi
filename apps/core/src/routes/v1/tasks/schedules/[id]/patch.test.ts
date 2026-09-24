@@ -313,18 +313,31 @@ describe("PATCH /tasks/schedules/{id}", () => {
     expect(stored(schedule.id)?.nextRunAt).toBeNull();
   });
 
-  it("replaces the whole assignee when one assignee field is sent", async () => {
+  it("rejects a member assignee without changing the schedule", async () => {
     const schedule = seedTaskSchedule({ assigneeId: COWORKER_ID });
 
-    await patch(schedule.id, {
+    const response = await patch(schedule.id, {
       expectedRevision: 0,
       assigneeUserId: MEMBER_ID,
     });
 
+    expect(response.status).toBe(400);
     expect(stored(schedule.id)).toMatchObject({
-      assigneeId: null,
-      assigneeUserId: MEMBER_ID,
+      assigneeId: COWORKER_ID,
+      assigneeUserId: null,
     });
+  });
+
+  it("allows a legacy member schedule to clear its assignee", async () => {
+    const schedule = seedTaskSchedule({ assigneeUserId: MEMBER_ID });
+
+    const response = await patch(schedule.id, {
+      expectedRevision: 0,
+      assigneeUserId: null,
+    });
+
+    expect(response.status).toBe(200);
+    expect(stored(schedule.id)?.assigneeUserId).toBeNull();
   });
 
   it("rejects a stale revision without writing", async () => {

@@ -4,6 +4,7 @@ import { TaskScheduleEndsMode, TaskScheduleRunState } from "@sokosumi/database";
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { refineAssigneeXorConflict } from "@/helpers/task-assignee-alias";
+import { coworkerSchema } from "@/schemas/coworker.schema";
 import {
   taskScheduleEndsModeSchema,
   taskScheduleStateSchema,
@@ -128,10 +129,25 @@ const taskScheduleAssigneeFields = {
     example: "01960001-0001-7001-8001-000000000099",
   }),
   assigneeUserId: z.string().min(1).nullish().openapi({
-    description: "Workspace-member assignee of each created Task",
+    description:
+      "Legacy compatibility field. Workspace members cannot be assigned to Task Schedules; send null to clear an existing member assignee.",
     example: "user_123",
   }),
 };
+
+export const taskScheduleAssigneesSchema = z
+  .object({
+    coworkers: z.array(coworkerSchema),
+    sokoBot: z
+      .object({
+        id: z.string().uuid(),
+        name: z.string().nullable(),
+        avatarSeed: z.string().nullable(),
+        avatarImageUrl: z.string().nullable(),
+      })
+      .nullable(),
+  })
+  .openapi("TaskScheduleAssignees");
 
 export const createTaskScheduleRequestSchema = z
   .object({

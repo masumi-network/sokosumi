@@ -61,7 +61,6 @@ import type {
 } from "@/schemas/task-schedule.schema";
 import {
   creatorFields,
-  requireNoHumanAssigneeOnPrivateTask,
   requireTaskReferences,
   type TaskDomainActor,
 } from "@/services/task-domain.service";
@@ -74,6 +73,12 @@ import {
   stopPlannedTaskScheduleRuns,
   trimPlannedTaskScheduleRuns,
 } from "@/services/task-schedule-runs.service";
+
+function requireScheduleAssignee(assigneeUserId: string | null | undefined) {
+  if (assigneeUserId != null) {
+    throw badRequest("Task Schedules cannot be assigned to workspace members");
+  }
+}
 
 /**
  * Task Schedule operations (ADR 0041). Owns who may see and change a
@@ -229,6 +234,7 @@ export async function createTaskSchedule(
   const actor = await resolveScheduleActor(vars);
   const domainActor = toDomainActor(actor);
   const creator = { ownerId: actor.userId, ...creatorFields(domainActor) };
+  requireScheduleAssignee(input.assigneeUserId);
   const { operationId, ...request } = input;
   const replay = operationId
     ? createOperationReplay(actor.workspace.workspaceId, operationId, {
@@ -245,7 +251,6 @@ export async function createTaskSchedule(
 
   validateTaskScheduleRule(input.rule);
   const visibility = resolveVisibility(input.visibility, actor.workspace);
-  requireNoHumanAssigneeOnPrivateTask(visibility, input.assigneeUserId);
 
   const now = new Date();
   const rule = ruleColumns(input.rule, now);
@@ -537,10 +542,7 @@ export async function updateTaskSchedule(
     }
 
     const assignees = nextAssigneeWrite(input);
-    requireNoHumanAssigneeOnPrivateTask(
-      current.visibility,
-      assignees?.assigneeUserId,
-    );
+    requireScheduleAssignee(assignees?.assigneeUserId);
     await requireTaskReferences(
       {
         projectId: input.projectId,

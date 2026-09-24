@@ -224,7 +224,6 @@ describe("POST /tasks/schedules", () => {
     it.each([
       ["a Coworker", { assigneeId: COWORKER_ID }],
       ["the owner's Soko Bot", { assigneeSokoBotId: SOKO_BOT_ID }],
-      ["a workspace member", { assigneeUserId: MEMBER_ID }],
     ])("accepts %s as the blueprint assignee", async (_label, assignee) => {
       const response = await post({
         name: "Weekly report",
@@ -252,16 +251,19 @@ describe("POST /tasks/schedules", () => {
       expect(response.status).toBe(422);
     });
 
-    it("rejects a person outside the workspace", async () => {
-      const response = await post({
-        name: "Weekly report",
-        rule: WEEKLY_RULE,
-        assigneeUserId: "user_stranger",
-      });
+    it.each([MEMBER_ID, "user_stranger"])(
+      "rejects a person assignee on a public schedule: %s",
+      async (assigneeUserId) => {
+        const response = await post({
+          name: "Weekly report",
+          rule: WEEKLY_RULE,
+          assigneeUserId,
+        });
 
-      expect(response.status).toBe(404);
-      expect(taskScheduleTestDb.schedules).toHaveLength(0);
-    });
+        expect(response.status).toBe(400);
+        expect(taskScheduleTestDb.schedules).toHaveLength(0);
+      },
+    );
 
     it("refuses a project that is closing", async () => {
       const project = taskScheduleTestDb.projects.get(PROJECT_ID);

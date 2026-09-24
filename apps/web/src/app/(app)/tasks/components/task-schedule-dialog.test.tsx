@@ -155,9 +155,9 @@ describe("TaskScheduleDialog", () => {
     expect(onSaved).toHaveBeenCalledWith("new-schedule");
   });
 
-  it("offers coworkers and Soko Bots but no workspace members", async () => {
+  it("shows the assignees supplied by Core", async () => {
     const user = userEvent.setup();
-    renderDialog({ coworkerOptions: [MEMBER, COWORKER, SOKO_BOT] });
+    renderDialog({ coworkerOptions: [COWORKER, SOKO_BOT] });
 
     await user.click(screen.getByRole("combobox", { name: /assignee/ }));
 
@@ -169,7 +169,7 @@ describe("TaskScheduleDialog", () => {
   it("starts unassigned when repeating a Task assigned to a workspace member", async () => {
     const user = userEvent.setup();
     renderDialog({
-      coworkerOptions: [COWORKER, MEMBER],
+      coworkerOptions: [COWORKER],
       initialBlueprint: { name: "Review", assigneeUserId: MEMBER.id },
     });
 
@@ -180,6 +180,29 @@ describe("TaskScheduleDialog", () => {
 
     await waitFor(() => expect(createTaskScheduleMock).toHaveBeenCalledOnce());
     expect(createTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+    });
+  });
+
+  it("clears a legacy member assignee when editing a schedule", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        assigneeId: null,
+        assigneeUserId: MEMBER.id,
+      },
+    });
+
+    expect(
+      screen.getByRole("combobox", { name: /assignee/ }),
+    ).toHaveTextContent("unassigned");
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
       assigneeId: null,
       assigneeSokoBotId: null,
       assigneeUserId: null,
@@ -345,51 +368,17 @@ describe("TaskScheduleDialog", () => {
     );
   });
 
-  it("shows the member already on a schedule, hides other members, and keeps them on save", async () => {
-    const user = userEvent.setup();
-    const otherMember: CoworkerOption = {
-      ...MEMBER,
-      id: "user_3",
-      slug: "noah",
-      name: "Noah",
-    };
-    renderDialog({
-      schedule: {
-        ...SCHEDULE,
-        assigneeId: null,
-        assigneeUserId: MEMBER.id,
-      },
-      coworkerOptions: [COWORKER, MEMBER, otherMember],
-    });
-
-    expect(
-      screen.getByRole("combobox", { name: /assignee/ }),
-    ).toHaveTextContent("Maya");
-
-    await user.click(screen.getByRole("combobox", { name: /assignee/ }));
-    expect(screen.getByRole("option", { name: "Maya" })).toBeEnabled();
-    expect(screen.queryByRole("option", { name: "Noah" })).toBeNull();
-
-    await user.click(screen.getByRole("button", { name: "save" }));
-
-    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
-    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
-      assigneeId: null,
-      assigneeSokoBotId: null,
-      assigneeUserId: MEMBER.id,
-    });
-  });
-
-  it("offers no workspace member as assignee of a private schedule", async () => {
+  it("uses Core's agent choices for a private schedule", async () => {
     const user = userEvent.setup();
     renderDialog({
       schedule: { ...SCHEDULE, visibility: "PRIVATE" },
-      coworkerOptions: [COWORKER, MEMBER],
+      coworkerOptions: [COWORKER, SOKO_BOT],
     });
 
     await user.click(screen.getByRole("combobox", { name: /assignee/ }));
 
-    expect(screen.queryByRole("option", { name: /Maya/ })).toBeNull();
+    expect(screen.getByRole("option", { name: "Elena" })).toBeEnabled();
+    expect(screen.getByRole("option", { name: "Soko Bot" })).toBeEnabled();
   });
 
   it("asks to reload when the schedule changed meanwhile", async () => {

@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { TaskSchedulesView } from "@/app/tasks/components/task-schedules-view";
-import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
+import { listTaskScheduleAssigneeOptions } from "@/app/tasks/utils/task-schedule-assignee-options";
 import {
   parseTaskScheduleStateFilter,
   TASK_SCHEDULES_PAGE_LIMIT,
@@ -52,7 +52,7 @@ export async function SchedulesPageContent({
   const state = parseTaskScheduleStateFilter(params.scheduleState);
   const [projectOptions, coworkerOptions, canCreate] = await Promise.all([
     getProjectFilterOptions(requestedProjectId),
-    listTaskAssigneeOptions(activeOrganizationId),
+    listTaskScheduleAssigneeOptions(),
     organizationSeatService.hasAssignedSeat(activeOrganizationId),
   ]);
   const projectId = projectOptions.some(
