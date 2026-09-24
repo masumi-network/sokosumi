@@ -38,8 +38,8 @@ set -euo pipefail
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 V=$(curl -fsSL https://nodejs.org/dist/index.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).find(r=>r.version.startsWith("v24.")).version))')
 curl -fsSL "https://nodejs.org/dist/$V/node-$V-linux-x64.tar.xz" | tar -xJ -C /opt
-mv /opt/node22 /opt/node22-orig
-ln -s "/opt/node-$V-linux-x64" /opt/node22
+[ -L /opt/node22 ] || mv /opt/node22 /opt/node22-orig
+ln -sfn "/opt/node-$V-linux-x64" /opt/node22
 corepack enable
 cd /home/user/sokosumi
 corepack install
