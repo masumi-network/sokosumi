@@ -223,6 +223,14 @@ export async function dispatchTaskNotification(
       );
     }
 
+    if (
+      messageKey === "Notifications.Task.completed" ||
+      messageKey === "Notifications.Task.failed" ||
+      messageKey === "Notifications.Task.canceled"
+    ) {
+      await markParticipantAddedRead(task.id);
+    }
+
     await createNotification({
       userId: task.ownerId,
       kind: NotificationKind.TASK,
@@ -463,6 +471,23 @@ export async function markTaskArchivedRead(task: {
       task.id,
       TASK_ATTENTION_MESSAGE_KEYS,
       "task-archived-read",
+    );
+  }
+  await markParticipantAddedRead(task.id);
+}
+
+async function markParticipantAddedRead(taskId: string): Promise<void> {
+  const rows = await prisma.taskParticipant.findMany({
+    where: { taskId },
+    select: { userId: true },
+  });
+  for (const row of rows) {
+    await markAttentionRead(
+      row.userId,
+      NotificationKind.TASK,
+      taskId,
+      [TASK_PARTICIPANT_ADDED_MESSAGE_KEY],
+      "task-participant-settled-read",
     );
   }
 }

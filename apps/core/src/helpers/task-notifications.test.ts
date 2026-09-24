@@ -6,6 +6,7 @@ const {
   markSettledAttentionReadMock,
   prismaTaskFindFirstMock,
   prismaTaskFindUniqueMock,
+  prismaTaskParticipantFindManyMock,
   prismaUserFindUniqueMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
@@ -13,6 +14,7 @@ const {
   markSettledAttentionReadMock: vi.fn(),
   prismaTaskFindFirstMock: vi.fn(),
   prismaTaskFindUniqueMock: vi.fn(),
+  prismaTaskParticipantFindManyMock: vi.fn().mockResolvedValue([]),
   prismaUserFindUniqueMock: vi.fn(),
 }));
 
@@ -32,6 +34,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: prismaTaskFindFirstMock,
       findUnique: prismaTaskFindUniqueMock,
     },
+    taskParticipant: { findMany: prismaTaskParticipantFindManyMock },
     user: { findUnique: prismaUserFindUniqueMock },
   },
 }));
@@ -134,6 +137,7 @@ describe("dispatchTaskNotification", () => {
     vi.clearAllMocks();
     createNotificationMock.mockResolvedValue({});
     markSettledAttentionReadMock.mockResolvedValue(0);
+    prismaTaskParticipantFindManyMock.mockResolvedValue([]);
   });
 
   const SETTLED_TASK = {
@@ -179,6 +183,7 @@ describe("dispatchTaskNotification", () => {
         );
       }
       expect(markAttentionReadMock).toHaveBeenCalledTimes(2);
+      expect(prismaTaskParticipantFindManyMock).not.toHaveBeenCalled();
       expect(createNotificationMock).not.toHaveBeenCalled();
     },
   );
@@ -237,6 +242,29 @@ describe("dispatchTaskNotification", () => {
    * so a delegated task that settles leaves the assignee a reminder about a
    * question nobody is asking unless their rows are cleared too.
    */
+  /**
+   * A mention writes `participantAdded` to someone who is neither owner nor
+   * assignee. Settling clears the readers' run rows and leaves that one, so
+   * the day-later follow-up would still go out after the task is over.
+   */
+  it("marks a mentioned person's added row read when the task settles", async () => {
+    prismaTaskParticipantFindManyMock.mockResolvedValue([{ userId: "user_3" }]);
+
+    await dispatchTaskNotification(SETTLED_TASK, "event_1", "COMPLETED");
+
+    expect(markAttentionReadMock).toHaveBeenCalledWith(
+      "user_3",
+      "TASK",
+      "task_1",
+      ["Notifications.Task.participantAdded"],
+      "task-participant-settled-read",
+    );
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user_1" }),
+    );
+  });
+
   it("says so to a teammate the task was delegated to as well", async () => {
     await dispatchTaskNotification(
       { ...SETTLED_TASK, assigneeUserId: "user_2" },
@@ -401,6 +429,7 @@ describe("markTaskArchivedRead", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     markAttentionReadMock.mockResolvedValue(1);
+    prismaTaskParticipantFindManyMock.mockResolvedValue([]);
   });
 
   const ARCHIVED_TASK = {
@@ -428,6 +457,20 @@ describe("markTaskArchivedRead", () => {
         "task-archived-read",
       );
     }
+  });
+
+  it("marks a mentioned person's added row read", async () => {
+    prismaTaskParticipantFindManyMock.mockResolvedValue([{ userId: "user_3" }]);
+
+    await markTaskArchivedRead(ARCHIVED_TASK);
+
+    expect(markAttentionReadMock).toHaveBeenCalledWith(
+      "user_3",
+      "TASK",
+      "task_1",
+      ["Notifications.Task.participantAdded"],
+      "task-participant-settled-read",
+    );
   });
 
   /** One reader under two names on every task nobody delegated. */
