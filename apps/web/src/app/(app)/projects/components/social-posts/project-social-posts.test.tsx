@@ -1025,7 +1025,8 @@ describe("ProjectSocialPosts", () => {
       ok: false,
       error: {
         code: "BAD_INPUT",
-        message: "Social post was modified, reload and retry",
+        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        message: "Conflict copy can change freely",
       },
     });
     render(
