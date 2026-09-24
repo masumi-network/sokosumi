@@ -6499,7 +6499,6 @@
       },
       "event": {
         "accessibleName": "{task}, {source}",
-        "openTask": "Open task",
         "moveNotAllowed": "Only upcoming runs of your own active schedules can be moved.",
         "moveRun": "Move run",
         "skipRun": "Skip run",
