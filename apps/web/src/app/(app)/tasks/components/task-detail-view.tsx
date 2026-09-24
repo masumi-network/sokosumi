@@ -37,6 +37,7 @@ import {
 } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
+import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import {
   canCancelTaskForViewer,
   canCommentOnTaskForViewer,
@@ -113,6 +114,9 @@ export async function TaskDetailView({
     : organizationSeatService.hasAssignedSeat(
         task.workspace.organizationId ?? null,
       );
+  const mentionableUsersPromise = forceReadOnly
+    ? Promise.resolve([])
+    : listTaskAssigneeMemberOptions(task.workspace.organizationId ?? null);
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const projectPromise = task.projectId
     ? projectService.getProjectById(task.projectId).catch(() => null)
@@ -266,6 +270,7 @@ export async function TaskDetailView({
                 agentsPromise={agentsPromise}
                 sessionPromise={sessionPromise}
                 currentPlanPromise={currentPlanPromise}
+                mentionableUsersPromise={mentionableUsersPromise}
               />
             </Suspense>
           </div>
@@ -720,6 +725,7 @@ async function TaskActivitySectionContent({
   agentsPromise,
   sessionPromise,
   currentPlanPromise,
+  mentionableUsersPromise,
 }: {
   taskId: string;
   task: Task;
@@ -728,14 +734,17 @@ async function TaskActivitySectionContent({
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
   currentPlanPromise: Promise<SubscriptionPlanName | null>;
+  mentionableUsersPromise: Promise<Array<{ id: string; name: string }>>;
 }) {
-  const [agents, session, viewerPlan, hasAssignedSeat, t] = await Promise.all([
-    agentsPromise,
-    sessionPromise,
-    currentPlanPromise,
-    hasAssignedSeatPromise,
-    getTranslations("App.Tasks.Detail"),
-  ]);
+  const [agents, session, viewerPlan, hasAssignedSeat, mentionableUsers, t] =
+    await Promise.all([
+      agentsPromise,
+      sessionPromise,
+      currentPlanPromise,
+      hasAssignedSeatPromise,
+      mentionableUsersPromise,
+      getTranslations("App.Tasks.Detail"),
+    ]);
   const {
     userById: actorsUserById,
     coworkerById,
@@ -750,15 +759,26 @@ async function TaskActivitySectionContent({
           : null,
       }
     : null;
+  // Participants resolve `@` names in comments even after they leave the workspace.
+  const participantUserById = Object.fromEntries(
+    task.participants.map(({ user }) => [
+      user.id,
+      {
+        name: user.name,
+        image: user.image ? resolveIpfsOrHttpUrl(user.image) : null,
+      },
+    ]),
+  );
+  const knownUserById = { ...participantUserById, ...actorsUserById };
   const userById = currentUser
     ? {
-        ...actorsUserById,
+        ...knownUserById,
         [currentUser.id]: {
           name: currentUser.name,
           image: currentUser.image,
         },
       }
-    : actorsUserById;
+    : knownUserById;
   const agentNameById = buildAgentNameById(agents);
 
   return (
@@ -784,6 +804,7 @@ async function TaskActivitySectionContent({
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
       viewerPlan={viewerPlan}
+      mentionableUsers={mentionableUsers.map(({ id, name }) => ({ id, name }))}
       canComment={canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
         taskOwnerId: task.ownerId,
