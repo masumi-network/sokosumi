@@ -80,8 +80,8 @@ public struct PendingReactions: Equatable, Sendable {
 }
 
 /// One intent over a confirmed message. A message that already matches the intent comes back unchanged.
-public func applyingPendingReaction(_ pending: PendingReaction, to message: Components.Schemas.ChatRoomMessage,
-                                    viewer: PendingReactionViewer) -> Components.Schemas.ChatRoomMessage {
+func applyingPendingReaction(_ pending: PendingReaction, to message: Components.Schemas.ChatRoomMessage,
+                             viewer: PendingReactionViewer) -> Components.Schemas.ChatRoomMessage {
   let index = message.reactions.firstIndex { $0.emoji == pending.emoji }
   let entry = index.map { message.reactions[$0] }
   guard (entry?.reactedByCurrentUser ?? false) != pending.reacted else { return message }

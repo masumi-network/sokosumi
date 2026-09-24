@@ -45,13 +45,13 @@ public extension Components.Schemas.ChatRoomGuestInviteLink {
   }
 }
 
-/// Web `isValidEmail` (zod `z.email()`), so the same addresses are refused before Core sees them.
-public func isValidGuestEmail(_ email: String) -> Bool {
+/// Same addresses Core's email check refuses, so they never leave the client.
+func isValidGuestEmail(_ email: String) -> Bool {
   let pattern = #/^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$/#
   return email.wholeMatch(of: pattern) != nil
 }
 
-/// Web `guest-invite-section.tsx`: mounted per open settings dialog, so every open refetches pending invitations and
+/// Mounted per open settings dialog, so every open refetches pending invitations and
 /// live links; each row action is single-flight; failures surface Core's message; the guest list starts from the room
 /// DTO and drops removed guests locally. A local edit wins over an older load response.
 @MainActor
