@@ -10946,7 +10946,7 @@
     },
     "/chats/rooms/{id}/threads/unread-count": {
       "get": {
-        "description": "Count unread threads in a room (Participant-gated `unreadReplyCount`). Cheap count path: returns a count only, no thread items. Same eligibility as `unread=true` and Mark all. Independent of room mark-read.",
+        "description": "Unread threads in a room with each one's Participant-gated `unreadReplyCount`, and their count. No parent messages are hydrated. Same eligibility as `unread=true` and Mark all. Independent of room mark-read.",
         "tags": [
           "Chat Rooms"
         ],
@@ -28962,12 +28962,20 @@
           "count": {
             "type": "integer",
             "minimum": 0,
-            "description": "Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.",
+            "description": "Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Equals `threads.length`.",
             "example": 4
+          },
+          "threads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatRoomThreadUnreadReplyCount"
+            },
+            "description": "Every unread thread in the room with its `unreadReplyCount`. A thread absent from the list has no unread replies for the viewer."
           }
         },
         "required": [
-          "count"
+          "count",
+          "threads"
         ]
       },
       "ChatRoomThreadsMarkAll": {
@@ -30636,6 +30644,23 @@
           "replyCount",
           "lastReplyAt",
           "lastReplyId"
+        ]
+      },
+      "ChatRoomThreadUnreadReplyCount": {
+        "type": "object",
+        "properties": {
+          "parentMessageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "unreadReplyCount": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "parentMessageId",
+          "unreadReplyCount"
         ]
       }
     }
