@@ -396,10 +396,14 @@ describe("runPreviewDbResetComment", () => {
     const { options, posted, neonCalls } = setup({
       neon: { listStatus: { "prj-preprod": 401 } },
     });
-    await assert.rejects(() => runPreviewDbResetComment(options), /\(401\)/);
+    await assert.rejects(
+      () => runPreviewDbResetComment(options),
+      /Neon answered 401/,
+    );
     assert.deepEqual(restoreCalls(neonCalls), []);
+    // The reply is public, so it leaves out the request path with its ids.
     assert.deepEqual(posted, [
-      "`/reset-db` failed: preprod: Neon API GET /projects/prj-preprod/branches?limit=10000&search=preview%2Ffeat%2Fx failed (401): bad key. Nothing was reset.",
+      "`/reset-db` failed: preprod: the branch lookup failed: Neon answered 401: bad key. Nothing was reset.",
     ]);
   });
 
@@ -454,7 +458,7 @@ describe("runPreviewDbResetComment", () => {
     );
     assert.deepEqual(created, []);
     assert.deepEqual(posted, [
-      "`/reset-db` failed: preprod: Neon API POST /projects/prj-preprod/branches/br-prj-preprod/restore failed (409): restore failed 409. `preview/feat/x` was reset on mainnet without a Core redeploy. Comment `/deploy mainnet` to run the migrations. Neon refused the reset on preprod. Comment `/reset-db preprod` once the cause is fixed.",
+      "`/reset-db` failed: preprod: the restore failed: Neon answered 409: restore failed 409. `preview/feat/x` was reset on mainnet without a Core redeploy. Comment `/deploy mainnet` to run the migrations. Neon refused the reset on preprod. Comment `/reset-db preprod` once the cause is fixed.",
     ]);
   });
 
@@ -490,7 +494,7 @@ describe("runPreviewDbResetComment", () => {
       });
       await assert.rejects(
         () => runPreviewDbResetComment(options),
-        new RegExp(`\\(${status}\\)`),
+        new RegExp(`Neon answered ${status}`),
       );
       assert.deepEqual(
         restoreCalls(neonCalls).map((call) => call.path),
@@ -499,7 +503,7 @@ describe("runPreviewDbResetComment", () => {
         ),
       );
       assert.deepEqual(posted, [
-        `\`/reset-db\` failed: mainnet: Neon API POST /projects/prj-mainnet/branches/br-prj-mainnet/restore failed (${status}): restore failed ${status}. ${reason} Nothing was reset. Comment \`/reset-db ${retry}\` ${advice}.`,
+        `\`/reset-db\` failed: mainnet: the restore failed: Neon answered ${status}: restore failed ${status}. ${reason} Nothing was reset. Comment \`/reset-db ${retry}\` ${advice}.`,
       ]);
     }
   });
@@ -514,7 +518,7 @@ describe("runPreviewDbResetComment", () => {
     );
     assert.deepEqual(created, []);
     assert.deepEqual(posted, [
-      "`/reset-db` failed: preprod: Neon operation op-prj-preprod ended failed. `preview/feat/x` was reset on mainnet without a Core redeploy. Comment `/deploy mainnet` to run the migrations. The reset on preprod may not have finished. Comment `/reset-db preprod` to try again.",
+      "`/reset-db` failed: preprod: waiting for the restore failed: Neon operation op-prj-preprod ended failed. `preview/feat/x` was reset on mainnet without a Core redeploy. Comment `/deploy mainnet` to run the migrations. The reset on preprod may not have finished. Comment `/reset-db preprod` to try again.",
     ]);
   });
 
@@ -526,7 +530,7 @@ describe("runPreviewDbResetComment", () => {
     await assert.rejects(() => runPreviewDbResetComment(options), /404/);
     assert.deepEqual(created, []);
     assert.deepEqual(posted, [
-      "`/reset-db` failed: mainnet: Neon API GET /projects/prj-mainnet/operations/op-prj-mainnet failed (404): no such operation. The reset on mainnet may not have finished. Comment `/reset-db mainnet` to try again.",
+      "`/reset-db` failed: mainnet: waiting for the restore failed: Neon answered 404: no such operation. The reset on mainnet may not have finished. Comment `/reset-db mainnet` to try again.",
     ]);
   });
 
@@ -534,11 +538,11 @@ describe("runPreviewDbResetComment", () => {
     for (const [neon, reason] of [
       [
         { restoreError: { "prj-mainnet": new TypeError("fetch failed") } },
-        "fetch failed.",
+        "the restore failed: fetch failed.",
       ],
       [
         { restoreStatus: { "prj-mainnet": 502 } },
-        "Neon API POST /projects/prj-mainnet/branches/br-prj-mainnet/restore failed (502): restore failed 502.",
+        "the restore failed: Neon answered 502: restore failed 502.",
       ],
     ]) {
       const { options, posted, created } = setup({
@@ -566,7 +570,7 @@ describe("runPreviewDbResetComment", () => {
     );
     assert.deepEqual(created, []);
     assert.deepEqual(posted, [
-      "`/reset-db` failed: mainnet: fetch failed. The reset on mainnet may not have finished. The reset on preprod did not start. Comment `/reset-db mainnet preprod` to try again.",
+      "`/reset-db` failed: mainnet: the restore failed: fetch failed. The reset on mainnet may not have finished. The reset on preprod did not start. Comment `/reset-db mainnet preprod` to try again.",
     ]);
   });
 
@@ -618,24 +622,37 @@ describe("runPreviewDbResetComment", () => {
       /but the Core redeploy failed: sokosumi-core-mainnet \(ERROR\)/,
     );
     assert.deepEqual(posted, [
-      "`/reset-db` failed: `preview/feat/x` was reset on mainnet, but the Core redeploy failed: sokosumi-core-mainnet (ERROR). Comment `/deploy mainnet` to run the migrations.",
+      "`/reset-db` failed: `preview/feat/x` was reset on mainnet, but the Core redeploy failed: sokosumi-core-mainnet (ERROR). If `prisma migrate deploy` failed in the build log, fix the migration first. Then comment `/deploy mainnet` to run the migrations.",
     ]);
     assert.deepEqual(reactions, ["eyes"]);
   });
 
-  it("names every reset network in the /deploy advice", async () => {
+  it("names only the networks whose Core build failed in the /deploy advice", async () => {
     const { options, posted } = setup({
       commentBody: "/reset-db all",
       createDeployment: async (input) => ({
         id: `dpl_${input.target.name}`,
-        readyState: "ERROR",
+        readyState: input.target.network === "preprod" ? "ERROR" : "READY",
       }),
+    });
+    await assert.rejects(() => runPreviewDbResetComment(options));
+    assert.deepEqual(posted, [
+      "`/reset-db` failed: `preview/feat/x` was reset on mainnet, preprod, but the Core redeploy failed: sokosumi-core-preprod (ERROR). If `prisma migrate deploy` failed in the build log, fix the migration first. Then comment `/deploy preprod` to run the migrations.",
+    ]);
+  });
+
+  it("names every reset network when the Vercel request fails", async () => {
+    const { options, posted } = setup({
+      commentBody: "/reset-db all",
+      createDeployment: async () => {
+        throw new Error("Vercel 500");
+      },
     });
     await assert.rejects(() => runPreviewDbResetComment(options));
     assert.equal(posted.length, 1);
     assert.match(
       posted[0],
-      /^`\/reset-db` failed: `preview\/feat\/x` was reset on mainnet, preprod, but the Core redeploy failed: .* Comment `\/deploy mainnet preprod` to run the migrations\.$/,
+      /^`\/reset-db` failed: `preview\/feat\/x` was reset on mainnet, preprod, but the Core redeploy failed: Vercel 500\. .* Then comment `\/deploy mainnet preprod` to run the migrations\.$/,
     );
   });
 });

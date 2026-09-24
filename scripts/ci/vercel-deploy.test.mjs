@@ -1247,6 +1247,11 @@ describe("git preview policy", () => {
       resetJob,
       /startsWith\(github\.event\.comment\.body, '\/reset-db'\)/,
     );
+    // Commenters without an association to the repository get no job.
+    assert.match(
+      resetJob,
+      /contains\(fromJSON\('\["OWNER", "MEMBER", "COLLABORATOR"\]'\), github\.event\.comment\.author_association\)/,
+    );
     assert.match(resetJob, /^    environment: preview-database$/m);
     assert.match(
       checkoutStep(resetJob, "reset-db"),
@@ -1255,12 +1260,15 @@ describe("git preview policy", () => {
     // Lower, the job can end during the script's longest wait, and then no
     // reply posts.
     assert.match(resetJob, /^    timeout-minutes: 40$/m);
-    // Resets for one PR run one at a time, and a newer command waits instead
-    // of cancelling a waiting one.
-    assert.match(
-      resetJob,
-      /^ {4}concurrency:\n {6}group: reset-db-\$\{\{ github\.event\.issue\.number \}\}\n {6}cancel-in-progress: false\n {6}queue: max$/m,
-    );
+    // A reset and a Core build for one PR never overlap, and a newer job waits
+    // instead of cancelling a waiting one.
+    for (const jobId of ["comment", "opened", "reset-db"]) {
+      assert.match(
+        jobBlock(workflow, jobId),
+        /^ {4}concurrency:\n {6}group: \$\{\{ github\.workflow \}\}-\$\{\{ github\.event\.issue\.number \|\| github\.event\.pull_request\.number \}\}\n {6}cancel-in-progress: false\n {6}queue: max$/m,
+        `${jobId} must share the per-PR queue`,
+      );
+    }
     // The job passes each name the script reads, from the right store.
     const env = [
       ["GITHUB_TOKEN", "secrets.GITHUB_TOKEN"],

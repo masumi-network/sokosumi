@@ -605,6 +605,11 @@ describe("waitForOperations", () => {
         [running, new TypeError("fetch failed")],
         "last poll failed: fetch failed",
       ],
+      // Without the request path, which names the project.
+      [
+        [running, [503, { message: "unavailable" }]],
+        "last poll failed: Neon answered 503: unavailable",
+      ],
       [[new TypeError("fetch failed"), running], "last status: running"],
     ]) {
       let clock = 0;

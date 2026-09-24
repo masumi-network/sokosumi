@@ -14,6 +14,7 @@ import {
   findBranchByName,
   isNeonBusy,
   isUnknownNeonOutcome,
+  neonErrorReason,
   PREVIEW_BRANCH_PREFIX,
   resetPreviewBranchToParent,
   waitForOperations,
@@ -83,6 +84,22 @@ function networkError(network, error) {
   return `${network}: ${errorSentence(error)}`;
 }
 
+/**
+ * Run one Neon step. Its error names the step and leaves out the request
+ * path, because the reply is a public PR comment. It keeps the status that
+ * tells whether Neon acted.
+ */
+async function neonStep(step, request) {
+  try {
+    return await request();
+  } catch (error) {
+    throw Object.assign(
+      new Error(`${step} failed: ${neonErrorReason(error)}`),
+      { status: error?.status },
+    );
+  }
+}
+
 export async function runPreviewDbResetComment(options) {
   const {
     repoId,
@@ -120,7 +137,9 @@ export async function runPreviewDbResetComment(options) {
         )) {
           checking = network;
           const neon = { ...config, fetchImpl: fetchWithTimeout };
-          const branch = await findBranchByName(neon, branchName);
+          const branch = await neonStep("the branch lookup", () =>
+            findBranchByName(neon, branchName),
+          );
           if (!branch) {
             throw new Error(
               `No Neon branch \`${branchName}\` in the preview project. A Core preview deployment of this branch creates it`,
@@ -146,11 +165,13 @@ export async function runPreviewDbResetComment(options) {
       try {
         for (const { network, neon, branch } of targets) {
           restoreAccepted = false;
-          const restored = await resetPreviewBranchToParent(neon, branch, {
-            sleep,
-          });
+          const restored = await neonStep("the restore", () =>
+            resetPreviewBranchToParent(neon, branch, { sleep }),
+          );
           restoreAccepted = true;
-          await waitForOperations(neon, restored?.operations ?? [], { sleep });
+          await neonStep("waiting for the restore", () =>
+            waitForOperations(neon, restored?.operations ?? [], { sleep }),
+          );
           reset.push(network);
         }
       } catch (error) {
@@ -201,8 +222,11 @@ export async function runPreviewDbResetComment(options) {
           pollDeployment,
         }));
       } catch (error) {
+        // A failed build names its networks. A failed Vercel request does
+        // not, so every network may lack its migrations.
+        const failed = error?.networks ?? networks;
         throw new Error(
-          `\`${branchName}\` was reset on ${networks.join(", ")}, but the Core redeploy failed: ${errorSentence(error)} Comment \`/deploy ${networks.join(" ")}\` to run the migrations.`,
+          `\`${branchName}\` was reset on ${networks.join(", ")}, but the Core redeploy failed: ${errorSentence(error)} If \`prisma migrate deploy\` failed in the build log, fix the migration first. Then comment \`/deploy ${failed.join(" ")}\` to run the migrations.`,
         );
       }
 

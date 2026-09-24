@@ -75,6 +75,8 @@ export async function neonFetch(config, path, init = {}) {
     error.status = response.status;
     // @ts-expect-error attach body for callers
     error.body = body;
+    // @ts-expect-error attach Neon's message for callers
+    error.detail = detail;
     throw error;
   }
 
@@ -295,6 +297,18 @@ export async function resetPreviewBranchToParent(
 }
 
 /**
+ * The error without the request path, which names the project and branch ids:
+ * Neon's status and message, or the network error.
+ * @param {unknown} error
+ */
+export function neonErrorReason(error) {
+  if (error?.status === undefined) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return `Neon answered ${error.status}: ${error.detail}`;
+}
+
+/**
  * A network error or a server error other than 503 leaves open whether Neon
  * acted on the request. Any other error status means that Neon did not act.
  * @param {unknown} error
@@ -365,7 +379,7 @@ export async function waitForOperations(
       }
       if (polled && now() >= deadline) {
         const last = pollError
-          ? `last poll failed: ${pollError.message}`
+          ? `last poll failed: ${neonErrorReason(pollError)}`
           : `last status: ${status ?? "unknown"}`;
         throw new Error(
           `Neon operation ${operation.id} did not finish (${last})`,

@@ -29,6 +29,14 @@ jobs:
       github.event.issue.pull_request &&
       github.event.comment.user.type != 'Bot' &&
       contains(github.event.comment.body, '/deploy')
+    # All three jobs share one group per PR. A Core build during a reset could
+    # migrate the branch before or after the restore. Every job in the group
+    # needs `queue: max`: with the default, a newer job cancels the one that
+    # waits, whichever job that is.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
+      queue: max
     permissions:
       contents: read
       pull-requests: write
@@ -63,6 +71,10 @@ jobs:
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.user.type != 'Bot' &&
       github.event.pull_request.head.repo.full_name == github.repository
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
+      queue: max
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -87,22 +99,23 @@ jobs:
 
   reset-db:
     name: Reset preview database
-    # Start only for a comment that begins with the command. The script
-    # ignores every other comment.
+    # Start only for a comment that begins with the command, from a repository
+    # owner, organization member, or collaborator. Other commenters get no job,
+    # so they cannot fill the queue. The script still checks write access.
     if: >
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request &&
       github.event.comment.user.type != 'Bot' &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
       startsWith(github.event.comment.body, '/reset-db')
     # The per-network Neon preview keys live in this environment. Limit the
     # environment to the default branch: issue_comment runs from it, and runs
     # on other branches then cannot read the keys.
     environment: preview-database
-    # A reset drops open connections, so resets for one PR run one at a time.
-    # By default GitHub keeps one waiting job per group and cancels it when a
-    # newer one arrives. `queue: max` keeps up to 100 waiting jobs instead.
+    # A reset drops open connections, so it waits for the PR's other preview
+    # jobs, and they wait for it. See the `comment` job.
     concurrency:
-      group: reset-db-${{ github.event.issue.number }}
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
       cancel-in-progress: false
       queue: max
     permissions:

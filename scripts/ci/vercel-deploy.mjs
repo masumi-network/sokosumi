@@ -337,13 +337,13 @@ export async function listPullRequestFiles({
   return files;
 }
 
-function failedDeploymentNames(targets, deployments) {
+function failedDeployments(targets, deployments) {
   return targets.flatMap((target, index) => {
     const state = deployments[index]?.readyState;
     if (state === "READY") {
       return [];
     }
-    return [`${target.name} (${state ?? "UNKNOWN"})`];
+    return [{ target, state: state ?? "UNKNOWN" }];
   });
 }
 
@@ -397,9 +397,17 @@ export async function settlePreviewDeployments(options) {
   const settled = await Promise.all(
     created.map((deployment) => poll(deployment)),
   );
-  const failed = failedDeploymentNames(targets, settled);
+  const failed = failedDeployments(targets, settled);
   if (failed.length > 0) {
-    throw new Error(failed.join(", "));
+    throw Object.assign(
+      new Error(
+        failed
+          .map(({ target, state }) => `${target.name} (${state})`)
+          .join(", "),
+      ),
+      // Callers name the networks to deploy again.
+      { networks: [...new Set(failed.map(({ target }) => target.network))] },
+    );
   }
   return { kind: "deploy", deployments: settled };
 }
