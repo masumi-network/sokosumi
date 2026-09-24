@@ -122,6 +122,14 @@ jobs:
           pnpm --filter @sokosumi/database exec prisma migrate deploy
           RUN_DATABASE_INTEGRATION_TESTS=true pnpm --filter core test src/routes/v1/projects/get.postgres.test.ts src/helpers/project-activity.postgres.test.ts src/helpers/calendar-erasure.postgres.test.ts
 
+      # Reuses the database migrated above. On drift it prints the SQL the next
+      # `prisma migrate dev` would generate and exits 2.
+      - name: Check Prisma schema matches migrations
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
+          DATABASE_URL_UNPOOLED: "postgresql://user:password@localhost:5432/job_sync_test"
+        run: pnpm prisma:check-drift
+
   packages:
     name: Test Packages
     needs: changes
