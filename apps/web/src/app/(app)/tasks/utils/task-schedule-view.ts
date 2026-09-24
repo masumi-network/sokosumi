@@ -52,7 +52,6 @@ export function formatTaskScheduleRule(
   return formatScheduleTitle(
     computeScheduleTitleInfo(
       {
-        scheduleType: "CRON",
         cron: rule.expr,
         timezone: rule.timezone,
         intervalDays: rule.intervalDays,
