@@ -100,6 +100,23 @@
         return (0 ..< count).count { left[$0] != right[$0] }
       }
 
+      /// Bytes two renders of the same sidebar may differ by even when the control pair matches exactly. Measured
+      /// on 2026-09-23 by regressing each rule the pixel tests guard: Thread replies bolding the row changed 3294
+      /// (light) / 3333 (dark) bytes, the count drawn beside a badge 540 / 540, a Direct of two badged 579 / 612;
+      /// the control pairs differed by 0. The floor is under 10 % of the smallest of those, 540.
+      static let pixelNoiseFloor = 50
+
+      /// `subject` looks like `reference`: it differs by no more than two renders of the reference differ from
+      /// each other, or than `pixelNoiseFloor` when those two happen to match exactly.
+      private static func expectSamePicture(
+        _ subject: NSBitmapImageRep, _ reference: NSBitmapImageRep, _ referenceAgain: NSBitmapImageRep,
+        sourceLocation: SourceLocation = #_sourceLocation
+      ) throws {
+        let difference = try differingBytes(subject, reference)
+        let noise = try differingBytes(reference, referenceAgain)
+        #expect(difference <= max(noise, pixelNoiseFloor), "\(difference) bytes differ; control pair \(noise)", sourceLocation: sourceLocation)
+      }
+
       /// What the recorded picture claims, from the resolver the row draws with.
       @Test(arguments: [false, true])
       func rendersTheRowsWebDraws(dark: Bool) async throws {
@@ -145,7 +162,7 @@
         let replies = try await Self.render(Self.rooms(designThread: 4), dark: dark)
         let none = try await Self.render(Self.rooms(designThread: 0), dark: dark)
         let noneAgain = try await Self.render(Self.rooms(designThread: 0), dark: dark)
-        #expect(try Self.differingBytes(replies, none) <= Self.differingBytes(none, noneAgain))
+        try Self.expectSamePicture(replies, none, noneAgain)
       }
 
       /// One number per row: with a mention badge the message count is not drawn, so 12 and 7 look alike.
@@ -154,7 +171,7 @@
         let twelve = try await Self.render(Self.rooms(engineeringChannel: 12), dark: dark)
         let seven = try await Self.render(Self.rooms(engineeringChannel: 7), dark: dark)
         let sevenAgain = try await Self.render(Self.rooms(engineeringChannel: 7), dark: dark)
-        #expect(try Self.differingBytes(twelve, seven) <= Self.differingBytes(seven, sevenAgain))
+        try Self.expectSamePicture(twelve, seven, sevenAgain)
       }
 
       /// A Direct of two draws its count, never a mention badge: two messages look the same with or without
@@ -164,7 +181,7 @@
         let badged = try await Self.render(Self.rooms(adaMentions: 2), dark: dark)
         let plain = try await Self.render(Self.rooms(adaMentions: 0), dark: dark)
         let plainAgain = try await Self.render(Self.rooms(adaMentions: 0), dark: dark)
-        #expect(try Self.differingBytes(badged, plain) <= Self.differingBytes(plain, plainAgain))
+        try Self.expectSamePicture(badged, plain, plainAgain)
       }
     }
   }
