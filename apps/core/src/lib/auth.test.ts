@@ -49,7 +49,6 @@ const {
   stripeCreateUserCustomerMock,
   stripeCreateOrganizationCustomerMock,
   stripePluginMock,
-  uploadProfileImageMock,
   webhookCallAccountCreatedMock,
   webhookCallUserCreatedMock,
   webhookCallUserUpdatedMock,
@@ -158,7 +157,6 @@ const {
     stripeCreateUserCustomerMock: vi.fn(),
     stripeCreateOrganizationCustomerMock: vi.fn(),
     stripePluginMock: vi.fn(),
-    uploadProfileImageMock: vi.fn(),
     webhookCallAccountCreatedMock: vi.fn(),
     webhookCallUserCreatedMock: vi.fn(),
     webhookCallUserUpdatedMock: vi.fn(),
@@ -341,7 +339,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/lib/blob", () => ({
-  uploadProfileImage: (...args: unknown[]) => uploadProfileImageMock(...args),
+  uploadProfileImage: vi.fn(),
 }));
 
 vi.mock("@/services/webhook.service", () => ({
@@ -455,7 +453,6 @@ describe("core auth config", () => {
     });
     sentryCaptureExceptionMock.mockReset();
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
-    uploadProfileImageMock.mockResolvedValue("https://blob.example/avatar.png");
     webhookCallAccountCreatedMock.mockResolvedValue(undefined);
     webhookCallUserCreatedMock.mockResolvedValue(undefined);
     webhookCallUserUpdatedMock.mockResolvedValue(undefined);
@@ -505,154 +502,18 @@ describe("core auth config", () => {
     waitUntilMock.mockClear();
   });
 
-  it("configures Google and Microsoft social providers without requireLocalEmailVerified", async () => {
+  it("passes the social provider and account options to Better Auth", async () => {
     await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          socialProviders: {
-            google: {
-              clientId: string;
-              clientSecret: string;
-              overrideUserInfoOnSignIn: boolean;
-              mapProfileToUser: unknown;
-            };
-            microsoft: {
-              clientId: string;
-              clientSecret: string;
-              overrideUserInfoOnSignIn: boolean;
-              mapProfileToUser: unknown;
-            };
-          };
-          account: {
-            accountLinking: {
-              enabled: boolean;
-              trustedProviders: string[];
-            };
-          };
-        },
-      ]
-    >;
-
-    expect(config.socialProviders.google).toEqual({
-      clientId: "google-client-id",
-      clientSecret: "google-client-secret",
-      overrideUserInfoOnSignIn: false,
-      mapProfileToUser: expect.any(Function),
-    });
-    expect(config.socialProviders.microsoft).toEqual({
-      clientId: "microsoft-client-id",
-      clientSecret: "microsoft-client-secret",
-      overrideUserInfoOnSignIn: false,
-      mapProfileToUser: expect.any(Function),
-    });
-    expect(config.socialProviders.google.mapProfileToUser).toBe(
-      config.socialProviders.microsoft.mapProfileToUser,
+    const { accountOptions, socialProviderOptions } = await import(
+      "./auth-social-providers"
     );
-    expect(config.account.accountLinking).toEqual({
-      enabled: true,
-      trustedProviders: ["google", "microsoft"],
-    });
-  });
-
-  it("maps social profile pictures to user fields", async () => {
-    await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          socialProviders: {
-            google: {
-              mapProfileToUser: (profile: {
-                name: string;
-                picture: string;
-              }) => Promise<{
-                name: string;
-                image?: string | null;
-                emailVerified: boolean;
-              }>;
-            };
-          };
-        },
-      ]
+      [{ socialProviders: unknown; account: unknown }]
     >;
 
-    const mapProfileToUser = config.socialProviders.google.mapProfileToUser;
-
-    await expect(
-      mapProfileToUser({
-        name: "Andreas",
-        picture: "https://cdn.example.com/avatar.png",
-      }),
-    ).resolves.toEqual({
-      name: "Andreas",
-      image: "https://cdn.example.com/avatar.png",
-      emailVerified: true,
-    });
-
-    const dataUri =
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
-
-    await expect(
-      mapProfileToUser({
-        name: "Andreas",
-        picture: dataUri,
-      }),
-    ).resolves.toEqual({
-      name: "Andreas",
-      image: "https://blob.example/avatar.png",
-      emailVerified: true,
-    });
-    expect(uploadProfileImageMock).toHaveBeenCalledWith(dataUri);
-
-    await expect(
-      mapProfileToUser({
-        name: "Andreas",
-        picture: "",
-      }),
-    ).resolves.toEqual({
-      name: "Andreas",
-      image: undefined,
-      emailVerified: true,
-    });
-  });
-
-  it("falls back when social profile mapping fails", async () => {
-    uploadProfileImageMock.mockRejectedValueOnce(new Error("upload failed"));
-
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          socialProviders: {
-            google: {
-              mapProfileToUser: (profile: {
-                name: string;
-                picture: string;
-              }) => Promise<{
-                name: string;
-                image?: string | null;
-                emailVerified: boolean;
-              }>;
-            };
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.socialProviders.google.mapProfileToUser({
-        name: "Andreas",
-        picture: "data:image/png;base64,invalid",
-      }),
-    ).resolves.toEqual({
-      name: "Andreas",
-      image: undefined,
-      emailVerified: true,
-    });
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error));
+    expect(config.socialProviders).toBe(socialProviderOptions);
+    expect(config.account).toBe(accountOptions);
   });
 
   it("fires account-created webhook when a social account is linked", async () => {
