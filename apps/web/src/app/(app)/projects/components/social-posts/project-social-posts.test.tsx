@@ -148,6 +148,9 @@ const MESSAGES: Record<string, string> = {
   "toasts.conflict":
     "This post was changed elsewhere. Reloading the latest version.",
   "toasts.failed": "Something went wrong. Try again.",
+  "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
+  "toasts.unauthenticated": "Please sign in to continue.",
+  "toasts.unauthenticatedAction": "Sign in",
 };
 
 vi.mock("next-intl", async () => {
@@ -935,7 +938,8 @@ describe("ProjectSocialPosts", () => {
       ok: false,
       error: {
         code: "BAD_INPUT",
-        message: "Social post was modified, reload and retry",
+        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        message: "Conflict copy can change freely",
       },
     });
     render(
@@ -1310,7 +1314,8 @@ describe("ProjectSocialPosts", () => {
       ok: false,
       error: {
         code: "BAD_INPUT",
-        message: "Social post was modified, reload and retry",
+        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        message: "Conflict copy can change freely",
       },
     });
     const { rerender } = render(
