@@ -8,6 +8,10 @@ export interface MentionMatch {
   hasLegacyFormat: boolean;
 }
 
+function escapeMarkdownDisplayText(value: string): string {
+  return value.replace(/[\\`*_[\]{}()#+\-.!<>|~]/g, "\\$&");
+}
+
 export function slugifyMentionValue(value: string): string {
   return value
     .trim()
@@ -43,6 +47,7 @@ export function parseMentions(text: string): MentionMatch[] {
 export function formatMentionsAsMarkdownLinks(
   text: string,
   agentNameById: Map<string, string>,
+  userNameById?: ReadonlyMap<string, string>,
 ): string {
   const matches = parseMentions(text);
   if (matches.length === 0) {
@@ -58,8 +63,11 @@ export function formatMentionsAsMarkdownLinks(
     }
 
     const agentName = agentNameById.get(match.id);
+    const userName = userNameById?.get(match.id);
     if (agentName) {
       formatted += `[@${agentName}](/agents/${match.id}/jobs)`;
+    } else if (userName) {
+      formatted += `@${escapeMarkdownDisplayText(userName)}`;
     } else {
       formatted += text.slice(match.start, match.end);
     }

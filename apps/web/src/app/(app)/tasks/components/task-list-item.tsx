@@ -75,6 +75,7 @@ export function TaskListItem({
           <TaskMetaDetails
             project={task.project}
             assignee={task.assignee}
+            participants={task.participants}
             commentsCount={task.commentsCount}
             createdAt={task.createdAt}
             variant="list"

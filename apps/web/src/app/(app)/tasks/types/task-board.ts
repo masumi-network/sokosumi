@@ -33,6 +33,8 @@ export interface TaskWithCoworker {
   updatedAt: string;
   jobsCount: number;
   assignee?: TaskAssigneeView | null;
+  /** Task participants (humans added by comment `@`), in join order. */
+  participants: TaskAssigneeView[];
   share?: TaskShare | null;
   commentsCount: number;
   columnId: KanbanColumnId;

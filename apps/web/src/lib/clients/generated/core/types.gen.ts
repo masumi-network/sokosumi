@@ -1107,6 +1107,10 @@ export type Task = {
      */
     assignee: TaskAssigneeCoworker | TaskAssigneeUser | TaskAssigneeSokoBot | null;
     /**
+     * Workspace members added by @ in Task comment activity, in join order. Owner and assignee are omitted unless they were mentioned. Empty until someone is mentioned.
+     */
+    participants: Array<TaskParticipant>;
+    /**
      * Deprecated marketplace coworker assignee. Null when the assignee is a Soko Bot.
      *
      * @deprecated
@@ -1220,6 +1224,14 @@ export type SokoBotSummary = {
     avatarSeed: string | null;
     avatarImageUrl: string | null;
     owner: UserSummary;
+};
+
+export type TaskParticipant = {
+    user: UserSummary;
+    /**
+     * When the @ mention added this person to the Task.
+     */
+    addedAt: Date;
 };
 
 /**
@@ -5919,6 +5931,10 @@ export type TaskListItem = {
      */
     assignee: TaskAssigneeCoworker | TaskAssigneeUser | TaskAssigneeSokoBot | null;
     /**
+     * Workspace members added by @ in Task comment activity, in join order. Owner and assignee are omitted unless they were mentioned. Empty until someone is mentioned.
+     */
+    participants: Array<TaskParticipant>;
+    /**
      * Deprecated marketplace coworker assignee. Null when the assignee is a Soko Bot.
      *
      * @deprecated
@@ -6046,6 +6062,10 @@ export type UserWritableTaskLinkRelation = typeof UserWritableTaskLinkRelation[k
 
 export type TaskLinkDeleted = {
     deleted: true;
+};
+
+export type TaskParticipants = {
+    participants: Array<TaskParticipant>;
 };
 
 export type TaskScheduleSourceMutation = {
@@ -42793,6 +42813,82 @@ export type PatchTasksByIdLinksByLinkIdResponses = {
 
 export type PatchTasksByIdLinksByLinkIdResponse = PatchTasksByIdLinksByLinkIdResponses[keyof PatchTasksByIdLinksByLinkIdResponses];
 
+export type DeleteTasksByIdParticipantsByUserIdData = {
+    body?: never;
+    path: {
+        id: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/participants/{userId}';
+};
+
+export type DeleteTasksByIdParticipantsByUserIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteTasksByIdParticipantsByUserIdError = DeleteTasksByIdParticipantsByUserIdErrors[keyof DeleteTasksByIdParticipantsByUserIdErrors];
+
+export type DeleteTasksByIdParticipantsByUserIdResponses = {
+    /**
+     * Task participants
+     */
+    200: {
+        data: TaskParticipants;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteTasksByIdParticipantsByUserIdResponse = DeleteTasksByIdParticipantsByUserIdResponses[keyof DeleteTasksByIdParticipantsByUserIdResponses];
+
 export type DeleteTasksByIdData = {
     body?: never;
     path: {
@@ -44237,6 +44333,10 @@ export type PostTasksByIdEventsData = {
     body?: {
         status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
         comment?: string;
+        /**
+         * Workspace member ids @-mentioned in this comment. Unknown ids are ignored. Also read from @userId tokens in comment. Does not add participants unless comment is set.
+         */
+        mentionedUserIds?: Array<string>;
         authenticationUrl?: string;
         /**
          * Omit when masumiPayment is set; billing uses masumiPayment.Amounts instead.
