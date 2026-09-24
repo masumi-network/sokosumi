@@ -1965,6 +1965,11 @@ export function resolveMentionedUserIds(params: {
   explicitUserIds?: readonly string[];
   roomUsers: Array<{ id: string; name: string }>;
   excludeUserId?: string | null;
+  /**
+   * Chat expands `@all` to every candidate. Task comments must not.
+   * Defaults to true so existing chat callers stay unchanged.
+   */
+  expandAll?: boolean;
 }): string[] {
   const excluded = params.excludeUserId ?? null;
   const roomUserIds = new Set(
@@ -1976,7 +1981,10 @@ export function resolveMentionedUserIds(params: {
     ),
   );
 
-  if (contentIncludesRoomAllMention(params.content)) {
+  if (
+    params.expandAll !== false &&
+    contentIncludesRoomAllMention(params.content)
+  ) {
     for (const userId of roomUserIds) {
       mentionedIds.add(userId);
     }

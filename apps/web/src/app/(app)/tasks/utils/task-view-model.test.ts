@@ -26,6 +26,7 @@ function buildTask(
     assigneeSokoBotId: null,
     assigneeUserId: null,
     assignee: null,
+    participants: [],
     coworkerId: null,
     coworker: null,
     creator: {
@@ -67,6 +68,26 @@ function map(task: TaskListItem | Task) {
 }
 
 describe("mapTaskToTaskWithCoworker", () => {
+  it("maps Task participants to user faces in join order", () => {
+    const task = buildTask(TaskStatus.READY, {
+      participants: [
+        {
+          user: { id: "user-2", name: "Ada", image: "https://img/ada.png" },
+          addedAt: new Date("2026-01-02T00:00:00.000Z"),
+        },
+        {
+          user: { id: "user-3", name: "Bea", image: null },
+          addedAt: new Date("2026-01-03T00:00:00.000Z"),
+        },
+      ],
+    });
+
+    expect(map(task).participants).toEqual([
+      { id: "user-2", name: "Ada", image: "https://img/ada.png", kind: "user" },
+      { id: "user-3", name: "Bea", image: null, kind: "user" },
+    ]);
+  });
+
   it("maps queued tasks to backlog column", () => {
     const task = buildTask(TaskStatus.QUEUED);
 

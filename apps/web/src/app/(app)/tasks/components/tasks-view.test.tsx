@@ -147,6 +147,7 @@ const SCHEDULED_TASK: TaskWithCoworker = {
   updatedAt: "2026-06-01T08:00:00.000Z",
   jobsCount: 0,
   commentsCount: 0,
+  participants: [],
   columnId: "backlog",
   events: [],
   agents: [],

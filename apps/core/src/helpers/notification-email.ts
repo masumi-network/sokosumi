@@ -94,6 +94,7 @@ const TASK_REASONS: readonly TaskAttentionReason[] = [
   "authenticationRequired",
   "inputRequired",
   "outOfCredits",
+  "participantAdded",
   "scheduleRemovedByOperator",
 ];
 

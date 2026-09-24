@@ -54,7 +54,10 @@ import {
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { createFileUploadProgressToast } from "@/lib/utils/file-upload-progress-toast";
-import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
+import {
+  formatMentionsAsMarkdownLinks,
+  parseMentions,
+} from "@/lib/utils/mention-parser";
 import {
   extractTaskAttachmentUrls,
   removeTaskAttachmentLinks,
@@ -100,7 +103,16 @@ interface TaskActivityProps {
    */
   viewerPlan?: SubscriptionPlanName | null;
   canComment?: boolean;
+  /** Workspace members the composer offers for `@`; mentions add them as Task participants. */
+  mentionableUsers?: readonly MentionableUser[];
 }
+
+export interface MentionableUser {
+  id: string;
+  name: string;
+}
+
+const NO_MENTIONABLE_USERS: readonly MentionableUser[] = [];
 
 function getEventTimestamp(event: TaskEvent): number {
   return new Date(event.createdAt).getTime();
@@ -199,6 +211,7 @@ export function TaskActivitySection({
   collapseLabel = "Show less",
   viewerPlan = null,
   canComment = true,
+  mentionableUsers = NO_MENTIONABLE_USERS,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
@@ -217,10 +230,31 @@ export function TaskActivitySection({
   const [isPending, startTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const { os, isMobile } = useOSDetection();
-  const mentionOptions = useMemo(
-    () => convertAgentNamesToMentionOptions(resolvedAgentNameById),
-    [resolvedAgentNameById],
-  );
+  // Match chat and Core `excludeUserId`: @ of yourself does not enroll the writer.
+  const viewerId = currentUser?.id;
+  const mentionOptions = useMemo(() => {
+    const humans =
+      viewerId == null
+        ? mentionableUsers
+        : mentionableUsers.filter((user) => user.id !== viewerId);
+    return {
+      ...convertAgentNamesToMentionOptions(resolvedAgentNameById),
+      ...Object.fromEntries(
+        humans.map((user) => [user.id, { value: user.name }]),
+      ),
+    };
+  }, [resolvedAgentNameById, mentionableUsers, viewerId]);
+  const mentionUserNameById = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const [id, actor] of Object.entries(userById ?? {})) {
+      names.set(id, actor.name);
+    }
+    for (const user of mentionableUsers) {
+      if (viewerId != null && user.id === viewerId) continue;
+      names.set(user.id, user.name);
+    }
+    return names;
+  }, [userById, mentionableUsers, viewerId]);
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(comment),
     [comment],
@@ -294,6 +328,19 @@ export function TaskActivitySection({
       credits: null,
     };
 
+    const memberIds = new Set(
+      mentionableUsers
+        .filter((user) => viewerId == null || user.id !== viewerId)
+        .map((user) => user.id),
+    );
+    const mentionedUserIds = [
+      ...new Set(
+        parseMentions(trimmedComment)
+          .map((mention) => mention.id)
+          .filter((id) => memberIds.has(id)),
+      ),
+    ];
+
     setLocalEvents((prev) => [optimisticEvent, ...prev]);
     setComment("");
 
@@ -303,6 +350,7 @@ export function TaskActivitySection({
           await createTaskComment({
             taskId,
             comment: trimmedComment,
+            mentionedUserIds,
           });
           router.refresh();
         } catch {
@@ -504,6 +552,7 @@ export function TaskActivitySection({
               ? formatMentionsAsMarkdownLinks(
                   event.comment ?? "",
                   resolvedAgentNameById,
+                  mentionUserNameById,
                 )
               : null;
             const sourceFiles = formattedComment

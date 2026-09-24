@@ -114,9 +114,30 @@ vi.mock("@/hooks/use-os-detection", () => ({
   }),
 }));
 
-vi.mock("@/lib/actions/task/action", () => ({
-  createTaskComment: vi.fn(),
+const { createTaskCommentMock, markdownEditorProps } = vi.hoisted(() => ({
+  createTaskCommentMock: vi.fn(),
+  markdownEditorProps: {
+    current: null as null | {
+      onChange: (value: string) => void;
+      mentions?: Record<string, { value: string }>;
+    },
+  },
 }));
+
+vi.mock("@/lib/actions/task/action", () => ({
+  createTaskComment: createTaskCommentMock,
+}));
+
+vi.mock("./markdown-editor", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./markdown-editor")>();
+  return {
+    ...actual,
+    MarkdownEditor: (props: Parameters<typeof actual.MarkdownEditor>[0]) => {
+      markdownEditorProps.current = props;
+      return <actual.MarkdownEditor {...props} />;
+    },
+  };
+});
 
 vi.mock("@/lib/utils/task-attachments.client", () => ({
   uploadTaskAttachment: (...args: unknown[]) =>
@@ -1100,6 +1121,117 @@ describe("TaskActivitySection", () => {
       expect(abortSignal?.aborted).toBe(true);
       expect(toastDismissMock).toHaveBeenCalledTimes(1);
       expect(toastErrorMock).toHaveBeenCalledWith("Upload canceled.");
+    });
+  });
+
+  describe("workspace member mentions", () => {
+    const members = [
+      { id: "user-1", name: "User" },
+      { id: "user-2", name: "Ada" },
+    ];
+
+    it("offers workspace members, excluding the viewer, in the @ picker", () => {
+      render(
+        <TaskActivitySection
+          {...baseProps}
+          agentNameById={new Map([["agent-1", "Writer"]])}
+          mentionableUsers={members}
+        />,
+      );
+
+      expect(markdownEditorProps.current?.mentions).toMatchObject({
+        "agent-1": { value: "Writer" },
+        "user-2": { value: "Ada" },
+      });
+      expect(markdownEditorProps.current?.mentions).not.toHaveProperty(
+        "user-1",
+      );
+    });
+
+    it("does not send the viewer when they @ themselves", async () => {
+      createTaskCommentMock.mockResolvedValue(undefined);
+      render(<TaskActivitySection {...baseProps} mentionableUsers={members} />);
+
+      act(() => {
+        markdownEditorProps.current?.onChange("joining @user-1:user");
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() => {
+        expect(createTaskCommentMock).toHaveBeenCalledWith({
+          taskId: "task-1",
+          comment: "joining @user-1:user",
+          mentionedUserIds: [],
+        });
+      });
+    });
+
+    it("sends mentioned workspace members with the comment", async () => {
+      createTaskCommentMock.mockResolvedValue(undefined);
+      render(
+        <TaskActivitySection
+          {...baseProps}
+          agentNameById={new Map([["agent-1", "Writer"]])}
+          mentionableUsers={members}
+        />,
+      );
+
+      act(() => {
+        markdownEditorProps.current?.onChange(
+          "Thanks @user-2:ada and @agent-1:writer, again @user-2:ada",
+        );
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() => {
+        expect(createTaskCommentMock).toHaveBeenCalledWith({
+          taskId: "task-1",
+          comment: "Thanks @user-2:ada and @agent-1:writer, again @user-2:ada",
+          mentionedUserIds: ["user-2"],
+        });
+      });
+    });
+
+    it("does not send human mentions when mentionableUsers is empty", async () => {
+      createTaskCommentMock.mockResolvedValue(undefined);
+      render(
+        <TaskActivitySection
+          {...baseProps}
+          agentNameById={new Map([["agent-1", "Writer"]])}
+          mentionableUsers={[]}
+        />,
+      );
+
+      act(() => {
+        markdownEditorProps.current?.onChange("Thanks @user-2:ada");
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() => {
+        expect(createTaskCommentMock).toHaveBeenCalledWith({
+          taskId: "task-1",
+          comment: "Thanks @user-2:ada",
+          mentionedUserIds: [],
+        });
+      });
+    });
+
+    it("renders a mentioned member by name in the comment", () => {
+      render(
+        <TaskActivitySection
+          {...baseProps}
+          mentionableUsers={members}
+          events={[
+            createEvent("event-1", {
+              createdAt: "2026-03-01T00:00:00.000Z",
+              status: null,
+              comment: "cc @user-2:ada",
+            }),
+          ]}
+        />,
+      );
+
+      expect(screen.getByText("cc @Ada")).toBeInTheDocument();
     });
   });
 });

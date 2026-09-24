@@ -35,6 +35,7 @@ const taskServiceMock = {
   patchTask: vi.fn(),
   createTaskEvent: vi.fn(),
   getTaskById: vi.fn(),
+  removeTaskParticipant: vi.fn(),
 };
 const taskScheduleServiceMock = {
   removeCalendarSeries: vi.fn(),
@@ -1935,5 +1936,78 @@ describe("mutateTaskOccurrence", () => {
           : { action: mutation.action }),
       },
     );
+  });
+});
+
+describe("task participant actions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("forwards mentioned workspace members with the comment", async () => {
+    taskServiceMock.createTaskEvent.mockResolvedValue({ id: "event-1" });
+    const { createTaskComment } = await import("./action");
+
+    await createTaskComment({
+      taskId: "task-1",
+      comment: "  ping @user-2:ada  ",
+      mentionedUserIds: ["user-2"],
+    });
+
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      comment: "ping @user-2:ada",
+      mentionedUserIds: ["user-2"],
+    });
+  });
+
+  it("omits mentionedUserIds when nobody is mentioned", async () => {
+    taskServiceMock.createTaskEvent.mockResolvedValue({ id: "event-1" });
+    const { createTaskComment } = await import("./action");
+
+    await createTaskComment({ taskId: "task-1", comment: "plain" });
+
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      comment: "plain",
+    });
+  });
+
+  it("removes a Task participant and reports success", async () => {
+    taskServiceMock.removeTaskParticipant.mockResolvedValue([]);
+    const { removeTaskParticipant } = await import("./action");
+
+    const result = await removeTaskParticipant({
+      taskId: "task-1",
+      userId: "user-2",
+    });
+
+    expect(taskServiceMock.removeTaskParticipant).toHaveBeenCalledWith(
+      "task-1",
+      "user-2",
+    );
+    expect(result).toEqual({
+      ok: true,
+      value: { taskId: "task-1", userId: "user-2" },
+    });
+  });
+
+  it("returns the Core error when removal fails", async () => {
+    taskServiceMock.removeTaskParticipant.mockRejectedValue(
+      new Error("Forbidden"),
+    );
+    toCoreApiActionErrorMock.mockReturnValue({
+      message: "Forbidden",
+      code: "FORBIDDEN",
+    });
+    const { removeTaskParticipant } = await import("./action");
+
+    const result = await removeTaskParticipant({
+      taskId: "task-1",
+      userId: "user-2",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { message: "Forbidden", code: "FORBIDDEN" },
+    });
   });
 });
