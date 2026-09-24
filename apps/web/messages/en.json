@@ -6626,7 +6626,7 @@
         "scheduleSourceChangedByMember": "A teammate moved {taskName} to another calendar source",
         "scheduleOccurrenceChangedByMember": "A teammate changed an occurrence of {taskName}",
         "assigned": "You were assigned {taskName}",
-        "participantAdded": "You were added to {taskName}",
+        "participantAdded": "You were added to {taskName} as a participant",
         "followUp": "{taskName} is still waiting for you"
       },
       "Billing": {
