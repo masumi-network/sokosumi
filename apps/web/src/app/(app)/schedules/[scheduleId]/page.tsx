@@ -16,7 +16,7 @@ import {
   TASK_DETAIL_SHELL_CLASS,
   TASK_DETAIL_SIDEBAR_CLASS,
 } from "@/app/tasks/constants";
-import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
+import { loadTaskScheduleAssigneeOptions } from "@/app/tasks/utils/task-schedule-assignee-options";
 import {
   formatTaskScheduleRule,
   TASK_SCHEDULES_PATH,
@@ -68,7 +68,7 @@ async function TaskScheduleDetailContent({
 
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
   const [
-    coworkerOptions,
+    assigneeOptions,
     projectOptions,
     runs,
     createdTasks,
@@ -78,7 +78,7 @@ async function TaskScheduleDetailContent({
     tTaskDetail,
     formatter,
   ] = await Promise.all([
-    listTaskAssigneeOptions(activeOrganizationId),
+    loadTaskScheduleAssigneeOptions(activeOrganizationId),
     getProjectFilterOptions(schedule.projectId),
     taskScheduleService.listUpcomingRuns(schedule.id, {
       from: new Date(),
@@ -121,7 +121,7 @@ async function TaskScheduleDetailContent({
                 {session.user.id === schedule.ownerId ? (
                   <TaskScheduleActions
                     schedule={schedule}
-                    coworkerOptions={coworkerOptions}
+                    coworkerOptions={assigneeOptions.selectableOptions}
                     projectOptions={projectOptions}
                     canCreatePrivate={activeOrganizationId !== null}
                   />
@@ -255,10 +255,14 @@ async function TaskScheduleDetailContent({
                   )}
                 </Property>
                 <Property label={t("Detail.assignee")}>
-                  {taskScheduleAssigneeLabel(schedule, coworkerOptions, {
-                    unassigned: t("unassigned"),
-                    unavailable: t("unavailableAssignee"),
-                  })}
+                  {taskScheduleAssigneeLabel(
+                    schedule,
+                    assigneeOptions.displayOptions,
+                    {
+                      unassigned: t("unassigned"),
+                      unavailable: t("unavailableAssignee"),
+                    },
+                  )}
                 </Property>
                 <Property label={t("Detail.project")}>
                   {project ? (

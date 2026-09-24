@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
-const listTaskAssigneeOptionsMock = vi.fn();
+const loadTaskScheduleAssigneeOptionsMock = vi.fn();
 const hasAssignedSeatMock = vi.fn();
 const listSchedulesMock = vi.fn();
 const taskSchedulesViewMock = vi.fn();
@@ -28,9 +28,9 @@ vi.mock("@/lib/helpers/project-filter-options", () => ({
     getProjectFilterOptionsMock(projectId),
 }));
 
-vi.mock("@/app/tasks/utils/task-assignee-options", () => ({
-  listTaskAssigneeOptions: (organizationId: string | null) =>
-    listTaskAssigneeOptionsMock(organizationId),
+vi.mock("@/app/tasks/utils/task-schedule-assignee-options", () => ({
+  loadTaskScheduleAssigneeOptions: (organizationId: string | null) =>
+    loadTaskScheduleAssigneeOptionsMock(organizationId),
 }));
 
 vi.mock("@/lib/services/organization-seat.service", () => ({
@@ -65,7 +65,13 @@ describe("SchedulesPage", () => {
       session: { activeOrganizationId: "org-1" },
     });
     getProjectFilterOptionsMock.mockResolvedValue([PROJECT]);
-    listTaskAssigneeOptionsMock.mockResolvedValue([]);
+    loadTaskScheduleAssigneeOptionsMock.mockResolvedValue({
+      selectableOptions: [{ id: "cow-1", name: "Ops", kind: "coworker" }],
+      displayOptions: [
+        { id: "cow-1", name: "Ops", kind: "coworker" },
+        { id: "user-1", name: "Maya", kind: "user" },
+      ],
+    });
     hasAssignedSeatMock.mockResolvedValue(true);
     listSchedulesMock.mockResolvedValue({
       schedules: [SCHEDULE],
@@ -84,10 +90,16 @@ describe("SchedulesPage", () => {
       state: "PAUSED",
       limit: 50,
     });
+    expect(loadTaskScheduleAssigneeOptionsMock).toHaveBeenCalledWith("org-1");
     expect(props).toEqual(
       expect.objectContaining({
         schedules: [SCHEDULE],
         nextCursor: "cursor-2",
+        coworkerOptions: [{ id: "cow-1", name: "Ops", kind: "coworker" }],
+        assigneeDisplayOptions: [
+          { id: "cow-1", name: "Ops", kind: "coworker" },
+          { id: "user-1", name: "Maya", kind: "user" },
+        ],
         projectOptions: [PROJECT],
         selectedProjectId: PROJECT.id,
         canCreate: true,

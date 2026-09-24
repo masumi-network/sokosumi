@@ -11,6 +11,7 @@ const listJobsMock = vi.fn();
 const mapJobsToTasksViewDataMock = vi.fn();
 const getSessionMock = vi.fn();
 const listTaskAssigneeOptionsMock = vi.fn();
+const listTaskScheduleAssigneeOptionsMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 
 vi.mock("@/lib/services/coworker.service", () => ({
@@ -71,6 +72,10 @@ vi.mock("./utils/task-assignee-options", () => ({
     listTaskAssigneeOptionsMock(...args),
 }));
 
+vi.mock("./utils/task-schedule-assignee-options", () => ({
+  listTaskScheduleAssigneeOptions: () => listTaskScheduleAssigneeOptionsMock(),
+}));
+
 vi.mock("@/lib/helpers/project-filter-options", () => ({
   getProjectFilterOptions: (...args: unknown[]) =>
     getProjectFilterOptionsMock(...args),
@@ -83,9 +88,28 @@ import {
   loadMoreTasksColumn,
   loadMoreTasksList,
   loadNewTaskWizardOptions,
+  loadTaskScheduleDialogOptions,
 } from "./actions";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
+
+describe("loadTaskScheduleDialogOptions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listTaskScheduleAssigneeOptionsMock.mockResolvedValue([
+      { id: "cow-1", kind: "coworker" },
+    ]);
+    getProjectFilterOptionsMock.mockResolvedValue([]);
+  });
+
+  it("uses Core's schedule assignee choices", async () => {
+    expect(await loadTaskScheduleDialogOptions()).toMatchObject({
+      coworkerOptions: [{ id: "cow-1", kind: "coworker" }],
+    });
+    expect(listTaskScheduleAssigneeOptionsMock).toHaveBeenCalledOnce();
+    expect(listTaskAssigneeOptionsMock).not.toHaveBeenCalled();
+  });
+});
 
 describe("loadMoreTasksColumn", () => {
   beforeEach(() => {

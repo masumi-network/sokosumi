@@ -31,6 +31,7 @@ import {
 } from "@/lib/services/task-schedule.service";
 import { listTaskAssigneeMemberOptions } from "./utils/task-assignee-members";
 import { listTaskAssigneeOptions } from "./utils/task-assignee-options";
+import { listTaskScheduleAssigneeOptions } from "./utils/task-schedule-assignee-options";
 import {
   parseTaskScheduleStateFilter,
   TASK_SCHEDULES_PAGE_LIMIT,
@@ -351,9 +352,8 @@ export async function loadMoreTaskSchedules({
  * "Repeat", loaded only when someone opens it.
  */
 export async function loadTaskScheduleDialogOptions() {
-  const session = await getSession();
   const [coworkerOptions, projectOptions] = await Promise.all([
-    listTaskAssigneeOptions(session?.session.activeOrganizationId ?? null),
+    listTaskScheduleAssigneeOptions(),
     getProjectFilterOptions(),
   ]);
   return { coworkerOptions, projectOptions };

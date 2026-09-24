@@ -20521,6 +20521,58 @@ export const TaskScheduleEndsModeSchema = {
     ]
 } as const;
 
+export const TaskScheduleAssigneesSchema = {
+    type: 'object',
+    properties: {
+        coworkers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/Coworker'
+            }
+        },
+        sokoBot: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                avatarSeed: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                avatarImageUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'avatarSeed',
+                'avatarImageUrl'
+            ]
+        }
+    },
+    required: [
+        'coworkers',
+        'sokoBot'
+    ]
+} as const;
+
 export const CreateTaskScheduleRequestSchema = {
     type: 'object',
     properties: {
@@ -20583,7 +20635,7 @@ export const CreateTaskScheduleRequestSchema = {
                 'null'
             ],
             minLength: 1,
-            description: 'Workspace-member assignee of each created Task',
+            description: 'Legacy compatibility field. Workspace members cannot be assigned to Task Schedules; send null to clear an existing member assignee.',
             example: 'user_123'
         },
         rule: {
@@ -20709,7 +20761,7 @@ export const UpdateTaskScheduleRequestSchema = {
                 'null'
             ],
             minLength: 1,
-            description: 'Workspace-member assignee of each created Task',
+            description: 'Legacy compatibility field. Workspace members cannot be assigned to Task Schedules; send null to clear an existing member assignee.',
             example: 'user_123'
         },
         rule: {

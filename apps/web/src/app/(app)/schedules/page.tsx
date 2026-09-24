@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { TaskSchedulesView } from "@/app/tasks/components/task-schedules-view";
-import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
+import { loadTaskScheduleAssigneeOptions } from "@/app/tasks/utils/task-schedule-assignee-options";
 import {
   parseTaskScheduleStateFilter,
   TASK_SCHEDULES_PAGE_LIMIT,
@@ -50,9 +50,9 @@ export async function SchedulesPageContent({
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const requestedProjectId = firstQueryString(params.projectId) ?? null;
   const state = parseTaskScheduleStateFilter(params.scheduleState);
-  const [projectOptions, coworkerOptions, canCreate] = await Promise.all([
+  const [projectOptions, assigneeOptions, canCreate] = await Promise.all([
     getProjectFilterOptions(requestedProjectId),
-    listTaskAssigneeOptions(activeOrganizationId),
+    loadTaskScheduleAssigneeOptions(activeOrganizationId),
     organizationSeatService.hasAssignedSeat(activeOrganizationId),
   ]);
   const projectId = projectOptions.some(
@@ -73,7 +73,8 @@ export async function SchedulesPageContent({
         key={`${projectId ?? ""}:${state ?? ""}`}
         schedules={schedules}
         nextCursor={nextCursor}
-        coworkerOptions={coworkerOptions}
+        coworkerOptions={assigneeOptions.selectableOptions}
+        assigneeDisplayOptions={assigneeOptions.displayOptions}
         projectOptions={projectOptions}
         selectedProjectId={projectId}
         selectedState={state}

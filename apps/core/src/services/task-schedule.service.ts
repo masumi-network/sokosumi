@@ -61,7 +61,6 @@ import type {
 } from "@/schemas/task-schedule.schema";
 import {
   creatorFields,
-  requireNoHumanAssigneeOnPrivateTask,
   requireTaskReferences,
   type TaskDomainActor,
 } from "@/services/task-domain.service";
@@ -74,6 +73,12 @@ import {
   stopPlannedTaskScheduleRuns,
   trimPlannedTaskScheduleRuns,
 } from "@/services/task-schedule-runs.service";
+
+function requireScheduleAssignee(assigneeUserId: string | null | undefined) {
+  if (assigneeUserId != null) {
+    throw badRequest("Task Schedules cannot be assigned to workspace members");
+  }
+}
 
 /**
  * Task Schedule operations (ADR 0041). Owns who may see and change a
@@ -236,16 +241,16 @@ export async function createTaskSchedule(
         request,
       })
     : null;
-  // A retry answers with the schedule it made, even once its rule would no
-  // longer validate (an end date that has passed since).
+  // A retry answers with the schedule it made, even if its rule or assignee
+  // would no longer be accepted for a new schedule.
   const replayed = await replay?.find();
   if (replayed) {
     return replayed;
   }
 
+  requireScheduleAssignee(input.assigneeUserId);
   validateTaskScheduleRule(input.rule);
   const visibility = resolveVisibility(input.visibility, actor.workspace);
-  requireNoHumanAssigneeOnPrivateTask(visibility, input.assigneeUserId);
 
   const now = new Date();
   const rule = ruleColumns(input.rule, now);
@@ -537,10 +542,7 @@ export async function updateTaskSchedule(
     }
 
     const assignees = nextAssigneeWrite(input);
-    requireNoHumanAssigneeOnPrivateTask(
-      current.visibility,
-      assignees?.assigneeUserId,
-    );
+    requireScheduleAssignee(assignees?.assigneeUserId);
     await requireTaskReferences(
       {
         projectId: input.projectId,

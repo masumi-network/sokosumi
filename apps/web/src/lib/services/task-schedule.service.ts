@@ -5,6 +5,7 @@ import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
 import type {
   CreateTaskScheduleRequest,
   TaskSchedule,
+  TaskScheduleAssignees,
   TaskScheduleRun,
   TaskScheduleRunUpdate,
   TaskScheduleState,
@@ -25,6 +26,10 @@ export interface TaskSchedulesPage {
 }
 
 export const taskScheduleService = (() => {
+  async function listAssignees(): Promise<TaskScheduleAssignees> {
+    return (await coreClient.getTaskScheduleAssignees()).data;
+  }
+
   async function listSchedules(
     params: ListTaskSchedulesParams = {},
   ): Promise<TaskSchedulesPage> {
@@ -102,6 +107,7 @@ export const taskScheduleService = (() => {
   }
 
   return {
+    listAssignees,
     listSchedules,
     getSchedule,
     createSchedule,
