@@ -63,7 +63,7 @@ vi.mock("@/lib/db/prisma", () => ({
     taskEvent: {
       create: mockTaskEventCreate,
     },
-    taskScheduleOccurrence: {
+    taskScheduleRun: {
       create: mockTaskScheduleOccurrenceCreate,
       deleteMany: mockTaskScheduleOccurrenceDeleteMany,
       updateMany: mockTaskScheduleOccurrenceUpdateMany,
@@ -142,7 +142,7 @@ describe("taskSchedulesSyncService", () => {
         taskEvent: {
           create: mockTaskEventCreate,
         },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
           findMany: mockTaskScheduleOccurrenceFindMany,
@@ -382,7 +382,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
@@ -442,7 +442,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
@@ -513,7 +513,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
           findMany: mockTaskScheduleOccurrenceFindMany,
@@ -592,7 +592,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
           findMany: mockTaskScheduleOccurrenceFindMany,
@@ -688,7 +688,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
           findMany: mockTaskScheduleOccurrenceFindMany,
@@ -769,7 +769,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
           findMany: mockTaskScheduleOccurrenceFindMany,
@@ -856,7 +856,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
           findMany: mockTaskScheduleOccurrenceFindMany,
@@ -952,7 +952,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
           findMany: mockTaskScheduleOccurrenceFindMany,
@@ -1071,7 +1071,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
           findMany: mockTaskScheduleOccurrenceFindMany,
@@ -1160,7 +1160,7 @@ describe("taskSchedulesSyncService", () => {
         taskEvent: {
           create: mockTaskEventCreate,
         },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
@@ -1237,7 +1237,7 @@ describe("taskSchedulesSyncService", () => {
         taskEvent: {
           create: mockTaskEventCreate,
         },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
@@ -1311,7 +1311,7 @@ describe("taskSchedulesSyncService", () => {
         taskEvent: {
           create: mockTaskEventCreate,
         },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
@@ -1379,7 +1379,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
@@ -1443,7 +1443,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
@@ -1523,7 +1523,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
@@ -1590,7 +1590,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
           findMany: mockTaskScheduleOccurrenceFindMany,
@@ -1641,7 +1641,7 @@ describe("taskSchedulesSyncService", () => {
         taskEvent: {
           create: mockTaskEventCreate,
         },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
@@ -1725,7 +1725,7 @@ describe("taskSchedulesSyncService", () => {
         taskEvent: {
           create: mockTaskEventCreate,
         },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
@@ -1806,7 +1806,7 @@ describe("taskSchedulesSyncService", () => {
         taskEvent: {
           create: mockTaskEventCreate,
         },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           create: mockTaskScheduleOccurrenceCreate,
           deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },

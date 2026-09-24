@@ -53,7 +53,7 @@ vi.mock("@/lib/db/prisma", () => ({
     member: { findFirst: memberFindFirstMock },
     project: { findMany: projectFindManyMock },
     task: { findFirst: taskFindFirstMock },
-    taskScheduleOccurrence: { findFirst: taskScheduleOccurrenceFindFirstMock },
+    taskScheduleRun: { findFirst: taskScheduleOccurrenceFindFirstMock },
     vendorGrant: { findUnique: vendorGrantFindUniqueMock },
     workspace: { findUnique: workspaceFindUniqueMock },
   },

@@ -128,7 +128,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: taskFindFirstMock,
       findMany: taskFindManyMock,
     },
-    taskScheduleOccurrence: {
+    taskScheduleRun: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
     },

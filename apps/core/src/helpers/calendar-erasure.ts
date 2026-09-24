@@ -73,18 +73,18 @@ export async function lockWorkspaceCalendarForErasure(
   `;
   await tx.$queryRaw`
     SELECT occurrence.id
-    FROM "task_schedule_occurrence" AS occurrence
+    FROM "task_schedule_run" AS occurrence
     WHERE occurrence.id IN (
-      SELECT id FROM "task_schedule_occurrence"
+      SELECT id FROM "task_schedule_run"
       WHERE "sourceWorkspaceId" = ${workspaceId}::UUID
       UNION
       SELECT series_occurrence.id
-      FROM "task_schedule_occurrence" AS series_occurrence
+      FROM "task_schedule_run" AS series_occurrence
       JOIN "task" AS series_task ON series_task.id = series_occurrence."seriesTaskId"
       WHERE series_task."workspaceId" = ${workspaceId}::UUID
       UNION
       SELECT released_occurrence.id
-      FROM "task_schedule_occurrence" AS released_occurrence
+      FROM "task_schedule_run" AS released_occurrence
       JOIN "task" AS released_task ON released_task.id = released_occurrence."releasedTaskId"
       WHERE released_task."workspaceId" = ${workspaceId}::UUID
     )
@@ -210,7 +210,7 @@ export async function eraseWorkspaceCalendarData(
     select: { fileUrl: true, taskId: true },
   });
 
-  await tx.taskScheduleOccurrence.deleteMany({
+  await tx.taskScheduleRun.deleteMany({
     where: {
       OR: [
         { sourceWorkspaceId: workspaceId },

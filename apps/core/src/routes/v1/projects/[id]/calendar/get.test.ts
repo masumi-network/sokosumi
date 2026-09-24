@@ -1,5 +1,5 @@
 import {
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskScheduleState,
   TaskStatus,
   VendorGrantStatus,
@@ -67,7 +67,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: taskFindFirstMock,
       findMany: taskFindManyMock,
     },
-    taskScheduleOccurrence: {
+    taskScheduleRun: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
     },
@@ -122,7 +122,7 @@ function createOccurrence(overrides: Record<string, unknown> = {}) {
     id: "00000000-0000-7000-8000-000000000001",
     originalScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
     effectiveScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
-    state: TaskScheduleOccurrenceState.PLANNED,
+    state: TaskScheduleRunState.PLANNED,
     sourceWorkspaceId: WORKSPACE_ID,
     sourceType: "PROJECT",
     sourceProjectId: PROJECT_ID,
@@ -347,16 +347,13 @@ describe("GET /projects/{id}/calendar", () => {
     expect(response.status).toBe(200);
     const where = taskScheduleOccurrenceFindManyMock.mock.lastCall?.[0].where;
     expect(where.state).toEqual({
-      in: [
-        TaskScheduleOccurrenceState.PLANNED,
-        TaskScheduleOccurrenceState.RELEASED,
-      ],
+      in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.RELEASED],
     });
     expect(where.AND).toEqual([
       {
         OR: [
           {
-            state: TaskScheduleOccurrenceState.PLANNED,
+            state: TaskScheduleRunState.PLANNED,
             schedule: {
               is: {
                 AND: [
@@ -367,7 +364,7 @@ describe("GET /projects/{id}/calendar", () => {
             },
           },
           {
-            state: TaskScheduleOccurrenceState.RELEASED,
+            state: TaskScheduleRunState.RELEASED,
             releasedTask: {
               is: {
                 AND: [
@@ -422,10 +419,10 @@ describe("GET /projects/{id}/calendar", () => {
       {
         OR: [
           expect.objectContaining({
-            state: TaskScheduleOccurrenceState.PLANNED,
+            state: TaskScheduleRunState.PLANNED,
           }),
           {
-            state: TaskScheduleOccurrenceState.RELEASED,
+            state: TaskScheduleRunState.RELEASED,
             releasedTask: {
               is: {
                 AND: expect.arrayContaining([

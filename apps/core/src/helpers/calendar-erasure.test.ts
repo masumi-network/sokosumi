@@ -36,7 +36,7 @@ function createTransaction() {
         findFirst: taskX402PaymentFindFirst,
         deleteMany: taskX402PaymentDeleteMany,
       },
-      taskScheduleOccurrence: {
+      taskScheduleRun: {
         deleteMany: taskScheduleOccurrenceDeleteMany,
       },
       taskLink: { deleteMany: taskLinkDeleteMany },
@@ -121,7 +121,7 @@ describe("calendar erasure", () => {
       expect.stringMatching(/FROM "project"[\s\S]*FOR UPDATE/),
       expect.stringMatching(/FROM "task"[\s\S]*FOR UPDATE/),
       expect.stringMatching(
-        /FROM "task_schedule_occurrence" AS occurrence[\s\S]*FOR UPDATE OF occurrence/,
+        /FROM "task_schedule_run" AS occurrence[\s\S]*FOR UPDATE OF occurrence/,
       ),
       expect.stringMatching(/FROM "task_schedule"\s[\s\S]*FOR UPDATE/),
       expect.stringMatching(
@@ -205,7 +205,7 @@ describe("calendar erasure", () => {
         .map((mock) => mock.mock.invocationCallOrder[0])
         .sort((left, right) => left - right),
     );
-    expect(tx.taskScheduleOccurrence.deleteMany).toHaveBeenCalledWith({
+    expect(tx.taskScheduleRun.deleteMany).toHaveBeenCalledWith({
       where: {
         OR: [
           { sourceWorkspaceId: WORKSPACE_ID },

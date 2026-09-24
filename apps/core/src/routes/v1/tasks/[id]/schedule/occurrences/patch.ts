@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createRoute, z } from "@hono/zod-openapi";
 import {
   TaskScheduleEventKind,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
 } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
@@ -211,7 +211,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         // Reschedule operations created before response snapshots were added
         // still replay safely by reading the row without repeating effects.
-        const replayed = await tx.taskScheduleOccurrence.findUniqueOrThrow({
+        const replayed = await tx.taskScheduleRun.findUniqueOrThrow({
           where: { id: occurrenceId },
           include: {
             releasedTask: {
@@ -226,7 +226,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               ...replayed,
               sourceId: getCalendarSourceId(replayed),
               isMissed:
-                replayed.state === TaskScheduleOccurrenceState.PLANNED &&
+                replayed.state === TaskScheduleRunState.PLANNED &&
                 replayed.effectiveScheduledAt < now,
             },
           }),
@@ -252,7 +252,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      const occurrence = await tx.taskScheduleOccurrence.findFirst({
+      const occurrence = await tx.taskScheduleRun.findFirst({
         where: { id: occurrenceId, seriesTaskId: id },
         include: {
           releasedTask: {
@@ -278,8 +278,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const expectedState =
         action === "restore"
-          ? TaskScheduleOccurrenceState.SKIPPED
-          : TaskScheduleOccurrenceState.PLANNED;
+          ? TaskScheduleRunState.SKIPPED
+          : TaskScheduleRunState.PLANNED;
       if (
         occurrence.state !== expectedState ||
         occurrence.releasedTaskId !== null ||
@@ -331,16 +331,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         target,
         now,
       );
-      const updatedOccurrence = await tx.taskScheduleOccurrence.update({
+      const updatedOccurrence = await tx.taskScheduleRun.update({
         where: { id: occurrence.id },
         data: {
           ...(oneTimeMutation?.occurrenceData ?? {
             effectiveScheduledAt: target,
           }),
           ...(action === "skip"
-            ? { state: TaskScheduleOccurrenceState.SKIPPED }
+            ? { state: TaskScheduleRunState.SKIPPED }
             : action === "restore"
-              ? { state: TaskScheduleOccurrenceState.PLANNED }
+              ? { state: TaskScheduleRunState.PLANNED }
               : {}),
           actorUserId: actorFields.userId,
         },
@@ -393,7 +393,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...updatedOccurrence,
           sourceId: getCalendarSourceId(updatedOccurrence),
           isMissed:
-            updatedOccurrence.state === TaskScheduleOccurrenceState.PLANNED &&
+            updatedOccurrence.state === TaskScheduleRunState.PLANNED &&
             updatedOccurrence.effectiveScheduledAt < now,
         },
       });

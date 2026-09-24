@@ -4,7 +4,7 @@ import {
   Channel,
   Prisma,
   ProjectCloseOperationState,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskScheduleState,
   TaskStatus,
 } from "@sokosumi/database";
@@ -172,11 +172,11 @@ async function releaseRecurringOwedBatch(
   task: TaskScheduleReleaseTemplate & { metadata: string | null },
   cutoffAt: Date,
 ): Promise<boolean> {
-  const owed = await tx.taskScheduleOccurrence.findMany({
+  const owed = await tx.taskScheduleRun.findMany({
     where: {
       seriesTaskId: task.id,
       sourceProjectId: task.projectId,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
       effectiveScheduledAt: { lt: cutoffAt },
     },
     orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
@@ -217,12 +217,12 @@ async function releaseRecurringOwedBatch(
         currentMetadata.lastRunAt != null &&
         new Date(currentMetadata.lastRunAt) >=
           occurrence.effectiveScheduledAt) ||
-        (await tx.taskScheduleOccurrence.findFirst({
+        (await tx.taskScheduleRun.findFirst({
           where: {
             seriesTaskId: task.id,
             sourceProjectId: task.projectId,
             scheduleVersion: 1,
-            state: TaskScheduleOccurrenceState.RELEASED,
+            state: TaskScheduleRunState.RELEASED,
             effectiveScheduledAt: occurrence.effectiveScheduledAt,
             ruleSnapshot: {
               path: ["scheduledAt"],
@@ -245,20 +245,20 @@ async function releaseRecurringOwedBatch(
       );
     }
     if (occurrence.scheduleVersion === 1) {
-      await tx.taskScheduleOccurrence.deleteMany({
+      await tx.taskScheduleRun.deleteMany({
         where: {
           id: occurrence.id,
-          state: TaskScheduleOccurrenceState.PLANNED,
+          state: TaskScheduleRunState.PLANNED,
         },
       });
     }
   }
 
-  const remaining = await tx.taskScheduleOccurrence.findFirst({
+  const remaining = await tx.taskScheduleRun.findFirst({
     where: {
       seriesTaskId: task.id,
       sourceProjectId: task.projectId,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
       effectiveScheduledAt: { lt: cutoffAt },
     },
     orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
@@ -302,11 +302,11 @@ async function resolveOneTimeSeries(
   if (!metadata || metadata.mode !== "once") {
     throw new Error("One-time schedule metadata is invalid");
   }
-  const owed = await tx.taskScheduleOccurrence.findFirst({
+  const owed = await tx.taskScheduleRun.findFirst({
     where: {
       seriesTaskId: task.id,
       sourceProjectId: task.projectId,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
       effectiveScheduledAt: { lt: cutoffAt },
     },
     orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
@@ -327,21 +327,21 @@ async function resolveOneTimeSeries(
     },
   });
   if (released && owed.scheduleVersion === 2) {
-    await tx.taskScheduleOccurrence.update({
+    await tx.taskScheduleRun.update({
       where: { id: owed.id },
       data: {
-        state: TaskScheduleOccurrenceState.RELEASED,
+        state: TaskScheduleRunState.RELEASED,
         releasedTaskId: task.id,
       },
     });
   } else if (owed?.scheduleVersion === 1) {
-    await tx.taskScheduleOccurrence.delete({ where: { id: owed.id } });
+    await tx.taskScheduleRun.delete({ where: { id: owed.id } });
   }
-  await tx.taskScheduleOccurrence.deleteMany({
+  await tx.taskScheduleRun.deleteMany({
     where: {
       seriesTaskId: task.id,
       sourceProjectId: task.projectId,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
     },
   });
   if (released) {
@@ -493,10 +493,10 @@ async function finalizeProjectClose(
     return null;
   }
 
-  const owed = await tx.taskScheduleOccurrence.findFirst({
+  const owed = await tx.taskScheduleRun.findFirst({
     where: {
       sourceProjectId: input.projectId,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
       effectiveScheduledAt: { lt: input.cutoffAt },
       seriesTask: { status: TaskStatus.QUEUED },
     },
@@ -511,20 +511,20 @@ async function finalizeProjectClose(
     );
   }
 
-  await tx.taskScheduleOccurrence.updateMany({
+  await tx.taskScheduleRun.updateMany({
     where: {
       sourceProjectId: input.projectId,
       scheduleVersion: 2,
       state: { in: ["PLANNED", "SKIPPED"] },
       effectiveScheduledAt: { gte: input.cutoffAt },
     },
-    data: { state: TaskScheduleOccurrenceState.CANCELED },
+    data: { state: TaskScheduleRunState.CANCELED },
   });
-  await tx.taskScheduleOccurrence.deleteMany({
+  await tx.taskScheduleRun.deleteMany({
     where: {
       sourceProjectId: input.projectId,
       scheduleVersion: 1,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
       effectiveScheduledAt: { gte: input.cutoffAt },
     },
   });

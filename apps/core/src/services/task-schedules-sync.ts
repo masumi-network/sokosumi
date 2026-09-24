@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/node";
 import {
   Channel,
   type Prisma,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskStatus,
 } from "@sokosumi/database";
 import {
@@ -143,15 +143,15 @@ async function promoteOneTimeTask(
   }
 
   if (epochId) {
-    const released = await tx.taskScheduleOccurrence.updateMany({
+    const released = await tx.taskScheduleRun.updateMany({
       where: {
         seriesTaskId: templateId,
         epochId,
-        state: TaskScheduleOccurrenceState.PLANNED,
+        state: TaskScheduleRunState.PLANNED,
         effectiveScheduledAt: claimedNextRunAt,
       },
       data: {
-        state: TaskScheduleOccurrenceState.RELEASED,
+        state: TaskScheduleRunState.RELEASED,
         releasedTaskId: templateId,
       },
     });
@@ -421,11 +421,11 @@ async function processDueTask(
         // The ledger owns release for v2: release every due planned row at its
         // own effective time, so a moved occurrence releases at its new time
         // and a skipped one never releases.
-        const dueOccurrences = await tx.taskScheduleOccurrence.findMany({
+        const dueOccurrences = await tx.taskScheduleRun.findMany({
           where: {
             seriesTaskId: template.id,
             epochId: scheduleMetadata.epochId,
-            state: TaskScheduleOccurrenceState.PLANNED,
+            state: TaskScheduleRunState.PLANNED,
             effectiveScheduledAt: { lte: now },
           },
           orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],

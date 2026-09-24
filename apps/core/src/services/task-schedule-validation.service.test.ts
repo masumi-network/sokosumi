@@ -41,7 +41,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: async (callback: (tx: unknown) => Promise<unknown>) =>
       await callback({
         task: { findUnique: taskFindUniqueMock },
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           createMany: taskScheduleOccurrenceCreateManyMock,
           deleteMany: taskScheduleOccurrenceDeleteManyMock,
         },

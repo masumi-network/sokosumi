@@ -29,10 +29,7 @@ interface ProjectCloseOperationRecord {
 }
 
 interface ProjectCloseStatusClient {
-  taskScheduleOccurrence: Pick<
-    Prisma.TransactionClient["taskScheduleOccurrence"],
-    "count"
-  >;
+  taskScheduleRun: Pick<Prisma.TransactionClient["taskScheduleRun"], "count">;
 }
 
 function normalizeOptionalReason(reason: string | undefined): string | null {
@@ -69,7 +66,7 @@ async function mapStatus(
   operation: ProjectCloseOperationRecord,
   projectRevision: number,
 ): Promise<ProjectCloseStatus> {
-  const owedOccurrenceCount = await tx.taskScheduleOccurrence.count({
+  const owedOccurrenceCount = await tx.taskScheduleRun.count({
     where: {
       sourceProjectId: operation.projectId,
       state: "PLANNED",
@@ -290,7 +287,7 @@ async function recoverProjectClose(
     const failedScheduleId = parseFailedScheduleId(operation.failureSummary);
     if (action === "cancel-owed" && failedScheduleId) {
       // The close Ends the schedule on its next pass, with nothing owed left.
-      await tx.taskScheduleOccurrence.updateMany({
+      await tx.taskScheduleRun.updateMany({
         where: {
           scheduleId: failedScheduleId,
           state: "PLANNED",
@@ -303,7 +300,7 @@ async function recoverProjectClose(
       if (!failure?.seriesTaskId) {
         throw conflict("Project close has no failed series to cancel");
       }
-      await tx.taskScheduleOccurrence.updateMany({
+      await tx.taskScheduleRun.updateMany({
         where: {
           seriesTaskId: failure.seriesTaskId,
           sourceProjectId: project.id,
@@ -321,7 +318,7 @@ async function recoverProjectClose(
         },
         data: { state: "CANCELED" },
       });
-      await tx.taskScheduleOccurrence.deleteMany({
+      await tx.taskScheduleRun.deleteMany({
         where: {
           seriesTaskId: failure.seriesTaskId,
           sourceProjectId: project.id,

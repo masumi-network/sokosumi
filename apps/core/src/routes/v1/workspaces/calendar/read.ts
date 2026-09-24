@@ -4,7 +4,7 @@ import {
   CalendarSourceType,
   CalendarTimeAccuracy,
   type Prisma,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskScheduleState,
   TaskStatus,
 } from "@sokosumi/database";
@@ -199,7 +199,7 @@ function hasUuidId(cursor: CalendarCursor): boolean {
 function getNonProjectSourceFilter(
   workspaceId: string,
   sourceId: string | undefined,
-): Prisma.TaskScheduleOccurrenceWhereInput {
+): Prisma.TaskScheduleRunWhereInput {
   if (!sourceId) {
     return {};
   }
@@ -277,23 +277,23 @@ export async function readWorkspaceCalendar(
   ];
   // A planned Run has no Task yet, so it has no status to match.
   const showsPlannedRuns = !query.status && scheduleReader !== null;
-  const runVisibility: Prisma.TaskScheduleOccurrenceWhereInput = {
+  const runVisibility: Prisma.TaskScheduleRunWhereInput = {
     OR: [
       ...(!showsPlannedRuns
         ? []
         : [
             {
-              state: TaskScheduleOccurrenceState.PLANNED,
+              state: TaskScheduleRunState.PLANNED,
               schedule: { is: { AND: scheduleFilters } },
             },
           ]),
       {
-        state: TaskScheduleOccurrenceState.RELEASED,
+        state: TaskScheduleRunState.RELEASED,
         releasedTask: { is: { AND: taskFilters } },
       },
     ],
   };
-  const cursorFilter: Prisma.TaskScheduleOccurrenceWhereInput | null = cursor
+  const cursorFilter: Prisma.TaskScheduleRunWhereInput | null = cursor
     ? {
         OR: [
           { effectiveScheduledAt: { gt: new Date(cursor.scheduledAt) } },
@@ -308,7 +308,7 @@ export async function readWorkspaceCalendar(
         ],
       }
     : null;
-  const baseWhere: Prisma.TaskScheduleOccurrenceWhereInput = {
+  const baseWhere: Prisma.TaskScheduleRunWhereInput = {
     scheduleId: { not: null },
     sourceWorkspaceId: workspaceId,
     ...sourceFilter,
@@ -319,10 +319,7 @@ export async function readWorkspaceCalendar(
         }
       : {}),
     state: {
-      in: [
-        TaskScheduleOccurrenceState.PLANNED,
-        TaskScheduleOccurrenceState.RELEASED,
-      ],
+      in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.RELEASED],
     },
     effectiveScheduledAt: { gte: from, lt: to },
     AND: [runVisibility],
@@ -347,7 +344,7 @@ export async function readWorkspaceCalendar(
       }
     : null;
   const [runs, runTotal, runAtTasks, runAtTotal] = await Promise.all([
-    prisma.taskScheduleOccurrence.findMany({
+    prisma.taskScheduleRun.findMany({
       where: cursorFilter
         ? { ...baseWhere, AND: [runVisibility, cursorFilter] }
         : baseWhere,
@@ -388,7 +385,7 @@ export async function readWorkspaceCalendar(
         },
       },
     }),
-    prisma.taskScheduleOccurrence.count({ where: baseWhere }),
+    prisma.taskScheduleRun.count({ where: baseWhere }),
     runAtTaskWhere
       ? prisma.task.findMany({
           where: runAtCursorFilter
@@ -418,7 +415,7 @@ export async function readWorkspaceCalendar(
       return [];
     }
     const task =
-      run.state === TaskScheduleOccurrenceState.RELEASED ? releasedTask : null;
+      run.state === TaskScheduleRunState.RELEASED ? releasedTask : null;
     const blueprint = task ?? schedule;
     return [
       workspaceCalendarItemSchema.parse({
@@ -428,7 +425,7 @@ export async function readWorkspaceCalendar(
         scheduleRevision: schedule.revision,
         // The same Runs PATCH /runs/{runId} accepts from their owner.
         canChangeRun:
-          run.state === TaskScheduleOccurrenceState.PLANNED &&
+          run.state === TaskScheduleRunState.PLANNED &&
           schedule.state === TaskScheduleState.ACTIVE &&
           run.effectiveScheduledAt > now &&
           scheduleReader != null &&
@@ -477,7 +474,7 @@ export async function readWorkspaceCalendar(
         taskOwnerId: task.ownerId,
         scheduledAt: runAt.toISOString(),
         originalScheduledAt: null,
-        state: TaskScheduleOccurrenceState.PLANNED,
+        state: TaskScheduleRunState.PLANNED,
         sourceId: getCalendarSourceId(source),
         ...source,
         sourceAccuracy: CalendarSourceAccuracy.EXACT,

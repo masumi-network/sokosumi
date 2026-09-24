@@ -11,8 +11,8 @@ interface TaskScheduleQuarantineClient {
     Prisma.TransactionClient["taskScheduleQuarantine"],
     "upsert"
   >;
-  taskScheduleOccurrence: Pick<
-    Prisma.TransactionClient["taskScheduleOccurrence"],
+  taskScheduleRun: Pick<
+    Prisma.TransactionClient["taskScheduleRun"],
     "deleteMany"
   >;
 }

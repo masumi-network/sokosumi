@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   TaskScheduleEndsMode,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskScheduleState,
   TaskStatus,
 } from "@sokosumi/database";
@@ -91,7 +91,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
       expect.objectContaining({ status: TaskStatus.READY, userId: OWNER_ID }),
     ]);
     expect(runsOf(schedule.id).find((row) => row.id === run.id)).toMatchObject({
-      state: TaskScheduleOccurrenceState.RELEASED,
+      state: TaskScheduleRunState.RELEASED,
       releasedTaskId: task?.id,
     });
     expect(taskScheduleTestDb.schedules[0]).toMatchObject({
@@ -208,9 +208,9 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
         .slice(0, 3)
         .map((row) => [row.effectiveScheduledAt, row.state]),
     ).toEqual([
-      [previousMonday, TaskScheduleOccurrenceState.RELEASED],
-      [MONDAY_9, TaskScheduleOccurrenceState.RELEASED],
-      [NEXT_MONDAY_9, TaskScheduleOccurrenceState.PLANNED],
+      [previousMonday, TaskScheduleRunState.RELEASED],
+      [MONDAY_9, TaskScheduleRunState.RELEASED],
+      [NEXT_MONDAY_9, TaskScheduleRunState.PLANNED],
     ]);
     expect(taskScheduleTestDb.schedules[0]?.releasedCount).toBe(2);
   });
@@ -222,7 +222,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     await release();
 
     const planned = runsOf(schedule.id).filter(
-      (row) => row.state === TaskScheduleOccurrenceState.PLANNED,
+      (row) => row.state === TaskScheduleRunState.PLANNED,
     );
     // Every Monday from Jan 14 to Apr 1: the 90-day horizon ends Apr 7.
     expect(planned).toHaveLength(12);
@@ -248,7 +248,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
 
     expect(
       vi
-        .mocked(taskScheduleTestPrisma.taskScheduleOccurrence.createMany)
+        .mocked(taskScheduleTestPrisma.taskScheduleRun.createMany)
         .mock.calls.flatMap(([args]) =>
           args.data.map((row) => row.effectiveScheduledAt),
         ),
@@ -273,7 +273,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
       nextRunAt: null,
     });
     expect(runsOf(schedule.id).map((row) => row.state)).toEqual([
-      TaskScheduleOccurrenceState.RELEASED,
+      TaskScheduleRunState.RELEASED,
     ]);
   });
 
@@ -303,9 +303,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
       await release();
 
       expect(taskScheduleTestDb.tasks).toHaveLength(0);
-      expect(runsOf(schedule.id)[0]?.state).toBe(
-        TaskScheduleOccurrenceState.PLANNED,
-      );
+      expect(runsOf(schedule.id)[0]?.state).toBe(TaskScheduleRunState.PLANNED);
     },
   );
 
@@ -349,7 +347,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
           row.id === run.id
             ? {
                 ...row,
-                state: TaskScheduleOccurrenceState.RELEASED,
+                state: TaskScheduleRunState.RELEASED,
                 releasedTaskId: "task_other_run",
               }
             : row,
@@ -395,7 +393,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(
       runsOf(schedule.id).find((row) => row.id === moved.id),
     ).toMatchObject({
-      state: TaskScheduleOccurrenceState.RELEASED,
+      state: TaskScheduleRunState.RELEASED,
       releasedTaskId: taskScheduleTestDb.tasks[0]?.id,
     });
   });
@@ -403,7 +401,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
   it("never releases a skipped Run and moves on to the next one", async () => {
     const schedule = seedTaskSchedule({ nextRunAt: MONDAY_9 });
     const skipped = seedRun(schedule, MONDAY_9, {
-      state: TaskScheduleOccurrenceState.SKIPPED,
+      state: TaskScheduleRunState.SKIPPED,
     });
 
     await release();
@@ -411,7 +409,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(taskScheduleTestDb.tasks).toHaveLength(0);
     expect(
       runsOf(schedule.id).find((row) => row.id === skipped.id)?.state,
-    ).toBe(TaskScheduleOccurrenceState.SKIPPED);
+    ).toBe(TaskScheduleRunState.SKIPPED);
     expect(taskScheduleTestDb.schedules[0]).toMatchObject({
       state: TaskScheduleState.ACTIVE,
       releasedCount: 0,
@@ -426,7 +424,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
       endsOn: new Date("2030-01-08T00:00:00.000Z"),
     });
     seedRun(schedule, MONDAY_9, {
-      state: TaskScheduleOccurrenceState.SKIPPED,
+      state: TaskScheduleRunState.SKIPPED,
     });
 
     await release();
@@ -455,9 +453,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     await release();
 
     expect(taskScheduleTestDb.tasks).toHaveLength(0);
-    expect(runsOf(schedule.id)[0]?.state).toBe(
-      TaskScheduleOccurrenceState.PLANNED,
-    );
+    expect(runsOf(schedule.id)[0]?.state).toBe(TaskScheduleRunState.PLANNED);
   });
 
   it("finishes a stopped backlog without passing its end after N", async () => {
@@ -478,7 +474,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     });
     expect(
       runsOf(schedule.id).filter(
-        (row) => row.state === TaskScheduleOccurrenceState.PLANNED,
+        (row) => row.state === TaskScheduleRunState.PLANNED,
       ),
     ).toHaveLength(2);
 

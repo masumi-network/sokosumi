@@ -2,7 +2,7 @@ import {
   CalendarSourceAccuracy,
   CalendarSourceType,
   CalendarTimeAccuracy,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskStatus,
 } from "@sokosumi/database";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -48,7 +48,7 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: { findFirst: coworkerFindFirstMock },
     member: { findFirst: memberFindFirstMock },
     task: { findFirst: taskFindFirstMock },
-    taskScheduleOccurrence: {
+    taskScheduleRun: {
       count: occurrenceCountMock,
       findMany: occurrenceFindManyMock,
     },
@@ -95,7 +95,7 @@ function request(query = "") {
 function createRow(overrides: Record<string, unknown> = {}) {
   return {
     id: "33333333-3333-7333-8333-333333333331",
-    state: TaskScheduleOccurrenceState.PLANNED,
+    state: TaskScheduleRunState.PLANNED,
     scheduleVersion: 2,
     epochId: EPOCH_ID,
     originalScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
@@ -296,7 +296,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
       createRow(),
       createRow({
         id: "33333333-3333-7333-8333-333333333332",
-        state: TaskScheduleOccurrenceState.SKIPPED,
+        state: TaskScheduleRunState.SKIPPED,
         effectiveScheduledAt: new Date("2026-06-12T09:00:00.000Z"),
       }),
     ]);
@@ -322,10 +322,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     expect(args.where).toMatchObject({
       seriesTaskId: TASK_ID,
       state: {
-        in: [
-          TaskScheduleOccurrenceState.PLANNED,
-          TaskScheduleOccurrenceState.SKIPPED,
-        ],
+        in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.SKIPPED],
       },
       effectiveScheduledAt: {
         gte: NOW,
@@ -339,7 +336,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     occurrenceFindManyMock.mockResolvedValue([
       createRow({
         id: "33333333-3333-7333-8333-333333333333",
-        state: TaskScheduleOccurrenceState.RELEASED,
+        state: TaskScheduleRunState.RELEASED,
         effectiveScheduledAt: new Date("2026-06-09T09:00:00.000Z"),
         originalScheduledAt: new Date("2026-06-09T09:00:00.000Z"),
         sourceType: CalendarSourceType.PROJECT,
@@ -353,7 +350,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
       }),
       createRow({
         id: "33333333-3333-7333-8333-333333333334",
-        state: TaskScheduleOccurrenceState.PLANNED,
+        state: TaskScheduleRunState.PLANNED,
         effectiveScheduledAt: new Date("2026-06-08T09:00:00.000Z"),
         originalScheduledAt: new Date("2026-06-08T09:00:00.000Z"),
       }),
@@ -394,18 +391,12 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
       OR: [
         {
           state: {
-            in: [
-              TaskScheduleOccurrenceState.RELEASED,
-              TaskScheduleOccurrenceState.CANCELED,
-            ],
+            in: [TaskScheduleRunState.RELEASED, TaskScheduleRunState.CANCELED],
           },
         },
         {
           state: {
-            in: [
-              TaskScheduleOccurrenceState.PLANNED,
-              TaskScheduleOccurrenceState.SKIPPED,
-            ],
+            in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.SKIPPED],
           },
           effectiveScheduledAt: { lt: NOW },
         },
@@ -597,7 +588,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
   it("keeps an archived released Task in history and marks it archived", async () => {
     occurrenceFindManyMock.mockResolvedValue([
       createRow({
-        state: TaskScheduleOccurrenceState.RELEASED,
+        state: TaskScheduleRunState.RELEASED,
         effectiveScheduledAt: new Date("2026-06-09T09:00:00.000Z"),
         releasedTask: {
           id: "tsk_released",
@@ -641,19 +632,19 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
       page: [createRow()],
       exceptions: [
         {
-          state: TaskScheduleOccurrenceState.SKIPPED,
+          state: TaskScheduleRunState.SKIPPED,
           scheduleVersion: 2,
           originalScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
           effectiveScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
         },
         {
-          state: TaskScheduleOccurrenceState.PLANNED,
+          state: TaskScheduleRunState.PLANNED,
           scheduleVersion: 2,
           originalScheduledAt: new Date("2026-06-12T09:00:00.000Z"),
           effectiveScheduledAt: new Date("2026-06-13T15:00:00.000Z"),
         },
         {
-          state: TaskScheduleOccurrenceState.PLANNED,
+          state: TaskScheduleRunState.PLANNED,
           scheduleVersion: 2,
           originalScheduledAt: new Date("2026-06-14T09:00:00.000Z"),
           effectiveScheduledAt: new Date("2026-06-14T09:00:00.000Z"),
@@ -679,10 +670,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
       seriesTaskId: TASK_ID,
       effectiveScheduledAt: { gte: NOW },
       state: {
-        in: [
-          TaskScheduleOccurrenceState.PLANNED,
-          TaskScheduleOccurrenceState.SKIPPED,
-        ],
+        in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.SKIPPED],
       },
     });
   });
@@ -693,7 +681,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
       page: [],
       exceptions: [
         {
-          state: TaskScheduleOccurrenceState.SKIPPED,
+          state: TaskScheduleRunState.SKIPPED,
           scheduleVersion: 2,
           originalScheduledAt: new Date("2026-06-11T09:00:00.000Z"),
           effectiveScheduledAt: new Date("2026-06-11T09:00:00.000Z"),

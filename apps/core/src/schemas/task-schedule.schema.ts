@@ -1,8 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import {
-  TaskScheduleEndsMode,
-  TaskScheduleOccurrenceState,
-} from "@sokosumi/database";
+import { TaskScheduleEndsMode, TaskScheduleRunState } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -411,10 +408,10 @@ export const taskScheduleRunListQuerySchema =
 export const taskScheduleRunSchema = z
   .object({
     id: z.string().uuid(),
-    state: z.enum(TaskScheduleOccurrenceState).openapi({
+    state: z.enum(TaskScheduleRunState).openapi({
       description:
         "PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit or by ending the schedule, or a move whose time passed while the schedule was Paused)",
-      example: TaskScheduleOccurrenceState.PLANNED,
+      example: TaskScheduleRunState.PLANNED,
     }),
     originalScheduledAt: dateTimeSchema.nullable().openapi({
       description: "Time the rule planned",

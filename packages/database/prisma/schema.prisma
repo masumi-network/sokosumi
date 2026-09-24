@@ -61,7 +61,7 @@ model User {
   notificationPreferences NotificationPreference[]
   notifications           Notification[]
 
-  calendarOccurrencesActed TaskScheduleOccurrence[] @relation("TaskScheduleOccurrenceActor")
+  calendarOccurrencesActed TaskScheduleRun[] @relation("TaskScheduleRunActor")
   projectCloseOperations   ProjectCloseOperation[]  @relation("ProjectCloseOperationActor")
   projectEventsActed       ProjectEvent[]           @relation("ProjectEventActor")
 
@@ -283,7 +283,7 @@ model Workspace {
   tasks                    Task[]
   taskSchedules            TaskSchedule[]
   projects                 Project[]
-  scheduleOccurrences      TaskScheduleOccurrence[]
+  scheduleOccurrences      TaskScheduleRun[]
   scheduleCreateOperations TaskScheduleCreateOperation[]
   notifications            Notification[]
   vendorGrants             VendorGrant[]
@@ -567,7 +567,7 @@ model Project {
   jobs                Job[]
   tasks               Task[]
   taskSchedules       TaskSchedule[]
-  scheduleOccurrences TaskScheduleOccurrence[]
+  scheduleOccurrences TaskScheduleRun[]
   closeOperation      ProjectCloseOperation?
   events              ProjectEvent[]
   stars               ProjectStar[]
@@ -1705,7 +1705,7 @@ model Coworker {
   createdTasks            Task[]                   @relation("TaskCreatorCoworker")
   assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssignee")
   createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorCoworker")
-  changedTaskScheduleRuns TaskScheduleOccurrence[] @relation("TaskScheduleOccurrenceActorCoworker")
+  changedTaskScheduleRuns TaskScheduleRun[] @relation("TaskScheduleRunActorCoworker")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByCoworker")
   coworkerUsages          CoworkerUsage[]
@@ -2577,8 +2577,8 @@ model Task {
   nextRunAt        DateTime?
   scheduleRevision Int       @default(0)
 
-  scheduleOccurrences        TaskScheduleOccurrence[]     @relation("ScheduleOccurrenceSeries")
-  releasedScheduleOccurrence TaskScheduleOccurrence?      @relation("ScheduleOccurrenceReleasedTask")
+  scheduleOccurrences        TaskScheduleRun[]     @relation("ScheduleOccurrenceSeries")
+  releasedScheduleOccurrence TaskScheduleRun?      @relation("ScheduleOccurrenceReleasedTask")
   scheduleQuarantine         TaskScheduleQuarantine?
   scheduleCreateOperation    TaskScheduleCreateOperation?
 
@@ -2687,7 +2687,7 @@ model TaskSchedule {
   assigneeUser      User?     @relation("TaskScheduleAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
 
   tasks Task[]
-  runs  TaskScheduleOccurrence[]
+  runs  TaskScheduleRun[]
 
   @@index([state, nextRunAt])
   @@index([workspaceId, createdAt, id])
@@ -2791,14 +2791,14 @@ enum CalendarTimeAccuracy {
   APPROXIMATE
 }
 
-enum TaskScheduleOccurrenceState {
+enum TaskScheduleRunState {
   PLANNED
   SKIPPED
   CANCELED
   RELEASED
 }
 
-model TaskScheduleOccurrence {
+model TaskScheduleRun {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2808,7 +2808,7 @@ model TaskScheduleOccurrence {
   seriesTaskId String?
   seriesTask   Task?   @relation("ScheduleOccurrenceSeries", fields: [seriesTaskId], references: [id], onDelete: Cascade)
 
-  /// Task Schedule this Occurrence belongs to; replaces seriesTaskId (ADR 0041).
+  /// Task Schedule this Run belongs to; replaces seriesTaskId (ADR 0041).
   scheduleId String?       @db.Uuid
   schedule   TaskSchedule? @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
@@ -2824,10 +2824,11 @@ model TaskScheduleOccurrence {
   legacyLinkId         String?   @unique
 
   /// Distinguishes indexed v1 plans from epoch-backed v2 rows and legacy
-  /// released ledger records. Database checks enforce the valid field branch.
+  /// released ledger records. Database checks enforce the valid field branch;
+  /// a Task Schedule's Runs are always v2 without a legacy link.
   scheduleVersion Int @default(2)
 
-  state TaskScheduleOccurrenceState
+  state TaskScheduleRunState
 
   sourceWorkspaceId String                 @db.Uuid
   sourceWorkspace   Workspace              @relation(fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
@@ -2837,26 +2838,26 @@ model TaskScheduleOccurrence {
   sourceAccuracy    CalendarSourceAccuracy @default(EXACT)
   timeAccuracy      CalendarTimeAccuracy   @default(EXACT)
 
-  /// Who last skipped, moved, or restored this Occurrence: a person or a
+  /// Who last skipped, moved, or restored this Run: a person or a
   /// Coworker vendor, at most one of them.
   actorUserId     String?
-  actorUser       User?     @relation("TaskScheduleOccurrenceActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorUser       User?     @relation("TaskScheduleRunActor", fields: [actorUserId], references: [id], onDelete: SetNull)
   actorCoworkerId String?
-  actorCoworker   Coworker? @relation("TaskScheduleOccurrenceActorCoworker", fields: [actorCoworkerId], references: [id], onDelete: SetNull)
+  actorCoworker   Coworker? @relation("TaskScheduleRunActorCoworker", fields: [actorCoworkerId], references: [id], onDelete: SetNull)
   timezone        String?
   ruleSnapshot    Json?
 
-  @@unique([seriesTaskId, epochId, originalScheduledAt], map: "task_schedule_occurrence_series_epoch_original_key")
-  @@unique([scheduleId, epochId, originalScheduledAt], map: "task_schedule_occurrence_schedule_epoch_original_key")
-  @@index([seriesTaskId, effectiveScheduledAt, id], map: "task_schedule_occurrence_series_effective_id_idx")
-  @@index([scheduleId, effectiveScheduledAt, id], map: "task_schedule_occurrence_schedule_effective_id_idx")
-  @@index([seriesTaskId, originalScheduledAt, id], map: "task_schedule_occurrence_series_original_id_idx")
-  @@index([sourceWorkspaceId, effectiveScheduledAt, id], map: "task_schedule_occurrence_workspace_effective_id_idx")
-  @@index([sourceProjectId, effectiveScheduledAt, id], map: "task_schedule_occurrence_project_effective_id_idx")
+  @@unique([seriesTaskId, epochId, originalScheduledAt], map: "task_schedule_run_series_epoch_original_key")
+  @@unique([scheduleId, epochId, originalScheduledAt], map: "task_schedule_run_schedule_epoch_original_key")
+  @@index([seriesTaskId, effectiveScheduledAt, id], map: "task_schedule_run_series_effective_id_idx")
+  @@index([scheduleId, effectiveScheduledAt, id], map: "task_schedule_run_schedule_effective_id_idx")
+  @@index([seriesTaskId, originalScheduledAt, id], map: "task_schedule_run_series_original_id_idx")
+  @@index([sourceWorkspaceId, effectiveScheduledAt, id], map: "task_schedule_run_workspace_effective_id_idx")
+  @@index([sourceProjectId, effectiveScheduledAt, id], map: "task_schedule_run_project_effective_id_idx")
   @@index([state, effectiveScheduledAt, id])
   @@index([actorUserId])
   @@index([actorCoworkerId])
-  @@map("task_schedule_occurrence")
+  @@map("task_schedule_run")
 }
 
 enum TaskScheduleQuarantineReason {

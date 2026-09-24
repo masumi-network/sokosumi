@@ -4,7 +4,7 @@ import {
   CalendarTimeAccuracy,
   type Prisma,
   TaskLinkType,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
 } from "@sokosumi/database";
 
 import { CALENDAR_BETA_USER_WHERE } from "@/helpers/calendar-beta-access";
@@ -52,7 +52,7 @@ const OCCURRENCE_IDENTITY_SELECT = {
   seriesTaskId: true,
   releasedTaskId: true,
   legacyLinkId: true,
-} satisfies Prisma.TaskScheduleOccurrenceSelect;
+} satisfies Prisma.TaskScheduleRunSelect;
 
 type ReconciliationLink = Prisma.TaskLinkGetPayload<{
   select: typeof RECONCILIATION_LINK_SELECT;
@@ -130,7 +130,7 @@ async function reconcileLink(
     return false;
   }
 
-  const existingByLink = await tx.taskScheduleOccurrence.findUnique({
+  const existingByLink = await tx.taskScheduleRun.findUnique({
     where: { legacyLinkId: link.id },
     select: OCCURRENCE_IDENTITY_SELECT,
   });
@@ -139,7 +139,7 @@ async function reconcileLink(
     return false;
   }
 
-  const occurrence = await tx.taskScheduleOccurrence.upsert({
+  const occurrence = await tx.taskScheduleRun.upsert({
     where: { releasedTaskId: link.toTaskId },
     create: {
       seriesTaskId: link.fromTaskId,
@@ -147,7 +147,7 @@ async function reconcileLink(
       legacyLinkId: link.id,
       scheduleVersion: 1,
       effectiveScheduledAt: link.createdAt,
-      state: TaskScheduleOccurrenceState.RELEASED,
+      state: TaskScheduleRunState.RELEASED,
       ...getLegacySource(link),
       timeAccuracy: CalendarTimeAccuracy.APPROXIMATE,
     },

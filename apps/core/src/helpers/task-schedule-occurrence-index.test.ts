@@ -30,7 +30,7 @@ describe("retireTaskScheduleFutureOccurrences", () => {
     const deleteMany = vi.fn().mockResolvedValue({ count: 0 });
     return {
       client: {
-        taskScheduleOccurrence: { findMany, updateMany, deleteMany },
+        taskScheduleRun: { findMany, updateMany, deleteMany },
       },
       findMany,
       updateMany,
@@ -184,7 +184,7 @@ describe("countTaskScheduleFutureExceptions", () => {
   ) {
     const findMany = vi.fn().mockResolvedValue(rows);
     return {
-      client: { taskScheduleOccurrence: { findMany } },
+      client: { taskScheduleRun: { findMany } },
       findMany,
     };
   }
@@ -249,7 +249,7 @@ describe("createTaskSchedulePlannedOccurrences", () => {
     const createMany = vi.fn().mockResolvedValue({ count: 1 });
 
     await createTaskSchedulePlannedOccurrences(
-      { taskScheduleOccurrence: { createMany } },
+      { taskScheduleRun: { createMany } },
       {
         id: "tsk_v2",
         workspaceId: WORKSPACE_ID,
@@ -286,7 +286,7 @@ describe("createTaskSchedulePlannedOccurrences", () => {
 
     await expect(
       createTaskSchedulePlannedOccurrences(
-        { taskScheduleOccurrence: { createMany } },
+        { taskScheduleRun: { createMany } },
         {
           id: "tsk_dense",
           workspaceId: WORKSPACE_ID,
@@ -337,7 +337,7 @@ describe("replaceTaskSchedulePlannedOccurrences finite release capacity", () => 
 
     await replaceTaskSchedulePlannedOccurrences(
       {
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           findMany,
           createMany,
           deleteMany,
@@ -422,7 +422,7 @@ describe("replaceTaskSchedulePlannedOccurrences finite release capacity", () => 
 
     await replaceTaskSchedulePlannedOccurrences(
       {
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           findMany,
           createMany,
           deleteMany,
@@ -478,7 +478,7 @@ describe("replaceTaskSchedulePlannedOccurrences finite release capacity", () => 
 
     await replaceTaskSchedulePlannedOccurrences(
       {
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           findMany,
           createMany,
           deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -519,7 +519,7 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
     await expect(
       replaceTaskSchedulePlannedOccurrences(
         {
-          taskScheduleOccurrence: {
+          taskScheduleRun: {
             findMany: vi.fn(),
             deleteMany,
             createMany,
@@ -573,7 +573,7 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
 
     await replaceTaskSchedulePlannedOccurrences(
       {
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           findMany,
           deleteMany,
           createMany,
@@ -662,7 +662,7 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
 
     await replaceTaskSchedulePlannedOccurrences(
       {
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           findMany,
           deleteMany,
           createMany,
@@ -738,7 +738,7 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
 
     await replaceTaskSchedulePlannedOccurrences(
       {
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           findMany,
           deleteMany,
           createMany,
@@ -772,7 +772,7 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
     await expect(
       refreshTaskSchedulePlannedOccurrences(
         {
-          taskScheduleOccurrence: {
+          taskScheduleRun: {
             findMany: vi.fn(),
             deleteMany,
             createMany,
@@ -808,7 +808,7 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
 
     await refreshTaskSchedulePlannedOccurrences(
       {
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           findMany: vi.fn(),
           deleteMany,
           createMany: vi.fn(),
@@ -847,7 +847,7 @@ describe("replaceTaskSchedulePlannedOccurrences", () => {
 
     await refreshTaskSchedulePlannedOccurrences(
       {
-        taskScheduleOccurrence: {
+        taskScheduleRun: {
           findMany: vi.fn(),
           deleteMany,
           createMany: vi.fn(),
@@ -883,7 +883,7 @@ describe("findNextReleaseableOccurrence", () => {
 
     await expect(
       findNextReleaseableOccurrence(
-        { taskScheduleOccurrence: { findFirst } },
+        { taskScheduleRun: { findFirst } },
         "tsk_series",
         "33333333-3333-7333-8333-333333333333",
       ),
@@ -915,7 +915,7 @@ describe("findNextReleaseableOccurrence", () => {
 
     await expect(
       findNextReleaseableOccurrence(
-        { taskScheduleOccurrence: { findFirst } },
+        { taskScheduleRun: { findFirst } },
         "tsk_series",
         null,
       ),

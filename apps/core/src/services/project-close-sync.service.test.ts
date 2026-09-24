@@ -164,7 +164,7 @@ function txClient() {
       findUniqueOrThrow: taskScheduleFindUniqueOrThrowMock,
       updateMany: taskScheduleUpdateManyMock,
     },
-    taskScheduleOccurrence: {
+    taskScheduleRun: {
       delete: taskScheduleOccurrenceDeleteMock,
       deleteMany: taskScheduleOccurrenceDeleteManyMock,
       findFirst: taskScheduleOccurrenceFindFirstMock,
