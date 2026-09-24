@@ -31,6 +31,10 @@ BEGIN
     ALTER TABLE "task_schedule_occurrence" RENAME TO "task_schedule_run";
   END IF;
 
+  -- Named on its own so partial-unique-schema-coverage.test.ts, which reads
+  -- migration text, sees the partial unique's new name.
+  ALTER INDEX IF EXISTS "task_schedule_occurrence_v1_planned_original_key" RENAME TO "task_schedule_run_v1_planned_original_key";
+
   FOR item IN
     SELECT conname
     FROM pg_constraint
