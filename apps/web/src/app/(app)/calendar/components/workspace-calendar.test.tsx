@@ -1381,7 +1381,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getByText("empty.schedulesTitle")).toBeInTheDocument();
+    expect(screen.getByText("empty")).toBeInTheDocument();
     expect(screen.queryByText("empty.title")).not.toBeInTheDocument();
   });
 

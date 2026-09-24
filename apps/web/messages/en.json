@@ -6504,8 +6504,7 @@
         "label": "Time zone"
       },
       "empty": {
-        "title": "No scheduled releases match these filters.",
-        "schedulesTitle": "No schedules match these filters."
+        "title": "No scheduled releases match these filters."
       },
       "schedules": {
         "nextRun": "Next run",

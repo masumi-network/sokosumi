@@ -6504,8 +6504,7 @@
         "label": "Zeitzone"
       },
       "empty": {
-        "title": "Keine geplanten Freigaben entsprechen diesen Filtern.",
-        "schedulesTitle": "Keine Zeitpläne entsprechen diesen Filtern."
+        "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
       },
       "schedules": {
         "nextRun": "Nächster Lauf",

@@ -6504,8 +6504,7 @@
         "label": "Zona horaria"
       },
       "empty": {
-        "title": "Ninguna ejecución programada coincide con estos filtros.",
-        "schedulesTitle": "Ninguna programación coincide con estos filtros."
+        "title": "Ninguna ejecución programada coincide con estos filtros."
       },
       "schedules": {
         "nextRun": "Próxima ejecución",

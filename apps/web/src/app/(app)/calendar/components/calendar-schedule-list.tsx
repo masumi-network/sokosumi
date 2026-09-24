@@ -170,7 +170,7 @@ export function CalendarScheduleList({
         </div>
       ) : (
         <div className="text-muted-foreground border-border flex items-center justify-center rounded-xl border py-16 text-sm">
-          {t("empty.schedulesTitle")}
+          {tSchedules("empty")}
         </div>
       )}
       {hasMore ? (
