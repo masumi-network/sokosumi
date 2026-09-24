@@ -4,9 +4,11 @@
 -- until SOK-1174 drops them.
 --
 -- Not backward-compatible with the previous Core release: it renames the
--- ledger that release reads and archives the templates its release scans.
--- Deployment must drain old Core writes (the /sync/task-schedules cron above
--- all) before this migration starts. ADR 0041 accepts the single deploy;
+-- ledger that release reads. Until the new deployment is promoted, the old
+-- one's calendar and schedule endpoints fail; there is no data risk. A
+-- ledger write already under way finishes before the rename takes its lock,
+-- a later one rolls back, and the old /sync/task-schedules cron finds no
+-- due template once they are archived. ADR 0041 accepts the single deploy;
 -- rollback is the pre-migration snapshot.
 --
 -- Re-running this file is safe: the rename checks what exists, schedule and
