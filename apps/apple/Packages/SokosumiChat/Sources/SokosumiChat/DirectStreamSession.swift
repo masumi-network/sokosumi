@@ -39,14 +39,6 @@ public final class DirectStreamSession: ObservableObject {
     phase != .idle
   }
 
-  public var reasoning: String {
-    response.reasoning
-  }
-
-  public var latestThought: String? {
-    response.latestThought
-  }
-
   public static func supports(_ room: Components.Schemas.ChatRoom) -> Bool {
     room.kind == .direct && room.coworkerMembers.count == 1
       && room.userMembers.count == 1 && room.sokoBotMembers.isEmpty
@@ -80,6 +72,9 @@ public final class DirectStreamSession: ObservableObject {
     return text
   }
 
+  /// The user turn and the coworker row. The coworker row carries its reasoning
+  /// in `metadata.reasoning`, as web's overlay does, so `CoworkerThought` reads
+  /// the whole trace from it.
   public var overlayMessages: [Components.Schemas.ChatRoomMessage] {
     var messages = userMessage.map { [$0] } ?? []
     if hasResponse, let roomId, let coworker {
@@ -89,7 +84,7 @@ public final class DirectStreamSession: ObservableObject {
         deletedAt: nil, editedAt: nil,
         sender: .case2(.init(_type: .coworker, coworker: coworker)),
         mentions: [], reactions: [], threadReplyCount: 0, threadLastReplyAt: nil,
-        metadata: nil, quote: nil, membership: nil, unfurls: nil
+        metadata: CoworkerThought.metadata(reasoning: response.reasoningParts), quote: nil, membership: nil, unfurls: nil
       ))
     }
     return messages
