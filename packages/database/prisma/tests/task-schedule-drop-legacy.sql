@@ -49,6 +49,14 @@ INSERT INTO "taskEvent" (id, "updatedAt", "taskId", status, "scheduleKind", "sch
   ('event-with-status', now(), 'v2', 'QUEUED', 'CREATED', 'aaaaaaaa-0000-4000-8000-000000000002'),
   ('event-plain', now(), 'v2', 'READY', NULL, NULL);
 
+-- A live Task the old release would still have woken, with no rule to move.
+INSERT INTO "task" (
+  id, "updatedAt", "ownerId", "creatorUserId", "workspaceId", name, status,
+  visibility, "nextRunAt"
+) VALUES
+  ('stray-next-run', now(), 'owner', 'owner', '11111111-1111-4111-8111-111111111111',
+   'Stray next run', 'QUEUED', 'PUBLIC', '2030-02-04 09:00');
+
 -- A create operation of the retired POST /v1/tasks/scheduled.
 INSERT INTO "task_schedule_create_operation" (id, "workspaceId", "operationId", "requestFingerprint", "taskId") VALUES
   ('bbbbbbbb-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
@@ -85,6 +93,26 @@ SET "runAt" = "nextRunAt", metadata = NULL, "nextRunAt" = NULL
 WHERE id = 'once-quarantined';
 DELETE FROM "task_schedule_quarantine" WHERE "taskId" = 'once-quarantined';
 UPDATE "task" SET metadata = NULL WHERE id IN ('not-a-schedule', 'malformed');
+
+-- Still refused: a live Task keeps a next run the cutover did not move.
+\echo 'task-schedule-drop-legacy: expect a second refusal, for stray-next-run only'
+\set ON_ERROR_STOP 0
+\set VERBOSITY terse
+\ir ../migrations/20260924143117_task_schedule_drop_legacy/migration.sql
+\set VERBOSITY default
+\set ON_ERROR_STOP 1
+
+DO $$
+BEGIN
+  PERFORM pg_temp.expect(
+    pg_temp.has_column('task', 'nextRunAt'),
+    'the drop refuses while a live Task keeps a next run'
+  );
+END;
+$$;
+
+-- Its repair: the next run becomes the Task's Run at.
+UPDATE "task" SET "runAt" = "nextRunAt", "nextRunAt" = NULL WHERE id = 'stray-next-run';
 
 DO $$
 BEGIN

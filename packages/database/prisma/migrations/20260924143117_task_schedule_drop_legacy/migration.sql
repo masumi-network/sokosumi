@@ -13,18 +13,21 @@
 -- Runs in the same deploy as 20260924130000_task_schedule_cutover. Only
 -- history goes: ledger rows of series that had ended or were archived before
 -- the cutover, schedule-only Task events, SCHEDULE links (the cutover moved
--- them to Task.scheduleId), and the rule text on archived templates (the
--- Task Schedule holds it now). A schedule the cutover could not move, or
--- metadata that is not a schedule at all, stops the migration instead.
+-- them to Task.scheduleId), and the rule text on archived templates (a
+-- Task Schedule holds it for the ones the cutover archived; a template
+-- archived before the cutover loses it). A schedule the cutover could not
+-- move, metadata that is not a schedule at all, or a live Task's next run
+-- stops the migration instead.
 
 BEGIN;
 
--- 1. Task.metadata goes whole, so it may only hold what the cutover already
--- moved: a rule on an archived template. Refused: a Task the cutover left
--- for an operator (a quarantined Queued one-time schedule, say; listed by
--- task-schedule-cutover-report.sql), and metadata that is not a v1 or v2
--- schedule at all (Core never writes any; the report counts it as "other
--- JSON" or "not JSON"). Repair or clear them first.
+-- 1. Task.metadata and Task.nextRunAt go whole, so they may only hold what
+-- the cutover already moved: a rule on an archived template. Refused: a Task
+-- the cutover left for an operator (a quarantined Queued one-time schedule,
+-- say; listed by task-schedule-cutover-report.sql), metadata that is not a
+-- v1 or v2 schedule at all (Core never writes any; the report counts it as
+-- "other JSON" or "not JSON"), and a live Task's next run without a rule
+-- ("no metadata, nextRunAt set"). Repair or clear them first.
 CREATE FUNCTION pg_temp.drop_legacy_jsonb(value TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -48,18 +51,21 @@ BEGIN
     SELECT t.id, row_number() OVER (ORDER BY t.id) AS rn
     FROM "task" AS t
     CROSS JOIN LATERAL pg_temp.drop_legacy_jsonb(t.metadata) AS rule
-    WHERE t.metadata IS NOT NULL
-      AND (
-        t."archivedAt" IS NULL
-        OR NOT COALESCE(
-          rule->>'version' IN ('1', '2') AND rule->>'mode' IN ('once', 'recurring'),
-          false
+    WHERE (t."archivedAt" IS NULL AND t."nextRunAt" IS NOT NULL)
+      OR (
+        t.metadata IS NOT NULL
+        AND (
+          t."archivedAt" IS NULL
+          OR NOT COALESCE(
+            rule->>'version' IN ('1', '2') AND rule->>'mode' IN ('once', 'recurring'),
+            false
+          )
         )
       )
   ) AS leftover;
 
   IF leftover_count > 0 THEN
-    RAISE EXCEPTION 'Task Schedule drop: % Task(s) hold metadata the cutover did not move (a schedule left for repair, or not a schedule); repair or clear them before this migration: %',
+    RAISE EXCEPTION 'Task Schedule drop: % Task(s) hold metadata or a next run the cutover did not move (a schedule left for repair, not a schedule, or a live next run); repair or clear them before this migration: %',
       leftover_count, leftover_ids;
   END IF;
 END;

@@ -99,7 +99,8 @@ SELECT t.id, t.status, t."archivedAt", t."nextRunAt", q.reason,
   left(t.metadata, 60) AS metadata
 FROM "task" t
 LEFT JOIN "task_schedule_quarantine" q ON q."taskId" = t.id
-WHERE t.metadata IS NOT NULL
+WHERE (t."archivedAt" IS NULL AND t."nextRunAt" IS NOT NULL)
+  OR t.metadata IS NOT NULL
   AND (
     t."archivedAt" IS NULL
     OR NOT COALESCE(
