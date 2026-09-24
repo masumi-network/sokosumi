@@ -1,6 +1,8 @@
-import type { Prisma } from "@sokosumi/database";
+import type { Prisma, TaskVisibility } from "@sokosumi/database";
 
 import { resolveMentionedUserIds } from "@/routes/v1/chats/rooms/helpers";
+
+import { isPrivateTaskVisibleToHuman } from "./task-visibility";
 
 interface ParticipantClient {
   workspace: {
@@ -48,6 +50,7 @@ export async function listTaskWorkspaceMembers(
 /**
  * Add workspace members named by a Task comment. Unknown ids are ignored.
  * `@all` does not add the workspace. Already-present users are left as they are.
+ * PRIVATE Tasks only enroll humans who can already open them (the owner).
  * Returns only the user ids inserted by this call.
  */
 export async function addTaskParticipantsFromComment(
@@ -56,6 +59,8 @@ export async function addTaskParticipantsFromComment(
     taskId: string;
     workspaceId: string;
     comment: string;
+    visibility: TaskVisibility;
+    ownerId: string;
     mentionedUserIds?: readonly string[];
   },
 ): Promise<string[]> {
@@ -65,7 +70,12 @@ export async function addTaskParticipantsFromComment(
     explicitUserIds: params.mentionedUserIds,
     roomUsers: members,
     expandAll: false,
-  });
+  }).filter((userId) =>
+    isPrivateTaskVisibleToHuman(
+      { visibility: params.visibility, ownerId: params.ownerId },
+      userId,
+    ),
+  );
 
   if (mentionedUserIds.length === 0) {
     return [];

@@ -515,6 +515,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           taskId,
           workspaceId: task.workspaceId,
           comment,
+          visibility: task.visibility,
+          ownerId: task.ownerId,
           mentionedUserIds: body.mentionedUserIds,
         });
       }

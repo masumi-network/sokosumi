@@ -3,6 +3,7 @@ import {
   NotificationKind,
   TaskLinkType,
   TaskStatus,
+  TaskVisibility,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
@@ -266,6 +267,7 @@ function createTask(
     metadata: string | null;
     nextRunAt: Date | null;
     scheduleRevision: number;
+    visibility: TaskVisibility;
   }> = {},
 ) {
   return {
@@ -281,6 +283,7 @@ function createTask(
     metadata: null,
     nextRunAt: null,
     scheduleRevision: 0,
+    visibility: TaskVisibility.PUBLIC,
     ...overrides,
   };
 }
@@ -3947,6 +3950,56 @@ describe("POST /{id}/events", () => {
       }),
     );
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not add or notify mentioned teammates on a PRIVATE task", async () => {
+    requireTaskCommentAccessMock.mockResolvedValue(
+      createTask({ visibility: TaskVisibility.PRIVATE }),
+    );
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi
+          .fn()
+          .mockResolvedValue(createTaskEvent({ comment: "hi", status: null })),
+      },
+      task: { updateMany: vi.fn() },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({
+          user: null,
+          organization: {
+            members: [
+              { user: { id: "user_alice", name: "Alice" } },
+              { user: { id: USER_ID, name: "Owner" } },
+            ],
+          },
+        }),
+      },
+      taskParticipant: {
+        findMany: vi.fn().mockResolvedValue([]),
+        createMany: vi.fn(),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: "org_123",
+      role: "user",
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        comment: "Secret @user_alice",
+        mentionedUserIds: ["user_alice"],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskParticipant?.createMany).not.toHaveBeenCalled();
+    await Promise.all(waitUntilCapturedPromises);
+    expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
   it("writes the mention before the settle notification on the same event", async () => {
