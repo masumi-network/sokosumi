@@ -145,6 +145,7 @@ export async function loadWorkspaceCalendarPage({
       await Promise.all([
         projectService.getProjectCalendar(project.id, {
           ...range,
+          agendaOnly: params.view === "agenda" ? "true" : undefined,
           includeSocialPosts: includeSocialPosts ? "true" : undefined,
           assigneeId: params.assigneeId,
           assigneeUserId: params.assigneeUserId,
@@ -184,6 +185,7 @@ export async function loadWorkspaceCalendarPage({
   ] = await Promise.all([
     taskService.getWorkspaceCalendar({
       ...range,
+      agendaOnly: params.view === "agenda" ? "true" : undefined,
       includeSocialPosts: includeSocialPosts ? "true" : undefined,
       assigneeId: params.assigneeId,
       assigneeUserId: params.assigneeUserId,
