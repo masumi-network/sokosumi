@@ -5,6 +5,10 @@ import { ResultAsync } from "neverthrow";
 import { revalidatePath } from "next/cache";
 
 import {
+  TASK_SCHEDULES_PATH,
+  taskSchedulePath,
+} from "@/app/tasks/utils/task-schedule-view";
+import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
@@ -99,8 +103,8 @@ function toTaskScheduleActionError(error: unknown): TaskScheduleActionError {
 }
 
 function revalidateTaskSchedule(scheduleId: string): void {
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/schedules/${scheduleId}`);
+  revalidatePath(TASK_SCHEDULES_PATH);
+  revalidatePath(taskSchedulePath(scheduleId));
 }
 
 async function runTaskScheduleAction<T>(
@@ -152,7 +156,7 @@ export const deleteTaskSchedule = withSession<
 >(async ({ scheduleId }) =>
   runTaskScheduleAction(async () => {
     await taskScheduleService.deleteSchedule(scheduleId);
-    revalidatePath("/tasks");
+    revalidatePath(TASK_SCHEDULES_PATH);
     return { scheduleId };
   }),
 );

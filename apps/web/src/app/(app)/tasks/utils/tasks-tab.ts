@@ -1,4 +1,4 @@
-export const TASKS_TAB_VALUES = ["tasks", "jobs", "schedules"] as const;
+export const TASKS_TAB_VALUES = ["tasks", "jobs"] as const;
 export type TasksTabValue = (typeof TASKS_TAB_VALUES)[number];
 export const TASKS_TAB_PARAM = "tab";
 export const DEFAULT_TASKS_TAB: TasksTabValue = "tasks";

@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { describe, expect, it, vi } from "vitest";
 import type {
-  TaskSchedule,
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
@@ -77,39 +76,6 @@ const SOURCES: WorkspaceCalendarSource[] = [
     isSchedulable: true,
   },
 ];
-
-const SCHEDULE: TaskSchedule = {
-  id: "schedule-1",
-  workspaceId: "workspace-1",
-  organizationId: null,
-  ownerId: "user-1",
-  creatorUserId: "user-1",
-  creatorCoworkerId: null,
-  creatorSokoBotId: null,
-  state: "ACTIVE",
-  rule: {
-    expr: "0 9 * * *",
-    timezone: "UTC",
-    intervalDays: null,
-    anchorAt: new Date("2030-01-02T09:00:00.000Z"),
-    endsMode: "NEVER",
-    endsOn: null,
-    targetRunCount: null,
-  },
-  ruleEffectiveFrom: new Date("2030-01-02T09:00:00.000Z"),
-  releasedCount: 0,
-  nextRunAt: new Date("2030-01-03T09:00:00.000Z"),
-  revision: 3,
-  name: "Prepare release notes",
-  description: null,
-  projectId: null,
-  visibility: "PUBLIC",
-  assigneeId: null,
-  assigneeSokoBotId: null,
-  assigneeUserId: null,
-  createdAt: new Date("2030-01-02T09:00:00.000Z"),
-  updatedAt: new Date("2030-01-02T09:00:00.000Z"),
-};
 
 function renderCalendar(view: "month" | "week" | "agenda") {
   return render(
@@ -206,33 +172,16 @@ describe("WorkspaceCalendar accessibility", () => {
     expect(pushMock).toHaveBeenCalledWith("/tasks/task-1");
   });
 
-  it("offers every Calendar view including Schedules", () => {
+  it("offers the Run views and leaves Task Schedules to /schedules", () => {
     renderCalendar("month");
 
-    for (const view of ["month", "week", "agenda", "schedules"]) {
+    for (const view of ["month", "week", "agenda"]) {
       expect(
         screen.getByRole("tab", { name: `view.${view}` }),
       ).toBeInTheDocument();
     }
-  });
-
-  it("names the Schedules view's create button and schedule links", () => {
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=UTC&view=schedules">
-        <WorkspaceCalendar
-          initialDate="2030-01-02"
-          items={[]}
-          schedules={[SCHEDULE]}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
     expect(
-      screen.getByRole("button", { name: "schedules.new" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Prepare release notes" }),
-    ).toHaveAttribute("href", "/tasks/schedules/schedule-1");
+      screen.queryByRole("tab", { name: "view.schedules" }),
+    ).not.toBeInTheDocument();
   });
 });

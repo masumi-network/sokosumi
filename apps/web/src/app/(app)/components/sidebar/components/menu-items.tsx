@@ -8,6 +8,7 @@ import {
   History,
   ListTodo,
   Plus,
+  Repeat,
   Search,
 } from "lucide-react";
 import Link from "next/link";
@@ -16,6 +17,7 @@ import { useTranslations } from "next-intl";
 import { type ComponentType, Fragment, type SVGProps } from "react";
 import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
+import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -130,6 +132,12 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
           },
         ]
       : []),
+    {
+      key: "schedules",
+      href: TASK_SCHEDULES_PATH,
+      label: t("schedules"),
+      Icon: Repeat,
+    },
     // Desktop only: mobile keeps Files on the You page account surface.
     ...(!isMobile
       ? [

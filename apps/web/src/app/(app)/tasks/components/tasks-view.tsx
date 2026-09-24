@@ -58,7 +58,6 @@ import {
   mergeTopPageJobsWithListFilters,
 } from "@/app/tasks/utils/jobs-filters";
 import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-server-refresh";
-import { TASK_SCHEDULE_STATE_PARAM } from "@/app/tasks/utils/task-schedules-filters";
 import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
@@ -94,7 +93,6 @@ import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import {
   AgentJobStatus,
   SokosumiJobStatus,
-  type TaskSchedule,
   TaskStatus,
 } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -130,7 +128,6 @@ import {
   TaskReopenToReadyDialog,
   type TaskReopenToReadyDialogLabels,
 } from "./task-reopen-to-ready-dialog";
-import { TaskSchedulesView } from "./task-schedules-view";
 import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
 import { TasksEmptyStateOverlay } from "./tasks-empty-state-overlay";
 import { TasksProjectSwitcher } from "./tasks-project-switcher";
@@ -266,14 +263,10 @@ interface TasksViewProps {
   createTaskModalResetKey?: string;
   canCreateTask?: boolean;
   initialTab?: TasksTabValue;
-  /** Null unless the page loaded the Schedules tab. */
-  schedules?: TaskSchedule[] | null;
-  schedulesNextCursor?: string | null;
   labels: {
     tabs: {
       tasks: string;
       jobs: string;
-      schedules: string;
     };
     filters: {
       title: string;
@@ -353,8 +346,6 @@ export function TasksView({
   createTaskModalResetKey = "default",
   canCreateTask = false,
   initialTab = "tasks",
-  schedules = null,
-  schedulesNextCursor = null,
   labels,
 }: TasksViewProps) {
   const router = useRouter();
@@ -1292,12 +1283,6 @@ export function TasksView({
             >
               {labels.tabs.jobs}
             </TabsTrigger>
-            <TabsTrigger
-              value="schedules"
-              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-            >
-              {labels.tabs.schedules}
-            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -1487,18 +1472,6 @@ export function TasksView({
             </Button>
           </div>
         ) : null}
-      </TabsContent>
-      <TabsContent value="schedules" className="flex flex-col gap-4">
-        <TaskSchedulesView
-          // A new filter starts a new first page, so appended pages reset.
-          key={`${searchParams.get("projectId") ?? ""}:${searchParams.get(TASK_SCHEDULE_STATE_PARAM) ?? ""}`}
-          schedules={schedules}
-          nextCursor={schedulesNextCursor}
-          coworkerOptions={coworkerOptions}
-          projectOptions={resolvedProjectOptions}
-          canCreate={canCreateTask}
-          canCreatePrivate={activeOrganizationId !== null}
-        />
       </TabsContent>
     </Tabs>
   );

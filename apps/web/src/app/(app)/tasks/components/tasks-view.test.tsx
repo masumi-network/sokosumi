@@ -160,7 +160,7 @@ const CANCELED_TASK: TaskWithCoworker = {
 };
 
 const labels = {
-  tabs: { tasks: "Tasks", jobs: "Jobs", schedules: "Schedules" },
+  tabs: { tasks: "Tasks", jobs: "Jobs" },
   filters: {
     title: "Filters",
     searchPlaceholder: "Search",

@@ -4,7 +4,7 @@ import { CalendarSync, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { loadMoreTaskSchedules } from "@/app/tasks/actions";
@@ -28,28 +28,32 @@ import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
 import { TaskScheduleStateBadge } from "./task-schedule-state-badge";
+import { TasksProjectSwitcher } from "./tasks-project-switcher";
 
 const ALL_STATES = "all";
 
 interface TaskSchedulesViewProps {
-  /** Null while the page has not loaded them yet. */
-  schedules: TaskSchedule[] | null;
+  schedules: TaskSchedule[];
   nextCursor: string | null;
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
+  selectedProjectId: string | null;
+  selectedState: TaskScheduleState | null;
   canCreate: boolean;
   canCreatePrivate: boolean;
 }
 
 /**
- * The Task Manager's Schedules view: every Task Schedule of the workspace,
- * filtered by the project switcher and by state.
+ * The Schedules page: every Task Schedule of the workspace, filtered by the
+ * project switcher and by state.
  */
 export function TaskSchedulesView({
   schedules,
   nextCursor,
   coworkerOptions,
   projectOptions,
+  selectedProjectId,
+  selectedState,
   canCreate,
   canCreatePrivate,
 }: TaskSchedulesViewProps) {
@@ -57,16 +61,15 @@ export function TaskSchedulesView({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const state = parseTaskScheduleStateFilter(
-    searchParams.get(TASK_SCHEDULE_STATE_PARAM),
-  );
-  const projectId = searchParams.get("projectId");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [more, setMore] = useState<TaskSchedulesPage>({
     schedules: [],
     nextCursor,
   });
   const [isLoadingMore, startLoadingMore] = useTransition();
+  // The filter is server state; show the pick until the navigation lands.
+  const [shownState, setShownState] = useOptimistic(selectedState);
+  const [, startFiltering] = useTransition();
 
   function handleStateChange(next: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -77,7 +80,10 @@ export function TaskSchedulesView({
       params.delete(TASK_SCHEDULE_STATE_PARAM);
     }
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname);
+    startFiltering(() => {
+      setShownState(nextState);
+      router.replace(query ? `${pathname}?${query}` : pathname);
+    });
   }
 
   function handleLoadMore() {
@@ -85,7 +91,11 @@ export function TaskSchedulesView({
     if (!cursor) return;
     startLoadingMore(async () => {
       try {
-        const page = await loadMoreTaskSchedules({ cursor, projectId, state });
+        const page = await loadMoreTaskSchedules({
+          cursor,
+          projectId: selectedProjectId,
+          state: selectedState,
+        });
         setMore((current) => ({
           schedules: [...current.schedules, ...page.schedules],
           nextCursor: page.nextCursor,
@@ -97,21 +107,19 @@ export function TaskSchedulesView({
   }
 
   // A refresh can bring back rows a "Load more" already appended.
-  const rows = schedules
-    ? [
-        ...schedules,
-        ...more.schedules.filter(
-          (extra) => !schedules.some((row) => row.id === extra.id),
-        ),
-      ]
-    : null;
+  const rows = [
+    ...schedules,
+    ...more.schedules.filter(
+      (extra) => !schedules.some((row) => row.id === extra.id),
+    ),
+  ];
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ToggleGroup
           type="single"
-          value={state ?? ALL_STATES}
+          value={shownState ?? ALL_STATES}
           onValueChange={(next) => {
             if (next) handleStateChange(next);
           }}
@@ -127,20 +135,22 @@ export function TaskSchedulesView({
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        {canCreate ? (
-          <Button size="sm" onClick={() => setIsCreateOpen(true)}>
-            <Plus className="size-4" aria-hidden />
-            {t("newSchedule")}
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <TasksProjectSwitcher
+            projectOptions={projectOptions}
+            selectedProjectId={selectedProjectId}
+          />
+          {canCreate ? (
+            <Button size="sm" onClick={() => setIsCreateOpen(true)}>
+              <Plus className="size-4" aria-hidden />
+              {t("newSchedule")}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
-        {rows === null ? (
-          <p className="text-muted-foreground py-16 text-center text-sm">
-            {t("loading")}
-          </p>
-        ) : rows.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
             <CalendarSync
               className="text-muted-foreground size-6"
@@ -161,7 +171,7 @@ export function TaskSchedulesView({
             ))}
           </ul>
         )}
-        {rows && more.nextCursor ? (
+        {more.nextCursor ? (
           <div className="border-border border-t px-4 py-3">
             <Button
               variant="outline"
@@ -177,7 +187,7 @@ export function TaskSchedulesView({
 
       {isCreateOpen ? (
         <TaskScheduleDialog
-          initialBlueprint={{ projectId }}
+          initialBlueprint={{ projectId: selectedProjectId }}
           coworkerOptions={coworkerOptions}
           projectOptions={projectOptions}
           canCreatePrivate={canCreatePrivate}
