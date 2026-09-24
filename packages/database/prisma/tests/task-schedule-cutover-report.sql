@@ -69,7 +69,18 @@ SELECT 'Paused or Ended schedule with a next run', count(*)
 FROM "task_schedule" WHERE state <> 'ACTIVE' AND "nextRunAt" IS NOT NULL
 UNION ALL
 SELECT 'Run at on a Task that is not Queued', count(*)
-FROM "task" WHERE "runAt" IS NOT NULL AND status <> 'QUEUED';
+FROM "task" WHERE "runAt" IS NOT NULL AND status <> 'QUEUED'
+UNION ALL
+-- Core validates ids with zod's RFC 9562 pattern; one that fails it breaks
+-- every read of its schedule and the calendar.
+SELECT 'Schedule or Run id Core rejects (not an RFC 9562 UUID)', count(*)
+FROM (
+  SELECT id FROM "task_schedule"
+  UNION ALL SELECT "epochId" FROM "task_schedule"
+  UNION ALL SELECT id FROM "task_schedule_run" WHERE "scheduleId" IS NOT NULL
+  UNION ALL SELECT "epochId" FROM "task_schedule_run" WHERE "scheduleId" IS NOT NULL
+) AS ids (value)
+WHERE value::TEXT !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
 
 \if :dropped
 \echo '-- The drop is applied: the old series columns are gone'
@@ -91,7 +102,17 @@ JOIN "task" released ON released.id = link."toTaskId"
 WHERE link.type = 'SCHEDULE' AND released."scheduleId" IS NULL
   AND EXISTS (
     SELECT 1 FROM "task_schedule" s
-    WHERE s.id = md5('task-schedule-cutover:schedule:' || template.id)::UUID
+    CROSS JOIN LATERAL (
+      SELECT md5('task-schedule-cutover:schedule:' || template.id) AS digest
+    ) AS source
+    -- The cutover's id for this template: the same formula as
+    -- pg_temp.cutover_id in 20260924130000_task_schedule_cutover. Change both
+    -- together, or this check stops finding the template's schedule.
+    WHERE s.id = (
+      substr(source.digest, 1, 12) || '8' || substr(source.digest, 14, 3)
+      || substr('89ab', (('x' || substr(source.digest, 17, 1))::BIT(4)::INTEGER % 4) + 1, 1)
+      || substr(source.digest, 18)
+    )::UUID
   );
 
 \echo '-- Left for operator repair: the drop refuses while any is listed'

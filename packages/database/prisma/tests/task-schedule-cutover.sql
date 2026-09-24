@@ -519,6 +519,31 @@ BEGIN
 END;
 $$;
 
+-- Ids Core accepts -------------------------------------------------------------
+
+-- Core validates ids with zod's RFC 9562 UUID pattern (version 1-8, variant
+-- 8-b), so every id the cutover mints must match it, or reads of the
+-- schedule, its Runs, and the calendar fail with "Invalid UUID".
+DO $$
+DECLARE
+  rfc CONSTANT TEXT := '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
+  bad TEXT;
+BEGIN
+  SELECT string_agg(DISTINCT kind || ' ' || value, ', ')
+  INTO bad
+  FROM (
+    SELECT 'task_schedule.id' AS kind, id::TEXT AS value FROM "task_schedule"
+    UNION ALL SELECT 'task_schedule.epochId', "epochId"::TEXT FROM "task_schedule"
+    UNION ALL SELECT 'task_schedule_run.id', id::TEXT FROM "task_schedule_run" WHERE "scheduleId" IS NOT NULL
+    UNION ALL SELECT 'task_schedule_run.epochId', "epochId"::TEXT FROM "task_schedule_run" WHERE "scheduleId" IS NOT NULL
+    UNION ALL SELECT 'task.scheduleId', "scheduleId"::TEXT FROM "task" WHERE "scheduleId" IS NOT NULL
+  ) AS ids
+  WHERE value !~ rfc;
+
+  PERFORM pg_temp.expect(bad IS NULL, 'every id matches the UUID pattern Core validates: ' || COALESCE(bad, ''));
+END;
+$$;
+
 -- Idempotency ----------------------------------------------------------------
 
 CREATE TEMP TABLE first_pass AS
