@@ -3,7 +3,10 @@ import "server-only";
 import type { CoreApiPagination } from "@/lib/clients/core.client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  DisconnectProjectSocialConnectionResponse,
   GetProjectsByIdCalendarData,
+  InitiateProjectSocialConnectionRequest,
+  InitiateProjectSocialConnectionResponse,
   JobSummary,
   Project,
   ProjectCloseRecoveryRequest,
@@ -12,6 +15,7 @@ import type {
   ProjectContextMd,
   ProjectListItem,
   ProjectNeedsAttention,
+  ProjectSocialConnection,
   ProjectStar,
   ProjectStatsEntry,
   StarredProject,
@@ -242,6 +246,47 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function listSocialConnections(
+    projectId: string,
+  ): Promise<ProjectSocialConnection[]> {
+    const result = await coreClient.getProjectsByIdSocialConnections(projectId);
+    return result.data;
+  }
+
+  async function initiateSocialConnection(
+    projectId: string,
+    input: InitiateProjectSocialConnectionRequest,
+  ): Promise<InitiateProjectSocialConnectionResponse> {
+    const result = await coreClient.postProjectsByIdSocialConnectionsInitiate(
+      projectId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function finalizeSocialConnection(
+    projectId: string,
+    connectionId: string,
+  ): Promise<ProjectSocialConnection> {
+    const result = await coreClient.postProjectsByIdSocialConnectionsFinalize(
+      projectId,
+      { connectionId },
+    );
+    return result.data;
+  }
+
+  async function disconnectSocialConnection(
+    projectId: string,
+    socialConnectionId: string,
+  ): Promise<DisconnectProjectSocialConnectionResponse> {
+    const result =
+      await coreClient.deleteProjectsByIdSocialConnectionsByConnectionId({
+        id: projectId,
+        connectionId: socialConnectionId,
+      });
+    return result.data;
+  }
+
   async function listProjectJobs(
     projectId: string,
     params: ListProjectResourcesParams = {},
@@ -349,6 +394,10 @@ export const projectService = (() => {
     listPinnedProjects,
     patchProject,
     removeProjectDesignMd,
+    listSocialConnections,
+    initiateSocialConnection,
+    finalizeSocialConnection,
+    disconnectSocialConnection,
     closeProject,
     retryProjectClose,
     cancelProjectCloseOwedWork,
