@@ -28,7 +28,7 @@ When Neon secrets are absent, provision skips and local Postgres remains the fal
 
 ## Claude Code cloud sessions
 
-Claude Code cloud sessions (claude.ai/code, Desktop **Cloud**) run on an Ubuntu 24.04 VM with Node 20/21/22 and `/opt/node22/bin` on `PATH`. The repo `SessionStart` hook in `.claude/settings.json` runs `ensure-pnpm.sh install` and `pnpm prisma:generate` only when `CLAUDE_CODE_REMOTE=true`, so local sessions skip it.
+Claude Code cloud sessions (claude.ai/code, Desktop **Cloud**) run on an Ubuntu 24.04 VM with Node 20/21/22 and `/opt/node22/bin` on `PATH`. The repo `SessionStart` hook in `.claude/settings.json` runs `ensure-pnpm.sh install` and `ensure-pnpm.sh prisma:generate` only when `CLAUDE_CODE_REMOTE=true`, so local sessions skip it. Both commands write to `/tmp/sokosumi-claude-session-install.log`; `SessionStart` stdout is session context, so the log stays off the prompt.
 
 Node 24 comes from the environment's setup script (claude.ai → environment settings), which is not in the repo. Keep **Trusted** network access, set `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`, and use:
 

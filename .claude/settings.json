@@ -9,7 +9,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; cd \"$CLAUDE_PROJECT_DIR\" && bash scripts/cloud-agent-db/ensure-pnpm.sh install && pnpm prisma:generate",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; cd \"$CLAUDE_PROJECT_DIR\" && bash scripts/cloud-agent-db/ensure-pnpm.sh install >/tmp/sokosumi-claude-session-install.log 2>&1 && bash scripts/cloud-agent-db/ensure-pnpm.sh prisma:generate >>/tmp/sokosumi-claude-session-install.log 2>&1 || { echo \"cloud session install failed; see /tmp/sokosumi-claude-session-install.log\" >&2; exit 1; }",
             "timeout": 600
           }
         ]
