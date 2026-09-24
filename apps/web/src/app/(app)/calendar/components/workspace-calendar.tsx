@@ -371,16 +371,16 @@ function CalendarEvent({
             {timeText}
           </span>
         ) : null}
-        <span className="text-muted-foreground min-w-0 truncate">
+        <span className="text-muted-foreground min-w-0 flex-1 truncate">
           {sourceName}
         </span>
+        {item.taskStatus ? (
+          <TaskStatusBadge status={item.taskStatus} label={t(`status.${item.taskStatus}`)} showLabel={false} className="size-5 justify-center p-0" />
+        ) : null}
       </span>
       <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
       <span className="flex w-full min-w-0 items-center gap-1">
         {peopleStack}
-        {item.taskStatus ? (
-          <TaskStatusBadge status={item.taskStatus} label={t(`status.${item.taskStatus}`)} showLabel={false} className="size-5 justify-center p-0" />
-        ) : null}
         {trailing}
       </span>
     </>

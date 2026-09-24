@@ -39,12 +39,17 @@ export function SocialPostCalendarEvent({
           {formatter.dateTime(item.scheduledAt, "time", { timeZone })}
         </span>
         <span
-          className="text-muted-foreground min-w-0 truncate"
+          className="text-muted-foreground min-w-0 flex-1 truncate"
           title={t("project", { name: item.projectName })}
         >
           <span className="sr-only">{t("projectLabel")}</span>
           {item.projectName}
         </span>
+        <SocialPostStatusBadge
+          status={item.status}
+          label={statuses(item.status)}
+          showLabel={false}
+        />
       </span>
       <span className="line-clamp-2 w-full min-w-0 break-words">
         {item.text || t("mediaOnly")}
@@ -57,11 +62,6 @@ export function SocialPostCalendarEvent({
           />
         </span>
         <span className="sr-only">{scheduler}</span>
-        <SocialPostStatusBadge
-          status={item.status}
-          label={statuses(item.status)}
-          showLabel={false}
-        />
         {item.attachmentCount > 0 ? (
           <span
             className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1"
