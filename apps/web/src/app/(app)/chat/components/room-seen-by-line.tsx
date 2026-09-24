@@ -1,8 +1,7 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronUp } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
 
 import type {
   RoomReader,
@@ -11,9 +10,13 @@ import type {
 import {
   ParticipantAvatar,
   participantName,
-  READ_RECEIPT_FACE_CAP,
   ReadReceiptFaces,
 } from "@/components/chat/read-receipt-faces";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Popover,
   PopoverContent,
@@ -137,25 +140,18 @@ function SeenByDetail({
 }
 
 /**
- * Stable, so a live receipt re-render does not pull focus back each time.
- * `preventScroll`: a plain focus scrolls the popover to the list and pushes
- * the readers out of view.
- */
-function focusOnMount(element: HTMLElement | null) {
-  element?.focus({ preventScroll: true });
-}
-
-/**
  * Who has not read yet, folded into one row until asked for.
  *
  * The question the popover answers is "who has seen my message"; the rest is
- * the remainder, so it gets a count and a few grey faces rather than a second
- * list as tall as the first. Folded on every open — the popover unmounts, and
- * that is the right default.
+ * the remainder, so it gets a count rather than a second list as tall as the
+ * first. Folded on every open — the popover unmounts, and that is the right
+ * default.
  *
- * Asking replaces the row rather than opening beneath it. The rows that
- * arrive are the reader rows in grey, so the popover reads as one list that
- * grew; a summary left standing above its own names says everyone twice.
+ * The toggle sits last and the rows open above it. The popover grows upward
+ * from the faces, so the toggle stays under the pointer and the same click
+ * folds the list again; sticky, so a scrolling list cannot carry it away.
+ * The rows are the reader rows in grey, so the popover reads as one list
+ * that grew.
  */
 function SeenByPending({
   pending,
@@ -163,19 +159,11 @@ function SeenByPending({
   pending: readonly ChatRoomUserParticipant[];
 }) {
   const t = useTranslations("App.Channels.SeenBy");
-  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="mt-0.5 border-t pt-0.5">
-      {expanded ? (
-        <ul
-          // The button that had focus is gone; the list takes it so the
-          // keyboard stays inside the popover instead of falling to <body>.
-          ref={focusOnMount}
-          tabIndex={-1}
-          aria-label={t("notRead")}
-          className="outline-none"
-        >
+    <Collapsible className="mt-0.5 border-t pt-0.5">
+      <CollapsibleContent>
+        <ul aria-label={t("notRead")}>
           {pending.map((participant) => (
             <li
               key={participant.id}
@@ -195,30 +183,23 @@ function SeenByPending({
             </li>
           ))}
         </ul>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="hover:bg-accent focus-visible:ring-ring flex h-7 w-full cursor-pointer items-center gap-2 rounded-sm px-2 outline-none focus-visible:ring-2"
+      </CollapsibleContent>
+      <div className="bg-popover sticky bottom-0">
+        <CollapsibleTrigger
+          className="group/pending hover:bg-accent focus-visible:ring-ring flex h-7 w-full cursor-pointer items-center gap-2 rounded-sm px-2 outline-none focus-visible:ring-2"
           data-testid="room-seen-by-pending-toggle"
         >
-          <span className="flex -space-x-1">
-            {pending.slice(0, READ_RECEIPT_FACE_CAP).map((participant) => (
-              <ParticipantAvatar
-                key={participant.id}
-                participant={participant}
-                className="size-4 opacity-60 grayscale"
-                textClassName="text-[0.4375rem]"
-              />
-            ))}
-          </span>
           <span className="text-muted-foreground flex-1 text-start text-xs">
             {t("pendingCount", { count: pending.length })}
           </span>
-          <ChevronDown aria-hidden className="text-muted-foreground size-3.5" />
-        </button>
-      )}
-    </div>
+          {/* Up while folded: the rows open above. */}
+          <ChevronUp
+            aria-hidden
+            className="text-muted-foreground size-3.5 group-data-[state=open]/pending:rotate-180 motion-safe:transition-transform"
+          />
+        </CollapsibleTrigger>
+      </div>
+    </Collapsible>
   );
 }
 

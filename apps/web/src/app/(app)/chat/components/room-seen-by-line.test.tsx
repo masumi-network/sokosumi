@@ -241,31 +241,38 @@ describe("RoomSeenByLine", () => {
 
     const toggle = await screen.findByTestId("room-seen-by-pending-toggle");
     expect(toggle).toHaveTextContent("2 not yet");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(
       screen.queryByTestId("room-seen-by-pending-user-lagging"),
     ).not.toBeInTheDocument();
 
-    const focus = vi.spyOn(HTMLElement.prototype, "focus");
     await user.click(toggle);
 
-    // The rows replace the summary rather than opening under it, and take
-    // the focus the vanished button held — without scrolling the readers
-    // out of view.
-    expect(toggle).not.toBeInTheDocument();
-    const lagging = screen.getByTestId("room-seen-by-pending-user-lagging");
-    expect(lagging).toBeInTheDocument();
-    const list = lagging.closest("ul");
-    expect(list).toHaveFocus();
-    expect(focus.mock.contexts).toContain(list);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(
-      focus.mock.calls[focus.mock.contexts.indexOf(list as HTMLElement)],
-    ).toEqual([{ preventScroll: true }]);
-    focus.mockRestore();
+      screen.getByTestId("room-seen-by-pending-user-lagging"),
+    ).toBeInTheDocument();
     expect(
       screen.getByTestId("room-seen-by-pending-user-never"),
     ).toBeInTheDocument();
     expect(
       screen.queryByTestId("room-seen-by-pending-user-read"),
+    ).not.toBeInTheDocument();
+    // The rows open above the toggle, which stays last so the pointer that
+    // opened the list is still on it.
+    const list = screen
+      .getByTestId("room-seen-by-pending-user-lagging")
+      .closest("ul") as HTMLElement;
+    expect(
+      list.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    // And the same toggle folds it again.
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByTestId("room-seen-by-pending-user-lagging"),
     ).not.toBeInTheDocument();
   });
 
