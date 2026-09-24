@@ -15,7 +15,6 @@ import { loadCreateTaskModalData } from "@/app/tasks/actions";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { zonedDateTimeLocalToUtc } from "@/lib/schedules/zoned-datetime";
 import type { CoworkerOption } from "@/lib/types/coworker";
-import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 
 import { AgentSpotlightSkeleton } from "./agent-spotlight";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
@@ -28,13 +27,19 @@ import { TaskFormModal } from "./task-form-modal";
 
 // --- Context ---
 
+/** A Calendar slot's Run at, as a local date-time in the Calendar's timezone. */
+export interface RunAtPrefill {
+  localIso: string;
+  timezone: string;
+}
+
 interface CreateTaskModalContextType {
   open: boolean;
   assigneeOverrideId: string | null;
   /** `undefined` means no Calendar source was chosen yet, `null` the Workspace. */
   projectOverrideId: string | null | undefined;
   promptOverride: string | null;
-  scheduleOverride: TaskScheduleSelection | null;
+  runAtOverride: RunAtPrefill | null;
   formInstanceKey: number;
   handleOpen: () => void;
   /** Open the modal with an assignee preselected (and optionally a prefilled
@@ -42,7 +47,7 @@ interface CreateTaskModalContextType {
   handleOpenWith: (assigneeId: string, prompt?: string) => void;
   handleOpenWithDefaults: (defaults: {
     projectId?: string | null;
-    schedule?: TaskScheduleSelection;
+    runAt?: RunAtPrefill;
   }) => void;
   handleClose: () => void;
   clearPromptOverride: () => void;
@@ -53,7 +58,7 @@ const CreateTaskModalContext = createContext<CreateTaskModalContextType>({
   assigneeOverrideId: null,
   projectOverrideId: null,
   promptOverride: null,
-  scheduleOverride: null,
+  runAtOverride: null,
   formInstanceKey: 0,
   handleOpen: () => {},
   handleOpenWith: () => {},
@@ -101,15 +106,14 @@ export function CreateTaskModalProvider({
   const [promptOverride, setPromptOverride] = useState<string | null>(() =>
     initialOpen && initialPrompt ? initialPrompt : null,
   );
-  const [scheduleOverride, setScheduleOverride] =
-    useState<TaskScheduleSelection | null>(null);
+  const [runAtOverride, setRunAtOverride] = useState<RunAtPrefill | null>(null);
   const [formInstanceKey, setFormInstanceKey] = useState(0);
 
   const handleOpen = useCallback(() => {
     setAssigneeOverrideId(null);
     setProjectOverrideId(initialProjectId || null);
     setPromptOverride(null);
-    setScheduleOverride(null);
+    setRunAtOverride(null);
     setFormInstanceKey((key) => key + 1);
     setOpen(true);
   }, [initialProjectId]);
@@ -119,7 +123,7 @@ export function CreateTaskModalProvider({
       setAssigneeOverrideId(assigneeId || null);
       setProjectOverrideId(initialProjectId || null);
       setPromptOverride(prompt ?? null);
-      setScheduleOverride(null);
+      setRunAtOverride(null);
       setFormInstanceKey((key) => key + 1);
       setOpen(true);
     },
@@ -127,11 +131,7 @@ export function CreateTaskModalProvider({
   );
 
   const handleOpenWithDefaults = useCallback(
-    (defaults: {
-      projectId?: string | null;
-      schedule?: TaskScheduleSelection;
-    }) => {
-      const { schedule } = defaults;
+    (defaults: { projectId?: string | null; runAt?: RunAtPrefill }) => {
       setAssigneeOverrideId(null);
       // A caller that omits `projectId` keeps the old default; the Calendar
       // passes it explicitly, including `undefined` for "nothing chosen yet".
@@ -139,7 +139,7 @@ export function CreateTaskModalProvider({
         "projectId" in defaults ? defaults.projectId : initialProjectId || null,
       );
       setPromptOverride(null);
-      setScheduleOverride(schedule ?? null);
+      setRunAtOverride(defaults.runAt ?? null);
       setFormInstanceKey((key) => key + 1);
       setOpen(true);
     },
@@ -162,7 +162,7 @@ export function CreateTaskModalProvider({
         assigneeOverrideId,
         projectOverrideId,
         promptOverride,
-        scheduleOverride,
+        runAtOverride,
         formInstanceKey,
         handleOpen,
         handleOpenWith,
@@ -178,16 +178,11 @@ export function CreateTaskModalProvider({
 
 // --- Modal ---
 
-/** A Calendar slot's one-time schedule prefills the form's Run at. */
-function scheduleOverrideToRunAt(
-  schedule: TaskScheduleSelection | null,
-): string | null {
-  if (schedule?.mode !== "once") return null;
+function runAtPrefillToIso(runAt: RunAtPrefill | null): string | null {
+  if (!runAt) return null;
   return (
-    zonedDateTimeLocalToUtc(
-      schedule.oneTimeLocalIso,
-      schedule.timezone,
-    )?.toISOString() ?? null
+    zonedDateTimeLocalToUtc(runAt.localIso, runAt.timezone)?.toISOString() ??
+    null
   );
 }
 
@@ -231,7 +226,7 @@ export function CreateTaskModal({
     assigneeOverrideId,
     projectOverrideId,
     promptOverride,
-    scheduleOverride,
+    runAtOverride,
     formInstanceKey,
     clearPromptOverride,
   } = useCreateTaskModal();
@@ -418,7 +413,7 @@ export function CreateTaskModal({
             ...(assigneeOverrideId ? { assigneeId: assigneeOverrideId } : {}),
             ...(promptOverride ? { description: promptOverride } : {}),
             projectId: selectedProjectId,
-            runAt: scheduleOverrideToRunAt(scheduleOverride),
+            runAt: runAtPrefillToIso(runAtOverride),
           }}
           onCreateTask={onCreateTask}
           onCancel={handleDismiss}

@@ -54,9 +54,8 @@ vi.mock("./task-form", () => ({
   },
 }));
 
-const SCHEDULE = {
-  mode: "once" as const,
-  oneTimeLocalIso: "2030-01-02T09:00",
+const RUN_AT = {
+  localIso: "2030-01-02T09:00",
   timezone: "UTC",
 };
 
@@ -70,9 +69,7 @@ function CalendarSlotButton({
   return (
     <button
       type="button"
-      onClick={() =>
-        handleOpenWithDefaults({ ...defaults, schedule: SCHEDULE })
-      }
+      onClick={() => handleOpenWithDefaults({ ...defaults, runAt: RUN_AT })}
     >
       open
     </button>

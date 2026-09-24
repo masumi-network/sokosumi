@@ -443,9 +443,9 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
       setCustomCronExpr("");
       setRepeatEveryUnit("day");
       setRepeatEveryCount(sel.intervalDays);
-      if (sel.oneTimeLocalIso) {
-        setFirstRunLocalIso(sel.oneTimeLocalIso);
-        setTimeOfDay(sel.oneTimeLocalIso.slice(11, 16));
+      if (sel.firstRunLocalIso) {
+        setFirstRunLocalIso(sel.firstRunLocalIso);
+        setTimeOfDay(sel.firstRunLocalIso.slice(11, 16));
       }
     } else {
       setScheduleOption("custom");
@@ -541,11 +541,10 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     const cron = getSelectedCron() ?? undefined;
 
     return {
-      mode: "recurring",
       timezone,
       // Core runs an every-N-days rule at its anchor's local time, so the
       // anchor takes the builder's time of day.
-      oneTimeLocalIso: everyNDays ? intervalAnchorLocalIso : firstRunLocalIso,
+      firstRunLocalIso: everyNDays ? intervalAnchorLocalIso : firstRunLocalIso,
       cron,
       customCronExpr: scheduleOption === "custom" ? customCronExpr : undefined,
       ...(everyNDays != null ? { intervalDays: everyNDays } : {}),

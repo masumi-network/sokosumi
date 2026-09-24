@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { zonedDateTimeLocalToUtc } from "@/lib/schedules/zoned-datetime";
 import { TaskScheduleEndsMode } from "@/lib/types/task-schedule";
 import {
   hasTaskScheduleChanged,
   parseTaskScheduleSelection,
-  schedulableOnceLocalIso,
+  schedulableRunAtLocalIso,
   taskScheduleRuleToSelection,
 } from "@/lib/utils/task-schedule";
 
@@ -29,7 +30,7 @@ describe("taskScheduleRuleToSelection", () => {
 
     expect(selection).toMatchObject({
       intervalDays: 3,
-      oneTimeLocalIso: "2026-06-01T09:00",
+      firstRunLocalIso: "2026-06-01T09:00",
       cron: "0 9 * * *",
     });
     expect(parseTaskScheduleSelection(selection)).toMatchObject({
@@ -53,7 +54,7 @@ describe("taskScheduleRuleToSelection with an older every-N-days rule", () => {
     });
 
     expect(selection).toMatchObject({
-      oneTimeLocalIso: "2026-06-01T14:45",
+      firstRunLocalIso: "2026-06-01T14:45",
       cron: "45 14 * * *",
     });
     expect(selection.customCronExpr).toBeUndefined();
@@ -61,28 +62,11 @@ describe("taskScheduleRuleToSelection with an older every-N-days rule", () => {
 });
 
 describe("parseTaskScheduleSelection", () => {
-  it("converts one-time schedules using the selected timezone", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
-
-    const body = parseTaskScheduleSelection({
-      mode: "once",
-      timezone: "America/New_York",
-      oneTimeLocalIso: "2026-06-24T15:30",
-    });
-
-    expect(body).toEqual({
-      mode: "once",
-      runAt: new Date("2026-06-24T19:30:00.000Z"),
-    });
-  });
-
   it("converts recurring end dates using the selected timezone", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
 
     const body = parseTaskScheduleSelection({
-      mode: "recurring",
       timezone: "America/New_York",
       cron: "30 15 * * *",
       endsMode: TaskScheduleEndsMode.ON,
@@ -90,7 +74,6 @@ describe("parseTaskScheduleSelection", () => {
     });
 
     expect(body).toEqual({
-      mode: "recurring",
       expr: "30 15 * * *",
       timezone: "America/New_York",
       endsMode: TaskScheduleEndsMode.ON,
@@ -100,15 +83,13 @@ describe("parseTaskScheduleSelection", () => {
 
   it("sends interval metadata for every-N-days schedules", () => {
     const body = parseTaskScheduleSelection({
-      mode: "recurring",
       timezone: "America/New_York",
-      oneTimeLocalIso: "2026-06-24T09:00",
+      firstRunLocalIso: "2026-06-24T09:00",
       cron: "0 9 * * *",
       intervalDays: 2,
     });
 
     expect(body).toEqual({
-      mode: "recurring",
       expr: "0 9 * * *",
       timezone: "America/New_York",
       endsMode: TaskScheduleEndsMode.NEVER,
@@ -120,7 +101,6 @@ describe("parseTaskScheduleSelection", () => {
   it("rejects malformed recurring selections", () => {
     expect(
       parseTaskScheduleSelection({
-        mode: "recurring",
         timezone: "UTC",
         cron: "not a cron expression",
         endsMode: TaskScheduleEndsMode.AFTER,
@@ -128,75 +108,13 @@ describe("parseTaskScheduleSelection", () => {
     ).toBeNull();
   });
 
-  it("rejects a once-mode schedule with an invalid timezone instead of throwing", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
-
-    expect(() =>
+  it("rejects an invalid timezone instead of throwing", () => {
+    expect(
       parseTaskScheduleSelection({
-        mode: "once",
         timezone: "Not/AZone",
-        oneTimeLocalIso: "2026-06-24T15:30",
-      }),
-    ).not.toThrow();
-
-    expect(
-      parseTaskScheduleSelection({
-        mode: "once",
-        timezone: "Not/AZone",
-        oneTimeLocalIso: "2026-06-24T15:30",
+        cron: "0 9 * * *",
       }),
     ).toBeNull();
-  });
-
-  it("rejects one-time schedules in the past", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-24T12:00:00.000Z"));
-
-    expect(
-      parseTaskScheduleSelection({
-        mode: "once",
-        timezone: "UTC",
-        oneTimeLocalIso: "2026-06-24T11:59",
-      }),
-    ).toBeNull();
-  });
-
-  it("rejects Prague calendar seeds that are already past at submit time", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
-
-    expect(
-      parseTaskScheduleSelection({
-        mode: "once",
-        timezone: "Europe/Prague",
-        oneTimeLocalIso: "2026-09-08T00:00",
-      }),
-    ).toBeNull();
-    expect(
-      parseTaskScheduleSelection({
-        mode: "once",
-        timezone: "Europe/Prague",
-        oneTimeLocalIso: "2026-09-08T12:00",
-      }),
-    ).toBeNull();
-    expect(
-      parseTaskScheduleSelection({
-        mode: "once",
-        timezone: "Europe/Prague",
-        oneTimeLocalIso: "2026-09-08T18:00",
-      }),
-    ).toBeNull();
-    expect(
-      parseTaskScheduleSelection({
-        mode: "once",
-        timezone: "Europe/Prague",
-        oneTimeLocalIso: "2026-09-08T19:00",
-      }),
-    ).toEqual({
-      mode: "once",
-      runAt: new Date("2026-09-08T17:00:00.000Z"),
-    });
   });
 
   it("rejects recurring end dates in the past", () => {
@@ -205,7 +123,6 @@ describe("parseTaskScheduleSelection", () => {
 
     expect(
       parseTaskScheduleSelection({
-        mode: "recurring",
         timezone: "UTC",
         cron: "0 9 * * *",
         endsMode: TaskScheduleEndsMode.ON,
@@ -220,7 +137,6 @@ describe("parseTaskScheduleSelection", () => {
 
     expect(
       parseTaskScheduleSelection({
-        mode: "recurring",
         timezone: "UTC",
         cron: "0 9 * * *",
         endsMode: TaskScheduleEndsMode.ON,
@@ -235,11 +151,10 @@ describe("parseTaskScheduleSelection", () => {
 
     expect(
       parseTaskScheduleSelection({
-        mode: "recurring",
         timezone: "UTC",
         cron: "0 9 * * *",
         intervalDays: 3,
-        oneTimeLocalIso: "2026-06-23T09:00",
+        firstRunLocalIso: "2026-06-23T09:00",
         endsMode: TaskScheduleEndsMode.ON,
         endOnLocalDate: "2026-06-25",
       }),
@@ -252,14 +167,12 @@ describe("parseTaskScheduleSelection", () => {
 
     expect(
       parseTaskScheduleSelection({
-        mode: "recurring",
         timezone: "UTC",
         cron: "0 9 * * *",
         endsMode: TaskScheduleEndsMode.ON,
         endOnLocalDate: "2026-06-25",
       }),
     ).toEqual({
-      mode: "recurring",
       expr: "0 9 * * *",
       timezone: "UTC",
       endsMode: TaskScheduleEndsMode.ON,
@@ -267,41 +180,24 @@ describe("parseTaskScheduleSelection", () => {
     });
   });
 
-  it("rejects calendar-invalid local date-times", () => {
+  it("rejects a calendar-invalid every-N-days anchor", () => {
     expect(
       parseTaskScheduleSelection({
-        mode: "once",
         timezone: "UTC",
-        oneTimeLocalIso: "2026-02-31T09:00",
+        cron: "0 9 * * *",
+        intervalDays: 2,
+        firstRunLocalIso: "2026-02-31T09:00",
       }),
     ).toBeNull();
   });
-
-  it("accepts ambiguous and nonexistent local times supported by timezone conversion", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
-
-    for (const oneTimeLocalIso of ["2026-03-08T02:30", "2026-11-01T01:30"]) {
-      expect(
-        parseTaskScheduleSelection({
-          mode: "once",
-          timezone: "America/New_York",
-          oneTimeLocalIso,
-        }),
-      ).toEqual({
-        mode: "once",
-        runAt: expect.any(Date),
-      });
-    }
-  });
 });
 
-describe("schedulableOnceLocalIso", () => {
-  it("keeps a future once-time", () => {
+describe("schedulableRunAtLocalIso", () => {
+  it("keeps a future Run at", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
 
-    expect(schedulableOnceLocalIso("2026-09-08T19:00", "Europe/Prague")).toBe(
+    expect(schedulableRunAtLocalIso("2026-09-08T19:00", "Europe/Prague")).toBe(
       "2026-09-08T19:00",
     );
   });
@@ -310,87 +206,77 @@ describe("schedulableOnceLocalIso", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
 
-    expect(schedulableOnceLocalIso("2026-09-08T18:00", "Europe/Prague")).toBe(
+    expect(schedulableRunAtLocalIso("2026-09-08T18:00", "Europe/Prague")).toBe(
       "2026-09-08T18:06",
     );
   });
 
-  it("keeps the snapped time schedulable after two minutes", () => {
+  it("keeps the snapped time in the future after two minutes", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
 
-    const snapped = schedulableOnceLocalIso(
+    const snapped = schedulableRunAtLocalIso(
       "2026-09-08T18:00",
       "Europe/Prague",
     );
     vi.advanceTimersByTime(2 * 60 * 1000);
 
-    expect(
-      parseTaskScheduleSelection({
-        mode: "once",
-        timezone: "Europe/Prague",
-        oneTimeLocalIso: snapped,
-      }),
-    ).toEqual({
-      mode: "once",
-      runAt: new Date("2026-09-08T16:06:00.000Z"),
-    });
+    const runAt = zonedDateTimeLocalToUtc(snapped, "Europe/Prague");
+    expect(runAt).toEqual(new Date("2026-09-08T16:06:00.000Z"));
+    expect(runAt?.getTime()).toBeGreaterThan(Date.now());
   });
 
-  it("does not snap a malformed once-time", () => {
-    expect(schedulableOnceLocalIso("not-a-datetime", "UTC")).toBe(
+  it("snaps past midnight and noon slots on the same day", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+
+    for (const localIso of ["2026-09-08T00:00", "2026-09-08T12:00"]) {
+      expect(schedulableRunAtLocalIso(localIso, "Europe/Prague")).toBe(
+        "2026-09-08T18:06",
+      );
+    }
+  });
+
+  it("keeps future ambiguous and nonexistent local times", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+
+    for (const localIso of ["2026-03-08T02:30", "2026-11-01T01:30"]) {
+      expect(schedulableRunAtLocalIso(localIso, "America/New_York")).toBe(
+        localIso,
+      );
+    }
+  });
+
+  it("does not snap a malformed Run at", () => {
+    expect(schedulableRunAtLocalIso("not-a-datetime", "UTC")).toBe(
       "not-a-datetime",
     );
   });
 
   it("does not snap or throw for an invalid timezone", () => {
     expect(() =>
-      schedulableOnceLocalIso("2026-09-08T18:00", "Not/AZone"),
+      schedulableRunAtLocalIso("2026-09-08T18:00", "Not/AZone"),
     ).not.toThrow();
-    expect(schedulableOnceLocalIso("2026-09-08T18:00", "Not/AZone")).toBe(
+    expect(schedulableRunAtLocalIso("2026-09-08T18:00", "Not/AZone")).toBe(
       "2026-09-08T18:00",
     );
   });
 });
 
 describe("hasTaskScheduleChanged", () => {
-  const originalOnce = {
-    mode: "once" as const,
+  const original = {
     timezone: "UTC",
-    oneTimeLocalIso: "2026-06-24T09:00",
+    cron: "0 9 * * *",
   };
 
-  it("returns false when an unchanged one-time schedule is saved again", () => {
-    expect(
-      hasTaskScheduleChanged(
-        originalOnce,
-        {
-          mode: "once",
-          timezone: "UTC",
-          oneTimeLocalIso: "2026-06-24T09:00",
-        },
-        true,
-      ),
-    ).toBe(false);
+  it("returns false when an unchanged rule is saved again", () => {
+    expect(hasTaskScheduleChanged(original, { ...original })).toBe(false);
   });
 
-  it("returns true when clearing an existing schedule", () => {
+  it("returns true when the rule changes", () => {
     expect(
-      hasTaskScheduleChanged(
-        originalOnce,
-        { mode: "none", timezone: "UTC" },
-        true,
-      ),
-    ).toBe(true);
-  });
-
-  it("returns true when adding a schedule to a task that had none", () => {
-    expect(
-      hasTaskScheduleChanged(
-        { mode: "none", timezone: "UTC" },
-        originalOnce,
-        false,
-      ),
+      hasTaskScheduleChanged(original, { ...original, cron: "0 10 * * *" }),
     ).toBe(true);
   });
 });
