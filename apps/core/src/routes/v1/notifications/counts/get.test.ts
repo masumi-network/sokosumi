@@ -112,8 +112,9 @@ describe("GET /notifications/counts", () => {
   });
 
   /**
-   * SOK-1097 user stories 3, 25 and 33. One request for the bell and both
-   * tabs, and the needs-action number counts the same rows the list shows.
+   * SOK-1097 user stories 3, 25 and 33, and SOK-1176. One request for the
+   * bell and every counted tab, and the needs-action number counts the same
+   * rows the list shows.
    */
   it("returns the unread, needs-action and mentions counts for the reader", async () => {
     answerLookups(

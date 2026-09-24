@@ -153,7 +153,9 @@ export function NotificationCenterList({
 
   const oldest = notifications.at(-1);
   // Unread and Needs you both carry a live count of the whole view, not of
-  // the loaded page. A 0 means Core has nothing left to page.
+  // the loaded page. A 0 means Core has nothing left to page. Mentions stays
+  // out on purpose: its count is the unread mentions only, and the view
+  // lists read ones too, so a 0 there says nothing about older pages.
   const narrowedCount =
     view === "unread"
       ? unreadCount
