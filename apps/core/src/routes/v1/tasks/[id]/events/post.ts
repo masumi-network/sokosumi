@@ -47,7 +47,11 @@ import {
   applyGuardedTaskStatusUpdate,
   chargeTaskCreditsOrMarkOutOfCredits,
 } from "@/helpers/task-event-charge";
-import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
+import {
+  notifyTaskParticipantsAdded,
+  notifyTaskStatusEvent,
+} from "@/helpers/task-notifications";
+import { addTaskParticipantsFromComment } from "@/helpers/task-participants";
 import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
@@ -500,16 +504,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           : null;
 
       // Enqueue PENDING task-output files from comment (in-transaction for durability)
+      let addedParticipantUserIds: string[] = [];
       if (comment) {
         await sourceImportService.enqueueTaskOutputsFromMarkdown(
           taskId,
           comment,
           tx,
         );
+        addedParticipantUserIds = await addTaskParticipantsFromComment(tx, {
+          taskId,
+          workspaceId: task.workspaceId,
+          comment,
+          mentionedUserIds: body.mentionedUserIds,
+        });
       }
 
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
+        addedParticipantUserIds,
         userId: task.ownerId,
         organizationId: task.organizationId,
         workspaceId: task.workspaceId,
@@ -532,6 +544,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
     const {
       event,
+      addedParticipantUserIds,
       userId,
       organizationId,
       workspaceId,
@@ -563,6 +576,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (event.status) {
       await deliverCalendarInvalidationsNow(workspaceId);
       waitUntil(notifyTaskStatusEvent(taskId, event.id, event.status));
+    }
+
+    if (addedParticipantUserIds.length > 0) {
+      waitUntil(
+        notifyTaskParticipantsAdded(taskId, event.id, addedParticipantUserIds),
+      );
     }
 
     if (charged) {

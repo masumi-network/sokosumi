@@ -11,6 +11,7 @@ import { notificationFeedWhere } from "@/helpers/notification-feed";
 import {
   markNotificationsRead,
   markSettledAttentionRead,
+  TASK_RUN_ATTENTION_MESSAGE_KEYS,
 } from "./notification-read";
 
 const { captureExceptionMock, notificationUpdateManyAndReturnMock } =
@@ -182,10 +183,7 @@ describe("markSettledAttentionRead", () => {
           referenceId: "task_123",
           isRead: false,
           messageKey: {
-            in: TASK_ATTENTION_MESSAGE_KEYS.filter(
-              (attentionKey) =>
-                attentionKey !== "Notifications.Task.scheduleRemovedByOperator",
-            ),
+            in: TASK_RUN_ATTENTION_MESSAGE_KEYS,
           },
         }),
       }),

@@ -116,6 +116,10 @@
               "subject": "Sokosumi - You were assigned {taskName}",
               "body": "You were assigned {taskName}."
             },
+            "participantAdded": {
+              "subject": "Sokosumi - You were added to {taskName}",
+              "body": "You were added to {taskName}."
+            },
             "inputRequired": {
               "subject": "Sokosumi - {coworkerName} needs your input for {taskName}",
               "body": "{taskName} stopped because {coworkerName} needs your input."
@@ -250,6 +254,7 @@
         "projectLabel": "Project",
         "reasons": {
           "assigned": "{taskName} was assigned to you a day ago, and you have not opened it yet.",
+          "participantAdded": "You were added to {taskName} a day ago, and you have not opened it yet.",
           "inputRequired": "{taskName} stopped a day ago because {coworkerName} needs your input. It is still waiting.",
           "approvalRequired": "{taskName} stopped a day ago because {coworkerName} needs your approval. It is still waiting.",
           "authenticationRequired": "{taskName} stopped a day ago because {coworkerName} needs you to sign in somewhere. It is still waiting.",

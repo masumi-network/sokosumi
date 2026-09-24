@@ -116,6 +116,10 @@
               "subject": "Sokosumi - Dir wurde {taskName} zugewiesen",
               "body": "Dir wurde {taskName} zugewiesen."
             },
+            "participantAdded": {
+              "subject": "Sokosumi - Du wurdest zu {taskName} hinzugefügt",
+              "body": "Du wurdest zu {taskName} hinzugefügt."
+            },
             "inputRequired": {
               "subject": "Sokosumi - {coworkerName} benötigt deinen Input für {taskName}",
               "body": "{taskName} hat angehalten, weil {coworkerName} deine Eingabe braucht."
@@ -250,6 +254,7 @@
         "projectLabel": "Projekt",
         "reasons": {
           "assigned": "{taskName} wurde dir vor einem Tag zugewiesen, und du hast die Aufgabe noch nicht geöffnet.",
+          "participantAdded": "Du wurdest vor einem Tag zu {taskName} hinzugefügt, und du hast die Aufgabe noch nicht geöffnet.",
           "inputRequired": "{taskName} hat vor einem Tag angehalten, weil {coworkerName} deine Eingabe braucht. Die Aufgabe wartet weiterhin.",
           "approvalRequired": "{taskName} hat vor einem Tag angehalten, weil {coworkerName} deine Freigabe braucht. Die Aufgabe wartet weiterhin.",
           "authenticationRequired": "{taskName} hat vor einem Tag angehalten, weil {coworkerName} eine Anmeldung von dir braucht. Die Aufgabe wartet weiterhin.",

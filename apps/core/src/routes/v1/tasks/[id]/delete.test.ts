@@ -251,6 +251,7 @@ const archivedTask = {
   links: [],
   files: [],
   selectableStatuses: [],
+  participants: [],
   linksFrom: [],
   linksTo: [],
 };

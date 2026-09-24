@@ -297,6 +297,61 @@ export async function notifyTaskStatusEvent(
 }
 
 const TASK_ASSIGNED_MESSAGE_KEY = "Notifications.Task.assigned";
+const TASK_PARTICIPANT_ADDED_MESSAGE_KEY =
+  "Notifications.Task.participantAdded";
+
+/**
+ * Notify each user the moment an @ in Task comment activity adds them.
+ * A repeat mention is not passed in. Best-effort, same as assignee notify.
+ */
+export async function notifyTaskParticipantsAdded(
+  taskId: string,
+  eventId: string,
+  userIds: readonly string[],
+): Promise<void> {
+  if (userIds.length === 0) {
+    return;
+  }
+
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        id: true,
+        name: true,
+        projectId: true,
+        workspaceId: true,
+        project: { select: { name: true } },
+      },
+    });
+    if (!task) {
+      return;
+    }
+
+    const { messageParams, metadata } = taskNotificationPayload(task);
+    for (const userId of userIds) {
+      await createNotification({
+        userId,
+        kind: NotificationKind.TASK,
+        referenceId: task.id,
+        eventId,
+        messageKey: TASK_PARTICIPANT_ADDED_MESSAGE_KEY,
+        messageParams,
+        metadata,
+        ...(task.workspaceId ? { workspaceId: task.workspaceId } : {}),
+      });
+    }
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        taskId,
+        eventId,
+        userIds,
+        notificationType: "task-participant-notification",
+      },
+    });
+  }
+}
 
 /**
  * Notify a workspace member when they become the Task assignee.

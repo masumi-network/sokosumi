@@ -379,6 +379,7 @@ describe("GET /tasks", () => {
     expect(body.data[0]).toMatchObject({
       commentsCount: 0,
       jobsCount: 0,
+      participants: [],
     });
   });
 

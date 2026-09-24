@@ -6622,6 +6622,7 @@
         "scheduleSourceChangedByMember": "Ein Teammitglied hat {taskName} in eine andere Kalenderquelle verschoben",
         "scheduleOccurrenceChangedByMember": "Ein Teammitglied hat einen Termin von {taskName} geändert",
         "assigned": "Dir wurde {taskName} zugewiesen",
+        "participantAdded": "Du wurdest zu {taskName} hinzugefügt",
         "followUp": "{taskName} wartet weiterhin auf dich"
       },
       "Billing": {
