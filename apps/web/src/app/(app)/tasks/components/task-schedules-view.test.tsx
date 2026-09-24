@@ -2,18 +2,25 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { TaskSchedule } from "@/lib/clients/generated/core";
+import type {
+  TaskSchedule,
+  TaskScheduleState,
+} from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { TaskSchedulesView } from "./task-schedules-view";
 
-const { loadMoreTaskSchedulesMock, replaceMock, searchParamsRef } = vi.hoisted(
-  () => ({
-    loadMoreTaskSchedulesMock: vi.fn(),
-    replaceMock: vi.fn(),
-    searchParamsRef: { current: new URLSearchParams("tab=schedules") },
-  }),
-);
+const {
+  loadMoreTaskSchedulesMock,
+  projectSwitcherMock,
+  replaceMock,
+  searchParamsRef,
+} = vi.hoisted(() => ({
+  loadMoreTaskSchedulesMock: vi.fn(),
+  projectSwitcherMock: vi.fn(),
+  replaceMock: vi.fn(),
+  searchParamsRef: { current: new URLSearchParams() },
+}));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -23,8 +30,15 @@ vi.mock("next-intl", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock, refresh: vi.fn() }),
-  usePathname: () => "/tasks",
+  usePathname: () => "/schedules",
   useSearchParams: () => searchParamsRef.current,
+}));
+
+vi.mock("./tasks-project-switcher", () => ({
+  TasksProjectSwitcher: (props: unknown) => {
+    projectSwitcherMock(props);
+    return null;
+  },
 }));
 
 vi.mock("./task-schedule-dialog", () => ({
@@ -86,8 +100,16 @@ function schedule(overrides: Partial<TaskSchedule>): TaskSchedule {
 }
 
 function renderView(
-  schedules: TaskSchedule[] | null,
-  nextCursor: string | null = null,
+  schedules: TaskSchedule[],
+  {
+    nextCursor = null,
+    projectId = null,
+    state = null,
+  }: {
+    nextCursor?: string | null;
+    projectId?: string | null;
+    state?: TaskScheduleState | null;
+  } = {},
 ) {
   return render(
     <TaskSchedulesView
@@ -95,6 +117,8 @@ function renderView(
       nextCursor={nextCursor}
       coworkerOptions={[ELENA]}
       projectOptions={[]}
+      selectedProjectId={projectId}
+      selectedState={state}
       canCreate
       canCreatePrivate={false}
     />,
@@ -104,7 +128,7 @@ function renderView(
 describe("TaskSchedulesView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    searchParamsRef.current = new URLSearchParams("tab=schedules");
+    searchParamsRef.current = new URLSearchParams();
   });
 
   it("lists each schedule with its rule, next Run, state, and assignee", () => {
@@ -125,7 +149,7 @@ describe("TaskSchedulesView", () => {
     });
     expect(weeklyLink).toHaveAttribute(
       "href",
-      "/tasks/schedules/01960001-0001-7001-8001-000000000001",
+      "/schedules/01960001-0001-7001-8001-000000000001",
     );
     expect(weekly).toHaveTextContent("option.weeklyWithWeekdayTime");
     expect(weekly).toHaveTextContent("nextRun(Mon, 9:00)");
@@ -143,22 +167,18 @@ describe("TaskSchedulesView", () => {
 
     await user.click(screen.getByRole("radio", { name: "state.PAUSED" }));
 
-    expect(replaceMock).toHaveBeenCalledWith(
-      "/tasks?tab=schedules&scheduleState=PAUSED",
-    );
+    expect(replaceMock).toHaveBeenCalledWith("/schedules?scheduleState=PAUSED");
   });
 
   it("clears the state filter", async () => {
     const user = userEvent.setup();
-    searchParamsRef.current = new URLSearchParams(
-      "tab=schedules&scheduleState=ENDED",
-    );
-    renderView([]);
+    searchParamsRef.current = new URLSearchParams("scheduleState=ENDED");
+    renderView([], { state: "ENDED" });
 
     expect(screen.getByRole("radio", { name: "state.ENDED" })).toBeChecked();
     await user.click(screen.getByRole("radio", { name: "filterAll" }));
 
-    expect(replaceMock).toHaveBeenCalledWith("/tasks?tab=schedules");
+    expect(replaceMock).toHaveBeenCalledWith("/schedules");
   });
 
   it("says when there is nothing to show and offers to create one", async () => {
@@ -177,7 +197,7 @@ describe("TaskSchedulesView", () => {
     const user = userEvent.setup();
     const projectId = "33333333-3333-4333-8333-333333333333";
     searchParamsRef.current = new URLSearchParams(
-      `tab=schedules&projectId=${projectId}&scheduleState=PAUSED`,
+      `projectId=${projectId}&scheduleState=PAUSED`,
     );
     loadMoreTaskSchedulesMock.mockResolvedValue({
       schedules: [
@@ -188,7 +208,11 @@ describe("TaskSchedulesView", () => {
       ],
       nextCursor: null,
     });
-    renderView([schedule({})], "cursor-1");
+    renderView([schedule({})], {
+      nextCursor: "cursor-1",
+      projectId,
+      state: "PAUSED",
+    });
 
     await user.click(screen.getByRole("button", { name: "loadMore" }));
 
@@ -203,10 +227,12 @@ describe("TaskSchedulesView", () => {
     expect(screen.queryByRole("button", { name: "loadMore" })).toBeNull();
   });
 
-  it("shows a loading state until the schedules arrive", () => {
-    renderView(null);
+  it("scopes the project switcher to the selected project", () => {
+    const projectId = "33333333-3333-4333-8333-333333333333";
+    renderView([], { projectId });
 
-    expect(screen.getByText("loading")).toBeInTheDocument();
-    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+    expect(projectSwitcherMock).toHaveBeenCalledWith(
+      expect.objectContaining({ selectedProjectId: projectId }),
+    );
   });
 });

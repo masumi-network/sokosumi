@@ -312,6 +312,7 @@
       "drive": "Files",
       "soko-bots": "Soko Bots",
       "calendar": "Calendar",
+      "schedules": "Schedules",
       "threads": "Threads"
     },
     "Jobs": {
@@ -1526,8 +1527,7 @@
       },
       "Tabs": {
         "tasks": "Tasks",
-        "jobs": "Jobs",
-        "schedules": "Schedules"
+        "jobs": "Jobs"
       },
       "Columns": {
         "backlog": "Backlog",
@@ -2029,7 +2029,6 @@
           "ENDED": "Ended"
         },
         "newSchedule": "New schedule",
-        "loading": "Loading schedules…",
         "empty": "No schedules here yet. A schedule creates a new task every time it runs.",
         "loadMore": "Load more",
         "loadingMore": "Loading…",
@@ -2096,6 +2095,10 @@
           "endsOn": "On {date}",
           "endsAfter": "After {count, plural, one {# run} other {# runs}}",
           "endsNever": "Never"
+        },
+        "Page": {
+          "title": "Schedules",
+          "description": "Every schedule in your workspace. Each run creates a new task."
         }
       }
     },
@@ -2567,6 +2570,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Calendar",
+          "schedules": "Schedules",
           "projectsLoading": "Loading projects…",
           "projectsError": "Could not load projects.",
           "retryProjects": "Retry"
@@ -6480,8 +6484,7 @@
       "view": {
         "month": "Month",
         "week": "Week",
-        "agenda": "Agenda",
-        "schedules": "Schedules"
+        "agenda": "Agenda"
       },
       "source": {
         "label": "Source",
@@ -6541,11 +6544,7 @@
         "title": "No scheduled releases match these filters."
       },
       "schedules": {
-        "nextRun": "Next run",
-        "noNextRun": "No upcoming run",
-        "loadMore": "Load more",
-        "new": "New schedule",
-        "newError": "Couldn't open the schedule form. Try again."
+        "link": "Schedules"
       },
       "pagination": {
         "error": "Unable to load more events."
@@ -6557,7 +6556,8 @@
       },
       "agenda": {
         "upcoming": "Coming up next",
-        "loading": "Loading…"
+        "loading": "Loading…",
+        "loadMore": "Load more"
       }
     },
     "You": {

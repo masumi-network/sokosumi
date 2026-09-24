@@ -225,6 +225,15 @@ describe("MenuItems search action", () => {
     );
   });
 
+  it("shows Schedules to everyone, without the Calendar beta", () => {
+    renderMenu();
+
+    expect(screen.getByRole("link", { name: /schedules/i })).toHaveAttribute(
+      "href",
+      "/schedules",
+    );
+  });
+
   it("hides Files from the main menu on mobile", () => {
     renderMenu(true, true, true);
 
@@ -243,6 +252,7 @@ describe("MenuItems search action", () => {
       "projects",
       "taskManager",
       "calendar",
+      "schedules",
       "drive",
       "history",
     ];
@@ -258,7 +268,7 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("orders primary destinations Search, Agents, Projects, Tasks, Calendar, History", () => {
+  it("orders primary destinations Search, Agents, Projects, Tasks, Calendar, Schedules, History", () => {
     const { container } = renderMenu(true, true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -270,6 +280,7 @@ describe("MenuItems search action", () => {
       "projects",
       "taskManager",
       "calendar",
+      "schedules",
       "history",
     ];
     const positions = primaryOrder.map((label) =>
@@ -359,6 +370,7 @@ describe("MenuItems search action", () => {
       "",
       "taskManager",
       "calendar",
+      "schedules",
       "drive",
       "history",
     ]);

@@ -153,9 +153,7 @@ describe("TaskScheduleActions", () => {
     expect(deleteTaskScheduleMock).toHaveBeenCalledWith({
       scheduleId: SCHEDULE_ID,
     });
-    await waitFor(() =>
-      expect(pushMock).toHaveBeenCalledWith("/tasks?tab=schedules"),
-    );
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/schedules"));
   });
 
   it("leaves an Ended schedule nothing to change but deleting it", () => {

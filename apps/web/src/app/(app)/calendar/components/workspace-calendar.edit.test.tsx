@@ -51,11 +51,9 @@ const {
   getProjectCalendarMock,
   getWorkspaceCalendarMock,
   interactionPluginMock,
-  loadTaskScheduleDialogOptionsMock,
   openCreateTaskModalMock,
   pushMock,
   refreshMock,
-  taskScheduleDialogMock,
   toastErrorMock,
 } = vi.hoisted(() => ({
   calendarRealtimeBridgeMock: vi.fn(),
@@ -65,11 +63,9 @@ const {
   getProjectCalendarMock: vi.fn(),
   getWorkspaceCalendarMock: vi.fn(),
   interactionPluginMock: {},
-  loadTaskScheduleDialogOptionsMock: vi.fn(),
   openCreateTaskModalMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
-  taskScheduleDialogMock: vi.fn(),
   toastErrorMock: vi.fn(),
 }));
 
@@ -164,13 +160,6 @@ vi.mock("@/app/tasks/components/create-task-modal", () => ({
   }),
 }));
 
-vi.mock("@/app/tasks/components/task-schedule-dialog", () => ({
-  TaskScheduleDialog: (props: { onClose: () => void }) => {
-    taskScheduleDialogMock(props);
-    return <div role="dialog" aria-label="task schedule dialog" />;
-  },
-}));
-
 vi.mock("@/components/common/filter-dropdown-menu", () => ({
   FilterDropdownMenu: (props: unknown) => {
     filterDropdownMenuMock(props);
@@ -190,10 +179,6 @@ vi.mock("@/components/ui/avatar", () => ({
 
 vi.mock("@/lib/actions/task-schedule/action", () => ({
   changeTaskScheduleRun: changeTaskScheduleRunMock,
-}));
-
-vi.mock("@/app/tasks/actions", () => ({
-  loadTaskScheduleDialogOptions: loadTaskScheduleDialogOptionsMock,
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
@@ -328,10 +313,6 @@ describe("WorkspaceCalendar editing", () => {
     changeTaskScheduleRunMock.mockResolvedValue({
       ok: true,
       value: { scheduleId: "schedule-1", runId: "run-1" },
-    });
-    loadTaskScheduleDialogOptionsMock.mockResolvedValue({
-      coworkerOptions: [{ id: "coworker-1", name: "Ada" }],
-      projectOptions: [{ id: "project-1", name: "Release planning" }],
     });
     getWorkspaceCalendarMock.mockResolvedValue({
       data: [],
@@ -686,29 +667,6 @@ describe("WorkspaceCalendar editing", () => {
     expect(openCreateTaskModalMock).not.toHaveBeenCalled();
   });
 
-  it("opens the Task Schedule dialog to create a repeating schedule", async () => {
-    const user = userEvent.setup();
-    renderCalendar(
-      { activeOrganizationId: "org-1", lockedProjectId: "project-1" },
-      "?timezone=UTC&view=schedules",
-    );
-
-    await user.click(screen.getByRole("button", { name: "schedules.new" }));
-
-    expect(
-      await screen.findByRole("dialog", { name: "task schedule dialog" }),
-    ).toBeInTheDocument();
-    expect(taskScheduleDialogMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        initialBlueprint: { projectId: "project-1" },
-        coworkerOptions: [{ id: "coworker-1", name: "Ada" }],
-        projectOptions: [{ id: "project-1", name: "Release planning" }],
-        canCreatePrivate: true,
-      }),
-    );
-    expect(openCreateTaskModalMock).not.toHaveBeenCalled();
-  });
-
   it("opens a released Run's Task and any Run's schedule", async () => {
     const user = userEvent.setup();
     renderCalendar({ items: [RELEASED_ITEM, ITEM] });
@@ -724,7 +682,7 @@ describe("WorkspaceCalendar editing", () => {
     await user.click(
       screen.getByRole("menuitem", { name: "event.openSchedule" }),
     );
-    expect(pushMock).toHaveBeenLastCalledWith("/tasks/schedules/schedule-1");
+    expect(pushMock).toHaveBeenLastCalledWith("/schedules/schedule-1");
   });
 
   it("shows a Queued Task at its Run at, opening only the Task", async () => {

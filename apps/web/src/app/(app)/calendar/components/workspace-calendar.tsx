@@ -24,9 +24,10 @@ import {
   Clock3,
   Ellipsis,
   FolderKanban,
-  Plus,
+  Repeat,
   Sparkles,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
@@ -35,17 +36,17 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { useEffect, useId, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
-import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
-import { TaskScheduleDialog } from "@/app/tasks/components/task-schedule-dialog";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
-import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
-import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import {
+  TASK_SCHEDULES_PATH,
+  taskSchedulePath,
+} from "@/app/tasks/utils/task-schedule-view";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
@@ -71,7 +72,6 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
-  type TaskSchedule,
   TaskStatus,
   type TaskStatus as TaskStatusValue,
   type WorkspaceCalendarItem,
@@ -82,10 +82,8 @@ import {
   getTimezoneOptions,
 } from "@/lib/schedules/timezones";
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
-import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { schedulableOnceLocalIso } from "@/lib/utils/task-schedule";
-import { CalendarScheduleList } from "./calendar-schedule-list";
 import {
   type ChangeableRun,
   changeRun,
@@ -95,11 +93,9 @@ import {
 import { RunMoveDialog } from "./run-move-dialog";
 import { SourceMarker } from "./source-marker";
 
-const CALENDAR_VIEWS = ["month", "week", "agenda", "schedules"] as const;
+const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 type CalendarView = (typeof CALENDAR_VIEWS)[number];
-type RunCalendarView = Exclude<CalendarView, "schedules">;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
-const NO_SCHEDULES: TaskSchedule[] = [];
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
   return value !== null && CALENDAR_STATUSES.some((status) => status === value);
@@ -161,11 +157,6 @@ interface WorkspaceCalendarProps {
   };
   coworkers?: CalendarCoworker[];
   lockedProjectId?: string;
-  schedules?: TaskSchedule[];
-  schedulesPagination?: {
-    limit: number;
-    nextCursor: string | null;
-  } | null;
   workspaceId?: string | null;
 }
 
@@ -224,7 +215,7 @@ export function getCalendarItemDateKey(date: Date, timeZone = "UTC"): string {
 function getRangeLabel(
   formatDate: ReturnType<typeof useFormatter>["dateTime"],
   date: Date,
-  view: RunCalendarView,
+  view: CalendarView,
 ) {
   if (view === "week") {
     return `${formatDate(startOfWeek(date), { month: "short", day: "numeric" })} - ${formatDate(endOfWeek(date), { month: "short", day: "numeric", year: "numeric" })}`;
@@ -425,7 +416,7 @@ function CalendarView({
   runHandlers: RunHandlers;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
-  view: RunCalendarView;
+  view: CalendarView;
 }) {
   const router = useRouter();
   const formatDate = useFormatter().dateTime;
@@ -614,8 +605,6 @@ export function WorkspaceCalendar({
   range,
   coworkers = [],
   lockedProjectId,
-  schedules = NO_SCHEDULES,
-  schedulesPagination = null,
   workspaceId = null,
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
@@ -629,12 +618,6 @@ export function WorkspaceCalendar({
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [isLoadingRuns, setIsLoadingRuns] = useState(false);
   const agendaBoundaryRef = useRef<HTMLDivElement>(null);
-  const [loadedSchedules, setLoadedSchedules] = useState(schedules);
-  const [schedulesNextCursor, setSchedulesNextCursor] = useState(
-    schedulesPagination?.nextCursor ?? null,
-  );
-  const [schedulesLoadMoreError, setSchedulesLoadMoreError] = useState(false);
-  const [isLoadingSchedules, setIsLoadingSchedules] = useState(false);
   // The page already requested, keyed on the server items too so a refreshed
   // server page that reuses a cursor string drains again.
   const requestedPageRef = useRef<{
@@ -642,12 +625,6 @@ export function WorkspaceCalendar({
     items: WorkspaceCalendarItem[];
   } | null>(null);
   const [movingRun, setMovingRun] = useState<ChangeableRun | null>(null);
-  const [scheduleDialogOptions, setScheduleDialogOptions] = useState<{
-    coworkerOptions: CoworkerOption[];
-    projectOptions: ProjectFilterOption[];
-  } | null>(null);
-  const [isScheduleDialogLoading, startScheduleDialogTransition] =
-    useTransition();
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
   const calendarAccessGeneration = useRef(0);
   const hasActivatedRef = useRef(false);
@@ -671,21 +648,6 @@ export function WorkspaceCalendar({
     setLoadedItems(items);
     setNextCursor(pagination?.nextCursor ?? null);
     setLoadMoreError(false);
-  }
-
-  const [prevSchedules, setPrevSchedules] = useState(schedules);
-  const [prevSchedulesNextCursor, setPrevSchedulesNextCursor] = useState(
-    schedulesPagination?.nextCursor ?? null,
-  );
-  if (
-    schedules !== prevSchedules ||
-    (schedulesPagination?.nextCursor ?? null) !== prevSchedulesNextCursor
-  ) {
-    setPrevSchedules(schedules);
-    setPrevSchedulesNextCursor(schedulesPagination?.nextCursor ?? null);
-    setLoadedSchedules(schedules);
-    setSchedulesNextCursor(schedulesPagination?.nextCursor ?? null);
-    setSchedulesLoadMoreError(false);
   }
 
   useMountEffect(() => {
@@ -834,17 +796,6 @@ export function WorkspaceCalendar({
     openCreateDialog(`${getCalendarDayKey(date)}T12:00`);
   }
 
-  /** Assignees and projects load only when someone opens the dialog. */
-  function handleNewSchedule() {
-    startScheduleDialogTransition(async () => {
-      try {
-        setScheduleDialogOptions(await loadTaskScheduleDialogOptions());
-      } catch {
-        toast.error(t("schedules.newError"));
-      }
-    });
-  }
-
   const reportRunChangeFailure = useReportRunChangeFailure();
 
   async function handleRunChange(
@@ -918,49 +869,11 @@ export function WorkspaceCalendar({
     }
   }
 
-  async function loadNextSchedulesPage() {
-    if (!schedulesNextCursor || isLoadingSchedules) {
-      return;
-    }
-
-    const accessGeneration = calendarAccessGeneration.current;
-    setIsLoadingSchedules(true);
-    try {
-      const result = await coreClient.listTaskSchedules({
-        projectId: lockedProjectId ?? state.projectId ?? undefined,
-        cursor: schedulesNextCursor,
-        limit: schedulesPagination?.limit ?? 100,
-      });
-      if (accessGeneration !== calendarAccessGeneration.current) {
-        return;
-      }
-      setLoadedSchedules((currentSchedules) => [
-        ...currentSchedules,
-        ...result.data.filter(
-          (schedule) => !currentSchedules.some(({ id }) => id === schedule.id),
-        ),
-      ]);
-      setSchedulesNextCursor(result.meta?.pagination?.nextCursor ?? null);
-      setSchedulesLoadMoreError(false);
-    } catch {
-      if (accessGeneration === calendarAccessGeneration.current) {
-        setSchedulesLoadMoreError(true);
-      }
-    } finally {
-      if (accessGeneration === calendarAccessGeneration.current) {
-        setIsLoadingSchedules(false);
-      }
-    }
-  }
-
   function handleCalendarAccessRevoked() {
     calendarAccessGeneration.current += 1;
     setLoadedItems([]);
     setNextCursor(null);
     setLoadMoreError(false);
-    setLoadedSchedules([]);
-    setSchedulesNextCursor(null);
-    setSchedulesLoadMoreError(false);
     setMovingRun(null);
   }
 
@@ -971,7 +884,6 @@ export function WorkspaceCalendar({
   function handleCalendarResync() {
     handleCalendarInvalidated();
     setLoadMoreError(false);
-    setSchedulesLoadMoreError(false);
     setMovingRun(null);
   }
 
@@ -1064,11 +976,8 @@ export function WorkspaceCalendar({
     ];
   }
 
-  // The Schedules view lists Task Schedules by project only; the other
-  // filters narrow Runs and created Tasks.
-  const isSchedulesView = view === "schedules";
   const filterSections: FilterDropdownMenuSection[] = [
-    ...(activeOrganizationId && !isSchedulesView
+    ...(activeOrganizationId
       ? [
           {
             id: "scope",
@@ -1087,7 +996,7 @@ export function WorkspaceCalendar({
           },
         ]
       : []),
-    ...(!lockedProjectId && !isSchedulesView
+    ...(!lockedProjectId
       ? [
           {
             id: "source",
@@ -1105,7 +1014,7 @@ export function WorkspaceCalendar({
           },
         ]
       : []),
-    ...(isSchedulesView ? [] : runFilterSections()),
+    ...runFilterSections(),
     {
       id: "timezone",
       label: t("timezone.label"),
@@ -1194,6 +1103,16 @@ export function WorkspaceCalendar({
               ))}
             </TabsList>
           </Tabs>
+          {lockedProjectId ? (
+            <Button asChild size="sm" variant="outline">
+              <Link
+                href={`${TASK_SCHEDULES_PATH}?projectId=${encodeURIComponent(lockedProjectId)}`}
+              >
+                <Repeat aria-hidden className="size-4" />
+                {t("schedules.link")}
+              </Link>
+            </Button>
+          ) : null}
           <div>
             <FilterDropdownMenu
               buttonLabel={tFilters("title")}
@@ -1201,12 +1120,11 @@ export function WorkspaceCalendar({
               searchPlaceholder={tFilters("searchPlaceholder")}
               sections={filterSections}
               showActiveIndicator={
-                !isSchedulesView &&
-                (state.scope === "owned" ||
-                  state.assigneeId !== null ||
-                  state.assigneeUserId !== null ||
-                  state.status !== null ||
-                  selectedSourceId !== null)
+                state.scope === "owned" ||
+                state.assigneeId !== null ||
+                state.assigneeUserId !== null ||
+                state.status !== null ||
+                selectedSourceId !== null
               }
             />
           </div>
@@ -1219,64 +1137,35 @@ export function WorkspaceCalendar({
         />
       ) : null}
 
-      {view === "schedules" ? (
-        <div className="flex flex-col gap-4">
-          {canCreate ? (
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                disabled={isScheduleDialogLoading}
-                onClick={handleNewSchedule}
-              >
-                <Plus aria-hidden className="size-4" />
-                {t("schedules.new")}
-              </Button>
-            </div>
-          ) : null}
-          <CalendarScheduleList
-            coworkers={coworkers}
-            hasMore={schedulesNextCursor !== null}
-            isLoading={isLoadingSchedules}
-            loadMoreError={schedulesLoadMoreError}
-            onLoadMore={() => void loadNextSchedulesPage()}
-            schedules={loadedSchedules}
-            sources={sources}
-            timeZone={timeZone}
-          />
+      {visibleItems.length === 0 && view !== "agenda" ? (
+        <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
+          {t("empty.title")}
         </div>
-      ) : (
-        <>
-          {visibleItems.length === 0 && view !== "agenda" ? (
-            <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-              {t("empty.title")}
-            </div>
-          ) : null}
-          <CalendarView
-            key={calendarRenderEpoch}
-            canCreate={canCreate}
-            coworkers={coworkers}
-            date={date}
-            items={visibleItems}
-            onDateClick={handleDateClick}
-            runHandlers={runHandlers}
-            sources={sources}
-            timeZone={timeZone}
-            view={view}
-          />
-          {view === "agenda" && nextCursor ? (
-            <div className="flex justify-center" ref={agendaBoundaryRef}>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isLoadingRuns}
-                onClick={() => void loadNextPage()}
-              >
-                {t(isLoadingRuns ? "agenda.loading" : "schedules.loadMore")}
-              </Button>
-            </div>
-          ) : null}
-        </>
-      )}
+      ) : null}
+      <CalendarView
+        key={calendarRenderEpoch}
+        canCreate={canCreate}
+        coworkers={coworkers}
+        date={date}
+        items={visibleItems}
+        onDateClick={handleDateClick}
+        runHandlers={runHandlers}
+        sources={sources}
+        timeZone={timeZone}
+        view={view}
+      />
+      {view === "agenda" && nextCursor ? (
+        <div className="flex justify-center" ref={agendaBoundaryRef}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isLoadingRuns}
+            onClick={() => void loadNextPage()}
+          >
+            {t(isLoadingRuns ? "agenda.loading" : "agenda.loadMore")}
+          </Button>
+        </div>
+      ) : null}
       {loadMoreError ? (
         <p className="text-destructive text-sm" role="alert">
           {t("pagination.error")}
@@ -1288,15 +1177,6 @@ export function WorkspaceCalendar({
           item={movingRun}
           timeZone={timeZone}
           onClose={() => setMovingRun(null)}
-        />
-      ) : null}
-      {scheduleDialogOptions ? (
-        <TaskScheduleDialog
-          initialBlueprint={{ projectId: selectedCreateProjectId ?? null }}
-          coworkerOptions={scheduleDialogOptions.coworkerOptions}
-          projectOptions={scheduleDialogOptions.projectOptions}
-          canCreatePrivate={activeOrganizationId !== null}
-          onClose={() => setScheduleDialogOptions(null)}
         />
       ) : null}
     </div>

@@ -30,7 +30,7 @@ describe("TaskFromSchedule", () => {
 
     expect(
       screen.getByRole("link", { name: "fromSchedule: Weekly" }),
-    ).toHaveAttribute("href", `/tasks/schedules/${SCHEDULE_ID}`);
+    ).toHaveAttribute("href", `/schedules/${SCHEDULE_ID}`);
   });
 
   it("shows nothing for a Task made by hand", async () => {

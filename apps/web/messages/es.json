@@ -296,6 +296,7 @@
       "drive": "Archivos",
       "soko-bots": "Soko Bots",
       "calendar": "Calendario",
+      "schedules": "Programaciones",
       "threads": "Hilos"
     },
     "Jobs": {
@@ -1526,8 +1527,7 @@
       },
       "Tabs": {
         "tasks": "Tasks",
-        "jobs": "Jobs",
-        "schedules": "Programaciones"
+        "jobs": "Jobs"
       },
       "Columns": {
         "backlog": "Pendiente",
@@ -2029,7 +2029,6 @@
           "ENDED": "Finalizada"
         },
         "newSchedule": "Nueva programación",
-        "loading": "Cargando programaciones…",
         "empty": "Todavía no hay programaciones. Una programación crea una tarea nueva en cada ejecución.",
         "loadMore": "Cargar más",
         "loadingMore": "Cargando…",
@@ -2096,6 +2095,10 @@
           "endsOn": "El {date}",
           "endsAfter": "Tras {count, plural, one {# ejecución} other {# ejecuciones}}",
           "endsNever": "Nunca"
+        },
+        "Page": {
+          "title": "Programaciones",
+          "description": "Todas las programaciones de tu espacio de trabajo. Cada ejecución crea una tarea nueva."
         }
       }
     },
@@ -2567,6 +2570,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Calendario",
+          "schedules": "Programaciones",
           "projectsLoading": "Cargando proyectos…",
           "projectsError": "No se pudieron cargar los proyectos.",
           "retryProjects": "Reintentar"
@@ -6480,8 +6484,7 @@
       "view": {
         "month": "Mes",
         "week": "Semana",
-        "agenda": "Agenda",
-        "schedules": "Programaciones"
+        "agenda": "Agenda"
       },
       "source": {
         "label": "Origen",
@@ -6541,11 +6544,7 @@
         "title": "Ninguna ejecución programada coincide con estos filtros."
       },
       "schedules": {
-        "nextRun": "Próxima ejecución",
-        "noNextRun": "Sin próxima ejecución",
-        "loadMore": "Cargar más",
-        "new": "Nueva programación",
-        "newError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo."
+        "link": "Programaciones"
       },
       "pagination": {
         "error": "No se pudieron cargar más eventos."
@@ -6557,7 +6556,8 @@
       },
       "agenda": {
         "upcoming": "A continuación",
-        "loading": "Cargando…"
+        "loading": "Cargando…",
+        "loadMore": "Cargar más"
       }
     },
     "You": {
