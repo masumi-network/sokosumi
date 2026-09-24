@@ -173,7 +173,7 @@ export function mapTaskToTaskWithCoworker(
 
   return {
     id: task.id,
-    name: task.name,
+    name: stripMarkdownToText(task.name) || task.name,
     status: task.status,
     visibility: task.visibility,
     ownerId: task.ownerId,
