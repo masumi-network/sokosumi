@@ -1,14 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
-import {
-  memberRepository,
-  organizationInviteLinkRepository,
-} from "@sokosumi/database/repositories";
+import { memberRepository } from "@sokosumi/database/repositories";
 import { evaluateInviteLinkStatus } from "@sokosumi/utils";
 
 import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import { badRequest, notFound } from "@/helpers/error";
 import { cancelPendingOrganizationInvitationsForUser } from "@/helpers/invitation";
+import { tryConsumeOrganizationInviteLink } from "@/helpers/invite-link-consume";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ensurePersonalWorkspaceForOrganizationMembership } from "@/helpers/org-membership-personal-workspace";
 import { isMemberUserOrganizationUniqueConstraintError } from "@/helpers/prisma";
@@ -56,10 +54,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { token } = c.req.valid("param");
     const now = new Date();
 
-    const link = await organizationInviteLinkRepository.getInviteLinkByToken(
-      token,
-      prisma,
-    );
+    const link = await prisma.organizationInviteLink.findUnique({
+      where: { token },
+    });
     const status = evaluateInviteLinkStatus(link, now);
     if (!link || status === "not_found") {
       throw notFound("This invite link is not valid.");
@@ -102,11 +99,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         // Atomically reserve a use; false when the link died concurrently.
-        const consumed =
-          await organizationInviteLinkRepository.tryConsumeInviteLink(
-            { id: link.id, now, maxUses: link.maxUses },
-            tx,
-          );
+        const consumed = await tryConsumeOrganizationInviteLink(
+          { id: link.id, now, maxUses: link.maxUses },
+          tx,
+        );
         if (!consumed) return "depleted";
 
         await ensurePersonalWorkspaceForOrganizationMembership(

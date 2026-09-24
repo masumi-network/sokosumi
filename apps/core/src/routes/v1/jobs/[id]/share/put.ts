@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskVisibility } from "@sokosumi/database";
-import { publicShareRepository } from "@sokosumi/database/repositories";
 
 import { requireJobShareCollaboration } from "@/helpers/access-control.job-share.js";
 import { badRequest } from "@/helpers/error";
@@ -64,11 +63,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    const share = await publicShareRepository.upsertForJob(
-      id,
-      allowSearchIndexing,
-      prisma,
-    );
+    const share = await prisma.publicShare.upsert({
+      where: { jobId: id },
+      create: {
+        job: { connect: { id } },
+        allowSearchIndexing,
+        token: crypto.randomUUID(),
+      },
+      update: {
+        allowSearchIndexing,
+      },
+      include: { job: true, task: true },
+    });
 
     return ok(c, jobShareSchema.parse(share));
   });
