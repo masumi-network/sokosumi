@@ -122,6 +122,12 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
       label: t("taskManager"),
       Icon: ListTodo,
     },
+    {
+      key: "schedules",
+      href: TASK_SCHEDULES_PATH,
+      label: t("schedules"),
+      Icon: Repeat,
+    },
     ...(calendarMenuEnabled
       ? [
           {
@@ -132,12 +138,6 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
           },
         ]
       : []),
-    {
-      key: "schedules",
-      href: TASK_SCHEDULES_PATH,
-      label: t("schedules"),
-      Icon: Repeat,
-    },
     // Desktop only: mobile keeps Files on the You page account surface.
     ...(!isMobile
       ? [
