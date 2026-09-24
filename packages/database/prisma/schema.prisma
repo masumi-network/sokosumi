@@ -876,7 +876,11 @@ model Agent {
   metadataOverride AgentMetadataOverride?
 
   // Summary
-  summary String?
+  summary           String?
+  /// Set when the summary model judged the description too thin to summarise,
+  /// so the summary sync stops retrying it. Cleared with `summary` when the
+  /// registry metadata changes.
+  summaryDeclinedAt DateTime?
 
   jobCount Int @default(0)
 
