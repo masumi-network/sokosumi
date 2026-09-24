@@ -32,18 +32,20 @@ describe("socialPostMediaKindForMime", () => {
     ["image/webp", "image"],
     ["image/gif", "gif"],
     ["video/mp4", "video"],
-    ["video/quicktime", "video"],
     ["IMAGE/PNG", "image"],
   ])("maps %s to %s", (mime, kind) => {
     expect(socialPostMediaKindForMime(mime)).toBe(kind);
   });
 
-  it.each(["image/svg+xml", "application/pdf", "video/webm", ""])(
-    "rejects unsupported %s",
-    (mime) => {
-      expect(socialPostMediaKindForMime(mime)).toBeNull();
-    },
-  );
+  it.each([
+    "image/svg+xml",
+    "application/pdf",
+    "video/quicktime",
+    "video/webm",
+    "",
+  ])("rejects unsupported %s", (mime) => {
+    expect(socialPostMediaKindForMime(mime)).toBeNull();
+  });
 });
 
 describe("socialPostMimeForFileName", () => {
@@ -54,13 +56,12 @@ describe("socialPostMimeForFileName", () => {
     ["photo.webp", "image/webp"],
     ["loop.gif", "image/gif"],
     ["clip.mp4", "video/mp4"],
-    ["clip.mov", "video/quicktime"],
     ["folder/nested.name.PNG", "image/png"],
   ])("maps %s to %s", (name, mime) => {
     expect(socialPostMimeForFileName(name)).toBe(mime);
   });
 
-  it.each(["report.pdf", "noext", ".png", "clip.webm"])(
+  it.each(["report.pdf", "noext", ".png", "clip.mov", "clip.webm"])(
     "returns null for %s",
     (name) => {
       expect(socialPostMimeForFileName(name)).toBeNull();

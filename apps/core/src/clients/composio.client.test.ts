@@ -1,3 +1,4 @@
+import { SOCIAL_POST_MEDIA_RULES } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getEnvMock, logSetMock, ssrfSafeFetchMock } = vi.hoisted(() => ({
@@ -566,6 +567,21 @@ describe("publishXPost", () => {
 });
 
 describe("publishXPost with media", () => {
+  const COMPOSIO_TOOL_MIME_TYPES: Record<
+    "TWITTER_UPLOAD_MEDIA" | "TWITTER_UPLOAD_LARGE_MEDIA",
+    readonly string[]
+  > = {
+    TWITTER_UPLOAD_MEDIA: ["image/jpeg", "image/png", "image/webp"],
+    TWITTER_UPLOAD_LARGE_MEDIA: [
+      "video/mp4",
+      "video/webm",
+      "image/gif",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ],
+  };
+
   interface ExecuteCall {
     tool_slug: string;
     arguments: Record<string, unknown>;
@@ -621,6 +637,18 @@ describe("publishXPost with media", () => {
       COMPOSIO_API_BASE_URL: "https://backend.composio.dev",
       COMPOSIO_API_KEY: "test-composio-key",
     });
+  });
+
+  it("keeps every accepted MIME type within its selected Composio tool contract", () => {
+    const rules = SOCIAL_POST_MEDIA_RULES.x;
+    for (const mimeType of rules.imageMimeTypes) {
+      expect(COMPOSIO_TOOL_MIME_TYPES.TWITTER_UPLOAD_MEDIA).toContain(mimeType);
+    }
+    for (const mimeType of [...rules.gifMimeTypes, ...rules.videoMimeTypes]) {
+      expect(COMPOSIO_TOOL_MIME_TYPES.TWITTER_UPLOAD_LARGE_MEDIA).toContain(
+        mimeType,
+      );
+    }
   });
 
   it.each([

@@ -37,7 +37,7 @@ export const SOCIAL_POST_MEDIA_RULES = {
     maxVideoBytes: 100 * 1024 * 1024,
     imageMimeTypes: ["image/jpeg", "image/png", "image/webp"],
     gifMimeTypes: ["image/gif"],
-    videoMimeTypes: ["video/mp4", "video/quicktime"],
+    videoMimeTypes: ["video/mp4"],
   },
 } as const;
 
@@ -60,7 +60,6 @@ const EXTENSION_MIME_TYPES: Record<string, string> = {
   webp: "image/webp",
   gif: "image/gif",
   mp4: "video/mp4",
-  mov: "video/quicktime",
 };
 
 function includesMime(list: readonly string[], mime: string): boolean {

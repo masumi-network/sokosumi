@@ -106,7 +106,7 @@ const MESSAGES: Record<string, string> = {
   "composer.media.uploading": "Uploading…",
   "composer.media.remove": "Remove {name}",
   "composer.media.hint": "Up to 4 images, or one GIF, or one video.",
-  "composer.media.unsupported": "Use a JPG, PNG, WebP, GIF, MP4, or MOV file.",
+  "composer.media.unsupported": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
   "composer.media.alreadyAttached": "That file is already attached.",
   "composer.media.uploadDuplicate":
     "A file with this name already exists in the Drive. Rename it and try again.",
@@ -118,7 +118,7 @@ const MESSAGES: Record<string, string> = {
   "composer.media.errors.mixed_media":
     "Use images, one GIF, or one video — not a mix.",
   "composer.media.errors.unsupported_type":
-    "Use a JPG, PNG, WebP, GIF, MP4, or MOV file.",
+    "Use a JPG, PNG, WebP, GIF, or MP4 file.",
   "composer.media.errors.too_large": "A file is too large for X.",
   "composer.account": "Account",
   "composer.noAccount": "Choose an account",
