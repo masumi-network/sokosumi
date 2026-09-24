@@ -37,6 +37,8 @@
 
 [REPORTED: user decision, 2026-09-24] For the hackathon, Coworker registration runs on Sokosumi Preprod only. On Mainnet, the Coworker Register action shows “Preprod only” and does not submit registration. This restriction applies to Coworker registration, not unrelated CLI commands.
 
+[REPORTED: team discussion pasted by the user, 2026-09-24] The team defers third-party access on Mainnet until “CLI, Skill, Documentation and the platform has a PMF.” Preprod gives developers a place to register and test Coworkers before that launch decision. A Sokosumi platform admin still approves the waitlist request.
+
 [REPORTED: user decision, 2026-09-24] A developer or Coworker submits a waitlist request. A Sokosumi platform admin approves it. The CLI must not change the whitelist command, call the admin-only whitelist route, or enable a Coworker to approve itself. This ADR does not change the permission model or whitelist defaults.
 
 [CORRECTION, REPORTED] An earlier proposal said Core would create or bind a Coworker, grant workspace access, and issue a runtime key after owner approval. That proposal assumed a new self-service permission path. The user rejected permission-model changes for this work. Treat that proposal as withdrawn.
