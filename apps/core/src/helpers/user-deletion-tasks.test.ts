@@ -25,6 +25,7 @@ const {
   vendorMemberFindManyMock,
   vendorMemberFindFirstMock,
   vendorUpdateMock,
+  vendorMemberInviteUpdateManyMock,
   calendarInvalidationOutboxDeleteManyMock,
   queryRawMock,
   transactionMock,
@@ -52,6 +53,7 @@ const {
   vendorMemberFindManyMock: vi.fn(),
   vendorMemberFindFirstMock: vi.fn(),
   vendorUpdateMock: vi.fn(),
+  vendorMemberInviteUpdateManyMock: vi.fn(),
   calendarInvalidationOutboxDeleteManyMock: vi.fn(),
   queryRawMock: vi.fn(),
   transactionMock: vi.fn(),
@@ -96,6 +98,7 @@ describe("prepareTasksForUserDeletion", () => {
     vendorMemberFindManyMock.mockResolvedValue([]);
     vendorMemberFindFirstMock.mockResolvedValue(null);
     vendorUpdateMock.mockResolvedValue({});
+    vendorMemberInviteUpdateManyMock.mockResolvedValue({ count: 0 });
     calendarInvalidationOutboxDeleteManyMock.mockResolvedValue({ count: 0 });
     queryRawMock.mockResolvedValue([]);
     eraseWorkspaceCalendarDataMock.mockResolvedValue({
@@ -140,6 +143,9 @@ describe("prepareTasksForUserDeletion", () => {
         },
         vendor: {
           update: vendorUpdateMock,
+        },
+        vendorMemberInvite: {
+          updateMany: vendorMemberInviteUpdateManyMock,
         },
         calendarInvalidationOutbox: {
           deleteMany: calendarInvalidationOutboxDeleteManyMock,
@@ -263,13 +269,32 @@ describe("prepareTasksForUserDeletion", () => {
         },
       ]),
     );
+    // A pending invite to a Vendor the user alone administers would add a
+    // member to an admin-less Vendor once accepted. Revoking before the
+    // recheck also makes a concurrent accept either visible to the recheck
+    // or blocked on the invite row until it fails serialization.
+    expect(vendorMemberInviteUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        status: "PENDING",
+        vendor: {
+          vendorMembers: {
+            some: { userId: "user_delete", role: "admin" },
+            none: { userId: { not: "user_delete" }, role: "admin" },
+          },
+        },
+      },
+      data: { status: "REVOKED", resolvedAt: expect.any(Date) },
+    });
     expect(vendorMemberFindFirstMock).toHaveBeenCalledWith({
       where: lastVendorAdminBlockerWhere("user_delete"),
       select: { id: true },
     });
     expect(vendorUpdateMock.mock.invocationCallOrder[1]).toBeLessThan(
-      vendorMemberFindFirstMock.mock.invocationCallOrder[0],
+      vendorMemberInviteUpdateManyMock.mock.invocationCallOrder[0],
     );
+    expect(
+      vendorMemberInviteUpdateManyMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(vendorMemberFindFirstMock.mock.invocationCallOrder[0]);
     expect(userDeleteManyMock).not.toHaveBeenCalled();
   });
 

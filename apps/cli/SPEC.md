@@ -132,8 +132,9 @@ V83: mint/rotate/revoke `coworker_*` ∈ developer auth only (interactive or hea
 V84: CLI/TUI/skill share in-process handlers; ⊥ recursive CLI entrypoint; runtime adapters → Core HTTP with `coworker_*` (ADR 0005).
 V85: `coworkers register` requires ≥1 organization workspace and `--vendor-id` ∈ administered (`admin`) memberships; foreign/non-admin Vendor ⊥ before Core create; register ⊥ Vendor create (developer Vendor create is standalone `vendors create` → `POST /v1/vendors`, caller admin); Coworker create ∈ platform admin only; blocked copy points to `vendors create` for Vendor setup.
 V86: registration gate copy ⊥ Vendor member-invite / role-promotion instructions; CLI has no invite/accept command.
-V87: account deletion writes (not only locks) every current Vendor row in stable `vendorId` order, then rechecks the last-admin rule inside the same transaction before the User cascade; membership role changes/removals lock the same Vendor row in a Serializable transaction ∴ one queued behind deletion fails serialization and retries on current data. Last-admin rule: sole admin blocks deletion only while the Vendor has another member or an unarchived Coworker; otherwise the Vendor stays admin-less.
+V87: account deletion writes (not only locks) every current Vendor row in stable `vendorId` order, revokes PENDING invites to Vendors the user alone administers, then rechecks V89 inside the same transaction before the User cascade; membership role changes/removals lock the same Vendor row in a Serializable transaction ∴ one queued behind deletion fails serialization and retries on current data; a concurrent invite accept commits first (recheck sees the member) or fails serialization on the revoked invite row.
 V88: Vendor invite acceptance reads the current verified account email inside its Serializable transaction before matching and accepting the invite; a stale pre-transaction email ⊥ authorization.
+V89: account deletion ⊥ while the user is a Vendor's sole admin and the Vendor has another member or an unarchived Coworker; otherwise deletion proceeds and the Vendor stays admin-less. Intentionally looser than member PATCH/DELETE, which never leave 0 admins. Coworker create/unarchive (platform admin only) ⊥ Vendor lock.
 
 ## §T TASKS
 
@@ -233,4 +234,5 @@ B50|2026-09-23|VERIFIED diff: gate copy said `member invite or role promote`; IN
 B51|2026-09-23|VERIFIED test output: V87 regression resolved `undefined` instead of rejecting when the in-transaction admin count was one|V87
 B52|2026-09-23|VERIFIED test output: V88 regression returned HTTP 201 after the email changed before the acceptance transaction; expected 404|V88
 B53|2026-09-24|VERIFIED scratch Postgres: deletion FOR UPDATE + queued Serializable demotion ended with 0 admins (demotion snapshot predated the lock wait); row write → `could not serialize`, retry saw 1 admin|V87
-B54|2026-09-24|INFERRED from review: sole admin who is the Vendor's only member had no promotable member and no leave/delete route ∴ account deletion was blocked permanently|V87
+B54|2026-09-24|INFERRED from review: sole admin who is the Vendor's only member had no promotable member and no leave/delete route ∴ account deletion was blocked permanently|V89
+B55|2026-09-24|INFERRED from spec review: after V89 let a solo admin delete, a PENDING invite outlived them and its accept would add a member to the admin-less Vendor|V87

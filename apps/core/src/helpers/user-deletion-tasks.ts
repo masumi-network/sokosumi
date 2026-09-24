@@ -19,6 +19,7 @@ import {
 } from "@/helpers/deletion-evaluate";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
+import { prepareVendorsForMemberDeletion } from "@/helpers/vendor-membership";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -139,26 +140,9 @@ export async function prepareTasksForUserDeletion(
         `;
 
         // The preflight last-admin check can become stale before this
-        // transaction starts. Write every Vendor row the user belongs to in a
-        // stable order, then recheck before the User cascade. Role changes
-        // and member removals lock the same row first thing in a Serializable
-        // transaction, whose snapshot predates the wait. A mere FOR UPDATE
-        // here would let such a change proceed on that stale snapshot after
-        // this commits; a committed write makes Postgres abort it instead,
-        // and serializableTransaction retries it against current data.
-        const vendorMemberships = await tx.vendorMember.findMany({
-          where: { userId },
-          select: { vendorId: true },
-          orderBy: { vendorId: "asc" },
-        });
-        for (const { vendorId } of vendorMemberships) {
-          await tx.vendor.update({
-            where: { id: vendorId },
-            data: { updatedAt: new Date() },
-            select: { id: true },
-          });
-        }
-
+        // transaction starts, so serialize with membership changes and recheck
+        // before the User cascade.
+        await prepareVendorsForMemberDeletion(userId, tx);
         const lastVendorAdminMembership = await tx.vendorMember.findFirst({
           where: lastVendorAdminBlockerWhere(userId),
           select: { id: true },

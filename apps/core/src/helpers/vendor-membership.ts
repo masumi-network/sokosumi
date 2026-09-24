@@ -137,9 +137,56 @@ export async function requireCoworkerBelongsToVendor(
 }
 
 /**
- * Serialize membership changes with account deletion. Deletion writes each
- * Vendor row before it rechecks admin membership and cascades the user row, so
- * a change queued here behind it fails serialization and is retried.
+ * Account deletion's half of the handshake with
+ * `lockVendorMembershipMutation`. Call inside the deletion transaction before
+ * rechecking the last-admin rule.
+ *
+ * Writes (not only locks) every Vendor row the user belongs to, in stable
+ * order. A membership change locks the same row first thing in a Serializable
+ * transaction whose snapshot predates the wait; after a mere FOR UPDATE here it
+ * would proceed on that stale snapshot, but after a committed write Postgres
+ * aborts it and `serializableTransaction` retries on current data. The write
+ * bumps `Vendor.updatedAt`.
+ *
+ * Then revokes pending invites to Vendors the user alone administers: once
+ * accepted they would add a member to a Vendor left without an admin. A
+ * concurrent accept either commits first, and the recheck sees the new member,
+ * or waits on the invite row and fails serialization after deletion commits.
+ */
+export async function prepareVendorsForMemberDeletion(
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const memberships = await tx.vendorMember.findMany({
+    where: { userId },
+    select: { vendorId: true },
+    orderBy: { vendorId: "asc" },
+  });
+  for (const { vendorId } of memberships) {
+    await tx.vendor.update({
+      where: { id: vendorId },
+      data: { updatedAt: new Date() },
+      select: { id: true },
+    });
+  }
+
+  await tx.vendorMemberInvite.updateMany({
+    where: {
+      status: "PENDING",
+      vendor: {
+        vendorMembers: {
+          some: { userId, role: "admin" },
+          none: { userId: { not: userId }, role: "admin" },
+        },
+      },
+    },
+    data: { status: "REVOKED", resolvedAt: new Date() },
+  });
+}
+
+/**
+ * Serialize membership changes with account deletion; see
+ * `prepareVendorsForMemberDeletion` for the deletion side.
  */
 async function lockVendorMembershipMutation(
   vendorId: string,
