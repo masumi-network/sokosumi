@@ -2744,9 +2744,9 @@ model TaskParticipant {
   userId String
   user   User   @relation("TaskParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([taskId, userId])
-  @@index([userId])
-  @@index([taskId, createdAt])
+  @@unique([taskId, userId], map: "task_participant_taskId_userId_key")
+  @@index([userId], map: "task_participant_userId_idx")
+  @@index([taskId, createdAt], map: "task_participant_taskId_createdAt_idx")
   @@map("task_participant")
 }
 
