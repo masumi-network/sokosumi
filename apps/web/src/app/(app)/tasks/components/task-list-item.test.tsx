@@ -25,8 +25,8 @@ vi.mock("./task-detail-link", () => ({
   ),
 }));
 
-vi.mock("./task-meta", () => ({
-  TaskMetaDetails: () => <div data-testid="task-meta" />,
+vi.mock("@/lib/utils/datetime.client", () => ({
+  useLocalizedDateTime: () => ({ formatShortDate: () => "Mar 1" }),
 }));
 
 function buildTask(visibility: TaskVisibility): TaskWithCoworker {
@@ -41,6 +41,7 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
     owner: { id: "user-1", name: "Owner", image: null },
     project: null,
     assignee: null,
+    participants: [],
     commentsCount: 0,
     createdAt: "2026-03-01T00:00:00.000Z",
     updatedAt: "2026-03-01T00:00:00.000Z",
@@ -87,5 +88,30 @@ describe("TaskListItem description preview", () => {
 
     expect(screen.getByText("—")).toBeInTheDocument();
     expect(screen.queryByText(/CONTEXT\.md/)).not.toBeInTheDocument();
+  });
+});
+
+describe("TaskListItem actor cluster", () => {
+  it("caps the assignee and participants at three faces plus a remainder, without the owner", () => {
+    const people = ["Ada", "Bea", "Cy", "Dee"].map((name) => ({
+      id: `user-${name}`,
+      name,
+      image: null,
+      kind: "user" as const,
+    }));
+    const task = {
+      ...buildTask(TaskVisibility.PUBLIC),
+      assignee: { id: "cow-1", name: "Soko", kind: "coworker" as const },
+      participants: people,
+    };
+
+    render(<TaskListItem task={task} />);
+
+    expect(screen.getAllByTestId("task-actor-face")).toHaveLength(3);
+    expect(screen.getByText("+2")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Soko, Ada, Bea, Cy, Dee" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Owner/)).not.toBeInTheDocument();
   });
 });
