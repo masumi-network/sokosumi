@@ -1172,6 +1172,30 @@ describe("TaskActivitySection", () => {
       });
     });
 
+    it("does not send human mentions when mentionableUsers is empty", async () => {
+      createTaskCommentMock.mockResolvedValue(undefined);
+      render(
+        <TaskActivitySection
+          {...baseProps}
+          agentNameById={new Map([["agent-1", "Writer"]])}
+          mentionableUsers={[]}
+        />,
+      );
+
+      act(() => {
+        markdownEditorProps.current?.onChange("Thanks @user-2:ada");
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() => {
+        expect(createTaskCommentMock).toHaveBeenCalledWith({
+          taskId: "task-1",
+          comment: "Thanks @user-2:ada",
+          mentionedUserIds: [],
+        });
+      });
+    });
+
     it("renders a mentioned member by name in the comment", () => {
       render(
         <TaskActivitySection

@@ -49,6 +49,7 @@ import {
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import { getSession } from "@/lib/auth/auth.server";
+import { TaskVisibility } from "@/lib/clients/generated/core";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -117,9 +118,10 @@ export async function TaskDetailView({
     : organizationSeatService.hasAssignedSeat(
         task.workspace.organizationId ?? null,
       );
-  const mentionableUsersPromise = forceReadOnly
-    ? Promise.resolve([])
-    : listTaskAssigneeMemberOptions(task.workspace.organizationId ?? null);
+  const mentionableUsersPromise =
+    forceReadOnly || task.visibility === TaskVisibility.PRIVATE
+      ? Promise.resolve([])
+      : listTaskAssigneeMemberOptions(task.workspace.organizationId ?? null);
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const projectPromise = task.projectId
     ? projectService.getProjectById(task.projectId).catch(() => null)
