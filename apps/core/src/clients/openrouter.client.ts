@@ -105,7 +105,7 @@ export const openrouterClient = (() => {
         - Language: Match the input
         - Format: Short plain-language label, not a snippet of the document
         - Output: Name only, no quotes, no other text
-        - Do NOT: use markdown, copy headings or the description, include refusal text, include end of sentence punctuation
+        - Plain text without markdown or closing punctuation, in your own words rather than the description's headings
       `;
       const userPrompt = `Task Description: ${trimmed}`;
 
@@ -127,32 +127,24 @@ export const openrouterClient = (() => {
         return null;
       }
 
-      const instructions = `You are a summary generator. Output ONLY the summary text—no questions, no explanations, no preamble.
+      const instructions = `Write the one-line summary shown next to a marketplace Agent, from the Agent's own description.
 
-        Task: Write a one-sentence agent summary (11-14 words maximum).
-        
-        Requirements:
-        - Start with an action verb (Analyzes, Generates, Processes, Automates, etc.)
-        - No agent name in output
-        - Match input language
-        - One sentence only
-        
-        Do NOT:
-        - Ask clarifying questions
-        - Add quotes around the output
-        - Include any text besides the summary itself
-        - Output phrases like "Unable to", "I cannot", "I'm sorry", or any refusal messages
+        - One sentence of 11 to 14 words, starting with an action verb (Analyzes, Generates, Processes, Automates)
+        - Same language as the description; leave out the Agent's name
+        - Reply with the summary alone, unquoted
+        - If the description does not say what the Agent does, reply with exactly NONE
       `;
 
       const userPrompt = `Agent Description: ${description}`;
 
-      return generateOpenRouterText(defaultOpenrouter, {
+      const summary = await generateOpenRouterText(defaultOpenrouter, {
         abortSignal: options?.abortSignal,
         instructions,
         prompt: userPrompt,
         temperature: 0.3,
         failureLogLabel: "agent summary generation",
       });
+      return summary?.trim() === "NONE" ? null : summary;
     },
   };
 })();

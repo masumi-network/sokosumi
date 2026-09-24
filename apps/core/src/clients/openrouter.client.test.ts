@@ -50,7 +50,31 @@ describe("openrouter.client", () => {
     expect(call.prompt).toBe(`Task Description: ${"A".repeat(1000)}`);
     expect(call.temperature).toBe(0.5);
     expect(call.instructions).toEqual(
-      expect.stringContaining("Do NOT: use markdown"),
+      expect.stringContaining("Plain text without markdown"),
+    );
+  });
+
+  it("returns null when the agent description is too thin to summarise", async () => {
+    generateTextMock.mockResolvedValue({ text: "NONE\n" });
+
+    const { openrouterClient } = await import("./openrouter.client");
+
+    await expect(
+      openrouterClient.generateAgentSummary("test"),
+    ).resolves.toBeNull();
+  });
+
+  it("returns the generated agent summary", async () => {
+    generateTextMock.mockResolvedValue({
+      text: "Analyzes competitor landing pages and reports conversion gaps for marketing teams",
+    });
+
+    const { openrouterClient } = await import("./openrouter.client");
+
+    await expect(
+      openrouterClient.generateAgentSummary("Landing page teardown agent"),
+    ).resolves.toBe(
+      "Analyzes competitor landing pages and reports conversion gaps for marketing teams",
     );
   });
 
