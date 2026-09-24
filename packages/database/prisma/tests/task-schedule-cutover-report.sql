@@ -105,7 +105,9 @@ WHERE link.type = 'SCHEDULE' AND released."scheduleId" IS NULL
     CROSS JOIN LATERAL (
       SELECT md5('task-schedule-cutover:schedule:' || template.id) AS digest
     ) AS source
-    -- The cutover's id for this template (pg_temp.cutover_id).
+    -- The cutover's id for this template: the same formula as
+    -- pg_temp.cutover_id in 20260924130000_task_schedule_cutover. Change both
+    -- together, or this check stops finding the template's schedule.
     WHERE s.id = (
       substr(source.digest, 1, 12) || '8' || substr(source.digest, 14, 3)
       || substr('89ab', (('x' || substr(source.digest, 17, 1))::BIT(4)::INTEGER % 4) + 1, 1)

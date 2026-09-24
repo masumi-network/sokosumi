@@ -312,6 +312,8 @@ $$;
 -- finds the rows the first one wrote. The md5 digest is stamped as an RFC
 -- 9562 version 8 UUID (the version and variant digits): Core validates ids
 -- with that pattern, and a bare md5 fails it about nine times in ten.
+-- tests/task-schedule-cutover-report.sql repeats this formula to find a
+-- template's schedule; change both together.
 CREATE OR REPLACE FUNCTION pg_temp.cutover_id(kind TEXT, source_id TEXT)
 RETURNS UUID
 LANGUAGE sql
