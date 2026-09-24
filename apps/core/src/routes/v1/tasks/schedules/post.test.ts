@@ -262,6 +262,23 @@ describe("POST /tasks/schedules", () => {
       expect(taskScheduleTestDb.schedules).toHaveLength(0);
     });
 
+    it("refuses a project that is closing", async () => {
+      const project = taskScheduleTestDb.projects.get(PROJECT_ID);
+      taskScheduleTestDb.projects.set(PROJECT_ID, {
+        workspaceId: project?.workspaceId ?? "",
+        closingAt: new Date("2026-09-01T00:00:00.000Z"),
+      });
+
+      const response = await post({
+        name: "Weekly report",
+        rule: WEEKLY_RULE,
+        projectId: PROJECT_ID,
+      });
+
+      expect(response.status).toBe(409);
+      expect(taskScheduleTestDb.schedules).toHaveLength(0);
+    });
+
     it("rejects another member's Soko Bot", async () => {
       const response = await post(
         {

@@ -56,6 +56,14 @@ function parseFailure(
   return { seriesTaskId, message };
 }
 
+/** The Task Schedule a failed close batch names; the API shows only series. */
+function parseFailedScheduleId(value: Prisma.JsonValue | null): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return typeof value.scheduleId === "string" ? value.scheduleId : null;
+}
+
 async function mapStatus(
   tx: ProjectCloseStatusClient,
   operation: ProjectCloseOperationRecord,
@@ -66,7 +74,11 @@ async function mapStatus(
       sourceProjectId: operation.projectId,
       state: "PLANNED",
       effectiveScheduledAt: { lt: operation.cutoffAt },
-      seriesTask: { status: "QUEUED" },
+      // A Paused Task Schedule's Runs never fire, not even at close.
+      OR: [
+        { seriesTask: { status: "QUEUED" } },
+        { schedule: { state: "ACTIVE" } },
+      ],
     },
   });
 
@@ -275,7 +287,18 @@ async function recoverProjectClose(
       throw conflict("Project close is not waiting for recovery");
     }
 
-    if (action === "cancel-owed") {
+    const failedScheduleId = parseFailedScheduleId(operation.failureSummary);
+    if (action === "cancel-owed" && failedScheduleId) {
+      // The close Ends the schedule on its next pass, with nothing owed left.
+      await tx.taskScheduleOccurrence.updateMany({
+        where: {
+          scheduleId: failedScheduleId,
+          state: "PLANNED",
+          effectiveScheduledAt: { lt: operation.cutoffAt },
+        },
+        data: { state: "CANCELED" },
+      });
+    } else if (action === "cancel-owed") {
       const failure = parseFailure(operation.failureSummary);
       if (!failure?.seriesTaskId) {
         throw conflict("Project close has no failed series to cancel");
@@ -345,7 +368,7 @@ async function recoverProjectClose(
         leasedAt: null,
         nextAttemptAt: new Date(),
         failureSummary: Prisma.DbNull,
-        ...(action === "cancel-owed"
+        ...(action === "cancel-owed" && !failedScheduleId
           ? {
               seriesCursor: parseFailure(operation.failureSummary)
                 ?.seriesTaskId,

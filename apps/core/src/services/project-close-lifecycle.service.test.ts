@@ -50,6 +50,7 @@ vi.mock("@/lib/db/transaction", () => ({
 
 import {
   cancelProjectCloseOwedWork,
+  getProjectCloseStatus,
   requestProjectClose,
   retryProjectClose,
 } from "@/services/project-close-lifecycle.service";
@@ -168,6 +169,29 @@ describe("project close lifecycle", () => {
       state: "CLOSING",
       cutoffAt: created.cutoffAt.toISOString(),
       projectRevision: 5,
+    });
+  });
+
+  it("counts the owed Runs of queued series and Active Task Schedules", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      projectRevision: 6,
+      closeOperation: operation,
+    });
+    taskScheduleOccurrenceCountMock.mockResolvedValue(3);
+
+    const status = await getProjectCloseStatus(scope);
+
+    expect(status.owedOccurrenceCount).toBe(3);
+    expect(taskScheduleOccurrenceCountMock).toHaveBeenCalledWith({
+      where: {
+        sourceProjectId: PROJECT_ID,
+        state: "PLANNED",
+        effectiveScheduledAt: { lt: CUTOFF },
+        OR: [
+          { seriesTask: { status: "QUEUED" } },
+          { schedule: { state: "ACTIVE" } },
+        ],
+      },
     });
   });
 
@@ -309,6 +333,53 @@ describe("project close lifecycle", () => {
       where: expect.objectContaining({ id: "task_123", projectId: PROJECT_ID }),
       data: expect.objectContaining({ status: "DRAFT", metadata: null }),
     });
+  });
+
+  it("cancels a failed Task Schedule's owed Runs, leaving its End to the close", async () => {
+    const failedScheduleOperation = {
+      ...operation,
+      failureSummary: {
+        seriesTaskId: null,
+        scheduleId: "schedule_123",
+        message: "Scheduled work could not be closed",
+      },
+    };
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      projectRevision: 5,
+      closingAt: CUTOFF,
+      closedAt: null,
+      closeOperation: failedScheduleOperation,
+    });
+    projectEventFindUniqueMock.mockResolvedValue(null);
+    projectUpdateMock.mockResolvedValue({ projectRevision: 6 });
+    projectCloseOperationUpdateMock.mockResolvedValue({
+      ...failedScheduleOperation,
+      state: ProjectCloseOperationState.CLOSING,
+      attempts: 0,
+      failureSummary: null,
+    });
+
+    await cancelProjectCloseOwedWork(scope, {
+      operationId: RECOVERY_ID,
+      expectedProjectRevision: 5,
+      reason: "Do not run the owed Runs",
+    });
+
+    expect(taskScheduleOccurrenceUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        scheduleId: "schedule_123",
+        state: "PLANNED",
+        effectiveScheduledAt: { lt: CUTOFF },
+      },
+      data: { state: "CANCELED" },
+    });
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    expect(projectCloseOperationUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ seriesCursor: expect.anything() }),
+      }),
+    );
   });
 
   it("rejects reusing a retry key for canceling owed work", async () => {

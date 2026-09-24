@@ -575,6 +575,8 @@ const taskScheduleOccurrence = {
 };
 
 export const taskScheduleTestPrisma = {
+  /** Calendar scope locks: every locked row exists. */
+  $queryRaw: vi.fn(async () => [{ id: "locked" }]),
   taskSchedule,
   taskScheduleOccurrence,
   /** Only the releases write Tasks; routes must never write them. */
@@ -641,11 +643,16 @@ export const taskScheduleTestPrisma = {
   },
   project: {
     findFirst: vi.fn(
-      async ({ where }: { where: { id: string; workspaceId: string } }) =>
-        taskScheduleTestDb.projects.get(where.id)?.workspaceId ===
-        where.workspaceId
-          ? { id: where.id }
-          : null,
+      async ({ where }: { where: { id: string; workspaceId: string } }) => {
+        const project = taskScheduleTestDb.projects.get(where.id);
+        return project?.workspaceId === where.workspaceId
+          ? {
+              id: where.id,
+              closingAt: project.closingAt ?? null,
+              closedAt: project.closedAt ?? null,
+            }
+          : null;
+      },
     ),
   },
   workspace: {
