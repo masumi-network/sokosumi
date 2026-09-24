@@ -8,6 +8,11 @@ struct ConversationSidebarView: View {
   @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.openSettings) private var openSettings
+  @Environment(\.openURL) private var openURL
+
+  /// Web's inset rows start on the room row's label column: past its 20 pt mark and the gap after it. The
+  /// indent is padding inside the row, since the sidebar List ignores `listRowInsets` on a badged row.
+  private static let threadRowIndent: CGFloat = DirectRoomAvatarStack.faceSize + 8
 
   @State private var startDirect: CompositionPresentation?
   @State private var createChannel: CompositionPresentation?
@@ -77,8 +82,9 @@ struct ConversationSidebarView: View {
             Section {
               sectionHeader("Pinned", section: .pinned, closedAttention: resolveSectionAttention(partitioned.pinned))
               if !workspaces.sidebar.collapsedSections.contains(.pinned) {
-                ForEach(partitioned.pinned, id: \.id) { room in
-                  pinnedRow(room, in: partitioned.pinned)
+                // Reorder mode lists rooms only, so the move offsets stay room offsets.
+                ForEach(sidebarRoomListItems(partitioned.pinned, reordering: workspaces.sidebar.pinnedReorderMode)) { item in
+                  sidebarItem(item) { pinnedRow($0, in: partitioned.pinned) }
                 }
                 .onMove(perform: workspaces.sidebar.pinnedReorderMode ? { movePinned(partitioned.pinned, from: $0, to: $1) } : nil)
               }
@@ -92,8 +98,8 @@ struct ConversationSidebarView: View {
                   Text("No channels yet.")
                     .foregroundStyle(.secondary)
                 }
-                ForEach(partitioned.channels, id: \.id) { room in
-                  roomRow(room, icon: room.discoverability == ._private ? "lock" : "number")
+                ForEach(sidebarRoomListItems(partitioned.channels)) { item in
+                  sidebarItem(item) { roomRow($0, icon: $0.discoverability == ._private ? "lock" : "number") }
                 }
               }
             }
@@ -109,8 +115,8 @@ struct ConversationSidebarView: View {
                     busy: workspaces.roomMutationInFlight
                   ) { respondToInvitation($0, invitation: invitation) }
                 }
-                ForEach(partitioned.external, id: \.id) { room in
-                  roomRow(room, icon: "globe")
+                ForEach(sidebarRoomListItems(partitioned.external)) { item in
+                  sidebarItem(item) { roomRow($0, icon: "globe") }
                 }
               }
             }
@@ -137,8 +143,8 @@ struct ConversationSidebarView: View {
                 Text("No direct messages yet.")
                   .foregroundStyle(.secondary)
               }
-              ForEach(partitioned.directMessages, id: \.id) { room in
-                roomRow(room, icon: "person", showsDirectAvatars: true)
+              ForEach(sidebarRoomListItems(partitioned.directMessages)) { item in
+                sidebarItem(item) { roomRow($0, icon: "person", showsDirectAvatars: true) }
               }
             }
           }
@@ -441,6 +447,57 @@ struct ConversationSidebarView: View {
     }
     // Outermost, so the List reads it as the row's selection value.
     .tag(SidebarDestination.room(room.id))
+  }
+
+  /// One List row per item: a room, one of its inset unread Threads, or its overflow row (row 24g2).
+  @ViewBuilder
+  private func sidebarItem(
+    _ item: SidebarRoomListItem, @ViewBuilder room roomRow: (Components.Schemas.ChatRoom) -> some View
+  ) -> some View {
+    switch item {
+    case let .room(room): roomRow(room)
+    case let .thread(row): threadRow(row)
+    case let .moreThreads(roomId, count): moreThreadsRow(roomId: roomId, count: count)
+    }
+  }
+
+  /// Web's inset Thread link: opens the Thread at its first unread reply through the chat notification's link,
+  /// the path every in-app message link takes (`ChatRootView`'s `openURL`), where the Thread's Look reads it.
+  /// Not selectable: the room row keeps the List's selection, as web's inset links never show as current.
+  private func threadRow(_ row: SidebarThreadRow) -> some View {
+    Button {
+      if let url = ChatLink.href(roomId: row.roomId, messageId: row.firstUnreadReplyId, webBaseURL: CoreSettings.webBaseURL) {
+        openURL(url)
+      }
+    } label: {
+      SidebarThreadRowLabel(row: row)
+        .padding(.leading, Self.threadRowIndent)
+    }
+    .buttonStyle(.plain)
+    .badge(threadMentionBadge(row))
+    .selectionDisabled()
+  }
+
+  /// A Thread naming the reader draws the room rows' mention badge in place of its reply count.
+  private func threadMentionBadge(_ row: SidebarThreadRow) -> Text? {
+    guard row.mentionCount > 0 else { return nil }
+    return Text(verbatim: roomCountLabel(row.mentionCount))
+      .accessibilityLabel(row.mentionCount == 1 ? "1 mention" : "\(row.mentionCount) mentions")
+  }
+
+  /// Web's "N more unread threads": what Core's cap of three left out. Opens the room's thread overview, on
+  /// the Thread labels' column.
+  private func moreThreadsRow(roomId: String, count: Int) -> some View {
+    Button {
+      Task { await workspaces.openThreadOverview(roomId: roomId, auth: auth) }
+    } label: {
+      SidebarMoreThreadsLabel(count: count)
+        .padding(.leading, Self.threadRowIndent)
+    }
+    .buttonStyle(.plain)
+    // No `listRowInsets`: the List ignores them on its badged rows (every room and Thread row) and honours them
+    // here, which would push this row off the column the others share.
+    .selectionDisabled()
   }
 
   /// Web's Threads entry (`ChatUnreadNavRows`, SOK-1159): opens the chat-level Threads view in the detail
