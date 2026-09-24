@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Apple parity: next row
 
-One fresh session carries one row of `apps/apple/PARITY.md` from `Todo` to merged. `PARITY.md` is the source of truth for scope, order and state; `apps/apple/VISION.md` ("Iteration loop") and `apps/apple/AGENTS.md` hold the rules. Read all three before step 1, the Resume checkpoint first. Run these steps once. The checkpoint's Loop command is the retired `/loop` prompt.
+One fresh session carries one row of `apps/apple/PARITY.md` from `Todo` to merged. `PARITY.md` is the source of truth for scope, order and state; `apps/apple/VISION.md` ("Iteration loop") and `apps/apple/AGENTS.md` hold the rules. Read all three before step 1, the Resume checkpoint first. Run these steps once.
 
 **Stop and ask the user** when a PR is closed unmerged, web is ambiguous, a Core API or Ably capability is missing, a project/entitlement/dependency change would be needed, or `git fetch`, signing or push fails. Report the exact error once; never retry in a loop.
 
@@ -34,7 +34,7 @@ Fill in every item. Name concrete files and SHAs, and keep claims about web beha
 - **Audit**: name the web and Core files to read at the current `main` SHA, and phrase web behaviour as numbered questions for the subagent to answer with file:line. Row text is a snapshot, so the subagent corrects stale row text in the same PR. It stops and reports only when web itself is unclear or a stop condition above applies.
 - **Split**: child rows (`<row>1`, `<row>2`) only when the audit shows independent features. Record both in PARITY and implement one.
 - **Build**: portable model and networking in `Packages/` with UI-free tests using fixed IDs and time; native SwiftUI in the app; reuse the existing seam. Native Mac affordances win over copying web markup: keep clickable controls and native toolbar items, and record each deviation in PARITY.
-- **Tests first**: every new test is shown to fail before the fix. Render fixtures host the view over the window background with an opaque-footer guard. Save a combined light/dark PNG at an absolute path, and commit a half-size copy under `apps/apple/docs/images/`.
+- **Tests first**: every new test is shown to fail before the fix. Render fixtures host the view over the window background, so nothing renders transparent. Save a combined light/dark PNG at an absolute path, and commit a half-size copy under `apps/apple/docs/images/`.
 - **PARITY**:
   - this row set to `In review — [#<PR>](…)`, with corrected text;
   - the previous row set to `Done`, with its merge date and follow-up SHAs, keeping its unverified list;
@@ -43,7 +43,7 @@ Fill in every item. Name concrete files and SHAs, and keep claims about web beha
   - the Work order advanced.
 - **Done**: the checks in VISION.md's "Iteration loop" pass, with exact commands and counts recorded. Re-run the known-flaky tests; never disable them. Close any test host and delete derived data afterwards.
 - **Delivery**:
-  - one Conventional Commit; a draft PR whose title equals the subject;
+  - the slice lands as one Conventional Commit, and each later review fix as one more; a draft PR whose title equals the slice commit's subject;
   - re-check the PR number right before committing the PARITY edit;
   - never rebase or force-push; fetch and merge `origin/main` before a push onto an existing PR branch; after pushing, fetch and confirm the remote has the commit;
   - no Linear issues, no review requests;
