@@ -100,6 +100,7 @@ describe("addTaskParticipantsFromComment", () => {
         comment: "@user_alice @user_owner",
         visibility: TaskVisibility.PRIVATE,
         ownerId: "user_owner",
+        excludeUserId: "user_alice",
         mentionedUserIds: ["user_alice", "user_owner"],
       },
     );
@@ -111,6 +112,41 @@ describe("addTaskParticipantsFromComment", () => {
     });
     expect(createMany).toHaveBeenCalledWith({
       data: [{ taskId: "tsk_1", userId: "user_owner" }],
+      skipDuplicates: true,
+    });
+  });
+
+  it("skips the human comment author when they mention themselves", async () => {
+    const createMany = vi.fn().mockResolvedValue({ count: 1 });
+    const added = await addTaskParticipantsFromComment(
+      {
+        workspace: {
+          findUnique: vi.fn().mockResolvedValue(
+            workspaceOf([
+              { id: "user_owner", name: "Owner" },
+              { id: "user_alice", name: "Alice" },
+            ]),
+          ),
+        },
+        taskParticipant: {
+          findMany: vi.fn().mockResolvedValue([]),
+          createMany,
+        },
+      },
+      {
+        taskId: "tsk_1",
+        workspaceId: "ws_1",
+        comment: "@user_owner @user_alice",
+        visibility: TaskVisibility.PUBLIC,
+        ownerId: "user_owner",
+        excludeUserId: "user_owner",
+        mentionedUserIds: ["user_owner", "user_alice"],
+      },
+    );
+
+    expect(added).toEqual(["user_alice"]);
+    expect(createMany).toHaveBeenCalledWith({
+      data: [{ taskId: "tsk_1", userId: "user_alice" }],
       skipDuplicates: true,
     });
   });

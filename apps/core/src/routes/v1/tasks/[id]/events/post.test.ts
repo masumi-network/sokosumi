@@ -4056,7 +4056,7 @@ describe("POST /{id}/events", () => {
     expect(keys).toContain("Notifications.Task.completed");
   });
 
-  it("adds the owner, the human assignee, and the comment author when mentioned", async () => {
+  it("adds the owner and human assignee when mentioned, not the comment author", async () => {
     const tx: TransactionMock = {
       taskEvent: {
         create: vi
@@ -4078,7 +4078,7 @@ describe("POST /{id}/events", () => {
       },
       taskParticipant: {
         findMany: vi.fn().mockResolvedValue([]),
-        createMany: vi.fn().mockResolvedValue({ count: 3 }),
+        createMany: vi.fn().mockResolvedValue({ count: 2 }),
       },
     };
     mockTransaction(tx);
@@ -4101,7 +4101,6 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(201);
     expect(tx.taskParticipant?.createMany).toHaveBeenCalledWith({
       data: [
-        { taskId: TASK_ID, userId: USER_ID },
         { taskId: TASK_ID, userId: "user_owner" },
         { taskId: TASK_ID, userId: "user_assignee" },
       ],
