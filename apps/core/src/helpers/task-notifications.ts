@@ -477,17 +477,37 @@ export async function markTaskArchivedRead(task: {
 }
 
 async function markParticipantAddedRead(taskId: string): Promise<void> {
-  const rows = await prisma.taskParticipant.findMany({
-    where: { taskId },
-    select: { userId: true },
-  });
-  for (const row of rows) {
-    await markAttentionRead(
-      row.userId,
-      NotificationKind.TASK,
-      taskId,
-      [TASK_PARTICIPANT_ADDED_MESSAGE_KEY],
-      "task-participant-settled-read",
-    );
+  try {
+    const rows = await prisma.taskParticipant.findMany({
+      where: { taskId },
+      select: { userId: true },
+    });
+    for (const row of rows) {
+      await markAttentionRead(
+        row.userId,
+        NotificationKind.TASK,
+        taskId,
+        [TASK_PARTICIPANT_ADDED_MESSAGE_KEY],
+        "task-participant-settled-read",
+      );
+    }
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: { taskId, notificationType: "task-participant-settled-read" },
+    });
   }
+}
+
+/** The removed person is no longer on the task, so their added row stops waiting. */
+export async function markTaskParticipantRemovedRead(
+  userId: string,
+  taskId: string,
+): Promise<void> {
+  await markAttentionRead(
+    userId,
+    NotificationKind.TASK,
+    taskId,
+    [TASK_PARTICIPANT_ADDED_MESSAGE_KEY],
+    "task-participant-removed-read",
+  );
 }

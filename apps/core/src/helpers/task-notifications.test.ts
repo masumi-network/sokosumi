@@ -45,6 +45,7 @@ import {
   dispatchTaskNotification,
   markTaskArchivedRead,
   markTaskAssignedRead,
+  markTaskParticipantRemovedRead,
   notifyTaskCalendarAction,
   notifyTaskHumanAssignee,
 } from "./task-notifications";
@@ -421,6 +422,25 @@ describe("markTaskAssignedRead", () => {
       "task_1",
       ["Notifications.Task.assigned"],
       "task-assigned-read",
+    );
+  });
+});
+
+describe("markTaskParticipantRemovedRead", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    markAttentionReadMock.mockResolvedValue(1);
+  });
+
+  it("marks the removed person's added row read", async () => {
+    await markTaskParticipantRemovedRead("user_3", "task_1");
+
+    expect(markAttentionReadMock).toHaveBeenCalledWith(
+      "user_3",
+      "TASK",
+      "task_1",
+      ["Notifications.Task.participantAdded"],
+      "task-participant-removed-read",
     );
   });
 });

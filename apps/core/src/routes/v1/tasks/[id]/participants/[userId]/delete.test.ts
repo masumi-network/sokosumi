@@ -13,15 +13,24 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { requireTaskCommentAccessMock, deleteManyMock, findManyMock } =
-  vi.hoisted(() => ({
-    requireTaskCommentAccessMock: vi.fn(),
-    deleteManyMock: vi.fn(),
-    findManyMock: vi.fn(),
-  }));
+const {
+  requireTaskCommentAccessMock,
+  deleteManyMock,
+  findManyMock,
+  markTaskParticipantRemovedReadMock,
+} = vi.hoisted(() => ({
+  requireTaskCommentAccessMock: vi.fn(),
+  deleteManyMock: vi.fn(),
+  findManyMock: vi.fn(),
+  markTaskParticipantRemovedReadMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCommentAccess: requireTaskCommentAccessMock,
+}));
+
+vi.mock("@/helpers/task-notifications", () => ({
+  markTaskParticipantRemovedRead: markTaskParticipantRemovedReadMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -86,5 +95,9 @@ describe("DELETE /{id}/participants/{userId}", () => {
     expect(deleteManyMock).toHaveBeenCalledWith({
       where: { taskId: "tsk_123", userId: "user_alice" },
     });
+    expect(markTaskParticipantRemovedReadMock).toHaveBeenCalledWith(
+      "user_alice",
+      "tsk_123",
+    );
   });
 });

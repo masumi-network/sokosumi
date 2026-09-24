@@ -575,12 +575,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (event.status) {
       await deliverCalendarInvalidationsNow(workspaceId);
-      waitUntil(notifyTaskStatusEvent(taskId, event.id, event.status));
     }
 
-    if (addedParticipantUserIds.length > 0) {
+    if (event.status || addedParticipantUserIds.length > 0) {
       waitUntil(
-        notifyTaskParticipantsAdded(taskId, event.id, addedParticipantUserIds),
+        (async () => {
+          if (addedParticipantUserIds.length > 0) {
+            await notifyTaskParticipantsAdded(
+              taskId,
+              event.id,
+              addedParticipantUserIds,
+            );
+          }
+          if (event.status) {
+            await notifyTaskStatusEvent(taskId, event.id, event.status);
+          }
+        })(),
       );
     }
 

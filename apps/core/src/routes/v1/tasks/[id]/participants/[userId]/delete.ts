@@ -4,6 +4,7 @@ import { requireTaskCommentAccess } from "@/helpers/access-control";
 import { userSummaryFromLoadedRelation } from "@/helpers/loaded-relation-summaries";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { markTaskParticipantRemovedRead } from "@/helpers/task-notifications";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { taskParticipantSchema } from "@/schemas/task.schema";
@@ -59,6 +60,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
     });
+
+    await markTaskParticipantRemovedRead(userId, id);
 
     return ok(
       c,

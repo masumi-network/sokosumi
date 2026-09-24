@@ -3949,6 +3949,60 @@ describe("POST /{id}/events", () => {
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
   });
 
+  it("writes the mention before the settle notification on the same event", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            comment: "done @user_alice",
+            status: TaskStatus.COMPLETED,
+          }),
+        ),
+      },
+      task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({
+          user: null,
+          organization: {
+            members: [{ user: { id: "user_alice", name: "Alice" } }],
+          },
+        }),
+      },
+      taskParticipant: {
+        findMany: vi.fn().mockResolvedValue([]),
+        createMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+    const keys: string[] = [];
+    createNotificationMock.mockImplementation(
+      async (input: { messageKey: string }) => {
+        keys.push(input.messageKey);
+        return {};
+      },
+    );
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: "org_123",
+      role: "user",
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        comment: "done @user_alice",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    await Promise.all(waitUntilCapturedPromises);
+    expect(keys[0]).toBe("Notifications.Task.participantAdded");
+    expect(keys).toContain("Notifications.Task.completed");
+  });
+
   it("adds the owner, the human assignee, and the comment author when mentioned", async () => {
     const tx: TransactionMock = {
       taskEvent: {
