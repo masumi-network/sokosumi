@@ -8,7 +8,10 @@ import {
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { TaskActivitySection } from "@/app/tasks/components/task-activity";
+import {
+  type MentionableUser,
+  TaskActivitySection,
+} from "@/app/tasks/components/task-activity";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
@@ -734,7 +737,7 @@ async function TaskActivitySectionContent({
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
   currentPlanPromise: Promise<SubscriptionPlanName | null>;
-  mentionableUsersPromise: Promise<Array<{ id: string; name: string }>>;
+  mentionableUsersPromise: Promise<MentionableUser[]>;
 }) {
   const [agents, session, viewerPlan, hasAssignedSeat, mentionableUsers, t] =
     await Promise.all([

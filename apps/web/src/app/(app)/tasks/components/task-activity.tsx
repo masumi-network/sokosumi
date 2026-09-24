@@ -104,10 +104,15 @@ interface TaskActivityProps {
   viewerPlan?: SubscriptionPlanName | null;
   canComment?: boolean;
   /** Workspace members the composer offers for `@`; mentions add them as Task participants. */
-  mentionableUsers?: ReadonlyArray<{ id: string; name: string }>;
+  mentionableUsers?: readonly MentionableUser[];
 }
 
-const NO_MENTIONABLE_USERS: ReadonlyArray<{ id: string; name: string }> = [];
+export interface MentionableUser {
+  id: string;
+  name: string;
+}
+
+const NO_MENTIONABLE_USERS: readonly MentionableUser[] = [];
 
 function getEventTimestamp(event: TaskEvent): number {
   return new Date(event.createdAt).getTime();

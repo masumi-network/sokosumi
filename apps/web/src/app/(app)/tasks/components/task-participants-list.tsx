@@ -1,12 +1,11 @@
 "use client";
 
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { Button } from "@/components/ui/button";
 import { removeTaskParticipant } from "@/lib/actions/task/action";
 import type { TaskParticipant } from "@/lib/clients/generated/core/types.gen";
@@ -50,18 +49,7 @@ export function TaskParticipantsList({
     <ul aria-label={label} className="flex min-w-0 flex-col items-end gap-1.5">
       {visibleParticipants.map(({ user }) => (
         <li key={user.id} className="flex min-w-0 items-center gap-2">
-          <Avatar className="size-5">
-            {user.image ? (
-              <AvatarImage
-                src={resolveIpfsOrHttpUrl(user.image)}
-                alt=""
-                className="object-cover"
-              />
-            ) : null}
-            <AvatarFallback className="bg-muted text-[0.625rem]">
-              {user.name.slice(0, 1).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <AssigneeAvatar assignee={{ ...user, kind: "user" }} />
           <span className="truncate text-sm font-medium">{user.name}</span>
           {canRemove ? (
             <Button
