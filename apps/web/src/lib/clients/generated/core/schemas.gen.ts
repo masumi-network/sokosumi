@@ -15824,6 +15824,12 @@ export const SocialPostCalendarItemSchema = {
                 'null'
             ]
         },
+        scheduledByImage: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         attachmentCount: {
             type: 'integer',
             minimum: 0
@@ -15860,6 +15866,7 @@ export const SocialPostCalendarItemSchema = {
         'externalHandle',
         'projectName',
         'scheduledByName',
+        'scheduledByImage',
         'attachmentCount',
         'scheduledAt',
         'sourceId',

@@ -4798,6 +4798,7 @@ export type SocialPostCalendarItem = {
     externalHandle: string | null;
     projectName: string;
     scheduledByName: string | null;
+    scheduledByImage: string | null;
     attachmentCount: number;
     scheduledAt: Date;
     sourceId: string;

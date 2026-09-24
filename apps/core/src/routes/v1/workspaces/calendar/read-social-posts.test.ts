@@ -35,7 +35,7 @@ const post = {
   workspaceId,
   socialConnection: { externalHandle: "team" },
   project: { name: "Launch project" },
-  scheduledByUser: { name: "Albina" },
+  scheduledByUser: { name: "Albina", image: "https://example.com/albina.png" },
   media: [
     {
       pathname: "drive/launch.png",
@@ -100,6 +100,7 @@ describe("Social posts in the calendar", () => {
       externalHandle: "team",
       projectName: "Launch project",
       scheduledByName: "Albina",
+      scheduledByImage: "https://example.com/albina.png",
       attachmentCount: 1,
     });
     expect(mocks.posts.mock.lastCall?.[0].where.OR[1]).toEqual({
@@ -124,6 +125,7 @@ describe("Social posts in the calendar", () => {
     const result = await readWorkspaceCalendar(workspaceId, "user", query);
     expect(result.items[0]).toMatchObject({
       scheduledByName: null,
+      scheduledByImage: null,
       attachmentCount: 0,
       projectName: "Launch project",
     });

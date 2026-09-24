@@ -196,6 +196,7 @@ export const socialPostCalendarItemSchema = z
     externalHandle: z.string().nullable(),
     projectName: z.string(),
     scheduledByName: z.string().nullable(),
+    scheduledByImage: z.string().nullable(),
     attachmentCount: z.number().int().nonnegative(),
     scheduledAt: dateTimeSchema,
     sourceId: z.string(),
