@@ -905,7 +905,9 @@ describe("project close sync", () => {
         .mockResolvedValue([]);
       // The second batch still sees an owed Run after the first.
       taskScheduleOccurrenceFindFirstMock
-        .mockResolvedValueOnce({ id: "run_2" })
+        .mockResolvedValueOnce({
+          effectiveScheduledAt: new Date("2026-09-14T09:30:00.000Z"),
+        })
         .mockResolvedValue(null);
       taskScheduleFindUniqueOrThrowMock
         .mockResolvedValueOnce(schedule)
@@ -916,7 +918,11 @@ describe("project close sync", () => {
       expect(result).toMatchObject({ processedSeries: 2, closed: 1 });
       expect(taskScheduleUpdateManyMock).toHaveBeenNthCalledWith(1, {
         where: { id: schedule.id, revision: 3, releasedCount: 5 },
-        data: { releasedCount: 6 },
+        // The next owed Run, not the one this batch released.
+        data: {
+          releasedCount: 6,
+          nextRunAt: new Date("2026-09-14T09:30:00.000Z"),
+        },
       });
       expect(taskScheduleUpdateManyMock).toHaveBeenNthCalledWith(2, {
         where: { id: schedule.id, revision: 3, releasedCount: 6 },

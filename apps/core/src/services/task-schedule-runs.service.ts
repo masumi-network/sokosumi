@@ -552,16 +552,19 @@ export async function closeTaskScheduleForProject(
         })
       : [];
   const releasedCount = schedule.releasedCount + tasks.length;
-  const stillOwed =
-    schedule.state === TaskScheduleState.ACTIVE &&
-    (await tx.taskScheduleOccurrence.findFirst({
-      where: {
-        scheduleId,
-        state: TaskScheduleOccurrenceState.PLANNED,
-        effectiveScheduledAt: owed,
-      },
-      select: { id: true },
-    })) !== null;
+  const nextOwed =
+    schedule.state === TaskScheduleState.ACTIVE
+      ? await tx.taskScheduleOccurrence.findFirst({
+          where: {
+            scheduleId,
+            state: TaskScheduleOccurrenceState.PLANNED,
+            effectiveScheduledAt: owed,
+          },
+          orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
+          select: { effectiveScheduledAt: true },
+        })
+      : null;
+  const stillOwed = nextOwed !== null;
   if (!stillOwed) {
     await stopPlannedTaskScheduleRuns(tx, scheduleId, new Date(), {
       keepOwed: false,
@@ -575,8 +578,8 @@ export async function closeTaskScheduleForProject(
       revision: schedule.revision,
       releasedCount: schedule.releasedCount,
     },
-    data: stillOwed
-      ? { releasedCount }
+    data: nextOwed
+      ? { releasedCount, nextRunAt: nextOwed.effectiveScheduledAt }
       : {
           releasedCount,
           state: TaskScheduleState.ENDED,
