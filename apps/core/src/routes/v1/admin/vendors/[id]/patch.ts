@@ -4,12 +4,12 @@ import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
-import { mapVendor, vendorLogoPatchData } from "@/helpers/vendor";
+import { mapAdminVendor, vendorLogoPatchData } from "@/helpers/vendor";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
+  adminVendorSchema,
   patchVendorRequestSchema,
-  vendorSchema,
 } from "@/schemas/vendor.schema";
 
 const params = z.object({
@@ -24,7 +24,8 @@ const route = createRoute({
   method: "patch",
   path: "/{id}",
   operationId: "patchAdminVendor",
-  description: "Update a vendor (admin only).",
+  description:
+    "Update a vendor (admin only). Set listed to publish a self-service vendor on GET /v1/vendors.",
   tags: ["Admin"],
   request: {
     params,
@@ -37,7 +38,7 @@ const route = createRoute({
     },
   },
   responses: {
-    200: jsonSuccessResponse(vendorSchema, "The updated vendor"),
+    200: jsonSuccessResponse(adminVendorSchema, "The updated vendor"),
     400: jsonErrorResponse("Bad Request - validation failed"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
@@ -66,11 +67,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           name: body.name,
           slug: body.slug,
+          ...(body.listed !== undefined ? { listed: body.listed } : {}),
           ...vendorLogoPatchData(body.logos),
         },
       });
 
-      return ok(c, mapVendor(vendor));
+      return ok(c, mapAdminVendor(vendor));
     } catch (error) {
       if (isSlugUniqueConstraintError(error)) {
         throw conflict(
