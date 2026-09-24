@@ -15,7 +15,8 @@ const BLOCKQUOTE_PREFIX_REGEX = /^>\s?/gm;
 const INLINE_CODE_REGEX = /`([^`]+)`/g;
 const WRAPPING_QUOTES_REGEX = /^["'“”‘’«»]+|["'“”‘’«»]+$/g;
 const TRAILING_PERIODS_REGEX = /\.+$/u;
-const REFUSAL_REGEX = /\b(?:i cannot|unable to|i need to be transparent)\b/i;
+const REFUSAL_REGEX =
+  /\b(?:i cannot|i can['’]t|i['’]m sorry|i am sorry|unable to|i need to be transparent)\b/i;
 const DUMP_REGEX = /^\s*#|##|```|[\n\r]|(?:^|\s)\d+\.\s.+\s\d+\.\s/;
 
 function stripHtmlTags(text: string): string {

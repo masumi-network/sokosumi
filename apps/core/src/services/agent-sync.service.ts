@@ -549,6 +549,7 @@ async function upsertRegistryAgent(
         ...(shouldReplaceCollections
           ? {
               summary: null,
+              summaryDeclinedAt: null,
               ...(exampleOutputRows.length > 0
                 ? {
                     exampleOutput: {
@@ -888,6 +889,7 @@ async function syncAgentSummaries(
       status: AgentStatus.ONLINE,
       isShown: true,
       summary: null,
+      summaryDeclinedAt: null,
       OR: [
         { description: { not: null } },
         { metadataOverride: { description: { not: null } } },
@@ -905,6 +907,7 @@ async function syncAgentSummaries(
   let updatedCount = 0;
   let skippedNoDescriptionCount = 0;
   let skippedNoSummaryCount = 0;
+  let declinedCount = 0;
   let failedCount = 0;
 
   for (const agent of agentsWithoutSummary) {
@@ -919,10 +922,10 @@ async function syncAgentSummaries(
     }
 
     try {
-      const summary = await openrouterClient.generateAgentSummary(description, {
+      const result = await openrouterClient.generateAgentSummary(description, {
         abortSignal: options.abortSignal,
       });
-      if (!summary) {
+      if (!result) {
         skippedNoSummaryCount++;
         continue;
       }
@@ -933,14 +936,23 @@ async function syncAgentSummaries(
         return;
       }
 
+      // A decline is stored so the Agent leaves this candidate set; otherwise
+      // it is picked again every run and can crowd out the rest of the batch.
       await prisma.agent.update({
         where: {
           id: agent.id,
         },
-        data: {
-          summary,
-        },
+        data:
+          result.kind === "summary"
+            ? { summary: result.text }
+            : // A decline changes nothing a viewer sees; keep the public
+              // `updatedAt` where it was.
+              { summaryDeclinedAt: new Date(), updatedAt: agent.updatedAt },
       });
+      if (result.kind === "declined") {
+        declinedCount++;
+        continue;
+      }
       updatedCount++;
     } catch (error) {
       failedCount++;
@@ -949,7 +961,7 @@ async function syncAgentSummaries(
   }
 
   console.info(
-    `[sync/agents-summary] Completed summary sync (updated=${updatedCount}, skippedNoDescription=${skippedNoDescriptionCount}, skippedNoSummary=${skippedNoSummaryCount}, failed=${failedCount}, durationMs=${Date.now() - startedAt})`,
+    `[sync/agents-summary] Completed summary sync (updated=${updatedCount}, skippedNoDescription=${skippedNoDescriptionCount}, skippedNoSummary=${skippedNoSummaryCount}, declined=${declinedCount}, failed=${failedCount}, durationMs=${Date.now() - startedAt})`,
   );
 }
 
