@@ -2260,6 +2260,76 @@
           "disconnect": "No pudimos desconectar esta cuenta de X. Inténtalo de nuevo."
         }
       },
+      "SocialPosts": {
+        "loadMore": "Cargar más",
+        "loading": "Cargando…",
+        "title": "Publicaciones sociales",
+        "description": "Redacta publicaciones de texto para X y prográmalas desde este proyecto.",
+        "newPost": "Nueva publicación",
+        "moreActions": "Acciones de la publicación",
+        "noAccount": "Sin cuenta",
+        "sections": {
+          "upcoming": "Próximas",
+          "drafts": "Borradores",
+          "history": "Historial"
+        },
+        "empty": {
+          "upcoming": "Aún no hay publicaciones programadas.",
+          "drafts": "Aún no hay borradores.",
+          "history": "Aún no hay publicaciones publicadas, fallidas o canceladas."
+        },
+        "status": {
+          "DRAFT": "Borrador",
+          "SCHEDULED": "Programada",
+          "PUBLISHING": "Publicando",
+          "PUBLISHED": "Publicada",
+          "FAILED": "Fallida",
+          "MISSED": "Omitida",
+          "CANCELED": "Cancelada"
+        },
+        "creator": {
+          "user": "Usuario",
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot"
+        },
+        "composer": {
+          "newTitle": "Nueva publicación",
+          "editTitle": "Editar publicación",
+          "scheduleTitle": "Programar publicación",
+          "rescheduleTitle": "Reprogramar publicación",
+          "description": "Escribe el texto, elige la cuenta y decide cuándo se publica.",
+          "text": "Texto",
+          "textPlaceholder": "¿Qué quieres publicar?",
+          "characters": "{count} / {limit}",
+          "account": "Cuenta",
+          "noAccount": "Elige una cuenta",
+          "unknownHandle": "Cuenta de X desconocida",
+          "scheduledAt": "Hora programada",
+          "scheduledAtTooSoon": "Elige una hora que sea al menos un minuto en el futuro.",
+          "saveDraft": "Guardar borrador",
+          "save": "Guardar",
+          "schedule": "Programar",
+          "reschedule": "Reprogramar",
+          "cancel": "Cancelar publicación",
+          "edit": "Editar",
+          "close": "Cerrar"
+        },
+        "cancelDialog": {
+          "title": "¿Cancelar esta publicación?",
+          "description": "La publicación no se publicará. Puedes programarla de nuevo más tarde.",
+          "confirm": "Cancelar publicación"
+        },
+        "toasts": {
+          "created": "Borrador guardado.",
+          "scheduled": "Publicación programada.",
+          "updated": "Publicación actualizada.",
+          "canceled": "Publicación cancelada.",
+          "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
+          "failed": "Algo salió mal. Inténtalo de nuevo.",
+          "unauthenticated": "Inicia sesión para continuar.",
+          "unauthenticatedAction": "Iniciar sesión"
+        }
+      },
       "Detail": {
         "back": "Volver a proyectos",
         "header": {

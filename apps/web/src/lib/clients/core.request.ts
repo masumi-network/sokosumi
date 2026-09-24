@@ -226,6 +226,7 @@ export function toCoreApiActionError(error: unknown): ActionError {
     return {
       message,
       code: mapCoreApiStatusToCommonErrorCode(error.status),
+      ...(error.kind ? { kind: error.kind } : {}),
     };
   }
 
