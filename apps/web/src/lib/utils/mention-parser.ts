@@ -8,6 +8,10 @@ export interface MentionMatch {
   hasLegacyFormat: boolean;
 }
 
+function escapeMarkdownDisplayText(value: string): string {
+  return value.replace(/[\\`*_[\]{}()#+\-.!<>|~]/g, "\\$&");
+}
+
 export function slugifyMentionValue(value: string): string {
   return value
     .trim()
@@ -63,7 +67,7 @@ export function formatMentionsAsMarkdownLinks(
     if (agentName) {
       formatted += `[@${agentName}](/agents/${match.id}/jobs)`;
     } else if (userName) {
-      formatted += `@${userName}`;
+      formatted += `@${escapeMarkdownDisplayText(userName)}`;
     } else {
       formatted += text.slice(match.start, match.end);
     }
