@@ -129,6 +129,7 @@ const SCHEDULED_TASK: TaskListItem = {
   owner: { id: "user-1", name: "Ada", image: null },
   userId: "user-1",
   user: { id: "user-1", name: "Ada", image: null },
+  participants: [],
   organizationId: null,
   organization: null,
   projectId: null,

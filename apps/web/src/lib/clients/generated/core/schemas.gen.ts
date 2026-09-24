@@ -4526,6 +4526,14 @@ export const TaskSchema = {
             description: 'Discriminated assignee: coworker, workspace member, Soko Bot, or unassigned.',
             example: null
         },
+        participants: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskParticipant'
+            },
+            description: 'Workspace members added by @ in Task comment activity, in join order. Owner and assignee are omitted unless they were mentioned. Empty until someone is mentioned.',
+            example: []
+        },
         coworkerId: {
             type: [
                 'string',
@@ -4719,6 +4727,7 @@ export const TaskSchema = {
         'assigneeSokoBotId',
         'assigneeUserId',
         'assignee',
+        'participants',
         'coworkerId',
         'coworker',
         'creator',
@@ -4964,6 +4973,25 @@ export const SokoBotSummarySchema = {
         'avatarSeed',
         'avatarImageUrl',
         'owner'
+    ]
+} as const;
+
+export const TaskParticipantSchema = {
+    type: 'object',
+    properties: {
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
+        addedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-09-24T12:00:00.000Z',
+            description: 'When the @ mention added this person to the Task.'
+        }
+    },
+    required: [
+        'user',
+        'addedAt'
     ]
 } as const;
 
@@ -19697,6 +19725,14 @@ export const TaskListItemSchema = {
             description: 'Discriminated assignee: coworker, workspace member, Soko Bot, or unassigned.',
             example: null
         },
+        participants: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskParticipant'
+            },
+            description: 'Workspace members added by @ in Task comment activity, in join order. Owner and assignee are omitted unless they were mentioned. Empty until someone is mentioned.',
+            example: []
+        },
         coworkerId: {
             type: [
                 'string',
@@ -19844,6 +19880,7 @@ export const TaskListItemSchema = {
         'assigneeSokoBotId',
         'assigneeUserId',
         'assignee',
+        'participants',
         'coworkerId',
         'coworker',
         'creator',
@@ -20077,6 +20114,21 @@ export const TaskLinkDeletedSchema = {
     },
     required: [
         'deleted'
+    ]
+} as const;
+
+export const TaskParticipantsSchema = {
+    type: 'object',
+    properties: {
+        participants: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskParticipant'
+            }
+        }
+    },
+    required: [
+        'participants'
     ]
 } as const;
 

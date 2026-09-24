@@ -26,6 +26,7 @@ function buildTask(
     assigneeSokoBotId: null,
     assigneeUserId: null,
     assignee: null,
+    participants: [],
     coworkerId: null,
     coworker: null,
     creator: {

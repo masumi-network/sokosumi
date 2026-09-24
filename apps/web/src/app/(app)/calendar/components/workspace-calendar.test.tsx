@@ -170,6 +170,7 @@ function buildScheduledTask(
     owner,
     userId: "user-1",
     user: owner,
+    participants: [],
     organizationId: null,
     organization: null,
     projectId: null,
