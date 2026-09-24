@@ -151,6 +151,8 @@ const MESSAGES: Record<string, string> = {
   "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
   "toasts.unauthenticated": "Please sign in to continue.",
   "toasts.unauthenticatedAction": "Sign in",
+  "outcomes.authorizationRevoked":
+    "Coworker scheduling access was revoked. Reschedule this post to publish it.",
 };
 
 vi.mock("next-intl", async () => {
@@ -1519,5 +1521,34 @@ describe("ProjectSocialPosts", () => {
         "Something went wrong. Try again.",
       ),
     );
+  });
+
+  it("localizes a revoked scheduling authorization failure", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            ...FAILED_POST,
+            lastError: "Internal authorization failure text",
+            lastAttempt: {
+              ...FAILED_POST.lastAttempt!,
+              outcome: "authorization_revoked",
+            },
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const row = screen.getByTestId("social-post-post-failed");
+    expect(
+      within(row).getByText(
+        "Coworker scheduling access was revoked. Reschedule this post to publish it.",
+      ),
+    ).toBeVisible();
+    expect(
+      within(row).queryByText("Internal authorization failure text"),
+    ).not.toBeInTheDocument();
   });
 });

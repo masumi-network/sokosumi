@@ -2274,6 +2274,9 @@
         "publishedAt": "Veröffentlicht {date}",
         "failedAt": "Fehlgeschlagen {date}",
         "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
+        "outcomes": {
+          "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen."
+        },
         "actions": {
           "publishNow": "Jetzt veröffentlichen",
           "retry": "Erneut versuchen"

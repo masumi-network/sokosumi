@@ -4976,7 +4976,7 @@ export type SocialPostCreator = {
 export type SocialPostLastAttempt = {
     attempt: number;
     trigger: 'scheduler' | 'publish_now';
-    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | null;
+    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | 'authorization_revoked' | null;
     errorKind: string | null;
     providerOutcome: string | null;
     finishedAt: Date | null;
@@ -34138,7 +34138,7 @@ export type GetProjectsByIdSocialPostsData = {
     };
     query?: {
         /**
-         * Cursor for pagination (ID of the last item from previous page)
+         * UUID of the last Social post from the previous page
          */
         cursor?: string;
         /**

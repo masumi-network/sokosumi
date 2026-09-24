@@ -238,8 +238,16 @@ describe("social post publisher service", () => {
           OR: [
             {
               status: "SCHEDULED",
-              scheduledByUser: {
-                members: { some: { organization: { slug: "utxo" } } },
+              AND: {
+                OR: [
+                  { scheduledByCoworkerId: { not: null } },
+                  {
+                    scheduledByCoworkerId: null,
+                    scheduledByUser: {
+                      members: { some: { organization: { slug: "utxo" } } },
+                    },
+                  },
+                ],
               },
               scheduledAt: { lte: NOW },
               OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: NOW } }],
@@ -364,8 +372,16 @@ describe("social post publisher service", () => {
           OR: [
             {
               status: "SCHEDULED",
-              scheduledByUser: {
-                members: { some: { organization: { slug: "utxo" } } },
+              AND: {
+                OR: [
+                  { scheduledByCoworkerId: { not: null } },
+                  {
+                    scheduledByCoworkerId: null,
+                    scheduledByUser: {
+                      members: { some: { organization: { slug: "utxo" } } },
+                    },
+                  },
+                ],
               },
               scheduledAt: { lte: NOW },
               OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: NOW } }],
@@ -456,6 +472,17 @@ describe("social post publisher service", () => {
       expectedData: {
         status: "FAILED",
         lastError: "Social connection needs reconnecting",
+      },
+    },
+    {
+      outcome: "authorization_revoked",
+      providerOutcome: null,
+      post: {},
+      expectedResult: { retried: 0, failed: 1, missed: 0 },
+      expectedData: {
+        status: "FAILED",
+        lastError:
+          "Coworker scheduling access was revoked. A workspace member must reschedule this post.",
       },
     },
   ])(
@@ -845,6 +872,44 @@ describe("social post publisher service", () => {
           outcome: "succeeded",
           providerOutcome: "201 created, 2 media",
         }),
+      });
+    });
+
+    it("does not contact X when coworker access is revoked during media download", async () => {
+      socialPostFindFirstMock
+        .mockReset()
+        .mockResolvedValueOnce({
+          ...duePost,
+          media: [IMAGE_REF],
+          scheduledByUserId: USER_ID,
+          scheduledByCoworker: { id: "cow_123", vendorId: "vendor_123" },
+          workspace: { organizationId: null },
+        })
+        .mockResolvedValue(null);
+      publishingAccessMock
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(forbidden("Grant revoked"));
+      const { publishDueSocialPosts } = await loadService();
+
+      const result = await publishDueSocialPosts(syncContext);
+
+      expect(result).toMatchObject({ failed: 1, published: 0 });
+      expect(ssrfSafeFetchMock).toHaveBeenCalledOnce();
+      expect(publishingAccessMock).toHaveBeenCalledTimes(2);
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(attemptUpdateMock).toHaveBeenCalledWith({
+        where: { id: ATTEMPT_ID },
+        data: {
+          finishedAt: NOW,
+          outcome: "authorization_revoked",
+          errorKind: null,
+          providerOutcome: null,
+          externalId: null,
+        },
+      });
+      expect(settleCall().data).toMatchObject({
+        status: "FAILED",
+        nextAttemptAt: null,
       });
     });
 
@@ -1285,5 +1350,36 @@ describe("social post publisher service", () => {
         }),
       }),
     );
+  });
+
+  it("claims and fails a coworker schedule whose contextual user was deleted", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        scheduledByUserId: null,
+        scheduledByCoworker: { id: "cow_123", vendorId: "vendor_123" },
+        workspace: { organizationId: null },
+      })
+      .mockResolvedValue(null);
+    const { publishDueSocialPosts } = await loadService();
+
+    const result = await publishDueSocialPosts(syncContext);
+
+    expect(result).toMatchObject({ claimed: 1, failed: 1, published: 0 });
+    expect(publishingAccessMock).not.toHaveBeenCalled();
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(attemptCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          outcome: "authorization_revoked",
+          toolSlug: null,
+        }),
+      }),
+    );
+    expect(settleCall().data).toMatchObject({
+      status: "FAILED",
+      nextAttemptAt: null,
+    });
   });
 });

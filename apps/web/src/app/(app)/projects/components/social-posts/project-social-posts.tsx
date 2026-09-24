@@ -247,7 +247,11 @@ export function ProjectSocialPosts({
       if (post.status === "PUBLISHED") {
         toast.success(t("toasts.published"));
       } else if (post.lastError) {
-        toast.error(t("toasts.publishFailed", { error: post.lastError }));
+        const error =
+          post.lastAttempt?.outcome === "authorization_revoked"
+            ? t("outcomes.authorizationRevoked")
+            : post.lastError;
+        toast.error(t("toasts.publishFailed", { error }));
       } else {
         toast.error(t("toasts.failed"));
       }
@@ -316,6 +320,10 @@ export function ProjectSocialPosts({
                     ? `${t(`creator.${post.creator.kind}`)} · ${post.creator.name}`
                     : t(`creator.${post.creator.kind}`);
                   const failedAt = post.lastAttempt?.finishedAt ?? null;
+                  const failureReason =
+                    post.lastAttempt?.outcome === "authorization_revoked"
+                      ? t("outcomes.authorizationRevoked")
+                      : post.lastError;
 
                   return (
                     <li
@@ -412,9 +420,9 @@ export function ProjectSocialPosts({
                         ) : null}
                         {post.status === "FAILED" ? (
                           <div className="space-y-0.5 text-xs">
-                            {post.lastError ? (
+                            {failureReason ? (
                               <p className="text-destructive">
-                                {post.lastError}
+                                {failureReason}
                               </p>
                             ) : null}
                             {failedAt ? (

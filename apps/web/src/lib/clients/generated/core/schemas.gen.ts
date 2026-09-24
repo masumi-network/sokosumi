@@ -16603,6 +16603,7 @@ export const SocialPostLastAttemptSchema = {
                 'failed_permanent',
                 'missed',
                 'connection_inactive',
+                'authorization_revoked',
                 null
             ]
         },
