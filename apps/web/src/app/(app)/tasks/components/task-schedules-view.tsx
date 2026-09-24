@@ -36,6 +36,7 @@ interface TaskSchedulesViewProps {
   schedules: TaskSchedule[];
   nextCursor: string | null;
   coworkerOptions: CoworkerOption[];
+  assigneeDisplayOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   selectedProjectId: string | null;
   selectedState: TaskScheduleState | null;
@@ -51,6 +52,7 @@ export function TaskSchedulesView({
   schedules,
   nextCursor,
   coworkerOptions,
+  assigneeDisplayOptions,
   projectOptions,
   selectedProjectId,
   selectedState,
@@ -166,7 +168,7 @@ export function TaskSchedulesView({
               <TaskScheduleRow
                 key={schedule.id}
                 schedule={schedule}
-                coworkerOptions={coworkerOptions}
+                coworkerOptions={assigneeDisplayOptions}
               />
             ))}
           </ul>

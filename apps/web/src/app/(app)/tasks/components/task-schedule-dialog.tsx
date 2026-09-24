@@ -216,11 +216,7 @@ export function TaskScheduleDialog({
               <Label>{t("assignee")}</Label>
               <TaskAssigneePicker
                 value={assigneeValue}
-                // Members are in the list so a stored assignee still has a
-                // name. Schedules cannot assign one.
-                options={coworkerOptions.filter(
-                  (option) => option.kind !== "user",
-                )}
+                options={coworkerOptions}
                 labels={{
                   ariaLabel: t("assignee"),
                   unassigned: tNewTask("unassigned"),

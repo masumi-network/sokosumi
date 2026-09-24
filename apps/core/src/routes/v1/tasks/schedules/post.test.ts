@@ -1,15 +1,20 @@
+import { createHash } from "node:crypto";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
 import {
   COWORKER_AUTH,
   COWORKER_ID,
   MEMBER_ID,
+  ORG_WORKSPACE_ID,
   OWNER_ID,
   PROJECT_ID,
   resetTaskScheduleTestDb,
   runsOf,
   SOKO_BOT_AUTH,
   SOKO_BOT_ID,
+  seedTaskSchedule,
   taskScheduleTestDb,
   taskScheduleTestPrisma,
   userAuth,
@@ -407,6 +412,46 @@ describe("POST /tasks/schedules", () => {
       };
       expect(replayed.id).toBe(created.id);
       expect(taskScheduleTestDb.schedules).toHaveLength(1);
+    });
+
+    it("replays a member-assigned schedule created before the member ban", async () => {
+      const legacyBody = { ...body, assigneeUserId: MEMBER_ID };
+      const { operationId: _operationId, ...request } =
+        createTaskScheduleRequestSchema.parse(legacyBody);
+      const schedule = seedTaskSchedule({ assigneeUserId: MEMBER_ID });
+      taskScheduleTestDb.createOperations.push({
+        id: "01960001-0001-7001-8001-0000000000dd",
+        workspaceId: ORG_WORKSPACE_ID,
+        operationId: OPERATION_ID,
+        scheduleId: schedule.id,
+        createdAt: schedule.createdAt,
+        requestFingerprint: createHash("sha256")
+          .update(
+            JSON.stringify({
+              ownerId: OWNER_ID,
+              creatorUserId: OWNER_ID,
+              creatorCoworkerId: null,
+              creatorSokoBotId: null,
+              request,
+            }),
+          )
+          .digest("hex"),
+      });
+
+      const retry = await post(legacyBody);
+
+      expect(retry.status).toBe(201);
+      expect((await retry.json()).data).toMatchObject({
+        id: schedule.id,
+        assigneeUserId: MEMBER_ID,
+      });
+      const fresh = await post({
+        ...legacyBody,
+        operationId: "01960001-0001-7001-8001-0000000000ee",
+      });
+      expect(fresh.status).toBe(400);
+      expect(taskScheduleTestDb.schedules).toHaveLength(1);
+      expect(taskScheduleTestDb.createOperations).toHaveLength(1);
     });
 
     it("refuses the same key with a different request", async () => {

@@ -18,7 +18,7 @@ vi.mock("next-intl/server", () => ({
   getTranslations: vi.fn(async () => (key: string) => key),
 }));
 
-import { listTaskScheduleAssigneeDisplayOptions } from "./task-schedule-assignee-options";
+import { loadTaskScheduleAssigneeOptions } from "./task-schedule-assignee-options";
 
 const MEMBER = {
   id: "user-1",
@@ -50,7 +50,7 @@ const COWORKER = {
   },
 };
 
-describe("listTaskScheduleAssigneeDisplayOptions", () => {
+describe("loadTaskScheduleAssigneeOptions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listAssigneesMock.mockResolvedValue({
@@ -65,11 +65,18 @@ describe("listTaskScheduleAssigneeDisplayOptions", () => {
     listTaskAssigneeMemberOptionsMock.mockResolvedValue([MEMBER]);
   });
 
-  it("keeps agent choices and adds the stored member name", async () => {
-    const options = await listTaskScheduleAssigneeDisplayOptions("org-1");
+  it("keeps Core's choices separate from stored member names", async () => {
+    const { selectableOptions, displayOptions } =
+      await loadTaskScheduleAssigneeOptions("org-1");
 
     expect(listTaskAssigneeMemberOptionsMock).toHaveBeenCalledWith("org-1");
-    expect(options.map((option) => [option.id, option.kind])).toEqual([
+    expect(selectableOptions.map((option) => [option.id, option.kind])).toEqual(
+      [
+        ["bot-1", "sokoBot"],
+        ["cow-1", "coworker"],
+      ],
+    );
+    expect(displayOptions.map((option) => [option.id, option.kind])).toEqual([
       ["bot-1", "sokoBot"],
       ["cow-1", "coworker"],
       ["user-1", "user"],
@@ -82,10 +89,12 @@ describe("listTaskScheduleAssigneeDisplayOptions", () => {
       { ...MEMBER, id: "cow-1", name: "Not Ops" },
     ]);
 
-    const options = await listTaskScheduleAssigneeDisplayOptions(null);
+    const { displayOptions } = await loadTaskScheduleAssigneeOptions(null);
 
-    expect(options.filter((option) => option.id === "cow-1")).toHaveLength(1);
-    expect(options.map((option) => option.id)).toEqual([
+    expect(
+      displayOptions.filter((option) => option.id === "cow-1"),
+    ).toHaveLength(1);
+    expect(displayOptions.map((option) => option.id)).toEqual([
       "bot-1",
       "cow-1",
       "user-1",

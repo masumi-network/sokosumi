@@ -23,14 +23,20 @@ export async function listTaskScheduleAssigneeOptions(): Promise<
   );
 }
 
-/** Agents plus current members, so a stored member assignee still has a name. */
-export async function listTaskScheduleAssigneeDisplayOptions(
+/** Keep Core's selectable choices separate from names of stored assignees. */
+export async function loadTaskScheduleAssigneeOptions(
   organizationId: string | null,
-): Promise<CoworkerOption[]> {
-  const [agents, members] = await Promise.all([
+) {
+  const [selectableOptions, members] = await Promise.all([
     listTaskScheduleAssigneeOptions(),
     listTaskAssigneeMemberOptions(organizationId),
   ]);
-  const seen = new Set(agents.map((option) => option.id));
-  return [...agents, ...members.filter((member) => !seen.has(member.id))];
+  const seen = new Set(selectableOptions.map((option) => option.id));
+  return {
+    selectableOptions,
+    displayOptions: [
+      ...selectableOptions,
+      ...members.filter((member) => !seen.has(member.id)),
+    ],
+  };
 }

@@ -157,7 +157,7 @@ describe("TaskScheduleDialog", () => {
 
   it("shows the assignees supplied by Core", async () => {
     const user = userEvent.setup();
-    renderDialog({ coworkerOptions: [COWORKER, SOKO_BOT, MEMBER] });
+    renderDialog({ coworkerOptions: [COWORKER, SOKO_BOT] });
 
     await user.click(screen.getByRole("combobox", { name: /assignee/ }));
 
@@ -345,7 +345,7 @@ describe("TaskScheduleDialog", () => {
     const user = userEvent.setup();
     renderDialog({
       canCreatePrivate: true,
-      coworkerOptions: [COWORKER, MEMBER],
+      coworkerOptions: [COWORKER],
       initialBlueprint: {
         name: "Confidential",
         visibility: "PRIVATE",

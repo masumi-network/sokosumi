@@ -234,7 +234,6 @@ export async function createTaskSchedule(
   const actor = await resolveScheduleActor(vars);
   const domainActor = toDomainActor(actor);
   const creator = { ownerId: actor.userId, ...creatorFields(domainActor) };
-  requireScheduleAssignee(input.assigneeUserId);
   const { operationId, ...request } = input;
   const replay = operationId
     ? createOperationReplay(actor.workspace.workspaceId, operationId, {
@@ -242,13 +241,14 @@ export async function createTaskSchedule(
         request,
       })
     : null;
-  // A retry answers with the schedule it made, even once its rule would no
-  // longer validate (an end date that has passed since).
+  // A retry answers with the schedule it made, even if its rule or assignee
+  // would no longer be accepted for a new schedule.
   const replayed = await replay?.find();
   if (replayed) {
     return replayed;
   }
 
+  requireScheduleAssignee(input.assigneeUserId);
   validateTaskScheduleRule(input.rule);
   const visibility = resolveVisibility(input.visibility, actor.workspace);
 

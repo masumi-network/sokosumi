@@ -15,11 +15,13 @@ const {
   projectSwitcherMock,
   replaceMock,
   searchParamsRef,
+  scheduleDialogMock,
 } = vi.hoisted(() => ({
   loadMoreTaskSchedulesMock: vi.fn(),
   projectSwitcherMock: vi.fn(),
   replaceMock: vi.fn(),
   searchParamsRef: { current: new URLSearchParams() },
+  scheduleDialogMock: vi.fn(),
 }));
 
 vi.mock("next-intl", () => ({
@@ -42,7 +44,10 @@ vi.mock("./tasks-project-switcher", () => ({
 }));
 
 vi.mock("./task-schedule-dialog", () => ({
-  TaskScheduleDialog: () => <div role="dialog" aria-label="schedule dialog" />,
+  TaskScheduleDialog: (props: unknown) => {
+    scheduleDialogMock(props);
+    return <div role="dialog" aria-label="schedule dialog" />;
+  },
 }));
 
 vi.mock("@/app/tasks/actions", () => ({
@@ -61,6 +66,14 @@ const ELENA: CoworkerOption = {
     slug: "vendor",
     logos: { light: null, dark: null },
   },
+};
+
+const MEMBER: CoworkerOption = {
+  ...ELENA,
+  id: "user_2",
+  slug: "maya",
+  name: "Maya",
+  kind: "user",
 };
 
 function schedule(overrides: Partial<TaskSchedule>): TaskSchedule {
@@ -116,6 +129,7 @@ function renderView(
       schedules={schedules}
       nextCursor={nextCursor}
       coworkerOptions={[ELENA]}
+      assigneeDisplayOptions={[ELENA, MEMBER]}
       projectOptions={[]}
       selectedProjectId={projectId}
       selectedState={state}
@@ -168,6 +182,18 @@ describe("TaskSchedulesView", () => {
     await user.click(screen.getByRole("radio", { name: "state.PAUSED" }));
 
     expect(replaceMock).toHaveBeenCalledWith("/schedules?scheduleState=PAUSED");
+  });
+
+  it("names a stored member without adding them to the create picker", async () => {
+    const user = userEvent.setup();
+    renderView([schedule({ assigneeId: null, assigneeUserId: MEMBER.id })]);
+
+    expect(screen.getByRole("listitem")).toHaveTextContent("Maya");
+    await user.click(screen.getByRole("button", { name: "newSchedule" }));
+
+    expect(scheduleDialogMock).toHaveBeenCalledWith(
+      expect.objectContaining({ coworkerOptions: [ELENA] }),
+    );
   });
 
   it("clears the state filter", async () => {
