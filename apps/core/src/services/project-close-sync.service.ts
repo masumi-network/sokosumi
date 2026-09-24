@@ -5,6 +5,7 @@ import {
   Prisma,
   ProjectCloseOperationState,
   TaskScheduleOccurrenceState,
+  TaskScheduleState,
   TaskStatus,
 } from "@sokosumi/database";
 import { parseTaskScheduleMetadata } from "@sokosumi/utils";
@@ -21,6 +22,11 @@ import {
   type TaskScheduleReleaseTemplate,
 } from "@/helpers/task-schedule-release";
 import prisma from "@/lib/db/prisma";
+import {
+  announceReleasedTasks,
+  closeTaskScheduleForProject,
+  type ReleasedTask,
+} from "@/services/task-schedule-runs.service";
 
 const PROJECT_CLOSE_OPERATION_BATCH_SIZE = 5;
 const PROJECT_CLOSE_SERIES_BATCH_SIZE = 10;
@@ -59,6 +65,16 @@ class ProjectCloseSeriesError extends Error {
   ) {
     super("Scheduled work could not be closed", { cause });
     this.name = "ProjectCloseSeriesError";
+  }
+}
+
+class ProjectCloseScheduleError extends Error {
+  constructor(
+    readonly scheduleId: string,
+    cause: unknown,
+  ) {
+    super("Scheduled work could not be closed", { cause });
+    this.name = "ProjectCloseScheduleError";
   }
 }
 
@@ -417,6 +433,43 @@ async function processSeries(
   }
 }
 
+/**
+ * Releases a batch of the Task Schedule's Runs owed before the cutoff, and
+ * Ends it once none is owed (ADR 0041). An Ended schedule is no longer a
+ * candidate, so schedules need no cursor.
+ */
+async function processTaskSchedule(
+  tx: Prisma.TransactionClient,
+  input: {
+    operationId: string;
+    projectId: string;
+    cutoffAt: Date;
+    scheduleId: string;
+  },
+): Promise<ReleasedTask[]> {
+  try {
+    const { tasks, ended } = await closeTaskScheduleForProject(
+      tx,
+      input.scheduleId,
+      { cutoffAt: input.cutoffAt, limit: PROJECT_CLOSE_OCCURRENCE_BATCH_SIZE },
+    );
+    if (ended) {
+      await tx.projectEvent.create({
+        data: {
+          projectId: input.projectId,
+          closeOperationId: input.operationId,
+          eventKey: `project-close:schedule:${input.operationId}:${input.scheduleId}`,
+          kind: "SERIES_RESOLVED",
+          payload: { scheduleId: input.scheduleId },
+        },
+      });
+    }
+    return tasks;
+  } catch (error) {
+    throw new ProjectCloseScheduleError(input.scheduleId, error);
+  }
+}
+
 async function finalizeProjectClose(
   tx: Prisma.TransactionClient,
   input: {
@@ -537,25 +590,54 @@ async function processClaimedProjectClose(
       });
       if (!operation) return { kind: "lost" as const };
 
-      const candidateTask = await tx.task.findFirst({
-        where: activeProjectScheduleWhere(
-          operation.projectId,
-          operation.seriesCursor,
-        ),
+      const candidateSchedule = await tx.taskSchedule.findFirst({
+        where: {
+          projectId: operation.projectId,
+          state: { not: TaskScheduleState.ENDED },
+        },
         orderBy: { id: "asc" },
         select: { id: true, ownerId: true },
       });
+      const candidateTask = candidateSchedule
+        ? null
+        : await tx.task.findFirst({
+            where: activeProjectScheduleWhere(
+              operation.projectId,
+              operation.seriesCursor,
+            ),
+            orderBy: { id: "asc" },
+            select: { id: true, ownerId: true },
+          });
       if (
         !(await lockCalendarScope(
           tx,
           operation.project.workspaceId,
           [operation.projectId],
-          candidateTask?.ownerId,
+          candidateSchedule?.ownerId ?? candidateTask?.ownerId,
         ))
       ) {
         return { kind: "lost" as const };
       }
       await updateOwnedProjectClose(tx, claimed, { leasedAt: new Date() });
+
+      if (candidateSchedule) {
+        const tasks = await processTaskSchedule(tx, {
+          operationId: operation.id,
+          projectId: operation.projectId,
+          cutoffAt: operation.cutoffAt,
+          scheduleId: candidateSchedule.id,
+        });
+        await updateOwnedProjectClose(tx, claimed, {
+          attempts: 0,
+          failureSummary: Prisma.DbNull,
+          leasedAt: new Date(),
+        });
+        return {
+          kind: "processed" as const,
+          workspaceId: operation.project.workspaceId,
+          tasks,
+        };
+      }
 
       if (!candidateTask) {
         const eventId = await finalizeProjectClose(tx, {
@@ -588,6 +670,7 @@ async function processClaimedProjectClose(
       return {
         kind: "processed" as const,
         workspaceId: operation.project.workspaceId,
+        tasks: [],
       };
     });
 
@@ -601,7 +684,10 @@ async function processClaimedProjectClose(
     }
     if (outcome.kind === "restart") continue;
     processedSeries += 1;
-    await deliverCalendarInvalidationsNow(outcome.workspaceId);
+    await Promise.all([
+      announceReleasedTasks(outcome.tasks),
+      deliverCalendarInvalidationsNow(outcome.workspaceId),
+    ]);
   }
 
   await prisma.projectCloseOperation.updateMany({
@@ -637,8 +723,12 @@ async function recordProjectCloseFailure(
   const failed = attempts >= PROJECT_CLOSE_MAX_FAILURES;
   const seriesTaskId =
     error instanceof ProjectCloseSeriesError ? error.seriesTaskId : null;
+  // Names the failed Task Schedule, so cancel-owed can drop its owed Runs.
   const failureSummary = {
     seriesTaskId,
+    ...(error instanceof ProjectCloseScheduleError
+      ? { scheduleId: error.scheduleId }
+      : {}),
     message: "Scheduled work could not be closed",
   };
   const recorded = await prisma.$transaction(async (tx) => {
@@ -678,7 +768,7 @@ async function recordProjectCloseFailure(
   }
   console.error("Project close batch failed", {
     closeOperationId: claimed.id,
-    seriesTaskId,
+    ...failureSummary,
     error,
   });
   return failed;

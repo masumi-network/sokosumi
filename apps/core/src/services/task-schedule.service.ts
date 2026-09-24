@@ -16,6 +16,10 @@ import {
   requireGrantedWorkspaceAccessOrRequest,
 } from "@/helpers/access-control";
 import {
+  lockCalendarScope,
+  requireOpenCalendarProject,
+} from "@/helpers/calendar-locks";
+import {
   badRequest,
   conflict,
   forbidden,
@@ -191,6 +195,28 @@ function resolveVisibility(
   return TaskVisibility.PRIVATE;
 }
 
+/**
+ * A closing project Ends its schedules and a closed one never releases, so a
+ * schedule neither joins nor changes in one. The scope is locked first, as the
+ * close request locks it, so a close cannot slip in between.
+ */
+async function requireOpenScheduleProjects(
+  tx: Prisma.TransactionClient,
+  workspaceId: string,
+  projectIds: Array<string | null | undefined>,
+): Promise<void> {
+  const ids = [
+    ...new Set(projectIds.filter((id): id is string => Boolean(id))),
+  ];
+  if (ids.length === 0) return;
+  if (!(await lockCalendarScope(tx, workspaceId, ids))) {
+    throw notFound("Project not found");
+  }
+  for (const id of ids) {
+    await requireOpenCalendarProject(tx, workspaceId, id);
+  }
+}
+
 export async function createTaskSchedule(
   vars: RouteVars,
   input: CreateTaskScheduleRequest,
@@ -219,6 +245,9 @@ export async function createTaskSchedule(
       },
       tx,
     );
+    await requireOpenScheduleProjects(tx, actor.workspace.workspaceId, [
+      blueprint.projectId,
+    ]);
     const schedule = await tx.taskSchedule.create({
       data: {
         workspaceId: actor.workspace.workspaceId,
@@ -451,6 +480,10 @@ export async function updateTaskSchedule(
       },
       tx,
     );
+    await requireOpenScheduleProjects(tx, current.workspaceId, [
+      current.projectId,
+      input.projectId,
+    ]);
 
     const { count } = await tx.taskSchedule.updateMany({
       where: { id, revision: input.expectedRevision },
@@ -545,6 +578,9 @@ export async function changeTaskScheduleState(
         `A Task Schedule that is ${current.state} cannot be ${label}`,
       );
     }
+    await requireOpenScheduleProjects(tx, current.workspaceId, [
+      current.projectId,
+    ]);
 
     const now = new Date();
     if (to === TaskScheduleState.ACTIVE) {
@@ -663,6 +699,9 @@ export async function changeTaskScheduleRun(
         "Only the Runs of an Active Task Schedule can be changed",
       );
     }
+    await requireOpenScheduleProjects(tx, current.workspaceId, [
+      current.projectId,
+    ]);
     if (current.revision !== input.expectedRevision) {
       throwRevisionConflict();
     }
@@ -737,10 +776,11 @@ export async function deleteTaskSchedule(
 ): Promise<void> {
   const actor = await resolveScheduleActor(vars);
   await prisma.$transaction(async (tx) => {
-    requireScheduleWriteAccess(
-      actor,
-      await findReadableSchedule(actor, id, tx),
-    );
+    const current = await findReadableSchedule(actor, id, tx);
+    requireScheduleWriteAccess(actor, current);
+    await requireOpenScheduleProjects(tx, current.workspaceId, [
+      current.projectId,
+    ]);
     await tx.taskSchedule.delete({ where: { id } });
   });
 }

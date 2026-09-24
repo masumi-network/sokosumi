@@ -6,6 +6,7 @@ import {
   COWORKER_ID,
   MEMBER_ID,
   OWNER_ID,
+  PROJECT_ID,
   resetTaskScheduleTestDb,
   runsOf,
   SOKO_BOT_AUTH,
@@ -79,6 +80,26 @@ describe("PATCH /tasks/schedules/{id}/runs/{runId}", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("refuses a Run change while the schedule's project is closing", async () => {
+    const schedule = seedTaskSchedule({
+      projectId: PROJECT_ID,
+      nextRunAt: JAN_7,
+    });
+    taskScheduleTestDb.projects.set(PROJECT_ID, {
+      workspaceId: schedule.workspaceId,
+      closingAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
+    const run = seedRun(schedule, JAN_7);
+
+    const response = await send(schedule, run.id, { action: "skip" });
+
+    expect(response.status).toBe(409);
+    expect(runsOf(schedule.id).find((row) => row.id === run.id)?.state).toBe(
+      "PLANNED",
+    );
+    expect(storedSchedule(schedule.id)?.revision).toBe(0);
   });
 
   it("skips a planned Run and wakes the schedule at the next one", async () => {

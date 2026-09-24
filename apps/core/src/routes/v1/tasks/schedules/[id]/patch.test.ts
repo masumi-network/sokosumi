@@ -404,6 +404,38 @@ describe("PATCH /tasks/schedules/{id}", () => {
     expect(response.status).toBe(404);
   });
 
+  it("refuses a project that is closed", async () => {
+    const schedule = seedTaskSchedule();
+    taskScheduleTestDb.projects.set(PROJECT_ID, {
+      workspaceId: schedule.workspaceId,
+      closedAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
+
+    const response = await patch(schedule.id, {
+      expectedRevision: 0,
+      projectId: PROJECT_ID,
+    });
+
+    expect(response.status).toBe(409);
+    expect(stored(schedule.id)?.projectId).toBeNull();
+  });
+
+  it("refuses edits to a schedule in a closing project", async () => {
+    const schedule = seedTaskSchedule({ projectId: PROJECT_ID });
+    taskScheduleTestDb.projects.set(PROJECT_ID, {
+      workspaceId: schedule.workspaceId,
+      closingAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
+
+    const response = await patch(schedule.id, {
+      expectedRevision: 0,
+      projectId: null,
+    });
+
+    expect(response.status).toBe(409);
+    expect(stored(schedule.id)?.projectId).toBe(PROJECT_ID);
+  });
+
   it("refuses edits to an Ended schedule", async () => {
     const schedule = seedTaskSchedule({ state: "ENDED" });
 

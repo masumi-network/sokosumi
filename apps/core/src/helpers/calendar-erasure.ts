@@ -40,7 +40,8 @@ export async function lockCalendarErasureUser(
 /**
  * Lock Calendar-owned data for one Workspace inside its parent's deletion
  * transaction. Callers lock the acting User first; this helper then owns the
- * canonical Workspace → Project → Task → child/payment order.
+ * canonical Workspace → Project → Task → Run → Task Schedule → child/payment
+ * order.
  */
 export async function lockWorkspaceCalendarForErasure(
   tx: Prisma.TransactionClient,
@@ -89,6 +90,14 @@ export async function lockWorkspaceCalendarForErasure(
     )
     ORDER BY occurrence.id ASC
     FOR UPDATE OF occurrence
+  `;
+  // After the Runs, like the release: it claims a Run, then its schedule.
+  await tx.$queryRaw`
+    SELECT id
+    FROM "task_schedule"
+    WHERE "workspaceId" = ${workspaceId}::UUID
+    ORDER BY id ASC
+    FOR UPDATE
   `;
   await tx.$queryRaw`
     SELECT link.id
@@ -227,6 +236,9 @@ export async function eraseWorkspaceCalendarData(
   await tx.taskScheduleCreateOperation.deleteMany({ where: { workspaceId } });
   await tx.taskEvent.deleteMany({ where: { task: { workspaceId } } });
   await tx.task.deleteMany({ where: { workspaceId } });
+  // Their Runs went with the ledger above (a Run's source is its schedule's
+  // workspace). After the Tasks, so no created Task is updated on the way out.
+  await tx.taskSchedule.deleteMany({ where: { workspaceId } });
   await tx.projectEvent.deleteMany({ where: { project: { workspaceId } } });
   await tx.projectCloseOperation.deleteMany({
     where: { project: { workspaceId } },

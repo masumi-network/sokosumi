@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   MEMBER_ID,
+  PROJECT_ID,
   resetTaskScheduleTestDb,
   runsOf,
   seedRun,
@@ -107,6 +108,19 @@ describe("POST /tasks/schedules/{id}/pause", () => {
       expect(stored(schedule.id)?.state).toBe(state);
     },
   );
+
+  it("refuses a schedule in a closing project", async () => {
+    const schedule = seedTaskSchedule({ projectId: PROJECT_ID });
+    taskScheduleTestDb.projects.set(PROJECT_ID, {
+      workspaceId: schedule.workspaceId,
+      closingAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
+
+    const response = await send(schedule.id);
+
+    expect(response.status).toBe(409);
+    expect(stored(schedule.id)?.state).toBe("ACTIVE");
+  });
 
   it("lets only the owner pause", async () => {
     const schedule = seedTaskSchedule();

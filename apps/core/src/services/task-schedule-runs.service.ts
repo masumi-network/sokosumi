@@ -361,7 +361,7 @@ class ReleaseClaimLostError extends Error {
   }
 }
 
-interface ReleasedTask {
+export interface ReleasedTask {
   id: string;
   ownerId: string;
   assigneeUserId: string | null;
@@ -380,7 +380,7 @@ function canContinue(options: TaskScheduleReleaseOptions): boolean {
   );
 }
 
-/** Active, and not in a project that is closing (ticket 7 ends those). */
+/** Active, and not in a project that is closing: the project close ends those. */
 function releasableWhere(now: Date): Prisma.TaskScheduleWhereInput {
   return {
     state: TaskScheduleState.ACTIVE,
@@ -425,11 +425,57 @@ function createTaskFromBlueprint(
 }
 
 /**
+ * Creates the Task of each planned Run due in `due`, oldest first and of any
+ * epoch (a rule edit keeps the Runs already owed). Each Run is claimed by
+ * moving it from planned to released, so a retried release never creates a
+ * second Task for it.
+ */
+async function releaseRuns(
+  tx: Prisma.TransactionClient,
+  schedule: TaskSchedule,
+  {
+    due,
+    limit,
+    shouldContinue,
+  }: {
+    due: Prisma.DateTimeFilter;
+    limit: number;
+    shouldContinue: () => boolean;
+  },
+): Promise<ReleasedTask[]> {
+  const runs = await tx.taskScheduleOccurrence.findMany({
+    where: {
+      scheduleId: schedule.id,
+      state: TaskScheduleOccurrenceState.PLANNED,
+      effectiveScheduledAt: due,
+    },
+    orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
+    take: limit,
+    select: { id: true },
+  });
+
+  const tasks: ReleasedTask[] = [];
+  for (const run of runs) {
+    if (!shouldContinue()) break;
+    const task = await createTaskFromBlueprint(tx, schedule);
+    const { count } = await tx.taskScheduleOccurrence.updateMany({
+      where: { id: run.id, state: TaskScheduleOccurrenceState.PLANNED },
+      data: {
+        state: TaskScheduleOccurrenceState.RELEASED,
+        releasedTaskId: task.id,
+      },
+    });
+    if (count !== 1) throw new ReleaseClaimLostError();
+    tasks.push(task);
+  }
+  return tasks;
+}
+
+/**
  * Releases up to {@link MAX_RELEASES_PER_TRANSACTION} due Runs of one
- * schedule in one transaction. Each Run is claimed by moving it from
- * planned to released, so a retried release never creates a second Task for it,
- * and the schedule is claimed by its revision, so a concurrent edit, pause,
- * or end rolls the release back. No Seat check (ADR 0020).
+ * schedule in one transaction. The schedule is claimed by its revision, so a
+ * concurrent edit, pause, or end rolls the release back. No Seat check
+ * (ADR 0020).
  */
 async function releaseSchedule(
   id: string,
@@ -443,35 +489,11 @@ async function releaseSchedule(
       });
       if (!schedule) return { tasks: [], ended: false };
 
-      // Any epoch: a rule edit keeps the Runs already owed.
-      const due = await tx.taskScheduleOccurrence.findMany({
-        where: {
-          scheduleId: id,
-          state: TaskScheduleOccurrenceState.PLANNED,
-          effectiveScheduledAt: { lte: now },
-        },
-        orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
-        take: MAX_RELEASES_PER_TRANSACTION,
-        select: { id: true },
+      const tasks = await releaseRuns(tx, schedule, {
+        due: { lte: now },
+        limit: MAX_RELEASES_PER_TRANSACTION,
+        shouldContinue: () => canContinue(options),
       });
-
-      const tasks: ReleasedTask[] = [];
-      for (const run of due) {
-        if (!canContinue(options)) break;
-        const task = await createTaskFromBlueprint(tx, schedule);
-        const { count } = await tx.taskScheduleOccurrence.updateMany({
-          where: {
-            id: run.id,
-            state: TaskScheduleOccurrenceState.PLANNED,
-          },
-          data: {
-            state: TaskScheduleOccurrenceState.RELEASED,
-            releasedTaskId: task.id,
-          },
-        });
-        if (count !== 1) throw new ReleaseClaimLostError();
-        tasks.push(task);
-      }
 
       const releasedCount = schedule.releasedCount + tasks.length;
       const nextRunAt = await projectTaskScheduleRuns(
@@ -504,7 +526,74 @@ async function releaseSchedule(
   }
 }
 
-async function announceReleasedTasks(tasks: ReleasedTask[]): Promise<void> {
+/**
+ * One project close batch for a schedule (ADR 0041): an Active schedule's
+ * Runs owed before the cutoff still create their Tasks, `limit` at a time;
+ * once none is owed, the schedule Ends and its later Runs leave the plan as on
+ * a manual end. A Paused schedule releases nothing. The release scan skips
+ * closing projects, and a release that read the schedule before the close
+ * began loses its Run claim; a concurrent edit or Run change fails the batch.
+ */
+export async function closeTaskScheduleForProject(
+  tx: Prisma.TransactionClient,
+  scheduleId: string,
+  { cutoffAt, limit }: { cutoffAt: Date; limit: number },
+): Promise<ScheduleReleaseOutcome> {
+  const schedule = await tx.taskSchedule.findUniqueOrThrow({
+    where: { id: scheduleId },
+  });
+  const owed: Prisma.DateTimeFilter = { lt: cutoffAt };
+  const tasks =
+    schedule.state === TaskScheduleState.ACTIVE
+      ? await releaseRuns(tx, schedule, {
+          due: owed,
+          limit,
+          shouldContinue: () => true,
+        })
+      : [];
+  const releasedCount = schedule.releasedCount + tasks.length;
+  const nextOwed =
+    schedule.state === TaskScheduleState.ACTIVE
+      ? await tx.taskScheduleOccurrence.findFirst({
+          where: {
+            scheduleId,
+            state: TaskScheduleOccurrenceState.PLANNED,
+            effectiveScheduledAt: owed,
+          },
+          orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
+          select: { effectiveScheduledAt: true },
+        })
+      : null;
+  const stillOwed = nextOwed !== null;
+  if (!stillOwed) {
+    await stopPlannedTaskScheduleRuns(tx, scheduleId, new Date(), {
+      keepOwed: false,
+      exceptions: "cancel",
+    });
+  }
+
+  const { count } = await tx.taskSchedule.updateMany({
+    where: {
+      id: scheduleId,
+      revision: schedule.revision,
+      releasedCount: schedule.releasedCount,
+    },
+    data: nextOwed
+      ? { releasedCount, nextRunAt: nextOwed.effectiveScheduledAt }
+      : {
+          releasedCount,
+          state: TaskScheduleState.ENDED,
+          nextRunAt: null,
+          revision: { increment: 1 },
+        },
+  });
+  if (count !== 1) throw new ReleaseClaimLostError();
+  return { tasks, ended: !stillOwed };
+}
+
+export async function announceReleasedTasks(
+  tasks: ReleasedTask[],
+): Promise<void> {
   await Promise.all(
     tasks.map(async (task) => {
       try {
