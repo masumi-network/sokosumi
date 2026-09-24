@@ -662,6 +662,7 @@ describe("project actions", () => {
       );
       toCoreApiActionErrorMock.mockReturnValue({
         code: "BAD_INPUT",
+        kind: "social_post_revision_conflict",
         message: "Social post was modified, reload and retry",
       });
 
@@ -677,6 +678,7 @@ describe("project actions", () => {
         ok: false,
         error: {
           code: "BAD_INPUT",
+          kind: "social_post_revision_conflict",
           message: "Social post was modified, reload and retry",
         },
       });

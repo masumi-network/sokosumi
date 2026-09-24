@@ -2308,6 +2308,7 @@
           "noAccount": "Konto auswählen",
           "unknownHandle": "Unbekanntes X-Konto",
           "scheduledAt": "Geplanter Zeitpunkt",
+          "scheduledAtTooSoon": "Wähle einen Zeitpunkt, der mindestens eine Minute in der Zukunft liegt.",
           "saveDraft": "Entwurf speichern",
           "save": "Speichern",
           "schedule": "Planen",
@@ -2327,7 +2328,9 @@
           "updated": "Beitrag aktualisiert.",
           "canceled": "Beitrag abgebrochen.",
           "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
-          "failed": "Etwas ist schiefgelaufen. Versuche es erneut."
+          "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
+          "unauthenticated": "Melde dich an, um fortzufahren.",
+          "unauthenticatedAction": "Anmelden"
         }
       },
       "Detail": {

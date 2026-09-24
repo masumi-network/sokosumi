@@ -1,5 +1,9 @@
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
-import { SOCIAL_POST_TEXT_LIMITS } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
+  SOCIAL_POST_TEXT_LIMITS,
+} from "@sokosumi/utils";
 
 import {
   badRequest,
@@ -14,8 +18,6 @@ import {
 import prisma from "@/lib/db/prisma";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 
-/** A post must be scheduled at least this far ahead so the publisher can pick it up. */
-const MIN_SCHEDULE_LEAD_MS = 60 * 1000;
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_REQUIRED_MESSAGE =
   "A social connection is required to schedule a post";
@@ -207,7 +209,7 @@ function requireTextWithinLimit(text: string, provider: string): string {
 }
 
 function requireFutureScheduledAt(scheduledAt: Date): void {
-  if (scheduledAt.getTime() <= Date.now() + MIN_SCHEDULE_LEAD_MS) {
+  if (scheduledAt.getTime() <= Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS) {
     throw badRequest("Scheduled time must be in the future");
   }
 }
@@ -255,7 +257,9 @@ async function requireActiveProjectConnection(
 
 function requireRevision(post: SocialPostRecord, revision: number): void {
   if (post.revision !== revision) {
-    throw conflict(REVISION_CONFLICT_MESSAGE);
+    throw conflict(REVISION_CONFLICT_MESSAGE, {
+      kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+    });
   }
 }
 
@@ -273,7 +277,9 @@ async function writeWithRevision(
     data: { ...data, revision: { increment: 1 } },
   });
   if (result.count === 0) {
-    throw conflict(REVISION_CONFLICT_MESSAGE);
+    throw conflict(REVISION_CONFLICT_MESSAGE, {
+      kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+    });
   }
   return requireScopedPost(input);
 }

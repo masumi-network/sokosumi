@@ -1,6 +1,13 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import {
@@ -18,11 +25,14 @@ import { loadMoreSocialPosts } from "./actions";
 
 vi.mock("./actions", () => ({ loadMoreSocialPosts: vi.fn() }));
 
-const { refreshMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
-  refreshMock: vi.fn(),
-  toastErrorMock: vi.fn(),
-  toastSuccessMock: vi.fn(),
-}));
+const { pushMock, refreshMock, toastErrorMock, toastSuccessMock } = vi.hoisted(
+  () => ({
+    pushMock: vi.fn(),
+    refreshMock: vi.fn(),
+    toastErrorMock: vi.fn(),
+    toastSuccessMock: vi.fn(),
+  }),
+);
 
 const MESSAGES: Record<string, string> = {
   title: "Social posts",
@@ -60,6 +70,7 @@ const MESSAGES: Record<string, string> = {
   "composer.noAccount": "Choose an account",
   "composer.unknownHandle": "Unknown X account",
   "composer.scheduledAt": "Scheduled time",
+  "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
   "composer.saveDraft": "Save draft",
   "composer.save": "Save",
   "composer.schedule": "Schedule",
@@ -78,6 +89,8 @@ const MESSAGES: Record<string, string> = {
   "toasts.conflict":
     "This post was changed elsewhere. Reloading the latest version.",
   "toasts.failed": "Something went wrong. Try again.",
+  "toasts.unauthenticated": "Please sign in to continue.",
+  "toasts.unauthenticatedAction": "Sign in",
 };
 
 vi.mock("next-intl", async () => {
@@ -95,7 +108,7 @@ vi.mock("next-intl", async () => {
 });
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: refreshMock }),
+  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
 }));
 
 vi.mock("sonner", () => ({
@@ -184,10 +197,13 @@ const PUBLISHED_POST = buildPost({
   canCancel: false,
 });
 
-function futureDateTimeLocal(): string {
-  const date = new Date(Date.now() + 60 * 60 * 1000);
+function dateTimeLocal(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function futureDateTimeLocal(): string {
+  return dateTimeLocal(new Date(Date.now() + 60 * 60 * 1000));
 }
 
 async function openRowMenu(
@@ -217,6 +233,10 @@ describe("ProjectSocialPosts", () => {
       ok: true,
       value: { ...SCHEDULED_POST, status: "CANCELED", revision: 3 },
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renders Upcoming, Drafts, and History sections with their rows", () => {
@@ -258,6 +278,18 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
 
     expect(screen.getAllByRole("list")).toHaveLength(3);
+  });
+
+  it("renders the complete post text without a line clamp", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[]}
+        posts={[PUBLISHED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(screen.getByText("Published text")).not.toHaveClass("line-clamp-2");
   });
 
   it("opens the composer from New post and blocks over-limit text", async () => {
@@ -322,6 +354,42 @@ describe("ProjectSocialPosts", () => {
     expect(schedule).toBeDisabled();
   });
 
+  it("requires the shared schedule lead time and rounds the input minimum up", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-24T10:00:15.000Z"));
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "Hello world" },
+    });
+    const timeInput = within(dialog).getByLabelText("Scheduled time");
+    expect(timeInput).toHaveAttribute(
+      "min",
+      dateTimeLocal(new Date("2026-09-24T10:02:00.000Z")),
+    );
+    fireEvent.change(timeInput, {
+      target: {
+        value: dateTimeLocal(new Date("2026-09-24T10:01:00.000Z")),
+      },
+    });
+
+    expect(timeInput).toHaveAttribute("aria-invalid", "true");
+    expect(
+      within(dialog).getByText("Choose a time at least one minute from now."),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Schedule" }),
+    ).toBeDisabled();
+  });
+
   it("saves a draft through the create action and lists it", async () => {
     const user = userEvent.setup();
     render(
@@ -353,6 +421,70 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(screen.getByTestId("social-post-post-new")).getByText("Fresh"),
     ).toBeVisible();
+  });
+
+  it("shows the fallback error when saving a draft rejects", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockRejectedValue(
+      new Error("network down"),
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Something went wrong. Try again.",
+      ),
+    );
+    expect(screen.getByRole("dialog")).toBeVisible();
+  });
+
+  it("routes rejected authentication through the sign-in toast", async () => {
+    const user = userEvent.setup();
+    const authError = new Error("User is not authenticated") as Error & {
+      digest: string;
+    };
+    authError.name = "UnAuthenticatedError";
+    authError.digest = "UNAUTHENTICATED";
+    vi.mocked(createProjectSocialPost).mockRejectedValue(authError);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Please sign in to continue.",
+        expect.objectContaining({ action: expect.any(Object) }),
+      ),
+    );
+    const toastOptions = toastErrorMock.mock.calls.at(-1)?.[1] as {
+      action: { onClick: () => void };
+    };
+    toastOptions.action.onClick();
+    expect(pushMock).toHaveBeenCalledWith("/signin");
   });
 
   it("schedules a new post with an ISO timestamp and the viewer timezone", async () => {
@@ -394,6 +526,35 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.getByTestId("social-posts-section-upcoming"),
     ).toHaveTextContent("Scheduled text");
+  });
+
+  it("shows the fallback error when scheduling rejects", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockRejectedValue(
+      new Error("network down"),
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Scheduled text");
+    await user.type(
+      within(dialog).getByLabelText("Scheduled time"),
+      futureDateTimeLocal(),
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Schedule" }));
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Something went wrong. Try again.",
+      ),
+    );
   });
 
   it("prefills the editor and sends the observed revision", async () => {
@@ -504,13 +665,42 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getByText("No scheduled posts yet.")).toBeVisible();
   });
 
+  it("shows the fallback error when canceling rejects", async () => {
+    const user = userEvent.setup();
+    vi.mocked(cancelProjectSocialPost).mockRejectedValue(
+      new Error("network down"),
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openRowMenu(user, "post-scheduled");
+    await user.click(screen.getByRole("menuitem", { name: "Cancel post" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Cancel post",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Something went wrong. Try again.",
+      ),
+    );
+  });
+
   it("toasts and refreshes on a revision conflict", async () => {
     const user = userEvent.setup();
     vi.mocked(cancelProjectSocialPost).mockResolvedValue({
       ok: false,
       error: {
         code: "BAD_INPUT",
-        message: "Social post was modified, reload and retry",
+        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        message: "Conflict copy can change freely",
       },
     });
     render(
@@ -577,7 +767,8 @@ describe("ProjectSocialPosts", () => {
       ok: false,
       error: {
         code: "BAD_INPUT",
-        message: "Social post was modified, reload and retry",
+        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        message: "Conflict copy can change freely",
       },
     });
     const { rerender } = render(

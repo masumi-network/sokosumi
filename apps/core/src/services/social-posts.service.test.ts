@@ -372,6 +372,7 @@ describe("social posts service", () => {
     ).rejects.toMatchObject({
       status: 409,
       message: "Social post was modified, reload and retry",
+      cause: { kind: "social_post_revision_conflict" },
     });
   });
 
@@ -390,6 +391,7 @@ describe("social posts service", () => {
     ).rejects.toMatchObject({
       status: 409,
       message: "Social post was modified, reload and retry",
+      cause: { kind: "social_post_revision_conflict" },
     });
     expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
   });
