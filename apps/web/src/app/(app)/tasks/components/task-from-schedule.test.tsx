@@ -24,13 +24,16 @@ describe("TaskFromSchedule", () => {
   });
 
   it("links a Task a Run created to its Task Schedule", async () => {
-    getScheduleMock.mockResolvedValue({ id: SCHEDULE_ID, name: "Weekly" });
+    getScheduleMock.mockResolvedValue({
+      id: SCHEDULE_ID,
+      name: "**Task Name:** Weekly",
+    });
 
     render(await TaskFromSchedule({ scheduleId: SCHEDULE_ID }));
 
-    expect(
-      screen.getByRole("link", { name: "fromSchedule: Weekly" }),
-    ).toHaveAttribute("href", `/schedules/${SCHEDULE_ID}`);
+    const link = screen.getByRole("link", { name: "fromSchedule" });
+    expect(link).toHaveAttribute("href", `/schedules/${SCHEDULE_ID}`);
+    expect(link).toHaveAttribute("title", "Task Name: Weekly");
   });
 
   it("shows nothing for a Task made by hand", async () => {

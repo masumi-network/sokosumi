@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
+import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 
 /**
  * "From schedule …" on a Task a Run created. A schedule the viewer may not
@@ -27,9 +28,10 @@ export async function TaskFromSchedule({
       {schedule ? (
         <Link
           href={taskSchedulePath(schedule.id)}
+          title={stripMarkdownToText(schedule.name) ?? undefined}
           className="text-primary hover:underline"
         >
-          {t("fromSchedule", { name: schedule.name })}
+          {t("fromSchedule")}
         </Link>
       ) : (
         t("fromHiddenSchedule")

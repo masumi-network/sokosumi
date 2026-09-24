@@ -1829,7 +1829,7 @@
         },
         "files": "Dateien",
         "assignee": "Zuständig",
-        "fromSchedule": "Aus Zeitplan {name}",
+        "fromSchedule": "Aus Zeitplan",
         "fromHiddenSchedule": "Aus einem Zeitplan",
         "participants": "Beteiligte",
         "removeParticipant": "{name} entfernen",

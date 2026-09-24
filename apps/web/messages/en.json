@@ -1829,7 +1829,7 @@
         },
         "files": "Files",
         "assignee": "Assignee",
-        "fromSchedule": "From schedule {name}",
+        "fromSchedule": "From schedule",
         "fromHiddenSchedule": "From a schedule",
         "participants": "Participants",
         "removeParticipant": "Remove {name}",

@@ -1829,7 +1829,7 @@
         },
         "files": "Archivos",
         "assignee": "Responsable",
-        "fromSchedule": "De la programación {name}",
+        "fromSchedule": "De la programación",
         "fromHiddenSchedule": "De una programación",
         "participants": "Participantes",
         "removeParticipant": "Quitar a {name}",
