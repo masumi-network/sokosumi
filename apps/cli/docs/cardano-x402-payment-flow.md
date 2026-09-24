@@ -55,20 +55,37 @@ Claims use provenance labels:
 
 [VERIFIED] The `masumiPayment` Task event is a Masumi credit charge. Core creates a payment claim in the same transaction as the event. A retry-safe processor then creates or resolves the MPS purchase. [Task event schema](../../core/src/routes/v1/tasks/[id]/events/schema.ts#L180) · [Claim processor](../../core/src/services/task-payment-claim.service.ts#L405)
 
-```mermaid
-flowchart TD
-  Buyer["Sokosumi buyer"] -->|Create Task| Core["Sokosumi Core"]
-  Core -->|Dispatch Task| Runtime["Coworker runtime"]
-  Runtime -->|Task event with masumiPayment| Core
-  Core --> Transaction["Task event transaction"]
-  Transaction -->|Charge Task credits| Credits["Task credit charge"]
-  Transaction -->|Create durable claim| Claim[(TaskPaymentClaim)]
-  Claim -->|Retry-safe processing| Processor["Task payment claim processor"]
-  Processor -->|POST /purchase| MPS["Masumi Payment Service"]
-  MPS -->|Purchase id and state| Processor
-  Processor -->|Persist purchase state| Claim
-  MPS -->|Masumi escrow lifecycle| Chain["Cardano network"]
-  Core -->|Task status| Buyer
+```
+[Sokosumi buyer]
+      |
+      | Create Task
+      v
+[Sokosumi Core]
+      |
+      | Dispatch Task
+      v
+[Coworker runtime]
+      |
+      | Task event: masumiPayment
+      v
+[Core task event transaction]
+      +--> Charge Task credits
+      +--> Create durable TaskPaymentClaim
+                 |
+                 | Retry-safe processing
+                 v
+          [Task payment claim processor]
+                 |
+                 | POST /purchase
+                 v
+          [Masumi Payment Service]
+                 +--> Purchase id and state --> [Task payment claim processor]
+                 |                                      |
+                 |                                      +--> Persist purchase state --> [TaskPaymentClaim]
+                 |
+                 +--> Masumi escrow lifecycle --> [Cardano network]
+
+[Sokosumi Core] -- Task status --> [Sokosumi buyer]
 ```
 
 [PROPOSED] Keep this path for the MVP's Sokosumi Task payments. The plugin should use existing Coworker and Task APIs. It should not build Cardano transactions or run another escrow state machine.
@@ -79,19 +96,49 @@ flowchart TD
 
 [PROPOSED] Sokosumi can test an x402 resource adapter that uses MPS's Cardano builder for an existing payment request. The buyer signs and submits the returned transaction. MPS then tracks the escrow payment. This diagram shows a candidate integration, not verified compatibility with a standard x402 client.
 
-```mermaid
-flowchart TD
-  Buyer["Outside x402 buyer"] -->|Request Coworker resource| Soko["Sokosumi x402 adapter"]
-  Soko -->|Existing request ID, network, buyerAddress| Builder["MPS POST /payment/x402"]
-  Builder -->|Unsigned CBOR| Soko
-  Soko -->|Proposed 402 response, format open| Buyer
-  Buyer -->|Sign and submit transaction| Chain["Cardano network"]
-  Chain -->|Escrow lock for existing request| MPS["MPS payment lifecycle"]
-  Soko -->|Read payment state| MPS
-  MPS -->|Payment state| Soko
-  Soko -->|Link payment to Task| Core["Sokosumi Core"]
-  Core -->|Dispatch after funds lock| Runtime["Coworker runtime"]
-  Runtime -->|Task result| Core
+```
+[Outside x402 buyer]
+      |
+      | Request Coworker resource
+      v
+[Sokosumi x402 adapter]
+      |
+      | POST /payment/x402
+      | Existing request ID, network, buyerAddress
+      v
+[MPS Cardano transaction builder]
+      |
+      | Unsigned CBOR
+      v
+[Sokosumi x402 adapter]
+      |
+      | Proposed 402 response, format open
+      v
+[Outside x402 buyer]
+      |
+      | Sign and submit transaction
+      v
+[Cardano network]
+      |
+      | Escrow lock for existing request
+      v
+[MPS payment lifecycle]
+      |
+      | Payment state
+      v
+[Sokosumi x402 adapter]
+      |
+      | Link payment to Task
+      v
+[Sokosumi Core]
+      |
+      | Dispatch after funds lock
+      v
+[Coworker runtime]
+      |
+      | Task result
+      v
+[Sokosumi Core]
 ```
 
 [OPEN] The MPS builder requires `blockchainIdentifier` and `buyerAddress`. The public x402 client contract for supplying these values is not determined. The 402 response shape and payment retry must pass an interoperability test before Sokosumi claims support for standard x402 clients. [MPS OpenAPI snapshot](../../../packages/masumi/spec/payment.openapi.json#L18661)
