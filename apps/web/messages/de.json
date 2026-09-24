@@ -6499,7 +6499,6 @@
       },
       "event": {
         "accessibleName": "{task}, {source}",
-        "openTask": "Task öffnen",
         "moveNotAllowed": "Nur anstehende Läufe deiner eigenen aktiven Zeitpläne lassen sich verschieben.",
         "moveRun": "Lauf verschieben",
         "skipRun": "Lauf überspringen",

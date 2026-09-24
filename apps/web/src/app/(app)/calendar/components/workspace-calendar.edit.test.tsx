@@ -151,7 +151,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("sonner", () => ({
-  toast: { error: (...args: unknown[]) => toastErrorMock(...args) },
+  toast: {
+    error: (...args: unknown[]) => toastErrorMock(...args),
+    info: vi.fn(),
+  },
 }));
 
 vi.mock("@/app/tasks/components/create-task-modal", () => ({
@@ -667,25 +670,86 @@ describe("WorkspaceCalendar editing", () => {
     expect(openCreateTaskModalMock).not.toHaveBeenCalled();
   });
 
-  it("opens a released Run's Task and any Run's schedule", async () => {
+  it("opens a released Run's Task directly and a planned Run's schedule from its menu", async () => {
     const user = userEvent.setup();
     renderCalendar({ items: [RELEASED_ITEM, ITEM] });
 
-    await openEventMenu(user, 0);
-    await user.click(screen.getByRole("menuitem", { name: "event.openTask" }));
+    const released = screen.getAllByRole("button", {
+      name: "Prepare release notes, Release planning",
+    })[0];
+    expect(released).not.toHaveAttribute("aria-haspopup");
+    await user.click(released);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(pushMock).toHaveBeenCalledWith("/tasks/task-1");
 
     await openEventMenu(user, 1);
-    expect(
-      screen.queryByRole("menuitem", { name: "event.openTask" }),
-    ).not.toBeInTheDocument();
     await user.click(
       screen.getByRole("menuitem", { name: "event.openSchedule" }),
     );
     expect(pushMock).toHaveBeenLastCalledWith("/schedules/schedule-1");
   });
 
-  it("shows a Queued Task at its Run at, opening only the Task", async () => {
+  it("opens a Task on tap but not after a drag the calendar will not move", () => {
+    renderCalendar({ items: [RELEASED_ITEM] });
+    const card = screen.getByRole("button", {
+      name: "Prepare release notes, Release planning",
+    });
+
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 3,
+      clientY: 0,
+    });
+    fireEvent.click(card);
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task-1");
+
+    pushMock.mockClear();
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 20,
+      clientY: 0,
+    });
+    fireEvent.click(card);
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a read-only Run's menu closed after a drag the calendar will not move", () => {
+    renderCalendar({ items: [READ_ONLY_ITEM] });
+    const card = screen.getByTestId("calendar-event");
+
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 20,
+      clientY: 0,
+    });
+    fireEvent.click(card);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.click(card);
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+
+  it("shows a Queued Task at its Run at, opening the Task directly", async () => {
     const user = userEvent.setup();
     renderCalendar({ items: [RUN_AT_ITEM] });
 
@@ -699,10 +763,7 @@ describe("WorkspaceCalendar editing", () => {
     ]);
 
     await openEventMenu(user);
-    expect(
-      screen.getAllByRole("menuitem").map((item) => item.textContent),
-    ).toEqual(["event.openTask"]);
-    await user.click(screen.getByRole("menuitem", { name: "event.openTask" }));
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(pushMock).toHaveBeenCalledWith("/tasks/task-run-at-1");
   });
 

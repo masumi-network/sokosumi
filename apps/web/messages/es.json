@@ -6499,7 +6499,6 @@
       },
       "event": {
         "accessibleName": "{task}, {source}",
-        "openTask": "Abrir tarea",
         "moveNotAllowed": "Solo se pueden mover las próximas ejecuciones de tus propias programaciones activas.",
         "moveRun": "Mover ejecución",
         "skipRun": "Omitir ejecución",
