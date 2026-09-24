@@ -121,7 +121,8 @@
       case "get/chats/rooms/{id}/threads/unread-count":
         countRequestTotal.withLock { $0 += 1 }
         let count = counts.withLock { $0.count > 1 ? $0.removeFirst() : $0.first ?? 0 }
-        data = #"{"count":\#(count)}"#
+        let threads = (0 ..< count).map { #"{"parentMessageId":"parent-\#($0)","unreadReplyCount":1}"# }.joined(separator: ",")
+        data = #"{"count":\#(count),"threads":[\#(threads)]}"#
       case "post/chats/rooms/{id}/threads/read":
         data = #"{"markedCount":2}"#
       case "get/chats/rooms/{id}/threads":

@@ -13,7 +13,10 @@ public final class RoomThreadOverview: ObservableObject {
   @Published public private(set) var items: [Components.Schemas.ChatRoomThread] = []
   @Published public private(set) var previews: [String: String] = [:]
   @Published public private(set) var nextCursor: String?
-  @Published public private(set) var unreadCount = 0
+  /// Web's `useUnreadThreadReplyCounts`: unread replies per Thread in the room, keyed by parent message id,
+  /// nil until the room's own first read lands. One read feeds the Threads trigger (its size) and every
+  /// reply bar in the transcript (row 24h), so the two cannot disagree (SOK-1151).
+  @Published public private(set) var unreadReplyCounts: [String: Int]?
   /// The first page is loading: on open, after Back from a thread and after Mark all.
   @Published public private(set) var isLoading = false
   @Published public private(set) var isMarkingRead = false
@@ -26,6 +29,17 @@ public final class RoomThreadOverview: ObservableObject {
   private var loadGeneration = 0
 
   public init() {}
+
+  /// The Threads trigger's number: how many Threads are unread.
+  public var unreadCount: Int {
+    unreadReplyCounts?.count ?? 0
+  }
+
+  /// Web's `onAllThreadsLooked(stillUnreadParentIds)`: the loaded muted Threads still unread. Mark all skips
+  /// a muted thread even when a mention in it is unread (SOK-1087), so its reply bar stays.
+  public var mutedUnreadParentIds: Set<String> {
+    Set(items.filter { $0.mutedAt != nil && RoomThreadOverviewGroups.isUnread($0) }.map(\.parentMessage.id))
+  }
 
   /// The loaded threads under Unread and Earlier.
   public var groups: RoomThreadOverviewGroups {
@@ -46,19 +60,31 @@ public final class RoomThreadOverview: ObservableObject {
     items = []
     previews = [:]
     nextCursor = nil
-    unreadCount = 0
+    unreadReplyCounts = nil
     isLoading = false
     isMarkingRead = false
     failureMessage = nil
     olderPageStatus = .idle
   }
 
+  /// Reads the room's unread Threads again. A failed read keeps the last answer: the counts are decoration.
   public func refreshCount(client: Client, roomId: String, organizationSlug: String?) async throws {
     countGeneration += 1
     let request = countGeneration
-    let count = try await ChatService().countUnreadThreads(client: client, roomId: roomId, organizationSlug: organizationSlug)
+    let counts = try await ChatService().listUnreadThreadReplyCounts(client: client, roomId: roomId, organizationSlug: organizationSlug)
     guard request == countGeneration, !Task.isCancelled else { return }
-    unreadCount = max(0, count)
+    unreadReplyCounts = counts
+  }
+
+  /// Web's `clear`: drops the Threads the reader just Looked at or marked read, so the trigger and the bars
+  /// settle at once instead of after the re-read, and discards a read already in flight.
+  public func clearUnreadReplies(where isCleared: (String) -> Bool) {
+    countGeneration += 1
+    guard let counts = unreadReplyCounts else { return }
+    let kept = counts.filter { !isCleared($0.key) }
+    if kept.count != counts.count {
+      unreadReplyCounts = kept
+    }
   }
 
   public func load(client: Client, roomId: String, organizationSlug: String?, older: Bool = false, mentions: MessageMentions? = nil) async throws {
@@ -129,8 +155,8 @@ public final class RoomThreadOverview: ObservableObject {
   }
 
   /// Once Core accepted, `looked` tells the room before the first page reloads, as web's
-  /// `onAllThreadsLooked`: the room re-counts the Threads trigger and posts its read. The count here waits
-  /// for that re-count, because Mark all skips a muted thread with an unread mention.
+  /// `onAllThreadsLooked`: the room drops every Thread but `mutedUnreadParentIds` from the counts (row 24h),
+  /// re-counts the Threads trigger and posts its read. Mark all skips a muted thread with an unread mention.
   public func markAllRead(client: Client, roomId: String, organizationSlug: String?, mentions: MessageMentions? = nil,
                           looked: () async -> Void) async throws {
     guard !isMarkingRead, !isLoading, olderPageStatus != .loading, !Task.isCancelled else { return }
