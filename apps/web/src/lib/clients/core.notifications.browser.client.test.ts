@@ -94,7 +94,7 @@ describe("core.notifications.browser.client", () => {
 
   it("fetches counts, marks one read, and marks all read", async () => {
     await withTransformer(getMock, {
-      data: { unread: 3, needsAction: 1 },
+      data: { unread: 3, needsAction: 1, mentions: 0 },
       meta: {
         timestamp: "2026-04-02T12:00:00.000Z",
         requestId: "req_count",
@@ -152,7 +152,7 @@ describe("core.notifications.browser.client", () => {
     );
 
     const counts = await notificationsBrowserClient.getNotificationsCounts();
-    expect(counts.data).toEqual({ unread: 3, needsAction: 1 });
+    expect(counts.data).toEqual({ unread: 3, needsAction: 1, mentions: 0 });
     expect(getMock).toHaveBeenCalledWith(
       expect.objectContaining({
         url: "/notifications/counts",

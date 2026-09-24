@@ -126,6 +126,10 @@ _Avoid_: Inbox, activity feed (unless intentionally renaming the product surface
 The Notification Center view that lists only Notifications whose request is still open on the record they point at: a task or job paused on input, a pending vendor grant or coworker access request. Answering the request is what removes a row; reading it does not. One row per waiting record, the newest.
 _Avoid_: Actionable inbox, to-do (this is a lens over Notifications, not a task list), unread (a read row still needs the reader until answered)
 
+**Mentions** (Notification Center view):
+The Notification Center view that lists only Notifications for a User mention of the reader, and their reminders, read or not. A direct message is not a mention and stays out; an @mention written inside a Direct is one. Its tab counts the mentions still unread, so reading one lowers the count and leaves the row.
+_Avoid_: Inbox, mentions badge (that is the room's sidebar count), counting direct messages as mentions
+
 **Account notice**:
 A workspace- or account-level call to action that is not itself a notification, but may surface next to notifications in the Notification Center.
 _Avoid_: Notification (for this cue), banner (unless referring to a specific layout)
