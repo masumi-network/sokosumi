@@ -291,4 +291,79 @@ struct RoomReadAttentionTests {
     #expect(!resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true, isMuted: true).bold)
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true).bold)
   }
+
+  // MARK: Row 24g1 (ADR 0037)
+
+  /// A room summary carrying both halves and its unread Threads, as Core sends it since ADR 0037.
+  private static func splitRoomJSON(channel: Int, thread: Int, mentions: Int, threads: Int, threadMentions: Int = 0) -> String {
+    testAttentionRoomJSON(unread: channel + thread).replacingOccurrences(
+      of: "\"unreadMentionCount\":1",
+      with: "\"channelUnreadCount\":\(channel),\"threadUnreadCount\":\(thread),\"unreadThreadCount\":\(threads),"
+        + "\"unreadThreadMentionCount\":\(threadMentions),\"unreadMentionCount\":\(mentions)"
+    )
+  }
+
+  private static func splitRoomBody(channel: Int, thread: Int, mentions: Int, threads: Int, threadMentions: Int = 0) -> String {
+    """
+    {"data":\(splitRoomJSON(channel: channel, thread: thread, mentions: mentions, threads: threads, threadMentions: threadMentions)),"meta":{"timestamp":"\(testTimestamp)","requestId":"req-1"}}
+    """
+  }
+
+  private func splitRoom(channel: Int, thread: Int, mentions: Int, threads: Int, threadMentions: Int = 0) async throws -> Components.Schemas.ChatRoom {
+    let json = Self.splitRoomJSON(channel: channel, thread: thread, mentions: mentions, threads: threads, threadMentions: threadMentions)
+    let transport = TestTransport([(200, testMessagesPageBody(messages: [json], nextCursor: nil))])
+    return try #require(await ChatService().listRooms(client: makeTestClient(transport), organizationSlug: nil).first)
+  }
+
+  /// Web's `readRoom(optimistic: true)` paints `roomAttentionAfterRead`: the channel half, the badge and the
+  /// mark go at once, the Thread half stays, and the row is quiet — also against a poll that predates the read.
+  @Test func anOptimisticReadKeepsTheThreadHalfAndQuietsTheRow() async throws {
+    let room = try await splitRoom(channel: 2, thread: 3, mentions: 1, threads: 2)
+    #expect(resolveRoomAttention(room).bold)
+    let state = RoomReadAttention()
+    state.setVisible(true, window: UUID())
+    let olderPoll = state.beginRefresh()
+    let transport = PausedAttentionTransport(response: Self.splitRoomBody(channel: 0, thread: 3, mentions: 0, threads: 2))
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let task = Task { try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true, client: client, organizationSlug: nil) }
+    await transport.waitForRequest()
+    for pending in [state.applying(to: [room])[0], state.reconcile([room], requestRevision: olderPoll)[0]] {
+      #expect(pending.unreadCount == 3 && pending.channelUnreadCount == 0 && pending.threadUnreadCount == 3)
+      #expect(pending.unreadMentionCount == 0 && pending.unreadThreadCount == 2)
+      #expect(resolveRoomAttention(pending, showUnreadCount: true) == .init(bold: false, badgeCount: 0))
+    }
+    await transport.release()
+    #expect(try await task.value)
+    let settled = state.applying(to: [room])[0]
+    #expect(settled.channelUnreadCount == 0 && settled.threadUnreadCount == 3 && !resolveRoomAttention(settled).bold)
+  }
+
+  @Test func aFailedReadRestoresBothHalves() async throws {
+    let room = try await splitRoom(channel: 2, thread: 3, mentions: 1, threads: 2)
+    let state = RoomReadAttention()
+    state.setVisible(true, window: UUID())
+    await #expect(throws: ChatServiceError.self) {
+      try await state.readIfNeeded(room: room, content: .init(messages: []), historyReadable: true,
+                                   client: makeTestClient(TestTransport([(503, "{}")])), organizationSlug: nil)
+    }
+    let restored = state.applying(to: [room])[0]
+    #expect(restored.unreadCount == 5 && restored.channelUnreadCount == 2 && restored.threadUnreadCount == 3 && restored.unreadMentionCount == 1)
+    #expect(resolveRoomAttention(restored, showUnreadCount: true) == .init(bold: true, badgeCount: 1))
+  }
+
+  /// A Look, a thread mute and Mark all each end in `readAfterThreadLook`: the row takes Core's answer
+  /// whole — both halves, the badge and the room's unread Threads — not only the total.
+  @Test func aLookTakesBothHalvesAndTheThreadsFromCore() async throws {
+    let room = try await splitRoom(channel: 0, thread: 2, mentions: 1, threads: 1, threadMentions: 1)
+    #expect(resolveRoomAttention(room) == .init(bold: true, badgeCount: 1), "Bold by the Thread mention alone.")
+    let state = RoomReadAttention()
+    state.setVisible(true, window: UUID())
+    let transport = TestTransport([(200, Self.splitRoomBody(channel: 1, thread: 0, mentions: 0, threads: 0))])
+    #expect(try await state.readAfterThreadLook(room: room, client: makeTestClient(transport), organizationSlug: nil))
+    let looked = state.applying(to: [room])[0]
+    #expect(looked.channelUnreadCount == 1 && looked.threadUnreadCount == 0)
+    #expect(looked.unreadThreadCount == 0 && looked.unreadThreadMentionCount == 0)
+    #expect(resolveRoomAttention(looked, showUnreadCount: true) == .init(bold: true, badgeCount: 0, unreadTextCount: 1),
+            "A top-level message that arrived meanwhile keeps the row bold, now with its count.")
+  }
 }

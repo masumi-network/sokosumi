@@ -13,8 +13,13 @@ import {
   eraseWorkspaceCalendarData,
   lockWorkspaceCalendarForErasure,
 } from "@/helpers/calendar-erasure";
+import {
+  lastVendorAdminBlockerWhere,
+  USER_DELETION_MESSAGES,
+} from "@/helpers/deletion-evaluate";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
+import { prepareVendorsForMemberDeletion } from "@/helpers/vendor-membership";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -133,6 +138,21 @@ export async function prepareTasksForUserDeletion(
           ORDER BY project.id ASC
           FOR UPDATE OF project
         `;
+
+        // The preflight last-admin check can become stale before this
+        // transaction starts, so serialize with membership changes and recheck
+        // before the User cascade.
+        await prepareVendorsForMemberDeletion(userId, tx);
+        const lastVendorAdminMembership = await tx.vendorMember.findFirst({
+          where: lastVendorAdminBlockerWhere(userId),
+          select: { id: true },
+        });
+        if (lastVendorAdminMembership) {
+          throw new APIError("BAD_REQUEST", {
+            code: "USER_IS_LAST_VENDOR_ADMIN",
+            message: USER_DELETION_MESSAGES.USER_IS_LAST_VENDOR_ADMIN,
+          });
+        }
 
         await tx.$queryRaw`
           SELECT "id"

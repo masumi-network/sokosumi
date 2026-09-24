@@ -42,10 +42,6 @@ function client(
       calls.push({ method: "PATCH", path, body });
       return response as T;
     },
-    delete: async <T>(path: string) => {
-      calls.push({ method: "DELETE", path });
-      return response as T;
-    },
   };
 }
 

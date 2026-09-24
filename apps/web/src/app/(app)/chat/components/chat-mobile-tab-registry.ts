@@ -21,7 +21,7 @@ type SearchParamsLike =
  * Floating Apple tab bar sits at
  * `bottom-[max(0.75rem,env(safe-area-inset-bottom))]` with inner `h-16`.
  * Docked bar is `h-16` + `pb-[env(safe-area-inset-bottom)]`.
- * Clearance / offsets below must stay as full static Tailwind class strings.
+ * Clearance below must stay as full static Tailwind class strings.
  */
 
 /**
@@ -40,20 +40,6 @@ export function chatMobileTabBarClearance(isApple: boolean): string {
   return isApple
     ? CHAT_MOBILE_TAB_BAR_CLEARANCE_APPLE
     : CHAT_MOBILE_TAB_BAR_CLEARANCE;
-}
-
-/** Fixed composer bottom offset so chrome sits above the docked tab bar on mobile. */
-export const CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET =
-  "bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0" as const;
-
-/** Composer offset above the floating Apple tab bar. */
-export const CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET_APPLE =
-  "bottom-[calc(4rem+max(0.75rem,env(safe-area-inset-bottom)))] md:bottom-0" as const;
-
-export function chatMobileTabBarBottomOffset(isApple: boolean): string {
-  return isApple
-    ? CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET_APPLE
-    : CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET;
 }
 
 /**

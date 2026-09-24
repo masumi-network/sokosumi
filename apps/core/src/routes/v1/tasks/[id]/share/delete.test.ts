@@ -7,7 +7,7 @@ import mountDeleteTaskShareById from "./delete";
 const {
   authContextState,
   requireMutableTaskOwnershipMock,
-  deleteByTaskIdMock,
+  publicShareDeleteManyMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -31,7 +31,7 @@ const {
       | null,
   },
   requireMutableTaskOwnershipMock: vi.fn(),
-  deleteByTaskIdMock: vi.fn(),
+  publicShareDeleteManyMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -74,17 +74,14 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   };
 });
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  publicShareRepository: {
-    deleteByTaskId: (...args: unknown[]) => deleteByTaskIdMock(...args),
-  },
-}));
-
 vi.mock("@/lib/db/prisma", async () => ({
   default: {
     member: {
       findUnique: (await import("@/test-fixtures/organization-membership"))
         .stubMemberFindUnique,
+    },
+    publicShare: {
+      deleteMany: (...args: unknown[]) => publicShareDeleteManyMock(...args),
     },
   },
 }));
@@ -109,7 +106,7 @@ describe("DELETE /tasks/{id}/share", () => {
       ownerId: "user_123",
       pendingVendorGrantId: null,
     });
-    deleteByTaskIdMock.mockResolvedValue({ count: 1 });
+    publicShareDeleteManyMock.mockResolvedValue({ count: 1 });
   });
 
   it("deletes the share for an owned task", async () => {
@@ -121,10 +118,9 @@ describe("DELETE /tasks/{id}/share", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(deleteByTaskIdMock).toHaveBeenCalledWith(
-      "tsk_123",
-      expect.any(Object),
-    );
+    expect(publicShareDeleteManyMock).toHaveBeenCalledWith({
+      where: { taskId: "tsk_123" },
+    });
     expect(body.data).toEqual({});
   });
 
@@ -137,7 +133,7 @@ describe("DELETE /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(401);
-    expect(deleteByTaskIdMock).not.toHaveBeenCalled();
+    expect(publicShareDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the task is not owned by the caller", async () => {
@@ -152,7 +148,7 @@ describe("DELETE /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(deleteByTaskIdMock).not.toHaveBeenCalled();
+    expect(publicShareDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the task does not exist", async () => {
@@ -167,7 +163,7 @@ describe("DELETE /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(deleteByTaskIdMock).not.toHaveBeenCalled();
+    expect(publicShareDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
@@ -185,6 +181,6 @@ describe("DELETE /tasks/{id}/share", () => {
 
     expect(response.status).toBe(403);
     expect(requireMutableTaskOwnershipMock).not.toHaveBeenCalled();
-    expect(deleteByTaskIdMock).not.toHaveBeenCalled();
+    expect(publicShareDeleteManyMock).not.toHaveBeenCalled();
   });
 });

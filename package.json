@@ -2,7 +2,7 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@12.5.1",
+  "packageManager": "pnpm@12.6.0",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "web:dev": "pnpm --filter web dev",
@@ -42,6 +42,7 @@
     "prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
     "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
     "prisma:migrate:reset": "pnpm --filter @sokosumi/database prisma:migrate:reset",
+    "prisma:check-drift": "pnpm --filter @sokosumi/database prisma:check-drift",
     "prisma:studio": "pnpm --filter @sokosumi/database prisma:studio",
     "cloud-agent-db:provision": "node scripts/cloud-agent-db/provision.mjs",
     "cloud-agent-db:teardown": "node scripts/cloud-agent-db/teardown.mjs",

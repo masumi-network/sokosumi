@@ -8,7 +8,6 @@ function clientWith(response: unknown): CoreHttpClient {
     get: async <T>() => response as T,
     post: async <T>() => response as T,
     patch: async <T>() => response as T,
-    delete: async <T>() => response as T,
   };
 }
 
@@ -52,7 +51,6 @@ test("coworkers register emits the Core vendorId request field", async () => {
       } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
 
@@ -98,7 +96,6 @@ test("coworkers register rejects a missing vendor ID before Core request", async
       return { data: {} } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
 
   await assert.rejects(
@@ -126,7 +123,6 @@ test("coworkers register blocks when no organization workspace exists", async ()
       return { data: {} } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
 
   await assert.rejects(
@@ -163,7 +159,6 @@ test("coworkers register rejects non-admin Vendor before Core create", async () 
       return { data: {} } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
 
   await assert.rejects(
@@ -179,16 +174,22 @@ test("coworkers register rejects non-admin Vendor before Core create", async () 
   assert.equal(postCalled, false);
 });
 
-test("coworkers register refuses --create-vendor without inventing Core policy", async () => {
-  let postCalled = false;
+test("coworkers register requires --vendor-id and does not create a Vendor", async () => {
+  const posts: { path: string; body: unknown }[] = [];
   const client: CoreHttpClient = {
-    get: async <T>() => ({ data: [] }) as T,
-    post: async <T>() => {
-      postCalled = true;
+    get: async <T>(path: string) => {
+      if (path.includes("/organizations")) {
+        return {
+          data: [{ id: "org-1", name: "Acme Org", role: "owner" }],
+        } as T;
+      }
+      return { data: [] } as T;
+    },
+    post: async <T>(path: string, body?: unknown) => {
+      posts.push({ path, body });
       return { data: {} } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
 
   await assert.rejects(
@@ -197,30 +198,11 @@ test("coworkers register refuses --create-vendor without inventing Core policy",
         client,
         stdout: { write() {} },
         subcommand: "register",
-        options: {
-          name: "Ops Agent",
-          "vendor-id": "vendor-1",
-          "create-vendor": true,
-        },
+        options: { name: "Ops Agent" },
       }),
-    /explicit confirmation/,
+    /vendor id is required/,
   );
-  await assert.rejects(
-    () =>
-      runCoworkersCommand({
-        client,
-        stdout: { write() {} },
-        subcommand: "register",
-        options: {
-          name: "Ops Agent",
-          "vendor-id": "vendor-1",
-          "create-vendor": true,
-          "confirm-create-vendor": true,
-        },
-      }),
-    /no developer self-service Vendor create/,
-  );
-  assert.equal(postCalled, false);
+  assert.equal(posts.length, 0);
 });
 
 test("coworkers api-key requires an id", async () => {
@@ -246,7 +228,6 @@ test("coworkers update patches the coworker and returns it", async () => {
       body = requestBody;
       return { data: { id: "cw-1", name: "Renamed" } } as T;
     },
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runCoworkersCommand({
@@ -315,7 +296,6 @@ test("coworkers api-key mints a key and returns the full token", async () => {
       } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runCoworkersCommand({
@@ -345,7 +325,6 @@ test("coworkers update sends the mapped multi-field payload", async () => {
       body = requestBody;
       return { data: { id: "cw-1", name: "Ops" } } as T;
     },
-    delete: async <T>() => ({ data: {} }) as T,
   };
   await runCoworkersCommand({
     client,
@@ -384,7 +363,6 @@ test("coworkers update omits an empty name", async () => {
       body = requestBody as Record<string, unknown>;
       return { data: { id: "cw-1" } } as T;
     },
-    delete: async <T>() => ({ data: {} }) as T,
   };
   await runCoworkersCommand({
     client,
@@ -439,7 +417,6 @@ test("coworkers register --create-api-key mints and returns the key", async () =
       } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runCoworkersCommand({
