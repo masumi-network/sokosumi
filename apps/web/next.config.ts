@@ -1,4 +1,4 @@
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import { withRelatedProject } from "@vercel/related-projects";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
@@ -123,15 +123,15 @@ export default withSentryConfig(withNextIntl(nextConfig), {
   // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-side errors will fail.
   tunnelRoute: true, // Generates a random route for each build (recommended)
 
+  // Single top-level option in v11 — applies to webpack and Turbopack.
+  reactComponentAnnotation: {
+    enabled: true,
+  },
+
   webpack: {
     treeshake: {
       // Automatically tree-shake Sentry logger statements to reduce bundle size
       removeDebugLogging: true,
-    },
-
-    // Enable React component annotation for better error messages
-    reactComponentAnnotation: {
-      enabled: true,
     },
 
     // Automatically instrument Next.js middleware with error and performance monitoring.
