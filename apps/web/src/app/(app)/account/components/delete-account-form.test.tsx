@@ -31,7 +31,7 @@ const translations: Record<string, string> = {
   "App.Account.Delete.Errors.userOwnsOrganization":
     "Transfer ownership or delete every organization you own before deleting your account.",
   "App.Account.Delete.Errors.userIsLastVendorAdmin":
-    "Promote another Vendor member to admin before deleting your account.",
+    "Promote another Vendor member to admin, or archive the Vendor's coworkers, before deleting your account.",
   "App.Account.Delete.Errors.inFlightJob":
     "Wait for in-flight jobs to finish before deleting your account.",
   "App.Account.Delete.Errors.unsettledOnChainJob":
@@ -239,7 +239,7 @@ describe("DeleteAccountForm", () => {
 
     expect(
       screen.getByText(
-        "Promote another Vendor member to admin before deleting your account.",
+        "Promote another Vendor member to admin, or archive the Vendor's coworkers, before deleting your account.",
       ),
     ).toBeInTheDocument();
     expect(

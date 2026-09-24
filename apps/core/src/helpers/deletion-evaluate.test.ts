@@ -375,7 +375,7 @@ describe("evaluateUserDeletion", () => {
     });
   });
 
-  it("blocks deletion when the user is the last Vendor admin", async () => {
+  it("blocks deletion when the user is the last admin of a Vendor someone still depends on", async () => {
     vendorMemberFindFirstMock.mockResolvedValue({ id: "vendor_admin_member" });
 
     await expect(
@@ -385,6 +385,9 @@ describe("evaluateUserDeletion", () => {
       reviewRequiredClaim: null,
       ...EMPTY_X402_EVALUATION,
     });
+    // A sole admin with no other member and only archived coworkers leaves
+    // nothing behind that needs an admin, so the Vendor must match one of
+    // the two dependents below to block.
     expect(vendorMemberFindFirstMock).toHaveBeenCalledWith({
       where: {
         userId: "user_delete",
@@ -393,6 +396,10 @@ describe("evaluateUserDeletion", () => {
           vendorMembers: {
             none: { userId: { not: "user_delete" }, role: "admin" },
           },
+          OR: [
+            { vendorMembers: { some: { userId: { not: "user_delete" } } } },
+            { coworkers: { some: { archivedAt: null } } },
+          ],
         },
       },
       select: { id: true },

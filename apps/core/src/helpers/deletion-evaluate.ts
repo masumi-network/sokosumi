@@ -67,12 +67,12 @@ export interface OrganizationDeletionEvaluation {
 const RUNNING_SUBSCRIPTION_MESSAGE =
   "Cancel your running subscription and wait until the paid period ends before deleting.";
 
-const USER_DELETION_MESSAGES: Record<UserDeletionBlocker, string> = {
+export const USER_DELETION_MESSAGES: Record<UserDeletionBlocker, string> = {
   RUNNING_SUBSCRIPTION: RUNNING_SUBSCRIPTION_MESSAGE,
   USER_OWNS_ORGANIZATION:
     "Transfer ownership or delete every organization you own before deleting your account.",
   USER_IS_LAST_VENDOR_ADMIN:
-    "Promote another Vendor member to admin before deleting your account.",
+    "Promote another Vendor member to admin, or archive the Vendor's coworkers, before deleting your account.",
   IN_FLIGHT_JOB:
     "Wait for in-flight jobs to finish before deleting your account.",
   UNSETTLED_ON_CHAIN_JOB:
@@ -151,6 +151,30 @@ function inFlightTaskWhere(
   };
 }
 
+/**
+ * Memberships that make the user the only admin of a Vendor that still needs
+ * one: another member who could be promoted, or a coworker that is not
+ * archived. A sole admin of a Vendor with neither may delete their account;
+ * the Vendor stays behind admin-less for platform admins to manage.
+ */
+export function lastVendorAdminBlockerWhere(
+  userId: string,
+): Prisma.VendorMemberWhereInput {
+  return {
+    userId,
+    role: "admin",
+    vendor: {
+      vendorMembers: {
+        none: { userId: { not: userId }, role: "admin" },
+      },
+      OR: [
+        { vendorMembers: { some: { userId: { not: userId } } } },
+        { coworkers: { some: { archivedAt: null } } },
+      ],
+    },
+  };
+}
+
 async function hasRunningPaidSubscription(
   referenceId: string,
   prisma: Prisma.TransactionClient,
@@ -192,15 +216,7 @@ export async function evaluateUserDeletion(
       select: { id: true },
     }),
     prisma.vendorMember.findFirst({
-      where: {
-        userId,
-        role: "admin",
-        vendor: {
-          vendorMembers: {
-            none: { userId: { not: userId }, role: "admin" },
-          },
-        },
-      },
+      where: lastVendorAdminBlockerWhere(userId),
       select: { id: true },
     }),
     prisma.job.findFirst({

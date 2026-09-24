@@ -13,9 +13,12 @@ import {
   eraseWorkspaceCalendarData,
   lockWorkspaceCalendarForErasure,
 } from "@/helpers/calendar-erasure";
+import {
+  lastVendorAdminBlockerWhere,
+  USER_DELETION_MESSAGES,
+} from "@/helpers/deletion-evaluate";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
-import { lockVendorMembershipMutation } from "@/helpers/vendor-membership";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -136,35 +139,35 @@ export async function prepareTasksForUserDeletion(
         `;
 
         // The preflight last-admin check can become stale before this
-        // transaction starts. Lock every Vendor the user belongs to in a
-        // stable order, then recheck current admin memberships before the
-        // User cascade. Role changes and member removals take the same Vendor
-        // row lock, so one concurrent operation must observe the other's
-        // committed state.
+        // transaction starts. Write every Vendor row the user belongs to in a
+        // stable order, then recheck before the User cascade. Role changes
+        // and member removals lock the same row first thing in a Serializable
+        // transaction, whose snapshot predates the wait. A mere FOR UPDATE
+        // here would let such a change proceed on that stale snapshot after
+        // this commits; a committed write makes Postgres abort it instead,
+        // and serializableTransaction retries it against current data.
         const vendorMemberships = await tx.vendorMember.findMany({
           where: { userId },
           select: { vendorId: true },
           orderBy: { vendorId: "asc" },
         });
         for (const { vendorId } of vendorMemberships) {
-          await lockVendorMembershipMutation(vendorId, tx);
+          await tx.vendor.update({
+            where: { id: vendorId },
+            data: { updatedAt: new Date() },
+            select: { id: true },
+          });
         }
 
-        const adminMemberships = await tx.vendorMember.findMany({
-          where: { userId, role: "admin" },
-          select: { vendorId: true },
+        const lastVendorAdminMembership = await tx.vendorMember.findFirst({
+          where: lastVendorAdminBlockerWhere(userId),
+          select: { id: true },
         });
-        for (const { vendorId } of adminMemberships) {
-          const adminCount = await tx.vendorMember.count({
-            where: { vendorId, role: "admin" },
+        if (lastVendorAdminMembership) {
+          throw new APIError("BAD_REQUEST", {
+            code: "USER_IS_LAST_VENDOR_ADMIN",
+            message: USER_DELETION_MESSAGES.USER_IS_LAST_VENDOR_ADMIN,
           });
-          if (adminCount <= 1) {
-            throw new APIError("BAD_REQUEST", {
-              code: "USER_IS_LAST_VENDOR_ADMIN",
-              message:
-                "Promote another Vendor member to admin before deleting your account.",
-            });
-          }
         }
 
         await tx.$queryRaw`

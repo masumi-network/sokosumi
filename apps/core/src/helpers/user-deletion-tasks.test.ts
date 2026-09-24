@@ -5,6 +5,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CalendarErasureBlockedError } from "./calendar-erasure";
+import { lastVendorAdminBlockerWhere } from "./deletion-evaluate";
 import { prepareTasksForUserDeletion } from "./user-deletion-tasks";
 
 const {
@@ -22,7 +23,8 @@ const {
   chatRoomDeleteMock,
   userDeleteManyMock,
   vendorMemberFindManyMock,
-  vendorMemberCountMock,
+  vendorMemberFindFirstMock,
+  vendorUpdateMock,
   calendarInvalidationOutboxDeleteManyMock,
   queryRawMock,
   transactionMock,
@@ -48,7 +50,8 @@ const {
   chatRoomDeleteMock: vi.fn(),
   userDeleteManyMock: vi.fn(),
   vendorMemberFindManyMock: vi.fn(),
-  vendorMemberCountMock: vi.fn(),
+  vendorMemberFindFirstMock: vi.fn(),
+  vendorUpdateMock: vi.fn(),
   calendarInvalidationOutboxDeleteManyMock: vi.fn(),
   queryRawMock: vi.fn(),
   transactionMock: vi.fn(),
@@ -91,7 +94,8 @@ describe("prepareTasksForUserDeletion", () => {
     chatRoomDeleteMock.mockResolvedValue({});
     userDeleteManyMock.mockResolvedValue({ count: 1 });
     vendorMemberFindManyMock.mockResolvedValue([]);
-    vendorMemberCountMock.mockResolvedValue(0);
+    vendorMemberFindFirstMock.mockResolvedValue(null);
+    vendorUpdateMock.mockResolvedValue({});
     calendarInvalidationOutboxDeleteManyMock.mockResolvedValue({ count: 0 });
     queryRawMock.mockResolvedValue([]);
     eraseWorkspaceCalendarDataMock.mockResolvedValue({
@@ -132,7 +136,10 @@ describe("prepareTasksForUserDeletion", () => {
         },
         vendorMember: {
           findMany: vendorMemberFindManyMock,
-          count: vendorMemberCountMock,
+          findFirst: vendorMemberFindFirstMock,
+        },
+        vendor: {
+          update: vendorUpdateMock,
         },
         calendarInvalidationOutbox: {
           deleteMany: calendarInvalidationOutboxDeleteManyMock,
@@ -217,10 +224,15 @@ describe("prepareTasksForUserDeletion", () => {
     );
   });
 
-  it("rechecks last Vendor admin status under Vendor locks before deleting (V87)", async () => {
-    const vendorId = "01960001-0001-7001-8001-000000000001";
-    vendorMemberFindManyMock.mockResolvedValue([{ vendorId }]);
-    vendorMemberCountMock.mockResolvedValue(1);
+  it("writes each Vendor row, then rechecks the last-admin rule before deleting (V87)", async () => {
+    const vendorIds = [
+      "01960001-0001-7001-8001-000000000001",
+      "01960001-0001-7001-8001-000000000002",
+    ];
+    vendorMemberFindManyMock.mockResolvedValue(
+      vendorIds.map((vendorId) => ({ vendorId })),
+    );
+    vendorMemberFindFirstMock.mockResolvedValue({ id: "vendor_admin_member" });
 
     await expect(
       prepareTasksForUserDeletion("user_delete", {
@@ -230,28 +242,53 @@ describe("prepareTasksForUserDeletion", () => {
       status: "BAD_REQUEST",
       body: expect.objectContaining({
         code: "USER_IS_LAST_VENDOR_ADMIN",
-        message: expect.stringContaining("Promote another Vendor member"),
+        message: expect.stringContaining("archive the Vendor's coworkers"),
       }),
     });
 
-    const vendorLockIndex = queryRawMock.mock.calls.findIndex(([strings]) =>
-      (strings as TemplateStringsArray).join("?").includes('FROM "vendor"'),
-    );
-    expect(vendorLockIndex).toBeGreaterThanOrEqual(0);
-    const [vendorLockStrings, ...vendorLockValues] = queryRawMock.mock.calls[
-      vendorLockIndex
-    ] as [TemplateStringsArray, ...unknown[]];
-    expect(vendorLockStrings.join("?")).toMatch(
-      /FROM "vendor"[\s\S]*WHERE "id" = \?[\s\S]*FOR UPDATE/,
-    );
-    expect(vendorLockValues).toEqual([vendorId]);
-    expect(queryRawMock.mock.invocationCallOrder[vendorLockIndex]).toBeLessThan(
-      vendorMemberFindManyMock.mock.invocationCallOrder[1],
-    );
-    expect(vendorMemberCountMock).toHaveBeenCalledWith({
-      where: { vendorId, role: "admin" },
+    // A FOR UPDATE lock is not enough: a Serializable membership change
+    // queued on the row took its snapshot before waiting, so only a
+    // committed write makes Postgres abort it for a retry.
+    expect(vendorMemberFindManyMock).toHaveBeenCalledWith({
+      where: { userId: "user_delete" },
+      select: { vendorId: true },
+      orderBy: { vendorId: "asc" },
     });
+    expect(vendorUpdateMock.mock.calls).toEqual(
+      vendorIds.map((vendorId) => [
+        {
+          where: { id: vendorId },
+          data: { updatedAt: expect.any(Date) },
+          select: { id: true },
+        },
+      ]),
+    );
+    expect(vendorMemberFindFirstMock).toHaveBeenCalledWith({
+      where: lastVendorAdminBlockerWhere("user_delete"),
+      select: { id: true },
+    });
+    expect(vendorUpdateMock.mock.invocationCallOrder[1]).toBeLessThan(
+      vendorMemberFindFirstMock.mock.invocationCallOrder[0],
+    );
     expect(userDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("lets a sole Vendor admin with nothing left to hand over delete (V87)", async () => {
+    vendorMemberFindManyMock.mockResolvedValue([
+      { vendorId: "01960001-0001-7001-8001-000000000001" },
+    ]);
+    vendorMemberFindFirstMock.mockResolvedValue(null);
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    expect(userDeleteManyMock).toHaveBeenCalledWith({
+      where: { id: "user_delete" },
+    });
   });
 
   it("erases Calendar data for the user's personal Workspace", async () => {

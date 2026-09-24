@@ -137,10 +137,11 @@ export async function requireCoworkerBelongsToVendor(
 }
 
 /**
- * Serialize membership changes with account deletion. Deletion locks each
- * Vendor row before it rechecks admin membership and cascades the user row.
+ * Serialize membership changes with account deletion. Deletion writes each
+ * Vendor row before it rechecks admin membership and cascades the user row, so
+ * a change queued here behind it fails serialization and is retried.
  */
-export async function lockVendorMembershipMutation(
+async function lockVendorMembershipMutation(
   vendorId: string,
   tx: Prisma.TransactionClient,
 ): Promise<void> {

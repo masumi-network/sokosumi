@@ -4332,7 +4332,7 @@
           "runningSubscription": "Cancel your running subscription and wait until the paid period ends.",
           "billingLink": "Go to billing",
           "userOwnsOrganization": "Transfer ownership or delete every organization you own before deleting your account.",
-          "userIsLastVendorAdmin": "Promote another Vendor member to admin before deleting your account.",
+          "userIsLastVendorAdmin": "Promote another Vendor member to admin, or archive the Vendor's coworkers, before deleting your account.",
           "inFlightJob": "Wait for in-flight jobs to finish before deleting your account.",
           "unsettledOnChainJob": "Wait for on-chain job purchases to settle before deleting your account.",
           "inFlightTask": "Wait for in-flight tasks to finish before deleting your account.",
