@@ -11,7 +11,7 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomThreadsUnreadCountSchema } from "@/schemas/chat-room.schema";
 
 import { requireChatRoomUserAccess } from "../../../helpers";
-import { countChatRoomUnreadThreads } from "../../../room-unread";
+import { getChatRoomThreadAggregates } from "../../../room-unread";
 
 const paramsSchema = z.object({
   id: z
@@ -28,7 +28,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/threads/unread-count",
     description:
-      "Count unread threads in a room (Participant-gated `unreadReplyCount`). Cheap count path: returns a count only, no thread items. Same eligibility as `unread=true` and Mark all. Independent of room mark-read.",
+      "Unread threads in a room with each one's Participant-gated `unreadReplyCount`, and their count. No parent messages are hydrated. Same eligibility as `unread=true` and Mark all. Independent of room mark-read.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -57,13 +57,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    const count = await countChatRoomUnreadThreads(
+    const aggregates = await getChatRoomThreadAggregates(
       room.id,
       userContext.userId,
       prisma,
+      { unreadOnly: true },
     );
+    const threads = aggregates.map(({ parentMessageId, unreadReplyCount }) => ({
+      parentMessageId,
+      unreadReplyCount,
+    }));
 
     c.header("Cache-Control", "no-store");
-    return ok(c, chatRoomThreadsUnreadCountSchema.parse({ count }));
+    return ok(
+      c,
+      chatRoomThreadsUnreadCountSchema.parse({
+        count: threads.length,
+        threads,
+      }),
+    );
   });
 }

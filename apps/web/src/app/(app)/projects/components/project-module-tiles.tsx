@@ -35,6 +35,7 @@ interface ProjectModuleTilesProps {
   calendarHref?: string;
   labels: ProjectModuleTilesLabels;
   projectId: string;
+  socialHref?: string;
 }
 
 interface ProjectModuleDefinition {
@@ -61,6 +62,7 @@ export function ProjectModuleTiles({
   calendarHref,
   labels,
   projectId,
+  socialHref,
 }: ProjectModuleTilesProps) {
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -82,8 +84,10 @@ export function ProjectModuleTiles({
           </p>
         </Link>
       ) : null}
-      {PROJECT_MODULES.map(({ icon: Icon, key, href }) => {
+      {PROJECT_MODULES.map(({ icon: Icon, key, href: moduleHref }) => {
         const module = labels[key];
+        const href =
+          key === "socialMedia" ? socialHref : moduleHref?.(projectId);
         const className = cn(
           "bg-card-background border-border min-w-0 rounded-xl border p-4",
           href
@@ -112,7 +116,7 @@ export function ProjectModuleTiles({
 
         if (href) {
           return (
-            <Link key={key} href={href(projectId)} className={className}>
+            <Link key={key} href={href} className={className}>
               {body}
             </Link>
           );

@@ -56,6 +56,29 @@ export function keepKnownThreadUnreadReplyCount(
 }
 
 /**
+ * Set each loaded parent's unread reply count from the reader's unread Thread
+ * map. A parent absent from the map has no unread replies.
+ *
+ * Returns `messages` itself when no count moved, so an unchanged read does not
+ * re-render the transcript.
+ */
+export function applyThreadUnreadReplyCounts(
+  messages: ChatRoomMessage[],
+  replyCounts: ReadonlyMap<string, number>,
+): ChatRoomMessage[] {
+  let changed = false;
+  const next = messages.map((message) => {
+    const unread = replyCounts.get(message.id) ?? 0;
+    if ((message.threadUnreadReplyCount ?? 0) === unread) {
+      return message;
+    }
+    changed = true;
+    return { ...message, threadUnreadReplyCount: unread };
+  });
+  return changed ? next : messages;
+}
+
+/**
  * Merge room message pages by id. Incoming rows win (fresh reactions /
  * mention status). Result is sorted oldest → newest for reading order.
  *

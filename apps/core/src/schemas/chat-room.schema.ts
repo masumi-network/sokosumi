@@ -913,13 +913,28 @@ export const chatEarlierThreadSchema = z
   })
   .openapi("ChatEarlierThread");
 
-/** Cheap unread-thread count. Same Participant-gated set as `unread=true`. */
+/** One unread Thread's reply count, without the parent message. */
+export const chatRoomThreadUnreadReplyCountSchema = z
+  .object({
+    parentMessageId: z.string().uuid(),
+    unreadReplyCount: z.number().int().min(1),
+  })
+  .openapi("ChatRoomThreadUnreadReplyCount");
+
+/**
+ * Unread threads in a room with each one's reply count. Same
+ * Participant-gated set as `unread=true`, without hydrating parents.
+ */
 export const chatRoomThreadsUnreadCountSchema = z
   .object({
     count: z.number().int().min(0).openapi({
       description:
-        "Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.",
+        "Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Equals `threads.length`.",
       example: 4,
+    }),
+    threads: z.array(chatRoomThreadUnreadReplyCountSchema).openapi({
+      description:
+        "Every unread thread in the room with its `unreadReplyCount`. A thread absent from the list has no unread replies for the viewer.",
     }),
   })
   .openapi("ChatRoomThreadsUnreadCount");
