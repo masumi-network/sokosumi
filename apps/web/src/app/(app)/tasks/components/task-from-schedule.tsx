@@ -7,7 +7,7 @@ import {
   taskSchedulePath,
 } from "@/app/tasks/utils/task-schedule-view";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
-import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
+import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 
 /**
  * Schedule value in a Task's properties: the schedule it came from, with its
@@ -51,9 +51,7 @@ export async function TaskFromSchedule({ scheduleId }: { scheduleId: string }) {
         className="text-muted-foreground size-4 shrink-0"
         aria-hidden
       />
-      <span className="truncate">
-        {stripMarkdownToText(schedule.name) || schedule.name}
-      </span>
+      <span className="truncate">{stripInlineMarkdown(schedule.name)}</span>
     </Link>
   );
 }

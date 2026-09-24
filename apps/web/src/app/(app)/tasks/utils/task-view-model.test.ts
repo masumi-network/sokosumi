@@ -217,6 +217,14 @@ describe("mapTaskToTaskWithCoworker", () => {
     expect(map(task).project).toEqual(project);
   });
 
+  it("shows a Markdown task name as plain text for lists and cards", () => {
+    const task = buildTask(TaskStatus.READY, {
+      name: "**Task Name:** fix_login",
+    });
+
+    expect(map(task).name).toBe("Task Name: fix_login");
+  });
+
   it("keeps project null when the API task has no project", () => {
     const task = buildTask(TaskStatus.READY, { project: null });
 

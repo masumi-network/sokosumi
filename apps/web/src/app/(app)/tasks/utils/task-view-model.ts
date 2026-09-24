@@ -12,7 +12,10 @@ import type {
 } from "@/lib/clients/generated/core/types.gen";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 import { parseMentions } from "@/lib/utils/mention-parser";
-import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
+import {
+  stripInlineMarkdown,
+  stripMarkdownToText,
+} from "@/lib/utils/strip-markdown";
 
 function getCommentsCount(events: TaskEvent[]): number {
   return events.filter((event) => Boolean(event.comment)).length;
@@ -173,7 +176,7 @@ export function mapTaskToTaskWithCoworker(
 
   return {
     id: task.id,
-    name: stripMarkdownToText(task.name) || task.name,
+    name: stripInlineMarkdown(task.name),
     status: task.status,
     visibility: task.visibility,
     ownerId: task.ownerId,
