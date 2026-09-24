@@ -328,6 +328,10 @@ Tests first. Against the old order and the old SwiftUI menu, 13 of 16 new tests 
 
 Workspace `xcodebuild test` (`-enableCodeCoverage NO`): 1,260 cases, 1,259 passed. The one failure was the known-flaky `HistoryGapRowTests`, which passed 3/3 on rerun. Package suites: CoreAPI 1, Auth 35, Chat 788, Realtime 48, Workspace 148. Also passed: strict SwiftLint, SwiftFormat lint, the macOS Debug build and the iOS 17 `SokosumiWorkspace` build.
 
+Review follow-up: the hover pill reaches half its height over the row above. A right-click on the pill now opens its own row's menu. The pill carries its row's menu area, and before the fix that click opened no menu. A hosted test hovers the second of two rows, right-clicks on the part of its pill that lies over the first row, and checks that Quote runs on the second row. The Copy test now copies a known substring and reads it back from the pasteboard. With the Copy item's target broken, it fails.
+
+Known limitation: a context menu opened from the keyboard still shows AppKit's editing menu when selectable message text has focus. This covers VoiceOver's VO-Shift-M and a context-menu key. That path reaches SwiftUI's private selectable-text view as first responder, and no public API changes its menu. Intercepting it would need an app-wide event hook aimed at a private view. VoiceOver users get the same ordered actions through the row's accessibility actions.
+
 Not exercised: a right-click in the signed, signed-in app. The test host cannot make the app active, so first-click behaviour in a key window is inferred from the background-window runs.
 
 ### M6 one-command regression runner — 2026-09-21

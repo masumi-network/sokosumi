@@ -330,6 +330,8 @@ import SwiftUI
           .background(.regularMaterial, in: .rect(cornerRadius: 9))
           .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(.primary.opacity(0.12)))
           .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
+          // The pill reaches over the row above; a right-click on it must open this row's menu, not nothing or that row's.
+          .overlay { menuArea }
           .onHover { isReplyHovered = $0 }
           .opacity(showsActions ? 1 : 0)
           .allowsHitTesting(showsActions)
@@ -395,10 +397,7 @@ import SwiftUI
         Text(mentionRetryError ?? "Try again.")
       }
       // AppKit answers a right-click on selectable text with its own editing menu, so the row opens its menu itself.
-      .overlay {
-        MessageContextMenuArea(availability: menuAvailability, busy: menuBusy, perform: performMenuAction)
-          .accessibilityHidden(true)
-      }
+      .overlay { menuArea }
       .accessibilityElement(children: .contain)
       .accessibilityActions {
         ForEach(menuAvailability.sections(hasSelection: false).joined().filter { !menuBusy.contains($0) }, id: \.self) { action in
@@ -569,6 +568,11 @@ import SwiftUI
           showsPinError = true
         }
       }
+    }
+
+    private var menuArea: some View {
+      MessageContextMenuArea(availability: menuAvailability, busy: menuBusy, perform: performMenuAction)
+        .accessibilityHidden(true)
     }
 
     /// What the right-click menu and the accessibility actions offer.
