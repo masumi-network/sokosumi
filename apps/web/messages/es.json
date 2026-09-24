@@ -2317,7 +2317,7 @@
             "uploading": "Subiendo…",
             "remove": "Quitar {name}",
             "hint": "Hasta 4 imágenes, o un GIF, o un vídeo.",
-            "unsupported": "Usa un archivo JPG, PNG, WebP, GIF, MP4 o MOV.",
+            "unsupported": "Usa un archivo JPG, PNG, WebP, GIF o MP4.",
             "alreadyAttached": "Ese archivo ya está adjunto.",
             "uploadDuplicate": "Ya existe un archivo con este nombre en el Drive. Cámbialo de nombre e inténtalo de nuevo.",
             "uploadFailed": "La subida falló. Inténtalo de nuevo.",
@@ -2326,7 +2326,7 @@
               "too_many_gifs": "X permite un GIF por publicación.",
               "too_many_videos": "X permite un vídeo por publicación.",
               "mixed_media": "Usa imágenes, un GIF o un vídeo, no una mezcla.",
-              "unsupported_type": "Usa un archivo JPG, PNG, WebP, GIF, MP4 o MOV.",
+              "unsupported_type": "Usa un archivo JPG, PNG, WebP, GIF o MP4.",
               "too_large": "Un archivo es demasiado grande para X."
             }
           },

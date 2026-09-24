@@ -23,7 +23,6 @@ describe("buildSocialPostMediaRef", () => {
     ["photo.webp", "image/webp", "image"],
     ["loop.gif", "image/gif", "gif"],
     ["clip.mp4", "video/mp4", "video"],
-    ["clip.MOV", "video/quicktime", "video"],
   ])("maps %s to %s (%s)", (name, mimeType, kind) => {
     expect(
       buildSocialPostMediaRef({
@@ -35,7 +34,7 @@ describe("buildSocialPostMediaRef", () => {
     ).toMatchObject({ mimeType, kind });
   });
 
-  it.each(["notes.pdf", "vector.svg", "no-extension", ".png"])(
+  it.each(["notes.pdf", "vector.svg", "clip.MOV", "no-extension", ".png"])(
     "rejects %s",
     (name) => {
       expect(
