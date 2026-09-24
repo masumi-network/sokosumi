@@ -207,6 +207,7 @@ import { WorkspaceCalendar } from "./workspace-calendar";
 
 const ITEM: WorkspaceCalendarItem = {
   id: "run-1",
+  kind: "RUN",
   scheduleId: "schedule-1",
   scheduleRevision: 3,
   canChangeRun: true,
@@ -243,6 +244,17 @@ const MOVED_ITEM: WorkspaceCalendarItem = {
   ...ITEM,
   id: "run-moved-1",
   scheduledAt: new Date("2030-01-03T10:30:00.000Z"),
+};
+
+const RUN_AT_ITEM: WorkspaceCalendarItem = {
+  ...READ_ONLY_ITEM,
+  id: "task-run-at-1",
+  kind: "RUN_AT",
+  scheduleId: null,
+  scheduleRevision: null,
+  taskId: "task-run-at-1",
+  taskStatus: "QUEUED",
+  originalScheduledAt: null,
 };
 
 const SOURCES: WorkspaceCalendarSource[] = [
@@ -715,6 +727,27 @@ describe("WorkspaceCalendar editing", () => {
       screen.getByRole("menuitem", { name: "event.openSchedule" }),
     );
     expect(pushMock).toHaveBeenLastCalledWith("/tasks/schedules/schedule-1");
+  });
+
+  it("shows a Queued Task at its Run at, opening only the Task", async () => {
+    const user = userEvent.setup();
+    renderCalendar({ items: [RUN_AT_ITEM] });
+
+    const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
+    expect(props.events).toEqual([
+      expect.objectContaining({
+        id: RUN_AT_ITEM.id,
+        start: RUN_AT_ITEM.scheduledAt.toISOString(),
+        startEditable: false,
+      }),
+    ]);
+
+    await openEventMenu(user);
+    expect(
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual(["event.openTask"]);
+    await user.click(screen.getByRole("menuitem", { name: "event.openTask" }));
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task-run-at-1");
   });
 
   it("makes only Runs the caller can change draggable", () => {

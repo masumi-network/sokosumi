@@ -16,6 +16,8 @@ const {
   memberFindFirstMock,
   projectFindFirstMock,
   taskFindFirstMock,
+  taskFindManyMock,
+  taskCountMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
   vendorGrantFindUniqueMock,
@@ -25,6 +27,8 @@ const {
   memberFindFirstMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
+  taskCountMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
@@ -58,7 +62,11 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: { findFirst: coworkerFindFirstMock },
     member: { findFirst: memberFindFirstMock },
     project: { findFirst: projectFindFirstMock },
-    task: { findFirst: taskFindFirstMock },
+    task: {
+      count: taskCountMock,
+      findFirst: taskFindFirstMock,
+      findMany: taskFindManyMock,
+    },
     taskScheduleOccurrence: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
@@ -150,6 +158,41 @@ describe("GET /projects/{id}/calendar", () => {
     vendorGrantFindUniqueMock.mockResolvedValue(null);
     resolveWorkspaceForContextMock.mockResolvedValue({ id: WORKSPACE_ID });
     taskFindFirstMock.mockResolvedValue(null);
+    taskFindManyMock.mockResolvedValue([]);
+    taskCountMock.mockResolvedValue(0);
+  });
+
+  it("shows the Project's Queued Tasks at their Run at", async () => {
+    taskFindManyMock.mockResolvedValue([
+      {
+        id: "0190f3a2-0000-7000-8000-00000000aaaa",
+        name: "Send the invoice",
+        ownerId: "user_123",
+        status: TaskStatus.QUEUED,
+        assigneeId: null,
+        assigneeUserId: null,
+        runAt: new Date("2026-06-04T08:00:00.000Z"),
+        workspaceId: WORKSPACE_ID,
+        projectId: PROJECT_ID,
+      },
+    ]);
+
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock.mock.lastCall?.[0].where).toEqual(
+      expect.objectContaining({ projectId: PROJECT_ID }),
+    );
+    const body = await response.json();
+    expect(body.data).toContainEqual(
+      expect.objectContaining({
+        kind: "RUN_AT",
+        taskId: "0190f3a2-0000-7000-8000-00000000aaaa",
+        sourceId: `project:${PROJECT_ID}`,
+      }),
+    );
   });
 
   it("returns only Runs attributed to the route Project", async () => {

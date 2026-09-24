@@ -15576,20 +15576,34 @@ export const WorkspaceCalendarItemSchema = {
     properties: {
         id: {
             type: 'string',
-            format: 'uuid',
-            description: 'The Task Schedule Run this item shows',
+            description: 'The Task Schedule Run this item shows, or the Task for a RUN_AT item',
             example: '00000000-0000-7000-8000-000000000001'
         },
-        scheduleId: {
+        kind: {
             type: 'string',
+            enum: [
+                'RUN',
+                'RUN_AT'
+            ],
+            description: 'RUN is a Task Schedule Run; RUN_AT is a Queued Task that starts at its Run at',
+            example: 'RUN'
+        },
+        scheduleId: {
+            type: [
+                'string',
+                'null'
+            ],
             format: 'uuid',
-            description: 'Task Schedule the Run belongs to',
+            description: 'Task Schedule the Run belongs to; null for RUN_AT',
             example: '33333333-3333-7333-8333-333333333333'
         },
         scheduleRevision: {
-            type: 'integer',
+            type: [
+                'integer',
+                'null'
+            ],
             minimum: 0,
-            description: 'Task Schedule revision observed with this Run; the expectedRevision for changing it',
+            description: 'Task Schedule revision observed with this Run; the expectedRevision for changing it. Null for RUN_AT.',
             example: 3
         },
         canChangeRun: {
@@ -15602,7 +15616,7 @@ export const WorkspaceCalendarItemSchema = {
                 'string',
                 'null'
             ],
-            description: 'Task the Run created; null while the Run is planned',
+            description: 'Task the Run created (null while planned), or the RUN_AT Task itself',
             example: 'tsk_123'
         },
         taskName: {
@@ -15632,7 +15646,7 @@ export const WorkspaceCalendarItemSchema = {
                 'CANCELED',
                 null
             ],
-            description: 'Status of the Task the Run created; null while planned',
+            description: 'Status of the Task the Run created, or QUEUED for RUN_AT; null while a Run is planned',
             example: 'READY'
         },
         taskAssigneeId: {
@@ -15675,7 +15689,7 @@ export const WorkspaceCalendarItemSchema = {
                 'PLANNED',
                 'RELEASED'
             ],
-            description: 'PLANNED is still to come (moved ones too); RELEASED created its Task. Skipped Runs are not on the Calendar.',
+            description: 'PLANNED is still to come (moved Runs and RUN_AT Tasks too); RELEASED created its Task. Skipped Runs are not on the Calendar.',
             example: 'PLANNED'
         },
         sourceId: {
@@ -15725,6 +15739,7 @@ export const WorkspaceCalendarItemSchema = {
     },
     required: [
         'id',
+        'kind',
         'scheduleId',
         'scheduleRevision',
         'canChangeRun',

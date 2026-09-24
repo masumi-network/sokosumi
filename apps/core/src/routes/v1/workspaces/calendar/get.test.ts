@@ -24,12 +24,16 @@ const {
   memberFindFirstMock,
   projectFindFirstMock,
   taskFindFirstMock,
+  taskFindManyMock,
+  taskCountMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
   vendorGrantFindUniqueMock,
   resolveWorkspaceForContextMock,
 } = vi.hoisted(() => ({
   taskFindFirstMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
+  taskCountMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
@@ -66,7 +70,11 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: { findFirst: coworkerFindFirstMock },
     member: { findFirst: memberFindFirstMock },
     project: { findFirst: projectFindFirstMock },
-    task: { findFirst: taskFindFirstMock },
+    task: {
+      count: taskCountMock,
+      findFirst: taskFindFirstMock,
+      findMany: taskFindManyMock,
+    },
     taskScheduleOccurrence: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
@@ -172,6 +180,25 @@ const USER_ACCESS = {
   task: {},
 };
 
+function createRunAtTask(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "0190f3a2-0000-7000-8000-00000000aaaa",
+    name: "Send the invoice",
+    ownerId: "user_123",
+    status: TaskStatus.QUEUED,
+    assigneeId: null,
+    assigneeUserId: "user_456",
+    runAt: new Date("2026-06-04T08:00:00.000Z"),
+    workspaceId: WORKSPACE_ID,
+    projectId: null,
+    ...overrides,
+  };
+}
+
+function lastRunAtTaskWhere() {
+  return taskFindManyMock.mock.lastCall?.[0].where;
+}
+
 const QUERY = {
   from: new Date(FROM),
   scope: "workspace" as const,
@@ -212,6 +239,8 @@ describe("GET /workspaces/calendar", () => {
     taskScheduleOccurrenceCountMock.mockResolvedValue(0);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
     taskFindFirstMock.mockResolvedValue(null);
+    taskFindManyMock.mockResolvedValue([]);
+    taskCountMock.mockResolvedValue(0);
   });
 
   afterEach(() => {
@@ -229,6 +258,7 @@ describe("GET /workspaces/calendar", () => {
       data: [
         {
           id: "00000000-0000-7000-8000-000000000001",
+          kind: "RUN",
           scheduleId: SCHEDULE_ID,
           scheduleRevision: 4,
           canChangeRun: true,
@@ -652,6 +682,141 @@ describe("GET /workspaces/calendar", () => {
 
     expect(response.status).toBe(status);
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("shows a Queued Task at its Run at", async () => {
+    taskFindManyMock.mockResolvedValue([createRunAtTask()]);
+    taskCountMock.mockResolvedValue(1);
+
+    const response = await requestCalendar(createApp());
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual([
+      {
+        id: "0190f3a2-0000-7000-8000-00000000aaaa",
+        kind: "RUN_AT",
+        scheduleId: null,
+        scheduleRevision: null,
+        canChangeRun: false,
+        taskId: "0190f3a2-0000-7000-8000-00000000aaaa",
+        taskName: "Send the invoice",
+        taskStatus: "QUEUED",
+        taskAssigneeId: null,
+        taskAssigneeUserId: "user_456",
+        taskOwnerId: "user_123",
+        scheduledAt: "2026-06-04T08:00:00.000Z",
+        originalScheduledAt: null,
+        state: "PLANNED",
+        sourceId: `workspace:${WORKSPACE_ID}`,
+        sourceWorkspaceId: WORKSPACE_ID,
+        sourceType: "WORKSPACE",
+        sourceProjectId: null,
+        sourceAccuracy: "EXACT",
+        timeAccuracy: "EXACT",
+      },
+    ]);
+    expect(body.meta.pagination.total).toBe(1);
+    expect(lastRunAtTaskWhere()).toEqual({
+      workspaceId: WORKSPACE_ID,
+      status: TaskStatus.QUEUED,
+      runAt: { gte: new Date(FROM), lt: new Date(TO) },
+      AND: [{ archivedAt: null }, HUMAN_VISIBILITY],
+    });
+  });
+
+  it("merges Runs and Run at Tasks in time order", async () => {
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createRun({
+        effectiveScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+        originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+      }),
+      createRun({
+        id: "00000000-0000-7000-8000-000000000002",
+        effectiveScheduledAt: new Date("2026-06-05T09:00:00.000Z"),
+        originalScheduledAt: new Date("2026-06-05T09:00:00.000Z"),
+      }),
+    ]);
+    taskScheduleOccurrenceCountMock.mockResolvedValue(2);
+    taskFindManyMock.mockResolvedValue([createRunAtTask()]);
+    taskCountMock.mockResolvedValue(1);
+
+    const response = await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&limit=2`,
+    );
+    const body = await response.json();
+
+    expect(body.data.map((item: { kind: string }) => item.kind)).toEqual([
+      "RUN",
+      "RUN_AT",
+    ]);
+    expect(body.meta.pagination.total).toBe(3);
+    expect(body.meta.pagination.nextCursor).toEqual(expect.any(String));
+  });
+
+  it("reads Run at Tasks of the requested Project, or of none for the workspace source", async () => {
+    await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&projectId=${PROJECT_ID}`,
+    );
+    expect(lastRunAtTaskWhere()).toEqual(
+      expect.objectContaining({ projectId: PROJECT_ID }),
+    );
+
+    await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&sourceId=workspace:${WORKSPACE_ID}`,
+    );
+    expect(lastRunAtTaskWhere()).toEqual(
+      expect.objectContaining({ projectId: null }),
+    );
+  });
+
+  it("skips Run at Tasks when the status filter asks for another status", async () => {
+    await requestCalendar(createApp(), `from=${FROM}&to=${TO}&status=READY`);
+
+    expect(taskFindManyMock).not.toHaveBeenCalled();
+    expect(taskCountMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps Run at Tasks under the Queued status filter", async () => {
+    await requestCalendar(createApp(), `from=${FROM}&to=${TO}&status=QUEUED`);
+
+    expect(lastRunAtTaskWhere().AND).toEqual([
+      { archivedAt: null },
+      HUMAN_VISIBILITY,
+      { status: TaskStatus.QUEUED },
+    ]);
+  });
+
+  it("pages Run at Tasks by time and id after the cursor", async () => {
+    const cursor = Buffer.from(
+      JSON.stringify({
+        id: "00000000-0000-7000-8000-000000000002",
+        scheduledAt: "2026-06-02T09:00:00.000Z",
+      }),
+      "utf8",
+    ).toString("base64url");
+
+    await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&cursor=${cursor}`,
+    );
+
+    expect(lastRunAtTaskWhere().AND).toEqual(
+      expect.arrayContaining([
+        {
+          OR: [
+            { runAt: { gt: new Date("2026-06-02T09:00:00.000Z") } },
+            {
+              runAt: new Date("2026-06-02T09:00:00.000Z"),
+              id: { gt: "00000000-0000-7000-8000-000000000002" },
+            },
+          ],
+        },
+      ]),
+    );
   });
 
   it("pages Runs by time and id with a stable cursor", async () => {

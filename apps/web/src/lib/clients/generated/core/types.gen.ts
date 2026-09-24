@@ -4734,23 +4734,27 @@ export type ProjectDesignMdWrite = {
 
 export type WorkspaceCalendarItem = {
     /**
-     * The Task Schedule Run this item shows
+     * The Task Schedule Run this item shows, or the Task for a RUN_AT item
      */
     id: string;
     /**
-     * Task Schedule the Run belongs to
+     * RUN is a Task Schedule Run; RUN_AT is a Queued Task that starts at its Run at
      */
-    scheduleId: string;
+    kind: 'RUN' | 'RUN_AT';
     /**
-     * Task Schedule revision observed with this Run; the expectedRevision for changing it
+     * Task Schedule the Run belongs to; null for RUN_AT
      */
-    scheduleRevision: number;
+    scheduleId: string | null;
+    /**
+     * Task Schedule revision observed with this Run; the expectedRevision for changing it. Null for RUN_AT.
+     */
+    scheduleRevision: number | null;
     /**
      * Whether the caller may skip, move, or restore this Run through PATCH /v1/tasks/schedules/{id}/runs/{runId}
      */
     canChangeRun: boolean;
     /**
-     * Task the Run created; null while the Run is planned
+     * Task the Run created (null while planned), or the RUN_AT Task itself
      */
     taskId: string | null;
     /**
@@ -4758,7 +4762,7 @@ export type WorkspaceCalendarItem = {
      */
     taskName: string;
     /**
-     * Status of the Task the Run created; null while planned
+     * Status of the Task the Run created, or QUEUED for RUN_AT; null while a Run is planned
      */
     taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED' | null;
     taskAssigneeId: string | null;
@@ -4776,7 +4780,7 @@ export type WorkspaceCalendarItem = {
      */
     originalScheduledAt: Date | null;
     /**
-     * PLANNED is still to come (moved ones too); RELEASED created its Task. Skipped Runs are not on the Calendar.
+     * PLANNED is still to come (moved Runs and RUN_AT Tasks too); RELEASED created its Task. Skipped Runs are not on the Calendar.
      */
     state: 'PLANNED' | 'RELEASED';
     /**
@@ -32604,15 +32608,15 @@ export type GetProjectsByIdCalendarData = {
          */
         scope?: 'owned' | 'workspace';
         /**
-         * Only Runs whose Task Schedule or created Task has this coworker
+         * Only items whose Task Schedule or Task has this coworker
          */
         assigneeId?: string;
         /**
-         * Only Runs whose Task Schedule or created Task is assigned to this workspace member
+         * Only items whose Task Schedule or Task is assigned to this workspace member
          */
         assigneeUserId?: string;
         /**
-         * Only Runs whose created Task has this status. Planned Runs have no Task yet, so they drop out.
+         * Only items whose Task has this status. Planned Runs have no Task yet, so they drop out; RUN_AT Tasks are QUEUED.
          */
         status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
         /**
@@ -47347,23 +47351,23 @@ export type GetWorkspacesCalendarData = {
          */
         scope?: 'owned' | 'workspace';
         /**
-         * Only Runs whose Task Schedule or created Task has this coworker
+         * Only items whose Task Schedule or Task has this coworker
          */
         assigneeId?: string;
         /**
-         * Only Runs whose Task Schedule or created Task is assigned to this workspace member
+         * Only items whose Task Schedule or Task is assigned to this workspace member
          */
         assigneeUserId?: string;
         /**
-         * Only Runs captured with this Project as their Calendar source
+         * Only items with this Project as their Calendar source
          */
         projectId?: string;
         /**
-         * Only Runs captured with this non-Project Calendar source in the current workspace
+         * Only items with this non-Project Calendar source in the current workspace
          */
         sourceId?: string;
         /**
-         * Only Runs whose created Task has this status. Planned Runs have no Task yet, so they drop out.
+         * Only items whose Task has this status. Planned Runs have no Task yet, so they drop out; RUN_AT Tasks are QUEUED.
          */
         status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
         /**

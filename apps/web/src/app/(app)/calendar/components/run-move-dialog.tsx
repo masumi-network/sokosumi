@@ -15,19 +15,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { WorkspaceCalendarItem } from "@/lib/clients/generated/core";
 import {
   utcToDateTimeLocalInTimezone,
   zonedDateTimeLocalToUtc,
 } from "@/lib/schedules/zoned-datetime";
 import {
+  type ChangeableRun,
   changeRun,
   runChangeErrorKey,
   useReportRunChangeFailure,
 } from "./run-change";
 
 interface RunMoveDialogProps {
-  item: WorkspaceCalendarItem;
+  item: ChangeableRun;
   /** IANA zone the wall-clock input is interpreted in. */
   timeZone: string;
   onClose: () => void;

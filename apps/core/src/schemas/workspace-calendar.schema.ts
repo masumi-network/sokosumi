@@ -27,27 +27,25 @@ const workspaceCalendarQueryObjectSchema = z.object({
     example: "workspace",
   }),
   assigneeId: z.uuid().optional().openapi({
-    description:
-      "Only Runs whose Task Schedule or created Task has this coworker",
+    description: "Only items whose Task Schedule or Task has this coworker",
     example: "22222222-2222-7222-8222-222222222222",
   }),
   assigneeUserId: z.string().optional().openapi({
     description:
-      "Only Runs whose Task Schedule or created Task is assigned to this workspace member",
+      "Only items whose Task Schedule or Task is assigned to this workspace member",
   }),
   projectId: z.uuid().optional().openapi({
-    description:
-      "Only Runs captured with this Project as their Calendar source",
+    description: "Only items with this Project as their Calendar source",
     example: "22222222-2222-7222-8222-222222222222",
   }),
   sourceId: z.string().max(64).optional().openapi({
     description:
-      "Only Runs captured with this non-Project Calendar source in the current workspace",
+      "Only items with this non-Project Calendar source in the current workspace",
     example: "workspace:11111111-1111-7111-8111-111111111111",
   }),
   status: z.enum(TaskStatus).optional().openapi({
     description:
-      "Only Runs whose created Task has this status. Planned Runs have no Task yet, so they drop out.",
+      "Only items whose Task has this status. Planned Runs have no Task yet, so they drop out; RUN_AT Tasks are QUEUED.",
     example: TaskStatus.READY,
   }),
   cursor: z
@@ -85,17 +83,23 @@ export const projectCalendarQuerySchema = workspaceCalendarQueryObjectSchema
 
 export const workspaceCalendarItemSchema = z
   .object({
-    id: z.string().uuid().openapi({
-      description: "The Task Schedule Run this item shows",
+    id: z.string().openapi({
+      description:
+        "The Task Schedule Run this item shows, or the Task for a RUN_AT item",
       example: "00000000-0000-7000-8000-000000000001",
     }),
-    scheduleId: z.string().uuid().openapi({
-      description: "Task Schedule the Run belongs to",
+    kind: z.enum(["RUN", "RUN_AT"]).openapi({
+      description:
+        "RUN is a Task Schedule Run; RUN_AT is a Queued Task that starts at its Run at",
+      example: "RUN",
+    }),
+    scheduleId: z.string().uuid().nullable().openapi({
+      description: "Task Schedule the Run belongs to; null for RUN_AT",
       example: "33333333-3333-7333-8333-333333333333",
     }),
-    scheduleRevision: z.number().int().min(0).openapi({
+    scheduleRevision: z.number().int().min(0).nullable().openapi({
       description:
-        "Task Schedule revision observed with this Run; the expectedRevision for changing it",
+        "Task Schedule revision observed with this Run; the expectedRevision for changing it. Null for RUN_AT.",
       example: 3,
     }),
     canChangeRun: z.boolean().openapi({
@@ -104,7 +108,8 @@ export const workspaceCalendarItemSchema = z
       example: true,
     }),
     taskId: z.string().nullable().openapi({
-      description: "Task the Run created; null while the Run is planned",
+      description:
+        "Task the Run created (null while planned), or the RUN_AT Task itself",
       example: "tsk_123",
     }),
     taskName: z.string().openapi({
@@ -112,7 +117,8 @@ export const workspaceCalendarItemSchema = z
       example: "Prepare release notes",
     }),
     taskStatus: z.enum(TaskStatus).nullable().openapi({
-      description: "Status of the Task the Run created; null while planned",
+      description:
+        "Status of the Task the Run created, or QUEUED for RUN_AT; null while a Run is planned",
       example: "READY",
     }),
     taskAssigneeId: z.string().nullable().openapi({ example: "coworker_123" }),
@@ -139,7 +145,7 @@ export const workspaceCalendarItemSchema = z
       ])
       .openapi({
         description:
-          "PLANNED is still to come (moved ones too); RELEASED created its Task. Skipped Runs are not on the Calendar.",
+          "PLANNED is still to come (moved Runs and RUN_AT Tasks too); RELEASED created its Task. Skipped Runs are not on the Calendar.",
         example: "PLANNED",
       }),
     sourceId: z.string().openapi({

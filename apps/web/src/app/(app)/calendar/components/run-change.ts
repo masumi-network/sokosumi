@@ -12,8 +12,24 @@ type RunChange =
   | { action: "skip" | "restore" }
   | { action: "move"; scheduledAt: Date };
 
+/** A Task Schedule Run the viewer may skip, move, or restore. */
+export type ChangeableRun = WorkspaceCalendarItem & {
+  scheduleId: string;
+  scheduleRevision: number;
+};
+
+export function isChangeableRun(
+  item: WorkspaceCalendarItem,
+): item is ChangeableRun {
+  return (
+    item.canChangeRun &&
+    item.scheduleId !== null &&
+    item.scheduleRevision !== null
+  );
+}
+
 /** Sends one Run change with the schedule revision the Calendar read. */
-export function changeRun(item: WorkspaceCalendarItem, change: RunChange) {
+export function changeRun(item: ChangeableRun, change: RunChange) {
   return changeTaskScheduleRun({
     scheduleId: item.scheduleId,
     runId: item.id,

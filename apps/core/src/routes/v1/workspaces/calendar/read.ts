@@ -1,6 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import {
+  CalendarSourceAccuracy,
   CalendarSourceType,
+  CalendarTimeAccuracy,
   type Prisma,
   TaskScheduleOccurrenceState,
   TaskScheduleState,
@@ -189,10 +191,9 @@ export function parseWorkspaceCalendarQuery(
   };
 }
 
-function isPersistedOccurrenceCursor(
-  cursor: CalendarCursor | null,
-): cursor is CalendarCursor {
-  return cursor !== null && z.uuid().safeParse(cursor.id).success;
+/** Run ids are UUID columns; only a UUID can break a tie among Runs. */
+function hasUuidId(cursor: CalendarCursor): boolean {
+  return z.uuid().safeParse(cursor.id).success;
 }
 
 function getNonProjectSourceFilter(
@@ -214,11 +215,28 @@ function getNonProjectSourceFilter(
   throw notFound("Calendar source not found");
 }
 
+/** Run at Tasks have a Project or the workspace as source, never a legacy one. */
+function getRunAtTaskSourceFilter(
+  workspaceId: string,
+  options: WorkspaceCalendarReadOptions,
+): Prisma.TaskWhereInput | null {
+  if (options.projectId) {
+    return { projectId: options.projectId };
+  }
+  if (!options.sourceId) {
+    return {};
+  }
+  return options.sourceId === `workspace:${workspaceId}`
+    ? { projectId: null }
+    : null;
+}
+
 /**
  * The Calendar shows Task Schedule Runs (ADR 0041): planned ones, at their
  * moved time when moved, and released ones through the Task they created.
  * Skipped Runs are left out; planned Runs of a Paused schedule too, since
- * they do not run until it resumes.
+ * they do not run until it resumes. Queued Tasks show at their Run at. Both
+ * kinds page together by time, then id.
  */
 export async function readWorkspaceCalendar(
   workspaceId: string,
@@ -279,7 +297,7 @@ export async function readWorkspaceCalendar(
     ? {
         OR: [
           { effectiveScheduledAt: { gt: new Date(cursor.scheduledAt) } },
-          ...(isPersistedOccurrenceCursor(cursor)
+          ...(hasUuidId(cursor)
             ? [
                 {
                   effectiveScheduledAt: new Date(cursor.scheduledAt),
@@ -309,7 +327,26 @@ export async function readWorkspaceCalendar(
     effectiveScheduledAt: { gte: from, lt: to },
     AND: [runVisibility],
   };
-  const [runs, total] = await Promise.all([
+  const runAtSourceFilter = getRunAtTaskSourceFilter(workspaceId, options);
+  const runAtTaskWhere: Prisma.TaskWhereInput | null =
+    runAtSourceFilter && (!query.status || query.status === TaskStatus.QUEUED)
+      ? {
+          workspaceId,
+          status: TaskStatus.QUEUED,
+          runAt: { gte: from, lt: to },
+          ...runAtSourceFilter,
+          AND: taskFilters,
+        }
+      : null;
+  const runAtCursorFilter: Prisma.TaskWhereInput | null = cursor
+    ? {
+        OR: [
+          { runAt: { gt: new Date(cursor.scheduledAt) } },
+          { runAt: new Date(cursor.scheduledAt), id: { gt: cursor.id } },
+        ],
+      }
+    : null;
+  const [runs, runTotal, runAtTasks, runAtTotal] = await Promise.all([
     prisma.taskScheduleOccurrence.findMany({
       where: cursorFilter
         ? { ...baseWhere, AND: [runVisibility, cursorFilter] }
@@ -352,10 +389,31 @@ export async function readWorkspaceCalendar(
       },
     }),
     prisma.taskScheduleOccurrence.count({ where: baseWhere }),
+    runAtTaskWhere
+      ? prisma.task.findMany({
+          where: runAtCursorFilter
+            ? { ...runAtTaskWhere, AND: [...taskFilters, runAtCursorFilter] }
+            : runAtTaskWhere,
+          take: maxCandidates,
+          orderBy: [{ runAt: "asc" }, { id: "asc" }],
+          select: {
+            id: true,
+            name: true,
+            ownerId: true,
+            status: true,
+            assigneeId: true,
+            assigneeUserId: true,
+            runAt: true,
+            workspaceId: true,
+            projectId: true,
+          },
+        })
+      : [],
+    runAtTaskWhere ? prisma.task.count({ where: runAtTaskWhere }) : 0,
   ]);
 
   const now = new Date();
-  const items = runs.flatMap(({ schedule, releasedTask, ...run }) => {
+  const runItems = runs.flatMap(({ schedule, releasedTask, ...run }) => {
     if (!schedule) {
       return [];
     }
@@ -365,6 +423,7 @@ export async function readWorkspaceCalendar(
     return [
       workspaceCalendarItemSchema.parse({
         id: run.id,
+        kind: "RUN",
         scheduleId: schedule.id,
         scheduleRevision: schedule.revision,
         // The same Runs PATCH /runs/{runId} accepts from their owner.
@@ -392,6 +451,46 @@ export async function readWorkspaceCalendar(
       }),
     ];
   });
+  const runAtItems = runAtTasks.flatMap(({ runAt, ...task }) => {
+    if (!runAt) {
+      return [];
+    }
+    const source = {
+      sourceWorkspaceId: task.workspaceId,
+      sourceType: task.projectId
+        ? CalendarSourceType.PROJECT
+        : CalendarSourceType.WORKSPACE,
+      sourceProjectId: task.projectId,
+    };
+    return [
+      workspaceCalendarItemSchema.parse({
+        id: task.id,
+        kind: "RUN_AT",
+        scheduleId: null,
+        scheduleRevision: null,
+        canChangeRun: false,
+        taskId: task.id,
+        taskName: task.name,
+        taskStatus: task.status,
+        taskAssigneeId: task.assigneeId,
+        taskAssigneeUserId: task.assigneeUserId,
+        taskOwnerId: task.ownerId,
+        scheduledAt: runAt.toISOString(),
+        originalScheduledAt: null,
+        state: TaskScheduleOccurrenceState.PLANNED,
+        sourceId: getCalendarSourceId(source),
+        ...source,
+        sourceAccuracy: CalendarSourceAccuracy.EXACT,
+        timeAccuracy: CalendarTimeAccuracy.EXACT,
+      }),
+    ];
+  });
+  // Both lists come sorted by time, then id; merge them the same way.
+  const items = [...runItems, ...runAtItems].sort(
+    (left, right) =>
+      left.scheduledAt.localeCompare(right.scheduledAt) ||
+      (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+  );
   const page = items.slice(0, query.limit);
   const hasMore = items.length > page.length;
 
@@ -400,7 +499,7 @@ export async function readWorkspaceCalendar(
     pagination: {
       cursor: query.requestedCursor,
       limit: query.limit,
-      total,
+      total: runTotal + runAtTotal,
       nextCursor: hasMore
         ? encodeCursor({
             id: page[page.length - 1]!.id,

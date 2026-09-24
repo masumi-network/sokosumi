@@ -86,7 +86,12 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { schedulableOnceLocalIso } from "@/lib/utils/task-schedule";
 import { CalendarScheduleList } from "./calendar-schedule-list";
-import { changeRun, useReportRunChangeFailure } from "./run-change";
+import {
+  type ChangeableRun,
+  changeRun,
+  isChangeableRun,
+  useReportRunChangeFailure,
+} from "./run-change";
 import { RunMoveDialog } from "./run-move-dialog";
 import { SourceMarker } from "./source-marker";
 
@@ -237,9 +242,9 @@ function isMovedRun(item: WorkspaceCalendarItem): boolean {
 }
 
 interface RunHandlers {
-  onMoveRun: (item: WorkspaceCalendarItem) => void;
-  onRestoreRun: (item: WorkspaceCalendarItem) => void;
-  onSkipRun: (item: WorkspaceCalendarItem) => void;
+  onMoveRun: (item: ChangeableRun) => void;
+  onRestoreRun: (item: ChangeableRun) => void;
+  onSkipRun: (item: ChangeableRun) => void;
   onOpen: (path: string) => void;
 }
 
@@ -260,6 +265,7 @@ function CalendarEvent({
 }) {
   const t = useTranslations("App.Calendar");
   const peopleId = useId();
+  const { scheduleId } = item;
   const [menuOpen, setMenuOpen] = useState(false);
   // Where a mouse drag began on a card FullCalendar will not move.
   const dragAttemptOrigin = useRef<{ x: number; y: number } | null>(null);
@@ -338,7 +344,7 @@ function CalendarEvent({
         // move; say which ones move once the mouse has clearly started.
         onPointerDown={(event) => {
           dragAttemptOrigin.current =
-            event.pointerType !== "touch" && !item.canChangeRun
+            event.pointerType !== "touch" && !isChangeableRun(item)
               ? { x: event.clientX, y: event.clientY }
               : null;
         }}
@@ -379,7 +385,7 @@ function CalendarEvent({
         </span>
       </div>
       <DropdownMenuContent align="end">
-        {item.canChangeRun ? (
+        {isChangeableRun(item) ? (
           <>
             <DropdownMenuItem onSelect={() => onMoveRun(item)}>
               {t("event.moveRun")}
@@ -399,11 +405,13 @@ function CalendarEvent({
             {t("event.openTask")}
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuItem
-          onSelect={() => onOpen(taskSchedulePath(item.scheduleId))}
-        >
-          {t("event.openSchedule")}
-        </DropdownMenuItem>
+        {scheduleId ? (
+          <DropdownMenuItem
+            onSelect={() => onOpen(taskSchedulePath(scheduleId))}
+          >
+            {t("event.openSchedule")}
+          </DropdownMenuItem>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -452,7 +460,7 @@ function CalendarView({
   async function handleEventDrop(info: EventDropInfo) {
     const item = items.find(({ id }) => id === info.event.id);
     const scheduledAt = info.event.start;
-    if (!item || !scheduledAt || !item.canChangeRun) {
+    if (!item || !scheduledAt || !isChangeableRun(item)) {
       info.revert();
       return;
     }
@@ -556,7 +564,7 @@ function CalendarView({
             title: item.taskName,
             start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
             // Per-event: a released or unowned Run is visible but not draggable.
-            startEditable: item.canChangeRun,
+            startEditable: isChangeableRun(item),
             durationEditable: false,
           }))}
           timeZone={timeZone}
@@ -574,7 +582,7 @@ function CalendarView({
             const item = movingEvent
               ? items.find(({ id }) => id === movingEvent.id)
               : undefined;
-            return Boolean(item?.canChangeRun);
+            return Boolean(item && isChangeableRun(item));
           }}
           eventDrop={(info) => void handleEventDrop(info)}
           eventContent={(eventInfo) => {
@@ -644,9 +652,7 @@ export function WorkspaceCalendar({
     cursor: string;
     items: WorkspaceCalendarItem[];
   } | null>(null);
-  const [movingRun, setMovingRun] = useState<WorkspaceCalendarItem | null>(
-    null,
-  );
+  const [movingRun, setMovingRun] = useState<ChangeableRun | null>(null);
   const [scheduleDialogOptions, setScheduleDialogOptions] = useState<{
     coworkerOptions: CoworkerOption[];
     projectOptions: ProjectFilterOption[];
@@ -853,7 +859,7 @@ export function WorkspaceCalendar({
   const reportRunChangeFailure = useReportRunChangeFailure();
 
   async function handleRunChange(
-    item: WorkspaceCalendarItem,
+    item: ChangeableRun,
     change: { action: "skip" | "restore" },
   ) {
     try {

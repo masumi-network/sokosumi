@@ -89,6 +89,7 @@ vi.mock("@/app/tasks/actions", () => ({
 const ITEMS: WorkspaceCalendarItem[] = [
   {
     id: "run-1",
+    kind: "RUN",
     scheduleId: "schedule-1",
     scheduleRevision: 3,
     canChangeRun: true,
