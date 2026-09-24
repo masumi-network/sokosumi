@@ -1982,12 +1982,11 @@ model SokoBot {
   pendingDecisions     SokoBotPendingDecision[]
   schedules            SokoBotSchedule[]
 
+  // One LIVE bot per user and workspace. Partial, because a plain unique would
+  // let a tombstone block its owner from ever creating a new bot.
+  @@unique([userId, workspaceId], map: "soko_bot_user_workspace_live_key", where: { deletedAt: null })
   @@index([archivedAt])
   @@index([lastPolledAt])
-  // One LIVE bot per user and workspace. Enforced by the partial unique index
-  // `soko_bot_user_workspace_live_key` (see the migrations): Prisma cannot
-  // express `WHERE "deletedAt" IS NULL`, and a plain unique would let a
-  // tombstone block its owner from ever creating a new bot.
   @@index([userId, workspaceId])
   @@index([workspaceId])
   @@map("soko_bot")
@@ -2848,6 +2847,7 @@ model TaskScheduleOccurrence {
 
   @@unique([seriesTaskId, epochId, originalScheduledAt], map: "task_schedule_occurrence_series_epoch_original_key")
   @@unique([scheduleId, epochId, originalScheduledAt], map: "task_schedule_occurrence_schedule_epoch_original_key")
+  @@unique([seriesTaskId, originalScheduledAt], map: "task_schedule_occurrence_v1_planned_original_key", where: { scheduleVersion: 1, legacyLinkId: null })
   @@index([seriesTaskId, effectiveScheduledAt, id], map: "task_schedule_occurrence_series_effective_id_idx")
   @@index([scheduleId, effectiveScheduledAt, id], map: "task_schedule_occurrence_schedule_effective_id_idx")
   @@index([seriesTaskId, originalScheduledAt, id], map: "task_schedule_occurrence_series_original_id_idx")
@@ -3572,10 +3572,15 @@ model ChatRoom {
   guestInvitations ChatRoomGuestInvitation[]
   guestInviteLinks ChatRoomGuestInviteLink[]
 
-  // Uniqueness for org Channel (organizationId, slug) WHERE kind = 'channel',
-  // org-less matched Channel slug WHERE organizationId IS NULL, org/personal
-  // directKey, and Channel/Direct slug CHECK are enforced in SQL migrations —
-  // Prisma cannot express those partial uniques.
+  // The Channel/Direct slug and directKey CHECKs live in SQL migrations only:
+  // Prisma cannot express CHECK constraints.
+  @@unique([organizationId, slug], map: "chat_room_organizationId_channel_slug_key", where: { kind: "channel", slug: { not: null } })
+  // Postgres UNIQUE treats NULL organizationId as distinct, so org-less
+  // matched Channels need their own slug unique.
+  @@unique([slug], map: "chat_room_org_less_channel_slug_key", where: { kind: "channel", organizationId: null, slug: { not: null } })
+  @@unique([organizationId, directKey], map: "chat_room_organizationId_directKey_key", where: { organizationId: { not: null }, directKey: { not: null } })
+  @@unique([directKey], map: "chat_room_personal_directKey_key", where: { organizationId: null, directKey: { not: null } })
+  @@unique([providerConversationId], map: "chat_room_providerConversationId_key", where: { providerConversationId: { not: null } })
   @@index([organizationId, archivedAt, updatedAt])
   @@index([organizationId, kind, updatedAt])
   @@index([organizationId, kind, discoverability, archivedAt])
@@ -3612,7 +3617,7 @@ model ChatRoomUserMember {
 
 /// Room-scoped email invite for external channel guests. Accept creates
 /// `ChatRoomUserMember` with `access=guest` (no org Member / seat). One
-/// pending invite per room+email is enforced by a partial unique index in SQL.
+/// pending invite per room+email (partial unique).
 model ChatRoomGuestInvitation {
   id     String   @id @default(uuid(7)) @db.Uuid
   roomId String   @db.Uuid
@@ -3634,6 +3639,7 @@ model ChatRoomGuestInvitation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([roomId, email], map: "chat_room_guest_invitation_room_email_pending_uidx", where: { status: "pending" })
   @@index([roomId, status])
   @@index([email, status])
   @@index([inviterId, createdAt])
