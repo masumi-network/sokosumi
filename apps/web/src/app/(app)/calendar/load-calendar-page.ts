@@ -56,10 +56,6 @@ export interface LoadedWorkspaceCalendarPage {
   projectOptions: ProjectFilterOption[];
   range: { from: Date; to: Date };
   sources: WorkspaceCalendarSource[];
-  scheduledTasks?: Awaited<ReturnType<typeof taskService.listTasks>>["tasks"];
-  scheduledTasksPagination?: Awaited<
-    ReturnType<typeof taskService.listTasks>
-  >["pagination"];
 }
 
 export function resolveCalendarPageQuery(
@@ -134,7 +130,6 @@ export async function loadWorkspaceCalendarPage({
   }
 
   const params = await searchParams;
-  const isSchedulesView = params.view === "schedules";
   const { calendarStatus, latestCalendarDate, initialDate, range } =
     resolveCalendarPageQuery(
       params.date,
@@ -152,31 +147,17 @@ export async function loadWorkspaceCalendarPage({
       notFound();
     }
 
-    const [{ items, pagination }, { sources, coworkerOptions }, schedulePage] =
+    const [{ items, pagination }, { sources, coworkerOptions }] =
       await Promise.all([
-        isSchedulesView
-          ? Promise.resolve({ items: [], pagination: null })
-          : projectService.getProjectCalendar(project.id, {
-              ...range,
-              assigneeId: params.assigneeId,
-              assigneeUserId: params.assigneeUserId,
-              limit: params.view === "agenda" ? 10 : 100,
-              scope,
-              status: calendarStatus,
-            }),
+        projectService.getProjectCalendar(project.id, {
+          ...range,
+          assigneeId: params.assigneeId,
+          assigneeUserId: params.assigneeUserId,
+          limit: params.view === "agenda" ? 10 : 100,
+          scope,
+          status: calendarStatus,
+        }),
         loadCalendarPageContext(activeOrganizationId),
-        isSchedulesView
-          ? taskService.listTasks({
-              hasSchedule: true,
-              sort: "nextRunAt",
-              scope,
-              projectId: project.id,
-              status: calendarStatus,
-              assigneeId: params.assigneeId,
-              assigneeUserId: params.assigneeUserId,
-              limit: 100,
-            })
-          : Promise.resolve(null),
       ]);
     const sourceId = `project:${project.id}`;
     const projectSource = sources.find(
@@ -193,8 +174,6 @@ export async function loadWorkspaceCalendarPage({
       items,
       latestDate,
       pagination,
-      scheduledTasks: schedulePage?.tasks,
-      scheduledTasksPagination: schedulePage?.pagination,
       project,
       projectOptions: [projectOptionFromProject(project)],
       range,
@@ -206,34 +185,19 @@ export async function loadWorkspaceCalendarPage({
     { items, pagination },
     { sources, coworkerOptions },
     allProjectOptions,
-    schedulePage,
   ] = await Promise.all([
-    isSchedulesView
-      ? Promise.resolve({ items: [], pagination: null })
-      : taskService.getWorkspaceCalendar({
-          ...range,
-          assigneeId: params.assigneeId,
-          assigneeUserId: params.assigneeUserId,
-          limit: params.view === "agenda" ? 10 : 100,
-          projectId: params.projectId,
-          sourceId: params.sourceId,
-          scope,
-          status: calendarStatus,
-        }),
+    taskService.getWorkspaceCalendar({
+      ...range,
+      assigneeId: params.assigneeId,
+      assigneeUserId: params.assigneeUserId,
+      limit: params.view === "agenda" ? 10 : 100,
+      projectId: params.projectId,
+      sourceId: params.sourceId,
+      scope,
+      status: calendarStatus,
+    }),
     loadCalendarPageContext(activeOrganizationId, { requireSources: true }),
     getProjectFilterOptions(params.projectId),
-    isSchedulesView
-      ? taskService.listTasks({
-          hasSchedule: true,
-          sort: "nextRunAt",
-          scope,
-          projectId: params.projectId,
-          status: calendarStatus,
-          assigneeId: params.assigneeId,
-          assigneeUserId: params.assigneeUserId,
-          limit: 100,
-        })
-      : Promise.resolve(null),
   ]);
   const workspaceSource = sources.find(
     (source) => source.sourceType === "WORKSPACE",
@@ -259,8 +223,6 @@ export async function loadWorkspaceCalendarPage({
     items,
     latestDate,
     pagination,
-    scheduledTasks: schedulePage?.tasks,
-    scheduledTasksPagination: schedulePage?.pagination,
     project: null,
     projectOptions: allProjectOptions.filter((project) =>
       schedulableProjectIds.has(project.id),

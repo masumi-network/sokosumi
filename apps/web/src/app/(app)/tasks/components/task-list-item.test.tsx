@@ -8,6 +8,9 @@ import { TaskListItem } from "./task-list-item";
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) =>
     key === "privateBadge" ? "Private" : key,
+  useFormatter: () => ({
+    dateTime: (value: Date) => value.toISOString(),
+  }),
 }));
 
 vi.mock("./task-detail-link", () => ({
@@ -49,8 +52,6 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
     columnId: "todo",
     events: [],
     agents: [],
-    metadata: null,
-    nextRunAt: null,
   };
 }
 
@@ -88,6 +89,31 @@ describe("TaskListItem description preview", () => {
 
     expect(screen.getByText("—")).toBeInTheDocument();
     expect(screen.queryByText(/CONTEXT\.md/)).not.toBeInTheDocument();
+  });
+});
+
+describe("TaskListItem Run at badge", () => {
+  it("shows when a Queued Task starts", () => {
+    const runAt = "2030-01-02T09:00:00.000Z";
+    const task = {
+      ...buildTask(TaskVisibility.PUBLIC),
+      status: TaskStatus.QUEUED,
+      runAt,
+    };
+
+    const { container } = render(<TaskListItem task={task} />);
+
+    const time = container.querySelector("time");
+    expect(time).toHaveAttribute("dateTime", runAt);
+    expect(time).toHaveTextContent("at");
+  });
+
+  it("stays hidden without a Run at", () => {
+    const { container } = render(
+      <TaskListItem task={buildTask(TaskVisibility.PUBLIC)} />,
+    );
+
+    expect(container.querySelector("time")).toBeNull();
   });
 });
 

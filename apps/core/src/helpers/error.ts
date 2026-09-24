@@ -141,6 +141,17 @@ export const conflict = (
 };
 
 /**
+ * 410 Gone
+ * The route was removed for good; the body names its replacement
+ */
+export const gone = (
+  message: string = "Gone",
+  metadata?: HTTPExceptionMetadata,
+): HTTPException => {
+  return createHTTPException(410, message, metadata);
+};
+
+/**
  * 413 Payload Too Large
  * The request entity is larger than limits defined by server
  */
@@ -254,6 +265,7 @@ export function getErrorName(status: ContentfulStatusCode): string {
     403: "Forbidden",
     404: "NotFound",
     409: "Conflict",
+    410: "Gone",
     413: "PayloadTooLarge",
     422: "UnprocessableEntity",
     426: "UpgradeRequired",

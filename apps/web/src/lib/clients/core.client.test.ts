@@ -741,8 +741,7 @@ describe("core.client", () => {
               name: "Review onboarding",
               description: null,
               status: "READY",
-              metadata: null,
-              nextRunAt: null,
+              runAt: null,
               jobsCount: 2,
               commentsCount: 4,
               workspace: {
@@ -814,8 +813,7 @@ describe("core.client", () => {
             description: null,
             status: "DRAFT",
             credits: 0,
-            metadata: null,
-            nextRunAt: "2026-06-25T09:00:00.000Z",
+            runAt: "2026-06-25T09:00:00.000Z",
             events: [],
             jobs: [],
             share: null,
@@ -849,9 +847,7 @@ describe("core.client", () => {
     expect(response.data.createdAt).toEqual(
       new Date("2026-03-26T10:00:00.000Z"),
     );
-    expect(response.data.nextRunAt).toEqual(
-      new Date("2026-06-25T09:00:00.000Z"),
-    );
+    expect(response.data.runAt).toEqual(new Date("2026-06-25T09:00:00.000Z"));
     expect(response.meta?.timestamp).toEqual(
       new Date("2026-03-26T10:00:00.000Z"),
     );

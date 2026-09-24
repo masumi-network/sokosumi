@@ -46,6 +46,31 @@ const nextConfig: NextConfig = {
         destination: "/share/:token",
         permanent: true,
       },
+      // Task Schedules moved out of Tasks and Calendar to /schedules.
+      // Query strings pass through, so projectId and scheduleState survive.
+      {
+        source: "/tasks/schedules/:scheduleId",
+        destination: "/schedules/:scheduleId",
+        permanent: true,
+      },
+      {
+        source: "/tasks",
+        has: [{ type: "query", key: "tab", value: "schedules" }],
+        destination: "/schedules",
+        permanent: true,
+      },
+      {
+        source: "/calendar",
+        has: [{ type: "query", key: "view", value: "schedules" }],
+        destination: "/schedules",
+        permanent: true,
+      },
+      {
+        source: "/projects/:projectId/calendar",
+        has: [{ type: "query", key: "view", value: "schedules" }],
+        destination: "/schedules?projectId=:projectId",
+        permanent: true,
+      },
     ];
   },
   // Portless named URLs (`https://web.sokosumi.localhost`) and worktree

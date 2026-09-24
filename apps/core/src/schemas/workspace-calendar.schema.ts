@@ -1,9 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
-  CalendarSourceAccuracy,
   CalendarSourceType,
-  CalendarTimeAccuracy,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskStatus,
 } from "@sokosumi/database";
 
@@ -27,26 +25,25 @@ const workspaceCalendarQueryObjectSchema = z.object({
     example: "workspace",
   }),
   assigneeId: z.uuid().optional().openapi({
-    description:
-      "Only occurrences whose planned-series or released-snapshot task has this coworker",
+    description: "Only items whose Task Schedule or Task has this coworker",
     example: "22222222-2222-7222-8222-222222222222",
   }),
   assigneeUserId: z.string().optional().openapi({
-    description: "Only occurrences assigned to this workspace member",
+    description:
+      "Only items whose Task Schedule or Task is assigned to this workspace member",
   }),
   projectId: z.uuid().optional().openapi({
-    description:
-      "Only occurrences captured with this Project as their Calendar source",
+    description: "Only items with this Project as their Calendar source",
     example: "22222222-2222-7222-8222-222222222222",
   }),
   sourceId: z.string().max(64).optional().openapi({
     description:
-      "Only occurrences captured with this non-Project Calendar source in the current workspace",
+      "Only items with this non-Project Calendar source in the current workspace",
     example: "workspace:11111111-1111-7111-8111-111111111111",
   }),
   status: z.enum(TaskStatus).optional().openapi({
     description:
-      "Only occurrences whose planned-series or released-snapshot task has this status",
+      "Only items whose Task has this status. Planned Runs have no Task yet, so they drop out; RUN_AT Tasks are QUEUED.",
     example: TaskStatus.READY,
   }),
   cursor: z
@@ -86,26 +83,42 @@ export const workspaceCalendarItemSchema = z
   .object({
     id: z.string().openapi({
       description:
-        "Stable Calendar item identity. Version 1 projections are display-only.",
-      example: "v1:tsk_123:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
+        "The Task Schedule Run this item shows, or the Task for a RUN_AT item",
+      example: "00000000-0000-7000-8000-000000000001",
     }),
-    taskId: z.string().openapi({ example: "tsk_123" }),
-    canEditSchedule: z.boolean().openapi({
+    kind: z.enum(["RUN", "RUN_AT"]).openapi({
       description:
-        "Whether the caller owns this Task and may edit or remove its schedule",
-      example: true,
+        "RUN is a Task Schedule Run; RUN_AT is a Queued Task that starts at its Run at",
+      example: "RUN",
     }),
-    canMutateOccurrence: z.boolean().openapi({
+    scheduleId: z.string().uuid().nullable().openapi({
+      description: "Task Schedule the Run belongs to; null for RUN_AT",
+      example: "33333333-3333-7333-8333-333333333333",
+    }),
+    scheduleRevision: z.number().int().min(0).nullable().openapi({
       description:
-        "Whether this indexed occurrence can be changed through the revision-safe occurrence contract",
-      example: true,
-    }),
-    scheduleRevision: z.number().int().min(0).openapi({
-      description: "Schedule revision observed with this occurrence",
+        "Task Schedule revision observed with this Run; the expectedRevision for changing it. Null for RUN_AT.",
       example: 3,
     }),
-    taskName: z.string().openapi({ example: "Prepare release notes" }),
-    taskStatus: z.enum(TaskStatus).openapi({ example: "QUEUED" }),
+    canChangeRun: z.boolean().openapi({
+      description:
+        "Whether the caller may skip, move, or restore this Run through PATCH /v1/tasks/schedules/{id}/runs/{runId}",
+      example: true,
+    }),
+    taskId: z.string().nullable().openapi({
+      description:
+        "Task the Run created (null while planned), or the RUN_AT Task itself",
+      example: "tsk_123",
+    }),
+    taskName: z.string().openapi({
+      description: "Name of the Task the Run created, or of the one it creates",
+      example: "Prepare release notes",
+    }),
+    taskStatus: z.enum(TaskStatus).nullable().openapi({
+      description:
+        "Status of the Task the Run created, or QUEUED for RUN_AT; null while a Run is planned",
+      example: "READY",
+    }),
     taskAssigneeId: z.string().nullable().openapi({ example: "coworker_123" }),
     taskAssigneeUserId: z
       .string()
@@ -113,7 +126,7 @@ export const workspaceCalendarItemSchema = z
       .optional()
       .openapi({ example: "user_123" }),
     taskOwnerId: z.string().openapi({
-      description: "User who owns the Task and put it on the Calendar",
+      description: "User who owns the Task Schedule and the Tasks it creates",
       example: "user_123",
     }),
     scheduledAt: dateTimeSchema.openapi({
@@ -121,9 +134,15 @@ export const workspaceCalendarItemSchema = z
     }),
     originalScheduledAt: dateTimeSchema.nullable().openapi({
       description:
-        "Original scheduled time captured by the occurrence ledger, when known",
+        "The rule's time for this Run; differs from scheduledAt when the Run was moved",
     }),
-    state: z.enum(TaskScheduleOccurrenceState).openapi({ example: "PLANNED" }),
+    state: z
+      .enum([TaskScheduleRunState.PLANNED, TaskScheduleRunState.RELEASED])
+      .openapi({
+        description:
+          "PLANNED is still to come (moved Runs and RUN_AT Tasks too); RELEASED created its Task. Skipped Runs are not on the Calendar.",
+        example: "PLANNED",
+      }),
     sourceId: z.string().openapi({
       description: "Canonical Calendar source identity",
       example: "project:22222222-2222-7222-8222-222222222222",
@@ -135,10 +154,6 @@ export const workspaceCalendarItemSchema = z
     sourceProjectId: z.string().uuid().nullable().openapi({
       description: "Project captured as the Calendar source, when applicable",
     }),
-    sourceAccuracy: z.enum(CalendarSourceAccuracy).openapi({
-      example: "EXACT",
-    }),
-    timeAccuracy: z.enum(CalendarTimeAccuracy).openapi({ example: "EXACT" }),
   })
   .openapi("WorkspaceCalendarItem");
 
@@ -150,13 +165,13 @@ export const workspaceCalendarSourceSchema = z
     sourceType: z.enum(CalendarSourceType).openapi({ example: "PROJECT" }),
     displayName: z.string().openapi({ example: "Q1 research" }),
     logoUrl: z.url().nullable().openapi({ example: null }),
-    paletteToken: z.enum(["blue", "violet", "amber"]).openapi({
+    paletteToken: z.enum(["blue", "violet"]).openapi({
       description: "Bounded visual marker for Calendar source displays",
       example: "violet",
     }),
     isSchedulable: z.boolean().openapi({
       description:
-        "Whether this source may be selected to create a Task through POST /v1/tasks/scheduled. Unschedulable sources remain available for Calendar event display and filtering.",
+        "Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.",
       example: true,
     }),
   })

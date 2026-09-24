@@ -7,11 +7,7 @@ import classicTheme from "@fullcalendar/react/themes/classic";
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
-import {
-  CORE_API_ERROR_KINDS,
-  hasActiveTaskSchedule,
-  isValidTimezone,
-} from "@sokosumi/utils";
+import { isValidTimezone } from "@sokosumi/utils";
 import {
   addDays,
   addMonths,
@@ -28,8 +24,10 @@ import {
   Clock3,
   Ellipsis,
   FolderKanban,
+  Repeat,
   Sparkles,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
@@ -38,38 +36,29 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
+import {
+  type PointerEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
-import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import {
+  TASK_SCHEDULES_PATH,
+  taskSchedulePath,
+} from "@/app/tasks/utils/task-schedule-view";
+import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
-import { OccurrenceTimeDialog } from "@/components/schedules/occurrence-time-dialog";
-import { TaskScheduleSection } from "@/components/task-schedule-section";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,15 +77,8 @@ import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
-import {
-  clearTaskSchedule,
-  mutateTaskOccurrence,
-  saveCalendarTaskSchedule,
-} from "@/lib/actions/task/action";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
-  type Task,
-  type TaskListItem,
   TaskStatus,
   type TaskStatus as TaskStatusValue,
   type WorkspaceCalendarItem,
@@ -107,32 +89,26 @@ import {
   getTimezoneOptions,
 } from "@/lib/schedules/timezones";
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
-import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { cn } from "@/lib/utils";
+import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
 import {
-  getTaskScheduleOperationId,
-  hasTaskScheduleChanged,
-  metadataToSelection,
-  schedulableOnceLocalIso,
-} from "@/lib/utils/task-schedule";
-import {
-  type TaskMutationErrorKind,
-  taskScheduleSeriesFeedbackKey,
-} from "@/lib/utils/task-schedule-feedback";
-import { CalendarScheduleList } from "./calendar-schedule-list";
+  type ChangeableRun,
+  changeRun,
+  isChangeableRun,
+  useReportRunChangeFailure,
+} from "./run-change";
+import { RunMoveDialog } from "./run-move-dialog";
 import { SourceMarker } from "./source-marker";
 
-const CALENDAR_VIEWS = ["month", "week", "agenda", "schedules"] as const;
+const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 type CalendarView = (typeof CALENDAR_VIEWS)[number];
-type OccurrenceCalendarView = Exclude<CalendarView, "schedules">;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
-const NO_SCHEDULED_TASKS: TaskListItem[] = [];
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
   return value !== null && CALENDAR_STATUSES.some((status) => status === value);
 }
 
-interface CalendarCoworker {
+export interface CalendarCoworker {
   id: string;
   image?: string;
   name: string;
@@ -188,11 +164,6 @@ interface WorkspaceCalendarProps {
   };
   coworkers?: CalendarCoworker[];
   lockedProjectId?: string;
-  scheduledTasks?: TaskListItem[];
-  scheduledTasksPagination?: {
-    limit: number;
-    nextCursor: string | null;
-  } | null;
   workspaceId?: string | null;
 }
 
@@ -251,7 +222,7 @@ export function getCalendarItemDateKey(date: Date, timeZone = "UTC"): string {
 function getRangeLabel(
   formatDate: ReturnType<typeof useFormatter>["dateTime"],
   date: Date,
-  view: OccurrenceCalendarView,
+  view: CalendarView,
 ) {
   if (view === "week") {
     return `${formatDate(startOfWeek(date), { month: "short", day: "numeric" })} - ${formatDate(endOfWeek(date), { month: "short", day: "numeric", year: "numeric" })}`;
@@ -260,62 +231,48 @@ function getRangeLabel(
   return formatDate(date, { month: "long", year: "numeric" });
 }
 
-/**
- * Only an unreleased occurrence the caller owns can be moved. A released row
- * is history, and a row the caller cannot edit must not be draggable either.
- */
-function isMovableCalendarItem(item: WorkspaceCalendarItem): boolean {
-  return item.canMutateOccurrence && item.state === "PLANNED";
+/** A moved Run is planned at a time other than the rule's. */
+function isMovedRun(item: WorkspaceCalendarItem): boolean {
+  return (
+    item.originalScheduledAt !== null &&
+    item.originalScheduledAt.getTime() !== item.scheduledAt.getTime()
+  );
 }
 
-function isRestorableCalendarItem(item: WorkspaceCalendarItem): boolean {
-  return (
-    item.canMutateOccurrence &&
-    item.state === "SKIPPED" &&
-    item.originalScheduledAt !== null
-  );
+interface RunHandlers {
+  onMoveRun: (item: ChangeableRun) => void;
+  onRestoreRun: (item: ChangeableRun) => void;
+  onSkipRun: (item: ChangeableRun) => void;
+  onOpen: (path: string) => void;
 }
 
 function CalendarEvent({
   item,
   people,
-  onEditSchedule,
-  onMoveOccurrence,
-  onRestoreOccurrence,
-  onSkipOccurrence,
-  onOpenTask,
+  onMoveRun,
+  onRestoreRun,
+  onSkipRun,
+  onOpen,
   source,
   timeText,
-}: {
+}: RunHandlers & {
   item: WorkspaceCalendarItem;
   people: CalendarPeople;
-  onEditSchedule: (taskId: string) => void;
-  onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
-  onRestoreOccurrence: (item: WorkspaceCalendarItem) => void;
-  onSkipOccurrence: (item: WorkspaceCalendarItem) => void;
-  onOpenTask: (taskId: string) => void;
   source: WorkspaceCalendarSource | undefined;
   timeText: string | undefined;
 }) {
   const t = useTranslations("App.Calendar");
   const peopleId = useId();
+  const { scheduleId } = item;
   const [menuOpen, setMenuOpen] = useState(false);
   // Where a mouse drag began on a card FullCalendar will not move.
   const dragAttemptOrigin = useRef<{ x: number; y: number } | null>(null);
+  // That drag's pointerup still clicks. Do not treat it as a tap.
+  const suppressClick = useRef(false);
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
   const sourceMarker = (
     <SourceMarker decorative source={source} sourceName={sourceName} />
   );
-  const accuracyMarker =
-    item.sourceAccuracy !== "EXACT" ? (
-      <span
-        aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
-        className="text-muted-foreground shrink-0"
-        role="img"
-      >
-        ~
-      </span>
-    ) : null;
   const peopleNames = [people.assignee?.name, people.owner?.name]
     .filter((name): name is string => Boolean(name?.trim()))
     .join(", ");
@@ -346,15 +303,10 @@ function CalendarEvent({
     <DropdownMenuTrigger asChild>
       <button
         aria-describedby={peopleNames ? peopleId : undefined}
-        aria-label={t(
-          item.state === "SKIPPED"
-            ? "event.accessibleNameSkipped"
-            : "event.accessibleName",
-          {
-            source: sourceName,
-            task: item.taskName,
-          },
-        )}
+        aria-label={t("event.accessibleName", {
+          source: sourceName,
+          task: item.taskName,
+        })}
         className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
         // Radix already toggled on pointerdown; the click must not reach the
         // card's own open handler.
@@ -366,6 +318,92 @@ function CalendarEvent({
     </DropdownMenuTrigger>
   );
 
+  const cardClassName =
+    "bg-background text-foreground hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out";
+  // FullCalendar silently ignores a drag on a Run the caller cannot move;
+  // say which ones move once the mouse has clearly started.
+  const dragAttemptHandlers = {
+    onPointerDown: (event: PointerEvent) => {
+      suppressClick.current = false;
+      dragAttemptOrigin.current =
+        event.pointerType !== "touch" && !isChangeableRun(item)
+          ? { x: event.clientX, y: event.clientY }
+          : null;
+    },
+    onPointerLeave: () => {
+      dragAttemptOrigin.current = null;
+    },
+    onPointerMove: (event: PointerEvent) => {
+      const origin = dragAttemptOrigin.current;
+      if (
+        !origin ||
+        Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < 8
+      ) {
+        return;
+      }
+      dragAttemptOrigin.current = null;
+      suppressClick.current = true;
+      toast.info(t("event.moveNotAllowed"));
+    },
+    onPointerUp: () => {
+      dragAttemptOrigin.current = null;
+    },
+  };
+  function onTap(open: () => void) {
+    return () => {
+      if (suppressClick.current) {
+        suppressClick.current = false;
+        return;
+      }
+      open();
+    };
+  }
+  const cardContent = (trailing: ReactNode) => (
+    <>
+      <span className="flex w-full min-w-0 items-center gap-1">
+        {sourceMarker}
+        {timeText ? (
+          <span className="text-muted-foreground shrink-0 tabular-nums">
+            {timeText}
+          </span>
+        ) : null}
+        <span className="text-muted-foreground min-w-0 truncate">
+          {sourceName}
+        </span>
+      </span>
+      <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
+      <span className="flex w-full min-w-0 items-center gap-1">
+        {peopleStack}
+        {trailing}
+      </span>
+    </>
+  );
+
+  // A card with a Task (a released Run or a Run at) opens that Task. Only
+  // Runs still to come, which have no Task yet, carry a menu.
+  const { taskId } = item;
+  if (taskId) {
+    return (
+      <button
+        aria-describedby={peopleNames ? peopleId : undefined}
+        aria-label={t("event.accessibleName", {
+          source: sourceName,
+          task: item.taskName,
+        })}
+        className={cn(
+          cardClassName,
+          "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2",
+        )}
+        data-testid="calendar-event"
+        onClick={onTap(() => onOpen(`/tasks/${taskId}`))}
+        type="button"
+        {...dragAttemptHandlers}
+      >
+        {cardContent(null)}
+      </button>
+    );
+  }
+
   return (
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       {/*
@@ -375,80 +413,36 @@ function CalendarEvent({
         drag mirror), so a click on the card is always a plain tap.
       */}
       <div
-        className={cn(
-          "bg-background text-foreground hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
-          item.state === "SKIPPED" && "text-muted-foreground line-through",
-        )}
+        className={cardClassName}
         data-testid="calendar-event"
-        onClick={() => setMenuOpen(true)}
-        // FullCalendar silently ignores a drag on someone else's task; say
-        // who can move it once the mouse has clearly started dragging.
-        onPointerDown={(event) => {
-          dragAttemptOrigin.current =
-            event.pointerType !== "touch" && !item.canEditSchedule
-              ? { x: event.clientX, y: event.clientY }
-              : null;
-        }}
-        onPointerLeave={() => {
-          dragAttemptOrigin.current = null;
-        }}
-        onPointerMove={(event) => {
-          const origin = dragAttemptOrigin.current;
-          if (
-            !origin ||
-            Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < 8
-          ) {
-            return;
-          }
-          dragAttemptOrigin.current = null;
-          toast.info(t("event.moveNotAllowed"));
-        }}
-        onPointerUp={() => {
-          dragAttemptOrigin.current = null;
-        }}
+        onClick={onTap(() => setMenuOpen(true))}
+        {...dragAttemptHandlers}
       >
-        <span className="flex w-full min-w-0 items-center gap-1">
-          {sourceMarker}
-          {timeText ? (
-            <span className="text-muted-foreground shrink-0 tabular-nums">
-              {timeText}
-            </span>
-          ) : null}
-          {accuracyMarker}
-          <span className="text-muted-foreground min-w-0 truncate">
-            {sourceName}
-          </span>
-        </span>
-        <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
-        <span className="flex w-full min-w-0 items-center gap-1">
-          {peopleStack}
-          {menuButton}
-        </span>
+        {cardContent(menuButton)}
       </div>
       <DropdownMenuContent align="end">
-        {item.canEditSchedule ? (
-          <DropdownMenuItem onSelect={() => onEditSchedule(item.taskId)}>
-            {t("event.editSchedule")}
-          </DropdownMenuItem>
-        ) : null}
-        {isMovableCalendarItem(item) ? (
+        {isChangeableRun(item) ? (
           <>
-            <DropdownMenuItem onSelect={() => onMoveOccurrence(item)}>
-              {t("event.moveOccurrence")}
+            <DropdownMenuItem onSelect={() => onMoveRun(item)}>
+              {t("event.moveRun")}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onSkipOccurrence(item)}>
-              {t("event.skipOccurrence")}
+            <DropdownMenuItem onSelect={() => onSkipRun(item)}>
+              {t("event.skipRun")}
             </DropdownMenuItem>
+            {isMovedRun(item) ? (
+              <DropdownMenuItem onSelect={() => onRestoreRun(item)}>
+                {t("event.restoreRun")}
+              </DropdownMenuItem>
+            ) : null}
           </>
         ) : null}
-        {isRestorableCalendarItem(item) ? (
-          <DropdownMenuItem onSelect={() => onRestoreOccurrence(item)}>
-            {t("event.restoreOccurrence")}
+        {scheduleId ? (
+          <DropdownMenuItem
+            onSelect={() => onOpen(taskSchedulePath(scheduleId))}
+          >
+            {t("event.openSchedule")}
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuItem onSelect={() => onOpenTask(item.taskId)}>
-          {t("event.openTask")}
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -460,11 +454,7 @@ function CalendarView({
   date,
   items,
   onDateClick,
-  onEventEdit,
-  onMoveOccurrence,
-  onRestoreOccurrence,
-  onSkipOccurrence,
-  onOpenTask,
+  runHandlers,
   sources,
   timeZone,
   view,
@@ -474,19 +464,15 @@ function CalendarView({
   date: Date;
   items: WorkspaceCalendarItem[];
   onDateClick: (date: Date) => void;
-  onEventEdit: (taskId: string) => void;
-  onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
-  onRestoreOccurrence: (item: WorkspaceCalendarItem) => void;
-  onSkipOccurrence: (item: WorkspaceCalendarItem) => void;
-  onOpenTask: (taskId: string) => void;
+  runHandlers: RunHandlers;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
-  view: OccurrenceCalendarView;
+  view: CalendarView;
 }) {
   const router = useRouter();
   const formatDate = useFormatter().dateTime;
-  const tSeries = useTranslations("App.Tasks.Schedule.series");
-  const tMove = useTranslations("App.Tasks.Schedule.occurrenceMove");
+  const t = useTranslations("App.Calendar");
+  const reportRunChangeFailure = useReportRunChangeFailure();
   // Optimistic overlay for an in-flight drop: the event renders at the time it
   // was dropped at until Core confirms it or the rollback removes it.
   const [pendingMoves, setPendingMoves] = useState<Record<string, Date>>({});
@@ -495,9 +481,9 @@ function CalendarView({
     week: "dayGridWeek",
   }[view === "agenda" ? "week" : view];
 
-  function clearPendingMove(occurrenceId: string) {
+  function clearPendingMove(runId: string) {
     setPendingMoves((moves) => {
-      const { [occurrenceId]: _dropped, ...rest } = moves;
+      const { [runId]: _dropped, ...rest } = moves;
       return rest;
     });
   }
@@ -505,52 +491,31 @@ function CalendarView({
   async function handleEventDrop(info: EventDropInfo) {
     const item = items.find(({ id }) => id === info.event.id);
     const scheduledAt = info.event.start;
-    if (!item || !scheduledAt || !isMovableCalendarItem(item)) {
+    if (!item || !scheduledAt || !isChangeableRun(item)) {
       info.revert();
       return;
     }
 
-    const occurrenceId = item.id;
-    setPendingMoves((moves) => ({ ...moves, [occurrenceId]: scheduledAt }));
+    setPendingMoves((moves) => ({ ...moves, [item.id]: scheduledAt }));
 
     try {
-      // Every drop is its own attempt; a retry is a new drag, not a replay.
-      const result = await mutateTaskOccurrence({
-        taskId: item.taskId,
-        occurrenceId,
-        operationId: crypto.randomUUID(),
-        expectedScheduleRevision: item.scheduleRevision,
-        action: "reschedule",
-        scheduledAt: scheduledAt.toISOString(),
-      });
+      const result = await changeRun(item, { action: "move", scheduledAt });
 
       if (!result.ok) {
-        clearPendingMove(occurrenceId);
+        clearPendingMove(item.id);
         info.revert();
-        // The series moved on under us, so the rendered events are stale too.
-        if (
-          result.error.kind ===
-            CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT ||
-          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE
-        ) {
-          router.refresh();
-        }
-        const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
-        toast.error(feedbackKey ? tSeries(feedbackKey) : tMove("error"), {
-          duration: Infinity,
-        });
+        reportRunChangeFailure(result.error.kind);
         return;
       }
 
       router.refresh();
     } catch {
-      clearPendingMove(occurrenceId);
+      clearPendingMove(item.id);
       info.revert();
-      toast.error(tMove("error"), { duration: Infinity });
+      reportRunChangeFailure("failed");
     }
   }
 
-  const t = useTranslations("App.Calendar");
   const dateKey = getCalendarDayKey(date);
 
   if (view === "agenda") {
@@ -589,11 +554,7 @@ function CalendarView({
                   <CalendarEvent
                     item={item}
                     people={findCalendarPeople(item, coworkers)}
-                    onEditSchedule={onEventEdit}
-                    onMoveOccurrence={onMoveOccurrence}
-                    onRestoreOccurrence={onRestoreOccurrence}
-                    onSkipOccurrence={onSkipOccurrence}
-                    onOpenTask={onOpenTask}
+                    {...runHandlers}
                     source={sources.find(
                       ({ sourceId }) => sourceId === item.sourceId,
                     )}
@@ -633,8 +594,8 @@ function CalendarView({
             id: item.id,
             title: item.taskName,
             start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
-            // Per-event: a released or unowned row is visible but not draggable.
-            startEditable: isMovableCalendarItem(item),
+            // Per-event: a released or unowned Run is visible but not draggable.
+            startEditable: isChangeableRun(item),
             durationEditable: false,
           }))}
           timeZone={timeZone}
@@ -652,7 +613,7 @@ function CalendarView({
             const item = movingEvent
               ? items.find(({ id }) => id === movingEvent.id)
               : undefined;
-            return Boolean(item && isMovableCalendarItem(item));
+            return Boolean(item && isChangeableRun(item));
           }}
           eventDrop={(info) => void handleEventDrop(info)}
           eventContent={(eventInfo) => {
@@ -665,11 +626,7 @@ function CalendarView({
               <CalendarEvent
                 item={item}
                 people={findCalendarPeople(item, coworkers)}
-                onEditSchedule={onEventEdit}
-                onMoveOccurrence={onMoveOccurrence}
-                onRestoreOccurrence={onRestoreOccurrence}
-                onSkipOccurrence={onSkipOccurrence}
-                onOpenTask={onOpenTask}
+                {...runHandlers}
                 source={sources.find(
                   ({ sourceId }) => sourceId === item.sourceId,
                 )}
@@ -688,277 +645,6 @@ function CalendarView({
   );
 }
 
-interface CalendarEditDialogProps {
-  initialSelection: TaskScheduleSelection;
-  onClose: () => void;
-  task: Task;
-  /** Revision observed when the editor opened; the mutation precondition. */
-  scheduleRevision: number;
-  /**
-   * Durable future exceptions this edit would cancel, read with the revision,
-   * or `null` when the ledger could not be read.
-   */
-  futureExceptionCount: number | null;
-}
-
-function CalendarEditDialog({
-  initialSelection,
-  onClose,
-  task,
-  scheduleRevision,
-  futureExceptionCount: observedFutureExceptionCount,
-}: CalendarEditDialogProps) {
-  const t = useTranslations("App.Calendar");
-  const tSeries = useTranslations("App.Tasks.Schedule.series");
-  const router = useRouter();
-  const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
-  const [clearError, setClearError] = useState<string | null>(null);
-  const [isClearingSchedule, setIsClearingSchedule] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pendingDiscard, setPendingDiscard] =
-    useState<TaskScheduleSelection | null>(null);
-  // A revision conflict proves the observed count describes a series that has
-  // since moved on, so from then on this editor treats it as unknown.
-  const [isCountStale, setIsCountStale] = useState(false);
-  const futureExceptionCount = isCountStale
-    ? null
-    : observedFutureExceptionCount;
-  const clearRequestPending = useRef(false);
-  // One UUID per distinct submitted schedule: a retry of the same rule replays
-  // on Core, while editing the rule again is a new operation.
-  const saveOperation = useRef<{ key: string; operationId: string } | null>(
-    null,
-  );
-  // One UUID for the removal the user is confirming, kept across retries so a
-  // second attempt replays the first rather than racing its own revision bump.
-  const clearOperation = useRef<string | null>(null);
-
-  function resolveMutationError(
-    kind: TaskMutationErrorKind,
-    fallback: string,
-  ): string {
-    const feedbackKey = taskScheduleSeriesFeedbackKey(kind);
-    return feedbackKey ? tSeries(feedbackKey) : fallback;
-  }
-
-  async function submitSave(schedule: TaskScheduleSelection) {
-    setError(null);
-    try {
-      const result = await saveCalendarTaskSchedule({
-        taskId: task.id,
-        operationId: getTaskScheduleOperationId(schedule, saveOperation),
-        expectedScheduleRevision: scheduleRevision,
-        schedule,
-      });
-      if (!result.ok) {
-        if (
-          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT
-        ) {
-          // The series moved on, so the count read with the old revision no
-          // longer describes it. Nothing here may reuse it as "zero".
-          setIsCountStale(true);
-        }
-        setError(resolveMutationError(result.error.kind, t("edit.saveError")));
-        return;
-      }
-
-      onClose();
-      router.refresh();
-    } catch {
-      setError(t("edit.saveError"));
-    }
-  }
-
-  async function handleSave(schedule: TaskScheduleSelection) {
-    // Core mints a new rule epoch on every full-series edit, so submitting an
-    // untouched rule would churn the audit trail and reset consumed runs.
-    if (!hasTaskScheduleChanged(initialSelection, schedule, true)) {
-      onClose();
-      return;
-    }
-
-    // An unreadable count cannot say what a new rule would cancel, so the edit
-    // is refused instead of discarding silently. Removal states its own
-    // consequence in its confirmation and still proceeds.
-    if (futureExceptionCount === null) {
-      setError(tSeries("unknownCount"));
-      return;
-    }
-
-    if (futureExceptionCount > 0) {
-      setError(null);
-      setPendingDiscard(schedule);
-      return;
-    }
-
-    await submitSave(schedule);
-  }
-
-  async function handleConfirmDiscard() {
-    if (!pendingDiscard) return;
-    const schedule = pendingDiscard;
-    setPendingDiscard(null);
-    await submitSave(schedule);
-  }
-
-  async function handleClearSchedule(event: MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    if (clearRequestPending.current) {
-      return;
-    }
-
-    clearRequestPending.current = true;
-    setIsClearingSchedule(true);
-    setClearError(null);
-    setError(null);
-    try {
-      clearOperation.current ??= crypto.randomUUID();
-      const result = await clearTaskSchedule({
-        taskId: task.id,
-        operationId: clearOperation.current,
-        expectedScheduleRevision: scheduleRevision,
-      });
-      if (!result.ok) {
-        setClearError(
-          resolveMutationError(result.error.kind, t("edit.clearError")),
-        );
-        return;
-      }
-
-      onClose();
-      router.refresh();
-    } catch {
-      setClearError(t("edit.clearError"));
-    } finally {
-      clearRequestPending.current = false;
-      setIsClearingSchedule(false);
-    }
-  }
-
-  function handleClearConfirmationOpenChange(open: boolean) {
-    if (!open && clearRequestPending.current) {
-      return;
-    }
-
-    setClearConfirmationOpen(open);
-    if (!open) {
-      setClearError(null);
-      clearOperation.current = null;
-    }
-  }
-
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{t("edit.title")}</DialogTitle>
-          <DialogDescription>
-            {t("edit.description", { name: task.name })}
-          </DialogDescription>
-        </DialogHeader>
-        {error ? (
-          <p className="text-destructive text-sm" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <TaskScheduleSection
-          key={`${task.id}-${initialSelection.mode}-${initialSelection.timezone}-${initialSelection.oneTimeLocalIso ?? ""}-${initialSelection.cron ?? ""}-${initialSelection.customCronExpr ?? ""}`}
-          initialSelection={initialSelection}
-          onCancel={onClose}
-          onClearSchedule={() => {
-            setClearError(null);
-            clearOperation.current = crypto.randomUUID();
-            setClearConfirmationOpen(true);
-          }}
-          onSave={handleSave}
-          canClearSchedule={initialSelection.mode !== "none"}
-          hideHeader
-        />
-        {pendingDiscard ? (
-          <AlertDialog
-            open
-            onOpenChange={(open) => !open && setPendingDiscard(null)}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {tSeries("discardTitle", {
-                    count: futureExceptionCount ?? 0,
-                  })}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {tSeries("discardDescription", {
-                    count: futureExceptionCount ?? 0,
-                  })}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>
-                  {tSeries("discardCancel")}
-                </AlertDialogCancel>
-                <AlertDialogAction onClick={() => void handleConfirmDiscard()}>
-                  {tSeries("discardConfirm")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        ) : null}
-        <AlertDialog
-          open={clearConfirmationOpen}
-          onOpenChange={handleClearConfirmationOpenChange}
-        >
-          <AlertDialogContent
-            onEscapeKeyDown={(event) => {
-              if (clearRequestPending.current) {
-                event.preventDefault();
-              }
-            }}
-          >
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t("edit.clearTitle")}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t("edit.clearDescription")}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            {clearError ? (
-              <p className="text-destructive text-sm" role="alert">
-                {clearError}
-              </p>
-            ) : null}
-            <p className="sr-only" role="status">
-              {isClearingSchedule ? t("edit.clearPending") : null}
-            </p>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isClearingSchedule}>
-                {t("edit.clearCancel")}
-              </AlertDialogCancel>
-              <AlertDialogAction
-                disabled={isClearingSchedule}
-                onClick={handleClearSchedule}
-              >
-                {t("edit.clearConfirm")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-interface CalendarEditState {
-  initialSelection: TaskScheduleSelection;
-  requestId: number;
-  task: Task;
-  scheduleRevision: number;
-  futureExceptionCount: number | null;
-}
-
-interface OccurrenceTimeState {
-  action: "reschedule" | "restore";
-  item: WorkspaceCalendarItem;
-}
-
 export function WorkspaceCalendar({
   activeOrganizationId = null,
   currentUserId = null,
@@ -970,13 +656,10 @@ export function WorkspaceCalendar({
   range,
   coworkers = [],
   lockedProjectId,
-  scheduledTasks = NO_SCHEDULED_TASKS,
-  scheduledTasksPagination = null,
   workspaceId = null,
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
-  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const formatDate = useFormatter().dateTime;
   const router = useRouter();
   const { handleOpenWithDefaults } = useCreateTaskModal();
@@ -984,25 +667,16 @@ export function WorkspaceCalendar({
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
   const [loadMoreError, setLoadMoreError] = useState(false);
-  const [isLoadingOccurrences, setIsLoadingOccurrences] = useState(false);
+  const [isLoadingRuns, setIsLoadingRuns] = useState(false);
   const agendaBoundaryRef = useRef<HTMLDivElement>(null);
-  const [loadedSchedules, setLoadedSchedules] = useState(scheduledTasks);
-  const [schedulesNextCursor, setSchedulesNextCursor] = useState(
-    scheduledTasksPagination?.nextCursor ?? null,
-  );
-  const [schedulesLoadMoreError, setSchedulesLoadMoreError] = useState(false);
-  const [isLoadingSchedules, setIsLoadingSchedules] = useState(false);
   // The page already requested, keyed on the server items too so a refreshed
   // server page that reuses a cursor string drains again.
   const requestedPageRef = useRef<{
     cursor: string;
     items: WorkspaceCalendarItem[];
   } | null>(null);
-  const [editState, setEditState] = useState<CalendarEditState | null>(null);
-  const [timeState, setTimeState] = useState<OccurrenceTimeState | null>(null);
-  const [eventLoadError, setEventLoadError] = useState(false);
+  const [movingRun, setMovingRun] = useState<ChangeableRun | null>(null);
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
-  const eventRequestId = useRef(0);
   const calendarAccessGeneration = useRef(0);
   const hasActivatedRef = useRef(false);
 
@@ -1017,30 +691,14 @@ export function WorkspaceCalendar({
     items !== prevItems ||
     (pagination?.nextCursor ?? null) !== prevServerNextCursor
   ) {
-    // A request from the previous snapshot must not append stale occurrences.
+    // A request from the previous snapshot must not append stale Runs.
     calendarAccessGeneration.current += 1;
-    eventRequestId.current += 1;
     setPrevItems(items);
     setPrevServerNextCursor(pagination?.nextCursor ?? null);
-    setIsLoadingOccurrences(false);
+    setIsLoadingRuns(false);
     setLoadedItems(items);
     setNextCursor(pagination?.nextCursor ?? null);
     setLoadMoreError(false);
-  }
-
-  const [prevScheduledTasks, setPrevScheduledTasks] = useState(scheduledTasks);
-  const [prevScheduledNextCursor, setPrevScheduledNextCursor] = useState(
-    scheduledTasksPagination?.nextCursor ?? null,
-  );
-  if (
-    scheduledTasks !== prevScheduledTasks ||
-    (scheduledTasksPagination?.nextCursor ?? null) !== prevScheduledNextCursor
-  ) {
-    setPrevScheduledTasks(scheduledTasks);
-    setPrevScheduledNextCursor(scheduledTasksPagination?.nextCursor ?? null);
-    setLoadedSchedules(scheduledTasks);
-    setSchedulesNextCursor(scheduledTasksPagination?.nextCursor ?? null);
-    setSchedulesLoadMoreError(false);
   }
 
   useMountEffect(() => {
@@ -1167,14 +825,11 @@ export function WorkspaceCalendar({
     void setState({ projectId: null, sourceId }, { shallow: false });
   }
 
-  function openCreateDialog(oneTimeLocalIso: string) {
-    eventRequestId.current += 1;
-    setEventLoadError(false);
+  function openCreateDialog(localIso: string) {
     handleOpenWithDefaults({
       projectId: selectedCreateProjectId,
-      schedule: {
-        mode: "once",
-        oneTimeLocalIso: schedulableOnceLocalIso(oneTimeLocalIso, timeZone),
+      runAt: {
+        localIso: schedulableRunAtLocalIso(localIso, timeZone),
         timezone: timeZone,
       },
     });
@@ -1191,106 +846,38 @@ export function WorkspaceCalendar({
     openCreateDialog(`${getCalendarDayKey(date)}T12:00`);
   }
 
-  /**
-   * The ledger read carries both the mutation precondition and the exact number
-   * of future exceptions an edit would discard. It is Calendar-beta gated while
-   * removal deliberately is not, so a failure keeps the Task's own revision —
-   * removal still works — while the count stays unknown rather than zero.
-   */
-  async function readSeriesPrecondition(taskId: string) {
+  const reportRunChangeFailure = useReportRunChangeFailure();
+
+  async function handleRunChange(
+    item: ChangeableRun,
+    change: { action: "skip" | "restore" },
+  ) {
     try {
-      return await loadTaskScheduleSeriesPrecondition(taskId);
-    } catch (error) {
-      console.error("Failed to read the schedule series state", error);
-      return null;
-    }
-  }
-
-  async function handleEventEdit(taskId: string) {
-    const requestId = eventRequestId.current + 1;
-    eventRequestId.current = requestId;
-    setEventLoadError(false);
-    try {
-      const [result, occurrencePage] = await Promise.all([
-        coreClient.getTaskById(taskId),
-        readSeriesPrecondition(taskId),
-      ]);
-      if (requestId !== eventRequestId.current) {
-        return;
-      }
-      setEditState({
-        initialSelection: metadataToSelection(
-          result.data.metadata,
-          getDefaultTimezone(),
-        ),
-        requestId,
-        task: result.data,
-        scheduleRevision:
-          occurrencePage?.scheduleRevision ?? result.data.scheduleRevision ?? 0,
-        futureExceptionCount:
-          occurrencePage?.futureExceptionCount ??
-          // A Task with no live rule has nothing to discard, so an unread
-          // ledger only leaves the count unknown for a series that has one.
-          (hasActiveTaskSchedule(result.data.metadata, result.data.nextRunAt)
-            ? null
-            : 0),
-      });
-    } catch {
-      if (requestId === eventRequestId.current) {
-        setEventLoadError(true);
-      }
-    }
-  }
-
-  function handleOpenTask(taskId: string) {
-    router.push(`/tasks/${taskId}`);
-  }
-
-  function handleMoveOccurrence(item: WorkspaceCalendarItem) {
-    setTimeState({ action: "reschedule", item });
-  }
-
-  function handleRestoreOccurrence(item: WorkspaceCalendarItem) {
-    setTimeState({ action: "restore", item });
-  }
-
-  async function handleSkipOccurrence(item: WorkspaceCalendarItem) {
-    try {
-      const result = await mutateTaskOccurrence({
-        taskId: item.taskId,
-        occurrenceId: item.id,
-        operationId: crypto.randomUUID(),
-        expectedScheduleRevision: item.scheduleRevision,
-        action: "skip",
-      });
+      const result = await changeRun(item, change);
       if (!result.ok) {
-        const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
-        toast.error(
-          feedbackKey ? tSeries(feedbackKey) : t("event.mutationError"),
-          { duration: Infinity },
-        );
-        if (
-          result.error.kind ===
-            CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT ||
-          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE
-        ) {
-          router.refresh();
-        }
+        reportRunChangeFailure(result.error.kind);
         return;
       }
       router.refresh();
     } catch {
-      toast.error(t("event.mutationError"), { duration: Infinity });
+      reportRunChangeFailure("failed");
     }
   }
 
+  const runHandlers: RunHandlers = {
+    onMoveRun: setMovingRun,
+    onRestoreRun: (item) => void handleRunChange(item, { action: "restore" }),
+    onSkipRun: (item) => void handleRunChange(item, { action: "skip" }),
+    onOpen: (path) => router.push(path),
+  };
+
   async function loadNextPage() {
-    if (!nextCursor || !range || isLoadingOccurrences) {
+    if (!nextCursor || !range || isLoadingRuns) {
       return;
     }
 
     const accessGeneration = calendarAccessGeneration.current;
-    setIsLoadingOccurrences(true);
+    setIsLoadingRuns(true);
     setLoadMoreError(false);
     try {
       const query = {
@@ -1327,76 +914,27 @@ export function WorkspaceCalendar({
       }
     } finally {
       if (accessGeneration === calendarAccessGeneration.current) {
-        setIsLoadingOccurrences(false);
-      }
-    }
-  }
-
-  async function loadNextSchedulesPage() {
-    if (!schedulesNextCursor || isLoadingSchedules) {
-      return;
-    }
-
-    const accessGeneration = calendarAccessGeneration.current;
-    setIsLoadingSchedules(true);
-    try {
-      const result = await coreClient.getTasks({
-        hasSchedule: "true",
-        sort: "nextRunAt",
-        scope: state.scope,
-        status: state.status ? [state.status] : undefined,
-        assigneeId: state.assigneeId ?? undefined,
-        assigneeUserId: state.assigneeUserId ?? undefined,
-        projectId: lockedProjectId ?? state.projectId ?? undefined,
-        cursor: schedulesNextCursor,
-        limit: scheduledTasksPagination?.limit ?? 100,
-      });
-      if (accessGeneration !== calendarAccessGeneration.current) {
-        return;
-      }
-      setLoadedSchedules((currentTasks) => [
-        ...currentTasks,
-        ...result.data.filter(
-          (task) => !currentTasks.some(({ id }) => id === task.id),
-        ),
-      ]);
-      setSchedulesNextCursor(result.meta?.pagination?.nextCursor ?? null);
-      setSchedulesLoadMoreError(false);
-    } catch {
-      if (accessGeneration === calendarAccessGeneration.current) {
-        setSchedulesLoadMoreError(true);
-      }
-    } finally {
-      if (accessGeneration === calendarAccessGeneration.current) {
-        setIsLoadingSchedules(false);
+        setIsLoadingRuns(false);
       }
     }
   }
 
   function handleCalendarAccessRevoked() {
     calendarAccessGeneration.current += 1;
-    eventRequestId.current += 1;
     setLoadedItems([]);
     setNextCursor(null);
     setLoadMoreError(false);
-    setLoadedSchedules([]);
-    setSchedulesNextCursor(null);
-    setSchedulesLoadMoreError(false);
-    setEditState(null);
-    setTimeState(null);
+    setMovingRun(null);
   }
 
   function handleCalendarInvalidated() {
     calendarAccessGeneration.current += 1;
-    eventRequestId.current += 1;
   }
 
   function handleCalendarResync() {
     handleCalendarInvalidated();
     setLoadMoreError(false);
-    setSchedulesLoadMoreError(false);
-    setEditState(null);
-    setTimeState(null);
+    setMovingRun(null);
   }
 
   // Month/week grids must show every event: a day holding three of its five
@@ -1419,11 +957,74 @@ export function WorkspaceCalendar({
     armed:
       view === "agenda" &&
       nextCursor !== null &&
-      !isLoadingOccurrences &&
+      !isLoadingRuns &&
       !loadMoreError,
     boundaryKey: `${nextCursor}-${visibleItems.length}`,
     onVisible: () => void loadNextPage(),
   });
+
+  function runFilterSections(): FilterDropdownMenuSection[] {
+    return [
+      {
+        id: "coworker",
+        label: tFilters("coworkerLabel"),
+        icon: Sparkles,
+        value: state.assigneeId,
+        allLabel: tFilters("all"),
+        options: coworkers
+          .filter((coworker) => coworker.kind !== "user")
+          .map((coworker) => ({
+            value: coworker.id,
+            label: coworker.name,
+            avatarLabel: coworker.name,
+            image: coworker.image,
+          })),
+        onChange: (assigneeId: string | null) =>
+          void setState(
+            { assigneeId, assigneeUserId: null },
+            { shallow: false },
+          ),
+      },
+      {
+        id: "human",
+        label: tFilters("humanLabel"),
+        icon: Sparkles,
+        value: state.assigneeUserId,
+        allLabel: tFilters("all"),
+        options: coworkers
+          .filter((coworker) => coworker.kind === "user")
+          .map((coworker) => ({
+            value: coworker.id,
+            label: coworker.name,
+            avatarLabel: coworker.name,
+            image: coworker.image,
+          })),
+        onChange: (assigneeUserId: string | null) =>
+          void setState(
+            { assigneeUserId, assigneeId: null },
+            { shallow: false },
+          ),
+      },
+      {
+        id: "status",
+        label: tFilters("statusLabel"),
+        icon: CircleDashed,
+        value: state.status,
+        allLabel: tFilters("all"),
+        options: CALENDAR_STATUSES.map((status) => ({
+          value: status,
+          label: tFilters(`statusOptions.${status}`),
+        })),
+        onChange: (status: string | null) =>
+          void setState(
+            {
+              status: isCalendarStatus(status) ? status : null,
+            },
+            { shallow: false },
+          ),
+      },
+    ];
+  }
 
   const filterSections: FilterDropdownMenuSection[] = [
     ...(activeOrganizationId
@@ -1445,7 +1046,7 @@ export function WorkspaceCalendar({
           },
         ]
       : []),
-    ...(!lockedProjectId && view !== "schedules"
+    ...(!lockedProjectId
       ? [
           {
             id: "source",
@@ -1463,58 +1064,7 @@ export function WorkspaceCalendar({
           },
         ]
       : []),
-    {
-      id: "coworker",
-      label: tFilters("coworkerLabel"),
-      icon: Sparkles,
-      value: state.assigneeId,
-      allLabel: tFilters("all"),
-      options: coworkers
-        .filter((coworker) => coworker.kind !== "user")
-        .map((coworker) => ({
-          value: coworker.id,
-          label: coworker.name,
-          avatarLabel: coworker.name,
-          image: coworker.image,
-        })),
-      onChange: (assigneeId: string | null) =>
-        void setState({ assigneeId, assigneeUserId: null }, { shallow: false }),
-    },
-    {
-      id: "human",
-      label: tFilters("humanLabel"),
-      icon: Sparkles,
-      value: state.assigneeUserId,
-      allLabel: tFilters("all"),
-      options: coworkers
-        .filter((coworker) => coworker.kind === "user")
-        .map((coworker) => ({
-          value: coworker.id,
-          label: coworker.name,
-          avatarLabel: coworker.name,
-          image: coworker.image,
-        })),
-      onChange: (assigneeUserId: string | null) =>
-        void setState({ assigneeUserId, assigneeId: null }, { shallow: false }),
-    },
-    {
-      id: "status",
-      label: tFilters("statusLabel"),
-      icon: CircleDashed,
-      value: state.status,
-      allLabel: tFilters("all"),
-      options: CALENDAR_STATUSES.map((status) => ({
-        value: status,
-        label: tFilters(`statusOptions.${status}`),
-      })),
-      onChange: (status: string | null) =>
-        void setState(
-          {
-            status: isCalendarStatus(status) ? status : null,
-          },
-          { shallow: false },
-        ),
-    },
+    ...runFilterSections(),
     {
       id: "timezone",
       label: t("timezone.label"),
@@ -1603,6 +1153,16 @@ export function WorkspaceCalendar({
               ))}
             </TabsList>
           </Tabs>
+          {lockedProjectId ? (
+            <Button asChild size="sm" variant="outline">
+              <Link
+                href={`${TASK_SCHEDULES_PATH}?projectId=${encodeURIComponent(lockedProjectId)}`}
+              >
+                <Repeat aria-hidden className="size-4" />
+                {t("schedules.link")}
+              </Link>
+            </Button>
+          ) : null}
           <div>
             <FilterDropdownMenu
               buttonLabel={tFilters("title")}
@@ -1614,7 +1174,7 @@ export function WorkspaceCalendar({
                 state.assigneeId !== null ||
                 state.assigneeUserId !== null ||
                 state.status !== null ||
-                (view !== "schedules" && selectedSourceId !== null)
+                selectedSourceId !== null
               }
             />
           </div>
@@ -1627,100 +1187,46 @@ export function WorkspaceCalendar({
         />
       ) : null}
 
-      {view === "schedules" ? (
-        <CalendarScheduleList
-          currentUserId={currentUserId}
-          hasMore={schedulesNextCursor !== null}
-          isLoading={isLoadingSchedules}
-          loadMoreError={schedulesLoadMoreError}
-          onEditSchedule={(taskId) => void handleEventEdit(taskId)}
-          onLoadMore={() => void loadNextSchedulesPage()}
-          sources={sources}
-          tasks={loadedSchedules}
-          timeZone={timeZone}
-        />
-      ) : (
-        <>
-          {visibleItems.length === 0 && view !== "agenda" ? (
-            <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-              {t("empty.title")}
-            </div>
-          ) : null}
-          <CalendarView
-            key={calendarRenderEpoch}
-            canCreate={canCreate}
-            coworkers={coworkers}
-            date={date}
-            items={visibleItems}
-            onDateClick={handleDateClick}
-            onEventEdit={(taskId) => void handleEventEdit(taskId)}
-            onMoveOccurrence={handleMoveOccurrence}
-            onRestoreOccurrence={handleRestoreOccurrence}
-            onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
-            onOpenTask={handleOpenTask}
-            sources={sources}
-            timeZone={timeZone}
-            view={view}
-          />
-          {view === "agenda" && nextCursor ? (
-            <div className="flex justify-center" ref={agendaBoundaryRef}>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isLoadingOccurrences}
-                onClick={() => void loadNextPage()}
-              >
-                {t(
-                  isLoadingOccurrences
-                    ? "agenda.loading"
-                    : "schedules.loadMore",
-                )}
-              </Button>
-            </div>
-          ) : null}
-        </>
-      )}
-      {eventLoadError ? (
-        <p className="text-destructive text-sm" role="alert">
-          {t("edit.loadError")}
-        </p>
+      {visibleItems.length === 0 && view !== "agenda" ? (
+        <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
+          {t("empty.title")}
+        </div>
+      ) : null}
+      <CalendarView
+        key={calendarRenderEpoch}
+        canCreate={canCreate}
+        coworkers={coworkers}
+        date={date}
+        items={visibleItems}
+        onDateClick={handleDateClick}
+        runHandlers={runHandlers}
+        sources={sources}
+        timeZone={timeZone}
+        view={view}
+      />
+      {view === "agenda" && nextCursor ? (
+        <div className="flex justify-center" ref={agendaBoundaryRef}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isLoadingRuns}
+            onClick={() => void loadNextPage()}
+          >
+            {t(isLoadingRuns ? "agenda.loading" : "agenda.loadMore")}
+          </Button>
+        </div>
       ) : null}
       {loadMoreError ? (
         <p className="text-destructive text-sm" role="alert">
           {t("pagination.error")}
         </p>
       ) : null}
-      {editState ? (
-        <CalendarEditDialog
-          key={editState.requestId}
-          initialSelection={editState.initialSelection}
-          onClose={() =>
-            setEditState((currentState) =>
-              currentState?.requestId === editState.requestId
-                ? null
-                : currentState,
-            )
-          }
-          task={editState.task}
-          scheduleRevision={editState.scheduleRevision}
-          futureExceptionCount={editState.futureExceptionCount}
-        />
-      ) : null}
-      {timeState ? (
-        <OccurrenceTimeDialog
-          key={`${timeState.action}:${timeState.item.id}`}
-          action={timeState.action}
-          occurrenceId={timeState.item.id}
-          expectedScheduleRevision={timeState.item.scheduleRevision}
-          scheduledAt={
-            timeState.action === "restore"
-              ? (timeState.item.originalScheduledAt ??
-                timeState.item.scheduledAt)
-              : timeState.item.scheduledAt
-          }
-          taskId={timeState.item.taskId}
+      {movingRun ? (
+        <RunMoveDialog
+          key={movingRun.id}
+          item={movingRun}
           timeZone={timeZone}
-          onClose={() => setTimeState(null)}
+          onClose={() => setMovingRun(null)}
         />
       ) : null}
     </div>

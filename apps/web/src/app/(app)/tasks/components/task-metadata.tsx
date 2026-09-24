@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
-import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
@@ -27,11 +26,11 @@ interface TaskMetadataLabels {
   organization: string;
   personalWorkspace: string;
   project: string;
+  schedule: string;
   coworker: string;
   credits: string;
   created: string;
   updated: string;
-  schedule: string;
   participants: string;
   personalAssistantFallback: string;
   formatSokoBotRole: (values: { owner: string }) => string;
@@ -47,8 +46,6 @@ interface TaskMetadataTask {
   participants: Task["participants"];
   creator: Task["creator"];
   credits: Task["credits"];
-  metadata?: string | null;
-  nextRunAt?: Date | null;
 }
 
 interface TaskCreatorDisplay {
@@ -173,6 +170,8 @@ interface TaskMetadataProps {
   taskId: string;
   task: TaskMetadataTask;
   project: { id: string; name: string } | null;
+  /** Rendered in a Schedule row when the Task came from a Task Schedule. */
+  schedule?: React.ReactNode;
   labels: TaskMetadataLabels;
   statusFieldLabels: TaskMetadataStatusFieldLabels;
   editable: boolean;
@@ -188,6 +187,7 @@ export function TaskMetadata({
   taskId,
   task,
   project,
+  schedule,
   labels,
   statusFieldLabels,
   editable,
@@ -275,6 +275,15 @@ export function TaskMetadata({
         )}
       </div>
 
+      {schedule ? (
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground shrink-0 text-sm">
+            {labels.schedule}
+          </span>
+          {schedule}
+        </div>
+      ) : null}
+
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-sm">{labels.coworker}</span>
         <div className="flex min-w-0 items-center gap-2">
@@ -329,19 +338,6 @@ export function TaskMetadata({
           <span className="text-right text-sm font-medium tabular-nums">
             {creditsDisplay}
           </span>
-        </div>
-      ) : null}
-
-      {task.metadata || task.nextRunAt ? (
-        <div className="flex items-start justify-between gap-4">
-          <span className="text-muted-foreground text-sm">
-            {labels.schedule}
-          </span>
-          <TaskScheduleDisplay
-            className="text-right"
-            metadata={task.metadata}
-            nextRunAt={task.nextRunAt ?? null}
-          />
         </div>
       ) : null}
 

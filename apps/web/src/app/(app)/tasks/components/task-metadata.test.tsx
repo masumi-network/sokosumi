@@ -34,10 +34,6 @@ vi.mock("next-intl", () => ({
     values?.name ? `${key}:${values.name}` : key,
 }));
 
-vi.mock("@/components/task-schedule-display", () => ({
-  TaskScheduleDisplay: () => <span>Daily (1:47 PM)</span>,
-}));
-
 vi.mock("@/components/aurora-orb", () => ({
   AssistantOrb: ({ seed, alt }: { seed: string | null; alt?: string }) => (
     <div data-testid="assistant-orb" data-seed={seed ?? ""} aria-label={alt} />
@@ -73,11 +69,11 @@ const baseLabels = {
   organization: "Organization",
   personalWorkspace: "Personal",
   project: "Project",
+  schedule: "Schedule",
   coworker: "Coworker",
   credits: "Credits",
   created: "Created",
   updated: "Updated",
-  schedule: "Schedule",
   participants: "Participants",
   personalAssistantFallback: "Personal assistant",
   formatSokoBotRole: ({ owner }: { owner: string }) =>
@@ -138,8 +134,6 @@ function createTask(
     assignee,
     participants: overrides.participants ?? [],
     credits: overrides.credits ?? 0,
-    metadata: null,
-    nextRunAt: null,
   };
 }
 

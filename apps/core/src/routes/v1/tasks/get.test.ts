@@ -626,134 +626,87 @@ describe("GET /tasks", () => {
     expect(taskFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("filters to scheduled tasks when hasSchedule=true", async () => {
+  it("no longer sorts by the removed nextRunAt", async () => {
     const app = createApp();
-    const response = await app.request("http://localhost/?hasSchedule=true");
+    const response = await app.request("http://localhost/?sort=nextRunAt");
 
-    expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          archivedAt: null,
-          ownerId: "user_123",
-          workspaceId: "11111111-1111-7111-8111-111111111111",
-          AND: [...HUMAN_TASK_VISIBILITY_AND],
-          OR: [{ metadata: { not: null } }, { nextRunAt: { not: null } }],
-        },
-      }),
-    );
+    expect(response.status).toBe(422);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("filters to tasks without a schedule when hasSchedule=false", async () => {
-    const app = createApp();
-    const response = await app.request("http://localhost/?hasSchedule=false");
+  describe("scheduleId", () => {
+    const SCHEDULE_ID = "01960001-0001-7001-8001-000000000042";
 
-    expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          archivedAt: null,
-          ownerId: "user_123",
-          workspaceId: "11111111-1111-7111-8111-111111111111",
-          AND: [
-            ...HUMAN_TASK_VISIBILITY_AND,
-            { metadata: null },
-            { nextRunAt: null },
-          ],
-        },
-      }),
-    );
-  });
+    it("lists the Tasks a Task Schedule created", async () => {
+      const response = await createApp().request(
+        `http://localhost/?scope=workspace&scheduleId=${SCHEDULE_ID}`,
+      );
 
-  it("combines hasSchedule with workspace scope and status", async () => {
-    const app = createApp();
-    const response = await app.request(
-      `http://localhost/?scope=workspace&status=${TaskStatus.READY}&hasSchedule=true`,
-    );
-
-    expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          archivedAt: null,
-          workspaceId: "11111111-1111-7111-8111-111111111111",
-          status: { in: [TaskStatus.READY] },
-          AND: [...HUMAN_TASK_VISIBILITY_AND],
-          OR: [{ metadata: { not: null } }, { nextRunAt: { not: null } }],
-        },
-      }),
-    );
-  });
-
-  it("keeps nextRunAt ordering when filtering to scheduled tasks", async () => {
-    const app = createApp();
-    const response = await app.request(
-      "http://localhost/?sort=nextRunAt&hasSchedule=true",
-    );
-
-    expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        orderBy: [{ nextRunAt: { sort: "asc", nulls: "last" } }, { id: "asc" }],
-        where: expect.objectContaining({
-          OR: [{ metadata: { not: null } }, { nextRunAt: { not: null } }],
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            archivedAt: null,
+            workspaceId: "11111111-1111-7111-8111-111111111111",
+            AND: [...HUMAN_TASK_VISIBILITY_AND],
+            scheduleId: SCHEDULE_ID,
+          },
         }),
-      }),
-    );
-  });
+      );
+    });
 
-  it("applies the hasSchedule filter to coworker lists", async () => {
-    const app = createApp(COWORKER_AUTH_CONTEXT, null);
-    const response = await app.request("http://localhost/?hasSchedule=true");
+    it("narrows coworker and Soko Bot lists the same way", async () => {
+      await createApp(COWORKER_AUTH_CONTEXT, null).request(
+        `http://localhost/?scheduleId=${SCHEDULE_ID}`,
+      );
+      await createApp(ORCHESTRATOR_AUTH_CONTEXT).request(
+        `http://localhost/?scheduleId=${SCHEDULE_ID}`,
+      );
 
-    expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          archivedAt: null,
-          AND: [COWORKER_SIBLING_LIST_FILTER],
-          OR: [{ metadata: { not: null } }, { nextRunAt: { not: null } }],
-        },
-      }),
-    );
-  });
+      expect(taskFindManyMock).toHaveBeenCalledTimes(2);
+      for (const [args] of taskFindManyMock.mock.calls) {
+        expect(args.where).toMatchObject({ scheduleId: SCHEDULE_ID });
+      }
+    });
 
-  it("applies the hasSchedule filter to soko bot lists", async () => {
-    const response = await createApp(ORCHESTRATOR_AUTH_CONTEXT).request(
-      "http://localhost/?hasSchedule=false",
-    );
+    it("lists them newest created first with sort=createdAt", async () => {
+      const response = await createApp().request(
+        `http://localhost/?scheduleId=${SCHEDULE_ID}&sort=createdAt`,
+      );
 
-    expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          archivedAt: null,
-          workspaceId: "11111111-1111-7111-8111-111111111111",
-          assigneeSokoBotId: "33333333-3333-7333-8333-333333333333",
-          status: { not: TaskStatus.DRAFT },
-          AND: [
-            ...HUMAN_TASK_VISIBILITY_AND,
-            { metadata: null },
-            { nextRunAt: null },
-          ],
-        },
-      }),
-    );
-  });
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        }),
+      );
+    });
 
-  it("rejects invalid hasSchedule query values", async () => {
-    const app = createApp();
-    const response = await app.request("http://localhost/?hasSchedule=maybe");
+    it("rejects a scheduleId that is not a UUID", async () => {
+      const response = await createApp().request(
+        "http://localhost/?scheduleId=not-a-uuid",
+      );
 
-    expect(response.status).toBe(422);
-    expect(taskFindManyMock).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(422);
+      expect(taskFindManyMock).not.toHaveBeenCalled();
+    });
 
-  it("rejects a bare hasSchedule query param", async () => {
-    const app = createApp();
-    const response = await app.request("http://localhost/?hasSchedule");
+    it("returns the scheduleId of each Task", async () => {
+      taskFindManyMock.mockResolvedValue([
+        { ...createTask(), scheduleId: SCHEDULE_ID },
+        createTask(),
+      ]);
+      taskCountMock.mockResolvedValue(2);
 
-    expect(response.status).toBe(422);
-    expect(taskFindManyMock).not.toHaveBeenCalled();
+      const response = await createApp().request("http://localhost/");
+      const body = (await response.json()) as {
+        data: Array<{ scheduleId: string | null }>;
+      };
+
+      expect(body.data.map((task) => task.scheduleId)).toEqual([
+        SCHEDULE_ID,
+        null,
+      ]);
+    });
   });
 });

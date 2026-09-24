@@ -1,5 +1,4 @@
 import {
-  hasActiveTaskSchedule,
   removeTaskContextAttachmentLinks,
   resolveIpfsOrHttpUrl,
   type SubscriptionPlanName,
@@ -18,10 +17,10 @@ import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskFiles } from "@/app/tasks/components/task-files";
+import { TaskFromSchedule } from "@/app/tasks/components/task-from-schedule";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
-import { TaskScheduleSeriesSection } from "@/app/tasks/components/task-schedule-series-section";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
 import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
@@ -127,9 +126,7 @@ export async function TaskDetailView({
     ? projectService.getProjectById(task.projectId).catch(() => null)
     : Promise.resolve(null);
   const linkedTasks = mapVisibleTaskLinks(task.links);
-  const parentTask = linkedTasks.find(
-    (link) => link.relation === "child" || link.relation === "schedule_series",
-  );
+  const parentTask = linkedTasks.find((link) => link.relation === "child");
 
   const t = await translationsPromise;
 
@@ -148,16 +145,18 @@ export async function TaskDetailView({
               taskName={task.name}
               backLabel={t("back")}
               parentLink={
-                parentTask ? (
-                  <p className="text-muted-foreground text-sm">
-                    <Link
-                      href={`/tasks/${parentTask.id}`}
-                      className="text-primary hover:underline"
-                    >
-                      {t("clonedFrom", { name: parentTask.name })}
-                    </Link>
-                  </p>
-                ) : null
+                <>
+                  {parentTask ? (
+                    <p className="text-muted-foreground text-sm">
+                      <Link
+                        href={`/tasks/${parentTask.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {t("clonedFrom", { name: parentTask.name })}
+                      </Link>
+                    </p>
+                  ) : null}
+                </>
               }
               actions={
                 <Suspense fallback={<TaskDetailActionsFallback />}>
@@ -224,17 +223,6 @@ export async function TaskDetailView({
           </aside>
 
           <div className={TASK_DETAIL_MAIN_CLASS}>
-            <Suspense fallback={null}>
-              <TaskScheduleSeriesSection
-                task={task}
-                workspaceName={
-                  task.organization?.name ?? t("personalWorkspace")
-                }
-                forceReadOnly={forceReadOnly}
-                projectPromise={projectPromise}
-              />
-            </Suspense>
-
             <TaskRelatedTasks
               title={t("linkedTasksTitle")}
               emptyLabel={t("linkedTasksEmpty")}
@@ -246,8 +234,6 @@ export async function TaskDetailView({
                 parent: t("actions.relations.subtask"),
                 child: t("actions.relations.parent"),
                 duplicate: t("actions.relations.duplicate"),
-                schedule_run: t("actions.relations.scheduleRun"),
-                schedule_series: t("actions.relations.scheduleSeries"),
               }}
             />
 
@@ -506,10 +492,15 @@ async function TaskMetadataSection({
         participants: task.participants,
         creator: task.creator,
         credits: task.credits,
-        metadata: task.metadata,
-        nextRunAt: task.nextRunAt,
       }}
       project={project ? { id: project.id, name: project.name } : null}
+      schedule={
+        task.scheduleId ? (
+          <Suspense fallback={null}>
+            <TaskFromSchedule scheduleId={task.scheduleId} />
+          </Suspense>
+        ) : null
+      }
       createdAtLabel={formatter.dateTime(task.createdAt, "dateTime")}
       updatedAtLabel={formatter.dateTime(task.updatedAt, "dateTime")}
       creditsDisplay={formatter.number(formatCreditsForDisplay(task.credits))}
@@ -523,11 +514,11 @@ async function TaskMetadataSection({
         organization: t("organization"),
         personalWorkspace: t("personalWorkspace"),
         project: t("project"),
+        schedule: t("schedule"),
         coworker: t("assignee"),
         credits: t("credits"),
         created: t("created"),
         updated: t("updated"),
-        schedule: t("schedule"),
         participants: t("participants"),
         personalAssistantFallback: tTasks("personalAssistant"),
         formatSokoBotRole: (values) => t("actorSokoBotRole", values),
@@ -664,7 +655,21 @@ async function TaskDetailActionsSlot({
       forceReadOnly={forceReadOnly}
       isTaskOwner={session?.user.id === task.ownerId}
       isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
-      hasActiveSchedule={hasActiveTaskSchedule(task.metadata, task.nextRunAt)}
+      repeatBlueprint={
+        !forceReadOnly && hasAssignedSeat
+          ? {
+              name: task.name,
+              description: task.description
+                ? removeTaskContextAttachmentLinks(task.description)
+                : null,
+              projectId: task.projectId,
+              visibility: task.visibility,
+              assigneeId: task.assigneeId,
+              assigneeSokoBotId: task.assigneeSokoBotId,
+              assigneeUserId: task.assigneeUserId,
+            }
+          : undefined
+      }
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),

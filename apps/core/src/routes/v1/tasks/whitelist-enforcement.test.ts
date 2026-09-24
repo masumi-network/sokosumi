@@ -27,7 +27,6 @@ const {
   mapTaskMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
-  refreshTaskSchedulePlannedOccurrencesMock,
   validateTaskAssigneeAssignmentMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
@@ -168,7 +167,6 @@ const {
   }),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
-  refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   validateTaskAssigneeAssignmentMock: vi.fn(),
 }));
 
@@ -188,11 +186,6 @@ vi.mock("@/helpers/access-control", () => ({
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
   lockTaskRows: lockTaskRowsMock,
-}));
-
-vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
-  refreshTaskSchedulePlannedOccurrences:
-    refreshTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/helpers/task", () => ({
@@ -231,7 +224,6 @@ describe("task coworker whitelist enforcement", () => {
     vi.clearAllMocks();
     lockCalendarScopeMock.mockResolvedValue(true);
     lockTaskRowsMock.mockResolvedValue(true);
-    refreshTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
   });
 
   it("rejects task creation when coworker is not whitelisted", async () => {
@@ -339,6 +331,8 @@ describe("task coworker whitelist enforcement", () => {
       share: null,
       links: [],
       files: [],
+      runAt: null,
+      scheduleId: null,
       selectableStatuses: [],
       participants: [],
       linksFrom: [],

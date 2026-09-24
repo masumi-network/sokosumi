@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  CalendarClock,
   OctagonMinus,
   SquareArrowRightEnter,
   SquareMinus,
@@ -25,9 +24,6 @@ export function getTaskLinkRelationIcon(
       return SquareArrowRightEnter;
     case "duplicate":
       return SquaresExclude;
-    case "schedule_run":
-    case "schedule_series":
-      return CalendarClock;
     default: {
       const _exhaustive: never = relation;
       return _exhaustive;

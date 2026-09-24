@@ -102,6 +102,18 @@ _Avoid_: Allowed transition, manual status option, status dropdown values
 The control on a Task that changes its status: a searchable list of the selectable statuses with the current one checked.
 _Avoid_: Status select, status dropdown
 
+**Run at**:
+The one time a Task is set to start, instead of now. A Task has at most one; it never repeats.
+_Avoid_: Schedule, scheduled task (for a single Task), once mode
+
+**Task Schedule**:
+A repeating rule plus the blueprint of the Task it makes: each Run creates a new Task from that blueprint. Not a Task; it has no Task status, only Active, Paused, or Ended. Editing it changes future Runs only.
+_Avoid_: Recurring task, series task, template Task, automation
+
+**Run** (of a Task Schedule):
+One point in time at which a Task Schedule creates a Task. A single Run can be skipped, moved, or restored without changing the rule. The Run only creates the Task; the work happens when the Task is picked up, which is not part of the Run. Distinct from a Task's Run at and from a Job.
+_Avoid_: Occurrence, instance
+
 ### Social publishing
 
 **Social account**:

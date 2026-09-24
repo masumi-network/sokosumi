@@ -312,6 +312,7 @@
       "drive": "Files",
       "soko-bots": "Soko Bots",
       "calendar": "Calendar",
+      "schedules": "Schedules",
       "threads": "Threads"
     },
     "Jobs": {
@@ -1561,8 +1562,7 @@
         "updateStatus": "Failed to update task status",
         "loadMore": "Failed to load more tasks",
         "loadCreateTask": "Failed to load create task form",
-        "loadJobs": "Failed to load jobs",
-        "scheduleActive": "This task runs on a schedule. Change or remove its schedule before moving it."
+        "loadJobs": "Failed to load jobs"
       },
       "Card": {
         "comments": "Comments",
@@ -1766,9 +1766,7 @@
             "parent": "Parent task",
             "subtask": "Sub-task",
             "duplicate": "Duplicate",
-            "addSubtask": "Add sub-task",
-            "scheduleRun": "Scheduled run",
-            "scheduleSeries": "Schedule"
+            "addSubtask": "Add sub-task"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Start working",
@@ -1776,7 +1774,9 @@
           "waitExternal": "Wait on external",
           "resumeRunning": "Resume running",
           "resumeReady": "Back to Ready",
-          "markComplete": "Mark complete"
+          "markComplete": "Mark complete",
+          "repeat": "Repeat",
+          "repeatError": "Couldn't open the schedule form. Try again."
         },
         "ShareModal": {
           "title": "Share task",
@@ -1810,7 +1810,6 @@
           "switchError": "Failed to switch workspace. Please try again."
         },
         "clonedFrom": "Cloned from {name}",
-        "schedule": "Schedule",
         "VendorGrantApproval": {
           "title": "Vendor access approval required",
           "description": "A coworker created this task but does not have permission to create tasks in this workspace yet. Approve vendor access to activate it.",
@@ -1828,47 +1827,10 @@
           "description": "This task is blocked until a workspace owner or admin approves vendor access.",
           "descriptionWithCoworker": "{coworkerName} created this task. It is blocked until a workspace owner or admin approves vendor access."
         },
-        "ScheduleSeries": {
-          "title": "Schedule",
-          "calendar": "Calendar",
-          "repeats": "Repeats",
-          "timezone": "Time zone",
-          "nextRun": "Next run",
-          "removed": "This schedule was removed. Past runs are kept below.",
-          "tabsLabel": "Schedule runs",
-          "upcomingTab": "Upcoming",
-          "historyTab": "History",
-          "upcomingListLabel": "Upcoming runs",
-          "historyListLabel": "Past runs",
-          "upcomingEmpty": "No upcoming runs. New runs appear here as the schedule projects them.",
-          "upcomingEmptyRemoved": "No upcoming runs — this schedule was removed.",
-          "historyEmpty": "No past runs. Released, canceled, and missed runs appear here.",
-          "loadMore": "Load more",
-          "loading": "Loading",
-          "loadMoreError": "Unable to load more runs. Check your connection and try again.",
-          "occurrencesError": "Runs could not be loaded. Refresh the page to try again.",
-          "movedFrom": "Moved from {original}",
-          "statePlanned": "Planned",
-          "stateSkipped": "Skipped",
-          "stateCanceled": "Canceled",
-          "stateReleased": "Released",
-          "stateMissed": "Missed",
-          "archivedRun": "Archived",
-          "move": "Move",
-          "skip": "Skip",
-          "restore": "Restore",
-          "mutationError": "Unable to change this run. Please try again.",
-          "moveSource": "Move calendar",
-          "moveSourceTitle": "Move this schedule?",
-          "moveSourceLabel": "Destination calendar",
-          "moveSourceDescription": "Choose the calendar this schedule should release into. Moving it cancels {count, plural, =0 {no changed upcoming runs} one {# changed upcoming run} other {# changed upcoming runs}}. Past and released runs stay where they are.",
-          "moveSourceCancel": "Keep current calendar",
-          "moveSourceConfirm": "Move schedule",
-          "moveSourceSuccess": "Schedule moved to its new calendar.",
-          "moveSourceError": "Unable to move this schedule. Refresh the task and try again."
-        },
         "files": "Files",
         "assignee": "Assignee",
+        "schedule": "Schedule",
+        "privateSchedule": "Private schedule",
         "participants": "Participants",
         "removeParticipant": "Remove {name}",
         "removeParticipantConfirmTitle": "Remove {name}?",
@@ -1937,7 +1899,7 @@
         "removeAttachment": "Remove attachment",
         "createTask": "Create Task",
         "scheduleTask": "Schedule Task",
-        "openSchedule": "Set schedule",
+        "openRunAt": "Set start time",
         "cancel": "Cancel",
         "ctrl": "Ctrl",
         "taskCreated": "Task created",
@@ -1979,53 +1941,14 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remove attachment",
         "save": "Save",
-        "openSchedule": "Set schedule",
+        "openRunAt": "Set start time",
         "cancel": "Cancel",
         "ctrl": "Ctrl",
         "unassigned": "Unassigned",
         "unavailableAssignee": "Unavailable assignee"
       },
       "Schedule": {
-        "title": "Schedule",
-        "description": "Plan a one-time or recurring run.",
-        "clearSchedule": "Remove schedule",
-        "series": {
-          "discardTitle": "Discard {count, plural, one {# changed run} other {# changed runs}}?",
-          "discardDescription": "Saving a new rule for the whole series cancels {count, plural, one {the upcoming run you moved or skipped} other {the # upcoming runs you moved or skipped}}. Runs that already happened are kept.",
-          "discardCancel": "Keep current schedule",
-          "discardConfirm": "Save and discard",
-          "removeTitle": "Remove this schedule?",
-          "removeDescription": "This task will stop running on a schedule. Runs that already happened are kept, and upcoming runs are canceled.",
-          "removeCancel": "Keep the schedule",
-          "removeConfirm": "Remove schedule",
-          "revisionConflict": "This schedule changed somewhere else. Reload the task, reopen the schedule, and apply your change again.",
-          "quarantined": "This schedule is paused for repair and cannot be changed. Contact support to restore it.",
-          "operationConflict": "This save was already sent with different details. Reopen the schedule and try again.",
-          "activeSeries": "This task runs on a schedule. Change or remove its schedule first.",
-          "unknownCount": "We could not check which upcoming runs a new rule would cancel. Reload the page, reopen the schedule, and try again.",
-          "occurrenceLocked": "This occurrence can no longer be changed.",
-          "occurrenceTargetInvalid": "That time is not a valid target."
-        },
-        "occurrenceMove": {
-          "title": "Move occurrence",
-          "description": "Choose a new time for this run.",
-          "label": "New time",
-          "confirm": "Move occurrence",
-          "cancel": "Cancel",
-          "invalid": "Choose a valid date and time.",
-          "error": "Unable to move this occurrence. Please try again."
-        },
-        "occurrenceRestore": {
-          "title": "Restore occurrence",
-          "description": "Restore this run at its original time, or choose another future time.",
-          "label": "Restored time",
-          "confirm": "Restore occurrence",
-          "cancel": "Cancel",
-          "invalid": "Choose a valid date and time.",
-          "error": "Unable to restore this occurrence. Please try again."
-        },
         "option": {
-          "oneTime": "One-time",
           "daily": "Daily",
           "dailyWithTime": "Daily ({time})",
           "dailyEveryNWithTime": "Every {n} days ({time})",
@@ -2037,7 +1960,7 @@
           "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
           "custom": "Custom cron"
         },
-        "pickDateTime": "Run once at",
+        "firstRun": "First run",
         "timeOfDay": "Time of day",
         "repeatEvery": "Repeat every",
         "repeatOn": "Repeat on",
@@ -2059,16 +1982,6 @@
         },
         "save": "Save",
         "cancel": "Cancel",
-        "footer": {
-          "oneTimeAt": "Once on {datetime}"
-        },
-        "card": {
-          "overdue": "Overdue",
-          "dueInMinutes": "Due in {minutes, plural, one {# minute} other {# minutes}}",
-          "dueInHours": "Due in {hours, plural, one {# hour} other {# hours}}",
-          "tomorrowAt": "Tomorrow at {time}",
-          "nextRunAt": "Next run: {datetime}"
-        },
         "errors": {
           "required": "This field is required.",
           "futureDateTime": "Select a future date and time.",
@@ -2077,6 +1990,23 @@
           "selectAtLeastOneWeekday": "Select at least one weekday.",
           "endDateInPast": "End date cannot be in the past.",
           "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
+      },
+      "RunAt": {
+        "title": "Start time",
+        "description": "The task waits until this time, then moves to Ready.",
+        "label": "Start at",
+        "apply": "Apply",
+        "clear": "Clear",
+        "cancel": "Cancel",
+        "notInFuture": "Choose a time in the future.",
+        "footer": "Starts {datetime}",
+        "badge": {
+          "overdue": "Starting soon",
+          "inMinutes": "Starts in {minutes, plural, one {# minute} other {# minutes}}",
+          "inHours": "Starts in {hours, plural, one {# hour} other {# hours}}",
+          "tomorrowAt": "Starts tomorrow at {time}",
+          "at": "Starts {datetime}"
         }
       },
       "EmptyState": {
@@ -2089,6 +2019,87 @@
         "back": "Back",
         "addTaskHint": "Start by adding a task",
         "elenaAvatarAlt": "Elena avatar"
+      },
+      "Schedules": {
+        "stateFilter": "Schedule state",
+        "filterAll": "All",
+        "state": {
+          "ACTIVE": "Active",
+          "PAUSED": "Paused",
+          "ENDED": "Ended"
+        },
+        "newSchedule": "New schedule",
+        "empty": "No schedules here yet. A schedule creates a new task every time it runs.",
+        "loadMore": "Load more",
+        "loadingMore": "Loading…",
+        "loadMoreError": "Couldn't load more schedules.",
+        "nextRun": "Next run {datetime}",
+        "noNextRun": "No upcoming run",
+        "unassigned": "Unassigned",
+        "unavailableAssignee": "Unavailable assignee",
+        "Dialog": {
+          "createTitle": "New schedule",
+          "editTitle": "Edit schedule",
+          "createDescription": "Each run creates a new task from these details.",
+          "futureOnlyNotice": "Changes apply to future runs only. Tasks already created stay as they are.",
+          "name": "Name",
+          "description": "Description",
+          "assignee": "Assignee",
+          "create": "Create schedule",
+          "save": "Save changes",
+          "created": "Schedule created",
+          "saved": "Schedule saved",
+          "errors": {
+            "stale": "This schedule changed somewhere else. Reload the page and try again.",
+            "saveFailed": "Couldn't save the schedule."
+          }
+        },
+        "Actions": {
+          "edit": "Edit",
+          "pause": "Pause",
+          "resume": "Resume",
+          "end": "End",
+          "delete": "Delete",
+          "paused": "Schedule paused",
+          "resumed": "Schedule resumed",
+          "ended": "Schedule ended",
+          "deleted": "Schedule deleted",
+          "failed": "Couldn't update the schedule. Try again.",
+          "confirmEndTitle": "End this schedule?",
+          "confirmEndDescription": "It stops creating tasks for good, and its skipped or moved runs are dropped. Tasks it already created stay.",
+          "confirmDeleteTitle": "Delete this schedule?",
+          "confirmDeleteDescription": "The schedule and its upcoming runs are removed. Tasks it already created stay, no longer linked to it.",
+          "confirmEnd": "End schedule",
+          "confirmDelete": "Delete schedule",
+          "cancel": "Cancel"
+        },
+        "Detail": {
+          "back": "Schedules",
+          "upcomingRuns": "Upcoming runs",
+          "noUpcomingRuns": "No runs planned yet.",
+          "noUpcomingRunsInactive": "No runs are planned while the schedule is paused or ended.",
+          "runSkipped": "Skipped",
+          "runMoved": "Moved",
+          "createdTasks": "Tasks created",
+          "noCreatedTasks": "No tasks created yet.",
+          "properties": "Properties",
+          "state": "State",
+          "rule": "Repeats",
+          "timezone": "Time zone",
+          "nextRun": "Next run",
+          "ends": "Ends",
+          "assignee": "Assignee",
+          "project": "Project",
+          "noProject": "No project",
+          "released": "Runs so far",
+          "endsOn": "On {date}",
+          "endsAfter": "After {count, plural, one {# run} other {# runs}}",
+          "endsNever": "Never"
+        },
+        "Page": {
+          "title": "Schedules",
+          "description": "Every schedule in your workspace. Each run creates a new task."
+        }
       }
     },
     "Projects": {
@@ -2559,6 +2570,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Calendar",
+          "schedules": "Schedules",
           "projectsLoading": "Loading projects…",
           "projectsError": "Could not load projects.",
           "retryProjects": "Retry"
@@ -6472,46 +6484,35 @@
       "view": {
         "month": "Month",
         "week": "Week",
-        "agenda": "Agenda",
-        "schedules": "Schedules"
+        "agenda": "Agenda"
       },
       "source": {
         "label": "Source",
         "all": "All sources",
         "WORKSPACE": "Workspace",
-        "PROJECT": "Project",
-        "LEGACY_UNKNOWN": "Legacy source"
+        "PROJECT": "Project"
       },
       "event": {
         "accessibleName": "{task}, {source}",
-        "accessibleNameSkipped": "{task}, {source}, skipped",
-        "editSchedule": "Edit schedule",
-        "moveOccurrence": "Move occurrence",
-        "skipOccurrence": "Skip occurrence",
-        "restoreOccurrence": "Restore occurrence",
-        "mutationError": "Unable to change this occurrence. Please try again.",
-        "openTask": "Open task",
-        "moveNotAllowed": "Only the task owner can reschedule it."
+        "moveNotAllowed": "Only upcoming runs of your own active schedules can be moved.",
+        "moveRun": "Move run",
+        "skipRun": "Skip run",
+        "restoreRun": "Restore run",
+        "openSchedule": "Open schedule",
+        "runStale": "This schedule changed somewhere else. The calendar is reloading; try again.",
+        "runInvalidTime": "Choose a time in the future, within the next 90 days.",
+        "runError": "Couldn't change this run. Try again."
+      },
+      "runMove": {
+        "title": "Move run",
+        "description": "Choose a new time for this run of {name}. The schedule stays as it is.",
+        "label": "New time",
+        "confirm": "Move run",
+        "cancel": "Cancel",
+        "invalid": "Choose a valid date and time."
       },
       "create": {
         "fab": "Schedule a task"
-      },
-      "edit": {
-        "title": "Edit schedule",
-        "description": "Change the schedule for {name}.",
-        "loadError": "Unable to load this task. Please try again.",
-        "saveError": "Unable to save this schedule. Please try again.",
-        "clearError": "Unable to remove this schedule. Please try again.",
-        "clearPending": "Removing schedule…",
-        "clearTitle": "Remove schedule?",
-        "clearDescription": "This task will no longer run on a schedule.",
-        "clearCancel": "Cancel",
-        "clearConfirm": "Remove schedule"
-      },
-      "accuracy": {
-        "inferred": "Inferred source",
-        "unknown": "Unknown source",
-        "approximate": "Approximate time"
       },
       "status": {
         "label": "Task status",
@@ -6539,15 +6540,10 @@
         "label": "Time zone"
       },
       "empty": {
-        "title": "No scheduled releases match these filters.",
-        "schedulesTitle": "No schedules match these filters."
+        "title": "No scheduled releases match these filters."
       },
       "schedules": {
-        "nextRun": "Next run",
-        "noNextRun": "No upcoming run",
-        "edit": "Edit schedule",
-        "openTask": "Open task",
-        "loadMore": "Load more"
+        "link": "Schedules"
       },
       "pagination": {
         "error": "Unable to load more events."
@@ -6559,7 +6555,8 @@
       },
       "agenda": {
         "upcoming": "Coming up next",
-        "loading": "Loading…"
+        "loading": "Loading…",
+        "loadMore": "Load more"
       }
     },
     "You": {

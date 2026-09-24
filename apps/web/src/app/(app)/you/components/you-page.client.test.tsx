@@ -144,6 +144,15 @@ describe("YouPageClient", () => {
     expect(screen.getByTestId("you-files")).toHaveAttribute("href", "/drive");
   });
 
+  it("lists Schedules without the Calendar beta", () => {
+    renderYouPage({ calendarMenuEnabled: false });
+
+    expect(screen.getByTestId("you-schedules")).toHaveAttribute(
+      "href",
+      "/schedules",
+    );
+  });
+
   it("shows Admin alone before account links when admin is enabled", () => {
     renderYouPage();
 

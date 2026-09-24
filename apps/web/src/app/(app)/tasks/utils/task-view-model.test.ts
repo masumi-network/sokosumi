@@ -40,9 +40,8 @@ function buildTask(
     description: null,
     status,
     visibility: TaskVisibility.PUBLIC,
-    metadata: null,
-    nextRunAt: null,
-    scheduleRevision: 0,
+    runAt: null,
+    scheduleId: null,
     commentsCount: 0,
     jobsCount: 0,
     grantResumeStatus: null,
@@ -144,18 +143,18 @@ describe("mapTaskToTaskWithCoworker", () => {
   it("serializes Date timestamps to ISO strings", () => {
     const createdAt = new Date("2026-01-01T00:00:00.000Z");
     const updatedAt = new Date("2026-01-01T01:00:00.000Z");
-    const nextRunAt = new Date("2026-06-25T09:00:00.000Z");
-    const task = buildTask(TaskStatus.READY, {
+    const runAt = new Date("2026-06-26T09:00:00.000Z");
+    const task = buildTask(TaskStatus.QUEUED, {
       createdAt,
       updatedAt,
-      nextRunAt,
+      runAt,
     });
 
     const mapped = map(task);
 
     expect(mapped.createdAt).toBe("2026-01-01T00:00:00.000Z");
     expect(mapped.updatedAt).toBe("2026-01-01T01:00:00.000Z");
-    expect(mapped.nextRunAt).toBe("2026-06-25T09:00:00.000Z");
+    expect(mapped.runAt).toBe("2026-06-26T09:00:00.000Z");
   });
 
   it("maps counts from the list API task", () => {
@@ -216,6 +215,14 @@ describe("mapTaskToTaskWithCoworker", () => {
     const task = buildTask(TaskStatus.READY, { project });
 
     expect(map(task).project).toEqual(project);
+  });
+
+  it("shows a Markdown task name as plain text for lists and cards", () => {
+    const task = buildTask(TaskStatus.READY, {
+      name: "**Task Name:** fix_login",
+    });
+
+    expect(map(task).name).toBe("Task Name: fix_login");
   });
 
   it("keeps project null when the API task has no project", () => {

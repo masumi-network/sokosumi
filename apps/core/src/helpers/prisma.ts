@@ -130,6 +130,14 @@ export function isCreatedByUserUniqueConstraintError(error: unknown): boolean {
 
 /**
  * Returns true if the error is a Prisma unique constraint violation (P2002)
+ * on an idempotency ledger's `operationId` (with its workspace).
+ */
+export function isOperationIdUniqueConstraintError(error: unknown): boolean {
+  return isPrismaUniqueViolationOnField(error, "operationId");
+}
+
+/**
+ * Returns true if the error is a Prisma unique constraint violation (P2002)
  * on `directKey` (including composite `organizationId` + `directKey`).
  */
 export function isDirectKeyUniqueConstraintError(error: unknown): boolean {

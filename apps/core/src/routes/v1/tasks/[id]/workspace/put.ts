@@ -13,8 +13,6 @@ import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
-import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
-import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -94,13 +92,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ) {
         throw badRequest("Private Tasks cannot move to a personal workspace");
       }
-
-      // Moving a Calendar source between workspaces belongs to SOK-887; while
-      // a series is active the schedule endpoints own the Task's placement.
-      assertTaskScheduleInactive(
-        ownedTask,
-        "Remove the schedule before moving this Task to another workspace",
-      );
 
       // `null` targets the authenticated user's personal workspace.
       if (targetOrganizationId !== null) {
@@ -194,14 +185,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId: targetWorkspace.id,
           projectId: null,
         },
-      });
-      await refreshTaskSchedulePlannedOccurrences(tx, {
-        id: ownedTask.id,
-        workspaceId: targetWorkspace.id,
-        projectId: null,
-        status: ownedTask.status,
-        metadata: ownedTask.metadata,
-        nextRunAt: ownedTask.nextRunAt,
       });
 
       return {

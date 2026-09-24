@@ -135,10 +135,6 @@
             "outOfCredits": {
               "subject": "Sokosumi - {taskName} hat keine Credits mehr",
               "body": "{taskName} hat angehalten, weil die Credits aufgebraucht sind."
-            },
-            "scheduleRemovedByOperator": {
-              "subject": "Sokosumi - Der Zeitplan für {taskName} wurde entfernt",
-              "body": "Der Zeitplan für {taskName} wurde nach einer Prüfung entfernt."
             }
           }
         },
@@ -157,30 +153,6 @@
             "canceled": {
               "subject": "Sokosumi - {taskName} wurde abgebrochen",
               "body": "{taskName} wurde abgebrochen."
-            },
-            "scheduleRepaired": {
-              "subject": "Sokosumi - Der Zeitplan für {taskName} wurde repariert",
-              "body": "Der Zeitplan für {taskName} wurde repariert."
-            },
-            "scheduleRemovedByOperator": {
-              "subject": "Sokosumi - Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
-              "body": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt."
-            },
-            "scheduleUpdatedByMember": {
-              "subject": "Sokosumi - Ein Teammitglied hat den Zeitplan für {taskName} aktualisiert",
-              "body": "Ein Teammitglied hat den Zeitplan für {taskName} aktualisiert."
-            },
-            "scheduleRemovedByMember": {
-              "subject": "Sokosumi - Ein Teammitglied hat den Zeitplan für {taskName} entfernt",
-              "body": "Ein Teammitglied hat den Zeitplan für {taskName} entfernt."
-            },
-            "scheduleSourceChangedByMember": {
-              "subject": "Sokosumi - Ein Teammitglied hat {taskName} in eine andere Kalenderquelle verschoben",
-              "body": "Ein Teammitglied hat {taskName} in eine andere Kalenderquelle verschoben."
-            },
-            "scheduleOccurrenceChangedByMember": {
-              "subject": "Sokosumi - Ein Teammitglied hat einen Termin von {taskName} geändert",
-              "body": "Ein Teammitglied hat einen Termin von {taskName} geändert."
             },
             "updated": {
               "subject": "Sokosumi - {taskName} hat sich geändert",
@@ -258,8 +230,7 @@
           "inputRequired": "{taskName} hat vor einem Tag angehalten, weil {coworkerName} deine Eingabe braucht. Die Aufgabe wartet weiterhin.",
           "approvalRequired": "{taskName} hat vor einem Tag angehalten, weil {coworkerName} deine Freigabe braucht. Die Aufgabe wartet weiterhin.",
           "authenticationRequired": "{taskName} hat vor einem Tag angehalten, weil {coworkerName} eine Anmeldung von dir braucht. Die Aufgabe wartet weiterhin.",
-          "outOfCredits": "{taskName} hat vor einem Tag angehalten, weil die Credits aufgebraucht sind. Die Aufgabe wartet weiterhin.",
-          "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde vor einem Tag nach einer Prüfung entfernt, und du hast den Hinweis noch nicht geöffnet."
+          "outOfCredits": "{taskName} hat vor einem Tag angehalten, weil die Credits aufgebraucht sind. Die Aufgabe wartet weiterhin."
         }
       },
       "billing": {

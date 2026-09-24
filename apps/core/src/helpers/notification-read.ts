@@ -6,7 +6,6 @@ import { waitUntil } from "@vercel/functions";
 import {
   TASK_ATTENTION_MESSAGE_KEYS,
   TASK_PARTICIPANT_ADDED_MESSAGE_KEY,
-  TASK_SCHEDULE_REMOVED_MESSAGE_KEY,
   TASK_TERMINAL_MESSAGE_KEYS,
 } from "@/helpers/notification-delivery";
 import {
@@ -68,18 +67,15 @@ export async function markNotificationsRead(
 /**
  * The task attention keys cleared when work resumes or a run ends.
  *
- * Every one of them except the operator-removed schedule and a participant
- * added by @. The schedule row is about the schedule rather than the run.
- * Being mentioned is not a status question, so a resume must not mark it read.
+ * Every one of them except a participant added by @: being mentioned is not
+ * a status question, so a resume must not mark it read.
  *
- * Archiving does end both, because nobody can open an archived task at all.
+ * Archiving does end it, because nobody can open an archived task at all.
  * That case passes the full list itself, at `markTaskArchivedRead`.
  */
 export const TASK_RUN_ATTENTION_MESSAGE_KEYS: readonly string[] =
   TASK_ATTENTION_MESSAGE_KEYS.filter(
-    (key) =>
-      key !== TASK_SCHEDULE_REMOVED_MESSAGE_KEY &&
-      key !== TASK_PARTICIPANT_ADDED_MESSAGE_KEY,
+    (key) => key !== TASK_PARTICIPANT_ADDED_MESSAGE_KEY,
   );
 
 /**

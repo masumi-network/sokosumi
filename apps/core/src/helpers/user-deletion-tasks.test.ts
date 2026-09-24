@@ -14,6 +14,9 @@ const {
   taskFileFindManyMock,
   taskUpdateMock,
   taskDeleteManyMock,
+  taskScheduleFindManyMock,
+  taskScheduleUpdateMock,
+  taskScheduleDeleteManyMock,
   taskPaymentClaimFindFirstMock,
   taskPaymentClaimDeleteManyMock,
   taskX402PaymentFindFirstMock,
@@ -42,6 +45,9 @@ const {
   taskFileFindManyMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   taskDeleteManyMock: vi.fn(),
+  taskScheduleFindManyMock: vi.fn(),
+  taskScheduleUpdateMock: vi.fn(),
+  taskScheduleDeleteManyMock: vi.fn(),
   taskPaymentClaimFindFirstMock: vi.fn(),
   taskPaymentClaimDeleteManyMock: vi.fn(),
   taskX402PaymentFindFirstMock: vi.fn(),
@@ -100,6 +106,9 @@ describe("prepareTasksForUserDeletion", () => {
     vendorUpdateMock.mockResolvedValue({});
     vendorMemberInviteUpdateManyMock.mockResolvedValue({ count: 0 });
     calendarInvalidationOutboxDeleteManyMock.mockResolvedValue({ count: 0 });
+    taskScheduleFindManyMock.mockResolvedValue([]);
+    taskScheduleUpdateMock.mockResolvedValue({});
+    taskScheduleDeleteManyMock.mockResolvedValue({ count: 0 });
     queryRawMock.mockResolvedValue([]);
     eraseWorkspaceCalendarDataMock.mockResolvedValue({
       taskFiles: [],
@@ -117,6 +126,11 @@ describe("prepareTasksForUserDeletion", () => {
           findMany: taskFindManyMock,
           update: taskUpdateMock,
           deleteMany: taskDeleteManyMock,
+        },
+        taskSchedule: {
+          findMany: taskScheduleFindManyMock,
+          update: taskScheduleUpdateMock,
+          deleteMany: taskScheduleDeleteManyMock,
         },
         taskFile: {
           findMany: taskFileFindManyMock,
@@ -435,6 +449,41 @@ describe("prepareTasksForUserDeletion", () => {
       },
     });
     expect(taskDeleteManyMock).toHaveBeenCalledWith({
+      where: { ownerId: "user_delete" },
+    });
+  });
+
+  it("deletes owned Task Schedules and re-points foreign-owned schedule creators", async () => {
+    coworkerAssignmentFindManyMock.mockResolvedValue([{ coworkerId: "cow_1" }]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+    taskScheduleFindManyMock.mockResolvedValue([
+      { id: "schedule_foreign", ownerId: "user_other" },
+    ]);
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    expect(taskScheduleFindManyMock).toHaveBeenCalledWith({
+      where: {
+        ownerId: { not: "user_delete" },
+        OR: [
+          { creatorUserId: "user_delete" },
+          { creatorCoworkerId: { in: ["cow_1"] } },
+        ],
+      },
+      select: { id: true, ownerId: true },
+    });
+    expect(taskScheduleUpdateMock).toHaveBeenCalledWith({
+      where: { id: "schedule_foreign" },
+      data: {
+        creatorUserId: "user_other",
+        creatorCoworkerId: null,
+        creatorSokoBotId: null,
+      },
+    });
+    expect(taskScheduleDeleteManyMock).toHaveBeenCalledWith({
       where: { ownerId: "user_delete" },
     });
   });
@@ -972,9 +1021,8 @@ describe("prepareTasksForUserDeletion", () => {
       runTransaction?.(async (tx: Record<string, unknown>) => {
         const calendarModels = Object.fromEntries(
           [
-            "taskScheduleOccurrence",
+            "taskScheduleRun",
             "taskLink",
-            "taskScheduleQuarantine",
             "taskScheduleCreateOperation",
             "taskEvent",
             "projectEvent",

@@ -40,7 +40,8 @@ export async function lockCalendarErasureUser(
 /**
  * Lock Calendar-owned data for one Workspace inside its parent's deletion
  * transaction. Callers lock the acting User first; this helper then owns the
- * canonical Workspace → Project → Task → child/payment order.
+ * canonical Workspace → Project → Task → Run → Task Schedule → child/payment
+ * order.
  */
 export async function lockWorkspaceCalendarForErasure(
   tx: Prisma.TransactionClient,
@@ -71,24 +72,27 @@ export async function lockWorkspaceCalendarForErasure(
     FOR UPDATE
   `;
   await tx.$queryRaw`
-    SELECT occurrence.id
-    FROM "task_schedule_occurrence" AS occurrence
-    WHERE occurrence.id IN (
-      SELECT id FROM "task_schedule_occurrence"
+    SELECT run.id
+    FROM "task_schedule_run" AS run
+    WHERE run.id IN (
+      SELECT id FROM "task_schedule_run"
       WHERE "sourceWorkspaceId" = ${workspaceId}::UUID
       UNION
-      SELECT series_occurrence.id
-      FROM "task_schedule_occurrence" AS series_occurrence
-      JOIN "task" AS series_task ON series_task.id = series_occurrence."seriesTaskId"
-      WHERE series_task."workspaceId" = ${workspaceId}::UUID
-      UNION
-      SELECT released_occurrence.id
-      FROM "task_schedule_occurrence" AS released_occurrence
-      JOIN "task" AS released_task ON released_task.id = released_occurrence."releasedTaskId"
+      SELECT released_run.id
+      FROM "task_schedule_run" AS released_run
+      JOIN "task" AS released_task ON released_task.id = released_run."releasedTaskId"
       WHERE released_task."workspaceId" = ${workspaceId}::UUID
     )
-    ORDER BY occurrence.id ASC
-    FOR UPDATE OF occurrence
+    ORDER BY run.id ASC
+    FOR UPDATE OF run
+  `;
+  // After the Runs, like the release: it claims a Run, then its schedule.
+  await tx.$queryRaw`
+    SELECT id
+    FROM "task_schedule"
+    WHERE "workspaceId" = ${workspaceId}::UUID
+    ORDER BY id ASC
+    FOR UPDATE
   `;
   await tx.$queryRaw`
     SELECT link.id
@@ -201,11 +205,10 @@ export async function eraseWorkspaceCalendarData(
     select: { fileUrl: true, taskId: true },
   });
 
-  await tx.taskScheduleOccurrence.deleteMany({
+  await tx.taskScheduleRun.deleteMany({
     where: {
       OR: [
         { sourceWorkspaceId: workspaceId },
-        { seriesTask: { workspaceId } },
         { releasedTask: { workspaceId } },
       ],
     },
@@ -221,12 +224,12 @@ export async function eraseWorkspaceCalendarData(
       status: { in: SWEEPABLE_X402_STATUSES },
     },
   });
-  await tx.taskScheduleQuarantine.deleteMany({
-    where: { task: { workspaceId } },
-  });
   await tx.taskScheduleCreateOperation.deleteMany({ where: { workspaceId } });
   await tx.taskEvent.deleteMany({ where: { task: { workspaceId } } });
   await tx.task.deleteMany({ where: { workspaceId } });
+  // Their Runs went with the ledger above (a Run's source is its schedule's
+  // workspace). After the Tasks, so no created Task is updated on the way out.
+  await tx.taskSchedule.deleteMany({ where: { workspaceId } });
   await tx.projectEvent.deleteMany({ where: { project: { workspaceId } } });
   await tx.projectCloseOperation.deleteMany({
     where: { project: { workspaceId } },

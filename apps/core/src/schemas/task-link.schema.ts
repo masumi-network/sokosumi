@@ -43,21 +43,12 @@ export const taskLinkPeerTaskSchema = z
 export type TaskLinkPeerTaskResponse = z.infer<typeof taskLinkPeerTaskSchema>;
 
 export const taskLinkRelationSchema = z
-  .enum([
-    "related",
-    "blocks",
-    "blocked_by",
-    "parent",
-    "child",
-    "duplicate",
-    "schedule_run",
-    "schedule_series",
-  ])
+  .enum(["related", "blocks", "blocked_by", "parent", "child", "duplicate"])
   .openapi("TaskLinkRelation");
 
 export type TaskLinkRelationResponse = z.infer<typeof taskLinkRelationSchema>;
 
-/** Relations users may create or patch. Schedule edges are system-managed. */
+/** Relations users may create or patch. */
 export const userWritableTaskLinkRelationSchema = z
   .enum(["related", "blocks", "blocked_by", "parent", "child", "duplicate"])
   .openapi("UserWritableTaskLinkRelation");

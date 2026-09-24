@@ -4,6 +4,7 @@ import {
   type TaskListItem,
   TaskStatus,
 } from "@/lib/clients/generated/core";
+import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 
 export type { TaskStatus };
 
@@ -25,7 +26,7 @@ export function mapTaskListItemToTaskPickerTask(
 ): TaskPickerTask {
   return {
     id: task.id,
-    name: task.name,
+    name: stripInlineMarkdown(task.name),
     status: task.status,
   };
 }
@@ -35,7 +36,7 @@ export function mapVisibleTaskLinks(links: TaskLink[]): VisibleTaskLink[] {
     .filter((link) => link.peerTask.archivedAt === null)
     .map((link) => ({
       id: link.peerTask.id,
-      name: link.peerTask.name,
+      name: stripInlineMarkdown(link.peerTask.name),
       status: link.peerTask.status,
       relation: link.relation,
     }));

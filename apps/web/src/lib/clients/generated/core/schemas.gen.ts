@@ -1351,6 +1351,10 @@ export const SokoBotDeletionResultSchema = {
                 uploadedTaskFiles: {
                     type: 'integer',
                     minimum: 0
+                },
+                taskSchedules: {
+                    type: 'integer',
+                    minimum: 0
                 }
             },
             required: [
@@ -1358,7 +1362,8 @@ export const SokoBotDeletionResultSchema = {
                 'taskEvents',
                 'billingRecords',
                 'chatMessages',
-                'uploadedTaskFiles'
+                'uploadedTaskFiles',
+                'taskSchedules'
             ]
         }
     },
@@ -4627,29 +4632,23 @@ export const TaskSchema = {
             description: 'Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.',
             example: null
         },
-        metadata: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Serialized task schedule metadata JSON',
-            example: null
-        },
-        nextRunAt: {
+        runAt: {
             type: [
                 'string',
                 'null'
             ],
             format: 'date-time',
             example: '2026-06-24T09:00:00.000Z',
-            description: 'Next scheduled run time for queued tasks'
+            description: 'The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.'
         },
-        scheduleRevision: {
-            type: 'integer',
-            minimum: 0,
-            default: 0,
-            description: 'Revision used for optimistic schedule mutations',
-            example: 0
+        scheduleId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.',
+            example: null
         },
         credits: {
             type: 'number',
@@ -4739,8 +4738,8 @@ export const TaskSchema = {
         'visibility',
         'grantResumeStatus',
         'pendingVendorGrantId',
-        'metadata',
-        'nextRunAt',
+        'runAt',
+        'scheduleId',
         'credits',
         'events',
         'jobs',
@@ -5314,45 +5313,6 @@ export const TaskEventSchema = {
                 }
             ],
             example: 'RUNNING'
-        },
-        scheduleKind: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'CREATED',
-                'UPDATED',
-                'REMOVED',
-                'SOURCE_CHANGED',
-                'OCCURRENCE_RESCHEDULED',
-                'OCCURRENCE_SKIPPED',
-                'OCCURRENCE_RESTORED',
-                'RELEASED',
-                null
-            ],
-            description: 'Schedule activity represented by this event',
-            example: 'OCCURRENCE_SKIPPED'
-        },
-        schedulePayload: {
-            type: [
-                'object',
-                'null'
-            ],
-            additionalProperties: {},
-            description: 'Schedule activity details for audit and notifications',
-            example: {
-                occurrenceKey: 'occurrence-key'
-            }
-        },
-        scheduleOperationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            description: 'Idempotency identity for the schedule mutation',
-            example: '123e4567-e89b-42d3-a456-426614174000'
         }
     },
     required: [
@@ -5871,9 +5831,7 @@ export const TaskLinkRelationSchema = {
         'blocked_by',
         'parent',
         'child',
-        'duplicate',
-        'schedule_run',
-        'schedule_series'
+        'duplicate'
     ],
     example: 'blocked_by'
 } as const;
@@ -6320,171 +6278,6 @@ export const ReviewedTaskPaymentClaimActionBodySchema = {
         }
     },
     required: [
-        'reason'
-    ]
-} as const;
-
-export const AdminTaskScheduleQuarantineActionResultSchema = {
-    type: 'object',
-    properties: {
-        taskId: {
-            type: 'string'
-        },
-        eventId: {
-            type: 'string'
-        },
-        action: {
-            type: 'string',
-            enum: [
-                'repaired',
-                'removed'
-            ]
-        },
-        replayed: {
-            type: 'boolean'
-        }
-    },
-    required: [
-        'taskId',
-        'eventId',
-        'action',
-        'replayed'
-    ]
-} as const;
-
-export const RepairTaskScheduleQuarantineBodySchema = {
-    type: 'object',
-    properties: {
-        operationId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Idempotency identity for this operator action',
-            example: '123e4567-e89b-42d3-a456-426614174000'
-        },
-        reason: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 1000,
-            description: 'Operator reason retained in the Task audit event',
-            example: 'Corrected an invalid imported timezone'
-        },
-        schedule: {
-            $ref: '#/components/schemas/TaskScheduleInput'
-        }
-    },
-    required: [
-        'operationId',
-        'reason',
-        'schedule'
-    ]
-} as const;
-
-export const TaskScheduleInputSchema = {
-    oneOf: [
-        {
-            type: 'object',
-            properties: {
-                mode: {
-                    type: 'string',
-                    enum: [
-                        'once'
-                    ]
-                },
-                runAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2026-06-24T09:00:00.000Z',
-                    description: 'When the one-time schedule should run'
-                }
-            },
-            required: [
-                'mode',
-                'runAt'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                mode: {
-                    type: 'string',
-                    enum: [
-                        'recurring'
-                    ]
-                },
-                expr: {
-                    type: 'string',
-                    minLength: 1,
-                    description: 'Cron expression for recurring runs',
-                    example: '0 9 * * *'
-                },
-                timezone: {
-                    type: 'string',
-                    default: 'UTC',
-                    description: 'IANA timezone for the cron expression',
-                    example: 'America/New_York'
-                },
-                endsMode: {
-                    type: 'string',
-                    enum: [
-                        'never',
-                        'on',
-                        'after'
-                    ],
-                    default: 'never',
-                    example: 'never'
-                },
-                endsOn: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2026-12-31T23:59:59.000Z',
-                    description: 'End date when endsMode is on'
-                },
-                occurrences: {
-                    type: 'integer',
-                    exclusiveMinimum: 0,
-                    description: 'Remaining occurrences when endsMode is after',
-                    example: 10
-                },
-                intervalDays: {
-                    type: 'integer',
-                    exclusiveMinimum: 0,
-                    description: 'When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps',
-                    example: 2
-                },
-                anchorAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2026-06-24T09:00:00.000Z',
-                    description: 'First run instant for intervalDays schedules (required when intervalDays > 1)'
-                }
-            },
-            required: [
-                'mode',
-                'expr'
-            ]
-        }
-    ]
-} as const;
-
-export const RemoveTaskScheduleQuarantineBodySchema = {
-    type: 'object',
-    properties: {
-        operationId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Idempotency identity for this operator action',
-            example: '123e4567-e89b-42d3-a456-426614174000'
-        },
-        reason: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 1000,
-            description: 'Operator reason retained in the Task audit event',
-            example: 'Corrected an invalid imported timezone'
-        }
-    },
-    required: [
-        'operationId',
         'reason'
     ]
 } as const;
@@ -15665,35 +15458,59 @@ export const WorkspaceCalendarItemSchema = {
     properties: {
         id: {
             type: 'string',
-            description: 'Stable Calendar item identity. Version 1 projections are display-only.',
-            example: 'v1:tsk_123:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z'
+            description: 'The Task Schedule Run this item shows, or the Task for a RUN_AT item',
+            example: '00000000-0000-7000-8000-000000000001'
         },
-        taskId: {
+        kind: {
             type: 'string',
-            example: 'tsk_123'
+            enum: [
+                'RUN',
+                'RUN_AT'
+            ],
+            description: 'RUN is a Task Schedule Run; RUN_AT is a Queued Task that starts at its Run at',
+            example: 'RUN'
         },
-        canEditSchedule: {
-            type: 'boolean',
-            description: 'Whether the caller owns this Task and may edit or remove its schedule',
-            example: true
-        },
-        canMutateOccurrence: {
-            type: 'boolean',
-            description: 'Whether this indexed occurrence can be changed through the revision-safe occurrence contract',
-            example: true
+        scheduleId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Task Schedule the Run belongs to; null for RUN_AT',
+            example: '33333333-3333-7333-8333-333333333333'
         },
         scheduleRevision: {
-            type: 'integer',
+            type: [
+                'integer',
+                'null'
+            ],
             minimum: 0,
-            description: 'Schedule revision observed with this occurrence',
+            description: 'Task Schedule revision observed with this Run; the expectedRevision for changing it. Null for RUN_AT.',
             example: 3
+        },
+        canChangeRun: {
+            type: 'boolean',
+            description: 'Whether the caller may skip, move, or restore this Run through PATCH /v1/tasks/schedules/{id}/runs/{runId}',
+            example: true
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Task the Run created (null while planned), or the RUN_AT Task itself',
+            example: 'tsk_123'
         },
         taskName: {
             type: 'string',
+            description: 'Name of the Task the Run created, or of the one it creates',
             example: 'Prepare release notes'
         },
         taskStatus: {
-            type: 'string',
+            type: [
+                'string',
+                'null'
+            ],
             enum: [
                 'DRAFT',
                 'QUEUED',
@@ -15708,9 +15525,11 @@ export const WorkspaceCalendarItemSchema = {
                 'AWAITING_EXTERNAL',
                 'COMPLETED',
                 'FAILED',
-                'CANCELED'
+                'CANCELED',
+                null
             ],
-            example: 'QUEUED'
+            description: 'Status of the Task the Run created, or QUEUED for RUN_AT; null while a Run is planned',
+            example: 'READY'
         },
         taskAssigneeId: {
             type: [
@@ -15728,7 +15547,7 @@ export const WorkspaceCalendarItemSchema = {
         },
         taskOwnerId: {
             type: 'string',
-            description: 'User who owns the Task and put it on the Calendar',
+            description: 'User who owns the Task Schedule and the Tasks it creates',
             example: 'user_123'
         },
         scheduledAt: {
@@ -15744,16 +15563,15 @@ export const WorkspaceCalendarItemSchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z',
-            description: 'Original scheduled time captured by the occurrence ledger, when known'
+            description: 'The rule\'s time for this Run; differs from scheduledAt when the Run was moved'
         },
         state: {
             type: 'string',
             enum: [
                 'PLANNED',
-                'SKIPPED',
-                'CANCELED',
                 'RELEASED'
             ],
+            description: 'PLANNED is still to come (moved Runs and RUN_AT Tasks too); RELEASED created its Task. Skipped Runs are not on the Calendar.',
             example: 'PLANNED'
         },
         sourceId: {
@@ -15770,8 +15588,7 @@ export const WorkspaceCalendarItemSchema = {
             type: 'string',
             enum: [
                 'WORKSPACE',
-                'PROJECT',
-                'LEGACY_UNKNOWN'
+                'PROJECT'
             ],
             example: 'WORKSPACE'
         },
@@ -15782,31 +15599,15 @@ export const WorkspaceCalendarItemSchema = {
             ],
             format: 'uuid',
             description: 'Project captured as the Calendar source, when applicable'
-        },
-        sourceAccuracy: {
-            type: 'string',
-            enum: [
-                'EXACT',
-                'INFERRED',
-                'UNKNOWN'
-            ],
-            example: 'EXACT'
-        },
-        timeAccuracy: {
-            type: 'string',
-            enum: [
-                'EXACT',
-                'APPROXIMATE'
-            ],
-            example: 'EXACT'
         }
     },
     required: [
         'id',
-        'taskId',
-        'canEditSchedule',
-        'canMutateOccurrence',
+        'kind',
+        'scheduleId',
         'scheduleRevision',
+        'canChangeRun',
+        'taskId',
         'taskName',
         'taskStatus',
         'taskAssigneeId',
@@ -15817,9 +15618,7 @@ export const WorkspaceCalendarItemSchema = {
         'sourceId',
         'sourceWorkspaceId',
         'sourceType',
-        'sourceProjectId',
-        'sourceAccuracy',
-        'timeAccuracy'
+        'sourceProjectId'
     ]
 } as const;
 
@@ -15897,18 +15696,19 @@ export const ProjectCloseFailureSchema = {
         'null'
     ],
     properties: {
-        seriesTaskId: {
+        scheduleId: {
             type: [
                 'string',
                 'null'
-            ]
+            ],
+            description: 'Task Schedule the close could not finish; cancel-owed drops its owed Runs. Null when no schedule is named.'
         },
         message: {
             type: 'string'
         }
     },
     required: [
-        'seriesTaskId',
+        'scheduleId',
         'message'
     ]
 } as const;
@@ -20388,29 +20188,23 @@ export const TaskListItemSchema = {
             description: 'Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.',
             example: null
         },
-        metadata: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Serialized task schedule metadata JSON',
-            example: null
-        },
-        nextRunAt: {
+        runAt: {
             type: [
                 'string',
                 'null'
             ],
             format: 'date-time',
             example: '2026-06-24T09:00:00.000Z',
-            description: 'Next scheduled run time for queued tasks'
+            description: 'The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.'
         },
-        scheduleRevision: {
-            type: 'integer',
-            minimum: 0,
-            default: 0,
-            description: 'Revision used for optimistic schedule mutations',
-            example: 0
+        scheduleId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.',
+            example: null
         },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
@@ -20454,8 +20248,8 @@ export const TaskListItemSchema = {
         'visibility',
         'grantResumeStatus',
         'pendingVendorGrantId',
-        'metadata',
-        'nextRunAt',
+        'runAt',
+        'scheduleId',
         'workspace',
         'jobsCount',
         'commentsCount'
@@ -20525,6 +20319,638 @@ export const TaskActivitySummarySchema = {
     ]
 } as const;
 
+export const TaskScheduleSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        ownerId: {
+            type: 'string'
+        },
+        creatorUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        creatorCoworkerId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        creatorSokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        state: {
+            $ref: '#/components/schemas/TaskScheduleState'
+        },
+        rule: {
+            type: 'object',
+            properties: {
+                expr: {
+                    type: 'string'
+                },
+                timezone: {
+                    type: 'string'
+                },
+                intervalDays: {
+                    type: [
+                        'integer',
+                        'null'
+                    ]
+                },
+                anchorAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                endsMode: {
+                    $ref: '#/components/schemas/TaskScheduleEndsMode'
+                },
+                endsOn: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                targetRunCount: {
+                    type: [
+                        'integer',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'expr',
+                'timezone',
+                'intervalDays',
+                'anchorAt',
+                'endsMode',
+                'endsOn',
+                'targetRunCount'
+            ]
+        },
+        ruleEffectiveFrom: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        releasedCount: {
+            type: 'integer'
+        },
+        nextRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        revision: {
+            type: 'integer'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        visibility: {
+            $ref: '#/components/schemas/TaskVisibility'
+        },
+        assigneeId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        assigneeSokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        assigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'workspaceId',
+        'organizationId',
+        'ownerId',
+        'creatorUserId',
+        'creatorCoworkerId',
+        'creatorSokoBotId',
+        'state',
+        'rule',
+        'ruleEffectiveFrom',
+        'releasedCount',
+        'nextRunAt',
+        'revision',
+        'name',
+        'description',
+        'projectId',
+        'visibility',
+        'assigneeId',
+        'assigneeSokoBotId',
+        'assigneeUserId',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const TaskScheduleStateSchema = {
+    type: 'string',
+    enum: [
+        'ACTIVE',
+        'PAUSED',
+        'ENDED'
+    ]
+} as const;
+
+export const TaskScheduleEndsModeSchema = {
+    type: 'string',
+    enum: [
+        'NEVER',
+        'ON',
+        'AFTER'
+    ]
+} as const;
+
+export const CreateTaskScheduleRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Idempotency key, scoped to the active workspace. A retry with the same key and body returns the schedule the first request made; the same key with a different body or creator is a 409 schedule_operation_conflict.',
+            example: '01960001-0001-7001-8001-0000000000cc'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000,
+            example: 'Weekly report'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        visibility: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/TaskVisibility'
+                },
+                {
+                    description: 'PUBLIC (default) or PRIVATE. PRIVATE is allowed only in organization workspaces and is immutable after create.'
+                }
+            ]
+        },
+        assigneeId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            description: 'Coworker assignee of each created Task',
+            example: 'cow_123'
+        },
+        assigneeSokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Soko Bot assignee of each created Task',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        assigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            description: 'Workspace-member assignee of each created Task',
+            example: 'user_123'
+        },
+        rule: {
+            $ref: '#/components/schemas/TaskScheduleRule'
+        }
+    },
+    required: [
+        'name',
+        'rule'
+    ]
+} as const;
+
+export const TaskScheduleRuleSchema = {
+    type: 'object',
+    properties: {
+        expr: {
+            type: 'string',
+            minLength: 1,
+            description: 'Cron expression for Runs, read in `timezone`',
+            example: '0 9 * * 1'
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            default: 'UTC',
+            description: 'IANA timezone for the rule',
+            example: 'Europe/Berlin'
+        },
+        intervalDays: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            description: 'When greater than 1, a Run every N calendar days from anchorAt at its local time, instead of the cron day fields',
+            example: 2
+        },
+        anchorAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-10-01T07:00:00.000Z',
+            description: 'First Run for intervalDays rules (required when intervalDays > 1)'
+        },
+        endsMode: {
+            $ref: '#/components/schemas/TaskScheduleEndsMode'
+        },
+        endsOn: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-12-31T23:59:59.000Z',
+            description: 'Last possible Run when endsMode is ON'
+        },
+        targetRunCount: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            description: 'Total Runs when endsMode is AFTER',
+            example: 10
+        }
+    },
+    required: [
+        'expr'
+    ]
+} as const;
+
+export const UpdateTaskScheduleRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision observed by the caller; a newer one is a 409',
+            example: 3
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000,
+            example: 'Weekly report'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        assigneeId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            description: 'Coworker assignee of each created Task',
+            example: 'cow_123'
+        },
+        assigneeSokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Soko Bot assignee of each created Task',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        assigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            description: 'Workspace-member assignee of each created Task',
+            example: 'user_123'
+        },
+        rule: {
+            $ref: '#/components/schemas/TaskScheduleRuleReplacement'
+        }
+    },
+    required: [
+        'expectedRevision'
+    ]
+} as const;
+
+export const TaskScheduleRuleReplacementSchema = {
+    type: 'object',
+    properties: {
+        expr: {
+            type: 'string',
+            minLength: 1,
+            description: 'Cron expression for Runs, read in `timezone`',
+            example: '0 9 * * 1'
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            description: 'IANA timezone for the rule',
+            example: 'Europe/Berlin'
+        },
+        intervalDays: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            description: 'When greater than 1, a Run every N calendar days from anchorAt at its local time, instead of the cron day fields',
+            example: 2
+        },
+        anchorAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-10-01T07:00:00.000Z',
+            description: 'First Run for intervalDays rules (required when intervalDays > 1)'
+        },
+        endsMode: {
+            $ref: '#/components/schemas/TaskScheduleEndsMode'
+        },
+        endsOn: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-12-31T23:59:59.000Z',
+            description: 'Last possible Run when endsMode is ON'
+        },
+        targetRunCount: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            description: 'Total Runs when endsMode is AFTER',
+            example: 10
+        }
+    },
+    required: [
+        'expr',
+        'timezone',
+        'endsMode'
+    ],
+    description: 'Replaces the whole rule; timezone and endsMode are required. Changes future Runs only; Tasks already created stay as they are.'
+} as const;
+
+export const TaskScheduleRunSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'PLANNED',
+                'SKIPPED',
+                'CANCELED',
+                'RELEASED'
+            ],
+            description: 'PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit or by ending the schedule, or a move whose time passed while the schedule was Paused)',
+            example: 'PLANNED'
+        },
+        originalScheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Time the rule planned'
+        },
+        effectiveScheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Time the Run holds; differs from the rule when moved'
+        },
+        releasedTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Task this Run created'
+        },
+        actorUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Person who last skipped, moved, or restored it'
+        },
+        actorCoworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Coworker that last skipped, moved, or restored it'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'state',
+        'originalScheduledAt',
+        'effectiveScheduledAt',
+        'releasedTaskId',
+        'actorUserId',
+        'actorCoworkerId',
+        'updatedAt'
+    ]
+} as const;
+
+export const TaskScheduleRunUpdateSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Task Schedule revision after the change',
+            example: 4
+        },
+        run: {
+            $ref: '#/components/schemas/TaskScheduleRun'
+        }
+    },
+    required: [
+        'revision',
+        'run'
+    ]
+} as const;
+
+export const UpdateTaskScheduleRunRequestSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Task Schedule revision observed by the caller',
+                    example: 3
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'skip'
+                    ]
+                }
+            },
+            required: [
+                'expectedRevision',
+                'action'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Task Schedule revision observed by the caller',
+                    example: 3
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'move'
+                    ]
+                },
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-10-02T09:00:00.000Z',
+                    description: 'New time. Strictly future and inside the projection horizon.'
+                }
+            },
+            required: [
+                'expectedRevision',
+                'action',
+                'scheduledAt'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Task Schedule revision observed by the caller',
+                    example: 3
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'restore'
+                    ]
+                }
+            },
+            required: [
+                'expectedRevision',
+                'action'
+            ],
+            description: 'Puts a skipped or moved Run back at the rule\'s time, which must still be ahead.'
+        }
+    ]
+} as const;
+
 export const CreateTaskContextSchema = {
     type: 'object',
     properties: {
@@ -20564,90 +20990,64 @@ export const CreateTaskContextSchema = {
     description: 'Task context attachments. DESIGN.md, project briefing, and project memory are attached by default; explicit false values opt out.'
 } as const;
 
-export const CreateScheduledTaskRequestSchema = {
+export const TaskScheduleMovedErrorSchema = {
     type: 'object',
     properties: {
-        operationId: {
+        error: {
             type: 'string',
-            format: 'uuid'
+            example: 'Unauthorized'
         },
-        source: {
-            $ref: '#/components/schemas/CalendarTaskScheduleSource'
-        },
-        name: {
+        message: {
             type: 'string',
-            minLength: 1,
-            maxLength: 10000
+            example: 'Authentication required'
         },
-        description: {
-            type: [
-                'string',
-                'null'
+        kind: {
+            type: 'string',
+            example: 'organization_not_found'
+        },
+        retryAfterSeconds: {
+            type: 'integer',
+            minimum: 0,
+            example: 7
+        },
+        replacement: {
+            type: 'string',
+            example: 'POST /v1/tasks/schedules'
+        },
+        meta: {
+            type: 'object',
+            properties: {
+                timestamp: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                requestId: {
+                    type: 'string',
+                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
+                },
+                path: {
+                    type: 'string',
+                    example: '/v1/agents'
+                },
+                method: {
+                    type: 'string',
+                    example: 'GET'
+                }
+            },
+            required: [
+                'timestamp',
+                'requestId',
+                'path',
+                'method'
             ]
-        },
-        assigneeId: {
-            type: [
-                'string',
-                'null'
-            ],
-            minLength: 1
-        },
-        assigneeUserId: {
-            type: [
-                'string',
-                'null'
-            ],
-            minLength: 1
-        },
-        context: {
-            $ref: '#/components/schemas/CreateTaskContext'
-        },
-        schedule: {
-            $ref: '#/components/schemas/TaskScheduleInput'
         }
     },
     required: [
-        'operationId',
-        'source',
-        'schedule'
-    ]
-} as const;
-
-export const CalendarTaskScheduleSourceSchema = {
-    oneOf: [
-        {
-            type: 'object',
-            properties: {
-                type: {
-                    type: 'string',
-                    enum: [
-                        'workspace'
-                    ]
-                }
-            },
-            required: [
-                'type'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                type: {
-                    type: 'string',
-                    enum: [
-                        'project'
-                    ]
-                },
-                projectId: {
-                    type: 'string',
-                    format: 'uuid'
-                }
-            },
-            required: [
-                'type',
-                'projectId'
-            ]
-        }
+        'error',
+        'message',
+        'replacement',
+        'meta'
     ]
 } as const;
 
@@ -20691,534 +21091,6 @@ export const TaskParticipantsSchema = {
     },
     required: [
         'participants'
-    ]
-} as const;
-
-export const TaskScheduleSourceMutationSchema = {
-    type: 'object',
-    properties: {
-        previousSource: {
-            $ref: '#/components/schemas/CalendarTaskScheduleSource'
-        },
-        source: {
-            $ref: '#/components/schemas/CalendarTaskScheduleSource'
-        },
-        scheduleRevision: {
-            type: 'integer',
-            minimum: 0
-        },
-        canceledFutureExceptionCount: {
-            type: 'integer',
-            minimum: 0
-        }
-    },
-    required: [
-        'previousSource',
-        'source',
-        'scheduleRevision',
-        'canceledFutureExceptionCount'
-    ]
-} as const;
-
-export const PutCalendarTaskScheduleSourceRequestSchema = {
-    type: 'object',
-    properties: {
-        operationId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Idempotency identity for this source move',
-            example: '123e4567-e89b-42d3-a456-426614174000'
-        },
-        expectedScheduleRevision: {
-            type: 'integer',
-            minimum: 0,
-            description: 'Schedule revision observed by the caller',
-            example: 3
-        },
-        discardFutureExceptions: {
-            type: 'boolean',
-            enum: [
-                true
-            ],
-            description: 'Confirms that future occurrence exceptions from the old source may be canceled',
-            example: true
-        },
-        source: {
-            $ref: '#/components/schemas/CalendarTaskScheduleSource'
-        }
-    },
-    required: [
-        'operationId',
-        'expectedScheduleRevision',
-        'discardFutureExceptions',
-        'source'
-    ]
-} as const;
-
-export const PutCalendarTaskScheduleRequestSchema = {
-    type: 'object',
-    properties: {
-        operationId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Idempotency identity for this series edit',
-            example: '123e4567-e89b-42d3-a456-426614174000'
-        },
-        expectedScheduleRevision: {
-            type: 'integer',
-            minimum: 0,
-            description: 'Schedule revision observed by the caller',
-            example: 3
-        },
-        discardFutureExceptions: {
-            type: 'boolean',
-            enum: [
-                true
-            ],
-            description: 'Confirms that future occurrence exceptions may be canceled',
-            example: true
-        },
-        schedule: {
-            $ref: '#/components/schemas/TaskScheduleInput'
-        }
-    },
-    required: [
-        'operationId',
-        'expectedScheduleRevision',
-        'discardFutureExceptions',
-        'schedule'
-    ]
-} as const;
-
-export const PutTaskScheduleRequestSchema = {
-    oneOf: [
-        {
-            type: 'object',
-            properties: {
-                mode: {
-                    type: 'string',
-                    enum: [
-                        'once'
-                    ]
-                },
-                runAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2026-06-24T09:00:00.000Z',
-                    description: 'When the one-time schedule should run'
-                }
-            },
-            required: [
-                'mode',
-                'runAt'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                mode: {
-                    type: 'string',
-                    enum: [
-                        'recurring'
-                    ]
-                },
-                expr: {
-                    type: 'string',
-                    minLength: 1,
-                    description: 'Cron expression for recurring runs',
-                    example: '0 9 * * *'
-                },
-                timezone: {
-                    type: 'string',
-                    default: 'UTC',
-                    description: 'IANA timezone for the cron expression',
-                    example: 'America/New_York'
-                },
-                endsMode: {
-                    type: 'string',
-                    enum: [
-                        'never',
-                        'on',
-                        'after'
-                    ],
-                    default: 'never',
-                    example: 'never'
-                },
-                endsOn: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2026-12-31T23:59:59.000Z',
-                    description: 'End date when endsMode is on'
-                },
-                occurrences: {
-                    type: 'integer',
-                    exclusiveMinimum: 0,
-                    description: 'Remaining occurrences when endsMode is after',
-                    example: 10
-                },
-                intervalDays: {
-                    type: 'integer',
-                    exclusiveMinimum: 0,
-                    description: 'When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps',
-                    example: 2
-                },
-                anchorAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2026-06-24T09:00:00.000Z',
-                    description: 'First run instant for intervalDays schedules (required when intervalDays > 1)'
-                }
-            },
-            required: [
-                'mode',
-                'expr'
-            ]
-        }
-    ]
-} as const;
-
-export const TaskScheduleOccurrencePageSchema = {
-    type: 'object',
-    properties: {
-        scheduleRevision: {
-            type: 'integer',
-            minimum: 0,
-            description: 'Series revision this page was read at',
-            example: 4
-        },
-        futureExceptionCount: {
-            type: 'integer',
-            minimum: 0,
-            description: 'Durable future exceptions a full-series edit or removal would cancel, counted across the whole series at this read\'s instant. 0 for a series with no live rule. Clients confirm a destructive discard only when this is above zero.',
-            example: 0
-        },
-        occurrences: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/TaskScheduleOccurrence'
-            }
-        }
-    },
-    required: [
-        'scheduleRevision',
-        'futureExceptionCount',
-        'occurrences'
-    ]
-} as const;
-
-export const TaskScheduleOccurrenceSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Ledger row identity, also the pagination tie-breaker',
-            example: '33333333-3333-7333-8333-333333333333'
-        },
-        state: {
-            type: 'string',
-            enum: [
-                'PLANNED',
-                'SKIPPED',
-                'CANCELED',
-                'RELEASED'
-            ],
-            example: 'RELEASED'
-        },
-        scheduleVersion: {
-            type: 'integer',
-            description: '1 for legacy display-only projections, 2 for epoch-backed rows',
-            example: 2
-        },
-        epochId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            description: 'Rule epoch that projected this occurrence, when known'
-        },
-        originalScheduledAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'Time the rule originally projected, when the ledger captured it'
-        },
-        effectiveScheduledAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'Time the occurrence actually holds; the ordering key'
-        },
-        timezone: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'IANA timezone captured with the rule',
-            example: 'Europe/Berlin'
-        },
-        isMissed: {
-            type: 'boolean',
-            description: 'A planned occurrence whose effective time has passed without a release. Derived server-side so clients never depend on their own clock.',
-            example: false
-        },
-        sourceId: {
-            type: 'string',
-            description: 'Canonical Calendar source identity',
-            example: 'workspace:11111111-1111-7111-8111-111111111111'
-        },
-        sourceWorkspaceId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Workspace captured as the Calendar source'
-        },
-        sourceType: {
-            type: 'string',
-            enum: [
-                'WORKSPACE',
-                'PROJECT',
-                'LEGACY_UNKNOWN'
-            ],
-            example: 'WORKSPACE'
-        },
-        sourceProjectId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            description: 'Project captured as the Calendar source, when applicable'
-        },
-        sourceAccuracy: {
-            type: 'string',
-            enum: [
-                'EXACT',
-                'INFERRED',
-                'UNKNOWN'
-            ],
-            example: 'EXACT'
-        },
-        timeAccuracy: {
-            type: 'string',
-            enum: [
-                'EXACT',
-                'APPROXIMATE'
-            ],
-            example: 'EXACT'
-        },
-        releasedTask: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/TaskScheduleOccurrenceReleasedTask'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'Independent Task this occurrence released, when it did'
-        }
-    },
-    required: [
-        'id',
-        'state',
-        'scheduleVersion',
-        'epochId',
-        'originalScheduledAt',
-        'effectiveScheduledAt',
-        'timezone',
-        'isMissed',
-        'sourceId',
-        'sourceWorkspaceId',
-        'sourceType',
-        'sourceProjectId',
-        'sourceAccuracy',
-        'timeAccuracy',
-        'releasedTask'
-    ]
-} as const;
-
-export const TaskScheduleOccurrenceReleasedTaskSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'tsk_released'
-        },
-        name: {
-            type: 'string',
-            example: 'Prepare release notes'
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCELED'
-            ],
-            example: 'COMPLETED'
-        },
-        archivedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'Set when the released Task was archived; it is no longer readable, so the summary is not navigable'
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'status',
-        'archivedAt'
-    ]
-} as const;
-
-export const TaskScheduleOccurrenceViewSchema = {
-    type: 'string',
-    enum: [
-        'upcoming',
-        'history'
-    ],
-    default: 'upcoming',
-    description: 'upcoming lists future planned and skipped occurrences inside the projection horizon, ascending; history lists released, canceled, and past occurrences, descending',
-    example: 'upcoming'
-} as const;
-
-export const TaskScheduleOccurrenceMutationSchema = {
-    type: 'object',
-    properties: {
-        scheduleRevision: {
-            type: 'integer',
-            minimum: 0,
-            description: 'Series revision after the occurrence mutation',
-            example: 4
-        },
-        occurrence: {
-            $ref: '#/components/schemas/TaskScheduleOccurrence'
-        }
-    },
-    required: [
-        'scheduleRevision',
-        'occurrence'
-    ]
-} as const;
-
-export const MutateTaskScheduleOccurrenceRequestSchema = {
-    oneOf: [
-        {
-            type: 'object',
-            properties: {
-                operationId: {
-                    type: 'string',
-                    format: 'uuid',
-                    description: 'Idempotency identity for this occurrence mutation',
-                    example: '123e4567-e89b-42d3-a456-426614174000'
-                },
-                expectedScheduleRevision: {
-                    type: 'integer',
-                    minimum: 0,
-                    description: 'Schedule revision observed by the caller',
-                    example: 3
-                },
-                action: {
-                    type: 'string',
-                    enum: [
-                        'reschedule'
-                    ]
-                },
-                scheduledAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2026-09-20T09:00:00.000Z',
-                    description: 'New absolute time for the occurrence. Strictly future and inside the projection horizon.'
-                }
-            },
-            required: [
-                'operationId',
-                'expectedScheduleRevision',
-                'action',
-                'scheduledAt'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                operationId: {
-                    type: 'string',
-                    format: 'uuid',
-                    description: 'Idempotency identity for this occurrence mutation',
-                    example: '123e4567-e89b-42d3-a456-426614174000'
-                },
-                expectedScheduleRevision: {
-                    type: 'integer',
-                    minimum: 0,
-                    description: 'Schedule revision observed by the caller',
-                    example: 3
-                },
-                action: {
-                    type: 'string',
-                    enum: [
-                        'skip'
-                    ]
-                }
-            },
-            required: [
-                'operationId',
-                'expectedScheduleRevision',
-                'action'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                operationId: {
-                    type: 'string',
-                    format: 'uuid',
-                    description: 'Idempotency identity for this occurrence mutation',
-                    example: '123e4567-e89b-42d3-a456-426614174000'
-                },
-                expectedScheduleRevision: {
-                    type: 'integer',
-                    minimum: 0,
-                    description: 'Schedule revision observed by the caller',
-                    example: 3
-                },
-                action: {
-                    type: 'string',
-                    enum: [
-                        'restore'
-                    ]
-                },
-                scheduledAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2026-09-20T09:00:00.000Z',
-                    description: 'New absolute time for the occurrence. Strictly future and inside the projection horizon.'
-                }
-            },
-            required: [
-                'operationId',
-                'expectedScheduleRevision',
-                'action'
-            ]
-        }
     ]
 } as const;
 
@@ -22387,8 +22259,7 @@ export const WorkspaceCalendarSourceSchema = {
             type: 'string',
             enum: [
                 'WORKSPACE',
-                'PROJECT',
-                'LEGACY_UNKNOWN'
+                'PROJECT'
             ],
             example: 'PROJECT'
         },
@@ -22408,15 +22279,14 @@ export const WorkspaceCalendarSourceSchema = {
             type: 'string',
             enum: [
                 'blue',
-                'violet',
-                'amber'
+                'violet'
             ],
             description: 'Bounded visual marker for Calendar source displays',
             example: 'violet'
         },
         isSchedulable: {
             type: 'boolean',
-            description: 'Whether this source may be selected to create a Task through POST /v1/tasks/scheduled. Unschedulable sources remain available for Calendar event display and filtering.',
+            description: 'Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.',
             example: true
         }
     },

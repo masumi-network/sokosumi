@@ -1,10 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import {
-  Channel,
-  TaskScheduleEventKind,
-  TaskStatus,
-  TaskVisibility,
-} from "@sokosumi/database";
+import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { isDesignMdBlobUrl } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
@@ -162,21 +157,6 @@ export const taskEventSchema = z
       .union([taskStatusSchema, z.null()])
       .optional()
       .openapi({ example: TaskStatus.RUNNING }),
-    scheduleKind: z.enum(TaskScheduleEventKind).nullish().openapi({
-      description: "Schedule activity represented by this event",
-      example: TaskScheduleEventKind.OCCURRENCE_SKIPPED,
-    }),
-    schedulePayload: z
-      .record(z.string(), z.unknown())
-      .nullish()
-      .openapi({
-        description: "Schedule activity details for audit and notifications",
-        example: { occurrenceKey: "occurrence-key" },
-      }),
-    scheduleOperationId: z.string().uuid().nullish().openapi({
-      description: "Idempotency identity for the schedule mutation",
-      example: "123e4567-e89b-42d3-a456-426614174000",
-    }),
   })
   .openapi("TaskEvent");
 
@@ -355,17 +335,15 @@ const taskBaseSchema = z.object({
       "Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.",
     example: null,
   }),
-  metadata: z.string().nullable().openapi({
-    description: "Serialized task schedule metadata JSON",
-    example: null,
-  }),
-  nextRunAt: dateTimeSchema.nullable().openapi({
-    description: "Next scheduled run time for queued tasks",
+  runAt: dateTimeSchema.nullable().openapi({
+    description:
+      "The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.",
     example: "2026-06-24T09:00:00.000Z",
   }),
-  scheduleRevision: z.number().int().nonnegative().default(0).openapi({
-    description: "Revision used for optimistic schedule mutations",
-    example: 0,
+  scheduleId: z.string().uuid().nullable().openapi({
+    description:
+      "Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.",
+    example: null,
   }),
   credits: z.number().openapi({ example: 5 }),
   events: z.array(taskEventSchema).openapi({ example: [] }),

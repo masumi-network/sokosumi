@@ -2,7 +2,6 @@ import "server-only";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type {
-  CreateScheduledTaskRequest,
   CreateTaskContext,
   GetWorkspacesCalendarData,
   JobSummary,
@@ -31,8 +30,9 @@ interface ListTasksParams {
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "nextRunAt";
-  hasSchedule?: boolean;
+  sort?: "createdAt";
+  /** Only the Tasks this Task Schedule created. */
+  scheduleId?: string;
 }
 
 interface ListJobsParams {
@@ -53,6 +53,8 @@ interface CreateTaskInput {
   projectId?: string | null;
   context?: CreateTaskContext;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
+  /** Start at this future time: Core creates the Task Queued. */
+  runAt?: Date;
   visibility?: "PUBLIC" | "PRIVATE";
 }
 
@@ -64,12 +66,8 @@ interface PatchTaskInput {
   assigneeUserId?: string | null;
   projectId?: string | null;
   context?: CreateTaskContext;
-  /**
-   * Required by Core while the Task has an active schedule series: field edits
-   * serialize against release under the same revision, and the returned Task
-   * carries the incremented value the following schedule write must send.
-   */
-  expectedScheduleRevision?: number;
+  /** A future time queues the Task, or moves the time of a Queued one. */
+  runAt?: Date;
 }
 
 interface CreateTaskEventInput {
@@ -151,18 +149,13 @@ export const taskService = (() => {
           ? { assigneeUserId: params.assigneeUserId }
           : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
+      scheduleId: params.scheduleId,
       q: params.q,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),
       cursor: params.cursor ?? undefined,
       limit: params.limit,
       sort: params.sort,
-      hasSchedule:
-        params.hasSchedule === undefined
-          ? undefined
-          : params.hasSchedule
-            ? "true"
-            : "false",
     });
 
     return {
@@ -245,18 +238,6 @@ export const taskService = (() => {
 
     if (!result.data) {
       throw new Error("Failed to create task");
-    }
-
-    return result.data;
-  }
-
-  async function createScheduledTask(
-    input: CreateScheduledTaskRequest,
-  ): Promise<Task> {
-    const result = await coreClient.createScheduledTask(input);
-
-    if (!result.data) {
-      throw new Error("Failed to create scheduled task");
     }
 
     return result.data;
@@ -395,7 +376,6 @@ export const taskService = (() => {
     getTaskById,
     getTaskWorkspace,
     createTask,
-    createScheduledTask,
     createTaskLink,
     createTaskEvent,
     deleteTaskLink,

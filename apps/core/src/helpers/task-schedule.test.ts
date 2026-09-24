@@ -1,24 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  buildTaskScheduleMetadataV2,
   computeIntervalNextRun,
-  computeNextRuleOccurrence,
-  computeScheduleNextRun,
-  inferLegacyIntervalDaysFromCron,
-  isDueRunPastScheduleEnd,
-  iterateTaskScheduleOccurrences,
-  rebuildTaskScheduleMetadataV2ForNewEpoch,
-  resolveTaskScheduleRuleAnchor,
+  validateTaskScheduleRule,
 } from "@/helpers/task-schedule";
 
-describe("task-schedule helpers", () => {
-  it("infers legacy every-N-days cron patterns", () => {
-    expect(inferLegacyIntervalDaysFromCron("30 9 */2 * *")).toBe(2);
-    expect(inferLegacyIntervalDaysFromCron("30 9 */1 * *")).toBeNull();
-    expect(inferLegacyIntervalDaysFromCron("30 9 * * *")).toBeNull();
-  });
-
+describe("computeIntervalNextRun", () => {
   it("computes interval next run from anchor", () => {
     const anchorAt = new Date("2026-06-01T09:00:00.000Z");
     const from = new Date("2026-06-05T10:00:00.000Z");
@@ -28,11 +15,20 @@ describe("task-schedule helpers", () => {
     );
   });
 
-  it("advances interval next run after a due anchor occurrence", () => {
+  it("advances interval next run after a due anchor Run", () => {
     const anchorAt = new Date("2026-06-01T09:00:00.000Z");
 
     expect(computeIntervalNextRun(anchorAt, 2, anchorAt)).toEqual(
       new Date("2026-06-03T09:00:00.000Z"),
+    );
+  });
+
+  it("keeps today's interval slot when that local time is still ahead", () => {
+    const anchorAt = new Date("2026-06-01T09:00:00.000Z");
+    const from = new Date("2026-06-05T08:00:00.000Z");
+
+    expect(computeIntervalNextRun(anchorAt, 2, from)).toEqual(
+      new Date("2026-06-05T09:00:00.000Z"),
     );
   });
 
@@ -44,436 +40,32 @@ describe("task-schedule helpers", () => {
       computeIntervalNextRun(anchorAt, 1, from, "America/New_York"),
     ).toEqual(new Date("2026-03-08T13:00:00.000Z"));
   });
-
-  it("uses interval metadata when computing schedule next run", () => {
-    const nextRun = computeScheduleNextRun(
-      {
-        version: 1,
-        mode: "recurring",
-        scheduledAt: "2026-06-01T09:00:00.000Z",
-        expr: "0 9 * * *",
-        timezone: "UTC",
-        endsMode: "never",
-        intervalDays: 2,
-        anchorAt: "2026-06-01T09:00:00.000Z",
-      },
-      new Date("2026-06-04T10:00:00.000Z"),
-    );
-
-    expect(nextRun).toEqual(new Date("2026-06-05T09:00:00.000Z"));
-  });
-
-  it("uses effective version 2 one-time and recurring schedule fields", () => {
-    expect(
-      computeScheduleNextRun({
-        version: 2,
-        epochId: "123e4567-e89b-42d3-a456-426614174000",
-        mode: "once",
-        createdAt: "2026-06-01T08:00:00.000Z",
-        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-        timezone: "UTC",
-        sourceRunAt: "2026-06-01T09:00:00.000Z",
-        effectiveRunAt: "2026-06-01T10:00:00.000Z",
-      }),
-    ).toEqual(new Date("2026-06-01T10:00:00.000Z"));
-
-    expect(
-      computeScheduleNextRun(
-        {
-          version: 2,
-          epochId: "123e4567-e89b-42d3-a456-426614174001",
-          mode: "recurring",
-          createdAt: "2026-06-01T08:00:00.000Z",
-          ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-          timezone: "UTC",
-          expr: "0 9 * * *",
-          endsMode: "never",
-          epochReleaseCount: 0,
-          intervalDays: 2,
-          anchorAt: "2026-06-01T09:00:00.000Z",
-        },
-        new Date("2026-06-04T10:00:00.000Z"),
-      ),
-    ).toEqual(new Date("2026-06-05T09:00:00.000Z"));
-  });
-
-  it("builds a new one-time schedule as a mutable version 2 epoch", () => {
-    const metadata = buildTaskScheduleMetadataV2(
-      {
-        mode: "once",
-        runAt: "2099-09-24T09:00:00.000Z",
-      },
-      new Date("2026-09-02T08:00:00.000Z"),
-      "123e4567-e89b-42d3-a456-426614174000",
-    );
-
-    expect(metadata).toEqual({
-      version: 2,
-      epochId: "123e4567-e89b-42d3-a456-426614174000",
-      mode: "once",
-      createdAt: "2026-09-02T08:00:00.000Z",
-      ruleEffectiveFrom: "2026-09-02T08:00:00.000Z",
-      timezone: "UTC",
-      sourceRunAt: "2099-09-24T09:00:00.000Z",
-      effectiveRunAt: "2099-09-24T09:00:00.000Z",
-    });
-  });
-
-  it("carries only the unreleased finite count into a new epoch", () => {
-    const metadata = rebuildTaskScheduleMetadataV2ForNewEpoch(
-      {
-        version: 2,
-        epochId: "123e4567-e89b-42d3-a456-426614174000",
-        mode: "recurring",
-        createdAt: "2026-06-01T08:00:00.000Z",
-        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-        timezone: "UTC",
-        expr: "0 9 * * *",
-        endsMode: "after",
-        targetReleaseCount: 5,
-        epochReleaseCount: 2,
-        intervalDays: 2,
-        anchorAt: "2026-06-01T09:00:00.000Z",
-      },
-      new Date("2026-06-04T08:00:00.000Z"),
-      "123e4567-e89b-42d3-a456-426614174001",
-    );
-
-    expect(metadata).toMatchObject({
-      version: 2,
-      epochId: "123e4567-e89b-42d3-a456-426614174001",
-      targetReleaseCount: 3,
-      epochReleaseCount: 0,
-      intervalDays: 2,
-      anchorAt: "2026-06-01T09:00:00.000Z",
-    });
-  });
-
-  it("drops a one-time reschedule exception when starting a new epoch", () => {
-    const metadata = rebuildTaskScheduleMetadataV2ForNewEpoch(
-      {
-        version: 2,
-        epochId: "123e4567-e89b-42d3-a456-426614174000",
-        mode: "once",
-        createdAt: "2026-06-01T08:00:00.000Z",
-        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-        timezone: "UTC",
-        sourceRunAt: "2099-09-24T09:00:00.000Z",
-        effectiveRunAt: "2099-09-25T10:00:00.000Z",
-      },
-      new Date("2026-06-04T08:00:00.000Z"),
-      "123e4567-e89b-42d3-a456-426614174001",
-    );
-
-    expect(metadata).toMatchObject({
-      epochId: "123e4567-e89b-42d3-a456-426614174001",
-      sourceRunAt: "2099-09-24T09:00:00.000Z",
-      effectiveRunAt: "2099-09-24T09:00:00.000Z",
-    });
-  });
-
-  it("ends an after-count version 2 epoch at its release target", () => {
-    const metadata = {
-      version: 2 as const,
-      epochId: "123e4567-e89b-42d3-a456-426614174001",
-      mode: "recurring" as const,
-      createdAt: "2026-06-01T08:00:00.000Z",
-      ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-      timezone: "UTC",
-      expr: "0 9 * * *",
-      endsMode: "after" as const,
-      targetReleaseCount: 5,
-      epochReleaseCount: 5,
-      anchorAt: "2026-06-01T09:00:00.000Z",
-    };
-
-    expect(
-      isDueRunPastScheduleEnd(metadata, new Date("2026-06-06T09:00:00.000Z")),
-    ).toBe(true);
-  });
-
-  it("allows a due run on the end date", () => {
-    const metadata = {
-      version: 1 as const,
-      mode: "recurring" as const,
-      scheduledAt: "2026-06-01T09:00:00.000Z",
-      expr: "0 9 * * *",
-      timezone: "UTC",
-      endsMode: "on" as const,
-      endsOn: "2026-06-10T23:59:59.999Z",
-    };
-
-    expect(
-      isDueRunPastScheduleEnd(metadata, new Date("2026-06-10T09:00:00.000Z")),
-    ).toBe(false);
-    expect(
-      isDueRunPastScheduleEnd(metadata, new Date("2026-06-11T09:00:00.000Z")),
-    ).toBe(true);
-  });
-
-  it("projects a one-time version 1 schedule with a deterministic display key", () => {
-    expect(
-      Array.from(
-        iterateTaskScheduleOccurrences(
-          "task-1",
-          {
-            version: 1,
-            mode: "once",
-            scheduledAt: "2026-06-01T08:00:00.000Z",
-            runAt: "2026-06-02T09:00:00.000Z",
-          },
-          new Date("2026-06-02T09:00:00.000Z"),
-          new Date("2026-06-01T00:00:00.000Z"),
-          new Date("2026-06-03T00:00:00.000Z"),
-        ),
-      ),
-    ).toEqual([
-      {
-        id: "v1:task-1:2026-06-01T08:00:00.000Z:2026-06-02T09:00:00.000Z",
-        scheduledAt: new Date("2026-06-02T09:00:00.000Z"),
-        originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
-      },
-    ]);
-  });
-
-  it("projects ordered recurring version 1 occurrences", () => {
-    expect(
-      Array.from(
-        iterateTaskScheduleOccurrences(
-          "task-1",
-          {
-            version: 1,
-            mode: "recurring",
-            scheduledAt: "2026-06-01T09:00:00.000Z",
-            expr: "0 9 * * *",
-            timezone: "UTC",
-            endsMode: "never",
-          },
-          new Date("2026-06-02T09:00:00.000Z"),
-          new Date("2026-06-01T00:00:00.000Z"),
-          new Date("2026-06-05T00:00:00.000Z"),
-        ),
-      ),
-    ).toEqual([
-      {
-        id: "v1:task-1:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
-        scheduledAt: new Date("2026-06-02T09:00:00.000Z"),
-        originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
-      },
-      {
-        id: "v1:task-1:2026-06-01T09:00:00.000Z:2026-06-03T09:00:00.000Z",
-        scheduledAt: new Date("2026-06-03T09:00:00.000Z"),
-        originalScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
-      },
-      {
-        id: "v1:task-1:2026-06-01T09:00:00.000Z:2026-06-04T09:00:00.000Z",
-        scheduledAt: new Date("2026-06-04T09:00:00.000Z"),
-        originalScheduledAt: new Date("2026-06-04T09:00:00.000Z"),
-      },
-    ]);
-  });
-
-  it("fast-forwards overdue recurrences to the requested horizon", () => {
-    expect(
-      Array.from(
-        iterateTaskScheduleOccurrences(
-          "task-1",
-          {
-            version: 1,
-            mode: "recurring",
-            scheduledAt: "2025-06-01T00:00:00.000Z",
-            expr: "* * * * *",
-            timezone: "UTC",
-            endsMode: "never",
-          },
-          new Date("2025-06-01T00:00:00.000Z"),
-          new Date("2026-06-01T00:00:00.000Z"),
-          new Date("2026-06-02T00:00:00.000Z"),
-          1,
-        ),
-      ).map((occurrence) => occurrence.scheduledAt),
-    ).toEqual([new Date("2026-06-01T00:01:00.000Z")]);
-  }, 200);
-
-  it("does not project overdue finite recurrences before scheduler catch-up", () => {
-    expect(
-      Array.from(
-        iterateTaskScheduleOccurrences(
-          "task-1",
-          {
-            version: 2,
-            epochId: "123e4567-e89b-42d3-a456-426614174004",
-            mode: "recurring",
-            createdAt: "2025-06-01T00:00:00.000Z",
-            ruleEffectiveFrom: "2025-06-01T00:00:00.000Z",
-            timezone: "UTC",
-            expr: "* * * * *",
-            endsMode: "after",
-            targetReleaseCount: 2,
-            epochReleaseCount: 0,
-            anchorAt: "2025-06-01T00:00:00.000Z",
-          },
-          new Date("2025-06-01T00:00:00.000Z"),
-          new Date("2026-06-01T00:00:00.000Z"),
-          new Date("2026-06-02T00:00:00.000Z"),
-        ),
-      ),
-    ).toEqual([]);
-  });
-
-  it("projects recurring version 2 occurrences with the persisted epoch identity", () => {
-    expect(
-      Array.from(
-        iterateTaskScheduleOccurrences(
-          "task-1",
-          {
-            version: 2,
-            epochId: "123e4567-e89b-42d3-a456-426614174001",
-            mode: "recurring",
-            createdAt: "2026-06-01T08:00:00.000Z",
-            ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-            timezone: "UTC",
-            expr: "0 9 * * *",
-            endsMode: "never",
-            epochReleaseCount: 0,
-            anchorAt: "2026-06-01T09:00:00.000Z",
-          },
-          new Date("2026-06-02T09:00:00.000Z"),
-          new Date("2026-06-01T00:00:00.000Z"),
-          new Date("2026-06-04T00:00:00.000Z"),
-        ),
-      ),
-    ).toEqual([
-      {
-        id: "v2:123e4567-e89b-42d3-a456-426614174001:2026-06-02T09:00:00.000Z",
-        scheduledAt: new Date("2026-06-02T09:00:00.000Z"),
-        originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
-      },
-      {
-        id: "v2:123e4567-e89b-42d3-a456-426614174001:2026-06-03T09:00:00.000Z",
-        scheduledAt: new Date("2026-06-03T09:00:00.000Z"),
-        originalScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
-      },
-    ]);
-  });
-
-  it("stops after the remaining version 1 and version 2 release limits", () => {
-    const from = new Date("2026-06-01T00:00:00.000Z");
-    const to = new Date("2026-06-06T00:00:00.000Z");
-
-    expect(
-      Array.from(
-        iterateTaskScheduleOccurrences(
-          "task-1",
-          {
-            version: 1,
-            mode: "recurring",
-            scheduledAt: "2026-06-01T09:00:00.000Z",
-            expr: "0 9 * * *",
-            timezone: "UTC",
-            endsMode: "after",
-            occurrences: 2,
-          },
-          new Date("2026-06-02T09:00:00.000Z"),
-          from,
-          to,
-        ),
-      ).map((occurrence) => occurrence.scheduledAt),
-    ).toEqual([
-      new Date("2026-06-02T09:00:00.000Z"),
-      new Date("2026-06-03T09:00:00.000Z"),
-    ]);
-
-    expect(
-      Array.from(
-        iterateTaskScheduleOccurrences(
-          "task-1",
-          {
-            version: 2,
-            epochId: "123e4567-e89b-42d3-a456-426614174002",
-            mode: "recurring",
-            createdAt: "2026-06-01T08:00:00.000Z",
-            ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-            timezone: "UTC",
-            expr: "0 9 * * *",
-            endsMode: "after",
-            targetReleaseCount: 4,
-            epochReleaseCount: 2,
-            anchorAt: "2026-06-01T09:00:00.000Z",
-          },
-          new Date("2026-06-02T09:00:00.000Z"),
-          from,
-          to,
-        ),
-      ).map((occurrence) => occurrence.scheduledAt),
-    ).toEqual([
-      new Date("2026-06-02T09:00:00.000Z"),
-      new Date("2026-06-03T09:00:00.000Z"),
-    ]);
-  });
-
-  it("projects interval schedules and excludes occurrences outside the half-open range", () => {
-    expect(
-      Array.from(
-        iterateTaskScheduleOccurrences(
-          "task-1",
-          {
-            version: 2,
-            epochId: "123e4567-e89b-42d3-a456-426614174003",
-            mode: "recurring",
-            createdAt: "2026-06-01T08:00:00.000Z",
-            ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
-            timezone: "UTC",
-            expr: "0 9 * * *",
-            endsMode: "never",
-            epochReleaseCount: 0,
-            intervalDays: 2,
-            anchorAt: "2026-06-01T09:00:00.000Z",
-          },
-          new Date("2026-06-03T09:00:00.000Z"),
-          new Date("2026-06-04T00:00:00.000Z"),
-          new Date("2026-06-08T00:00:00.000Z"),
-        ),
-      ).map((occurrence) => occurrence.scheduledAt),
-    ).toEqual([
-      new Date("2026-06-05T09:00:00.000Z"),
-      new Date("2026-06-07T09:00:00.000Z"),
-    ]);
-  });
 });
 
-describe("resolveTaskScheduleRuleAnchor", () => {
-  const base = {
-    version: 2 as const,
-    epochId: "123e4567-e89b-42d3-a456-426614174003",
-    mode: "recurring" as const,
-    createdAt: "2026-06-01T08:00:00.000Z",
-    ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+describe("validateTaskScheduleRule", () => {
+  const rule = {
+    expr: "0 9 * * 1",
     timezone: "UTC",
-    expr: "0 9 * * *",
-    endsMode: "never" as const,
-    epochReleaseCount: 0,
-    anchorAt: "2026-06-01T09:00:00.000Z",
+    endsMode: "NEVER" as const,
   };
 
-  it("uses lastProcessedSourceAt when set, otherwise ruleEffectiveFrom", () => {
-    expect(resolveTaskScheduleRuleAnchor(base)).toEqual(
-      new Date("2026-06-01T08:00:00.000Z"),
-    );
-    expect(
-      resolveTaskScheduleRuleAnchor({
-        ...base,
-        lastProcessedSourceAt: "2026-06-10T09:00:00.000Z",
-      }),
-    ).toEqual(new Date("2026-06-10T09:00:00.000Z"));
+  it("accepts a rule with a next Run", () => {
+    expect(() => validateTaskScheduleRule(rule)).not.toThrow();
   });
 
-  it("returns the next rule occurrence after the anchor", () => {
-    expect(
-      computeNextRuleOccurrence({
-        ...base,
-        lastProcessedSourceAt: "2026-06-10T09:00:00.000Z",
+  it("rejects an unknown timezone", () => {
+    expect(() =>
+      validateTaskScheduleRule({ ...rule, timezone: "Mars/Olympus" }),
+    ).toThrow("timezone is invalid");
+  });
+
+  it("rejects an end in the past", () => {
+    expect(() =>
+      validateTaskScheduleRule({
+        ...rule,
+        endsMode: "ON",
+        endsOn: "2020-01-01T00:00:00.000Z",
       }),
-    ).toEqual(new Date("2026-06-11T09:00:00.000Z"));
+    ).toThrow("endsOn must be in the future");
   });
 });

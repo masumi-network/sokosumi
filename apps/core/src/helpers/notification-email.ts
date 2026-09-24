@@ -95,7 +95,6 @@ const TASK_REASONS: readonly TaskAttentionReason[] = [
   "inputRequired",
   "outOfCredits",
   "participantAdded",
-  "scheduleRemovedByOperator",
 ];
 
 export function taskAttentionReasonOf(
@@ -118,16 +117,7 @@ export function taskAttentionReasonOf(
  * until it is listed, and it gets the generic sentence rather than no email,
  * because the reader turned the row on to hear about changes as a whole.
  */
-const TASK_UPDATE_REASONS: readonly TaskUpdateReason[] = [
-  "failed",
-  "canceled",
-  "scheduleRepaired",
-  "scheduleRemovedByOperator",
-  "scheduleUpdatedByMember",
-  "scheduleRemovedByMember",
-  "scheduleSourceChangedByMember",
-  "scheduleOccurrenceChangedByMember",
-];
+const TASK_UPDATE_REASONS: readonly TaskUpdateReason[] = ["failed", "canceled"];
 
 export function taskUpdateReasonOf(messageKey: string): TaskUpdateReason {
   const tail = messageKey.slice(messageKey.lastIndexOf(".") + 1);
@@ -296,13 +286,7 @@ export async function buildNotificationEmail(
         return null;
       }
 
-      // Read as an update first: `scheduleRemovedByOperator` is in both
-      // families, and the update sentence is the one that names the review.
-      const updateReason = taskUpdateReasonOf(input.messageKey);
-      const attentionReason =
-        updateReason === "updated"
-          ? taskAttentionReasonOf(input.messageKey)
-          : null;
+      const attentionReason = taskAttentionReasonOf(input.messageKey);
 
       if (attentionReason !== null) {
         return withRecipient(
@@ -322,7 +306,7 @@ export async function buildNotificationEmail(
         await renderTaskUpdateEmail({
           ...shared,
           projectName: readString(params, "projectName"),
-          reason: updateReason,
+          reason: taskUpdateReasonOf(input.messageKey),
           taskName: readString(params, "taskName"),
         }),
       );

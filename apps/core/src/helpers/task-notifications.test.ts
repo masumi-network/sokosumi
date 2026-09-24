@@ -49,7 +49,6 @@ import {
   markTaskArchivedRead,
   markTaskAssignedRead,
   markTaskParticipantRemovedRead,
-  notifyTaskCalendarAction,
   notifyTaskHumanAssignee,
   notifyTaskParticipantsAdded,
 } from "./task-notifications";
@@ -132,89 +131,6 @@ describe("notifyTaskParticipantsAdded", () => {
       "user_a",
       "user_b",
     ]);
-  });
-});
-
-describe("notifyTaskCalendarAction", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    prismaTaskFindFirstMock.mockResolvedValue({
-      id: "task_1",
-      workspaceId: "workspace_1",
-    });
-    createNotificationMock.mockResolvedValue({});
-  });
-
-  it("notifies the owner only after confirming their current Task access", async () => {
-    await notifyTaskCalendarAction({
-      taskId: "task_1",
-      taskName: "Launch",
-      ownerId: "owner_1",
-      actorUserId: "member_1",
-      eventId: "event_1",
-      messageKey: "Notifications.Task.scheduleUpdatedByMember",
-      action: "update_schedule",
-    });
-
-    expect(prismaTaskFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        id: "task_1",
-        ownerId: "owner_1",
-        archivedAt: null,
-        workspace: {
-          OR: [
-            { userId: "owner_1" },
-            {
-              organization: {
-                members: { some: { userId: "owner_1" } },
-              },
-            },
-          ],
-        },
-      },
-      select: { id: true, workspaceId: true },
-    });
-    expect(createNotificationMock).toHaveBeenCalledWith({
-      userId: "owner_1",
-      kind: "TASK",
-      referenceId: "task_1",
-      eventId: "event_1",
-      messageKey: "Notifications.Task.scheduleUpdatedByMember",
-      messageParams: { taskName: "Launch" },
-      metadata: { workspaceId: "workspace_1" },
-      workspaceId: "workspace_1",
-    });
-  });
-
-  it("suppresses self-actions without querying for access", async () => {
-    await notifyTaskCalendarAction({
-      taskId: "task_1",
-      taskName: "Launch",
-      ownerId: "owner_1",
-      actorUserId: "owner_1",
-      eventId: "event_1",
-      messageKey: "Notifications.Task.scheduleUpdatedByMember",
-      action: "update_schedule",
-    });
-
-    expect(prismaTaskFindFirstMock).not.toHaveBeenCalled();
-    expect(createNotificationMock).not.toHaveBeenCalled();
-  });
-
-  it("suppresses notifications when the owner no longer has access", async () => {
-    prismaTaskFindFirstMock.mockResolvedValue(null);
-
-    await notifyTaskCalendarAction({
-      taskId: "task_1",
-      taskName: "Launch",
-      ownerId: "owner_1",
-      actorUserId: "member_1",
-      eventId: "event_1",
-      messageKey: "Notifications.Task.scheduleUpdatedByMember",
-      action: "update_schedule",
-    });
-
-    expect(createNotificationMock).not.toHaveBeenCalled();
   });
 });
 
@@ -545,10 +461,9 @@ describe("markTaskArchivedRead", () => {
 
   /**
    * Nobody can open an archived task, so every row still asking somebody to
-   * act on it is about a question nobody is asking. The operator-removed
-   * schedule row is the concrete one: it is written to the owner with no
-   * status condition, and a task carrying it archives from a non-terminal
-   * status.
+   * act on it is about a question nobody is asking. The `assigned` row is the
+   * concrete one: it is written on assignment whatever the status, and a task
+   * carrying it archives from a non-terminal status.
    */
   it("marks every attention row read, for both readers", async () => {
     await markTaskArchivedRead(ARCHIVED_TASK);

@@ -2,7 +2,6 @@ import type { Prisma } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/database";
 
 import { conflict } from "./error.js";
-import { getTaskStatusUpdateDataForEvent } from "./task.js";
 import {
   createTaskEventTransaction,
   isInsufficientBalanceError,
@@ -47,10 +46,11 @@ export async function applyGuardedTaskStatusUpdate(params: {
   const updateResult = await params.tx.task.updateMany({
     where: { id: params.taskId, status: params.expectedStatus },
     data: {
-      ...getTaskStatusUpdateDataForEvent(params.eventStatus),
+      status: params.eventStatus,
+      // Leaving Queued drops its Run at (ADR 0041).
       ...(params.expectedStatus === TaskStatus.QUEUED &&
       params.eventStatus !== TaskStatus.QUEUED
-        ? { metadata: null, nextRunAt: null }
+        ? { runAt: null }
         : {}),
     },
   });

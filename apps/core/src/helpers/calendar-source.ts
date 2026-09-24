@@ -12,9 +12,5 @@ export function getCalendarSourceId(source: {
     return `project:${source.sourceProjectId}`;
   }
 
-  if (source.sourceType === CalendarSourceType.LEGACY_UNKNOWN) {
-    return `legacy-unknown:${source.sourceWorkspaceId}`;
-  }
-
   return `workspace:${source.sourceWorkspaceId}`;
 }

@@ -366,14 +366,6 @@ export {
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
 export {
-  hasActiveTaskSchedule,
-  hasReachedTaskScheduleReleaseTarget,
-  parseTaskScheduleMetadata,
-  type TaskScheduleMetadata,
-  type TaskScheduleMetadataV1,
-  type TaskScheduleMetadataV2,
-} from "./task-schedule.js";
-export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
   userTaskStatusTransitionRequiresComment,

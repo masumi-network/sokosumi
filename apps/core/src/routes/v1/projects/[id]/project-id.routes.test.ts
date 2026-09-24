@@ -74,7 +74,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
     },
-    taskScheduleOccurrence: {
+    taskScheduleRun: {
       findFirst: taskScheduleOccurrenceFindFirstMock,
     },
   },

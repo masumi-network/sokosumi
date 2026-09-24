@@ -4,13 +4,13 @@ import { PrismaRaw } from "@sokosumi/database/client";
 export type SokoBotPacketAudience = "OWNER" | "TEAMMATE" | "ASSISTANT";
 
 /**
- * Human reader for a private Task is the Task owner (the member under whose
- * user context it was created). Creator FKs can be re-pointed on user
- * deletion; ownerId is the durable private-reader identity (SOK-1046).
+ * Human reader for a private Task or Task Schedule is its owner (the member
+ * under whose user context it was created). Creator FKs can be re-pointed on
+ * user deletion; ownerId is the durable private-reader identity (SOK-1046).
  */
 export function buildHumanTaskVisibilityWhere(
   userId: string,
-): Prisma.TaskWhereInput {
+): Prisma.TaskWhereInput & Prisma.TaskScheduleWhereInput {
   return {
     OR: [
       { visibility: TaskVisibility.PUBLIC },
@@ -136,7 +136,7 @@ export function buildSokoBotAudienceJobParentTaskWhere(
 export function buildCoworkerPrivateTaskVisibilityWhere(params: {
   coworkerId: string;
   vendorId: string;
-}): Prisma.TaskWhereInput {
+}): Prisma.TaskWhereInput & Prisma.TaskScheduleWhereInput {
   return {
     OR: [
       { visibility: TaskVisibility.PUBLIC },

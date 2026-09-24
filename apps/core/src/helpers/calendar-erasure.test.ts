@@ -15,10 +15,10 @@ function createTransaction() {
   const taskScheduleOccurrenceDeleteMany = vi.fn();
   const taskLinkDeleteMany = vi.fn();
   const taskX402PaymentDeleteMany = vi.fn();
-  const taskScheduleQuarantineDeleteMany = vi.fn();
   const taskScheduleCreateOperationDeleteMany = vi.fn();
   const taskEventDeleteMany = vi.fn();
   const taskDeleteMany = vi.fn();
+  const taskScheduleDeleteMany = vi.fn();
   const projectEventDeleteMany = vi.fn();
   const projectCloseOperationDeleteMany = vi.fn();
   const projectDeleteMany = vi.fn();
@@ -35,18 +35,16 @@ function createTransaction() {
         findFirst: taskX402PaymentFindFirst,
         deleteMany: taskX402PaymentDeleteMany,
       },
-      taskScheduleOccurrence: {
+      taskScheduleRun: {
         deleteMany: taskScheduleOccurrenceDeleteMany,
       },
       taskLink: { deleteMany: taskLinkDeleteMany },
-      taskScheduleQuarantine: {
-        deleteMany: taskScheduleQuarantineDeleteMany,
-      },
       taskScheduleCreateOperation: {
         deleteMany: taskScheduleCreateOperationDeleteMany,
       },
       taskEvent: { deleteMany: taskEventDeleteMany },
       task: { deleteMany: taskDeleteMany },
+      taskSchedule: { deleteMany: taskScheduleDeleteMany },
       projectEvent: { deleteMany: projectEventDeleteMany },
       projectCloseOperation: {
         deleteMany: projectCloseOperationDeleteMany,
@@ -68,10 +66,10 @@ function createTransaction() {
       taskScheduleOccurrenceDeleteMany,
       taskLinkDeleteMany,
       taskX402PaymentDeleteMany,
-      taskScheduleQuarantineDeleteMany,
       taskScheduleCreateOperationDeleteMany,
       taskEventDeleteMany,
       taskDeleteMany,
+      taskScheduleDeleteMany,
       projectEventDeleteMany,
       projectCloseOperationDeleteMany,
       projectDeleteMany,
@@ -112,14 +110,15 @@ describe("calendar erasure", () => {
 
     await lockWorkspaceCalendarForErasure(tx as never, WORKSPACE_ID);
 
-    expect(queryRaw).toHaveBeenCalledTimes(6);
+    expect(queryRaw).toHaveBeenCalledTimes(7);
     expect(queryRaw.mock.calls.map(queryText)).toEqual([
       expect.stringMatching(/FROM "workspace"[\s\S]*FOR UPDATE/),
       expect.stringMatching(/FROM "project"[\s\S]*FOR UPDATE/),
       expect.stringMatching(/FROM "task"[\s\S]*FOR UPDATE/),
       expect.stringMatching(
-        /FROM "task_schedule_occurrence" AS occurrence[\s\S]*FOR UPDATE OF occurrence/,
+        /FROM "task_schedule_run" AS run[\s\S]*FOR UPDATE OF run/,
       ),
+      expect.stringMatching(/FROM "task_schedule"\s[\s\S]*FOR UPDATE/),
       expect.stringMatching(
         /FROM "task_link" AS link[\s\S]*FOR UPDATE OF link/,
       ),
@@ -130,7 +129,7 @@ describe("calendar erasure", () => {
     expect(
       queryRaw.mock.calls.every((call) => call.slice(1).includes(WORKSPACE_ID)),
     ).toBe(true);
-    expect(queryRaw.mock.invocationCallOrder[5]).toBeLessThan(
+    expect(queryRaw.mock.invocationCallOrder[6]).toBeLessThan(
       taskX402PaymentFindFirst.mock.invocationCallOrder[0] ?? Infinity,
     );
   });
@@ -201,16 +200,20 @@ describe("calendar erasure", () => {
         .map((mock) => mock.mock.invocationCallOrder[0])
         .sort((left, right) => left - right),
     );
-    expect(tx.taskScheduleOccurrence.deleteMany).toHaveBeenCalledWith({
+    expect(tx.taskScheduleRun.deleteMany).toHaveBeenCalledWith({
       where: {
         OR: [
           { sourceWorkspaceId: WORKSPACE_ID },
-          { seriesTask: { workspaceId: WORKSPACE_ID } },
           { releasedTask: { workspaceId: WORKSPACE_ID } },
         ],
       },
     });
     expect(tx.task.deleteMany).toHaveBeenCalledWith({
+      where: { workspaceId: WORKSPACE_ID },
+    });
+    // Task Schedule Runs carry the schedule's workspace as their source, so
+    // the ledger delete above takes them; the schedules follow the Tasks.
+    expect(tx.taskSchedule.deleteMany).toHaveBeenCalledWith({
       where: { workspaceId: WORKSPACE_ID },
     });
     expect(tx.project.deleteMany).toHaveBeenCalledWith({
