@@ -261,8 +261,10 @@ export {
   CHAT_FEED_MESSAGE_KEYS,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   isBrowserOnlyNotification,
+  isMentionNotification,
   isNeedsActionNotification,
   JOB_INPUT_REQUIRED_MESSAGE_KEY,
+  MENTION_MESSAGE_KEYS,
   NEEDS_ACTION_MESSAGE_KEYS,
   TASK_INPUT_REQUIRED_MESSAGE_KEY,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
@@ -339,6 +341,11 @@ export {
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
+export {
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
+  SOCIAL_POST_TEXT_LIMITS,
+  type SocialPostProvider,
+} from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
 export { encodeTableCsv, parseTableCsv } from "./table-csv.js";
@@ -374,14 +381,6 @@ export {
   resolveTaskFileContentType,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
-export {
-  hasActiveTaskSchedule,
-  hasReachedTaskScheduleReleaseTarget,
-  parseTaskScheduleMetadata,
-  type TaskScheduleMetadata,
-  type TaskScheduleMetadataV1,
-  type TaskScheduleMetadataV2,
-} from "./task-schedule.js";
 export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,

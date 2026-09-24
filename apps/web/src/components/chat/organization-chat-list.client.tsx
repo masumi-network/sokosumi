@@ -106,6 +106,7 @@ import {
   advanceUnreadFilterPass,
   EMPTY_UNREAD_FILTER_PASS,
 } from "./unread-filter-pass";
+import { useChatUnreadsFilter } from "./use-chat-unreads-filter";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 
 /** Stable empty default — inline `= []` is a new array every render and
@@ -224,7 +225,7 @@ export function OrganizationChatList({
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
   const [externalOpen, setExternalOpen] = useState(true);
-  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [unreadOnly, setUnreadOnly] = useChatUnreadsFilter();
   const [filterSwitched, setFilterSwitched] = useState(false);
   const reduceMotion = useReducedMotion();
 
@@ -508,11 +509,14 @@ export function OrganizationChatList({
           />
           {/* One list per mode, so switching fades the new one in instead of
             swapping rows under the pointer. Not on first render: the sidebar
-            does not fade in on every load. */}
+            does not fade in on every load. A reader who left the filter on
+            gets no All list until React reads the cookie: the prerendered
+            shell always draws All, and the boot script's mark hides it. */}
           <div
             key={unreadOnly ? "unread" : "all"}
             className={cn(
               "space-y-2",
+              !unreadOnly && "chat-unreads-boot:hidden",
               filterSwitched &&
                 `motion-safe:animate-in motion-safe:fade-in ${UNREAD_FILTER_CSS_TIMING}`,
             )}

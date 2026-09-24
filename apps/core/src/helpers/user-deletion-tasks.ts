@@ -13,8 +13,13 @@ import {
   eraseWorkspaceCalendarData,
   lockWorkspaceCalendarForErasure,
 } from "@/helpers/calendar-erasure";
+import {
+  lastVendorAdminBlockerWhere,
+  USER_DELETION_MESSAGES,
+} from "@/helpers/deletion-evaluate";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
+import { prepareVendorsForMemberDeletion } from "@/helpers/vendor-membership";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -44,9 +49,10 @@ function throwPendingX402PaymentDeletionBlocker(
 /**
  * Clear creator RESTRICT blockers and delete the user in one transaction.
  *
- * - Owned tasks are deleted (owner cascade would anyway).
- * - Tasks this user (or their assigned coworkers) created but do not own keep the
- *   row and re-point creator to the task owner as a user creator.
+ * - Owned tasks and Task Schedules are deleted (owner cascade would anyway).
+ * - Tasks and Task Schedules this user (or their assigned coworkers) created
+ *   but do not own keep the row and re-point creator to the owner as a user
+ *   creator.
  * - Coworker assignments cascade-delete with the user; creatorCoworkerId is
  *   RESTRICT, so those refs must be cleared first.
  * - Payment-claim blockers are previewed by `evaluateUserDeletion` and
@@ -133,6 +139,21 @@ export async function prepareTasksForUserDeletion(
           ORDER BY project.id ASC
           FOR UPDATE OF project
         `;
+
+        // The preflight last-admin check can become stale before this
+        // transaction starts, so serialize with membership changes and recheck
+        // before the User cascade.
+        await prepareVendorsForMemberDeletion(userId, tx);
+        const lastVendorAdminMembership = await tx.vendorMember.findFirst({
+          where: lastVendorAdminBlockerWhere(userId),
+          select: { id: true },
+        });
+        if (lastVendorAdminMembership) {
+          throw new APIError("BAD_REQUEST", {
+            code: "USER_IS_LAST_VENDOR_ADMIN",
+            message: USER_DELETION_MESSAGES.USER_IS_LAST_VENDOR_ADMIN,
+          });
+        }
 
         await tx.$queryRaw`
           SELECT "id"
@@ -455,15 +476,14 @@ export async function prepareTasksForUserDeletion(
           })
         ).map((assignment) => assignment.coworkerId);
 
+        const createdByUser = [
+          { creatorUserId: userId },
+          ...(coworkerIds.length > 0
+            ? [{ creatorCoworkerId: { in: coworkerIds } }]
+            : []),
+        ];
         const createdTasks = await tx.task.findMany({
-          where: {
-            OR: [
-              { creatorUserId: userId },
-              ...(coworkerIds.length > 0
-                ? [{ creatorCoworkerId: { in: coworkerIds } }]
-                : []),
-            ],
-          },
+          where: { OR: createdByUser },
           select: { id: true, ownerId: true },
         });
 
@@ -474,6 +494,22 @@ export async function prepareTasksForUserDeletion(
             where: { id: task.id },
             data: {
               creatorUserId: task.ownerId,
+              creatorCoworkerId: null,
+              creatorSokoBotId: null,
+            },
+          });
+        }
+
+        // Task Schedules carry the same RESTRICT creator FKs as Tasks.
+        const createdSchedules = await tx.taskSchedule.findMany({
+          where: { ownerId: { not: userId }, OR: createdByUser },
+          select: { id: true, ownerId: true },
+        });
+        for (const schedule of createdSchedules) {
+          await tx.taskSchedule.update({
+            where: { id: schedule.id },
+            data: {
+              creatorUserId: schedule.ownerId,
               creatorCoworkerId: null,
               creatorSokoBotId: null,
             },
@@ -509,6 +545,9 @@ export async function prepareTasksForUserDeletion(
           }
         }
 
+        await tx.taskSchedule.deleteMany({
+          where: { ownerId: userId },
+        });
         await tx.task.deleteMany({
           where: { ownerId: userId },
         });

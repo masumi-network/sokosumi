@@ -38,6 +38,8 @@ Core HTTP logging uses evlog. Conventions live in [`apps/core/AGENTS.md`](../../
 
 Native SwiftUI work uses `swiftui-expert-skill` (from `avdlee/swiftui-agent-skill`), installed app-scoped under `apps/apple/.agents/skills/` — never the repo root. Load it when writing, reviewing, or refactoring SwiftUI for macOS/iOS. Install or update with `apps/apple` as cwd: `npx skills add https://github.com/avdlee/swiftui-agent-skill -s swiftui-expert-skill -y`. The repo's second skill, `update-swiftui-apis`, is intentionally not installed (skill maintenance; requires Sosumi MCP).
 
+Parity rows run one per fresh session: the user types `/apple-parity-next`, optionally with a row id such as `/apple-parity-next 24h` (user-invoked, [`.agents/skills/apple-parity-next/`](../../.agents/skills/apple-parity-next/)), which carries the next `apps/apple/PARITY.md` row from dispatch to a merged PR.
+
 ### Ask Matt
 
 Main engineering flow. See [`.agents/skills/ask-matt/`](../../.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
@@ -75,8 +77,6 @@ Hybrid mapping: native Linear statuses for needs-triage (Triage) and wontfix (Ca
 ### Domain docs
 
 Single-context: live `CONTEXT.md` + `docs/adr/` at the repo root. See [`docs/agents/domain.md`](./domain.md).
-
-**Instruction layout:** [`docs/agents/context-budget.md`](./context-budget.md) — which former root `AGENTS.md` sections live in which task-specific doc.
 
 **Cloud agent database:** [`docs/agents/cloud-agent-database.md`](../../docs/agents/cloud-agent-database.md) — ephemeral Neon branch per agent run via `DATABASE_URL`, provision/teardown, 72h idle TTL.
 

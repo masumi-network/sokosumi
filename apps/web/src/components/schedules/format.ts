@@ -4,11 +4,8 @@ import {
   formatWeekday,
   parseCron,
 } from "@/lib/schedules/cron";
-import { zonedDateTimeLocalToUtc } from "@/lib/schedules/zoned-datetime";
-import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 
 export type ScheduleTitleInfo =
-  | { key: "oneTime" }
   | { key: "custom" }
   | { key: "dailyWithTime"; values: { time: string } }
   | { key: "weeklyWithWeekdayTime"; values: { weekday: string; time: string } }
@@ -21,17 +18,16 @@ export type ScheduleTitleInfo =
     };
 
 export interface ScheduleTitleInput {
-  scheduleType: string;
   cron?: string | null;
   timezone: string;
+  /** A rule every N calendar days keeps its day step here, not in the cron. */
+  intervalDays?: number | null;
 }
 
 export function computeScheduleTitleInfo(
   s: ScheduleTitleInput,
   formatter: DateTimeFormatter,
 ): ScheduleTitleInfo {
-  if (s.scheduleType === "ONE_TIME") return { key: "oneTime" };
-
   const parsed = parseCron(s.cron ?? "");
 
   switch (parsed.kind) {
@@ -42,6 +38,12 @@ export function computeScheduleTitleInfo(
         formatter,
         s.timezone,
       );
+      if (s.intervalDays != null && s.intervalDays > 1) {
+        return {
+          key: "dailyEveryNWithTime",
+          values: { n: s.intervalDays, time },
+        };
+      }
       return { key: "dailyWithTime", values: { time } };
     }
     case "weeklyAtTime": {
@@ -99,11 +101,6 @@ export function computeScheduleTitleInfo(
   }
 }
 
-export type TranslateFn = (
-  key: string,
-  values?: Record<string, unknown>,
-) => string;
-
 /** The `App.Tasks.Schedule` keys {@link formatScheduleTitle} can ask for. */
 export type ScheduleTitleTranslationKey = `option.${ScheduleTitleInfo["key"]}`;
 
@@ -116,51 +113,11 @@ export type ScheduleTitleTranslateFn = (
   values?: Record<string, string | number | Date>,
 ) => string;
 
-export function formatTaskScheduleSelectionLabel(
-  selection: TaskScheduleSelection,
-  t: TranslateFn,
-  formatter: DateTimeFormatter,
-): string | null {
-  if (selection.mode === "none") return null;
-
-  if (selection.mode === "once") {
-    const runAt = zonedDateTimeLocalToUtc(
-      selection.oneTimeLocalIso,
-      selection.timezone,
-    );
-    if (!runAt) return t("option.oneTime");
-
-    return t("footer.oneTimeAt", {
-      datetime: formatter.dateTime(runAt, "dateTime", {
-        timeZone: selection.timezone,
-      }),
-    });
-  }
-
-  const cron =
-    selection.customCronExpr?.trim() || selection.cron?.trim() || null;
-  if (!cron) return t("option.custom");
-
-  return formatScheduleTitle(
-    computeScheduleTitleInfo(
-      {
-        scheduleType: "CRON",
-        cron,
-        timezone: selection.timezone,
-      },
-      formatter,
-    ),
-    t,
-  );
-}
-
 export function formatScheduleTitle(
   info: ScheduleTitleInfo,
   t: ScheduleTitleTranslateFn,
 ): string {
   switch (info.key) {
-    case "oneTime":
-      return t("option.oneTime");
     case "custom":
       return t("option.custom");
     case "dailyWithTime":

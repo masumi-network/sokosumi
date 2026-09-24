@@ -1,13 +1,19 @@
 import type { Vendor } from "../../api/models/vendor.js";
-import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
+import {
+  createVendor,
+  fetchVendorMemberships,
+} from "../../api/services/vendor-service.js";
 import {
   type CommandContext,
+  type CommandOptions,
+  optionString,
   writeJson,
   writeText,
 } from "./command-helpers.js";
 
 export interface VendorsCommandContext extends CommandContext {
   subcommand?: string;
+  options?: CommandOptions;
 }
 
 function printVendors(
@@ -33,8 +39,29 @@ export async function runVendorsCommand({
   json = false,
   signal,
   subcommand,
+  options,
 }: VendorsCommandContext): Promise<void> {
-  if (subcommand !== "me") throw new Error("Usage: sokosumi vendors me");
+  if (subcommand === "create") {
+    const name = optionString(options, "name")?.trim() ?? "";
+    const slug = optionString(options, "slug")?.trim() ?? "";
+    if (!name) throw new Error("Vendor name is required (--name NAME)");
+    if (!slug) throw new Error("Vendor slug is required (--slug SLUG)");
+    const { vendor } = await createVendor(client, { name, slug }, signal);
+    if (json) writeJson(stdout, { vendor });
+    else {
+      writeText(stdout, [
+        `Vendor ${vendor.name || "Unnamed Vendor"} [${vendor.id}]`,
+        vendor.slug ? `slug: ${vendor.slug}` : undefined,
+        `role: ${vendor.role}`,
+      ]);
+    }
+    return;
+  }
+  if (subcommand !== "me") {
+    throw new Error(
+      "Usage: sokosumi vendors me | vendors create --name NAME --slug SLUG",
+    );
+  }
   const { vendors } = await fetchVendorMemberships(client, signal);
   if (json) writeJson(stdout, { vendors });
   else printVendors(stdout, vendors);

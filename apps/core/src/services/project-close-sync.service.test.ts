@@ -1,16 +1,17 @@
 import {
   Prisma,
   ProjectCloseOperationState,
+  TaskScheduleState,
   TaskStatus,
 } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  cloneRecurringTaskScheduleOccurrenceMock,
   deliverCalendarInvalidationsNowMock,
   lockCalendarScopeMock,
-  lockTaskRowsMock,
   notifyProjectCloseTransitionMock,
+  notifyTaskHumanAssigneeMock,
+  publishTaskEventDataMock,
   retryMissingProjectCloseNotificationsMock,
   prismaMock,
   projectCloseOperationFindFirstMock,
@@ -18,24 +19,23 @@ const {
   projectCloseOperationUpdateManyMock,
   projectEventCreateMock,
   projectUpdateMock,
-  retireTaskScheduleFutureOccurrencesMock,
-  taskFindFirstMock,
-  taskEventCreateMock,
-  taskScheduleOccurrenceDeleteMock,
-  taskScheduleOccurrenceDeleteManyMock,
-  taskScheduleOccurrenceFindFirstMock,
-  taskScheduleOccurrenceFindManyMock,
-  taskScheduleOccurrenceUpdateManyMock,
-  taskUpdateMock,
+  taskCreateMock,
+  taskScheduleFindFirstMock,
+  taskScheduleFindUniqueOrThrowMock,
+  taskScheduleUpdateManyMock,
+  taskScheduleRunDeleteManyMock,
+  taskScheduleRunFindFirstMock,
+  taskScheduleRunFindManyMock,
+  taskScheduleRunUpdateManyMock,
   transactionMock,
   txProjectCloseOperationFindFirstMock,
   txProjectCloseOperationUpdateManyMock,
 } = vi.hoisted(() => ({
-  cloneRecurringTaskScheduleOccurrenceMock: vi.fn(),
   deliverCalendarInvalidationsNowMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
-  lockTaskRowsMock: vi.fn(),
   notifyProjectCloseTransitionMock: vi.fn(),
+  notifyTaskHumanAssigneeMock: vi.fn(),
+  publishTaskEventDataMock: vi.fn(),
   retryMissingProjectCloseNotificationsMock: vi.fn(),
   prismaMock: {
     $transaction: vi.fn(),
@@ -50,23 +50,32 @@ const {
   projectCloseOperationUpdateManyMock: vi.fn(),
   projectEventCreateMock: vi.fn(),
   projectUpdateMock: vi.fn(),
-  retireTaskScheduleFutureOccurrencesMock: vi.fn(),
-  taskFindFirstMock: vi.fn(),
-  taskEventCreateMock: vi.fn(),
-  taskScheduleOccurrenceDeleteMock: vi.fn(),
-  taskScheduleOccurrenceDeleteManyMock: vi.fn(),
-  taskScheduleOccurrenceFindFirstMock: vi.fn(),
-  taskScheduleOccurrenceFindManyMock: vi.fn(),
-  taskScheduleOccurrenceUpdateManyMock: vi.fn(),
-  taskUpdateMock: vi.fn(),
+  taskCreateMock: vi.fn(),
+  taskScheduleFindFirstMock: vi.fn(),
+  taskScheduleFindUniqueOrThrowMock: vi.fn(),
+  taskScheduleUpdateManyMock: vi.fn(),
+  taskScheduleRunDeleteManyMock: vi.fn(),
+  taskScheduleRunFindFirstMock: vi.fn(),
+  taskScheduleRunFindManyMock: vi.fn(),
+  taskScheduleRunUpdateManyMock: vi.fn(),
   transactionMock: vi.fn(),
   txProjectCloseOperationFindFirstMock: vi.fn(),
   txProjectCloseOperationUpdateManyMock: vi.fn(),
 }));
 
+const { getPendingSocialRevocationMock, revokeSocialForCloseMock } = vi.hoisted(
+  () => ({
+    getPendingSocialRevocationMock: vi.fn(),
+    revokeSocialForCloseMock: vi.fn(),
+  }),
+);
+vi.mock("@/services/project-social-connections.service", () => ({
+  getPendingProjectSocialRevocation: getPendingSocialRevocationMock,
+  revokeProjectSocialConnectionForClose: revokeSocialForCloseMock,
+}));
+
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
-  lockTaskRows: lockTaskRowsMock,
 }));
 vi.mock("@/helpers/calendar-invalidation", () => ({
   deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
@@ -76,12 +85,11 @@ vi.mock("@/helpers/project-close-notifications", () => ({
   retryMissingProjectCloseNotifications:
     retryMissingProjectCloseNotificationsMock,
 }));
-vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
-  retireTaskScheduleFutureOccurrences: retireTaskScheduleFutureOccurrencesMock,
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskHumanAssignee: notifyTaskHumanAssigneeMock,
 }));
-vi.mock("@/helpers/task-schedule-release", () => ({
-  cloneRecurringTaskScheduleOccurrence:
-    cloneRecurringTaskScheduleOccurrenceMock,
+vi.mock("@/lib/ably/publish", () => ({
+  publishTaskEventData: publishTaskEventDataMock,
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: prismaMock }));
 
@@ -96,35 +104,29 @@ const operation = {
   id: CLOSE_ID,
   projectId: PROJECT_ID,
   cutoffAt: CUTOFF,
-  seriesCursor: null,
   project: { workspaceId: WORKSPACE_ID },
 };
 
-const recurringTask = {
-  id: "task_123",
+const schedule = {
+  id: "schedule_123",
   ownerId: "user_123",
   organizationId: null,
   workspaceId: WORKSPACE_ID,
   projectId: PROJECT_ID,
-  assigneeId: "coworker_123",
-  name: "Weekly report",
+  name: "Daily standup notes",
   description: null,
-  status: TaskStatus.QUEUED,
-  metadata: JSON.stringify({
-    version: 2,
-    epochId: "44444444-4444-7444-8444-444444444444",
-    mode: "recurring",
-    createdAt: "2026-09-01T08:00:00.000Z",
-    ruleEffectiveFrom: "2026-09-01T08:00:00.000Z",
-    timezone: "UTC",
-    expr: "0 9 * * *",
-    endsMode: "never",
-    anchorAt: "2026-09-01T09:00:00.000Z",
-    epochReleaseCount: 0,
-  }),
-  nextRunAt: new Date("2026-09-14T09:00:00.000Z"),
-  scheduleQuarantine: null,
+  visibility: "PUBLIC",
+  assigneeId: null,
+  assigneeSokoBotId: null,
+  assigneeUserId: "user_456",
+  creatorUserId: "user_123",
+  creatorCoworkerId: null,
+  creatorSokoBotId: null,
+  state: TaskScheduleState.ACTIVE,
+  releasedCount: 5,
+  revision: 3,
 };
+const scheduleCandidate = { id: schedule.id, ownerId: schedule.ownerId };
 
 function txClient() {
   return {
@@ -134,15 +136,17 @@ function txClient() {
       updateMany: txProjectCloseOperationUpdateManyMock,
     },
     projectEvent: { create: projectEventCreateMock },
-    task: { findFirst: taskFindFirstMock, update: taskUpdateMock },
-    taskEvent: { create: taskEventCreateMock },
-    taskScheduleOccurrence: {
-      delete: taskScheduleOccurrenceDeleteMock,
-      deleteMany: taskScheduleOccurrenceDeleteManyMock,
-      findFirst: taskScheduleOccurrenceFindFirstMock,
-      findMany: taskScheduleOccurrenceFindManyMock,
-      update: vi.fn(),
-      updateMany: taskScheduleOccurrenceUpdateManyMock,
+    task: { create: taskCreateMock },
+    taskSchedule: {
+      findFirst: taskScheduleFindFirstMock,
+      findUniqueOrThrow: taskScheduleFindUniqueOrThrowMock,
+      updateMany: taskScheduleUpdateManyMock,
+    },
+    taskScheduleRun: {
+      deleteMany: taskScheduleRunDeleteManyMock,
+      findFirst: taskScheduleRunFindFirstMock,
+      findMany: taskScheduleRunFindManyMock,
+      updateMany: taskScheduleRunUpdateManyMock,
     },
   };
 }
@@ -155,9 +159,15 @@ function options() {
   };
 }
 
+function eventKinds(): string[] {
+  return projectEventCreateMock.mock.calls.map(([call]) => call.data.kind);
+}
+
 describe("project close sync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getPendingSocialRevocationMock.mockReset().mockResolvedValue(null);
+    revokeSocialForCloseMock.mockReset().mockResolvedValue(undefined);
     prismaMock.$transaction = transactionMock;
     prismaMock.projectCloseOperation.findFirst =
       projectCloseOperationFindFirstMock;
@@ -173,423 +183,82 @@ describe("project close sync", () => {
     txProjectCloseOperationUpdateManyMock.mockResolvedValue({ count: 1 });
     txProjectCloseOperationFindFirstMock.mockResolvedValue(operation);
     lockCalendarScopeMock.mockResolvedValue(true);
-    lockTaskRowsMock.mockResolvedValue(true);
-    retireTaskScheduleFutureOccurrencesMock.mockResolvedValue({
-      canceledCount: 1,
-    });
-    cloneRecurringTaskScheduleOccurrenceMock.mockResolvedValue("run_123");
     projectEventCreateMock.mockResolvedValue({ id: "project_event_123" });
-    taskScheduleOccurrenceFindFirstMock.mockResolvedValue(null);
+    projectUpdateMock.mockResolvedValue({});
+    taskScheduleFindFirstMock.mockResolvedValue(null);
+    taskScheduleFindUniqueOrThrowMock.mockResolvedValue(schedule);
+    taskScheduleUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskScheduleRunFindManyMock.mockResolvedValue([]);
+    taskScheduleRunFindFirstMock.mockResolvedValue(null);
+    taskScheduleRunUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskScheduleRunDeleteManyMock.mockResolvedValue({ count: 0 });
   });
 
-  it.each(["cursor", "history", "unpaid"] as const)(
-    "reconciles legacy planned rows against %s before closing",
-    async (releaseEvidence) => {
-      const scheduledAt = new Date("2026-09-14T09:00:00.000Z");
-      const legacyRule = {
-        version: 1,
-        scheduledAt: "2026-09-01T08:00:00.000Z",
-        mode: "recurring",
-        timezone: "UTC",
-        expr: "0 9 * * *",
-        endsMode: "never",
-      };
-      const task = {
-        ...recurringTask,
-        // A new v2 epoch can still have retained projections from a v1 rule.
-        metadata:
-          releaseEvidence === "history"
-            ? recurringTask.metadata
-            : JSON.stringify({
-                ...legacyRule,
-                ...(releaseEvidence === "cursor"
-                  ? { lastRunAt: scheduledAt.toISOString() }
-                  : {}),
-              }),
-      };
-      taskFindFirstMock
-        .mockResolvedValueOnce({ id: task.id })
-        .mockResolvedValueOnce(task)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null);
-      taskScheduleOccurrenceFindManyMock.mockResolvedValue([
-        {
-          id: "legacy_projection",
-          epochId: null,
-          scheduleVersion: 1,
-          originalScheduledAt: scheduledAt,
-          effectiveScheduledAt: scheduledAt,
-          ruleSnapshot: legacyRule,
-        },
-      ]);
-      taskScheduleOccurrenceFindFirstMock.mockImplementation(
-        async ({ where }) =>
-          where.state === "RELEASED" && releaseEvidence === "history"
-            ? { id: "existing_release" }
-            : null,
-      );
-
-      const result = await projectCloseSyncService.syncProjectCloses(options());
-
-      expect(result.closed).toBe(1);
-      expect(cloneRecurringTaskScheduleOccurrenceMock).toHaveBeenCalledTimes(
-        releaseEvidence === "unpaid" ? 1 : 0,
-      );
-      expect(taskScheduleOccurrenceDeleteManyMock).toHaveBeenCalledWith({
-        where: { id: "legacy_projection", state: "PLANNED" },
-      });
-    },
-  );
-
-  it("releases owed rows by effective time, retires equality/later, and closes", async () => {
-    taskFindFirstMock
-      .mockResolvedValueOnce({
-        id: recurringTask.id,
-        ownerId: recurringTask.ownerId,
-      })
-      .mockResolvedValueOnce(recurringTask)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null);
-    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
-      {
-        id: "occ_owed",
-        epochId: "66666666-6666-7666-8666-666666666666",
-        scheduleVersion: 2,
-        originalScheduledAt: new Date("2026-09-20T09:00:00.000Z"),
-        effectiveScheduledAt: new Date("2026-09-14T09:59:59.999Z"),
-        ruleSnapshot: {
-          version: 2,
-          epochId: "66666666-6666-7666-8666-666666666666",
-          mode: "recurring",
-          createdAt: "2026-08-01T08:00:00.000Z",
-          ruleEffectiveFrom: "2026-08-01T08:00:00.000Z",
-          timezone: "UTC",
-          expr: "0 8 * * *",
-          endsMode: "never",
-          anchorAt: "2026-08-01T08:00:00.000Z",
-          epochReleaseCount: 0,
-        },
-      },
-    ]);
-
+  it("finalizes the close once no Task Schedule is left", async () => {
     const result = await projectCloseSyncService.syncProjectCloses(options());
 
-    expect(result).toMatchObject({
+    expect(result).toEqual({
       claimed: 1,
-      processedSeries: 1,
+      processedSchedules: 0,
       closed: 1,
       failed: 0,
     });
-    expect(lockCalendarScopeMock).toHaveBeenCalledWith(
-      expect.any(Object),
-      WORKSPACE_ID,
-      [PROJECT_ID],
-      recurringTask.ownerId,
-    );
-    expect(retireTaskScheduleFutureOccurrencesMock).toHaveBeenCalledWith(
-      expect.any(Object),
-      recurringTask.id,
-      CUTOFF,
-      { sourceProjectId: PROJECT_ID },
-    );
-    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
+    expect(taskScheduleFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          effectiveScheduledAt: { lt: CUTOFF },
-          sourceProjectId: PROJECT_ID,
-        }),
-        take: 25,
+        where: {
+          projectId: PROJECT_ID,
+          state: { not: TaskScheduleState.ENDED },
+        },
       }),
     );
-    expect(cloneRecurringTaskScheduleOccurrenceMock).toHaveBeenCalledWith(
-      expect.any(Object),
-      recurringTask,
-      expect.objectContaining({
-        mode: "recurring",
-        epochId: "66666666-6666-7666-8666-666666666666",
-      }),
-      {
-        originalScheduledAt: new Date("2026-09-20T09:00:00.000Z"),
-        effectiveScheduledAt: new Date("2026-09-14T09:59:59.999Z"),
+    // Later Runs sourced from the project leave the plan into the history.
+    expect(taskScheduleRunUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        sourceProjectId: PROJECT_ID,
+        state: { in: ["PLANNED", "SKIPPED"] },
+        effectiveScheduledAt: { gte: CUTOFF },
       },
-      true,
-    );
-    expect(taskUpdateMock).toHaveBeenCalledWith({
-      where: { id: recurringTask.id },
-      data: {
-        status: TaskStatus.DRAFT,
-        metadata: null,
-        nextRunAt: null,
-        scheduleRevision: { increment: 1 },
-      },
+      data: { state: "CANCELED" },
     });
-    expect(projectUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: PROJECT_ID },
-        data: expect.objectContaining({
-          closedAt: expect.any(Date),
-          projectRevision: { increment: 1 },
-        }),
-      }),
-    );
-    expect(notifyProjectCloseTransitionMock).toHaveBeenCalledWith(
-      "project_event_123",
-    );
-  });
-
-  it("keeps a series cursor fixed while a bounded owed batch remains", async () => {
-    taskFindFirstMock
-      .mockResolvedValueOnce({
-        id: recurringTask.id,
-        ownerId: recurringTask.ownerId,
-      })
-      .mockResolvedValueOnce(recurringTask);
-    taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
-    taskScheduleOccurrenceFindFirstMock.mockResolvedValue({
-      effectiveScheduledAt: new Date("2026-09-14T09:30:00.000Z"),
+    expect(projectUpdateMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID },
+      data: { closedAt: expect.any(Date), projectRevision: { increment: 1 } },
     });
-
-    const result = await projectCloseSyncService.syncProjectCloses({
-      ...options(),
-      shouldContinue: () => taskFindFirstMock.mock.calls.length < 2,
-    });
-
-    expect(result.processedSeries).toBe(1);
     expect(txProjectCloseOperationUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: CLOSE_ID,
         state: ProjectCloseOperationState.CLOSING,
         leaseToken: expect.any(String),
       },
-      data: {
-        attempts: 0,
+      data: expect.objectContaining({
+        state: ProjectCloseOperationState.CLOSED,
+        completedAt: expect.any(Date),
+        leaseToken: null,
         failureSummary: Prisma.DbNull,
-        leasedAt: expect.any(Date),
-      },
+      }),
     });
-    expect(taskUpdateMock).toHaveBeenCalledWith({
-      where: { id: recurringTask.id },
-      data: {
-        nextRunAt: new Date("2026-09-14T09:30:00.000Z"),
-        scheduleRevision: { increment: 1 },
-      },
-    });
+    expect(eventKinds()).toEqual(["CLOSE_FINALIZED"]);
+    expect(notifyProjectCloseTransitionMock).toHaveBeenCalledWith(
+      "project_event_123",
+    );
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+    );
+  });
+
+  it("stops without closing when the lease is lost", async () => {
+    txProjectCloseOperationFindFirstMock.mockResolvedValue(null);
+
+    const result = await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(result).toMatchObject({ claimed: 1, closed: 0, failed: 0 });
+    expect(projectUpdateMock).not.toHaveBeenCalled();
     expect(notifyProjectCloseTransitionMock).not.toHaveBeenCalled();
   });
 
-  it("promotes an owed one-time schedule and records its task status", async () => {
-    const oneTimeTask = {
-      ...recurringTask,
-      metadata: JSON.stringify({
-        version: 2,
-        epochId: "55555555-5555-7555-8555-555555555555",
-        mode: "once",
-        createdAt: "2026-09-01T08:00:00.000Z",
-        ruleEffectiveFrom: "2026-09-01T08:00:00.000Z",
-        timezone: "UTC",
-        sourceRunAt: "2026-09-14T09:00:00.000Z",
-        effectiveRunAt: "2026-09-14T09:00:00.000Z",
-      }),
-    };
-    taskFindFirstMock
-      .mockResolvedValueOnce({
-        id: oneTimeTask.id,
-        ownerId: oneTimeTask.ownerId,
-      })
-      .mockResolvedValueOnce(oneTimeTask)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null);
-    taskScheduleOccurrenceFindFirstMock
-      .mockResolvedValueOnce({ id: "occ_owed", scheduleVersion: 2 })
-      .mockResolvedValueOnce(null);
-
-    const result = await projectCloseSyncService.syncProjectCloses(options());
-
-    expect(result.closed).toBe(1);
-    expect(taskUpdateMock).toHaveBeenCalledWith({
-      where: { id: oneTimeTask.id },
-      data: {
-        status: TaskStatus.READY,
-        metadata: null,
-        nextRunAt: null,
-        scheduleRevision: { increment: 1 },
-      },
-    });
-    expect(taskEventCreateMock).toHaveBeenCalledWith({
-      data: {
-        taskId: oneTimeTask.id,
-        status: TaskStatus.READY,
-        channel: "SOKOSUMI",
-        userId: oneTimeTask.ownerId,
-      },
-    });
-    expect(taskScheduleOccurrenceDeleteManyMock).toHaveBeenCalledWith({
-      where: {
-        seriesTaskId: oneTimeTask.id,
-        sourceProjectId: PROJECT_ID,
-        state: "PLANNED",
-      },
-    });
-  });
-
-  it("returns a one-time schedule without owed work to Draft", async () => {
-    const oneTimeTask = {
-      ...recurringTask,
-      metadata: JSON.stringify({
-        version: 2,
-        epochId: "55555555-5555-7555-8555-555555555555",
-        mode: "once",
-        createdAt: "2026-09-01T08:00:00.000Z",
-        ruleEffectiveFrom: "2026-09-01T08:00:00.000Z",
-        timezone: "UTC",
-        sourceRunAt: CUTOFF.toISOString(),
-        effectiveRunAt: CUTOFF.toISOString(),
-      }),
-      nextRunAt: CUTOFF,
-    };
-    taskFindFirstMock
-      .mockResolvedValueOnce({
-        id: oneTimeTask.id,
-        ownerId: oneTimeTask.ownerId,
-      })
-      .mockResolvedValueOnce(oneTimeTask)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null);
-    taskScheduleOccurrenceFindFirstMock.mockResolvedValue(null);
-
-    const result = await projectCloseSyncService.syncProjectCloses(options());
-
-    expect(result.closed).toBe(1);
-    expect(taskUpdateMock).toHaveBeenCalledWith({
-      where: { id: oneTimeTask.id },
-      data: {
-        status: TaskStatus.DRAFT,
-        metadata: null,
-        nextRunAt: null,
-        scheduleRevision: { increment: 1 },
-      },
-    });
-    expect(taskEventCreateMock).not.toHaveBeenCalled();
-  });
-
-  it("clears a human recurring Calendar rule without releasing clones", async () => {
-    const humanTask = { ...recurringTask, status: TaskStatus.READY };
-    taskFindFirstMock
-      .mockResolvedValueOnce({ id: humanTask.id, ownerId: humanTask.ownerId })
-      .mockResolvedValueOnce(humanTask)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null);
-    taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
-    taskScheduleOccurrenceFindFirstMock.mockResolvedValue(null);
-
-    const result = await projectCloseSyncService.syncProjectCloses(options());
-
-    expect(result.closed).toBe(1);
-    expect(cloneRecurringTaskScheduleOccurrenceMock).not.toHaveBeenCalled();
-    expect(taskUpdateMock).toHaveBeenCalledWith({
-      where: { id: humanTask.id },
-      data: {
-        status: TaskStatus.DRAFT,
-        metadata: null,
-        nextRunAt: null,
-        scheduleRevision: { increment: 1 },
-      },
-    });
-  });
-
-  it("does not release an elapsed human one-time reminder as agent work", async () => {
-    const humanTask = {
-      ...recurringTask,
-      status: TaskStatus.READY,
-      metadata: JSON.stringify({
-        version: 2,
-        epochId: "55555555-5555-7555-8555-555555555555",
-        mode: "once",
-        createdAt: "2026-09-01T08:00:00.000Z",
-        ruleEffectiveFrom: "2026-09-01T08:00:00.000Z",
-        timezone: "UTC",
-        sourceRunAt: "2026-09-14T09:00:00.000Z",
-        effectiveRunAt: "2026-09-14T09:00:00.000Z",
-      }),
-    };
-    taskFindFirstMock
-      .mockResolvedValueOnce({ id: humanTask.id, ownerId: humanTask.ownerId })
-      .mockResolvedValueOnce(humanTask)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null);
-    taskScheduleOccurrenceFindFirstMock
-      .mockResolvedValueOnce({ id: "human_occurrence", scheduleVersion: 2 })
-      .mockResolvedValueOnce(null);
-
-    const result = await projectCloseSyncService.syncProjectCloses(options());
-
-    expect(result.closed).toBe(1);
-    expect(taskEventCreateMock).not.toHaveBeenCalled();
-    expect(taskUpdateMock).toHaveBeenCalledWith({
-      where: { id: humanTask.id },
-      data: {
-        status: TaskStatus.DRAFT,
-        metadata: null,
-        nextRunAt: null,
-        scheduleRevision: { increment: 1 },
-      },
-    });
-  });
-
-  it.each([
-    ["recurring", recurringTask.metadata],
-    [
-      "one-time",
-      JSON.stringify({
-        version: 2,
-        epochId: "55555555-5555-7555-8555-555555555555",
-        mode: "once",
-        createdAt: "2026-09-01T08:00:00.000Z",
-        ruleEffectiveFrom: "2026-09-01T08:00:00.000Z",
-        timezone: "UTC",
-        sourceRunAt: CUTOFF.toISOString(),
-        effectiveRunAt: CUTOFF.toISOString(),
-      }),
-    ],
-  ])(
-    "preserves a terminal Task status for a stale %s rule",
-    async (_name, metadata) => {
-      const terminalTask = {
-        ...recurringTask,
-        status: TaskStatus.COMPLETED,
-        metadata,
-      };
-      taskFindFirstMock
-        .mockResolvedValueOnce({
-          id: terminalTask.id,
-          ownerId: terminalTask.ownerId,
-        })
-        .mockResolvedValueOnce(terminalTask)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null);
-      taskScheduleOccurrenceFindFirstMock.mockResolvedValue(null);
-
-      const result = await projectCloseSyncService.syncProjectCloses(options());
-
-      expect(result.closed).toBe(1);
-      expect(taskUpdateMock).toHaveBeenCalledWith({
-        where: { id: terminalTask.id },
-        data: {
-          metadata: null,
-          nextRunAt: null,
-          scheduleRevision: { increment: 1 },
-        },
-      });
-    },
-  );
-
-  it("backs off transient failures and exposes the failed series after exhaustion", async () => {
-    taskFindFirstMock
-      .mockResolvedValueOnce({
-        id: recurringTask.id,
-        ownerId: recurringTask.ownerId,
-      })
-      .mockResolvedValueOnce({ ...recurringTask, metadata: "invalid" });
+  it("backs off transient failures and names the failed schedule after exhaustion", async () => {
+    taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
+    taskScheduleFindUniqueOrThrowMock.mockRejectedValue(new Error("boom"));
     projectCloseOperationFindFirstMock.mockResolvedValue({
       attempts: 2,
       projectId: PROJECT_ID,
@@ -597,7 +266,8 @@ describe("project close sync", () => {
 
     const result = await projectCloseSyncService.syncProjectCloses(options());
 
-    expect(result.failed).toBe(1);
+    expect(result).toMatchObject({ closed: 0, failed: 1 });
+    expect(projectUpdateMock).not.toHaveBeenCalled();
     expect(txProjectCloseOperationUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: CLOSE_ID,
@@ -607,8 +277,9 @@ describe("project close sync", () => {
       data: expect.objectContaining({
         state: ProjectCloseOperationState.CLOSE_FAILED,
         attempts: 3,
+        nextAttemptAt: null,
         failureSummary: {
-          seriesTaskId: recurringTask.id,
+          scheduleId: schedule.id,
           message: "Scheduled work could not be closed",
         },
       }),
@@ -618,13 +289,9 @@ describe("project close sync", () => {
     );
   });
 
-  it("does not notify for a retryable close batch failure", async () => {
-    taskFindFirstMock
-      .mockResolvedValueOnce({
-        id: recurringTask.id,
-        ownerId: recurringTask.ownerId,
-      })
-      .mockResolvedValueOnce({ ...recurringTask, metadata: "invalid" });
+  it("retries a failed batch later without notifying", async () => {
+    taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
+    taskScheduleFindUniqueOrThrowMock.mockRejectedValue(new Error("boom"));
     projectCloseOperationFindFirstMock.mockResolvedValue({
       attempts: 0,
       projectId: PROJECT_ID,
@@ -632,15 +299,21 @@ describe("project close sync", () => {
 
     const result = await projectCloseSyncService.syncProjectCloses(options());
 
-    expect(result.failed).toBe(0);
+    expect(result).toMatchObject({ closed: 0, failed: 0 });
+    expect(txProjectCloseOperationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          state: ProjectCloseOperationState.CLOSING,
+          attempts: 1,
+          nextAttemptAt: expect.any(Date),
+        }),
+      }),
+    );
     expect(notifyProjectCloseTransitionMock).not.toHaveBeenCalled();
   });
 
-  it("refuses to finalize while project-sourced owed work remains", async () => {
-    taskFindFirstMock.mockResolvedValueOnce(null);
-    taskScheduleOccurrenceFindFirstMock.mockResolvedValue({
-      seriesTaskId: "task_moved_elsewhere",
-    });
+  it("names no schedule when the failure is outside one", async () => {
+    projectUpdateMock.mockRejectedValue(new Error("boom"));
     projectCloseOperationFindFirstMock.mockResolvedValue({
       attempts: 2,
       projectId: PROJECT_ID,
@@ -649,27 +322,137 @@ describe("project close sync", () => {
     const result = await projectCloseSyncService.syncProjectCloses(options());
 
     expect(result).toMatchObject({ closed: 0, failed: 1 });
-    expect(taskScheduleOccurrenceFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        sourceProjectId: PROJECT_ID,
-        state: "PLANNED",
-        effectiveScheduledAt: { lt: CUTOFF },
-        seriesTask: { status: TaskStatus.QUEUED },
-      },
-      orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
-      select: { seriesTaskId: true },
-    });
-    expect(projectUpdateMock).not.toHaveBeenCalled();
-    expect(txProjectCloseOperationUpdateManyMock).toHaveBeenCalledWith(
+    expect(projectEventCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          failureSummary: {
-            seriesTaskId: "task_moved_elsewhere",
-            message: "Scheduled work could not be closed",
+          kind: "BATCH_FAILED",
+          payload: {
+            attempts: 3,
+            failed: true,
+            scheduleId: null,
+            message: "Project work could not be closed",
           },
         }),
       }),
     );
+  });
+
+  it("waits for social authorization revocation before closing the project", async () => {
+    const pending = { connectedAccountId: "ca_project" };
+    taskScheduleFindFirstMock.mockResolvedValue(null);
+    getPendingSocialRevocationMock.mockResolvedValueOnce(pending);
+    let finishRevocation: (() => void) | undefined;
+    revokeSocialForCloseMock.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishRevocation = resolve;
+        }),
+    );
+
+    const sync = projectCloseSyncService.syncProjectCloses(options());
+    await vi.waitFor(() =>
+      expect(revokeSocialForCloseMock).toHaveBeenCalledWith(pending),
+    );
+
+    expect(projectUpdateMock).not.toHaveBeenCalled();
+    expect(notifyProjectCloseTransitionMock).not.toHaveBeenCalled();
+    finishRevocation?.();
+    const result = await sync;
+
+    expect(result).toMatchObject({ closed: 1, failed: 0 });
+    expect(projectUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: PROJECT_ID },
+        data: expect.objectContaining({ closedAt: expect.any(Date) }),
+      }),
+    );
+    expect(notifyProjectCloseTransitionMock).toHaveBeenCalledWith(
+      "project_event_123",
+    );
+  });
+
+  it("keeps a failed social revocation retryable without closing the project", async () => {
+    const pending = { connectedAccountId: "ca_project" };
+    taskScheduleFindFirstMock.mockResolvedValue(null);
+    projectCloseOperationFindFirstMock.mockResolvedValue({
+      attempts: 0,
+      projectId: PROJECT_ID,
+    });
+    getPendingSocialRevocationMock.mockResolvedValueOnce(pending);
+    revokeSocialForCloseMock.mockRejectedValueOnce(
+      new Error("Provider unavailable"),
+    );
+
+    const result = await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(result).toMatchObject({ closed: 0, failed: 0 });
+    expect(projectUpdateMock).not.toHaveBeenCalled();
+    expect(notifyProjectCloseTransitionMock).not.toHaveBeenCalled();
+    expect(txProjectCloseOperationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: CLOSE_ID,
+          leaseToken: expect.any(String),
+        }),
+        data: expect.objectContaining({
+          state: ProjectCloseOperationState.CLOSING,
+          attempts: 1,
+          leaseToken: null,
+          leasedAt: null,
+          nextAttemptAt: expect.any(Date),
+          failureSummary: {
+            scheduleId: null,
+            message: "Project work could not be closed",
+          },
+        }),
+      }),
+    );
+    expect(projectEventCreateMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ kind: "CLOSE_FINALIZED" }),
+      }),
+    );
+
+    getPendingSocialRevocationMock.mockResolvedValueOnce(pending);
+    const retry = await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(revokeSocialForCloseMock).toHaveBeenCalledTimes(2);
+    expect(retry.closed).toBe(1);
+  });
+
+  it("bounds social revocation batches to ten and resumes before closing", async () => {
+    taskScheduleFindFirstMock.mockResolvedValue(null);
+    for (let index = 0; index < 11; index += 1) {
+      getPendingSocialRevocationMock.mockResolvedValueOnce({
+        connectedAccountId: `ca_${index}`,
+      });
+    }
+
+    const first = await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(first.closed).toBe(0);
+    expect(revokeSocialForCloseMock).toHaveBeenCalledTimes(10);
+    expect(projectUpdateMock).not.toHaveBeenCalled();
+    expect(projectCloseOperationUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: CLOSE_ID,
+        state: ProjectCloseOperationState.CLOSING,
+        leaseToken: expect.any(String),
+      },
+      data: {
+        leaseToken: null,
+        leasedAt: null,
+        nextAttemptAt: expect.any(Date),
+      },
+    });
+
+    const second = await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(revokeSocialForCloseMock).toHaveBeenCalledTimes(11);
+    expect(revokeSocialForCloseMock).toHaveBeenLastCalledWith({
+      connectedAccountId: "ca_10",
+    });
+    expect(second.closed).toBe(1);
   });
 
   it("releases claims it cannot start before the deadline", async () => {
@@ -694,6 +477,7 @@ describe("project close sync", () => {
         data: expect.objectContaining({ leaseToken: null, leasedAt: null }),
       }),
     );
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("does not bypass backoff when a candidate changes before claim", async () => {
@@ -723,6 +507,251 @@ describe("project close sync", () => {
         ],
       },
       data: { leaseToken: expect.any(String), leasedAt: expect.any(Date) },
+    });
+  });
+
+  describe("Task Schedules", () => {
+    const owedRun = (id: string) => ({ id });
+
+    beforeEach(() => {
+      taskCreateMock.mockImplementation(async () => ({
+        id: `task_${taskCreateMock.mock.calls.length}`,
+        ownerId: schedule.ownerId,
+        assigneeUserId: schedule.assigneeUserId,
+      }));
+    });
+
+    it("releases Runs owed before the cutoff, then Ends the schedule", async () => {
+      taskScheduleFindFirstMock
+        .mockResolvedValueOnce(scheduleCandidate)
+        .mockResolvedValue(null);
+      taskScheduleRunFindManyMock
+        // Owed before the cutoff.
+        .mockResolvedValueOnce([owedRun("run_1"), owedRun("run_2")])
+        // Still planned when the schedule Ends: a plain Run and a skip.
+        .mockResolvedValueOnce([
+          {
+            id: "run_later",
+            state: "PLANNED",
+            originalScheduledAt: new Date("2026-09-15T09:00:00.000Z"),
+            effectiveScheduledAt: new Date("2026-09-15T09:00:00.000Z"),
+          },
+          {
+            id: "run_skipped",
+            state: "SKIPPED",
+            originalScheduledAt: new Date("2099-09-16T09:00:00.000Z"),
+            effectiveScheduledAt: new Date("2099-09-16T09:00:00.000Z"),
+          },
+        ])
+        .mockResolvedValue([]);
+
+      const result = await projectCloseSyncService.syncProjectCloses(options());
+
+      expect(result).toMatchObject({ processedSchedules: 1, closed: 1 });
+      expect(lockCalendarScopeMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        WORKSPACE_ID,
+        [PROJECT_ID],
+        schedule.ownerId,
+      );
+      expect(taskScheduleRunFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            scheduleId: schedule.id,
+            state: "PLANNED",
+            effectiveScheduledAt: { lt: CUTOFF },
+          },
+          take: 25,
+        }),
+      );
+      expect(taskCreateMock).toHaveBeenCalledTimes(2);
+      expect(taskCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            scheduleId: schedule.id,
+            projectId: PROJECT_ID,
+            assigneeUserId: "user_456",
+            status: TaskStatus.READY,
+          }),
+        }),
+      );
+      expect(taskScheduleRunUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: "run_2", state: "PLANNED" },
+        data: { state: "RELEASED", releasedTaskId: "task_2" },
+      });
+      // Later Runs leave the plan: plain ones go, the skip into the history.
+      expect(taskScheduleRunDeleteManyMock).toHaveBeenCalledWith({
+        where: { id: { in: ["run_later"] } },
+      });
+      expect(taskScheduleRunUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: { in: ["run_skipped"] } },
+        data: { state: "CANCELED" },
+      });
+      expect(taskScheduleUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: schedule.id, revision: 3, releasedCount: 5 },
+        data: {
+          releasedCount: 7,
+          state: TaskScheduleState.ENDED,
+          nextRunAt: null,
+          revision: { increment: 1 },
+        },
+      });
+      expect(projectEventCreateMock).toHaveBeenCalledWith({
+        data: {
+          projectId: PROJECT_ID,
+          closeOperationId: CLOSE_ID,
+          eventKey: `project-close:schedule:${CLOSE_ID}:${schedule.id}`,
+          kind: "SERIES_RESOLVED",
+          payload: { scheduleId: schedule.id },
+        },
+      });
+      expect(publishTaskEventDataMock).toHaveBeenCalledTimes(2);
+      expect(notifyTaskHumanAssigneeMock).toHaveBeenCalledWith(
+        "task_1",
+        "user_456",
+      );
+      expect(projectUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ closedAt: expect.any(Date) }),
+        }),
+      );
+    });
+
+    it("keeps the schedule Active while an owed batch remains", async () => {
+      taskScheduleFindFirstMock
+        .mockResolvedValueOnce(scheduleCandidate)
+        .mockResolvedValueOnce(scheduleCandidate)
+        .mockResolvedValue(null);
+      taskScheduleRunFindManyMock
+        .mockResolvedValueOnce([owedRun("run_1")])
+        .mockResolvedValueOnce([owedRun("run_2")])
+        .mockResolvedValue([]);
+      // The second batch still sees an owed Run after the first.
+      taskScheduleRunFindFirstMock
+        .mockResolvedValueOnce({
+          effectiveScheduledAt: new Date("2026-09-14T09:30:00.000Z"),
+        })
+        .mockResolvedValue(null);
+      taskScheduleFindUniqueOrThrowMock
+        .mockResolvedValueOnce(schedule)
+        .mockResolvedValueOnce({ ...schedule, releasedCount: 6 });
+
+      const result = await projectCloseSyncService.syncProjectCloses(options());
+
+      expect(result).toMatchObject({ processedSchedules: 2, closed: 1 });
+      expect(taskScheduleUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: schedule.id, revision: 3, releasedCount: 5 },
+        // The next owed Run, not the one this batch released.
+        data: {
+          releasedCount: 6,
+          nextRunAt: new Date("2026-09-14T09:30:00.000Z"),
+        },
+      });
+      expect(taskScheduleUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: schedule.id, revision: 3, releasedCount: 6 },
+        data: {
+          releasedCount: 7,
+          state: TaskScheduleState.ENDED,
+          nextRunAt: null,
+          revision: { increment: 1 },
+        },
+      });
+      expect(
+        eventKinds().filter((kind) => kind === "SERIES_RESOLVED"),
+      ).toHaveLength(1);
+      // A processed batch resets the failure streak.
+      expect(txProjectCloseOperationUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            attempts: 0,
+            failureSummary: Prisma.DbNull,
+            leasedAt: expect.any(Date),
+          },
+        }),
+      );
+    });
+
+    it("hands the close back when the batch limit runs out", async () => {
+      taskScheduleFindFirstMock
+        .mockResolvedValueOnce(scheduleCandidate)
+        .mockResolvedValue(null);
+      taskScheduleRunFindManyMock.mockResolvedValueOnce([owedRun("run_1")]);
+      taskScheduleRunFindFirstMock.mockResolvedValue({
+        effectiveScheduledAt: new Date("2026-09-14T09:30:00.000Z"),
+      });
+
+      const result = await projectCloseSyncService.syncProjectCloses({
+        ...options(),
+        shouldContinue: () => transactionMock.mock.calls.length < 1,
+      });
+
+      expect(result).toMatchObject({ processedSchedules: 1, closed: 0 });
+      expect(projectUpdateMock).not.toHaveBeenCalled();
+      expect(eventKinds()).not.toContain("SERIES_RESOLVED");
+      expect(notifyProjectCloseTransitionMock).not.toHaveBeenCalled();
+      expect(projectCloseOperationUpdateManyMock).toHaveBeenCalledWith({
+        where: {
+          id: CLOSE_ID,
+          state: ProjectCloseOperationState.CLOSING,
+          leaseToken: expect.any(String),
+        },
+        data: {
+          leaseToken: null,
+          leasedAt: null,
+          nextAttemptAt: expect.any(Date),
+        },
+      });
+    });
+
+    it("Ends a Paused schedule without releasing its owed Runs", async () => {
+      taskScheduleFindFirstMock
+        .mockResolvedValueOnce(scheduleCandidate)
+        .mockResolvedValue(null);
+      taskScheduleFindUniqueOrThrowMock.mockResolvedValue({
+        ...schedule,
+        state: TaskScheduleState.PAUSED,
+      });
+
+      const result = await projectCloseSyncService.syncProjectCloses(options());
+
+      expect(result.closed).toBe(1);
+      expect(taskCreateMock).not.toHaveBeenCalled();
+      expect(taskScheduleUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: schedule.id, revision: 3, releasedCount: 5 },
+        data: {
+          releasedCount: 5,
+          state: TaskScheduleState.ENDED,
+          nextRunAt: null,
+          revision: { increment: 1 },
+        },
+      });
+    });
+
+    it("fails the batch, naming the schedule, when it changed under the close", async () => {
+      taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
+      taskScheduleUpdateManyMock.mockResolvedValue({ count: 0 });
+      projectCloseOperationFindFirstMock.mockResolvedValue({
+        attempts: 0,
+        projectId: PROJECT_ID,
+      });
+
+      const result = await projectCloseSyncService.syncProjectCloses(options());
+
+      expect(result).toMatchObject({ closed: 0, failed: 0 });
+      expect(projectUpdateMock).not.toHaveBeenCalled();
+      expect(projectEventCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            kind: "BATCH_FAILED",
+            payload: {
+              attempts: 1,
+              failed: false,
+              scheduleId: schedule.id,
+              message: "Scheduled work could not be closed",
+            },
+          }),
+        }),
+      );
     });
   });
 });

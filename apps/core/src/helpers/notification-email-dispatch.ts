@@ -130,8 +130,7 @@ async function committedRow(id: string): Promise<null | { isRead: boolean }> {
  * (SOK-1142). A task is the opposite case. The question it asked and the
  * finish it reports are cleared by different things, and a reader who turned
  * the finished-task email on expects it whether or not they answered the
- * question: an unread "schedule removed" row, which no run ends, would
- * otherwise hold every finish of that task out of the inbox for good.
+ * question, so an unread question row never holds a finish out of the inbox.
  */
 const SHARED_EMAIL_CATEGORIES: readonly NotificationCategory[] = [
   "CHAT_ROOM_MESSAGE",

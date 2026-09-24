@@ -859,6 +859,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
         where: { id: "agent-v1-existing" },
         data: expect.objectContaining({
           summary: null,
+          summaryDeclinedAt: null,
           tags: { set: [{ name: "tag-a" }, { name: "tag-b" }] },
         }),
       }),
@@ -3000,7 +3001,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
       },
     ]);
     openrouterGenerateAgentSummaryMock
-      .mockResolvedValueOnce("Summary one")
+      .mockResolvedValueOnce({ kind: "summary", text: "Summary one" })
       .mockResolvedValueOnce(null);
 
     await agentSyncService.syncAgentSummaries(options);
@@ -3010,6 +3011,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
         status: AgentStatus.ONLINE,
         isShown: true,
         summary: null,
+        summaryDeclinedAt: null,
         OR: [
           { description: { not: null } },
           { metadataOverride: { description: { not: null } } },
@@ -3043,6 +3045,30 @@ describe("agentSyncService.syncAgentSummaries", () => {
       data: {
         summary: "Summary one",
       },
+    });
+  });
+
+  it("records a declined summary so the agent leaves the candidate set", async () => {
+    const agentSyncService = await getAgentSyncService();
+    const updatedAt = new Date("2026-09-01T00:00:00.000Z");
+    agentFindManyMock.mockResolvedValue([
+      {
+        id: "agent-1",
+        description: "test",
+        metadataOverride: null,
+        updatedAt,
+      },
+    ]);
+    openrouterGenerateAgentSummaryMock.mockResolvedValue({ kind: "declined" });
+
+    await agentSyncService.syncAgentSummaries({
+      abortSignal: new AbortController().signal,
+      shouldContinue: () => true,
+    });
+
+    expect(agentUpdateMock).toHaveBeenCalledWith({
+      where: { id: "agent-1" },
+      data: { summaryDeclinedAt: expect.any(Date), updatedAt },
     });
   });
 
@@ -3080,7 +3106,10 @@ describe("agentSyncService.syncAgentSummaries", () => {
         metadataOverride: null,
       },
     ]);
-    openrouterGenerateAgentSummaryMock.mockResolvedValue("Summary one");
+    openrouterGenerateAgentSummaryMock.mockResolvedValue({
+      kind: "summary",
+      text: "Summary one",
+    });
 
     let continueChecks = 0;
     const shouldContinue = vi.fn(() => {
@@ -3132,7 +3161,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
     ]);
     openrouterGenerateAgentSummaryMock
       .mockRejectedValueOnce(new Error("OpenRouter down"))
-      .mockResolvedValueOnce("Summary two");
+      .mockResolvedValueOnce({ kind: "summary", text: "Summary two" });
 
     await agentSyncService.syncAgentSummaries(options);
 

@@ -10,7 +10,6 @@ const {
   projectFindManyMock,
   resolveWorkspaceForContextMock,
   taskFindFirstMock,
-  taskScheduleOccurrenceFindFirstMock,
   vendorGrantFindUniqueMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
@@ -20,7 +19,6 @@ const {
   projectFindManyMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
-  taskScheduleOccurrenceFindFirstMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
 }));
@@ -53,7 +51,6 @@ vi.mock("@/lib/db/prisma", () => ({
     member: { findFirst: memberFindFirstMock },
     project: { findMany: projectFindManyMock },
     task: { findFirst: taskFindFirstMock },
-    taskScheduleOccurrence: { findFirst: taskScheduleOccurrenceFindFirstMock },
     vendorGrant: { findUnique: vendorGrantFindUniqueMock },
     workspace: { findUnique: workspaceFindUniqueMock },
   },
@@ -123,7 +120,6 @@ describe("GET /workspaces/calendar/sources", () => {
       user: { name: "Ada Lovelace", image: "https://example.com/ada.png" },
     });
     projectFindManyMock.mockResolvedValue([]);
-    taskScheduleOccurrenceFindFirstMock.mockResolvedValue(null);
     taskFindFirstMock.mockResolvedValue(null);
     vendorGrantFindUniqueMock.mockResolvedValue({ status: "GRANTED" });
   });
@@ -252,6 +248,14 @@ describe("GET /workspaces/calendar/sources", () => {
         coworkerFindFirstMock.mockResolvedValue(null);
       },
     ],
+    [
+      "reaches the member through a baseline Task but has no workspace grant",
+      COWORKER_AUTH_CONTEXT,
+      () => {
+        vendorGrantFindUniqueMock.mockResolvedValue(null);
+        taskFindFirstMock.mockResolvedValue({ id: "task_baseline" });
+      },
+    ],
   ])(
     "keeps sources visible but unschedulable when the caller %s",
     async (_reason, authContext, deny) => {
@@ -321,33 +325,5 @@ describe("GET /workspaces/calendar/sources", () => {
     expect(response.status).toBe(403);
     expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
     expect(projectFindManyMock).not.toHaveBeenCalled();
-  });
-
-  it("adds the legacy source only when the workspace has legacy occurrences", async () => {
-    taskScheduleOccurrenceFindFirstMock.mockResolvedValue({
-      id: "occurrence_1",
-    });
-
-    const response = await createApp().request(
-      "http://localhost/calendar/sources",
-    );
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data.at(-1)).toEqual({
-      sourceId: `legacy-unknown:${WORKSPACE_ID}`,
-      sourceType: "LEGACY_UNKNOWN",
-      displayName: "Legacy source",
-      logoUrl: null,
-      paletteToken: "amber",
-      isSchedulable: false,
-    });
-    expect(taskScheduleOccurrenceFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        sourceWorkspaceId: WORKSPACE_ID,
-        sourceType: "LEGACY_UNKNOWN",
-      },
-      select: { id: true },
-    });
   });
 });

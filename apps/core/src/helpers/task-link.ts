@@ -34,13 +34,6 @@ function mapTaskLinkRelation(
       return outgoing ? "parent" : "child";
     case TaskLinkType.DUPLICATE:
       return "duplicate";
-    case TaskLinkType.SCHEDULE:
-      // from = template, to = run
-      return outgoing ? "schedule_run" : "schedule_series";
-    default: {
-      const _exhaustive: never = type;
-      return _exhaustive;
-    }
   }
 }
 

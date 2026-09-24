@@ -2,7 +2,6 @@ import "server-only";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type {
-  CreateScheduledTaskRequest,
   CreateTaskContext,
   GetWorkspacesCalendarData,
   JobSummary,
@@ -11,6 +10,7 @@ import type {
   TaskEvent,
   TaskLink,
   TaskLinkDeleted,
+  TaskParticipant,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
   WorkspaceCalendarItem,
@@ -30,8 +30,9 @@ interface ListTasksParams {
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "nextRunAt";
-  hasSchedule?: boolean;
+  sort?: "createdAt";
+  /** Only the Tasks this Task Schedule created. */
+  scheduleId?: string;
 }
 
 interface ListJobsParams {
@@ -52,6 +53,8 @@ interface CreateTaskInput {
   projectId?: string | null;
   context?: CreateTaskContext;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
+  /** Start at this future time: Core creates the Task Queued. */
+  runAt?: Date;
   visibility?: "PUBLIC" | "PRIVATE";
 }
 
@@ -63,17 +66,14 @@ interface PatchTaskInput {
   assigneeUserId?: string | null;
   projectId?: string | null;
   context?: CreateTaskContext;
-  /**
-   * Required by Core while the Task has an active schedule series: field edits
-   * serialize against release under the same revision, and the returned Task
-   * carries the incremented value the following schedule write must send.
-   */
-  expectedScheduleRevision?: number;
+  /** A future time queues the Task, or moves the time of a Queued one. */
+  runAt?: Date;
 }
 
 interface CreateTaskEventInput {
   status?: TaskStatus;
   comment?: string;
+  mentionedUserIds?: string[];
 }
 
 interface CreateTaskLinkInput {
@@ -149,18 +149,13 @@ export const taskService = (() => {
           ? { assigneeUserId: params.assigneeUserId }
           : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
+      scheduleId: params.scheduleId,
       q: params.q,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),
       cursor: params.cursor ?? undefined,
       limit: params.limit,
       sort: params.sort,
-      hasSchedule:
-        params.hasSchedule === undefined
-          ? undefined
-          : params.hasSchedule
-            ? "true"
-            : "false",
     });
 
     return {
@@ -248,18 +243,6 @@ export const taskService = (() => {
     return result.data;
   }
 
-  async function createScheduledTask(
-    input: CreateScheduledTaskRequest,
-  ): Promise<Task> {
-    const result = await coreClient.createScheduledTask(input);
-
-    if (!result.data) {
-      throw new Error("Failed to create scheduled task");
-    }
-
-    return result.data;
-  }
-
   async function createTaskEvent(
     taskId: string,
     input: CreateTaskEventInput,
@@ -339,6 +322,19 @@ export const taskService = (() => {
     return result.data;
   }
 
+  async function removeTaskParticipant(
+    taskId: string,
+    userId: string,
+  ): Promise<TaskParticipant[]> {
+    const result = await coreClient.deleteTaskParticipant(taskId, userId);
+
+    if (!result.data) {
+      throw new Error("Failed to remove task participant");
+    }
+
+    return result.data.participants;
+  }
+
   async function deleteTask(taskId: string): Promise<Task> {
     const result = await coreClient.deleteTask(taskId);
 
@@ -380,10 +376,10 @@ export const taskService = (() => {
     getTaskById,
     getTaskWorkspace,
     createTask,
-    createScheduledTask,
     createTaskLink,
     createTaskEvent,
     deleteTaskLink,
+    removeTaskParticipant,
     moveTaskToWorkspace,
     patchTask,
     listTaskLinks,

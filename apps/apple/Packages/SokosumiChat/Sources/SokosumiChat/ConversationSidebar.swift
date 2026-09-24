@@ -42,23 +42,88 @@ public final class ConversationSidebar: ObservableObject {
   /// cannot come back by itself the next time a second room is pinned.
   @Published public private(set) var pinnedReorderMode = false
   @Published public var selectedRoomId: String?
+  /// The chat-level Threads view stands in the detail column in place of the selected room (row 24f1, web
+  /// `/chat/threads`). The selected room stays selected behind it, off screen, and is read again on return.
+  @Published public var showsThreadsView = false
   @Published public var isLoading = false
   @Published public private(set) var errorMessage: String?
   @Published public private(set) var collapsedSections = Section.initiallyCollapsed
+  /// The Unreads filter (row 24f2, web's `useChatUnreadsFilter`): remembered per install, never flipped by itself.
+  @Published public private(set) var unreadsFilterOn: Bool
+  /// The filter's pass so far; empty while it is off and after a workspace change (web remounts its list).
+  @Published public private(set) var unreadsFilterPass = UnreadsFilterPass()
+  /// Mark all as read is running; its control waits for it.
+  @Published public private(set) var isMarkingAllUnreadRead = false
   public let readAttention = RoomReadAttention()
   private let savedRoom: SavedRoomSelection
+  private let unreadsFilterPreference: UnreadsFilterPreference
+  private var markAllRequest = 0
   private var generation = 0
   private var refreshInFlight = false
   private var reorderRequest = 0
   /// Sort keys of the newest reorder Core has not answered yet; a list read meanwhile keeps them.
   private var pendingPinnedOrder: [String: Date] = [:]
 
-  public init(savedRoom: SavedRoomSelection = SavedRoomSelection()) {
+  public init(savedRoom: SavedRoomSelection = SavedRoomSelection(), unreadsFilter: UnreadsFilterPreference = .transient) {
     self.savedRoom = savedRoom
+    unreadsFilterPreference = unreadsFilter
+    unreadsFilterOn = unreadsFilter.isOn
   }
 
   public var partitioned: PartitionedSidebarRooms {
     partitionRoomsForSidebar(readAttention.applying(to: rooms))
+  }
+
+  /// Web's toggle: switching off ends the pass, so switching on again starts a new one.
+  public func setUnreadsFilter(_ isOn: Bool) {
+    unreadsFilterOn = isOn
+    unreadsFilterPreference.isOn = isOn
+    if !isOn {
+      unreadsFilterPass = UnreadsFilterPass()
+    }
+    endPinnedReorderModeIfUnavailable()
+  }
+
+  /// What the filter lists, or nil while it is off. `activeRoomId` is the room on screen (web's highlight).
+  public func unreadsFilter(activeRoomId: String?, hasPendingInvitation: Bool) -> UnreadsFilterList? {
+    guard unreadsFilterOn else { return nil }
+    return unreadsFilterList(
+      rooms: readAttention.applying(to: rooms), pass: unreadsFilterPass, activeRoomId: activeRoomId, hasPendingInvitation: hasPendingInvitation
+    )
+  }
+
+  /// Keeps the pass the last list was drawn from (web's `setFilterPass` during render), so a room read after it
+  /// arrived keeps its place. Views hop here; a pass drawn before the filter went off is dropped.
+  public func keepUnreadsFilterPass(_ pass: UnreadsFilterPass) {
+    guard unreadsFilterOn, pass != unreadsFilterPass else { return }
+    unreadsFilterPass = pass
+  }
+
+  /// Web's Mark all as read: every room's reads as `roomUnreadReads` says. A failure says "Could not mark
+  /// everything as read." once every read has settled. Returns whether it ran.
+  @discardableResult
+  public func markAllUnreadRead(client: Client, organizationSlug: String?) async throws -> Bool {
+    let current = readAttention.applying(to: rooms)
+    let targets = unreadsMarkAllTargets(current)
+    guard !isMarkingAllUnreadRead, !targets.isEmpty else { return false }
+    markAllRequest += 1
+    let request = markAllRequest
+    isMarkingAllUnreadRead = true
+    actionError = nil
+    defer {
+      if request == markAllRequest {
+        isMarkingAllUnreadRead = false
+      }
+    }
+    do {
+      try await readAttention.markAllUnreadRead(targets, rooms: current, client: client, organizationSlug: organizationSlug)
+    } catch {
+      // Another workspace owns the sidebar now.
+      guard request == markAllRequest, !Task.isCancelled else { return true }
+      actionError = "Could not mark everything as read."
+      throw error
+    }
+    return true
   }
 
   public func setExpanded(_ expanded: Bool, section: Section) {
@@ -70,9 +135,10 @@ public final class ConversationSidebar: ObservableObject {
     endPinnedReorderModeIfUnavailable()
   }
 
-  /// Web's `canReorderPinned`: the section is open and holds at least two rooms.
+  /// Web's `canReorderPinned`: the section is open and holds at least two rooms, and the Unreads filter, whose
+  /// Pinned group is fixed, is off.
   public var canReorderPinned: Bool {
-    !collapsedSections.contains(.pinned) && rooms.count { $0.starredAt != nil } > 1
+    !unreadsFilterOn && !collapsedSections.contains(.pinned) && rooms.count { $0.starredAt != nil } > 1
   }
 
   public func setPinnedReorderMode(_ enabled: Bool) {
@@ -90,6 +156,7 @@ public final class ConversationSidebar: ObservableObject {
     readAttention.reset()
     rooms = []
     selectedRoomId = nil
+    showsThreadsView = false
     collapsedSections = Section.initiallyCollapsed
   }
 
@@ -116,6 +183,10 @@ public final class ConversationSidebar: ObservableObject {
     reorderRequest += 1
     pendingPinnedOrder = [:]
     pinnedReorderMode = false
+    // Web keys its list by workspace, so a pass ends with it; the filter itself is the reader's.
+    unreadsFilterPass = UnreadsFilterPass()
+    markAllRequest += 1
+    isMarkingAllUnreadRead = false
     pendingActions = [:]
     actionError = nil
   }

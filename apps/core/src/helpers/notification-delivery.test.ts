@@ -127,20 +127,12 @@ describe("toNotificationCategory", () => {
   it("names every key that waits on the reader", () => {
     expect(TASK_ATTENTION_MESSAGE_KEYS).toEqual([
       "Notifications.Task.assigned",
+      "Notifications.Task.participantAdded",
       "Notifications.Task.inputRequired",
       "Notifications.Task.approvalRequired",
       "Notifications.Task.authenticationRequired",
       "Notifications.Task.outOfCredits",
     ]);
-  });
-
-  it("keeps operator schedule removal on the quiet update row", () => {
-    const messageKey = "Notifications.Task.scheduleRemovedByOperator";
-
-    expect(TASK_ATTENTION_MESSAGE_KEYS).not.toContain(messageKey);
-    expect(toNotificationCategory(NotificationKind.TASK, messageKey)).toBe(
-      "TASK_UPDATE",
-    );
   });
 
   it("puts every listed attention key on the loud row", () => {

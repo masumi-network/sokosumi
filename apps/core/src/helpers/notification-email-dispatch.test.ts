@@ -8,10 +8,7 @@ import {
 } from "@sokosumi/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  TASK_COMPLETED_MESSAGE_KEY,
-  TASK_SCHEDULE_REMOVED_MESSAGE_KEY,
-} from "./notification-delivery";
+import { TASK_COMPLETED_MESSAGE_KEY } from "./notification-delivery";
 import {
   cancelNotificationEmails,
   dispatchNotificationEmail,
@@ -319,12 +316,12 @@ describe("dispatchNotificationEmail", () => {
     );
   });
 
-  it("skips calendar emails after workspace access is revoked", async () => {
+  it("skips a workspace row's email after workspace access is revoked", async () => {
     hasCalendarWorkspaceAccessMock.mockResolvedValue(false);
     await dispatch(
       finished({
         workspaceId: "workspace_1",
-        messageKey: "Notifications.Task.scheduleUpdatedByMember",
+        messageKey: "Notifications.Task.failed",
       }),
     );
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -335,12 +332,12 @@ describe("dispatchNotificationEmail", () => {
     );
   });
 
-  it("delays calendar email while the app is in front", async () => {
+  it("delays a workspace row's email while the app is in front", async () => {
     hasAppInFrontMock.mockResolvedValue(true);
     await dispatch(
       finished({
         workspaceId: "workspace_1",
-        messageKey: "Notifications.Task.scheduleUpdatedByMember",
+        messageKey: "Notifications.Task.failed",
       }),
     );
     expect(sendEmailMock).toHaveBeenCalledWith(
@@ -358,7 +355,7 @@ describe("dispatchNotificationEmail", () => {
     await dispatch(
       finished({
         workspaceId: "workspace_1",
-        messageKey: "Notifications.Task.scheduleUpdatedByMember",
+        messageKey: "Notifications.Task.failed",
       }),
     );
     expect(sendEmailMock).toHaveBeenCalledOnce();
@@ -603,13 +600,12 @@ describe("dispatchNotificationEmail", () => {
 
   /**
    * The question a task asked and the finish it reports are two emails the
-   * reader turned on separately. A "schedule removed" row is the one no run
-   * ends, so without this it would hold every finish of the task out of the
-   * inbox until the reader happened to open that row.
+   * reader turned on separately, so an unread question row does not hold the
+   * finish out of the inbox.
    */
   it("mails a task's finish although its unanswered question was mailed", async () => {
     notificationFindManyMock.mockResolvedValue([
-      { messageKey: TASK_SCHEDULE_REMOVED_MESSAGE_KEY },
+      { messageKey: TASK_INPUT_REQUIRED_MESSAGE_KEY },
     ]);
 
     await dispatch(finished());

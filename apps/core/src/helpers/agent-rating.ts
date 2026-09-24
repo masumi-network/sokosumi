@@ -1,4 +1,5 @@
-import type { Prisma } from "@sokosumi/database";
+import { JobType, OnChainJobStatus, type Prisma } from "@sokosumi/database";
+import { finalizedAgentJobStatuses } from "@sokosumi/database/types/job";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import {
@@ -20,6 +21,57 @@ import {
  * every read here: public aggregates and feeds filter `isHidden`, while the
  * caller's OWN review is always visible to them.
  */
+
+/**
+ * Finished: agent status Completed/Failed, and on-chain status is not
+ * FUNDS_LOCKED, REFUND_REQUESTED, or REFUND_AUTHORIZED (authorized refund
+ * still needs its on-chain withdrawal), or is null for FREE jobs.
+ */
+function finishedJobsWhere(): Prisma.JobWhereInput {
+  return {
+    AND: [
+      {
+        events: {
+          some: {
+            status: {
+              in: finalizedAgentJobStatuses,
+            },
+          },
+        },
+        OR: [
+          { purchase: { onChainStatus: null }, jobType: JobType.FREE },
+          {
+            purchase: {
+              onChainStatus: {
+                notIn: [
+                  OnChainJobStatus.FUNDS_LOCKED,
+                  OnChainJobStatus.REFUND_REQUESTED,
+                  OnChainJobStatus.REFUND_AUTHORIZED,
+                ],
+              },
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+export async function doesUserHaveFinishedJobWithAgent(
+  ownerId: string,
+  agentId: string,
+  tx: Prisma.TransactionClient,
+): Promise<boolean> {
+  const jobCount = await tx.job.count({
+    where: {
+      ownerId,
+      agentId,
+      ...finishedJobsWhere(),
+    },
+  });
+
+  return jobCount > 0;
+}
 
 export const calculateAgentRating = async (
   agentId: string,

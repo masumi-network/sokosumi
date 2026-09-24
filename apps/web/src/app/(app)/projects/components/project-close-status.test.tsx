@@ -121,7 +121,7 @@ describe("ProjectCloseStatusCard", () => {
         status={buildStatus({
           state: "CLOSE_FAILED",
           failure: {
-            seriesTaskId: "task-1",
+            scheduleId: "schedule-1",
             message: "The schedule could not be resolved.",
           },
         })}
@@ -161,7 +161,7 @@ describe("ProjectCloseStatusCard", () => {
     expect(refreshMock).toHaveBeenCalled();
   });
 
-  it("offers canceling owed work only for a failed series", async () => {
+  it("offers canceling owed work only for a failed Task Schedule", async () => {
     const user = userEvent.setup();
     cancelOwedMock.mockResolvedValue({});
     const { rerender } = render(
@@ -177,7 +177,7 @@ describe("ProjectCloseStatusCard", () => {
       <ProjectCloseStatusCard
         status={buildStatus({
           state: "CLOSE_FAILED",
-          failure: { seriesTaskId: "task-1", message: "Blocked" },
+          failure: { scheduleId: "schedule-1", message: "Blocked" },
         })}
       />,
     );
@@ -203,7 +203,7 @@ describe("ProjectCloseStatusCard", () => {
     );
   });
 
-  it("describes failures without a series as retry-only", () => {
+  it("describes failures without a Task Schedule as retry-only", () => {
     const { rerender } = render(
       <ProjectCloseStatusCard
         status={buildStatus({ state: "CLOSE_FAILED" })}
@@ -218,7 +218,7 @@ describe("ProjectCloseStatusCard", () => {
       <ProjectCloseStatusCard
         status={buildStatus({
           state: "CLOSE_FAILED",
-          failure: { seriesTaskId: "task-1", message: "Blocked" },
+          failure: { scheduleId: "schedule-1", message: "Blocked" },
         })}
       />,
     );

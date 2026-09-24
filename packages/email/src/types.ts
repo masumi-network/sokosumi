@@ -80,7 +80,7 @@ export type TaskAttentionReason =
   | "authenticationRequired"
   | "inputRequired"
   | "outOfCredits"
-  | "scheduleRemovedByOperator";
+  | "participantAdded";
 
 interface TaskEmailProps extends NotificationEmailProps {
   /** Whoever the task is waiting on the reader for, or who finished it. */
@@ -95,16 +95,7 @@ export interface TaskAttentionEmailProps extends TaskEmailProps {
 }
 
 /** Catalog keys for task updates, plus `updated` as the fallback for unknown keys. */
-export type TaskUpdateReason =
-  | "failed"
-  | "canceled"
-  | "scheduleRepaired"
-  | "scheduleRemovedByOperator"
-  | "scheduleUpdatedByMember"
-  | "scheduleRemovedByMember"
-  | "scheduleSourceChangedByMember"
-  | "scheduleOccurrenceChangedByMember"
-  | "updated";
+export type TaskUpdateReason = "failed" | "canceled" | "updated";
 
 /** A task changed without asking anything of the reader (SOK-1090, SOK-1142). */
 export interface TaskUpdateEmailProps extends TaskEmailProps {

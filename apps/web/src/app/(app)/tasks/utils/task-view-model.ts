@@ -12,7 +12,10 @@ import type {
 } from "@/lib/clients/generated/core/types.gen";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 import { parseMentions } from "@/lib/utils/mention-parser";
-import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
+import {
+  stripInlineMarkdown,
+  stripMarkdownToText,
+} from "@/lib/utils/strip-markdown";
 
 function getCommentsCount(events: TaskEvent[]): number {
   return events.filter((event) => Boolean(event.comment)).length;
@@ -169,11 +172,11 @@ export function mapTaskToTaskWithCoworker(
   const descriptionPlain = strippedDescription || null;
   const createdAt = task.createdAt.toISOString();
   const updatedAt = task.updatedAt.toISOString();
-  const nextRunAt = task.nextRunAt?.toISOString() ?? null;
+  const runAt = task.runAt?.toISOString() ?? null;
 
   return {
     id: task.id,
-    name: task.name,
+    name: stripInlineMarkdown(task.name),
     status: task.status,
     visibility: task.visibility,
     ownerId: task.ownerId,
@@ -181,10 +184,15 @@ export function mapTaskToTaskWithCoworker(
     project: task.project ?? null,
     createdAt,
     updatedAt,
-    nextRunAt,
-    metadata: task.metadata ?? null,
+    runAt,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,
+    participants: task.participants.map(({ user }) => ({
+      id: user.id,
+      name: user.name,
+      image: user.image,
+      kind: "user",
+    })),
     share: "share" in task ? (task.share ?? null) : null,
     agents,
     commentsCount:

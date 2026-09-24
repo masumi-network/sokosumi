@@ -102,6 +102,52 @@ _Avoid_: Allowed transition, manual status option, status dropdown values
 The control on a Task that changes its status: a searchable list of the selectable statuses with the current one checked.
 _Avoid_: Status select, status dropdown
 
+**Run at**:
+The one time a Task is set to start, instead of now. A Task has at most one; it never repeats.
+_Avoid_: Schedule, scheduled task (for a single Task), once mode
+
+**Task Schedule**:
+A repeating rule plus the blueprint of the Task it makes: each Run creates a new Task from that blueprint. Not a Task; it has no Task status, only Active, Paused, or Ended. Editing it changes future Runs only.
+_Avoid_: Recurring task, series task, template Task, automation
+
+**Run** (of a Task Schedule):
+One point in time at which a Task Schedule creates a Task. A single Run can be skipped, moved, or restored without changing the rule. The Run only creates the Task; the work happens when the Task is picked up, which is not part of the Run. Distinct from a Task's Run at and from a Job.
+_Avoid_: Occurrence, instance
+
+### Social publishing
+
+**Social account**:
+An external publishing identity on a social provider, such as an X account. It may be connected to more than one Project.
+_Avoid_: Integration, Project account
+
+**Project social connection**:
+A Project's authorization to publish through one Social account. A Project may have multiple connections, including to different accounts on the same provider.
+_Avoid_: Social account (when meaning the Project authorization), integration account
+
+**Social accounts**:
+The section of a Project's Social module page (`/projects/{id}/social`) where Social connection managers view and manage a Project's Social connections. It is not a Project settings surface and not a Calendar surface.
+_Avoid_: Social account (when meaning the external publishing identity), integrations page
+
+**Social connection manager**:
+An interactive human user who belongs to a Project's Workspace and may view, connect, reconnect, or disconnect that Project's Social connections. Coworkers, orchestrators, and API keys are not Social connection managers.
+_Avoid_: Connector (the person who completed OAuth), automation
+
+**Reconnect social connection**:
+Reauthorizing a Project social connection with the same Social account after it needs authentication again. It cannot change the external publishing identity.
+_Avoid_: Replace, connect another account
+
+**Replace social connection**:
+Disconnecting a Project's current Social account and connecting a different one. It is a deliberate identity change, not reconnecting.
+_Avoid_: Reconnect, edit connection
+
+**Social connection audit record**:
+A non-executable record of a Project social connection lifecycle event, including the Project, Social account identity, action, actor or scheduler, timestamp, and provider outcome. It never contains OAuth values.
+_Avoid_: Active connection, credential log
+
+**Social scheduling authorization**:
+The consent granted when a Social account is connected that lets the Project's scheduler publish through that Project social connection until it is disconnected.
+_Avoid_: Per-post approval, connector approval
+
 ### Task payments
 
 **Task payment claim**:
@@ -125,6 +171,10 @@ _Avoid_: Inbox, activity feed (unless intentionally renaming the product surface
 **Needs you**:
 The Notification Center view that lists only Notifications whose request is still open on the record they point at: a task or job paused on input, a pending vendor grant or coworker access request. Answering the request is what removes a row; reading it does not. One row per waiting record, the newest.
 _Avoid_: Actionable inbox, to-do (this is a lens over Notifications, not a task list), unread (a read row still needs the reader until answered)
+
+**Mentions** (Notification Center view):
+The Notification Center view that lists only Notifications for a User mention of the reader, and their reminders, read or not. A direct message is not a mention and stays out; an @mention written inside a Direct is one. Its tab counts the mentions still unread, so reading one lowers the count and leaves the row.
+_Avoid_: Inbox, mentions badge (that is the room's sidebar count), counting direct messages as mentions
 
 **Account notice**:
 A workspace- or account-level call to action that is not itself a notification, but may surface next to notifications in the Notification Center.
@@ -237,6 +287,10 @@ _Avoid_: Active pill, selected dot, a left-edge selection bar (that edge is the 
 **Rail section header**:
 A chat sidebar section's heading on the collapsed sidebar rail: one 32px square holding the section's icon (Channels `#`, External a building, Direct Messages a speech bubble, Archived a box), named by its tooltip, which opens and closes the section there as the titled heading does expanded. Every section has one, so the sections below keep their place when the sidebar toggles. It stands where the expanded heading's row stood, so it also marks where one section ends and the next begins. Dimmed while its section is closed. A closed section that holds something for the reader says so on its heading, by the rules its rooms follow: the Rail attention pill beside the rail square, bold on the expanded title; a pending External invitation counts as a mention. Archived's square is the one that expands the sidebar instead of opening in place: its rows never reach the rail, because they are static and their Restore and Delete live in a menu no 32px square has room for, so opening it there would dim a square and show nothing.
 _Avoid_: Forcing sections open on the rail, a hairline divider between sections, the globe as the External icon (that is the Channel tile's corner mark), archived rows on the rail, a section with no rail square (everything under it then jumps on a toggle)
+
+**Unreads filter**:
+The chat list's switch between All and Unreads: on, it keeps only rooms with Room unread or an unread Thread, with Pinned always shown. The reader's choice is remembered per browser — one value for every organisation, shared by the sidebar and the phone's Chats page — and never flips by itself: with nothing unread it stays on and the list reads All caught up.
+_Avoid_: Inbox, unread view, resetting to All when caught up, a per-organisation or per-account setting
 
 **Rail actions**:
 What the collapsed sidebar rail lets the reader do: go somewhere (a nav destination, a Chat room), open or close a chat section, and expand the sidebar (the logo, a pending External invitation's tile, or the Archived section's square). Everything that changes a room or makes one lives in the expanded sidebar only: the room menu (mark unread, pin, mute, edit, leave), Create channel, Browse channels, Start a Direct, and an invitation's Accept and Decline. A 32px square has no room for a second control beside its mark, and one press on the logo brings all of them back. Decided, not an oversight.

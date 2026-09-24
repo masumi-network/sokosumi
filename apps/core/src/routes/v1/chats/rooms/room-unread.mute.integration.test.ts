@@ -14,7 +14,6 @@ import {
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
 import {
-  countChatRoomUnreadThreads,
   getChatRoomThreadAggregates,
   getChatRoomUnreadCounts,
   markAllChatRoomThreadsRead,
@@ -82,6 +81,14 @@ async function settledReply(parentMessageId: string) {
       createdAt: past(450),
     },
   });
+}
+
+/** Unread threads the header counts: the unread-count route's answer. */
+async function unreadThreadCount(userId: string) {
+  const unread = await getChatRoomThreadAggregates(ROOM_ID, userId, prisma!, {
+    unreadOnly: true,
+  });
+  return unread.length;
 }
 
 describeWithDb("thread mute against Postgres", () => {
@@ -171,9 +178,7 @@ describeWithDb("thread mute against Postgres", () => {
 
     expect(await roomUnread()).toBe(1);
     expect(await unreadRepliesOn(PARENT_ID)).toBe(1);
-    expect(await countChatRoomUnreadThreads(ROOM_ID, READER_ID, prisma!)).toBe(
-      1,
-    );
+    expect(await unreadThreadCount(READER_ID)).toBe(1);
   });
 
   it("stops counting replies once the thread is muted", async () => {
@@ -182,9 +187,7 @@ describeWithDb("thread mute against Postgres", () => {
 
     expect(await roomUnread()).toBe(0);
     expect(await unreadRepliesOn(PARENT_ID)).toBe(0);
-    expect(await countChatRoomUnreadThreads(ROOM_ID, READER_ID, prisma!)).toBe(
-      0,
-    );
+    expect(await unreadThreadCount(READER_ID)).toBe(0);
   });
 
   it("clears the replies already waiting when it mutes", async () => {
@@ -273,9 +276,7 @@ describeWithDb("thread mute against Postgres", () => {
     expect(muted?.lastReadAt).toEqual(mutedAt);
     expect(await unreadRepliesOn(PARENT_ID)).toBe(1);
     expect(await unreadRepliesOn(OTHER_PARENT_ID)).toBe(0);
-    expect(await countChatRoomUnreadThreads(ROOM_ID, READER_ID, prisma!)).toBe(
-      1,
-    );
+    expect(await unreadThreadCount(READER_ID)).toBe(1);
     expect(await roomUnread()).toBe(1);
   });
 
@@ -355,9 +356,7 @@ describeWithDb("thread mute against Postgres", () => {
     await reply(PARENT_ID);
 
     expect(await lurkerUnread()).toBe(before);
-    expect(await countChatRoomUnreadThreads(ROOM_ID, LURKER_ID, prisma!)).toBe(
-      0,
-    );
+    expect(await unreadThreadCount(LURKER_ID)).toBe(0);
   });
 
   it("keeps a mention that broke through when the reader unmutes", async () => {

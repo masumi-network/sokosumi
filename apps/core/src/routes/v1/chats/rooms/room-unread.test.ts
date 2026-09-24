@@ -7,7 +7,6 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  countChatRoomUnreadThreads,
   getChatRoomThreadAggregates,
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
@@ -261,40 +260,6 @@ describe("getChatRoomThreadAggregates", () => {
   });
 });
 
-describe("countChatRoomUnreadThreads", () => {
-  it("counts participant unread parents without hydrating rows", async () => {
-    const queryRawUnsafe = vi.fn().mockResolvedValue([{ count: 4 }]);
-    const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
-
-    const count = await countChatRoomUnreadThreads(
-      "550e8400-e29b-41d4-a716-446655440000",
-      "user_123",
-      tx,
-    );
-
-    expect(count).toBe(4);
-    expect(queryRawUnsafe).toHaveBeenCalledOnce();
-    const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
-    expect(sql).toContain("COUNT(DISTINCT parent.id)");
-    expect(sql).toContain('room_read."createdAt"');
-    expect(sql).toContain("'-infinity'::timestamp");
-    expect(sql).toContain('thread_read."lastReadAt"');
-    expect(sql).toContain('reply."deletedAt" IS NULL');
-    expect(sql).toContain('parent."deletedAt" IS NULL');
-    expect(sql).toMatch(
-      /reply\."senderUserId" IS NULL OR reply\."senderUserId" <>/,
-    );
-    expect(sql).toContain("chat_room_user_mention");
-    expect(sql).toContain("own_reply");
-    expect(sql).not.toContain("ORDER BY");
-    expect(sql).not.toContain("LIMIT");
-    expect(queryRawUnsafe.mock.calls[0]?.slice(1)).toEqual([
-      "550e8400-e29b-41d4-a716-446655440000",
-      "user_123",
-    ]);
-  });
-});
-
 describe("markAllChatRoomThreadsRead", () => {
   it("upserts looks for participant unread parents including never-looked", async () => {
     const queryRawUnsafe = vi
@@ -380,7 +345,6 @@ describe("completed reply attention", () => {
     const query = vi.fn().mockResolvedValue([]);
     const tx = { $queryRawUnsafe: query } as never;
     await getChatRoomThreadAggregates("room-a", "user-a", tx);
-    await countChatRoomUnreadThreads("room-a", "user-a", tx);
     await markAllChatRoomThreadsRead("room-a", "user-a", tx);
     for (const [sql] of query.mock.calls) {
       expect(String(sql)).toContain('GREATEST(reply."createdAt"');
@@ -424,10 +388,6 @@ describe("thread mute gate", () => {
       (tx: never) => getChatRoomThreadAggregates(ROOM_ID, USER_ID, tx),
     ],
     [
-      "unread thread count",
-      (tx: never) => countChatRoomUnreadThreads(ROOM_ID, USER_ID, tx),
-    ],
-    [
       "mark all threads",
       (tx: never) => markAllChatRoomThreadsRead(ROOM_ID, USER_ID, tx),
     ],
@@ -445,10 +405,6 @@ describe("thread mute gate", () => {
     [
       "thread aggregates",
       (tx: never) => getChatRoomThreadAggregates(ROOM_ID, USER_ID, tx),
-    ],
-    [
-      "unread thread count",
-      (tx: never) => countChatRoomUnreadThreads(ROOM_ID, USER_ID, tx),
     ],
   ])("still pages a named reader in %s", async (_name, run) => {
     const [sql] = await sqlOf(run);

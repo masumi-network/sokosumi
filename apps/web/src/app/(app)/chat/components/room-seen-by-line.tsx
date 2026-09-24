@@ -83,6 +83,10 @@ export function seenByPendingFor({
  * Its own component so the transcript never reaches for a formatter it will
  * not use — the popover mounts on open, and a closed one is the normal case.
  *
+ * Caption scale, not body scale. The popover answers a side question about a
+ * message, so its names sit a step below the message text rather than
+ * matching it; at body size the list read as louder than the transcript.
+ *
  * Clock times rather than the roster's intervals. Five rows of "vor 3
  * Minuten" is five things to parse; five clock times line up in a column and
  * read as one shape. The roster shows one member at a time, where an interval
@@ -100,18 +104,22 @@ function SeenByDetail({
 
   return (
     <div className="max-h-64 overflow-y-auto">
-      <h3 className="text-muted-foreground px-2 pt-1 pb-1 text-xs font-medium">
+      <h3 className="text-muted-foreground px-2 pt-1 pb-0.5 text-xs font-medium">
         {t("readersTitle")}
       </h3>
       <ul>
         {readers.map(({ participant, lastReadAt }) => (
           <li
             key={participant.id}
-            className="flex items-center gap-2 px-2 py-1"
+            className="flex h-7 items-center gap-2 px-2"
             data-testid={`room-seen-by-reader-${participant.id}`}
           >
-            <ParticipantAvatar participant={participant} className="size-6" />
-            <span className="min-w-0 flex-1 truncate text-sm">
+            <ParticipantAvatar
+              participant={participant}
+              className="size-5"
+              textClassName="text-[0.5rem]"
+            />
+            <span className="min-w-0 flex-1 truncate text-xs">
               {participantName(participant)}
             </span>
             <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
@@ -120,36 +128,51 @@ function SeenByDetail({
           </li>
         ))}
       </ul>
-      {pending.length > 0 ? (
-        <>
-          <h3
-            className="text-muted-foreground mt-1 border-t px-2 pt-2 pb-1 text-xs font-medium"
-            data-testid="room-seen-by-pending-title"
-          >
-            {t("notRead")}
-          </h3>
-          <ul>
-            {pending.map((participant) => (
-              <li
-                key={participant.id}
-                className="flex items-center gap-2 px-2 py-1"
-                data-testid={`room-seen-by-pending-${participant.id}`}
-              >
-                {/* Grey rather than absent: the row is about someone who is
-                    not here yet, and the name alone would read as a reader. */}
-                <ParticipantAvatar
-                  participant={participant}
-                  className="size-6 grayscale"
-                />
-                <span className="text-muted-foreground min-w-0 flex-1 truncate text-sm">
-                  {participantName(participant)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
+      {pending.length > 0 ? <SeenByPending pending={pending} /> : null}
     </div>
+  );
+}
+
+/**
+ * Who has not read yet: the reader rows in grey, under a divider.
+ *
+ * Always shown, nothing to click. A folded "N not yet" row was tried and
+ * dropped: expanding it grew the popover on demand, and that motion was more
+ * than a side question is worth. The grey is what tells the two lists apart,
+ * so the section needs no heading of its own.
+ */
+function SeenByPending({
+  pending,
+}: {
+  pending: readonly ChatRoomUserParticipant[];
+}) {
+  const t = useTranslations("App.Channels.SeenBy");
+
+  return (
+    <ul
+      aria-label={t("notRead")}
+      className="mt-0.5 border-t pt-0.5"
+      data-testid="room-seen-by-pending"
+    >
+      {pending.map((participant) => (
+        <li
+          key={participant.id}
+          className="flex h-7 items-center gap-2 px-2"
+          data-testid={`room-seen-by-pending-${participant.id}`}
+        >
+          {/* Grey rather than absent: these are people who are not here yet,
+              and full-colour rows would read as readers. */}
+          <ParticipantAvatar
+            participant={participant}
+            className="size-5 opacity-60 grayscale"
+            textClassName="text-[0.5rem]"
+          />
+          <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
+            {participantName(participant)}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -210,8 +233,12 @@ export function RoomSeenByLine({ readers, receipts }: RoomSeenByLineProps) {
         </button>
       </PopoverTrigger>
       <PopoverContent
+        // Always above, over the transcript. Left to choose, Radix opens it
+        // below the faces over the composer while it fits there and above
+        // once it does not, so the same popover lands in two places.
+        side="top"
         align="end"
-        className="w-60 p-1"
+        className="w-56 p-1"
         data-testid="room-seen-by-detail"
       >
         <SeenByDetail

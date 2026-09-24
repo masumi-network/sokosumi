@@ -1,4 +1,4 @@
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import { withRelatedProject } from "@vercel/related-projects";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
@@ -44,6 +44,31 @@ const nextConfig: NextConfig = {
       {
         source: "/share/jobs/:token",
         destination: "/share/:token",
+        permanent: true,
+      },
+      // Task Schedules moved out of Tasks and Calendar to /schedules.
+      // Query strings pass through, so projectId and scheduleState survive.
+      {
+        source: "/tasks/schedules/:scheduleId",
+        destination: "/schedules/:scheduleId",
+        permanent: true,
+      },
+      {
+        source: "/tasks",
+        has: [{ type: "query", key: "tab", value: "schedules" }],
+        destination: "/schedules",
+        permanent: true,
+      },
+      {
+        source: "/calendar",
+        has: [{ type: "query", key: "view", value: "schedules" }],
+        destination: "/schedules",
+        permanent: true,
+      },
+      {
+        source: "/projects/:projectId/calendar",
+        has: [{ type: "query", key: "view", value: "schedules" }],
+        destination: "/schedules?projectId=:projectId",
         permanent: true,
       },
     ];
@@ -123,15 +148,23 @@ export default withSentryConfig(withNextIntl(nextConfig), {
   // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-side errors will fail.
   tunnelRoute: true, // Generates a random route for each build (recommended)
 
+  // v11 adds each of these as its own Turbopack loader rule: component
+  // annotation over each .tsx/.jsx, build-time instrumentation over each
+  // server .js/.mjs/.cjs. With both on, production compiles on a standard
+  // 8 GB Vercel build machine ran out of memory (exit 137) or hung until
+  // canceled. Neither was measured alone, so one may be safe to turn back
+  // on; try them one at a time against an 8 GB build. Web makes no
+  // server-side calls into the libraries the instrumentation targets, and
+  // v10 never annotated Turbopack builds, so both off loses nothing we had.
+  reactComponentAnnotation: {
+    enabled: false,
+  },
+  buildTimeInstrumentation: false,
+
   webpack: {
     treeshake: {
       // Automatically tree-shake Sentry logger statements to reduce bundle size
       removeDebugLogging: true,
-    },
-
-    // Enable React component annotation for better error messages
-    reactComponentAnnotation: {
-      enabled: true,
     },
 
     // Automatically instrument Next.js middleware with error and performance monitoring.

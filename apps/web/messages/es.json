@@ -296,6 +296,7 @@
       "drive": "Archivos",
       "soko-bots": "Soko Bots",
       "calendar": "Calendario",
+      "schedules": "Programaciones",
       "threads": "Hilos"
     },
     "Jobs": {
@@ -779,6 +780,8 @@
       "emptyUnreadStateDescription": "Aquí no hay nada sin leer. Todo lo leído permanece en Todas.",
       "emptyNeedsYouState": "Nada está esperando por ti",
       "emptyNeedsYouStateDescription": "Nada espera tu respuesta. Las solicitudes que te necesitan aparecen aquí.",
+      "emptyMentionsState": "Nadie te ha mencionado",
+      "emptyMentionsStateDescription": "Cuando alguien te mencione en un chat, aparecerá aquí.",
       "viewAll": "Ver todas las notificaciones",
       "showAll": "Mostrar todas",
       "showOlder": "Mostrar notificaciones anteriores",
@@ -800,6 +803,7 @@
       "filterAll": "Todas",
       "filterUnread": "Sin leer",
       "filterNeedsYou": "Te necesita",
+      "filterMentions": "Menciones",
       "filterLabel": "Vista de notificaciones",
       "browserNotificationTitle": "Sokosumi",
       "browserPermissionTitle": "Recibe avisos cuando Sokosumi esté cerrado",
@@ -1558,8 +1562,7 @@
         "updateStatus": "No se pudo actualizar el estado del Task",
         "loadMore": "No se pudieron cargar más tareas",
         "loadCreateTask": "No se pudo cargar el formulario de nueva tarea",
-        "loadJobs": "No se pudieron cargar los trabajos",
-        "scheduleActive": "Esta tarea se ejecuta según una programación. Cambia o elimina su programación antes de moverla."
+        "loadJobs": "No se pudieron cargar los trabajos"
       },
       "Card": {
         "comments": "Comentarios",
@@ -1762,9 +1765,7 @@
             "parent": "Tarea principal",
             "subtask": "Subtarea",
             "duplicate": "Duplicada",
-            "addSubtask": "Agregar subtarea",
-            "scheduleRun": "Ejecución programada",
-            "scheduleSeries": "Programación"
+            "addSubtask": "Agregar subtarea"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Empezar a trabajar",
@@ -1772,7 +1773,9 @@
           "waitExternal": "Esperar factor externo",
           "resumeRunning": "Reanudar",
           "resumeReady": "Volver a Lista",
-          "markComplete": "Marcar como completada"
+          "markComplete": "Marcar como completada",
+          "repeat": "Repetir",
+          "repeatError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo."
         },
         "ShareModal": {
           "title": "Share task",
@@ -1806,7 +1809,6 @@
           "switchError": "No se pudo cambiar de espacio de trabajo. Inténtalo de nuevo."
         },
         "clonedFrom": "Clonada de {name}",
-        "schedule": "Programación",
         "pendingApproval": "Aprobación pendiente",
         "VendorGrantApproval": {
           "title": "Se requiere aprobación de acceso del proveedor",
@@ -1825,47 +1827,15 @@
           "description": "Esta tarea está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor.",
           "descriptionWithCoworker": "{coworkerName} creó esta tarea. Está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor."
         },
-        "ScheduleSeries": {
-          "title": "Programación",
-          "calendar": "Calendario",
-          "repeats": "Se repite",
-          "timezone": "Zona horaria",
-          "nextRun": "Próxima ejecución",
-          "removed": "Esta programación se eliminó. Las ejecuciones pasadas se conservan abajo.",
-          "tabsLabel": "Ejecuciones programadas",
-          "upcomingTab": "Próximas",
-          "historyTab": "Historial",
-          "upcomingListLabel": "Próximas ejecuciones",
-          "historyListLabel": "Ejecuciones pasadas",
-          "upcomingEmpty": "No hay ejecuciones próximas. Las nuevas aparecerán aquí a medida que la programación las proyecte.",
-          "upcomingEmptyRemoved": "No hay ejecuciones próximas: esta programación se eliminó.",
-          "historyEmpty": "No hay ejecuciones pasadas. Aquí aparecerán las lanzadas, canceladas y perdidas.",
-          "loadMore": "Cargar más",
-          "loading": "Cargando",
-          "loadMoreError": "No se pudieron cargar más ejecuciones. Revisa tu conexión e inténtalo de nuevo.",
-          "occurrencesError": "No se pudieron cargar las ejecuciones. Actualiza la página para volver a intentarlo.",
-          "movedFrom": "Movida desde {original}",
-          "statePlanned": "Planificada",
-          "stateSkipped": "Omitida",
-          "stateCanceled": "Cancelada",
-          "stateReleased": "Lanzada",
-          "stateMissed": "Perdida",
-          "archivedRun": "Archivada",
-          "move": "Mover",
-          "skip": "Omitir",
-          "restore": "Restaurar",
-          "mutationError": "No se pudo cambiar esta ejecución. Inténtalo de nuevo.",
-          "moveSource": "Mover calendario",
-          "moveSourceTitle": "¿Mover esta programación?",
-          "moveSourceLabel": "Calendario de destino",
-          "moveSourceDescription": "Elige el calendario en el que esta programación debe crear nuevas ejecuciones. Al moverla se cancelan {count, plural, =0 {ninguna ejecución próxima modificada} one {# ejecución próxima modificada} other {# ejecuciones próximas modificadas}}. Las ejecuciones pasadas y ya lanzadas no cambian.",
-          "moveSourceCancel": "Mantener el calendario actual",
-          "moveSourceConfirm": "Mover programación",
-          "moveSourceSuccess": "La programación se movió al nuevo calendario.",
-          "moveSourceError": "No se pudo mover esta programación. Actualiza la tarea e inténtalo de nuevo."
-        },
         "files": "Archivos",
-        "assignee": "Responsable"
+        "assignee": "Responsable",
+        "schedule": "Programación",
+        "privateSchedule": "Programación privada",
+        "participants": "Participantes",
+        "removeParticipant": "Quitar a {name}",
+        "removeParticipantConfirmTitle": "¿Quitar a {name}?",
+        "removeParticipantConfirmDescription": "Dejará de ser participante de esta tarea.",
+        "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo."
       },
       "NewTask": {
         "ContextAttachments": {
@@ -1918,7 +1888,7 @@
         "removeAttachment": "Eliminar adjunto",
         "createTask": "Crear Task",
         "scheduleTask": "Programar tarea",
-        "openSchedule": "Configurar programación",
+        "openRunAt": "Configurar hora de inicio",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
         "defaultBadge": "Predeterminado",
@@ -1971,104 +1941,72 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Eliminar adjunto",
         "save": "Guardar",
-        "openSchedule": "Configurar programación",
+        "openRunAt": "Configurar hora de inicio",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
         "unassigned": "Sin asignar",
         "unavailableAssignee": "Asignatario no disponible"
       },
       "Schedule": {
-        "title": "Programación",
-        "description": "Planificar una ejecución única o recurrente.",
-        "clearSchedule": "Eliminar programación",
-        "series": {
-          "discardTitle": "¿Descartar {count, plural, one {# ejecución modificada} other {# ejecuciones modificadas}}?",
-          "discardDescription": "Guardar una nueva regla para toda la serie cancela {count, plural, one {la próxima ejecución que moviste u omitiste} other {las # próximas ejecuciones que moviste u omitiste}}. Las ejecuciones ya realizadas se conservan.",
-          "discardCancel": "Mantener la programación actual",
-          "discardConfirm": "Guardar y descartar",
-          "removeTitle": "¿Eliminar esta programación?",
-          "removeDescription": "Esta tarea dejará de ejecutarse según una programación. Las ejecuciones ya realizadas se conservan y las próximas se cancelan.",
-          "removeCancel": "Mantener la programación",
-          "removeConfirm": "Eliminar programación",
-          "revisionConflict": "Esta programación cambió en otro lugar. Recarga la tarea, vuelve a abrir la programación y aplica tu cambio de nuevo.",
-          "quarantined": "Esta programación está en pausa para reparación y no se puede cambiar. Contacta con soporte para restaurarla.",
-          "operationConflict": "Este guardado ya se envió con otros datos. Vuelve a abrir la programación e inténtalo de nuevo.",
-          "activeSeries": "Esta tarea se ejecuta según una programación. Cambia o elimina primero su programación.",
-          "unknownCount": "No pudimos comprobar qué próximas ejecuciones cancelaría una nueva regla. Recarga la página, vuelve a abrir la programación e inténtalo de nuevo.",
-          "occurrenceLocked": "Esta repetición ya no se puede cambiar.",
-          "occurrenceTargetInvalid": "Esa hora no es un destino válido."
-        },
-        "occurrenceMove": {
-          "title": "Mover repetición",
-          "description": "Elige una nueva hora para esta ejecución.",
-          "label": "Nueva hora",
-          "confirm": "Mover repetición",
-          "cancel": "Cancelar",
-          "invalid": "Elige una fecha y una hora válidas.",
-          "error": "No se pudo mover esta repetición. Inténtalo de nuevo."
-        },
-        "occurrenceRestore": {
-          "title": "Restaurar repetición",
-          "description": "Restaura esta ejecución a su hora original o elige otra hora futura.",
-          "label": "Hora restaurada",
-          "confirm": "Restaurar repetición",
-          "cancel": "Cancelar",
-          "invalid": "Elige una fecha y una hora válidas.",
-          "error": "No se pudo restaurar esta repetición. Inténtalo de nuevo."
-        },
         "option": {
-          "oneTime": "One-time",
-          "daily": "Daily",
-          "dailyWithTime": "Daily ({time})",
-          "dailyEveryNWithTime": "Every {n} days ({time})",
-          "weekly": "Weekly",
-          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
-          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
-          "monthly": "Monthly",
-          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
-          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
-          "custom": "Custom cron"
+          "daily": "Diariamente",
+          "dailyWithTime": "Diariamente ({time})",
+          "dailyEveryNWithTime": "Cada {n} días ({time})",
+          "weekly": "Semanalmente",
+          "weeklyWithWeekdayTime": "Semanalmente ({weekday}, {time})",
+          "weeklyListWithTime": "Semanalmente ({weekdays}, {time})",
+          "monthly": "Mensualmente",
+          "monthlyWithDayTime": "Mensualmente (día {day}, {time})",
+          "monthlyEveryNWithDayTime": "Cada {n} meses (día {day}, {time})",
+          "custom": "Cron personalizado"
         },
-        "pickDateTime": "Run once at",
-        "timeOfDay": "Time of day",
-        "repeatEvery": "Repeat every",
-        "repeatOn": "Repeat on",
-        "ends": "Ends",
-        "never": "Never",
-        "on": "On date",
-        "after": "After",
-        "occurrences": "occurrences",
-        "pickDate": "Pick a date",
-        "preview": "Preview",
-        "noPreview": "No upcoming runs",
+        "firstRun": "Primera ejecución",
+        "timeOfDay": "Hora del día",
+        "repeatEvery": "Repetir cada",
+        "repeatOn": "Repetir en",
+        "ends": "Termina",
+        "never": "Nunca",
+        "on": "En la fecha",
+        "after": "Tras",
+        "occurrences": "ejecuciones",
+        "pickDate": "Elegir una fecha",
+        "preview": "Vista previa",
+        "noPreview": "Sin próximas ejecuciones",
         "timezone": "Zona horaria",
         "customCron": "Expresión cron personalizada",
-        "customCronValid": "Valid cron expression",
+        "customCronValid": "Expresión cron válida",
         "unit": {
-          "day": "day",
-          "week": "week",
-          "month": "month"
+          "day": "día(s)",
+          "week": "semana(s)",
+          "month": "mes(es)"
         },
-        "save": "Save",
-        "cancel": "Cancel",
-        "footer": {
-          "oneTimeAt": "Una vez el {datetime}"
-        },
-        "card": {
-          "overdue": "Atrasada",
-          "dueInMinutes": "Vence en {minutes, plural, one {# minuto} other {# minutos}}",
-          "dueInHours": "Vence en {hours, plural, one {# hora} other {# horas}}",
-          "tomorrowAt": "Mañana a las {time}",
-          "nextRunAt": "Próxima ejecución: {datetime}"
-        },
+        "save": "Guardar",
+        "cancel": "Cancelar",
         "errors": {
-          "required": "This field is required.",
-          "futureDateTime": "Select a future date and time.",
-          "invalidTime": "Enter a valid time (HH:MM).",
-          "positiveInteger": "Enter a positive integer.",
-          "selectAtLeastOneWeekday": "Select at least one weekday.",
-          "endDateInPast": "End date cannot be in the past.",
-          "invalidCron": "Enter a valid cron expression for the selected timezone."
+          "required": "Este campo es obligatorio.",
+          "futureDateTime": "Selecciona una fecha y hora futuras.",
+          "invalidTime": "Introduce una hora válida (HH:MM).",
+          "positiveInteger": "Introduce un número entero positivo.",
+          "selectAtLeastOneWeekday": "Selecciona al menos un día de la semana.",
+          "endDateInPast": "La fecha de fin no puede estar en el pasado.",
+          "invalidCron": "Introduce una expresión cron válida para la zona horaria seleccionada."
+        }
+      },
+      "RunAt": {
+        "title": "Hora de inicio",
+        "description": "La tarea espera hasta esta hora y luego pasa a Listo.",
+        "label": "Iniciar el",
+        "apply": "Aplicar",
+        "clear": "Quitar",
+        "cancel": "Cancelar",
+        "notInFuture": "Elige una hora en el futuro.",
+        "footer": "Empieza {datetime}",
+        "badge": {
+          "overdue": "Empieza en breve",
+          "inMinutes": "Empieza en {minutes, plural, one {# minuto} other {# minutos}}",
+          "inHours": "Empieza en {hours, plural, one {# hora} other {# horas}}",
+          "tomorrowAt": "Empieza mañana a las {time}",
+          "at": "Empieza {datetime}"
         }
       },
       "EmptyState": {
@@ -2081,6 +2019,87 @@
         "back": "Back",
         "addTaskHint": "Start by adding a task",
         "elenaAvatarAlt": "Elena avatar"
+      },
+      "Schedules": {
+        "stateFilter": "Estado de la programación",
+        "filterAll": "Todas",
+        "state": {
+          "ACTIVE": "Activa",
+          "PAUSED": "En pausa",
+          "ENDED": "Finalizada"
+        },
+        "newSchedule": "Nueva programación",
+        "empty": "Todavía no hay programaciones. Una programación crea una tarea nueva en cada ejecución.",
+        "loadMore": "Cargar más",
+        "loadingMore": "Cargando…",
+        "loadMoreError": "No se pudieron cargar más programaciones.",
+        "nextRun": "Próxima ejecución {datetime}",
+        "noNextRun": "Sin próxima ejecución",
+        "unassigned": "Sin asignar",
+        "unavailableAssignee": "Responsable no disponible",
+        "Dialog": {
+          "createTitle": "Nueva programación",
+          "editTitle": "Editar programación",
+          "createDescription": "Cada ejecución crea una tarea nueva con estos datos.",
+          "futureOnlyNotice": "Los cambios solo afectan a las ejecuciones futuras. Las tareas ya creadas no cambian.",
+          "name": "Nombre",
+          "description": "Descripción",
+          "assignee": "Responsable",
+          "create": "Crear programación",
+          "save": "Guardar cambios",
+          "created": "Programación creada",
+          "saved": "Programación guardada",
+          "errors": {
+            "stale": "Esta programación cambió en otro lugar. Recarga la página e inténtalo de nuevo.",
+            "saveFailed": "No se pudo guardar la programación."
+          }
+        },
+        "Actions": {
+          "edit": "Editar",
+          "pause": "Pausar",
+          "resume": "Reanudar",
+          "end": "Finalizar",
+          "delete": "Eliminar",
+          "paused": "Programación en pausa",
+          "resumed": "Programación reanudada",
+          "ended": "Programación finalizada",
+          "deleted": "Programación eliminada",
+          "failed": "No se pudo actualizar la programación. Inténtalo de nuevo.",
+          "confirmEndTitle": "¿Finalizar esta programación?",
+          "confirmEndDescription": "Dejará de crear tareas para siempre y se descartarán sus ejecuciones omitidas o movidas. Las tareas ya creadas se conservan.",
+          "confirmDeleteTitle": "¿Eliminar esta programación?",
+          "confirmDeleteDescription": "Se eliminan la programación y sus próximas ejecuciones. Las tareas ya creadas se conservan, sin vínculo con ella.",
+          "confirmEnd": "Finalizar programación",
+          "confirmDelete": "Eliminar programación",
+          "cancel": "Cancelar"
+        },
+        "Detail": {
+          "back": "Programaciones",
+          "upcomingRuns": "Próximas ejecuciones",
+          "noUpcomingRuns": "Todavía no hay ejecuciones planificadas.",
+          "noUpcomingRunsInactive": "No hay ejecuciones planificadas mientras la programación está en pausa o finalizada.",
+          "runSkipped": "Omitida",
+          "runMoved": "Movida",
+          "createdTasks": "Tareas creadas",
+          "noCreatedTasks": "Todavía no se han creado tareas.",
+          "properties": "Propiedades",
+          "state": "Estado",
+          "rule": "Se repite",
+          "timezone": "Zona horaria",
+          "nextRun": "Próxima ejecución",
+          "ends": "Termina",
+          "assignee": "Responsable",
+          "project": "Proyecto",
+          "noProject": "Sin proyecto",
+          "released": "Ejecuciones hasta ahora",
+          "endsOn": "El {date}",
+          "endsAfter": "Tras {count, plural, one {# ejecución} other {# ejecuciones}}",
+          "endsNever": "Nunca"
+        },
+        "Page": {
+          "title": "Programaciones",
+          "description": "Todas las programaciones de tu espacio de trabajo. Cada ejecución crea una tarea nueva."
+        }
       }
     },
     "Projects": {
@@ -2210,6 +2229,125 @@
         "namePlaceholder": "Introduce un título corto",
         "save": "Guardar",
         "cancel": "Cancelar"
+      },
+      "ProjectSocialAccounts": {
+        "title": "Cuentas sociales",
+        "description": "Conecta cuentas de X que este proyecto podrá usar para publicar en el futuro.",
+        "account": "Cuenta de X",
+        "connect": "Conectar cuenta de X",
+        "reconnect": "Volver a conectar",
+        "replace": "Reemplazar",
+        "disconnect": "Desconectar",
+        "connecting": "Conectando…",
+        "disconnecting": "Desconectando…",
+        "unknownHandle": "Cuenta de X desconocida",
+        "status": {
+          "active": "Conectada",
+          "pending": "Conexión pendiente",
+          "reauthorization_required": "Se requiere volver a autorizar",
+          "disconnected": "Desconectada"
+        },
+        "replaceDialog": {
+          "title": "¿Reemplazar esta cuenta de X?",
+          "description": "La cuenta actual se desconectará antes de conectar un reemplazo.",
+          "confirm": "Reemplazar cuenta"
+        },
+        "disconnectDialog": {
+          "title": "¿Desconectar esta cuenta de X?",
+          "description": "Este proyecto dejará de estar autorizado para usar esta cuenta.",
+          "confirm": "Desconectar cuenta"
+        },
+        "cancel": "Cancelar",
+        "success": {
+          "connected": "Cuenta de X conectada.",
+          "disconnected": "Cuenta de X desconectada."
+        },
+        "warning": {
+          "providerRevocationFailed": "Esta cuenta está desconectada de este proyecto, pero es posible que X siga autorizando esta aplicación. Revoca la aplicación en la configuración de X."
+        },
+        "errors": {
+          "inFlight": "Ya hay otra acción de cuenta de X en curso.",
+          "popupBlocked": "Tu navegador bloqueó la ventana de autorización de X. Permite las ventanas emergentes e inténtalo de nuevo.",
+          "timeout": "La autorización de X tardó demasiado. Inténtalo de nuevo.",
+          "providerCallback": "La autorización de X no se completó. Vuelve a la página Social del proyecto e inténtalo de nuevo.",
+          "legacyCallback": "Esta devolución de OAuth no puede verificar tu cuenta de X. Actualiza la configuración de devolución de Composio e inténtalo de nuevo.",
+          "verifier": "No pudimos verificar tu cuenta de X. Inicia la conexión de nuevo.",
+          "intent": "Esta solicitud de conexión caducó o ya no es válida. Iníciala de nuevo.",
+          "duplicate": "Esa cuenta de X ya está conectada a este proyecto. Elige una cuenta diferente.",
+          "reconnectMismatch": "Vuelve a conectar la misma cuenta de X que ya está vinculada a este proyecto.",
+          "finalize": "No pudimos terminar de conectar esta cuenta de X. Inténtalo de nuevo.",
+          "disconnect": "No pudimos desconectar esta cuenta de X. Inténtalo de nuevo."
+        }
+      },
+      "SocialPosts": {
+        "loadMore": "Cargar más",
+        "loading": "Cargando…",
+        "title": "Publicaciones sociales",
+        "description": "Redacta publicaciones de texto para X y prográmalas desde este proyecto.",
+        "newPost": "Nueva publicación",
+        "moreActions": "Acciones de la publicación",
+        "noAccount": "Sin cuenta",
+        "sections": {
+          "upcoming": "Próximas",
+          "drafts": "Borradores",
+          "history": "Historial"
+        },
+        "empty": {
+          "upcoming": "Aún no hay publicaciones programadas.",
+          "drafts": "Aún no hay borradores.",
+          "history": "Aún no hay publicaciones publicadas, fallidas o canceladas."
+        },
+        "status": {
+          "DRAFT": "Borrador",
+          "SCHEDULED": "Programada",
+          "PUBLISHING": "Publicando",
+          "PUBLISHED": "Publicada",
+          "FAILED": "Fallida",
+          "MISSED": "Omitida",
+          "CANCELED": "Cancelada"
+        },
+        "creator": {
+          "user": "Usuario",
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot"
+        },
+        "composer": {
+          "newTitle": "Nueva publicación",
+          "editTitle": "Editar publicación",
+          "scheduleTitle": "Programar publicación",
+          "rescheduleTitle": "Reprogramar publicación",
+          "description": "Escribe el texto, elige la cuenta y decide cuándo se publica.",
+          "text": "Texto",
+          "textPlaceholder": "¿Qué quieres publicar?",
+          "characters": "{count} / {limit}",
+          "account": "Cuenta",
+          "noAccount": "Elige una cuenta",
+          "unknownHandle": "Cuenta de X desconocida",
+          "scheduledAt": "Hora programada",
+          "scheduledAtTooSoon": "Elige una hora que sea al menos un minuto en el futuro.",
+          "saveDraft": "Guardar borrador",
+          "save": "Guardar",
+          "schedule": "Programar",
+          "reschedule": "Reprogramar",
+          "cancel": "Cancelar publicación",
+          "edit": "Editar",
+          "close": "Cerrar"
+        },
+        "cancelDialog": {
+          "title": "¿Cancelar esta publicación?",
+          "description": "La publicación no se publicará. Puedes programarla de nuevo más tarde.",
+          "confirm": "Cancelar publicación"
+        },
+        "toasts": {
+          "created": "Borrador guardado.",
+          "scheduled": "Publicación programada.",
+          "updated": "Publicación actualizada.",
+          "canceled": "Publicación cancelada.",
+          "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
+          "failed": "Algo salió mal. Inténtalo de nuevo.",
+          "unauthenticated": "Inicia sesión para continuar.",
+          "unauthenticatedAction": "Iniciar sesión"
+        }
       },
       "Detail": {
         "back": "Volver a proyectos",
@@ -2432,6 +2570,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Calendario",
+          "schedules": "Programaciones",
           "projectsLoading": "Cargando proyectos…",
           "projectsError": "No se pudieron cargar los proyectos.",
           "retryProjects": "Reintentar"
@@ -4296,6 +4435,7 @@
           "runningSubscription": "Cancela tu suscripción en curso y espera a que termine el periodo pagado.",
           "billingLink": "Ir a facturación",
           "userOwnsOrganization": "Transfiere el rol de propietario o elimina todas las organizaciones que poseas antes de eliminar tu cuenta.",
+          "userIsLastVendorAdmin": "Promueve a otro miembro del Vendor a administrador, o archiva los coworkers del Vendor, antes de eliminar tu cuenta.",
           "inFlightJob": "Espera a que terminen los jobs en curso antes de eliminar tu cuenta.",
           "unsettledOnChainJob": "Espera a que se liquiden las compras on-chain de jobs antes de eliminar tu cuenta.",
           "inFlightTask": "Espera a que terminen las tareas en curso antes de eliminar tu cuenta.",
@@ -6067,8 +6207,6 @@
       "Chat": {
         "defaultName": "Soko Bot",
         "avatarAlt": "Soko Bot",
-        "legacyDivider": "{count, plural, one {# mensaje anterior importado de tu asistente previo} other {# mensajes anteriores importados de tu asistente previo}}",
-        "toolSteps": "{count, plural, one {# paso} other {# pasos}}",
         "answeredIn": "{seconds}s",
         "copy": "Copiar",
         "copied": "Copiado",
@@ -6347,46 +6485,35 @@
       "view": {
         "month": "Mes",
         "week": "Semana",
-        "agenda": "Agenda",
-        "schedules": "Programaciones"
+        "agenda": "Agenda"
       },
       "source": {
         "label": "Origen",
         "all": "Todos los orígenes",
         "WORKSPACE": "Espacio de trabajo",
-        "PROJECT": "Proyecto",
-        "LEGACY_UNKNOWN": "Origen heredado"
+        "PROJECT": "Proyecto"
       },
       "event": {
         "accessibleName": "{task}, {source}",
-        "accessibleNameSkipped": "{task}, {source}, omitida",
-        "editSchedule": "Editar programación",
-        "moveOccurrence": "Mover repetición",
-        "skipOccurrence": "Omitir repetición",
-        "restoreOccurrence": "Restaurar repetición",
-        "mutationError": "No se pudo cambiar esta repetición. Inténtalo de nuevo.",
-        "openTask": "Abrir tarea",
-        "moveNotAllowed": "Solo el propietario de la tarea puede reprogramarla."
+        "moveNotAllowed": "Solo se pueden mover las próximas ejecuciones de tus propias programaciones activas.",
+        "moveRun": "Mover ejecución",
+        "skipRun": "Omitir ejecución",
+        "restoreRun": "Restaurar ejecución",
+        "openSchedule": "Abrir programación",
+        "runStale": "Esta programación cambió en otro lugar. El calendario se está recargando; inténtalo de nuevo.",
+        "runInvalidTime": "Elige una hora en el futuro, dentro de los próximos 90 días.",
+        "runError": "No se pudo cambiar esta ejecución. Inténtalo de nuevo."
+      },
+      "runMove": {
+        "title": "Mover ejecución",
+        "description": "Elige una nueva hora para esta ejecución de {name}. La programación no cambia.",
+        "label": "Nueva hora",
+        "confirm": "Mover ejecución",
+        "cancel": "Cancelar",
+        "invalid": "Elige una fecha y una hora válidas."
       },
       "create": {
         "fab": "Programar una tarea"
-      },
-      "edit": {
-        "title": "Editar programación",
-        "description": "Cambia la programación de {name}.",
-        "loadError": "No se pudo cargar esta tarea. Inténtalo de nuevo.",
-        "saveError": "No se pudo guardar esta programación. Inténtalo de nuevo.",
-        "clearError": "No se pudo eliminar esta programación. Inténtalo de nuevo.",
-        "clearPending": "Eliminando programación…",
-        "clearTitle": "¿Eliminar programación?",
-        "clearDescription": "Esta tarea dejará de ejecutarse según una programación.",
-        "clearCancel": "Cancelar",
-        "clearConfirm": "Eliminar programación"
-      },
-      "accuracy": {
-        "inferred": "Origen inferido",
-        "unknown": "Origen desconocido",
-        "approximate": "Hora aproximada"
       },
       "status": {
         "label": "Estado de la tarea",
@@ -6414,15 +6541,10 @@
         "label": "Zona horaria"
       },
       "empty": {
-        "title": "Ninguna ejecución programada coincide con estos filtros.",
-        "schedulesTitle": "Ninguna programación coincide con estos filtros."
+        "title": "Ninguna ejecución programada coincide con estos filtros."
       },
       "schedules": {
-        "nextRun": "Próxima ejecución",
-        "noNextRun": "Sin próxima ejecución",
-        "edit": "Editar programación",
-        "openTask": "Abrir tarea",
-        "loadMore": "Cargar más"
+        "link": "Programaciones"
       },
       "pagination": {
         "error": "No se pudieron cargar más eventos."
@@ -6434,7 +6556,8 @@
       },
       "agenda": {
         "upcoming": "A continuación",
-        "loading": "Cargando…"
+        "loading": "Cargando…",
+        "loadMore": "Cargar más"
       }
     },
     "You": {
@@ -6755,6 +6878,7 @@
         "scheduleSourceChangedByMember": "Un miembro del equipo movió {taskName} a otra fuente de calendario",
         "scheduleOccurrenceChangedByMember": "Un miembro del equipo cambió una ocurrencia de {taskName}",
         "assigned": "Se te asignó {taskName}",
+        "participantAdded": "Te añadieron a {taskName} como participante",
         "followUp": "{taskName} sigue esperándote"
       },
       "Billing": {

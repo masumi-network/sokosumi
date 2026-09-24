@@ -1,0 +1,121 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  COWORKER_AUTH,
+  COWORKER_ID,
+  resetTaskScheduleTestDb,
+  runsOf,
+  seedRun,
+  seedTaskSchedule,
+  taskScheduleTestDb,
+} from "@/test-fixtures/task-schedule";
+import {
+  createTaskScheduleTestApp,
+  jsonRequest,
+} from "@/test-fixtures/task-schedule-app";
+
+import mount from "./post";
+
+vi.mock("@/middleware/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/middleware/auth")>()),
+  authMiddleware: (await import("@/test-fixtures/auth-middleware"))
+    .stubAuthMiddleware,
+}));
+vi.mock("@/lib/db/prisma", async () => ({
+  default: (await import("@/test-fixtures/task-schedule"))
+    .taskScheduleTestPrisma,
+}));
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/database/helpers")>()),
+  hasAssignedOrganizationSeat: async () =>
+    (await import("@/test-fixtures/task-schedule")).taskScheduleTestDb
+      .seatAssigned,
+}));
+vi.mock("@/helpers/vendor-grants", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/vendor-grants")>()),
+  requestWorkspaceGrantCommitted: (
+    await import("@/test-fixtures/task-schedule")
+  ).requestPendingWorkspaceGrant,
+}));
+
+function send(id: string, app = createTaskScheduleTestApp(mount)) {
+  return app.request(
+    `http://localhost/schedules/${id}/end`,
+    jsonRequest("POST"),
+  );
+}
+
+function stored(id: string) {
+  return taskScheduleTestDb.schedules.find((schedule) => schedule.id === id);
+}
+
+describe("POST /tasks/schedules/{id}/end", () => {
+  beforeEach(() => {
+    resetTaskScheduleTestDb();
+  });
+
+  it.each(["ACTIVE", "PAUSED"] as const)(
+    "ends a %s schedule and keeps it",
+    async (state) => {
+      const schedule = seedTaskSchedule({ state });
+
+      const response = await send(schedule.id);
+
+      expect(response.status).toBe(200);
+      expect(stored(schedule.id)).toMatchObject({
+        state: "ENDED",
+        nextRunAt: null,
+      });
+    },
+  );
+
+  it("drops the planned Runs and keeps the released ones", async () => {
+    const schedule = seedTaskSchedule({ releasedCount: 1 });
+    const released = seedRun(schedule, new Date("2029-12-31T09:00:00.000Z"), {
+      state: "RELEASED",
+      releasedTaskId: "task_released",
+    });
+    seedRun(schedule, new Date("2030-01-07T09:00:00.000Z"));
+
+    await send(schedule.id);
+
+    expect(runsOf(schedule.id)).toEqual([released]);
+  });
+
+  it("keeps skipped and moved Runs in the history as canceled", async () => {
+    const schedule = seedTaskSchedule();
+    const moved = seedRun(schedule, new Date("2030-01-07T09:00:00.000Z"), {
+      effectiveScheduledAt: new Date("2030-01-08T09:00:00.000Z"),
+    });
+    const skipped = seedRun(schedule, new Date("2030-01-14T09:00:00.000Z"), {
+      state: "SKIPPED",
+    });
+    seedRun(schedule, new Date("2030-01-21T09:00:00.000Z"));
+
+    await send(schedule.id);
+
+    expect(runsOf(schedule.id).map((row) => [row.id, row.state])).toEqual([
+      [moved.id, "CANCELED"],
+      [skipped.id, "CANCELED"],
+    ]);
+  });
+
+  it("rejects ending an Ended schedule", async () => {
+    const schedule = seedTaskSchedule({ state: "ENDED" });
+
+    const response = await send(schedule.id);
+
+    expect(response.status).toBe(409);
+  });
+
+  it("lets a Coworker end a schedule assigned to it", async () => {
+    const schedule = seedTaskSchedule({ assigneeId: COWORKER_ID });
+
+    const response = await send(
+      schedule.id,
+      createTaskScheduleTestApp(mount, COWORKER_AUTH),
+    );
+
+    expect(response.status).toBe(200);
+  });
+});

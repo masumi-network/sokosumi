@@ -1,6 +1,6 @@
 # Sokosumi Apple Clients Agent Guidelines
 
-> **Purpose**: This document provides app-specific guidelines for AI agents working on the native macOS/iOS clients. For comprehensive monorepo guidelines, see the [root AGENTS.md](../../AGENTS.md). Before Apple work, read [`VISION.md`](./VISION.md) for the ongoing goal and [`PARITY.md`](./PARITY.md) for the authorized scope, iteration rules, current PR, and verification record. Verify the handoff against GitHub before continuing.
+> **Purpose**: This document provides app-specific guidelines for AI agents working on the native macOS/iOS clients. For comprehensive monorepo guidelines, see the [root AGENTS.md](../../AGENTS.md). Before Apple work, read [`VISION.md`](./VISION.md) for the ongoing goal and [`PARITY.md`](./PARITY.md) for the authorized scope, iteration rules, current PR, and verification record. Verify the handoff against GitHub before continuing. The next parity row runs in its own session, started with `/apple-parity-next`.
 
 ## App-Specific Architecture
 
@@ -23,7 +23,7 @@ The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-
 - `Chat/Details/`: room details/roster inspector, channel settings sheet, lifecycle confirmations and the host-side guest access section; guest state and networking stay in the shared packages.
 - `Chat/Invitations/`: channel invitation and guest join-link sheets; invitation state and networking stay in the shared packages.
 - `Chat/Composer/`: draft-owning rich composer, Drive picker (`DriveFilePickerView`) and isolated native text input.
-- `Chat/Rendering/`: Markdown, code, expansion, coworker thought, and attachment chips/previews (`MessageAttachmentView`, `DocumentAttachmentPreview`, `NativeOfficePreview`).
+- `Chat/Rendering/`: Markdown, code, expansion, coworker thought, and attachment chips/previews (`MessageAttachmentView`, `MessageImageViewer`, `DocumentAttachmentPreview`, `NativeOfficePreview`).
 - `Shared/`: reusable participant avatar, `PresenceDot`, `ParticipantProfileButton` and `ParticipantDetailsView`. Avatar networking and presence state remain in `SokosumiChat`.
 - `Settings/`: Settings scene content and the `timeFormat` environment value; preference state and networking stay in the shared packages.
 - `Notifications/`: `UNUserNotificationCenter` adapter (`ChatNotificationCenter`) and its lifecycle modifier for local chat banners while the app runs. The banner rules, preferences and navigation stay in the shared packages; no push registration.

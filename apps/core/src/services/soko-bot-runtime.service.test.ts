@@ -359,7 +359,8 @@ vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
   emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
 }));
-vi.mock("@/helpers/task-link", () => ({
+vi.mock("@/helpers/task-link", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/task-link")>()),
   mapTaskLinkRelationToWriteData: vi.fn(),
 }));
 vi.mock("@sokosumi/masumi", () => ({
@@ -1159,12 +1160,8 @@ describe("SokoBotRuntimeService authorization", () => {
         archivedAt: null,
         ...buildSokoBotAudienceTaskVisibilityWhere(SCOPE.userId, askedByKind),
       };
-      const visiblePeerWhere = {
-        toTask: { is: visiblePeerTask },
-      };
-      const visibleFromPeerWhere = {
-        fromTask: { is: visiblePeerTask },
-      };
+      const visiblePeerWhere = { toTask: { is: visiblePeerTask } };
+      const visibleFromPeerWhere = { fromTask: { is: visiblePeerTask } };
       taskFindFirstMock.mockImplementation(
         async (args: {
           select?: {

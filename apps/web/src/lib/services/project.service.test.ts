@@ -4,18 +4,28 @@ vi.mock("server-only", () => ({}));
 
 const coreClientMock = {
   deleteProjectsByIdJobsByJobId: vi.fn(),
+  deleteProjectsByIdSocialConnectionsByConnectionId: vi.fn(),
   deleteProjectsByIdTasksByTaskId: vi.fn(),
   getProjects: vi.fn(),
   getProjectsById: vi.fn(),
   getProjectsByIdCalendar: vi.fn(),
   getProjectsByIdClose: vi.fn(),
   getProjectsByIdContextMd: vi.fn(),
+  getProjectsByIdSocialConnections: vi.fn(),
+  getProjectsByIdSocialPosts: vi.fn(),
+  getProjectsByIdSocialPostsByPostId: vi.fn(),
   getProjectsStats: vi.fn(),
   patchProjectsById: vi.fn(),
+  patchProjectsByIdSocialPostsByPostId: vi.fn(),
   postProjects: vi.fn(),
   postProjectsByIdClose: vi.fn(),
   postProjectsByIdCloseCancelOwed: vi.fn(),
   postProjectsByIdCloseRetry: vi.fn(),
+  postProjectsByIdSocialConnectionsFinalize: vi.fn(),
+  postProjectsByIdSocialConnectionsInitiate: vi.fn(),
+  postProjectsByIdSocialPosts: vi.fn(),
+  postProjectsByIdSocialPostsByPostIdCancel: vi.fn(),
+  postProjectsByIdSocialPostsByPostIdSchedule: vi.fn(),
   putProjectsByIdDesignMd: vi.fn(),
   deleteProjectsByIdDesignMd: vi.fn(),
   postProjectsByIdJobs: vi.fn(),
@@ -392,5 +402,239 @@ describe("project.service", () => {
     expect(coreClientMock.deleteProjectsByIdDesignMd).toHaveBeenCalledWith(
       "project-1",
     );
+  });
+
+  it("lists a project's active social connections", async () => {
+    const connections = [
+      {
+        id: "connection-1",
+        provider: "x" as const,
+        externalHandle: "sokosumi",
+        status: "active" as const,
+        connectedAt: new Date("2026-09-03T10:00:00.000Z"),
+        disconnectedAt: null,
+      },
+    ];
+    coreClientMock.getProjectsByIdSocialConnections.mockResolvedValue({
+      data: connections,
+    });
+
+    const { projectService } = await import("./project.service");
+
+    await expect(
+      projectService.listSocialConnections("project-1"),
+    ).resolves.toEqual(connections);
+    expect(
+      coreClientMock.getProjectsByIdSocialConnections,
+    ).toHaveBeenCalledWith("project-1");
+  });
+
+  it("initiates a social connection with the generated request DTO", async () => {
+    const initiation = {
+      connectionId: "ca_123",
+      redirectUrl: "https://connect.composio.dev/link-token",
+    };
+    coreClientMock.postProjectsByIdSocialConnectionsInitiate.mockResolvedValue({
+      data: initiation,
+    });
+
+    const { projectService } = await import("./project.service");
+
+    await expect(
+      projectService.initiateSocialConnection("project-1", {
+        action: "connect",
+        provider: "x",
+      }),
+    ).resolves.toEqual(initiation);
+    expect(
+      coreClientMock.postProjectsByIdSocialConnectionsInitiate,
+    ).toHaveBeenCalledWith("project-1", {
+      action: "connect",
+      provider: "x",
+    });
+  });
+
+  it("finalizes a social connection with its opaque connection id", async () => {
+    const connection = {
+      id: "connection-1",
+      provider: "x" as const,
+      externalHandle: "sokosumi",
+      status: "active" as const,
+      connectedAt: new Date("2026-09-03T10:00:00.000Z"),
+      disconnectedAt: null,
+    };
+    coreClientMock.postProjectsByIdSocialConnectionsFinalize.mockResolvedValue({
+      data: connection,
+    });
+
+    const { projectService } = await import("./project.service");
+
+    await expect(
+      projectService.finalizeSocialConnection("project-1", "ca_123"),
+    ).resolves.toEqual(connection);
+    expect(
+      coreClientMock.postProjectsByIdSocialConnectionsFinalize,
+    ).toHaveBeenCalledWith("project-1", { connectionId: "ca_123" });
+  });
+
+  it("disconnects a social connection by its Project row id", async () => {
+    const connection = {
+      id: "connection-1",
+      provider: "x" as const,
+      externalHandle: "sokosumi",
+      status: "disconnected" as const,
+      connectedAt: new Date("2026-09-03T10:00:00.000Z"),
+      disconnectedAt: new Date("2026-09-03T10:05:00.000Z"),
+      providerRevocation: "succeeded" as const,
+    };
+    coreClientMock.deleteProjectsByIdSocialConnectionsByConnectionId.mockResolvedValue(
+      { data: connection },
+    );
+
+    const { projectService } = await import("./project.service");
+
+    await expect(
+      projectService.disconnectSocialConnection("project-1", "connection-1"),
+    ).resolves.toEqual(connection);
+    expect(
+      coreClientMock.deleteProjectsByIdSocialConnectionsByConnectionId,
+    ).toHaveBeenCalledWith({ id: "project-1", connectionId: "connection-1" });
+  });
+
+  it("does not turn a Core request error into a social-connection success", async () => {
+    coreClientMock.postProjectsByIdSocialConnectionsInitiate.mockRejectedValue(
+      new Error("Core unavailable"),
+    );
+
+    const { projectService } = await import("./project.service");
+
+    await expect(
+      projectService.initiateSocialConnection("project-1", {
+        action: "connect",
+        provider: "x",
+      }),
+    ).rejects.toThrow("Core unavailable");
+  });
+
+  describe("social posts", () => {
+    const post = {
+      id: "post-1",
+      projectId: "project-1",
+      provider: "x" as const,
+      text: "Hello",
+      status: "DRAFT" as const,
+      revision: 0,
+    };
+
+    it("lists social posts through the generated client", async () => {
+      coreClientMock.getProjectsByIdSocialPosts.mockResolvedValue({
+        data: [post],
+      });
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.listSocialPosts("project-1"),
+      ).resolves.toEqual({ posts: [post], nextCursor: null });
+      expect(coreClientMock.getProjectsByIdSocialPosts).toHaveBeenCalledWith(
+        "project-1",
+        { status: undefined, cursor: undefined, limit: 20 },
+      );
+    });
+
+    it("reads a single social post", async () => {
+      coreClientMock.getProjectsByIdSocialPostsByPostId.mockResolvedValue({
+        data: post,
+      });
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.getSocialPost("project-1", "post-1"),
+      ).resolves.toEqual(post);
+      expect(
+        coreClientMock.getProjectsByIdSocialPostsByPostId,
+      ).toHaveBeenCalledWith("project-1", "post-1");
+    });
+
+    it("creates, updates, schedules, and cancels with the generated request DTOs", async () => {
+      const scheduledAt = new Date("2026-10-01T10:00:00.000Z");
+      coreClientMock.postProjectsByIdSocialPosts.mockResolvedValue({
+        data: post,
+      });
+      coreClientMock.patchProjectsByIdSocialPostsByPostId.mockResolvedValue({
+        data: { ...post, text: "Edited", revision: 1 },
+      });
+      coreClientMock.postProjectsByIdSocialPostsByPostIdSchedule.mockResolvedValue(
+        { data: { ...post, status: "SCHEDULED", scheduledAt, revision: 2 } },
+      );
+      coreClientMock.postProjectsByIdSocialPostsByPostIdCancel.mockResolvedValue(
+        { data: { ...post, status: "CANCELED", revision: 3 } },
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.createSocialPost("project-1", { text: "Hello" }),
+      ).resolves.toEqual(post);
+      expect(coreClientMock.postProjectsByIdSocialPosts).toHaveBeenCalledWith(
+        "project-1",
+        { text: "Hello" },
+      );
+
+      await expect(
+        projectService.updateSocialPost("project-1", "post-1", {
+          text: "Edited",
+          revision: 0,
+        }),
+      ).resolves.toMatchObject({ text: "Edited", revision: 1 });
+      expect(
+        coreClientMock.patchProjectsByIdSocialPostsByPostId,
+      ).toHaveBeenCalledWith("project-1", "post-1", {
+        text: "Edited",
+        revision: 0,
+      });
+
+      await expect(
+        projectService.scheduleSocialPost("project-1", "post-1", {
+          scheduledAt,
+          timezone: "Europe/Berlin",
+          socialConnectionId: "connection-1",
+          revision: 1,
+        }),
+      ).resolves.toMatchObject({ status: "SCHEDULED", revision: 2 });
+      expect(
+        coreClientMock.postProjectsByIdSocialPostsByPostIdSchedule,
+      ).toHaveBeenCalledWith("project-1", "post-1", {
+        scheduledAt,
+        timezone: "Europe/Berlin",
+        socialConnectionId: "connection-1",
+        revision: 1,
+      });
+
+      await expect(
+        projectService.cancelSocialPost("project-1", "post-1", {
+          revision: 2,
+        }),
+      ).resolves.toMatchObject({ status: "CANCELED", revision: 3 });
+      expect(
+        coreClientMock.postProjectsByIdSocialPostsByPostIdCancel,
+      ).toHaveBeenCalledWith("project-1", "post-1", { revision: 2 });
+    });
+
+    it("propagates Core errors from social post mutations", async () => {
+      coreClientMock.postProjectsByIdSocialPostsByPostIdSchedule.mockRejectedValue(
+        new Error("Social post was modified, reload and retry"),
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.scheduleSocialPost("project-1", "post-1", {
+          scheduledAt: new Date("2026-10-01T10:00:00.000Z"),
+          revision: 0,
+        }),
+      ).rejects.toThrow("Social post was modified, reload and retry");
+    });
   });
 });

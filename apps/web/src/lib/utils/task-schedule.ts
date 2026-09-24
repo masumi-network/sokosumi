@@ -1,7 +1,11 @@
-import { isValidTimezone, parseTaskScheduleMetadata } from "@sokosumi/utils";
+import { isValidTimezone } from "@sokosumi/utils";
 import { CronExpressionParser as cronParser } from "cron-parser";
-import type { TaskScheduleInput } from "@/lib/clients/generated/core/types.gen";
-import { DOW, type Dow, parseCron } from "@/lib/schedules/cron";
+import type {
+  TaskSchedule,
+  TaskScheduleRule,
+  TaskScheduleRuleReplacement,
+} from "@/lib/clients/generated/core/types.gen";
+import { DOW, parseCron } from "@/lib/schedules/cron";
 import {
   endOfLocalDateInTimezone,
   parseDateTimeLocalParts,
@@ -67,51 +71,6 @@ function derivePresetFromCron(cron: string): {
     default:
       return null;
   }
-}
-
-function deriveBuilderStateFromCron(cron: string): {
-  unit: "day" | "week" | "month";
-  count: number;
-  weekdays: Dow[];
-  hour: number;
-  minute: number;
-} | null {
-  const parts = cron.trim().split(/\s+/);
-  if (parts.length !== 5) return null;
-  const [minuteStr, hourStr, dom, mon, dow] = parts;
-  const minute = Number(minuteStr);
-  const hour = Number(hourStr);
-  if (!Number.isFinite(minute) || !Number.isFinite(hour)) return null;
-
-  if (dom === "*" && mon === "*" && /[A-Z,]+/.test(dow)) {
-    const weekdays = dow.split(",").filter(Boolean) as Dow[];
-    return { unit: "week", count: 1, weekdays, hour, minute };
-  }
-
-  const dailyEvery = dom.startsWith("*/") ? Number(dom.slice(2)) : Number.NaN;
-  if (mon === "*" && dow === "*" && Number.isFinite(dailyEvery)) {
-    return {
-      unit: "day",
-      count: Math.max(1, Number(dailyEvery)),
-      weekdays: ["MON"],
-      hour,
-      minute,
-    };
-  }
-
-  const monthlyEvery = mon.startsWith("*/") ? Number(mon.slice(2)) : Number.NaN;
-  const domNum = Number(dom);
-  if (Number.isFinite(monthlyEvery) && Number.isFinite(domNum) && dow === "*") {
-    return {
-      unit: "month",
-      count: Math.max(1, Number(monthlyEvery)),
-      weekdays: ["MON"],
-      hour,
-      minute,
-    };
-  }
-
-  return null;
 }
 
 function isValidCalendarDateTime(value: string | undefined): boolean {
@@ -206,223 +165,231 @@ function getFirstUpcomingRecurringOccurrence(
   return getFirstUpcomingCronOccurrence(expr, timezone, now);
 }
 
-export function metadataToSelection(
-  metadata: string | null | undefined,
-  defaultTimezone: string,
+/** A complete, valid schedule form's repeating rule. */
+interface ParsedTaskScheduleSelection {
+  expr: string;
+  timezone: string;
+  endsMode: TaskScheduleEndsMode;
+  endsOn?: Date;
+  occurrences?: number;
+  intervalDays?: number;
+  anchorAt?: Date;
+}
+
+interface RecurringRuleFields {
+  expr: string;
+  timezone: string;
+  endsMode: TaskScheduleEndsMode;
+  endsOn?: Date | string | null;
+  intervalDays?: number | null;
+  anchorAt?: Date | string | null;
+  endAfterOccurrences?: number;
+}
+
+/** The schedule form's starting state for an existing repeating rule. */
+function recurringRuleToSelection(
+  rule: RecurringRuleFields,
 ): TaskScheduleSelection {
-  const parsed = parseTaskScheduleMetadata(metadata);
-  if (!parsed) {
-    return { mode: "none", timezone: defaultTimezone };
-  }
-
-  if (parsed.mode === "once") {
-    const timezone = parsed.version === 2 ? parsed.timezone : defaultTimezone;
-    const runAt = parsed.version === 2 ? parsed.effectiveRunAt : parsed.runAt;
-    return {
-      mode: "once",
-      timezone,
-      oneTimeLocalIso: utcToDateTimeLocalInTimezone(new Date(runAt), timezone),
-    };
-  }
-
-  const derivedPreset = derivePresetFromCron(parsed.expr);
-  const remainingOccurrences =
-    parsed.version === 1
-      ? parsed.occurrences
-      : parsed.targetReleaseCount == null
-        ? undefined
-        : Math.max(parsed.targetReleaseCount - parsed.epochReleaseCount, 0);
+  const derivedPreset = derivePresetFromCron(rule.expr);
   const selection: TaskScheduleSelection = {
-    mode: "recurring",
-    timezone: parsed.timezone,
-    cron: parsed.expr,
-    endsMode: parsed.endsMode,
-    endAfterOccurrences: remainingOccurrences,
-    ...(parsed.intervalDays != null && parsed.intervalDays > 1
-      ? { intervalDays: parsed.intervalDays }
+    timezone: rule.timezone,
+    cron: rule.expr,
+    endsMode: rule.endsMode,
+    endAfterOccurrences: rule.endAfterOccurrences,
+    ...(rule.intervalDays != null && rule.intervalDays > 1
+      ? { intervalDays: rule.intervalDays }
       : {}),
-    endOnLocalDate: parsed.endsOn
+    endOnLocalDate: rule.endsOn
       ? utcToDateTimeLocalInTimezone(
-          new Date(parsed.endsOn),
-          parsed.timezone,
+          new Date(rule.endsOn),
+          rule.timezone,
         ).slice(0, 10)
       : undefined,
   };
 
-  if (derivedPreset) {
-    selection.oneTimeLocalIso = derivedPreset.iso;
-  } else if (
-    parsed.intervalDays != null &&
-    parsed.intervalDays > 1 &&
-    parsed.anchorAt
-  ) {
-    selection.oneTimeLocalIso = utcToDateTimeLocalInTimezone(
-      new Date(parsed.anchorAt),
-      parsed.timezone,
+  // Every-N-days runs at its anchor's local time; the cron's time is unused.
+  // The daily preset would replace that anchor with the next local slot and
+  // shift the series, so it starts from the anchor, with the daily cron the
+  // form's builder writes for that time (older rules can carry another one).
+  if (rule.intervalDays != null && rule.intervalDays > 1 && rule.anchorAt) {
+    const anchorLocalIso = utcToDateTimeLocalInTimezone(
+      new Date(rule.anchorAt),
+      rule.timezone,
     );
-    selection.customCronExpr = parsed.expr;
+    selection.firstRunLocalIso = anchorLocalIso;
+    selection.cron = `${Number(anchorLocalIso.slice(14, 16))} ${Number(anchorLocalIso.slice(11, 13))} * * *`;
+  } else if (derivedPreset) {
+    selection.firstRunLocalIso = derivedPreset.iso;
   } else {
-    selection.customCronExpr = parsed.expr;
-    const derived = deriveBuilderStateFromCron(parsed.expr);
-    if (derived) {
-      selection.cron = parsed.expr;
-    }
+    selection.customCronExpr = rule.expr;
   }
 
   return selection;
 }
 
-export function selectionToApiBody(
+const ENDS_MODE_FROM_RULE = {
+  NEVER: TaskScheduleEndsMode.NEVER,
+  ON: TaskScheduleEndsMode.ON,
+  AFTER: TaskScheduleEndsMode.AFTER,
+} as const satisfies Record<
+  TaskScheduleRule["endsMode"] & string,
+  TaskScheduleEndsMode
+>;
+
+const ENDS_MODE_TO_RULE = {
+  [TaskScheduleEndsMode.NEVER]: "NEVER",
+  [TaskScheduleEndsMode.ON]: "ON",
+  [TaskScheduleEndsMode.AFTER]: "AFTER",
+} as const satisfies Record<TaskScheduleEndsMode, TaskScheduleRule["endsMode"]>;
+
+/** The schedule form's starting state for a Task Schedule's rule. */
+export function taskScheduleRuleToSelection(
+  rule: TaskSchedule["rule"],
+): TaskScheduleSelection {
+  return recurringRuleToSelection({
+    expr: rule.expr,
+    timezone: rule.timezone,
+    endsMode: ENDS_MODE_FROM_RULE[rule.endsMode],
+    endsOn: rule.endsOn,
+    intervalDays: rule.intervalDays,
+    anchorAt: rule.anchorAt,
+    endAfterOccurrences: rule.targetRunCount ?? undefined,
+  });
+}
+
+/**
+ * The Task Schedule rule for what the schedule form holds, or null when it is
+ * incomplete or invalid.
+ */
+export function selectionToTaskScheduleRule(
   selection: TaskScheduleSelection,
-): TaskScheduleInput | null {
+): TaskScheduleRuleReplacement | null {
+  const parsed = parseTaskScheduleSelection(selection);
+  if (!parsed) return null;
+  return {
+    expr: parsed.expr,
+    timezone: parsed.timezone,
+    endsMode: ENDS_MODE_TO_RULE[parsed.endsMode],
+    endsOn: parsed.endsOn ?? null,
+    targetRunCount: parsed.occurrences ?? null,
+    intervalDays: parsed.intervalDays ?? null,
+    anchorAt: parsed.anchorAt ?? null,
+  };
+}
+
+export function parseTaskScheduleSelection(
+  selection: TaskScheduleSelection,
+): ParsedTaskScheduleSelection | null {
   const timezone = selection.timezone.trim();
   if (!isValidTimezone(timezone)) return null;
   const now = new Date();
 
-  if (selection.mode === "once") {
-    if (!isValidCalendarDateTime(selection.oneTimeLocalIso)) return null;
-    const runAt = zonedDateTimeLocalToUtc(selection.oneTimeLocalIso, timezone);
-    if (!runAt || runAt <= now) return null;
-    return { mode: "once", runAt };
+  const expr = selection.customCronExpr?.trim() || selection.cron?.trim();
+  if (!expr || !isValidCronExpression(expr, timezone)) return null;
+
+  const endsMode = selection.endsMode ?? TaskScheduleEndsMode.NEVER;
+  if (!Object.values(TaskScheduleEndsMode).includes(endsMode)) return null;
+
+  const intervalDays = selection.intervalDays;
+  if (
+    intervalDays != null &&
+    (!Number.isInteger(intervalDays) || intervalDays < 1)
+  ) {
+    return null;
   }
 
-  if (selection.mode === "recurring") {
-    const expr = selection.customCronExpr?.trim() || selection.cron?.trim();
-    if (!expr || !isValidCronExpression(expr, timezone)) return null;
-
-    const endsMode = selection.endsMode ?? TaskScheduleEndsMode.NEVER;
-    if (!Object.values(TaskScheduleEndsMode).includes(endsMode)) return null;
-
-    const intervalDays = selection.intervalDays;
-    if (
-      intervalDays != null &&
-      (!Number.isInteger(intervalDays) || intervalDays < 1)
-    ) {
-      return null;
-    }
-
-    const anchorAt =
-      intervalDays != null && intervalDays > 1
-        ? zonedDateTimeLocalToUtc(selection.oneTimeLocalIso, timezone)
-        : undefined;
-
-    if (
-      intervalDays != null &&
-      intervalDays > 1 &&
-      (!isValidCalendarDateTime(selection.oneTimeLocalIso) || !anchorAt)
-    ) {
-      return null;
-    }
-
-    const endsOn =
-      endsMode === TaskScheduleEndsMode.ON
-        ? selection.endOnLocalDate &&
-          isValidCalendarDateTime(`${selection.endOnLocalDate}T00:00`)
-          ? endOfLocalDateInTimezone(selection.endOnLocalDate, timezone)
-          : null
-        : undefined;
-    if (endsMode === TaskScheduleEndsMode.ON && !endsOn) return null;
-
-    if (endsOn) {
-      const firstOccurrence = getFirstUpcomingRecurringOccurrence(
-        expr,
-        timezone,
-        now,
-        intervalDays,
-        anchorAt,
-      );
-      if (!firstOccurrence || endsOn < firstOccurrence) return null;
-    }
-
-    const occurrences = selection.endAfterOccurrences;
-    if (
-      endsMode === TaskScheduleEndsMode.AFTER &&
-      (!Number.isInteger(occurrences) || !occurrences || occurrences < 1)
-    ) {
-      return null;
-    }
-
-    return {
-      mode: "recurring",
-      expr,
-      timezone,
-      endsMode,
-      ...(intervalDays != null && intervalDays > 1 && anchorAt
-        ? { intervalDays, anchorAt }
-        : {}),
-      ...(endsOn ? { endsOn } : {}),
-      ...(endsMode === TaskScheduleEndsMode.AFTER && occurrences
-        ? { occurrences }
-        : {}),
-    };
-  }
-
-  return null;
-}
-
-export interface TaskScheduleOperationIdentity {
-  key: string;
-  operationId: string;
-}
-
-export interface TaskScheduleOperationIdentityRef {
-  current: TaskScheduleOperationIdentity | null;
-}
-
-/** Keeps one browser-minted operation ID across retries of the same rule. */
-export function getTaskScheduleOperationId(
-  selection: TaskScheduleSelection,
-  operation: TaskScheduleOperationIdentityRef,
-): string {
-  const schedule =
-    selection.mode === "none" ? null : selectionToApiBody(selection);
-  const key = schedule ? JSON.stringify(schedule) : "none";
-  if (operation.current?.key !== key) {
-    operation.current = { key, operationId: crypto.randomUUID() };
-  }
-  return operation.current.operationId;
-}
-
-const ONCE_SCHEDULE_LEAD_MS = 5 * 60 * 1000;
-const ONCE_SCHEDULE_RETRY_MS = 60_000;
-const ONCE_SCHEDULE_MAX_ATTEMPTS = 5;
-
-function isSchedulableOnce(oneTimeLocalIso: string, timezone: string): boolean {
-  return Boolean(
-    selectionToApiBody({
-      mode: "once",
-      timezone,
-      oneTimeLocalIso,
-    }),
-  );
-}
-
-export function schedulableOnceLocalIso(
-  oneTimeLocalIso: string,
-  timezone: string,
-): string {
-  if (isSchedulableOnce(oneTimeLocalIso, timezone)) {
-    return oneTimeLocalIso;
-  }
+  const anchorAt =
+    intervalDays != null && intervalDays > 1
+      ? zonedDateTimeLocalToUtc(selection.firstRunLocalIso, timezone)
+      : undefined;
 
   if (
-    !isValidTimezone(timezone) ||
-    !isValidCalendarDateTime(oneTimeLocalIso) ||
-    !zonedDateTimeLocalToUtc(oneTimeLocalIso, timezone)
+    intervalDays != null &&
+    intervalDays > 1 &&
+    (!isValidCalendarDateTime(selection.firstRunLocalIso) || !anchorAt)
   ) {
-    return oneTimeLocalIso;
+    return null;
   }
 
-  let leadMs = ONCE_SCHEDULE_LEAD_MS;
-  for (let attempt = 0; attempt < ONCE_SCHEDULE_MAX_ATTEMPTS; attempt++) {
+  const endsOn =
+    endsMode === TaskScheduleEndsMode.ON
+      ? selection.endOnLocalDate &&
+        isValidCalendarDateTime(`${selection.endOnLocalDate}T00:00`)
+        ? endOfLocalDateInTimezone(selection.endOnLocalDate, timezone)
+        : null
+      : undefined;
+  if (endsMode === TaskScheduleEndsMode.ON && !endsOn) return null;
+
+  if (endsOn) {
+    const firstOccurrence = getFirstUpcomingRecurringOccurrence(
+      expr,
+      timezone,
+      now,
+      intervalDays,
+      anchorAt,
+    );
+    if (!firstOccurrence || endsOn < firstOccurrence) return null;
+  }
+
+  const occurrences = selection.endAfterOccurrences;
+  if (
+    endsMode === TaskScheduleEndsMode.AFTER &&
+    (!Number.isInteger(occurrences) || !occurrences || occurrences < 1)
+  ) {
+    return null;
+  }
+
+  return {
+    expr,
+    timezone,
+    endsMode,
+    ...(intervalDays != null && intervalDays > 1 && anchorAt
+      ? { intervalDays, anchorAt }
+      : {}),
+    ...(endsOn ? { endsOn } : {}),
+    ...(endsMode === TaskScheduleEndsMode.AFTER && occurrences
+      ? { occurrences }
+      : {}),
+  };
+}
+
+const RUN_AT_LEAD_MS = 5 * 60 * 1000;
+const RUN_AT_RETRY_MS = 60_000;
+const RUN_AT_MAX_ATTEMPTS = 5;
+
+function isFutureLocalIso(localIso: string, timezone: string): boolean {
+  const runAt = zonedDateTimeLocalToUtc(localIso, timezone);
+  return runAt !== null && runAt > new Date();
+}
+
+/**
+ * A Run at the Task form accepts for a Calendar slot: the slot itself while it
+ * is ahead, else a few minutes from now, so the prefill is still in the future
+ * when the form is submitted. Malformed input is returned unchanged.
+ */
+export function schedulableRunAtLocalIso(
+  localIso: string,
+  timezone: string,
+): string {
+  if (
+    !isValidTimezone(timezone) ||
+    !isValidCalendarDateTime(localIso) ||
+    !zonedDateTimeLocalToUtc(localIso, timezone)
+  ) {
+    return localIso;
+  }
+  if (isFutureLocalIso(localIso, timezone)) return localIso;
+
+  let leadMs = RUN_AT_LEAD_MS;
+  for (let attempt = 0; attempt < RUN_AT_MAX_ATTEMPTS; attempt++) {
     const candidate = utcToDateTimeLocalInTimezone(
       new Date(Date.now() + leadMs),
       timezone,
     );
-    if (isSchedulableOnce(candidate, timezone)) {
+    if (isFutureLocalIso(candidate, timezone)) {
       return candidate;
     }
-    leadMs += ONCE_SCHEDULE_RETRY_MS;
+    leadMs += RUN_AT_RETRY_MS;
   }
 
   return utcToDateTimeLocalInTimezone(new Date(Date.now() + leadMs), timezone);
@@ -437,20 +404,20 @@ export function isValidCronExpression(expr: string, timezone: string): boolean {
   }
 }
 
-function normalizeScheduleApiBodyValue(value: unknown): unknown {
+function normalizeParsedScheduleValue(value: unknown): unknown {
   if (value instanceof Date) {
     return value.toISOString();
   }
 
   if (Array.isArray(value)) {
-    return value.map(normalizeScheduleApiBodyValue);
+    return value.map(normalizeParsedScheduleValue);
   }
 
   if (value && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value).map(([key, entryValue]) => [
         key,
-        normalizeScheduleApiBodyValue(entryValue),
+        normalizeParsedScheduleValue(entryValue),
       ]),
     );
   }
@@ -458,9 +425,9 @@ function normalizeScheduleApiBodyValue(value: unknown): unknown {
   return value;
 }
 
-function areScheduleApiBodiesEqual(
-  left: TaskScheduleInput | null,
-  right: TaskScheduleInput | null,
+function areParsedSchedulesEqual(
+  left: ParsedTaskScheduleSelection | null,
+  right: ParsedTaskScheduleSelection | null,
 ): boolean {
   if (left === null && right === null) {
     return true;
@@ -471,27 +438,18 @@ function areScheduleApiBodiesEqual(
   }
 
   return (
-    JSON.stringify(normalizeScheduleApiBodyValue(left)) ===
-    JSON.stringify(normalizeScheduleApiBodyValue(right))
+    JSON.stringify(normalizeParsedScheduleValue(left)) ===
+    JSON.stringify(normalizeParsedScheduleValue(right))
   );
 }
 
 export function hasTaskScheduleChanged(
   original: TaskScheduleSelection,
-  current: TaskScheduleSelection | undefined,
-  hadSchedule: boolean,
+  current: TaskScheduleSelection,
 ): boolean {
-  if (!current || current.mode === "none") {
-    return hadSchedule;
-  }
-
-  if (!hadSchedule) {
-    return true;
-  }
-
-  const originalBody = selectionToApiBody(original);
-  const currentBody = selectionToApiBody(current);
-  return !areScheduleApiBodiesEqual(originalBody, currentBody);
+  const originalSchedule = parseTaskScheduleSelection(original);
+  const currentSchedule = parseTaskScheduleSelection(current);
+  return !areParsedSchedulesEqual(originalSchedule, currentSchedule);
 }
 
 export { DOW };

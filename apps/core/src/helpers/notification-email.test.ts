@@ -78,9 +78,6 @@ describe("taskAttentionReasonOf", () => {
     expect(taskAttentionReasonOf("Notifications.Task.inputRequired")).toBe(
       "inputRequired",
     );
-    expect(
-      taskAttentionReasonOf("Notifications.Task.scheduleRemovedByOperator"),
-    ).toBe("scheduleRemovedByOperator");
   });
 
   it("has no reason for a key outside the family", () => {
@@ -93,9 +90,6 @@ describe("taskUpdateReasonOf", () => {
   it("reads the reason off the end of an update key", () => {
     expect(taskUpdateReasonOf("Notifications.Task.canceled")).toBe("canceled");
     expect(taskUpdateReasonOf("Notifications.Task.failed")).toBe("failed");
-    expect(taskUpdateReasonOf("Notifications.Task.scheduleRepaired")).toBe(
-      "scheduleRepaired",
-    );
   });
 
   it("falls back to the generic sentence for a key it does not know", () => {
@@ -289,6 +283,11 @@ describe("buildNotificationEmail", () => {
     expect(textIn(email?.html ?? "")).toContain("Launch");
   });
 
+  /**
+   * A key added later, or one Core no longer writes but a stored row still
+   * carries (the per-Task schedule keys retired in SOK-1173), reads as an
+   * update rather than going without an email.
+   */
   it("gives a task key it does not know the generic sentence", async () => {
     const email = await buildNotificationEmail(
       input({
@@ -325,21 +324,6 @@ describe("buildNotificationEmail", () => {
 
 describe("calendar and project notification emails", () => {
   it.each([
-    ["scheduleUpdatedByMember", "A teammate updated the schedule for Report"],
-    ["scheduleRemovedByMember", "A teammate removed the schedule for Report"],
-    [
-      "scheduleSourceChangedByMember",
-      "A teammate moved Report to another calendar source",
-    ],
-    [
-      "scheduleOccurrenceChangedByMember",
-      "A teammate changed an occurrence of Report",
-    ],
-    ["scheduleRepaired", "The schedule for Report was repaired"],
-    [
-      "scheduleRemovedByOperator",
-      "The schedule for Report was removed after review",
-    ],
     ["failed", "Report failed"],
     ["canceled", "Report was canceled"],
   ])("renders %s with its task link", async (reason, message) => {
