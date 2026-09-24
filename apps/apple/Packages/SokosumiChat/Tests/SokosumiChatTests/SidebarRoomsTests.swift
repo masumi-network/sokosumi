@@ -1,6 +1,6 @@
 import CoreAPI
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 private let baseDate = Date(timeIntervalSince1970: 1_700_000_000)

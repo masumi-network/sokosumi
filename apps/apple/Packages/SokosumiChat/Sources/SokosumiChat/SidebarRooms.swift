@@ -1,7 +1,7 @@
 import CoreAPI
 import Foundation
 
-/// Sidebar sections mirroring web's `partitionRoomsForSidebar`.
+/// Sidebar sections. A pinned room lists under Pinned only.
 public struct PartitionedSidebarRooms: Sendable {
   public var pinned: [Components.Schemas.ChatRoom]
   public var channels: [Components.Schemas.ChatRoom]
@@ -9,16 +9,14 @@ public struct PartitionedSidebarRooms: Sendable {
   public var external: [Components.Schemas.ChatRoom]
 }
 
-/// Attention chrome mirroring web's `resolveRoomAttention` (ADR 0037): only muted rooms suppress it.
-/// The resolver does not know which room is open, because opening a room does not read it — last-read
-/// moves when history resolves on screen (ADR 0026), via `RoomReadAttention` — so the selected row stays
-/// bold, badged and counted until the room is read, marked read or muted.
-///
-/// Bold follows Room unread, the channel half of `unreadCount`, plus the badge and a hand-set unread
-/// mark. Thread replies do not bold a row: they are Thread unread and surface on the Thread. A user
-/// mention inside a Thread is the one escalation that reaches the row, through `unreadMentionCount`.
-/// A row draws one number (SOK-1147): the mention badge where the reader was named, otherwise the
-/// reader's Room unread count (`unreadTextCount`, on unless switched off, ADR 0038).
+/// Attention chrome: muted rooms suppress it. Opening a room does not read
+/// it — last-read moves when history resolves on screen (ADR 0026) — so the
+/// selected row stays bold, badged and counted until the room is read, marked
+/// read or muted. Bold follows Room unread (the channel half of `unreadCount`),
+/// the badge and a hand-set unread mark; thread replies alone do not bold a row
+/// (ADR 0037), but a mention inside a thread does, through `unreadMentionCount`.
+/// A row draws one number: the mention badge where the reader was named,
+/// otherwise `unreadTextCount`, the reader's Room unread count (ADR 0038).
 public struct RoomAttention: Equatable, Sendable {
   public var bold: Bool
   /// What was addressed to the reader: mentions, and every message in a Direct of two. Drives bold and
@@ -285,10 +283,10 @@ public func sidebarRoomKind(_ room: Components.Schemas.ChatRoom) -> SidebarRoomK
   return room.kind == .channel ? .channel : .direct
 }
 
-/// Split the unified room list for the sidebar, mirroring web: a pinned room
-/// of any kind lists under Pinned only, in the reader's own order, and leaves
-/// the section it would otherwise sit in (`sidebarRoomKind`).
-public func partitionRoomsForSidebar(
+/// Split the unified room list for the sidebar: a pinned room of any kind
+/// lists under Pinned only, in the reader's own order, and leaves the
+/// section it would otherwise sit in (`sidebarRoomKind`).
+func partitionRoomsForSidebar(
   _ rooms: [Components.Schemas.ChatRoom]
 ) -> PartitionedSidebarRooms {
   var pinned: [Components.Schemas.ChatRoom] = []

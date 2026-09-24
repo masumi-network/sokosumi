@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { publicShareRepository } from "@sokosumi/database/repositories";
 
 import { requireMutableTaskOwnership } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -43,7 +42,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     await requireMutableTaskOwnership(userContext, id, prisma);
-    await publicShareRepository.deleteByTaskId(id, prisma);
+    await prisma.publicShare.deleteMany({
+      where: { taskId: id },
+    });
 
     return ok(c, deleteTaskShareResponseSchema.parse({}));
   });

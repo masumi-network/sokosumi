@@ -1,8 +1,7 @@
 import CoreAPI
 import Foundation
 
-// Org presence wire contract (ADR 0003), mirroring `@sokosumi/utils`
-// `chat-presence.ts` / `ably-channel.ts` and web's presence hooks.
+// Org presence wire contract (ADR 0003).
 //
 // Humans enter Ably Presence on `presence:org_{organizationId}` for the
 // active organization only, as `{userId}:{instanceId}` members carrying
@@ -19,7 +18,7 @@ public func orgPresenceChannelName(organizationId: String) -> String {
 }
 
 /// Inverse of `orgPresenceChannelName`. Nil for other channels or an empty id.
-public func parseOrganizationId(fromPresenceChannelName channelName: String) -> String? {
+func parseOrganizationId(fromPresenceChannelName channelName: String) -> String? {
   guard channelName.hasPrefix(orgPresenceChannelPrefix) else { return nil }
   let organizationId = String(channelName.dropFirst(orgPresenceChannelPrefix.count))
   return organizationId.isEmpty ? nil : organizationId
@@ -27,7 +26,7 @@ public func parseOrganizationId(fromPresenceChannelName channelName: String) -> 
 
 /// User id from a presence member's `{userId}:{instanceId}` client id. Malformed
 /// ids are rejected so a free-form client id cannot spoof another user.
-public func parseUserId(fromAblyPresenceClientId clientId: String) -> String? {
+func parseUserId(fromAblyPresenceClientId clientId: String) -> String? {
   guard let separator = clientId.firstIndex(of: ":"), separator > clientId.startIndex else { return nil }
   let userId = String(clientId[..<separator])
   let instanceId = String(clientId[clientId.index(after: separator)...])

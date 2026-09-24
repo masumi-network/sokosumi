@@ -1,10 +1,10 @@
 import CoreAPI
 import Foundation
 
-/// Web `chat-room.service.ts` invitee and guest-link calls. Core matches the invitee email, expires invites, checks link
+/// Invitee and guest-link calls. Core matches the invitee email, expires invites, checks link
 /// usage and host membership; its messages surface as-is. Personal workspaces omit the organization header.
 public extension ChatService {
-  /// `GET /chats/invitations?status=pending`: web's External sidebar list, already excluding expired invites.
+  /// `GET /chats/invitations?status=pending`: the External sidebar list, already excluding expired invites.
   func pendingInvitations(client: Client, organizationSlug: String?) async throws -> [Components.Schemas.ChatRoomInvitation] {
     let response = try await client.getChatsInvitations(.init(
       query: .init(status: .init(value1: .pending, value2: .init(unvalidatedValue: "pending"))),
@@ -12,9 +12,9 @@ public extension ChatService {
     ))
     switch response {
     case let .ok(value): return try value.body.json.data
-    case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)
-    case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
+    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
+    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
+    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
@@ -24,10 +24,10 @@ public extension ChatService {
     let response = try await client.getChatsInvitationsId(.init(path: .init(id: id), headers: .init(xOrganizationSlug: organizationSlug)))
     switch response {
     case let .ok(value): return try value.body.json.data
-    case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)
-    case let .notFound(value): throw try ChatServiceError.unprocessable(statusCode: 404, message: value.body.json.message)
-    case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
+    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
+    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
+    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
+    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
@@ -37,11 +37,11 @@ public extension ChatService {
     let response = try await client.postChatsInvitationsIdAccept(.init(path: .init(id: id), headers: .init(xOrganizationSlug: organizationSlug)))
     switch response {
     case let .ok(value): return try value.body.json.data
-    case let .badRequest(value): throw try ChatServiceError.unprocessable(statusCode: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)
-    case let .notFound(value): throw try ChatServiceError.unprocessable(statusCode: 404, message: value.body.json.message)
-    case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
+    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
+    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
+    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
+    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
+    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
@@ -51,11 +51,11 @@ public extension ChatService {
     let response = try await client.postChatsInvitationsIdDecline(.init(path: .init(id: id), headers: .init(xOrganizationSlug: organizationSlug)))
     switch response {
     case let .ok(value): return try value.body.json.data
-    case let .badRequest(value): throw try ChatServiceError.unprocessable(statusCode: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)
-    case let .notFound(value): throw try ChatServiceError.unprocessable(statusCode: 404, message: value.body.json.message)
-    case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
+    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
+    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
+    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
+    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
+    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
@@ -66,7 +66,7 @@ public extension ChatService {
     let response = try await client.getChatRoomInviteLinksToken(.init(path: .init(token: token)))
     switch response {
     case let .ok(value): return try value.body.json.data
-    case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
+    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
@@ -76,11 +76,11 @@ public extension ChatService {
     let response = try await client.postChatRoomInviteLinksTokenAccept(.init(path: .init(token: token), headers: .init(xOrganizationSlug: organizationSlug)))
     switch response {
     case let .ok(value): return try value.body.json.data
-    case let .badRequest(value): throw try ChatServiceError.unprocessable(statusCode: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)
-    case let .notFound(value): throw try ChatServiceError.unprocessable(statusCode: 404, message: value.body.json.message)
-    case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
+    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
+    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
+    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
+    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
+    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
