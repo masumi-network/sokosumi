@@ -636,6 +636,8 @@ model SocialPost {
   /// Social provider key, e.g. "x".
   provider String
   text     String
+  /// Drive files attached to the post (`SocialPostMediaRef[]`). Provider media ids are never stored.
+  media    Json   @default("[]")
 
   status      SocialPostStatus @default(DRAFT)
   scheduledAt DateTime?

@@ -25,7 +25,7 @@ export class SsrfError extends Error {
 export interface SsrfSafeFetchInit {
   method?: string;
   headers?: Record<string, string>;
-  body?: string;
+  body?: string | Uint8Array<ArrayBuffer>;
   signal?: AbortSignal;
   /**
    * Reject with {@link SsrfError} if `Content-Length` exceeds this or if the

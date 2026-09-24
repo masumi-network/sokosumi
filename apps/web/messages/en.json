@@ -2311,6 +2311,25 @@
           "text": "Text",
           "textPlaceholder": "What do you want to post?",
           "characters": "{count} / {limit}",
+          "media": {
+            "addFromDrive": "Add from Drive",
+            "upload": "Upload",
+            "uploading": "Uploading…",
+            "remove": "Remove {name}",
+            "hint": "Up to 4 images, or one GIF, or one video.",
+            "unsupported": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
+            "alreadyAttached": "That file is already attached.",
+            "uploadDuplicate": "A file with this name already exists in the Drive. Rename it and try again.",
+            "uploadFailed": "The upload failed. Try again.",
+            "errors": {
+              "too_many_images": "X allows at most 4 images per post.",
+              "too_many_gifs": "X allows one GIF per post.",
+              "too_many_videos": "X allows one video per post.",
+              "mixed_media": "Use images, one GIF, or one video — not a mix.",
+              "unsupported_type": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
+              "too_large": "A file is too large for X."
+            }
+          },
           "account": "Account",
           "noAccount": "Choose an account",
           "unknownHandle": "Unknown X account",

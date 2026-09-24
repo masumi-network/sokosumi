@@ -30,7 +30,7 @@ interface MockResponseSpec {
 interface CapturedRequest {
   url: URL;
   options: { method?: string; headers?: Record<string, string> };
-  body: string | undefined;
+  body: string | Uint8Array | undefined;
 }
 
 /** Builds an http(s).request stub that emits a single response and records the request. */
@@ -43,7 +43,7 @@ function mockRequestImplementation(
     options: { method?: string; headers?: Record<string, string> },
     callback: (message: EventEmitter) => void,
   ) => {
-    let body: string | undefined;
+    let body: string | Uint8Array | undefined;
     const message = Object.assign(new EventEmitter(), {
       statusCode: spec.status,
       statusMessage: "",
@@ -51,7 +51,7 @@ function mockRequestImplementation(
       destroy: vi.fn(),
     });
     const request = Object.assign(new EventEmitter(), {
-      write: (chunk: string) => {
+      write: (chunk: string | Uint8Array) => {
         body = chunk;
       },
       end: () => {
@@ -95,6 +95,24 @@ describe("ssrfSafeFetch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAgentMock.mockReturnValue(SENTINEL_AGENT);
+  });
+
+  it("uploads binary bytes unchanged with their byte length through the filtering agent", async () => {
+    const captured: CapturedRequest[] = [];
+    httpsRequestMock.mockImplementation(
+      mockRequestImplementation({ status: 200 }, captured),
+    );
+    const bytes = new Uint8Array([0, 128, 255]);
+    await ssrfSafeFetch("https://uploads.example.com/file", {
+      method: "PUT",
+      body: bytes,
+      maxResponseBytes: 1024,
+    });
+    expect(captured[0].body).toEqual(bytes);
+    expect(captured[0].options.headers).toEqual({ "Content-Length": "3" });
+    expect(useAgentMock).toHaveBeenCalledWith(
+      "https://uploads.example.com/file",
+    );
   });
 
   it("performs a GET through the filtering agent and returns the response", async () => {

@@ -2311,6 +2311,25 @@
           "text": "Text",
           "textPlaceholder": "Was möchtest du posten?",
           "characters": "{count} / {limit}",
+          "media": {
+            "addFromDrive": "Aus Drive hinzufügen",
+            "upload": "Hochladen",
+            "uploading": "Wird hochgeladen…",
+            "remove": "{name} entfernen",
+            "hint": "Bis zu 4 Bilder oder ein GIF oder ein Video.",
+            "unsupported": "Verwende eine JPG-, PNG-, WebP-, GIF- oder MP4-Datei.",
+            "alreadyAttached": "Diese Datei ist bereits angehängt.",
+            "uploadDuplicate": "Im Drive existiert bereits eine Datei mit diesem Namen. Benenne sie um und versuche es erneut.",
+            "uploadFailed": "Der Upload ist fehlgeschlagen. Versuche es erneut.",
+            "errors": {
+              "too_many_images": "X erlaubt höchstens 4 Bilder pro Beitrag.",
+              "too_many_gifs": "X erlaubt ein GIF pro Beitrag.",
+              "too_many_videos": "X erlaubt ein Video pro Beitrag.",
+              "mixed_media": "Verwende Bilder, ein GIF oder ein Video – nicht gemischt.",
+              "unsupported_type": "Verwende eine JPG-, PNG-, WebP-, GIF- oder MP4-Datei.",
+              "too_large": "Eine Datei ist zu groß für X."
+            }
+          },
           "account": "Konto",
           "noAccount": "Konto auswählen",
           "unknownHandle": "Unbekanntes X-Konto",

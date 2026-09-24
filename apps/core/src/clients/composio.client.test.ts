@@ -1,11 +1,14 @@
+import { SOCIAL_POST_MEDIA_RULES } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getEnvMock, logSetMock } = vi.hoisted(() => ({
+const { getEnvMock, logSetMock, ssrfSafeFetchMock } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
   logSetMock: vi.fn(),
+  ssrfSafeFetchMock: vi.fn(),
 }));
 
 vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: logSetMock }) }));
+vi.mock("@sokosumi/net", () => ({ ssrfSafeFetch: ssrfSafeFetchMock }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 
@@ -315,6 +318,7 @@ describe("publishXPost", () => {
     connectedAccountId: "ca_123",
     executorUserId: "sokosumi:project-executor:project_123",
     text: "Hello world",
+    media: [],
   };
 
   function stubSession(execute: () => Promise<Response> | Response) {
@@ -389,7 +393,11 @@ describe("publishXPost", () => {
         toolkits: { enable: ["twitter"] },
         connected_accounts: { twitter: ["ca_123"] },
         manage_connections: { enable: false, enable_connection_removal: false },
-        tools: { twitter: { enable: ["TWITTER_CREATION_OF_A_POST"] } },
+        tools: {
+          twitter: {
+            enable: ["TWITTER_CREATION_OF_A_POST"],
+          },
+        },
         workbench: { enable: false, enable_proxy_execution: false },
         search: { enable: false },
       },
@@ -555,5 +563,327 @@ describe("publishXPost", () => {
       path: "/api/v3.1/tool_router/session/sess_1",
       method: "DELETE",
     });
+  });
+});
+
+describe("publishXPost with media", () => {
+  const COMPOSIO_TOOL_MIME_TYPES: Record<
+    "TWITTER_UPLOAD_MEDIA" | "TWITTER_UPLOAD_LARGE_MEDIA",
+    readonly string[]
+  > = {
+    TWITTER_UPLOAD_MEDIA: ["image/jpeg", "image/png", "image/webp"],
+    TWITTER_UPLOAD_LARGE_MEDIA: [
+      "video/mp4",
+      "video/webm",
+      "image/gif",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ],
+  };
+
+  interface ExecuteCall {
+    tool_slug: string;
+    arguments: Record<string, unknown>;
+  }
+  function toolResponse(data: unknown) {
+    return new Response(
+      JSON.stringify({ data: { data }, error: null, successful: true }),
+    );
+  }
+  function stubMediaSession(
+    execute: (call: ExecuteCall) => Response = (call) =>
+      toolResponse({
+        id:
+          call.tool_slug === "TWITTER_CREATION_OF_A_POST" ? "1907" : "media_1",
+        ...(call.tool_slug === "TWITTER_UPLOAD_LARGE_MEDIA"
+          ? { processing_info: { state: "succeeded" } }
+          : {}),
+      }),
+  ) {
+    const fetchMock = vi.fn(
+      async (url: URL, init?: RequestInit): Promise<Response> => {
+        if (url.pathname === "/api/v3.1/tool_router/session")
+          return new Response(JSON.stringify({ session_id: "sess_1" }));
+        if (url.pathname === "/api/v3.1/files/upload/request")
+          return new Response(
+            JSON.stringify({
+              key: "staged-media",
+              new_presigned_url:
+                "https://uploads.example.com/media?signed=token",
+            }),
+          );
+        if (url.pathname.endsWith("/execute"))
+          return execute(JSON.parse(String(init?.body)));
+        if (init?.method === "DELETE") return new Response("{}");
+        throw new Error(`Unexpected path ${url.pathname}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+  function executeCalls(
+    fetchMock: ReturnType<typeof stubMediaSession>,
+  ): ExecuteCall[] {
+    return fetchMock.mock.calls
+      .filter(([url]) => url.pathname.endsWith("/execute"))
+      .map(([, init]) => JSON.parse(String(init?.body)));
+  }
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    ssrfSafeFetchMock.mockReset().mockResolvedValue(new Response(""));
+    getEnvMock.mockReturnValue({
+      COMPOSIO_API_BASE_URL: "https://backend.composio.dev",
+      COMPOSIO_API_KEY: "test-composio-key",
+    });
+  });
+
+  it("keeps every accepted MIME type within its selected Composio tool contract", () => {
+    const rules = SOCIAL_POST_MEDIA_RULES.x;
+    for (const mimeType of rules.imageMimeTypes) {
+      expect(COMPOSIO_TOOL_MIME_TYPES.TWITTER_UPLOAD_MEDIA).toContain(mimeType);
+    }
+    for (const mimeType of [...rules.gifMimeTypes, ...rules.videoMimeTypes]) {
+      expect(COMPOSIO_TOOL_MIME_TYPES.TWITTER_UPLOAD_LARGE_MEDIA).toContain(
+        mimeType,
+      );
+    }
+  });
+
+  it.each([
+    {
+      kind: "image" as const,
+      mimeType: "image/png",
+      tool: "TWITTER_UPLOAD_MEDIA",
+      category: "tweet_image",
+    },
+    {
+      kind: "gif" as const,
+      mimeType: "image/gif",
+      tool: "TWITTER_UPLOAD_LARGE_MEDIA",
+      category: "tweet_gif",
+    },
+    {
+      kind: "video" as const,
+      mimeType: "video/mp4",
+      tool: "TWITTER_UPLOAD_LARGE_MEDIA",
+      category: "tweet_video",
+    },
+  ])(
+    "stages $kind bytes and uses the published FileUploadable contract",
+    async ({ kind, mimeType, tool, category }) => {
+      const fetchMock = stubMediaSession();
+      const bytes = new Uint8Array([0, 128, 255]);
+      const signal = new AbortController().signal;
+      const { publishXPost } = await import("./composio.client");
+      await expect(
+        publishXPost({
+          connectedAccountId: "ca_123",
+          executorUserId: "executor",
+          text: "",
+          media: [{ bytes, name: "original-file", mimeType, kind }],
+          signal,
+        }),
+      ).resolves.toEqual({ externalId: "1907" });
+      const staging = fetchMock.mock.calls.find(([url]) =>
+        url.pathname.endsWith("/files/upload/request"),
+      );
+      expect(JSON.parse(String(staging?.[1]?.body))).toMatchObject({
+        toolkit_slug: "twitter",
+        tool_slug: tool,
+        filename: "original-file",
+        mimetype: mimeType,
+        md5: expect.stringMatching(/^[a-f0-9]{32}$/),
+      });
+      expect(ssrfSafeFetchMock).toHaveBeenCalledWith(
+        "https://uploads.example.com/media?signed=token",
+        expect.objectContaining({
+          method: "PUT",
+          body: bytes,
+          headers: { "Content-Type": mimeType },
+          maxResponseBytes: 65536,
+          signal: expect.any(AbortSignal),
+        }),
+      );
+      expect(executeCalls(fetchMock)).toEqual([
+        {
+          tool_slug: tool,
+          arguments: {
+            media: {
+              name: "original-file",
+              mimetype: mimeType,
+              s3key: "staged-media",
+            },
+            media_category: category,
+          },
+        },
+        {
+          tool_slug: "TWITTER_CREATION_OF_A_POST",
+          arguments: { media_media_ids: ["media_1"] },
+        },
+      ]);
+    },
+  );
+
+  it("polls processing before publishing and propagates cancellation into the wait", async () => {
+    const controller = new AbortController();
+    const fetchMock = stubMediaSession((call) => {
+      if (call.tool_slug === "TWITTER_UPLOAD_LARGE_MEDIA") {
+        queueMicrotask(() => controller.abort());
+        return toolResponse({
+          id: "media_1",
+          processing_info: { state: "pending", check_after_secs: 120 },
+        });
+      }
+      return toolResponse({ id: "1907" });
+    });
+    const { publishXPost } = await import("./composio.client");
+    await expect(
+      publishXPost({
+        connectedAccountId: "ca_123",
+        executorUserId: "executor",
+        text: "Clip",
+        media: [
+          { bytes: new Uint8Array([1]), mimeType: "video/mp4", kind: "video" },
+        ],
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(executeCalls(fetchMock).map((c) => c.tool_slug)).toEqual([
+      "TWITTER_UPLOAD_LARGE_MEDIA",
+    ]);
+    expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+  });
+
+  it("waits for a processing result before sending the media id to X", async () => {
+    const fetchMock = stubMediaSession((call) => {
+      if (call.tool_slug === "TWITTER_UPLOAD_LARGE_MEDIA")
+        return toolResponse({
+          media_id_string: "media_1",
+          processing_info: { state: "pending", check_after_secs: 0 },
+        });
+      if (call.tool_slug === "TWITTER_GET_MEDIA_UPLOAD_STATUS")
+        return toolResponse({ processing_info: { state: "succeeded" } });
+      return toolResponse({ id: "1907" });
+    });
+    const { publishXPost } = await import("./composio.client");
+    await publishXPost({
+      connectedAccountId: "ca_123",
+      executorUserId: "executor",
+      text: "Clip",
+      media: [
+        { bytes: new Uint8Array([1]), mimeType: "video/mp4", kind: "video" },
+      ],
+    });
+    expect(executeCalls(fetchMock).map((c) => c.tool_slug)).toEqual([
+      "TWITTER_UPLOAD_LARGE_MEDIA",
+      "TWITTER_GET_MEDIA_UPLOAD_STATUS",
+      "TWITTER_CREATION_OF_A_POST",
+    ]);
+  });
+
+  it.each([true, false])(
+    "requires confirmed processing when upload omits status (confirmed=%s)",
+    async (confirmed) => {
+      const fetchMock = stubMediaSession((call) => {
+        if (call.tool_slug === "TWITTER_GET_MEDIA_UPLOAD_STATUS")
+          return toolResponse(
+            confirmed ? { processing_info: { state: "succeeded" } } : {},
+          );
+        return toolResponse({
+          id:
+            call.tool_slug === "TWITTER_CREATION_OF_A_POST"
+              ? "1907"
+              : "media_1",
+        });
+      });
+      const { publishXPost } = await import("./composio.client");
+      const result = publishXPost({
+        connectedAccountId: "ca_123",
+        executorUserId: "executor",
+        text: "Clip",
+        media: [
+          { bytes: new Uint8Array([1]), mimeType: "video/mp4", kind: "video" },
+        ],
+      });
+      if (confirmed)
+        await expect(result).resolves.toEqual({ externalId: "1907" });
+      else
+        await expect(result).rejects.toThrow(
+          "did not confirm media processing",
+        );
+      expect(
+        executeCalls(fetchMock).some(
+          (c) => c.tool_slug === "TWITTER_CREATION_OF_A_POST",
+        ),
+      ).toBe(confirmed);
+    },
+  );
+
+  it("does not publish text alone when provider staging fails", async () => {
+    const fetchMock = stubMediaSession();
+    ssrfSafeFetchMock.mockResolvedValue(
+      new Response("denied", { status: 403 }),
+    );
+    const { publishXPost } = await import("./composio.client");
+    await expect(
+      publishXPost({
+        connectedAccountId: "ca_123",
+        executorUserId: "executor",
+        text: "Pic",
+        media: [
+          { bytes: new Uint8Array([1]), mimeType: "image/png", kind: "image" },
+        ],
+      }),
+    ).rejects.toMatchObject({ httpStatus: 403 });
+    expect(executeCalls(fetchMock)).toEqual([]);
+    expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+  });
+
+  it("stops before creating a post when cancellation occurs during staging", async () => {
+    const controller = new AbortController();
+    const fetchMock = stubMediaSession();
+    ssrfSafeFetchMock.mockImplementation(async () => {
+      controller.abort();
+      return new Response("");
+    });
+    const { publishXPost } = await import("./composio.client");
+    await expect(
+      publishXPost({
+        connectedAccountId: "ca_123",
+        executorUserId: "executor",
+        text: "Pic",
+        media: [
+          { bytes: new Uint8Array([1]), mimeType: "image/png", kind: "image" },
+        ],
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(executeCalls(fetchMock)).toEqual([]);
+  });
+
+  it("fails media processing without creating a post", async () => {
+    const fetchMock = stubMediaSession(() =>
+      toolResponse({
+        id: "media_1",
+        processing_info: {
+          state: "failed",
+          error: { message: "Invalid codec" },
+        },
+      }),
+    );
+    const { publishXPost } = await import("./composio.client");
+    await expect(
+      publishXPost({
+        connectedAccountId: "ca_123",
+        executorUserId: "executor",
+        text: "Pic",
+        media: [
+          { bytes: new Uint8Array([1]), mimeType: "video/mp4", kind: "video" },
+        ],
+      }),
+    ).rejects.toMatchObject({ providerMessage: "Invalid codec" });
+    expect(executeCalls(fetchMock)).toHaveLength(1);
   });
 });

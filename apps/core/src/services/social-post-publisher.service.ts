@@ -1,9 +1,14 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
+import type { SocialPostMediaRef } from "@sokosumi/utils";
 
 import { publishXPost } from "@/clients/composio.client";
 import { CALENDAR_BETA_USER_WHERE } from "@/helpers/calendar-beta-access";
 import { badRequest, conflict, notFound } from "@/helpers/error";
+import {
+  downloadSocialPostMedia,
+  requireSocialPostMedia,
+} from "@/helpers/social-post-media";
 import { classifyPublishError } from "@/helpers/social-post-publish-errors";
 import prisma from "@/lib/db/prisma";
 import { projectExecutorUserId } from "@/services/project-social-connections.service";
@@ -19,6 +24,10 @@ export const RETRY_WINDOW_MS = 15 * 60_000;
 /** A post first seen this long after its planned time is missed, not published. */
 export const MISSED_AFTER_MS = 60 * 60_000;
 export const RETRY_BACKOFF_MS = [60_000, 180_000] as const;
+
+/** Leave time for session cleanup and durable settlement before runtime/lease expiry. */
+const PUBLISH_BUDGET_MS = 240_000;
+const SETTLEMENT_RESERVE_MS = 20_000;
 
 const X_CREATE_POST_TOOL_SLUG = "TWITTER_CREATION_OF_A_POST";
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
@@ -74,6 +83,8 @@ interface ClaimedPost {
   id: string;
   projectId: string;
   text: string;
+  /** Raw `media` Json column; parsed strictly at publish time. */
+  media: unknown;
   scheduledAt: Date | null;
   attemptCount: number;
   leaseToken: string;
@@ -87,6 +98,7 @@ type AttemptOutcome = "published" | "retried" | "failed" | "missed" | "skipped";
 interface AttemptOptions {
   trigger: AttemptTrigger;
   actorUserId?: string;
+  execution?: PublishDueSocialPostsInput;
 }
 
 function publishedUrl(handle: string | null, externalId: string): string {
@@ -288,12 +300,31 @@ async function attemptPublish(
   });
   const attemptCount = post.attemptCount + 1;
 
+  const deadlineMs = Math.min(
+    Date.now() + PUBLISH_BUDGET_MS,
+    options.execution
+      ? options.execution.deadlineMs - SETTLEMENT_RESERVE_MS
+      : Infinity,
+  );
+  const timeoutSignal = AbortSignal.timeout(
+    Math.max(1, deadlineMs - Date.now()),
+  );
+  const signal = options.execution
+    ? AbortSignal.any([options.execution.abortSignal, timeoutSignal])
+    : timeoutSignal;
   let published: { externalId: string };
+  let media: SocialPostMediaRef[] = [];
   try {
+    if (Date.now() >= deadlineMs)
+      throw new DOMException("Publish deadline exceeded", "TimeoutError");
+    signal.throwIfAborted();
+    media = requireSocialPostMedia(post.media, post.id);
     published = await publishXPost({
       connectedAccountId: connection.composioConnectedAccountId,
       executorUserId: projectExecutorUserId(post.projectId),
       text: post.text,
+      media: await downloadSocialPostMedia(media, signal),
+      signal,
     });
   } catch (error) {
     const finishedAt = new Date();
@@ -345,7 +376,8 @@ async function attemptPublish(
       finishedAt,
       outcome: "succeeded",
       errorKind: null,
-      providerOutcome: "201 created",
+      providerOutcome:
+        media.length > 0 ? `201 created, ${media.length} media` : "201 created",
       externalId: published.externalId,
     },
   });
@@ -404,6 +436,7 @@ async function claimDuePost(): Promise<ClaimResult> {
       id: candidate.id,
       projectId: candidate.projectId,
       text: candidate.text,
+      media: candidate.media,
       scheduledAt: candidate.scheduledAt,
       attemptCount: candidate.attemptCount,
       leaseToken,
@@ -424,7 +457,11 @@ export async function publishDueSocialPosts(
     missed: 0,
     skipped: 0,
   };
-  while (input.shouldContinue() && !input.abortSignal.aborted) {
+  while (
+    input.shouldContinue() &&
+    !input.abortSignal.aborted &&
+    Date.now() < input.deadlineMs - SETTLEMENT_RESERVE_MS
+  ) {
     const claim = await claimDuePost();
     if (claim === "none") break;
     if (claim === "lost") {
@@ -432,7 +469,10 @@ export async function publishDueSocialPosts(
       continue;
     }
     result.claimed += 1;
-    const outcome = await attemptPublish(claim.post, { trigger: "scheduler" });
+    const outcome = await attemptPublish(claim.post, {
+      trigger: "scheduler",
+      execution: input,
+    });
     result[outcome] += 1;
   }
   return result;
@@ -495,6 +535,7 @@ export async function publishSocialPostNow(
       id: post.id,
       projectId: post.projectId,
       text: post.text,
+      media: post.media,
       scheduledAt: now,
       attemptCount: 0,
       leaseToken,

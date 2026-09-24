@@ -1,5 +1,10 @@
 import { z } from "@hono/zod-openapi";
-import { isValidTimezone, SOCIAL_POST_TEXT_LIMITS } from "@sokosumi/utils";
+import {
+  isValidTimezone,
+  SOCIAL_POST_MEDIA_RULES,
+  SOCIAL_POST_TEXT_LIMITS,
+} from "@sokosumi/utils";
+
 import { dateTimeSchema } from "@/helpers/datetime";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
@@ -34,12 +39,38 @@ export const socialPostStatusSchema = z
   .enum(SOCIAL_POST_STATUSES)
   .openapi("SocialPostStatus");
 
+/** Text may be empty when media is attached; the service enforces the combination. */
 const socialPostTextSchema = z
   .string()
   .trim()
-  .min(1)
   .max(SOCIAL_POST_TEXT_LIMITS.x)
   .openapi({ example: "Shipping the new Calendar today." });
+
+export const socialPostMediaRefSchema = z
+  .object({
+    pathname: z.string().min(1).openapi({
+      example: "drive/users/user_123/launch.png",
+      description: "Drive blob pathname; must belong to the active workspace",
+    }),
+    fileUrl: z.string().url().openapi({
+      example:
+        "https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png",
+      description: "Public Blob URL of the Drive file",
+    }),
+    name: z.string().min(1).openapi({ example: "launch.png" }),
+    size: z.number().int().min(0).openapi({ example: 240000 }),
+    mimeType: z.string().min(1).openapi({ example: "image/png" }),
+    kind: z.enum(["image", "gif", "video"]).openapi({ example: "image" }),
+  })
+  .openapi("SocialPostMediaRef");
+
+const socialPostMediaRequestSchema = z
+  .array(socialPostMediaRefSchema)
+  .max(SOCIAL_POST_MEDIA_RULES.x.maxImages)
+  .openapi({
+    description:
+      "Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.",
+  });
 
 const socialPostTimezoneSchema = z
   .string()
@@ -100,6 +131,7 @@ export const socialPostSchema = z
     }),
     provider: z.literal("x"),
     text: z.string(),
+    media: z.array(socialPostMediaRefSchema),
     status: socialPostStatusSchema,
     scheduledAt: dateTimeSchema.nullable(),
     timezone: z.string().nullable().openapi({ example: "Europe/Zurich" }),
@@ -130,18 +162,31 @@ export const socialPostSchema = z
   })
   .openapi("SocialPost");
 
+/** Text may be empty when media is attached; at least one of the two is required. */
+function hasTextOrMedia(value: {
+  text?: string;
+  media?: readonly unknown[];
+}): boolean {
+  return (value.text?.trim().length ?? 0) > 0 || (value.media?.length ?? 0) > 0;
+}
+
 export const createSocialPostRequestSchema = z
   .object({
     text: socialPostTextSchema,
+    media: socialPostMediaRequestSchema.optional(),
     socialConnectionId: z.string().uuid().optional(),
     scheduledAt: dateTimeSchema.optional(),
     timezone: socialPostTimezoneSchema.optional(),
   })
+  .refine(hasTextOrMedia, { message: "Text or media is required" })
   .openapi("CreateSocialPostRequest");
 
+// No text-or-media refine here: the rule depends on media already stored on
+// the post, which the request body cannot see. The service enforces it.
 export const updateSocialPostRequestSchema = z
   .object({
     text: socialPostTextSchema.optional(),
+    media: socialPostMediaRequestSchema.optional(),
     socialConnectionId: z.string().uuid().nullable().optional(),
     revision: socialPostRevisionSchema,
   })

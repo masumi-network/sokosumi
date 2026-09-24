@@ -105,6 +105,7 @@ const draftPost = {
   projectId: PROJECT_ID,
   provider: "x",
   text: "Hello world",
+  media: [],
   status: "DRAFT",
   scheduledAt: null,
   timezone: null,
@@ -369,11 +370,36 @@ describe("Project social post routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
+      organizationId: null,
       text: "Hello world",
       socialConnectionId: undefined,
       scheduledAt: undefined,
       timezone: undefined,
     });
+  });
+
+  it("forwards Drive media on create and returns it on the post", async () => {
+    const mediaRef = {
+      pathname: `drive/users/${USER_ID}/launch.png`,
+      fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/${USER_ID}/launch.png`,
+      name: "launch.png",
+      size: 2048,
+      mimeType: "image/png",
+      kind: "image" as const,
+    };
+    createSocialPostMock.mockResolvedValue({ ...draftPost, media: [mediaRef] });
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts`,
+      json("POST", { text: "Hello world", media: [mediaRef] }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      data: { media: [mediaRef] },
+    });
+    expect(createSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ media: [mediaRef] }),
+    );
   });
 
   it("creates a scheduled post with a parsed date", async () => {
@@ -400,6 +426,7 @@ describe("Project social post routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
+      organizationId: null,
       text: "Hello world",
       socialConnectionId: SOCIAL_CONNECTION_ID,
       scheduledAt: new Date(SCHEDULED_AT),
@@ -429,10 +456,26 @@ describe("Project social post routes", () => {
       "http://localhost/not-a-uuid/social-posts",
       json("POST", { text: "Hello" }),
     );
+    const tooManyImages = await app.request(
+      `http://localhost/${PROJECT_ID}/social-posts`,
+      json("POST", {
+        text: "Hello",
+        media: Array.from({ length: 5 }, (_, index) => ({
+          pathname: `drive/users/${USER_ID}/photo-${index}.png`,
+          fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/${USER_ID}/photo-${index}.png`,
+          name: `photo-${index}.png`,
+          size: 2048,
+          mimeType: "image/png",
+          kind: "image",
+        })),
+      }),
+    );
 
     expect(
-      [empty, tooLong, badDate, badZone, badProject].map((r) => r.status),
-    ).toEqual([422, 422, 422, 422, 422]);
+      [empty, tooLong, badDate, badZone, badProject, tooManyImages].map(
+        (r) => r.status,
+      ),
+    ).toEqual([422, 422, 422, 422, 422, 422]);
     expect(createSocialPostMock).not.toHaveBeenCalled();
   });
 
@@ -465,6 +508,7 @@ describe("Project social post routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
+      organizationId: null,
       postId: POST_ID,
       text: "Edited",
       socialConnectionId: null,
