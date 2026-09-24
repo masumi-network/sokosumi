@@ -171,21 +171,66 @@ async function attemptPublish(
     const previous = await prisma.socialPostPublishAttempt.findFirst({
       where: { socialPostId: post.id },
       orderBy: { attempt: "desc" },
-      select: { outcome: true, externalId: true, finishedAt: true },
+      select: {
+        outcome: true,
+        externalId: true,
+        finishedAt: true,
+        providerOutcome: true,
+      },
     });
-    if (previous?.outcome === "succeeded" && previous.externalId) {
-      const settled = await settle(post, {
-        status: "PUBLISHED",
-        publishedAt: previous.finishedAt ?? now,
-        publishedExternalId: previous.externalId,
-        publishedUrl: publishedUrl(
-          post.socialConnection?.externalHandle ?? null,
-          previous.externalId,
-        ),
-        lastError: null,
-        attemptCount: post.attemptCount + 1,
-      });
-      return settled ? "published" : "skipped";
+    if (previous?.finishedAt) {
+      switch (previous.outcome) {
+        case "succeeded": {
+          if (!previous.externalId) break;
+          const settled = await settle(post, {
+            status: "PUBLISHED",
+            publishedAt: previous.finishedAt,
+            publishedExternalId: previous.externalId,
+            publishedUrl: publishedUrl(
+              post.socialConnection?.externalHandle ?? null,
+              previous.externalId,
+            ),
+            lastError: null,
+            attemptCount: post.attemptCount + 1,
+          });
+          return settled ? "published" : "skipped";
+        }
+        case "failed_transient": {
+          const backoff = RETRY_BACKOFF_MS[post.attemptCount];
+          if (backoff === undefined) break;
+          const settled = await settle(post, {
+            status: "SCHEDULED",
+            nextAttemptAt: new Date(previous.finishedAt.getTime() + backoff),
+            attemptCount: post.attemptCount + 1,
+            lastError:
+              previous.providerOutcome ?? "Publishing failed temporarily",
+          });
+          return settled ? "retried" : "skipped";
+        }
+        case "failed_permanent": {
+          const settled = await settle(post, {
+            status: "FAILED",
+            lastError: previous.providerOutcome ?? "Publishing failed",
+            attemptCount: post.attemptCount + 1,
+          });
+          return settled ? "failed" : "skipped";
+        }
+        case "missed": {
+          if (!post.scheduledAt) break;
+          const settled = await settle(post, {
+            status: "MISSED",
+            lastError: `Missed: found ${minutesLate(post.scheduledAt, previous.finishedAt)} minutes after the planned time`,
+          });
+          return settled ? "missed" : "skipped";
+        }
+        case "connection_inactive": {
+          const settled = await settle(post, {
+            status: "FAILED",
+            lastError: CONNECTION_INACTIVE_ERROR,
+          });
+          return settled ? "failed" : "skipped";
+        }
+      }
     }
     const settled = await settle(post, {
       status: "FAILED",
@@ -321,18 +366,18 @@ type ClaimResult = { post: ClaimedPost } | "none" | "lost";
  * Optimistic claim of the earliest due post (or one whose lease expired): the
  * row must still carry the observed status and revision when the lease lands.
  *
- * Only posts scheduled by a current Calendar beta member are claimed. The
- * routes gate what a person can schedule; this keeps the cron from publishing
- * for someone who has since left the beta workspace.
+ * Fresh scheduled posts require a current Calendar beta member. Expired
+ * publishing leases are always recovered so a previously started attempt can
+ * be reconciled even after the scheduling user loses beta access.
  */
 async function claimDuePost(): Promise<ClaimResult> {
   const now = new Date();
   const candidate = await prisma.socialPost.findFirst({
     where: {
-      scheduledByUser: CALENDAR_BETA_USER_WHERE,
       OR: [
         {
           status: "SCHEDULED",
+          scheduledByUser: CALENDAR_BETA_USER_WHERE,
           scheduledAt: { lte: now },
           OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
         },

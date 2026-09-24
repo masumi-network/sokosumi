@@ -135,12 +135,12 @@ describe("social post publisher service", () => {
       1,
       expect.objectContaining({
         where: {
-          scheduledByUser: {
-            members: { some: { organization: { slug: "utxo" } } },
-          },
           OR: [
             {
               status: "SCHEDULED",
+              scheduledByUser: {
+                members: { some: { organization: { slug: "utxo" } } },
+              },
               scheduledAt: { lte: NOW },
               OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: NOW } }],
             },
@@ -233,7 +233,7 @@ describe("social post publisher service", () => {
     );
   });
 
-  it("recovers a recorded success after a crash before settling without republishing", async () => {
+  it("recovers a recorded success after beta membership is lost without republishing", async () => {
     attemptFindFirstMock.mockResolvedValue({
       outcome: "succeeded",
       externalId: "1907",
@@ -254,6 +254,24 @@ describe("social post publisher service", () => {
     const result = await publishDueSocialPosts(syncContext);
 
     expect(result).toMatchObject({ claimed: 1, published: 1 });
+    expect(socialPostFindFirstMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: {
+          OR: [
+            {
+              status: "SCHEDULED",
+              scheduledByUser: {
+                members: { some: { organization: { slug: "utxo" } } },
+              },
+              scheduledAt: { lte: NOW },
+              OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: NOW } }],
+            },
+            { status: "PUBLISHING", leaseExpiresAt: { lt: NOW } },
+          ],
+        },
+      }),
+    );
     expect(claimCall().where).toEqual({
       id: POST_ID,
       status: "PUBLISHING",
@@ -286,6 +304,94 @@ describe("social post publisher service", () => {
       });
       expect(publishXPostMock).not.toHaveBeenCalled();
       expect(settleCall().data.lastError).toContain("Check X before retrying");
+    },
+  );
+
+  it.each([
+    {
+      outcome: "failed_transient",
+      providerOutcome: "X rate limit",
+      post: {
+        scheduledAt: new Date(NOW.getTime() - 10 * 60_000),
+      },
+      expectedResult: { retried: 1, failed: 0, missed: 0 },
+      expectedData: {
+        status: "SCHEDULED",
+        nextAttemptAt: new Date(NOW.getTime() - 4 * 60_000),
+        attemptCount: 1,
+        lastError: "X rate limit",
+      },
+    },
+    {
+      outcome: "failed_permanent",
+      providerOutcome: "X rejected the post",
+      post: {},
+      expectedResult: { retried: 0, failed: 1, missed: 0 },
+      expectedData: {
+        status: "FAILED",
+        attemptCount: 1,
+        lastError: "X rejected the post",
+      },
+    },
+    {
+      outcome: "missed",
+      providerOutcome: null,
+      post: {
+        scheduledAt: new Date(NOW.getTime() - 70 * 60_000),
+      },
+      expectedResult: { retried: 0, failed: 0, missed: 1 },
+      expectedData: {
+        status: "MISSED",
+        lastError: "Missed: found 65 minutes after the planned time",
+      },
+    },
+    {
+      outcome: "connection_inactive",
+      providerOutcome: null,
+      post: {},
+      expectedResult: { retried: 0, failed: 1, missed: 0 },
+      expectedData: {
+        status: "FAILED",
+        lastError: "Social connection needs reconnecting",
+      },
+    },
+  ])(
+    "recovers a finalized $outcome attempt after a crash before settling",
+    async ({
+      outcome,
+      providerOutcome,
+      post,
+      expectedResult,
+      expectedData,
+    }) => {
+      const finishedAt = new Date(NOW.getTime() - 5 * 60_000);
+      attemptFindFirstMock.mockResolvedValue({
+        outcome,
+        externalId: null,
+        finishedAt,
+        providerOutcome,
+      });
+      socialPostFindFirstMock
+        .mockReset()
+        .mockResolvedValueOnce({
+          ...duePost,
+          ...post,
+          status: "PUBLISHING",
+          leaseToken: "stale-lease",
+          leaseExpiresAt: new Date(NOW.getTime() - 1_000),
+          revision: 2,
+        })
+        .mockResolvedValue(null);
+      const { publishDueSocialPosts } = await loadService();
+
+      const result = await publishDueSocialPosts(syncContext);
+
+      expect(result).toMatchObject(expectedResult);
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(settleCall().data).toMatchObject(expectedData);
+      expect(settleCall().data.lastError).not.toContain(
+        "could not be confirmed",
+      );
     },
   );
 
@@ -550,6 +656,36 @@ describe("social post publisher service", () => {
       leaseExpiresAt: null,
       revision: { increment: 1 },
     });
+  });
+
+  it("redacts provider secrets from both persisted failure summaries", async () => {
+    const opaqueId = "opaque_1234567890abcdefghijklmnopqrstuvwxyz";
+    publishXPostMock.mockRejectedValue(
+      new ComposioToolError({
+        message: "X refused the post",
+        providerMessage: `Duplicate content session sess_1 Bearer bearer-secret api_key=api-secret https://internal.example/path ${opaqueId} {"access_token":"short-secret","client_secret":"client-secret","authorization":"Basic dXNlcjpwYXNz","password":"my secret"}`,
+        providerStatus: 403,
+      }),
+    );
+    const { publishDueSocialPosts } = await loadService();
+
+    await publishDueSocialPosts(syncContext);
+
+    const providerOutcome = attemptUpdateMock.mock.calls[0]?.[0].data
+      .providerOutcome as string;
+    const lastError = settleCall().data.lastError as string;
+    for (const persistedValue of [providerOutcome, lastError]) {
+      expect(persistedValue).toContain("Duplicate content");
+      expect(persistedValue).not.toContain("sess_1");
+      expect(persistedValue).not.toContain("bearer-secret");
+      expect(persistedValue).not.toContain("api-secret");
+      expect(persistedValue).not.toContain("internal.example");
+      expect(persistedValue).not.toContain(opaqueId);
+      expect(persistedValue).not.toContain("short-secret");
+      expect(persistedValue).not.toContain("client-secret");
+      expect(persistedValue).not.toContain("dXNlcjpwYXNz");
+      expect(persistedValue).not.toContain("my secret");
+    }
   });
 
   it("skips a post another worker claimed first", async () => {

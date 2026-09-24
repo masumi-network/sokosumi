@@ -47,11 +47,27 @@ export class ComposioApiError extends Error {
 
 const TOOL_ERROR_MESSAGE_LIMIT = 300;
 
-/** Strips control characters and caps a provider message so it is safe to store. */
+/** Redacts credentials and identifiers before a provider message is stored. */
 function sanitizeProviderMessage(value: string): string {
   return value
     .replace(/[\u0000-\u001f\u007f]+/g, " ")
     .replace(/\s+/g, " ")
+    .replace(/\bhttps?:\/\/[^\s]+/gi, "[redacted-url]")
+    .replace(/\bsess_[a-z0-9_-]+\b/gi, "[redacted]")
+    .replace(/\bBearer\s+[^\s"',;}\]]+/gi, "Bearer [redacted]")
+    .replace(
+      /(\b(?:api[_ -]?key|access[_ -]?token|refresh[_ -]?token|client[_ -]?secret|authorization|password|token|secret)\b["']?\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s,;}\]]+)/gi,
+      (_match, prefix: string, value: string) => {
+        const quote =
+          value.startsWith('"') || value.startsWith("'") ? value[0] : "";
+        return `${prefix}${quote}[redacted]${quote}`;
+      },
+    )
+    .replace(/\b[a-z0-9_-]{32,}\b/gi, (candidate) =>
+      /[a-z]/i.test(candidate) && /\d/.test(candidate)
+        ? "[redacted-id]"
+        : candidate,
+    )
     .trim()
     .slice(0, TOOL_ERROR_MESSAGE_LIMIT);
 }

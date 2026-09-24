@@ -449,14 +449,14 @@ describe("publishXPost", () => {
   });
 
   it("raises a tool error carrying only the sanitized provider message", async () => {
+    const opaqueId = "opaque_1234567890abcdefghijklmnopqrstuvwxyz";
     const fetchMock = stubSession(
       () =>
         new Response(
           JSON.stringify({
             data: null,
             error: {
-              message:
-                "You are not allowed to create a Tweet with duplicate content.\nsession sess_1",
+              message: `Duplicate content.\nsession sess_1 Bearer bearer-secret api_key=api-secret https://internal.example/path ${opaqueId} {"access_token":"short-secret","client_secret":"client-secret","authorization":"Basic dXNlcjpwYXNz","password":"my secret"}`,
               status: 403,
             },
             successful: false,
@@ -471,10 +471,18 @@ describe("publishXPost", () => {
     expect(error).toBeInstanceOf(ComposioToolError);
     expect(error).toMatchObject({
       providerMessage:
-        "You are not allowed to create a Tweet with duplicate content. session sess_1",
+        'Duplicate content. session [redacted] Bearer [redacted] api_key=[redacted] [redacted-url] [redacted-id] {"access_token":"[redacted]","client_secret":"[redacted]","authorization":"[redacted]","password":"[redacted]"}',
       providerStatus: 403,
     });
     expect(error.message).not.toContain("sess_1");
+    expect(error.providerMessage).not.toContain("bearer-secret");
+    expect(error.providerMessage).not.toContain("api-secret");
+    expect(error.providerMessage).not.toContain("internal.example");
+    expect(error.providerMessage).not.toContain(opaqueId);
+    expect(error.providerMessage).not.toContain("short-secret");
+    expect(error.providerMessage).not.toContain("client-secret");
+    expect(error.providerMessage).not.toContain("dXNlcjpwYXNz");
+    expect(error.providerMessage).not.toContain("my secret");
     expect(calls(fetchMock).at(-1)).toMatchObject({
       path: "/api/v3.1/tool_router/session/sess_1",
       method: "DELETE",
