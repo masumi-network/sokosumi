@@ -113,6 +113,14 @@ INSERT INTO "task" (
    NULL, 'Once quarantined', NULL, 'QUEUED', 'PUBLIC', NULL,
    '{"version":2,"mode":"once","epochId":"e8e8e8e8-0000-4000-8000-000000000008","createdAt":"2026-09-01T00:00:00.000Z","ruleEffectiveFrom":"2026-09-01T00:00:00.000Z","timezone":"UTC","sourceRunAt":"2030-02-03T09:00:00.000Z","effectiveRunAt":"2030-02-03T09:00:00.000Z"}',
    '2030-02-03 09:00', NULL),
+  -- Quarantined one-time on a person-assigned Task in Ready: it never
+  -- released, so it is cleared like any one-time schedule outside Queued.
+  ('once-quarantined-ready', now(), now(), 'owner', 'owner', '11111111-1111-4111-8111-111111111111',
+   NULL, 'Once quarantined, Ready', NULL, 'READY', 'PUBLIC', 'person',
+   '{"version":1,"mode":"once","scheduledAt":"2026-09-01T00:00:00.000Z","runAt":"2026-09-16T10:00:00.000Z"}',
+   '2026-09-16 10:00', NULL),
+  ('once-released-quarantined', now(), now(), 'owner', 'owner', '11111111-1111-4111-8111-111111111111',
+   NULL, 'Once released, quarantined', NULL, 'READY', 'PUBLIC', NULL, NULL, NULL, NULL),
   ('not-a-schedule', now(), now(), 'owner', 'owner', '11111111-1111-4111-8111-111111111111',
    NULL, 'Other metadata', NULL, 'READY', 'PUBLIC', NULL, '{"design":"md"}', NULL, NULL),
   ('malformed', now(), now(), 'owner', 'owner', '11111111-1111-4111-8111-111111111111',
@@ -120,7 +128,9 @@ INSERT INTO "task" (
 
 INSERT INTO "task_schedule_quarantine" (id, "updatedAt", "taskId", reason, details, "capturedStatus") VALUES
   ('99999999-9999-4999-8999-999999999999', now(), 'quarantined', 'INVALID_TIMEZONE', 'Unknown timezone', 'QUEUED'),
-  ('99999999-9999-4999-8999-999999999998', now(), 'once-quarantined', 'NEXT_RUN_MISMATCH', 'Next run differs', 'QUEUED');
+  ('99999999-9999-4999-8999-999999999998', now(), 'once-quarantined', 'NEXT_RUN_MISMATCH', 'Next run differs', 'QUEUED'),
+  ('99999999-9999-4999-8999-999999999997', now(), 'once-quarantined-ready', 'INVALID_STATUS', 'Active schedule has invalid Task status: READY', 'READY'),
+  ('99999999-9999-4999-8999-999999999996', now(), 'once-released-quarantined', 'INVALID_STATUS', 'Active schedule has invalid Task status: READY', 'READY');
 
 -- A Soko Bot assignee carries over like any other.
 UPDATE "task" SET "assigneeSokoBotId" = '33333333-3333-4333-8333-333333333333' WHERE id = 'v2-after';
@@ -211,6 +221,13 @@ INSERT INTO "task_schedule_occurrence" (
    2, '11111111-1111-4111-8111-111111111111', 'WORKSPACE', NULL, 'EXACT', 'EXACT', 'UTC', NULL, NULL),
   ('f0000000-0000-4000-8000-000000000003', now(), 'once-quarantined', 'once-quarantined', 'e8e8e8e8-0000-4000-8000-000000000008',
    '2026-09-04 09:00', '2026-09-04 09:00', NULL, 'RELEASED',
+   2, '11111111-1111-4111-8111-111111111111', 'WORKSPACE', NULL, 'EXACT', 'EXACT', 'UTC', NULL, NULL),
+  ('f0000000-0000-4000-8000-000000000004', now(), 'once-quarantined-ready', NULL, NULL,
+   '2026-09-16 10:00', '2026-09-16 10:00', NULL, 'PLANNED',
+   1, '11111111-1111-4111-8111-111111111111', 'WORKSPACE', NULL, 'EXACT', 'EXACT', 'UTC',
+   '{"scheduledAt":"2026-09-01T00:00:00.000Z"}', NULL),
+  ('f0000000-0000-4000-8000-000000000005', now(), 'once-released-quarantined', 'once-released-quarantined', 'e9e9e9e9-0000-4000-8000-000000000009',
+   '2026-09-05 09:00', '2026-09-05 09:00', NULL, 'RELEASED',
    2, '11111111-1111-4111-8111-111111111111', 'WORKSPACE', NULL, 'EXACT', 'EXACT', 'UTC', NULL, NULL);
 
 -- Cutover -------------------------------------------------------------------
@@ -482,7 +499,17 @@ BEGIN
     (SELECT status = 'QUEUED' AND "runAt" IS NULL AND metadata IS NOT NULL AND "nextRunAt" = '2030-02-03 09:00'
      FROM "task" WHERE id = 'once-quarantined')
       AND (SELECT count(*) FROM "task_schedule_run" WHERE "seriesTaskId" = 'once-quarantined') = 2,
-    'a quarantined one-time Task and its ledger rows stay for operator repair'
+    'a quarantined Queued one-time Task and its ledger rows stay for operator repair'
+  );
+  PERFORM pg_temp.expect(
+    (SELECT status = 'READY' AND "runAt" IS NULL AND metadata IS NULL AND "nextRunAt" IS NULL AND "archivedAt" IS NULL
+     FROM "task" WHERE id = 'once-quarantined-ready')
+      AND NOT EXISTS (SELECT 1 FROM "task_schedule_run" WHERE "seriesTaskId" = 'once-quarantined-ready'),
+    'a quarantined one-time Task outside Queued is cleared and stays a Ready Task'
+  );
+  PERFORM pg_temp.expect(
+    NOT EXISTS (SELECT 1 FROM "task_schedule_run" WHERE "seriesTaskId" = 'once-released-quarantined'),
+    'the self-released row of a quarantined Task outside Queued is removed'
   );
   PERFORM pg_temp.expect(
     (SELECT metadata = '{"design":"md"}' FROM "task" WHERE id = 'not-a-schedule')

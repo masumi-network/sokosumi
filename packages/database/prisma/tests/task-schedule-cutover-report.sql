@@ -87,7 +87,7 @@ WHERE link.type = 'SCHEDULE' AND released."scheduleId" IS NULL
     WHERE s.id = md5('task-schedule-cutover:schedule:' || template.id)::UUID
   );
 
-\echo '-- Left for operator repair before SOK-1174 (quarantined one-time schedules)'
+\echo '-- Left for operator repair before SOK-1174 (quarantined Queued one-time schedules)'
 SELECT t.id, t.status, t."nextRunAt", q.reason
 FROM "task" t
 JOIN "task_schedule_quarantine" q ON q."taskId" = t.id
@@ -176,6 +176,7 @@ SELECT
   CASE
     WHEN o."seriesTaskId" = o."releasedTaskId" AND NOT EXISTS (
       SELECT 1 FROM "task_schedule_quarantine" q WHERE q."taskId" = o."seriesTaskId"
+        AND t.status = 'QUEUED'
     ) THEN 'one-time, released onto itself (removed)'
     WHEN s.id IS NOT NULL THEN 'live series (moves to its schedule)'
     WHEN t."archivedAt" IS NOT NULL THEN 'archived template (stays, SOK-1174)'
@@ -203,7 +204,7 @@ WHERE link.type = 'SCHEDULE';
 SELECT
   rule->>'version' AS version, status, quarantined,
   CASE
-    WHEN quarantined THEN 'left as is (operator repair)'
+    WHEN quarantined AND status = 'QUEUED' THEN 'left as is (operator repair)'
     WHEN status = 'QUEUED' THEN 'gets a Run at'
     ELSE 'cleared, no Run at (never released under the old rule)'
   END AS outcome,

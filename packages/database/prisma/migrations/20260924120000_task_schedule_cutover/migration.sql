@@ -619,7 +619,9 @@ WHERE t.id = s.task_id
 -- 9. A one-time schedule becomes the Task's Run at. It stays Queued; one in
 -- any other status never released under the old rule and gets no Run at.
 -- Its own ledger row (planned, or released onto itself) goes. A quarantined
--- one stays as it is for operator repair.
+-- one outside Queued was already handed to a person and is cleared the same
+-- way; a quarantined Queued one could still start an agent run, so it stays
+-- as it is for operator repair.
 CREATE TEMP TABLE cutover_one_time ON COMMIT DROP AS
 SELECT
   t.id AS task_id,
@@ -637,12 +639,16 @@ WHERE t."archivedAt" IS NULL
   AND t.metadata IS NOT NULL
   AND rule->>'mode' = 'once'
   AND rule->>'version' IN ('1', '2')
-  AND NOT EXISTS (
-    SELECT 1 FROM "task_schedule_quarantine" AS quarantine
-    WHERE quarantine."taskId" = t.id
+  AND NOT (
+    t.status = 'QUEUED'
+    AND EXISTS (
+      SELECT 1 FROM "task_schedule_quarantine" AS quarantine
+      WHERE quarantine."taskId" = t.id
+    )
   );
 
-DELETE FROM cutover_one_time WHERE run_at IS NULL;
+-- Only a Queued one needs its time; without one it stays for repair.
+DELETE FROM cutover_one_time WHERE run_at IS NULL AND status = 'QUEUED';
 
 DELETE FROM "task_schedule_run" AS run
 USING cutover_one_time AS one_time
@@ -654,7 +660,8 @@ DELETE FROM "task_schedule_run" AS run
 WHERE run."seriesTaskId" = run."releasedTaskId"
   AND NOT EXISTS (
     SELECT 1 FROM "task_schedule_quarantine" AS quarantine
-    WHERE quarantine."taskId" = run."seriesTaskId"
+    JOIN "task" AS t ON t.id = quarantine."taskId"
+    WHERE quarantine."taskId" = run."seriesTaskId" AND t.status = 'QUEUED'
   );
 
 UPDATE "task" AS t
@@ -685,7 +692,7 @@ BEGIN
   ) AS leftover;
 
   IF leftover_count > 0 THEN
-    RAISE WARNING 'Task Schedule cutover left % Task(s) with a schedule it could not move (quarantined one-time, or no rule): %',
+    RAISE WARNING 'Task Schedule cutover left % Task(s) with a schedule it could not move (quarantined Queued one-time, or no rule): %',
       leftover_count, leftover_ids;
   END IF;
 
