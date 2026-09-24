@@ -32682,6 +32682,10 @@ export type GetProjectsByIdCalendarData = {
          */
         includeSocialPosts?: 'true' | 'false';
         /**
+         * Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
+         */
+        agendaOnly?: 'true' | 'false';
+        /**
          * Whether to show only the caller's tasks or the workspace
          */
         scope?: 'owned' | 'workspace';
@@ -47883,6 +47887,10 @@ export type GetWorkspacesCalendarData = {
          * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
          */
         includeSocialPosts?: 'true' | 'false';
+        /**
+         * Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
+         */
+        agendaOnly?: 'true' | 'false';
         /**
          * Whether to show only the caller's tasks or the workspace
          */

@@ -315,12 +315,20 @@ export const projectService = (() => {
   async function getSocialPost(
     projectId: string,
     postId: string,
-  ): Promise<SocialPost> {
-    const result = await coreClient.getProjectsByIdSocialPostsByPostId(
-      projectId,
-      postId,
-    );
-    return result.data;
+  ): Promise<SocialPost | null> {
+    try {
+      const result = await coreClient.getProjectsByIdSocialPostsByPostId(
+        projectId,
+        postId,
+      );
+      return result.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+
+      throw error;
+    }
   }
 
   async function createSocialPost(

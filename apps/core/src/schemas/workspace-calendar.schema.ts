@@ -27,6 +27,10 @@ const workspaceCalendarQueryObjectSchema = z.object({
     description:
       "Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.",
   }),
+  agendaOnly: z.enum(["true", "false"]).optional().openapi({
+    description:
+      "Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.",
+  }),
   scope: z.enum(["owned", "workspace"]).default("workspace").openapi({
     description: "Whether to show only the caller's tasks or the workspace",
     example: "workspace",

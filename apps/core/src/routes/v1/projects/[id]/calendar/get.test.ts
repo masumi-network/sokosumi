@@ -410,6 +410,15 @@ describe("GET /projects/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
+  it("rejects automation opt-in to Social post calendar data", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&includeSocialPosts=true`,
+    );
+    expect(response.status).toBe(403);
+    expect(projectFindFirstMock).not.toHaveBeenCalled();
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
   it("limits a delegated coworker to Tasks it can read", async () => {
     vendorGrantFindUniqueMock.mockResolvedValue({
       id: "grant_123",

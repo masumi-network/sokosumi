@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import {
   CalendarSourceType,
   type Prisma,
+  SocialPostStatus,
   TaskScheduleOccurrenceState,
   TaskStatus,
 } from "@sokosumi/database";
@@ -36,6 +37,7 @@ interface CalendarCursor {
 
 export interface WorkspaceCalendarReadQuery {
   includeSocialPosts?: boolean;
+  agendaOnly?: boolean;
   assigneeId?: string;
   assigneeUserId?: string;
   from: Date;
@@ -148,6 +150,7 @@ export function parseWorkspaceCalendarQuery(
   const { from, to } = validateRange(query.from, query.to);
   return {
     includeSocialPosts: query.includeSocialPosts === "true",
+    agendaOnly: query.agendaOnly === "true",
     assigneeId: query.assigneeId,
     assigneeUserId: query.assigneeUserId,
     from,
@@ -379,7 +382,16 @@ export async function readWorkspaceCalendar(
     workspaceId,
     ...(options.projectId ? { projectId: options.projectId } : {}),
     ...(query.scope === "owned" ? { scheduledByUserId: userId } : {}),
-    status: { not: "DRAFT" },
+    // The agenda view shows only what is still to come: a scheduled or
+    // publishing post whose `scheduledAt` is today or later (the `from` bound
+    // below). Everything else is history the agenda would filter out anyway.
+    ...(query.agendaOnly
+      ? {
+          status: {
+            in: [SocialPostStatus.SCHEDULED, SocialPostStatus.PUBLISHING],
+          },
+        }
+      : { status: { not: "DRAFT" } }),
     scheduledAt: { gte: from, lt: to },
   };
   const socialCursor: Prisma.SocialPostWhereInput = cursor
@@ -411,6 +423,10 @@ export async function readWorkspaceCalendar(
             socialConnection: { select: { externalHandle: true } },
             project: { select: { name: true } },
             scheduledByUser: { select: { name: true, image: true } },
+            // `media: true` returns the whole Json blob just to count its refs.
+            // Prisma cannot project `json_array_length(media)` into this select,
+            // so the payload is the price of a single bounded query per page
+            // (limit + 1 posts) rather than an N+1 per-post count.
             media: true,
           },
         }),

@@ -1336,6 +1336,7 @@ export function WorkspaceCalendar({
         from: range.from,
         to: range.to,
         includeSocialPosts: "true" as const,
+        agendaOnly: view === "agenda" ? ("true" as const) : undefined,
         cursor: nextCursor,
         limit: view === "agenda" ? 10 : (pagination?.limit ?? 100),
         scope: state.scope,

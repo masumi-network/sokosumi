@@ -1,11 +1,14 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { createFormats } from "@/i18n/time-format";
 import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
+import messages from "../../../../../messages/en.json";
 
 const fullCalendarMock = vi.hoisted(() => vi.fn());
 const toastInfoMock = vi.hoisted(() => vi.fn());
@@ -21,15 +24,6 @@ vi.mock("@fullcalendar/react", () => ({
   },
 }));
 
-vi.mock("next-intl", async () => {
-  const { createTestFormatter } = await import("@/test/intl-formatter");
-  const formatter = createTestFormatter({ locale: "en-US" });
-  return {
-    useFormatter: () => formatter,
-    useTranslations: () => (key: string) => key,
-  };
-});
-
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
@@ -39,6 +33,27 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
 }));
 
 import { WorkspaceCalendar } from "./workspace-calendar";
+
+function renderCalendar(ui: ReactNode) {
+  return render(
+    <NextIntlClientProvider
+      locale="en"
+      timeZone="UTC"
+      messages={messages}
+      formats={createFormats("h12")}
+    >
+      {ui}
+    </NextIntlClientProvider>,
+  );
+}
+
+const TASK_STATUS_LABELS = {
+  QUEUED: "Scheduled",
+  RUNNING: "Running",
+  COMPLETED: "Completed",
+  FAILED: "Failed",
+  INPUT_REQUIRED: "Input required",
+} as const;
 
 interface FullCalendarProps {
   eventContent?: (info: {
@@ -87,7 +102,8 @@ describe("WorkspaceCalendar week layout", () => {
   ] as const)(
     "shows an accessible icon-only badge for %s tasks",
     (taskStatus) => {
-      render(
+      const label = TASK_STATUS_LABELS[taskStatus];
+      renderCalendar(
         <NuqsTestingAdapter>
           <WorkspaceCalendar
             initialDate="2026-08-18"
@@ -98,7 +114,7 @@ describe("WorkspaceCalendar week layout", () => {
       const props = fullCalendarMock.mock.lastCall?.[0] as
         | FullCalendarProps
         | undefined;
-      render(
+      renderCalendar(
         <>
           {props?.eventContent?.({
             event: {
@@ -110,15 +126,16 @@ describe("WorkspaceCalendar week layout", () => {
         </>,
       );
       const card = within(screen.getByTestId("calendar-event"));
-      expect(
-        card.getByRole("img", { name: `status.${taskStatus}` }),
-      ).toHaveAttribute("title", `status.${taskStatus}`);
-      expect(card.queryByText(`status.${taskStatus}`)).not.toBeInTheDocument();
+      expect(card.getByRole("img", { name: label })).toHaveAttribute(
+        "title",
+        label,
+      );
+      expect(card.queryByText(label)).not.toBeInTheDocument();
     },
   );
 
   it("labels skipped occurrences as skipped rather than showing the task's live status", () => {
-    render(
+    renderCalendar(
       <NuqsTestingAdapter>
         <WorkspaceCalendar
           initialDate="2026-08-18"
@@ -129,7 +146,7 @@ describe("WorkspaceCalendar week layout", () => {
     const props = fullCalendarMock.mock.lastCall?.[0] as
       | FullCalendarProps
       | undefined;
-    render(
+    renderCalendar(
       <>
         {props?.eventContent?.({
           event: {
@@ -141,19 +158,19 @@ describe("WorkspaceCalendar week layout", () => {
       </>,
     );
     const card = within(screen.getByTestId("calendar-event"));
-    expect(card.getByRole("img", { name: "event.skipped" })).toHaveAttribute(
+    expect(card.getByRole("img", { name: "Skipped" })).toHaveAttribute(
       "title",
-      "event.skipped",
+      "Skipped",
     );
     expect(
-      card.queryByRole("img", { name: "status.RUNNING" }),
+      card.queryByRole("img", { name: "Running" }),
     ).not.toBeInTheDocument();
   });
 
   // Stacked day-grid rows keep every concurrent task full width and visible;
   // a time grid would squeeze them into side-by-side lanes.
   it("stacks the week in a day grid by default", () => {
-    render(
+    renderCalendar(
       <NuqsTestingAdapter>
         <WorkspaceCalendar initialDate="2026-08-18" items={[WEEK_ITEM]} />
       </NuqsTestingAdapter>,
@@ -170,7 +187,7 @@ describe("WorkspaceCalendar week layout", () => {
   // localized time and its source sit above the task name, which keeps the
   // full width.
   it("renders week events as a time line above the task name", () => {
-    render(
+    renderCalendar(
       <NuqsTestingAdapter searchParams="?timezone=UTC">
         <WorkspaceCalendar
           initialDate="2026-08-18"
@@ -183,7 +200,7 @@ describe("WorkspaceCalendar week layout", () => {
     const props = fullCalendarMock.mock.lastCall?.[0] as
       | FullCalendarProps
       | undefined;
-    render(
+    renderCalendar(
       <>
         {props?.eventContent?.({
           event: {
@@ -205,7 +222,7 @@ describe("WorkspaceCalendar week layout", () => {
   // Two lines of title, then who is on it: the assignee (a coworker or a
   // member) and the owner who put it on the calendar.
   it("wraps the title to two lines and shows assignee and owner avatars", () => {
-    render(
+    renderCalendar(
       <NuqsTestingAdapter searchParams="?timezone=UTC">
         <WorkspaceCalendar
           coworkers={[
@@ -222,7 +239,7 @@ describe("WorkspaceCalendar week layout", () => {
     const props = fullCalendarMock.mock.lastCall?.[0] as
       | FullCalendarProps
       | undefined;
-    render(
+    renderCalendar(
       <>
         {props?.eventContent?.({
           event: {
@@ -239,7 +256,9 @@ describe("WorkspaceCalendar week layout", () => {
     );
     expect(titleLine).toHaveClass("line-clamp-2");
     expect(
-      screen.getByRole("button", { name: "event.accessibleName" }),
+      screen.getByRole("button", {
+        name: "Prepare release notes, Ada's workspace",
+      }),
     ).toHaveAccessibleDescription("Scout, Ada Lovelace");
     expect(screen.getByTestId("calendar-event-people")).toHaveAttribute(
       "title",
@@ -250,7 +269,7 @@ describe("WorkspaceCalendar week layout", () => {
   // The card itself must stay a plain element so FullCalendar can start a
   // drag from it; the menu opens from a tap on it or from its own button.
   it("keeps the card out of the menu trigger and opens the menu on tap", () => {
-    render(
+    renderCalendar(
       <NuqsTestingAdapter searchParams="?timezone=UTC">
         <WorkspaceCalendar initialDate="2026-08-18" items={[WEEK_ITEM]} />
       </NuqsTestingAdapter>,
@@ -259,7 +278,7 @@ describe("WorkspaceCalendar week layout", () => {
     const props = fullCalendarMock.mock.lastCall?.[0] as
       | FullCalendarProps
       | undefined;
-    render(
+    renderCalendar(
       <>
         {props?.eventContent?.({
           event: {
@@ -275,13 +294,15 @@ describe("WorkspaceCalendar week layout", () => {
     expect(card.tagName).toBe("DIV");
     expect(card).not.toHaveAttribute("aria-haspopup");
     expect(
-      screen.getByRole("button", { name: "event.accessibleName" }),
+      screen.getByRole("button", {
+        name: "Prepare release notes, Workspace",
+      }),
     ).toHaveAttribute("aria-haspopup", "menu");
 
     fireEvent.click(card);
 
     expect(
-      screen.getByRole("menuitem", { name: "event.openTask" }),
+      screen.getByRole("menuitem", { name: "Open task" }),
     ).toBeInTheDocument();
   });
 
@@ -289,7 +310,7 @@ describe("WorkspaceCalendar week layout", () => {
   // used to leave the browser selecting text. The card is unselectable and
   // a mouse drag on someone else's task explains who can reschedule it.
   it("explains a mouse drag on a task the caller does not own", () => {
-    render(
+    renderCalendar(
       <NuqsTestingAdapter searchParams="?timezone=UTC">
         <WorkspaceCalendar
           initialDate="2026-08-18"
@@ -307,7 +328,7 @@ describe("WorkspaceCalendar week layout", () => {
     const props = fullCalendarMock.mock.lastCall?.[0] as
       | FullCalendarProps
       | undefined;
-    render(
+    renderCalendar(
       <>
         {props?.eventContent?.({
           event: {
@@ -339,6 +360,8 @@ describe("WorkspaceCalendar week layout", () => {
       clientX: 20,
       clientY: 0,
     });
-    expect(toastInfoMock).toHaveBeenCalledWith("event.moveNotAllowed");
+    expect(toastInfoMock).toHaveBeenCalledWith(
+      "Only the task owner can reschedule it.",
+    );
   });
 });

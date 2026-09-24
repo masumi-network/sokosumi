@@ -159,6 +159,7 @@ export async function loadWorkspaceCalendarPage({
           : projectService.getProjectCalendar(project.id, {
               ...range,
               includeSocialPosts: "true",
+              agendaOnly: params.view === "agenda" ? "true" : undefined,
               assigneeId: params.assigneeId,
               assigneeUserId: params.assigneeUserId,
               limit: params.view === "agenda" ? 10 : 100,
@@ -214,6 +215,7 @@ export async function loadWorkspaceCalendarPage({
       : taskService.getWorkspaceCalendar({
           ...range,
           includeSocialPosts: "true",
+          agendaOnly: params.view === "agenda" ? "true" : undefined,
           assigneeId: params.assigneeId,
           assigneeUserId: params.assigneeUserId,
           limit: params.view === "agenda" ? 10 : 100,

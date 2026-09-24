@@ -145,6 +145,17 @@ describe("Social posts in the calendar", () => {
       scheduledAt: { gte: query.from, lt: query.to },
     });
   });
+  it("bounds agenda posts to SCHEDULED/PUBLISHING instead of fetching history", async () => {
+    await readWorkspaceCalendar(workspaceId, "user", {
+      ...query,
+      agendaOnly: true,
+    });
+    expect(mocks.posts.mock.lastCall?.[0].where).toEqual({
+      workspaceId,
+      status: { in: ["SCHEDULED", "PUBLISHING"] },
+      scheduledAt: { gte: query.from, lt: query.to },
+    });
+  });
   it.each([
     { includeSocialPosts: false },
     { assigneeId: "coworker" },
