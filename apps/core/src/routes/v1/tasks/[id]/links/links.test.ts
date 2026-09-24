@@ -696,15 +696,6 @@ describe("POST /tasks/{id}/links", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(taskLinkDeleteManyMock).toHaveBeenCalledWith({
-      where: {
-        type: TaskLinkType.SCHEDULE,
-        OR: [
-          { fromTaskId: "tsk_a", toTaskId: "tsk_b" },
-          { fromTaskId: "tsk_b", toTaskId: "tsk_a" },
-        ],
-      },
-    });
     expect(taskLinkCreateMock).toHaveBeenCalledWith({
       data: {
         fromTaskId: "tsk_a",
@@ -1142,31 +1133,6 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       name: "Task B",
       status: TaskStatus.RUNNING,
     });
-  });
-
-  it("returns 404 for a leftover series SCHEDULE link", async () => {
-    taskLinkFindUniqueMock.mockResolvedValue({
-      id: "tl_series",
-      fromTaskId: "tsk_a",
-      toTaskId: "tsk_b",
-      type: TaskLinkType.SCHEDULE,
-      note: null,
-    });
-
-    const app = createUserApp();
-    mountPatchTaskLink(app);
-
-    const response = await app.request(
-      "http://localhost/tsk_a/links/tl_series",
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note: "keep" }),
-      },
-    );
-
-    expect(response.status).toBe(404);
-    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 when the link metadata is updated", async () => {

@@ -145,8 +145,6 @@ function createRun(overrides: Record<string, unknown> = {}) {
     sourceWorkspaceId: WORKSPACE_ID,
     sourceType: CalendarSourceType.PROJECT,
     sourceProjectId: PROJECT_ID,
-    sourceAccuracy: "EXACT",
-    timeAccuracy: "EXACT",
     schedule: {
       id: SCHEDULE_ID,
       name: "Weekly report",
@@ -275,8 +273,6 @@ describe("GET /workspaces/calendar", () => {
           sourceWorkspaceId: WORKSPACE_ID,
           sourceType: "PROJECT",
           sourceProjectId: PROJECT_ID,
-          sourceAccuracy: "EXACT",
-          timeAccuracy: "EXACT",
         },
       ],
       meta: expect.objectContaining({
@@ -296,7 +292,6 @@ describe("GET /workspaces/calendar", () => {
 
     expect(lastRunWhere()).toEqual(
       expect.objectContaining({
-        scheduleId: { not: null },
         sourceWorkspaceId: WORKSPACE_ID,
         state: {
           in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.RELEASED],
@@ -306,7 +301,6 @@ describe("GET /workspaces/calendar", () => {
     );
     expect(taskScheduleOccurrenceCountMock).toHaveBeenCalledWith({
       where: expect.objectContaining({
-        scheduleId: { not: null },
         state: {
           in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.RELEASED],
         },
@@ -706,8 +700,6 @@ describe("GET /workspaces/calendar", () => {
         sourceWorkspaceId: WORKSPACE_ID,
         sourceType: "WORKSPACE",
         sourceProjectId: null,
-        sourceAccuracy: "EXACT",
-        timeAccuracy: "EXACT",
       },
     ]);
     expect(body.meta.pagination.total).toBe(1);

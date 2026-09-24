@@ -1150,16 +1150,8 @@ describe("SokoBotRuntimeService authorization", () => {
         archivedAt: null,
         ...buildSokoBotAudienceTaskVisibilityWhere(SCOPE.userId, askedByKind),
       };
-      // Retired SCHEDULE links (left for SOK-1174) never reach the bot.
-      const liveLink = { type: { not: "SCHEDULE" } };
-      const visiblePeerWhere = {
-        ...liveLink,
-        toTask: { is: visiblePeerTask },
-      };
-      const visibleFromPeerWhere = {
-        ...liveLink,
-        fromTask: { is: visiblePeerTask },
-      };
+      const visiblePeerWhere = { toTask: { is: visiblePeerTask } };
+      const visibleFromPeerWhere = { fromTask: { is: visiblePeerTask } };
       taskFindFirstMock.mockImplementation(
         async (args: {
           select?: {

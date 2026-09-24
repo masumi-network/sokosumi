@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import {
   type Prisma,
@@ -32,6 +32,7 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
+import { isOperationIdUniqueConstraintError } from "@/helpers/prisma";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { validateTaskScheduleRule } from "@/helpers/task-schedule";
 import {
@@ -226,13 +227,28 @@ export async function createTaskSchedule(
   input: CreateTaskScheduleRequest,
 ): Promise<TaskSchedule> {
   const actor = await resolveScheduleActor(vars);
+  const domainActor = toDomainActor(actor);
+  const creator = { ownerId: actor.userId, ...creatorFields(domainActor) };
+  const { operationId, ...request } = input;
+  const replay = operationId
+    ? createOperationReplay(actor.workspace.workspaceId, operationId, {
+        ...creator,
+        request,
+      })
+    : null;
+  // A retry answers with the schedule it made, even once its rule would no
+  // longer validate (an end date that has passed since).
+  const replayed = await replay?.find();
+  if (replayed) {
+    return replayed;
+  }
+
   validateTaskScheduleRule(input.rule);
   const visibility = resolveVisibility(input.visibility, actor.workspace);
   requireNoHumanAssigneeOnPrivateTask(visibility, input.assigneeUserId);
 
   const now = new Date();
   const rule = ruleColumns(input.rule, now);
-  const domainActor = toDomainActor(actor);
   const blueprint = {
     projectId: input.projectId ?? null,
     assigneeId: input.assigneeId ?? null,
@@ -240,38 +256,82 @@ export async function createTaskSchedule(
     assigneeUserId: input.assigneeUserId ?? null,
   };
 
-  return await prisma.$transaction(async (tx) => {
-    await requireTaskReferences(
-      {
-        ...blueprint,
-        workspaceId: actor.workspace.workspaceId,
-        actor: domainActor,
-      },
-      tx,
-    );
-    await requireOpenScheduleProjects(tx, actor.workspace.workspaceId, [
-      blueprint.projectId,
-    ]);
-    const schedule = await tx.taskSchedule.create({
-      data: {
-        workspaceId: actor.workspace.workspaceId,
-        organizationId: actor.workspace.organizationId,
-        ownerId: actor.userId,
-        ...creatorFields(domainActor),
-        ...rule,
-        name: input.name,
-        description: input.description ?? null,
-        visibility,
-        ...blueprint,
-      },
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await requireTaskReferences(
+        {
+          ...blueprint,
+          workspaceId: actor.workspace.workspaceId,
+          actor: domainActor,
+        },
+        tx,
+      );
+      await requireOpenScheduleProjects(tx, actor.workspace.workspaceId, [
+        blueprint.projectId,
+      ]);
+      const schedule = await tx.taskSchedule.create({
+        data: {
+          workspaceId: actor.workspace.workspaceId,
+          organizationId: actor.workspace.organizationId,
+          ...creator,
+          ...rule,
+          name: input.name,
+          description: input.description ?? null,
+          visibility,
+          ...blueprint,
+        },
+      });
+      await replay?.record(tx, schedule.id);
+      return await tx.taskSchedule.update({
+        where: { id: schedule.id },
+        data: {
+          nextRunAt: await projectTaskScheduleRuns(tx, schedule, now),
+        },
+      });
     });
-    return await tx.taskSchedule.update({
-      where: { id: schedule.id },
-      data: {
-        nextRunAt: await projectTaskScheduleRuns(tx, schedule, now),
-      },
-    });
-  });
+  } catch (error) {
+    // A concurrent retry with the same key committed first: answer as a
+    // replay of it.
+    const winner =
+      replay && isOperationIdUniqueConstraintError(error)
+        ? await replay.find()
+        : null;
+    if (winner) {
+      return winner;
+    }
+    throw error;
+  }
+}
+
+/**
+ * The idempotency ledger for one create. Who creates it is part of the
+ * request, so a key never hands one creator's schedule to another.
+ */
+function createOperationReplay(
+  workspaceId: string,
+  operationId: string,
+  request: object,
+) {
+  const requestFingerprint = createHash("sha256")
+    .update(JSON.stringify(request))
+    .digest("hex");
+  return {
+    async find(): Promise<TaskSchedule | null> {
+      const operation = await prisma.taskScheduleCreateOperation.findUnique({
+        where: { workspaceId_operationId: { workspaceId, operationId } },
+        select: { requestFingerprint: true, schedule: true },
+      });
+      if (operation && operation.requestFingerprint !== requestFingerprint) {
+        throwOperationConflict();
+      }
+      return operation?.schedule ?? null;
+    },
+    async record(tx: Prisma.TransactionClient, scheduleId: string) {
+      await tx.taskScheduleCreateOperation.create({
+        data: { workspaceId, operationId, requestFingerprint, scheduleId },
+      });
+    },
+  };
 }
 
 /** The schedules a reader sees, in any workspace it may read. */
@@ -431,6 +491,12 @@ function requireScheduleWriteAccess(
 function throwStateConflict(message: string): never {
   throw conflict(message, {
     kind: CORE_API_ERROR_KINDS.SCHEDULE_STATE_CONFLICT,
+  });
+}
+
+function throwOperationConflict(): never {
+  throw conflict("operationId was already used for a different request", {
+    kind: CORE_API_ERROR_KINDS.SCHEDULE_OPERATION_CONFLICT,
   });
 }
 

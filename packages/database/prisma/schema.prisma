@@ -61,9 +61,9 @@ model User {
   notificationPreferences NotificationPreference[]
   notifications           Notification[]
 
-  calendarOccurrencesActed TaskScheduleRun[]       @relation("TaskScheduleRunActor")
-  projectCloseOperations   ProjectCloseOperation[] @relation("ProjectCloseOperationActor")
-  projectEventsActed       ProjectEvent[]          @relation("ProjectEventActor")
+  taskScheduleRunsActed  TaskScheduleRun[]       @relation("TaskScheduleRunActor")
+  projectCloseOperations ProjectCloseOperation[] @relation("ProjectCloseOperationActor")
+  projectEventsActed     ProjectEvent[]          @relation("ProjectEventActor")
 
   // Chat display preferences. Not delivery: these change what the reader sees,
   // never which notifications are created or sent.
@@ -286,7 +286,7 @@ model Workspace {
   socialPosts              SocialPost[]
   taskSchedules            TaskSchedule[]
   projects                 Project[]
-  scheduleOccurrences      TaskScheduleRun[]
+  taskScheduleRuns         TaskScheduleRun[]
   scheduleCreateOperations TaskScheduleCreateOperation[]
   notifications            Notification[]
   vendorGrants             VendorGrant[]
@@ -567,13 +567,13 @@ model Project {
   closingAt        DateTime?
   closedAt         DateTime?
 
-  jobs                Job[]
-  tasks               Task[]
-  taskSchedules       TaskSchedule[]
-  scheduleOccurrences TaskScheduleRun[]
-  closeOperation      ProjectCloseOperation?
-  events              ProjectEvent[]
-  stars               ProjectStar[]
+  jobs             Job[]
+  tasks            Task[]
+  taskSchedules    TaskSchedule[]
+  taskScheduleRuns TaskScheduleRun[]
+  closeOperation   ProjectCloseOperation?
+  events           ProjectEvent[]
+  stars            ProjectStar[]
 
   socialConnections       ProjectSocialConnection[]
   socialPosts             SocialPost[]
@@ -2712,14 +2712,8 @@ model Task {
   projectId String?  @db.Uuid
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
-  metadata         String?
-  nextRunAt        DateTime?
-  scheduleRevision Int       @default(0)
-
-  scheduleOccurrences        TaskScheduleRun[]            @relation("ScheduleOccurrenceSeries")
-  releasedScheduleOccurrence TaskScheduleRun?             @relation("ScheduleOccurrenceReleasedTask")
-  scheduleQuarantine         TaskScheduleQuarantine?
-  scheduleCreateOperation    TaskScheduleCreateOperation?
+  /// The Run whose release created this Task.
+  releasedScheduleRun TaskScheduleRun? @relation("TaskScheduleRunReleasedTask")
 
   /// Task Schedule whose Run created this Task. Deleting the schedule
   /// keeps the Task (ADR 0041).
@@ -2738,7 +2732,6 @@ model Task {
   @@index([assigneeSokoBotId])
   @@index([assigneeUserId])
   @@index([projectId])
-  @@index([status, nextRunAt])
   @@index([pendingVendorGrantId])
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
@@ -2825,8 +2818,9 @@ model TaskSchedule {
   assigneeUserId    String?
   assigneeUser      User?     @relation("TaskScheduleAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
 
-  tasks Task[]
-  runs  TaskScheduleRun[]
+  tasks           Task[]
+  runs            TaskScheduleRun[]
+  createOperation TaskScheduleCreateOperation?
 
   @@index([state, nextRunAt])
   @@index([workspaceId, createdAt, id])
@@ -2842,9 +2836,9 @@ model TaskSchedule {
   @@map("task_schedule")
 }
 
-/// Idempotency ledger for atomic v2 scheduled Task creation. A key is scoped to
-/// the active workspace, so retries return the original Task without duplicating
-/// its occurrence ledger rows.
+/// Idempotency ledger for Task Schedule create. A key is scoped to the active
+/// workspace, so a retried create returns the original schedule instead of
+/// making a second one.
 model TaskScheduleCreateOperation {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -2854,12 +2848,12 @@ model TaskScheduleCreateOperation {
 
   operationId String @db.Uuid
 
-  /// SHA-256 of the creation-affecting request payload. Reusing an operation
-  /// ID for a different Task request is a conflict rather than a replay.
+  /// SHA-256 of the create request. Reusing an operation ID for a different
+  /// request is a conflict rather than a replay.
   requestFingerprint String
 
-  taskId String @unique
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  scheduleId String       @unique @db.Uuid
+  schedule   TaskSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, operationId])
   @@index([workspaceId, createdAt])
@@ -2909,25 +2903,11 @@ enum TaskLinkType {
   BLOCKS
   PARENT
   DUPLICATE
-  /// Schedule series edge: fromTask = template, toTask = run (system-created).
-  SCHEDULE
 }
 
 enum CalendarSourceType {
   WORKSPACE
   PROJECT
-  LEGACY_UNKNOWN
-}
-
-enum CalendarSourceAccuracy {
-  EXACT
-  INFERRED
-  UNKNOWN
-}
-
-enum CalendarTimeAccuracy {
-  EXACT
-  APPROXIMATE
 }
 
 enum TaskScheduleRunState {
@@ -2937,45 +2917,33 @@ enum TaskScheduleRunState {
   RELEASED
 }
 
+/// SQL-only checks (Prisma cannot express them): a released Run has its Task
+/// and only a released one does; at most one actor; a PROJECT source has its
+/// project and no other source does.
 model TaskScheduleRun {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  /// Exactly one parent is set (DB check): the old series Task or the Task
-  /// Schedule.
-  seriesTaskId String?
-  seriesTask   Task?   @relation("ScheduleOccurrenceSeries", fields: [seriesTaskId], references: [id], onDelete: Cascade)
-
-  /// Task Schedule this Run belongs to; replaces seriesTaskId (ADR 0041).
-  scheduleId String?       @db.Uuid
-  schedule   TaskSchedule? @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  scheduleId String       @db.Uuid
+  schedule   TaskSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   releasedTaskId String? @unique
-  releasedTask   Task?   @relation("ScheduleOccurrenceReleasedTask", fields: [releasedTaskId], references: [id], onDelete: Cascade)
+  releasedTask   Task?   @relation("TaskScheduleRunReleasedTask", fields: [releasedTaskId], references: [id], onDelete: Cascade)
 
-  /// Normal occurrences require epoch/original/timezone identity. Legacy rows
-  /// are distinguished by legacyLinkId. Raw database checks enforce both
-  /// branches because Prisma cannot express conditional field requirements.
-  epochId              String?   @db.Uuid
-  originalScheduledAt  DateTime?
+  /// A Run is identified by its schedule's rule epoch and its rule time;
+  /// a move changes only the effective time.
+  epochId              String   @db.Uuid
+  originalScheduledAt  DateTime
   effectiveScheduledAt DateTime
-  legacyLinkId         String?   @unique
-
-  /// Distinguishes indexed v1 plans from epoch-backed v2 rows and legacy
-  /// released ledger records. Database checks enforce the valid field branch;
-  /// a Task Schedule's Runs are always v2 without a legacy link.
-  scheduleVersion Int @default(2)
 
   state TaskScheduleRunState
 
-  sourceWorkspaceId String                 @db.Uuid
-  sourceWorkspace   Workspace              @relation(fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
+  sourceWorkspaceId String             @db.Uuid
+  sourceWorkspace   Workspace          @relation(fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
   sourceType        CalendarSourceType
-  sourceProjectId   String?                @db.Uuid
-  sourceProject     Project?               @relation(fields: [sourceProjectId], references: [id], onDelete: Restrict)
-  sourceAccuracy    CalendarSourceAccuracy @default(EXACT)
-  timeAccuracy      CalendarTimeAccuracy   @default(EXACT)
+  sourceProjectId   String?            @db.Uuid
+  sourceProject     Project?           @relation(fields: [sourceProjectId], references: [id], onDelete: Restrict)
 
   /// Who last skipped, moved, or restored this Run: a person or a
   /// Coworker vendor, at most one of them.
@@ -2983,46 +2951,16 @@ model TaskScheduleRun {
   actorUser       User?     @relation("TaskScheduleRunActor", fields: [actorUserId], references: [id], onDelete: SetNull)
   actorCoworkerId String?
   actorCoworker   Coworker? @relation("TaskScheduleRunActorCoworker", fields: [actorCoworkerId], references: [id], onDelete: SetNull)
-  timezone        String?
-  ruleSnapshot    Json?
+  timezone        String
 
-  @@unique([seriesTaskId, epochId, originalScheduledAt], map: "task_schedule_run_series_epoch_original_key")
   @@unique([scheduleId, epochId, originalScheduledAt], map: "task_schedule_run_schedule_epoch_original_key")
-  @@unique([seriesTaskId, originalScheduledAt], map: "task_schedule_run_v1_planned_original_key", where: { scheduleVersion: 1, legacyLinkId: null })
-  @@index([seriesTaskId, effectiveScheduledAt, id], map: "task_schedule_run_series_effective_id_idx")
   @@index([scheduleId, effectiveScheduledAt, id], map: "task_schedule_run_schedule_effective_id_idx")
-  @@index([seriesTaskId, originalScheduledAt, id], map: "task_schedule_run_series_original_id_idx")
   @@index([sourceWorkspaceId, effectiveScheduledAt, id], map: "task_schedule_run_workspace_effective_id_idx")
   @@index([sourceProjectId, effectiveScheduledAt, id], map: "task_schedule_run_project_effective_id_idx")
   @@index([state, effectiveScheduledAt, id])
   @@index([actorUserId])
   @@index([actorCoworkerId])
   @@map("task_schedule_run")
-}
-
-enum TaskScheduleQuarantineReason {
-  INVALID_METADATA
-  INVALID_TIMEZONE
-  INVALID_STATUS
-  NEXT_RUN_MISMATCH
-}
-
-model TaskScheduleQuarantine {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  taskId String @unique
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  reason            TaskScheduleQuarantineReason
-  details           String
-  capturedMetadata  String?
-  capturedNextRunAt DateTime?
-  capturedStatus    TaskStatus
-
-  @@index([createdAt, id])
-  @@map("task_schedule_quarantine")
 }
 
 enum ProjectCloseOperationState {
@@ -3185,17 +3123,6 @@ enum TaskPaymentClaimStatus {
   REFUNDED
 }
 
-enum TaskScheduleEventKind {
-  CREATED
-  UPDATED
-  REMOVED
-  SOURCE_CHANGED
-  OCCURRENCE_RESCHEDULED
-  OCCURRENCE_SKIPPED
-  OCCURRENCE_RESTORED
-  RELEASED
-}
-
 /// VERIFIED is terminal for the automated flow (PR1-SPEC §4): the node signs
 /// the X-PAYMENT header locally and Soko cannot observe settlement, so nothing
 /// may auto-progress a VERIFIED record until the phased-settlement reconciler
@@ -3247,10 +3174,6 @@ model TaskEvent {
 
   status TaskStatus?
 
-  scheduleKind        TaskScheduleEventKind?
-  schedulePayload     Json?
-  scheduleOperationId String?                @db.Uuid
-
   comment           String?
   cents             BigInt?
   authenticationUrl String?
@@ -3271,7 +3194,6 @@ model TaskEvent {
   paymentClaim TaskPaymentClaim?
   x402Payment  TaskX402Payment?
 
-  @@unique([taskId, scheduleOperationId], map: "taskEvent_taskId_scheduleOperationId_key", where: { scheduleOperationId: { not: null } })
   @@index([transactionId])
   @@index([sokoBotId])
   @@index([taskId, createdAt])

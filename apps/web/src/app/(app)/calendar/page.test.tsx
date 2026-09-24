@@ -256,12 +256,12 @@ describe("CalendarPage", () => {
   it("passes the selected non-Project source filter to the initial Calendar read", async () => {
     await CalendarPage({
       searchParams: Promise.resolve({
-        sourceId: "legacy-unknown:workspace-1",
+        sourceId: "workspace:workspace-1",
       }),
     });
 
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceId: "legacy-unknown:workspace-1" }),
+      expect.objectContaining({ sourceId: "workspace:workspace-1" }),
     );
   });
 

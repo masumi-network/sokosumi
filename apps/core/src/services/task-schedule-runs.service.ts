@@ -1,8 +1,6 @@
 import * as Sentry from "@sentry/node";
 import {
-  CalendarSourceAccuracy,
   CalendarSourceType,
-  CalendarTimeAccuracy,
   Channel,
   type Prisma,
   type TaskSchedule,
@@ -48,8 +46,6 @@ function getRunSource(schedule: {
       ? CalendarSourceType.PROJECT
       : CalendarSourceType.WORKSPACE,
     sourceProjectId: schedule.projectId,
-    sourceAccuracy: CalendarSourceAccuracy.EXACT,
-    timeAccuracy: CalendarTimeAccuracy.EXACT,
   };
 }
 
@@ -196,7 +192,6 @@ export async function projectTaskScheduleRuns(
         originalScheduledAt: at,
         effectiveScheduledAt: at,
         state: TaskScheduleRunState.PLANNED,
-        scheduleVersion: 2,
         ...getRunSource(schedule),
         timezone: schedule.timezone,
       })),

@@ -42,7 +42,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceId = workspaceContext.workspaceId;
     const isSchedulable = await canCreateTaskSchedules(c.var);
 
-    const [workspace, projects, legacyOccurrence] = await Promise.all([
+    const [workspace, projects] = await Promise.all([
       prisma.workspace.findUnique({
         where: { id: workspaceId },
         select: {
@@ -60,13 +60,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           closingAt: true,
           closedAt: true,
         },
-      }),
-      prisma.taskScheduleRun.findFirst({
-        where: {
-          sourceWorkspaceId: workspaceId,
-          sourceType: CalendarSourceType.LEGACY_UNKNOWN,
-        },
-        select: { id: true },
       }),
     ]);
     if (!workspace) {
@@ -105,23 +98,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }),
       ),
     ];
-
-    if (legacyOccurrence) {
-      sources.push(
-        workspaceCalendarSourceSchema.parse({
-          sourceId: getCalendarSourceId({
-            sourceWorkspaceId: workspaceId,
-            sourceType: CalendarSourceType.LEGACY_UNKNOWN,
-            sourceProjectId: null,
-          }),
-          sourceType: CalendarSourceType.LEGACY_UNKNOWN,
-          displayName: "Legacy source",
-          logoUrl: null,
-          paletteToken: "amber",
-          isSchedulable: false,
-        }),
-      );
-    }
 
     return ok(c, sources);
   });

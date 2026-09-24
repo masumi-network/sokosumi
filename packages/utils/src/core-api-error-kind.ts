@@ -32,6 +32,7 @@ export const CORE_API_ERROR_KINDS = {
   QUEUED_REQUIRES_RUN_AT: "queued_requires_run_at",
   RUN_AT_NOT_IN_FUTURE: "run_at_not_in_future",
   STATUS_NOT_SELECTABLE: "status_not_selectable",
+  SCHEDULE_OPERATION_CONFLICT: "schedule_operation_conflict",
   SCHEDULE_REVISION_CONFLICT: "schedule_revision_conflict",
   SCHEDULE_STATE_CONFLICT: "schedule_state_conflict",
   SOCIAL_POST_REVISION_CONFLICT: "social_post_revision_conflict",

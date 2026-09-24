@@ -273,16 +273,6 @@ function CalendarEvent({
   const sourceMarker = (
     <SourceMarker decorative source={source} sourceName={sourceName} />
   );
-  const accuracyMarker =
-    item.sourceAccuracy !== "EXACT" ? (
-      <span
-        aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
-        className="text-muted-foreground shrink-0"
-        role="img"
-      >
-        ~
-      </span>
-    ) : null;
   const peopleNames = [people.assignee?.name, people.owner?.name]
     .filter((name): name is string => Boolean(name?.trim()))
     .join(", ");
@@ -373,7 +363,6 @@ function CalendarEvent({
               {timeText}
             </span>
           ) : null}
-          {accuracyMarker}
           <span className="text-muted-foreground min-w-0 truncate">
             {sourceName}
           </span>

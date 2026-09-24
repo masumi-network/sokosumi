@@ -82,44 +82,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const requestedRefs = [...new Set(c.req.valid("json").refs)];
-    const [occurrenceActors, projectEventActors, taskEventActors] =
-      await Promise.all([
-        prisma.taskScheduleRun.findMany({
-          where: {
-            sourceWorkspaceId: workspaceId,
-            actorUserId: { in: requestedRefs },
-          },
-          distinct: ["actorUserId"],
-          select: { actorUserId: true },
-        }),
-        prisma.projectEvent.findMany({
-          where: {
-            project: { workspaceId },
-            actorUserId: { in: requestedRefs },
-          },
-          distinct: ["actorUserId"],
-          select: { actorUserId: true },
-        }),
-        prisma.taskEvent.findMany({
-          where: {
-            task: { workspaceId },
-            scheduleKind: { not: null },
-            userId: { in: requestedRefs },
-          },
-          distinct: ["userId"],
-          select: { userId: true },
-        }),
-      ]);
+    const [runActors, projectEventActors] = await Promise.all([
+      prisma.taskScheduleRun.findMany({
+        where: {
+          sourceWorkspaceId: workspaceId,
+          actorUserId: { in: requestedRefs },
+        },
+        distinct: ["actorUserId"],
+        select: { actorUserId: true },
+      }),
+      prisma.projectEvent.findMany({
+        where: {
+          project: { workspaceId },
+          actorUserId: { in: requestedRefs },
+        },
+        distinct: ["actorUserId"],
+        select: { actorUserId: true },
+      }),
+    ]);
 
     const provenRefs = new Set<string>();
-    for (const { actorUserId } of occurrenceActors) {
+    for (const { actorUserId } of runActors) {
       if (actorUserId) provenRefs.add(actorUserId);
     }
     for (const { actorUserId } of projectEventActors) {
       if (actorUserId) provenRefs.add(actorUserId);
-    }
-    for (const { userId } of taskEventActors) {
-      if (userId) provenRefs.add(userId);
     }
 
     const currentActors =

@@ -161,6 +161,12 @@ and the contextual user's private ones in its vendor family, as for Tasks. It
 changes only the contextual user's schedules that it created or whose assignee
 is in its vendor family. A schedule's workspace is fixed at creation.
 
+`POST /v1/tasks/schedules` takes an optional `operationId` (a UUID, scoped to
+the workspace) so a timed-out create can be retried safely: a retry with the
+same key and body returns the schedule the first request made, and the same
+key with a different body or from another creator answers **409**
+`schedule_operation_conflict`. Without it, every create makes a new schedule.
+
 `PATCH /v1/tasks/schedules/{id}` takes the `expectedRevision` the caller read
 and answers **409** `schedule_revision_conflict` when the schedule changed.
 Pause, resume, and end answer **409** `schedule_state_conflict` from the wrong
@@ -185,7 +191,10 @@ The old per-Task schedule routes answer **410 Gone** with `kind`
 The Task DTO no longer carries `metadata`, `nextRunAt`, or `scheduleRevision`,
 and `GET /v1/tasks` no longer accepts `hasSchedule` or `sort=nextRunAt`. It
 carries `runAt` and `scheduleId`; filter `GET /v1/tasks?scheduleId=` for the
-Tasks a schedule created.
+Tasks a schedule created. Task events no longer carry `scheduleKind`,
+`schedulePayload`, or `scheduleOperationId`. Calendar items no longer carry
+`sourceAccuracy` or `timeAccuracy`, and `LEGACY_UNKNOWN` is gone from
+`sourceType`.
 
 ---
 

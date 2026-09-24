@@ -223,8 +223,6 @@ const ITEM: WorkspaceCalendarItem = {
   sourceWorkspaceId: "workspace-1",
   sourceType: "PROJECT",
   sourceProjectId: "project-1",
-  sourceAccuracy: "EXACT",
-  timeAccuracy: "EXACT",
 };
 
 const READ_ONLY_ITEM: WorkspaceCalendarItem = {

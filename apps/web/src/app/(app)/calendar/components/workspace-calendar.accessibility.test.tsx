@@ -65,8 +65,6 @@ const ITEM: WorkspaceCalendarItem = {
   sourceWorkspaceId: "workspace-1",
   sourceType: "WORKSPACE",
   sourceProjectId: null,
-  sourceAccuracy: "EXACT",
-  timeAccuracy: "EXACT",
 };
 
 const SOURCES: WorkspaceCalendarSource[] = [

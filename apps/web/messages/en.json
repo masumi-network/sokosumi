@@ -6487,8 +6487,7 @@
         "label": "Source",
         "all": "All sources",
         "WORKSPACE": "Workspace",
-        "PROJECT": "Project",
-        "LEGACY_UNKNOWN": "Legacy source"
+        "PROJECT": "Project"
       },
       "event": {
         "accessibleName": "{task}, {source}",
@@ -6512,11 +6511,6 @@
       },
       "create": {
         "fab": "Schedule a task"
-      },
-      "accuracy": {
-        "inferred": "Inferred source",
-        "unknown": "Unknown source",
-        "approximate": "Approximate time"
       },
       "status": {
         "label": "Task status",

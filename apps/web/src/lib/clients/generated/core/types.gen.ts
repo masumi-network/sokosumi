@@ -1322,20 +1322,6 @@ export type TaskEvent = {
     channel: Channel;
     origin: Channel & unknown;
     status?: TaskStatus | null;
-    /**
-     * Schedule activity represented by this event
-     */
-    scheduleKind?: 'CREATED' | 'UPDATED' | 'REMOVED' | 'SOURCE_CHANGED' | 'OCCURRENCE_RESCHEDULED' | 'OCCURRENCE_SKIPPED' | 'OCCURRENCE_RESTORED' | 'RELEASED' | null;
-    /**
-     * Schedule activity details for audit and notifications
-     */
-    schedulePayload?: {
-        [key: string]: unknown;
-    } | null;
-    /**
-     * Idempotency identity for the schedule mutation
-     */
-    scheduleOperationId?: string | null;
 };
 
 /**
@@ -4741,13 +4727,11 @@ export type WorkspaceCalendarItem = {
      * Workspace captured as the Calendar source
      */
     sourceWorkspaceId: string;
-    sourceType: 'WORKSPACE' | 'PROJECT' | 'LEGACY_UNKNOWN';
+    sourceType: 'WORKSPACE' | 'PROJECT';
     /**
      * Project captured as the Calendar source, when applicable
      */
     sourceProjectId: string | null;
-    sourceAccuracy: 'EXACT' | 'INFERRED' | 'UNKNOWN';
-    timeAccuracy: 'EXACT' | 'APPROXIMATE';
 };
 
 export type ProjectCloseStatus = {
@@ -5998,6 +5982,10 @@ export const TaskScheduleEndsMode = {
 export type TaskScheduleEndsMode = typeof TaskScheduleEndsMode[keyof typeof TaskScheduleEndsMode];
 
 export type CreateTaskScheduleRequest = {
+    /**
+     * Idempotency key, scoped to the active workspace. A retry with the same key and body returns the schedule the first request made; the same key with a different body or creator is a 409 schedule_operation_conflict.
+     */
+    operationId?: string;
     name: string;
     description?: string | null;
     projectId?: string | null;
@@ -6576,15 +6564,15 @@ export type DesignMdOwnerInfo = {
 
 export type WorkspaceCalendarSource = {
     sourceId: string;
-    sourceType: 'WORKSPACE' | 'PROJECT' | 'LEGACY_UNKNOWN';
+    sourceType: 'WORKSPACE' | 'PROJECT';
     displayName: string;
     logoUrl: string | null;
     /**
      * Bounded visual marker for Calendar source displays
      */
-    paletteToken: 'blue' | 'violet' | 'amber';
+    paletteToken: 'blue' | 'violet';
     /**
-     * Whether this source may be selected to create a Task through POST /v1/tasks/scheduled. Unschedulable sources remain available for Calendar event display and filtering.
+     * Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.
      */
     isSchedulable: boolean;
 };

@@ -1,8 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import {
-  CalendarSourceAccuracy,
   CalendarSourceType,
-  CalendarTimeAccuracy,
   type Prisma,
   TaskScheduleRunState,
   TaskScheduleState,
@@ -208,14 +206,10 @@ function getNonProjectSourceFilter(
     return { sourceType: CalendarSourceType.WORKSPACE };
   }
 
-  if (sourceId === `legacy-unknown:${workspaceId}`) {
-    return { sourceType: CalendarSourceType.LEGACY_UNKNOWN };
-  }
-
   throw notFound("Calendar source not found");
 }
 
-/** Run at Tasks have a Project or the workspace as source, never a legacy one. */
+/** Run at Tasks have a Project or the workspace as source. */
 function getRunAtTaskSourceFilter(
   workspaceId: string,
   options: WorkspaceCalendarReadOptions,
@@ -309,7 +303,6 @@ export async function readWorkspaceCalendar(
       }
     : null;
   const baseWhere: Prisma.TaskScheduleRunWhereInput = {
-    scheduleId: { not: null },
     sourceWorkspaceId: workspaceId,
     ...sourceFilter,
     ...(options.projectId
@@ -358,8 +351,6 @@ export async function readWorkspaceCalendar(
         sourceWorkspaceId: true,
         sourceType: true,
         sourceProjectId: true,
-        sourceAccuracy: true,
-        timeAccuracy: true,
         schedule: {
           select: {
             id: true,
@@ -443,8 +434,6 @@ export async function readWorkspaceCalendar(
         sourceWorkspaceId: run.sourceWorkspaceId,
         sourceType: run.sourceType,
         sourceProjectId: run.sourceProjectId,
-        sourceAccuracy: run.sourceAccuracy,
-        timeAccuracy: run.timeAccuracy,
       }),
     ];
   });
@@ -477,8 +466,6 @@ export async function readWorkspaceCalendar(
         state: TaskScheduleRunState.PLANNED,
         sourceId: getCalendarSourceId(source),
         ...source,
-        sourceAccuracy: CalendarSourceAccuracy.EXACT,
-        timeAccuracy: CalendarTimeAccuracy.EXACT,
       }),
     ];
   });

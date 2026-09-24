@@ -5285,45 +5285,6 @@ export const TaskEventSchema = {
                 }
             ],
             example: 'RUNNING'
-        },
-        scheduleKind: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'CREATED',
-                'UPDATED',
-                'REMOVED',
-                'SOURCE_CHANGED',
-                'OCCURRENCE_RESCHEDULED',
-                'OCCURRENCE_SKIPPED',
-                'OCCURRENCE_RESTORED',
-                'RELEASED',
-                null
-            ],
-            description: 'Schedule activity represented by this event',
-            example: 'OCCURRENCE_SKIPPED'
-        },
-        schedulePayload: {
-            type: [
-                'object',
-                'null'
-            ],
-            additionalProperties: {},
-            description: 'Schedule activity details for audit and notifications',
-            example: {
-                occurrenceKey: 'occurrence-key'
-            }
-        },
-        scheduleOperationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            description: 'Idempotency identity for the schedule mutation',
-            example: '123e4567-e89b-42d3-a456-426614174000'
         }
     },
     required: [
@@ -15599,8 +15560,7 @@ export const WorkspaceCalendarItemSchema = {
             type: 'string',
             enum: [
                 'WORKSPACE',
-                'PROJECT',
-                'LEGACY_UNKNOWN'
+                'PROJECT'
             ],
             example: 'WORKSPACE'
         },
@@ -15611,23 +15571,6 @@ export const WorkspaceCalendarItemSchema = {
             ],
             format: 'uuid',
             description: 'Project captured as the Calendar source, when applicable'
-        },
-        sourceAccuracy: {
-            type: 'string',
-            enum: [
-                'EXACT',
-                'INFERRED',
-                'UNKNOWN'
-            ],
-            example: 'EXACT'
-        },
-        timeAccuracy: {
-            type: 'string',
-            enum: [
-                'EXACT',
-                'APPROXIMATE'
-            ],
-            example: 'EXACT'
         }
     },
     required: [
@@ -15647,9 +15590,7 @@ export const WorkspaceCalendarItemSchema = {
         'sourceId',
         'sourceWorkspaceId',
         'sourceType',
-        'sourceProjectId',
-        'sourceAccuracy',
-        'timeAccuracy'
+        'sourceProjectId'
     ]
 } as const;
 
@@ -20546,6 +20487,12 @@ export const TaskScheduleEndsModeSchema = {
 export const CreateTaskScheduleRequestSchema = {
     type: 'object',
     properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Idempotency key, scoped to the active workspace. A retry with the same key and body returns the schedule the first request made; the same key with a different body or creator is a 409 schedule_operation_conflict.',
+            example: '01960001-0001-7001-8001-0000000000cc'
+        },
         name: {
             type: 'string',
             minLength: 1,
@@ -22260,8 +22207,7 @@ export const WorkspaceCalendarSourceSchema = {
             type: 'string',
             enum: [
                 'WORKSPACE',
-                'PROJECT',
-                'LEGACY_UNKNOWN'
+                'PROJECT'
             ],
             example: 'PROJECT'
         },
@@ -22281,15 +22227,14 @@ export const WorkspaceCalendarSourceSchema = {
             type: 'string',
             enum: [
                 'blue',
-                'violet',
-                'amber'
+                'violet'
             ],
             description: 'Bounded visual marker for Calendar source displays',
             example: 'violet'
         },
         isSchedulable: {
             type: 'boolean',
-            description: 'Whether this source may be selected to create a Task through POST /v1/tasks/scheduled. Unschedulable sources remain available for Calendar event display and filtering.',
+            description: 'Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.',
             example: true
         }
     },

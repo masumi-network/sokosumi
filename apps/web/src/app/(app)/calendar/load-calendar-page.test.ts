@@ -241,7 +241,7 @@ describe("loadWorkspaceCalendarPage", () => {
         assigneeId: "coworker-1",
         date: "2026-06-18",
         projectId: "project-1",
-        sourceId: "legacy-unknown:workspace-1",
+        sourceId: "workspace:workspace-1",
         scope: "owned",
         status: "READY",
       }),
@@ -251,7 +251,7 @@ describe("loadWorkspaceCalendarPage", () => {
       expect.objectContaining({
         assigneeId: "coworker-1",
         projectId: "project-1",
-        sourceId: "legacy-unknown:workspace-1",
+        sourceId: "workspace:workspace-1",
         scope: "owned",
         status: "READY",
       }),

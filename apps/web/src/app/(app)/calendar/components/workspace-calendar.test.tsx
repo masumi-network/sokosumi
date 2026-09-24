@@ -105,18 +105,16 @@ const ITEMS: WorkspaceCalendarItem[] = [
     sourceWorkspaceId: "workspace-1",
     sourceType: "PROJECT",
     sourceProjectId: "project-1",
-    sourceAccuracy: "INFERRED",
-    timeAccuracy: "APPROXIMATE",
   },
 ];
 
-const LEGACY_ITEM: WorkspaceCalendarItem = {
+const WORKSPACE_ITEM: WorkspaceCalendarItem = {
   ...ITEMS[0],
-  id: "run-legacy-1",
-  taskName: "Review imported schedule",
-  sourceId: "legacy:calendar-1",
+  id: "run-workspace-1",
+  taskName: "Review workspace plan",
+  sourceId: "workspace:workspace-1",
   sourceProjectId: null,
-  sourceType: "LEGACY_UNKNOWN",
+  sourceType: "WORKSPACE",
 };
 
 const CALENDAR_PAGE = {
@@ -189,14 +187,6 @@ const SOURCES: WorkspaceCalendarSource[] = [
     logoUrl: "https://example.com/release-planning.png",
     paletteToken: "violet",
     isSchedulable: true,
-  },
-  {
-    sourceId: "legacy:calendar-1",
-    sourceType: "LEGACY_UNKNOWN",
-    displayName: "Imported calendar",
-    logoUrl: null,
-    paletteToken: "amber",
-    isSchedulable: false,
   },
 ];
 
@@ -468,27 +458,10 @@ describe("WorkspaceCalendar", () => {
     expect(screen.getByTestId("calendar-agenda")).toBeInTheDocument();
     expect(screen.getByText("Release planning")).toBeInTheDocument();
     expect(screen.getByTestId("calendar-source-marker")).toBeInTheDocument();
-    expect(screen.getByLabelText("accuracy.inferred")).toBeInTheDocument();
-    expect(
-      screen.queryByLabelText("accuracy.approximate"),
-    ).not.toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: /Prepare release notes/ })[0],
     ).toBeInTheDocument();
   });
-
-  it.each(["month", "week", "agenda"] as const)(
-    "marks inferred items in the %s view",
-    (view) => {
-      render(
-        <NuqsTestingAdapter searchParams={`?view=${view}&date=2026-08-18`}>
-          <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
-        </NuqsTestingAdapter>,
-      );
-
-      expect(screen.getByLabelText("accuracy.inferred")).toBeInTheDocument();
-    },
-  );
 
   it("uses the task-style scope filter", async () => {
     const onUrlUpdate = vi.fn();
@@ -546,12 +519,6 @@ describe("WorkspaceCalendar", () => {
         image: "https://example.com/release-planning.png",
         label: "Release planning",
         value: "project:project-1",
-      },
-      {
-        avatarLabel: "Imported calendar",
-        image: null,
-        label: "Imported calendar",
-        value: "legacy:calendar-1",
       },
     ]);
 
@@ -687,7 +654,7 @@ describe("WorkspaceCalendar", () => {
     expect(updates).toContain("timezone=UTC&status=READY");
   });
 
-  it.each(["workspace:workspace-1", "legacy:calendar-1"])(
+  it.each(["workspace:workspace-1"])(
     "stores the selected non-Project source %s in the Calendar URL",
     async (sourceId) => {
       const onUrlUpdate = vi.fn();
@@ -698,7 +665,7 @@ describe("WorkspaceCalendar", () => {
         >
           <WorkspaceCalendar
             initialDate="2026-08-18"
-            items={[...ITEMS, LEGACY_ITEM]}
+            items={[...ITEMS, WORKSPACE_ITEM]}
             sources={SOURCES}
           />
         </NuqsTestingAdapter>,
@@ -732,7 +699,7 @@ describe("WorkspaceCalendar", () => {
     render(
       <NuqsTestingAdapter
         onUrlUpdate={onUrlUpdate}
-        searchParams="?timezone=UTC&sourceId=legacy%3Acalendar-1"
+        searchParams="?timezone=UTC&sourceId=workspace%3Aworkspace-1"
       >
         <WorkspaceCalendar
           initialDate="2026-08-18"
@@ -766,7 +733,7 @@ describe("WorkspaceCalendar", () => {
     render(
       <NuqsTestingAdapter
         onUrlUpdate={onUrlUpdate}
-        searchParams="?timezone=UTC&projectId=project-1&sourceId=legacy%3Acalendar-1"
+        searchParams="?timezone=UTC&projectId=project-1&sourceId=workspace%3Aworkspace-1"
       >
         <WorkspaceCalendar
           initialDate="2026-08-18"
@@ -1122,7 +1089,7 @@ describe("WorkspaceCalendar", () => {
     getWorkspaceCalendarMock.mockResolvedValue({
       data: [
         {
-          ...LEGACY_ITEM,
+          ...WORKSPACE_ITEM,
           id: "run-2",
           taskName: "Publish release notes",
         },
@@ -1138,7 +1105,7 @@ describe("WorkspaceCalendar", () => {
     });
 
     render(
-      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&sourceId=legacy%3Acalendar-1">
+      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&sourceId=workspace%3Aworkspace-1">
         <WorkspaceCalendar
           items={ITEMS}
           initialDate="2026-08-18"
@@ -1156,7 +1123,7 @@ describe("WorkspaceCalendar", () => {
       scope: "workspace",
       assigneeId: undefined,
       status: undefined,
-      sourceId: "legacy:calendar-1",
+      sourceId: "workspace:workspace-1",
     });
   });
 
