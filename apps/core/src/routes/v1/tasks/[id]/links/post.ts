@@ -7,6 +7,7 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import {
   assertTaskLinkAllowed,
+  deleteRetiredScheduleLink,
   mapTaskLink,
   mapTaskLinkRelationToWriteData,
 } from "@/helpers/task-link";
@@ -78,6 +79,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!peerTask) {
         throw notFound("Task not found");
       }
+
+      await deleteRetiredScheduleLink(
+        tx,
+        linkData.fromTaskId,
+        linkData.toTaskId,
+      );
 
       try {
         const link = await tx.taskLink.create({
