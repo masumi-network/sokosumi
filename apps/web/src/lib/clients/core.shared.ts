@@ -41,6 +41,7 @@ import type {
   GetJobsData,
   GetNotificationsData,
   GetProjectsByIdCalendarData,
+  GetProjectsByIdSocialPostsData,
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
@@ -62,6 +63,7 @@ import type {
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
   PatchProjectsByIdData,
+  PatchProjectsByIdSocialPostsByPostIdData,
   PatchTasksByIdData,
   PatchVendorData,
   PostAgentsByIdJobsData,
@@ -83,6 +85,9 @@ import type {
   PostProjectsByIdJobsData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
+  PostProjectsByIdSocialPostsByPostIdCancelData,
+  PostProjectsByIdSocialPostsByPostIdScheduleData,
+  PostProjectsByIdSocialPostsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
   PostTasksByIdFilesData,
@@ -243,6 +248,8 @@ import {
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
+  getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
   getProjectsStarred as coreGetProjectsStarred,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
@@ -315,6 +322,7 @@ import {
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchProjectsById as corePatchProjectsById,
+  patchProjectsByIdSocialPostsByPostId as corePatchProjectsByIdSocialPostsByPostId,
   patchTasksById as corePatchTasksById,
   patchTasksSchedulesById as corePatchTasksSchedulesById,
   patchTasksSchedulesByIdRunsByRunId as corePatchTasksSchedulesByIdRunsByRunId,
@@ -371,6 +379,9 @@ import {
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
+  postProjectsByIdSocialPosts as corePostProjectsByIdSocialPosts,
+  postProjectsByIdSocialPostsByPostIdCancel as corePostProjectsByIdSocialPostsByPostIdCancel,
+  postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
   postProjectsByIdStar as corePostProjectsByIdStar,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postTasks as corePostTasks,
@@ -3019,6 +3030,106 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialPosts(
+    id: string,
+    query?: GetProjectsByIdSocialPostsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialPosts({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Project social posts",
+    );
+  }
+
+  async function getProjectsByIdSocialPostsByPostId(
+    id: string,
+    postId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialPostsByPostId({
+          client,
+          path: { id, postId },
+          cache: "no-store",
+        }),
+      "Failed to fetch Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPosts(
+    id: string,
+    body: NonNullable<PostProjectsByIdSocialPostsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPosts({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to create Project social post",
+    );
+  }
+
+  async function patchProjectsByIdSocialPostsByPostId(
+    id: string,
+    postId: string,
+    body: NonNullable<PatchProjectsByIdSocialPostsByPostIdData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePatchProjectsByIdSocialPostsByPostId({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to update Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPostsByPostIdSchedule(
+    id: string,
+    postId: string,
+    body: NonNullable<PostProjectsByIdSocialPostsByPostIdScheduleData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdSchedule({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to schedule Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPostsByPostIdCancel(
+    id: string,
+    postId: string,
+    body: NonNullable<PostProjectsByIdSocialPostsByPostIdCancelData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdCancel({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to cancel Project social post",
+    );
+  }
+
   async function completeComposioCallback(
     body: NonNullable<PostComposioCallbackCompleteData["body"]>,
   ) {
@@ -5473,6 +5584,12 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
     getProjectsByIdSocialConnections,
+    getProjectsByIdSocialPosts,
+    getProjectsByIdSocialPostsByPostId,
+    patchProjectsByIdSocialPostsByPostId,
+    postProjectsByIdSocialPosts,
+    postProjectsByIdSocialPostsByPostIdCancel,
+    postProjectsByIdSocialPostsByPostIdSchedule,
     completeComposioCallback,
     getProjectsStats,
     getSharedResourceByToken,

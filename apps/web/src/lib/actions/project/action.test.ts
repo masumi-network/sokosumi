@@ -16,7 +16,9 @@ vi.mock("@/middleware/auth-middleware", () => ({
 const projectServiceMock = {
   cancelProjectCloseOwedWork: vi.fn(),
   closeProject: vi.fn(),
+  cancelSocialPost: vi.fn(),
   createProject: vi.fn(),
+  createSocialPost: vi.fn(),
   disconnectSocialConnection: vi.fn(),
   finalizeSocialConnection: vi.fn(),
   getProjectContextMd: vi.fn(),
@@ -24,6 +26,8 @@ const projectServiceMock = {
   patchProject: vi.fn(),
   removeProjectDesignMd: vi.fn(),
   retryProjectClose: vi.fn(),
+  scheduleSocialPost: vi.fn(),
+  updateSocialPost: vi.fn(),
 };
 const toCoreApiActionErrorMock = vi.fn();
 const resolveProjectSiteIconMock = vi.fn();
@@ -493,5 +497,192 @@ describe("project actions", () => {
       },
     });
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  describe("social posts", () => {
+    const post = {
+      id: "post-1",
+      projectId: "project-1",
+      provider: "x" as const,
+      text: "Hello",
+      status: "DRAFT" as const,
+      revision: 0,
+    };
+
+    it("creates a draft with trimmed ids and revalidates the social route", async () => {
+      projectServiceMock.createSocialPost.mockResolvedValue(post);
+
+      const { createProjectSocialPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await createProjectSocialPost({
+        projectId: " project-1 ",
+        text: "Hello",
+        socialConnectionId: null,
+      });
+
+      expect(projectServiceMock.createSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        { text: "Hello" },
+      );
+      expect(result).toEqual({ ok: true, value: post });
+      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
+      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/social");
+    });
+
+    it("creates a scheduled post from an ISO timestamp and timezone", async () => {
+      projectServiceMock.createSocialPost.mockResolvedValue({
+        ...post,
+        status: "SCHEDULED",
+      });
+
+      const { createProjectSocialPost } = await import("./action");
+      await createProjectSocialPost({
+        projectId: "project-1",
+        text: "Hello",
+        socialConnectionId: "connection-1",
+        scheduledAt: "2026-10-01T10:00:00.000Z",
+        timezone: "Europe/Berlin",
+      });
+
+      expect(projectServiceMock.createSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        {
+          text: "Hello",
+          socialConnectionId: "connection-1",
+          scheduledAt: new Date("2026-10-01T10:00:00.000Z"),
+          timezone: "Europe/Berlin",
+        },
+      );
+    });
+
+    it("rejects invalid social post input before calling the service", async () => {
+      const { createProjectSocialPost, scheduleProjectSocialPost } =
+        await import("./action");
+
+      const emptyText = await createProjectSocialPost({
+        projectId: "project-1",
+        text: "",
+      });
+      expect(emptyText).toMatchObject({
+        ok: false,
+        error: { code: "BAD_INPUT" },
+      });
+
+      const badTimestamp = await scheduleProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        scheduledAt: "tomorrow",
+        revision: 0,
+      });
+      expect(badTimestamp).toMatchObject({
+        ok: false,
+        error: { code: "BAD_INPUT" },
+      });
+      expect(projectServiceMock.createSocialPost).not.toHaveBeenCalled();
+      expect(projectServiceMock.scheduleSocialPost).not.toHaveBeenCalled();
+    });
+
+    it("updates a post with its revision and clears the account when null", async () => {
+      projectServiceMock.updateSocialPost.mockResolvedValue({
+        ...post,
+        text: "Edited",
+        revision: 1,
+      });
+
+      const { updateProjectSocialPost } = await import("./action");
+      const result = await updateProjectSocialPost({
+        projectId: "project-1",
+        postId: " post-1 ",
+        text: "Edited",
+        socialConnectionId: null,
+        revision: 0,
+      });
+
+      expect(projectServiceMock.updateSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { text: "Edited", socialConnectionId: null, revision: 0 },
+      );
+      expect(result).toMatchObject({ ok: true, value: { revision: 1 } });
+    });
+
+    it("schedules and cancels a post through the service", async () => {
+      projectServiceMock.scheduleSocialPost.mockResolvedValue({
+        ...post,
+        status: "SCHEDULED",
+        revision: 1,
+      });
+      projectServiceMock.cancelSocialPost.mockResolvedValue({
+        ...post,
+        status: "CANCELED",
+        revision: 2,
+      });
+
+      const { scheduleProjectSocialPost, cancelProjectSocialPost } =
+        await import("./action");
+      const { revalidatePath } = await import("next/cache");
+
+      const scheduled = await scheduleProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        scheduledAt: "2026-10-01T10:00:00.000Z",
+        timezone: "Europe/Berlin",
+        socialConnectionId: "connection-1",
+        revision: 0,
+      });
+      expect(projectServiceMock.scheduleSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        {
+          scheduledAt: new Date("2026-10-01T10:00:00.000Z"),
+          timezone: "Europe/Berlin",
+          socialConnectionId: "connection-1",
+          revision: 0,
+        },
+      );
+      expect(scheduled).toMatchObject({ ok: true, value: { revision: 1 } });
+
+      const canceled = await cancelProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        revision: 1,
+      });
+      expect(projectServiceMock.cancelSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { revision: 1 },
+      );
+      expect(canceled).toMatchObject({ ok: true, value: { revision: 2 } });
+      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/social");
+    });
+
+    it("converts social post Core errors to a plain action error DTO", async () => {
+      projectServiceMock.cancelSocialPost.mockRejectedValue(
+        new Error("Social post was modified, reload and retry"),
+      );
+      toCoreApiActionErrorMock.mockReturnValue({
+        code: "BAD_INPUT",
+        kind: "social_post_revision_conflict",
+        message: "Social post was modified, reload and retry",
+      });
+
+      const { cancelProjectSocialPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await cancelProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        revision: 0,
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: {
+          code: "BAD_INPUT",
+          kind: "social_post_revision_conflict",
+          message: "Social post was modified, reload and retry",
+        },
+      });
+      expect(revalidatePath).not.toHaveBeenCalled();
+    });
   });
 });

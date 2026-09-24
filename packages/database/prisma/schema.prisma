@@ -61,9 +61,9 @@ model User {
   notificationPreferences NotificationPreference[]
   notifications           Notification[]
 
-  calendarOccurrencesActed TaskScheduleRun[] @relation("TaskScheduleRunActor")
-  projectCloseOperations   ProjectCloseOperation[]  @relation("ProjectCloseOperationActor")
-  projectEventsActed       ProjectEvent[]           @relation("ProjectEventActor")
+  calendarOccurrencesActed TaskScheduleRun[]       @relation("TaskScheduleRunActor")
+  projectCloseOperations   ProjectCloseOperation[] @relation("ProjectCloseOperationActor")
+  projectEventsActed       ProjectEvent[]          @relation("ProjectEventActor")
 
   // Chat display preferences. Not delivery: these change what the reader sees,
   // never which notifications are created or sent.
@@ -73,8 +73,8 @@ model User {
   utmAttribution UTMAttribution?
 
   // Vendor membership and coworker assignments
-  vendorMembers       VendorMember[]
-  coworkerAssignments CoworkerAssignment[]
+  vendorMembers           VendorMember[]
+  coworkerAssignments     CoworkerAssignment[]
   createdVendors          Vendor[]             @relation("VendorCreatedBy")
   vendorMemberInvitesSent VendorMemberInvite[] @relation("VendorMemberInviteInvitedBy")
   vendorMemberInvitesGot  VendorMemberInvite[] @relation("VendorMemberInviteAcceptedBy")
@@ -83,6 +83,8 @@ model User {
 
   ownedTasks              Task[]                   @relation("TaskOwner")
   createdTasks            Task[]                   @relation("TaskCreatorUser")
+  createdSocialPosts      SocialPost[]             @relation("SocialPostCreatorUser")
+  scheduledSocialPosts    SocialPost[]             @relation("SocialPostScheduledByUser")
   assignedTasks           Task[]                   @relation("TaskAssigneeUser")
   ownedTaskSchedules      TaskSchedule[]           @relation("TaskScheduleOwner")
   createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorUser")
@@ -281,6 +283,7 @@ model Workspace {
 
   jobs                     Job[]
   tasks                    Task[]
+  socialPosts              SocialPost[]
   taskSchedules            TaskSchedule[]
   projects                 Project[]
   scheduleOccurrences      TaskScheduleRun[]
@@ -573,6 +576,7 @@ model Project {
   stars               ProjectStar[]
 
   socialConnections       ProjectSocialConnection[]
+  socialPosts             SocialPost[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
   @@index([workspaceId])
@@ -607,23 +611,24 @@ model ProjectStar {
 }
 
 model ProjectSocialConnection {
-  id                        String   @id @default(uuid(7)) @db.Uuid
-  projectId                 String   @db.Uuid
-  provider                  String
-  externalAccountId         String
-  externalHandle            String?
+  id                         String    @id @default(uuid(7)) @db.Uuid
+  projectId                  String    @db.Uuid
+  provider                   String
+  externalAccountId          String
+  externalHandle             String?
   composioConnectedAccountId String
-  status                    String
-  activeExternalAccountKey  String?
-  connectorUserId           String
-  connectedAt               DateTime?
-  disconnectedAt            DateTime?
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
+  status                     String
+  activeExternalAccountKey   String?
+  connectorUserId            String
+  connectedAt                DateTime?
+  disconnectedAt             DateTime?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  audits  ProjectSocialConnectionAudit[]
-  intents ProjectSocialConnectionIntent[]
+  project     Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  audits      ProjectSocialConnectionAudit[]
+  intents     ProjectSocialConnectionIntent[]
+  socialPosts SocialPost[]
 
   @@unique([projectId, activeExternalAccountKey])
   @@map("project_social_connection")
@@ -636,15 +641,15 @@ model ProjectSocialConnectionIntent {
   projectId String  @db.Uuid
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  initiatingUserId String
-  provider         String
-  action           String
+  initiatingUserId   String
+  provider           String
+  action             String
   socialConnectionId String?                  @db.Uuid
   socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
   authConfigId       String
   callbackRedeemedAt DateTime?
   expiresAt          DateTime
-  createdAt          DateTime @default(now())
+  createdAt          DateTime                 @default(now())
 
   @@index([expiresAt])
   @@map("project_social_connection_intent")
@@ -665,6 +670,75 @@ model ProjectSocialConnectionAudit {
 
   @@index([projectSocialConnectionId, createdAt])
   @@map("project_social_connection_audit")
+}
+
+enum SocialPostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  MISSED
+  CANCELED
+}
+
+/// One piece of content a Project intends to publish through exactly one
+/// Project social connection at one planned time. Not a Task.
+model SocialPost {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  socialConnectionId String?                  @db.Uuid
+  socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
+
+  /// Social provider key, e.g. "x".
+  provider String
+  text     String
+
+  status      SocialPostStatus @default(DRAFT)
+  scheduledAt DateTime?
+  /// IANA zone the scheduling human used. Display only.
+  timezone    String?
+
+  /// Exactly one creator FK is set (enforced by DB check). Immutable after create.
+  /// Restrict deletes so SET NULL cannot violate the exactly-one creator check.
+  creatorUserId String?
+  creatorUser   User?   @relation("SocialPostCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
+
+  creatorCoworkerId String?
+  creatorCoworker   Coworker? @relation("SocialPostCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
+
+  creatorSokoBotId String?  @db.Uuid
+  creatorSokoBot   SokoBot? @relation("SocialPostCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
+
+  scheduledByUserId String?
+  scheduledByUser   User?   @relation("SocialPostScheduledByUser", fields: [scheduledByUserId], references: [id], onDelete: SetNull)
+
+  canceledAt          DateTime?
+  publishedAt         DateTime?
+  publishedExternalId String?
+  publishedUrl        String?
+  lastError           String?
+
+  /// Optimistic-lock counter bumped on every edit/schedule/cancel.
+  revision Int @default(0)
+
+  @@index([projectId, status, scheduledAt])
+  @@index([status, scheduledAt])
+  @@index([workspaceId, scheduledAt])
+  @@index([socialConnectionId])
+  @@index([creatorUserId])
+  @@index([creatorCoworkerId])
+  @@index([creatorSokoBotId])
+  @@index([scheduledByUserId])
+  @@map("social_post")
 }
 
 model Member {
@@ -1767,9 +1841,10 @@ model Coworker {
 
   assignedTasks           Task[]                   @relation("TaskAssignee")
   createdTasks            Task[]                   @relation("TaskCreatorCoworker")
+  createdSocialPosts      SocialPost[]             @relation("SocialPostCreatorCoworker")
   assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssignee")
   createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorCoworker")
-  changedTaskScheduleRuns TaskScheduleRun[] @relation("TaskScheduleRunActorCoworker")
+  changedTaskScheduleRuns TaskScheduleRun[]        @relation("TaskScheduleRunActorCoworker")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByCoworker")
   coworkerUsages          CoworkerUsage[]
@@ -2036,6 +2111,7 @@ model SokoBot {
   consecutivePollErrors Int       @default(0)
 
   createdTasks         Task[]                   @relation("TaskCreatorSokoBot")
+  createdSocialPosts   SocialPost[]             @relation("SocialPostCreatorSokoBot")
   createdTaskSchedules TaskSchedule[]           @relation("TaskScheduleCreatorSokoBot")
   taskEvents           TaskEvent[]
   uploadedTaskFiles    TaskFile[]               @relation("TaskFileUploadedBySokoBot")
@@ -2640,8 +2716,8 @@ model Task {
   nextRunAt        DateTime?
   scheduleRevision Int       @default(0)
 
-  scheduleOccurrences        TaskScheduleRun[]     @relation("ScheduleOccurrenceSeries")
-  releasedScheduleOccurrence TaskScheduleRun?      @relation("ScheduleOccurrenceReleasedTask")
+  scheduleOccurrences        TaskScheduleRun[]            @relation("ScheduleOccurrenceSeries")
+  releasedScheduleOccurrence TaskScheduleRun?             @relation("ScheduleOccurrenceReleasedTask")
   scheduleQuarantine         TaskScheduleQuarantine?
   scheduleCreateOperation    TaskScheduleCreateOperation?
 
