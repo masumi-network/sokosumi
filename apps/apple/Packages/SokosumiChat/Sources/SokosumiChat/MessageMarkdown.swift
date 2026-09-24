@@ -15,6 +15,8 @@ public struct MessageMarkdown: Equatable, Sendable {
   public let blocks: [MessageMarkdownBlock]
   /// True unless some whitespace-only run of file links is exactly one image.
   public let clampsLongBody: Bool
+  /// The images the body's viewer steps through.
+  public let imageGallery: MessageImageGallery
 
   public init(_ source: String, baseURL: URL? = nil, mentions: MessageMentions? = nil, channels: [ComposerChannel] = []) {
     let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
@@ -25,6 +27,7 @@ public struct MessageMarkdown: Equatable, Sendable {
     blocks = built
     // Source gaps, not the parsed tree: a quote marker or list marker is not whitespace, but the tree drops it.
     clampsLongBody = Self.longBodyClamps(scanning: linkified, blocks: built)
+    imageGallery = MessageImageGallery(blocks: built)
   }
 }
 

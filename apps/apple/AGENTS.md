@@ -23,7 +23,7 @@ The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-
 - `Chat/Details/`: room details/roster inspector, channel settings sheet, lifecycle confirmations and the host-side guest access section; guest state and networking stay in the shared packages.
 - `Chat/Invitations/`: channel invitation and guest join-link sheets; invitation state and networking stay in the shared packages.
 - `Chat/Composer/`: draft-owning rich composer, Drive picker (`DriveFilePickerView`) and isolated native text input.
-- `Chat/Rendering/`: Markdown, code, expansion, coworker thought, and attachment chips/previews (`MessageAttachmentView`, `DocumentAttachmentPreview`, `NativeOfficePreview`).
+- `Chat/Rendering/`: Markdown, code, expansion, coworker thought, and attachment chips/previews (`MessageAttachmentView`, `MessageImageViewer`, `DocumentAttachmentPreview`, `NativeOfficePreview`).
 - `Shared/`: reusable participant avatar, `PresenceDot`, `ParticipantProfileButton` and `ParticipantDetailsView`. Avatar networking and presence state remain in `SokosumiChat`.
 - `Settings/`: Settings scene content and the `timeFormat` environment value; preference state and networking stay in the shared packages.
 - `Notifications/`: `UNUserNotificationCenter` adapter (`ChatNotificationCenter`) and its lifecycle modifier for local chat banners while the app runs. The banner rules, preferences and navigation stay in the shared packages; no push registration.
