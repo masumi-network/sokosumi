@@ -1865,7 +1865,10 @@
           "moveSourceError": "Unable to move this schedule. Refresh the task and try again."
         },
         "files": "Files",
-        "assignee": "Assignee"
+        "assignee": "Assignee",
+        "participants": "Participants",
+        "removeParticipant": "Remove {name}",
+        "removeParticipantError": "Couldn’t remove participant. Try again."
       },
       "NewTask": {
         "ContextAttachments": {

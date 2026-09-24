@@ -151,6 +151,7 @@ import {
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
+  deleteTasksByIdParticipantsByUserId as coreDeleteTasksByIdParticipantsByUserId,
   deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
@@ -3523,6 +3524,7 @@ export function createCoreClient(getClient: GetCoreClient) {
         | "FAILED"
         | "CANCELED";
       comment?: string;
+      mentionedUserIds?: string[];
     },
   ) {
     return executeCoreOperation(
@@ -3593,6 +3595,18 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id, linkId },
         }),
       "Failed to delete task link",
+    );
+  }
+
+  async function deleteTaskParticipant(id: string, userId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteTasksByIdParticipantsByUserId({
+          client,
+          path: { id, userId },
+        }),
+      "Failed to remove task participant",
     );
   }
 
@@ -5225,6 +5239,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteProjectsByIdTasksByTaskId,
     deleteTaskShare,
     deleteTaskLink,
+    deleteTaskParticipant,
     deleteTask,
     deleteTaskSchedule,
     getChatRoom,

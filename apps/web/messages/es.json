@@ -1865,7 +1865,10 @@
           "moveSourceError": "No se pudo mover esta programación. Actualiza la tarea e inténtalo de nuevo."
         },
         "files": "Archivos",
-        "assignee": "Responsable"
+        "assignee": "Responsable",
+        "participants": "Participantes",
+        "removeParticipant": "Quitar a {name}",
+        "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo."
       },
       "NewTask": {
         "ContextAttachments": {
