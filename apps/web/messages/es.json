@@ -6417,8 +6417,7 @@
         "label": "Origen",
         "all": "Todos los orígenes",
         "WORKSPACE": "Espacio de trabajo",
-        "PROJECT": "Proyecto",
-        "LEGACY_UNKNOWN": "Origen heredado"
+        "PROJECT": "Proyecto"
       },
       "event": {
         "accessibleName": "{task}, {source}",
@@ -6442,11 +6441,6 @@
       },
       "create": {
         "fab": "Programar una tarea"
-      },
-      "accuracy": {
-        "inferred": "Origen inferido",
-        "unknown": "Origen desconocido",
-        "approximate": "Hora aproximada"
       },
       "status": {
         "label": "Estado de la tarea",

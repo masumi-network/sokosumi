@@ -11,6 +11,7 @@ import {
   SOKO_BOT_AUTH,
   SOKO_BOT_ID,
   taskScheduleTestDb,
+  taskScheduleTestPrisma,
   userAuth,
 } from "@/test-fixtures/task-schedule";
 import {
@@ -379,6 +380,101 @@ describe("POST /tasks/schedules", () => {
 
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ kind: "grant_revoked" });
+    });
+  });
+
+  describe("operationId", () => {
+    const OPERATION_ID = "01960001-0001-7001-8001-0000000000cc";
+    const body = {
+      operationId: OPERATION_ID,
+      name: "Weekly report",
+      rule: WEEKLY_RULE,
+    };
+
+    it("returns the schedule it made when a create is retried", async () => {
+      const first = await post(body);
+      const retry = await post(body);
+
+      expect(first.status).toBe(201);
+      expect(retry.status).toBe(201);
+      const { data: created } = (await first.json()) as {
+        data: { id: string };
+      };
+      const { data: replayed } = (await retry.json()) as {
+        data: { id: string };
+      };
+      expect(replayed.id).toBe(created.id);
+      expect(taskScheduleTestDb.schedules).toHaveLength(1);
+    });
+
+    it("refuses the same key with a different request", async () => {
+      await post(body);
+      const reused = await post({ ...body, name: "Monthly report" });
+
+      expect(reused.status).toBe(409);
+      expect(await reused.json()).toMatchObject({
+        kind: "schedule_operation_conflict",
+      });
+      expect(taskScheduleTestDb.schedules).toHaveLength(1);
+    });
+
+    it("returns the winner's schedule when two retries race", async () => {
+      const first = await post(body);
+      const { data: created } = (await first.json()) as {
+        data: { id: string };
+      };
+      // The racing request looked before the winner committed.
+      taskScheduleTestPrisma.taskScheduleCreateOperation.findUnique.mockResolvedValueOnce(
+        null,
+      );
+
+      const raced = await post(body);
+
+      expect(raced.status).toBe(201);
+      const { data } = (await raced.json()) as { data: { id: string } };
+      expect(data.id).toBe(created.id);
+      expect(taskScheduleTestDb.schedules).toHaveLength(1);
+    });
+
+    it("replays a retry that arrives after the end date passed", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2030-01-01T00:00:00.000Z"));
+      const endingBody = {
+        ...body,
+        rule: {
+          ...WEEKLY_RULE,
+          endsMode: "ON",
+          endsOn: "2030-01-10T00:00:00Z",
+        },
+      };
+      try {
+        const first = await post(endingBody);
+        const { data: created } = (await first.json()) as {
+          data: { id: string };
+        };
+        vi.setSystemTime(new Date("2030-01-11T00:00:00.000Z"));
+
+        const late = await post(endingBody);
+
+        expect(late.status).toBe(201);
+        const { data } = (await late.json()) as { data: { id: string } };
+        expect(data.id).toBe(created.id);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("refuses the same key from another creator", async () => {
+      await post(body);
+      const reused = await post(
+        body,
+        createTaskScheduleTestApp(mountPostTaskSchedule, userAuth(MEMBER_ID)),
+      );
+
+      expect(reused.status).toBe(409);
+      expect(await reused.json()).toMatchObject({
+        kind: "schedule_operation_conflict",
+      });
     });
   });
 

@@ -3,7 +3,9 @@
 --   psql "$DB" -X -v ON_ERROR_STOP=1 -f task-schedule-cutover-report.sql
 --
 -- Before 20260924130000_task_schedule_cutover it says what the migration will
--- do with the data; after it, it checks the result. Every check in the
+-- do with the data; after it, it checks the result, with or without
+-- 20260924143117_task_schedule_drop_legacy (the checks that read the dropped
+-- columns run only while they exist). Every check in the
 -- "must be 0" section is an invariant: anything other than 0 is a finding.
 -- It changes nothing: its only objects are temporary views, and it ends in
 -- ROLLBACK, so it is safe against production. Needs Postgres 16+
@@ -14,6 +16,7 @@
 BEGIN;
 
 SELECT to_regclass('"task_schedule_run"') IS NOT NULL AS migrated \gset
+SELECT to_regclass('"task_schedule_quarantine"') IS NULL AS dropped \gset
 
 \if :migrated
 
@@ -28,7 +31,7 @@ ORDER BY 1, 2;
 
 \echo '-- Runs by parent and state'
 SELECT
-  CASE WHEN "scheduleId" IS NOT NULL THEN 'task schedule' ELSE 'legacy series (SOK-1174 removes)' END AS parent,
+  CASE WHEN "scheduleId" IS NOT NULL THEN 'task schedule' ELSE 'legacy series (the drop removes)' END AS parent,
   state, count(*) AS runs
 FROM "task_schedule_run"
 GROUP BY 1, 2
@@ -65,7 +68,14 @@ UNION ALL
 SELECT 'Paused or Ended schedule with a next run', count(*)
 FROM "task_schedule" WHERE state <> 'ACTIVE' AND "nextRunAt" IS NOT NULL
 UNION ALL
-SELECT 'Unarchived Task still holding a recurring rule', count(*)
+SELECT 'Run at on a Task that is not Queued', count(*)
+FROM "task" WHERE "runAt" IS NOT NULL AND status <> 'QUEUED';
+
+\if :dropped
+\echo '-- The drop is applied: the old series columns are gone'
+\else
+\echo '-- Must be 0 (before the drop)'
+SELECT 'Unarchived Task still holding a recurring rule' AS invariant, count(*) AS violations
 FROM "task" t
 WHERE t."archivedAt" IS NULL AND pg_input_is_valid(t.metadata, 'jsonb')
   AND t.metadata::JSONB->>'mode' = 'recurring' AND t.metadata::JSONB->>'version' IN ('1', '2')
@@ -73,9 +83,6 @@ UNION ALL
 SELECT 'Unarchived Task still woken by the old release (nextRunAt)', count(*)
 FROM "task" WHERE "archivedAt" IS NULL AND "nextRunAt" IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM "task_schedule_quarantine" q WHERE q."taskId" = "task".id)
-UNION ALL
-SELECT 'Run at on a Task that is not Queued', count(*)
-FROM "task" WHERE "runAt" IS NOT NULL AND status <> 'QUEUED'
 UNION ALL
 SELECT 'Task released by a series link without scheduleId', count(*)
 FROM "task_link" link
@@ -87,14 +94,24 @@ WHERE link.type = 'SCHEDULE' AND released."scheduleId" IS NULL
     WHERE s.id = md5('task-schedule-cutover:schedule:' || template.id)::UUID
   );
 
-\echo '-- Left for operator repair before SOK-1174 (quarantined Queued one-time schedules)'
-SELECT t.id, t.status, t."nextRunAt", q.reason
+\echo '-- Left for operator repair: the drop refuses while any is listed'
+SELECT t.id, t.status, t."archivedAt", t."nextRunAt", q.reason,
+  left(t.metadata, 60) AS metadata
 FROM "task" t
-JOIN "task_schedule_quarantine" q ON q."taskId" = t.id
-WHERE t."archivedAt" IS NULL AND pg_input_is_valid(t.metadata, 'jsonb')
-  AND t.metadata::JSONB->>'mode' = 'once'
+LEFT JOIN "task_schedule_quarantine" q ON q."taskId" = t.id
+WHERE t.metadata IS NOT NULL
+  AND (
+    t."archivedAt" IS NULL
+    OR NOT COALESCE(
+      pg_input_is_valid(t.metadata, 'jsonb')
+        AND t.metadata::JSONB->>'version' IN ('1', '2')
+        AND t.metadata::JSONB->>'mode' IN ('once', 'recurring'),
+      false
+    )
+  )
 ORDER BY t.id
 LIMIT 50;
+\endif
 
 \else
 
@@ -179,7 +196,7 @@ SELECT
         AND t.status = 'QUEUED'
     ) THEN 'one-time, released onto itself (removed)'
     WHEN s.id IS NOT NULL THEN 'live series (moves to its schedule)'
-    WHEN t."archivedAt" IS NOT NULL THEN 'archived template (stays, SOK-1174)'
+    WHEN t."archivedAt" IS NOT NULL THEN 'archived template (the drop removes)'
     ELSE 'ended series or one-time (see below)'
   END AS owner,
   o.state,
@@ -204,7 +221,7 @@ WHERE link.type = 'SCHEDULE';
 SELECT
   rule->>'version' AS version, status, quarantined,
   CASE
-    WHEN quarantined AND status = 'QUEUED' THEN 'left as is (operator repair)'
+    WHEN quarantined AND status = 'QUEUED' THEN 'left as is: repair before the deploy, or the drop refuses'
     WHEN status = 'QUEUED' THEN 'gets a Run at'
     ELSE 'cleared, no Run at (never released under the old rule)'
   END AS outcome,

@@ -759,9 +759,7 @@ describe("PUT /tasks/{id}/workspace", () => {
 
     expect(response.status).toBe(409);
     expect(taskLinkFindFirstMock).toHaveBeenCalledWith({
-      // A released Task's leftover SCHEDULE link does not block the move.
       where: {
-        type: { not: "SCHEDULE" },
         OR: [{ fromTaskId: "tsk_123" }, { toTaskId: "tsk_123" }],
       },
       select: {

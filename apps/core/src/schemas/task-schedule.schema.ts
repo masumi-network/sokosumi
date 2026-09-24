@@ -135,6 +135,11 @@ const taskScheduleAssigneeFields = {
 
 export const createTaskScheduleRequestSchema = z
   .object({
+    operationId: z.uuid().optional().openapi({
+      description:
+        "Idempotency key, scoped to the active workspace. A retry with the same key and body returns the schedule the first request made; the same key with a different body or creator is a 409 schedule_operation_conflict.",
+      example: "01960001-0001-7001-8001-0000000000cc",
+    }),
     name: taskScheduleNameSchema,
     description: z.string().nullish(),
     projectId: z.string().uuid().nullish(),

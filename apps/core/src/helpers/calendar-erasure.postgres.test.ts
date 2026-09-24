@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, describe, expect, it } from "vitest";
@@ -190,28 +192,36 @@ describe.skipIf(!enabled)("Calendar erasure against PostgreSQL", () => {
                 parent === "organization" ? organization.id : null,
               projectId: project.id,
               name: "Scheduled task",
-              metadata: "{broken",
+              runAt: new Date("2026-09-01T09:00:00Z"),
             },
           });
-          await tx.taskScheduleQuarantine.create({
+          const schedule = await tx.taskSchedule.create({
             data: {
-              taskId: task.id,
-              reason: "INVALID_METADATA",
-              details: "Invalid schedule",
-              capturedStatus: "DRAFT",
+              ownerId: user.id,
+              creatorUserId: user.id,
+              workspaceId: workspace.id,
+              organizationId:
+                parent === "organization" ? organization.id : null,
+              projectId: project.id,
+              name: "Scheduled task",
+              expr: "0 9 * * *",
+              timezone: "UTC",
+              anchorAt: new Date("2026-09-01T09:00:00Z"),
+              ruleEffectiveFrom: new Date("2026-09-01T09:00:00Z"),
+              epochId: randomUUID(),
             },
           });
           await tx.taskScheduleRun.create({
             data: {
-              seriesTaskId: task.id,
-              legacyLinkId: suffix,
+              scheduleId: schedule.id,
+              epochId: schedule.epochId,
+              originalScheduledAt: new Date("2026-09-01T09:00:00Z"),
               effectiveScheduledAt: new Date("2026-09-01T09:00:00Z"),
               state: "SKIPPED",
               sourceWorkspaceId: workspace.id,
               sourceType: "PROJECT",
               sourceProjectId: project.id,
-              sourceAccuracy: "INFERRED",
-              timeAccuracy: "APPROXIMATE",
+              timezone: "UTC",
             },
           });
           await tx.projectEvent.create({

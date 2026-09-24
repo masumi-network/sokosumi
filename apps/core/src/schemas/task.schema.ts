@@ -1,10 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import {
-  Channel,
-  TaskScheduleEventKind,
-  TaskStatus,
-  TaskVisibility,
-} from "@sokosumi/database";
+import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { isDesignMdBlobUrl } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
@@ -152,21 +147,6 @@ export const taskEventSchema = z
       .union([taskStatusSchema, z.null()])
       .optional()
       .openapi({ example: TaskStatus.RUNNING }),
-    scheduleKind: z.enum(TaskScheduleEventKind).nullish().openapi({
-      description: "Schedule activity represented by this event",
-      example: TaskScheduleEventKind.OCCURRENCE_SKIPPED,
-    }),
-    schedulePayload: z
-      .record(z.string(), z.unknown())
-      .nullish()
-      .openapi({
-        description: "Schedule activity details for audit and notifications",
-        example: { occurrenceKey: "occurrence-key" },
-      }),
-    scheduleOperationId: z.string().uuid().nullish().openapi({
-      description: "Idempotency identity for the schedule mutation",
-      example: "123e4567-e89b-42d3-a456-426614174000",
-    }),
   })
   .openapi("TaskEvent");
 

@@ -1,8 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import {
-  CalendarSourceAccuracy,
   CalendarSourceType,
-  CalendarTimeAccuracy,
   TaskScheduleRunState,
   TaskStatus,
 } from "@sokosumi/database";
@@ -156,10 +154,6 @@ export const workspaceCalendarItemSchema = z
     sourceProjectId: z.string().uuid().nullable().openapi({
       description: "Project captured as the Calendar source, when applicable",
     }),
-    sourceAccuracy: z.enum(CalendarSourceAccuracy).openapi({
-      example: "EXACT",
-    }),
-    timeAccuracy: z.enum(CalendarTimeAccuracy).openapi({ example: "EXACT" }),
   })
   .openapi("WorkspaceCalendarItem");
 
@@ -171,13 +165,13 @@ export const workspaceCalendarSourceSchema = z
     sourceType: z.enum(CalendarSourceType).openapi({ example: "PROJECT" }),
     displayName: z.string().openapi({ example: "Q1 research" }),
     logoUrl: z.url().nullable().openapi({ example: null }),
-    paletteToken: z.enum(["blue", "violet", "amber"]).openapi({
+    paletteToken: z.enum(["blue", "violet"]).openapi({
       description: "Bounded visual marker for Calendar source displays",
       example: "violet",
     }),
     isSchedulable: z.boolean().openapi({
       description:
-        "Whether this source may be selected to create a Task through POST /v1/tasks/scheduled. Unschedulable sources remain available for Calendar event display and filtering.",
+        "Whether this source may be selected as the project of a Task Schedule created through POST /v1/tasks/schedules. Unschedulable sources remain available for Calendar event display and filtering.",
       example: true,
     }),
   })

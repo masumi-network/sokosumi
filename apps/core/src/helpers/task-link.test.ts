@@ -304,20 +304,6 @@ describe("mapTaskLinksForTask", () => {
     });
   });
 
-  it("leaves out the old series' SCHEDULE links (ADR 0041)", () => {
-    const related = createLink({ id: "tl_related" });
-    const series = createLink({
-      id: "tl_series",
-      fromTaskId: "tsk_template",
-      toTaskId: "tsk_a",
-      type: TaskLinkType.SCHEDULE,
-    });
-
-    expect(
-      mapTaskLinksForTask([related], [series]).map((link) => link.id),
-    ).toEqual(["tl_related"]);
-  });
-
   it("throws when a mapped list is missing a peer task relation", () => {
     expect(() =>
       mapTaskLinksForTask(

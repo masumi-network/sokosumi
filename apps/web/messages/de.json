@@ -6417,8 +6417,7 @@
         "label": "Quelle",
         "all": "Alle Quellen",
         "WORKSPACE": "Workspace",
-        "PROJECT": "Projekt",
-        "LEGACY_UNKNOWN": "Legacy-Quelle"
+        "PROJECT": "Projekt"
       },
       "event": {
         "accessibleName": "{task}, {source}",
@@ -6442,11 +6441,6 @@
       },
       "create": {
         "fab": "Task planen"
-      },
-      "accuracy": {
-        "inferred": "Abgeleitete Quelle",
-        "unknown": "Unbekannte Quelle",
-        "approximate": "Ungefähre Zeit"
       },
       "status": {
         "label": "Aufgabenstatus",

@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
 
 import {
-  CalendarSourceAccuracy,
   CalendarSourceType,
-  CalendarTimeAccuracy,
   type Task,
   type TaskEvent,
   type TaskSchedule,
+  type TaskScheduleCreateOperation,
   TaskScheduleEndsMode,
   type TaskScheduleRun,
   TaskScheduleRunState,
@@ -79,6 +78,7 @@ interface StoredProject {
 interface Store {
   schedules: TaskSchedule[];
   runs: TaskScheduleRun[];
+  createOperations: TaskScheduleCreateOperation[];
   /** Tasks the release created, with their nested events. */
   tasks: StoredTask[];
   /** Coworkers that exist, keyed by id, with their vendor. */
@@ -95,6 +95,7 @@ function emptyStore(): Store {
   return {
     schedules: [],
     runs: [],
+    createOperations: [],
     tasks: [],
     coworkers: new Map([[COWORKER_ID, { vendorId: VENDOR_ID }]]),
     sokoBots: new Map([
@@ -190,26 +191,20 @@ export function seedRun(
     id: randomUUID(),
     createdAt: at,
     updatedAt: at,
-    seriesTaskId: null,
     scheduleId: schedule.id,
     releasedTaskId: null,
     epochId: schedule.epochId,
     originalScheduledAt: at,
     effectiveScheduledAt: at,
-    legacyLinkId: null,
-    scheduleVersion: 2,
     state: TaskScheduleRunState.PLANNED,
     sourceWorkspaceId: schedule.workspaceId,
     sourceType: schedule.projectId
       ? CalendarSourceType.PROJECT
       : CalendarSourceType.WORKSPACE,
     sourceProjectId: schedule.projectId,
-    sourceAccuracy: CalendarSourceAccuracy.EXACT,
-    timeAccuracy: CalendarTimeAccuracy.EXACT,
     actorUserId: null,
     actorCoworkerId: null,
     timezone: schedule.timezone,
-    ruleSnapshot: null,
     ...overrides,
   };
   taskScheduleTestDb.runs.push(row);
@@ -322,6 +317,14 @@ function matchesSchedule(row: TaskSchedule, where: Where = {}): boolean {
 }
 
 type Data = Record<string, unknown>;
+
+/** What Prisma throws when a unique constraint rejects a write. */
+function uniqueConstraintError(target: string[]): Error {
+  return Object.assign(new Error("Unique constraint failed"), {
+    code: "P2002",
+    meta: { target },
+  });
+}
 
 function applyData(row: TaskSchedule, data: Data): TaskSchedule {
   const next = { ...row, updatedAt: new Date() } as Record<string, unknown>;
@@ -535,20 +538,10 @@ const taskScheduleRun = {
           id: randomUUID(),
           createdAt: now,
           updatedAt: now,
-          seriesTaskId: null,
-          scheduleId: null,
           releasedTaskId: null,
-          epochId: null,
-          originalScheduledAt: null,
-          legacyLinkId: null,
-          scheduleVersion: 2,
           sourceProjectId: null,
-          sourceAccuracy: CalendarSourceAccuracy.EXACT,
-          timeAccuracy: CalendarTimeAccuracy.EXACT,
           actorUserId: null,
           actorCoworkerId: null,
-          timezone: null,
-          ruleSnapshot: null,
           ...input,
         } as TaskScheduleRun);
         count += 1;
@@ -579,6 +572,51 @@ export const taskScheduleTestPrisma = {
   $queryRaw: vi.fn(async () => [{ id: "locked" }]),
   taskSchedule,
   taskScheduleRun,
+  taskScheduleCreateOperation: {
+    findUnique: vi.fn(
+      async ({
+        where: { workspaceId_operationId: key },
+      }: {
+        where: {
+          workspaceId_operationId: { workspaceId: string; operationId: string };
+        };
+      }) => {
+        const row = taskScheduleTestDb.createOperations.find(
+          (operation) =>
+            operation.workspaceId === key.workspaceId &&
+            operation.operationId === key.operationId,
+        );
+        return row
+          ? {
+              ...row,
+              schedule: taskScheduleTestDb.schedules.find(
+                (schedule) => schedule.id === row.scheduleId,
+              ),
+            }
+          : null;
+      },
+    ),
+    create: vi.fn(
+      async ({
+        data,
+      }: {
+        data: Omit<TaskScheduleCreateOperation, "id" | "createdAt">;
+      }) => {
+        if (
+          taskScheduleTestDb.createOperations.some(
+            (row) =>
+              row.workspaceId === data.workspaceId &&
+              row.operationId === data.operationId,
+          )
+        ) {
+          throw uniqueConstraintError(["workspaceId", "operationId"]);
+        }
+        const row = { id: randomUUID(), createdAt: new Date(), ...data };
+        taskScheduleTestDb.createOperations.push(row);
+        return row;
+      },
+    ),
+  },
   /** Only the releases write Tasks; routes must never write them. */
   task: {
     create: vi.fn(
@@ -698,10 +736,16 @@ export const taskScheduleTestPrisma = {
       const schedules = [...taskScheduleTestDb.schedules];
       const runs = [...taskScheduleTestDb.runs];
       const tasks = [...taskScheduleTestDb.tasks];
+      const createOperations = [...taskScheduleTestDb.createOperations];
       try {
         return await fn(taskScheduleTestPrisma);
       } catch (error) {
-        Object.assign(taskScheduleTestDb, { schedules, runs, tasks });
+        Object.assign(taskScheduleTestDb, {
+          schedules,
+          runs,
+          tasks,
+          createOperations,
+        });
         throw error;
       }
     },

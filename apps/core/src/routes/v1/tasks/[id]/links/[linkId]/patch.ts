@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskLinkType } from "@sokosumi/database";
 
 import { requireMutableTaskOwnership } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
@@ -67,11 +66,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: { id: linkId },
       });
 
-      if (
-        !link ||
-        link.type === TaskLinkType.SCHEDULE ||
-        (link.fromTaskId !== id && link.toTaskId !== id)
-      ) {
+      if (!link || (link.fromTaskId !== id && link.toTaskId !== id)) {
         throw notFound("Task link not found");
       }
 

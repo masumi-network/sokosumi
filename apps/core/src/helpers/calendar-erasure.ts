@@ -72,24 +72,19 @@ export async function lockWorkspaceCalendarForErasure(
     FOR UPDATE
   `;
   await tx.$queryRaw`
-    SELECT occurrence.id
-    FROM "task_schedule_run" AS occurrence
-    WHERE occurrence.id IN (
+    SELECT run.id
+    FROM "task_schedule_run" AS run
+    WHERE run.id IN (
       SELECT id FROM "task_schedule_run"
       WHERE "sourceWorkspaceId" = ${workspaceId}::UUID
       UNION
-      SELECT series_occurrence.id
-      FROM "task_schedule_run" AS series_occurrence
-      JOIN "task" AS series_task ON series_task.id = series_occurrence."seriesTaskId"
-      WHERE series_task."workspaceId" = ${workspaceId}::UUID
-      UNION
-      SELECT released_occurrence.id
-      FROM "task_schedule_run" AS released_occurrence
-      JOIN "task" AS released_task ON released_task.id = released_occurrence."releasedTaskId"
+      SELECT released_run.id
+      FROM "task_schedule_run" AS released_run
+      JOIN "task" AS released_task ON released_task.id = released_run."releasedTaskId"
       WHERE released_task."workspaceId" = ${workspaceId}::UUID
     )
-    ORDER BY occurrence.id ASC
-    FOR UPDATE OF occurrence
+    ORDER BY run.id ASC
+    FOR UPDATE OF run
   `;
   // After the Runs, like the release: it claims a Run, then its schedule.
   await tx.$queryRaw`
@@ -214,7 +209,6 @@ export async function eraseWorkspaceCalendarData(
     where: {
       OR: [
         { sourceWorkspaceId: workspaceId },
-        { seriesTask: { workspaceId } },
         { releasedTask: { workspaceId } },
       ],
     },

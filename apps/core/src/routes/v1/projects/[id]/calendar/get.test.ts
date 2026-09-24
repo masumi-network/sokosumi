@@ -126,8 +126,6 @@ function createOccurrence(overrides: Record<string, unknown> = {}) {
     sourceWorkspaceId: WORKSPACE_ID,
     sourceType: "PROJECT",
     sourceProjectId: PROJECT_ID,
-    sourceAccuracy: "EXACT",
-    timeAccuracy: "EXACT",
     schedule: {
       id: "33333333-3333-7333-8333-333333333333",
       name: "Prepare release notes",

@@ -13,7 +13,6 @@ import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
-import { liveTaskLinkWhere } from "@/helpers/task-link";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -139,7 +138,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const existingLink = await tx.taskLink.findFirst({
         where: {
-          ...liveTaskLinkWhere,
           OR: [{ fromTaskId: id }, { toTaskId: id }],
         },
         select: {

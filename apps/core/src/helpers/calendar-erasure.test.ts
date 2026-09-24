@@ -116,7 +116,7 @@ describe("calendar erasure", () => {
       expect.stringMatching(/FROM "project"[\s\S]*FOR UPDATE/),
       expect.stringMatching(/FROM "task"[\s\S]*FOR UPDATE/),
       expect.stringMatching(
-        /FROM "task_schedule_run" AS occurrence[\s\S]*FOR UPDATE OF occurrence/,
+        /FROM "task_schedule_run" AS run[\s\S]*FOR UPDATE OF run/,
       ),
       expect.stringMatching(/FROM "task_schedule"\s[\s\S]*FOR UPDATE/),
       expect.stringMatching(
@@ -204,7 +204,6 @@ describe("calendar erasure", () => {
       where: {
         OR: [
           { sourceWorkspaceId: WORKSPACE_ID },
-          { seriesTask: { workspaceId: WORKSPACE_ID } },
           { releasedTask: { workspaceId: WORKSPACE_ID } },
         ],
       },
