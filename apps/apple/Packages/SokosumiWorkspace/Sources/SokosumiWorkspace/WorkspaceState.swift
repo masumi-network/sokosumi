@@ -238,10 +238,11 @@ public final class WorkspaceState: ObservableObject {
   public init(
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
-    instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore()
+    instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore(),
+    unreadsFilter: UnreadsFilterPreference = .transient
   ) {
     self.clientProvider = clientProvider
-    sidebar = ConversationSidebar(savedRoom: savedRoom)
+    sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
     realtimeClientInstanceId = getOrCreateRealtimeClientInstanceId(store: instanceStore)
     for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
