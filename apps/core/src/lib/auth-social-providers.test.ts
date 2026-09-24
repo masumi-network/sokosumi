@@ -235,6 +235,29 @@ describe("stored OAuth provider tokens", () => {
     ).rejects.toThrow();
   });
 
+  it("still reads them after rotating to BETTER_AUTH_SECRETS", async () => {
+    const ctx = await tokenContext();
+    const token = "ya29.provider-access-token";
+    const stored = await setTokenUtil(token, ctx);
+    if (typeof stored !== "string") {
+      expect.unreachable("setTokenUtil returned no token");
+    }
+    // `secrets` is what BETTER_AUTH_SECRETS parses to; the old secret stays.
+    const { secretConfig } = await betterAuth({
+      secret: getEnv().BETTER_AUTH_SECRET,
+      secrets: [
+        { version: 2, value: "rotated-secret-that-is-long-enough-for-auth" },
+      ],
+      database: memoryAdapter({}),
+    }).$context;
+    const rotated = { ...ctx, secretConfig };
+
+    expect(await decryptOAuthToken(stored, rotated)).toBe(token);
+    const restored = await setTokenUtil(token, rotated);
+    expect(restored).toMatch(/^\$ba\$2\$/);
+    expect(await decryptOAuthToken(restored ?? "", rotated)).toBe(token);
+  });
+
   it("encrypts tokens on a new link and still reads rows stored before", async () => {
     const db: MemoryDb = {
       user: [],
