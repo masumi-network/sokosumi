@@ -578,6 +578,9 @@ export async function changeTaskScheduleState(
         `A Task Schedule that is ${current.state} cannot be ${label}`,
       );
     }
+    await requireOpenScheduleProjects(tx, current.workspaceId, [
+      current.projectId,
+    ]);
 
     const now = new Date();
     if (to === TaskScheduleState.ACTIVE) {
@@ -696,6 +699,9 @@ export async function changeTaskScheduleRun(
         "Only the Runs of an Active Task Schedule can be changed",
       );
     }
+    await requireOpenScheduleProjects(tx, current.workspaceId, [
+      current.projectId,
+    ]);
     if (current.revision !== input.expectedRevision) {
       throwRevisionConflict();
     }
@@ -770,10 +776,11 @@ export async function deleteTaskSchedule(
 ): Promise<void> {
   const actor = await resolveScheduleActor(vars);
   await prisma.$transaction(async (tx) => {
-    requireScheduleWriteAccess(
-      actor,
-      await findReadableSchedule(actor, id, tx),
-    );
+    const current = await findReadableSchedule(actor, id, tx);
+    requireScheduleWriteAccess(actor, current);
+    await requireOpenScheduleProjects(tx, current.workspaceId, [
+      current.projectId,
+    ]);
     await tx.taskSchedule.delete({ where: { id } });
   });
 }

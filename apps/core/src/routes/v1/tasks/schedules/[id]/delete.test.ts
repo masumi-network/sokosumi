@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   MEMBER_ID,
+  PROJECT_ID,
   resetTaskScheduleTestDb,
   seedTaskSchedule,
   taskScheduleTestDb,
@@ -61,6 +62,19 @@ describe("DELETE /tasks/schedules/{id}", () => {
     expect(task.updateMany).not.toHaveBeenCalled();
     expect(task.delete).not.toHaveBeenCalled();
     expect(task.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("refuses a schedule in a closed project", async () => {
+    const schedule = seedTaskSchedule({ projectId: PROJECT_ID });
+    taskScheduleTestDb.projects.set(PROJECT_ID, {
+      workspaceId: schedule.workspaceId,
+      closedAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
+
+    const response = await remove(schedule.id);
+
+    expect(response.status).toBe(409);
+    expect(taskScheduleTestDb.schedules).toHaveLength(1);
   });
 
   it("lets only the owner delete", async () => {
