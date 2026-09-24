@@ -2895,9 +2895,18 @@ export type ChatRoomMessage = {
 
 export type ChatRoomThreadsUnreadCount = {
     /**
-     * Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.
+     * Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Equals `threads.length`.
      */
     count: number;
+    /**
+     * Every unread thread in the room with its `unreadReplyCount`. A thread absent from the list has no unread replies for the viewer.
+     */
+    threads: Array<ChatRoomThreadUnreadReplyCount>;
+};
+
+export type ChatRoomThreadUnreadReplyCount = {
+    parentMessageId: string;
+    unreadReplyCount: number;
 };
 
 export type ChatRoomThreadsMarkAll = {
@@ -5132,6 +5141,10 @@ export type NotificationCounts = {
      * Number of feed notifications whose request still waits on the reader
      */
     needsAction: number;
+    /**
+     * Number of unread feed notifications where someone named the reader
+     */
+    mentions: number;
 };
 
 export type MarkAllReadResponse = {
@@ -35098,6 +35111,10 @@ export type GetNotificationsData = {
          * When true, only rows whose request is still waiting on the reader: a task or job paused on input, a pending vendor grant or coworker access request. The newest row per request. Reading a row does not remove it; answering the request does.
          */
         needsAction?: 'true' | 'false';
+        /**
+         * When true, only rows where someone named the reader: chat mentions and their reminders. Direct messages are not mentions.
+         */
+        mentions?: 'true' | 'false';
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */

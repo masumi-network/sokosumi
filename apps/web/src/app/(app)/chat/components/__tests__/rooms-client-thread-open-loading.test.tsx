@@ -9,16 +9,19 @@ import {
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { chatRoomMessageEventDataSchema } from "@/lib/ably/schema";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
 import {
   listThreadMessagesAction,
+  listUnreadThreadReplyCountsAction,
   markOrganizationChatRoomReadAction,
   markThreadReadAction,
   mockSearch,
   roomsClientBaseProps,
+  useChatRoomRealtimeMock,
 } from "./rooms-client-harness";
 
 const { mockSearchHit } = vi.hoisted(() => ({
@@ -177,6 +180,7 @@ describe("RoomsClient thread open loading race", () => {
     mockSearch.current = "";
     markThreadReadAction.mockReset();
     listThreadMessagesAction.mockReset();
+    listUnreadThreadReplyCountsAction.mockClear();
     markOrganizationChatRoomReadAction.mockReset();
     markOrganizationChatRoomReadAction.mockResolvedValue({
       ok: true as const,
@@ -265,6 +269,99 @@ describe("RoomsClient thread open loading race", () => {
           .getAttribute("data-unread-replies"),
       ).toBe("0");
     });
+  });
+
+  it("tints the replied-to parent's bar from the unread read after a live reply", async () => {
+    listUnreadThreadReplyCountsAction.mockResolvedValue({
+      ok: true as const,
+      value: [],
+    });
+    const otherParent = { ...parentMessage(), id: "parent-2" };
+    render(
+      <RoomsClient
+        {...baseProps}
+        messages={[
+          { ...parentMessage(), threadUnreadReplyCount: 0 },
+          { ...otherParent, threadUnreadReplyCount: 0 },
+        ]}
+      />,
+    );
+    await waitFor(() => {
+      expect(listUnreadThreadReplyCountsAction).toHaveBeenCalledTimes(1);
+    });
+
+    // Core gates the reply for this reader and answers the new map. The
+    // broadcast event itself carries no per-reader count.
+    listUnreadThreadReplyCountsAction.mockResolvedValue({
+      ok: true as const,
+      value: [{ parentMessageId: "parent-1", unreadReplyCount: 1 }],
+    });
+    const onMessage = useChatRoomRealtimeMock.mock.calls.at(-1)?.[0].onMessage;
+    const event = chatRoomMessageEventDataSchema.parse(
+      JSON.parse(
+        JSON.stringify({
+          eventType: "create",
+          message: {
+            ...replyMessage("r-live"),
+            sender: {
+              type: "user",
+              user: {
+                id: "user-2",
+                name: "Grace",
+                email: "grace@example.com",
+                image: null,
+                presence: "online",
+              },
+            },
+          },
+        }),
+      ),
+    );
+    await act(async () => onMessage?.(event));
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getByTestId("open-thread-parent-1")
+          .getAttribute("data-unread-replies"),
+      ).toBe("1");
+    });
+    expect(
+      screen
+        .getByTestId("open-thread-parent-2")
+        .getAttribute("data-unread-replies"),
+    ).toBe("0");
+  });
+
+  it("keeps a read thread's bar plain when an older message refresh lands after the read", async () => {
+    listUnreadThreadReplyCountsAction.mockResolvedValue({
+      ok: true as const,
+      value: [],
+    });
+    const view = render(
+      <RoomsClient
+        {...baseProps}
+        messages={[{ ...parentMessage(), threadUnreadReplyCount: 0 }]}
+      />,
+    );
+    await waitFor(() => {
+      expect(listUnreadThreadReplyCountsAction).toHaveBeenCalledTimes(1);
+    });
+
+    // A page computed before the reader looked at the thread arrives late,
+    // still counting its replies as unread.
+    view.rerender(
+      <RoomsClient
+        {...baseProps}
+        messages={[{ ...parentMessage(), threadUnreadReplyCount: 2 }]}
+      />,
+    );
+
+    expect(
+      screen
+        .getByTestId("open-thread-parent-1")
+        .getAttribute("data-unread-replies"),
+    ).toBe("0");
   });
 
   // The sidebar's overflow row asks for the thread list on the room's URL.
