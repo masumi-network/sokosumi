@@ -326,6 +326,7 @@ export {
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
 export {
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
   type SocialPostProvider,
 } from "./social-post.js";

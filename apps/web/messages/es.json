@@ -2305,6 +2305,7 @@
           "noAccount": "Elige una cuenta",
           "unknownHandle": "Cuenta de X desconocida",
           "scheduledAt": "Hora programada",
+          "scheduledAtTooSoon": "Elige una hora que sea al menos un minuto en el futuro.",
           "saveDraft": "Guardar borrador",
           "save": "Guardar",
           "schedule": "Programar",
@@ -2324,7 +2325,9 @@
           "updated": "Publicación actualizada.",
           "canceled": "Publicación cancelada.",
           "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
-          "failed": "Algo salió mal. Inténtalo de nuevo."
+          "failed": "Algo salió mal. Inténtalo de nuevo.",
+          "unauthenticated": "Inicia sesión para continuar.",
+          "unauthenticatedAction": "Iniciar sesión"
         }
       },
       "Detail": {

@@ -2305,6 +2305,7 @@
           "noAccount": "Choose an account",
           "unknownHandle": "Unknown X account",
           "scheduledAt": "Scheduled time",
+          "scheduledAtTooSoon": "Choose a time at least one minute from now.",
           "saveDraft": "Save draft",
           "save": "Save",
           "schedule": "Schedule",
@@ -2324,7 +2325,9 @@
           "updated": "Post updated.",
           "canceled": "Post canceled.",
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
-          "failed": "Something went wrong. Try again."
+          "failed": "Something went wrong. Try again.",
+          "unauthenticated": "Please sign in to continue.",
+          "unauthenticatedAction": "Sign in"
         }
       },
       "Detail": {

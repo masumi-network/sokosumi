@@ -1,5 +1,6 @@
 "use client";
 
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { CalendarClock, MoreHorizontal, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -25,7 +26,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { ActionError } from "@/lib/actions/errors/action-error";
+import {
+  type ActionError,
+  toActionRejectionError,
+} from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { cancelProjectSocialPost } from "@/lib/actions/project/action";
 import type {
   ProjectSocialConnection,
@@ -61,7 +66,7 @@ function formatHandle(handle: string | null): string | null {
 }
 
 function isRevisionConflict(error: ActionError): boolean {
-  return error.message?.toLowerCase().includes("modified") ?? false;
+  return error.kind === CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT;
 }
 
 function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
@@ -95,6 +100,15 @@ export function ProjectSocialPosts({
   const [cancelPending, setCancelPending] = useState(false);
 
   function handleActionError(error: ActionError): void {
+    if (error.code === CommonErrorCode.UNAUTHENTICATED) {
+      toast.error(t("toasts.unauthenticated"), {
+        action: {
+          label: t("toasts.unauthenticatedAction"),
+          onClick: () => router.push("/signin"),
+        },
+      });
+      return;
+    }
     if (isRevisionConflict(error)) {
       toast.error(t("toasts.conflict"));
       setComposer(null);
@@ -142,6 +156,8 @@ export function ProjectSocialPosts({
       }
       toast.success(t("toasts.canceled"));
       handleSaved(result.value);
+    } catch (error) {
+      handleActionError(toActionRejectionError(error));
     } finally {
       setCancelPending(false);
       setCancelTarget(null);
@@ -216,7 +232,7 @@ export function ProjectSocialPosts({
                         X
                       </span>
                       <div className="min-w-0 flex-1 space-y-1">
-                        <p className="line-clamp-2 text-sm whitespace-pre-wrap">
+                        <p className="text-sm whitespace-pre-wrap break-words">
                           {post.text}
                         </p>
                         <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">

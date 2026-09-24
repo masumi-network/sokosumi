@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { conflict, forbidden, notFound, unauthorized } from "@/helpers/error";
@@ -307,6 +308,15 @@ describe("Project social post routes", () => {
     expect(listSocialPostsMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a malformed cursor", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts?cursor=not-a-uuid`,
+    );
+
+    expect(response.status).toBe(422);
+    expect(listSocialPostsMock).not.toHaveBeenCalled();
+  });
+
   it("creates a draft", async () => {
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/social-posts`,
@@ -493,7 +503,9 @@ describe("Project social post routes", () => {
   it("maps service not-found and conflict errors", async () => {
     getSocialPostMock.mockRejectedValue(notFound("Social post not found"));
     updateSocialPostMock.mockRejectedValue(
-      conflict("Social post was modified, reload and retry"),
+      conflict("Social post was modified, reload and retry", {
+        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+      }),
     );
     const app = createApp();
 

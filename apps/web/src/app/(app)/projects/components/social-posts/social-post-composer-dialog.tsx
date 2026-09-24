@@ -1,6 +1,9 @@
 "use client";
 
-import { SOCIAL_POST_TEXT_LIMITS } from "@sokosumi/utils";
+import {
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
+  SOCIAL_POST_TEXT_LIMITS,
+} from "@sokosumi/utils";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -26,7 +29,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { ActionError } from "@/lib/actions/errors/action-error";
+import {
+  type ActionError,
+  toActionRejectionError,
+} from "@/lib/actions/errors/action-error";
 import {
   createProjectSocialPost,
   scheduleProjectSocialPost,
@@ -57,6 +63,7 @@ interface SocialPostComposerDialogProps {
 type PendingSubmit = "save" | "schedule" | null;
 
 const DATETIME_LOCAL_FORMAT = "yyyy-MM-dd'T'HH:mm";
+const DATETIME_LOCAL_STEP_MS = 60 * 1000;
 
 function toDateTimeLocalValue(date: Date | null): string {
   return date ? format(date, DATETIME_LOCAL_FORMAT) : "";
@@ -84,6 +91,7 @@ export function SocialPostComposerDialog({
   const textId = useId();
   const accountId = useId();
   const scheduledAtId = useId();
+  const scheduledAtErrorId = useId();
   const post = mode.kind === "create" ? null : mode.post;
   const provider = post?.provider ?? "x";
   const textLimit = SOCIAL_POST_TEXT_LIMITS[provider];
@@ -102,14 +110,25 @@ export function SocialPostComposerDialog({
   const trimmedText = text.trim();
   const overLimit = text.length > textLimit;
   const textValid = isScheduleOnly || (trimmedText.length > 0 && !overLimit);
-  const minScheduledAt = toDateTimeLocalValue(new Date());
+  const earliestScheduledAt = Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
+  const minScheduledAt = toDateTimeLocalValue(
+    new Date(
+      Math.floor(earliestScheduledAt / DATETIME_LOCAL_STEP_MS) *
+        DATETIME_LOCAL_STEP_MS +
+        DATETIME_LOCAL_STEP_MS,
+    ),
+  );
   const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
-  const scheduledInFuture =
+  const scheduledAtTooSoon =
     scheduledDate !== null &&
     !Number.isNaN(scheduledDate.getTime()) &&
-    scheduledDate.getTime() > Date.now();
+    scheduledDate.getTime() <= earliestScheduledAt;
+  const scheduledAtValid =
+    scheduledDate !== null &&
+    !Number.isNaN(scheduledDate.getTime()) &&
+    !scheduledAtTooSoon;
   const canSchedule =
-    textValid && connectionId !== "" && scheduledInFuture && !isBusy;
+    textValid && connectionId !== "" && scheduledAtValid && !isBusy;
   const canSave = textValid && !isBusy;
   const isReschedule = post?.status === "SCHEDULED";
   const selectedConnectionExists = connections.some(
@@ -152,6 +171,8 @@ export function SocialPostComposerDialog({
       );
       onSaved(result.value);
       onOpenChange(false);
+    } catch (error) {
+      onError(toActionRejectionError(error));
     } finally {
       setPending(null);
     }
@@ -211,6 +232,8 @@ export function SocialPostComposerDialog({
       toast.success(t("toasts.scheduled"));
       onSaved(result.value);
       onOpenChange(false);
+    } catch (error) {
+      onError(toActionRejectionError(error));
     } finally {
       setPending(null);
     }
@@ -296,12 +319,21 @@ export function SocialPostComposerDialog({
             <Label htmlFor={scheduledAtId}>{t("composer.scheduledAt")}</Label>
             <Input
               id={scheduledAtId}
+              aria-describedby={
+                scheduledAtTooSoon ? scheduledAtErrorId : undefined
+              }
+              aria-invalid={scheduledAtTooSoon || undefined}
               disabled={isBusy}
               min={minScheduledAt}
               onChange={(event) => setScheduledAt(event.target.value)}
               type="datetime-local"
               value={scheduledAt}
             />
+            {scheduledAtTooSoon ? (
+              <p id={scheduledAtErrorId} className="text-destructive text-sm">
+                {t("composer.scheduledAtTooSoon")}
+              </p>
+            ) : null}
           </div>
         </form>
 

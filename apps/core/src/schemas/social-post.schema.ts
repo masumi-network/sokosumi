@@ -140,6 +140,15 @@ function isSocialPostStatus(
 }
 
 export const listSocialPostsQuerySchema = cursorPaginationQuerySchema.extend({
+  cursor: z
+    .string()
+    .uuid()
+    .optional()
+    .openapi({
+      param: { name: "cursor", in: "query" },
+      description: "UUID of the last Social post from the previous page",
+      example: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    }),
   status: z
     .string()
     .optional()
