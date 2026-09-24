@@ -2274,6 +2274,9 @@
         "publishedAt": "Publicada {date}",
         "failedAt": "Falló {date}",
         "attempts": "{count, plural, one {# intento} other {# intentos}}",
+        "outcomes": {
+          "authorizationRevoked": "Se revocó el acceso de programación del Coworker. Reprograma esta publicación para publicarla."
+        },
         "actions": {
           "publishNow": "Publicar ahora",
           "retry": "Reintentar"

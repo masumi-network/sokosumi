@@ -1,16 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import type { SocialPostMediaRef } from "@sokosumi/utils";
-
+import { HTTPException } from "hono/http-exception";
 import { publishXPost } from "@/clients/composio.client";
 import { CALENDAR_BETA_USER_WHERE } from "@/helpers/calendar-beta-access";
 import { badRequest, conflict, notFound } from "@/helpers/error";
+import { requireSocialPostPublishingAccess } from "@/helpers/social-post-access";
 import {
   downloadSocialPostMedia,
   requireSocialPostMedia,
 } from "@/helpers/social-post-media";
 import { classifyPublishError } from "@/helpers/social-post-publish-errors";
 import prisma from "@/lib/db/prisma";
+import type { CoworkerAuthenticationContext } from "@/middleware/auth";
 import { projectExecutorUserId } from "@/services/project-social-connections.service";
 import {
   getSocialPost,
@@ -32,6 +34,8 @@ const SETTLEMENT_RESERVE_MS = 20_000;
 const X_CREATE_POST_TOOL_SLUG = "TWITTER_CREATION_OF_A_POST";
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_INACTIVE_ERROR = "Social connection needs reconnecting";
+const AUTHORIZATION_REVOKED_ERROR =
+  "Coworker scheduling access was revoked. A workspace member must reschedule this post.";
 const PUBLISH_NOW_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "SCHEDULED",
@@ -64,6 +68,8 @@ export interface PublishSocialPostNowInput {
 }
 
 const publisherInclude = {
+  scheduledByCoworker: { select: { id: true, vendorId: true } },
+  workspace: { select: { organizationId: true } },
   socialConnection: {
     select: {
       id: true,
@@ -89,6 +95,10 @@ interface ClaimedPost {
   attemptCount: number;
   leaseToken: string;
   recoveringLease?: boolean;
+  schedulingCoworker?: {
+    authContext: CoworkerAuthenticationContext | null;
+    workspaceId: string;
+  };
   socialConnection: PublisherPostRecord["socialConnection"];
 }
 
@@ -156,7 +166,7 @@ async function nextAttemptNumber(postId: string): Promise<number> {
 async function recordSkippedAttempt(
   post: ClaimedPost,
   options: AttemptOptions,
-  outcome: "missed" | "connection_inactive",
+  outcome: "missed" | "connection_inactive" | "authorization_revoked",
   now: Date,
 ): Promise<void> {
   await prisma.socialPostPublishAttempt.create({
@@ -171,6 +181,53 @@ async function recordSkippedAttempt(
     },
     select: { id: true },
   });
+}
+
+async function settleAuthorizationRevoked(
+  post: ClaimedPost,
+  options: AttemptOptions,
+  now: Date,
+  attemptId?: string,
+): Promise<AttemptOutcome> {
+  if (attemptId) {
+    await prisma.socialPostPublishAttempt.update({
+      where: { id: attemptId },
+      data: {
+        finishedAt: now,
+        outcome: "authorization_revoked",
+        errorKind: null,
+        providerOutcome: null,
+        externalId: null,
+      },
+    });
+  } else {
+    await recordSkippedAttempt(post, options, "authorization_revoked", now);
+  }
+  const settled = await settle(post, {
+    status: "FAILED",
+    lastError: AUTHORIZATION_REVOKED_ERROR,
+  });
+  return settled ? "failed" : "skipped";
+}
+
+async function checkSchedulingCoworkerAccess(
+  post: ClaimedPost,
+  options: AttemptOptions,
+  attemptId?: string,
+): Promise<AttemptOutcome | null> {
+  if (!post.schedulingCoworker) return null;
+  const { authContext, workspaceId } = post.schedulingCoworker;
+  if (!authContext) {
+    return settleAuthorizationRevoked(post, options, new Date(), attemptId);
+  }
+  try {
+    await requireSocialPostPublishingAccess(authContext, workspaceId);
+    return null;
+  } catch (error) {
+    if (!(error instanceof HTTPException) || ![403, 404].includes(error.status))
+      throw error;
+    return settleAuthorizationRevoked(post, options, new Date(), attemptId);
+  }
 }
 
 async function attemptPublish(
@@ -242,6 +299,13 @@ async function attemptPublish(
           });
           return settled ? "failed" : "skipped";
         }
+        case "authorization_revoked": {
+          const settled = await settle(post, {
+            status: "FAILED",
+            lastError: AUTHORIZATION_REVOKED_ERROR,
+          });
+          return settled ? "failed" : "skipped";
+        }
       }
     }
     const settled = await settle(post, {
@@ -277,6 +341,9 @@ async function attemptPublish(
     });
     return settled ? "missed" : "skipped";
   }
+
+  const accessOutcome = await checkSchedulingCoworkerAccess(post, options);
+  if (accessOutcome) return accessOutcome;
 
   const connection = post.socialConnection;
   if (!connection || connection.status !== "active") {
@@ -319,11 +386,18 @@ async function attemptPublish(
       throw new DOMException("Publish deadline exceeded", "TimeoutError");
     signal.throwIfAborted();
     media = requireSocialPostMedia(post.media, post.id);
+    const downloadedMedia = await downloadSocialPostMedia(media, signal);
+    const accessOutcome = await checkSchedulingCoworkerAccess(
+      post,
+      options,
+      attempt.id,
+    );
+    if (accessOutcome) return accessOutcome;
     published = await publishXPost({
       connectedAccountId: connection.composioConnectedAccountId,
       executorUserId: projectExecutorUserId(post.projectId),
       text: post.text,
-      media: await downloadSocialPostMedia(media, signal),
+      media: downloadedMedia,
       signal,
     });
   } catch (error) {
@@ -409,7 +483,15 @@ async function claimDuePost(): Promise<ClaimResult> {
       OR: [
         {
           status: "SCHEDULED",
-          scheduledByUser: CALENDAR_BETA_USER_WHERE,
+          AND: {
+            OR: [
+              { scheduledByCoworkerId: { not: null } },
+              {
+                scheduledByCoworkerId: null,
+                scheduledByUser: CALENDAR_BETA_USER_WHERE,
+              },
+            ],
+          },
           scheduledAt: { lte: now },
           OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
         },
@@ -442,6 +524,24 @@ async function claimDuePost(): Promise<ClaimResult> {
       leaseToken,
       recoveringLease: candidate.status === "PUBLISHING",
       socialConnection: candidate.socialConnection,
+      ...(candidate.scheduledByCoworker
+        ? {
+            schedulingCoworker: {
+              workspaceId: candidate.workspaceId,
+              authContext: candidate.scheduledByUserId
+                ? {
+                    actor: "coworker" as const,
+                    coworkerId: candidate.scheduledByCoworker.id,
+                    vendorId: candidate.scheduledByCoworker.vendorId,
+                    context: {
+                      userId: candidate.scheduledByUserId,
+                      organizationId: candidate.workspace.organizationId,
+                    },
+                  }
+                : null,
+            },
+          }
+        : {}),
     },
   };
 }
@@ -520,6 +620,7 @@ export async function publishSocialPostNow(
       ...leaseData(now, leaseToken),
       scheduledAt: now,
       scheduledByUserId: input.userId,
+      scheduledByCoworkerId: null,
       attemptCount: 0,
       nextAttemptAt: null,
       lastError: null,

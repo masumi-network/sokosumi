@@ -16,6 +16,8 @@ import mountListSocialPosts from "./get.js";
 import mountCreateSocialPost from "./post.js";
 
 const {
+  requireAuthorizedUserContextMock,
+  requireCoworkerCapabilityMock,
   cancelSocialPostMock,
   createSocialPostMock,
   getSocialPostMock,
@@ -25,6 +27,8 @@ const {
   scheduleSocialPostMock,
   updateSocialPostMock,
 } = vi.hoisted(() => ({
+  requireAuthorizedUserContextMock: vi.fn(),
+  requireCoworkerCapabilityMock: vi.fn(),
   cancelSocialPostMock: vi.fn(),
   createSocialPostMock: vi.fn(),
   getSocialPostMock: vi.fn(),
@@ -50,6 +54,13 @@ vi.mock("@/services/social-posts.service", () => ({
 
 vi.mock("@/helpers/calendar-beta-access", () => ({
   requireCalendarBetaAccess: requireCalendarBetaAccessMock,
+}));
+
+vi.mock("@/helpers/coworker-user-context-binding", () => ({
+  requireAuthorizedUserContext: requireAuthorizedUserContextMock,
+}));
+vi.mock("@/helpers/access-control", () => ({
+  requireCoworkerCapability: requireCoworkerCapabilityMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
@@ -211,6 +222,10 @@ function expectNoServiceCalls() {
 describe("Project social post routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    requireAuthorizedUserContextMock.mockRejectedValue(
+      forbidden("Coworker delegation required"),
+    );
+    requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     requireCalendarBetaAccessMock.mockResolvedValue(undefined);
     listSocialPostsMock.mockResolvedValue({
       posts: [draftPost],
@@ -492,6 +507,44 @@ describe("Project social post routes", () => {
     });
   });
 
+  it("reads a post whose last attempt was denied after authorization revocation", async () => {
+    getSocialPostMock.mockResolvedValue({
+      ...scheduledPost,
+      status: "FAILED",
+      lastError:
+        "Coworker scheduling access was revoked. A workspace member must reschedule this post.",
+      lastAttemptAt: new Date("2026-09-15T11:00:00.000Z"),
+      lastAttempt: {
+        attempt: 1,
+        trigger: "scheduler",
+        outcome: "authorization_revoked",
+        errorKind: null,
+        providerOutcome: null,
+        finishedAt: new Date("2026-09-15T11:00:00.000Z"),
+      },
+      revision: 2,
+      canEdit: false,
+      canSchedule: true,
+      canCancel: false,
+      canPublishNow: true,
+    });
+
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: {
+        status: "FAILED",
+        lastAttempt: {
+          outcome: "authorization_revoked",
+          finishedAt: "2026-09-15T11:00:00.000Z",
+        },
+      },
+    });
+  });
+
   it("updates a post with the observed revision", async () => {
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}`,
@@ -670,5 +723,58 @@ describe("Project social post routes", () => {
 
     expect(response.status).toBe(500);
     expect(await response.text()).not.toContain("database exploded");
+  });
+  it("allows an authorized coworker to manage schedules but not publish immediately", async () => {
+    requireAuthorizedUserContextMock.mockResolvedValue({
+      userId: USER_ID,
+      organizationId: null,
+    });
+    const responses = await Promise.all(
+      allOperations(createApp(COWORKER_CONTEXT_AUTH)),
+    );
+    expect(responses.map((response) => response.status)).toEqual([
+      200, 201, 200, 200, 200, 200, 403,
+    ]);
+    expect(createSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_ID, coworkerId: "cow_123" }),
+    );
+    expect(scheduleSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_ID, coworkerId: "cow_123" }),
+    );
+    expect(requireCoworkerCapabilityMock).toHaveBeenCalledWith(
+      "cow_123",
+      "tasks",
+      expect.anything(),
+    );
+    expect((await responses[2]!.json()).data.canPublishNow).toBe(false);
+    expect(publishSocialPostNowMock).not.toHaveBeenCalled();
+  });
+  it("keeps coworker scheduling beta-gated", async () => {
+    requireAuthorizedUserContextMock.mockResolvedValue({
+      userId: USER_ID,
+      organizationId: null,
+    });
+    requireCalendarBetaAccessMock.mockRejectedValue(
+      forbidden("Beta access required"),
+    );
+    const responses = await Promise.all(
+      allOperations(createApp(COWORKER_CONTEXT_AUTH)),
+    );
+    expect(responses.every((response) => response.status === 403)).toBe(true);
+    expectNoServiceCalls();
+  });
+  it("rejects coworkers without the tasks capability", async () => {
+    requireAuthorizedUserContextMock.mockResolvedValue({
+      userId: USER_ID,
+      organizationId: null,
+    });
+    requireCoworkerCapabilityMock.mockRejectedValue(
+      forbidden("Capability required"),
+    );
+    const responses = await Promise.all(
+      allOperations(createApp(COWORKER_CONTEXT_AUTH)),
+    );
+    expect(responses.every((response) => response.status === 403)).toBe(true);
+    expectNoServiceCalls();
   });
 });

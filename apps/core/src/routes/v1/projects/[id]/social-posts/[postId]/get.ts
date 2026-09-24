@@ -3,12 +3,12 @@ import { createRoute } from "@hono/zod-openapi";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireSocialPostActor } from "@/helpers/social-post-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withOrganizationSlugHeaderParameter,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   socialPostParamsSchema,
@@ -18,12 +18,12 @@ import { getSocialPost } from "@/services/social-posts.service";
 
 import { mapSocialPostServiceError } from "../route-helpers.js";
 
-const route = withOrganizationSlugHeaderParameter(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}/social-posts/{postId}",
     description:
-      "Read one Social post of a Project. Requires an interactive user session in the Project's Workspace.",
+      "Read one Social post of a Project. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.",
     tags: ["Projects"],
     request: { params: socialPostParamsSchema },
     responses: {
@@ -39,7 +39,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    const userContext = await requireSocialPostActor(c.var.authContext);
     await requireCalendarBetaAccess(userContext.userId, prisma);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, postId } = c.req.valid("param");
@@ -50,7 +50,13 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         workspaceId: workspaceContext.workspaceId,
         postId,
       });
-      return ok(c, socialPostSchema.parse(post));
+      return ok(
+        c,
+        socialPostSchema.parse({
+          ...post,
+          canPublishNow: post.canPublishNow && !userContext.coworkerId,
+        }),
+      );
     } catch (error) {
       return mapSocialPostServiceError(error);
     }

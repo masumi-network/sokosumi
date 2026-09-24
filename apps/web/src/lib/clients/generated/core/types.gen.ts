@@ -4908,6 +4908,10 @@ export type SocialPost = {
     socialConnection: SocialPostSocialConnection;
     creator: SocialPostCreator;
     scheduledByUserId: string | null;
+    /**
+     * Coworker that scheduled the post on behalf of scheduledByUserId, or null for a human.
+     */
+    scheduledByCoworkerId?: string | null;
     canceledAt: Date | null;
     publishedAt: Date | null;
     publishedExternalId: string | null;
@@ -4972,7 +4976,7 @@ export type SocialPostCreator = {
 export type SocialPostLastAttempt = {
     attempt: number;
     trigger: 'scheduler' | 'publish_now';
-    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | null;
+    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | 'authorization_revoked' | null;
     errorKind: string | null;
     providerOutcome: string | null;
     finishedAt: Date | null;
@@ -33517,6 +33521,14 @@ export type GetProjectsByIdSocialConnectionsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -34112,13 +34124,21 @@ export type GetProjectsByIdSocialPostsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
     };
     query?: {
         /**
-         * Cursor for pagination (ID of the last item from previous page)
+         * UUID of the last Social post from the previous page
          */
         cursor?: string;
         /**
@@ -34236,6 +34256,14 @@ export type PostProjectsByIdSocialPostsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -34377,6 +34405,14 @@ export type GetProjectsByIdSocialPostsByPostIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -34489,6 +34525,14 @@ export type PatchProjectsByIdSocialPostsByPostIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -34631,6 +34675,14 @@ export type PostProjectsByIdSocialPostsByPostIdScheduleData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -34915,6 +34967,14 @@ export type PostProjectsByIdSocialPostsByPostIdCancelData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;

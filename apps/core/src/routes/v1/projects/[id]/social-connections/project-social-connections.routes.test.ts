@@ -13,12 +13,16 @@ import mountListProjectSocialConnections from "./get.js";
 import mountInitiateProjectSocialConnection from "./initiate/post.js";
 
 const {
+  requireAuthorizedUserContextMock,
+  requireCoworkerCapabilityMock,
   disconnectProjectSocialConnectionMock,
   finalizeProjectSocialConnectionMock,
   initiateProjectSocialConnectionMock,
   listProjectSocialConnectionsMock,
   requireCalendarBetaAccessMock,
 } = vi.hoisted(() => ({
+  requireAuthorizedUserContextMock: vi.fn(),
+  requireCoworkerCapabilityMock: vi.fn(),
   disconnectProjectSocialConnectionMock: vi.fn(),
   finalizeProjectSocialConnectionMock: vi.fn(),
   initiateProjectSocialConnectionMock: vi.fn(),
@@ -35,6 +39,13 @@ vi.mock("@/services/project-social-connections.service", () => ({
 
 vi.mock("@/helpers/calendar-beta-access", () => ({
   requireCalendarBetaAccess: requireCalendarBetaAccessMock,
+}));
+
+vi.mock("@/helpers/coworker-user-context-binding", () => ({
+  requireAuthorizedUserContext: requireAuthorizedUserContextMock,
+}));
+vi.mock("@/helpers/access-control", () => ({
+  requireCoworkerCapability: requireCoworkerCapabilityMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
@@ -119,6 +130,10 @@ function createApp(
 describe("Project social connection routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    requireAuthorizedUserContextMock.mockRejectedValue(
+      forbidden("Coworker delegation required"),
+    );
+    requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     requireCalendarBetaAccessMock.mockResolvedValue(undefined);
     listProjectSocialConnectionsMock.mockResolvedValue([connection]);
     initiateProjectSocialConnectionMock.mockResolvedValue({
@@ -497,5 +512,26 @@ describe("Project social connection routes", () => {
     expect(duplicate.status).toBe(409);
     expect(unavailable.status).toBe(503);
     expect(await unavailable.text()).not.toContain("provider-secret");
+  });
+  it("lets authorized coworkers discover connected accounts without managing credentials", async () => {
+    requireAuthorizedUserContextMock.mockResolvedValue({
+      userId: USER_ID,
+      organizationId: null,
+    });
+    const app = createApp(COWORKER_CONTEXT_AUTH);
+    const response = await app.request(
+      `http://localhost/${PROJECT_ID}/social-connections`,
+    );
+    expect(response.status).toBe(200);
+    const denied = await app.request(
+      `http://localhost/${PROJECT_ID}/social-connections/initiate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "connect", provider: "x" }),
+      },
+    );
+    expect(denied.status).toBe(403);
+    expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
   });
 });

@@ -2552,7 +2552,7 @@ export const postProjectsByIdStar = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * List a Project's current X social connections. Requires an interactive user session in the Project's Workspace.
+ * List a Project's current X social connections. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access. Connection management remains human-only.
  */
 export const getProjectsByIdSocialConnections = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdSocialConnectionsData, ThrowOnError>): RequestResult<GetProjectsByIdSocialConnectionsResponses, GetProjectsByIdSocialConnectionsErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdSocialConnectionsResponses, GetProjectsByIdSocialConnectionsErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdSocialConnectionsResponseTransformer,
@@ -2596,7 +2596,7 @@ export const deleteProjectsByIdSocialConnectionsByConnectionId = <ThrowOnError e
 });
 
 /**
- * List a Project's Social posts. Requires an interactive user session in the Project's Workspace.
+ * List a Project's Social posts. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
  */
 export const getProjectsByIdSocialPosts = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdSocialPostsData, ThrowOnError>): RequestResult<GetProjectsByIdSocialPostsResponses, GetProjectsByIdSocialPostsErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdSocialPostsResponses, GetProjectsByIdSocialPostsErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdSocialPostsResponseTransformer,
@@ -2605,7 +2605,7 @@ export const getProjectsByIdSocialPosts = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Draft a Social post for a Project, or schedule it directly when scheduledAt is given. Requires an interactive user session in the Project's Workspace.
+ * Draft a Social post for a Project, or schedule it directly when scheduledAt is given. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
  */
 export const postProjectsByIdSocialPosts = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsResponses, PostProjectsByIdSocialPostsErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsResponses, PostProjectsByIdSocialPostsErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsResponseTransformer,
@@ -2618,7 +2618,7 @@ export const postProjectsByIdSocialPosts = <ThrowOnError extends boolean = false
 });
 
 /**
- * Read one Social post of a Project. Requires an interactive user session in the Project's Workspace.
+ * Read one Social post of a Project. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
  */
 export const getProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdSocialPostsByPostIdData, ThrowOnError>): RequestResult<GetProjectsByIdSocialPostsByPostIdResponses, GetProjectsByIdSocialPostsByPostIdErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdSocialPostsByPostIdResponses, GetProjectsByIdSocialPostsByPostIdErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdSocialPostsByPostIdResponseTransformer,
@@ -2627,7 +2627,7 @@ export const getProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolean 
 });
 
 /**
- * Edit a draft or scheduled Social post. The body must carry the revision the client last observed. Requires an interactive user session in the Project's Workspace.
+ * Edit a draft or scheduled Social post. The body must carry the revision the client last observed. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
  */
 export const patchProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolean = false>(options: Options<PatchProjectsByIdSocialPostsByPostIdData, ThrowOnError>): RequestResult<PatchProjectsByIdSocialPostsByPostIdResponses, PatchProjectsByIdSocialPostsByPostIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchProjectsByIdSocialPostsByPostIdResponses, PatchProjectsByIdSocialPostsByPostIdErrors, ThrowOnError>({
     responseTransformer: patchProjectsByIdSocialPostsByPostIdResponseTransformer,
@@ -2640,7 +2640,7 @@ export const patchProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolea
 });
 
 /**
- * Schedule a Social post through an active Project social connection. Allowed from DRAFT, SCHEDULED, FAILED and MISSED. Requires an interactive user session in the Project's Workspace.
+ * Schedule a Social post through an active Project social connection. Allowed from DRAFT, SCHEDULED, FAILED and MISSED. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
  */
 export const postProjectsByIdSocialPostsByPostIdSchedule = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdScheduleData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdScheduleResponses, PostProjectsByIdSocialPostsByPostIdScheduleErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdScheduleResponses, PostProjectsByIdSocialPostsByPostIdScheduleErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
@@ -2666,7 +2666,7 @@ export const postProjectsByIdSocialPostsByPostIdPublish = <ThrowOnError extends 
 });
 
 /**
- * Cancel a draft or scheduled Social post. Canceling an already canceled post is a no-op. Requires an interactive user session in the Project's Workspace.
+ * Cancel a draft or scheduled Social post. Canceling an already canceled post is a no-op. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access in the Project's Workspace. Publish now remains human-only.
  */
 export const postProjectsByIdSocialPostsByPostIdCancel = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdCancelData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdCancelResponses, PostProjectsByIdSocialPostsByPostIdCancelErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdCancelResponses, PostProjectsByIdSocialPostsByPostIdCancelErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,

@@ -2274,6 +2274,9 @@
         "publishedAt": "Published {date}",
         "failedAt": "Failed {date}",
         "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+        "outcomes": {
+          "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it."
+        },
         "actions": {
           "publishNow": "Publish now",
           "retry": "Retry"

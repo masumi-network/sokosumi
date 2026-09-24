@@ -1,13 +1,14 @@
 import { SsrfError } from "@sokosumi/net";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   ComposioApiError,
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
 } from "@/clients/composio.client";
+import { forbidden } from "@/helpers/error";
 
 const {
+  publishingAccessMock,
   attemptFindFirstMock,
   attemptAggregateMock,
   attemptCreateMock,
@@ -18,6 +19,7 @@ const {
   socialPostUpdateManyMock,
   ssrfSafeFetchMock,
 } = vi.hoisted(() => ({
+  publishingAccessMock: vi.fn(),
   attemptFindFirstMock: vi.fn(),
   attemptAggregateMock: vi.fn(),
   attemptCreateMock: vi.fn(),
@@ -32,6 +34,10 @@ const {
 vi.mock("@sokosumi/net", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/net")>()),
   ssrfSafeFetch: ssrfSafeFetchMock,
+}));
+
+vi.mock("@/helpers/social-post-access", () => ({
+  requireSocialPostPublishingAccess: publishingAccessMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -232,8 +238,16 @@ describe("social post publisher service", () => {
           OR: [
             {
               status: "SCHEDULED",
-              scheduledByUser: {
-                members: { some: { organization: { slug: "utxo" } } },
+              AND: {
+                OR: [
+                  { scheduledByCoworkerId: { not: null } },
+                  {
+                    scheduledByCoworkerId: null,
+                    scheduledByUser: {
+                      members: { some: { organization: { slug: "utxo" } } },
+                    },
+                  },
+                ],
               },
               scheduledAt: { lte: NOW },
               OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: NOW } }],
@@ -358,8 +372,16 @@ describe("social post publisher service", () => {
           OR: [
             {
               status: "SCHEDULED",
-              scheduledByUser: {
-                members: { some: { organization: { slug: "utxo" } } },
+              AND: {
+                OR: [
+                  { scheduledByCoworkerId: { not: null } },
+                  {
+                    scheduledByCoworkerId: null,
+                    scheduledByUser: {
+                      members: { some: { organization: { slug: "utxo" } } },
+                    },
+                  },
+                ],
               },
               scheduledAt: { lte: NOW },
               OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: NOW } }],
@@ -450,6 +472,17 @@ describe("social post publisher service", () => {
       expectedData: {
         status: "FAILED",
         lastError: "Social connection needs reconnecting",
+      },
+    },
+    {
+      outcome: "authorization_revoked",
+      providerOutcome: null,
+      post: {},
+      expectedResult: { retried: 0, failed: 1, missed: 0 },
+      expectedData: {
+        status: "FAILED",
+        lastError:
+          "Coworker scheduling access was revoked. A workspace member must reschedule this post.",
       },
     },
   ])(
@@ -842,6 +875,44 @@ describe("social post publisher service", () => {
       });
     });
 
+    it("does not contact X when coworker access is revoked during media download", async () => {
+      socialPostFindFirstMock
+        .mockReset()
+        .mockResolvedValueOnce({
+          ...duePost,
+          media: [IMAGE_REF],
+          scheduledByUserId: USER_ID,
+          scheduledByCoworker: { id: "cow_123", vendorId: "vendor_123" },
+          workspace: { organizationId: null },
+        })
+        .mockResolvedValue(null);
+      publishingAccessMock
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(forbidden("Grant revoked"));
+      const { publishDueSocialPosts } = await loadService();
+
+      const result = await publishDueSocialPosts(syncContext);
+
+      expect(result).toMatchObject({ failed: 1, published: 0 });
+      expect(ssrfSafeFetchMock).toHaveBeenCalledOnce();
+      expect(publishingAccessMock).toHaveBeenCalledTimes(2);
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(attemptUpdateMock).toHaveBeenCalledWith({
+        where: { id: ATTEMPT_ID },
+        data: {
+          finishedAt: NOW,
+          outcome: "authorization_revoked",
+          errorKind: null,
+          providerOutcome: null,
+          externalId: null,
+        },
+      });
+      expect(settleCall().data).toMatchObject({
+        status: "FAILED",
+        nextAttemptAt: null,
+      });
+    });
+
     it("fails permanently when a Drive file is gone", async () => {
       claimWithMedia([IMAGE_REF]);
       ssrfSafeFetchMock.mockResolvedValue(
@@ -1044,6 +1115,7 @@ describe("social post publisher service", () => {
           status: "PUBLISHING",
           scheduledAt: NOW,
           scheduledByUserId: USER_ID,
+          scheduledByCoworkerId: null,
           attemptCount: 0,
           nextAttemptAt: null,
           lastError: null,
@@ -1225,6 +1297,89 @@ describe("social post publisher service", () => {
         message: "A social connection is required to publish a post",
       });
       expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    });
+  });
+  it("checks delegation immediately before publishing a coworker-scheduled post", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        scheduledByUserId: USER_ID,
+        scheduledByCoworker: { id: "cow_123", vendorId: "vendor_123" },
+        workspace: { organizationId: null },
+      })
+      .mockResolvedValue(null);
+    publishingAccessMock.mockResolvedValue(undefined);
+    const { publishDueSocialPosts } = await loadService();
+    const result = await publishDueSocialPosts(syncContext);
+    expect(publishingAccessMock).toHaveBeenCalledWith(
+      {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: "vendor_123",
+        context: { userId: USER_ID, organizationId: null },
+      },
+      WORKSPACE_ID,
+    );
+    expect(result.published).toBe(1);
+  });
+  it("fails revoked coworker schedules without contacting X", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        scheduledByUserId: USER_ID,
+        scheduledByCoworker: { id: "cow_123", vendorId: "vendor_123" },
+        workspace: { organizationId: null },
+      })
+      .mockResolvedValue(null);
+    publishingAccessMock.mockRejectedValue(forbidden("Grant revoked"));
+    const { publishDueSocialPosts } = await loadService();
+    const result = await publishDueSocialPosts(syncContext);
+    expect(result.failed).toBe(1);
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data).toMatchObject({
+      status: "FAILED",
+      nextAttemptAt: null,
+    });
+    expect(attemptCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          outcome: "authorization_revoked",
+          toolSlug: null,
+        }),
+      }),
+    );
+  });
+
+  it("claims and fails a coworker schedule whose contextual user was deleted", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        scheduledByUserId: null,
+        scheduledByCoworker: { id: "cow_123", vendorId: "vendor_123" },
+        workspace: { organizationId: null },
+      })
+      .mockResolvedValue(null);
+    const { publishDueSocialPosts } = await loadService();
+
+    const result = await publishDueSocialPosts(syncContext);
+
+    expect(result).toMatchObject({ claimed: 1, failed: 1, published: 0 });
+    expect(publishingAccessMock).not.toHaveBeenCalled();
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(attemptCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          outcome: "authorization_revoked",
+          toolSlug: null,
+        }),
+      }),
+    );
+    expect(settleCall().data).toMatchObject({
+      status: "FAILED",
+      nextAttemptAt: null,
     });
   });
 });
