@@ -3,6 +3,14 @@ import { generateText } from "ai";
 
 import { getEnv } from "@/config/env";
 
+/**
+ * `declined` means the model judged the description too thin to summarise.
+ * Callers persist it; `null` is a failed call and is worth retrying.
+ */
+export type AgentSummaryResult =
+  | { kind: "summary"; text: string }
+  | { kind: "declined" };
+
 export type AgentInfo = {
   name: string;
   description?: string | null;
@@ -122,7 +130,7 @@ export const openrouterClient = (() => {
     async generateAgentSummary(
       description: string,
       options?: OpenRouterRequestOptions,
-    ): Promise<string | null> {
+    ): Promise<AgentSummaryResult | null> {
       if (!defaultOpenrouter) {
         return null;
       }
@@ -144,7 +152,14 @@ export const openrouterClient = (() => {
         temperature: 0.3,
         failureLogLabel: "agent summary generation",
       });
-      return summary?.trim() === "NONE" ? null : summary;
+      // The model sometimes quotes or punctuates the sentinel; any of those
+      // stored as a summary would replace the description on the Agent card.
+      if (!summary) {
+        return null;
+      }
+      return summary.replace(/["'“”‘’.\s]/g, "").toUpperCase() === "NONE"
+        ? { kind: "declined" }
+        : { kind: "summary", text: summary };
     },
   };
 })();
