@@ -1,4 +1,8 @@
-import { ComposioError } from "@composio/core";
+import {
+  ComposioError,
+  ComposioToolkitNotFoundError,
+  ComposioToolNotFoundError,
+} from "@composio/core";
 import { z } from "@hono/zod-openapi";
 import { isNmkrEmail } from "@sokosumi/utils";
 import type { Context, Next } from "hono";
@@ -155,6 +159,12 @@ export function mapControlPlaneError(error: unknown): never {
 }
 
 export function mapIntegrationError(error: unknown): never {
+  if (
+    error instanceof ComposioToolNotFoundError ||
+    error instanceof ComposioToolkitNotFoundError
+  ) {
+    throw notFound(`Composio: ${error.message}`);
+  }
   if (error instanceof ComposioError) {
     throw unprocessableEntity(`Composio: ${error.message}`);
   }
