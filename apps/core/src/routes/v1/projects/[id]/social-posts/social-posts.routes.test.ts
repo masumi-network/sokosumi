@@ -507,6 +507,44 @@ describe("Project social post routes", () => {
     });
   });
 
+  it("reads a post whose last attempt was denied after authorization revocation", async () => {
+    getSocialPostMock.mockResolvedValue({
+      ...scheduledPost,
+      status: "FAILED",
+      lastError:
+        "Coworker scheduling access was revoked. A workspace member must reschedule this post.",
+      lastAttemptAt: new Date("2026-09-15T11:00:00.000Z"),
+      lastAttempt: {
+        attempt: 1,
+        trigger: "scheduler",
+        outcome: "authorization_revoked",
+        errorKind: null,
+        providerOutcome: null,
+        finishedAt: new Date("2026-09-15T11:00:00.000Z"),
+      },
+      revision: 2,
+      canEdit: false,
+      canSchedule: true,
+      canCancel: false,
+      canPublishNow: true,
+    });
+
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: {
+        status: "FAILED",
+        lastAttempt: {
+          outcome: "authorization_revoked",
+          finishedAt: "2026-09-15T11:00:00.000Z",
+        },
+      },
+    });
+  });
+
   it("updates a post with the observed revision", async () => {
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}`,

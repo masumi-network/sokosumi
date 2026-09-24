@@ -113,6 +113,7 @@ export const socialPostLastAttemptSchema = z
         "failed_permanent",
         "missed",
         "connection_inactive",
+        "authorization_revoked",
       ])
       .nullable(),
     errorKind: z.string().nullable().openapi({ example: "rate_limited" }),
