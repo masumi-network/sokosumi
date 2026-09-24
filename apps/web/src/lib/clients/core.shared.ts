@@ -13,6 +13,7 @@ import type {
   CreateSokoBotScheduleRequest,
   DeleteJobsByIdShareError,
   DeleteProjectsByIdJobsByJobIdData,
+  DeleteProjectsByIdSocialConnectionsByConnectionIdData,
   DeleteProjectsByIdTasksByTaskIdData,
   DeleteTasksByIdShareError,
   GetAgentsByIdJobsData,
@@ -35,6 +36,7 @@ import type {
   GetJobsData,
   GetNotificationsData,
   GetProjectsByIdCalendarData,
+  GetProjectsByIdSocialPostsData,
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
@@ -56,6 +58,7 @@ import type {
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
   PatchProjectsByIdData,
+  PatchProjectsByIdSocialPostsByPostIdData,
   PatchTasksByIdData,
   PatchVendorData,
   PostAgentsByIdJobsData,
@@ -66,6 +69,7 @@ import type {
   PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData,
   PostChatsRoomsByIdMessagesData,
   PostChatsRoomsData,
+  PostComposioCallbackCompleteData,
   PostJobsByIdInputsData,
   PostOrganizationsByIdFilesCleanupData,
   PostOrganizationsByIdFilesData,
@@ -74,6 +78,11 @@ import type {
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
   PostProjectsByIdJobsData,
+  PostProjectsByIdSocialConnectionsFinalizeData,
+  PostProjectsByIdSocialConnectionsInitiateData,
+  PostProjectsByIdSocialPostsByPostIdCancelData,
+  PostProjectsByIdSocialPostsByPostIdScheduleData,
+  PostProjectsByIdSocialPostsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
   PostTasksByIdFilesData,
@@ -147,6 +156,7 @@ import {
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
+  deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
   deleteProjectsByIdStar as coreDeleteProjectsByIdStar,
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
   deleteTasksById as coreDeleteTasksById,
@@ -235,6 +245,9 @@ import {
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
+  getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
+  getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
   getProjectsStarred as coreGetProjectsStarred,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
@@ -305,6 +318,7 @@ import {
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchProjectsById as corePatchProjectsById,
+  patchProjectsByIdSocialPostsByPostId as corePatchProjectsByIdSocialPostsByPostId,
   patchTasksById as corePatchTasksById,
   patchTasksByIdScheduleOccurrencesByOccurrenceId as corePatchTasksByIdScheduleOccurrencesByOccurrenceId,
   patchVendor as corePatchVendor,
@@ -333,6 +347,7 @@ import {
   postChatsRoomsByIdThreadsByParentMessageIdRead as corePostChatsRoomsByIdThreadsByParentMessageIdRead,
   postChatsRoomsByIdThreadsRead as corePostChatsRoomsByIdThreadsRead,
   postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
+  postComposioCallbackComplete as corePostComposioCallbackComplete,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
   postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -357,6 +372,11 @@ import {
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
+  postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
+  postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
+  postProjectsByIdSocialPosts as corePostProjectsByIdSocialPosts,
+  postProjectsByIdSocialPostsByPostIdCancel as corePostProjectsByIdSocialPostsByPostIdCancel,
+  postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
   postProjectsByIdStar as corePostProjectsByIdStar,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postTasks as corePostTasks,
@@ -2992,6 +3012,129 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialConnections(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnections({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Project social connections",
+    );
+  }
+
+  async function getProjectsByIdSocialPosts(
+    id: string,
+    query?: GetProjectsByIdSocialPostsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialPosts({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Project social posts",
+    );
+  }
+
+  async function getProjectsByIdSocialPostsByPostId(
+    id: string,
+    postId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialPostsByPostId({
+          client,
+          path: { id, postId },
+          cache: "no-store",
+        }),
+      "Failed to fetch Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPosts(
+    id: string,
+    body: NonNullable<PostProjectsByIdSocialPostsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPosts({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to create Project social post",
+    );
+  }
+
+  async function patchProjectsByIdSocialPostsByPostId(
+    id: string,
+    postId: string,
+    body: NonNullable<PatchProjectsByIdSocialPostsByPostIdData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePatchProjectsByIdSocialPostsByPostId({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to update Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPostsByPostIdSchedule(
+    id: string,
+    postId: string,
+    body: NonNullable<PostProjectsByIdSocialPostsByPostIdScheduleData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdSchedule({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to schedule Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPostsByPostIdCancel(
+    id: string,
+    postId: string,
+    body: NonNullable<PostProjectsByIdSocialPostsByPostIdCancelData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdCancel({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to cancel Project social post",
+    );
+  }
+
+  async function completeComposioCallback(
+    body: NonNullable<PostComposioCallbackCompleteData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostComposioCallbackComplete({ client, body }),
+      "Failed to verify OAuth callback",
+    );
+  }
+
   async function patchProjectsById(
     id: string,
     body: NonNullable<PatchProjectsByIdData["body"]>,
@@ -3033,6 +3176,49 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
         }),
       "Failed to remove project DESIGN.md",
+    );
+  }
+
+  async function postProjectsByIdSocialConnectionsInitiate(
+    id: string,
+    body: NonNullable<PostProjectsByIdSocialConnectionsInitiateData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialConnectionsInitiate({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to initiate Project social connection",
+    );
+  }
+
+  async function postProjectsByIdSocialConnectionsFinalize(
+    id: string,
+    body: NonNullable<PostProjectsByIdSocialConnectionsFinalizeData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialConnectionsFinalize({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to finalize Project social connection",
+    );
+  }
+
+  async function deleteProjectsByIdSocialConnectionsByConnectionId(
+    path: DeleteProjectsByIdSocialConnectionsByConnectionIdData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdSocialConnectionsByConnectionId({ client, path }),
+      "Failed to disconnect Project social connection",
     );
   }
 
@@ -5236,6 +5422,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteJobShare,
     deleteProjectsByIdDesignMd,
     deleteProjectsByIdJobsByJobId,
+    deleteProjectsByIdSocialConnectionsByConnectionId,
     deleteProjectsByIdTasksByTaskId,
     deleteTaskShare,
     deleteTaskLink,
@@ -5435,6 +5622,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdClose,
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
+    getProjectsByIdSocialConnections,
+    getProjectsByIdSocialPosts,
+    getProjectsByIdSocialPostsByPostId,
+    patchProjectsByIdSocialPostsByPostId,
+    postProjectsByIdSocialPosts,
+    postProjectsByIdSocialPostsByPostIdCancel,
+    postProjectsByIdSocialPostsByPostIdSchedule,
+    completeComposioCallback,
     getProjectsStats,
     getSharedResourceByToken,
     moveJobToWorkspace,
@@ -5448,6 +5643,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdCloseCancelOwed,
     postProjectsByIdCloseRetry,
     postProjectsByIdJobs,
+    postProjectsByIdSocialConnectionsFinalize,
+    postProjectsByIdSocialConnectionsInitiate,
     postProjectsByIdTasks,
     requestJobRefund,
     revokeMyOauthConsent,

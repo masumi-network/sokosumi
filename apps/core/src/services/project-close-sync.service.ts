@@ -22,6 +22,11 @@ import {
 } from "@/helpers/task-schedule-release";
 import prisma from "@/lib/db/prisma";
 
+import {
+  getPendingProjectSocialRevocation,
+  revokeProjectSocialConnectionForClose,
+} from "@/services/project-social-connections.service";
+
 const PROJECT_CLOSE_OPERATION_BATCH_SIZE = 5;
 const PROJECT_CLOSE_SERIES_BATCH_SIZE = 10;
 const PROJECT_CLOSE_OCCURRENCE_BATCH_SIZE = 25;
@@ -513,8 +518,10 @@ async function processClaimedProjectClose(
   options: ProjectCloseSyncExecutionOptions,
 ): Promise<ProcessProjectCloseResult> {
   let processedSeries = 0;
+  let processedSocialConnections = 0;
   while (
-    processedSeries < PROJECT_CLOSE_SERIES_BATCH_SIZE &&
+    processedSeries + processedSocialConnections <
+      PROJECT_CLOSE_SERIES_BATCH_SIZE &&
     options.shouldContinue() &&
     !options.abortSignal.aborted &&
     Date.now() < options.deadlineMs
@@ -556,6 +563,13 @@ async function processClaimedProjectClose(
       }
       await updateOwnedProjectClose(tx, claimed, { leasedAt: new Date() });
 
+      const pendingSocialRevocation = await getPendingProjectSocialRevocation(
+        tx,
+        operation.projectId,
+      );
+      if (pendingSocialRevocation)
+        return { kind: "revoke-social" as const, pendingSocialRevocation };
+
       if (!candidateTask) {
         const eventId = await finalizeProjectClose(tx, {
           operationId: operation.id,
@@ -590,6 +604,13 @@ async function processClaimedProjectClose(
       };
     });
 
+    if (outcome.kind === "revoke-social") {
+      await revokeProjectSocialConnectionForClose(
+        outcome.pendingSocialRevocation,
+      );
+      processedSocialConnections += 1;
+      continue;
+    }
     if (outcome.kind === "lost") break;
     if (outcome.kind === "closed") {
       await Promise.all([
@@ -638,7 +659,10 @@ async function recordProjectCloseFailure(
     error instanceof ProjectCloseSeriesError ? error.seriesTaskId : null;
   const failureSummary = {
     seriesTaskId,
-    message: "Scheduled work could not be closed",
+    message:
+      error instanceof ProjectCloseSeriesError
+        ? "Scheduled work could not be closed"
+        : "Project work could not be closed",
   };
   const recorded = await prisma.$transaction(async (tx) => {
     const updated = await tx.projectCloseOperation.updateMany({

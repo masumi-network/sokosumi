@@ -50,6 +50,7 @@ export async function listTaskWorkspaceMembers(
 /**
  * Add workspace members named by a Task comment. Unknown ids are ignored.
  * `@all` does not add the workspace. Already-present users are left as they are.
+ * The human comment author is skipped (same as chat `excludeUserId`).
  * PRIVATE Tasks only enroll humans who can already open them (the owner).
  * Returns only the user ids inserted by this call.
  */
@@ -61,6 +62,8 @@ export async function addTaskParticipantsFromComment(
     comment: string;
     visibility: TaskVisibility;
     ownerId: string;
+    /** Human who wrote the comment. Null when a Coworker or agent wrote. */
+    excludeUserId?: string | null;
     mentionedUserIds?: readonly string[];
   },
 ): Promise<string[]> {
@@ -69,6 +72,7 @@ export async function addTaskParticipantsFromComment(
     content: params.comment,
     explicitUserIds: params.mentionedUserIds,
     roomUsers: members,
+    excludeUserId: params.excludeUserId,
     expandAll: false,
   }).filter((userId) =>
     isPrivateTaskVisibleToHuman(

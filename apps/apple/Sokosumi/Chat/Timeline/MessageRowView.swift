@@ -73,7 +73,6 @@ import SwiftUI
     /// Send to yourself. Absent inside the Self Direct and for rows that are not durable.
     var onSendToSelf: (() async throws -> Components.Schemas.ChatRoomMessage)?
     var horizontalInset: CGFloat = 0
-    var streamReasoning: String?
     var streamThinking = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
@@ -243,7 +242,7 @@ import SwiftUI
           } else if isCoworkerMessage(message), message.deletedAt == nil {
             // A persisted mention shell keeps the live Thought header until Core
             // fills the answer; its clock starts at `thought_timing_ms.start`.
-            CoworkerThoughtView(thought: CoworkerThought(message: message, streamedText: streamReasoning),
+            CoworkerThoughtView(thought: CoworkerThought(message: message),
                                 working: streamThinking || mentionShell != nil,
                                 startedAt: mentionShell?.startedAt ?? message.createdAt)
           }
@@ -279,10 +278,9 @@ import SwiftUI
           if message.deletedAt == nil, outbound == nil, !message.reactions.isEmpty {
             MessageReactionsView(reactions: message.reactions, toggle: reactionAction)
           }
-          if let onReply, message.threadReplyCount > 0 {
-            Button("^[\(message.threadReplyCount) reply](inflect: true)", action: onReply)
-              .buttonStyle(.borderless)
-              .font(.caption)
+          if let onReply, let bar = ThreadReplyBar(message: message) {
+            ThreadReplyBarButton(bar: bar, open: onReply)
+              .padding(.top, 4)
           }
           if let outbound, outbound.status == .failed {
             if let error = outbound.errorMessage, !error.isEmpty {
@@ -330,6 +328,8 @@ import SwiftUI
           .background(.regularMaterial, in: .rect(cornerRadius: 9))
           .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(.primary.opacity(0.12)))
           .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
+          // The pill reaches over the row above; a right-click on it must open this row's menu, not nothing or that row's.
+          .overlay { menuArea }
           .onHover { isReplyHovered = $0 }
           .opacity(showsActions ? 1 : 0)
           .allowsHitTesting(showsActions)
@@ -394,56 +394,12 @@ import SwiftUI
       } message: {
         Text(mentionRetryError ?? "Try again.")
       }
-      .contextMenu {
-        if onTogglePin != nil {
-          pinButton
-        }
-        if canCopyMessageLink {
-          copyLinkButton
-        }
-        if onSendToSelf != nil {
-          sendToSelfButton
-        }
-        if onToggleReaction != nil, message.deletedAt == nil {
-          Button("Add reaction", systemImage: "face.smiling") { showsReactionPicker = true }
-        }
-        if onDelete != nil, message.deletedAt == nil {
-          Button(isDeleting ? "Deleting…" : "Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
-            .disabled(isDeleting)
-          Divider()
-        }
-        if let onEdit {
-          Button("Edit message", systemImage: "pencil", action: onEdit)
-        }
-        if let onQuote {
-          Button("Quote message", systemImage: "quote.opening", action: onQuote)
-        }
-        if let onReply, message.deletedAt == nil {
-          Button("Reply in thread", systemImage: "bubble.right", action: onReply)
-        }
-      }
+      // AppKit answers a right-click on selectable text with its own editing menu, so the row opens its menu itself.
+      .overlay { menuArea }
       .accessibilityElement(children: .contain)
       .accessibilityActions {
-        if canCopyMessageLink {
-          Button("Copy link", action: copyMessageLink)
-        }
-        if onSendToSelf != nil, !isSendingToSelf {
-          Button("Send to yourself", action: sendToSelf)
-        }
-        if onToggleReaction != nil, message.deletedAt == nil {
-          Button("Add reaction") { showsReactionPicker = true }
-        }
-        if onDelete != nil, !isDeleting, message.deletedAt == nil {
-          Button("Delete message", role: .destructive) { confirmsDeletion = true }
-        }
-        if let onEdit {
-          Button("Edit message", action: onEdit)
-        }
-        if let onQuote {
-          Button("Quote message", action: onQuote)
-        }
-        if let onReply, message.deletedAt == nil {
-          Button("Reply in thread", action: onReply)
+        ForEach(menuAvailability.sections(hasSelection: false).joined().filter { !menuBusy.contains($0) }, id: \.self) { action in
+          Button(action.title, role: action == .delete ? .destructive : nil) { performMenuAction(action) }
         }
       }
       // Sender-group separation is outside the consistently padded hover row.
@@ -598,33 +554,74 @@ import SwiftUI
     }
 
     private var pinButton: some View {
-      Button(isPinned ? "Unpin message" : "Pin message", systemImage: isPinned ? "pin.slash" : "pin") {
-        Task { @MainActor in
-          do {
-            try await onTogglePin?()
-          } catch { pinError = friendlyMessage(for: error)
-            showsPinError = true
-          }
+      Button(isPinned ? "Unpin message" : "Pin message", systemImage: isPinned ? "pin.slash" : "pin", action: togglePin)
+        .disabled(isUpdatingPin)
+    }
+
+    private func togglePin() {
+      Task { @MainActor in
+        do {
+          try await onTogglePin?()
+        } catch { pinError = friendlyMessage(for: error)
+          showsPinError = true
         }
       }
-      .disabled(isUpdatingPin)
+    }
+
+    private var menuArea: some View {
+      MessageContextMenuArea(availability: menuAvailability, busy: menuBusy, perform: performMenuAction)
+        .accessibilityHidden(true)
+    }
+
+    /// What the right-click menu and the accessibility actions offer.
+    var menuAvailability: MessageMenuAvailability {
+      let live = message.deletedAt == nil
+      return MessageMenuAvailability(
+        canReact: onToggleReaction != nil && live,
+        canEdit: onEdit != nil,
+        canQuote: onQuote != nil,
+        canReply: onReply != nil && live,
+        pinned: onTogglePin == nil ? nil : isPinned,
+        canCopyLink: canCopyMessageLink,
+        canSendToSelf: onSendToSelf != nil,
+        canDelete: onDelete != nil && live
+      )
+    }
+
+    private var menuBusy: Set<MessageMenuAction> {
+      var busy: Set<MessageMenuAction> = []
+      if isDeleting {
+        busy.insert(.delete)
+      }
+      if isSendingToSelf {
+        busy.insert(.sendToSelf)
+      }
+      if isUpdatingPin {
+        busy.formUnion([.pin, .unpin])
+      }
+      return busy
+    }
+
+    private func performMenuAction(_ action: MessageMenuAction) {
+      switch action {
+      case .copySelection: break // The menu item sends `copy:` to the text view itself.
+      case .addReaction: showsReactionPicker = true
+      case .edit: onEdit?()
+      case .quote: onQuote?()
+      case .reply: onReply?()
+      case .pin, .unpin: togglePin()
+      case .copyLink: copyMessageLink()
+      case .sendToSelf: sendToSelf()
+      case .delete: confirmsDeletion = true
+      }
     }
 
     private var avatarView: some View {
       ParticipantAvatar(
-        imageURL: avatarURLString,
+        imageURL: messageSenderImage(message.sender),
         name: messageSenderName(message.sender),
         size: Self.avatarDiameter
       )
-    }
-
-    private var avatarURLString: String? {
-      switch message.sender {
-      case let .case1(user): user.user.image
-      case let .case2(coworker): coworker.coworker.image
-      case let .case3(bot): bot.sokoBot.image
-      case .case4: nil
-      }
     }
   }
 

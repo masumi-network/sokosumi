@@ -178,10 +178,8 @@ public final class ThreadSession: ObservableObject {
       timeline.messages = confirmOutbound(
         messages: timeline.messages, shells: [], confirmed: message, clientTurnId: id
       ).messages
-      if var updated = self.parent {
-        updated.threadReplyCount += 1
-        updated.threadLastReplyAt = message.createdAt
-        self.parent = updated
+      if let parent = self.parent {
+        self.parent = applyingReplyToParentThreadPreview(parent, reply: message)
       }
       settled(.success(message))
     }, failed: { settled(.failure($0)) })

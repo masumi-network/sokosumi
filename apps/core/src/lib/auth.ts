@@ -4,7 +4,6 @@ import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
-import { z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { MemberRole } from "@sokosumi/database";
 import {
@@ -39,7 +38,6 @@ import {
   oAuthProxy,
   openAPI,
 } from "better-auth/plugins";
-import pTimeout from "p-timeout";
 import Stripe from "stripe";
 import { sendEmail } from "@/clients/email.client";
 import { stripeClient } from "@/clients/stripe.client";
@@ -61,7 +59,6 @@ import {
 } from "@/helpers/design-md-metadata-auth";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
-import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
@@ -76,6 +73,7 @@ import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import { accountOptions, socialProviderOptions } from "./auth-social-providers";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
@@ -201,27 +199,8 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  socialProviders: {
-    google: {
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET,
-      overrideUserInfoOnSignIn: false,
-      mapProfileToUser,
-    },
-    microsoft: {
-      clientId: env.MICROSOFT_CLIENT_ID,
-      clientSecret: env.MICROSOFT_CLIENT_SECRET,
-      overrideUserInfoOnSignIn: false,
-      mapProfileToUser,
-    },
-  },
-  account: {
-    accountLinking: {
-      enabled: true,
-      trustedProviders: ["google", "microsoft"],
-      // requireLocalEmailVerified omitted so the 1.7 default (true) applies.
-    },
-  },
+  socialProviders: socialProviderOptions,
+  account: accountOptions,
   databaseHooks: {
     account: {
       create: {
@@ -689,68 +668,3 @@ export const auth = betterAuth({
     }),
   ],
 });
-
-interface MappedProfileNameImage {
-  name: string;
-  image?: string;
-}
-
-interface MappedSocialProfile extends MappedProfileNameImage {
-  emailVerified: true;
-  [key: string]: unknown;
-}
-
-// Better Auth spreads this after its provider emailVerified. Microsoft Entra
-// omits email_verified by default and would otherwise insert unverified users.
-async function mapProfileToUser(profile: {
-  name: string;
-  picture: string;
-}): Promise<MappedSocialProfile> {
-  let mapped: MappedProfileNameImage;
-  try {
-    mapped = await pTimeout(mapProfileToUserInner(profile), {
-      milliseconds: env.BETTER_AUTH_PROFILE_PICTURE_TIMEOUT,
-    });
-  } catch (error) {
-    Sentry.captureException(error);
-    console.error("Failed to map profile to user", {
-      name: profile.name,
-      pictureKind: profile.picture?.startsWith("data:")
-        ? `data-uri(${profile.picture.length}b)`
-        : "url",
-      error,
-    });
-    mapped = {
-      name: profile.name,
-      image: undefined,
-    };
-  }
-  return { ...mapped, emailVerified: true };
-}
-
-async function mapProfileToUserInner(profile: {
-  name: string;
-  picture: string;
-}): Promise<MappedProfileNameImage> {
-  const profilePicture = profile.picture;
-
-  if (!profilePicture) {
-    return {
-      name: profile.name,
-      image: undefined,
-    };
-  }
-
-  if (z.httpUrl().safeParse(profilePicture).success) {
-    return {
-      name: profile.name,
-      image: profilePicture,
-    };
-  }
-
-  const imageURL = await uploadProfileImage(profilePicture);
-  return {
-    name: profile.name,
-    image: imageURL ?? undefined,
-  };
-}

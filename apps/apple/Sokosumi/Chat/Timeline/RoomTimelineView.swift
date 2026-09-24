@@ -246,7 +246,6 @@ import SwiftUI
                                  } },
                                  onSendToSelf: sendToSelfAction(for: message),
                                  horizontalInset: 12,
-                                 streamReasoning: streamReasoning(for: message),
                                  streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)
                 }
               }
@@ -426,14 +425,6 @@ import SwiftUI
 
     private func isLiveCoworkerOverlay(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
       message.id.hasPrefix("stream:") && isCoworkerMessage(message)
-    }
-
-    private func streamReasoning(for message: Components.Schemas.ChatRoomMessage) -> String? {
-      guard isLiveCoworkerOverlay(message) else { return nil }
-      if ComposerContent(message.content).text.isEmpty, workspaces.directStream.isBusy {
-        return workspaces.directStream.latestThought ?? workspaces.directStream.reasoning
-      }
-      return workspaces.directStream.reasoning
     }
   }
 

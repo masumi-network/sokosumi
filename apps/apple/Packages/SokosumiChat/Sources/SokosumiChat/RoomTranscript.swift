@@ -21,6 +21,16 @@ public func messageSenderName(_ sender: Components.Schemas.ChatRoomMessageSender
   }
 }
 
+/// The sender's photo, when Core has one; the avatar falls back to initials.
+public func messageSenderImage(_ sender: Components.Schemas.ChatRoomMessageSender) -> String? {
+  switch sender {
+  case let .case1(user): user.user.image
+  case let .case2(coworker): coworker.coworker.image
+  case let .case3(bot): bot.sokoBot.image
+  case .case4: nil
+  }
+}
+
 public extension ChatService {
   /// One history page in reading order (oldest first). An empty room
   /// resolves empty — never an error. Nil slug omits the org header
