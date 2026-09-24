@@ -3160,7 +3160,10 @@ function RoomView({
               }
               seenBy={
                 seenByReaders.length > 0 ? (
-                  <RoomSeenByLine readers={seenByReaders} />
+                  <RoomSeenByLine
+                    readers={seenByReaders}
+                    receipts={readReceipts}
+                  />
                 ) : undefined
               }
             />

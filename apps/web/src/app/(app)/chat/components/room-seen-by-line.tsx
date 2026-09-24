@@ -16,6 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import type { ChatRoomUserParticipant } from "@/lib/clients/generated/core";
 
 /**
  * Which readers a message shows — the newest message in the transcript, and
@@ -45,15 +46,42 @@ export function seenByReadersFor({
 }
 
 /**
- * The list behind the faces: who read this message and when.
+ * Who has not read this far: every roster human the faces leave out.
+ *
+ * Not the same as `nonReaders`, which is only the people who have never opened
+ * the room at all. Someone who read yesterday and has not been back has read
+ * *something*, but not this — and answering "who has seen my message" while
+ * quietly dropping them would be the more misleading of the two answers.
+ *
+ * Lagging readers come before the never-read, so the list runs from nearly
+ * caught up to never here.
+ */
+export function seenByPendingFor({
+  readers,
+  allReaders,
+  nonReaders,
+}: {
+  /** Readers as of this message — the ones the faces already show. */
+  readers: readonly RoomReader[];
+  /** Every reader in the room, most-recent-read first. */
+  allReaders: readonly RoomReader[];
+  /** Roster humans with no Room last-read at all. */
+  nonReaders: readonly ChatRoomUserParticipant[];
+}): readonly ChatRoomUserParticipant[] {
+  const readThisFar = new Set(readers.map((reader) => reader.participant.id));
+  return [
+    ...allReaders
+      .filter((reader) => !readThisFar.has(reader.participant.id))
+      .map((reader) => reader.participant),
+    ...nonReaders,
+  ];
+}
+
+/**
+ * The list behind the faces: who read this message and when, then who has not.
  *
  * Its own component so the transcript never reaches for a formatter it will
  * not use — the popover mounts on open, and a closed one is the normal case.
- *
- * Readers only. The popover answers "who has seen my message"; who has not is
- * the Members panel's job. A folded not-yet section was tried and dropped: a
- * second list that grows the popover on demand is more motion than a side
- * question is worth.
  *
  * Caption scale, not body scale. The popover answers a side question about a
  * message, so its names sit a step below the message text rather than
@@ -64,7 +92,13 @@ export function seenByReadersFor({
  * read as one shape. The roster shows one member at a time, where an interval
  * is the friendlier answer.
  */
-function SeenByDetail({ readers }: { readers: readonly RoomReader[] }) {
+function SeenByDetail({
+  readers,
+  pending,
+}: {
+  readers: readonly RoomReader[];
+  pending: readonly ChatRoomUserParticipant[];
+}) {
   const t = useTranslations("App.Channels.SeenBy");
   const format = useFormatter();
 
@@ -94,13 +128,59 @@ function SeenByDetail({ readers }: { readers: readonly RoomReader[] }) {
           </li>
         ))}
       </ul>
+      {pending.length > 0 ? <SeenByPending pending={pending} /> : null}
     </div>
+  );
+}
+
+/**
+ * Who has not read yet: the reader rows in grey, under a divider.
+ *
+ * Always shown, nothing to click. A folded "N not yet" row was tried and
+ * dropped: expanding it grew the popover on demand, and that motion was more
+ * than a side question is worth. The grey is what tells the two lists apart,
+ * so the section needs no heading of its own.
+ */
+function SeenByPending({
+  pending,
+}: {
+  pending: readonly ChatRoomUserParticipant[];
+}) {
+  const t = useTranslations("App.Channels.SeenBy");
+
+  return (
+    <ul
+      aria-label={t("notRead")}
+      className="mt-0.5 border-t pt-0.5"
+      data-testid="room-seen-by-pending"
+    >
+      {pending.map((participant) => (
+        <li
+          key={participant.id}
+          className="flex h-7 items-center gap-2 px-2"
+          data-testid={`room-seen-by-pending-${participant.id}`}
+        >
+          {/* Grey rather than absent: these are people who are not here yet,
+              and full-colour rows would read as readers. */}
+          <ParticipantAvatar
+            participant={participant}
+            className="size-5 opacity-60 grayscale"
+            textClassName="text-[0.5rem]"
+          />
+          <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
+            {participantName(participant)}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
 interface RoomSeenByLineProps {
   /** Readers as of this message, most-recent-read first, viewer excluded. */
   readers: readonly RoomReader[];
+  /** The room's whole picture, for the half the faces cannot show. */
+  receipts: Pick<RoomReadReceipts, "readers" | "nonReaders">;
 }
 
 /**
@@ -123,7 +203,7 @@ interface RoomSeenByLineProps {
  * Nothing renders when nobody has read that far: a guest sees no read times,
  * and an empty corner would report a boundary as a snub.
  */
-export function RoomSeenByLine({ readers }: RoomSeenByLineProps) {
+export function RoomSeenByLine({ readers, receipts }: RoomSeenByLineProps) {
   const t = useTranslations("App.Channels.SeenBy");
 
   if (readers.length === 0) {
@@ -161,7 +241,14 @@ export function RoomSeenByLine({ readers }: RoomSeenByLineProps) {
         className="w-56 p-1"
         data-testid="room-seen-by-detail"
       >
-        <SeenByDetail readers={readers} />
+        <SeenByDetail
+          readers={readers}
+          pending={seenByPendingFor({
+            readers,
+            allReaders: receipts.readers,
+            nonReaders: receipts.nonReaders,
+          })}
+        />
       </PopoverContent>
     </Popover>
   );
