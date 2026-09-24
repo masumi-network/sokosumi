@@ -133,7 +133,7 @@ describe("WorkspaceCalendar accessibility", () => {
     },
   );
 
-  it("offers Open task and Open schedule for a released Run", async () => {
+  it("opens a released Run's Task from its one accessible control", async () => {
     const user = userEvent.setup();
     const { container } = render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&view=month">
@@ -160,15 +160,11 @@ describe("WorkspaceCalendar accessibility", () => {
       "aria-label",
       "Prepare release notes, Ada's workspace",
     );
-    await user.click(event as HTMLButtonElement);
+    expect(event).not.toHaveAttribute("aria-haspopup");
+    (event as HTMLButtonElement).focus();
+    await user.keyboard("{Enter}");
 
-    expect(
-      screen.queryByRole("menuitem", { name: "event.moveRun" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: "event.openSchedule" }),
-    ).toBeInTheDocument();
-    await user.click(screen.getByRole("menuitem", { name: "event.openTask" }));
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(pushMock).toHaveBeenCalledWith("/tasks/task-1");
   });
 

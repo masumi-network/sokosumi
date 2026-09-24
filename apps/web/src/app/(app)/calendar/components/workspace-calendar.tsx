@@ -36,7 +36,14 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  type PointerEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
@@ -309,6 +316,81 @@ function CalendarEvent({
     </DropdownMenuTrigger>
   );
 
+  const cardClassName =
+    "bg-background text-foreground hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out";
+  // FullCalendar silently ignores a drag on a Run the caller cannot move;
+  // say which ones move once the mouse has clearly started.
+  const dragAttemptHandlers = {
+    onPointerDown: (event: PointerEvent) => {
+      dragAttemptOrigin.current =
+        event.pointerType !== "touch" && !isChangeableRun(item)
+          ? { x: event.clientX, y: event.clientY }
+          : null;
+    },
+    onPointerLeave: () => {
+      dragAttemptOrigin.current = null;
+    },
+    onPointerMove: (event: PointerEvent) => {
+      const origin = dragAttemptOrigin.current;
+      if (
+        !origin ||
+        Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < 8
+      ) {
+        return;
+      }
+      dragAttemptOrigin.current = null;
+      toast.info(t("event.moveNotAllowed"));
+    },
+    onPointerUp: () => {
+      dragAttemptOrigin.current = null;
+    },
+  };
+  const cardContent = (trailing: ReactNode) => (
+    <>
+      <span className="flex w-full min-w-0 items-center gap-1">
+        {sourceMarker}
+        {timeText ? (
+          <span className="text-muted-foreground shrink-0 tabular-nums">
+            {timeText}
+          </span>
+        ) : null}
+        <span className="text-muted-foreground min-w-0 truncate">
+          {sourceName}
+        </span>
+      </span>
+      <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
+      <span className="flex w-full min-w-0 items-center gap-1">
+        {peopleStack}
+        {trailing}
+      </span>
+    </>
+  );
+
+  // A card with a Task (a released Run or a Run at) opens that Task. Only
+  // Runs still to come, which have no Task yet, carry a menu.
+  const { taskId } = item;
+  if (taskId) {
+    return (
+      <button
+        aria-describedby={peopleNames ? peopleId : undefined}
+        aria-label={t("event.accessibleName", {
+          source: sourceName,
+          task: item.taskName,
+        })}
+        className={cn(
+          cardClassName,
+          "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2",
+        )}
+        data-testid="calendar-event"
+        onClick={() => onOpen(`/tasks/${taskId}`)}
+        type="button"
+        {...dragAttemptHandlers}
+      >
+        {cardContent(null)}
+      </button>
+    );
+  }
+
   return (
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       {/*
@@ -318,51 +400,12 @@ function CalendarEvent({
         drag mirror), so a click on the card is always a plain tap.
       */}
       <div
-        className="bg-background text-foreground hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
+        className={cardClassName}
         data-testid="calendar-event"
         onClick={() => setMenuOpen(true)}
-        // FullCalendar silently ignores a drag on a Run the caller cannot
-        // move; say which ones move once the mouse has clearly started.
-        onPointerDown={(event) => {
-          dragAttemptOrigin.current =
-            event.pointerType !== "touch" && !isChangeableRun(item)
-              ? { x: event.clientX, y: event.clientY }
-              : null;
-        }}
-        onPointerLeave={() => {
-          dragAttemptOrigin.current = null;
-        }}
-        onPointerMove={(event) => {
-          const origin = dragAttemptOrigin.current;
-          if (
-            !origin ||
-            Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < 8
-          ) {
-            return;
-          }
-          dragAttemptOrigin.current = null;
-          toast.info(t("event.moveNotAllowed"));
-        }}
-        onPointerUp={() => {
-          dragAttemptOrigin.current = null;
-        }}
+        {...dragAttemptHandlers}
       >
-        <span className="flex w-full min-w-0 items-center gap-1">
-          {sourceMarker}
-          {timeText ? (
-            <span className="text-muted-foreground shrink-0 tabular-nums">
-              {timeText}
-            </span>
-          ) : null}
-          <span className="text-muted-foreground min-w-0 truncate">
-            {sourceName}
-          </span>
-        </span>
-        <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
-        <span className="flex w-full min-w-0 items-center gap-1">
-          {peopleStack}
-          {menuButton}
-        </span>
+        {cardContent(menuButton)}
       </div>
       <DropdownMenuContent align="end">
         {isChangeableRun(item) ? (
@@ -379,11 +422,6 @@ function CalendarEvent({
               </DropdownMenuItem>
             ) : null}
           </>
-        ) : null}
-        {item.taskId ? (
-          <DropdownMenuItem onSelect={() => onOpen(`/tasks/${item.taskId}`)}>
-            {t("event.openTask")}
-          </DropdownMenuItem>
         ) : null}
         {scheduleId ? (
           <DropdownMenuItem
