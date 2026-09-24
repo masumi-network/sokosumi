@@ -66,6 +66,7 @@ import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import {
   deleteRetiredScheduleLink,
+  liveTaskLinkWhere,
   mapTaskLinkRelationToWriteData,
 } from "@/helpers/task-link";
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
@@ -1456,6 +1457,7 @@ export class SokoBotRuntimeService {
         },
         linksFrom: {
           where: {
+            ...liveTaskLinkWhere,
             toTask: {
               is: visiblePeerTask,
             },
@@ -1468,6 +1470,7 @@ export class SokoBotRuntimeService {
         },
         linksTo: {
           where: {
+            ...liveTaskLinkWhere,
             fromTask: {
               is: visiblePeerTask,
             },
