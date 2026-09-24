@@ -201,7 +201,7 @@ describe.skipIf(!enabled)("Calendar erasure against PostgreSQL", () => {
               capturedStatus: "DRAFT",
             },
           });
-          await tx.taskScheduleOccurrence.create({
+          await tx.taskScheduleRun.create({
             data: {
               seriesTaskId: task.id,
               legacyLinkId: suffix,
@@ -250,7 +250,7 @@ describe.skipIf(!enabled)("Calendar erasure against PostgreSQL", () => {
           expect(await tx.project.count({ where: { id: project.id } })).toBe(0);
           expect(await tx.task.count({ where: { id: task.id } })).toBe(0);
           expect(
-            await tx.taskScheduleOccurrence.count({
+            await tx.taskScheduleRun.count({
               where: { sourceWorkspaceId: workspace.id },
             }),
           ).toBe(0);

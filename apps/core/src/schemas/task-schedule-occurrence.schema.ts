@@ -3,7 +3,7 @@ import {
   CalendarSourceAccuracy,
   CalendarSourceType,
   CalendarTimeAccuracy,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskStatus,
 } from "@sokosumi/database";
 
@@ -54,8 +54,8 @@ export const taskScheduleOccurrenceSchema = z
       example: "33333333-3333-7333-8333-333333333333",
     }),
     state: z
-      .enum(TaskScheduleOccurrenceState)
-      .openapi({ example: TaskScheduleOccurrenceState.RELEASED }),
+      .enum(TaskScheduleRunState)
+      .openapi({ example: TaskScheduleRunState.RELEASED }),
     scheduleVersion: z.number().int().openapi({
       description:
         "1 for legacy display-only projections, 2 for epoch-backed rows",

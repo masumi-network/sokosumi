@@ -3,7 +3,7 @@ import {
   CalendarSourceAccuracy,
   CalendarSourceType,
   CalendarTimeAccuracy,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskStatus,
 } from "@sokosumi/database";
 
@@ -139,10 +139,7 @@ export const workspaceCalendarItemSchema = z
         "The rule's time for this Run; differs from scheduledAt when the Run was moved",
     }),
     state: z
-      .enum([
-        TaskScheduleOccurrenceState.PLANNED,
-        TaskScheduleOccurrenceState.RELEASED,
-      ])
+      .enum([TaskScheduleRunState.PLANNED, TaskScheduleRunState.RELEASED])
       .openapi({
         description:
           "PLANNED is still to come (moved Runs and RUN_AT Tasks too); RELEASED created its Task. Skipped Runs are not on the Calendar.",

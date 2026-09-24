@@ -14,7 +14,7 @@ const taskScheduleOccurrenceFindManyMock = vi.hoisted(() => vi.fn());
 
 const tx = {
   task: { findUnique: taskFindUniqueMock },
-  taskScheduleOccurrence: {
+  taskScheduleRun: {
     createMany: taskScheduleOccurrenceCreateManyMock,
     deleteMany: taskScheduleOccurrenceDeleteManyMock,
     findMany: taskScheduleOccurrenceFindManyMock,

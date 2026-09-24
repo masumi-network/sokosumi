@@ -86,7 +86,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           closedAt: true,
         },
       }),
-      prisma.taskScheduleOccurrence.findFirst({
+      prisma.taskScheduleRun.findFirst({
         where: {
           sourceWorkspaceId: workspaceId,
           sourceType: CalendarSourceType.LEGACY_UNKNOWN,

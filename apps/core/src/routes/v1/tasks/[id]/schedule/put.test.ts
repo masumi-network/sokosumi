@@ -1,4 +1,4 @@
-import { TaskScheduleOccurrenceState, TaskStatus } from "@sokosumi/database";
+import { TaskScheduleRunState, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -239,7 +239,7 @@ function createMovedV2Occurrence(epochId = V2_EPOCH_ID): LedgerOccurrence {
     epochId,
     originalScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
     effectiveScheduledAt: new Date("2026-06-04T15:00:00.000Z"),
-    state: TaskScheduleOccurrenceState.PLANNED,
+    state: TaskScheduleRunState.PLANNED,
     scheduleVersion: 2,
     sourceWorkspaceId: WORKSPACE_ID,
     sourceType: "WORKSPACE",
@@ -289,7 +289,7 @@ function installLedgerTransaction(
       task: { update: taskUpdateMock },
       taskEvent: { create: taskEventCreateMock },
       taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
-      taskScheduleOccurrence: ledger.client,
+      taskScheduleRun: ledger.client,
     }),
   );
 }
@@ -405,7 +405,7 @@ describe("PUT /tasks/{id}/schedule", () => {
         task: { update: taskUpdateMock },
         taskEvent: { create: taskEventCreateMock },
         taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
-        taskScheduleOccurrence: { deleteMany: vi.fn(), createMany: vi.fn() },
+        taskScheduleRun: { deleteMany: vi.fn(), createMany: vi.fn() },
       }),
     );
     taskUpdateMock.mockImplementation(async ({ data }) =>
@@ -959,12 +959,12 @@ describe("PUT /tasks/{id}/schedule", () => {
       expect(nextRunAt).toEqual(new Date("2026-06-01T10:00:00.000Z"));
       expect(
         ledger.rows.find((row) => row.id === MOVED_OCCURRENCE_ID)?.state,
-      ).toBe(TaskScheduleOccurrenceState.CANCELED);
+      ).toBe(TaskScheduleRunState.CANCELED);
       expect(
         ledger.rows.filter(
           (row) =>
             row.epochId === V2_EPOCH_ID &&
-            row.state === TaskScheduleOccurrenceState.PLANNED,
+            row.state === TaskScheduleRunState.PLANNED,
         ),
       ).toEqual([]);
 
@@ -972,7 +972,7 @@ describe("PUT /tasks/{id}/schedule", () => {
         .filter(
           (row) =>
             row.epochId === saved.epochId &&
-            row.state === TaskScheduleOccurrenceState.PLANNED,
+            row.state === TaskScheduleRunState.PLANNED,
         )
         .toSorted(
           (left, right) =>
@@ -1024,7 +1024,7 @@ describe("PUT /tasks/{id}/schedule", () => {
       expect(
         ledger.rows.find((row) => row.id === MOVED_OCCURRENCE_ID),
       ).toMatchObject({
-        state: TaskScheduleOccurrenceState.PLANNED,
+        state: TaskScheduleRunState.PLANNED,
         epochId: V2_EPOCH_ID,
         effectiveScheduledAt: movedNextRunAt,
       });

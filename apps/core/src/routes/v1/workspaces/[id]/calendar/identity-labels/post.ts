@@ -84,7 +84,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const requestedRefs = [...new Set(c.req.valid("json").refs)];
     const [occurrenceActors, projectEventActors, taskEventActors] =
       await Promise.all([
-        prisma.taskScheduleOccurrence.findMany({
+        prisma.taskScheduleRun.findMany({
           where: {
             sourceWorkspaceId: workspaceId,
             actorUserId: { in: requestedRefs },

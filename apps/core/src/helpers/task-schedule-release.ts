@@ -5,7 +5,7 @@ import {
   Channel,
   type Prisma,
   TaskLinkType,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskStatus,
   type TaskVisibility,
 } from "@sokosumi/database";
@@ -76,12 +76,12 @@ export async function cloneRecurringTaskScheduleOccurrence(
   });
 
   if (metadata.version === 1) {
-    await tx.taskScheduleOccurrence.deleteMany({
+    await tx.taskScheduleRun.deleteMany({
       where: {
         seriesTaskId: template.id,
         sourceProjectId: template.projectId,
         scheduleVersion: 1,
-        state: TaskScheduleOccurrenceState.PLANNED,
+        state: TaskScheduleRunState.PLANNED,
         effectiveScheduledAt: times.effectiveScheduledAt,
         ruleSnapshot: { path: ["scheduledAt"], equals: metadata.scheduledAt },
       },
@@ -101,17 +101,17 @@ export async function cloneRecurringTaskScheduleOccurrence(
   };
 
   if (metadata.version === 2) {
-    await tx.taskScheduleOccurrence.deleteMany({
+    await tx.taskScheduleRun.deleteMany({
       where: {
         seriesTaskId: template.id,
         epochId: metadata.epochId,
         originalScheduledAt: times.originalScheduledAt,
-        state: TaskScheduleOccurrenceState.PLANNED,
+        state: TaskScheduleRunState.PLANNED,
       },
     });
   }
 
-  await tx.taskScheduleOccurrence.create({
+  await tx.taskScheduleRun.create({
     data:
       metadata.version === 1
         ? {
@@ -120,7 +120,7 @@ export async function cloneRecurringTaskScheduleOccurrence(
             legacyLinkId: link.id,
             scheduleVersion: 1,
             effectiveScheduledAt: times.effectiveScheduledAt,
-            state: TaskScheduleOccurrenceState.RELEASED,
+            state: TaskScheduleRunState.RELEASED,
             ...source,
             sourceAccuracy: CalendarSourceAccuracy.INFERRED,
             timeAccuracy: CalendarTimeAccuracy.APPROXIMATE,
@@ -134,7 +134,7 @@ export async function cloneRecurringTaskScheduleOccurrence(
             scheduleVersion: 2,
             originalScheduledAt: times.originalScheduledAt,
             effectiveScheduledAt: times.effectiveScheduledAt,
-            state: TaskScheduleOccurrenceState.RELEASED,
+            state: TaskScheduleRunState.RELEASED,
             ...source,
             sourceAccuracy: CalendarSourceAccuracy.EXACT,
             timeAccuracy: CalendarTimeAccuracy.EXACT,

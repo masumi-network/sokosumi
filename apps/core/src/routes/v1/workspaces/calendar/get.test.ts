@@ -1,6 +1,6 @@
 import {
   CalendarSourceType,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskScheduleState,
   TaskStatus,
   TaskVisibility,
@@ -75,7 +75,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: taskFindFirstMock,
       findMany: taskFindManyMock,
     },
-    taskScheduleOccurrence: {
+    taskScheduleRun: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
     },
@@ -141,7 +141,7 @@ function createRun(overrides: Record<string, unknown> = {}) {
     scheduleId: SCHEDULE_ID,
     originalScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
     effectiveScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
-    state: TaskScheduleOccurrenceState.PLANNED,
+    state: TaskScheduleRunState.PLANNED,
     sourceWorkspaceId: WORKSPACE_ID,
     sourceType: CalendarSourceType.PROJECT,
     sourceProjectId: PROJECT_ID,
@@ -299,10 +299,7 @@ describe("GET /workspaces/calendar", () => {
         scheduleId: { not: null },
         sourceWorkspaceId: WORKSPACE_ID,
         state: {
-          in: [
-            TaskScheduleOccurrenceState.PLANNED,
-            TaskScheduleOccurrenceState.RELEASED,
-          ],
+          in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.RELEASED],
         },
         effectiveScheduledAt: { gte: new Date(FROM), lt: new Date(TO) },
       }),
@@ -311,10 +308,7 @@ describe("GET /workspaces/calendar", () => {
       where: expect.objectContaining({
         scheduleId: { not: null },
         state: {
-          in: [
-            TaskScheduleOccurrenceState.PLANNED,
-            TaskScheduleOccurrenceState.RELEASED,
-          ],
+          in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.RELEASED],
         },
       }),
     });
@@ -327,7 +321,7 @@ describe("GET /workspaces/calendar", () => {
       {
         OR: [
           {
-            state: TaskScheduleOccurrenceState.PLANNED,
+            state: TaskScheduleRunState.PLANNED,
             schedule: {
               is: {
                 AND: [{ state: TaskScheduleState.ACTIVE }, HUMAN_VISIBILITY],
@@ -335,7 +329,7 @@ describe("GET /workspaces/calendar", () => {
             },
           },
           {
-            state: TaskScheduleOccurrenceState.RELEASED,
+            state: TaskScheduleRunState.RELEASED,
             releasedTask: {
               is: { AND: [{ archivedAt: null }, HUMAN_VISIBILITY] },
             },
@@ -372,7 +366,7 @@ describe("GET /workspaces/calendar", () => {
   it("uses the created Task for a released Run, which can no longer change", async () => {
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([
       createRun({
-        state: TaskScheduleOccurrenceState.RELEASED,
+        state: TaskScheduleRunState.RELEASED,
         releasedTask: RELEASED_TASK,
       }),
     ]);
@@ -430,7 +424,7 @@ describe("GET /workspaces/calendar", () => {
       {
         OR: [
           {
-            state: TaskScheduleOccurrenceState.PLANNED,
+            state: TaskScheduleRunState.PLANNED,
             schedule: {
               is: {
                 AND: [
@@ -442,7 +436,7 @@ describe("GET /workspaces/calendar", () => {
             },
           },
           {
-            state: TaskScheduleOccurrenceState.RELEASED,
+            state: TaskScheduleRunState.RELEASED,
             releasedTask: {
               is: { AND: [{ archivedAt: null }, HUMAN_VISIBILITY, filter] },
             },
@@ -459,7 +453,7 @@ describe("GET /workspaces/calendar", () => {
       {
         OR: [
           {
-            state: TaskScheduleOccurrenceState.RELEASED,
+            state: TaskScheduleRunState.RELEASED,
             releasedTask: {
               is: {
                 AND: [
@@ -500,7 +494,7 @@ describe("GET /workspaces/calendar", () => {
       {
         OR: [
           {
-            state: TaskScheduleOccurrenceState.PLANNED,
+            state: TaskScheduleRunState.PLANNED,
             schedule: {
               is: {
                 AND: [
@@ -511,7 +505,7 @@ describe("GET /workspaces/calendar", () => {
             },
           },
           {
-            state: TaskScheduleOccurrenceState.RELEASED,
+            state: TaskScheduleRunState.RELEASED,
             releasedTask: {
               is: {
                 AND: [
@@ -540,7 +534,7 @@ describe("GET /workspaces/calendar", () => {
       {
         OR: [
           expect.objectContaining({
-            state: TaskScheduleOccurrenceState.RELEASED,
+            state: TaskScheduleRunState.RELEASED,
           }),
         ],
       },

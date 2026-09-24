@@ -153,7 +153,7 @@ describeDatabase("Project Calendar history deletion guard", () => {
         "Historical release",
         { status: "READY" },
       );
-      await db.taskScheduleOccurrence.create({
+      await db.taskScheduleRun.create({
         data: {
           seriesTaskId: historicalSeries.id,
           releasedTaskId: historicalRelease.id,

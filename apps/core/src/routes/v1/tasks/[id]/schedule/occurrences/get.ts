@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { type Prisma, TaskScheduleOccurrenceState } from "@sokosumi/database";
+import { type Prisma, TaskScheduleRunState } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, hasActiveTaskSchedule } from "@sokosumi/utils";
 
 import { requireTaskScheduleReadAccess } from "@/helpers/access-control";
@@ -135,15 +135,12 @@ function buildViewWhere(
   seriesTaskId: string,
   view: TaskScheduleOccurrenceView,
   now: Date,
-): Prisma.TaskScheduleOccurrenceWhereInput {
+): Prisma.TaskScheduleRunWhereInput {
   if (view === "upcoming") {
     return {
       seriesTaskId,
       state: {
-        in: [
-          TaskScheduleOccurrenceState.PLANNED,
-          TaskScheduleOccurrenceState.SKIPPED,
-        ],
+        in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.SKIPPED],
       },
       effectiveScheduledAt: {
         gte: now,
@@ -157,18 +154,12 @@ function buildViewWhere(
     OR: [
       {
         state: {
-          in: [
-            TaskScheduleOccurrenceState.RELEASED,
-            TaskScheduleOccurrenceState.CANCELED,
-          ],
+          in: [TaskScheduleRunState.RELEASED, TaskScheduleRunState.CANCELED],
         },
       },
       {
         state: {
-          in: [
-            TaskScheduleOccurrenceState.PLANNED,
-            TaskScheduleOccurrenceState.SKIPPED,
-          ],
+          in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.SKIPPED],
         },
         effectiveScheduledAt: { lt: now },
       },
@@ -179,7 +170,7 @@ function buildViewWhere(
 function buildCursorWhere(
   cursor: TaskScheduleOccurrenceCursor,
   view: TaskScheduleOccurrenceView,
-): Prisma.TaskScheduleOccurrenceWhereInput {
+): Prisma.TaskScheduleRunWhereInput {
   const effectiveScheduledAt = new Date(cursor.effectiveScheduledAt);
   const comparison = view === "upcoming" ? "gt" : "lt";
 
@@ -233,7 +224,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       : 0;
     const [rows, total] = await prisma.$transaction(
       [
-        prisma.taskScheduleOccurrence.findMany({
+        prisma.taskScheduleRun.findMany({
           where: cursor
             ? { ...viewWhere, AND: [buildCursorWhere(cursor, view)] }
             : viewWhere,
@@ -262,7 +253,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
           },
         }),
-        prisma.taskScheduleOccurrence.count({
+        prisma.taskScheduleRun.count({
           where: viewWhere,
         }),
       ],
@@ -281,7 +272,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           // A planned row whose time has passed never released: history
           // shows it as a missed run instead of an upcoming one.
           isMissed:
-            occurrence.state === TaskScheduleOccurrenceState.PLANNED &&
+            occurrence.state === TaskScheduleRunState.PLANNED &&
             occurrence.effectiveScheduledAt < now,
         })),
       }),

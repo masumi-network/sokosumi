@@ -62,7 +62,7 @@ const fakePrisma = {
     findMany: taskLinkFindManyMock,
     findUnique: taskLinkFindUniqueMock,
   },
-  taskScheduleOccurrence: {
+  taskScheduleRun: {
     findUnique: occurrenceFindUniqueMock,
     upsert: occurrenceUpsertMock,
   },

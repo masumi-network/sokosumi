@@ -2,7 +2,7 @@ import {
   CalendarSourceAccuracy,
   CalendarSourceType,
   CalendarTimeAccuracy,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskStatus,
 } from "@sokosumi/database";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -127,7 +127,7 @@ const onceMetadataV1 = {
 function createRow(overrides: Record<string, unknown> = {}) {
   return {
     id: OCCURRENCE_ID,
-    state: TaskScheduleOccurrenceState.PLANNED,
+    state: TaskScheduleRunState.PLANNED,
     scheduleVersion: 2,
     epochId: EPOCH_ID,
     originalScheduledAt: ORIGINAL,
@@ -192,7 +192,7 @@ function body(overrides: Record<string, unknown> = {}) {
 
 function installTransaction() {
   const tx = {
-    taskScheduleOccurrence: {
+    taskScheduleRun: {
       findFirst: occurrenceFindFirstMock,
       findUniqueOrThrow: occurrenceFindUniqueOrThrowMock,
       update: occurrenceUpdateMock,
@@ -341,7 +341,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
   it("skips a future planned occurrence and advances to the next release", async () => {
     const nextRunAt = new Date("2026-06-13T09:00:00.000Z");
     occurrenceUpdateMock.mockResolvedValue(
-      createRow({ state: TaskScheduleOccurrenceState.SKIPPED }),
+      createRow({ state: TaskScheduleRunState.SKIPPED }),
     );
     findNextReleaseableOccurrenceMock.mockResolvedValue({
       id: "33333333-3333-7333-8333-333333333332",
@@ -363,7 +363,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
       expect.objectContaining({
         where: { id: OCCURRENCE_ID },
         data: expect.objectContaining({
-          state: TaskScheduleOccurrenceState.SKIPPED,
+          state: TaskScheduleRunState.SKIPPED,
           actorUserId: "user_123",
         }),
       }),
@@ -400,7 +400,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
       nextRunAt: ORIGINAL,
     });
     occurrenceUpdateMock.mockResolvedValue(
-      createRow({ state: TaskScheduleOccurrenceState.SKIPPED }),
+      createRow({ state: TaskScheduleRunState.SKIPPED }),
     );
 
     const response = await createApp().request(
@@ -424,7 +424,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
   it("restores a skipped occurrence to its original time", async () => {
     occurrenceFindFirstMock.mockResolvedValue(
       createRow({
-        state: TaskScheduleOccurrenceState.SKIPPED,
+        state: TaskScheduleRunState.SKIPPED,
         effectiveScheduledAt: TARGET,
       }),
     );
@@ -445,7 +445,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
       expect.objectContaining({
         where: { id: OCCURRENCE_ID },
         data: expect.objectContaining({
-          state: TaskScheduleOccurrenceState.PLANNED,
+          state: TaskScheduleRunState.PLANNED,
           effectiveScheduledAt: ORIGINAL,
           actorUserId: "user_123",
         }),
@@ -462,7 +462,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
 
   it("restores a skipped occurrence to a new future time", async () => {
     occurrenceFindFirstMock.mockResolvedValue(
-      createRow({ state: TaskScheduleOccurrenceState.SKIPPED }),
+      createRow({ state: TaskScheduleRunState.SKIPPED }),
     );
     occurrenceUpdateMock.mockResolvedValue(
       createRow({ effectiveScheduledAt: TARGET }),
@@ -476,7 +476,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     expect(occurrenceUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          state: TaskScheduleOccurrenceState.PLANNED,
+          state: TaskScheduleRunState.PLANNED,
           effectiveScheduledAt: TARGET,
         }),
       }),
@@ -499,7 +499,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
       nextRunAt: ORIGINAL,
     });
     occurrenceFindFirstMock.mockResolvedValue(
-      createRow({ state: TaskScheduleOccurrenceState.SKIPPED }),
+      createRow({ state: TaskScheduleRunState.SKIPPED }),
     );
 
     const response = await createApp().request(
@@ -634,7 +634,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
 
   it("rejects an occurrence that is not a future unreleased planned row", async () => {
     occurrenceFindFirstMock.mockResolvedValue(
-      createRow({ state: TaskScheduleOccurrenceState.RELEASED }),
+      createRow({ state: TaskScheduleRunState.RELEASED }),
     );
 
     const response = await createApp().request(...request(body()));
@@ -646,7 +646,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
 
   it("rejects invalid skip and restore state transitions with a stable error", async () => {
     occurrenceFindFirstMock.mockResolvedValue(
-      createRow({ state: TaskScheduleOccurrenceState.RELEASED }),
+      createRow({ state: TaskScheduleRunState.RELEASED }),
     );
     const skippedReleased = await createApp().request(
       ...request(body({ action: "skip", scheduledAt: undefined })),
@@ -670,7 +670,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
   it("rejects restoring to an original time that is no longer future", async () => {
     occurrenceFindFirstMock.mockResolvedValue(
       createRow({
-        state: TaskScheduleOccurrenceState.SKIPPED,
+        state: TaskScheduleRunState.SKIPPED,
         originalScheduledAt: new Date("2026-06-09T09:00:00.000Z"),
       }),
     );
@@ -749,7 +749,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     });
     occurrenceFindUniqueOrThrowMock.mockResolvedValue(
       createRow({
-        state: TaskScheduleOccurrenceState.RELEASED,
+        state: TaskScheduleRunState.RELEASED,
         releasedTaskId: TASK_ID,
         releasedTask: {
           id: TASK_ID,
@@ -771,7 +771,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
 
   it("replays an exact skip without duplicating its audit event", async () => {
     const storedOccurrence = createRow({
-      state: TaskScheduleOccurrenceState.SKIPPED,
+      state: TaskScheduleRunState.SKIPPED,
     });
     taskEventFindUniqueMock.mockResolvedValue({
       id: "evt_1",
@@ -794,7 +794,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     });
     occurrenceFindUniqueOrThrowMock.mockResolvedValue(
       createRow({
-        state: TaskScheduleOccurrenceState.RELEASED,
+        state: TaskScheduleRunState.RELEASED,
         releasedTaskId: "tsk_released",
       }),
     );

@@ -3,7 +3,7 @@ import {
   CalendarSourceType,
   CalendarTimeAccuracy,
   type Prisma,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskStatus,
 } from "@sokosumi/database";
 import type { TaskScheduleMetadata } from "@sokosumi/utils";
@@ -46,36 +46,36 @@ export interface TaskScheduleOccurrenceIndexCandidate {
 }
 
 interface TaskScheduleOccurrenceDeleteClient {
-  taskScheduleOccurrence: Pick<
-    Prisma.TransactionClient["taskScheduleOccurrence"],
+  taskScheduleRun: Pick<
+    Prisma.TransactionClient["taskScheduleRun"],
     "deleteMany"
   >;
 }
 
 interface TaskScheduleOccurrenceCreateClient {
-  taskScheduleOccurrence: Pick<
-    Prisma.TransactionClient["taskScheduleOccurrence"],
+  taskScheduleRun: Pick<
+    Prisma.TransactionClient["taskScheduleRun"],
     "createMany"
   >;
 }
 
 interface TaskScheduleOccurrenceIndexClient {
-  taskScheduleOccurrence: Pick<
-    Prisma.TransactionClient["taskScheduleOccurrence"],
+  taskScheduleRun: Pick<
+    Prisma.TransactionClient["taskScheduleRun"],
     "createMany" | "deleteMany" | "findMany" | "updateMany"
   >;
 }
 
 interface TaskScheduleOccurrenceRetireClient {
-  taskScheduleOccurrence: Pick<
-    Prisma.TransactionClient["taskScheduleOccurrence"],
+  taskScheduleRun: Pick<
+    Prisma.TransactionClient["taskScheduleRun"],
     "findMany" | "updateMany" | "deleteMany"
   >;
 }
 
 interface TaskScheduleOccurrenceReadClient {
-  taskScheduleOccurrence: Pick<
-    Prisma.TransactionClient["taskScheduleOccurrence"],
+  taskScheduleRun: Pick<
+    Prisma.TransactionClient["taskScheduleRun"],
     "findMany"
   >;
 }
@@ -108,10 +108,10 @@ export async function removeTaskSchedulePlannedOccurrences(
   tx: TaskScheduleOccurrenceDeleteClient,
   seriesTaskId: string,
 ): Promise<void> {
-  await tx.taskScheduleOccurrence.deleteMany({
+  await tx.taskScheduleRun.deleteMany({
     where: {
       seriesTaskId,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
     },
   });
 }
@@ -147,7 +147,7 @@ function projectPlannedOccurrenceRows(
     epochId: task.schedule.version === 2 ? task.schedule.epochId : null,
     originalScheduledAt: occurrence.originalScheduledAt,
     effectiveScheduledAt: occurrence.scheduledAt,
-    state: TaskScheduleOccurrenceState.PLANNED,
+    state: TaskScheduleRunState.PLANNED,
     scheduleVersion: task.schedule.version,
     ...source,
     timezone:
@@ -174,7 +174,7 @@ export async function createTaskSchedulePlannedOccurrences(
     return;
   }
 
-  await tx.taskScheduleOccurrence.createMany({ data: rows });
+  await tx.taskScheduleRun.createMany({ data: rows });
 }
 
 async function projectPlannedOccurrenceRowsWithSkippedCapacity(
@@ -192,11 +192,11 @@ async function projectPlannedOccurrenceRowsWithSkippedCapacity(
   }
 
   const ruleAnchor = resolveTaskScheduleRuleAnchor(task.schedule);
-  const skipped = await tx.taskScheduleOccurrence.findMany({
+  const skipped = await tx.taskScheduleRun.findMany({
     where: {
       seriesTaskId: task.id,
       epochId: task.schedule.epochId,
-      state: TaskScheduleOccurrenceState.SKIPPED,
+      state: TaskScheduleRunState.SKIPPED,
       originalScheduledAt: { gt: ruleAnchor },
     },
     select: { originalScheduledAt: true },
@@ -262,10 +262,10 @@ async function reconcileExistingPlannedOccurrences(
   projectedRows: OccurrenceProjectionIdentity[],
   projectedSource: ReturnType<typeof getOccurrenceSource>,
 ): Promise<Set<string>> {
-  const planned = await tx.taskScheduleOccurrence.findMany({
+  const planned = await tx.taskScheduleRun.findMany({
     where: {
       seriesTaskId,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
       effectiveScheduledAt: { gte: now },
     },
     select: {
@@ -315,14 +315,14 @@ async function reconcileExistingPlannedOccurrences(
     .map((row) => row.id);
 
   if (staleSourceIds.length > 0) {
-    await tx.taskScheduleOccurrence.updateMany({
+    await tx.taskScheduleRun.updateMany({
       where: { id: { in: staleSourceIds } },
       data: projectedSource,
     });
   }
 
   if (obsoleteOrdinaryIds.length > 0) {
-    await tx.taskScheduleOccurrence.deleteMany({
+    await tx.taskScheduleRun.deleteMany({
       where: { id: { in: obsoleteOrdinaryIds } },
     });
   }
@@ -366,7 +366,7 @@ async function replaceTaskSchedulePlannedOccurrenceRows(
 
   // A projected time still owned by a moved or skipped exception stays with
   // that row, so the rebuild must not collide with its identity.
-  await tx.taskScheduleOccurrence.createMany({
+  await tx.taskScheduleRun.createMany({
     data: missingRows,
     skipDuplicates: true,
   });
@@ -380,8 +380,8 @@ export interface TaskScheduleOccurrenceReleaseCandidate {
 }
 
 interface TaskScheduleOccurrenceNextClient {
-  taskScheduleOccurrence: Pick<
-    Prisma.TransactionClient["taskScheduleOccurrence"],
+  taskScheduleRun: Pick<
+    Prisma.TransactionClient["taskScheduleRun"],
     "findFirst"
   >;
 }
@@ -397,11 +397,11 @@ export async function findNextReleaseableOccurrence(
   seriesTaskId: string,
   epochId: string | null,
 ): Promise<TaskScheduleOccurrenceReleaseCandidate | null> {
-  return tx.taskScheduleOccurrence.findFirst({
+  return tx.taskScheduleRun.findFirst({
     where: {
       seriesTaskId,
       epochId,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
     },
     orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
     select: {
@@ -418,7 +418,7 @@ export interface RetiredTaskScheduleOccurrences {
 }
 
 function isDurableScheduleException(occurrence: {
-  state: TaskScheduleOccurrenceState;
+  state: TaskScheduleRunState;
   scheduleVersion: number;
   originalScheduledAt: Date | null;
   effectiveScheduledAt: Date;
@@ -430,7 +430,7 @@ function isDurableScheduleException(occurrence: {
   }
 
   return (
-    occurrence.state === TaskScheduleOccurrenceState.SKIPPED ||
+    occurrence.state === TaskScheduleRunState.SKIPPED ||
     (occurrence.originalScheduledAt != null &&
       occurrence.originalScheduledAt.getTime() !==
         occurrence.effectiveScheduledAt.getTime())
@@ -441,16 +441,13 @@ function futureScheduleOccurrenceCandidatesWhere(
   seriesTaskId: string,
   now: Date,
   sourceProjectId?: string,
-): Prisma.TaskScheduleOccurrenceWhereInput {
+): Prisma.TaskScheduleRunWhereInput {
   return {
     seriesTaskId,
     ...(sourceProjectId ? { sourceProjectId } : {}),
     effectiveScheduledAt: { gte: now },
     state: {
-      in: [
-        TaskScheduleOccurrenceState.PLANNED,
-        TaskScheduleOccurrenceState.SKIPPED,
-      ],
+      in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.SKIPPED],
     },
   };
 }
@@ -478,7 +475,7 @@ export async function retireTaskScheduleFutureOccurrences(
   now = new Date(),
   options: { sourceProjectId?: string } = {},
 ): Promise<RetiredTaskScheduleOccurrences> {
-  const futureOccurrences = await tx.taskScheduleOccurrence.findMany({
+  const futureOccurrences = await tx.taskScheduleRun.findMany({
     where: futureScheduleOccurrenceCandidatesWhere(
       seriesTaskId,
       now,
@@ -504,13 +501,13 @@ export async function retireTaskScheduleFutureOccurrences(
   }
 
   if (canceledIds.length > 0) {
-    await tx.taskScheduleOccurrence.updateMany({
+    await tx.taskScheduleRun.updateMany({
       where: { id: { in: canceledIds } },
-      data: { state: TaskScheduleOccurrenceState.CANCELED },
+      data: { state: TaskScheduleRunState.CANCELED },
     });
   }
   if (deletedIds.length > 0) {
-    await tx.taskScheduleOccurrence.deleteMany({
+    await tx.taskScheduleRun.deleteMany({
       where: { id: { in: deletedIds } },
     });
   }
@@ -533,7 +530,7 @@ export async function countTaskScheduleFutureExceptions(
   seriesTaskId: string,
   now = new Date(),
 ): Promise<number> {
-  const futureOccurrences = await tx.taskScheduleOccurrence.findMany({
+  const futureOccurrences = await tx.taskScheduleRun.findMany({
     where: futureScheduleOccurrenceCandidatesWhere(seriesTaskId, now),
     select: {
       state: true,

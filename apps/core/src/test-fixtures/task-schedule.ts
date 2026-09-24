@@ -8,8 +8,8 @@ import {
   type TaskEvent,
   type TaskSchedule,
   TaskScheduleEndsMode,
-  type TaskScheduleOccurrence,
-  TaskScheduleOccurrenceState,
+  type TaskScheduleRun,
+  TaskScheduleRunState,
   TaskScheduleState,
   TaskVisibility,
   type VendorGrantStatus,
@@ -78,7 +78,7 @@ interface StoredProject {
 
 interface Store {
   schedules: TaskSchedule[];
-  runs: TaskScheduleOccurrence[];
+  runs: TaskScheduleRun[];
   /** Tasks the release created, with their nested events. */
   tasks: StoredTask[];
   /** Coworkers that exist, keyed by id, with their vendor. */
@@ -184,9 +184,9 @@ export function seedTaskUpdate(id: string, data: Partial<Task>): void {
 export function seedRun(
   schedule: TaskSchedule,
   at: Date,
-  overrides: Partial<TaskScheduleOccurrence> = {},
-): TaskScheduleOccurrence {
-  const row: TaskScheduleOccurrence = {
+  overrides: Partial<TaskScheduleRun> = {},
+): TaskScheduleRun {
+  const row: TaskScheduleRun = {
     id: randomUUID(),
     createdAt: at,
     updatedAt: at,
@@ -198,7 +198,7 @@ export function seedRun(
     effectiveScheduledAt: at,
     legacyLinkId: null,
     scheduleVersion: 2,
-    state: TaskScheduleOccurrenceState.PLANNED,
+    state: TaskScheduleRunState.PLANNED,
     sourceWorkspaceId: schedule.workspaceId,
     sourceType: schedule.projectId
       ? CalendarSourceType.PROJECT
@@ -217,7 +217,7 @@ export function seedRun(
 }
 
 /** Ledger rows of a schedule, oldest first. */
-export function runsOf(scheduleId: string): TaskScheduleOccurrence[] {
+export function runsOf(scheduleId: string): TaskScheduleRun[] {
   return sortRuns(
     taskScheduleTestDb.runs.filter((row) => row.scheduleId === scheduleId),
   );
@@ -277,7 +277,7 @@ function matchesRow<Row extends object>(row: Row, where: Where = {}): boolean {
   });
 }
 
-function sortRuns(rows: TaskScheduleOccurrence[]): TaskScheduleOccurrence[] {
+function sortRuns(rows: TaskScheduleRun[]): TaskScheduleRun[] {
   return [...rows].sort(
     (a, b) =>
       a.effectiveScheduledAt.getTime() - b.effectiveScheduledAt.getTime() ||
@@ -461,11 +461,11 @@ const taskSchedule = {
   }),
 };
 
-function runKey(row: Partial<TaskScheduleOccurrence>): string {
+function runKey(row: Partial<TaskScheduleRun>): string {
   return `${row.scheduleId}:${row.epochId}:${row.originalScheduledAt?.toISOString()}`;
 }
 
-const taskScheduleOccurrence = {
+const taskScheduleRun = {
   count: vi.fn(
     async ({ where }: { where: Where }) =>
       taskScheduleTestDb.runs.filter((row) => matchesRow(row, where)).length,
@@ -504,15 +504,15 @@ const taskScheduleOccurrence = {
   ),
   findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
     const row = taskScheduleTestDb.runs.find((r) => r.id === where.id);
-    if (!row) throw new Error(`No TaskScheduleOccurrence ${where.id}`);
+    if (!row) throw new Error(`No TaskScheduleRun ${where.id}`);
     return row;
   }),
   findFirst: vi.fn(
     async (args: {
       where: Where;
       orderBy?: Record<string, "asc" | "desc">[];
-    }): Promise<TaskScheduleOccurrence | null> =>
-      (await taskScheduleOccurrence.findMany(args))[0] ?? null,
+    }): Promise<TaskScheduleRun | null> =>
+      (await taskScheduleRun.findMany(args))[0] ?? null,
   ),
   /** Enforces the (scheduleId, epochId, originalScheduledAt) unique key. */
   createMany: vi.fn(
@@ -520,7 +520,7 @@ const taskScheduleOccurrence = {
       data,
       skipDuplicates,
     }: {
-      data: Partial<TaskScheduleOccurrence>[];
+      data: Partial<TaskScheduleRun>[];
       skipDuplicates?: boolean;
     }) => {
       let count = 0;
@@ -550,7 +550,7 @@ const taskScheduleOccurrence = {
           timezone: null,
           ruleSnapshot: null,
           ...input,
-        } as TaskScheduleOccurrence);
+        } as TaskScheduleRun);
         count += 1;
       }
       return { count };
@@ -578,7 +578,7 @@ export const taskScheduleTestPrisma = {
   /** Calendar scope locks: every locked row exists. */
   $queryRaw: vi.fn(async () => [{ id: "locked" }]),
   taskSchedule,
-  taskScheduleOccurrence,
+  taskScheduleRun,
   /** Only the releases write Tasks; routes must never write them. */
   task: {
     create: vi.fn(

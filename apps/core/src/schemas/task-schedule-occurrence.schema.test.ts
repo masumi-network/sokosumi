@@ -2,7 +2,7 @@ import {
   CalendarSourceAccuracy,
   CalendarSourceType,
   CalendarTimeAccuracy,
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
   TaskStatus,
 } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
@@ -17,7 +17,7 @@ import {
 function createOccurrence(overrides: Record<string, unknown> = {}) {
   return {
     id: "33333333-3333-7333-8333-333333333333",
-    state: TaskScheduleOccurrenceState.RELEASED,
+    state: TaskScheduleRunState.RELEASED,
     scheduleVersion: 2,
     epochId: "44444444-4444-7444-8444-444444444444",
     originalScheduledAt: new Date("2026-06-01T09:00:00.000Z"),
@@ -99,7 +99,7 @@ describe("taskScheduleOccurrenceSchema", () => {
   it("keeps legacy epoch, original time, timezone, and released task nullable", () => {
     const parsed = taskScheduleOccurrenceSchema.parse(
       createOccurrence({
-        state: TaskScheduleOccurrenceState.PLANNED,
+        state: TaskScheduleRunState.PLANNED,
         scheduleVersion: 1,
         epochId: null,
         originalScheduledAt: null,

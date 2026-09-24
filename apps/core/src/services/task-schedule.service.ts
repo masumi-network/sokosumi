@@ -4,8 +4,8 @@ import {
   type Prisma,
   type TaskSchedule,
   TaskScheduleEndsMode,
-  type TaskScheduleOccurrence,
-  TaskScheduleOccurrenceState,
+  type TaskScheduleRun,
+  TaskScheduleRunState,
   TaskScheduleState,
   TaskVisibility,
 } from "@sokosumi/database";
@@ -358,7 +358,7 @@ export async function listTaskScheduleRuns(
   const actor = await resolveScheduleActor(vars);
   await findReadableSchedule(actor, id);
   const { cursor, take, skip } = parseCursorPagination(query);
-  const where: Prisma.TaskScheduleOccurrenceWhereInput = {
+  const where: Prisma.TaskScheduleRunWhereInput = {
     scheduleId: id,
     effectiveScheduledAt: {
       gte: query.from ? new Date(query.from) : undefined,
@@ -366,14 +366,14 @@ export async function listTaskScheduleRuns(
     },
   };
   const [rows, total] = await Promise.all([
-    prisma.taskScheduleOccurrence.findMany({
+    prisma.taskScheduleRun.findMany({
       where,
       take: take + 1,
       skip,
       cursor: cursor ? { id: cursor } : undefined,
       orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
     }),
-    prisma.taskScheduleOccurrence.count({ where }),
+    prisma.taskScheduleRun.count({ where }),
   ]);
   const hasMore = rows.length > take;
   const runs = rows.slice(0, take);
@@ -635,14 +635,14 @@ const RUN_ACTION_LABELS: Record<
  * future and inside the projection horizon.
  */
 function runAfterAction(
-  run: TaskScheduleOccurrence,
+  run: TaskScheduleRun,
   input: UpdateTaskScheduleRunRequest,
   now: Date,
-): { state: TaskScheduleOccurrenceState; effectiveScheduledAt: Date } {
+): { state: TaskScheduleRunState; effectiveScheduledAt: Date } {
   const changeable =
     input.action === "restore"
       ? isRunException(run)
-      : run.state === TaskScheduleOccurrenceState.PLANNED;
+      : run.state === TaskScheduleRunState.PLANNED;
   if (
     !changeable ||
     run.releasedTaskId !== null ||
@@ -673,8 +673,8 @@ function runAfterAction(
   return {
     state:
       input.action === "skip"
-        ? TaskScheduleOccurrenceState.SKIPPED
-        : TaskScheduleOccurrenceState.PLANNED,
+        ? TaskScheduleRunState.SKIPPED
+        : TaskScheduleRunState.PLANNED,
     effectiveScheduledAt: target,
   };
 }
@@ -688,7 +688,7 @@ export async function changeTaskScheduleRun(
   id: string,
   runId: string,
   input: UpdateTaskScheduleRunRequest,
-): Promise<{ revision: number; run: TaskScheduleOccurrence }> {
+): Promise<{ revision: number; run: TaskScheduleRun }> {
   const actor = await resolveScheduleActor(vars);
 
   return await prisma.$transaction(async (tx) => {
@@ -705,7 +705,7 @@ export async function changeTaskScheduleRun(
     if (current.revision !== input.expectedRevision) {
       throwRevisionConflict();
     }
-    const run = await tx.taskScheduleOccurrence.findFirst({
+    const run = await tx.taskScheduleRun.findFirst({
       where: { id: runId, scheduleId: id },
     });
     if (!run) {
@@ -718,7 +718,7 @@ export async function changeTaskScheduleRun(
     // order. Claiming the schedule by its release count as well makes a
     // release that committed since the read a conflict, so the plan below
     // never counts against a stale count.
-    const { count } = await tx.taskScheduleOccurrence.updateMany({
+    const { count } = await tx.taskScheduleRun.updateMany({
       where: {
         id: runId,
         state: run.state,
@@ -759,7 +759,7 @@ export async function changeTaskScheduleRun(
     });
     return {
       revision: input.expectedRevision + 1,
-      run: await tx.taskScheduleOccurrence.findUniqueOrThrow({
+      run: await tx.taskScheduleRun.findUniqueOrThrow({
         where: { id: runId },
       }),
     };
@@ -820,7 +820,7 @@ export function mapTaskSchedule(schedule: TaskSchedule) {
   };
 }
 
-export function mapTaskScheduleRun(run: TaskScheduleOccurrence) {
+export function mapTaskScheduleRun(run: TaskScheduleRun) {
   return {
     id: run.id,
     state: run.state,

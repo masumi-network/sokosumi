@@ -22,7 +22,7 @@ const {
   lockCalendarScopeMock: vi.fn(),
   prismaMock: {
     project: { findFirst: vi.fn() },
-    taskScheduleOccurrence: { count: vi.fn() },
+    taskScheduleRun: { count: vi.fn() },
   },
   projectCloseOperationCreateMock: vi.fn(),
   projectCloseOperationFindUniqueMock: vi.fn(),
@@ -107,7 +107,7 @@ function transactionClient() {
       findFirst: taskFindFirstMock,
       updateMany: taskUpdateManyMock,
     },
-    taskScheduleOccurrence: {
+    taskScheduleRun: {
       count: taskScheduleOccurrenceCountMock,
       deleteMany: taskScheduleOccurrenceDeleteManyMock,
       updateMany: taskScheduleOccurrenceUpdateManyMock,
@@ -125,7 +125,7 @@ describe("project close lifecycle", () => {
     taskScheduleOccurrenceCountMock.mockResolvedValue(0);
     projectCloseOperationFindUniqueMock.mockResolvedValue(null);
     taskFindFirstMock.mockResolvedValue({ status: "QUEUED" });
-    prismaMock.taskScheduleOccurrence.count = taskScheduleOccurrenceCountMock;
+    prismaMock.taskScheduleRun.count = taskScheduleOccurrenceCountMock;
     prismaMock.project.findFirst = projectFindFirstMock;
     serializableTransactionMock.mockImplementation(async (callback) =>
       callback(transactionClient()),

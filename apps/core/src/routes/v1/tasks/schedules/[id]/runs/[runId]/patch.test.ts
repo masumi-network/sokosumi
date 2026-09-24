@@ -588,7 +588,7 @@ describe("PATCH /tasks/schedules/{id}/runs/{runId}", () => {
       const run = seedRun(schedule, JAN_14);
       // A release commits between this request's read and its write.
       vi.mocked(
-        taskScheduleTestPrisma.taskScheduleOccurrence.findFirst,
+        taskScheduleTestPrisma.taskScheduleRun.findFirst,
       ).mockImplementationOnce(async () => {
         taskScheduleTestDb.schedules = taskScheduleTestDb.schedules.map(
           (row) => ({ ...row, releasedCount: row.releasedCount + 1 }),
@@ -606,7 +606,7 @@ describe("PATCH /tasks/schedules/{id}/runs/{runId}", () => {
       const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
       const run = seedRun(schedule, JAN_14);
       vi.mocked(
-        taskScheduleTestPrisma.taskScheduleOccurrence.findFirst,
+        taskScheduleTestPrisma.taskScheduleRun.findFirst,
       ).mockImplementationOnce(async () => {
         taskScheduleTestDb.runs = taskScheduleTestDb.runs.map((row) =>
           row.id === run.id

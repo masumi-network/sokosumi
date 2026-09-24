@@ -4,8 +4,8 @@ import {
   type Prisma,
   type TaskSchedule,
   TaskScheduleEndsMode,
-  type TaskScheduleOccurrence,
-  TaskScheduleOccurrenceState,
+  type TaskScheduleRun,
+  TaskScheduleRunState,
   TaskScheduleState,
   TaskStatus,
 } from "@sokosumi/database";
@@ -137,16 +137,16 @@ export async function projectTaskScheduleRuns(
 ): Promise<Date | null> {
   // Every planned Run counts against an end-after-N rule, including
   // one owed from a release that stopped partway or from before a rule edit.
-  const plannedCount = await tx.taskScheduleOccurrence.count({
+  const plannedCount = await tx.taskScheduleRun.count({
     where: {
       scheduleId: schedule.id,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
     },
   });
   // A rule time can already hold a Run: planned, moved, or skipped.
   // It is not planned again, and a skipped one frees its place under an
   // end-after-N rule.
-  const occupied = await tx.taskScheduleOccurrence.findMany({
+  const occupied = await tx.taskScheduleRun.findMany({
     where: {
       scheduleId: schedule.id,
       epochId: schedule.epochId,
@@ -161,7 +161,7 @@ export async function projectTaskScheduleRuns(
       horizonEnd: new Date(now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS),
       limit: MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES - plannedCount,
       includeFirst: !occupied.some(
-        (row) => row.state === TaskScheduleOccurrenceState.PLANNED,
+        (row) => row.state === TaskScheduleRunState.PLANNED,
       ),
       occupied: new Set(
         occupied.flatMap((row) =>
@@ -171,13 +171,13 @@ export async function projectTaskScheduleRuns(
     },
   );
   if (times.length > 0) {
-    await tx.taskScheduleOccurrence.createMany({
+    await tx.taskScheduleRun.createMany({
       data: times.map((at) => ({
         scheduleId: schedule.id,
         epochId: schedule.epochId,
         originalScheduledAt: at,
         effectiveScheduledAt: at,
-        state: TaskScheduleOccurrenceState.PLANNED,
+        state: TaskScheduleRunState.PLANNED,
         scheduleVersion: 2,
         ...getOccurrenceSource(schedule),
         timezone: schedule.timezone,
@@ -185,10 +185,10 @@ export async function projectTaskScheduleRuns(
       skipDuplicates: true,
     });
   }
-  const next = await tx.taskScheduleOccurrence.findFirst({
+  const next = await tx.taskScheduleRun.findFirst({
     where: {
       scheduleId: schedule.id,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
     },
     orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
     select: { effectiveScheduledAt: true },
@@ -199,13 +199,13 @@ export async function projectTaskScheduleRuns(
 /** Whether the Run is still skipped, or planned at a moved time. */
 export function isRunException(
   run: Pick<
-    TaskScheduleOccurrence,
+    TaskScheduleRun,
     "state" | "originalScheduledAt" | "effectiveScheduledAt"
   >,
 ): boolean {
   return (
-    run.state === TaskScheduleOccurrenceState.SKIPPED ||
-    (run.state === TaskScheduleOccurrenceState.PLANNED &&
+    run.state === TaskScheduleRunState.SKIPPED ||
+    (run.state === TaskScheduleRunState.PLANNED &&
       run.originalScheduledAt?.getTime() !== run.effectiveScheduledAt.getTime())
   );
 }
@@ -226,16 +226,16 @@ export async function stopPlannedTaskScheduleRuns(
     exceptions,
   }: { keepOwed: boolean; exceptions: "keep" | "cancel" },
 ): Promise<void> {
-  const rows = await tx.taskScheduleOccurrence.findMany({
+  const rows = await tx.taskScheduleRun.findMany({
     where: {
       scheduleId,
       OR: [
         {
-          state: TaskScheduleOccurrenceState.PLANNED,
+          state: TaskScheduleRunState.PLANNED,
           ...(keepOwed ? { effectiveScheduledAt: { gt: now } } : {}),
         },
         {
-          state: TaskScheduleOccurrenceState.SKIPPED,
+          state: TaskScheduleRunState.SKIPPED,
           effectiveScheduledAt: { gt: now },
         },
       ],
@@ -254,14 +254,14 @@ export async function stopPlannedTaskScheduleRuns(
     .filter((row) => isRunException(row))
     .map((row) => row.id);
   if (ordinaryIds.length > 0) {
-    await tx.taskScheduleOccurrence.deleteMany({
+    await tx.taskScheduleRun.deleteMany({
       where: { id: { in: ordinaryIds } },
     });
   }
   if (exceptions === "cancel" && exceptionIds.length > 0) {
-    await tx.taskScheduleOccurrence.updateMany({
+    await tx.taskScheduleRun.updateMany({
       where: { id: { in: exceptionIds } },
-      data: { state: TaskScheduleOccurrenceState.CANCELED },
+      data: { state: TaskScheduleRunState.CANCELED },
     });
   }
 }
@@ -275,13 +275,13 @@ export async function cancelMissedTaskScheduleRuns(
   scheduleId: string,
   now: Date,
 ): Promise<void> {
-  await tx.taskScheduleOccurrence.updateMany({
+  await tx.taskScheduleRun.updateMany({
     where: {
       scheduleId,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
       effectiveScheduledAt: { lte: now },
     },
-    data: { state: TaskScheduleOccurrenceState.CANCELED },
+    data: { state: TaskScheduleRunState.CANCELED },
   });
 }
 
@@ -304,10 +304,10 @@ export async function trimPlannedTaskScheduleRuns(
   ) {
     return;
   }
-  const planned = await tx.taskScheduleOccurrence.findMany({
+  const planned = await tx.taskScheduleRun.findMany({
     where: {
       scheduleId: schedule.id,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
     },
     orderBy: [{ originalScheduledAt: "desc" }],
     select: { id: true },
@@ -315,7 +315,7 @@ export async function trimPlannedTaskScheduleRuns(
   const excess =
     schedule.releasedCount + planned.length - schedule.targetRunCount;
   if (excess <= 0) return;
-  await tx.taskScheduleOccurrence.deleteMany({
+  await tx.taskScheduleRun.deleteMany({
     where: {
       id: {
         in: planned
@@ -332,10 +332,10 @@ export async function moveTaskScheduleRunsToProject(
   tx: Prisma.TransactionClient,
   schedule: Pick<TaskSchedule, "id" | "workspaceId" | "projectId">,
 ): Promise<void> {
-  await tx.taskScheduleOccurrence.updateMany({
+  await tx.taskScheduleRun.updateMany({
     where: {
       scheduleId: schedule.id,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
     },
     data: getOccurrenceSource(schedule),
   });
@@ -443,10 +443,10 @@ async function releaseRuns(
     shouldContinue: () => boolean;
   },
 ): Promise<ReleasedTask[]> {
-  const runs = await tx.taskScheduleOccurrence.findMany({
+  const runs = await tx.taskScheduleRun.findMany({
     where: {
       scheduleId: schedule.id,
-      state: TaskScheduleOccurrenceState.PLANNED,
+      state: TaskScheduleRunState.PLANNED,
       effectiveScheduledAt: due,
     },
     orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
@@ -458,10 +458,10 @@ async function releaseRuns(
   for (const run of runs) {
     if (!shouldContinue()) break;
     const task = await createTaskFromBlueprint(tx, schedule);
-    const { count } = await tx.taskScheduleOccurrence.updateMany({
-      where: { id: run.id, state: TaskScheduleOccurrenceState.PLANNED },
+    const { count } = await tx.taskScheduleRun.updateMany({
+      where: { id: run.id, state: TaskScheduleRunState.PLANNED },
       data: {
-        state: TaskScheduleOccurrenceState.RELEASED,
+        state: TaskScheduleRunState.RELEASED,
         releasedTaskId: task.id,
       },
     });
@@ -554,10 +554,10 @@ export async function closeTaskScheduleForProject(
   const releasedCount = schedule.releasedCount + tasks.length;
   const nextOwed =
     schedule.state === TaskScheduleState.ACTIVE
-      ? await tx.taskScheduleOccurrence.findFirst({
+      ? await tx.taskScheduleRun.findFirst({
           where: {
             scheduleId,
-            state: TaskScheduleOccurrenceState.PLANNED,
+            state: TaskScheduleRunState.PLANNED,
             effectiveScheduledAt: owed,
           },
           orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],

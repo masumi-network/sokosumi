@@ -1021,7 +1021,7 @@ describe("prepareTasksForUserDeletion", () => {
       runTransaction?.(async (tx: Record<string, unknown>) => {
         const calendarModels = Object.fromEntries(
           [
-            "taskScheduleOccurrence",
+            "taskScheduleRun",
             "taskLink",
             "taskScheduleQuarantine",
             "taskScheduleCreateOperation",

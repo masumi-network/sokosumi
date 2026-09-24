@@ -14,7 +14,7 @@ describe("quarantineTaskSchedule", () => {
   it("removes planned occurrences after quarantining a schedule", async () => {
     const tx = {
       taskScheduleQuarantine: { upsert: vi.fn().mockResolvedValue({}) },
-      taskScheduleOccurrence: { deleteMany: vi.fn() },
+      taskScheduleRun: { deleteMany: vi.fn() },
     };
 
     await quarantineTaskSchedule(
