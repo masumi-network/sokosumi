@@ -40,6 +40,7 @@ globalThis.MESSAGES = {
     "Notifications.Job.refundResolved": "{jobName} was refunded",
     "Notifications.Job.disputeResolved": "Dispute resolved for {jobName}",
     "Notifications.Task.assigned": "You were assigned {taskName}",
+    "Notifications.Task.participantAdded": "You were added to {taskName}",
     "Notifications.Task.inputRequired":
       "{coworkerName} needs your input for {taskName}",
     "Notifications.Task.approvalRequired":
@@ -113,6 +114,8 @@ globalThis.MESSAGES = {
     "Notifications.Job.refundResolved": "{jobName} wurde erstattet",
     "Notifications.Job.disputeResolved": "Einspruch für {jobName} gelöst",
     "Notifications.Task.assigned": "Dir wurde {taskName} zugewiesen",
+    "Notifications.Task.participantAdded":
+      "Du wurdest zu {taskName} hinzugefügt",
     "Notifications.Task.inputRequired":
       "{coworkerName} benötigt deinen Input für {taskName}",
     "Notifications.Task.approvalRequired":
@@ -192,6 +195,7 @@ globalThis.MESSAGES = {
     "Notifications.Job.refundResolved": "{jobName} fue reembolsado",
     "Notifications.Job.disputeResolved": "Disputa resuelta para {jobName}",
     "Notifications.Task.assigned": "Se te asignó {taskName}",
+    "Notifications.Task.participantAdded": "Te añadieron a {taskName}",
     "Notifications.Task.inputRequired":
       "{coworkerName} necesita tu input para {taskName}",
     "Notifications.Task.approvalRequired":
