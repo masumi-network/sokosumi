@@ -1,4 +1,4 @@
-# Cursor Cloud environment
+# Cloud environment
 
 Required when the matching trigger in [AGENTS.md](../../AGENTS.md) applies.
 Commands and backticked paths are relative to the repository root unless stated otherwise.
@@ -25,3 +25,27 @@ When Neon secrets are absent, provision skips and local Postgres remains the fal
 ### `.env` files (gitignored, snapshot-persisted)
 
 `apps/core/.env` and `apps/web/.env` were created from `.env.example` with local fixes so the apps boot past their Zod env validation. Non-obvious edits: DB host `sokosumi`→`localhost` (overwritten by agent DB provision when Neon secrets are present); `RESEND_FROM_EMAIL` defaults to `noreply@sokosumi.com`; invalid `AGENT_HIRED_WEBHOOK` placeholder removed; `BETTER_AUTH_COOKIE_DOMAIN` disabled so session cookies work on `localhost`. Web `APP_SIGNING_SECRET` is independent of Core `BETTER_AUTH_SECRET`.
+
+## Claude Code cloud sessions
+
+Claude Code cloud sessions (claude.ai/code, Desktop **Cloud**) run on an Ubuntu 24.04 VM with Node 20/21/22 and `/opt/node22/bin` on `PATH`. The repo `SessionStart` hook in `.claude/settings.json` runs `ensure-pnpm.sh install` and `ensure-pnpm.sh prisma:generate` only when `CLAUDE_CODE_REMOTE=true`, so local sessions skip it. Both commands write to `/tmp/sokosumi-claude-session-install.log`; `SessionStart` stdout is session context, so the log stays off the prompt.
+
+Node 24 and a prewarmed pnpm store come from the environment's setup script (claude.ai → environment settings), which is not in the repo. Keep **Trusted** network access, set `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`, and use:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+V=$(curl -fsSL https://nodejs.org/dist/index.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).find(r=>r.version.startsWith("v24.")).version))')
+curl -fsSL "https://nodejs.org/dist/$V/node-$V-linux-x64.tar.xz" | tar -xJ -C /opt
+[ -L /opt/node22 ] || mv /opt/node22 /opt/node22-orig
+ln -sfn "/opt/node-$V-linux-x64" /opt/node22
+corepack enable
+cd /home/user/sokosumi
+corepack install
+timeout 200 corepack pnpm fetch || true
+```
+
+The repo is already cloned at `/home/user/sokosumi` while the script runs, and the environment cache keeps the Corepack pnpm and the store `pnpm fetch` fills, so the hook's `pnpm install` only links (about 5 s). The cache rebuilds when the script changes or after about 7 days.
+
+Lint, typecheck, and tests need no database or secrets. PostgreSQL 16 is installed but stopped; run `service postgresql start` when a task needs it. Do not put secrets in the environment variables field: everyone using the environment can read them.
