@@ -1321,7 +1321,7 @@ describe("TaskForm", () => {
     expect(screen.getByText("footer")).toBeInTheDocument();
   });
 
-  it("clears a staged Run at when switching to a human assignee", async () => {
+  it("shows human assignees only after clearing a staged Run at", async () => {
     const user = userEvent.setup();
     const updateTaskMock = vi.mocked(updateTask);
     updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
@@ -1354,6 +1354,13 @@ describe("TaskForm", () => {
     await setRunAt(user);
     expect(screen.getByText("footer")).toBeInTheDocument();
 
+    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+    expect(
+      screen.queryByRole("option", { name: "Bob" }),
+    ).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Set start time" }));
+    await user.click(screen.getByRole("button", { name: "clear" }));
     await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
     await user.click(screen.getByRole("option", { name: "Bob" }));
     expect(screen.queryByText("footer")).not.toBeInTheDocument();
@@ -1399,7 +1406,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("clears a staged Run at when switching to Unassigned", async () => {
+  it("offers Unassigned only after clearing a staged Run at", async () => {
     const user = userEvent.setup();
     const updateTaskMock = vi.mocked(updateTask);
     updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
@@ -1422,6 +1429,14 @@ describe("TaskForm", () => {
     );
 
     await setRunAt(user);
+    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+    expect(screen.getByRole("option", { name: "Unassigned" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Set start time" }));
+    await user.click(screen.getByRole("button", { name: "clear" }));
     await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
     await user.click(screen.getByRole("option", { name: "Unassigned" }));
     expect(screen.queryByText("footer")).not.toBeInTheDocument();
@@ -1472,7 +1487,7 @@ describe("TaskForm", () => {
     expect(onSuccess).toHaveBeenCalledWith("task-1");
   });
 
-  it("locks non-agent assignee options on queued tasks (SOK-868)", async () => {
+  it("hides humans and locks Unassigned on tasks with a Run at", async () => {
     const user = userEvent.setup();
     render(
       <TaskForm
@@ -1494,6 +1509,7 @@ describe("TaskForm", () => {
           description: "Initial description",
           assigneeId: "coworker-1",
           status: TaskStatus.QUEUED,
+          runAt: RUN_AT_ISO,
         }}
         onSuccess={vi.fn()}
       />,
@@ -1505,15 +1521,67 @@ describe("TaskForm", () => {
       "aria-disabled",
       "true",
     );
-    expect(screen.getByRole("option", { name: "Bob" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    expect(
+      screen.queryByRole("option", { name: "Bob" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Soko" })).not.toHaveAttribute(
       "aria-disabled",
       "true",
     );
   });
+
+  it.each([TaskStatus.DRAFT, TaskStatus.READY])(
+    "sends a cleared Run at when reassigning a queued task to a human as %s",
+    async (desiredStatus) => {
+      const user = userEvent.setup();
+      const updateTaskMock = vi.mocked(updateTask);
+      updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+
+      render(
+        <TaskForm
+          mode="edit"
+          showCancel={false}
+          labels={baseLabels}
+          coworkerOptions={[
+            ...coworkerOptions,
+            mockCoworkerOption({
+              id: "user-1",
+              slug: "bob",
+              name: "Bob",
+              kind: "user",
+            }),
+          ]}
+          taskId="task-1"
+          initialValues={{
+            name: "Task name",
+            description: "Initial description",
+            assigneeId: "coworker-1",
+            status: TaskStatus.QUEUED,
+            selectableStatuses: [TaskStatus.READY],
+            runAt: RUN_AT_ISO,
+          }}
+          onSuccess={vi.fn()}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "Set start time" }));
+      await user.click(screen.getByRole("button", { name: "clear" }));
+      await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+      await user.click(screen.getByRole("option", { name: "Bob" }));
+      if (desiredStatus === TaskStatus.READY) {
+        await selectTaskStatus(user, "Ready");
+      }
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assigneeUserId: "user-1",
+          desiredStatus,
+          runAt: null,
+        }),
+      );
+    },
+  );
 
   it("saves the status selected in the edit dropdown", async () => {
     const user = userEvent.setup();
@@ -1683,6 +1751,39 @@ describe("TaskForm", () => {
 
     expect(updateTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({ desiredStatus: TaskStatus.DRAFT }),
+    );
+    expect(updateTaskMock.mock.calls[0]?.[0]).toHaveProperty("runAt", null);
+  });
+
+  it("leaves a queued Task through the status event when Ready is selected", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          assigneeId: "coworker-1",
+          status: TaskStatus.QUEUED,
+          selectableStatuses: [TaskStatus.READY],
+          runAt: RUN_AT_ISO,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await selectTaskStatus(user, "Ready");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({ desiredStatus: TaskStatus.READY }),
     );
     expect(updateTaskMock.mock.calls[0]?.[0]).not.toHaveProperty("runAt");
   });

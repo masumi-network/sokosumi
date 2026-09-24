@@ -749,9 +749,12 @@ export function TaskForm({
         ...(hasProjectSelection ? { projectId } : {}),
         context,
         desiredStatus: status,
-        // Clearing is never sent: leaving Queued through the status event
-        // clears the Run at on Core.
-        ...(sendsRunAt ? { runAt } : {}),
+        ...(runAt !== initialRunAt &&
+        (runAt !== null ||
+          status === TaskStatus.DRAFT ||
+          !isAgentAssigneeFields(assigneeFields))
+          ? { runAt }
+          : {}),
       });
       if (!result.ok) {
         toast.error(labels.saveError);
@@ -924,9 +927,16 @@ export function TaskForm({
       selectedAssigneeFields.assigneeUserId,
       session?.user.id,
     );
-  // Queued work must stay agent-assigned: Core rejects reassignment away
-  // from an agent while QUEUED, so the edit picker locks non-agent options.
-  const isAssigneeLockedToAgent = originalStatus === TaskStatus.QUEUED;
+  // Core requires an agent while a Task has a Run at. Restore human choices
+  // when the Run at is cleared, including while editing a queued Task.
+  const availableAssigneeOptions = useMemo(
+    () =>
+      runAt === null
+        ? coworkerOptions
+        : coworkerOptions.filter((option) => option.kind !== "user"),
+    [coworkerOptions, runAt],
+  );
+  const isAssigneeLockedToAgent = runAt !== null;
   const showEditAssigneePicker = mode === "edit";
   const showModalCoworkerHeader =
     useComposeLayout && selectedOption !== undefined;
@@ -1008,7 +1018,7 @@ export function TaskForm({
           {useWizard && step === 1 ? (
             <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8 md:py-0">
               <AgentSpotlight
-                options={coworkerOptions}
+                options={availableAssigneeOptions}
                 selectedId={assigneeId}
                 onSelect={handleCoworkerSelect}
                 onPickOffer={(offer) => {
@@ -1061,7 +1071,7 @@ export function TaskForm({
             <div className="px-6 py-4 md:px-8">
               <TaskAssigneePicker
                 value={assigneeId}
-                options={coworkerOptions}
+                options={availableAssigneeOptions}
                 labels={{
                   ariaLabel: labels.coworker,
                   unassigned: labels.unassigned,
@@ -1072,8 +1082,7 @@ export function TaskForm({
                 }}
                 onSelect={handleCoworkerSelect}
                 isOptionDisabled={(option) =>
-                  isAssigneeLockedToAgent &&
-                  (option === "unassigned" || option.kind === "user")
+                  isAssigneeLockedToAgent && option === "unassigned"
                 }
               />
             </div>
