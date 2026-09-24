@@ -100,6 +100,10 @@ export function ProjectSocialAccounts({
       toast.error(nextFeedback.message);
       return;
     }
+    if (nextFeedback.kind === "warning") {
+      toast.warning(nextFeedback.message);
+      return;
+    }
     toast.success(nextFeedback.message);
   }
 

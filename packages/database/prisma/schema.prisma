@@ -577,6 +577,7 @@ model ProjectSocialConnectionIntent {
   socialConnectionId String?                  @db.Uuid
   socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
   authConfigId       String
+  callbackRedeemedAt DateTime?
   expiresAt          DateTime
   createdAt          DateTime @default(now())
 
@@ -591,6 +592,7 @@ model ProjectSocialConnectionAudit {
   actorId                   String
   externalAccountId         String
   externalHandle            String?
+  connectedAccountId        String?
   providerOutcome           String?
   createdAt                 DateTime @default(now())
 
