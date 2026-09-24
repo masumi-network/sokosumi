@@ -196,6 +196,7 @@ describe("EditTaskPage", () => {
       description: "Desc",
       assigneeId: "cow_123",
       assigneeSokoBotId: null,
+      ownerId: "user_owner",
       status: "READY",
       workspace: {
         organizationId: "org-current",
@@ -259,6 +260,7 @@ describe("EditTaskPage", () => {
           assigneeId: "cow_123",
           assigneeSokoBotId: null,
           assigneeUserId: null,
+          ownerId: "user_owner",
           projectId: null,
           status: "READY",
           metadata: undefined,

@@ -192,6 +192,7 @@ export async function TaskDetailView({
               <TaskDescriptionSection
                 task={task}
                 agentsPromise={agentsPromise}
+                mentionableUsersPromise={mentionableUsersPromise}
               />
             </Suspense>
 
@@ -397,23 +398,30 @@ async function TaskVendorGrantApprovalBannerSlot({
 async function TaskDescriptionSection({
   task,
   agentsPromise,
+  mentionableUsersPromise,
 }: {
   task: Task;
   agentsPromise: Promise<AgentsResult>;
+  mentionableUsersPromise: Promise<MentionableUser[]>;
 }) {
-  const [agents, t] = await Promise.all([
+  const [agents, mentionableUsers, t] = await Promise.all([
     agentsPromise,
+    mentionableUsersPromise,
     getTranslations("App.Tasks.Detail"),
   ]);
   const descriptionBody = task.description
     ? removeTaskContextAttachmentLinks(task.description)
     : null;
+  const userNameById = new Map(
+    mentionableUsers.map((user) => [user.id, user.name]),
+  );
 
   return (
     <TaskDescription
       title={t("description")}
       description={descriptionBody}
       agentNameById={buildAgentNameById(agents)}
+      userNameById={userNameById}
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
     />

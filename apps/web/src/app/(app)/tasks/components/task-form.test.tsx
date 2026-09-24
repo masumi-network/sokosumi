@@ -2941,6 +2941,91 @@ describe("TaskForm", () => {
     );
   });
 
+  it("excludes the session user from human mention options in create mode", () => {
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-1",
+            name: "Session User",
+            kind: "user",
+          }),
+          mockCoworkerOption({
+            id: "user-2",
+            name: "Other User",
+            kind: "user",
+          }),
+        ]}
+        agentNameById={new Map([["agent-1", "Writer Agent"]])}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(markdownEditorPropsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mentions: {
+          "agent-1": { value: "Writer Agent" },
+          "user-2": { value: "Other User" },
+        },
+      }),
+    );
+    expect(
+      markdownEditorPropsSpy.mock.calls.at(-1)?.[0].mentions,
+    ).not.toHaveProperty("user-1");
+  });
+
+  it("excludes the task owner from human mention options in edit mode", () => {
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-owner",
+            name: "Task Owner",
+            kind: "user",
+          }),
+          mockCoworkerOption({
+            id: "user-1",
+            name: "Session User",
+            kind: "user",
+          }),
+          mockCoworkerOption({
+            id: "user-collab",
+            name: "Collaborator",
+            kind: "user",
+          }),
+        ]}
+        agentNameById={new Map([["agent-1", "Writer Agent"]])}
+        initialValues={{
+          assigneeId: "coworker-2",
+          ownerId: "user-owner",
+        }}
+        taskId="task-1"
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(markdownEditorPropsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mentions: {
+          "agent-1": { value: "Writer Agent" },
+          "user-collab": { value: "Collaborator" },
+        },
+      }),
+    );
+    const mentions = markdownEditorPropsSpy.mock.calls.at(-1)?.[0].mentions;
+    expect(mentions).not.toHaveProperty("user-owner");
+    expect(mentions).not.toHaveProperty("user-1");
+  });
+
   it("shows a persistent upload toast with progress for a single attachment", async () => {
     const user = userEvent.setup();
     const file = new File(["report"], "report.pdf", {
