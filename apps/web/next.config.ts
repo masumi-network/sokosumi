@@ -123,10 +123,17 @@ export default withSentryConfig(withNextIntl(nextConfig), {
   // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-side errors will fail.
   tunnelRoute: true, // Generates a random route for each build (recommended)
 
-  // Single top-level option in v11 — applies to webpack and Turbopack.
+  // v11 runs both of these as JS loaders inside every Turbopack build:
+  // component annotation over each .tsx/.jsx, build-time instrumentation
+  // over each server .js/.mjs/.cjs. Together they pushed the production
+  // compile past the 8 GB of a standard Vercel build machine (exit 137, or
+  // a build that hangs until it times out). Web makes no server-side calls
+  // into the libraries the instrumentation targets, and v10 never annotated
+  // Turbopack builds, so leaving both off loses nothing we had before.
   reactComponentAnnotation: {
-    enabled: true,
+    enabled: false,
   },
+  buildTimeInstrumentation: false,
 
   webpack: {
     treeshake: {
