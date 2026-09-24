@@ -34095,7 +34095,7 @@ export type GetProjectsByIdSocialPostsData = {
     };
     query?: {
         /**
-         * Cursor for pagination (ID of the last item from previous page)
+         * UUID of the last Social post from the previous page
          */
         cursor?: string;
         /**
