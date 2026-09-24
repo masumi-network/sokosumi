@@ -156,9 +156,6 @@ export async function TaskDetailView({
                       </Link>
                     </p>
                   ) : null}
-                  <Suspense fallback={null}>
-                    <TaskFromSchedule scheduleId={task.scheduleId} />
-                  </Suspense>
                 </>
               }
               actions={
@@ -497,6 +494,13 @@ async function TaskMetadataSection({
         credits: task.credits,
       }}
       project={project ? { id: project.id, name: project.name } : null}
+      schedule={
+        task.scheduleId ? (
+          <Suspense fallback={null}>
+            <TaskFromSchedule scheduleId={task.scheduleId} />
+          </Suspense>
+        ) : null
+      }
       createdAtLabel={formatter.dateTime(task.createdAt, "dateTime")}
       updatedAtLabel={formatter.dateTime(task.updatedAt, "dateTime")}
       creditsDisplay={formatter.number(formatCreditsForDisplay(task.credits))}
@@ -510,6 +514,7 @@ async function TaskMetadataSection({
         organization: t("organization"),
         personalWorkspace: t("personalWorkspace"),
         project: t("project"),
+        schedule: t("schedule"),
         coworker: t("assignee"),
         credits: t("credits"),
         created: t("created"),

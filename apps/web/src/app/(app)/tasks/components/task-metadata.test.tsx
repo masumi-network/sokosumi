@@ -69,6 +69,7 @@ const baseLabels = {
   organization: "Organization",
   personalWorkspace: "Personal",
   project: "Project",
+  schedule: "Schedule",
   coworker: "Coworker",
   credits: "Credits",
   created: "Created",

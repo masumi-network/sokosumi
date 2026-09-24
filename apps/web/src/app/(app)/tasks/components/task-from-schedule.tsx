@@ -1,39 +1,57 @@
 import { CalendarSync } from "lucide-react";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 
-import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
+import {
+  formatTaskScheduleRule,
+  taskSchedulePath,
+} from "@/app/tasks/utils/task-schedule-view";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
+import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 
 /**
- * "From schedule …" on a Task a Run created. A schedule the viewer may not
- * open (private to someone else) is mentioned without a link or a name.
+ * Schedule value in a Task's properties: the schedule it came from, with its
+ * rule and next run (or state) on hover. A schedule the viewer may not open
+ * (private to someone else) is mentioned without a link, name or rule.
  */
-export async function TaskFromSchedule({
-  scheduleId,
-}: {
-  scheduleId: string | null;
-}) {
-  if (!scheduleId) return null;
-
-  const [schedule, t] = await Promise.all([
+export async function TaskFromSchedule({ scheduleId }: { scheduleId: string }) {
+  const [schedule, t, tSchedules, tSchedule, formatter] = await Promise.all([
     taskScheduleService.getSchedule(scheduleId),
     getTranslations("App.Tasks.Detail"),
+    getTranslations("App.Tasks.Schedules"),
+    getTranslations("App.Tasks.Schedule"),
+    getFormatter(),
   ]);
 
+  if (!schedule) {
+    return (
+      <span className="text-right text-sm font-medium">
+        {t("privateSchedule")}
+      </span>
+    );
+  }
+
+  const rule = formatTaskScheduleRule(schedule.rule, formatter, tSchedule);
+  const status =
+    schedule.state === "ACTIVE"
+      ? schedule.nextRunAt
+        ? tSchedules("nextRun", {
+            datetime: formatter.dateTime(schedule.nextRunAt, "dateTimeMedium"),
+          })
+        : tSchedules("noNextRun")
+      : tSchedules(`state.${schedule.state}`);
+
   return (
-    <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-      <CalendarSync className="size-4 shrink-0" aria-hidden />
-      {schedule ? (
-        <Link
-          href={taskSchedulePath(schedule.id)}
-          className="text-primary hover:underline"
-        >
-          {t("fromSchedule", { name: schedule.name })}
-        </Link>
-      ) : (
-        t("fromHiddenSchedule")
-      )}
-    </p>
+    <Link
+      href={taskSchedulePath(schedule.id)}
+      title={`${rule} · ${status}`}
+      className="hover:text-primary flex min-w-0 items-center gap-1.5 text-sm font-medium transition-colors"
+    >
+      <CalendarSync
+        className="text-muted-foreground size-4 shrink-0"
+        aria-hidden
+      />
+      <span className="truncate">{stripInlineMarkdown(schedule.name)}</span>
+    </Link>
   );
 }

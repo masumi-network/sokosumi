@@ -8,8 +8,14 @@ const { getScheduleMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("next-intl/server", () => ({
-  getTranslations: async () => (key: string, values?: { name: string }) =>
-    values ? `${key}: ${values.name}` : key,
+  getTranslations: async () => (key: string, values?: { datetime: string }) =>
+    values ? `${key}: ${values.datetime}` : key,
+  getFormatter: async () => ({ dateTime: () => "Sep 28" }),
+}));
+
+vi.mock("@/app/tasks/utils/task-schedule-view", () => ({
+  taskSchedulePath: (id: string) => `/schedules/${id}`,
+  formatTaskScheduleRule: () => "Weekly (Monday, 10:00)",
 }));
 
 vi.mock("@/lib/services/task-schedule.service", () => ({
@@ -18,26 +24,45 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
 
 const SCHEDULE_ID = "01960001-0001-7001-8001-000000000042";
 
+function schedule(overrides: Record<string, unknown> = {}) {
+  return {
+    id: SCHEDULE_ID,
+    name: "**Task Name:** Weekly",
+    state: "ACTIVE",
+    nextRunAt: new Date("2026-09-28T10:00:00Z"),
+    rule: {},
+    ...overrides,
+  };
+}
+
 describe("TaskFromSchedule", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("links a Task a Run created to its Task Schedule", async () => {
-    getScheduleMock.mockResolvedValue({ id: SCHEDULE_ID, name: "Weekly" });
+  it("links to the Task Schedule by its plain name with rule and next run on hover", async () => {
+    getScheduleMock.mockResolvedValue(schedule());
 
     render(await TaskFromSchedule({ scheduleId: SCHEDULE_ID }));
 
     expect(
-      screen.getByRole("link", { name: "fromSchedule: Weekly" }),
+      screen.getByRole("link", { name: "Task Name: Weekly" }),
     ).toHaveAttribute("href", `/schedules/${SCHEDULE_ID}`);
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "title",
+      "Weekly (Monday, 10:00) · nextRun: Sep 28",
+    );
   });
 
-  it("shows nothing for a Task made by hand", async () => {
-    const { container } = render(await TaskFromSchedule({ scheduleId: null }));
+  it("shows the state instead of a next run for a paused schedule", async () => {
+    getScheduleMock.mockResolvedValue(schedule({ state: "PAUSED" }));
 
-    expect(container).toBeEmptyDOMElement();
-    expect(getScheduleMock).not.toHaveBeenCalled();
+    render(await TaskFromSchedule({ scheduleId: SCHEDULE_ID }));
+
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "title",
+      "Weekly (Monday, 10:00) · state.PAUSED",
+    );
   });
 
   it("names no schedule the viewer may not open", async () => {
@@ -46,6 +71,6 @@ describe("TaskFromSchedule", () => {
     render(await TaskFromSchedule({ scheduleId: SCHEDULE_ID }));
 
     expect(screen.queryByRole("link")).toBeNull();
-    expect(screen.getByText("fromHiddenSchedule")).toBeInTheDocument();
+    expect(screen.getByText("privateSchedule")).toBeInTheDocument();
   });
 });
