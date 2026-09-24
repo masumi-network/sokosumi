@@ -1,7 +1,7 @@
 import CoreAPI
 import Foundation
 
-/// Sidebar sections mirroring web's `partitionRoomsForSidebar`.
+/// Sidebar sections. A pinned room lists under Pinned only.
 public struct PartitionedSidebarRooms: Sendable {
   public var pinned: [Components.Schemas.ChatRoom]
   public var channels: [Components.Schemas.ChatRoom]
@@ -9,14 +9,11 @@ public struct PartitionedSidebarRooms: Sendable {
   public var external: [Components.Schemas.ChatRoom]
 }
 
-/// Attention chrome mirroring web's `resolveRoomAttention`: only muted rooms
-/// suppress it. The resolver does not know which room is open, because
-/// opening a room does not read it — last-read moves when history resolves
-/// on screen (ADR 0026), via `RoomReadAttention` — so the selected row stays
-/// bold, badged and counted until the room is read, marked read or muted.
-/// Bold covers any unread, including leftover thread unread (ADR 0013).
-/// `unreadTextCount` is the reader's opt-in Room unread count: a third field,
-/// because the badge keeps counting mentions only.
+/// Attention chrome: muted rooms suppress it. Opening a room does not read
+/// it — last-read moves when history resolves on screen — so the selected
+/// row stays bold, badged and counted until the room is read, marked read
+/// or muted. `unreadTextCount` is the reader's opt-in Room unread count;
+/// the badge keeps counting mentions only.
 public struct RoomAttention: Equatable, Sendable {
   public var bold: Bool
   public var badgeCount: Int
@@ -237,10 +234,10 @@ public func sidebarRoomKind(_ room: Components.Schemas.ChatRoom) -> SidebarRoomK
   return room.kind == .channel ? .channel : .direct
 }
 
-/// Split the unified room list for the sidebar, mirroring web: a pinned room
-/// of any kind lists under Pinned only, in the reader's own order, and leaves
-/// the section it would otherwise sit in (`sidebarRoomKind`).
-public func partitionRoomsForSidebar(
+/// Split the unified room list for the sidebar: a pinned room of any kind
+/// lists under Pinned only, in the reader's own order, and leaves the
+/// section it would otherwise sit in (`sidebarRoomKind`).
+func partitionRoomsForSidebar(
   _ rooms: [Components.Schemas.ChatRoom]
 ) -> PartitionedSidebarRooms {
   var pinned: [Components.Schemas.ChatRoom] = []

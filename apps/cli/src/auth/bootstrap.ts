@@ -5,10 +5,10 @@ import {
   getAuthManager,
 } from "./auth-manager.js";
 import {
+  assertApiKeyTarget,
   type CliTargetConfig,
   MAINNET_API_URL,
   PREPROD_API_URL,
-  rejectCoworkerApiKey,
   resolveCliConfig,
   resolveTargetScope,
   targetFromUserApiKey,
@@ -74,34 +74,6 @@ export function selectBootRoute({
 }): BootRoute {
   if (!authResolved) return "boot";
   return hasAuth ? "signed-in" : "auth";
-}
-
-function assertApiKeyTarget(
-  apiKey: string,
-  config: CliTargetConfig,
-  targetExplicit: boolean,
-): void {
-  if (/\s/.test(apiKey)) {
-    throw new Error("API key must not contain whitespace");
-  }
-  rejectCoworkerApiKey(apiKey);
-  const detectedTarget = targetFromUserApiKey(apiKey);
-  if (!detectedTarget && !targetExplicit) {
-    throw new Error(
-      "Legacy API keys need an explicit target. Use --preprod or --api-url.",
-    );
-  }
-  if (
-    detectedTarget &&
-    ((config.target === "custom" && targetExplicit) ||
-      (config.target !== "custom" && detectedTarget !== config.target))
-  ) {
-    throw new Error(
-      config.target === "custom" && targetExplicit
-        ? `API key belongs to ${detectedTarget}, but the explicit target is ${config.target}.`
-        : `API key belongs to ${detectedTarget}, but the selected target is ${config.target}`,
-    );
-  }
 }
 
 function applyGlobalEnv(
