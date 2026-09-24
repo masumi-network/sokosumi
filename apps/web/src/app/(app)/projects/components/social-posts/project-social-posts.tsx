@@ -1,0 +1,379 @@
+"use client";
+
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CalendarClock, MoreHorizontal, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useFormatter, useTranslations } from "next-intl";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
+import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
+import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  type ActionError,
+  toActionRejectionError,
+} from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { cancelProjectSocialPost } from "@/lib/actions/project/action";
+import type {
+  ProjectSocialConnection,
+  SocialPost,
+} from "@/lib/clients/generated/core/types.gen";
+import { loadMoreSocialPosts } from "./actions";
+import { SECTION_ORDER, SECTION_STATUSES, type SectionKey } from "./constants";
+
+interface ProjectSocialPostsProps {
+  /** Active connections only; drives the account picker. */
+  connections: ProjectSocialConnection[];
+  posts: SocialPost[];
+  nextCursors?: Partial<Record<SectionKey, string | null>>;
+  projectId: string;
+}
+
+function timeOf(value: Date | null): number {
+  return value ? new Date(value).getTime() : 0;
+}
+
+function sortSection(section: SectionKey, posts: SocialPost[]): SocialPost[] {
+  if (section === "upcoming") {
+    return [...posts].sort(
+      (a, b) => timeOf(a.scheduledAt) - timeOf(b.scheduledAt),
+    );
+  }
+  return [...posts].sort((a, b) => timeOf(b.updatedAt) - timeOf(a.updatedAt));
+}
+
+function formatHandle(handle: string | null): string | null {
+  if (!handle) return null;
+  return handle.startsWith("@") ? handle : `@${handle}`;
+}
+
+function isRevisionConflict(error: ActionError): boolean {
+  return error.kind === CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT;
+}
+
+function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
+  const index = posts.findIndex((post) => post.id === next.id);
+  if (index === -1) return [next, ...posts];
+  return posts.map((post) => (post.id === next.id ? next : post));
+}
+
+export function ProjectSocialPosts({
+  connections,
+  posts: initialPosts,
+  nextCursors,
+  projectId,
+}: ProjectSocialPostsProps) {
+  const router = useRouter();
+  const t = useTranslations("App.Projects.SocialPosts");
+  const formatter = useFormatter();
+  const [syncedPosts, setSyncedPosts] = useState(initialPosts);
+  const [posts, setPosts] = useState(initialPosts);
+  const [cursors, setCursors] = useState(nextCursors ?? {});
+  const [loadingSection, setLoadingSection] = useState<SectionKey | null>(null);
+  const sourceRef = useRef(initialPosts);
+  sourceRef.current = initialPosts;
+  if (syncedPosts !== initialPosts) {
+    setSyncedPosts(initialPosts);
+    setPosts(initialPosts);
+    setCursors(nextCursors ?? {});
+  }
+  const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
+  const [cancelPending, setCancelPending] = useState(false);
+
+  function handleActionError(error: ActionError): void {
+    if (error.code === CommonErrorCode.UNAUTHENTICATED) {
+      toast.error(t("toasts.unauthenticated"), {
+        action: {
+          label: t("toasts.unauthenticatedAction"),
+          onClick: () => router.push("/signin"),
+        },
+      });
+      return;
+    }
+    if (isRevisionConflict(error)) {
+      toast.error(t("toasts.conflict"));
+      setComposer(null);
+      setCancelTarget(null);
+      router.refresh();
+      return;
+    }
+    toast.error(error.message || t("toasts.failed"));
+  }
+
+  async function handleLoadMore(section: SectionKey): Promise<void> {
+    const cursor = cursors[section];
+    if (!cursor || loadingSection) return;
+    const source = initialPosts;
+    setLoadingSection(section);
+    try {
+      const page = await loadMoreSocialPosts({ projectId, section, cursor });
+      if (sourceRef.current !== source) return;
+      setPosts((current) => page.posts.reduce(upsertPost, current));
+      setCursors((current) => ({ ...current, [section]: page.nextCursor }));
+    } catch {
+      toast.error(t("toasts.failed"));
+    } finally {
+      setLoadingSection(null);
+    }
+  }
+
+  function handleSaved(post: SocialPost): void {
+    setPosts((current) => upsertPost(current, post));
+  }
+
+  async function handleConfirmCancel(): Promise<void> {
+    const target = cancelTarget;
+    if (!target || cancelPending) return;
+    setCancelPending(true);
+    try {
+      const result = await cancelProjectSocialPost({
+        projectId,
+        postId: target.id,
+        revision: target.revision,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      toast.success(t("toasts.canceled"));
+      handleSaved(result.value);
+    } catch (error) {
+      handleActionError(toActionRejectionError(error));
+    } finally {
+      setCancelPending(false);
+      setCancelTarget(null);
+    }
+  }
+
+  return (
+    <section className="space-y-6" data-testid="project-social-posts">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold">{t("title")}</h2>
+          <p className="text-muted-foreground text-sm">{t("description")}</p>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => setComposer({ kind: "create" })}
+        >
+          <Plus className="size-4" aria-hidden />
+          {t("newPost")}
+        </Button>
+      </div>
+
+      {SECTION_ORDER.map((section) => {
+        const sectionPosts = sortSection(
+          section,
+          posts.filter((post) =>
+            SECTION_STATUSES[section].includes(post.status),
+          ),
+        );
+        const headingId = `social-posts-${section}-heading`;
+
+        return (
+          <section
+            key={section}
+            aria-labelledby={headingId}
+            className="space-y-2"
+            data-testid={`social-posts-section-${section}`}
+          >
+            <h3
+              id={headingId}
+              className="text-muted-foreground text-xs font-medium"
+            >
+              {t(`sections.${section}`)}
+            </h3>
+            {sectionPosts.length === 0 ? (
+              <p className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
+                {t(`empty.${section}`)}
+              </p>
+            ) : (
+              <ul className="divide-y rounded-lg border">
+                {sectionPosts.map((post) => {
+                  const handle = formatHandle(
+                    post.socialConnection?.externalHandle ?? null,
+                  );
+                  const hasActions =
+                    post.canEdit || post.canSchedule || post.canCancel;
+                  const creatorLabel = post.creator.name
+                    ? `${t(`creator.${post.creator.kind}`)} · ${post.creator.name}`
+                    : t(`creator.${post.creator.kind}`);
+
+                  return (
+                    <li
+                      key={post.id}
+                      className="flex flex-col gap-3 p-3 sm:flex-row sm:items-start"
+                      data-testid={`social-post-${post.id}`}
+                    >
+                      <span
+                        aria-hidden
+                        className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border text-sm font-semibold"
+                      >
+                        X
+                      </span>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="text-sm whitespace-pre-wrap break-words">
+                          {post.text}
+                        </p>
+                        <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                          <span>{handle ?? t("noAccount")}</span>
+                          {post.scheduledAt ? (
+                            <span className="inline-flex items-center gap-1">
+                              <CalendarClock className="size-3" aria-hidden />
+                              <time dateTime={post.scheduledAt.toISOString()}>
+                                {formatter.dateTime(
+                                  post.scheduledAt,
+                                  "dateTime",
+                                )}
+                              </time>
+                            </span>
+                          ) : null}
+                          <span>{creatorLabel}</span>
+                        </div>
+                        {post.status === "FAILED" && post.lastError ? (
+                          <p className="text-destructive text-xs">
+                            {post.lastError}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-2 sm:justify-end">
+                        <SocialPostStatusBadge
+                          label={t(`status.${post.status}`)}
+                          status={post.status}
+                        />
+                        {hasActions ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={t("moreActions")}
+                              >
+                                <MoreHorizontal
+                                  className="size-4"
+                                  aria-hidden
+                                />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {post.canEdit ? (
+                                <DropdownMenuItem
+                                  onSelect={() =>
+                                    setComposer({ kind: "edit", post })
+                                  }
+                                >
+                                  {t("composer.edit")}
+                                </DropdownMenuItem>
+                              ) : null}
+                              {post.canSchedule ? (
+                                <DropdownMenuItem
+                                  onSelect={() =>
+                                    setComposer({ kind: "schedule", post })
+                                  }
+                                >
+                                  {post.status === "SCHEDULED"
+                                    ? t("composer.reschedule")
+                                    : t("composer.schedule")}
+                                </DropdownMenuItem>
+                              ) : null}
+                              {post.canCancel ? (
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onSelect={() => setCancelTarget(post)}
+                                >
+                                  {t("composer.cancel")}
+                                </DropdownMenuItem>
+                              ) : null}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {cursors[section] ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loadingSection !== null}
+                onClick={() => {
+                  void handleLoadMore(section);
+                }}
+              >
+                {loadingSection === section ? t("loading") : t("loadMore")}
+              </Button>
+            ) : null}
+          </section>
+        );
+      })}
+
+      {composer ? (
+        <SocialPostComposerDialog
+          connections={connections}
+          mode={composer}
+          onError={handleActionError}
+          onOpenChange={(open) => {
+            if (!open) setComposer(null);
+          }}
+          onSaved={handleSaved}
+          open
+          projectId={projectId}
+        />
+      ) : null}
+
+      <AlertDialog
+        open={cancelTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !cancelPending) setCancelTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("cancelDialog.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("cancelDialog.description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelPending}>
+              {t("composer.close")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cancelPending}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmCancel();
+              }}
+            >
+              {t("cancelDialog.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
+  );
+}
