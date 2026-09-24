@@ -11,6 +11,7 @@ import {
   Pin,
   PinOff,
 } from "lucide-react";
+import { type MotionProps, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -30,6 +31,7 @@ import {
   chatRoomHref,
   pathWithSearch,
 } from "@/app/chat/utils/chat-route-base";
+import { getActiveRoomIdFromSelection } from "@/components/chat/active-room-id";
 import { ChatRoomThreadRows } from "@/components/chat/chat-room-thread-rows";
 import { RowCountMark } from "@/components/chat/mention-count-pill";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
@@ -117,6 +119,8 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
 
+const MotionSidebarMenuItem = motion.create(SidebarMenuItem);
+
 export interface ChatRoomSidebarRowProps {
   room: ChatRoom;
   href: string;
@@ -128,8 +132,20 @@ export interface ChatRoomSidebarRowProps {
   onRoomUpdated: (room: ChatRoom) => void;
   /** When false, render plain Link (page-mounted list outside Sheet). */
   dismissSheetOnNavigate?: boolean;
-  /** Pinned section only: the row's `<li>` is a drop slot and moves in a drag. */
-  itemProps?: ComponentProps<"li">;
+  /**
+   * Props for the row's `<li>`: a drop slot that moves in a drag in Pinned,
+   * a dimmed read room in the All unreads filter. Without the handlers motion
+   * owns, so the same props fit the animated `<li>` of `itemMotion`.
+   */
+  itemProps?: Omit<
+    ComponentProps<"li">,
+    "onAnimationStart" | "onDrag" | "onDragStart" | "onDragEnd"
+  >;
+  /**
+   * Presence animation for the `<li>`, for a row inside `AnimatePresence`:
+   * one arriving in or leaving the All unreads filter.
+   */
+  itemMotion?: MotionProps;
   /**
    * Pinned section in its reorder mode: stands where the room menu does, and
    * the row stops being a link, so a press moves the room instead of opening it.
@@ -302,11 +318,12 @@ export function ChatRoomSidebarRow({
   onRoomUpdated,
   dismissSheetOnNavigate = true,
   itemProps,
+  itemMotion,
   reorderHandle,
 }: ChatRoomSidebarRowProps) {
   const selectedPath = useRoomSelection();
   const isActive = selectedPath
-    ? selectedPath.split("?")[0] === `/chat/rooms/${room.id}`
+    ? getActiveRoomIdFromSelection(selectedPath) === room.id
     : routeIsActive;
 
   const tActions = useTranslations("App.Channels.Actions");
@@ -412,8 +429,10 @@ export function ChatRoomSidebarRow({
   }
 
   // The dialog needs the org roster and the reader's role, which this row does
-  // not have and the room already loads. So the row asks the room to open it.
-  const editChannelItem = (
+  // not have and the room already loads. So the row asks the room to open it:
+  // a Channel's settings, or a group Direct's name, which is all it has.
+  const canEditRoom = isChannel || room.isGroupDirect;
+  const editRoomItem = (
     <DropdownMenuItem
       disabled={isPending}
       onSelect={() => {
@@ -441,7 +460,7 @@ export function ChatRoomSidebarRow({
       }}
     >
       <Pencil className="size-4" aria-hidden />
-      {tChannels("editChannel")}
+      {isChannel ? tChannels("editChannel") : tChannels("GroupName.rename")}
     </DropdownMenuItem>
   );
 
@@ -589,11 +608,9 @@ export function ChatRoomSidebarRow({
     </SidebarMenuButton>
   );
 
-  return (
-    <SidebarMenuItem
-      {...itemProps}
-      className={cn("relative", itemProps?.className)}
-    >
+  const itemClassName = cn("relative", itemProps?.className);
+  const content = (
+    <>
       {/* The row proper. Its marks and trailing cluster are centred on this
           box, and its hover reveals its own menu, so neither can drift onto
           the inset thread rows that follow it inside the same item. */}
@@ -723,13 +740,13 @@ export function ChatRoomSidebarRow({
                     )}
                     {isMuted ? tActions("unmute") : tActions("mute")}
                   </DropdownMenuItem>
-                  {isChannel ? (
+                  {canEditRoom ? (
                     <>
                       <DropdownMenuSeparator />
                       {dismissSheetOnNavigate ? (
-                        <SheetClose asChild>{editChannelItem}</SheetClose>
+                        <SheetClose asChild>{editRoomItem}</SheetClose>
                       ) : (
-                        editChannelItem
+                        editRoomItem
                       )}
                     </>
                   ) : null}
@@ -801,6 +818,20 @@ export function ChatRoomSidebarRow({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  );
+
+  return itemMotion ? (
+    <MotionSidebarMenuItem
+      {...itemProps}
+      {...itemMotion}
+      className={itemClassName}
+    >
+      {content}
+    </MotionSidebarMenuItem>
+  ) : (
+    <SidebarMenuItem {...itemProps} className={itemClassName}>
+      {content}
     </SidebarMenuItem>
   );
 }

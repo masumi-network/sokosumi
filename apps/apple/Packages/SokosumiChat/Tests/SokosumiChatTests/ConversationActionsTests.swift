@@ -16,7 +16,7 @@ private func actionRoomJSON(
   let pin = pinned ? "\"\(testTimestamp)\"" : "null"
   let mute = muted ? "\"\(testTimestamp)\"" : "null"
   return """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":4,"unreadMentionCount":1,"starredAt":\(pin),"pinnedMessageCount":0,"mutedAt":\(mute),"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":4,"unreadMentionCount":1,"starredAt":\(pin),"pinnedMessageCount":0,"mutedAt":\(mute),"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
 }
 
@@ -104,27 +104,29 @@ struct ConversationActionsTests {
   }
 
   /// Web's open room: selecting it is not a read (ADR 0026), so the row resolves to the same
-  /// bold, badge and opt-in count as before the selection — also with only residual thread
-  /// unread left, which Core folds into `unreadCount` (ADR 0013) — and Mark unread stays off.
+  /// bold, badge and count as before the selection, and Mark unread stays off. Row 24g1 corrects
+  /// row 05a: leftover Thread unread no longer keeps the open row bold (ADR 0037).
   @Test func openRoomKeepsItsAttention() async throws {
     let state = try await sidebar()
     func attention(showUnreadCount: Bool = true) -> RoomAttention {
-      let room = state.rooms[0]
-      return resolveRoomAttention(
-        unreadCount: room.unreadCount, unreadMentionCount: room.unreadMentionCount, markedUnread: room.markedUnread,
-        isMuted: room.mutedAt != nil, showUnreadCount: showUnreadCount
-      )
+      resolveRoomAttention(state.rooms[0], showUnreadCount: showUnreadCount)
     }
+    // One number per row (SOK-1147): the badge stands alone.
     let closed = attention()
-    #expect(closed == .init(bold: true, badgeCount: 1, unreadTextCount: 4))
+    #expect(closed == .init(bold: true, badgeCount: 1))
     state.selectedRoomId = testRoomId
     #expect(attention() == closed)
-    #expect(attention(showUnreadCount: false) == .init(bold: true, badgeCount: 1))
+    #expect(attention(showUnreadCount: false) == closed)
     #expect(!state.canPerform(.markUnread, roomId: testRoomId))
-    // A read that leaves one Participant thread reply behind: bold and "· 1", no badge.
-    state.rooms[0].unreadCount = 1
+    // Four new messages and nothing addressed to the reader: bold and the count.
     state.rooms[0].unreadMentionCount = 0
-    #expect(attention() == .init(bold: true, badgeCount: 0, unreadTextCount: 1))
+    #expect(attention() == .init(bold: true, badgeCount: 0, unreadTextCount: 4))
+    // Was "bold and · 1" on one leftover Participant thread reply (ADR 0013). A read that leaves one
+    // behind now leaves the row quiet: the reply is Thread unread, which the Thread shows.
+    state.rooms[0] = roomAttentionAfterRead(state.rooms[0])
+    state.rooms[0].unreadCount = 1
+    state.rooms[0].threadUnreadCount = 1
+    #expect(attention() == .init(bold: false, badgeCount: 0))
     // Genuinely read, then marked unread elsewhere: quiet, then bold without a number.
     state.rooms[0].unreadCount = 0
     #expect(attention() == .init(bold: false, badgeCount: 0))

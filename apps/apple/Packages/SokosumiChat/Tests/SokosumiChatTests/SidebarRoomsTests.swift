@@ -1,6 +1,6 @@
 import CoreAPI
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 private let baseDate = Date(timeIntervalSince1970: 1_700_000_000)
@@ -40,6 +40,9 @@ private func makeRoom(
   id: String,
   name: String,
   kind: Components.Schemas.ChatRoom.KindPayload = .channel,
+  isSelfDirect: Bool = false,
+  isGroupDirect: Bool = false,
+  groupName: String? = nil,
   discoverability: Components.Schemas.ChatRoom.DiscoverabilityPayload? = ._public,
   myAccess: Components.Schemas.ChatRoomAccess = .member,
   unreadCount: Int = 0,
@@ -55,7 +58,7 @@ private func makeRoom(
   .init(
     id: id,
     name: name,
-    kind: kind, isSelfDirect: false,
+    kind: kind, isSelfDirect: isSelfDirect, isGroupDirect: isGroupDirect, groupName: groupName,
     discoverability: kind == .channel ? discoverability : nil,
     createdByUserId: "user_1",
     createdAt: baseDate,
@@ -214,6 +217,21 @@ struct SidebarRoomsTests {
     #expect(roomDisplayName(room, currentUserId: "me") == "Ann, Bob, Cat and 1 more")
   }
 
+  @Test func namedGroupDirectShowsItsGroupName() {
+    let members = [makePeer(id: "me", name: "Me"), makePeer(id: "a", name: "Ann"), makePeer(id: "b", name: "Bob")]
+    let named = makeRoom(id: "d1", name: "Ann, Bob", kind: .direct, isGroupDirect: true, groupName: "Launch crew", peers: members)
+    #expect(roomDisplayName(named, currentUserId: "me") == "Launch crew")
+    let unnamed = makeRoom(id: "d2", name: "Ann, Bob", kind: .direct, isGroupDirect: true, peers: members)
+    #expect(roomDisplayName(unnamed, currentUserId: "me") == "Ann, Bob")
+  }
+
+  @Test func oneToOneAndSelfDirectsKeepTheirNames() {
+    let oneToOne = makeRoom(id: "d1", name: "Ann", kind: .direct, peers: [makePeer(id: "me", name: "Me"), makePeer(id: "a", name: "Ann")])
+    #expect(roomDisplayName(oneToOne, currentUserId: "me") == "Ann")
+    let selfDirect = makeRoom(id: "d2", name: "Me", kind: .direct, isSelfDirect: true, peers: [makePeer(id: "me", name: "Me")])
+    #expect(roomDisplayName(selfDirect, currentUserId: "me") == "Me")
+  }
+
   @Test func oneToOneDirectAvatarExcludesSelfAndKeepsPeerImage() {
     let room = makeRoom(
       id: "d1", name: "Ada", kind: .direct,
@@ -304,9 +322,11 @@ struct SidebarRoomsTests {
 
   /// Was `…ObeysMuteAndTheOpenRoom`: its last line asserted a count of zero for `isActive`.
   /// Web's resolver has no such input, so the argument is gone and only mute silences the count.
+  /// Its second line drew the count beside the badge; since SOK-1147 a row draws one number (row 24g1).
   @Test func unreadTextCountIsOptInAndObeysMute() {
-    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1).unreadTextCount == 0)
-    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, showUnreadCount: true) == .init(bold: true, badgeCount: 1, unreadTextCount: 3))
+    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 0).unreadTextCount == 0)
+    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 0, showUnreadCount: true) == .init(bold: true, badgeCount: 0, unreadTextCount: 3))
+    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, showUnreadCount: true) == .init(bold: true, badgeCount: 1))
     // Forced unread without messages stays bold with no number.
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true, showUnreadCount: true) == .init(bold: true, badgeCount: 0))
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, isMuted: true, showUnreadCount: true).unreadTextCount == 0)

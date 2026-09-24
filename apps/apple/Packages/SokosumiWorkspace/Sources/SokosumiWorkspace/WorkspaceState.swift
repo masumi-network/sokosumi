@@ -25,9 +25,18 @@ public final class WorkspaceState: ObservableObject {
   }
 
   @Published public internal(set) var messageJump: MessageJump?
+  /// The sidebar's "N more unread threads" row asks for the room's thread overview (row 24g2, web's
+  /// `?threads=1`); the room's tools open it once that room is on screen.
+  public struct ThreadOverviewRequest: Equatable, Sendable {
+    public let roomId: String
+    public let requestId = UUID()
+  }
+
+  @Published public internal(set) var threadOverviewRequest: ThreadOverviewRequest?
   var messageNavigationRequest = UUID()
   public let thread = ThreadSession()
   public let threadOverview = RoomThreadOverview()
+  public let crossRoomThreads = CrossRoomThreads()
   @Published public internal(set) var threadAttentionRevision = 0
   public let messageEditing = MessageEditing()
   public let directStream = DirectStreamSession()
@@ -36,15 +45,15 @@ public final class WorkspaceState: ObservableObject {
   @Published public private(set) var openingDirect: DirectRecipient?
   @Published public private(set) var creatingChannel = false
   @Published public private(set) var joiningChannel = false
-  @Published public internal(set) var updatingChannel = false
+  @Published public internal(set) var updatingRoom = false
   @Published public private(set) var channelLifecycle: ChannelLifecycleRequest?
   @Published public internal(set) var invitationResponse: InvitationResponse?
   public let archivedChannels = ArchivedChannels()
   public let pendingInvitations = PendingInvitations()
   @Published public private(set) var compositionContext = UUID()
   /// Channel/Direct mutations are single-flight across the workspace, matching web's one open dialog at a time.
-  public var channelMutationInFlight: Bool {
-    creatingChannel || joiningChannel || updatingChannel || openingDirect != nil || channelLifecycle != nil || invitationResponse != nil
+  public var roomMutationInFlight: Bool {
+    creatingChannel || joiningChannel || updatingRoom || openingDirect != nil || channelLifecycle != nil || invitationResponse != nil
   }
 
   public var phase: Phase {
@@ -291,7 +300,7 @@ public final class WorkspaceState: ObservableObject {
     openingDirect = nil
     creatingChannel = false
     joiningChannel = false
-    updatingChannel = false
+    updatingRoom = false
     channelLifecycle = nil
     invitationResponse = nil
     pendingReactions = PendingReactions()
@@ -310,6 +319,8 @@ public final class WorkspaceState: ObservableObject {
     selectedRoomId = nil
     stopRealtime()
     clearTranscript()
+    // Parent text from the signed-in reader. The next account must not see it.
+    crossRoomThreads.reset()
   }
 
   /// User picked a room in the sidebar: persist it and open its transcript.
@@ -364,16 +375,35 @@ public final class WorkspaceState: ObservableObject {
   /// Editing reconciles the room in place and never navigates: the sidebar row and any open transcript keep their identity.
   public func updateChannel(_ draft: ChannelEditDraft, roomId: String, permissions: ChannelEditPermissions, context: UUID, auth: AuthState) async throws -> Bool {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, permissions.canEditMembers, draft.isValid,
-          !channelMutationInFlight else { return false }
-    updatingChannel = true
+          !roomMutationInFlight else { return false }
+    updatingRoom = true
     defer {
       if context == compositionContext {
-        updatingChannel = false
+        updatingRoom = false
       }
     }
     let request = draft.updateRequest(permissions: permissions, currentUserId: currentUserId)
     let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
-      try await ChatService().updateChannel(client: client, roomId: roomId, request: request, organizationSlug: slug)
+      try await ChatService().updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
+    }
+    if let index = rooms.firstIndex(where: { $0.id == room.id }) {
+      rooms[index] = room
+    }
+    return true
+  }
+
+  /// Names or clears a group Direct's Group name (ADR-0040) in any workspace, then takes Core's room in place like `updateChannel`.
+  public func nameGroup(_ draft: GroupNameDraft, roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    guard canStartMutation(context: context) else { return false }
+    updatingRoom = true
+    defer {
+      if context == compositionContext {
+        updatingRoom = false
+      }
+    }
+    let slug = selection?.workspace.organizationSlug
+    let room = try await workspaceOperation(context: context, auth: auth) { client in
+      try await ChatService().updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
     }
     if let index = rooms.firstIndex(where: { $0.id == room.id }) {
       rooms[index] = room
@@ -389,7 +419,7 @@ public final class WorkspaceState: ObservableObject {
 
   public func joinChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching,
-          !channelMutationInFlight else { return false }
+          !roomMutationInFlight else { return false }
     let sourceRoom = transcriptRoomId
     joiningChannel = true
     defer {
@@ -413,7 +443,7 @@ public final class WorkspaceState: ObservableObject {
 
   /// Channel, Direct and invitation mutations start only for the live composition context, outside a switch, one at a time.
   func canStartMutation(context: UUID) -> Bool {
-    context == compositionContext && phase == .ready && !workspaceSession.isSwitching && !channelMutationInFlight
+    context == compositionContext && phase == .ready && !workspaceSession.isSwitching && !roomMutationInFlight
   }
 
   /// Runs an authenticated request for the current composition context; a workspace change or reset turns its result into cancellation.
@@ -580,6 +610,7 @@ public final class WorkspaceState: ObservableObject {
   func clearTranscript() {
     messageNavigationRequest = UUID()
     messageJump = nil
+    threadOverviewRequest = nil
     messageEditing.reset()
     directStream.reset()
     thread.close()
@@ -606,6 +637,10 @@ public final class WorkspaceState: ObservableObject {
   public func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
     messageNavigationRequest = UUID()
     messageJump = nil
+    // Only the room it names takes an overview request; any other room drops it.
+    if threadOverviewRequest?.roomId != room.id {
+      threadOverviewRequest = nil
+    }
     messageEditing.reset()
     directStream.reset(room: room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     thread.close()
@@ -869,6 +904,11 @@ public final class WorkspaceState: ObservableObject {
     if eventType == .create, roomId != transcriptRoomId {
       sidebarRecovery.requestRefresh()
     }
+    // Another member's rename retitles the open room now; other rows follow the sidebar refresh.
+    if eventType == .create, roomId == transcriptRoomId, let index = rooms.firstIndex(where: { $0.id == roomId }),
+       let renamed = rooms[index].applyingGroupNameChange(message) {
+      rooms[index] = renamed
+    }
     guard roomId == transcriptRoomId, message.roomId == transcriptRoomId, !directStream.isBusy || eventType == .delete else { return }
     let result = applyRealtimeFullEvent(
       messages: transcriptMessages,
@@ -1072,7 +1112,9 @@ public final class WorkspaceState: ObservableObject {
   }
 
   public func syncReadAttention(auth: AuthState) async {
-    guard let room = rooms.first(where: { $0.id == transcriptRoomId }), let client = resolveClient(auth: auth) else { return }
+    // Behind the Threads view the room is off screen (row 24f1).
+    guard !sidebar.showsThreadsView,
+          let room = rooms.first(where: { $0.id == transcriptRoomId }), let client = resolveClient(auth: auth) else { return }
     do {
       try await readAttention.readIfNeeded(
         room: room,
@@ -1195,7 +1237,7 @@ public final class WorkspaceState: ObservableObject {
     openingDirect = nil
     creatingChannel = false
     joiningChannel = false
-    updatingChannel = false
+    updatingRoom = false
     channelLifecycle = nil
     invitationResponse = nil
     archivedChannels.reset()
@@ -1206,6 +1248,7 @@ public final class WorkspaceState: ObservableObject {
     selectedRoomId = nil
     stopRealtime()
     clearTranscript()
+    crossRoomThreads.reset()
     guard let client = resolveClient(auth: auth) else { return }
     do {
       guard let loaded = try await workspaceSession.load(client: client), generation == workspaceGeneration else { return }
@@ -1224,7 +1267,7 @@ public final class WorkspaceState: ObservableObject {
     openingDirect = nil
     creatingChannel = false
     joiningChannel = false
-    updatingChannel = false
+    updatingRoom = false
     channelLifecycle = nil
     invitationResponse = nil
     roomsRefreshTask?.cancel()
@@ -1246,6 +1289,7 @@ public final class WorkspaceState: ObservableObject {
       pendingInvitations.reset()
       readAttention.reset()
       clearTranscript()
+      crossRoomThreads.reset()
       selectedRoomId = nil
       rooms = loaded
       switchError = nil

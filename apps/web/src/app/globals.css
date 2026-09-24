@@ -4,6 +4,9 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+/* Set before paint while a returning reader's Unreads filter is not yet
+   rendered; see `CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE`. */
+@custom-variant chat-unreads-boot (html[data-chat-unreads-boot] &);
 
 @theme inline {
   /* Tailwind's own default is 150ms. The hover steps in this stack travel a

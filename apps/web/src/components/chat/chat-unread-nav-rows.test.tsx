@@ -206,7 +206,7 @@ describe("ChatUnreadNavRows", () => {
     const onUnreadOnlyChange = vi.fn();
     renderRows([], { onUnreadOnlyChange });
 
-    const toggle = screen.getByRole("button", { name: "All unreads" });
+    const toggle = screen.getByRole("button", { name: "Unreads" });
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     await userEvent.click(toggle);
 
@@ -233,7 +233,7 @@ describe("ChatUnreadNavRows", () => {
     unmount();
 
     renderRows(rooms, { unreadOnly: true });
-    const toggle = screen.getByRole("button", { name: /^All unreads/ });
+    const toggle = screen.getByRole("button", { name: /^Unreads/ });
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     // A mode, not the page the reader is on: tinted, never the grey fill.
     expect(toggle).toHaveAttribute("data-filter-on", "true");

@@ -28,6 +28,7 @@ const {
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishNotificationEvent: publishNotificationEventMock,
 }));
 

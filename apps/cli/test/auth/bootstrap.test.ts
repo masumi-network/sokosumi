@@ -98,7 +98,7 @@ test("rejects a target-coded key for the wrong target", async () => {
   );
 });
 
-test("TestV51 rejects a hosted API key for an explicit custom target", async () => {
+test("rejects a hosted API key for an explicit custom target", async () => {
   await assert.rejects(
     resolveInitialAuth({
       authManager: {
@@ -121,7 +121,7 @@ test("TestV51 rejects a hosted API key for an explicit custom target", async () 
   );
 });
 
-test("TestV58 rejects coworker API keys before the auth manager calls Core", async () => {
+test("rejects coworker API keys before the auth manager calls Core", async () => {
   let authTokenCalls = 0;
   await assert.rejects(
     resolveInitialAuth({
@@ -149,7 +149,7 @@ test("TestV58 rejects coworker API keys before the auth manager calls Core", asy
   assert.equal(authTokenCalls, 0);
 });
 
-test("TestV44 rejects an untagged environment API key without an explicit target", async () => {
+test("rejects an untagged environment API key without an explicit target", async () => {
   await assert.rejects(
     resolveInitialAuth({
       authManager: {
@@ -171,7 +171,7 @@ test("TestV44 rejects an untagged environment API key without an explicit target
   );
 });
 
-test("TestV44 rejects an untagged stored API key without an explicit target", async () => {
+test("rejects an untagged stored API key without an explicit target", async () => {
   await assert.rejects(
     resolveInitialAuth({
       authManager: {
@@ -193,7 +193,7 @@ test("TestV44 rejects an untagged stored API key without an explicit target", as
   );
 });
 
-test("TestV44 accepts an untagged environment API key with an explicit target", async () => {
+test("accepts an untagged environment API key with an explicit target", async () => {
   const result = await resolveInitialAuth({
     authManager: {
       getApiKeyCredentials: () => null,

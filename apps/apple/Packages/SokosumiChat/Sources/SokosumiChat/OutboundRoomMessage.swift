@@ -51,7 +51,7 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
   }
 }
 
-public func outboundLocalMessageId(_ clientTurnId: String) -> String {
+func outboundLocalMessageId(_ clientTurnId: String) -> String {
   outboundLocalIdPrefix + clientTurnId
 }
 
@@ -67,15 +67,14 @@ public func liveThreadReplyCount(_ messages: [Components.Schemas.ChatRoomMessage
   })
 }
 
-/// Web's `shouldKeepPersistedMessage` (merge-room-messages.ts): a persisted row
-/// stays in a transcript only with a visible body, a quote, a membership
-/// status, or as a coworker mention shell. Core blanks all of these on delete,
+/// A persisted row stays in a transcript only with a visible body, a quote, as a
+/// room status row, or as a coworker mention shell. Core blanks all of these on delete,
 /// so a deleted message leaves the room transcript and thread replies, and so
 /// does a bodiless Soko Bot shell. State keeps the row; only display drops it,
 /// so realtime patches and reply counts keep addressing it. A thread root is
 /// not filtered and keeps its "This message was deleted" tombstone.
 public func shouldKeepPersistedMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-  message.membership != nil
+  isRoomStatusMessage(message)
     || !message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     || message.quote != nil
     || CoworkerMentionShell(message: message) != nil

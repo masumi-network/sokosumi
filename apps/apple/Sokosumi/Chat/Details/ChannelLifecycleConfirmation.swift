@@ -76,7 +76,7 @@ struct ChannelLifecycleConfirmation: ViewModifier {
       } catch is CancellationError {
         // The workspace changed underneath the request; nothing to report.
       } catch {
-        failure = .init(title: Self.failureTitle(request.action), message: channelErrorMessage(error))
+        failure = .init(title: Self.failureTitle(request.action), message: chatErrorMessage(error))
       }
     }
   }

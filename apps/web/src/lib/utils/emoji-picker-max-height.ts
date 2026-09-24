@@ -48,15 +48,6 @@ export function estimateEmojiPickerMinGridPx(
   return remToPx(EMOJI_PICKER_MIN_GRID_HEIGHT_REM, rootFontSizePx);
 }
 
-export function estimateEmojiPickerMinTotalPx(
-  rootFontSizePx: number = DYNAMIC_TYPE_DEFAULT_ROOT_PX,
-): number {
-  return (
-    estimateEmojiPickerChromePx(rootFontSizePx) +
-    estimateEmojiPickerMinGridPx(rootFontSizePx)
-  );
-}
-
 /**
  * Keyboard-aware max height for the emoji picker popover.
  * Prefers fitting the visual viewport, but never goes below chrome+minGrid

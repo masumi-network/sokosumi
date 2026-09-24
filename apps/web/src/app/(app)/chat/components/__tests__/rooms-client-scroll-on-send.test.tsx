@@ -1,12 +1,9 @@
+import "./rooms-client-harness";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
-import type {
-  ChatRoom,
-  ChatRoomMessage,
-  Organization,
-} from "@/lib/clients/generated/core";
+import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import type { RoomComposerHandle } from "../room-composer";
 import type {
@@ -14,28 +11,14 @@ import type {
   RoomSessionSendResult,
 } from "../room-session-composer";
 import { RoomsClient } from "../rooms-client";
+import {
+  organization,
+  sendRoomMessageAction,
+  sendStreamMessage,
+} from "./rooms-client-harness";
 import { transcriptViewportSpies } from "./transcript-viewport-stub";
 
-const { sendStreamMessage, sendRoomMessageAction } = vi.hoisted(() => ({
-  sendStreamMessage: vi.fn((): boolean => true),
-  sendRoomMessageAction: vi.fn(),
-}));
 const { pinToBottomAfterOwnSend } = transcriptViewportSpies;
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
-    refresh: vi.fn(),
-  }),
-  usePathname: () => "/chat/rooms/room-1",
-  useSearchParams: () => new URLSearchParams(),
-}));
-
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => "en",
-}));
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
   RoomSearchPanel: () => null,
@@ -43,93 +26,6 @@ vi.mock("@/app/chat/components/room-search-panel", () => ({
 
 vi.mock("@/app/chat/components/unread-threads-panel", () => ({
   UnreadThreadsPanel: () => null,
-}));
-
-vi.mock("@/app/chat/components/day-separator", () => ({
-  default: () => null,
-}));
-
-vi.mock("@/hooks/use-is-apple-platform", () => ({
-  default: () => false,
-}));
-
-vi.mock("@/hooks/use-mobile", () => ({
-  useIsMobileMedia: () => false,
-}));
-
-vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
-  useHeaderRoomSlotHost: () => null,
-}));
-
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  useRegisterBreadcrumbOverride: () => undefined,
-}));
-
-vi.mock("@/contexts/lazy-ably-provider", () => ({
-  default: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
-  useChatRoomRealtime: () => undefined,
-}));
-
-vi.mock("@/lib/ably/use-room-typing", () => ({
-  useRoomTyping: () => ({
-    typistIds: [],
-    handleComposerChange: () => {},
-    handleStopTyping: () => {},
-  }),
-}));
-
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
-  useSelectedRoomChannelHealth: () => undefined,
-}));
-
-vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
-  useClientLocalCalendarReady: () => true,
-}));
-
-vi.mock(
-  "@/app/chat/components/transcript-viewport",
-  () => import("./transcript-viewport-stub"),
-);
-
-vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
-  readStoredStreamParentMessageId: () => null,
-  useCoworkerDirectRoomStream: () => ({
-    streamOverlayMessages: [],
-    isStreaming: false,
-    activeStreamParentMessageId: null,
-    sendStreamMessage,
-    consumePendingStreamMessage: vi.fn(),
-  }),
-}));
-
-vi.mock("@/app/chat/actions", () => ({
-  countUnreadThreadsAction: vi.fn(async () => ({
-    ok: true as const,
-    value: 0,
-  })),
-  deleteRoomMessageAction: vi.fn(),
-  editRoomMessageAction: vi.fn(),
-  listRoomMessagesAction: vi.fn(),
-  listThreadMessagesAction: vi.fn(),
-  markThreadReadAction: vi.fn(),
-  retryRoomMentionAction: vi.fn(),
-  sendRoomMessageAction,
-  setMessageReactionAction: vi.fn(),
-}));
-
-vi.mock("@/components/chat/organization-chat-list.actions", () => ({
-  markOrganizationChatRoomReadAction: vi.fn(async (roomId: string) => ({
-    ok: true as const,
-    value: {
-      id: roomId,
-      unreadCount: 0,
-      unreadMentionCount: 0,
-      markedUnread: false,
-    },
-  })),
 }));
 
 vi.mock("../room-file-drop-zone", () => ({
@@ -227,25 +123,6 @@ vi.mock("../edit-channel-dialog", () => ({
   EditChannelDialog: () => null,
 }));
 
-vi.mock("../chat-participant-hover-card", () => ({
-  ChatParticipantHoverCard: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-}));
-
-vi.mock("@/components/chat/channel-discoverability-icon", () => ({
-  ChannelDiscoverabilityIcon: () => null,
-}));
-
-vi.mock("@/components/chat/live-member-presence-dot", () => ({
-  LiveMemberPresenceDot: () => null,
-  LiveMemberPresenceText: () => null,
-}));
-
-vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
-}));
-
 function userParticipant(
   id: string,
   name: string,
@@ -282,6 +159,8 @@ function channelRoom(): ChatRoom {
     slug: "general",
     kind: "channel",
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: "public",
@@ -312,6 +191,8 @@ function coworkerDirectRoom(): ChatRoom {
     slug: "jamal",
     kind: "direct",
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: "direct-key",
     topic: null,
     discoverability: null,
@@ -347,6 +228,7 @@ function sentMessage(roomId: string): ChatRoomMessage {
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: {
       type: "user",
@@ -360,12 +242,6 @@ function sentMessage(roomId: string): ChatRoomMessage {
     },
   };
 }
-
-const organization = {
-  id: "org-1",
-  name: "Acme",
-  slug: "acme",
-} as Organization;
 
 function renderRoomsClient(room: ChatRoom) {
   return render(

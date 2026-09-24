@@ -8,7 +8,6 @@ import {
 import { fetchOrganizationWorkspaces } from "../../api/services/organization-workspace-service.js";
 import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
 import {
-  assertVendorCreationRequest,
   requireAdministeredVendorForRegistration,
   requireOrganizationWorkspacesForRegistration,
 } from "../registration-authority.js";
@@ -53,8 +52,11 @@ async function buildPayload(
   if (update && vendorId !== undefined)
     throw new Error("--vendor-id is only supported for `coworkers register`");
   if (!update) {
-    if (!vendorId)
-      throw new Error("vendor id is required for `coworkers register`");
+    if (!vendorId) {
+      throw new Error(
+        "vendor id is required for `coworkers register` (create one first with `sokosumi vendors create --name NAME --slug SLUG`)",
+      );
+    }
     payload.vendorId = vendorId;
   }
   const values: [string, string][] = [
@@ -74,7 +76,7 @@ async function buildPayload(
   }
   const priority = parseInteger(option(options, "priority"), "--priority");
   if (priority !== undefined) payload.priority = priority;
-  const rawCapabilities = option(options, "capability", "capabilities");
+  const rawCapabilities = option(options, "capability");
   if (rawCapabilities !== undefined)
     payload.capabilities = normalizeCapabilities(rawCapabilities);
   const mergedMetadata = mergeChannels(metadata, channels);
@@ -152,9 +154,7 @@ export async function runCoworkersCommand({
   const command = subcommand || "list";
   if (command === "list") {
     const limit = parsePositiveInteger(option(options, "limit"), "--limit");
-    const capabilities = normalizeCapabilities(
-      option(options, "capability", "capabilities"),
-    );
+    const capabilities = normalizeCapabilities(option(options, "capability"));
     const { coworkers } = await fetchCoworkers(
       client,
       { scope: optionString(options, "scope"), capabilities },
@@ -181,10 +181,6 @@ export async function runCoworkersCommand({
     return;
   }
   if (command === "register") {
-    assertVendorCreationRequest({
-      requested: optionBoolean(options, "create-vendor"),
-      confirmed: optionBoolean(options, "confirm-create-vendor"),
-    });
     const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
       client,
       signal,

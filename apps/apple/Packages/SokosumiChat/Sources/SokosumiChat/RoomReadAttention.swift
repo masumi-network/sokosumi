@@ -33,21 +33,27 @@ public final class RoomReadAttention: ObservableObject {
     let content: Content
   }
 
+  /// What a room holds about what is unread in it (web `RoomReadOverlay`): both halves of `unreadCount`
+  /// (ADR 0037), the badge, the mark and the room's unread Threads, which a Look changes as it does the
+  /// counts. Bold follows the channel half, so an overlay that kept only the total would re-bold a room it
+  /// exists to keep read.
   private struct Fields {
-    let unreadCount: Int
-    let unreadMentionCount: Int
-    let markedUnread: Bool
+    let snapshot: Components.Schemas.ChatRoom
     init(_ room: Components.Schemas.ChatRoom) {
-      unreadCount = room.unreadCount
-      unreadMentionCount = room.unreadMentionCount
-      markedUnread = room.markedUnread
+      snapshot = room
     }
 
     func applying(to room: Components.Schemas.ChatRoom) -> Components.Schemas.ChatRoom {
       var room = room
-      room.unreadCount = unreadCount
-      room.unreadMentionCount = unreadMentionCount
-      room.markedUnread = markedUnread
+      room.unreadCount = snapshot.unreadCount
+      room.channelUnreadCount = snapshot.channelUnreadCount
+      room.threadUnreadCount = snapshot.threadUnreadCount
+      room.unreadMentionCount = snapshot.unreadMentionCount
+      room.markedUnread = snapshot.markedUnread
+      // A snapshot without the list says nothing about it, so the room's own list stands.
+      room.unreadThreadCount = snapshot.unreadThreadCount ?? room.unreadThreadCount
+      room.unreadThreadMentionCount = snapshot.unreadThreadMentionCount ?? room.unreadThreadMentionCount
+      room.unreadThreads = snapshot.unreadThreads ?? room.unreadThreads
       return room
     }
   }
@@ -140,9 +146,7 @@ public final class RoomReadAttention: ObservableObject {
     if unread {
       optimistic.markedUnread = true
     } else if optimisticRead {
-      optimistic.unreadCount = 0
-      optimistic.unreadMentionCount = 0
-      optimistic.markedUnread = false
+      optimistic = roomAttentionAfterRead(optimistic)
     }
     revision += 1
     overlays[room.id] = Overlay(fields: Fields(optimistic), revision: revision, rollback: rollback, expiresAt: now().addingTimeInterval(30))

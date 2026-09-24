@@ -8,7 +8,6 @@ const TASKS_PATH = "/v1/tasks";
 export interface FetchTasksOptions {
   q?: string;
   status?: string | readonly string[];
-  statuses?: string | readonly string[];
   scope?: string;
   coworkerId?: string;
   cursor?: string;
@@ -19,15 +18,8 @@ export interface FetchTasksOptions {
 export interface CreateTaskData {
   name?: string;
   description?: string | null;
-  projectId?: string | null;
   coworkerId?: string | null;
-  assigneeId?: string | null;
-  assigneeSokoBotId?: string | null;
-  assigneeUserId?: string | null;
   status?: string;
-  channel?: string;
-  origin?: string;
-  context?: Record<string, unknown>;
 }
 
 export interface CreateTaskEventData {
@@ -69,8 +61,7 @@ function tasksPath(options: FetchTasksOptions = {}): string {
   if (options.cursor) params.set("cursor", String(options.cursor).trim());
   if (options.take !== undefined) params.set("take", String(options.take));
   if (options.skip !== undefined) params.set("skip", String(options.skip));
-  for (const status of values(options.statuses ?? options.status))
-    params.append("status", status);
+  for (const status of values(options.status)) params.append("status", status);
   const query = params.toString();
   return query ? `${TASKS_PATH}?${query}` : TASKS_PATH;
 }

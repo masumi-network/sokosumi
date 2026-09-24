@@ -2,7 +2,7 @@ import CoreAPI
 import Foundation
 import HTTPTypes
 import OpenAPIRuntime
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 private let timestamp = "2026-01-01T00:00:00.000Z"
@@ -21,7 +21,7 @@ private func roomJSON(
   unreadMentionCount: Int
 ) -> String {
   """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"\(kind)","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unreadCount),"unreadMentionCount":\(unreadMentionCount),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"\(kind)","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unreadCount),"unreadMentionCount":\(unreadMentionCount),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
 }
 
@@ -143,7 +143,7 @@ struct ChatServiceTests {
     let transport = ScriptedTransport([(200, response), (403, forbidden)])
     let client = try makeClient(transport)
     var draft = ChannelEditDraft(room: .init(
-      id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, topic: nil, discoverability: ._private,
+      id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false, topic: nil, discoverability: ._private,
       createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
       markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
     ))
@@ -153,7 +153,7 @@ struct ChatServiceTests {
     draft.recipients = [.human("peer"), .coworker("agent"), .sokoBot("bot")]
     let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: managesSettings)
     let update = draft.updateRequest(permissions: permissions, currentUserId: "me")
-    let result = try await ChatService().updateChannel(client: client, roomId: "channel", request: update, organizationSlug: "team")
+    let result = try await ChatService().updateRoom(client: client, roomId: "channel", request: update, organizationSlug: "team")
     #expect(result.id == "channel")
     let request = try #require(transport.requests.first).request
     #expect(request.method == .patch)
@@ -168,8 +168,34 @@ struct ChatServiceTests {
     #expect(body["discoverability"] as? String == (managesSettings ? "external" : nil))
     #expect(body["slug"] == nil)
     await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Guests cannot update channel settings or roster.")) {
-      try await ChatService().updateChannel(client: client, roomId: "channel", request: update, organizationSlug: "team")
+      try await ChatService().updateRoom(client: client, roomId: "channel", request: update, organizationSlug: "team")
     }
+  }
+
+  @Test func groupNameSendsOnlyGroupNameAndOmitsSlugForPersonalDirects() async throws {
+    let room = roomJSON(id: "direct", name: "Ann, Bob", kind: "direct", unreadCount: 0, unreadMentionCount: 0)
+    let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
+    let transport = ScriptedTransport([(200, response), (200, response)])
+    let client = try makeClient(transport)
+    var draft = GroupNameDraft(room: .init(
+      id: "direct", name: "Ann, Bob", kind: .direct, isSelfDirect: false, isGroupDirect: true, groupName: "Launch crew",
+      createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
+      markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
+    ))
+    draft.setName(" Crew ")
+    _ = try await ChatService().updateRoom(client: client, roomId: "direct", request: draft.updateRequest, organizationSlug: nil)
+    draft.setName("")
+    _ = try await ChatService().updateRoom(client: client, roomId: "direct", request: draft.updateRequest, organizationSlug: nil)
+    let request = try #require(transport.requests.first).request
+    #expect(request.method == .patch)
+    #expect(request.path == "/chats/rooms/direct")
+    #expect(orgSlugHeader(request) == nil)
+    let named = try #require(JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Any])
+    #expect(named.keys.sorted() == ["groupName"])
+    #expect(named["groupName"] as? String == "Crew")
+    let cleared = try #require(JSONSerialization.jsonObject(with: transport.bodies[1]) as? [String: Any])
+    #expect(cleared.keys.sorted() == ["groupName"])
+    #expect((cleared["groupName"] as? String)?.isEmpty == true)
   }
 
   @Test func channelLifecycleUsesCoreRoutesAndSurfacesCoreMessages() async throws {

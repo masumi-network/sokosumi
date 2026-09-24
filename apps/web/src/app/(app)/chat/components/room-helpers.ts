@@ -9,6 +9,7 @@ import {
   formatParticipantNameList,
   linkifyChannelLinksInMarkdown,
 } from "@sokosumi/utils";
+import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import type {
   MentionSuggestionGroup,
@@ -469,8 +470,8 @@ export function isMessageContinuation(
     return false;
   }
 
-  // Membership status rows are not chat bubbles; never continue across them.
-  if (previous.membership != null || current.membership != null) {
+  // Room status rows are not chat bubbles; never continue across them.
+  if (isRoomStatusMessage(previous) || isRoomStatusMessage(current)) {
     return false;
   }
 
@@ -667,6 +668,10 @@ export function getRoomDisplayName(
   }
   if (room.kind !== "direct") {
     return room.name;
+  }
+  // Core only lets a group Direct carry one, and every member sees the same.
+  if (room.groupName) {
+    return room.groupName;
   }
   return formatDirectParticipantNames(
     getDirectRoomParticipants(room, currentUserId),

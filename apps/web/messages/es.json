@@ -4296,6 +4296,7 @@
           "runningSubscription": "Cancela tu suscripción en curso y espera a que termine el periodo pagado.",
           "billingLink": "Ir a facturación",
           "userOwnsOrganization": "Transfiere el rol de propietario o elimina todas las organizaciones que poseas antes de eliminar tu cuenta.",
+          "userIsLastVendorAdmin": "Promueve a otro miembro del Vendor a administrador, o archiva los coworkers del Vendor, antes de eliminar tu cuenta.",
           "inFlightJob": "Espera a que terminen los jobs en curso antes de eliminar tu cuenta.",
           "unsettledOnChainJob": "Espera a que se liquiden las compras on-chain de jobs antes de eliminar tu cuenta.",
           "inFlightTask": "Espera a que terminen las tareas en curso antes de eliminar tu cuenta.",
@@ -5468,7 +5469,7 @@
       "UnreadNav": {
         "label": "Sin leer",
         "threads": "Hilos",
-        "allUnreads": "Todo lo no leído",
+        "allUnreads": "No leídos",
         "unreadThreads": "{count, plural, one {# hilo sin leer} other {# hilos sin leer}}",
         "unreadThreadsCapped": "Más de {max} hilos sin leer",
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
@@ -5477,9 +5478,6 @@
         "markAllReadError": "No se pudo marcar todo como leído.",
         "caughtUp": "Todo al día",
         "allThreads": "Todos los hilos",
-        "showAllChats": "Mostrar todos los chats",
-        "showAll": "Mostrar todo",
-        "nothingUnread": "{count, plural, one {Nada sin leer en # chat} other {Nada sin leer en # chats}}",
         "justRead": "Recién leídos"
       },
       "ThreadsView": {
@@ -5666,7 +5664,7 @@
         "loadOlder": "Cargar hilos anteriores",
         "groupUnread": "Sin leer",
         "groupEarlier": "Anteriores",
-        "groupUnreadEmpty": "Todo al día.",
+        "groupUnreadEmpty": "Todo al día",
         "startedBy": "Iniciado por {name}",
         "unreadThreads": "{count, plural, one {# hilo no leído} other {# hilos no leídos}}",
         "unreadThreadsCapped": "Más de {max} hilos no leídos",
@@ -5685,6 +5683,16 @@
       "MembershipStatus": {
         "joined": "{name} se unió",
         "left": "{name} salió"
+      },
+      "GroupName": {
+        "rename": "Cambiar nombre",
+        "dialogTitle": "Poner nombre al grupo",
+        "dialogDescription": "Todos en el grupo ven este nombre en lugar de la lista de miembros. Déjalo vacío para volver a mostrar a los miembros.",
+        "label": "Nombre del grupo",
+        "save": "Guardar",
+        "saveFailed": "No se pudo poner nombre al grupo.",
+        "named": "{name} llamó al grupo {groupName}",
+        "cleared": "{name} quitó el nombre del grupo"
       },
       "External": {
         "title": "Externo",
@@ -6059,8 +6067,6 @@
       "Chat": {
         "defaultName": "Soko Bot",
         "avatarAlt": "Soko Bot",
-        "legacyDivider": "{count, plural, one {# mensaje anterior importado de tu asistente previo} other {# mensajes anteriores importados de tu asistente previo}}",
-        "toolSteps": "{count, plural, one {# paso} other {# pasos}}",
         "answeredIn": "{seconds}s",
         "copy": "Copiar",
         "copied": "Copiado",

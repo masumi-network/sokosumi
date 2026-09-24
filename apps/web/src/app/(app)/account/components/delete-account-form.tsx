@@ -46,6 +46,7 @@ import {
   TASK_X402_PAYMENT_PENDING_ERROR_CODE,
   TASK_X402_PAYMENT_UNRESOLVED_ERROR_CODE,
   UNSETTLED_ON_CHAIN_JOB_ERROR_CODE,
+  USER_IS_LAST_VENDOR_ADMIN_ERROR_CODE,
   USER_OWNS_ORGANIZATION_ERROR_CODE,
 } from "@/lib/actions/errors/better-auth";
 import { deleteUser } from "@/lib/auth/auth.client";
@@ -80,6 +81,9 @@ function userDeletionBlockerCopy(
         : undefined,
       linkLabel: t("Links.organizationMembers"),
     };
+  }
+  if (code === USER_IS_LAST_VENDOR_ADMIN_ERROR_CODE) {
+    return { message: t("Errors.userIsLastVendorAdmin") };
   }
   if (code === IN_FLIGHT_JOB_ERROR_CODE) {
     return {

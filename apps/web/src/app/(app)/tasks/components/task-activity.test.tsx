@@ -18,6 +18,13 @@ const {
   toastErrorMock: vi.fn(),
 }));
 
+// The task composer mounts DriveFilePicker, which calls useSession. The real
+// better-auth session atom schedules a nanostores unmount timer that can fire
+// after happy-dom tears down `window`.
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null }),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     refresh: vi.fn(),

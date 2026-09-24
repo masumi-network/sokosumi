@@ -5,8 +5,19 @@ import type {
   ChatRoom,
   ChatRoomInvitation,
 } from "@/lib/clients/generated/core";
+import {
+  CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+  serializeChatUnreadsFilterCookie,
+} from "@/lib/ui-preferences/chat-unreads-filter";
 
 import { OrganizationChatList } from "../organization-chat-list.client";
+
+/** The route the list reads, so a test can open a room. Reset per test.
+ *  Selection is the optimistic highlight, which moves before the route. */
+const { harnessPathname, harnessSelection } = vi.hoisted(() => ({
+  harnessPathname: { current: "/chat" },
+  harnessSelection: { current: null as string | null },
+}));
 
 const {
   acceptInvitationMock,
@@ -24,11 +35,17 @@ const {
 
 export {
   acceptInvitationMock,
+  harnessPathname,
+  harnessSelection,
   listArchivedMock,
   listPendingMock,
   listRoomsMock,
   reorderPinnedMock,
 };
+
+vi.mock("@/app/chat/components/room-cache-provider", () => ({
+  useRoomSelection: () => harnessSelection.current,
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -36,7 +53,7 @@ vi.mock("next/navigation", () => ({
     replace: vi.fn(),
     refresh: vi.fn(),
   }),
-  usePathname: () => "/chat",
+  usePathname: () => harnessPathname.current,
 }));
 
 vi.mock("next/link", () => ({
@@ -91,11 +108,13 @@ vi.mock("../chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({
     label,
     reorderHandle,
+    itemProps,
   }: {
     label: string;
     reorderHandle?: ReactNode;
+    itemProps?: ComponentProps<"li">;
   }) => (
-    <li data-testid="room-row">
+    <li {...itemProps} data-testid="room-row">
       <span>{label}</span>
       {reorderHandle}
     </li>
@@ -289,6 +308,8 @@ export function makeRoom(
     name: overrides.id,
     slug: overrides.kind === "channel" ? overrides.id : null,
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: overrides.kind === "channel" ? "public" : null,
@@ -326,6 +347,12 @@ export function makeInvitation(
 }
 
 export function resetOrganizationChatListMocks() {
+  // The Unreads filter is remembered in a cookie; one test's choice must not
+  // open the next test's list.
+  document.cookie = serializeChatUnreadsFilterCookie(false);
+  document.documentElement.removeAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE);
+  harnessPathname.current = "/chat";
+  harnessSelection.current = null;
   acceptInvitationMock.mockReset();
   listRoomsMock.mockReset();
   listArchivedMock.mockReset();

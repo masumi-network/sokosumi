@@ -47,6 +47,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await requireAuthorizedUserContext(c.var.authContext);
 
     const vendors = await prisma.vendor.findMany({
+      where: { listed: true },
       orderBy: [{ name: "asc" }, { slug: "asc" }],
     });
 

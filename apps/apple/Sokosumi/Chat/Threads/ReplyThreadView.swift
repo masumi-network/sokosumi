@@ -311,15 +311,15 @@ import SwiftUI
           if hasGap {
             // Web's thread panel has no gap row (a reply jump is Apple's), so this stays a
             // tap; the row and its failure follow the room's gap row.
-            TranscriptBoundaryRow(isGap: true, status: workspaces.thread.timeline.boundaryLoads.status(of: message.id)) {
+            PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.thread.timeline.boundaryLoads.status(of: message.id)) {
               workspaces.loadThreadPage(.boundary(message.id), auth: auth)
             }
           }
           if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
             DaySeparatorRow(label: label)
           }
-          if let status = membershipStatusText(message) {
-            MembershipStatusRow(text: status)
+          if let status = roomStatusText(message) {
+            RoomStatusRow(text: status)
           } else {
             MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.documents[message.id], message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                            outbound: shell, sentAt: outbox.sentAt[message.id],

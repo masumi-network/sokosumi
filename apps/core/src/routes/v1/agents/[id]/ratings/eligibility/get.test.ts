@@ -28,10 +28,8 @@ vi.mock("@/helpers/agent", () => ({
   requireAvailableAgentOrThrow: requireAvailableAgentOrThrowMock,
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  jobRepository: {
-    doesUserHaveFinishedJobWithAgent: doesUserHaveFinishedJobWithAgentMock,
-  },
+vi.mock("@/helpers/agent-rating", () => ({
+  doesUserHaveFinishedJobWithAgent: doesUserHaveFinishedJobWithAgentMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({

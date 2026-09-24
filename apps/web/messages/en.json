@@ -4332,6 +4332,7 @@
           "runningSubscription": "Cancel your running subscription and wait until the paid period ends.",
           "billingLink": "Go to billing",
           "userOwnsOrganization": "Transfer ownership or delete every organization you own before deleting your account.",
+          "userIsLastVendorAdmin": "Promote another Vendor member to admin, or archive the Vendor's coworkers, before deleting your account.",
           "inFlightJob": "Wait for in-flight jobs to finish before deleting your account.",
           "unsettledOnChainJob": "Wait for on-chain job purchases to settle before deleting your account.",
           "inFlightTask": "Wait for in-flight tasks to finish before deleting your account.",
@@ -5468,7 +5469,7 @@
       "UnreadNav": {
         "label": "Unread",
         "threads": "Threads",
-        "allUnreads": "All unreads",
+        "allUnreads": "Unreads",
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
         "unreadThreadsCapped": "More than {max} unread threads",
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
@@ -5477,16 +5478,13 @@
         "markAllReadError": "Could not mark everything as read.",
         "caughtUp": "All caught up",
         "allThreads": "All threads",
-        "showAllChats": "Show all chats",
-        "showAll": "Show all",
-        "nothingUnread": "{count, plural, one {Nothing unread in # chat} other {Nothing unread in # chats}}",
-        "justRead": "Just read"
+        "justRead": "Read just now"
       },
       "ThreadsView": {
         "title": "Threads",
         "listLabel": "Unread threads",
-        "empty": "You’re all caught up",
-        "emptyDescription": "New replies in threads you’re part of show up here.",
+        "empty": "You're all caught up",
+        "emptyDescription": "New replies in threads you're part of show up here.",
         "loadMore": "Show more",
         "loadError": "Could not load unread threads.",
         "retry": "Try again"
@@ -5666,7 +5664,7 @@
         "loadOlder": "Load older threads",
         "groupUnread": "Unread",
         "groupEarlier": "Earlier",
-        "groupUnreadEmpty": "All caught up.",
+        "groupUnreadEmpty": "All caught up",
         "startedBy": "Started by {name}",
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
         "unreadThreadsCapped": "More than {max} unread threads",
@@ -5685,6 +5683,16 @@
       "MembershipStatus": {
         "joined": "{name} joined",
         "left": "{name} left"
+      },
+      "GroupName": {
+        "rename": "Rename",
+        "dialogTitle": "Name this group",
+        "dialogDescription": "Everyone in the group sees this name instead of the member list. Leave it empty to show the members again.",
+        "label": "Group name",
+        "save": "Save",
+        "saveFailed": "Could not name the group.",
+        "named": "{name} named the group {groupName}",
+        "cleared": "{name} removed the group name"
       },
       "External": {
         "title": "External",
@@ -6059,8 +6067,6 @@
       "Chat": {
         "defaultName": "Soko Bot",
         "avatarAlt": "Soko Bot",
-        "legacyDivider": "{count, plural, one {# earlier message imported from your previous assistant} other {# earlier messages imported from your previous assistant}}",
-        "toolSteps": "{count, plural, one {# step} other {# steps}}",
         "answeredIn": "{seconds}s",
         "copy": "Copy",
         "copied": "Copied",

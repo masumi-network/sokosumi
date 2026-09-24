@@ -1817,7 +1817,19 @@ export type ResolveAdminTaskX402PaymentBody = {
     reason: 'account_deletion_blocked' | 'node_unreachable' | 'sign_attempts_exhausted' | 'unsettleable_authorization';
 };
 
-export type VendorList = Array<Vendor>;
+export type AdminVendorList = Array<AdminVendor>;
+
+export type AdminVendor = Vendor & {
+    /**
+     * Whether this vendor appears in GET /v1/vendors.
+     */
+    listed: boolean;
+};
+
+export type VendorLogos = {
+    light: string | null;
+    dark: string | null;
+};
 
 export type Vendor = {
     id: string;
@@ -1826,11 +1838,6 @@ export type Vendor = {
     name: string;
     slug: string;
     logos: VendorLogos;
-};
-
-export type VendorLogos = {
-    light: string | null;
-    dark: string | null;
 };
 
 export type CreateVendorRequest = {
@@ -1848,6 +1855,10 @@ export type PatchVendorRequest = {
     name?: string;
     slug?: string;
     logos?: VendorLogosInput;
+    /**
+     * Whether this vendor appears in GET /v1/vendors. Platform admin only.
+     */
+    listed?: boolean;
 };
 
 export type AgentListItem = CardanoAgentListItem | X402Agent;
@@ -2296,6 +2307,14 @@ export type ChatRoom = {
      * Deterministic key for direct rooms; null for normal rooms.
      */
     directKey: string | null;
+    /**
+     * Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.
+     */
+    isGroupDirect: boolean;
+    /**
+     * Group name shared by every member of a group Direct, shown in place of the member list. Null when unnamed, and always null for Channels and other Directs.
+     */
+    groupName: string | null;
     topic: string | null;
     /**
      * Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests), or `"matched"` (org-less, roster-only). Null for direct rooms.
@@ -2617,6 +2636,7 @@ export type ChatRoomPinnedMessageListItem = {
         } | null;
         quote: ChatRoomMessageQuote;
         membership: ChatRoomMessageMembership;
+        groupNameChange: ChatRoomMessageGroupNameChange;
         /**
          * Link preview cards scraped from message URLs (absent while pending).
          */
@@ -2705,6 +2725,18 @@ export type ChatRoomMessageMembershipSubject = {
     name: string;
 };
 
+export type ChatRoomMessageGroupNameChange = {
+    action: 'named' | 'cleared';
+    /**
+     * The new Group name; null when it was cleared.
+     */
+    name: string | null;
+    actor: {
+        id: string;
+        name: string;
+    };
+} | null;
+
 export type ChatRoomMessageUnfurl = {
     url: string;
     title: string;
@@ -2730,6 +2762,10 @@ export type UpdateChatRoomRequest = {
      * Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.
      */
     sokoBotIds?: Array<string>;
+    /**
+     * Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.
+     */
+    groupName?: string | null;
 };
 
 /**
@@ -2841,6 +2877,7 @@ export type ChatRoomMessage = {
     } | null;
     quote: ChatRoomMessageQuote;
     membership: ChatRoomMessageMembership;
+    groupNameChange: ChatRoomMessageGroupNameChange;
     /**
      * Link preview cards scraped from message URLs (absent while pending).
      */
@@ -3881,7 +3918,7 @@ export type UserDeletionEvaluation = {
     /**
      * Current User-deletion blockers. Empty means the existing wipe may proceed.
      */
-    blockers: Array<'RUNNING_SUBSCRIPTION' | 'USER_OWNS_ORGANIZATION' | 'IN_FLIGHT_JOB' | 'UNSETTLED_ON_CHAIN_JOB' | 'IN_FLIGHT_TASK' | 'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED' | 'TASK_PAYMENT_CLAIM_PENDING' | 'TASK_X402_PAYMENT_PENDING' | 'TASK_X402_PAYMENT_UNRESOLVED' | 'TASK_X402_PAYMENT_AUTHORIZATION_LIVE' | 'TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH'>;
+    blockers: Array<'RUNNING_SUBSCRIPTION' | 'USER_OWNS_ORGANIZATION' | 'USER_IS_LAST_VENDOR_ADMIN' | 'IN_FLIGHT_JOB' | 'UNSETTLED_ON_CHAIN_JOB' | 'IN_FLIGHT_TASK' | 'TASK_PAYMENT_CLAIM_REVIEW_REQUIRED' | 'TASK_PAYMENT_CLAIM_PENDING' | 'TASK_X402_PAYMENT_PENDING' | 'TASK_X402_PAYMENT_UNRESOLVED' | 'TASK_X402_PAYMENT_AUTHORIZATION_LIVE' | 'TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH'>;
 };
 
 export type PersistedDesignMd = {
@@ -6256,7 +6293,7 @@ export type AblyTokenRequest = {
     mac: string;
 };
 
-export type VendorMembershipList = Array<VendorMembership>;
+export type VendorList = Array<Vendor>;
 
 export type VendorMembership = Vendor & {
     role: VendorMemberRole;
@@ -6265,6 +6302,29 @@ export type VendorMembership = Vendor & {
 export const VendorMemberRole = { ADMIN: 'admin', DEVELOPER: 'developer' } as const;
 
 export type VendorMemberRole = typeof VendorMemberRole[keyof typeof VendorMemberRole];
+
+export type VendorMembershipList = Array<VendorMembership>;
+
+export type MyVendorInviteList = Array<MyVendorInvite>;
+
+export type MyVendorInvite = {
+    id: string;
+    role: VendorMemberRole;
+    status: VendorMemberInviteStatus;
+    expiresAt: Date;
+    createdAt: Date;
+    vendor: Vendor;
+};
+
+export const VendorMemberInviteStatus = {
+    PENDING: 'PENDING',
+    ACCEPTED: 'ACCEPTED',
+    DECLINED: 'DECLINED',
+    REVOKED: 'REVOKED',
+    EXPIRED: 'EXPIRED'
+} as const;
+
+export type VendorMemberInviteStatus = typeof VendorMemberInviteStatus[keyof typeof VendorMemberInviteStatus];
 
 export type PatchVendorAdminRequest = {
     name?: string;
@@ -6280,11 +6340,22 @@ export type VendorMember = {
     role: VendorMemberRole;
 };
 
-export type AddVendorMemberRequest = {
-    userId?: string;
-    email?: string;
+export type VendorMemberInvite = {
+    id: string;
+    vendorId: string;
+    email: string;
+    role: VendorMemberRole;
+    status: VendorMemberInviteStatus;
+    expiresAt: Date;
+    createdAt: Date;
+};
+
+export type CreateVendorMemberInviteRequest = {
+    email: string;
     role?: VendorMemberRole & unknown;
 };
+
+export type VendorMemberInviteList = Array<VendorMemberInvite>;
 
 export type PatchVendorMemberRoleRequest = {
     role: VendorMemberRole;
@@ -6300,8 +6371,7 @@ export type CoworkerAssignment = {
 };
 
 export type AssignCoworkerRequest = {
-    userId?: string;
-    email?: string;
+    userId: string;
 };
 
 export type VendorLogoCleanupResult = {
@@ -11512,7 +11582,7 @@ export type ListAdminVendorsResponses = {
      * List of vendors
      */
     200: {
-        data: VendorList;
+        data: AdminVendorList;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11794,7 +11864,7 @@ export type PatchAdminVendorResponses = {
      * The updated vendor
      */
     200: {
-        data: Vendor;
+        data: AdminVendor;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -44645,6 +44715,105 @@ export type ListVendorsResponses = {
 
 export type ListVendorsResponse = ListVendorsResponses[keyof ListVendorsResponses];
 
+export type CreateVendorData = {
+    body?: CreateVendorRequest;
+    path?: never;
+    query?: never;
+    url: '/vendors';
+};
+
+export type CreateVendorErrors = {
+    /**
+     * Bad Request - validation failed
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - vendor slug already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateVendorError = CreateVendorErrors[keyof CreateVendorErrors];
+
+export type CreateVendorResponses = {
+    /**
+     * The vendor you already administer, returned when you re-create the same slug
+     */
+    200: {
+        data: VendorMembership;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+    /**
+     * The created vendor with the caller's admin membership
+     */
+    201: {
+        data: VendorMembership;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateVendorResponse = CreateVendorResponses[keyof CreateVendorResponses];
+
 export type ListMyVendorMembershipsData = {
     body?: never;
     path?: never;
@@ -44702,6 +44871,267 @@ export type ListMyVendorMembershipsResponses = {
 };
 
 export type ListMyVendorMembershipsResponse = ListMyVendorMembershipsResponses[keyof ListMyVendorMembershipsResponses];
+
+export type ListMyVendorInvitesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/vendors/invites';
+};
+
+export type ListMyVendorInvitesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListMyVendorInvitesError = ListMyVendorInvitesErrors[keyof ListMyVendorInvitesErrors];
+
+export type ListMyVendorInvitesResponses = {
+    /**
+     * Pending vendor invitations for the current user
+     */
+    200: {
+        data: MyVendorInviteList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListMyVendorInvitesResponse = ListMyVendorInvitesResponses[keyof ListMyVendorInvitesResponses];
+
+export type AcceptVendorMemberInviteData = {
+    body?: never;
+    path: {
+        /**
+         * Vendor member invitation ID
+         */
+        inviteId: string;
+    };
+    query?: never;
+    url: '/vendors/invites/{inviteId}/accept';
+};
+
+export type AcceptVendorMemberInviteErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AcceptVendorMemberInviteError = AcceptVendorMemberInviteErrors[keyof AcceptVendorMemberInviteErrors];
+
+export type AcceptVendorMemberInviteResponses = {
+    /**
+     * The vendor membership created by accepting the invitation
+     */
+    201: {
+        data: VendorMembership;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AcceptVendorMemberInviteResponse = AcceptVendorMemberInviteResponses[keyof AcceptVendorMemberInviteResponses];
+
+export type DeclineVendorMemberInviteData = {
+    body?: never;
+    path: {
+        /**
+         * Vendor member invitation ID
+         */
+        inviteId: string;
+    };
+    query?: never;
+    url: '/vendors/invites/{inviteId}/decline';
+};
+
+export type DeclineVendorMemberInviteErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeclineVendorMemberInviteError = DeclineVendorMemberInviteErrors[keyof DeclineVendorMemberInviteErrors];
+
+export type DeclineVendorMemberInviteResponses = {
+    /**
+     * Invitation declined
+     */
+    204: void;
+};
+
+export type DeclineVendorMemberInviteResponse = DeclineVendorMemberInviteResponses[keyof DeclineVendorMemberInviteResponses];
 
 export type PatchVendorData = {
     body?: PatchVendorAdminRequest;
@@ -44874,19 +45304,28 @@ export type ListVendorMembersResponses = {
 
 export type ListVendorMembersResponse = ListVendorMembersResponses[keyof ListVendorMembersResponses];
 
-export type AddVendorMemberData = {
-    body?: AddVendorMemberRequest;
+export type ListVendorMemberInvitesData = {
+    body?: never;
     path: {
         /**
          * Vendor ID
          */
         id: string;
     };
-    query?: never;
-    url: '/vendors/{id}/members';
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/vendors/{id}/invites';
 };
 
-export type AddVendorMemberErrors = {
+export type ListVendorMemberInvitesErrors = {
     /**
      * Bad Request
      */
@@ -44947,6 +45386,84 @@ export type AddVendorMemberErrors = {
             method: string;
         };
     };
+};
+
+export type ListVendorMemberInvitesError = ListVendorMemberInvitesErrors[keyof ListVendorMemberInvitesErrors];
+
+export type ListVendorMemberInvitesResponses = {
+    /**
+     * Live pending vendor invitations
+     */
+    200: {
+        data: VendorMemberInviteList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListVendorMemberInvitesResponse = ListVendorMemberInvitesResponses[keyof ListVendorMemberInvitesResponses];
+
+export type CreateVendorMemberInviteData = {
+    body?: CreateVendorMemberInviteRequest;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/invites';
+};
+
+export type CreateVendorMemberInviteErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Conflict
      */
@@ -44962,16 +45479,31 @@ export type AddVendorMemberErrors = {
             method: string;
         };
     };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
-export type AddVendorMemberError = AddVendorMemberErrors[keyof AddVendorMemberErrors];
+export type CreateVendorMemberInviteError = CreateVendorMemberInviteErrors[keyof CreateVendorMemberInviteErrors];
 
-export type AddVendorMemberResponses = {
+export type CreateVendorMemberInviteResponses = {
     /**
-     * Vendor member created
+     * Pending vendor invitation
      */
     201: {
-        data: VendorMember;
+        data: VendorMemberInvite;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -44980,7 +45512,82 @@ export type AddVendorMemberResponses = {
     };
 };
 
-export type AddVendorMemberResponse = AddVendorMemberResponses[keyof AddVendorMemberResponses];
+export type CreateVendorMemberInviteResponse = CreateVendorMemberInviteResponses[keyof CreateVendorMemberInviteResponses];
+
+export type RevokeVendorMemberInviteData = {
+    body?: never;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+        /**
+         * Vendor member invitation ID
+         */
+        inviteId: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/invites/{inviteId}';
+};
+
+export type RevokeVendorMemberInviteErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RevokeVendorMemberInviteError = RevokeVendorMemberInviteErrors[keyof RevokeVendorMemberInviteErrors];
+
+export type RevokeVendorMemberInviteResponses = {
+    /**
+     * Invitation revoked
+     */
+    204: void;
+};
+
+export type RevokeVendorMemberInviteResponse = RevokeVendorMemberInviteResponses[keyof RevokeVendorMemberInviteResponses];
 
 export type RemoveVendorMemberData = {
     body?: never;
@@ -44990,7 +45597,7 @@ export type RemoveVendorMemberData = {
          */
         id: string;
         /**
-         * Member user ID or email address
+         * Member user ID
          */
         userId: string;
     };
@@ -45095,7 +45702,7 @@ export type PatchVendorMemberRoleData = {
          */
         id: string;
         /**
-         * Member user ID or email address
+         * Member user ID
          */
         userId: string;
     };
@@ -45390,7 +45997,7 @@ export type UnassignCoworkerDeveloperData = {
          */
         coworkerId: string;
         /**
-         * Assigned user ID or email address
+         * Assigned user ID
          */
         userId: string;
     };

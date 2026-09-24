@@ -31,6 +31,12 @@ vi.mock("@/lib/utils/compose-upload.client", () => ({
   uploadComposeAttachments: vi.fn(),
 }));
 
+// DriveFilePicker calls useSession; the real session atom's unmount timer
+// can fire after happy-dom tears down `window`.
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null }),
+}));
+
 vi.mock("@/contexts/lazy-ably-provider", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
@@ -166,13 +172,18 @@ describe("RoomSessionComposer typing", () => {
     const editor = await screen.findByRole("textbox");
     await typeInto(editor, "hello");
 
-    await act(async () => {
-      fireEvent.blur(editor);
-      // The editor guards blur behind a short suggestion-dismiss delay.
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    });
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        fireEvent.blur(editor);
+        // The editor guards blur behind a short suggestion-dismiss delay.
+        await vi.advanceTimersByTimeAsync(250);
+      });
 
-    expect(handleStopTypingSpy).toHaveBeenCalled();
+      expect(handleStopTypingSpy).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("stays silent when the toolbar drops in an emoji", async () => {

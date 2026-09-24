@@ -75,6 +75,9 @@ model User {
   // Vendor membership and coworker assignments
   vendorMembers       VendorMember[]
   coworkerAssignments CoworkerAssignment[]
+  createdVendors          Vendor[]             @relation("VendorCreatedBy")
+  vendorMemberInvitesSent VendorMemberInvite[] @relation("VendorMemberInviteInvitedBy")
+  vendorMemberInvitesGot  VendorMemberInvite[] @relation("VendorMemberInviteAcceptedBy")
 
   workspace Workspace?
 
@@ -315,10 +318,22 @@ model Vendor {
   logoLight String?
   logoDark  String?
 
+  /// The developer who self-created this vendor (POST /v1/vendors). Null for
+  /// platform-created vendors. Caps self-service vendors per user.
+  createdByUserId String?
+  createdBy       User?   @relation("VendorCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  /// Whether this vendor shows in the global grant picker (GET /v1/vendors).
+  /// Platform-created vendors are listed; self-service vendors stay unlisted
+  /// until a platform admin lists them.
+  listed Boolean @default(true)
+
   coworkers     Coworker[]
   vendorGrants  VendorGrant[]
   vendorMembers VendorMember[]
+  memberInvites VendorMemberInvite[]
 
+  @@unique([createdByUserId], map: "vendor_createdByUserId_key")
   @@map("vendor")
 }
 
@@ -340,6 +355,50 @@ model VendorMember {
   @@index([userId])
   @@index([vendorId, role])
   @@map("vendor_member")
+}
+
+enum VendorMemberInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+/// Pending invitation for a user to join a Vendor as a member. A vendor admin
+/// creates it by email; the row exists whether or not the email maps to a
+/// registered account, so member-add cannot enumerate the user directory. A
+/// VendorMember row is created only when the invitee accepts under their own
+/// auth. One live PENDING invite per (vendorId, email) is enforced by a
+/// partial unique index. Emails are normalized before storage.
+model VendorMemberInvite {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendorId String @db.Uuid
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  /// Normalized (trim + lowercase) invitee email. Not necessarily registered.
+  email String
+  role  VendorMemberRole
+
+  status    VendorMemberInviteStatus @default(PENDING)
+  expiresAt DateTime
+
+  invitedById String?
+  invitedBy   User?   @relation("VendorMemberInviteInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  /// Set on accept: the account that accepted (email matched at accept time).
+  acceptedByUserId String?
+  acceptedBy       User?     @relation("VendorMemberInviteAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+  resolvedAt       DateTime?
+
+  @@unique([vendorId, email], map: "vendor_member_invite_vendorId_email_pending_key", where: { status: "PENDING" })
+  @@index([vendorId, status])
+  @@index([email, status])
+  @@index([invitedById, createdAt])
+  @@map("vendor_member_invite")
 }
 
 /// Vendor workspace access grant (personal or organization). One row per (vendorId, workspaceId).
@@ -876,7 +935,11 @@ model Agent {
   metadataOverride AgentMetadataOverride?
 
   // Summary
-  summary String?
+  summary           String?
+  /// Set when the summary model judged the description too thin to summarise,
+  /// so the summary sync stops retrying it. Cleared with `summary` when the
+  /// registry metadata changes.
+  summaryDeclinedAt DateTime?
 
   jobCount Int @default(0)
 
@@ -1908,12 +1971,11 @@ model SokoBot {
   pendingDecisions  SokoBotPendingDecision[]
   schedules         SokoBotSchedule[]
 
+  // One LIVE bot per user and workspace. Partial, because a plain unique would
+  // let a tombstone block its owner from ever creating a new bot.
+  @@unique([userId, workspaceId], map: "soko_bot_user_workspace_live_key", where: { deletedAt: null })
   @@index([archivedAt])
   @@index([lastPolledAt])
-  // One LIVE bot per user and workspace. Enforced by the partial unique index
-  // `soko_bot_user_workspace_live_key` (see the migrations): Prisma cannot
-  // express `WHERE "deletedAt" IS NULL`, and a plain unique would let a
-  // tombstone block its owner from ever creating a new bot.
   @@index([userId, workspaceId])
   @@index([workspaceId])
   @@map("soko_bot")
@@ -2660,6 +2722,7 @@ model TaskScheduleOccurrence {
   ruleSnapshot Json?
 
   @@unique([seriesTaskId, epochId, originalScheduledAt], map: "task_schedule_occurrence_series_epoch_original_key")
+  @@unique([seriesTaskId, originalScheduledAt], map: "task_schedule_occurrence_v1_planned_original_key", where: { scheduleVersion: 1, legacyLinkId: null })
   @@index([seriesTaskId, effectiveScheduledAt, id], map: "task_schedule_occurrence_series_effective_id_idx")
   @@index([seriesTaskId, originalScheduledAt, id], map: "task_schedule_occurrence_series_original_id_idx")
   @@index([sourceWorkspaceId, effectiveScheduledAt, id], map: "task_schedule_occurrence_workspace_effective_id_idx")
@@ -3357,6 +3420,9 @@ model ChatRoom {
   slug                   String?
   kind                   String    @default("channel")
   directKey              String?
+  /// Group name of a group Direct (ADR-0040). Null means unnamed; always null
+  /// for channels (CHECK). Separate from `name`, the Direct creation snapshot.
+  groupName              String?
   /// Remote coworker Conversations API id for streaming 1:1 directs (not used for channel mention threads).
   providerConversationId String?
   topic                  String?
@@ -3379,10 +3445,15 @@ model ChatRoom {
   guestInvitations ChatRoomGuestInvitation[]
   guestInviteLinks ChatRoomGuestInviteLink[]
 
-  // Uniqueness for org Channel (organizationId, slug) WHERE kind = 'channel',
-  // org-less matched Channel slug WHERE organizationId IS NULL, org/personal
-  // directKey, and Channel/Direct slug CHECK are enforced in SQL migrations —
-  // Prisma cannot express those partial uniques.
+  // The Channel/Direct slug and directKey CHECKs live in SQL migrations only:
+  // Prisma cannot express CHECK constraints.
+  @@unique([organizationId, slug], map: "chat_room_organizationId_channel_slug_key", where: { kind: "channel", slug: { not: null } })
+  // Postgres UNIQUE treats NULL organizationId as distinct, so org-less
+  // matched Channels need their own slug unique.
+  @@unique([slug], map: "chat_room_org_less_channel_slug_key", where: { kind: "channel", organizationId: null, slug: { not: null } })
+  @@unique([organizationId, directKey], map: "chat_room_organizationId_directKey_key", where: { organizationId: { not: null }, directKey: { not: null } })
+  @@unique([directKey], map: "chat_room_personal_directKey_key", where: { organizationId: null, directKey: { not: null } })
+  @@unique([providerConversationId], map: "chat_room_providerConversationId_key", where: { providerConversationId: { not: null } })
   @@index([organizationId, archivedAt, updatedAt])
   @@index([organizationId, kind, updatedAt])
   @@index([organizationId, kind, discoverability, archivedAt])
@@ -3419,7 +3490,7 @@ model ChatRoomUserMember {
 
 /// Room-scoped email invite for external channel guests. Accept creates
 /// `ChatRoomUserMember` with `access=guest` (no org Member / seat). One
-/// pending invite per room+email is enforced by a partial unique index in SQL.
+/// pending invite per room+email (partial unique).
 model ChatRoomGuestInvitation {
   id     String   @id @default(uuid(7)) @db.Uuid
   roomId String   @db.Uuid
@@ -3441,6 +3512,7 @@ model ChatRoomGuestInvitation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([roomId, email], map: "chat_room_guest_invitation_room_email_pending_uidx", where: { status: "pending" })
   @@index([roomId, status])
   @@index([email, status])
   @@index([inviterId, createdAt])
