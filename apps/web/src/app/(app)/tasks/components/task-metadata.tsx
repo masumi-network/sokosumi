@@ -26,6 +26,7 @@ interface TaskMetadataLabels {
   organization: string;
   personalWorkspace: string;
   project: string;
+  schedule: string;
   coworker: string;
   credits: string;
   created: string;
@@ -169,6 +170,8 @@ interface TaskMetadataProps {
   taskId: string;
   task: TaskMetadataTask;
   project: { id: string; name: string } | null;
+  /** Rendered in a Schedule row when the Task came from a Task Schedule. */
+  schedule?: React.ReactNode;
   labels: TaskMetadataLabels;
   statusFieldLabels: TaskMetadataStatusFieldLabels;
   editable: boolean;
@@ -184,6 +187,7 @@ export function TaskMetadata({
   taskId,
   task,
   project,
+  schedule,
   labels,
   statusFieldLabels,
   editable,
@@ -270,6 +274,15 @@ export function TaskMetadata({
           <span className="text-right text-sm font-medium">—</span>
         )}
       </div>
+
+      {schedule ? (
+        <div className="flex items-start justify-between gap-4">
+          <span className="text-muted-foreground shrink-0 text-sm">
+            {labels.schedule}
+          </span>
+          {schedule}
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-sm">{labels.coworker}</span>
