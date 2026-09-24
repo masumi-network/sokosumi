@@ -1135,48 +1135,6 @@ export async function setChatRoomThreadMuted(
 }
 
 /**
- * Count parents with `unreadReplyCount >= 1` (Participant-gated dual-baseline,
- * including mentions in muted Threads). No parent hydrate or row list.
- * Same eligibility as `unreadOnly` (ADR-0013, ADR-0030).
- */
-export async function countChatRoomUnreadThreads(
-  roomId: string,
-  userId: string,
-  tx: Prisma.TransactionClient,
-): Promise<number> {
-  const rows = await tx.$queryRawUnsafe<Array<{ count: number | bigint }>>(
-    `
-    SELECT COUNT(DISTINCT parent.id)::int AS count
-    FROM "chat_room_message" reply
-    INNER JOIN "chat_room_message" parent
-      ON parent.id = reply."parentMessageId"
-      AND parent."roomId" = reply."roomId"
-    LEFT JOIN "chat_room_thread_read_state" thread_read
-      ON thread_read."parentMessageId" = parent.id
-      AND thread_read."userId" = $2
-    LEFT JOIN "chat_room_read_state" room_read
-      ON room_read."roomId" = reply."roomId"
-      AND room_read."userId" = $2
-    WHERE reply."roomId" = $1::uuid
-      AND reply."parentMessageId" IS NOT NULL
-      AND reply."deletedAt" IS NULL
-      AND parent."deletedAt" IS NULL
-      AND parent."parentMessageId" IS NULL
-      AND ${sqlThreadReplyPagesViewer("$2")}
-      AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
-      AND ${sqlMessageAttentionAt("reply")} > COALESCE(
-        thread_read."lastReadAt",
-        room_read."createdAt",
-        '-infinity'::timestamp
-      )
-    `,
-    roomId,
-    userId,
-  );
-  return Number(rows[0]?.count ?? 0);
-}
-
-/**
  * Upsert look state for every unread Thread the viewer Participates in and
  * has not muted. Does not change room ChatRoomReadState or CHAT notifications.
  * Muted Threads stay untouched even when a mention is unread (SOK-1087).

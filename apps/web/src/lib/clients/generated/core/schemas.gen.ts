@@ -10417,12 +10417,38 @@ export const ChatRoomThreadsUnreadCountSchema = {
         count: {
             type: 'integer',
             minimum: 0,
-            description: 'Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.',
+            description: 'Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Equals `threads.length`.',
             example: 4
+        },
+        threads: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomThreadUnreadReplyCount'
+            },
+            description: 'Every unread thread in the room with its `unreadReplyCount`. A thread absent from the list has no unread replies for the viewer.'
         }
     },
     required: [
-        'count'
+        'count',
+        'threads'
+    ]
+} as const;
+
+export const ChatRoomThreadUnreadReplyCountSchema = {
+    type: 'object',
+    properties: {
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        unreadReplyCount: {
+            type: 'integer',
+            minimum: 1
+        }
+    },
+    required: [
+        'parentMessageId',
+        'unreadReplyCount'
     ]
 } as const;
 
@@ -10883,6 +10909,39 @@ export const CheckoutSessionAnalyticsSchema = {
         'currency',
         'value',
         'items'
+    ]
+} as const;
+
+export const CompleteComposioCallbackResponseSchema = {
+    type: 'object',
+    properties: {
+        ok: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'ok'
+    ]
+} as const;
+
+export const CompleteComposioCallbackRequestSchema = {
+    type: 'object',
+    properties: {
+        connectionId: {
+            type: 'string',
+            minLength: 1
+        },
+        sessionUri: {
+            type: 'string',
+            minLength: 1
+        }
+    },
+    required: [
+        'connectionId',
+        'sessionUri'
     ]
 } as const;
 
@@ -15933,6 +15992,186 @@ export const ProjectStarSchema = {
     ]
 } as const;
 
+export const ProjectSocialConnectionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
+        },
+        provider: {
+            type: 'string',
+            enum: [
+                'x'
+            ]
+        },
+        externalHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'sokosumi'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'pending',
+                'active',
+                'reauthorization_required',
+                'disconnected'
+            ],
+            example: 'active'
+        },
+        connectedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        disconnectedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'externalHandle',
+        'status',
+        'connectedAt',
+        'disconnectedAt'
+    ]
+} as const;
+
+export const InitiateProjectSocialConnectionResponseSchema = {
+    type: 'object',
+    properties: {
+        connectionId: {
+            type: 'string',
+            minLength: 1,
+            example: 'ca_123'
+        },
+        redirectUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://connect.composio.dev/link-token'
+        }
+    },
+    required: [
+        'connectionId',
+        'redirectUrl'
+    ]
+} as const;
+
+export const InitiateProjectSocialConnectionRequestSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                action: {
+                    type: 'string',
+                    enum: [
+                        'connect'
+                    ]
+                },
+                provider: {
+                    type: 'string',
+                    enum: [
+                        'x'
+                    ]
+                }
+            },
+            required: [
+                'action',
+                'provider'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                action: {
+                    type: 'string',
+                    enum: [
+                        'reconnect'
+                    ]
+                },
+                socialConnectionId: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'action',
+                'socialConnectionId'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                action: {
+                    type: 'string',
+                    enum: [
+                        'replace'
+                    ]
+                },
+                socialConnectionId: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'action',
+                'socialConnectionId'
+            ]
+        }
+    ]
+} as const;
+
+export const FinalizeProjectSocialConnectionRequestSchema = {
+    type: 'object',
+    properties: {
+        connectionId: {
+            type: 'string',
+            minLength: 1,
+            example: 'ca_123'
+        }
+    },
+    required: [
+        'connectionId'
+    ]
+} as const;
+
+export const DisconnectProjectSocialConnectionResponseSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/ProjectSocialConnection'
+        },
+        {
+            type: 'object',
+            properties: {
+                providerRevocation: {
+                    type: 'string',
+                    enum: [
+                        'succeeded',
+                        'failed',
+                        'skipped'
+                    ]
+                }
+            },
+            required: [
+                'providerRevocation'
+            ]
+        }
+    ]
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {
@@ -16839,11 +17078,18 @@ export const NotificationCountsSchema = {
             minimum: 0,
             description: 'Number of feed notifications whose request still waits on the reader',
             example: 2
+        },
+        mentions: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of unread feed notifications where someone named the reader',
+            example: 1
         }
     },
     required: [
         'unread',
-        'needsAction'
+        'needsAction',
+        'mentions'
     ]
 } as const;
 

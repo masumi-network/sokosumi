@@ -2886,9 +2886,18 @@ export type ChatRoomMessage = {
 
 export type ChatRoomThreadsUnreadCount = {
     /**
-     * Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.
+     * Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Equals `threads.length`.
      */
     count: number;
+    /**
+     * Every unread thread in the room with its `unreadReplyCount`. A thread absent from the list has no unread replies for the viewer.
+     */
+    threads: Array<ChatRoomThreadUnreadReplyCount>;
+};
+
+export type ChatRoomThreadUnreadReplyCount = {
+    parentMessageId: string;
+    unreadReplyCount: number;
 };
 
 export type ChatRoomThreadsMarkAll = {
@@ -3068,6 +3077,15 @@ export type CheckoutSessionAnalytics = {
         itemName: string;
         quantity: number | null;
     }>;
+};
+
+export type CompleteComposioCallbackResponse = {
+    ok: true;
+};
+
+export type CompleteComposioCallbackRequest = {
+    connectionId: string;
+    sessionUri: string;
 };
 
 export type CouponDetails = {
@@ -4842,6 +4860,39 @@ export type ProjectStar = {
     starredAt: Date | null;
 };
 
+export type ProjectSocialConnection = {
+    id: string;
+    provider: 'x';
+    externalHandle: string | null;
+    status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
+    connectedAt: Date | null;
+    disconnectedAt: Date | null;
+};
+
+export type InitiateProjectSocialConnectionResponse = {
+    connectionId: string;
+    redirectUrl: string;
+};
+
+export type InitiateProjectSocialConnectionRequest = {
+    action: 'connect';
+    provider: 'x';
+} | {
+    action: 'reconnect';
+    socialConnectionId: string;
+} | {
+    action: 'replace';
+    socialConnectionId: string;
+};
+
+export type FinalizeProjectSocialConnectionRequest = {
+    connectionId: string;
+};
+
+export type DisconnectProjectSocialConnectionResponse = ProjectSocialConnection & {
+    providerRevocation: 'succeeded' | 'failed' | 'skipped';
+};
+
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
@@ -5107,6 +5158,10 @@ export type NotificationCounts = {
      * Number of feed notifications whose request still waits on the reader
      */
     needsAction: number;
+    /**
+     * Number of unread feed notifications where someone named the reader
+     */
+    mentions: number;
 };
 
 export type MarkAllReadResponse = {
@@ -21176,6 +21231,130 @@ export type GetCheckoutSessionAnalyticsResponses = {
 
 export type GetCheckoutSessionAnalyticsResponse = GetCheckoutSessionAnalyticsResponses[keyof GetCheckoutSessionAnalyticsResponses];
 
+export type PostComposioCallbackCompleteData = {
+    body: CompleteComposioCallbackRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/composio/callback/complete';
+};
+
+export type PostComposioCallbackCompleteErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostComposioCallbackCompleteError = PostComposioCallbackCompleteErrors[keyof PostComposioCallbackCompleteErrors];
+
+export type PostComposioCallbackCompleteResponses = {
+    /**
+     * Composio callback verified
+     */
+    200: {
+        data: CompleteComposioCallbackResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostComposioCallbackCompleteResponse = PostComposioCallbackCompleteResponses[keyof PostComposioCallbackCompleteResponses];
+
 export type GetCouponDetailsData = {
     body?: never;
     path: {
@@ -33227,6 +33406,601 @@ export type PostProjectsByIdStarResponses = {
 
 export type PostProjectsByIdStarResponse = PostProjectsByIdStarResponses[keyof PostProjectsByIdStarResponses];
 
+export type GetProjectsByIdSocialConnectionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections';
+};
+
+export type GetProjectsByIdSocialConnectionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsError = GetProjectsByIdSocialConnectionsErrors[keyof GetProjectsByIdSocialConnectionsErrors];
+
+export type GetProjectsByIdSocialConnectionsResponses = {
+    /**
+     * Project social connections
+     */
+    200: {
+        data: Array<ProjectSocialConnection>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsResponse = GetProjectsByIdSocialConnectionsResponses[keyof GetProjectsByIdSocialConnectionsResponses];
+
+export type PostProjectsByIdSocialConnectionsInitiateData = {
+    body: InitiateProjectSocialConnectionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections/initiate';
+};
+
+export type PostProjectsByIdSocialConnectionsInitiateErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialConnectionsInitiateError = PostProjectsByIdSocialConnectionsInitiateErrors[keyof PostProjectsByIdSocialConnectionsInitiateErrors];
+
+export type PostProjectsByIdSocialConnectionsInitiateResponses = {
+    /**
+     * Project social connection initiated
+     */
+    201: {
+        data: InitiateProjectSocialConnectionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialConnectionsInitiateResponse = PostProjectsByIdSocialConnectionsInitiateResponses[keyof PostProjectsByIdSocialConnectionsInitiateResponses];
+
+export type PostProjectsByIdSocialConnectionsFinalizeData = {
+    body: FinalizeProjectSocialConnectionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections/finalize';
+};
+
+export type PostProjectsByIdSocialConnectionsFinalizeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialConnectionsFinalizeError = PostProjectsByIdSocialConnectionsFinalizeErrors[keyof PostProjectsByIdSocialConnectionsFinalizeErrors];
+
+export type PostProjectsByIdSocialConnectionsFinalizeResponses = {
+    /**
+     * Project social connection finalized
+     */
+    201: {
+        data: ProjectSocialConnection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialConnectionsFinalizeResponse = PostProjectsByIdSocialConnectionsFinalizeResponses[keyof PostProjectsByIdSocialConnectionsFinalizeResponses];
+
+export type DeleteProjectsByIdSocialConnectionsByConnectionIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections/{connectionId}';
+};
+
+export type DeleteProjectsByIdSocialConnectionsByConnectionIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdSocialConnectionsByConnectionIdError = DeleteProjectsByIdSocialConnectionsByConnectionIdErrors[keyof DeleteProjectsByIdSocialConnectionsByConnectionIdErrors];
+
+export type DeleteProjectsByIdSocialConnectionsByConnectionIdResponses = {
+    /**
+     * Project social connection disconnected
+     */
+    200: {
+        data: DisconnectProjectSocialConnectionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteProjectsByIdSocialConnectionsByConnectionIdResponse = DeleteProjectsByIdSocialConnectionsByConnectionIdResponses[keyof DeleteProjectsByIdSocialConnectionsByConnectionIdResponses];
+
 export type DeleteProjectsByIdData = {
     body?: never;
     headers?: {
@@ -34853,6 +35627,10 @@ export type GetNotificationsData = {
          * When true, only rows whose request is still waiting on the reader: a task or job paused on input, a pending vendor grant or coworker access request. The newest row per request. Reading a row does not remove it; answering the request does.
          */
         needsAction?: 'true' | 'false';
+        /**
+         * When true, only rows where someone named the reader: chat mentions and their reminders. Direct messages are not mentions.
+         */
+        mentions?: 'true' | 'false';
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
