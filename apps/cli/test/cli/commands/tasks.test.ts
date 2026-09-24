@@ -8,7 +8,6 @@ function clientWith(response: unknown): CoreHttpClient {
     get: async <T>() => response as T,
     post: async <T>() => response as T,
     patch: async <T>() => response as T,
-    delete: async <T>() => response as T,
   };
 }
 
@@ -43,7 +42,6 @@ test("tasks list sends search as server q and keeps server matches", async () =>
     },
     post: async <T>() => ({ data: {} }) as T,
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   await runTasksCommand({
     client,
@@ -100,7 +98,6 @@ test("tasks create posts the payload and returns the task with details", async (
       return { data: { id: "task-1", name: "Build", status: "READY" } } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runTasksCommand({
@@ -163,7 +160,6 @@ test("tasks get returns the task with its events and jobs", async () => {
     },
     post: async <T>() => ({ data: {} }) as T,
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runTasksCommand({
@@ -216,7 +212,6 @@ test("tasks comment posts the comment and status and returns the event", async (
       return { data: { id: "ev-9" } } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runTasksCommand({
@@ -271,7 +266,6 @@ test("tasks get still emits the task when a details fetch fails", async () => {
     },
     post: async <T>() => ({ data: {} }) as T,
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runTasksCommand({
