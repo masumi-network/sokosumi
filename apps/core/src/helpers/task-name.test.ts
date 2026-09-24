@@ -170,6 +170,16 @@ describe("resolveTaskName", () => {
     ).toBe("Write the pricing one-pager");
   });
 
+  it.each([
+    "I can't name this without more detail",
+    "I’m sorry, the description is empty",
+  ])("rejects the refusal %j and uses fallback", async (refusal) => {
+    generateTaskNameMock.mockResolvedValue(refusal);
+    expect(
+      await resolveTaskName({ description: "Write the pricing one-pager" }),
+    ).toBe("Write the pricing one-pager");
+  });
+
   it("rejects a concatenated numbered outline and uses fallback", async () => {
     generateTaskNameMock.mockResolvedValue(
       "1. LANDING PAGE BRIEF 2. Freelance Rates 3. Copy Direction",

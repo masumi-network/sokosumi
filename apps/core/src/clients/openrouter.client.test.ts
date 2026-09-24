@@ -50,8 +50,60 @@ describe("openrouter.client", () => {
     expect(call.prompt).toBe(`Task Description: ${"A".repeat(1000)}`);
     expect(call.temperature).toBe(0.5);
     expect(call.instructions).toEqual(
-      expect.stringContaining("Do NOT: use markdown"),
+      expect.stringContaining("Plain text without markdown"),
     );
+  });
+
+  it.each(["NONE\n", "None", "NONE.", '"NONE"'])(
+    "reports a decline when the model answers %j",
+    async (text) => {
+      generateTextMock.mockResolvedValue({ text });
+
+      const { openrouterClient } = await import("./openrouter.client");
+
+      await expect(
+        openrouterClient.generateAgentSummary("test"),
+      ).resolves.toEqual({ kind: "declined" });
+      const call = generateTextMock.mock.calls[0]![0] as Record<
+        string,
+        unknown
+      >;
+      expect(call.instructions).toEqual(
+        expect.stringContaining("reply with exactly NONE"),
+      );
+    },
+  );
+
+  it("returns the generated agent summary", async () => {
+    generateTextMock.mockResolvedValue({
+      text: "Analyzes competitor landing pages and reports conversion gaps for marketing teams",
+    });
+
+    const { openrouterClient } = await import("./openrouter.client");
+
+    await expect(
+      openrouterClient.generateAgentSummary("Landing page teardown agent"),
+    ).resolves.toEqual({
+      kind: "summary",
+      text: "Analyzes competitor landing pages and reports conversion gaps for marketing teams",
+    });
+  });
+
+  it("returns null when agent summary generation fails, so sync retries", async () => {
+    generateTextMock.mockRejectedValue(new Error("timeout"));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const { openrouterClient } = await import("./openrouter.client");
+
+      await expect(
+        openrouterClient.generateAgentSummary("Landing page teardown agent"),
+      ).resolves.toBeNull();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it("returns null when generateText throws trailing bytes", async () => {
