@@ -37,14 +37,12 @@ vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  organizationInviteLinkRepository: {
-    createInviteLink: (...args: unknown[]) => createInviteLinkMock(...args),
-  },
-}));
-
 vi.mock("@/lib/db/prisma", () => ({
-  default: {},
+  default: {
+    organizationInviteLink: {
+      create: (...args: unknown[]) => createInviteLinkMock(...args),
+    },
+  },
 }));
 
 vi.mock("@/config/env", async (importOriginal) => {
@@ -180,21 +178,20 @@ describe("POST /organizations/{id}/invite-links", () => {
     expect(response.status).toBe(201);
     expect(createInviteLinkMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        organizationId: orgId,
-        role: MemberRole.MEMBER,
-        createdByUserId: "user_123",
-        maxUses: null,
-        expiresAt: new Date(NOW.getTime() + 7 * 24 * 60 * 60 * 1000),
+        data: expect.objectContaining({
+          organization: { connect: { id: orgId } },
+          role: MemberRole.MEMBER,
+          createdBy: { connect: { id: "user_123" } },
+          maxUses: null,
+          expiresAt: new Date(NOW.getTime() + 7 * 24 * 60 * 60 * 1000),
+        }),
       }),
-      expect.anything(),
     );
-    // Token is server-generated; we only assert the repository received one
-    // and that the response URL is built from it.
     const createArgs = createInviteLinkMock.mock.calls[0]?.[0] as {
-      token: string;
+      data: { token: string };
     };
-    expect(createArgs.token).toEqual(expect.any(String));
-    expect(createArgs.token.length).toBeGreaterThan(16);
+    expect(createArgs.data.token).toEqual(expect.any(String));
+    expect(createArgs.data.token.length).toBeGreaterThan(16);
 
     expect(body.data).toMatchObject({
       token: "tok_created",
@@ -228,11 +225,12 @@ describe("POST /organizations/{id}/invite-links", () => {
     expect(response.status).toBe(201);
     expect(createInviteLinkMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        role: MemberRole.MEMBER,
-        maxUses: 25,
-        expiresAt: new Date(NOW.getTime() + 14 * 24 * 60 * 60 * 1000),
+        data: expect.objectContaining({
+          role: MemberRole.MEMBER,
+          maxUses: 25,
+          expiresAt: new Date(NOW.getTime() + 14 * 24 * 60 * 60 * 1000),
+        }),
       }),
-      expect.anything(),
     );
     expect(body.data.maxUses).toBe(25);
   });

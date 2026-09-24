@@ -78,13 +78,9 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   };
 });
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  chatRoomGuestInviteLinkRepository: {
-    getInviteLinkByToken: (...args: unknown[]) =>
-      getInviteLinkByTokenMock(...args),
-    tryConsumeInviteLink: (...args: unknown[]) =>
-      tryConsumeInviteLinkMock(...args),
-  },
+vi.mock("@/helpers/invite-link-consume", () => ({
+  tryConsumeChatRoomGuestInviteLink: (...args: unknown[]) =>
+    tryConsumeInviteLinkMock(...args),
 }));
 
 const tx = {
@@ -103,6 +99,9 @@ const tx = {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    chatRoomGuestInviteLink: {
+      findUnique: (...args: unknown[]) => getInviteLinkByTokenMock(...args),
+    },
   },
 }));
 

@@ -65,17 +65,16 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 vi.mock("@sokosumi/database/repositories", () => ({
-  organizationInviteLinkRepository: {
-    getInviteLinkByToken: (...args: unknown[]) =>
-      getInviteLinkByTokenMock(...args),
-    tryConsumeInviteLink: (...args: unknown[]) =>
-      tryConsumeInviteLinkMock(...args),
-  },
   memberRepository: {
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
       getMemberMock(...args),
     createMember: (...args: unknown[]) => createMemberMock(...args),
   },
+}));
+
+vi.mock("@/helpers/invite-link-consume", () => ({
+  tryConsumeOrganizationInviteLink: (...args: unknown[]) =>
+    tryConsumeInviteLinkMock(...args),
 }));
 
 vi.mock("@/helpers/org-membership-personal-workspace", () => ({
@@ -88,6 +87,9 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: (cb: (tx: unknown) => unknown) => cb({}),
     organization: {
       findUnique: (...args: unknown[]) => orgFindUniqueMock(...args),
+    },
+    organizationInviteLink: {
+      findUnique: (...args: unknown[]) => getInviteLinkByTokenMock(...args),
     },
   },
 }));

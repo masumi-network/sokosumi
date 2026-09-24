@@ -1,7 +1,7 @@
 import Combine
 import CoreAPI
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 @MainActor

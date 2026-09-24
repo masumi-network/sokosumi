@@ -29,10 +29,6 @@ env:
 # Each gate is `!= 'false'` rather than `== 'true'`: when `changes` fails,
 # its outputs are empty and every leg runs instead of skipping silently.
 # `!cancelled()` stops a superseded run from starting legs.
-#
-# Build, Biome, Typecheck, Test Web, Test Core and Test Packages are
-# required. Test CLI, Test Local env, Test CI config and Test Cloud agent
-# db are advisory — not merge gates. See docs/agents/delivery.md.
 jobs:
   changes:
     name: Detect JS changes
