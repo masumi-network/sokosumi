@@ -1948,11 +1948,7 @@
         "unavailableAssignee": "Zuweisung nicht verfügbar"
       },
       "Schedule": {
-        "title": "Zeitplan",
-        "description": "Einmalige oder wiederkehrende Ausführung planen.",
-        "clearSchedule": "Zeitplan entfernen",
         "option": {
-          "oneTime": "Einmalig",
           "daily": "Täglich",
           "dailyWithTime": "Täglich ({time})",
           "dailyEveryNWithTime": "Alle {n} Tage ({time})",
@@ -1964,7 +1960,6 @@
           "monthlyEveryNWithDayTime": "Alle {n} Monate (am {day}., {time})",
           "custom": "Benutzerdefinierter Cron"
         },
-        "pickDateTime": "Einmaliger Lauf am",
         "firstRun": "Erster Lauf",
         "timeOfDay": "Uhrzeit",
         "repeatEvery": "Wiederholen alle",

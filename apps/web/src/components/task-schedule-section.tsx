@@ -46,12 +46,7 @@ import {
 import { cn } from "@/lib/utils";
 import { isValidCronExpression } from "@/lib/utils/task-schedule";
 
-enum TaskScheduleUiMode {
-  ONE_TIME = "ONE_TIME",
-  CRON = "CRON",
-}
-
-type ScheduleOption = "one-time" | "daily" | "weekly" | "monthly" | "custom";
+type ScheduleOption = "daily" | "weekly" | "monthly" | "custom";
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -68,7 +63,7 @@ function parseDateTimeLocalInput(value: string | undefined): Date | null {
 }
 
 function derivePresetFromCron(cron: string): {
-  option: Exclude<ScheduleOption, "one-time" | "custom">;
+  option: Exclude<ScheduleOption, "custom">;
   iso: string;
 } | null {
   const parsed = parseCron(cron);
@@ -97,7 +92,7 @@ function derivePresetFromCron(cron: string): {
 }
 
 type ValidationErrors = {
-  oneTimeLocalIso?: string;
+  firstRunLocalIso?: string;
   timeOfDay?: string;
   repeatEveryCount?: string;
   repeatWeekdays?: string;
@@ -108,14 +103,8 @@ type ValidationErrors = {
 
 const scheduleFormSchema = z
   .object({
-    scheduleOption: z.enum([
-      "one-time",
-      "daily",
-      "weekly",
-      "monthly",
-      "custom",
-    ]),
-    oneTimeLocalIso: z.string().optional(),
+    scheduleOption: z.enum(["daily", "weekly", "monthly", "custom"]),
+    firstRunLocalIso: z.string().optional(),
     timeOfDay: z.string().optional(),
     repeatEveryCount: z.number().int().min(1).optional(),
     repeatEveryUnit: z.enum(["day", "week", "month"]).optional(),
@@ -133,19 +122,19 @@ const scheduleFormSchema = z
       return Number.isNaN(d.getTime()) ? null : d;
     }
 
-    // One-time & presets must be future
+    // A preset's first run must be in the future
     if (data.scheduleOption !== "custom") {
-      const dt = parseLocalIso(data.oneTimeLocalIso);
+      const dt = parseLocalIso(data.firstRunLocalIso);
       if (!dt)
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ["oneTimeLocalIso"],
+          path: ["firstRunLocalIso"],
           message: "errors.required",
         });
       else if (dt <= now)
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ["oneTimeLocalIso"],
+          path: ["firstRunLocalIso"],
           message: "errors.futureDateTime",
         });
     }
@@ -240,37 +229,29 @@ interface TaskScheduleSectionProps {
   initialSelection?: TaskScheduleSelection | null;
   onSave?: (selection: TaskScheduleSelection) => void;
   onCancel?: () => void;
-  onClearSchedule?: () => void;
-  canClearSchedule?: boolean;
-  hideHeader?: boolean;
-  /** Drops the one-time option: a Task Schedule always repeats. */
-  recurringOnly?: boolean;
   saveLabel?: string;
   /** Blocks saving for reasons outside the rule, such as a missing name. */
   saveDisabled?: boolean;
 }
 
+/** The rule of a Task Schedule, which always repeats. */
 export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   const t = useTranslations("App.Tasks.Schedule");
   const formatter = useFormatter();
-  const pickDateTimeId = useId();
+  const firstRunId = useId();
   const timeOfDayId = useId();
   const timezoneOptions = useMemo(
     () => getTimezoneOptions(props.initialSelection?.timezone),
     [props.initialSelection?.timezone],
   );
-  const [mode, setMode] = useState<TaskScheduleUiMode>(
-    TaskScheduleUiMode.ONE_TIME,
-  );
-  const [scheduleOption, setScheduleOption] =
-    useState<ScheduleOption>("one-time");
+  const [scheduleOption, setScheduleOption] = useState<ScheduleOption>("daily");
   const [timezone, setTimezone] = useState<string>(
     props.initialSelection?.timezone ?? getDefaultTimezone(),
   );
   const [customCronExpr, setCustomCronExpr] = useState<string>(
     props.initialSelection?.customCronExpr ?? "",
   );
-  const [oneTimeLocalIso, setOneTimeLocalIso] = useState<string>(() =>
+  const [firstRunLocalIso, setFirstRunLocalIso] = useState<string>(() =>
     formatDateTimeLocalInput(new Date(Date.now() + 5 * 60 * 1000)),
   );
   // Note: We derive cron expression from builder fields; no separate cron state needed
@@ -299,7 +280,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   useEffect(() => {
     const formData = {
       scheduleOption,
-      oneTimeLocalIso,
+      firstRunLocalIso,
       timeOfDay,
       repeatEveryCount,
       repeatEveryUnit,
@@ -334,7 +315,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     }
   }, [
     scheduleOption,
-    oneTimeLocalIso,
+    firstRunLocalIso,
     timeOfDay,
     repeatEveryUnit,
     repeatEveryCount,
@@ -353,7 +334,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
       monthly: t("option.monthly"),
     };
 
-    const parsed = parseDateTimeLocalInput(oneTimeLocalIso);
+    const parsed = parseDateTimeLocalInput(firstRunLocalIso);
     if (!parsed) return base;
 
     const timeLabel = formatter.dateTime(parsed, "time", {
@@ -376,7 +357,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
         time: timeLabel,
       }),
     };
-  }, [formatter, oneTimeLocalIso, t, timezone]);
+  }, [formatter, firstRunLocalIso, t, timezone]);
 
   function deriveBuilderStateFromCron(cron: string): {
     unit: "day" | "week" | "month";
@@ -442,20 +423,6 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
 
     setTimezone(sel.timezone);
 
-    if (sel.mode === "none") {
-      setMode(TaskScheduleUiMode.ONE_TIME);
-      setScheduleOption("one-time");
-      return;
-    }
-
-    if (sel.mode === "once") {
-      setMode(TaskScheduleUiMode.ONE_TIME);
-      setScheduleOption("one-time");
-      if (sel.oneTimeLocalIso) setOneTimeLocalIso(sel.oneTimeLocalIso);
-      return;
-    }
-
-    setMode(TaskScheduleUiMode.CRON);
     const cron = sel.customCronExpr?.trim() || sel.cron || "";
     if (sel.customCronExpr) {
       setCustomCronExpr(sel.customCronExpr);
@@ -468,7 +435,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
         : derivePresetFromCron(cron);
     if (derivedPreset) {
       setScheduleOption(derivedPreset.option);
-      setOneTimeLocalIso(derivedPreset.iso);
+      setFirstRunLocalIso(derivedPreset.iso);
     } else if (sel.intervalDays != null && sel.intervalDays > 1) {
       // The builder carries an every-N-days rule: its step, and the anchor's
       // time as the time of day. A cron text would override the builder.
@@ -477,7 +444,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
       setRepeatEveryUnit("day");
       setRepeatEveryCount(sel.intervalDays);
       if (sel.oneTimeLocalIso) {
-        setOneTimeLocalIso(sel.oneTimeLocalIso);
+        setFirstRunLocalIso(sel.oneTimeLocalIso);
         setTimeOfDay(sel.oneTimeLocalIso.slice(11, 16));
       }
     } else {
@@ -524,13 +491,12 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   }, [repeatEveryUnit, repeatEveryCount, repeatWeekdays, timeOfDay]);
 
   const computedCron = useMemo(() => {
-    if (mode !== TaskScheduleUiMode.CRON) return "";
     if (scheduleOption !== "custom") return "";
     return buildCronFromSelections();
-  }, [mode, scheduleOption, buildCronFromSelections]);
+  }, [scheduleOption, buildCronFromSelections]);
 
   const getPresetCron = useCallback((): string | null => {
-    const parts = parseDateTimeLocalParts(oneTimeLocalIso);
+    const parts = parseDateTimeLocalParts(firstRunLocalIso);
     if (!parts) return null;
 
     const { hour, minute, day, month, year } = parts;
@@ -546,7 +512,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
       return `${minute} ${hour} ${day} * *`;
     }
     return null;
-  }, [scheduleOption, oneTimeLocalIso]);
+  }, [scheduleOption, firstRunLocalIso]);
 
   const getSelectedCron = useCallback((): string | null => {
     if (scheduleOption === "custom") {
@@ -569,12 +535,9 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     repeatEveryCount > 1
       ? repeatEveryCount
       : null;
-  const intervalAnchorLocalIso = `${oneTimeLocalIso.slice(0, 10)}T${timeOfDay}`;
+  const intervalAnchorLocalIso = `${firstRunLocalIso.slice(0, 10)}T${timeOfDay}`;
 
   const emitSelection = useCallback((): TaskScheduleSelection => {
-    if (scheduleOption === "one-time") {
-      return { mode: "once", timezone, oneTimeLocalIso };
-    }
     const cron = getSelectedCron() ?? undefined;
 
     return {
@@ -582,7 +545,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
       timezone,
       // Core runs an every-N-days rule at its anchor's local time, so the
       // anchor takes the builder's time of day.
-      oneTimeLocalIso: everyNDays ? intervalAnchorLocalIso : oneTimeLocalIso,
+      oneTimeLocalIso: everyNDays ? intervalAnchorLocalIso : firstRunLocalIso,
       cron,
       customCronExpr: scheduleOption === "custom" ? customCronExpr : undefined,
       ...(everyNDays != null ? { intervalDays: everyNDays } : {}),
@@ -599,7 +562,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   }, [
     timezone,
     scheduleOption,
-    oneTimeLocalIso,
+    firstRunLocalIso,
     customCronExpr,
     getSelectedCron,
     endsMode,
@@ -610,7 +573,6 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   ]);
 
   const nextPreview = useMemo(() => {
-    if (mode !== TaskScheduleUiMode.CRON) return [] as string[];
     const cron = getSelectedCron();
     if (!cron) return [] as string[];
     try {
@@ -658,7 +620,6 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   }, [
     formatter,
     timezone,
-    mode,
     endsMode,
     endOnDate,
     endAfterOccurrences,
@@ -673,23 +634,8 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     props.onSave?.(selection);
   }
 
-  function handleScheduleOptionChange(next: ScheduleOption) {
-    setScheduleOption(next);
-    if (next === "one-time") {
-      setMode(TaskScheduleUiMode.ONE_TIME);
-      return;
-    }
-    setMode(TaskScheduleUiMode.CRON);
-  }
-
   return (
     <div className="space-y-4">
-      {!props.hideHeader ? (
-        <div className="mb-4 flex flex-col gap-2">
-          <h1 className="text-xl font-light">{t("title")}</h1>
-          <p className="text-muted-foreground text-xs">{t("description")}</p>
-        </div>
-      ) : null}
       <div className="space-y-2">
         <div className="space-y-2">
           <Label>{t("timezone")}</Label>
@@ -709,20 +655,18 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
         {scheduleOption !== "custom" && (
           <div className="mb-4 space-y-3">
             <div className="flex flex-col gap-2">
-              <Label htmlFor={pickDateTimeId}>
-                {props.recurringOnly ? t("firstRun") : t("pickDateTime")}
-              </Label>
+              <Label htmlFor={firstRunId}>{t("firstRun")}</Label>
               <Input
-                id={pickDateTimeId}
+                id={firstRunId}
                 type="datetime-local"
-                value={oneTimeLocalIso}
-                onChange={(e) => setOneTimeLocalIso(e.target.value)}
-                aria-invalid={!!errors.oneTimeLocalIso}
+                value={firstRunLocalIso}
+                onChange={(e) => setFirstRunLocalIso(e.target.value)}
+                aria-invalid={!!errors.firstRunLocalIso}
                 min={formatDateTimeLocalInput(new Date())}
               />
-              {errors.oneTimeLocalIso ? (
+              {errors.firstRunLocalIso ? (
                 <p className="text-destructive mt-1 text-xs">
-                  {t(errors.oneTimeLocalIso)}
+                  {t(errors.firstRunLocalIso)}
                 </p>
               ) : null}
             </div>
@@ -730,18 +674,12 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
         )}
         <Select
           value={scheduleOption}
-          onValueChange={(v) => {
-            const next = v as ScheduleOption;
-            handleScheduleOptionChange(next);
-          }}
+          onValueChange={(v) => setScheduleOption(v as ScheduleOption)}
         >
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {props.recurringOnly ? null : (
-              <SelectItem value="one-time">{t("option.oneTime")}</SelectItem>
-            )}
             <SelectItem value="daily">{presetDisplayLabels.daily}</SelectItem>
             <SelectItem value="weekly">{presetDisplayLabels.weekly}</SelectItem>
             <SelectItem value="monthly">
@@ -751,7 +689,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
           </SelectContent>
         </Select>
       </div>
-      {mode === TaskScheduleUiMode.CRON && scheduleOption === "custom" && (
+      {scheduleOption === "custom" && (
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-base">{t("customCron")}</Label>
@@ -987,7 +925,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
           </div>
         </div>
       )}
-      {mode === TaskScheduleUiMode.CRON && scheduleOption !== "custom" && (
+      {scheduleOption !== "custom" && (
         <div className="space-y-2">
           <Label className="text-base">{t("preview")}</Label>
           <div
@@ -1010,39 +948,24 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
           </div>
         </div>
       )}
-      <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          {props.canClearSchedule ? (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                props.onClearSchedule?.();
-              }}
-            >
-              {t("clearSchedule")}
-            </Button>
-          ) : null}
-        </div>
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              props.onCancel?.();
-            }}
-          >
-            {t("cancel")}
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={!isValid || props.saveDisabled}
-            aria-invalid={!isValid}
-          >
-            {props.saveLabel ?? t("save")}
-          </Button>
-        </div>
+      <div className="flex items-center justify-end gap-2 pt-2">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            props.onCancel?.();
+          }}
+        >
+          {t("cancel")}
+        </Button>
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={!isValid || props.saveDisabled}
+          aria-invalid={!isValid}
+        >
+          {props.saveLabel ?? t("save")}
+        </Button>
       </div>
     </div>
   );

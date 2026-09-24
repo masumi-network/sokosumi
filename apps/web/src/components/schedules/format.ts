@@ -6,7 +6,6 @@ import {
 } from "@/lib/schedules/cron";
 
 export type ScheduleTitleInfo =
-  | { key: "oneTime" }
   | { key: "custom" }
   | { key: "dailyWithTime"; values: { time: string } }
   | { key: "weeklyWithWeekdayTime"; values: { weekday: string; time: string } }
@@ -19,7 +18,6 @@ export type ScheduleTitleInfo =
     };
 
 export interface ScheduleTitleInput {
-  scheduleType: string;
   cron?: string | null;
   timezone: string;
   /** A rule every N calendar days keeps its day step here, not in the cron. */
@@ -30,8 +28,6 @@ export function computeScheduleTitleInfo(
   s: ScheduleTitleInput,
   formatter: DateTimeFormatter,
 ): ScheduleTitleInfo {
-  if (s.scheduleType === "ONE_TIME") return { key: "oneTime" };
-
   const parsed = parseCron(s.cron ?? "");
 
   switch (parsed.kind) {
@@ -122,8 +118,6 @@ export function formatScheduleTitle(
   t: ScheduleTitleTranslateFn,
 ): string {
   switch (info.key) {
-    case "oneTime":
-      return t("option.oneTime");
     case "custom":
       return t("option.custom");
     case "dailyWithTime":

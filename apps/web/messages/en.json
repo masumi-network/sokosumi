@@ -1948,11 +1948,7 @@
         "unavailableAssignee": "Unavailable assignee"
       },
       "Schedule": {
-        "title": "Schedule",
-        "description": "Plan a one-time or recurring run.",
-        "clearSchedule": "Remove schedule",
         "option": {
-          "oneTime": "One-time",
           "daily": "Daily",
           "dailyWithTime": "Daily ({time})",
           "dailyEveryNWithTime": "Every {n} days ({time})",
@@ -1964,7 +1960,6 @@
           "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
           "custom": "Custom cron"
         },
-        "pickDateTime": "Run once at",
         "firstRun": "First run",
         "timeOfDay": "Time of day",
         "repeatEvery": "Repeat every",

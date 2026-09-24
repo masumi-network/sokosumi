@@ -279,8 +279,6 @@ export function TaskScheduleDialog({
 
           <div className="border-t pt-4">
             <TaskScheduleSection
-              hideHeader
-              recurringOnly
               initialSelection={initialSelection}
               saveLabel={schedule ? t("save") : t("create")}
               saveDisabled={isSaving || !name.trim()}

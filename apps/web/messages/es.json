@@ -1948,11 +1948,7 @@
         "unavailableAssignee": "Asignatario no disponible"
       },
       "Schedule": {
-        "title": "Programación",
-        "description": "Planificar una ejecución única o recurrente.",
-        "clearSchedule": "Eliminar programación",
         "option": {
-          "oneTime": "Una sola vez",
           "daily": "Diariamente",
           "dailyWithTime": "Diariamente ({time})",
           "dailyEveryNWithTime": "Cada {n} días ({time})",
@@ -1964,7 +1960,6 @@
           "monthlyEveryNWithDayTime": "Cada {n} meses (día {day}, {time})",
           "custom": "Cron personalizado"
         },
-        "pickDateTime": "Ejecución única el",
         "firstRun": "Primera ejecución",
         "timeOfDay": "Hora del día",
         "repeatEvery": "Repetir cada",
