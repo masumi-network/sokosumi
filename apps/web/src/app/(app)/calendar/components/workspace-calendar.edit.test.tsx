@@ -414,7 +414,7 @@ describe("WorkspaceCalendar editing", () => {
     );
   });
 
-  it("opens the shared task modal with a locked Project and clicked schedule", async () => {
+  it("opens the shared task modal with a locked Project and the clicked Run at", async () => {
     const user = userEvent.setup();
     renderCalendar({ lockedProjectId: "project-1" });
 
