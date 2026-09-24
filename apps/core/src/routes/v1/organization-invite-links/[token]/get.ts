@@ -1,6 +1,6 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
-import { organizationInviteLinkRepository } from "@sokosumi/database/repositories";
 import { evaluateInviteLinkStatus } from "@sokosumi/utils";
+
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -33,10 +33,9 @@ const route = createRoute({
 export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
     const { token } = c.req.valid("param");
-    const link = await organizationInviteLinkRepository.getInviteLinkByToken(
-      token,
-      prisma,
-    );
+    const link = await prisma.organizationInviteLink.findUnique({
+      where: { token },
+    });
     const status = evaluateInviteLinkStatus(link, new Date());
 
     if (status !== "valid" || !link) {

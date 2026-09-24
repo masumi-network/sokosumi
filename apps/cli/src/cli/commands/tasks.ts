@@ -162,7 +162,7 @@ export async function runTasksCommand({
     const { tasks } = await fetchTasks(
       client,
       {
-        q: optionString(options, "search", "q"),
+        q: optionString(options, "search"),
         status: optionString(options, "status"),
         scope: optionString(options, "scope"),
         coworkerId: optionString(options, "coworker-id"),

@@ -11,7 +11,6 @@ const COWORKERS_PATH = "/v1/coworkers";
 
 export interface FetchCoworkersOptions {
   scope?: string;
-  capability?: string | readonly string[];
   capabilities?: string | readonly string[];
 }
 
@@ -25,7 +24,7 @@ export interface CoworkerApiKeyData {
 function pathWithQuery(options: FetchCoworkersOptions = {}): string {
   const params = new URLSearchParams();
   if (options.scope) params.set("scope", options.scope.trim());
-  const capabilities = options.capabilities ?? options.capability;
+  const capabilities = options.capabilities;
   const values = Array.isArray(capabilities)
     ? capabilities
     : capabilities

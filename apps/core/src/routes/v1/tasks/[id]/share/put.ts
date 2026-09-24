@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskVisibility } from "@sokosumi/database";
-import { publicShareRepository } from "@sokosumi/database/repositories";
 
 import { requireMutableTaskOwnership } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
@@ -56,11 +55,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Private tasks cannot be shared publicly");
     }
 
-    const share = await publicShareRepository.upsertForTask(
-      id,
-      allowSearchIndexing,
-      prisma,
-    );
+    const share = await prisma.publicShare.upsert({
+      where: { taskId: id },
+      create: {
+        task: { connect: { id } },
+        allowSearchIndexing,
+        token: crypto.randomUUID(),
+      },
+      update: {
+        allowSearchIndexing,
+      },
+      include: { job: true, task: true },
+    });
 
     return ok(c, taskShareSchema.parse(share));
   });
