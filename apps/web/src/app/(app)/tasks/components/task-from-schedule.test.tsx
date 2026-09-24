@@ -40,7 +40,7 @@ describe("TaskFromSchedule", () => {
     vi.clearAllMocks();
   });
 
-  it("links to the Task Schedule by its plain name with rule and next run", async () => {
+  it("links to the Task Schedule by its plain name with rule and next run on hover", async () => {
     getScheduleMock.mockResolvedValue(schedule());
 
     render(await TaskFromSchedule({ scheduleId: SCHEDULE_ID }));
@@ -48,9 +48,10 @@ describe("TaskFromSchedule", () => {
     expect(
       screen.getByRole("link", { name: "Task Name: Weekly" }),
     ).toHaveAttribute("href", `/schedules/${SCHEDULE_ID}`);
-    expect(
-      screen.getByText("Weekly (Monday, 10:00) · nextRun: Sep 28"),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "title",
+      "Weekly (Monday, 10:00) · nextRun: Sep 28",
+    );
   });
 
   it("shows the state instead of a next run for a paused schedule", async () => {
@@ -58,9 +59,10 @@ describe("TaskFromSchedule", () => {
 
     render(await TaskFromSchedule({ scheduleId: SCHEDULE_ID }));
 
-    expect(
-      screen.getByText("Weekly (Monday, 10:00) · state.PAUSED"),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "title",
+      "Weekly (Monday, 10:00) · state.PAUSED",
+    );
   });
 
   it("names no schedule the viewer may not open", async () => {

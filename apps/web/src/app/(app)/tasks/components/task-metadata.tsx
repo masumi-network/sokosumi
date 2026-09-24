@@ -276,7 +276,7 @@ export function TaskMetadata({
       </div>
 
       {schedule ? (
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center justify-between gap-4">
           <span className="text-muted-foreground shrink-0 text-sm">
             {labels.schedule}
           </span>
