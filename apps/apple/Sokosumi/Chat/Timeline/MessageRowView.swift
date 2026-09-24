@@ -279,10 +279,9 @@ import SwiftUI
           if message.deletedAt == nil, outbound == nil, !message.reactions.isEmpty {
             MessageReactionsView(reactions: message.reactions, toggle: reactionAction)
           }
-          if let onReply, message.threadReplyCount > 0 {
-            Button("^[\(message.threadReplyCount) reply](inflect: true)", action: onReply)
-              .buttonStyle(.borderless)
-              .font(.caption)
+          if let onReply, let bar = ThreadReplyBar(message: message) {
+            ThreadReplyBarButton(bar: bar, open: onReply)
+              .padding(.top, 4)
           }
           if let outbound, outbound.status == .failed {
             if let error = outbound.errorMessage, !error.isEmpty {
@@ -620,19 +619,10 @@ import SwiftUI
 
     private var avatarView: some View {
       ParticipantAvatar(
-        imageURL: avatarURLString,
+        imageURL: messageSenderImage(message.sender),
         name: messageSenderName(message.sender),
         size: Self.avatarDiameter
       )
-    }
-
-    private var avatarURLString: String? {
-      switch message.sender {
-      case let .case1(user): user.user.image
-      case let .case2(coworker): coworker.coworker.image
-      case let .case3(bot): bot.sokoBot.image
-      case .case4: nil
-      }
     }
   }
 
