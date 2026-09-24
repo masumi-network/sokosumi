@@ -33,21 +33,27 @@ public final class RoomReadAttention: ObservableObject {
     let content: Content
   }
 
+  /// What a room holds about what is unread in it (web `RoomReadOverlay`): both halves of `unreadCount`
+  /// (ADR 0037), the badge, the mark and the room's unread Threads, which a Look changes as it does the
+  /// counts. Bold follows the channel half, so an overlay that kept only the total would re-bold a room it
+  /// exists to keep read.
   private struct Fields {
-    let unreadCount: Int
-    let unreadMentionCount: Int
-    let markedUnread: Bool
+    let snapshot: Components.Schemas.ChatRoom
     init(_ room: Components.Schemas.ChatRoom) {
-      unreadCount = room.unreadCount
-      unreadMentionCount = room.unreadMentionCount
-      markedUnread = room.markedUnread
+      snapshot = room
     }
 
     func applying(to room: Components.Schemas.ChatRoom) -> Components.Schemas.ChatRoom {
       var room = room
-      room.unreadCount = unreadCount
-      room.unreadMentionCount = unreadMentionCount
-      room.markedUnread = markedUnread
+      room.unreadCount = snapshot.unreadCount
+      room.channelUnreadCount = snapshot.channelUnreadCount
+      room.threadUnreadCount = snapshot.threadUnreadCount
+      room.unreadMentionCount = snapshot.unreadMentionCount
+      room.markedUnread = snapshot.markedUnread
+      // A snapshot without the list says nothing about it, so the room's own list stands.
+      room.unreadThreadCount = snapshot.unreadThreadCount ?? room.unreadThreadCount
+      room.unreadThreadMentionCount = snapshot.unreadThreadMentionCount ?? room.unreadThreadMentionCount
+      room.unreadThreads = snapshot.unreadThreads ?? room.unreadThreads
       return room
     }
   }
@@ -140,9 +146,7 @@ public final class RoomReadAttention: ObservableObject {
     if unread {
       optimistic.markedUnread = true
     } else if optimisticRead {
-      optimistic.unreadCount = 0
-      optimistic.unreadMentionCount = 0
-      optimistic.markedUnread = false
+      optimistic = roomAttentionAfterRead(optimistic)
     }
     revision += 1
     overlays[room.id] = Overlay(fields: Fields(optimistic), revision: revision, rollback: rollback, expiresAt: now().addingTimeInterval(30))
@@ -197,6 +201,52 @@ public final class RoomReadAttention: ObservableObject {
   @discardableResult
   public func readAfterThreadLook(room: Components.Schemas.ChatRoom, client: Client, organizationSlug: String?) async throws -> Bool {
     try await readRoom(room, optimistic: false, client: client, organizationSlug: organizationSlug)
+  }
+
+  /// Web's `markAllUnreadRead` (row 24f2): each target's room read and thread Mark all, all at once, through the
+  /// reads the room itself offers. A room read settles its row on Core's answer, as a read after a Look does.
+  /// Every read runs; the first failure is thrown once they have all settled.
+  public func markAllUnreadRead(
+    _ targets: [RoomUnreadReads], rooms: [Components.Schemas.ChatRoom], client: Client, organizationSlug: String?
+  ) async throws {
+    let byId = Dictionary(rooms.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let failure = await withTaskGroup(of: (any Error)?.self) { group in
+      for target in targets {
+        if target.readRoom, let room = byId[target.roomId] {
+          group.addTask {
+            await self.markAllRoomRead(room, client: client, organizationSlug: organizationSlug)
+          }
+        }
+        if target.lookThreads {
+          group.addTask {
+            do {
+              try await ChatService().markAllThreadsRead(client: client, roomId: target.roomId, organizationSlug: organizationSlug)
+              return nil
+            } catch {
+              return error
+            }
+          }
+        }
+      }
+      var first: (any Error)?
+      for await error in group {
+        first = first ?? error
+      }
+      return first
+    }
+    if let failure {
+      throw failure
+    }
+  }
+
+  /// Mark all's room read: Core's answer settles the row, as after a Look; the failure is returned, not thrown.
+  private func markAllRoomRead(_ room: Components.Schemas.ChatRoom, client: Client, organizationSlug: String?) async -> (any Error)? {
+    do {
+      _ = try await readRoom(room, optimistic: false, client: client, organizationSlug: organizationSlug)
+      return nil
+    } catch {
+      return error
+    }
   }
 
   private func readRoom(_ room: Components.Schemas.ChatRoom, optimistic: Bool, client: Client, organizationSlug: String?) async throws -> Bool {

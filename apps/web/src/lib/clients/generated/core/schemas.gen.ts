@@ -6877,11 +6877,55 @@ export const ResolveAdminTaskX402PaymentBodySchema = {
     ]
 } as const;
 
-export const VendorListSchema = {
+export const AdminVendorListSchema = {
     type: 'array',
     items: {
-        $ref: '#/components/schemas/Vendor'
+        $ref: '#/components/schemas/AdminVendor'
     }
+} as const;
+
+export const AdminVendorSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Vendor'
+        },
+        {
+            type: 'object',
+            properties: {
+                listed: {
+                    type: 'boolean',
+                    description: 'Whether this vendor appears in GET /v1/vendors.'
+                }
+            },
+            required: [
+                'listed'
+            ]
+        }
+    ]
+} as const;
+
+export const VendorLogosSchema = {
+    type: 'object',
+    properties: {
+        light: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '/images/logos/serviceplan-logo.png'
+        },
+        dark: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '/images/logos/serviceplan-logo-white.png'
+        }
+    },
+    required: [
+        'light',
+        'dark'
+    ]
 } as const;
 
 export const VendorSchema = {
@@ -6921,30 +6965,6 @@ export const VendorSchema = {
     ]
 } as const;
 
-export const VendorLogosSchema = {
-    type: 'object',
-    properties: {
-        light: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: '/images/logos/serviceplan-logo.png'
-        },
-        dark: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: '/images/logos/serviceplan-logo-white.png'
-        }
-    },
-    required: [
-        'light',
-        'dark'
-    ]
-} as const;
-
 export const CreateVendorRequestSchema = {
     type: 'object',
     properties: {
@@ -6978,13 +6998,15 @@ export const VendorLogosInputSchema = {
             type: [
                 'string',
                 'null'
-            ]
+            ],
+            maxLength: 2048
         },
         dark: {
             type: [
                 'string',
                 'null'
-            ]
+            ],
+            maxLength: 2048
         }
     }
 } as const;
@@ -7007,6 +7029,10 @@ export const PatchVendorRequestSchema = {
         },
         logos: {
             $ref: '#/components/schemas/VendorLogosInput'
+        },
+        listed: {
+            type: 'boolean',
+            description: 'Whether this vendor appears in GET /v1/vendors. Platform admin only.'
         }
     }
 } as const;
@@ -10391,12 +10417,38 @@ export const ChatRoomThreadsUnreadCountSchema = {
         count: {
             type: 'integer',
             minimum: 0,
-            description: 'Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.',
+            description: 'Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Equals `threads.length`.',
             example: 4
+        },
+        threads: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomThreadUnreadReplyCount'
+            },
+            description: 'Every unread thread in the room with its `unreadReplyCount`. A thread absent from the list has no unread replies for the viewer.'
         }
     },
     required: [
-        'count'
+        'count',
+        'threads'
+    ]
+} as const;
+
+export const ChatRoomThreadUnreadReplyCountSchema = {
+    type: 'object',
+    properties: {
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        unreadReplyCount: {
+            type: 'integer',
+            minimum: 1
+        }
+    },
+    required: [
+        'parentMessageId',
+        'unreadReplyCount'
     ]
 } as const;
 
@@ -10857,6 +10909,39 @@ export const CheckoutSessionAnalyticsSchema = {
         'currency',
         'value',
         'items'
+    ]
+} as const;
+
+export const CompleteComposioCallbackResponseSchema = {
+    type: 'object',
+    properties: {
+        ok: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'ok'
+    ]
+} as const;
+
+export const CompleteComposioCallbackRequestSchema = {
+    type: 'object',
+    properties: {
+        connectionId: {
+            type: 'string',
+            minLength: 1
+        },
+        sessionUri: {
+            type: 'string',
+            minLength: 1
+        }
+    },
+    required: [
+        'connectionId',
+        'sessionUri'
     ]
 } as const;
 
@@ -12962,6 +13047,7 @@ export const UserDeletionEvaluationSchema = {
                 enum: [
                     'RUNNING_SUBSCRIPTION',
                     'USER_OWNS_ORGANIZATION',
+                    'USER_IS_LAST_VENDOR_ADMIN',
                     'IN_FLIGHT_JOB',
                     'UNSETTLED_ON_CHAIN_JOB',
                     'IN_FLIGHT_TASK',
@@ -15906,6 +15992,502 @@ export const ProjectStarSchema = {
     ]
 } as const;
 
+export const ProjectSocialConnectionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
+        },
+        provider: {
+            type: 'string',
+            enum: [
+                'x'
+            ]
+        },
+        externalHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'sokosumi'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'pending',
+                'active',
+                'reauthorization_required',
+                'disconnected'
+            ],
+            example: 'active'
+        },
+        connectedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        disconnectedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'externalHandle',
+        'status',
+        'connectedAt',
+        'disconnectedAt'
+    ]
+} as const;
+
+export const InitiateProjectSocialConnectionResponseSchema = {
+    type: 'object',
+    properties: {
+        connectionId: {
+            type: 'string',
+            minLength: 1,
+            example: 'ca_123'
+        },
+        redirectUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://connect.composio.dev/link-token'
+        }
+    },
+    required: [
+        'connectionId',
+        'redirectUrl'
+    ]
+} as const;
+
+export const InitiateProjectSocialConnectionRequestSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                action: {
+                    type: 'string',
+                    enum: [
+                        'connect'
+                    ]
+                },
+                provider: {
+                    type: 'string',
+                    enum: [
+                        'x'
+                    ]
+                }
+            },
+            required: [
+                'action',
+                'provider'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                action: {
+                    type: 'string',
+                    enum: [
+                        'reconnect'
+                    ]
+                },
+                socialConnectionId: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'action',
+                'socialConnectionId'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                action: {
+                    type: 'string',
+                    enum: [
+                        'replace'
+                    ]
+                },
+                socialConnectionId: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'action',
+                'socialConnectionId'
+            ]
+        }
+    ]
+} as const;
+
+export const FinalizeProjectSocialConnectionRequestSchema = {
+    type: 'object',
+    properties: {
+        connectionId: {
+            type: 'string',
+            minLength: 1,
+            example: 'ca_123'
+        }
+    },
+    required: [
+        'connectionId'
+    ]
+} as const;
+
+export const DisconnectProjectSocialConnectionResponseSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/ProjectSocialConnection'
+        },
+        {
+            type: 'object',
+            properties: {
+                providerRevocation: {
+                    type: 'string',
+                    enum: [
+                        'succeeded',
+                        'failed',
+                        'skipped'
+                    ]
+                }
+            },
+            required: [
+                'providerRevocation'
+            ]
+        }
+    ]
+} as const;
+
+export const SocialPostSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        provider: {
+            type: 'string',
+            enum: [
+                'x'
+            ]
+        },
+        text: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/SocialPostStatus'
+        },
+        scheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Europe/Zurich'
+        },
+        socialConnection: {
+            $ref: '#/components/schemas/SocialPostSocialConnection'
+        },
+        creator: {
+            $ref: '#/components/schemas/SocialPostCreator'
+        },
+        scheduledByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        canceledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        publishedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        publishedExternalId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        publishedUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        lastError: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            example: 2
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        canEdit: {
+            type: 'boolean'
+        },
+        canSchedule: {
+            type: 'boolean'
+        },
+        canCancel: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'projectId',
+        'provider',
+        'text',
+        'status',
+        'scheduledAt',
+        'timezone',
+        'socialConnection',
+        'creator',
+        'scheduledByUserId',
+        'canceledAt',
+        'publishedAt',
+        'publishedExternalId',
+        'publishedUrl',
+        'lastError',
+        'revision',
+        'createdAt',
+        'updatedAt',
+        'canEdit',
+        'canSchedule',
+        'canCancel'
+    ]
+} as const;
+
+export const SocialPostStatusSchema = {
+    type: 'string',
+    enum: [
+        'DRAFT',
+        'SCHEDULED',
+        'PUBLISHING',
+        'PUBLISHED',
+        'FAILED',
+        'MISSED',
+        'CANCELED'
+    ]
+} as const;
+
+export const SocialPostSocialConnectionSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
+        },
+        externalHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'sokosumi'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'pending',
+                'active',
+                'reauthorization_required',
+                'disconnected'
+            ],
+            example: 'active'
+        }
+    },
+    required: [
+        'id',
+        'externalHandle',
+        'status'
+    ]
+} as const;
+
+export const SocialPostCreatorSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'user',
+                'coworker',
+                'sokoBot'
+            ],
+            example: 'user'
+        },
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Ada Lovelace'
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'name'
+    ]
+} as const;
+
+export const CreateSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 280,
+            example: 'Shipping the new Calendar today.'
+        },
+        socialConnectionId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
+        }
+    },
+    required: [
+        'text'
+    ]
+} as const;
+
+export const UpdateSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 280,
+            example: 'Shipping the new Calendar today.'
+        },
+        socialConnectionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const ScheduleSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
+        },
+        socialConnectionId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'scheduledAt',
+        'revision'
+    ]
+} as const;
+
+export const CancelSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {
@@ -16812,11 +17394,18 @@ export const NotificationCountsSchema = {
             minimum: 0,
             description: 'Number of feed notifications whose request still waits on the reader',
             example: 2
+        },
+        mentions: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of unread feed notifications where someone named the reader',
+            example: 1
         }
     },
     required: [
         'unread',
-        'needsAction'
+        'needsAction',
+        'mentions'
     ]
 } as const;
 
@@ -21170,10 +21759,10 @@ export const AblyTokenRequestSchema = {
     ]
 } as const;
 
-export const VendorMembershipListSchema = {
+export const VendorListSchema = {
     type: 'array',
     items: {
-        $ref: '#/components/schemas/VendorMembership'
+        $ref: '#/components/schemas/Vendor'
     }
 } as const;
 
@@ -21201,6 +21790,68 @@ export const VendorMemberRoleSchema = {
     enum: [
         'admin',
         'developer'
+    ]
+} as const;
+
+export const VendorMembershipListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/VendorMembership'
+    }
+} as const;
+
+export const MyVendorInviteListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/MyVendorInvite'
+    }
+} as const;
+
+export const MyVendorInviteSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        role: {
+            $ref: '#/components/schemas/VendorMemberRole'
+        },
+        status: {
+            $ref: '#/components/schemas/VendorMemberInviteStatus'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        vendor: {
+            $ref: '#/components/schemas/Vendor'
+        }
+    },
+    required: [
+        'id',
+        'role',
+        'status',
+        'expiresAt',
+        'createdAt',
+        'vendor'
+    ]
+} as const;
+
+export const VendorMemberInviteStatusSchema = {
+    type: 'string',
+    enum: [
+        'PENDING',
+        'ACCEPTED',
+        'DECLINED',
+        'REVOKED',
+        'EXPIRED'
     ]
 } as const;
 
@@ -21257,16 +21908,56 @@ export const VendorMemberSchema = {
     ]
 } as const;
 
-export const AddVendorMemberRequestSchema = {
+export const VendorMemberInviteSchema = {
     type: 'object',
     properties: {
-        userId: {
+        id: {
             type: 'string',
-            minLength: 1,
-            example: 'user_123'
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        vendorId: {
+            type: 'string',
+            example: '01960001-0001-7001-8001-000000000002'
         },
         email: {
             type: 'string',
+            format: 'email',
+            example: 'dev@example.com'
+        },
+        role: {
+            $ref: '#/components/schemas/VendorMemberRole'
+        },
+        status: {
+            $ref: '#/components/schemas/VendorMemberInviteStatus'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'vendorId',
+        'email',
+        'role',
+        'status',
+        'expiresAt',
+        'createdAt'
+    ]
+} as const;
+
+export const CreateVendorMemberInviteRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string',
+            maxLength: 320,
             format: 'email',
             example: 'dev@example.com'
         },
@@ -21276,11 +21967,21 @@ export const AddVendorMemberRequestSchema = {
                     $ref: '#/components/schemas/VendorMemberRole'
                 },
                 {
-                    description: 'Member role. Defaults to developer when omitted.',
+                    description: 'Role granted on accept. Defaults to developer when omitted.',
                     example: 'developer'
                 }
             ]
         }
+    },
+    required: [
+        'email'
+    ]
+} as const;
+
+export const VendorMemberInviteListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/VendorMemberInvite'
     }
 } as const;
 
@@ -21338,13 +22039,11 @@ export const AssignCoworkerRequestSchema = {
             type: 'string',
             minLength: 1,
             example: 'user_123'
-        },
-        email: {
-            type: 'string',
-            format: 'email',
-            example: 'dev@example.com'
         }
-    }
+    },
+    required: [
+        'userId'
+    ]
 } as const;
 
 export const VendorLogoCleanupResultSchema = {

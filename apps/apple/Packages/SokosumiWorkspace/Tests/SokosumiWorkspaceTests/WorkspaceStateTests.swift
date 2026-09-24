@@ -1611,9 +1611,24 @@ private func createdMessageBody(id: String, roomId: String, content: String) -> 
   """
 }
 
-private func roomReadBody(id: String, unread: Int, name: String = "general") -> String {
+/// `split` gives the answer ADR 0037's two halves beside the total, with the room's unread Thread count.
+/// A room's `unreadThreads` as Core lists them (row 24g2): one unread reply each, parent text "Parent".
+private func unreadThreadsJSON(_ parents: [String]) -> String {
+  let threads = parents.map {
+    #"{"parentMessageId":"\#($0)","firstUnreadReplyId":"\#($0)-reply","parentContent":"Parent","unreadReplyCount":1,"unreadMentionCount":0}"#
+  }
+  return "\"unreadThreads\":[\(threads.joined(separator: ","))],"
+}
+
+private func roomReadBody(
+  id: String, unread: Int, name: String = "general", split: (channel: Int, threads: Int)? = nil, mentions: Int = 0,
+  threads: [String]? = nil
+) -> String {
+  let halves = (split.map {
+    "\"channelUnreadCount\":\($0.channel),\"threadUnreadCount\":\(unread - $0.channel),\"unreadThreadCount\":\($0.threads),"
+  } ?? "") + (threads.map(unreadThreadsJSON) ?? "")
   let room = """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),\(halves)"unreadMentionCount":\(mentions),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
   return """
   {"data":\(room),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
@@ -3432,6 +3447,39 @@ extension WorkspaceStateTests {
   }
 }
 
+/// Row 24g1 (ADR 0037): a thread mute and Mark all end in the room read, and the sidebar row takes Core's
+/// answer whole — the channel half that decides bold, the Thread half and the room's unread Threads.
+extension WorkspaceStateTests {
+  @Test func aThreadMuteSettlesTheRowOnCoresHalves() async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.threadBody(mutedAt: nil)),
+      (200, Self.threadBody(mutedAt: timestamp)),
+      (200, roomReadBody(id: Self.muteRoomId, unread: 2, split: (channel: 0, threads: 1)))
+    ])
+    await state.readThreadMuteIfNeeded(auth: auth)
+    await state.toggleThreadMute(auth: auth)
+    let room = try #require(state.rooms.first)
+    #expect(room.unreadCount == 2 && room.channelUnreadCount == 0 && room.threadUnreadCount == 2 && room.unreadThreadCount == 1)
+    #expect(resolveRoomAttention(room, showUnreadCount: true) == .init(bold: false, badgeCount: 0),
+            "Two Thread replies left, nothing in the channel: the row is quiet.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func markAllSettlesTheRowOnCoresHalves() async throws {
+    let (state, auth, transport) = try await Self.openOverview([
+      (200, Self.markAllBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 1, threads: 0))),
+      (200, Self.threadsPage(unread: 0))
+    ])
+    await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId, auth: auth)
+    let room = try #require(state.rooms.first)
+    #expect(room.channelUnreadCount == 1 && room.threadUnreadCount == 0 && room.unreadThreadCount == 0)
+    #expect(resolveRoomAttention(room, showUnreadCount: true) == .init(bold: true, badgeCount: 0, unreadTextCount: 1),
+            "A channel message that arrived meanwhile keeps the row bold, with its count.")
+    #expect(transport.remainingStubs == 0)
+  }
+}
+
 /// Row 24f1: the chat-level Threads view takes the detail column in place of the selected room (web
 /// `/chat/threads`), so the room behind it is not on screen and nothing in it is read; a row opens its
 /// Thread in its own room.
@@ -3551,5 +3599,362 @@ extension WorkspaceStateTests {
     #expect(state.crossRoomThreads.unread.threads.isEmpty)
     #expect(!state.crossRoomThreads.unread.hasAnswered)
     #expect(state.crossRoomThreads.label(for: parent) == "Thread")
+  }
+}
+
+/// Row 24g2: a room's unread Threads inset under its sidebar row. Nothing moves them optimistically; each
+/// Look, thread mute, Mark all and room-list read replaces them with Core's answer, a room mute hides them,
+/// and the overflow row opens the room's thread overview.
+extension WorkspaceStateTests {
+  private static let otherRootId = "550e8400-e29b-41d4-a716-446655440036"
+
+  private static func insetThreads(_ state: WorkspaceState) -> [String] {
+    sidebarRoomListItems(state.sidebar.partitioned.channels).compactMap {
+      if case let .thread(row) = $0 {
+        row.parentMessageId
+      } else {
+        nil
+      }
+    }
+  }
+
+  /// A signed-in room whose read answer lists two unread Threads, then `extra`.
+  private static func openInsetRows(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")], nextCursor: nil)),
+      (200, roomReadBody(id: muteRoomId, unread: 3, split: (channel: 0, threads: 2), threads: [muteRootId, otherRootId]))
+    ] + extra)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    return (state, auth, transport)
+  }
+
+  /// The Look and the room read after it, whose answer lists `threads`, then the thread's replies.
+  private static func lookStubs(threads: [String]) -> [(Int, String)] {
+    let reply = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440035", roomId: muteRoomId, content: "Reply")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(muteRootId)\"")
+    return [
+      (200, lookBody),
+      (200, roomReadBody(id: muteRoomId, unread: threads.count, split: (channel: 0, threads: threads.count), threads: threads)),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ]
+  }
+
+  @Test func aLookSettlesTheInsetRowsOnCoresAnswer() async throws {
+    let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.otherRootId]))
+    #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId], "The room read lists both Threads.")
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    #expect(Self.insetThreads(state) == [Self.otherRootId], "The Look's room read drops the Thread just read.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func aThreadMuteSettlesTheInsetRowsOnCoresAnswer() async throws {
+    let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.muteRootId, Self.otherRootId]) + [
+      (200, Self.threadBody(mutedAt: nil)), (200, Self.threadBody(mutedAt: timestamp)),
+      (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 0, threads: 1), threads: [Self.otherRootId]))
+    ])
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId])
+    await state.readThreadMuteIfNeeded(auth: auth)
+    await state.toggleThreadMute(auth: auth)
+    #expect(Self.insetThreads(state) == [Self.otherRootId], "A muted Thread leaves the room's list with Core's answer.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func markAllClearsTheInsetRows() async throws {
+    let (state, auth, transport) = try await Self.openInsetRows([
+      (200, Self.threadsPage(unread: 2)), (200, Self.markAllBody),
+      (200, roomReadBody(id: Self.muteRoomId, unread: 0, split: (channel: 0, threads: 0), threads: [])),
+      (200, Self.threadsPage(unread: 0))
+    ])
+    await state.updateThreadOverview(.load, roomId: Self.muteRoomId, auth: auth)
+    #expect(Self.insetThreads(state).count == 2, "Loading the overview reads nothing.")
+    await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId, auth: auth)
+    #expect(Self.insetThreads(state).isEmpty)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func theNextRoomListReplacesTheInsetRows() async throws {
+    let listed = roomsBody(names: ["general"])
+      .replacingOccurrences(of: "\"unreadCount\":0,", with: "\"unreadCount\":1,\"unreadThreadCount\":4,\(unreadThreadsJSON([Self.otherRootId]))")
+    let (state, auth, transport) = try await Self.openInsetRows([(200, listed)])
+    await state.refreshRooms(auth: auth)
+    #expect(Self.insetThreads(state) == [Self.otherRootId])
+    #expect(sidebarRoomListItems(state.sidebar.partitioned.channels).last == .moreThreads(roomId: Self.muteRoomId, count: 3))
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func aRoomMuteHidesTheInsetRows() async throws {
+    let muted = roomReadBody(id: Self.muteRoomId, unread: 2, split: (channel: 0, threads: 2), threads: [Self.muteRootId, Self.otherRootId])
+      .replacingOccurrences(of: "\"mutedAt\":null", with: "\"mutedAt\":\"\(timestamp)\"")
+    let (state, auth, transport) = try await Self.openInsetRows([(200, muted)])
+    #expect(Self.insetThreads(state).count == 2)
+    await state.performSidebarAction(.mute, roomId: Self.muteRoomId, auth: auth)
+    #expect(state.rooms.first?.unreadThreads?.count == 2, "The room still holds its Threads.")
+    #expect(Self.insetThreads(state).isEmpty, "A muted room lists none.")
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// Web's overflow row opens the room's thread list (`?threads=1`), putting an open thread away first.
+  @Test func theOverflowRowOpensTheRoomsThreadOverview() async throws {
+    let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.muteRootId, Self.otherRootId]))
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    let written = transport.operationIDs.count
+    await state.openThreadOverview(roomId: Self.muteRoomId, auth: auth)
+    #expect(state.thread.parent == nil, "The open thread steps aside for the list.")
+    let request = try #require(state.threadOverviewRequest)
+    #expect(request.roomId == Self.muteRoomId && state.selectedRoomId == Self.muteRoomId)
+    #expect(transport.operationIDs.count == written, "Opening the list reads nothing.")
+    state.consumeThreadOverviewRequest(request.requestId)
+    #expect(state.threadOverviewRequest == nil)
+  }
+
+  @Test func theOverflowRowShowsItsRoomInPlaceOfTheThreadsView() async throws {
+    let first = "550e8400-e29b-41d4-a716-446655440051"
+    let second = "550e8400-e29b-41d4-a716-446655440052"
+    let (state, auth, _, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [], nextCursor: nil)), (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    state.rooms = [coworkerDirect(roomId: first), coworkerDirect(roomId: second)]
+    state.showThreadsView()
+    await state.openThreadOverview(roomId: "550e8400-e29b-41d4-a716-446655440059", auth: auth)
+    #expect(state.threadOverviewRequest == nil && state.sidebar.showsThreadsView, "A room the sidebar does not list opens nothing.")
+    await state.openThreadOverview(roomId: second, auth: auth)
+    #expect(!state.sidebar.showsThreadsView && state.selectedRoomId == second)
+    #expect(state.threadOverviewRequest?.roomId == second)
+    state.selectRoom(first, auth: auth)
+    #expect(state.threadOverviewRequest == nil, "Another room drops a request its room never took.")
+  }
+}
+
+/// Row 24f2: the sidebar's Unreads filter through the real coordinator. Mark all as read runs each room's reads as
+/// `roomUnreadReads` says, then reads the rooms again whatever the outcome (web `ChatUnreadNavRows`).
+extension WorkspaceStateTests {
+  private static let designRoomId = "550e8400-e29b-41d4-a716-446655440001"
+
+  /// `general` open and read, `design` beside it; `extra` answers what the test does next.
+  private static func openUnreadsFilter(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "design"])),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")], nextCursor: nil)),
+      (200, roomReadBody(id: muteRoomId, unread: 0))
+    ] + extra)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    try #require(state.selectedRoomId == muteRoomId)
+    state.sidebar.setUnreadsFilter(true)
+    return (state, auth, transport)
+  }
+
+  private static func designRoom(_ state: WorkspaceState) throws -> Components.Schemas.ChatRoom {
+    try #require(state.rooms.first { $0.id == designRoomId })
+  }
+
+  @Test func markAllReadsABoldRoomThenTheRooms() async throws {
+    let (state, auth, transport) = try await Self.openUnreadsFilter([
+      (200, roomReadBody(id: Self.designRoomId, unread: 0, name: "design", split: (channel: 0, threads: 0))),
+      (200, roomsBody(names: ["general", "design"]))
+    ])
+    let index = try #require(state.rooms.firstIndex { $0.id == Self.designRoomId })
+    state.rooms[index].unreadCount = 2
+    state.rooms[index].channelUnreadCount = 2
+    let before = try #require(state.unreadsFilter)
+    #expect(before.rooms.map(\.name) == ["design", "general"], "The open room is listed below the pass.")
+    #expect(before.markAllTargets == [.init(roomId: Self.designRoomId, readRoom: true, lookThreads: false)])
+    state.sidebar.keepUnreadsFilterPass(before.pass)
+    let written = transport.operationIDs.count
+    await state.markAllUnreadRead(auth: auth)
+    #expect(Array(transport.operationIDs.dropFirst(written)) == ["post/chats/rooms/{id}/read", "get/chats/rooms"])
+    #expect(try !resolveRoomAttention(Self.designRoom(state)).bold)
+    let after = try #require(state.unreadsFilter)
+    #expect(after.rooms.map(\.name) == ["design", "general"] && after.isDimmed(Self.designRoomId), "Read, it keeps its place, dimmed.")
+    #expect(after.caughtUp && after.showsReadLabel && after.markAllTargets.isEmpty)
+    #expect(!state.sidebar.isMarkingAllUnreadRead && state.sidebar.actionError == nil)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func markAllLooksAThreadOnlyRoomAndTheRoomsSettleIt() async throws {
+    let (state, auth, transport) = try await Self.openUnreadsFilter([
+      (200, Self.markAllBody), (200, roomsBody(names: ["general", "design"]))
+    ])
+    let index = try #require(state.rooms.firstIndex { $0.id == Self.designRoomId })
+    state.rooms[index].unreadCount = 1
+    state.rooms[index].channelUnreadCount = 0
+    state.rooms[index].threadUnreadCount = 1
+    state.rooms[index].unreadThreadCount = 1
+    #expect(try !resolveRoomAttention(Self.designRoom(state)).bold, "Thread replies alone leave the row quiet.")
+    #expect(state.unreadsFilter?.rooms.first?.id == Self.designRoomId, "The filter still lists the room.")
+    let written = transport.operationIDs.count
+    await state.markAllUnreadRead(auth: auth)
+    #expect(Array(transport.operationIDs.dropFirst(written)) == ["post/chats/rooms/{id}/threads/read", "get/chats/rooms"],
+            "The row is not bold, so the room itself is not read.")
+    #expect(try (Self.designRoom(state).unreadThreadCount ?? 0) == 0, "The room list brings the Look's answer.")
+    #expect(state.unreadsFilter?.caughtUp == true)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func aFailedMarkAllSaysSoAndStillReadsTheRooms() async throws {
+    let failure = #"{"error":"Internal Server Error","message":"Boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/read","method":"POST"}}"#
+    let (state, auth, transport) = try await Self.openUnreadsFilter([
+      (500, failure), (200, roomsBody(names: ["general", "design"]))
+    ])
+    let index = try #require(state.rooms.firstIndex { $0.id == Self.designRoomId })
+    state.rooms[index].unreadCount = 2
+    state.rooms[index].channelUnreadCount = 2
+    await state.markAllUnreadRead(auth: auth)
+    #expect(state.sidebar.actionError == "Could not mark everything as read.")
+    #expect(transport.operationIDs.last == "get/chats/rooms", "What Core holds now is what the rooms show next.")
+    #expect(!state.sidebar.isMarkingAllUnreadRead)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// Behind the Threads view no room is on screen, so none is listed for being open.
+  @Test func theOpenRoomIsTheOneOnScreen() async throws {
+    let (state, _, _) = try await Self.openUnreadsFilter([])
+    #expect(state.unreadsFilter?.rooms.map(\.id) == [Self.muteRoomId])
+    state.showThreadsView()
+    #expect(state.unreadsFilter?.rooms.isEmpty == true)
+    state.sidebar.setUnreadsFilter(false)
+    #expect(state.unreadsFilter == nil)
+  }
+}
+
+/// Row 24h (SOK-1151): the transcript's reply bars and the Threads trigger read one answer, and a Look or
+/// Mark all drops the Threads it cleared from both before the re-count, as web's `clearThreadUnreadReplies`.
+extension WorkspaceStateTests {
+  private static func unreadCountsBody(_ threads: [(String, Int)]) -> String {
+    let items = threads.map { #"{"parentMessageId":"\#($0.0)","unreadReplyCount":\#($0.1)}"# }.joined(separator: ",")
+    return #"{"data":{"count":\#(threads.count),"threads":[\#(items)]},"meta":{"timestamp":"\#(timestamp)","requestId":"test"}}"#
+  }
+
+  /// A parent whose list page says it holds `unread` unread replies of three.
+  private static func barParent(id: String, unread: Int) -> String {
+    transcriptMessage(id: id, roomId: muteRoomId, content: "Parent")
+      .replacingOccurrences(of: #""threadReplyCount":0"#, with: #""threadReplyCount":3,"threadUnreadReplyCount":\#(unread)"#)
+  }
+
+  private static func threadItem(id: String, unread: Int, muted: Bool) -> String {
+    """
+    {"parentMessage":\(transcriptMessage(id: id, roomId: muteRoomId, content: "Parent")),"replyCount":3,"lastReplyAt":"\(timestamp)","unreadReplyCount":\(unread),"lastUnreadReplyAt":null,"hasLooked":true,"mutedAt":\(muted ? "\"\(timestamp)\"" : "null")}
+    """
+  }
+
+  /// A signed-in room showing two thread parents, then `extra`.
+  private static func openBars(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [barParent(id: muteRootId, unread: 2), barParent(id: otherRootId, unread: 1)], nextCursor: nil)),
+      (200, roomReadBody(id: muteRoomId, unread: 3))
+    ] + extra)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    return (state, auth, transport)
+  }
+
+  /// What each bar draws: an absent count is none unread.
+  private func shownUnread(_ state: WorkspaceState) -> [Int] {
+    state.displayedTranscript.map { $0.threadUnreadReplyCount ?? 0 }
+  }
+
+  @Test func theUnreadReadOwnsEveryReplyBar() async throws {
+    let (state, auth, transport) = try await Self.openBars([
+      (200, Self.unreadCountsBody([(Self.otherRootId, 4)]))
+    ])
+    #expect(shownUnread(state) == [2, 1], "Until the read lands, the bars show the message list's counts.")
+    await state.updateThreadOverview(.count, roomId: Self.muteRoomId, auth: auth)
+    #expect(shownUnread(state) == [0, 4], "A parent absent from the read has no unread replies.")
+    #expect(state.threadOverview.unreadCount == 1, "The Threads trigger counts the same answer.")
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func aLookClearsItsBarBeforeTheReCount() async throws {
+    let reply = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440035", roomId: Self.muteRoomId, content: "Reply")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(Self.muteRootId)\"")
+    let (state, auth, transport) = try await Self.openBars([
+      (200, Self.unreadCountsBody([(Self.muteRootId, 2), (Self.otherRootId, 1)])),
+      (200, Self.lookBody),
+      (200, roomReadBody(id: Self.muteRoomId, unread: 1)),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ])
+    await state.updateThreadOverview(.count, roomId: Self.muteRoomId, auth: auth)
+    let revision = state.threadAttentionRevision
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    #expect(transport.operationIDs.contains("post/chats/rooms/{id}/threads/{parentMessageId}/read"))
+    #expect(state.threadOverview.unreadReplyCounts == [Self.otherRootId: 1], "The looked Thread leaves the trigger at once.")
+    #expect(shownUnread(state) == [0, 1], "Its bar untints without waiting for the re-count.")
+    #expect(state.threadAttentionRevision == revision + 1, "The trigger still counts again.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func anAutomaticLookClearsItsBar() async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.unreadCountsBody([(Self.muteRootId, 1)])),
+      (200, Self.lookBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1))
+    ])
+    await state.updateThreadOverview(.count, roomId: Self.muteRoomId, auth: auth)
+    #expect(state.threadOverview.unreadReplyCounts == [Self.muteRootId: 1], "A reply landed in the open Thread.")
+    await state.syncReadAttention(auth: auth)
+    #expect(state.threadOverview.unreadReplyCounts?.isEmpty == true)
+    #expect(shownUnread(state) == [0])
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func markAllKeepsOnlyTheMutedUnreadBars() async throws {
+    let (state, auth, transport) = try await Self.openBars([
+      (200, Self.unreadCountsBody([(Self.muteRootId, 2), (Self.otherRootId, 1)])),
+      (200, transcriptPageBody(messages: [
+        Self.threadItem(id: Self.muteRootId, unread: 2, muted: true), Self.threadItem(id: Self.otherRootId, unread: 1, muted: false)
+      ], nextCursor: nil)),
+      (200, Self.markAllBody), (200, roomReadBody(id: Self.muteRoomId, unread: 2)),
+      (200, transcriptPageBody(messages: [
+        Self.threadItem(id: Self.muteRootId, unread: 2, muted: true), Self.threadItem(id: Self.otherRootId, unread: 0, muted: false)
+      ], nextCursor: nil))
+    ])
+    await state.updateThreadOverview(.count, roomId: Self.muteRoomId, auth: auth)
+    await state.updateThreadOverview(.load, roomId: Self.muteRoomId, auth: auth)
+    await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId, auth: auth)
+    #expect(state.threadOverview.unreadReplyCounts == [Self.muteRootId: 2], "Mark all skips the muted Thread's mention.")
+    #expect(shownUnread(state) == [2, 0])
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// A Look clears the bar before the unread read answers. The reply must count on that row without putting
+  /// the open thread's earlier unread count back.
+  @Test func ownReplyKeepsTheUnreadALookClearedBeforeTheCountRead() async throws {
+    let replyId = "550e8400-e29b-41d4-a716-446655440099"
+    let reply = createdMessageBody(id: replyId, roomId: Self.muteRoomId, content: "On it")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(Self.muteRootId)\"")
+    let (state, auth, transport) = try await Self.openBars([(201, reply)])
+    #expect(state.threadOverview.unreadReplyCounts == nil && state.directStream.roomId == nil)
+    let parent = try #require(state.transcriptMessages.first { $0.id == Self.muteRootId })
+    #expect(parent.threadUnreadReplyCount == 2 && parent.threadReplyCount == 3)
+    #expect(state.thread.open(parent))
+    state.clearThreadUnreadReplies { $0 == Self.muteRootId }
+    #expect(state.transcriptMessages.first { $0.id == Self.muteRootId }?.threadUnreadReplyCount == 0)
+    #expect(state.sendThreadReply("On it", auth: auth))
+    for _ in 0 ..< 1000 where state.thread.outbox.isSending {
+      await Task.yield()
+    }
+    let shown = try #require(state.transcriptMessages.first { $0.id == Self.muteRootId })
+    #expect(shown.threadUnreadReplyCount == 0, "A reply must not put back the count a Look cleared.")
+    #expect(shown.threadReplyCount == 4 && shown.threadRepliers?.count == 1)
+    #expect(state.thread.parent?.threadReplyCount == 4)
+    #expect(transport.remainingStubs == 0)
   }
 }

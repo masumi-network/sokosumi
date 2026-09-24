@@ -474,26 +474,27 @@ describe("chatRoomService thread attention", () => {
     );
   });
 
-  it("countUnreadThreads returns Core unread thread count without listing threads", async () => {
+  it("listUnreadThreadReplyCounts returns each unread thread's replies without listing threads", async () => {
+    const threads = [{ parentMessageId: "parent-1", unreadReplyCount: 2 }];
     getChatRoomThreadsUnreadCountMock.mockResolvedValue({
-      data: { count: 4 },
+      data: { count: 1, threads },
     });
 
     const { chatRoomService } = await import("./chat-room.service");
-    const result = await chatRoomService.countUnreadThreads("room-1");
+    const result = await chatRoomService.listUnreadThreadReplyCounts("room-1");
 
     expect(getChatRoomThreadsUnreadCountMock).toHaveBeenCalledWith("room-1");
     expect(getChatRoomThreadsMock).not.toHaveBeenCalled();
-    expect(result).toBe(4);
+    expect(result).toEqual(threads);
   });
 
-  it("countUnreadThreads propagates Core client rejection", async () => {
+  it("listUnreadThreadReplyCounts propagates Core client rejection", async () => {
     getChatRoomThreadsUnreadCountMock.mockRejectedValue(new Error("network"));
 
     const { chatRoomService } = await import("./chat-room.service");
-    await expect(chatRoomService.countUnreadThreads("room-1")).rejects.toThrow(
-      "network",
-    );
+    await expect(
+      chatRoomService.listUnreadThreadReplyCounts("room-1"),
+    ).rejects.toThrow("network");
     expect(getChatRoomThreadsMock).not.toHaveBeenCalled();
   });
 

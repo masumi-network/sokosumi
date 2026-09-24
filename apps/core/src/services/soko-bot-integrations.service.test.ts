@@ -1,4 +1,10 @@
-import { Composio } from "@composio/core";
+import {
+  Composio,
+  ComposioToolFetchError,
+  ComposioToolkitFetchError,
+  ComposioToolkitNotFoundError,
+  ComposioToolNotFoundError,
+} from "@composio/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -14,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   link: vi.fn(),
   get: vi.fn(),
   remove: vi.fn(),
+  toolkitGet: vi.fn(),
+  getRawComposioTools: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -35,7 +43,8 @@ vi.mock("@/clients/composio.client", () => ({
       get: mocks.get,
       delete: mocks.remove,
     },
-    toolkits: { get: async () => ({ name: "Gmail", meta: {} }) },
+    toolkits: { get: mocks.toolkitGet },
+    tools: { getRawComposioTools: mocks.getRawComposioTools },
     authConfigs: {
       list: async () => ({
         items: [
@@ -59,6 +68,7 @@ import {
   disconnectSokoBotIntegration,
   fetchInboxMessages,
   finalizeSokoBotIntegration,
+  listIntegrationTools,
   revokeSokoBotIntegrationAccounts,
 } from "./soko-bot-integrations.service";
 
@@ -108,6 +118,8 @@ beforeEach(() => {
   });
   mocks.updateMany.mockResolvedValue({ count: 1 });
   mocks.remove.mockResolvedValue({});
+  mocks.toolkitGet.mockResolvedValue({ name: "Gmail", meta: {} });
+  mocks.getRawComposioTools.mockResolvedValue([]);
 });
 
 describe("Soko Bot OAuth replacement", () => {
@@ -643,4 +655,80 @@ it("cleans up the exact pending ID superseded by serialized concurrent connectio
   ]);
   expect(mocks.remove).not.toHaveBeenCalledWith("selected");
   expect(mocks.remove).not.toHaveBeenCalledWith("second");
+});
+
+const githubIntegration = {
+  id: "integration",
+  sokoBotId: "bot",
+  provider: {
+    id: "github",
+    name: "GitHub",
+    kinds: [] as const,
+    logoUrl: "",
+    tools: {},
+  },
+  composioAccountId: "acc",
+  cursor: null,
+};
+
+describe("Composio 401/5xx vs not-found", () => {
+  it("does not treat a toolkit fetch 401 as a missing toolkit during connect", async () => {
+    mocks.toolkitGet.mockRejectedValue(
+      new ComposioToolkitFetchError("Unable to retrieve toolkit", {
+        cause: { status: 401 },
+      }),
+    );
+    await expect(connectSokoBotIntegration(input)).rejects.toMatchObject({
+      message: expect.stringContaining("Composio (toolkit):"),
+      kind: "UPSTREAM",
+    });
+    expect(mocks.link).not.toHaveBeenCalled();
+  });
+
+  it("does not treat a toolkit fetch 5xx as a missing toolkit during connect", async () => {
+    mocks.toolkitGet.mockRejectedValue(
+      new ComposioToolkitFetchError("Unable to retrieve toolkit", {
+        cause: { status: 503 },
+      }),
+    );
+    await expect(connectSokoBotIntegration(input)).rejects.toMatchObject({
+      kind: "UPSTREAM",
+    });
+    expect(mocks.link).not.toHaveBeenCalled();
+  });
+
+  it("still connects when Composio reports the toolkit slug as not found", async () => {
+    mocks.toolkitGet.mockRejectedValue(
+      new ComposioToolkitNotFoundError("Toolkit with slug gmail not found"),
+    );
+    await expect(connectSokoBotIntegration(input)).resolves.toEqual({
+      redirectUrl: "https://connect.example/oauth",
+    });
+    expect(mocks.upsert.mock.calls[0][0].create).toMatchObject({
+      name: "Gmail",
+    });
+  });
+
+  it("maps a tool list 401 to an upstream error, not not-found", async () => {
+    mocks.getRawComposioTools.mockRejectedValue(
+      new ComposioToolFetchError("Unable to retrieve tool", {
+        cause: { status: 401 },
+      }),
+    );
+    await expect(
+      listIntegrationTools(githubIntegration, { limit: 10 }),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining("Composio (list tools):"),
+      kind: "UPSTREAM",
+    });
+  });
+
+  it("maps a genuine tool-not-found error as NOT_FOUND", async () => {
+    mocks.getRawComposioTools.mockRejectedValue(
+      new ComposioToolNotFoundError("Tool with slug GITHUB_X not found"),
+    );
+    await expect(
+      listIntegrationTools(githubIntegration, { limit: 10 }),
+    ).rejects.toMatchObject({ kind: "NOT_FOUND" });
+  });
 });

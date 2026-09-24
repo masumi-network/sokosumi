@@ -46,14 +46,30 @@ describe("initSentry", () => {
 
     const options = initMock.mock.calls[0]?.[0];
     expect(options.sampleRate).toBe(1);
+    expect(options.profileSessionSampleRate).toBe(0.005);
+    expect(options.profileLifecycle).toBe("trace");
+    expect(options.sendDefaultPii).toBeUndefined();
+    expect(options.profilesSampleRate).toBeUndefined();
+    expect(options.enhanceFetchErrorMessages).toBe("report-only");
+    expect(options.dataCollection).toEqual({
+      userInfo: true,
+      cookies: false,
+      httpHeaders: false,
+      httpBodies: [],
+      urlQueryParams: false,
+      genAI: { inputs: false, outputs: false },
+      databaseQueryData: false,
+      graphQL: { document: false, variables: false },
+      queues: false,
+      stackFrameVariables: false,
+    });
   });
 
   it("stops the RequestData integration attaching the raw url, headers and cookies", () => {
     initSentry();
 
-    // The defaults attach `event.request.url`, and `sendDefaultPii: true` adds
-    // the request headers and cookies. Paths carry capability tokens and the
-    // headers carry Authorization, so all of it has to be turned off.
+    // The defaults attach `event.request.url`. Paths carry capability tokens
+    // and the headers carry Authorization, so all of it has to be turned off.
     expect(requestDataIntegrationMock).toHaveBeenCalledWith({
       include: {
         url: false,

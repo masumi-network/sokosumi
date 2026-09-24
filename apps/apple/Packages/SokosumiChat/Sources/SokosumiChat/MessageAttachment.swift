@@ -106,7 +106,7 @@ extension MessageMarkdown {
   }
 
   /// Attachments in document order, grouped where only whitespace separates them.
-  private static func attachmentRows(in blocks: [MessageMarkdownBlock]) -> [[MessageAttachment]] {
+  static func attachmentRows(in blocks: [MessageMarkdownBlock]) -> [[MessageAttachment]] {
     var rows: [[MessageAttachment]] = []
     var open = false
     func walk(_ block: MessageMarkdownBlock) {

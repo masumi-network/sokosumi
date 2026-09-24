@@ -5,13 +5,15 @@ import UniformTypeIdentifiers
 
 struct MessageAttachmentView: View {
   let attachment: MessageAttachment
+  /// The message's image viewer; an image opens it on itself.
+  @Environment(MessageImageViewerPresentation.self) private var imageViewer: MessageImageViewerPresentation?
   @State private var previewPresented = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       switch attachment.kind {
       case .image:
-        Button { previewPresented = true } label: {
+        Button { imageViewer?.openURL = attachment.url } label: {
           MessageImageView(url: attachment.url, maxSize: CGSize(width: 640, height: 360))
             .clipShape(.rect(cornerRadius: 8))
         }
@@ -48,36 +50,47 @@ struct MessageAttachmentView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .sheet(isPresented: $previewPresented) {
       VStack(spacing: 16) {
-        HStack {
-          Button { previewPresented = false } label: {
-            Label("Close", systemImage: "xmark")
-          }
-          .keyboardShortcut(.cancelAction)
-          .help("Close")
-          Text(attachment.filename).lineLimit(1)
-          Spacer()
-          Link(destination: attachment.url) {
-            Label("Open in Browser", systemImage: "arrow.up.right.square")
-          }
-          .help("Open in Browser")
-          AttachmentSaveButton(attachment: attachment)
-        }
-        .labelStyle(.iconOnly)
-        .buttonStyle(.borderless)
-        Group {
-          if attachment.kind == .file {
-            DocumentAttachmentPreview(attachment: attachment)
-          } else {
-            MessageImageView(url: attachment.url, maxSize: CGSize(width: 1600, height: 1000))
-          }
-        }
-        .frame(minWidth: 300, idealWidth: 800, maxWidth: .infinity, minHeight: 200, idealHeight: 560, maxHeight: .infinity)
+        AttachmentViewerToolbar(attachment: attachment) { previewPresented = false }
+        DocumentAttachmentPreview(attachment: attachment)
+          .frame(minWidth: 300, idealWidth: 800, maxWidth: .infinity, minHeight: 200, idealHeight: 560, maxHeight: .infinity)
       }
       .padding()
       #if os(macOS)
         .frame(minWidth: 640, minHeight: 480)
       #endif
     }
+  }
+}
+
+/// The document and image viewers' bar: Close, the file name (after the image's position when the
+/// message has several), Open in Browser and Save.
+struct AttachmentViewerToolbar: View {
+  let attachment: MessageAttachment
+  var position: String?
+  let close: () -> Void
+
+  var body: some View {
+    HStack {
+      Button(action: close) {
+        Label("Close", systemImage: "xmark")
+      }
+      .keyboardShortcut(.cancelAction)
+      .help("Close")
+      if let position {
+        Text(position)
+          .monospacedDigit()
+          .foregroundStyle(.secondary)
+      }
+      Text(attachment.filename).lineLimit(1)
+      Spacer()
+      Link(destination: attachment.url) {
+        Label("Open in Browser", systemImage: "arrow.up.right.square")
+      }
+      .help("Open in Browser")
+      AttachmentSaveButton(attachment: attachment)
+    }
+    .labelStyle(.iconOnly)
+    .buttonStyle(.borderless)
   }
 }
 

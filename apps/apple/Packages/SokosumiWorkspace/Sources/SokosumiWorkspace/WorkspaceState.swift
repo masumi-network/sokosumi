@@ -25,6 +25,14 @@ public final class WorkspaceState: ObservableObject {
   }
 
   @Published public internal(set) var messageJump: MessageJump?
+  /// The sidebar's "N more unread threads" row asks for the room's thread overview (row 24g2, web's
+  /// `?threads=1`); the room's tools open it once that room is on screen.
+  public struct ThreadOverviewRequest: Equatable, Sendable {
+    public let roomId: String
+    public let requestId = UUID()
+  }
+
+  @Published public internal(set) var threadOverviewRequest: ThreadOverviewRequest?
   var messageNavigationRequest = UUID()
   public let thread = ThreadSession()
   public let threadOverview = RoomThreadOverview()
@@ -194,7 +202,9 @@ public final class WorkspaceState: ObservableObject {
   /// Confirmed history plus unresolved outbound shells (sticky at the end), with Pending reactions on top.
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
     let messages = directStream.displayedMessages(persisted: SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells))
-    return pendingReactions.overlaying(messages, viewer: reactionViewer)
+    let rows = pendingReactions.overlaying(messages, viewer: reactionViewer)
+    // Once the room's unread-thread read has answered it owns every reply bar's count (web, SOK-1151).
+    return threadOverview.unreadReplyCounts.map { applyThreadUnreadReplyCounts(rows, counts: $0) } ?? rows
   }
 
   var transcriptCursor: String? {
@@ -228,10 +238,11 @@ public final class WorkspaceState: ObservableObject {
   public init(
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
-    instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore()
+    instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore(),
+    unreadsFilter: UnreadsFilterPreference = .transient
   ) {
     self.clientProvider = clientProvider
-    sidebar = ConversationSidebar(savedRoom: savedRoom)
+    sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
     realtimeClientInstanceId = getOrCreateRealtimeClientInstanceId(store: instanceStore)
     for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
@@ -602,6 +613,7 @@ public final class WorkspaceState: ObservableObject {
   func clearTranscript() {
     messageNavigationRequest = UUID()
     messageJump = nil
+    threadOverviewRequest = nil
     messageEditing.reset()
     directStream.reset()
     thread.close()
@@ -628,6 +640,10 @@ public final class WorkspaceState: ObservableObject {
   public func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
     messageNavigationRequest = UUID()
     messageJump = nil
+    // Only the room it names takes an overview request; any other room drops it.
+    if threadOverviewRequest?.roomId != room.id {
+      threadOverviewRequest = nil
+    }
     messageEditing.reset()
     directStream.reset(room: room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     thread.close()
@@ -1102,14 +1118,15 @@ public final class WorkspaceState: ObservableObject {
     // Behind the Threads view the room is off screen (row 24f1).
     guard !sidebar.showsThreadsView,
           let room = rooms.first(where: { $0.id == transcriptRoomId }), let client = resolveClient(auth: auth) else { return }
+    let content = readContent
     do {
       try await readAttention.readIfNeeded(
         room: room,
-        content: readContent,
+        content: content,
         historyReadable: roomHistoryReadable && !thread.timeline.isLoading,
         client: client,
         organizationSlug: selection?.workspace.organizationSlug,
-        threadLooked: { threadAttentionRevision += 1 }
+        threadLooked: { threadLooked(content.parentMessageId) }
       )
     } catch {
       // Background reads stay silent; only a dead session needs action.

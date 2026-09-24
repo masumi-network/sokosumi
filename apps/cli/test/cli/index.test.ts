@@ -109,7 +109,6 @@ test("resource commands reject mismatched target API keys before Core requests",
         },
         post: async <T>() => ({}) as T,
         patch: async <T>() => ({}) as T,
-        delete: async <T>() => ({}) as T,
       },
       stdout: { write: () => undefined },
     }),
@@ -137,10 +136,6 @@ test("preflight rejects unauthenticated resource commands before Core", async ()
           return {} as T;
         },
         patch: async <T>() => {
-          coreCalls += 1;
-          return {} as T;
-        },
-        delete: async <T>() => {
           coreCalls += 1;
           return {} as T;
         },
@@ -222,7 +217,18 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
 
   const globalIndex = help.indexOf("Global options:");
   assert.notEqual(globalIndex, -1);
-  assert.doesNotMatch(help.slice(0, globalIndex), / --/);
+  const commandUsage = help.slice(0, globalIndex);
+  assert.match(
+    commandUsage,
+    /^  sokosumi vendors create --name NAME --slug SLUG$/m,
+  );
+  assert.doesNotMatch(
+    commandUsage.replace(
+      "  sokosumi vendors create --name NAME --slug SLUG\n",
+      "",
+    ),
+    / --/,
+  );
 
   const parsed = parseArgv([
     "--preprod",
@@ -259,6 +265,17 @@ test("parses coworker registration vendor ID", () => {
     "vendor-1",
   ]);
   assert.deepEqual(parsed.options["vendor-id"], "vendor-1");
+});
+
+test("rejects leftover dual-option aliases", () => {
+  assert.throws(
+    () => parseArgv(["coworkers", "list", "--capabilities", "tasks"]),
+    /Unknown option: --capabilities/,
+  );
+  assert.throws(
+    () => parseArgv(["tasks", "list", "--q", "review"]),
+    /Unknown option: --q/,
+  );
 });
 test("parses value options inline before and after positionals", () => {
   const expected = {
@@ -336,7 +353,6 @@ test("index JSON errors redact credential assignments", async () => {
         },
         post: async <T>() => ({}) as T,
         patch: async <T>() => ({}) as T,
-        delete: async <T>() => ({}) as T,
       },
       stdout: { write: (value) => output.push(value) },
     }),
@@ -511,7 +527,6 @@ test("dispatches discover JSON without opening a TUI", async () => {
       get: async <T>() => ({ data: [] }) as T,
       post: async <T>() => ({ data: null }) as T,
       patch: async <T>() => ({ data: null }) as T,
-      delete: async <T>() => ({ data: null }) as T,
     },
     stdout: { write: (value) => output.push(value) },
     tuiFn: async () => {
@@ -552,7 +567,6 @@ test("dispatches new read commands through their exact Core routes", async () =>
         },
         post: async <T>() => ({ data: null }) as T,
         patch: async <T>() => ({ data: null }) as T,
-        delete: async <T>() => ({ data: null }) as T,
       },
       stdout: { write: (value) => output.push(value) },
     });
@@ -593,10 +607,6 @@ test("new read commands reject unauthenticated calls before Core", async () => {
             coreCalls += 1;
             return {} as T;
           },
-          delete: async <T>() => {
-            coreCalls += 1;
-            return {} as T;
-          },
         },
         stdout: { write: (value) => output.push(value) },
       }),
@@ -627,7 +637,6 @@ test("new commands require their exact subcommand and no trailing args", async (
           get: async <T>() => ({}) as T,
           post: async <T>() => ({}) as T,
           patch: async <T>() => ({}) as T,
-          delete: async <T>() => ({}) as T,
         },
         stdout: { write: (value) => output.push(value) },
       }),
@@ -660,7 +669,6 @@ test("dispatches agents list through the injected Core client", async () => {
         }) as T,
       post: async <T>() => ({ data: null }) as T,
       patch: async <T>() => ({ data: null }) as T,
-      delete: async <T>() => ({ data: null }) as T,
     },
     stdout: { write: (value) => output.push(value) },
   });

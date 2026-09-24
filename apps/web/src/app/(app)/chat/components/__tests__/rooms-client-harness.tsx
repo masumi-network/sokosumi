@@ -4,6 +4,7 @@ import { beforeEach, type Mock, vi } from "vitest";
 import type {
   ChatRoom,
   ChatRoomMessage,
+  ChatRoomThreadUnreadReplyCount,
   Organization,
 } from "@/lib/clients/generated/core";
 
@@ -24,7 +25,7 @@ const {
   mockStreamMessages,
   sendStreamMessage,
   useChatRoomRealtimeMock,
-  countUnreadThreadsAction,
+  listUnreadThreadReplyCountsAction,
   deleteRoomMessageAction,
   editRoomMessageAction,
   getRoomThreadAction,
@@ -51,9 +52,9 @@ const {
     mockStreamMessages: vi.fn((): ChatRoomMessage[] => []),
     sendStreamMessage: vi.fn((): boolean => true),
     useChatRoomRealtimeMock: vi.fn(),
-    countUnreadThreadsAction: vi.fn(async () => ({
+    listUnreadThreadReplyCountsAction: vi.fn(async () => ({
       ok: true as const,
-      value: 0,
+      value: [] as ChatRoomThreadUnreadReplyCount[],
     })) as Mock,
     deleteRoomMessageAction: vi.fn() as Mock,
     editRoomMessageAction: vi.fn() as Mock,
@@ -90,13 +91,13 @@ const {
 });
 
 export {
-  countUnreadThreadsAction,
   deleteRoomMessageAction,
   editRoomMessageAction,
   getRoomThreadAction,
   listPinnedMessagesAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
+  listUnreadThreadReplyCountsAction,
   markOrganizationChatRoomReadAction,
   markThreadReadAction,
   mockHeaderRoomSlotHost,
@@ -199,7 +200,7 @@ vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
 }));
 
 vi.mock("@/app/chat/actions", () => ({
-  countUnreadThreadsAction,
+  listUnreadThreadReplyCountsAction,
   deleteRoomMessageAction,
   editRoomMessageAction,
   getRoomThreadAction,

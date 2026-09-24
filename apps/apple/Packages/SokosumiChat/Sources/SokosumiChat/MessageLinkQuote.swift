@@ -22,7 +22,7 @@ public func pastedMessageLink(_ pasted: String, webBaseURL: URL) -> ChatMessageL
 /// the source roster plus the target readers who can join it on their own. The
 /// sender's Self Direct passes because its only reader is the sender, who reads
 /// the source room.
-public func canQuoteIntoRoom(targetMemberUserIds: [String], sourceReaderUserIds: [String]) -> Bool {
+func canQuoteIntoRoom(targetMemberUserIds: [String], sourceReaderUserIds: [String]) -> Bool {
   let readers = Set(sourceReaderUserIds)
   return targetMemberUserIds.allSatisfy(readers.contains)
 }

@@ -1,10 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { chatRoomGuestInviteLinkRepository } from "@sokosumi/database/repositories";
 import { evaluateInviteLinkStatus } from "@sokosumi/utils";
 
 import { joinExternalChannelAsGuest } from "@/helpers/chat-room-guest-membership";
 import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import { badRequest, notFound } from "@/helpers/error";
+import { tryConsumeChatRoomGuestInviteLink } from "@/helpers/invite-link-consume";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -58,10 +58,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { token } = c.req.valid("param");
     const now = new Date();
 
-    const link = await chatRoomGuestInviteLinkRepository.getInviteLinkByToken(
-      token,
-      prisma,
-    );
+    const link = await prisma.chatRoomGuestInviteLink.findUnique({
+      where: { token },
+    });
     const status = evaluateInviteLinkStatus(link, now);
     if (!link || status === "not_found") {
       throw notFound("This invite link is not valid.");
@@ -83,11 +82,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         roomUnavailableMessage:
           "Room is no longer available for guest invitations.",
         beforeCreate: async () => {
-          const consumed =
-            await chatRoomGuestInviteLinkRepository.tryConsumeInviteLink(
-              { id: link.id, now, maxUses: link.maxUses },
-              tx,
-            );
+          const consumed = await tryConsumeChatRoomGuestInviteLink(
+            { id: link.id, now, maxUses: link.maxUses },
+            tx,
+          );
           return consumed ? "continue" : "abort";
         },
       }),

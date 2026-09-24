@@ -29,10 +29,6 @@ env:
 # Each gate is `!= 'false'` rather than `== 'true'`: when `changes` fails,
 # its outputs are empty and every leg runs instead of skipping silently.
 # `!cancelled()` stops a superseded run from starting legs.
-#
-# Build, Biome, Typecheck, Test Web, Test Core and Test Packages are
-# required. Test CLI, Test Local env, Test CI config and Test Cloud agent
-# db are advisory — not merge gates. See docs/agents/delivery.md.
 jobs:
   changes:
     name: Detect JS changes
@@ -113,18 +109,26 @@ jobs:
       - *checkout
       - *setup
 
+      # Apply migrations so Calendar erasure also exercises the actual cascade
+      # and outbox triggers, which prisma db push does not install.
+      - name: Apply migrations to PostgreSQL
+        env: &migrated-db
+          DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
+          DATABASE_URL_UNPOOLED: "postgresql://user:password@localhost:5432/job_sync_test"
+        run: pnpm prisma:migrate:deploy
+
+      # Seconds, so it runs before the unit tests. On drift it prints the SQL
+      # the next `prisma migrate dev` would generate and exits 2.
+      - name: Check Prisma schema matches migrations
+        env: *migrated-db
+        run: pnpm prisma:check-drift
+
       - name: Run Tests
         run: pnpm exec turbo run test:ci --filter=@sokosumi/core
 
-      # Apply migrations so Calendar erasure also exercises the actual cascade
-      # and outbox triggers, which prisma db push does not install.
       - name: Test Projects API and Calendar erasure against PostgreSQL
-        env:
-          DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
-          DATABASE_URL_UNPOOLED: "postgresql://user:password@localhost:5432/job_sync_test"
-        run: |
-          pnpm --filter @sokosumi/database exec prisma migrate deploy
-          RUN_DATABASE_INTEGRATION_TESTS=true pnpm --filter core test src/routes/v1/projects/get.postgres.test.ts src/helpers/project-activity.postgres.test.ts src/helpers/calendar-erasure.postgres.test.ts
+        env: *migrated-db
+        run: RUN_DATABASE_INTEGRATION_TESTS=true pnpm --filter core test src/routes/v1/projects/get.postgres.test.ts src/helpers/project-activity.postgres.test.ts src/helpers/calendar-erasure.postgres.test.ts
 
   packages:
     name: Test Packages
@@ -221,6 +225,9 @@ jobs:
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.js != 'false' }}
     runs-on: ubuntu-latest
+    # A build takes 1-3 minutes. A hung one otherwise holds the required
+    # check for GitHub's 6-hour default.
+    timeout-minutes: 10
     permissions: *turbo-permissions
     steps:
       # A plain background container, not a `services:` entry: services

@@ -61,29 +61,22 @@ public func resolveRealtimeEnvelope(
 
 /// In-place tombstone matching Core's mapped delete DTO and web
 /// `tombstoneChatRoomMessage`: body cleared, `deletedAt` set, chrome
-/// emptied. Identity, timestamps, sender, and thread counts stay.
+/// emptied. Identity, timestamps, sender and the thread reply bar stay.
 public func tombstoneTranscriptMessage(
   _ message: Components.Schemas.ChatRoomMessage,
   now: Date = Date()
 ) -> Components.Schemas.ChatRoomMessage {
-  .init(
-    id: message.id,
-    roomId: message.roomId,
-    parentMessageId: message.parentMessageId,
-    content: "",
-    createdAt: message.createdAt,
-    deletedAt: message.deletedAt ?? now,
-    editedAt: nil,
-    sender: message.sender,
-    mentions: [],
-    reactions: [],
-    threadReplyCount: message.threadReplyCount,
-    threadLastReplyAt: message.threadLastReplyAt,
-    metadata: nil,
-    quote: nil,
-    membership: nil,
-    unfurls: nil
-  )
+  var tombstone = message
+  tombstone.content = ""
+  tombstone.deletedAt = message.deletedAt ?? now
+  tombstone.editedAt = nil
+  tombstone.mentions = []
+  tombstone.reactions = []
+  tombstone.metadata = nil
+  tombstone.quote = nil
+  tombstone.membership = nil
+  tombstone.unfurls = nil
+  return tombstone
 }
 
 /// Client turn id on any transcript row: the `pending:` suffix for local
@@ -125,7 +118,7 @@ public func applyRealtimeFullEvent(
   }
   var next = messages
   if let index = next.firstIndex(where: { $0.id == message.id }) {
-    next[index] = message
+    next[index] = keepKnownThreadUnreadReplyCount(known: next[index], incoming: message)
   } else {
     next.append(message)
   }
