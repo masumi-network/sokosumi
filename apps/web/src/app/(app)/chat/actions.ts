@@ -27,6 +27,7 @@ import type {
   ChatRoomThread,
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
+  ChatRoomThreadUnreadReplyCount,
   Coworker,
   DiscoverableChatRoom,
   Member,
@@ -862,14 +863,14 @@ export async function listThreadsAction(
   }
 }
 
-export async function countUnreadThreadsAction(
+export async function listUnreadThreadReplyCountsAction(
   roomId: string,
-): Promise<RoomActionResult<number>> {
+): Promise<RoomActionResult<ChatRoomThreadUnreadReplyCount[]>> {
   try {
-    const count = await chatRoomService.countUnreadThreads(roomId);
-    return roomOk(count);
+    const threads = await chatRoomService.listUnreadThreadReplyCounts(roomId);
+    return roomOk(threads);
   } catch (error) {
-    return roomCatch(error, "Could not count unread threads.");
+    return roomCatch(error, "Could not load unread threads.");
   }
 }
 

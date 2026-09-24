@@ -60,7 +60,7 @@ import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notificat
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { useRoomUrlAsk } from "@/app/chat/hooks/use-room-url-ask";
-import { useUnreadThreadCount } from "@/app/chat/hooks/use-unread-thread-count";
+import { useUnreadThreadReplyCounts } from "@/app/chat/hooks/use-unread-thread-reply-counts";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
 import {
@@ -92,6 +92,7 @@ import {
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
   applyFullChatRoomMessageEvent,
+  applyThreadUnreadReplyCounts,
   keepKnownThreadUnreadReplyCount,
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
@@ -1335,6 +1336,17 @@ function RoomView({
     [bumpThreadUnread],
   );
 
+  // One read answers both the header count (the map's size) and every reply
+  // bar, so the two cannot disagree (SOK-1151).
+  const {
+    replyCounts: unreadThreadReplyCounts,
+    clear: clearUnreadThreadReplyCounts,
+  } = useUnreadThreadReplyCounts(
+    selectedRoom?.id ?? null,
+    `${threadUnreadGeneration}:${threadListOpen}`,
+  );
+  const unreadThreadCount = unreadThreadReplyCounts?.size ?? 0;
+
   const topLevelStreamOverlayMessages = useMemo(
     () => streamOverlayMessages.filter(isTopLevelChatRoomMessage),
     [streamOverlayMessages],
@@ -1387,13 +1399,24 @@ function RoomView({
   );
 
   const displayMessages = useMemo(() => {
-    return overlayReactions(
+    const rows = overlayReactions(
       mergeMessagesWithStreamOverlay(
         topLevelRoomMessages,
         topLevelStreamOverlayMessages,
       ),
     );
-  }, [overlayReactions, topLevelRoomMessages, topLevelStreamOverlayMessages]);
+    // Once the unread read has answered, it owns every reply bar's count. A
+    // message refresh that was in flight during a Look or a live reply can
+    // then land with an older count without re-tinting the bar.
+    return unreadThreadReplyCounts
+      ? applyThreadUnreadReplyCounts(rows, unreadThreadReplyCounts)
+      : rows;
+  }, [
+    overlayReactions,
+    topLevelRoomMessages,
+    topLevelStreamOverlayMessages,
+    unreadThreadReplyCounts,
+  ]);
   // Message rows with a boundary row wherever history is missing. Day
   // separators still read across a gap; continuation chrome does not.
   const transcriptRows = useMemo(
@@ -1718,11 +1741,13 @@ function RoomView({
   ]);
 
   // A Look clears the thread's unread everywhere at once: the header count
-  // re-reads Core, and the parent's reply bar drops its tint without waiting
-  // for the next page of messages. Zeroing one thread is always right after
-  // its Look.
+  // and the parent's reply bar drop it without waiting for the re-read, which
+  // the caller also triggers. Zeroing one thread is always right after its
+  // Look. The loaded rows are zeroed too, for a room whose read has not
+  // answered yet.
   const clearThreadUnreadReplies = useCallback(
     (isCleared: (parentMessageId: string) => boolean) => {
+      clearUnreadThreadReplyCounts(isCleared);
       setMessagesState((current) =>
         current.map((message) =>
           (message.threadUnreadReplyCount ?? 0) > 0 && isCleared(message.id)
@@ -1731,7 +1756,7 @@ function RoomView({
         ),
       );
     },
-    [setMessagesState],
+    [clearUnreadThreadReplyCounts, setMessagesState],
   );
   const handleThreadLooked = useCallback(
     (parentMessageId: string) => {
@@ -2954,11 +2979,6 @@ function RoomView({
       sendStreamMessage,
       threadParentMessage,
     ],
-  );
-
-  const unreadThreadCount = useUnreadThreadCount(
-    selectedRoom?.id ?? null,
-    `${threadUnreadGeneration}:${threadListOpen}`,
   );
 
   const roomHeaderChrome =

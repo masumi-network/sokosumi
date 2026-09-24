@@ -253,7 +253,7 @@ struct RoomThreadOverviewTests {
   @Test func markAllReadReportsTheLookBeforeReloading() async throws {
     let transport = TestTransport([
       (200, testMessagesPageBody(messages: [threadJSON(id: "parent", unread: 2)], nextCursor: nil)),
-      (200, #"{"data":{"count":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#),
+      (200, #"{"data":{"count":1,"threads":[{"parentMessageId":"parent","unreadReplyCount":2}]},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#),
       (200, #"{"data":{"markedCount":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#),
       (200, testMessagesPageBody(messages: [threadJSON(id: "parent", unread: 0)], nextCursor: nil))
     ])
@@ -275,7 +275,7 @@ struct RoomThreadOverviewTests {
   @Test func failedMarkAllReadPreservesUnreadState() async throws {
     let transport = TestTransport([
       (200, testMessagesPageBody(messages: [threadJSON(id: "parent", unread: 2)], nextCursor: nil)),
-      (200, #"{"data":{"count":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#),
+      (200, #"{"data":{"count":1,"threads":[{"parentMessageId":"parent","unreadReplyCount":2}]},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#),
       (403, #"{"error":"Forbidden","message":"No access"}"#)
     ])
     let overview = RoomThreadOverview()
@@ -296,7 +296,7 @@ struct RoomThreadOverviewTests {
   @Test(arguments: ["list", "count", "markAll"])
   func resetRejectsLateResponses(operation: String) async throws {
     let data = switch operation {
-    case "count": #"{"count":7}"#
+    case "count": #"{"count":1,"threads":[{"parentMessageId":"late","unreadReplyCount":7}]}"#
     case "markAll": #"{"markedCount":1}"#
     default: "[]"
     }
@@ -363,11 +363,63 @@ struct RoomThreadOverviewTests {
     #expect(overview.nextCursor == nil && !overview.isLoading)
   }
 
-  private func threadJSON(id: String, unread: Int, content: String = "Thread") -> String {
+  /// Row 24h (SOK-1151): one read of `GET …/threads/unread-count` feeds the Threads trigger (how many Threads)
+  /// and every reply bar (each Thread's unread replies); nothing is known until the room's first read lands.
+  @Test func oneReadFeedsTheTriggerAndEveryReplyBar() async throws {
+    let transport = TestTransport([
+      (200, #"{"data":{"count":2,"threads":[{"parentMessageId":"a","unreadReplyCount":3},{"parentMessageId":"b","unreadReplyCount":1}]},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#),
+      (500, #"{"error":"Internal","message":"boom"}"#)
+    ])
+    let overview = RoomThreadOverview()
+    #expect(overview.unreadReplyCounts == nil && overview.unreadCount == 0)
+    let client = try makeTestClient(transport)
+    try await overview.refreshCount(client: client, roomId: testRoomId, organizationSlug: "team")
+    #expect(overview.unreadReplyCounts == ["a": 3, "b": 1])
+    #expect(overview.unreadCount == 2)
+    await #expect(throws: (any Error).self) {
+      try await overview.refreshCount(client: client, roomId: testRoomId, organizationSlug: "team")
+    }
+    #expect(overview.unreadReplyCounts == ["a": 3, "b": 1], "A failed read keeps the last answer.")
+    overview.reset()
+    #expect(overview.unreadReplyCounts == nil, "Another room shows nothing until its own read lands.")
+  }
+
+  /// Web's `clear`: a Look drops its Thread at once, and a read already in flight cannot put it back.
+  @Test func clearingDropsTheThreadAndALateRead() async throws {
+    let overview = RoomThreadOverview()
+    try await overview.refreshCount(client: makeTestClient(TestTransport([
+      (200, #"{"data":{"count":2,"threads":[{"parentMessageId":"a","unreadReplyCount":3},{"parentMessageId":"b","unreadReplyCount":1}]},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#)
+    ])), roomId: testRoomId, organizationSlug: nil)
+    let held = PausedOverviewTransport(body: #"{"data":{"count":2,"threads":[{"parentMessageId":"a","unreadReplyCount":3},{"parentMessageId":"b","unreadReplyCount":1}]},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#)
+    let heldClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: held)
+    let late = Task { try await overview.refreshCount(client: heldClient, roomId: testRoomId, organizationSlug: nil) }
+    await held.waitForRequest()
+    overview.clearUnreadReplies { $0 == "a" }
+    #expect(overview.unreadReplyCounts == ["b": 1] && overview.unreadCount == 1)
+    await held.release()
+    try await late.value
+    #expect(overview.unreadReplyCounts == ["b": 1], "The read from before the Look is dropped.")
+  }
+
+  /// Web's `onAllThreadsLooked(stillUnreadParentIds)`: Mark all skips a muted Thread even with an unread
+  /// mention, so only a loaded muted Thread that is still unread keeps its bar.
+  @Test func mutedUnreadThreadsStayUnreadAfterMarkAll() async throws {
+    let transport = TestTransport([(200, testMessagesPageBody(messages: [
+      threadJSON(id: "muted-unread", unread: 1, mutedAt: testTimestamp),
+      threadJSON(id: "muted-read", unread: 0, mutedAt: testTimestamp),
+      threadJSON(id: "plain-unread", unread: 2)
+    ], nextCursor: nil))])
+    let overview = RoomThreadOverview()
+    try await overview.load(client: makeTestClient(transport), roomId: testRoomId, organizationSlug: nil)
+    #expect(overview.mutedUnreadParentIds == ["muted-unread"])
+  }
+
+  private func threadJSON(id: String, unread: Int, content: String = "Thread", mutedAt: String? = nil) -> String {
     let escapedContent = (String(bytes: (try? JSONEncoder().encode(content)) ?? Data(), encoding: .utf8) ?? "").dropFirst().dropLast()
     let parent = testMessageJSON(id: id, content: String(escapedContent), sender: testUserSender(name: "Ada", email: "ada@example.com"))
+    let muted = mutedAt.map { "\"\($0)\"" } ?? "null"
     return """
-    {"parentMessage":\(parent),"replyCount":3,"lastReplyAt":"2026-09-15T12:00:00.000Z","unreadReplyCount":\(unread),"lastUnreadReplyAt":null,"hasLooked":true}
+    {"parentMessage":\(parent),"replyCount":3,"lastReplyAt":"2026-09-15T12:00:00.000Z","unreadReplyCount":\(unread),"lastUnreadReplyAt":null,"hasLooked":true,"mutedAt":\(muted)}
     """
   }
 }

@@ -1,10 +1,10 @@
 import CoreAPI
 import Foundation
 
-/// Stable sender identity for grouping; nil when identity is unknown.
-/// Mirrors web `messageSenderKey`.
-private func messageSenderKey(_ message: Components.Schemas.ChatRoomMessage) -> String? {
-  switch message.sender {
+/// Stable identity of a sender or thread replier; nil when identity is unknown.
+/// Mirrors web `senderKey`.
+func chatSenderKey(_ sender: Components.Schemas.ChatRoomMessageSender) -> String? {
+  switch sender {
   case let .case1(user):
     "user:\(user.user.id)"
   case let .case2(coworker):
@@ -31,8 +31,8 @@ public func isMessageContinuation(
   if isRoomStatusMessage(previous) || isRoomStatusMessage(current) {
     return false
   }
-  guard let previousKey = messageSenderKey(previous),
-        let currentKey = messageSenderKey(current),
+  guard let previousKey = chatSenderKey(previous.sender),
+        let currentKey = chatSenderKey(current.sender),
         previousKey == currentKey
   else { return false }
   if !calendar.isDate(previous.createdAt, inSameDayAs: current.createdAt) {

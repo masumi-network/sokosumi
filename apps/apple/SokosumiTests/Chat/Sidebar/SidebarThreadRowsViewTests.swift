@@ -83,7 +83,8 @@
           state.sidebar.setPinnedReorderMode(true)
           try #require(state.sidebar.pinnedReorderMode)
         }
-        let size = NSRect(x: 0, y: 0, width: 280, height: 520)
+        // Tall enough for Directs' Thread row under the Threads and Unreads rows (row 24f2 added the second).
+        let size = NSRect(x: 0, y: 0, width: 280, height: 560)
         // The List paints its own background; the account footer below it has none, because in the app the
         // split view's sidebar column shows through. Hosted bare, it would record as transparent pixels.
         let host = NSHostingView(rootView: ConversationSidebarView()

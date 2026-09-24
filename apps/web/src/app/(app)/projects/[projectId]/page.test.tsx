@@ -252,7 +252,7 @@ describe("ProjectDetailPage", () => {
     expect(workspaceSection?.className).not.toContain("md:px-0");
     expect(needsAttentionColumn?.contains(workspaceSection!)).toBe(true);
     expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
-      6,
+      5,
     );
     const fileBrowserLink = screen.getByRole("link", {
       name: /App\.Projects\.Detail\.modules\.fileBrowser\.title/i,
@@ -261,6 +261,11 @@ describe("ProjectDetailPage", () => {
       "href",
       `/drive?view=tasks&projectId=${project.id}`,
     );
+    expect(
+      screen.getByRole("link", {
+        name: /App\.Projects\.Detail\.modules\.socialMedia\.title/i,
+      }),
+    ).toHaveAttribute("href", `/projects/${project.id}/social`);
   });
 
   it("loads and renders close status only after closing starts", async () => {
@@ -315,6 +320,11 @@ describe("ProjectDetailPage", () => {
     expect(
       screen.queryByRole("link", {
         name: "App.Projects.Detail.modules.calendar.title",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", {
+        name: /App\.Projects\.Detail\.modules\.socialMedia\.title/i,
       }),
     ).not.toBeInTheDocument();
   });

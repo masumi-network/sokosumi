@@ -1,6 +1,9 @@
 "use client";
 
-import { isNeedsActionNotification } from "@sokosumi/utils";
+import {
+  isMentionNotification,
+  isNeedsActionNotification,
+} from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
@@ -86,9 +89,9 @@ export function NotificationCenterList({
     });
   }, []);
 
-  // Needs you holds rows that asked the reader something. A realtime row
-  // that never asked lands in the shared feed all the same, for the bell,
-  // and stays out of this view here.
+  // Needs you holds rows that asked the reader something, Mentions rows
+  // that named them. A realtime row that is neither lands in the shared
+  // feed all the same, for the bell, and stays out of those views here.
   const visibleNotifications =
     view === "unread"
       ? notifications.filter(
@@ -99,7 +102,11 @@ export function NotificationCenterList({
         ? notifications.filter((notification) =>
             isNeedsActionNotification(notification.messageKey),
           )
-        : notifications;
+        : view === "mentions"
+          ? notifications.filter((notification) =>
+              isMentionNotification(notification.messageKey),
+            )
+          : notifications;
 
   const handleNotificationClick = (notification: NotificationItem) => {
     // Immediate paint: pending state + optimistic read. Network and navigation
@@ -146,7 +153,9 @@ export function NotificationCenterList({
 
   const oldest = notifications.at(-1);
   // Unread and Needs you both carry a live count of the whole view, not of
-  // the loaded page. A 0 means Core has nothing left to page.
+  // the loaded page. A 0 means Core has nothing left to page. Mentions stays
+  // out on purpose: its count is the unread mentions only, and the view
+  // lists read ones too, so a 0 there says nothing about older pages.
   const narrowedCount =
     view === "unread"
       ? unreadCount
