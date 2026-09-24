@@ -6512,6 +6512,7 @@
       "event": {
         "accessibleName": "{task}, {source}",
         "accessibleNameSkipped": "{task}, {source}, skipped",
+        "skipped": "Skipped",
         "editSchedule": "Edit schedule",
         "moveOccurrence": "Move occurrence",
         "skipOccurrence": "Skip occurrence",

@@ -172,9 +172,13 @@ export function TaskStatusBadge({
 }: TaskStatusBadgeProps) {
   const marker = getTaskStatusMarker(status);
   const style = getToneStyle(marker.tone);
+  const statusLabel = label ?? getTaskStatusLabel(status);
 
   return (
     <span
+      role={showLabel ? undefined : "img"}
+      aria-label={showLabel ? undefined : statusLabel}
+      title={showLabel ? undefined : statusLabel}
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium",
         style.box,
@@ -183,7 +187,7 @@ export function TaskStatusBadge({
       )}
     >
       <StatusMarker spec={marker} />
-      {showLabel && <span>{label ?? getTaskStatusLabel(status)}</span>}
+      {showLabel && <span>{statusLabel}</span>}
     </span>
   );
 }

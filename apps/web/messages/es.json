@@ -6512,6 +6512,7 @@
       "event": {
         "accessibleName": "{task}, {source}",
         "accessibleNameSkipped": "{task}, {source}, omitida",
+        "skipped": "Omitida",
         "editSchedule": "Editar programación",
         "moveOccurrence": "Mover repetición",
         "skipOccurrence": "Omitir repetición",

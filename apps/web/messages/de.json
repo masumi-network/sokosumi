@@ -6512,6 +6512,7 @@
       "event": {
         "accessibleName": "{task}, {source}",
         "accessibleNameSkipped": "{task}, {source}, übersprungen",
+        "skipped": "Übersprungen",
         "editSchedule": "Zeitplan bearbeiten",
         "moveOccurrence": "Vorkommen verschieben",
         "skipOccurrence": "Vorkommen überspringen",

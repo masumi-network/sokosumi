@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -78,6 +78,78 @@ const WEEK_ITEM: WorkspaceCalendarItem = {
 };
 
 describe("WorkspaceCalendar week layout", () => {
+  it.each([
+    "QUEUED",
+    "RUNNING",
+    "COMPLETED",
+    "FAILED",
+    "INPUT_REQUIRED",
+  ] as const)(
+    "shows an accessible icon-only badge for %s tasks",
+    (taskStatus) => {
+      render(
+        <NuqsTestingAdapter>
+          <WorkspaceCalendar
+            initialDate="2026-08-18"
+            items={[{ ...WEEK_ITEM, taskStatus }]}
+          />
+        </NuqsTestingAdapter>,
+      );
+      const props = fullCalendarMock.mock.lastCall?.[0] as
+        | FullCalendarProps
+        | undefined;
+      render(
+        <>
+          {props?.eventContent?.({
+            event: {
+              id: WEEK_ITEM.id,
+              title: WEEK_ITEM.taskName,
+              start: WEEK_ITEM.scheduledAt,
+            },
+          })}
+        </>,
+      );
+      const card = within(screen.getByTestId("calendar-event"));
+      expect(
+        card.getByRole("img", { name: `status.${taskStatus}` }),
+      ).toHaveAttribute("title", `status.${taskStatus}`);
+      expect(card.queryByText(`status.${taskStatus}`)).not.toBeInTheDocument();
+    },
+  );
+
+  it("labels skipped occurrences as skipped rather than showing the task's live status", () => {
+    render(
+      <NuqsTestingAdapter>
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={[{ ...WEEK_ITEM, state: "SKIPPED", taskStatus: "RUNNING" }]}
+        />
+      </NuqsTestingAdapter>,
+    );
+    const props = fullCalendarMock.mock.lastCall?.[0] as
+      | FullCalendarProps
+      | undefined;
+    render(
+      <>
+        {props?.eventContent?.({
+          event: {
+            id: WEEK_ITEM.id,
+            title: WEEK_ITEM.taskName,
+            start: WEEK_ITEM.scheduledAt,
+          },
+        })}
+      </>,
+    );
+    const card = within(screen.getByTestId("calendar-event"));
+    expect(card.getByRole("img", { name: "event.skipped" })).toHaveAttribute(
+      "title",
+      "event.skipped",
+    );
+    expect(
+      card.queryByRole("img", { name: "status.RUNNING" }),
+    ).not.toBeInTheDocument();
+  });
+
   // Stacked day-grid rows keep every concurrent task full width and visible;
   // a time grid would squeeze them into side-by-side lanes.
   it("stacks the week in a day grid by default", () => {
