@@ -13,7 +13,11 @@ const formatter = createTestFormatter({ timeZone: "UTC", hourCycle: "h23" });
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
-    key === "summary" ? `Seen by ${values?.count} people` : key,
+    key === "summary"
+      ? `Seen by ${values?.count} people`
+      : key === "pendingCount"
+        ? `${values?.count} not yet`
+        : key,
   useFormatter: () => formatter,
 }));
 
@@ -228,8 +232,18 @@ describe("RoomSeenByLine", () => {
 
     await user.click(line() as HTMLElement);
 
+    const toggle = await screen.findByTestId("room-seen-by-pending-toggle");
+    expect(toggle).toHaveTextContent("2 not yet");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(
-      await screen.findByTestId("room-seen-by-pending-user-lagging"),
+      screen.queryByTestId("room-seen-by-pending-user-lagging"),
+    ).not.toBeInTheDocument();
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByTestId("room-seen-by-pending-user-lagging"),
     ).toBeInTheDocument();
     expect(
       screen.getByTestId("room-seen-by-pending-user-never"),
@@ -249,7 +263,7 @@ describe("RoomSeenByLine", () => {
       await screen.findByTestId("room-seen-by-reader-user-a"),
     ).toBeInTheDocument();
     expect(
-      screen.queryByTestId("room-seen-by-pending-title"),
+      screen.queryByTestId("room-seen-by-pending-toggle"),
     ).not.toBeInTheDocument();
   });
 });

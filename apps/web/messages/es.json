@@ -5777,7 +5777,8 @@
         "summary": "{count, plural, one {Leído por # persona} other {Leído por # personas}}",
         "readersTitle": "Leído por",
         "readAt": "Leído por última vez {time}",
-        "notRead": "Sin leer todavía"
+        "notRead": "Sin leer todavía",
+        "pendingCount": "{count} todavía no"
       },
       "UnreadThreads": {
         "open": "Hilos",
