@@ -46,6 +46,23 @@ describe("redactResetPasswordToken", () => {
     expect(redactResetPasswordToken(event)).toBe(event);
   });
 
+  it("removes the token from streamed span name and attributes", () => {
+    const span = redactResetPasswordToken({
+      name: "GET /reset-password/exchange?token=secret",
+      attributes: {
+        "url.full":
+          "https://app.sokosumi.com/reset-password/exchange?token=secret",
+        "http.route": "/reset-password/exchange",
+      },
+    });
+
+    expect(span.name).not.toContain("secret");
+    expect(span.attributes?.["url.full"]).toBe(
+      "https://app.sokosumi.com/reset-password/exchange",
+    );
+    expect(JSON.stringify(span)).not.toContain("secret");
+  });
+
   it("removes the token from every field in a transaction payload", () => {
     const transaction = {
       type: "transaction" as const,
