@@ -61,6 +61,16 @@ import SwiftUI
         .task(id: scope + [String(destination == .threads)]) {
           await workspaces.refreshChatDisplayPreferences(auth: auth)
         }
+        // The sidebar's "N more unread threads" (row 24g2): the room's thread overview takes the inspector.
+        // A task, so it runs after a room switch has reset the destination.
+        .task(id: workspaces.threadOverviewRequest) {
+          guard let request = workspaces.threadOverviewRequest, request.roomId == roomId else { return }
+          if destination == .search {
+            cancelJump()
+          }
+          destination = .threads
+          workspaces.consumeThreadOverviewRequest(request.requestId)
+        }
         .task(id: request) {
           jumpError = nil
           guard destination == .search else { search.reset()

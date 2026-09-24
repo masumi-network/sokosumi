@@ -25,6 +25,14 @@ public final class WorkspaceState: ObservableObject {
   }
 
   @Published public internal(set) var messageJump: MessageJump?
+  /// The sidebar's "N more unread threads" row asks for the room's thread overview (row 24g2, web's
+  /// `?threads=1`); the room's tools open it once that room is on screen.
+  public struct ThreadOverviewRequest: Equatable, Sendable {
+    public let roomId: String
+    public let requestId = UUID()
+  }
+
+  @Published public internal(set) var threadOverviewRequest: ThreadOverviewRequest?
   var messageNavigationRequest = UUID()
   public let thread = ThreadSession()
   public let threadOverview = RoomThreadOverview()
@@ -602,6 +610,7 @@ public final class WorkspaceState: ObservableObject {
   func clearTranscript() {
     messageNavigationRequest = UUID()
     messageJump = nil
+    threadOverviewRequest = nil
     messageEditing.reset()
     directStream.reset()
     thread.close()
@@ -628,6 +637,10 @@ public final class WorkspaceState: ObservableObject {
   public func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
     messageNavigationRequest = UUID()
     messageJump = nil
+    // Only the room it names takes an overview request; any other room drops it.
+    if threadOverviewRequest?.roomId != room.id {
+      threadOverviewRequest = nil
+    }
     messageEditing.reset()
     directStream.reset(room: room, userId: currentUserId, organizationId: selection?.workspace.organizationId)
     thread.close()

@@ -1,4 +1,5 @@
 import CoreAPI
+import Foundation
 import SokosumiAuth
 import SokosumiChat
 
@@ -26,6 +27,22 @@ public extension WorkspaceState {
     selectRoom(id, auth: auth)
     if wasBehind {
       await syncReadAttention(auth: auth)
+    }
+  }
+
+  /// The sidebar's overflow row under a room (row 24g2, web's `?threads=1`): shows that room, in place of the
+  /// Threads view when that is up, with its thread overview open. An open thread is put away first, as web's
+  /// `showThreadList` does; the room's tools open the overview once the room is on screen.
+  func openThreadOverview(roomId: String, auth: AuthState) async {
+    guard rooms.contains(where: { $0.id == roomId }) else { return }
+    thread.close()
+    threadOverviewRequest = ThreadOverviewRequest(roomId: roomId)
+    await showRoom(roomId, auth: auth)
+  }
+
+  func consumeThreadOverviewRequest(_ requestId: UUID) {
+    if threadOverviewRequest?.requestId == requestId {
+      threadOverviewRequest = nil
     }
   }
 
