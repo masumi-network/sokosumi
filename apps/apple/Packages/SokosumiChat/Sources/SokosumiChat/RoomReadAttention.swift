@@ -203,6 +203,52 @@ public final class RoomReadAttention: ObservableObject {
     try await readRoom(room, optimistic: false, client: client, organizationSlug: organizationSlug)
   }
 
+  /// Web's `markAllUnreadRead` (row 24f2): each target's room read and thread Mark all, all at once, through the
+  /// reads the room itself offers. A room read settles its row on Core's answer, as a read after a Look does.
+  /// Every read runs; the first failure is thrown once they have all settled.
+  public func markAllUnreadRead(
+    _ targets: [RoomUnreadReads], rooms: [Components.Schemas.ChatRoom], client: Client, organizationSlug: String?
+  ) async throws {
+    let byId = Dictionary(rooms.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let failure = await withTaskGroup(of: (any Error)?.self) { group in
+      for target in targets {
+        if target.readRoom, let room = byId[target.roomId] {
+          group.addTask {
+            await self.markAllRoomRead(room, client: client, organizationSlug: organizationSlug)
+          }
+        }
+        if target.lookThreads {
+          group.addTask {
+            do {
+              try await ChatService().markAllThreadsRead(client: client, roomId: target.roomId, organizationSlug: organizationSlug)
+              return nil
+            } catch {
+              return error
+            }
+          }
+        }
+      }
+      var first: (any Error)?
+      for await error in group {
+        first = first ?? error
+      }
+      return first
+    }
+    if let failure {
+      throw failure
+    }
+  }
+
+  /// Mark all's room read: Core's answer settles the row, as after a Look; the failure is returned, not thrown.
+  private func markAllRoomRead(_ room: Components.Schemas.ChatRoom, client: Client, organizationSlug: String?) async -> (any Error)? {
+    do {
+      _ = try await readRoom(room, optimistic: false, client: client, organizationSlug: organizationSlug)
+      return nil
+    } catch {
+      return error
+    }
+  }
+
   private func readRoom(_ room: Components.Schemas.ChatRoom, optimistic: Bool, client: Client, organizationSlug: String?) async throws -> Bool {
     guard isVisible, !Task.isCancelled else { return false }
     let attempt = generation
