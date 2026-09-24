@@ -45,18 +45,18 @@ public extension ChatService {
     case let .ok(okResponse):
       let payload = try okResponse.body.json
       return (payload.data, payload.meta.pagination.nextCursor)
-    case let .unauthorized(unauthorized):
-      throw try ChatServiceError.unauthorized(unauthorized.body.json.message)
+    case let .unauthorized(value):
+      throw try unauthorized(value.body.json.message)
     case let .forbidden(forbidden):
-      throw try ChatServiceError.unprocessable(statusCode: 403, message: forbidden.body.json.message)
+      throw try rejected(status: 403, message: forbidden.body.json.message)
     case let .notFound(notFound):
-      throw try ChatServiceError.unprocessable(statusCode: 404, message: notFound.body.json.message)
+      throw try rejected(status: 404, message: notFound.body.json.message)
     case let .unprocessableContent(invalid):
-      throw try ChatServiceError.unprocessable(statusCode: 422, message: invalid.body.json.message)
+      throw try rejected(status: 422, message: invalid.body.json.message)
     case let .internalServerError(serverError):
-      throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
+      throw try rejected(status: 500, message: serverError.body.json.message)
     case let .tooManyRequests(value):
-      throw try ChatServiceError.unprocessable(statusCode: 429, message: value.body.json.message)
+      throw try rejected(status: 429, message: value.body.json.message)
     case let .undocumented(statusCode, payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
@@ -78,14 +78,14 @@ public extension ChatService {
     switch response {
     case let .ok(okResponse):
       return try okResponse.body.json.data
-    case let .unauthorized(unauthorized):
-      throw try ChatServiceError.unauthorized(unauthorized.body.json.message)
+    case let .unauthorized(value):
+      throw try unauthorized(value.body.json.message)
     case let .forbidden(forbidden):
-      throw try ChatServiceError.unprocessable(statusCode: 403, message: forbidden.body.json.message)
+      throw try rejected(status: 403, message: forbidden.body.json.message)
     case let .notFound(notFound):
-      throw try ChatServiceError.unprocessable(statusCode: 404, message: notFound.body.json.message)
+      throw try rejected(status: 404, message: notFound.body.json.message)
     case let .internalServerError(serverError):
-      throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
+      throw try rejected(status: 500, message: serverError.body.json.message)
     case let .undocumented(statusCode, payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
@@ -105,14 +105,14 @@ public extension ChatService {
     switch response {
     case let .ok(okResponse):
       return try okResponse.body.json.data
-    case let .unauthorized(unauthorized):
-      throw try ChatServiceError.unauthorized(unauthorized.body.json.message)
+    case let .unauthorized(value):
+      throw try unauthorized(value.body.json.message)
     case let .forbidden(forbidden):
-      throw try ChatServiceError.unprocessable(statusCode: 403, message: forbidden.body.json.message)
+      throw try rejected(status: 403, message: forbidden.body.json.message)
     case let .notFound(notFound):
-      throw try ChatServiceError.unprocessable(statusCode: 404, message: notFound.body.json.message)
+      throw try rejected(status: 404, message: notFound.body.json.message)
     case let .internalServerError(serverError):
-      throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
+      throw try rejected(status: 500, message: serverError.body.json.message)
     case let .undocumented(statusCode, payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
@@ -147,17 +147,17 @@ public extension ChatService {
     case let .created(createdResponse):
       return try createdResponse.body.json.data
     case let .badRequest(badRequest):
-      throw try ChatServiceError.unprocessable(statusCode: 400, message: badRequest.body.json.message)
-    case let .unauthorized(unauthorized):
-      throw try ChatServiceError.unauthorized(unauthorized.body.json.message)
+      throw try rejected(status: 400, message: badRequest.body.json.message)
+    case let .unauthorized(value):
+      throw try unauthorized(value.body.json.message)
     case let .forbidden(forbidden):
-      throw try ChatServiceError.unprocessable(statusCode: 403, message: forbidden.body.json.message)
+      throw try rejected(status: 403, message: forbidden.body.json.message)
     case let .notFound(notFound):
-      throw try ChatServiceError.unprocessable(statusCode: 404, message: notFound.body.json.message)
+      throw try rejected(status: 404, message: notFound.body.json.message)
     case let .conflict(conflict):
       throw try ChatServiceError.unprocessable(statusCode: 409, message: conflict.body.json.message)
     case let .internalServerError(serverError):
-      throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
+      throw try rejected(status: 500, message: serverError.body.json.message)
     case let .undocumented(statusCode, payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
