@@ -26,7 +26,10 @@ import {
   type TaskActivityActorInfo,
 } from "@/app/tasks/utils/task-activity-actors";
 import { getTaskEventChargePresentation } from "@/app/tasks/utils/task-event-charge-presentation";
-import { buildTaskMentionOptions } from "@/app/tasks/utils/task-mention-options";
+import {
+  buildTaskMentionOptions,
+  type MentionableUser,
+} from "@/app/tasks/utils/task-mention-options";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
@@ -105,11 +108,6 @@ interface TaskActivityProps {
   canComment?: boolean;
   /** Workspace members the composer offers for `@`; mentions add them as Task participants. */
   mentionableUsers?: readonly MentionableUser[];
-}
-
-export interface MentionableUser {
-  id: string;
-  name: string;
 }
 
 const NO_MENTIONABLE_USERS: readonly MentionableUser[] = [];

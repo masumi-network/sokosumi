@@ -8,10 +8,7 @@ import {
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import {
-  type MentionableUser,
-  TaskActivitySection,
-} from "@/app/tasks/components/task-activity";
+import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
@@ -41,6 +38,7 @@ import {
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
+import type { MentionableUser } from "@/app/tasks/utils/task-mention-options";
 import {
   canCancelTaskForViewer,
   canCommentOnTaskForViewer,
