@@ -1,3 +1,5 @@
+-- Formerly 20260924150000 (and before that 20260924120000). Re-timestamped
+-- after the preview deploy recorded a failed apply of 20260924150000 (P3009).
 -- SOK-1123: human Task participants, added only by @ in Task comments.
 CREATE TABLE "task_participant" (
     "id" TEXT NOT NULL,
