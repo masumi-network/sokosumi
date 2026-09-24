@@ -52,6 +52,14 @@ const MEMBER: CoworkerOption = {
   kind: "user",
 };
 
+const SOKO_BOT: CoworkerOption = {
+  ...COWORKER,
+  id: "bot_1",
+  slug: "soko-bot",
+  name: "Soko Bot",
+  kind: "sokoBot",
+};
+
 const SCHEDULE: TaskSchedule = {
   id: "01960001-0001-7001-8001-000000000042",
   workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -145,6 +153,37 @@ describe("TaskScheduleDialog", () => {
       }),
     );
     expect(onSaved).toHaveBeenCalledWith("new-schedule");
+  });
+
+  it("offers coworkers and Soko Bots but no workspace members", async () => {
+    const user = userEvent.setup();
+    renderDialog({ coworkerOptions: [MEMBER, COWORKER, SOKO_BOT] });
+
+    await user.click(screen.getByRole("combobox", { name: /assignee/ }));
+
+    expect(screen.getByRole("option", { name: "Elena" })).toBeEnabled();
+    expect(screen.getByRole("option", { name: "Soko Bot" })).toBeEnabled();
+    expect(screen.queryByRole("option", { name: "Maya" })).toBeNull();
+  });
+
+  it("starts unassigned when repeating a Task assigned to a workspace member", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      coworkerOptions: [COWORKER, MEMBER],
+      initialBlueprint: { name: "Review", assigneeUserId: MEMBER.id },
+    });
+
+    expect(
+      screen.getByRole("combobox", { name: /assignee/ }),
+    ).toHaveTextContent("unassigned");
+    await user.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() => expect(createTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(createTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+    });
   });
 
   it("starts from a prefilled blueprint, with its markdown formatted", () => {
@@ -315,10 +354,7 @@ describe("TaskScheduleDialog", () => {
 
     await user.click(screen.getByRole("combobox", { name: /assignee/ }));
 
-    expect(screen.getByRole("option", { name: /Maya/ })).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    expect(screen.queryByRole("option", { name: /Maya/ })).toBeNull();
   });
 
   it("asks to reload when the schedule changed meanwhile", async () => {

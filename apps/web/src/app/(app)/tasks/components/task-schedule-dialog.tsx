@@ -89,12 +89,10 @@ export function TaskScheduleDialog({
   );
   const [assigneeValue, setAssigneeValue] = useState(() => {
     const assigneeId = taskScheduleAssigneeId(blueprint) ?? "";
-    // A private schedule cannot assign a member. Drop that assignee rather
-    // than saving the private Task's name and description as a public one.
+    // A new schedule only offers agent assignees, even when created from a
+    // Task assigned to a workspace member.
     if (
       !schedule &&
-      canCreatePrivate &&
-      blueprint.visibility === TaskVisibility.PRIVATE &&
       blueprint.assigneeUserId &&
       assigneeId === blueprint.assigneeUserId
     ) {
@@ -123,11 +121,7 @@ export function TaskScheduleDialog({
     blueprint.assigneeSokoBotId,
     blueprint.assigneeUserId,
   );
-  // Core refuses a person on a private schedule, as it does on a private Task:
-  // while private, members cannot be picked; while a member is picked, the
-  // schedule cannot be made private.
-  const showPrivateControl =
-    !schedule && canCreatePrivate && assignee.assigneeUserId === null;
+  const showPrivateControl = !schedule && canCreatePrivate;
   const isPrivateSchedule = schedule
     ? schedule.visibility === TaskVisibility.PRIVATE
     : showPrivateControl && isPrivate;
@@ -227,7 +221,9 @@ export function TaskScheduleDialog({
               <Label>{t("assignee")}</Label>
               <TaskAssigneePicker
                 value={assigneeValue}
-                options={coworkerOptions}
+                options={coworkerOptions.filter(
+                  (option) => option.kind !== "user",
+                )}
                 labels={{
                   ariaLabel: t("assignee"),
                   unassigned: tNewTask("unassigned"),
@@ -237,11 +233,6 @@ export function TaskScheduleDialog({
                   agentsGroupLabel: tNewTask("coworker"),
                 }}
                 onSelect={setAssigneeValue}
-                isOptionDisabled={(option) =>
-                  isPrivateSchedule &&
-                  option !== "unassigned" &&
-                  option.kind === "user"
-                }
               />
             </div>
             <div className="space-y-2">
