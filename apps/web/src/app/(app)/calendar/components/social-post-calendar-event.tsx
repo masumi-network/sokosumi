@@ -4,6 +4,7 @@ import { Paperclip } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { SiX } from "react-icons/si";
+import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import type { SocialPostCalendarItem } from "@/lib/clients/generated/core";
 
@@ -56,9 +57,11 @@ export function SocialPostCalendarEvent({
           />
         </span>
         <span className="sr-only">{scheduler}</span>
-        <span className="text-muted-foreground min-w-0 truncate">
-          {statuses(item.status)}
-        </span>
+        <SocialPostStatusBadge
+          status={item.status}
+          label={statuses(item.status)}
+          showLabel={false}
+        />
         {item.attachmentCount > 0 ? (
           <span
             className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1"

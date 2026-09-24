@@ -41,6 +41,24 @@ function renderCard(overrides: Partial<SocialPostCalendarItem> = {}) {
 }
 
 describe("Social post calendar event", () => {
+  it.each([
+    ["SCHEDULED", "Scheduled"],
+    ["PUBLISHING", "Publishing…"],
+    ["PUBLISHED", "Published"],
+    ["FAILED", "Failed"],
+    ["MISSED", "Missed"],
+    ["CANCELED", "Canceled"],
+  ] as const)(
+    "uses an accessible icon instead of text for %s",
+    (status, label) => {
+      renderCard({ status });
+      expect(screen.getByRole("img", { name: label })).toHaveAttribute(
+        "title",
+        label,
+      );
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
+    },
+  );
   it("opens the exact post and shows the X brand, project, scheduler, and attachments", () => {
     renderCard();
     expect(screen.getByRole("link")).toHaveAttribute(
@@ -57,7 +75,11 @@ describe("Social post calendar event", () => {
     );
     expect(screen.getByText("Scheduled by Albina")).toBeInTheDocument();
     expect(screen.getByText("2 attachments")).toBeInTheDocument();
-    expect(screen.getByText("Scheduled")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Scheduled" })).toHaveAttribute(
+      "title",
+      "Scheduled",
+    );
+    expect(screen.queryByText("Scheduled")).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
   it("handles a missing scheduler and media-only posts without displaying an empty attachment indicator", () => {

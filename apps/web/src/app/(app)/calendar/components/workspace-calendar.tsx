@@ -49,6 +49,7 @@ import { Temporal } from "temporal-polyfill";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
+import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import {
   TASK_SCHEDULES_PATH,
@@ -377,6 +378,9 @@ function CalendarEvent({
       <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
       <span className="flex w-full min-w-0 items-center gap-1">
         {peopleStack}
+        {item.taskStatus ? (
+          <TaskStatusBadge status={item.taskStatus} label={t(`status.${item.taskStatus}`)} showLabel={false} className="size-5 justify-center p-0" />
+        ) : null}
         {trailing}
       </span>
     </>
