@@ -47,6 +47,27 @@ describe("addTaskParticipantsFromComment", () => {
     });
   });
 
+  it("does not load workspace members when the comment mentions no one", async () => {
+    const findUnique = vi.fn();
+    const added = await addTaskParticipantsFromComment(
+      {
+        workspace: { findUnique },
+        taskParticipant: { findMany: vi.fn(), createMany: vi.fn() },
+      },
+      {
+        taskId: "tsk_1",
+        workspaceId: "ws_1",
+        comment: "looks good to me",
+        visibility: TaskVisibility.PUBLIC,
+        ownerId: "user_owner",
+        mentionedUserIds: [],
+      },
+    );
+
+    expect(added).toEqual([]);
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
   it("does not add the workspace when the comment is only @all", async () => {
     const createMany = vi.fn();
     const added = await addTaskParticipantsFromComment(

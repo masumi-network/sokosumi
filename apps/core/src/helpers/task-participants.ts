@@ -67,6 +67,10 @@ export async function addTaskParticipantsFromComment(
     mentionedUserIds?: readonly string[];
   },
 ): Promise<string[]> {
+  if (!params.comment.includes("@") && !params.mentionedUserIds?.length) {
+    return [];
+  }
+
   const members = await listTaskWorkspaceMembers(tx, params.workspaceId);
   const mentionedUserIds = resolveMentionedUserIds({
     content: params.comment,
