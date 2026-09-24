@@ -393,26 +393,14 @@ struct ConversationSidebarView: View {
     showsDirectAvatars: Bool = false,
     reorderingIn pinned: [Components.Schemas.ChatRoom]? = nil
   ) -> some View {
-    let attention = resolveRoomAttention(
-      unreadCount: room.unreadCount,
-      unreadMentionCount: room.unreadMentionCount,
-      markedUnread: room.markedUnread,
-      isMuted: room.mutedAt != nil,
-      showUnreadCount: workspaces.chatDisplay.showsRoomUnreadCount
-    )
+    let attention = resolveRoomAttention(room, showUnreadCount: workspaces.chatDisplay.showsRoomUnreadCount)
     return Label {
       HStack(spacing: 6) {
         VStack(alignment: .leading, spacing: 2) {
-          // Web: the count rides the end of the name, the name truncates first.
-          HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
-              .lineLimit(1)
-              .fontWeight(attention.bold ? .bold : .regular)
-              .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
-            if attention.unreadTextCount > 0 {
-              RoomUnreadCountLabel(count: attention.unreadTextCount)
-            }
-          }
+          Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
+            .lineLimit(1)
+            .fontWeight(attention.bold ? .bold : .regular)
+            .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
           if room.myAccess == .guest, let organization = room.organizationName, !organization.isEmpty {
             Text(organization)
               .font(.caption)
@@ -421,8 +409,16 @@ struct ConversationSidebarView: View {
           }
         }
         Spacer(minLength: 0)
-        roomStatus(room, reorderingIn: pinned)
-          .frame(width: 20)
+        // Web draws the row's one number in the badge's column (SOK-1147): the count takes the trailing
+        // edge where the mention badge would stand, as on the Threads row. Without it the status keeps its
+        // centred 20 pt column.
+        HStack(spacing: 4) {
+          if attention.unreadTextCount > 0 {
+            RoomUnreadCountLabel(count: attention.unreadTextCount)
+          }
+          roomStatus(room, reorderingIn: pinned)
+        }
+        .frame(minWidth: 20, alignment: attention.unreadTextCount > 0 ? .trailing : .center)
       }
     } icon: {
       RoomLeadingIcon(
@@ -636,15 +632,16 @@ enum SidebarDestination: Hashable {
   case room(String)
 }
 
-/// The reader's opt-in Room unread count (web `RoomUnreadCount`): text, not a
-/// pill, so it cannot be mistaken for the mention badge beside it.
+/// The reader's Room unread count (web `RowCountMark`'s muted count): drawn only where the row has no
+/// mention badge, at the trailing edge, in the Threads row's muted style. VoiceOver hears web's words.
 struct RoomUnreadCountLabel: View {
   let count: Int
 
   var body: some View {
-    Text("· \(roomCountLabel(count))")
-      .fontWeight(.bold)
+    Text(roomCountLabel(count))
+      .font(.caption.weight(.semibold))
       .monospacedDigit()
+      .foregroundStyle(.secondary)
       .lineLimit(1)
       .fixedSize()
       .layoutPriority(1)
