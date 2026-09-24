@@ -383,9 +383,11 @@ describe("project social connections service", () => {
       connectionId: CONNECTION_ID,
     };
 
-    await expect(finalizeProjectSocialConnection(input)).resolves.toMatchObject({
-      status: "active",
-    });
+    await expect(finalizeProjectSocialConnection(input)).resolves.toMatchObject(
+      {
+        status: "active",
+      },
+    );
     await expect(finalizeProjectSocialConnection(input)).rejects.toThrow(
       "Unknown or expired connection",
     );
