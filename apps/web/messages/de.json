@@ -5777,8 +5777,7 @@
         "summary": "{count, plural, one {Von # Person gelesen} other {Von # Personen gelesen}}",
         "readersTitle": "Gelesen von",
         "readAt": "Zuletzt gelesen {time}",
-        "notRead": "Noch nicht gelesen",
-        "pendingCount": "{count} noch nicht"
+        "notRead": "Noch nicht gelesen"
       },
       "UnreadThreads": {
         "open": "Threads",

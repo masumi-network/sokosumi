@@ -13,19 +13,11 @@ const formatter = createTestFormatter({ timeZone: "UTC", hourCycle: "h23" });
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
-    key === "summary"
-      ? `Seen by ${values?.count} people`
-      : key === "pendingCount"
-        ? `${values?.count} not yet`
-        : key,
+    key === "summary" ? `Seen by ${values?.count} people` : key,
   useFormatter: () => formatter,
 }));
 
-import {
-  RoomSeenByLine,
-  seenByPendingFor,
-  seenByReadersFor,
-} from "./room-seen-by-line";
+import { RoomSeenByLine, seenByReadersFor } from "./room-seen-by-line";
 
 const VIEWER_ID = "user-viewer";
 const NEWEST_ID = "message-newest";
@@ -76,7 +68,7 @@ function Probe({
     createdAt,
     newestMessageId: NEWEST_ID,
   });
-  return <RoomSeenByLine readers={readers} receipts={receipts} />;
+  return <RoomSeenByLine readers={readers} />;
 }
 
 function line() {
@@ -199,8 +191,8 @@ describe("RoomSeenByLine", () => {
     expect(trigger).not.toBeNull();
     await user.click(trigger as HTMLElement);
 
-    // Pinned above the faces: left to Radix it opened below, then flipped
-    // above as soon as the not-yet rows made it too tall.
+    // Pinned above the faces: left to Radix it opens below them over the
+    // composer while it fits there, and above once it does not.
     expect(await screen.findByTestId("room-seen-by-detail")).toHaveAttribute(
       "data-side",
       "top",
@@ -220,12 +212,10 @@ describe("RoomSeenByLine", () => {
   });
 
   /**
-   * The half the faces cannot show. A member who read older messages has read
-   * *something*, so `nonReaders` alone would drop them from the answer
-   * entirely — and "who has seen this" that silently omits people is the more
-   * misleading of the two answers.
+   * Readers only: who has not read this far — lagging or never here — is the
+   * Members panel's answer, not a second list in the popover.
    */
-  it("lists everyone who has not read this far, lagging readers included", async () => {
+  it("names only the members who have read this far", async () => {
     const user = userEvent.setup();
     render(
       <Probe
@@ -239,87 +229,13 @@ describe("RoomSeenByLine", () => {
 
     await user.click(line() as HTMLElement);
 
-    const toggle = await screen.findByTestId("room-seen-by-pending-toggle");
-    expect(toggle).toHaveTextContent("2 not yet");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    const detail = await screen.findByTestId("room-seen-by-detail");
     expect(
-      screen.queryByTestId("room-seen-by-pending-user-lagging"),
-    ).not.toBeInTheDocument();
-
-    await user.click(toggle);
-
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(
-      screen.getByTestId("room-seen-by-pending-user-lagging"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("room-seen-by-pending-user-never"),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("room-seen-by-pending-user-read"),
-    ).not.toBeInTheDocument();
-    // The rows open above the toggle, which stays last so the pointer that
-    // opened the list is still on it.
-    const list = screen
-      .getByTestId("room-seen-by-pending-user-lagging")
-      .closest("ul") as HTMLElement;
-    expect(
-      list.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-
-    // And the same toggle folds it again.
-    await user.click(toggle);
-
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(
-      screen.queryByTestId("room-seen-by-pending-user-lagging"),
-    ).not.toBeInTheDocument();
-  });
-
-  it("says nothing about who has not read when everyone has", async () => {
-    const user = userEvent.setup();
-    render(<Probe members={[member("user-a", "2026-01-01T13:00:00.000Z")]} />);
-
-    await user.click(line() as HTMLElement);
-
-    expect(
-      await screen.findByTestId("room-seen-by-reader-user-a"),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("room-seen-by-pending-toggle"),
-    ).not.toBeInTheDocument();
-  });
-});
-
-describe("seenByPendingFor", () => {
-  const reader = (id: string, at: string) => ({
-    participant: member(id, at),
-    lastReadAt: new Date(at),
-  });
-
-  it("puts lagging readers before those who never opened the room", () => {
-    const here = reader("here", "2026-01-01T13:00:00.000Z");
-    const lagging = reader("lagging", "2026-01-01T09:00:00.000Z");
-    const never = member("never", null);
-
-    const pending = seenByPendingFor({
-      readers: [here],
-      allReaders: [here, lagging],
-      nonReaders: [never],
-    });
-
-    expect(pending.map((p) => p.id)).toEqual(["lagging", "never"]);
-  });
-
-  it("is empty when every reader has reached the message", () => {
-    const here = reader("here", "2026-01-01T13:00:00.000Z");
-
-    expect(
-      seenByPendingFor({
-        readers: [here],
-        allReaders: [here],
-        nonReaders: [],
-      }),
-    ).toEqual([]);
+      screen
+        .getAllByTestId(/^room-seen-by-reader-/)
+        .map((row) => row.getAttribute("data-testid")),
+    ).toEqual(["room-seen-by-reader-user-read"]);
+    expect(detail).not.toHaveTextContent("user-lagging");
+    expect(detail).not.toHaveTextContent("user-never");
   });
 });
