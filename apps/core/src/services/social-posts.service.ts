@@ -5,10 +5,10 @@ import {
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
-  socialPostMediaKindForMime,
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostMediaKindForMime,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 
