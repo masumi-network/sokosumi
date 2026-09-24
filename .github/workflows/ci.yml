@@ -217,6 +217,9 @@ jobs:
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.js != 'false' }}
     runs-on: ubuntu-latest
+    # A build takes 1-3 minutes. A hung one otherwise holds the required
+    # check for GitHub's 6-hour default.
+    timeout-minutes: 10
     permissions: *turbo-permissions
     steps:
       # A plain background container, not a `services:` entry: services
