@@ -29,15 +29,11 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
+import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import {
   isOtherHumanAssignee,
   resolveTaskAssigneeFields,
 } from "@/app/tasks/utils/coworker-options";
-import {
-  buildTaskMentionOptions,
-  mentionableUsersFromAssigneeOptions,
-  withoutExcludedMentionUsers,
-} from "@/app/tasks/utils/task-mention-options";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
@@ -181,7 +177,6 @@ interface TaskFormInitialValues {
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
-  ownerId?: string;
   projectId?: string | null;
   status?: TaskStatus;
   /** Statuses Core lets this viewer move the Task to; edit mode only (ADR 0029). */
@@ -525,26 +520,10 @@ export function TaskForm({
     () => extractTaskAttachmentUrls(description),
     [description],
   );
-  const mentionOptions = useMemo(() => {
-    const excludedIds: string[] = [];
-    if (session?.user?.id) {
-      excludedIds.push(session.user.id);
-    }
-    if (mode === "edit" && initialValues?.ownerId) {
-      excludedIds.push(initialValues.ownerId);
-    }
-    const mentionableUsers = withoutExcludedMentionUsers(
-      mentionableUsersFromAssigneeOptions(coworkerOptions),
-      excludedIds,
-    );
-    return buildTaskMentionOptions(agentNameById, mentionableUsers);
-  }, [
-    agentNameById,
-    coworkerOptions,
-    initialValues?.ownerId,
-    mode,
-    session?.user?.id,
-  ]);
+  const mentionOptions = useMemo(
+    () => convertAgentNamesToMentionOptions(agentNameById),
+    [agentNameById],
+  );
   const isSubmittingAny = isSubmitting;
   useEffect(() => {
     onCreatedChange?.(createdTask !== null);

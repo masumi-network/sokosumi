@@ -8,7 +8,6 @@ interface TaskDescriptionProps {
   description?: string | null;
   // Map keeps mention lookups O(1) while parsing.
   agentNameById?: Map<string, string>;
-  userNameById?: Map<string, string>;
   expandLabel?: string;
   collapseLabel?: string;
 }
@@ -17,12 +16,11 @@ export function TaskDescription({
   title,
   description,
   agentNameById = new Map<string, string>(),
-  userNameById,
   expandLabel = "Expand",
   collapseLabel = "Show less",
 }: TaskDescriptionProps) {
   const content = description
-    ? formatMentionsAsMarkdownLinks(description, agentNameById, userNameById)
+    ? formatMentionsAsMarkdownLinks(description, agentNameById)
     : null;
   const attachmentUrls = content ? extractTaskAttachmentUrls(content) : [];
 

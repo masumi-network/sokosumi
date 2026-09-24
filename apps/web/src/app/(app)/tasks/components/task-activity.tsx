@@ -20,13 +20,13 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import {
   getEventActorInfo,
   resolveTaskEventActorKind,
   type TaskActivityActorInfo,
 } from "@/app/tasks/utils/task-activity-actors";
 import { getTaskEventChargePresentation } from "@/app/tasks/utils/task-event-charge-presentation";
-import { buildTaskMentionOptions } from "@/app/tasks/utils/task-mention-options";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
@@ -231,7 +231,12 @@ export function TaskActivitySection({
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const { os, isMobile } = useOSDetection();
   const mentionOptions = useMemo(
-    () => buildTaskMentionOptions(resolvedAgentNameById, mentionableUsers),
+    () => ({
+      ...convertAgentNamesToMentionOptions(resolvedAgentNameById),
+      ...Object.fromEntries(
+        mentionableUsers.map((user) => [user.id, { value: user.name }]),
+      ),
+    }),
     [resolvedAgentNameById, mentionableUsers],
   );
   const mentionUserNameById = useMemo(() => {

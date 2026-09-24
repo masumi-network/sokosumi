@@ -22,7 +22,6 @@ interface TaskEditModalProps {
     assigneeId: string;
     assigneeSokoBotId?: string | null;
     assigneeUserId?: string | null;
-    ownerId?: string;
     projectId?: string | null;
     status: TaskStatus;
     selectableStatuses: readonly TaskStatus[];
