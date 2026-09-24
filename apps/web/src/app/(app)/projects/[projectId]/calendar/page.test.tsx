@@ -7,7 +7,6 @@ const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
-const listSchedulesMock = vi.fn();
 const listCoworkersMock = vi.fn();
 const listTaskAssigneeMemberOptionsMock = vi.fn();
 const workspaceCalendarMock = vi.fn();
@@ -90,12 +89,6 @@ vi.mock("@/lib/services/task.service", () => ({
   },
 }));
 
-vi.mock("@/lib/services/task-schedule.service", () => ({
-  taskScheduleService: {
-    listSchedules: (params: unknown) => listSchedulesMock(params),
-  },
-}));
-
 import ProjectCalendarPage from "./page";
 
 const PROJECT = {
@@ -132,7 +125,6 @@ describe("ProjectCalendarPage", () => {
         isSchedulable: true,
       },
     ]);
-    listSchedulesMock.mockResolvedValue({ schedules: [], nextCursor: null });
     listCoworkersMock.mockResolvedValue([]);
     listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
   });
@@ -228,51 +220,6 @@ describe("ProjectCalendarPage", () => {
         projectOptions: [expect.objectContaining({ id: PROJECT.id })],
       }),
     );
-  });
-
-  it("loads the Project's Task Schedules instead of Runs for the Schedules view", async () => {
-    listSchedulesMock.mockResolvedValue({
-      schedules: [{ id: "schedule-1", name: "Weekly post" }],
-      nextCursor: null,
-    });
-
-    render(
-      await ProjectCalendarPage({
-        params: Promise.resolve({ projectId: PROJECT.id }),
-        searchParams: Promise.resolve({ view: "schedules" }),
-      }),
-    );
-
-    expect(getProjectCalendarMock).not.toHaveBeenCalled();
-    expect(listSchedulesMock).toHaveBeenCalledWith({
-      projectId: PROJECT.id,
-      limit: 100,
-    });
-    const calendarProps = workspaceCalendarMock.mock.calls.at(-1)?.[0] as {
-      items: unknown[];
-      pagination: unknown;
-      schedules: unknown[];
-      schedulesPagination: unknown;
-    };
-    expect(calendarProps.items).toEqual([]);
-    expect(calendarProps.pagination).toBeNull();
-    expect(calendarProps.schedules).toEqual([
-      { id: "schedule-1", name: "Weekly post" },
-    ]);
-    expect(calendarProps.schedulesPagination).toEqual({
-      limit: 100,
-      nextCursor: null,
-    });
-  });
-
-  it("keeps loading Project occurrences for the other Calendar views", async () => {
-    await ProjectCalendarPage({
-      params: Promise.resolve({ projectId: PROJECT.id }),
-      searchParams: Promise.resolve({ view: "agenda" }),
-    });
-
-    expect(getProjectCalendarMock).toHaveBeenCalledOnce();
-    expect(listSchedulesMock).not.toHaveBeenCalled();
   });
 
   it("passes a closed Project as an unschedulable source", async () => {

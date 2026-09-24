@@ -296,6 +296,7 @@
       "drive": "Dateien",
       "soko-bots": "Soko Bots",
       "calendar": "Kalender",
+      "schedules": "Zeitpläne",
       "threads": "Threads"
     },
     "Jobs": {
@@ -1526,8 +1527,7 @@
       },
       "Tabs": {
         "tasks": "Tasks",
-        "jobs": "Jobs",
-        "schedules": "Zeitpläne"
+        "jobs": "Jobs"
       },
       "Columns": {
         "backlog": "Backlog",
@@ -2029,7 +2029,6 @@
           "ENDED": "Beendet"
         },
         "newSchedule": "Neuer Zeitplan",
-        "loading": "Zeitpläne werden geladen…",
         "empty": "Hier gibt es noch keine Zeitpläne. Ein Zeitplan erstellt bei jedem Lauf einen neuen Task.",
         "loadMore": "Mehr laden",
         "loadingMore": "Wird geladen…",
@@ -2096,6 +2095,10 @@
           "endsOn": "Am {date}",
           "endsAfter": "Nach {count, plural, one {# Lauf} other {# Läufen}}",
           "endsNever": "Nie"
+        },
+        "Page": {
+          "title": "Zeitpläne",
+          "description": "Alle Zeitpläne in deinem Workspace. Jeder Lauf erstellt einen neuen Task."
         }
       }
     },
@@ -2567,6 +2570,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Kalender",
+          "schedules": "Zeitpläne",
           "projectsLoading": "Projekte werden geladen…",
           "projectsError": "Projekte konnten nicht geladen werden.",
           "retryProjects": "Erneut versuchen"
@@ -6480,8 +6484,7 @@
       "view": {
         "month": "Monat",
         "week": "Woche",
-        "agenda": "Agenda",
-        "schedules": "Zeitpläne"
+        "agenda": "Agenda"
       },
       "source": {
         "label": "Quelle",
@@ -6541,11 +6544,7 @@
         "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
       },
       "schedules": {
-        "nextRun": "Nächster Lauf",
-        "noNextRun": "Kein nächster Lauf",
-        "loadMore": "Mehr laden",
-        "new": "Neuer Zeitplan",
-        "newError": "Das Zeitplan-Formular konnte nicht geöffnet werden. Versuche es erneut."
+        "link": "Zeitpläne"
       },
       "pagination": {
         "error": "Weitere Ereignisse konnten nicht geladen werden."
@@ -6557,7 +6556,8 @@
       },
       "agenda": {
         "upcoming": "Als Nächstes",
-        "loading": "Wird geladen…"
+        "loading": "Wird geladen…",
+        "loadMore": "Mehr laden"
       }
     },
     "You": {

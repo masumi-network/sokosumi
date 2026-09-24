@@ -2004,7 +2004,7 @@ describe("TaskDetailActions", () => {
 
       await user.click(screen.getByRole("button", { name: "save schedule" }));
 
-      expect(pushMock).toHaveBeenCalledWith("/tasks/schedules/schedule-9");
+      expect(pushMock).toHaveBeenCalledWith("/schedules/schedule-9");
       // The original Task is neither changed nor linked to the schedule.
       expect(setTaskStatusFromDrag).not.toHaveBeenCalled();
       expect(createTaskLink).not.toHaveBeenCalled();

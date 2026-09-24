@@ -12,8 +12,8 @@ describe("parseTasksTab", () => {
     expect(parseTasksTab("jobs")).toBe("jobs");
   });
 
-  it("returns schedules when tab=schedules", () => {
-    expect(parseTasksTab("schedules")).toBe("schedules");
+  it("falls back to tasks for the retired schedules tab", () => {
+    expect(parseTasksTab("schedules")).toBe(DEFAULT_TASKS_TAB);
   });
 
   it("defaults to tasks for missing or unknown values", () => {

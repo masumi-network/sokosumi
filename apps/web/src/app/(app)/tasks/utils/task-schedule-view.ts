@@ -7,11 +7,11 @@ import type { TaskSchedule } from "@/lib/clients/generated/core";
 import type { DateTimeFormatter } from "@/lib/schedules/cron";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
-/** The Schedules view of the Task Manager. */
-export const TASK_SCHEDULES_PATH = "/tasks?tab=schedules";
+/** The Schedules page: every Task Schedule of the workspace. */
+export const TASK_SCHEDULES_PATH = "/schedules";
 
 export function taskSchedulePath(scheduleId: string): string {
-  return `/tasks/schedules/${scheduleId}`;
+  return `${TASK_SCHEDULES_PATH}/${scheduleId}`;
 }
 
 type TaskScheduleAssigneeFields = Partial<

@@ -6,7 +6,6 @@ const getSessionMock = vi.fn();
 const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const getWorkspaceCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
-const listSchedulesMock = vi.fn();
 const listCoworkersMock = vi.fn();
 const listTaskAssigneeMemberOptionsMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
@@ -68,12 +67,6 @@ vi.mock("@/lib/services/task.service", () => ({
   },
 }));
 
-vi.mock("@/lib/services/task-schedule.service", () => ({
-  taskScheduleService: {
-    listSchedules: (params: unknown) => listSchedulesMock(params),
-  },
-}));
-
 vi.mock("@/lib/helpers/project-filter-options", () => ({
   getProjectFilterOptions: (projectId?: string) =>
     getProjectFilterOptionsMock(projectId),
@@ -102,7 +95,6 @@ describe("CalendarPage", () => {
         isSchedulable: true,
       },
     ]);
-    listSchedulesMock.mockResolvedValue({ schedules: [], nextCursor: null });
     listCoworkersMock.mockResolvedValue([]);
     listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
     getProjectFilterOptionsMock.mockResolvedValue([]);
@@ -209,48 +201,6 @@ describe("CalendarPage", () => {
       CalendarPage({ searchParams: Promise.resolve({}) }),
     ).rejects.toThrow("Calendar workspace source unavailable");
     expect(workspaceCalendarMock).not.toHaveBeenCalled();
-  });
-
-  it("loads Task Schedules instead of Runs for the Schedules view", async () => {
-    listSchedulesMock.mockResolvedValue({
-      schedules: [{ id: "schedule-1", name: "Daily report" }],
-      nextCursor: "cursor-2",
-    });
-
-    render(
-      await CalendarPage({
-        searchParams: Promise.resolve({
-          assigneeId: "coworker-1",
-          projectId: "project-1",
-          scope: "owned",
-          status: "READY",
-          view: "schedules",
-        }),
-      }),
-    );
-
-    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
-    expect(listSchedulesMock).toHaveBeenCalledWith({
-      projectId: "project-1",
-      limit: 100,
-    });
-    expect(workspaceCalendarMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        items: [],
-        pagination: null,
-        schedules: [{ id: "schedule-1", name: "Daily report" }],
-        schedulesPagination: { limit: 100, nextCursor: "cursor-2" },
-      }),
-    );
-  });
-
-  it("keeps loading Runs for the other Calendar views", async () => {
-    await CalendarPage({
-      searchParams: Promise.resolve({ view: "week" }),
-    });
-
-    expect(getWorkspaceCalendarMock).toHaveBeenCalledOnce();
-    expect(listSchedulesMock).not.toHaveBeenCalled();
   });
 
   it("passes the selected non-Project source filter to the initial Calendar read", async () => {

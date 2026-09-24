@@ -41,8 +41,6 @@ export default async function CalendarPage({
           pagination={page.pagination}
           range={page.range}
           coworkers={page.coworkerOptions}
-          schedules={page.schedules}
-          schedulesPagination={page.schedulesPagination}
         />
         <CalendarCreateTaskModal
           coworkerOptions={page.coworkerOptions}
