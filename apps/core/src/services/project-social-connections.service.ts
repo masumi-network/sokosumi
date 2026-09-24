@@ -155,6 +155,7 @@ interface ProjectSocialConnectionIntentClaim {
   action: "connect" | "reconnect" | "replace";
   socialConnectionId: string | null;
   authConfigId: string;
+  callbackRedeemedAt: Date | null;
   expiresAt: Date;
 }
 
@@ -173,6 +174,7 @@ function isLiveIntent(
       intent.initiatingUserId === input.userId &&
       intent.provider === "x" &&
       isConnectionAction(intent.action) &&
+      intent.callbackRedeemedAt !== null &&
       intent.expiresAt > new Date(),
   );
 }
@@ -442,6 +444,7 @@ export async function finalizeProjectSocialConnection(
               actorId: input.userId,
               externalAccountId: target.externalAccountId,
               externalHandle: target.externalHandle,
+              connectedAccountId: target.composioConnectedAccountId,
               providerOutcome: "local_disconnect",
             },
           });
@@ -660,6 +663,7 @@ async function retireProjectSocialConnection(
       actorId,
       externalAccountId: connection.externalAccountId,
       externalHandle: connection.externalHandle,
+      connectedAccountId: connection.composioConnectedAccountId,
       providerOutcome: "local_disconnect",
     },
   });
@@ -684,7 +688,9 @@ export async function retireProjectSocialConnectionsForClose(
         {
           audits: {
             some: {
-              action: { in: ["disconnect", "replace_retire"] },
+              action: {
+                in: ["disconnect", "replace_retire", "reconnect_retire"],
+              },
               providerOutcome: {
                 in: ["local_disconnect", "revocation_failed"],
               },
@@ -695,6 +701,7 @@ export async function retireProjectSocialConnectionsForClose(
     },
   });
   for (const connection of connections) {
+    if (connection.status === "disconnected") continue;
     await retireProjectSocialConnection(
       tx,
       connection,
@@ -720,21 +727,30 @@ export async function getPendingProjectSocialRevocation(
 ): Promise<ProjectSocialRevocation | null> {
   const audit = await tx.projectSocialConnectionAudit.findFirst({
     where: {
-      action: "project_close",
+      action: {
+        in: [
+          "disconnect",
+          "replace_retire",
+          "reconnect_retire",
+          "project_close",
+        ],
+      },
       providerOutcome: { in: ["local_disconnect", "revocation_failed"] },
       projectSocialConnection: { projectId },
     },
-    orderBy: { id: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     include: { projectSocialConnection: true },
   });
   if (audit) {
     const connection = audit.projectSocialConnection;
+    const connectedAccountId =
+      audit.connectedAccountId ?? connection.composioConnectedAccountId;
     return {
-      connectedAccountId: connection.composioConnectedAccountId,
+      connectedAccountId,
       retirement: {
         auditId: audit.id,
         socialConnectionId: connection.id,
-        connectedAccountId: connection.composioConnectedAccountId,
+        connectedAccountId,
       },
     };
   }

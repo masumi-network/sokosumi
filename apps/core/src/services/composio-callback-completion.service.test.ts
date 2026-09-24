@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  socialConnectionFindFirstMock,
   completeComposioAuthMock,
   hermesPendingConnectionFindUniqueMock,
   socialConnectionIntentFindUniqueMock,
+  socialConnectionIntentUpdateManyMock,
 } = vi.hoisted(() => ({
-  socialConnectionFindFirstMock: vi.fn(),
   completeComposioAuthMock: vi.fn(),
   hermesPendingConnectionFindUniqueMock: vi.fn(),
   socialConnectionIntentFindUniqueMock: vi.fn(),
+  socialConnectionIntentUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@/clients/composio.client", () => ({
@@ -18,12 +18,12 @@ vi.mock("@/clients/composio.client", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    projectSocialConnection: { findFirst: socialConnectionFindFirstMock },
     hermesPendingConnection: {
       findUnique: hermesPendingConnectionFindUniqueMock,
     },
     projectSocialConnectionIntent: {
       findUnique: socialConnectionIntentFindUniqueMock,
+      updateMany: socialConnectionIntentUpdateManyMock,
     },
   },
 }));
@@ -37,6 +37,7 @@ describe("completeComposioCallback", () => {
       connectedAccountId: "ca_123",
       toolkitSlug: "twitter",
     });
+    socialConnectionIntentUpdateManyMock.mockResolvedValue({ count: 1 });
   });
 
   it("redeems a live Project social callback for its initiating human", async () => {
@@ -62,6 +63,18 @@ describe("completeComposioCallback", () => {
     expect(completeComposioAuthMock).toHaveBeenCalledWith({
       sessionUri: "https://backend.composio.dev/session/single-use",
       userId: "sokosumi:user:user_123",
+    });
+    expect(socialConnectionIntentUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        connectionId: "ca_123",
+        initiatingUserId: "user_123",
+        provider: "x",
+        expiresAt: { gt: new Date("2026-09-03T10:00:00.000Z") },
+        project: { closingAt: null, closedAt: null },
+      },
+      data: {
+        callbackRedeemedAt: new Date("2026-09-03T10:00:00.000Z"),
+      },
     });
   });
 
@@ -156,31 +169,24 @@ describe("completeComposioCallback", () => {
     },
   );
 
-  it.each([true, false])(
-    "handles concurrent intent consumption without revoking a finalized account (live=%s)",
-    async (live) => {
-      socialConnectionIntentFindUniqueMock
-        .mockResolvedValueOnce({
-          initiatingUserId: "user_123",
-          provider: "x",
-          expiresAt: new Date("2026-09-03T10:15:00Z"),
-          project: { closingAt: null, closedAt: null },
-        })
-        .mockResolvedValueOnce(null);
-      socialConnectionFindFirstMock.mockResolvedValue(
-        live ? { id: "social_123" } : null,
-      );
-      const { completeComposioCallback } = await import(
-        "./composio-callback-completion.service"
-      );
-      const result = completeComposioCallback({
+  it("rejects redemption when the intent is consumed while complete_auth is in flight", async () => {
+    socialConnectionIntentFindUniqueMock.mockResolvedValue({
+      initiatingUserId: "user_123",
+      provider: "x",
+      expiresAt: new Date("2026-09-03T10:15:00Z"),
+      project: { closingAt: null, closedAt: null },
+    });
+    socialConnectionIntentUpdateManyMock.mockResolvedValue({ count: 0 });
+    const { completeComposioCallback } = await import(
+      "./composio-callback-completion.service"
+    );
+
+    await expect(
+      completeComposioCallback({
         connectionId: "ca_123",
         sessionUri: "https://backend.composio.dev/session/single-use",
         userId: "user_123",
-      });
-      if (live) await expect(result).resolves.toBeUndefined();
-      else
-        await expect(result).rejects.toThrow("Unknown or expired connection");
-    },
-  );
+      }),
+    ).rejects.toThrow("Unknown or expired connection");
+  });
 });

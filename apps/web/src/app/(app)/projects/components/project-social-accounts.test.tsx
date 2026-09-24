@@ -28,11 +28,13 @@ import type {
   ProjectSocialConnection,
 } from "@/lib/clients/generated/core/types.gen";
 
-const { refreshMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
-  refreshMock: vi.fn(),
-  toastErrorMock: vi.fn(),
-  toastSuccessMock: vi.fn(),
-}));
+const { refreshMock, toastErrorMock, toastSuccessMock, toastWarningMock } =
+  vi.hoisted(() => ({
+    refreshMock: vi.fn(),
+    toastErrorMock: vi.fn(),
+    toastSuccessMock: vi.fn(),
+    toastWarningMock: vi.fn(),
+  }));
 
 const MESSAGES: Record<string, string> = {
   title: "Social accounts",
@@ -96,6 +98,7 @@ vi.mock("sonner", () => ({
   toast: {
     error: (...args: unknown[]) => toastErrorMock(...args),
     success: (...args: unknown[]) => toastSuccessMock(...args),
+    warning: (...args: unknown[]) => toastWarningMock(...args),
   },
 }));
 
@@ -695,6 +698,12 @@ describe("ProjectSocialAccounts", () => {
         "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings.",
       ),
     ).toBeVisible();
+    expect(toastWarningMock).toHaveBeenCalledWith(
+      "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings.",
+    );
+    expect(toastSuccessMock).not.toHaveBeenCalledWith(
+      "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings.",
+    );
   });
 
   it("requires explicit confirmation before replacing or disconnecting an account", async () => {

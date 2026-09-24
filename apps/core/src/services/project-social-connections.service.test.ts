@@ -11,6 +11,7 @@ const {
   projectFindFirstMock,
   revokeProjectXConnectionMock,
   socialConnectionAuditCreateMock,
+  socialConnectionAuditFindFirstMock,
   socialConnectionAuditUpdateMock,
   socialConnectionCreateMock,
   socialConnectionFindFirstMock,
@@ -33,6 +34,7 @@ const {
   projectFindFirstMock: vi.fn(),
   revokeProjectXConnectionMock: vi.fn(),
   socialConnectionAuditCreateMock: vi.fn(),
+  socialConnectionAuditFindFirstMock: vi.fn(),
   socialConnectionAuditUpdateMock: vi.fn(),
   socialConnectionCreateMock: vi.fn(),
   socialConnectionFindFirstMock: vi.fn(),
@@ -74,7 +76,7 @@ const transactionClient = {
   },
   projectSocialConnectionAudit: {
     create: socialConnectionAuditCreateMock,
-    findFirst: vi.fn(),
+    findFirst: socialConnectionAuditFindFirstMock,
   },
   projectSocialConnectionIntent: {
     updateMany: vi.fn(),
@@ -94,6 +96,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: socialConnectionFindManyMock,
     },
     projectSocialConnectionAudit: {
+      findFirst: socialConnectionAuditFindFirstMock,
       update: socialConnectionAuditUpdateMock,
     },
     projectSocialConnectionIntent: {
@@ -135,6 +138,7 @@ function createIntent(action: "connect" | "reconnect" | "replace") {
     action,
     socialConnectionId: action === "connect" ? null : SOCIAL_CONNECTION_ID,
     authConfigId: "ac_x",
+    callbackRedeemedAt: new Date("2026-09-03T10:00:00.000Z"),
     expiresAt: new Date("2026-09-03T10:15:00.000Z"),
     createdAt: new Date("2026-09-03T10:00:00.000Z"),
   };
@@ -332,6 +336,60 @@ describe("project social connections service", () => {
 
     expect(getProjectXConnectedAccountMock).not.toHaveBeenCalled();
     expect(socialConnectionIntentDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects finalization before the initiating human redeems the callback", async () => {
+    socialConnectionIntentFindUniqueMock.mockResolvedValue({
+      ...createIntent("connect"),
+      callbackRedeemedAt: null,
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(
+      finalizeProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        connectionId: CONNECTION_ID,
+      }),
+    ).rejects.toThrow("Unknown or expired connection");
+
+    expect(getProjectXConnectedAccountMock).not.toHaveBeenCalled();
+    expect(socialConnectionCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("finalizes once after redemption and rejects a replay", async () => {
+    let storedIntent: ReturnType<typeof createIntent> | null =
+      createIntent("connect");
+    socialConnectionIntentFindUniqueMock.mockImplementation(
+      async () => storedIntent,
+    );
+    socialConnectionIntentFindUniqueInTransactionMock.mockImplementation(
+      async () => storedIntent,
+    );
+    socialConnectionIntentDeleteMock.mockImplementation(async () => {
+      storedIntent = null;
+      return {};
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+    const input = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      connectionId: CONNECTION_ID,
+    };
+
+    await expect(finalizeProjectSocialConnection(input)).resolves.toMatchObject({
+      status: "active",
+    });
+    await expect(finalizeProjectSocialConnection(input)).rejects.toThrow(
+      "Unknown or expired connection",
+    );
+    expect(socialConnectionIntentDeleteMock).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a completed account without the initiating connector identity", async () => {
@@ -593,6 +651,7 @@ describe("project social connections service", () => {
         actorId: USER_ID,
         externalAccountId: "123",
         externalHandle: "sokosumi",
+        connectedAccountId: "ca_old",
         providerOutcome: "local_disconnect",
       },
     });
@@ -754,6 +813,7 @@ describe("project social connections service", () => {
         actorId: USER_ID,
         externalAccountId: "123",
         externalHandle: "sokosumi",
+        connectedAccountId: "ca_old",
         providerOutcome: "local_disconnect",
       },
     });
@@ -763,6 +823,98 @@ describe("project social connections service", () => {
     expect(socialConnectionAuditUpdateMock).toHaveBeenCalledWith({
       where: { id: "audit_retire" },
       data: { providerOutcome: "revoked" },
+    });
+  });
+
+  it("recovers a failed reconnect revocation from the durable retirement audit", async () => {
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(
+      createIntent("reconnect"),
+    );
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+      createIntent("reconnect"),
+    );
+    socialConnectionFindFirstMock
+      .mockResolvedValueOnce(socialConnection)
+      .mockResolvedValueOnce(null);
+    socialConnectionUpdateMock.mockResolvedValue({
+      ...socialConnection,
+      composioConnectedAccountId: CONNECTION_ID,
+      connectorUserId: `sokosumi:user:${USER_ID}`,
+      status: "active",
+    });
+    socialConnectionAuditCreateMock
+      .mockResolvedValueOnce({ id: "audit_retire" })
+      .mockResolvedValueOnce({ id: "audit_reconnect" });
+    revokeProjectXConnectionMock.mockRejectedValueOnce(
+      new Error("provider unavailable"),
+    );
+    const {
+      finalizeProjectSocialConnection,
+      getPendingProjectSocialRevocation,
+      revokeProjectSocialConnectionForClose,
+    } = await import("./project-social-connections.service");
+    const { default: prisma } = await import("@/lib/db/prisma");
+
+    await finalizeProjectSocialConnection({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      connectionId: CONNECTION_ID,
+    });
+    expect(socialConnectionAuditCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: "reconnect_retire",
+        connectedAccountId: "ca_old",
+      }),
+    });
+
+    socialConnectionAuditFindFirstMock.mockResolvedValue({
+      id: "audit_retire",
+      action: "reconnect_retire",
+      connectedAccountId: "ca_old",
+      providerOutcome: "revocation_failed",
+      projectSocialConnection: {
+        ...socialConnection,
+        composioConnectedAccountId: CONNECTION_ID,
+        status: "active",
+      },
+    });
+    const pending = await prisma.$transaction((tx) =>
+      getPendingProjectSocialRevocation(tx, PROJECT_ID),
+    );
+
+    expect(socialConnectionAuditFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        action: {
+          in: [
+            "disconnect",
+            "replace_retire",
+            "reconnect_retire",
+            "project_close",
+          ],
+        },
+        providerOutcome: {
+          in: ["local_disconnect", "revocation_failed"],
+        },
+        projectSocialConnection: { projectId: PROJECT_ID },
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      include: { projectSocialConnection: true },
+    });
+    expect(pending).toEqual({
+      connectedAccountId: "ca_old",
+      retirement: {
+        auditId: "audit_retire",
+        connectedAccountId: "ca_old",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+      },
+    });
+
+    if (!pending) throw new Error("Expected a pending social revocation");
+    socialConnectionFindFirstMock.mockResolvedValueOnce(null);
+    await revokeProjectSocialConnectionForClose(pending);
+    expect(revokeProjectXConnectionMock).toHaveBeenLastCalledWith({
+      connectedAccountId: "ca_old",
     });
   });
 
@@ -988,6 +1140,23 @@ describe("project social connections service", () => {
       }),
     });
     expect(revokeProjectXConnectionMock).not.toHaveBeenCalled();
+  });
+
+  it("does not duplicate a disconnected connection's pending retirement during close", async () => {
+    socialConnectionFindManyMock.mockResolvedValue([
+      { ...socialConnection, status: "disconnected" },
+    ]);
+    const { default: prisma } = await import("@/lib/db/prisma");
+    const { retireProjectSocialConnectionsForClose } = await import(
+      "./project-social-connections.service"
+    );
+
+    await prisma.$transaction((tx) =>
+      retireProjectSocialConnectionsForClose(tx, PROJECT_ID, USER_ID),
+    );
+
+    expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
+    expect(socialConnectionAuditCreateMock).not.toHaveBeenCalled();
   });
 
   it("retries failed close revocation using its durable audit", async () => {

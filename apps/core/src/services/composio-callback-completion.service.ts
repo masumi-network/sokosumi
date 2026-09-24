@@ -42,28 +42,18 @@ export async function completeComposioCallback(input: {
     if (completion.connectedAccountId !== input.connectionId) {
       throw notFound("Unknown or expired connection");
     }
-    const current = await prisma.projectSocialConnectionIntent.findUnique({
-      where: { connectionId: input.connectionId },
-      select: {
-        expiresAt: true,
-        project: { select: { closingAt: true, closedAt: true } },
+    const redeemedAt = new Date();
+    const result = await prisma.projectSocialConnectionIntent.updateMany({
+      where: {
+        connectionId: input.connectionId,
+        initiatingUserId: input.userId,
+        provider: "x",
+        expiresAt: { gt: redeemedAt },
+        project: { closingAt: null, closedAt: null },
       },
+      data: { callbackRedeemedAt: redeemedAt },
     });
-    if (
-      !current ||
-      current.expiresAt <= new Date() ||
-      current.project.closingAt ||
-      current.project.closedAt
-    ) {
-      // Finalization can consume the intent while complete_auth is in flight.
-      const connected = await prisma.projectSocialConnection.findFirst({
-        where: {
-          composioConnectedAccountId: input.connectionId,
-          status: { not: "disconnected" },
-        },
-        select: { id: true },
-      });
-      if (connected) return;
+    if (result.count !== 1) {
       throw notFound("Unknown or expired connection");
     }
     return;
