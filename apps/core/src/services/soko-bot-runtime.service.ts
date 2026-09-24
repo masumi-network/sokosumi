@@ -64,7 +64,10 @@ import { jsonInput } from "@/helpers/prisma-json";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
-import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
+import {
+  deleteRetiredScheduleLink,
+  mapTaskLinkRelationToWriteData,
+} from "@/helpers/task-link";
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
 import {
   buildSokoBotAudienceJobParentTaskWhere,
@@ -1771,6 +1774,7 @@ export class SokoBotRuntimeService {
         input.peerTaskId,
         input.relation,
       );
+      await deleteRetiredScheduleLink(tx, data.fromTaskId, data.toTaskId);
       const existing = await tx.taskLink.findFirst({
         where: {
           OR: [

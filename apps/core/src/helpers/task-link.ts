@@ -17,6 +17,26 @@ export const liveTaskLinkWhere = {
   type: { not: TaskLinkType.SCHEDULE },
 } satisfies Prisma.TaskLinkWhereInput;
 
+/**
+ * A retired series edge still occupies `task_link_task_pair_key`. Reads hide
+ * it, so creating a live link on that pair drops the edge first.
+ */
+export async function deleteRetiredScheduleLink(
+  tx: Prisma.TransactionClient,
+  taskId: string,
+  peerTaskId: string,
+): Promise<void> {
+  await tx.taskLink.deleteMany({
+    where: {
+      type: TaskLinkType.SCHEDULE,
+      OR: [
+        { fromTaskId: taskId, toTaskId: peerTaskId },
+        { fromTaskId: peerTaskId, toTaskId: taskId },
+      ],
+    },
+  });
+}
+
 interface TaskLinkWriteData {
   fromTaskId: string;
   toTaskId: string;
