@@ -145,9 +145,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         validateTaskAssigneeAssignment({
-          status: currentTask.assigneeUserId
-            ? TaskStatus.READY
-            : TaskStatus.QUEUED,
+          status: TaskStatus.QUEUED,
           assigneeId: currentTask.assigneeId,
           assigneeSokoBotId: currentTask.assigneeSokoBotId,
           assigneeUserId: currentTask.assigneeUserId,
@@ -183,13 +181,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             // Legacy contract keeps its bare body, but every rule write still
             // advances the concurrency token Calendar clients observe.
             scheduleRevision: { increment: 1 },
-            ...(currentTask.status !==
-            (currentTask.assigneeUserId ? TaskStatus.READY : TaskStatus.QUEUED)
-              ? {
-                  status: currentTask.assigneeUserId
-                    ? TaskStatus.READY
-                    : TaskStatus.QUEUED,
-                }
+            ...(currentTask.status !== TaskStatus.QUEUED
+              ? { status: TaskStatus.QUEUED }
               : {}),
           },
           include: buildTaskIncludeForViewer(

@@ -23,6 +23,7 @@ import {
   replaceTaskSchedulePlannedOccurrences,
   TaskScheduleOccurrenceLimitError,
 } from "@/helpers/task-schedule-occurrence-index";
+import { getTaskScheduleQuarantineAuditSnapshot } from "@/helpers/task-schedule-quarantine";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { TaskScheduleInput } from "@/schemas/task-schedule.schema";
 
@@ -153,21 +154,6 @@ const QUARANTINE_OPERATION_SELECT = {
     },
   },
 } satisfies Prisma.TaskScheduleQuarantineSelect;
-
-function getAuditSnapshot(
-  quarantine: Prisma.TaskScheduleQuarantineGetPayload<{
-    select: typeof QUARANTINE_OPERATION_SELECT;
-  }>,
-) {
-  return {
-    quarantineId: quarantine.id,
-    quarantineReason: quarantine.reason,
-    quarantineDetails: quarantine.details,
-    capturedMetadata: quarantine.capturedMetadata,
-    capturedNextRunAt: quarantine.capturedNextRunAt?.toISOString() ?? null,
-    capturedStatus: quarantine.capturedStatus,
-  };
-}
 
 function quarantineSnapshotMatchesCurrentTask(
   quarantine: Prisma.TaskScheduleQuarantineGetPayload<{
@@ -338,7 +324,7 @@ export async function repairTaskScheduleQuarantine(
             ownerId: lockedQuarantine.task.ownerId,
             taskName: lockedQuarantine.task.name,
             schedule: input.schedule,
-            ...getAuditSnapshot(lockedQuarantine),
+            ...getTaskScheduleQuarantineAuditSnapshot(lockedQuarantine),
           },
         },
         select: { id: true },
@@ -429,7 +415,7 @@ export async function removeTaskScheduleQuarantine(
             reason: input.reason,
             ownerId: lockedQuarantine.task.ownerId,
             taskName: lockedQuarantine.task.name,
-            ...getAuditSnapshot(lockedQuarantine),
+            ...getTaskScheduleQuarantineAuditSnapshot(lockedQuarantine),
           },
         },
         select: { id: true },

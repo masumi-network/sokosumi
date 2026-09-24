@@ -46,17 +46,20 @@ export const createScheduledTaskRequestSchema = z
     name: z.string().trim().min(1).max(LIMITS.NAME_MAX_LENGTH).optional(),
     description: z.string().nullish(),
     assigneeId: z.string().min(1).nullish(),
-    assigneeUserId: z.string().min(1).nullish(),
+    assigneeUserId: z.null().optional().openapi({
+      description:
+        "Schedules require an agent assignee. Human tasks use deadlines.",
+    }),
     context: createTaskContextSchema.optional(),
     schedule: taskScheduleInputSchema,
   })
   .superRefine((data, ctx) => {
     refineAssigneeXorConflict(data, ctx);
-    if (!resolveAssigneeIdFromRequest(data) && !data.assigneeUserId) {
+    if (!resolveAssigneeIdFromRequest(data)) {
       ctx.addIssue({
         code: "custom",
         message: "A task assignee is required",
-        path: ["assigneeUserId"],
+        path: ["assigneeId"],
       });
     }
   })

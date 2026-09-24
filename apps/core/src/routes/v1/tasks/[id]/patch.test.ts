@@ -1071,6 +1071,32 @@ describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {
     mockSeriesTask();
   });
 
+  it.each([
+    {
+      metadata: ACTIVE_SCHEDULE_METADATA,
+      nextRunAt: new Date("2026-10-01T00:00:00Z"),
+    },
+    { metadata: "{invalid", nextRunAt: null },
+  ])(
+    "rejects assigning a schedule to a human even with invalid metadata: %j",
+    async (schedule) => {
+      mockSeriesTask({ ...schedule, status: TaskStatus.READY });
+      const response = await createSeriesApp().request(
+        "http://localhost/tsk_123",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assigneeUserId: "user_assignee",
+            expectedScheduleRevision: 3,
+          }),
+        },
+      );
+      expect(response.status).toBe(422);
+      expect(taskUpdateMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("requires expectedScheduleRevision for an active-series field edit", async () => {
     const response = await createSeriesApp().request(
       "http://localhost/tsk_123",

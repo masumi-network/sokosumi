@@ -436,10 +436,22 @@ export function TaskForm({
   );
   const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
   const [scheduleSelection, setScheduleSelection] =
-    useState<TaskScheduleSelection>(
-      () =>
-        initialValues?.schedule ??
-        metadataToSelection(initialValues?.metadata, getDefaultTimezone()),
+    useState<TaskScheduleSelection>(() =>
+      mode === "create" &&
+      !isAgentAssigneeFields(
+        resolveTaskAssigneeFields(
+          defaultAssigneeId,
+          coworkerOptions,
+          knownSokoBotId,
+          initialValues?.assigneeUserId,
+        ),
+      )
+        ? {
+            mode: "none",
+            timezone: initialValues?.schedule?.timezone ?? getDefaultTimezone(),
+          }
+        : (initialValues?.schedule ??
+          metadataToSelection(initialValues?.metadata, getDefaultTimezone())),
     );
   const [status, setStatus] = useState<TaskStatus>(() => {
     if (mode === "edit" && initialValues?.status !== undefined) {
@@ -554,7 +566,7 @@ export function TaskForm({
       const assigneeKindChanged = previousIsAgent !== isAgent || isUnassigned;
 
       let nextSchedule = scheduleSelection;
-      if (isUnassigned && scheduleSelection.mode !== "none") {
+      if (!isAgent && scheduleSelection.mode !== "none") {
         nextSchedule = {
           mode: "none",
           timezone: scheduleSelection.timezone,
@@ -1110,8 +1122,7 @@ export function TaskForm({
       isQueuedSelectable,
     ],
   );
-  const isSchedulableAssignee =
-    isAgentAssignee || selectedAssigneeFields.assigneeUserId !== null;
+  const isSchedulableAssignee = isAgentAssignee;
   const showPrivateControl =
     mode === "create" &&
     canCreatePrivateTask &&
@@ -1120,9 +1131,11 @@ export function TaskForm({
       selectedAssigneeFields.assigneeUserId,
       session?.user.id,
     );
-  // Queued work must stay agent-assigned: Core rejects reassignment away
-  // from an agent while QUEUED, so the edit picker locks non-agent options.
-  const isAssigneeLockedToAgent = originalStatus === TaskStatus.QUEUED;
+  // Remove the live series before changing an agent task to human work.
+  // Legacy human schedules retain their removal-only recovery action.
+  const isAssigneeLockedToAgent =
+    originalStatus === TaskStatus.QUEUED ||
+    (hasActiveSeries && !initialValues?.assigneeUserId);
   const showEditAssigneePicker = mode === "edit";
   const showModalCoworkerHeader =
     useComposeLayout && selectedOption !== undefined;
@@ -1535,7 +1548,7 @@ export function TaskForm({
           ) : null}
         </div>
 
-        {showTaskStep ? (
+        {showTaskStep && isSchedulableAssignee ? (
           <TaskScheduleModal
             open={isScheduleModalOpen}
             onOpenChange={setIsScheduleModalOpen}
@@ -1665,17 +1678,28 @@ export function TaskForm({
               ) : null}
             </div>
             <div className="flex items-center gap-3 sm:ml-auto">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                disabled={createdTask !== null || !isSchedulableAssignee}
-                aria-label={labels.openSchedule}
-                aria-pressed={hasSchedule}
-                onClick={() => setIsScheduleModalOpen(true)}
-              >
-                <CalendarClock className="size-4" aria-hidden />
-              </Button>
+              {!selectedAssigneeFields.assigneeUserId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  disabled={createdTask !== null || !isSchedulableAssignee}
+                  aria-label={labels.openSchedule}
+                  aria-pressed={hasSchedule}
+                  onClick={() => setIsScheduleModalOpen(true)}
+                >
+                  <CalendarClock className="size-4" aria-hidden />
+                </Button>
+              ) : hasSchedule && hadSchedule ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClearSchedule}
+                  disabled={createdTask !== null}
+                >
+                  {tSchedule("clearSchedule")}
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 className="min-w-28 items-center justify-between gap-1"

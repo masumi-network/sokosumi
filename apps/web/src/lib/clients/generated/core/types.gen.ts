@@ -6037,7 +6037,10 @@ export type CreateScheduledTaskRequest = {
     name?: string;
     description?: string | null;
     assigneeId?: string | null;
-    assigneeUserId?: string | null;
+    /**
+     * Schedules require an agent assignee. Human tasks use deadlines.
+     */
+    assigneeUserId?: null;
     context?: CreateTaskContext;
     schedule: TaskScheduleInput;
 };

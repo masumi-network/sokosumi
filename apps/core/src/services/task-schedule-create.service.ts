@@ -13,6 +13,7 @@ import {
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { conflict, notFound } from "@/helpers/error";
+import { validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
   buildTaskScheduleMetadataV2,
   computeScheduleNextRun,
@@ -173,6 +174,11 @@ export async function createScheduledTaskInTransaction(
 
   const requestFingerprint = createScheduledTaskRequestFingerprint(input);
 
+  validateTaskAssigneeAssignment({
+    status: TaskStatus.QUEUED,
+    assigneeId: input.assigneeId,
+    assigneeUserId: input.assigneeUserId,
+  });
   validateScheduleInput(input.schedule);
   const projectId =
     input.source.type === "project" ? input.source.projectId : null;
@@ -241,9 +247,7 @@ export async function createScheduledTaskInTransaction(
       assigneeId: input.assigneeId,
       assigneeUserId: input.assigneeUserId,
       assigneeAuthorization: input.creator.assigneeAuthorization,
-      // Human tasks are calendar reminders, not agent work. Keep them READY
-      // so they do not enter the execution queue.
-      status: input.assigneeUserId ? TaskStatus.READY : TaskStatus.QUEUED,
+      status: TaskStatus.QUEUED,
       schedule: {
         metadata,
         nextRunAt,

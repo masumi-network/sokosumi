@@ -4,6 +4,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
   TaskScheduleEventKind,
   TaskScheduleOccurrenceState,
+  TaskStatus,
 } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
@@ -22,6 +23,7 @@ import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { validateTaskAssigneeAssignment } from "@/helpers/task";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import { notifyTaskCalendarAction } from "@/helpers/task-notifications";
 import { buildTaskScheduleMetadataV2 } from "@/helpers/task-schedule";
@@ -251,6 +253,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           { kind: CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT },
         );
       }
+
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.QUEUED,
+        assigneeId: currentTask.assigneeId,
+        assigneeSokoBotId: currentTask.assigneeSokoBotId,
+        assigneeUserId: currentTask.assigneeUserId,
+      });
 
       const occurrence = await tx.taskScheduleOccurrence.findFirst({
         where: { id: occurrenceId, seriesTaskId: id },

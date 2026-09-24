@@ -268,7 +268,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? assigneeWrite.assigneeUserId
         : task.assigneeUserId;
       validateTaskAssigneeAssignment({
-        status: task.status,
+        // Existing human schedules remain editable for removal, but no live
+        // agent series may be reassigned to a person or left unassigned.
+        status:
+          (task.metadata != null || task.nextRunAt != null) &&
+          assigneeWrite &&
+          (nextAssigneeId !== task.assigneeId ||
+            nextAssigneeSokoBotId !== task.assigneeSokoBotId ||
+            nextAssigneeUserId !== task.assigneeUserId)
+            ? TaskStatus.QUEUED
+            : task.status,
         assigneeId: nextAssigneeId,
         assigneeSokoBotId: nextAssigneeSokoBotId,
         assigneeUserId: nextAssigneeUserId,

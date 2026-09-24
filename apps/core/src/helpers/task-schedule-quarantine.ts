@@ -1,5 +1,6 @@
 import {
   type Prisma,
+  type TaskScheduleQuarantine,
   type TaskScheduleQuarantineReason,
   type TaskStatus,
 } from "@sokosumi/database";
@@ -45,4 +46,25 @@ export async function quarantineTaskSchedule(
     update: snapshot,
   });
   await removeTaskSchedulePlannedOccurrences(tx, task.id);
+}
+
+export function getTaskScheduleQuarantineAuditSnapshot(
+  quarantine: Pick<
+    TaskScheduleQuarantine,
+    | "id"
+    | "reason"
+    | "details"
+    | "capturedMetadata"
+    | "capturedNextRunAt"
+    | "capturedStatus"
+  >,
+) {
+  return {
+    quarantineId: quarantine.id,
+    quarantineReason: quarantine.reason,
+    quarantineDetails: quarantine.details,
+    capturedMetadata: quarantine.capturedMetadata,
+    capturedNextRunAt: quarantine.capturedNextRunAt?.toISOString() ?? null,
+    capturedStatus: quarantine.capturedStatus,
+  };
 }

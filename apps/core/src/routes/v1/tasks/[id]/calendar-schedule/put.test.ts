@@ -258,6 +258,21 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
     memberFindFirstMock.mockResolvedValue({ id: "member_123" });
   });
 
+  it("rejects replacing a human schedule before quarantine", async () => {
+    mockCurrentTask(createV2Metadata(), {
+      status: TaskStatus.READY,
+      assigneeId: null,
+      assigneeUserId: "user_123",
+    });
+    const response = await createApp().request(
+      ...calendarRequest(
+        seriesEdit({ mode: "once", runAt: "2099-09-24T09:00:00.000Z" }),
+      ),
+    );
+    expect(response.status).toBe(422);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("replaces a finite v1 rule with a mutable epoch in one revision", async () => {
     const metadata = JSON.stringify({
       version: 1,

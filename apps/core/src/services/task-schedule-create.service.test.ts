@@ -212,7 +212,7 @@ describe("createScheduledTaskInTransaction", () => {
     });
   });
 
-  it("creates human scheduled Tasks as READY without entering the agent queue", async () => {
+  it("rejects human schedule creation before writing a Task", async () => {
     const { tx, projectFindFirstMock } = createTransaction();
     projectFindFirstMock.mockResolvedValue({
       id: PROJECT_ID,
@@ -229,16 +229,11 @@ describe("createScheduledTaskInTransaction", () => {
         },
         tx,
       ),
-    ).resolves.toBe("task_123");
-
-    expect(createTaskForActorMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assigneeId: null,
-        assigneeUserId: "user_assignee_123",
-        status: TaskStatus.READY,
-      }),
-      tx,
+    ).rejects.toThrow(
+      "An agent (Coworker or Soko Bot) assignee is required for this status",
     );
+
+    expect(createTaskForActorMock).not.toHaveBeenCalled();
   });
 
   it.each([

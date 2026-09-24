@@ -118,12 +118,12 @@ describe("CalendarCreateTaskModal", () => {
     expect(createTaskMock).not.toHaveBeenCalled();
   });
 
-  it("uses the Calendar API for a scheduled human task", async () => {
+  it("rejects a scheduled human task", async () => {
     render(
       <CalendarCreateTaskModal coworkerOptions={[]} projectOptions={[]} />,
     );
 
-    await act(() =>
+    await expect(
       getCreateHandler()({
         description: "Review launch brief",
         assigneeId: null,
@@ -138,14 +138,9 @@ describe("CalendarCreateTaskModal", () => {
           timezone: "UTC",
         },
       }),
-    );
+    ).rejects.toThrow("An assignee is required to schedule a Calendar task");
 
-    expect(createScheduledTaskMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assigneeId: null,
-        assigneeUserId: "user-1",
-      }),
-    );
+    expect(createScheduledTaskMock).not.toHaveBeenCalled();
     expect(createTaskMock).not.toHaveBeenCalled();
   });
 

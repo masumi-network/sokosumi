@@ -832,7 +832,7 @@ describe("PUT /tasks/{id}/schedule", () => {
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("keeps human-assigned tasks READY when scheduled", async () => {
+  it("rejects scheduling a human-assigned task", async () => {
     requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.READY,
@@ -857,15 +857,8 @@ describe("PUT /tasks/{id}/schedule", () => {
       },
     );
 
-    expect(response.status).toBe(200);
-    expect(taskUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          nextRunAt: expect.any(Date),
-        }),
-      }),
-    );
-    expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
+    expect(response.status).toBe(422);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("sets agent-assigned tasks to QUEUED when scheduled (SOK-1033)", async () => {

@@ -191,9 +191,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       validateTaskAssigneeAssignment({
-        status: currentTask.assigneeUserId
-          ? TaskStatus.READY
-          : TaskStatus.QUEUED,
+        status: TaskStatus.QUEUED,
         assigneeId: currentTask.assigneeId,
         assigneeSokoBotId: currentTask.assigneeSokoBotId,
         assigneeUserId: currentTask.assigneeUserId,
@@ -225,13 +223,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           metadata: JSON.stringify(metadata),
           nextRunAt,
           scheduleRevision: { increment: 1 },
-          ...(currentTask.status !==
-          (currentTask.assigneeUserId ? TaskStatus.READY : TaskStatus.QUEUED)
-            ? {
-                status: currentTask.assigneeUserId
-                  ? TaskStatus.READY
-                  : TaskStatus.QUEUED,
-              }
+          ...(currentTask.status !== TaskStatus.QUEUED
+            ? { status: TaskStatus.QUEUED }
             : {}),
         },
         include: buildTaskIncludeForViewer(

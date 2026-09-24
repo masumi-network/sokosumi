@@ -21,6 +21,7 @@ import {
   createTaskScheduleRequestFingerprint,
   readTaskScheduleOperationReplay,
 } from "@/helpers/task-schedule-operation";
+import { getTaskScheduleQuarantineAuditSnapshot } from "@/helpers/task-schedule-quarantine";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -166,15 +167,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // resolve by reloading.
       const quarantine = await tx.taskScheduleQuarantine.findUnique({
         where: { taskId: id },
-        select: { id: true },
       });
-      if (quarantine) {
+      // Human schedules were accepted by mistake. Collaborators can remove
+      // these through the usual audited, revision-guarded escape hatch.
+      if (quarantine && !currentTask.assigneeUserId) {
         throw conflict(
           "This schedule is quarantined and requires audited operator removal",
           { kind: CORE_API_ERROR_KINDS.SCHEDULE_QUARANTINED },
         );
       }
-      if (!hasActiveTaskSchedule(currentTask.metadata, currentTask.nextRunAt)) {
+      if (
+        !quarantine &&
+        !hasActiveTaskSchedule(currentTask.metadata, currentTask.nextRunAt)
+      ) {
         throw conflict("Task does not have an active schedule series");
       }
       if (expectedScheduleRevision !== currentTask.scheduleRevision) {
@@ -200,6 +205,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           currentTask.workspaceId,
         ),
       });
+      if (quarantine) {
+        await tx.taskScheduleQuarantine.delete({ where: { taskId: id } });
+      }
       const retired = await retireTaskScheduleFutureOccurrences(
         tx,
         id,
@@ -218,6 +226,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             projectId: currentTask.projectId,
             scheduleRevision: task.scheduleRevision,
             canceledFutureExceptionCount: retired.canceledCount,
+            ...(quarantine
+              ? getTaskScheduleQuarantineAuditSnapshot(quarantine)
+              : {}),
           },
         },
         select: { id: true },

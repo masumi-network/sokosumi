@@ -235,9 +235,9 @@ describe("createScheduledTaskRequestSchema", () => {
     });
   });
 
-  it("accepts a human assignee for a calendar-only scheduled Task", () => {
+  it("rejects a human assignee for a scheduled Task", () => {
     expect(
-      createScheduledTaskRequestSchema.parse({
+      createScheduledTaskRequestSchema.safeParse({
         operationId: "123e4567-e89b-42d3-a456-426614174000",
         source: { type: "workspace" },
         name: "Review the proposal",
@@ -247,7 +247,7 @@ describe("createScheduledTaskRequestSchema", () => {
           runAt: "2099-09-24T09:00:00.000Z",
         },
       }),
-    ).toMatchObject({ assigneeUserId: "user_123" });
+    ).toMatchObject({ success: false });
   });
 
   it("rejects a project source without a project id", () => {

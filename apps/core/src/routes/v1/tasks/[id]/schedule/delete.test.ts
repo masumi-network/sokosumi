@@ -23,6 +23,7 @@ const {
   lockCalendarScopeMock,
   lockTaskRowsMock,
   quarantineFindUniqueMock,
+  quarantineDeleteMock,
   retireTaskScheduleFutureOccurrencesMock,
   taskEventCreateMock,
   taskEventFindUniqueMock,
@@ -36,6 +37,7 @@ const {
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
   quarantineFindUniqueMock: vi.fn(),
+  quarantineDeleteMock: vi.fn(),
   retireTaskScheduleFutureOccurrencesMock: vi.fn(),
   taskEventCreateMock: vi.fn(),
   taskEventFindUniqueMock: vi.fn(),
@@ -193,7 +195,10 @@ describe("DELETE /tasks/{id}/schedule", () => {
     taskUpdateMock.mockResolvedValue(createUpdatedTask());
     serializableTransactionMock.mockImplementation(async (callback) =>
       callback({
-        taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
+        taskScheduleQuarantine: {
+          findUnique: quarantineFindUniqueMock,
+          delete: quarantineDeleteMock,
+        },
         task: {
           update: taskUpdateMock,
           findUniqueOrThrow: taskFindUniqueOrThrowMock,
@@ -249,6 +254,60 @@ describe("DELETE /tasks/{id}/schedule", () => {
       [null],
       "user_123",
     );
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("lets a collaborator remove a quarantined human schedule with an audit snapshot", async () => {
+    const task = await requireTaskScheduleWriteAccessMock();
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
+      ...task,
+      assigneeUserId: "user_123",
+    });
+    quarantineFindUniqueMock.mockResolvedValue({
+      id: "quarantine-1",
+      reason: "INVALID_STATUS",
+      details: "Active schedule has invalid Task status: READY",
+      capturedMetadata: task.metadata,
+      capturedNextRunAt: task.nextRunAt,
+      capturedStatus: TaskStatus.READY,
+    });
+    const response = await createApp().request(...removalRequest());
+    expect(response.status).toBe(200);
+    expect(quarantineDeleteMock).toHaveBeenCalledWith({
+      where: { taskId: TASK_ID },
+    });
+    expect(taskUpdateMock.mock.calls[0][0].data).toMatchObject({
+      metadata: null,
+      nextRunAt: null,
+      scheduleRevision: { increment: 1 },
+    });
+    expect(
+      taskEventCreateMock.mock.calls[0][0].data.schedulePayload,
+    ).toMatchObject({
+      action: "remove_schedule",
+      quarantineId: "quarantine-1",
+      quarantineReason: "INVALID_STATUS",
+      capturedMetadata: task.metadata,
+      capturedStatus: TaskStatus.READY,
+    });
+    const updated = await response.json();
+    expect(updated.data.selectableStatuses).toContain(TaskStatus.COMPLETED);
+  });
+
+  it("keeps the revision guard for quarantined human schedules", async () => {
+    const task = await requireTaskScheduleWriteAccessMock();
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
+      ...task,
+      assigneeUserId: "user_123",
+      scheduleRevision: 7,
+    });
+    quarantineFindUniqueMock.mockResolvedValue({ id: "quarantine-1" });
+    const response = await createApp().request(...removalRequest());
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      kind: "schedule_revision_conflict",
+    });
+    expect(quarantineDeleteMock).not.toHaveBeenCalled();
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
