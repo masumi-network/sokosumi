@@ -394,56 +394,15 @@ import SwiftUI
       } message: {
         Text(mentionRetryError ?? "Try again.")
       }
-      .contextMenu {
-        if onTogglePin != nil {
-          pinButton
-        }
-        if canCopyMessageLink {
-          copyLinkButton
-        }
-        if onSendToSelf != nil {
-          sendToSelfButton
-        }
-        if onToggleReaction != nil, message.deletedAt == nil {
-          Button("Add reaction", systemImage: "face.smiling") { showsReactionPicker = true }
-        }
-        if onDelete != nil, message.deletedAt == nil {
-          Button(isDeleting ? "Deleting…" : "Delete message", systemImage: "trash", role: .destructive) { confirmsDeletion = true }
-            .disabled(isDeleting)
-          Divider()
-        }
-        if let onEdit {
-          Button("Edit message", systemImage: "pencil", action: onEdit)
-        }
-        if let onQuote {
-          Button("Quote message", systemImage: "quote.opening", action: onQuote)
-        }
-        if let onReply, message.deletedAt == nil {
-          Button("Reply in thread", systemImage: "bubble.right", action: onReply)
-        }
+      // AppKit answers a right-click on selectable text with its own editing menu, so the row opens its menu itself.
+      .overlay {
+        MessageContextMenuArea(availability: menuAvailability, busy: menuBusy, perform: performMenuAction)
+          .accessibilityHidden(true)
       }
       .accessibilityElement(children: .contain)
       .accessibilityActions {
-        if canCopyMessageLink {
-          Button("Copy link", action: copyMessageLink)
-        }
-        if onSendToSelf != nil, !isSendingToSelf {
-          Button("Send to yourself", action: sendToSelf)
-        }
-        if onToggleReaction != nil, message.deletedAt == nil {
-          Button("Add reaction") { showsReactionPicker = true }
-        }
-        if onDelete != nil, !isDeleting, message.deletedAt == nil {
-          Button("Delete message", role: .destructive) { confirmsDeletion = true }
-        }
-        if let onEdit {
-          Button("Edit message", action: onEdit)
-        }
-        if let onQuote {
-          Button("Quote message", action: onQuote)
-        }
-        if let onReply, message.deletedAt == nil {
-          Button("Reply in thread", action: onReply)
+        ForEach(menuAvailability.sections(hasSelection: false).joined().filter { !menuBusy.contains($0) }, id: \.self) { action in
+          Button(action.title, role: action == .delete ? .destructive : nil) { performMenuAction(action) }
         }
       }
       // Sender-group separation is outside the consistently padded hover row.
@@ -598,16 +557,61 @@ import SwiftUI
     }
 
     private var pinButton: some View {
-      Button(isPinned ? "Unpin message" : "Pin message", systemImage: isPinned ? "pin.slash" : "pin") {
-        Task { @MainActor in
-          do {
-            try await onTogglePin?()
-          } catch { pinError = friendlyMessage(for: error)
-            showsPinError = true
-          }
+      Button(isPinned ? "Unpin message" : "Pin message", systemImage: isPinned ? "pin.slash" : "pin", action: togglePin)
+        .disabled(isUpdatingPin)
+    }
+
+    private func togglePin() {
+      Task { @MainActor in
+        do {
+          try await onTogglePin?()
+        } catch { pinError = friendlyMessage(for: error)
+          showsPinError = true
         }
       }
-      .disabled(isUpdatingPin)
+    }
+
+    /// What the right-click menu and the accessibility actions offer.
+    var menuAvailability: MessageMenuAvailability {
+      let live = message.deletedAt == nil
+      return MessageMenuAvailability(
+        canReact: onToggleReaction != nil && live,
+        canEdit: onEdit != nil,
+        canQuote: onQuote != nil,
+        canReply: onReply != nil && live,
+        pinned: onTogglePin == nil ? nil : isPinned,
+        canCopyLink: canCopyMessageLink,
+        canSendToSelf: onSendToSelf != nil,
+        canDelete: onDelete != nil && live
+      )
+    }
+
+    private var menuBusy: Set<MessageMenuAction> {
+      var busy: Set<MessageMenuAction> = []
+      if isDeleting {
+        busy.insert(.delete)
+      }
+      if isSendingToSelf {
+        busy.insert(.sendToSelf)
+      }
+      if isUpdatingPin {
+        busy.formUnion([.pin, .unpin])
+      }
+      return busy
+    }
+
+    private func performMenuAction(_ action: MessageMenuAction) {
+      switch action {
+      case .copySelection: break // The menu item sends `copy:` to the text view itself.
+      case .addReaction: showsReactionPicker = true
+      case .edit: onEdit?()
+      case .quote: onQuote?()
+      case .reply: onReply?()
+      case .pin, .unpin: togglePin()
+      case .copyLink: copyMessageLink()
+      case .sendToSelf: sendToSelf()
+      case .delete: confirmsDeletion = true
+      }
     }
 
     private var avatarView: some View {
