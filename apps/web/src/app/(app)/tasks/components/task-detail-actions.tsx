@@ -79,6 +79,7 @@ import {
 } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
+import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
@@ -816,7 +817,8 @@ export function TaskDetailActions({
                                   />
                                 )}
                                 <span className="truncate">
-                                  {link.peerTask.name}
+                                  {stripMarkdownToText(link.peerTask.name) ||
+                                    link.peerTask.name}
                                 </span>
                               </DropdownMenuItem>
                             );
@@ -867,7 +869,8 @@ export function TaskDetailActions({
                                 />
                               )}
                               <span className="truncate">
-                                {link.peerTask.name}
+                                {stripMarkdownToText(link.peerTask.name) ||
+                                  link.peerTask.name}
                               </span>
                             </DropdownMenuItem>
                           );

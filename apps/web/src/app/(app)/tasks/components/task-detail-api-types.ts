@@ -4,6 +4,7 @@ import {
   type TaskListItem,
   TaskStatus,
 } from "@/lib/clients/generated/core";
+import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 
 export type { TaskStatus };
 
@@ -35,7 +36,7 @@ export function mapVisibleTaskLinks(links: TaskLink[]): VisibleTaskLink[] {
     .filter((link) => link.peerTask.archivedAt === null)
     .map((link) => ({
       id: link.peerTask.id,
-      name: link.peerTask.name,
+      name: stripMarkdownToText(link.peerTask.name) || link.peerTask.name,
       status: link.peerTask.status,
       relation: link.relation,
     }));
