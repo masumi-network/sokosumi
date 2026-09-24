@@ -166,9 +166,13 @@
         let state = WorkspaceState()
         state.rooms = rooms
         state.showThreadsView()
+        // The List paints its own background; the account footer below it has none, because in the app the
+        // split view's sidebar column shows through. Hosted bare, it would record as transparent pixels, so the
+        // fixture puts the appearance's window background behind the whole sidebar.
         let host = NSHostingView(rootView: ConversationSidebarView()
           .environmentObject(state).environmentObject(AuthState())
           .frame(width: 260, height: 200)
+          .background(.background)
           .environment(\.colorScheme, dark ? .dark : .light))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 260, height: 200), styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
@@ -187,6 +191,11 @@
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
         try Attachment.record(#require(bitmap.representation(using: .png, properties: [:])), named: name)
+        // The account footer below the List is drawn on the appearance's background, not left transparent: a
+        // viewer shows transparency as white, which hides the dark footer's light "Me".
+        let footer = try #require(bitmap.colorAt(x: bitmap.pixelsWide - 40, y: bitmap.pixelsHigh - 30)?.usingColorSpace(.deviceRGB))
+        #expect(footer.alphaComponent == 1, "Footer background alpha: \(footer.alphaComponent)")
+        #expect(dark ? footer.brightnessComponent < 0.5 : footer.brightnessComponent > 0.5, "Footer brightness: \(footer.brightnessComponent)")
         return bitmap
       }
 
