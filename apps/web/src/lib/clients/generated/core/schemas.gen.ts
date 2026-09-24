@@ -15576,35 +15576,59 @@ export const WorkspaceCalendarItemSchema = {
     properties: {
         id: {
             type: 'string',
-            description: 'Stable Calendar item identity. Version 1 projections are display-only.',
-            example: 'v1:tsk_123:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z'
+            description: 'The Task Schedule Run this item shows, or the Task for a RUN_AT item',
+            example: '00000000-0000-7000-8000-000000000001'
         },
-        taskId: {
+        kind: {
             type: 'string',
-            example: 'tsk_123'
+            enum: [
+                'RUN',
+                'RUN_AT'
+            ],
+            description: 'RUN is a Task Schedule Run; RUN_AT is a Queued Task that starts at its Run at',
+            example: 'RUN'
         },
-        canEditSchedule: {
-            type: 'boolean',
-            description: 'Whether the caller owns this Task and may edit or remove its schedule',
-            example: true
-        },
-        canMutateOccurrence: {
-            type: 'boolean',
-            description: 'Whether this indexed occurrence can be changed through the revision-safe occurrence contract',
-            example: true
+        scheduleId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Task Schedule the Run belongs to; null for RUN_AT',
+            example: '33333333-3333-7333-8333-333333333333'
         },
         scheduleRevision: {
-            type: 'integer',
+            type: [
+                'integer',
+                'null'
+            ],
             minimum: 0,
-            description: 'Schedule revision observed with this occurrence',
+            description: 'Task Schedule revision observed with this Run; the expectedRevision for changing it. Null for RUN_AT.',
             example: 3
+        },
+        canChangeRun: {
+            type: 'boolean',
+            description: 'Whether the caller may skip, move, or restore this Run through PATCH /v1/tasks/schedules/{id}/runs/{runId}',
+            example: true
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Task the Run created (null while planned), or the RUN_AT Task itself',
+            example: 'tsk_123'
         },
         taskName: {
             type: 'string',
+            description: 'Name of the Task the Run created, or of the one it creates',
             example: 'Prepare release notes'
         },
         taskStatus: {
-            type: 'string',
+            type: [
+                'string',
+                'null'
+            ],
             enum: [
                 'DRAFT',
                 'QUEUED',
@@ -15619,9 +15643,11 @@ export const WorkspaceCalendarItemSchema = {
                 'AWAITING_EXTERNAL',
                 'COMPLETED',
                 'FAILED',
-                'CANCELED'
+                'CANCELED',
+                null
             ],
-            example: 'QUEUED'
+            description: 'Status of the Task the Run created, or QUEUED for RUN_AT; null while a Run is planned',
+            example: 'READY'
         },
         taskAssigneeId: {
             type: [
@@ -15639,7 +15665,7 @@ export const WorkspaceCalendarItemSchema = {
         },
         taskOwnerId: {
             type: 'string',
-            description: 'User who owns the Task and put it on the Calendar',
+            description: 'User who owns the Task Schedule and the Tasks it creates',
             example: 'user_123'
         },
         scheduledAt: {
@@ -15655,16 +15681,15 @@ export const WorkspaceCalendarItemSchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z',
-            description: 'Original scheduled time captured by the occurrence ledger, when known'
+            description: 'The rule\'s time for this Run; differs from scheduledAt when the Run was moved'
         },
         state: {
             type: 'string',
             enum: [
                 'PLANNED',
-                'SKIPPED',
-                'CANCELED',
                 'RELEASED'
             ],
+            description: 'PLANNED is still to come (moved Runs and RUN_AT Tasks too); RELEASED created its Task. Skipped Runs are not on the Calendar.',
             example: 'PLANNED'
         },
         sourceId: {
@@ -15714,10 +15739,11 @@ export const WorkspaceCalendarItemSchema = {
     },
     required: [
         'id',
-        'taskId',
-        'canEditSchedule',
-        'canMutateOccurrence',
+        'kind',
+        'scheduleId',
         'scheduleRevision',
+        'canChangeRun',
+        'taskId',
         'taskName',
         'taskStatus',
         'taskAssigneeId',

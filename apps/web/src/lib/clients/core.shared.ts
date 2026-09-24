@@ -107,6 +107,7 @@ import type {
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
   UpdateTaskScheduleRequest,
+  UpdateTaskScheduleRunRequest,
 } from "@/lib/clients/generated/core";
 import {
   addAdminMatchedChannelParticipant as coreAddAdminMatchedChannelParticipant,
@@ -319,6 +320,7 @@ import {
   patchTasksById as corePatchTasksById,
   patchTasksByIdScheduleOccurrencesByOccurrenceId as corePatchTasksByIdScheduleOccurrencesByOccurrenceId,
   patchTasksSchedulesById as corePatchTasksSchedulesById,
+  patchTasksSchedulesByIdRunsByRunId as corePatchTasksSchedulesByIdRunsByRunId,
   patchVendor as corePatchVendor,
   performAdminSokoBotAction as corePerformAdminSokoBotAction,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
@@ -3828,6 +3830,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function changeTaskScheduleRun(
+    id: string,
+    runId: string,
+    body: UpdateTaskScheduleRunRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePatchTasksSchedulesByIdRunsByRunId({
+          client,
+          path: { id, runId },
+          body,
+        }),
+      "Failed to change Task Schedule Run",
+    );
+  }
+
   async function getCoworkers(query?: GetCoworkersData["query"]) {
     return executeCoreOperation(
       getClient,
@@ -5559,6 +5578,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     changeTaskScheduleState,
     deleteTaskScheduleById,
     listTaskScheduleRuns,
+    changeTaskScheduleRun,
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
     getMySokoBot,

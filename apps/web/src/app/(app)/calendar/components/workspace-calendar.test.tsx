@@ -14,7 +14,7 @@ import { createRoot } from "react-dom/client";
 import { Temporal } from "temporal-polyfill";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
-  TaskListItem,
+  TaskSchedule,
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
@@ -30,18 +30,16 @@ const {
   calendarRealtimeBridgeMock,
   filterDropdownMenuMock,
   getProjectCalendarMock,
-  getTaskByIdMock,
-  getTasksMock,
   getWorkspaceCalendarMock,
+  listTaskSchedulesMock,
   pushMock,
   refreshMock,
 } = vi.hoisted(() => ({
   calendarRealtimeBridgeMock: vi.fn(),
   filterDropdownMenuMock: vi.fn(),
   getProjectCalendarMock: vi.fn(),
-  getTaskByIdMock: vi.fn(),
-  getTasksMock: vi.fn(),
   getWorkspaceCalendarMock: vi.fn(),
+  listTaskSchedulesMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
 }));
@@ -72,9 +70,8 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getProjectsByIdCalendar: getProjectCalendarMock,
-    getTaskById: getTaskByIdMock,
-    getTasks: getTasksMock,
     getWorkspaceCalendar: getWorkspaceCalendarMock,
+    listTaskSchedules: listTaskSchedulesMock,
   },
 }));
 
@@ -85,26 +82,20 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
   },
 }));
 
-vi.mock("@/components/task-schedule-section", () => ({
-  TaskScheduleSection: () => <div data-testid="task-schedule-section" />,
-}));
-
 vi.mock("@/app/tasks/actions", () => ({
-  loadTaskScheduleSeriesPrecondition: vi.fn(async () => ({
-    futureExceptionCount: 0,
-    scheduleRevision: 3,
-  })),
+  loadTaskScheduleDialogOptions: vi.fn(),
 }));
 
 const ITEMS: WorkspaceCalendarItem[] = [
   {
-    id: "occurrence-1",
-    taskId: "task-1",
-    canEditSchedule: true,
-    canMutateOccurrence: true,
+    id: "run-1",
+    kind: "RUN",
+    scheduleId: "schedule-1",
     scheduleRevision: 3,
+    canChangeRun: true,
+    taskId: null,
     taskName: "Prepare release notes",
-    taskStatus: "QUEUED",
+    taskStatus: null,
     taskAssigneeId: "coworker-1",
     taskOwnerId: "user-1",
     scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
@@ -121,8 +112,7 @@ const ITEMS: WorkspaceCalendarItem[] = [
 
 const LEGACY_ITEM: WorkspaceCalendarItem = {
   ...ITEMS[0],
-  id: "occurrence-legacy-1",
-  taskId: "task-legacy-1",
+  id: "run-legacy-1",
   taskName: "Review imported schedule",
   sourceId: "legacy:calendar-1",
   sourceProjectId: null,
@@ -142,63 +132,46 @@ const CALENDAR_PAGE = {
   },
 };
 
-const DAILY_SCHEDULE_METADATA = JSON.stringify({
-  version: 1,
-  scheduledAt: "2026-08-01T09:00:00.000Z",
-  mode: "recurring",
-  expr: "0 9 * * *",
-  timezone: "UTC",
-});
-
-const ONCE_SCHEDULE_METADATA = JSON.stringify({
-  version: 1,
-  scheduledAt: "2026-08-01T09:00:00.000Z",
-  mode: "once",
-  runAt: "2026-09-01T09:00:00.000Z",
-});
-
-function buildScheduledTask(
-  overrides: Partial<TaskListItem> = {},
-): TaskListItem {
-  const owner = { id: "user-1", name: "Ada", image: null };
-
+function buildSchedule(overrides: Partial<TaskSchedule> = {}): TaskSchedule {
   return {
-    id: "task-1",
-    createdAt: new Date("2026-08-01T09:00:00.000Z"),
-    updatedAt: new Date("2026-08-01T09:00:00.000Z"),
-    ownerId: "user-1",
-    owner,
-    userId: "user-1",
-    user: owner,
+    id: "schedule-1",
+    workspaceId: "workspace-1",
     organizationId: null,
-    organization: null,
+    ownerId: "user-1",
+    creatorUserId: "user-1",
+    creatorCoworkerId: null,
+    creatorSokoBotId: null,
+    state: "ACTIVE",
+    rule: {
+      expr: "0 9 * * *",
+      timezone: "UTC",
+      intervalDays: null,
+      anchorAt: new Date("2026-08-01T09:00:00.000Z"),
+      endsMode: "NEVER",
+      endsOn: null,
+      targetRunCount: null,
+    },
+    ruleEffectiveFrom: new Date("2026-08-01T09:00:00.000Z"),
+    releasedCount: 0,
+    nextRunAt: new Date("2026-08-19T09:00:00.000Z"),
+    revision: 0,
+    name: "Daily standup notes",
+    description: null,
     projectId: null,
-    project: null,
+    visibility: "PUBLIC",
     assigneeId: null,
     assigneeSokoBotId: null,
     assigneeUserId: null,
-    assignee: null,
-    coworkerId: null,
-    coworker: null,
-    creator: { type: "user", id: "user-1", user: owner },
-    sokoBotId: null,
-    sokoBot: null,
-    name: "Scheduled task",
-    description: null,
-    status: "READY",
-    visibility: "PUBLIC",
-    grantResumeStatus: null,
-    pendingVendorGrantId: null,
-    metadata: DAILY_SCHEDULE_METADATA,
-    nextRunAt: new Date("2026-08-19T09:00:00.000Z"),
-    runAt: null,
-    scheduleId: null,
-    workspace: { id: "workspace-1", organizationId: null, organization: null },
-    jobsCount: 0,
-    commentsCount: 0,
+    createdAt: new Date("2026-08-01T09:00:00.000Z"),
+    updatedAt: new Date("2026-08-01T09:00:00.000Z"),
     ...overrides,
   };
 }
+
+const ROSTER = [
+  { id: "user-1", name: "Ada", kind: "user" as const },
+  { id: "user-2", name: "Grace Hopper", kind: "user" as const },
+];
 
 const SOURCES: WorkspaceCalendarSource[] = [
   {
@@ -946,12 +919,6 @@ describe("WorkspaceCalendar", () => {
             },
             {
               ...ITEMS[0],
-              id: "skipped",
-              state: "SKIPPED",
-              taskName: "Skipped",
-            },
-            {
-              ...ITEMS[0],
               id: "released",
               state: "RELEASED",
               taskName: "Already ran",
@@ -995,7 +962,7 @@ describe("WorkspaceCalendar", () => {
     expect(screen.queryByText("August 18, 2026")).not.toBeInTheDocument();
   });
 
-  it("loads ten more occurrences only when the agenda boundary becomes visible", async () => {
+  it("loads ten more Runs only when the agenda boundary becomes visible", async () => {
     let showBoundary = () => {};
     vi.stubGlobal(
       "IntersectionObserver",
@@ -1053,7 +1020,7 @@ describe("WorkspaceCalendar", () => {
         meta: { pagination: { nextCursor: null } },
       });
     render(
-      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC&scope=owned&status=QUEUED&assigneeId=coworker-1">
+      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC&scope=owned&assigneeId=coworker-1">
         <WorkspaceCalendar
           initialDate="2026-08-18"
           items={ITEMS}
@@ -1073,7 +1040,6 @@ describe("WorkspaceCalendar", () => {
       "project-1",
       expect.objectContaining({
         scope: "owned",
-        status: "QUEUED",
         assigneeId: "coworker-1",
         limit: 10,
       }),
@@ -1157,8 +1123,7 @@ describe("WorkspaceCalendar", () => {
       data: [
         {
           ...LEGACY_ITEM,
-          id: "occurrence-2",
-          taskId: "task-2",
+          id: "run-2",
           taskName: "Publish release notes",
         },
       ],
@@ -1173,7 +1138,7 @@ describe("WorkspaceCalendar", () => {
     });
 
     render(
-      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&status=QUEUED&sourceId=legacy%3Acalendar-1">
+      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&sourceId=legacy%3Acalendar-1">
         <WorkspaceCalendar
           items={ITEMS}
           initialDate="2026-08-18"
@@ -1190,7 +1155,7 @@ describe("WorkspaceCalendar", () => {
       limit: 100,
       scope: "workspace",
       assigneeId: undefined,
-      status: "QUEUED",
+      status: undefined,
       sourceId: "legacy:calendar-1",
     });
   });
@@ -1233,7 +1198,7 @@ describe("WorkspaceCalendar", () => {
           data: [
             {
               ...ITEMS[0],
-              id: "occurrence-after-revoke",
+              id: "run-after-revoke",
               taskName: "Secret after revoke",
             },
           ],
@@ -1276,9 +1241,7 @@ describe("WorkspaceCalendar", () => {
     view.rerender(calendar([], null));
     await act(async () => {
       resolvePage?.({
-        data: [
-          { ...ITEMS[0], id: "removed-occurrence", taskName: "Removed task" },
-        ],
+        data: [{ ...ITEMS[0], id: "removed-run", taskName: "Removed task" }],
         meta: { pagination: { nextCursor: null } },
       });
     });
@@ -1325,26 +1288,20 @@ describe("WorkspaceCalendar", () => {
     expect(screen.getByText("empty.title")).toBeInTheDocument();
   });
 
-  it("lists each schedule series once in the Schedules view", () => {
+  it("lists each Task Schedule once in the Schedules view", () => {
     render(
       <NuqsTestingAdapter searchParams="?view=schedules&timezone=UTC">
         <WorkspaceCalendar
-          currentUserId="user-2"
+          coworkers={ROSTER}
           items={[]}
           initialDate="2026-08-18"
-          scheduledTasks={[
-            buildScheduledTask({
-              assignee: {
-                type: "user",
-                id: "user-2",
-                user: { id: "user-2", name: "Grace Hopper", image: null },
-              },
-            }),
-            buildScheduledTask({
-              id: "task-2",
-              metadata: ONCE_SCHEDULE_METADATA,
-              name: "Publish two weeks out",
-              nextRunAt: new Date("2026-09-01T09:00:00.000Z"),
+          schedules={[
+            buildSchedule({ assigneeUserId: "user-2" }),
+            buildSchedule({
+              id: "schedule-2",
+              name: "Publish every Monday",
+              state: "PAUSED",
+              nextRunAt: null,
               projectId: "project-1",
             }),
           ]}
@@ -1357,11 +1314,16 @@ describe("WorkspaceCalendar", () => {
       screen.getByRole("tab", { name: "view.schedules" }),
     ).toBeInTheDocument();
     expect(screen.getAllByTestId("calendar-schedule-row")).toHaveLength(2);
-    expect(screen.getByText("Scheduled task")).toBeInTheDocument();
-    expect(screen.getByText("Publish two weeks out")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Daily standup notes" }),
+    ).toHaveAttribute("href", "/tasks/schedules/schedule-1");
+    expect(
+      screen.getByRole("link", { name: "Publish every Monday" }),
+    ).toHaveAttribute("href", "/tasks/schedules/schedule-2");
     expect(screen.getByText("Release planning")).toBeInTheDocument();
+    expect(screen.getByText("state.PAUSED")).toBeInTheDocument();
+    expect(screen.getByText("schedules.noNextRun")).toBeInTheDocument();
     expect(screen.getAllByTestId("calendar-source-marker")).toHaveLength(2);
-    expect(screen.getAllByTestId("calendar-schedule-people")).toHaveLength(2);
     expect(screen.getByTitle("Grace Hopper, Ada")).toBeInTheDocument();
     expect(screen.queryByTestId("calendar-week")).not.toBeInTheDocument();
   });
@@ -1388,14 +1350,14 @@ describe("WorkspaceCalendar", () => {
     expect(updates.join("&")).toContain("view=schedules");
   });
 
-  it("hides the occurrence source filter in the Schedules view", () => {
+  it("keeps only the time zone filter in the Schedules view", () => {
     render(
       <NuqsTestingAdapter searchParams="?view=schedules&timezone=UTC">
         <WorkspaceCalendar
           activeOrganizationId="org-1"
           items={[]}
           initialDate="2026-08-18"
-          scheduledTasks={[buildScheduledTask()]}
+          schedules={[buildSchedule()]}
           sources={SOURCES}
         />
       </NuqsTestingAdapter>,
@@ -1404,64 +1366,10 @@ describe("WorkspaceCalendar", () => {
     const props = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
       sections: Array<{ id: string }>;
     };
-    expect(props.sections.map((section) => section.id)).toEqual([
-      "scope",
-      "coworker",
-      "human",
-      "status",
-      "timezone",
-    ]);
+    expect(props.sections.map((section) => section.id)).toEqual(["timezone"]);
   });
 
-  it("opens the series editor from an owned schedule row", async () => {
-    const user = userEvent.setup();
-    getTaskByIdMock.mockResolvedValue({
-      data: {
-        id: "task-1",
-        metadata: DAILY_SCHEDULE_METADATA,
-        name: "Scheduled task",
-        nextRunAt: new Date("2026-08-19T09:00:00.000Z"),
-        scheduleRevision: 3,
-      },
-    });
-
-    render(
-      <NuqsTestingAdapter searchParams="?view=schedules&timezone=UTC">
-        <WorkspaceCalendar
-          currentUserId="user-1"
-          items={[]}
-          initialDate="2026-08-18"
-          scheduledTasks={[buildScheduledTask()]}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    await user.click(screen.getByRole("button", { name: "schedules.edit" }));
-
-    expect(await screen.findByRole("dialog")).toHaveTextContent("edit.title");
-    expect(getTaskByIdMock).toHaveBeenCalledWith("task-1");
-  });
-
-  it("hides the schedule edit action from non-owners", () => {
-    render(
-      <NuqsTestingAdapter searchParams="?view=schedules&timezone=UTC">
-        <WorkspaceCalendar
-          currentUserId="user-2"
-          items={[]}
-          initialDate="2026-08-18"
-          scheduledTasks={[buildScheduledTask()]}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    expect(
-      screen.queryByRole("button", { name: "schedules.edit" }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("shows the schedules empty state without the occurrence empty state", () => {
+  it("shows the schedules empty state without the Run empty state", () => {
     render(
       <NuqsTestingAdapter searchParams="?view=schedules&timezone=UTC">
         <WorkspaceCalendar
@@ -1473,21 +1381,14 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getByText("empty.schedulesTitle")).toBeInTheDocument();
+    expect(screen.getByText("empty")).toBeInTheDocument();
     expect(screen.queryByText("empty.title")).not.toBeInTheDocument();
   });
 
-  it("loads the next schedule series page on demand", async () => {
+  it("loads the next Task Schedules page on demand", async () => {
     const user = userEvent.setup();
-    getTasksMock.mockResolvedValue({
-      data: [
-        buildScheduledTask({
-          id: "task-2",
-          metadata: ONCE_SCHEDULE_METADATA,
-          name: "Second series",
-          nextRunAt: null,
-        }),
-      ],
+    listTaskSchedulesMock.mockResolvedValue({
+      data: [buildSchedule({ id: "schedule-2", name: "Second schedule" })],
       meta: {
         pagination: {
           cursor: "cursor-2",
@@ -1499,13 +1400,12 @@ describe("WorkspaceCalendar", () => {
     });
 
     render(
-      <NuqsTestingAdapter searchParams="?view=schedules&timezone=UTC">
+      <NuqsTestingAdapter searchParams="?view=schedules&timezone=UTC&projectId=project-1">
         <WorkspaceCalendar
-          currentUserId="user-2"
           items={[]}
           initialDate="2026-08-18"
-          scheduledTasks={[buildScheduledTask()]}
-          scheduledTasksPagination={{ limit: 100, nextCursor: "cursor-2" }}
+          schedules={[buildSchedule()]}
+          schedulesPagination={{ limit: 100, nextCursor: "cursor-2" }}
           sources={SOURCES}
         />
       </NuqsTestingAdapter>,
@@ -1517,16 +1417,10 @@ describe("WorkspaceCalendar", () => {
       screen.getByRole("button", { name: "schedules.loadMore" }),
     );
 
-    expect(await screen.findByText("Second series")).toBeInTheDocument();
+    expect(await screen.findByText("Second schedule")).toBeInTheDocument();
     expect(screen.getAllByTestId("calendar-schedule-row")).toHaveLength(2);
-    expect(getTasksMock).toHaveBeenCalledWith({
-      hasSchedule: "true",
-      sort: "nextRunAt",
-      scope: "workspace",
-      status: undefined,
-      assigneeId: undefined,
-      assigneeUserId: undefined,
-      projectId: undefined,
+    expect(listTaskSchedulesMock).toHaveBeenCalledWith({
+      projectId: "project-1",
       cursor: "cursor-2",
       limit: 100,
     });

@@ -12,9 +12,11 @@ import type {
   TaskScheduleOccurrence,
   TaskScheduleOccurrenceView,
   TaskScheduleRun,
+  TaskScheduleRunUpdate,
   TaskScheduleSourceMutation,
   TaskScheduleState,
   UpdateTaskScheduleRequest,
+  UpdateTaskScheduleRunRequest,
 } from "@/lib/clients/generated/core/types.gen";
 
 export interface ListTaskSchedulesParams {
@@ -261,6 +263,15 @@ export const taskScheduleService = (() => {
     return result.data;
   }
 
+  /** Skips, moves, or restores one upcoming Run; the rule stays as it is. */
+  async function changeRun(
+    id: string,
+    runId: string,
+    body: UpdateTaskScheduleRunRequest,
+  ): Promise<TaskScheduleRunUpdate> {
+    return (await coreClient.changeTaskScheduleRun(id, runId, body)).data;
+  }
+
   return {
     editCalendarSeries,
     moveCalendarSeriesSource,
@@ -276,5 +287,6 @@ export const taskScheduleService = (() => {
     changeScheduleState,
     deleteSchedule,
     listUpcomingRuns,
+    changeRun,
   };
 })();

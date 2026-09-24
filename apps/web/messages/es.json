@@ -6450,29 +6450,26 @@
       },
       "event": {
         "accessibleName": "{task}, {source}",
-        "accessibleNameSkipped": "{task}, {source}, omitida",
-        "editSchedule": "Editar programación",
-        "moveOccurrence": "Mover repetición",
-        "skipOccurrence": "Omitir repetición",
-        "restoreOccurrence": "Restaurar repetición",
-        "mutationError": "No se pudo cambiar esta repetición. Inténtalo de nuevo.",
         "openTask": "Abrir tarea",
-        "moveNotAllowed": "Solo el propietario de la tarea puede reprogramarla."
+        "moveNotAllowed": "Solo se pueden mover las próximas ejecuciones de tus propias programaciones activas.",
+        "moveRun": "Mover ejecución",
+        "skipRun": "Omitir ejecución",
+        "restoreRun": "Restaurar ejecución",
+        "openSchedule": "Abrir programación",
+        "runStale": "Esta programación cambió en otro lugar. El calendario se está recargando; inténtalo de nuevo.",
+        "runInvalidTime": "Elige una hora en el futuro, dentro de los próximos 90 días.",
+        "runError": "No se pudo cambiar esta ejecución. Inténtalo de nuevo."
+      },
+      "runMove": {
+        "title": "Mover ejecución",
+        "description": "Elige una nueva hora para esta ejecución de {name}. La programación no cambia.",
+        "label": "Nueva hora",
+        "confirm": "Mover ejecución",
+        "cancel": "Cancelar",
+        "invalid": "Elige una fecha y una hora válidas."
       },
       "create": {
         "fab": "Programar una tarea"
-      },
-      "edit": {
-        "title": "Editar programación",
-        "description": "Cambia la programación de {name}.",
-        "loadError": "No se pudo cargar esta tarea. Inténtalo de nuevo.",
-        "saveError": "No se pudo guardar esta programación. Inténtalo de nuevo.",
-        "clearError": "No se pudo eliminar esta programación. Inténtalo de nuevo.",
-        "clearPending": "Eliminando programación…",
-        "clearTitle": "¿Eliminar programación?",
-        "clearDescription": "Esta tarea dejará de ejecutarse según una programación.",
-        "clearCancel": "Cancelar",
-        "clearConfirm": "Eliminar programación"
       },
       "accuracy": {
         "inferred": "Origen inferido",
@@ -6505,15 +6502,14 @@
         "label": "Zona horaria"
       },
       "empty": {
-        "title": "Ninguna ejecución programada coincide con estos filtros.",
-        "schedulesTitle": "Ninguna programación coincide con estos filtros."
+        "title": "Ninguna ejecución programada coincide con estos filtros."
       },
       "schedules": {
         "nextRun": "Próxima ejecución",
         "noNextRun": "Sin próxima ejecución",
-        "edit": "Editar programación",
-        "openTask": "Abrir tarea",
-        "loadMore": "Cargar más"
+        "loadMore": "Cargar más",
+        "new": "Nueva programación",
+        "newError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo."
       },
       "pagination": {
         "error": "No se pudieron cargar más eventos."

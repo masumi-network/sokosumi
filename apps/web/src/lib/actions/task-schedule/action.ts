@@ -14,6 +14,7 @@ import type {
   TaskScheduleRule,
   TaskScheduleRuleReplacement,
   TaskVisibility,
+  UpdateTaskScheduleRunRequest,
 } from "@/lib/clients/generated/core";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import {
@@ -22,11 +23,13 @@ import {
 } from "@/middleware/auth-middleware";
 
 /**
- * `stale`: the schedule changed since the page read it (a newer revision or
- * state), so the caller reloads before trying again.
+ * `stale`: the schedule or Run changed since the page read it (a newer
+ * revision or state), so the caller reloads before trying again.
+ * `invalid_time`: a Run cannot move to that time (past, or beyond the
+ * projection horizon).
  */
 export interface TaskScheduleActionError {
-  kind: "stale" | "failed";
+  kind: "stale" | "invalid_time" | "failed";
   message: string;
 }
 
@@ -67,16 +70,25 @@ interface DeleteTaskScheduleParameters extends AuthenticatedRequest {
   scheduleId: string;
 }
 
+type ChangeTaskScheduleRunParameters = AuthenticatedRequest &
+  UpdateTaskScheduleRunRequest & { scheduleId: string; runId: string };
+
 const STALE_KINDS: ReadonlySet<string> = new Set([
   CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT,
   CORE_API_ERROR_KINDS.SCHEDULE_STATE_CONFLICT,
   CORE_API_ERROR_KINDS.CONCURRENCY_CONFLICT,
+  CORE_API_ERROR_KINDS.SCHEDULE_RUN_STATE_CONFLICT,
 ]);
 
 function toTaskScheduleActionError(error: unknown): TaskScheduleActionError {
   if (error instanceof CoreApiRequestError) {
     return {
-      kind: error.kind && STALE_KINDS.has(error.kind) ? "stale" : "failed",
+      kind:
+        error.kind === CORE_API_ERROR_KINDS.SCHEDULE_RUN_TARGET_INVALID
+          ? "invalid_time"
+          : error.kind && STALE_KINDS.has(error.kind)
+            ? "stale"
+            : "failed",
       message: error.message,
     };
   }
@@ -142,5 +154,17 @@ export const deleteTaskSchedule = withSession<
     await taskScheduleService.deleteSchedule(scheduleId);
     revalidatePath("/tasks");
     return { scheduleId };
+  }),
+);
+
+/** Skips, moves, or restores one upcoming Run; the rule stays as it is. */
+export const changeTaskScheduleRun = withSession<
+  ChangeTaskScheduleRunParameters,
+  TaskScheduleActionResult<{ scheduleId: string; runId: string }>
+>(async ({ session: _session, scheduleId, runId, ...change }) =>
+  runTaskScheduleAction(async () => {
+    await taskScheduleService.changeRun(scheduleId, runId, change);
+    revalidateTaskSchedule(scheduleId);
+    return { scheduleId, runId };
   }),
 );
