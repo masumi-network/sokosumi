@@ -1,6 +1,6 @@
 # ADR 0007: Cardano payments for Sokosumi Coworkers
 
-- Status: Proposed
+- Status: Accepted MPS-first direction; payment receipt contract remains open
 - Date: 2026-09-24
 - Decision source: [REPORTED] The user wants existing agents to register as Sokosumi Coworkers, receive payments through Sokosumi, and later reach outside x402 buyers through Sokosumi.
 
@@ -20,27 +20,29 @@
 
 [VERIFIED] Sokosumi's task x402 route pays a 402 response returned by a listed x402 agent. Its readiness checks cover EVM networks. It does not implement Cardano x402 seller receipt for a Coworker. [Task x402 route](../../../core/src/routes/v1/tasks/[id]/x402-payments/post.ts#L47) · [x402 readiness](../../../core/src/helpers/x402-readiness.ts#L28)
 
-## Proposed decision
+[VERIFIED] Core's Coworker usage route debits the customer's credits and records a `CoworkerUsage` row. It does not record seller settlement to the Coworker's wallet. [Usage route](../../../core/src/routes/v1/coworkers/me/usage/post.ts#L154-L201)
 
-[REPORTED: user decision, 2026-09-24] Hackathon Coworker registration and Cardano payment tests use Sokosumi Preprod and Cardano Preprod. Keep Coworker registration on Preprod for this flow. Do not change the existing permission model or whitelist operation.
+## Decision and open payment contract
+
+[REPORTED: user decision, 2026-09-24] Hackathon Coworker registration and Cardano payment tests use Sokosumi Preprod and Cardano Preprod. The CLI keeps Core permissions and whitelist behavior unchanged. Current Core Coworker creation remains platform-admin-only; team provisioning is required before an ordinary Vendor admin can finish onboarding.
 
 [REPORTED: user decision] A private workspace Coworker can be tested before public paid availability. Seller receipt is required for a Coworker seeking global paid availability. A platform admin reviews and approves the waitlist request. This does not change the existing whitelist control.
 
-[PROPOSED] Keep the current Task `masumiPayment` and `TaskPaymentClaim` behavior for tasks that use its existing Masumi purchase contract. Do not present this path as generic x402 or proof that the Coworker receives payment into its own wallet. Keep Cardano escrow and its lifecycle in MPS. Do not build another Masumi escrow contract.
+[REPORTED: user decision, 2026-09-24] Use MPS first for Sokosumi Coworker payments. Keep payment initiation inside a Sokosumi Task. Do not add a second Cardano escrow state machine to the CLI or plugin.
 
-[PROPOSED] For later external x402 support, first test a Sokosumi adapter around MPS `POST /payment/x402` on Cardano Preprod. The endpoint builds a transaction for an existing MPS payment request, then the buyer signs and submits it. The adapter must provide the request identifier and buyer address, expose a compatible HTTP 402 response, and link the resulting MPS payment state to a Sokosumi Task.
+[PROPOSED] First trace the existing Sokosumi Task and MPS purchase path on Preprod. Use it only if a controlled test proves the intended seller receives funds in the configured Coworker wallet. A Task credit debit or `TaskPaymentClaim.PURCHASED` status is not receipt proof. If this path cannot pay the Coworker, ask the MPS/Core owners for the smallest supported MPS-backed change. Do not make that change in the CLI.
 
-[OPEN] The current `@x402/cardano` `exact/masumi` method has a seller-signature format that MPS rejects. The MPS builder's compatibility with standard x402 clients is not established. Do not claim SDK interoperability until a preprod test proves it.
+[OPEN] The Coworker-specific seller payout path is not established by the inspected Task event and claim processor. Confirm who funds the purchase, which seller identity MPS pays, and the receipt evidence available on Cardano Preprod.
 
-[PROPOSED] Keep `exact/default` as a separate option only if product chooses direct-to-address payment without the MPS escrow lifecycle.
+[REPORTED: user decision, 2026-09-24] After the MPS-first Sokosumi MVP, Cardano x402 buyers should reach the Coworker through Sokosumi. Direct-to-wallet x402 is not the MVP path.
 
-[PROPOSED] Keep this CLI work within the current registration and whitelist permissions. Do not add or change a permission path in this ADR. When Cardano x402 seller receipt is ready, add payment offer terms and a receipt-to-Task link through approved Sokosumi and MPS interfaces.
+[OPEN] The current `@x402/cardano` `exact/masumi` method has a seller-signature format that MPS rejects. The MPS builder's compatibility with standard x402 clients is not established. Defer this path until after the MPS-first MVP and a Preprod interoperability test.
 
 ## Consequences
 
 [INFERRED] The existing `TaskPaymentClaim` path reuses Sokosumi's durable claim, retry, and MPS purchase code. It does not require new Cardano transaction building in Core, but it does not establish Coworker-owned wallet receipt.
 
-[INFERRED] The MPS Cardano builder is the smallest candidate for an x402 path that keeps payment state in Masumi. It does not provide the HTTP 402 adapter or Sokosumi Task link.
+[INFERRED] The MPS Cardano builder is a later candidate for Sokosumi-routed x402 because it keeps escrow in Masumi. It does not provide the HTTP 402 adapter or Sokosumi Task link.
 
 [VERIFIED] `TaskPaymentClaim` tracks the existing MPS `POST /purchase` path. [Claim processor](../../../core/src/services/task-payment-claim.service.ts#L437) · [MPS client](../../../../packages/masumi/src/clients/masumi-payment.client.ts#L618)
 
@@ -50,7 +52,7 @@
 
 ## Least confident decisions
 
-1. [OPEN] Whether the existing MPS purchase created from `masumiPayment` pays the specific Coworker service being tested. The source shows the Task charge and purchase payload, but not a Coworker wallet receipt.
-2. [OPEN] Whether MPS `/payment/x402` can fit a standard x402 request and signed retry. Its API requires an existing payment identifier and a buyer address.
-3. [OPEN] How Sokosumi should connect the MPS payment state to a Coworker Task before it dispatches work.
-4. [OPEN] Which Sokosumi service should host the x402 resource route and any facilitator role.
+1. [OPEN] Whether the existing MPS purchase created from `masumiPayment` pays the intended Coworker wallet. Source shows a credit debit and purchase ID, not seller receipt.
+2. [OPEN] Which Sokosumi or MPS operation produces Cardano Preprod receipt evidence for that wallet.
+3. [OPEN] Whether MPS `/payment/x402` can fit a standard x402 request and signed retry. Its API requires an existing payment identifier and a buyer address.
+4. [OPEN] Which Sokosumi service should host the later x402 resource route and any facilitator role.

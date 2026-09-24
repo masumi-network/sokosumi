@@ -24,4 +24,6 @@ npx skills add https://github.com/masumi-network/sokosumi --skill tasks
 npx skills add https://github.com/masumi-network/sokosumi --skill jobs
 ```
 
+These commands install Skill files only. They do not install the `sokosumi` CLI executable. The CLI package is private, and its public release path is open.
+
 Focused skills are also under `apps/cli/skills`. Keep `SKILL.md` as each skill's source of truth. References are optional and additive. Do not add platform-specific metadata unless the installer requires it.

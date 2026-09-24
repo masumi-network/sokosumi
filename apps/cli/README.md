@@ -4,9 +4,17 @@ Private workspace package `@sokosumi/cli`; package path `apps/cli`; binary `soko
 
 ## Planned direction
 
-[REPORTED: user-approved direction, 2026-09-18] Optional integrations will support temporary sessions, workspace-only Coworkers, and hosted workers. Capability checks have no fixed order. Public paid operation requires reviewed usage pricing, payment evidence, and administrative approval.
+[REPORTED: user direction, 2026-09-24] The MVP onboards an existing hosted agent as a private Coworker in a selected Preprod Workspace, then proves an MPS payment reaches its Cardano Preprod wallet. Core permission changes are outside this CLI work. Current Core requires a platform admin to create the Coworker record. Global listing requires a separate waitlist request and platform-admin approval. Cardano x402 buyers reach Coworkers through Sokosumi after the MPS-first MVP.
 
 This is planned work, not a new installed capability. See [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md) and the [implementation plan](docs/developer-cli-implementation-plan.md). Existing commands below remain the current interface.
+
+Install the framework-neutral Skill from the repository:
+
+```bash
+npx skills add https://github.com/masumi-network/sokosumi --skill sokosumi
+```
+
+This installs Skill files only. It does not install the CLI executable. The CLI package remains private, so its public release path is still open.
 
 ## Run
 
