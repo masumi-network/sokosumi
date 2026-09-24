@@ -8,7 +8,6 @@ import {
 import { fetchOrganizationWorkspaces } from "../../api/services/organization-workspace-service.js";
 import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
 import {
-  assertVendorCreationRequest,
   requireAdministeredVendorForRegistration,
   requireOrganizationWorkspacesForRegistration,
 } from "../registration-authority.js";
@@ -53,8 +52,11 @@ async function buildPayload(
   if (update && vendorId !== undefined)
     throw new Error("--vendor-id is only supported for `coworkers register`");
   if (!update) {
-    if (!vendorId)
-      throw new Error("vendor id is required for `coworkers register`");
+    if (!vendorId) {
+      throw new Error(
+        "vendor id is required for `coworkers register` (create one first with `sokosumi vendors create --name NAME --slug SLUG`)",
+      );
+    }
     payload.vendorId = vendorId;
   }
   const values: [string, string][] = [
@@ -179,10 +181,6 @@ export async function runCoworkersCommand({
     return;
   }
   if (command === "register") {
-    assertVendorCreationRequest({
-      requested: optionBoolean(options, "create-vendor"),
-      confirmed: optionBoolean(options, "confirm-create-vendor"),
-    });
     const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
       client,
       signal,
