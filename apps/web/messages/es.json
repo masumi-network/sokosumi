@@ -6512,6 +6512,7 @@
       "event": {
         "accessibleName": "{task}, {source}",
         "accessibleNameSkipped": "{task}, {source}, omitida",
+        "skipped": "Omitida",
         "editSchedule": "Editar programación",
         "moveOccurrence": "Mover repetición",
         "skipOccurrence": "Omitir repetición",
@@ -6587,6 +6588,14 @@
       "agenda": {
         "upcoming": "A continuación",
         "loading": "Cargando…"
+      },
+      "socialPost": {
+        "mediaOnly": "Publicación multimedia",
+        "project": "Proyecto: {name}",
+        "projectLabel": "Proyecto: ",
+        "scheduledBy": "Programado por {name}",
+        "unknownScheduler": "usuario desconocido",
+        "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}"
       }
     },
     "You": {

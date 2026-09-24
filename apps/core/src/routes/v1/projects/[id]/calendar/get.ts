@@ -12,6 +12,7 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
+import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   getCalendarTaskWhere,
@@ -20,7 +21,7 @@ import {
 } from "@/routes/v1/workspaces/calendar/read";
 import {
   projectCalendarQuerySchema,
-  workspaceCalendarItemSchema,
+  workspaceCalendarEntrySchema,
 } from "@/schemas/workspace-calendar.schema";
 
 const paramsSchema = z.object({
@@ -46,7 +47,7 @@ const route = withCoworkerContextHeaderParameters(
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        z.array(workspaceCalendarItemSchema),
+        z.array(workspaceCalendarEntrySchema),
         "Project Calendar items",
       ),
       400: jsonErrorResponse("Bad Request"),
@@ -63,6 +64,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = await requireAuthorizedUserContext(authContext);
     await requireCalendarBetaAccess(userContext.userId, prisma);
+    if (c.req.valid("query").includeSocialPosts === "true") {
+      requireInteractiveUserAuthContext(c.var.authContext);
+    }
 
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");

@@ -2171,7 +2171,7 @@ export const putProjectsByIdDesignMdResponseTransformer = async (data: any): Pro
     return data;
 };
 
-const workspaceCalendarItemSchemaResponseTransformer = (data: any) => {
+const workspaceCalendarEntrySchemaResponseTransformer = (data: any) => {
     data.scheduledAt = new Date(data.scheduledAt);
     if (data.originalScheduledAt) {
         data.originalScheduledAt = new Date(data.originalScheduledAt);
@@ -2180,7 +2180,7 @@ const workspaceCalendarItemSchemaResponseTransformer = (data: any) => {
 };
 
 export const getProjectsByIdCalendarResponseTransformer = async (data: any): Promise<GetProjectsByIdCalendarResponse> => {
-    data.data = data.data.map((item: any) => workspaceCalendarItemSchemaResponseTransformer(item));
+    data.data = data.data.map((item: any) => workspaceCalendarEntrySchemaResponseTransformer(item));
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
@@ -3359,7 +3359,7 @@ export const getWorkspacesDesignMdResponseTransformer = async (data: any): Promi
 };
 
 export const getWorkspacesCalendarResponseTransformer = async (data: any): Promise<GetWorkspacesCalendarResponse> => {
-    data.data = data.data.map((item: any) => workspaceCalendarItemSchemaResponseTransformer(item));
+    data.data = data.data.map((item: any) => workspaceCalendarEntrySchemaResponseTransformer(item));
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

@@ -868,4 +868,11 @@ describe("GET /workspaces/calendar", () => {
       }),
     );
   });
+  it("rejects automation opt-in to Social post calendar data", async () => {
+    const response = await createApp(USER_AUTH_CONTEXT).request(
+      `/calendar?from=${FROM}&to=${TO}&includeSocialPosts=true`,
+    );
+    expect(response.status).toBe(403);
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
 });

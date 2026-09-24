@@ -13,7 +13,7 @@ import type {
   TaskLinkDeleted,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
-  WorkspaceCalendarItem,
+  WorkspaceCalendarEntry,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
 import { TaskStatus } from "@/lib/clients/generated/core";
@@ -126,7 +126,7 @@ function assigneeWriteFields(
 }
 
 export interface WorkspaceCalendarPage {
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   pagination: {
     cursor: string | null;
     limit: number;

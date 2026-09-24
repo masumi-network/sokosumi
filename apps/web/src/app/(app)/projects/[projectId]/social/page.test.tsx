@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const getProjectByIdMock = vi.fn();
 const listSocialPostsMock = vi.fn();
+const getSocialPostMock = vi.fn();
 const listSocialConnectionsMock = vi.fn();
 const projectSocialPostsMock = vi.fn();
 const projectSocialAccountsMock = vi.fn();
@@ -35,6 +36,8 @@ vi.mock("@/lib/services/project.service", () => ({
   projectService: {
     getProjectById: (projectId: string) => getProjectByIdMock(projectId),
     listSocialPosts: (...args: unknown[]) => listSocialPostsMock(...args),
+    getSocialPost: (projectId: string, postId: string) =>
+      getSocialPostMock(projectId, postId),
     listSocialConnections: (projectId: string) =>
       listSocialConnectionsMock(projectId),
   },
@@ -153,6 +156,61 @@ describe("ProjectSocialPage", () => {
       expect.objectContaining({
         projectId: PROJECT.id,
         connections: [active, disconnected],
+      }),
+    );
+  });
+
+  it("renders the posts list normally when the deep-linked post is missing", async () => {
+    const posts = [{ id: "post-1" }, { id: "post-2" }, { id: "post-3" }];
+    posts.forEach((post) =>
+      listSocialPostsMock.mockResolvedValueOnce({
+        posts: [post],
+        nextCursor: null,
+      }),
+    );
+    getSocialPostMock.mockResolvedValue(null);
+
+    render(
+      await ProjectSocialPage({
+        params: Promise.resolve({ projectId: PROJECT.id }),
+        searchParams: Promise.resolve({ postId: "missing-post" }),
+      }),
+    );
+
+    expect(getSocialPostMock).toHaveBeenCalledWith(PROJECT.id, "missing-post");
+    expect(screen.getByTestId("project-social-posts")).toBeInTheDocument();
+    expect(projectSocialPostsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ posts, projectId: PROJECT.id }),
+    );
+  });
+
+  it("prepends the deep-linked post and drops its duplicate from the list", async () => {
+    const freshPost = { id: "post-1", text: "Fresh copy" };
+    listSocialPostsMock.mockResolvedValueOnce({
+      posts: [{ id: "post-1" }],
+      nextCursor: null,
+    });
+    listSocialPostsMock.mockResolvedValueOnce({
+      posts: [{ id: "post-2" }],
+      nextCursor: null,
+    });
+    listSocialPostsMock.mockResolvedValueOnce({
+      posts: [{ id: "post-3" }],
+      nextCursor: null,
+    });
+    getSocialPostMock.mockResolvedValue(freshPost);
+
+    render(
+      await ProjectSocialPage({
+        params: Promise.resolve({ projectId: PROJECT.id }),
+        searchParams: Promise.resolve({ postId: "post-1" }),
+      }),
+    );
+
+    expect(projectSocialPostsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        posts: [freshPost, { id: "post-2" }, { id: "post-3" }],
+        projectId: PROJECT.id,
       }),
     );
   });

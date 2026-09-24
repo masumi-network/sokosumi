@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import {
   CalendarSourceType,
   type Prisma,
+  SocialPostStatus,
   TaskScheduleOccurrenceState,
   TaskStatus,
 } from "@sokosumi/database";
@@ -10,6 +11,7 @@ import { parseTaskScheduleMetadata } from "@sokosumi/utils";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { badRequest, notFound } from "@/helpers/error";
+import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import { CALENDAR_OCCURRENCE_HORIZON_MS } from "@/helpers/task-schedule-occurrence-index";
 import {
   buildHumanTaskVisibilityWhere,
@@ -22,6 +24,8 @@ import {
 import prisma from "@/lib/db/prisma";
 import { type AuthenticationContext } from "@/middleware/auth";
 import {
+  socialPostCalendarItemSchema,
+  workspaceCalendarEntrySchema,
   workspaceCalendarItemSchema,
   workspaceCalendarQuerySchema,
 } from "@/schemas/workspace-calendar.schema";
@@ -32,6 +36,8 @@ interface CalendarCursor {
 }
 
 export interface WorkspaceCalendarReadQuery {
+  includeSocialPosts?: boolean;
+  agendaOnly?: boolean;
   assigneeId?: string;
   assigneeUserId?: string;
   from: Date;
@@ -143,6 +149,8 @@ export function parseWorkspaceCalendarQuery(
 ): WorkspaceCalendarReadQuery {
   const { from, to } = validateRange(query.from, query.to);
   return {
+    includeSocialPosts: query.includeSocialPosts === "true",
+    agendaOnly: query.agendaOnly === "true",
     assigneeId: query.assigneeId,
     assigneeUserId: query.assigneeUserId,
     from,
@@ -364,15 +372,104 @@ export async function readWorkspaceCalendar(
         timeAccuracy: occurrence.timeAccuracy,
       });
     });
-  const page = persistedItems.slice(0, query.limit);
-  const hasMore = persistedItems.length > page.length;
+  const includePosts =
+    query.includeSocialPosts &&
+    !options.sourceId &&
+    !query.assigneeId &&
+    !query.assigneeUserId &&
+    !query.status;
+  const socialBaseWhere: Prisma.SocialPostWhereInput = {
+    workspaceId,
+    ...(options.projectId ? { projectId: options.projectId } : {}),
+    ...(query.scope === "owned" ? { scheduledByUserId: userId } : {}),
+    // The agenda view shows only what is still to come: a scheduled or
+    // publishing post whose `scheduledAt` is today or later (the `from` bound
+    // below). Everything else is history the agenda would filter out anyway.
+    ...(query.agendaOnly
+      ? {
+          status: {
+            in: [SocialPostStatus.SCHEDULED, SocialPostStatus.PUBLISHING],
+          },
+        }
+      : { status: { not: "DRAFT" } }),
+    scheduledAt: { gte: from, lt: to },
+  };
+  const socialCursor: Prisma.SocialPostWhereInput = cursor
+    ? {
+        OR: [
+          { scheduledAt: { gt: new Date(cursor.scheduledAt) } },
+          {
+            scheduledAt: new Date(cursor.scheduledAt),
+            ...(cursor.id.startsWith("social:")
+              ? { id: { gt: cursor.id.slice(7) } }
+              : {}),
+          },
+        ],
+      }
+    : {};
+  const [posts, postCount] = includePosts
+    ? await Promise.all([
+        prisma.socialPost.findMany({
+          where: { ...socialBaseWhere, ...socialCursor },
+          take: maxCandidates,
+          orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
+          select: {
+            id: true,
+            text: true,
+            status: true,
+            scheduledAt: true,
+            projectId: true,
+            workspaceId: true,
+            socialConnection: { select: { externalHandle: true } },
+            project: { select: { name: true } },
+            scheduledByUser: { select: { name: true, image: true } },
+            // `media: true` returns the whole Json blob just to count its refs.
+            // Prisma cannot project `json_array_length(media)` into this select,
+            // so the payload is the price of a single bounded query per page
+            // (limit + 1 posts) rather than an N+1 per-post count.
+            media: true,
+          },
+        }),
+        prisma.socialPost.count({ where: socialBaseWhere }),
+      ])
+    : [[], 0];
+  const socialItems = posts.map((post) =>
+    socialPostCalendarItemSchema.parse({
+      kind: "socialPost",
+      id: `social:${post.id}`,
+      postId: post.id,
+      text: post.text,
+      status: post.status,
+      externalHandle: post.socialConnection?.externalHandle ?? null,
+      projectName: post.project.name,
+      scheduledByName: post.scheduledByUser?.name ?? null,
+      scheduledByImage: post.scheduledByUser?.image ?? null,
+      attachmentCount: parseSocialPostMedia(post.media, post.id).length,
+      scheduledAt: post.scheduledAt?.toISOString(),
+      sourceId: `project:${post.projectId}`,
+      sourceProjectId: post.projectId,
+      sourceWorkspaceId: post.workspaceId,
+      sourceType: "PROJECT",
+    }),
+  );
+  const merged: z.infer<typeof workspaceCalendarEntrySchema>[] = [
+    ...persistedItems,
+    ...socialItems,
+  ];
+  merged.sort(
+    (a, b) =>
+      a.scheduledAt.localeCompare(b.scheduledAt) ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
+  const page = merged.slice(0, query.limit);
+  const hasMore = merged.length > page.length;
 
   return {
     items: page,
     pagination: {
       cursor: query.requestedCursor,
       limit: query.limit,
-      total: persistedOccurrenceCount,
+      total: persistedOccurrenceCount + postCount,
       nextCursor: hasMore
         ? encodeCursor({
             id: page[page.length - 1]!.id,
