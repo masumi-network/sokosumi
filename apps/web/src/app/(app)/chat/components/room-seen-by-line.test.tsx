@@ -199,6 +199,13 @@ describe("RoomSeenByLine", () => {
     expect(trigger).not.toBeNull();
     await user.click(trigger as HTMLElement);
 
+    // Pinned above the faces: left to Radix it opened below, then flipped
+    // above as soon as the not-yet rows made it too tall.
+    expect(await screen.findByTestId("room-seen-by-detail")).toHaveAttribute(
+      "data-side",
+      "top",
+    );
+
     const readers = await screen.findAllByTestId(/^room-seen-by-reader-/);
     expect(readers.map((row) => row.getAttribute("data-testid"))).toEqual([
       "room-seen-by-reader-user-a",
@@ -238,14 +245,22 @@ describe("RoomSeenByLine", () => {
       screen.queryByTestId("room-seen-by-pending-user-lagging"),
     ).not.toBeInTheDocument();
 
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
     await user.click(toggle);
 
     // The rows replace the summary rather than opening under it, and take
-    // the focus the vanished button held.
+    // the focus the vanished button held — without scrolling the readers
+    // out of view.
     expect(toggle).not.toBeInTheDocument();
     const lagging = screen.getByTestId("room-seen-by-pending-user-lagging");
     expect(lagging).toBeInTheDocument();
-    expect(lagging.closest("ul")).toHaveFocus();
+    const list = lagging.closest("ul");
+    expect(list).toHaveFocus();
+    expect(focus.mock.contexts).toContain(list);
+    expect(
+      focus.mock.calls[focus.mock.contexts.indexOf(list as HTMLElement)],
+    ).toEqual([{ preventScroll: true }]);
+    focus.mockRestore();
     expect(
       screen.getByTestId("room-seen-by-pending-user-never"),
     ).toBeInTheDocument();

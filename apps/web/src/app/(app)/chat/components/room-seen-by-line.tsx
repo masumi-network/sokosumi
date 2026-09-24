@@ -136,9 +136,13 @@ function SeenByDetail({
   );
 }
 
-/** Stable, so a live receipt re-render does not pull focus back each time. */
+/**
+ * Stable, so a live receipt re-render does not pull focus back each time.
+ * `preventScroll`: a plain focus scrolls the popover to the list and pushes
+ * the readers out of view.
+ */
 function focusOnMount(element: HTMLElement | null) {
-  element?.focus();
+  element?.focus({ preventScroll: true });
 }
 
 /**
@@ -275,6 +279,11 @@ export function RoomSeenByLine({ readers, receipts }: RoomSeenByLineProps) {
         </button>
       </PopoverTrigger>
       <PopoverContent
+        // Always above. Left to choose, Radix opens it below the faces while
+        // the folded popover fits over the composer, then flips it above
+        // the moment the not-yet rows no longer fit. Above, it only grows
+        // upward from the faces.
+        side="top"
         align="end"
         className="w-56 p-1"
         data-testid="room-seen-by-detail"
