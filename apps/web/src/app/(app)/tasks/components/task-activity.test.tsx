@@ -1130,7 +1130,7 @@ describe("TaskActivitySection", () => {
       { id: "user-2", name: "Ada" },
     ];
 
-    it("offers workspace members, including the viewer, in the @ picker", () => {
+    it("offers workspace members, excluding the viewer, in the @ picker", () => {
       render(
         <TaskActivitySection
           {...baseProps}
@@ -1141,8 +1141,28 @@ describe("TaskActivitySection", () => {
 
       expect(markdownEditorProps.current?.mentions).toMatchObject({
         "agent-1": { value: "Writer" },
-        "user-1": { value: "User" },
         "user-2": { value: "Ada" },
+      });
+      expect(markdownEditorProps.current?.mentions).not.toHaveProperty(
+        "user-1",
+      );
+    });
+
+    it("does not send the viewer when they @ themselves", async () => {
+      createTaskCommentMock.mockResolvedValue(undefined);
+      render(<TaskActivitySection {...baseProps} mentionableUsers={members} />);
+
+      act(() => {
+        markdownEditorProps.current?.onChange("joining @user-1:user");
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() => {
+        expect(createTaskCommentMock).toHaveBeenCalledWith({
+          taskId: "task-1",
+          comment: "joining @user-1:user",
+          mentionedUserIds: [],
+        });
       });
     });
 

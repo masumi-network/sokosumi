@@ -230,25 +230,31 @@ export function TaskActivitySection({
   const [isPending, startTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const { os, isMobile } = useOSDetection();
-  const mentionOptions = useMemo(
-    () => ({
+  // Match chat and Core `excludeUserId`: @ of yourself does not enroll the writer.
+  const viewerId = currentUser?.id;
+  const mentionOptions = useMemo(() => {
+    const humans =
+      viewerId == null
+        ? mentionableUsers
+        : mentionableUsers.filter((user) => user.id !== viewerId);
+    return {
       ...convertAgentNamesToMentionOptions(resolvedAgentNameById),
       ...Object.fromEntries(
-        mentionableUsers.map((user) => [user.id, { value: user.name }]),
+        humans.map((user) => [user.id, { value: user.name }]),
       ),
-    }),
-    [resolvedAgentNameById, mentionableUsers],
-  );
+    };
+  }, [resolvedAgentNameById, mentionableUsers, viewerId]);
   const mentionUserNameById = useMemo(() => {
     const names = new Map<string, string>();
     for (const [id, actor] of Object.entries(userById ?? {})) {
       names.set(id, actor.name);
     }
     for (const user of mentionableUsers) {
+      if (viewerId != null && user.id === viewerId) continue;
       names.set(user.id, user.name);
     }
     return names;
-  }, [userById, mentionableUsers]);
+  }, [userById, mentionableUsers, viewerId]);
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(comment),
     [comment],
@@ -322,7 +328,11 @@ export function TaskActivitySection({
       credits: null,
     };
 
-    const memberIds = new Set(mentionableUsers.map((user) => user.id));
+    const memberIds = new Set(
+      mentionableUsers
+        .filter((user) => viewerId == null || user.id !== viewerId)
+        .map((user) => user.id),
+    );
     const mentionedUserIds = [
       ...new Set(
         parseMentions(trimmedComment)
