@@ -13,7 +13,8 @@ struct SokosumiApp: App {
 
   init() {
     let cooldown = ChatReadCooldown()
-    let workspaces = WorkspaceState(clientProvider: { $0.coreClient(cooldown: cooldown) })
+    // The Unreads filter is remembered per install (row 24f2); tests and previews leave it transient.
+    let workspaces = WorkspaceState(clientProvider: { $0.coreClient(cooldown: cooldown) }, unreadsFilter: .standard)
     // Live room updates over Ably (SOK-976). The state drives the socket;
     // without this factory it stays HTTP-only.
     workspaces.realtimeConnectionFactory = { AblyRealtimeConnection() }
