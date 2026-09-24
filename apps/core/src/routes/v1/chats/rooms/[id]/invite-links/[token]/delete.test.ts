@@ -33,14 +33,10 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoom: { findFirst: roomFindFirstMock },
     organization: { findUnique: organizationFindUniqueMock },
     member: { findUnique: memberFindUniqueMock },
-  },
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  chatRoomGuestInviteLinkRepository: {
-    getInviteLinkByToken: (...args: unknown[]) =>
-      getInviteLinkByTokenMock(...args),
-    revokeInviteLink: (...args: unknown[]) => revokeInviteLinkMock(...args),
+    chatRoomGuestInviteLink: {
+      findUnique: (...args: unknown[]) => getInviteLinkByTokenMock(...args),
+      update: (...args: unknown[]) => revokeInviteLinkMock(...args),
+    },
   },
 }));
 
@@ -127,11 +123,10 @@ describe("DELETE /chats/rooms/{id}/invite-links/{token}", () => {
 
     expect(response.status).toBe(200);
     expect(body.data.ok).toBe(true);
-    expect(revokeInviteLinkMock).toHaveBeenCalledWith(
-      LINK_ID,
-      expect.any(Date),
-      expect.anything(),
-    );
+    expect(revokeInviteLinkMock).toHaveBeenCalledWith({
+      where: { id: LINK_ID },
+      data: { revokedAt: expect.any(Date) },
+    });
   });
 
   it("returns 404 when the token belongs to another room", async () => {

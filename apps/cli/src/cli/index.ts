@@ -41,10 +41,8 @@ type ValueOptionName =
   | "limit"
   | "scope"
   | "capability"
-  | "capabilities"
   | "channel"
   | "id"
-  | "q"
   | "metadata-json"
   | "metadata-file"
   | "name"
@@ -86,10 +84,8 @@ interface CliOptions {
   limit?: string;
   scope?: string;
   capability?: CliOptionValue;
-  capabilities?: CliOptionValue;
   channel?: CliOptionValue;
   id?: string;
-  q?: string;
   "metadata-json"?: string;
   "metadata-file"?: string;
   name?: string;
@@ -248,10 +244,8 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "limit",
   "scope",
   "capability",
-  "capabilities",
   "channel",
   "id",
-  "q",
   "metadata-json",
   "metadata-file",
   "name",
