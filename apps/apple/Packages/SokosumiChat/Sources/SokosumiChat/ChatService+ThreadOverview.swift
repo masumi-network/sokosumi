@@ -21,11 +21,13 @@ public extension ChatService {
     }
   }
 
-  func countUnreadThreads(client: Client, roomId: String, organizationSlug: String?) async throws -> Int {
+  /// Web's `listUnreadThreadReplyCountsAction`: every unread Thread in the room with its unread replies, keyed
+  /// by parent message id. A Thread absent from the answer has none for this reader.
+  func listUnreadThreadReplyCounts(client: Client, roomId: String, organizationSlug: String?) async throws -> [String: Int] {
     let response = try await client.getChatsRoomsIdThreadsUnreadCount(.init(path: .init(id: roomId), headers: .init(xOrganizationSlug: organizationSlug)))
     switch response {
     case let .ok(value):
-      return try value.body.json.data.count
+      return try Dictionary(value.body.json.data.threads.map { ($0.parentMessageId, $0.unreadReplyCount) }, uniquingKeysWith: { _, latest in latest })
     case let .unauthorized(value): throw try unauthorized(value.body.json.message)
     case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
     case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)

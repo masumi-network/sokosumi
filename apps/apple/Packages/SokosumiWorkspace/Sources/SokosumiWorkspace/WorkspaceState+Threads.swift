@@ -60,15 +60,31 @@ public extension WorkspaceState {
   internal func syncThreadAttention(auth: AuthState) async {
     guard readAttention.isVisible, !sidebar.showsThreadsView, roomHistoryReadable,
           let client = resolveClient(auth: auth) else { return }
+    let parentId = thread.parent?.id
     do {
       guard try await thread.markLooked(client: client, organizationSlug: selection?.workspace.organizationSlug),
             readAttention.isVisible else { return }
+      clearThreadUnreadReplies { $0 == parentId }
       try await syncRoomAttentionAfterThreadChange(client: client)
     } catch {
       if let error = error as? ChatServiceError {
         signOutIfUnauthorized(error, auth: auth)
       }
     }
+  }
+
+  /// The automatic Look inside the room read reached Core (row 24c): the Thread's reply bar and the Threads
+  /// trigger drop it at once, and the trigger counts again.
+  internal func threadLooked(_ parentMessageId: String?) {
+    clearThreadUnreadReplies { $0 == parentMessageId }
+    threadAttentionRevision += 1
+  }
+
+  /// Web's `clearThreadUnreadReplies`: a Look or Mark all settles the Threads trigger and the transcript's reply
+  /// bars without waiting for the re-read the caller also starts (row 24h, SOK-1151).
+  internal func clearThreadUnreadReplies(where isCleared: (String) -> Bool) {
+    threadOverview.clearUnreadReplies(where: isCleared)
+    transcriptMessages = clearingThreadUnreadReplies(transcriptMessages, where: isCleared)
   }
 
   /// A Look, a mute or Mark all moved this room's thread unread: re-count the Threads trigger and let Core's
