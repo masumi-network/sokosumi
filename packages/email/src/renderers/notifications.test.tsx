@@ -92,6 +92,7 @@ describe("notification emails", () => {
       "authenticationRequired",
       "inputRequired",
       "outOfCredits",
+      "participantAdded",
     ] as const;
 
     for (const reason of reasons) {

@@ -491,7 +491,22 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     runAt: task.runAt ?? null,
     scheduleId: task.scheduleId ?? null,
     workspace: mapWorkspaceSummary(task.workspace),
+    participants: mapTaskParticipants(task),
   };
+}
+
+function mapTaskParticipants(
+  task: TaskListItemWithIncludes | TaskWithIncludes,
+) {
+  const rows = task.participants ?? [];
+  return rows.map((row) => ({
+    user: userSummaryFromLoadedRelation(
+      `Task ${task.id} participant`,
+      row.userId,
+      row.user,
+    ),
+    addedAt: row.createdAt,
+  }));
 }
 
 function mapTaskBase(task: TaskWithIncludes) {

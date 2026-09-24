@@ -89,6 +89,7 @@ model User {
   ownedTaskSchedules      TaskSchedule[]           @relation("TaskScheduleOwner")
   createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorUser")
   assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssigneeUser")
+  taskParticipations      TaskParticipant[]        @relation("TaskParticipantUser")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
   coworkerUsages          CoworkerUsage[]
@@ -2709,6 +2710,9 @@ model Task {
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
 
+  /// Humans added by @ in Task comment activity. Not owner or assignee.
+  participants TaskParticipant[]
+
   projectId String?  @db.Uuid
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
@@ -2834,6 +2838,24 @@ model TaskSchedule {
   @@index([assigneeSokoBotId])
   @@index([assigneeUserId])
   @@map("task_schedule")
+}
+
+/// A workspace member pulled onto a Task by @ in comment activity.
+/// Distinct from Chat Participant. Unique per Task and user. createdAt is join time.
+model TaskParticipant {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("TaskParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId], map: "task_participant_taskId_userId_key")
+  @@index([userId], map: "task_participant_userId_idx")
+  @@index([taskId, createdAt], map: "task_participant_taskId_createdAt_idx")
+  @@map("task_participant")
 }
 
 /// Idempotency ledger for Task Schedule create. A key is scoped to the active

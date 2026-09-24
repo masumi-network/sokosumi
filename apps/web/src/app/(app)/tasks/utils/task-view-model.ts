@@ -184,6 +184,12 @@ export function mapTaskToTaskWithCoworker(
     runAt,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,
+    participants: task.participants.map(({ user }) => ({
+      id: user.id,
+      name: user.name,
+      image: user.image,
+      kind: "user",
+    })),
     share: "share" in task ? (task.share ?? null) : null,
     agents,
     commentsCount:

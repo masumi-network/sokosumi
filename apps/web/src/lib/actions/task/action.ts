@@ -11,6 +11,7 @@ import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
+import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   CoreApiRequestError,
   toCoreApiActionError,
@@ -132,6 +133,13 @@ interface MoveTaskToWorkspaceParameters extends AuthenticatedRequest {
 interface CreateTaskCommentParameters extends AuthenticatedRequest {
   taskId: string;
   comment: string;
+  /** Workspace members @-mentioned in the comment; Core adds them as Task participants. */
+  mentionedUserIds?: string[];
+}
+
+interface RemoveTaskParticipantParameters extends AuthenticatedRequest {
+  taskId: string;
+  userId: string;
 }
 
 interface CreateTaskLinkParameters extends AuthenticatedRequest {
@@ -703,7 +711,7 @@ export const moveTaskToWorkspace = withSession<
 });
 
 export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
-  async ({ taskId, comment }) => {
+  async ({ taskId, comment, mentionedUserIds }) => {
     const trimmedComment = comment.trim();
     if (!trimmedComment) {
       return;
@@ -712,6 +720,7 @@ export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
     try {
       await taskService.createTaskEvent(taskId, {
         comment: trimmedComment,
+        ...(mentionedUserIds?.length ? { mentionedUserIds } : {}),
       });
       revalidatePath("/tasks");
       revalidatePath(`/tasks/${taskId}`);
@@ -724,6 +733,20 @@ export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
     }
   },
 );
+
+export const removeTaskParticipant = withSession<
+  RemoveTaskParticipantParameters,
+  ActionResultDto<{ taskId: string; userId: string }, ActionError>
+>(async ({ taskId, userId }) => {
+  try {
+    await taskService.removeTaskParticipant(taskId, userId);
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${taskId}`);
+  return toActionResult(ok({ taskId, userId }));
+});
 
 export const createTaskLink = withSession<
   CreateTaskLinkParameters,

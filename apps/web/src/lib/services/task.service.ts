@@ -10,6 +10,7 @@ import type {
   TaskEvent,
   TaskLink,
   TaskLinkDeleted,
+  TaskParticipant,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
   WorkspaceCalendarItem,
@@ -72,6 +73,7 @@ interface PatchTaskInput {
 interface CreateTaskEventInput {
   status?: TaskStatus;
   comment?: string;
+  mentionedUserIds?: string[];
 }
 
 interface CreateTaskLinkInput {
@@ -320,6 +322,19 @@ export const taskService = (() => {
     return result.data;
   }
 
+  async function removeTaskParticipant(
+    taskId: string,
+    userId: string,
+  ): Promise<TaskParticipant[]> {
+    const result = await coreClient.deleteTaskParticipant(taskId, userId);
+
+    if (!result.data) {
+      throw new Error("Failed to remove task participant");
+    }
+
+    return result.data.participants;
+  }
+
   async function deleteTask(taskId: string): Promise<Task> {
     const result = await coreClient.deleteTask(taskId);
 
@@ -364,6 +379,7 @@ export const taskService = (() => {
     createTaskLink,
     createTaskEvent,
     deleteTaskLink,
+    removeTaskParticipant,
     moveTaskToWorkspace,
     patchTask,
     listTaskLinks,

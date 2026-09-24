@@ -244,6 +244,7 @@ const archivedTask = {
   runAt: null,
   scheduleId: null,
   selectableStatuses: [],
+  participants: [],
   linksFrom: [],
   linksTo: [],
 };

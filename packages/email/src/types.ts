@@ -79,7 +79,8 @@ export type TaskAttentionReason =
   | "assigned"
   | "authenticationRequired"
   | "inputRequired"
-  | "outOfCredits";
+  | "outOfCredits"
+  | "participantAdded";
 
 interface TaskEmailProps extends NotificationEmailProps {
   /** Whoever the task is waiting on the reader for, or who finished it. */

@@ -223,6 +223,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     runAt: null,
     scheduleId: null,
     selectableStatuses: [],
+    participants: [],
     ...restOverrides,
   };
 }

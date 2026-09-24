@@ -47,7 +47,11 @@ import {
   applyGuardedTaskStatusUpdate,
   chargeTaskCreditsOrMarkOutOfCredits,
 } from "@/helpers/task-event-charge";
-import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
+import {
+  notifyTaskParticipantsAdded,
+  notifyTaskStatusEvent,
+} from "@/helpers/task-notifications";
+import { addTaskParticipantsFromComment } from "@/helpers/task-participants";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -475,16 +479,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           : null;
 
       // Enqueue PENDING task-output files from comment (in-transaction for durability)
+      let addedParticipantUserIds: string[] = [];
       if (comment) {
         await sourceImportService.enqueueTaskOutputsFromMarkdown(
           taskId,
           comment,
           tx,
         );
+        addedParticipantUserIds = await addTaskParticipantsFromComment(tx, {
+          taskId,
+          workspaceId: task.workspaceId,
+          comment,
+          visibility: task.visibility,
+          ownerId: task.ownerId,
+          excludeUserId: actorData.userId,
+          mentionedUserIds: body.mentionedUserIds,
+        });
       }
 
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
+        addedParticipantUserIds,
         userId: task.ownerId,
         organizationId: task.organizationId,
         workspaceId: task.workspaceId,
@@ -507,6 +522,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
     const {
       event,
+      addedParticipantUserIds,
       userId,
       organizationId,
       workspaceId,
@@ -537,7 +553,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (event.status) {
       await deliverCalendarInvalidationsNow(workspaceId);
-      waitUntil(notifyTaskStatusEvent(taskId, event.id, event.status));
+    }
+
+    if (event.status || addedParticipantUserIds.length > 0) {
+      waitUntil(
+        (async () => {
+          if (addedParticipantUserIds.length > 0) {
+            await notifyTaskParticipantsAdded(
+              taskId,
+              event.id,
+              addedParticipantUserIds,
+            );
+          }
+          if (event.status) {
+            await notifyTaskStatusEvent(taskId, event.id, event.status);
+          }
+        })(),
+      );
     }
 
     if (charged) {

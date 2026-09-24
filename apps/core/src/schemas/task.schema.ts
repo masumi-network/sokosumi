@@ -80,6 +80,16 @@ const taskEventActorSokoBotSchema = z
   })
   .openapi("TaskEventActorSokoBot");
 
+export const taskParticipantSchema = z
+  .object({
+    user: userSummarySchema,
+    addedAt: dateTimeSchema.openapi({
+      description: "When the @ mention added this person to the Task.",
+      example: "2026-09-24T12:00:00.000Z",
+    }),
+  })
+  .openapi("TaskParticipant");
+
 export const taskEventActorSchema = z
   .discriminatedUnion("type", [
     taskEventActorUserSchema,
@@ -267,6 +277,11 @@ const taskBaseSchema = z.object({
     description:
       "Discriminated assignee: coworker, workspace member, Soko Bot, or unassigned.",
     example: null,
+  }),
+  participants: z.array(taskParticipantSchema).openapi({
+    description:
+      "Workspace members added by @ in Task comment activity, in join order. Owner and assignee are omitted unless they were mentioned. Empty until someone is mentioned.",
+    example: [],
   }),
   /** @deprecated Marketplace-only. Use `assigneeId` or `assignee`. */
   coworkerId: z.string().nullable().openapi({

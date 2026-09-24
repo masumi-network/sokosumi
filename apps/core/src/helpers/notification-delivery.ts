@@ -43,8 +43,12 @@ export const CHAT_ROOM_BADGE_MESSAGE_KEYS: readonly string[] = [
  * go off. A key added later is an update until it is listed here, which is the
  * safe way round: an unknown key is never louder than the reader asked for.
  */
+export const TASK_PARTICIPANT_ADDED_MESSAGE_KEY =
+  "Notifications.Task.participantAdded";
+
 export const TASK_ATTENTION_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Task.assigned",
+  TASK_PARTICIPANT_ADDED_MESSAGE_KEY,
   TASK_INPUT_REQUIRED_MESSAGE_KEY,
   "Notifications.Task.approvalRequired",
   "Notifications.Task.authenticationRequired",

@@ -127,6 +127,7 @@ describe("toNotificationCategory", () => {
   it("names every key that waits on the reader", () => {
     expect(TASK_ATTENTION_MESSAGE_KEYS).toEqual([
       "Notifications.Task.assigned",
+      "Notifications.Task.participantAdded",
       "Notifications.Task.inputRequired",
       "Notifications.Task.approvalRequired",
       "Notifications.Task.authenticationRequired",

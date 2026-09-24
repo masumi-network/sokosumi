@@ -36,6 +36,7 @@ const {
   resolveEffectiveDesignMdMock,
   requireTaskAssignableCoworkerMock,
   requireTaskAssignableSokoBotMock,
+  requireTaskAssignableUserMock,
   taskCreateMock,
   taskFindUniqueOrThrowMock,
   uploadProjectBriefingFileMock,
@@ -53,6 +54,7 @@ const {
   resolveEffectiveDesignMdMock: vi.fn().mockResolvedValue(null),
   requireTaskAssignableCoworkerMock: vi.fn(),
   requireTaskAssignableSokoBotMock: vi.fn(),
+  requireTaskAssignableUserMock: vi.fn(),
   taskCreateMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
   uploadProjectBriefingFileMock: vi.fn(),
@@ -150,12 +152,14 @@ function buildMapTaskResponse(task: {
     runAt: null,
     scheduleId: null,
     selectableStatuses: [],
+    participants: [],
   };
 }
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
+  requireTaskAssignableUser: requireTaskAssignableUserMock,
 }));
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({
@@ -631,6 +635,61 @@ describe("POST /tasks", () => {
         }),
       }),
     );
+  });
+
+  it("returns no participants when the owner and a human assignee are set", async () => {
+    requireTaskAssignableUserMock.mockResolvedValue(undefined);
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Assigned task",
+        description: null,
+        assigneeUserId: "user_assignee",
+        status: TaskStatus.DRAFT,
+        channel: Channel.SOKOSUMI,
+      }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.data.ownerId).toBe("user_123");
+    expect(body.data.participants).toEqual([]);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          ownerId: "user_123",
+          assigneeUserId: "user_assignee",
+        }),
+      }),
+    );
+    expect(taskCreateMock.mock.calls[0]?.[0].data).not.toHaveProperty(
+      "participants",
+    );
+  });
+
+  it("rejects two assignees", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Ready task",
+        assigneeId: "cow_123",
+        assigneeUserId: "user_123",
+        status: TaskStatus.READY,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("persists PRIVATE visibility in an organization workspace", async () => {

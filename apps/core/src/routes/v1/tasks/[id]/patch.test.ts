@@ -167,6 +167,7 @@ function createTaskApi(projectId: string | null = null) {
     runAt: null,
     scheduleId: null,
     selectableStatuses: [],
+    participants: [],
   };
 }
 
@@ -627,13 +628,21 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     it("notifies when a workspace member becomes the assignee", async () => {
+      const participants = [
+        {
+          user: { id: "user_bob", name: "Bob", image: null },
+          addedAt: "2026-04-02T08:00:00.000Z",
+        },
+      ];
       taskUpdateMock.mockResolvedValue({
         ...createTaskApi(null),
         assigneeUserId: "user_assignee",
+        participants,
       });
-      mapTaskMock.mockImplementation(() => ({
-        ...createTaskApi(null),
-        assigneeUserId: "user_assignee",
+      mapTaskMock.mockImplementation((task) => ({
+        ...createTaskApi(task.projectId),
+        assigneeUserId: task.assigneeUserId,
+        participants: task.participants,
       }));
 
       const app = createApp();
@@ -642,8 +651,13 @@ describe("PATCH /tasks/{id}", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assigneeUserId: "user_assignee" }),
       });
+      const body = await response.json();
 
       expect(response.status).toBe(200);
+      expect(body.data.participants).toEqual(participants);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data).not.toHaveProperty(
+        "participants",
+      );
       expect(requireTaskAssignableUserMock).toHaveBeenCalledWith(
         "user_assignee",
         WORKSPACE_ID,
@@ -653,6 +667,21 @@ describe("PATCH /tasks/{id}", () => {
         "tsk_123",
         "user_assignee",
       );
+    });
+
+    it("rejects two assignees", async () => {
+      const app = createApp();
+      const response = await app.request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assigneeId: "cow_123",
+          assigneeUserId: "user_assignee",
+        }),
+      });
+
+      expect(response.status).toBe(422);
+      expect(taskUpdateMock).not.toHaveBeenCalled();
     });
 
     it("rejects assigning a human teammate to a private Task", async () => {
