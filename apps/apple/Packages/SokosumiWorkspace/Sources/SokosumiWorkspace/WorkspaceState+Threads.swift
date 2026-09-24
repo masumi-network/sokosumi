@@ -144,9 +144,11 @@ public extension WorkspaceState {
                        mentions: ComposerMention.selected(in: content, catalog: composerMentions), quote: quote) { [weak self, weak auth] result in
       guard let self, let auth else { return }
       switch result {
-      case .success:
-        if let parent = thread.parent, let index = transcriptMessages.firstIndex(where: { $0.id == parent.id }) {
-          transcriptMessages[index] = parent
+      case let .success(reply):
+        // Web updates the room row. The open thread's parent is a snapshot, so assigning it would put back
+        // an unread count a Look already cleared, before the unread read has answered.
+        if let parentId = thread.parent?.id, let index = transcriptMessages.firstIndex(where: { $0.id == parentId }) {
+          transcriptMessages[index] = applyingReplyToParentThreadPreview(transcriptMessages[index], reply: reply)
         }
       case let .failure(error):
         if let error = error as? ChatServiceError {

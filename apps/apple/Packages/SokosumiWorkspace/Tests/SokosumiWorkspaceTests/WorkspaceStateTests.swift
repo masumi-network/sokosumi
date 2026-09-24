@@ -3839,4 +3839,28 @@ extension WorkspaceStateTests {
     #expect(shownUnread(state) == [2, 0])
     #expect(transport.remainingStubs == 0)
   }
+
+  /// A Look clears the bar before the unread read answers. The reply must count on that row without putting
+  /// the open thread's earlier unread count back.
+  @Test func ownReplyKeepsTheUnreadALookClearedBeforeTheCountRead() async throws {
+    let replyId = "550e8400-e29b-41d4-a716-446655440099"
+    let reply = createdMessageBody(id: replyId, roomId: Self.muteRoomId, content: "On it")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(Self.muteRootId)\"")
+    let (state, auth, transport) = try await Self.openBars([(201, reply)])
+    #expect(state.threadOverview.unreadReplyCounts == nil && state.directStream.roomId == nil)
+    let parent = try #require(state.transcriptMessages.first { $0.id == Self.muteRootId })
+    #expect(parent.threadUnreadReplyCount == 2 && parent.threadReplyCount == 3)
+    #expect(state.thread.open(parent))
+    state.clearThreadUnreadReplies { $0 == Self.muteRootId }
+    #expect(state.transcriptMessages.first { $0.id == Self.muteRootId }?.threadUnreadReplyCount == 0)
+    #expect(state.sendThreadReply("On it", auth: auth))
+    for _ in 0 ..< 1000 where state.thread.outbox.isSending {
+      await Task.yield()
+    }
+    let shown = try #require(state.transcriptMessages.first { $0.id == Self.muteRootId })
+    #expect(shown.threadUnreadReplyCount == 0, "A reply must not put back the count a Look cleared.")
+    #expect(shown.threadReplyCount == 4 && shown.threadRepliers?.count == 1)
+    #expect(state.thread.parent?.threadReplyCount == 4)
+    #expect(transport.remainingStubs == 0)
+  }
 }
