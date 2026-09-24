@@ -997,7 +997,7 @@ export const getChatsRoomsByIdThreads = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Count unread threads in a room (Participant-gated `unreadReplyCount`). Cheap count path: returns a count only, no thread items. Same eligibility as `unread=true` and Mark all. Independent of room mark-read.
+ * Unread threads in a room with each one's Participant-gated `unreadReplyCount`, and their count. No parent messages are hydrated. Same eligibility as `unread=true` and Mark all. Independent of room mark-read.
  */
 export const getChatsRoomsByIdThreadsUnreadCount = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdThreadsUnreadCountData, ThrowOnError>): RequestResult<GetChatsRoomsByIdThreadsUnreadCountResponses, GetChatsRoomsByIdThreadsUnreadCountErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdThreadsUnreadCountResponses, GetChatsRoomsByIdThreadsUnreadCountErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdThreadsUnreadCountResponseTransformer,
