@@ -893,7 +893,9 @@ export const MarkdownEditor = forwardRef<
   return (
     <div
       className={cn(
-        variant === "document" ? "rounded-none border-0" : "rounded-md border",
+        variant === "document"
+          ? "rounded-none border-0"
+          : "focus-within:border-ring focus-within:ring-ring-halo rounded-md border transition-[color,box-shadow] focus-within:ring-[3px]",
         className,
       )}
       style={style}
@@ -902,7 +904,7 @@ export const MarkdownEditor = forwardRef<
         <div
           role="toolbar"
           aria-label="Format"
-          className="bg-card-background flex items-center gap-0.5 border-b px-2 py-1.5"
+          className="bg-card-background flex flex-wrap items-center gap-0.5 border-b px-2 py-1.5"
         >
           <MarkdownFormatTools
             onBold={handleBold}

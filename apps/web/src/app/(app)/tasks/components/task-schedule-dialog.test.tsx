@@ -75,7 +75,7 @@ const SCHEDULE: TaskSchedule = {
   nextRunAt: new Date("2030-01-14T07:30:00.000Z"),
   revision: 4,
   name: "Weekly report",
-  description: "Summarise the week",
+  description: "**Summarise** the week",
   projectId: null,
   visibility: "PUBLIC",
   assigneeId: "cow_1",
@@ -176,7 +176,7 @@ describe("TaskScheduleDialog", () => {
         scheduleId: SCHEDULE.id,
         expectedRevision: 4,
         name: "Weekly report",
-        description: "Summarise the week",
+        description: "**Summarise** the week",
         assigneeId: "cow_1",
       }),
     );
