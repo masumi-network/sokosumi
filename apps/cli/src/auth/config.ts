@@ -110,10 +110,6 @@ export function sanitizeApiUrl(apiUrl: string): string {
   }
 }
 
-function canonicalApiUrl(apiUrl: string): string {
-  return sanitizeApiUrl(apiUrl);
-}
-
 export function resolveTargetFromApiUrl(apiUrl: string): CliTarget {
   const normalized = trimUrl(apiUrl);
   if (normalized === MAINNET_API_URL) return "mainnet";
@@ -123,7 +119,7 @@ export function resolveTargetFromApiUrl(apiUrl: string): CliTarget {
 
 export function resolveTargetScope(target: CliTarget, apiUrl: string): string {
   if (target !== "custom") return target;
-  return `custom-${Buffer.from(canonicalApiUrl(apiUrl), "utf8").toString("hex")}`;
+  return `custom-${Buffer.from(sanitizeApiUrl(apiUrl), "utf8").toString("hex")}`;
 }
 
 export function targetFromUserApiKey(
@@ -138,6 +134,34 @@ export function targetFromUserApiKey(
     }
   }
   return null;
+}
+
+export function assertApiKeyTarget(
+  apiKey: string,
+  config: CliTargetConfig,
+  targetExplicit: boolean,
+): void {
+  if (/\s/.test(apiKey)) {
+    throw new Error("API key must not contain whitespace");
+  }
+  rejectCoworkerApiKey(apiKey);
+  const detectedTarget = targetFromUserApiKey(apiKey);
+  if (!detectedTarget && !targetExplicit) {
+    throw new Error(
+      "Legacy API keys need an explicit target. Use --preprod or --api-url.",
+    );
+  }
+  if (
+    detectedTarget &&
+    ((config.target === "custom" && targetExplicit) ||
+      (config.target !== "custom" && detectedTarget !== config.target))
+  ) {
+    throw new Error(
+      config.target === "custom" && targetExplicit
+        ? `API key belongs to ${detectedTarget}, but the explicit target is ${config.target}.`
+        : `API key belongs to ${detectedTarget}, but the selected target is ${config.target}`,
+    );
+  }
 }
 
 function resolveAuthBaseUrl(

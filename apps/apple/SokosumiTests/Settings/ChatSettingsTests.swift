@@ -64,8 +64,10 @@
     }
 
     private func sidebarName(_ name: String, count: Int) -> some View {
+      // As the sidebar row draws it (row 24g1): the name truncates before the count at the trailing edge.
       HStack(alignment: .firstTextBaseline, spacing: 6) {
         Text(name).lineLimit(1).fontWeight(.bold)
+        Spacer(minLength: 0)
         RoomUnreadCountLabel(count: count)
       }
     }

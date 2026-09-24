@@ -12,7 +12,7 @@
 
   extension NativeWindowTests {
     /// Web's `resolveRoomAttention` does not know which room is open, so the selected row keeps
-    /// its bold name, mention badge and opt-in count until the room is read, marked read or muted.
+    /// its bold name and its one number (the mention badge here) until the room is read, marked read or muted.
     @MainActor struct OpenRoomAttentionTests {
       private static let openRoomId = "a-open"
 
@@ -46,10 +46,7 @@
       }
 
       private func attention(_ room: Components.Schemas.ChatRoom, in state: WorkspaceState) -> RoomAttention {
-        resolveRoomAttention(
-          unreadCount: room.unreadCount, unreadMentionCount: room.unreadMentionCount, markedUnread: room.markedUnread,
-          isMuted: room.mutedAt != nil, showUnreadCount: state.chatDisplay.showsRoomUnreadCount
-        )
+        resolveRoomAttention(room, showUnreadCount: state.chatDisplay.showsRoomUnreadCount)
       }
 
       /// The real sidebar in a window. `emphasized` asks for the key window with the list as first
@@ -112,8 +109,8 @@
         return (0 ..< count).count { left[$0] != right[$0] }
       }
 
-      /// The selected row carries unread bold, a mention badge and the opt-in count, above an
-      /// unselected row with the same numbers, in light and dark, unemphasized and emphasized.
+      /// The selected row carries unread bold and its mention badge, above an unselected row with the
+      /// same numbers, in light and dark, unemphasized and emphasized.
       @Test(arguments: [false, true], [false, true])
       func rendersAttentionOnTheSelectedRow(dark: Bool, emphasized: Bool) async throws {
         let state = try await workspace(openUnread: 12, openMentions: 3)
@@ -124,7 +121,8 @@
         #expect(state.sidebar.partitioned.external.map(\.id) == [Self.openRoomId, "b-other", "c-read", "e-marked", "d-muted"])
         let open = try #require(state.rooms.first { $0.id == state.selectedRoomId })
         #expect(open.id == Self.openRoomId)
-        #expect(attention(open, in: state) == .init(bold: true, badgeCount: 3, unreadTextCount: 12))
+        // One number per row (SOK-1147, row 24g1): the badge stands alone, so the count preference draws no "12".
+        #expect(attention(open, in: state) == .init(bold: true, badgeCount: 3))
         #expect(attention(open, in: state) == attention(state.rooms[1], in: state))
         #expect(attention(state.rooms[3], in: state) == .init(bold: false, badgeCount: 0))
         #expect(attention(state.rooms[4], in: state) == .init(bold: true, badgeCount: 0))

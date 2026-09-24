@@ -1,10 +1,6 @@
 import type { Result } from "neverthrow";
 
-import type {
-  DesignMdDonePayload,
-  DesignMdJobPayload,
-  DesignMdSubmitInput,
-} from "./schemas.js";
+import type { DesignMdJobPayload, DesignMdSubmitInput } from "./schemas.js";
 
 export interface DesignMdClientConfig {
   apiUrl?: string;
@@ -13,11 +9,6 @@ export interface DesignMdClientConfig {
 }
 
 export interface DesignMdRequestOptions {
-  signal?: AbortSignal;
-}
-
-export interface DesignMdGenerateUntilDoneInput extends DesignMdSubmitInput {
-  pollIntervalMs?: number;
   signal?: AbortSignal;
 }
 
@@ -42,17 +33,11 @@ export interface DesignMdNetworkError {
   message: string;
 }
 
-export interface DesignMdJobFailedError {
-  type: "job_failed";
-  message: string;
-}
-
 export type DesignMdClientError =
   | DesignMdHttpError
   | DesignMdJsonParseError
   | DesignMdSchemaValidationError
-  | DesignMdNetworkError
-  | DesignMdJobFailedError;
+  | DesignMdNetworkError;
 
 export interface DesignMdClient {
   submit(
@@ -63,7 +48,4 @@ export interface DesignMdClient {
     jobId: string,
     options?: DesignMdRequestOptions,
   ): Promise<Result<DesignMdJobPayload, DesignMdClientError>>;
-  generateUntilDone(
-    input: DesignMdGenerateUntilDoneInput,
-  ): Promise<Result<DesignMdDonePayload, DesignMdClientError>>;
 }
