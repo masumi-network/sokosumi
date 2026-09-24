@@ -1,15 +1,19 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
+import { isNotificationCenterView } from "@/contexts/notification-view-storage";
 import { cn } from "@/lib/utils";
 
-// The underline hangs one pixel below the strip, over the strip's own border,
-// so the active tab's line and the list's top edge are one line.
+// The strip's bottom line is an inset shadow rather than a border, because
+// the strip scrolls and a scroller clips whatever hangs into its border. The
+// active tab's underline paints over that line, so the two are one line.
+// The focus ring is inset for the same reason.
 const TRIGGER_CLASS_NAME = cn(
-  "text-muted-foreground hover:text-foreground -mb-px h-auto flex-none rounded-none border-0 border-b-2 border-transparent bg-transparent px-1 pt-2 pb-2.5 text-sm font-medium shadow-none",
+  "text-muted-foreground hover:text-foreground focus-visible:ring-inset h-auto flex-none rounded-none border-0 border-b-2 border-transparent bg-transparent px-1 pt-2 pb-2.5 text-sm font-medium shadow-none",
   "data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none",
   "dark:data-[state=active]:border-primary dark:data-[state=active]:bg-transparent",
 );
@@ -23,7 +27,8 @@ interface NotificationCenterViewFilterProps {
 
 /**
  * The Notification Center's view strip, drawn once and used by both frames:
- * All, Unread or Needs you, with a live count on the two narrowed views. A
+ * All, Unread, Needs you or Mentions, with a live count on the narrowed
+ * views; Mentions counts the mentions still unread. A
  * lens, not a write: switching refetches under the new view and never marks
  * anything read.
  *
@@ -42,12 +47,23 @@ export function NotificationCenterViewFilter({
   className,
 }: NotificationCenterViewFilterProps) {
   const t = useTranslations("Components.NotificationCenter");
-  const { view, setView, unreadCount, needsActionCount } = useNotifications();
+  const { view, setView, unreadCount, needsActionCount, mentionsCount } =
+    useNotifications();
   const { notice } = useAccountNotice();
   const needsYouCount = needsActionCount + (notice !== null ? 1 : 0);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Four labels do not fit the bell panel in every locale, so the strip
+  // scrolls. A view chosen by click or restored on load must not sit past
+  // the edge.
+  useEffect(() => {
+    listRef.current
+      ?.querySelector<HTMLElement>('[data-state="active"]')
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [view]);
 
   function handleValueChange(next: string): void {
-    if (next === "all" || next === "unread" || next === "needs-action") {
+    if (isNotificationCenterView(next)) {
       setView(next);
     }
   }
@@ -55,8 +71,9 @@ export function NotificationCenterViewFilter({
   return (
     <Tabs value={view} onValueChange={handleValueChange} className={className}>
       <TabsList
+        ref={listRef}
         aria-label={t("filterLabel")}
-        className="border-border h-auto w-full justify-start gap-4 rounded-none border-b bg-transparent p-0 px-4"
+        className="shadow-border h-auto w-full justify-start gap-4 overflow-x-auto rounded-none bg-transparent p-0 px-4 shadow-[inset_0_-1px_0] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <TabsTrigger value="all" className={TRIGGER_CLASS_NAME}>
           {t("filterAll")}
@@ -71,6 +88,12 @@ export function NotificationCenterViewFilter({
           {t("filterNeedsYou")}
           {needsYouCount > 0 ? (
             <span className={COUNT_CLASS_NAME}>{needsYouCount}</span>
+          ) : null}
+        </TabsTrigger>
+        <TabsTrigger value="mentions" className={TRIGGER_CLASS_NAME}>
+          {t("filterMentions")}
+          {mentionsCount > 0 ? (
+            <span className={COUNT_CLASS_NAME}>{mentionsCount}</span>
           ) : null}
         </TabsTrigger>
       </TabsList>

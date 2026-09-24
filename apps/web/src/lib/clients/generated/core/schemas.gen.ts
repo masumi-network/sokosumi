@@ -16839,11 +16839,18 @@ export const NotificationCountsSchema = {
             minimum: 0,
             description: 'Number of feed notifications whose request still waits on the reader',
             example: 2
+        },
+        mentions: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of unread feed notifications where someone named the reader',
+            example: 1
         }
     },
     required: [
         'unread',
-        'needsAction'
+        'needsAction',
+        'mentions'
     ]
 } as const;
 

@@ -79,3 +79,16 @@ export const NEEDS_ACTION_MESSAGE_KEYS: readonly string[] = [
 export function isNeedsActionNotification(messageKey: string): boolean {
   return NEEDS_ACTION_MESSAGE_KEYS.includes(messageKey);
 }
+
+/**
+ * Keys the Mentions view holds: rows where someone named the reader. A direct
+ * message is not a mention, so neither it nor its reminder is here.
+ */
+export const MENTION_MESSAGE_KEYS: readonly string[] = [
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+];
+
+export function isMentionNotification(messageKey: string): boolean {
+  return MENTION_MESSAGE_KEYS.includes(messageKey);
+}
