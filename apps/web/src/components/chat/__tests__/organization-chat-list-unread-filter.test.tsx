@@ -3,6 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+  parseChatUnreadsFilterCookieHeader,
+  serializeChatUnreadsFilterCookie,
+} from "@/lib/ui-preferences/chat-unreads-filter";
+
+import {
   createOrganizationChatList,
   emptyListResult,
   harnessPathname,
@@ -109,7 +115,7 @@ describe("OrganizationChatList All unreads filter", () => {
 
   it("says the reader is caught up when nothing is left", async () => {
     listRoomsMock.mockResolvedValue(emptyListResult([readChannel, readDirect]));
-    renderOrganizationChatList({
+    const { container } = renderOrganizationChatList({
       organizationId: "org-1",
       rooms: [readChannel, readDirect],
     });
@@ -123,6 +129,11 @@ describe("OrganizationChatList All unreads filter", () => {
     expect(
       screen.queryByText("App.Channels.UnreadNav.justRead"),
     ).not.toBeInTheDocument();
+    // The empty list stays mounted for the pass, and must not name the
+    // label that is not there.
+    expect(
+      container.querySelector('[data-slot="unread-inbox"]'),
+    ).not.toHaveAttribute("aria-labelledby");
   });
 
   // The open room stays listed so reading it never pulls it away, but it is
@@ -174,6 +185,77 @@ describe("OrganizationChatList All unreads filter", () => {
     await userEvent.click(toggle);
 
     expect(rowLabels()).toEqual(["launch", "design", "general", "room"]);
+  });
+});
+
+// The reader's choice is remembered per browser, so a reload opens where they
+// left off.
+describe("OrganizationChatList remembered Unreads filter", () => {
+  beforeEach(() => {
+    resetOrganizationChatListMocks();
+    listRoomsMock.mockResolvedValue(emptyListResult(rooms));
+  });
+
+  it("opens on the filter when the reader left it on", () => {
+    document.cookie = serializeChatUnreadsFilterCookie(true);
+
+    const { container } = renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms,
+    });
+
+    expect(screen.getByRole("button", { name: "All unreads" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(inboxRows(container)).toEqual(["launch", "design"]);
+  });
+
+  // The mark hides every All list still on the page. Clearing it when this
+  // list agrees would show All on the other one (sidebar and /chat).
+  it("keeps the boot mark while the remembered filter is on", () => {
+    document.cookie = serializeChatUnreadsFilterCookie(true);
+    document.documentElement.setAttribute(
+      CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+      "",
+    );
+
+    renderOrganizationChatList({ organizationId: "org-1", rooms });
+
+    expect(
+      document.documentElement.hasAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE),
+    ).toBe(true);
+  });
+
+  it("drops a boot mark when the filter is already off", () => {
+    document.documentElement.setAttribute(
+      CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+      "",
+    );
+
+    renderOrganizationChatList({ organizationId: "org-1", rooms });
+
+    expect(
+      document.documentElement.hasAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE),
+    ).toBe(false);
+  });
+
+  it("remembers the reader switching it on and off", async () => {
+    renderOrganizationChatList({ organizationId: "org-1", rooms });
+    const toggle = screen.getByRole("button", { name: "All unreads" });
+
+    await userEvent.click(toggle);
+    expect(parseChatUnreadsFilterCookieHeader(document.cookie)).toBe(true);
+
+    document.documentElement.setAttribute(
+      CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+      "",
+    );
+    await userEvent.click(toggle);
+    expect(parseChatUnreadsFilterCookieHeader(document.cookie)).toBe(false);
+    expect(
+      document.documentElement.hasAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE),
+    ).toBe(false);
   });
 });
 

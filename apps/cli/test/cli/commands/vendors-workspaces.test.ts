@@ -10,7 +10,6 @@ function clientWith(response: unknown): CoreHttpClient {
     get: async <T>() => response as T,
     post: async <T>() => ({}) as T,
     patch: async <T>() => ({}) as T,
-    delete: async <T>() => ({}) as T,
   };
 }
 
@@ -71,7 +70,6 @@ test("vendors create posts name and slug then prints admin membership", async ()
       } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runVendorsCommand({
@@ -84,6 +82,17 @@ test("vendors create posts name and slug then prints admin membership", async ()
   assert.deepEqual(output, [
     "Vendor Acme Labs [vendor-new]\nslug: acme-labs\nrole: admin\n",
   ]);
+});
+
+test("vendors me describes an empty membership result", async () => {
+  const output: string[] = [];
+  await runVendorsCommand({
+    client: clientWith({ data: [] }),
+    stdout: { write: (value) => output.push(value) },
+    subcommand: "me",
+  });
+
+  assert.deepEqual(output, ["No vendors found.\n"]);
 });
 
 test("vendors create uses the last repeated option value", async () => {
@@ -102,7 +111,6 @@ test("vendors create uses the last repeated option value", async () => {
       } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
 
   await runVendorsCommand({
@@ -118,7 +126,7 @@ test("vendors create uses the last repeated option value", async () => {
   assert.deepEqual(posted, { name: "Acme Labs", slug: "acme-labs" });
 });
 
-test("TestV79 workspaces JSON allowlists organization identity fields", async () => {
+test("workspaces JSON allowlists organization identity fields", async () => {
   const output: string[] = [];
   await runWorkspacesCommand({
     client: clientWith({
@@ -187,7 +195,7 @@ test("workspaces list describes an empty organization workspace candidate result
   assert.deepEqual(output, ["No organization workspaces found.\n"]);
 });
 
-test("TestV80 direct discovery handlers require explicit subcommands", async () => {
+test("direct discovery handlers require explicit subcommands", async () => {
   const stdout = { write: (_value: string) => {} };
   await assert.rejects(
     runVendorsCommand({ client: clientWith({ data: [] }), stdout }),

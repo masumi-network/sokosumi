@@ -40,7 +40,7 @@ describe("All unreads row under the pointer", () => {
     );
 
     const classes = screen
-      .getByRole("button", { name: /^All unreads/ })
+      .getByRole("button", { name: /^Unreads/ })
       .className.split(/\s+/);
     expect(classes).toContain("hover:bg-primary-quaternary");
     expect(classes).toContain("active:bg-primary-quaternary");

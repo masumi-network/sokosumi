@@ -1,6 +1,7 @@
 import {
   act,
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -263,6 +264,7 @@ afterEach(() => {
   cleanup();
   window.localStorage.clear();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("Notification Center, both frames", () => {
@@ -968,14 +970,33 @@ describe("Notification Center view filter", () => {
       );
       await settle();
 
-      await user.unhover(screen.getByText("mine"));
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 300));
+      const notificationRow = screen
+        .getByText("mine")
+        .closest("[data-slot='notification-row']");
+      if (!notificationRow) {
+        throw new Error("expected the notification row");
+      }
+      // userEvent hangs once timers are fake. pointerout is what React
+      // turns into onPointerLeave, and it has to run now so the fold
+      // timer is the one this advance fires.
+      vi.useFakeTimers({
+        toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
       });
-      expect(screen.getByText("mine")).toBeTruthy();
-      expect(
-        screen.getByRole("button", { name: "markRead: mine" }),
-      ).toBeTruthy();
+      try {
+        fireEvent.pointerOut(notificationRow, {
+          relatedTarget: document.body,
+          pointerType: "mouse",
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(300);
+        });
+        expect(screen.getByText("mine")).toBeTruthy();
+        expect(
+          screen.getByRole("button", { name: "markRead: mine" }),
+        ).toBeTruthy();
+      } finally {
+        vi.useRealTimers();
+      }
     },
   );
 

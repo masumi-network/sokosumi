@@ -172,13 +172,18 @@ describe("RoomSessionComposer typing", () => {
     const editor = await screen.findByRole("textbox");
     await typeInto(editor, "hello");
 
-    await act(async () => {
-      fireEvent.blur(editor);
-      // The editor guards blur behind a short suggestion-dismiss delay.
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    });
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        fireEvent.blur(editor);
+        // The editor guards blur behind a short suggestion-dismiss delay.
+        await vi.advanceTimersByTimeAsync(250);
+      });
 
-    expect(handleStopTypingSpy).toHaveBeenCalled();
+      expect(handleStopTypingSpy).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("stays silent when the toolbar drops in an emoji", async () => {

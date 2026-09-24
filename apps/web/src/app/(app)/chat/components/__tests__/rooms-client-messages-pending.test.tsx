@@ -1,3 +1,4 @@
+import "./rooms-client-harness";
 import {
   act,
   fireEvent,
@@ -7,13 +8,8 @@ import {
 } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  listRoomMessagesAction,
-  sendRoomMessageAction,
-} from "@/app/chat/actions";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
-import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import {
   clearRoomReadOverlays,
   forgetRoomRead,
@@ -35,34 +31,16 @@ import {
 import { RoomCacheProvider } from "../room-cache-provider";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
-import { transcriptViewportSpies } from "./transcript-viewport-stub";
-
-const {
-  mockIsMobileMedia,
+import {
+  listRoomMessagesAction,
+  markOrganizationChatRoomReadAction,
   mockHeaderRoomSlotHost,
-  mockRoomRealtime,
-  mockRouterReplace,
-} = vi.hoisted(() => ({
-  mockRoomRealtime: vi.fn(),
-  mockIsMobileMedia: vi.fn((): boolean | undefined => false),
-  mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
-  mockRouterReplace: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: mockRouterReplace,
-    refresh: vi.fn(),
-  }),
-  usePathname: () => "/chat/rooms/room-1",
-  useSearchParams: () => new URLSearchParams(),
-}));
-
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => "en",
-}));
+  mockIsMobileMedia,
+  mockReplace,
+  sendRoomMessageAction,
+  useChatRoomRealtimeMock,
+} from "./rooms-client-harness";
+import { transcriptViewportSpies } from "./transcript-viewport-stub";
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
   RoomSearchPanel: () => null,
@@ -70,94 +48,6 @@ vi.mock("@/app/chat/components/room-search-panel", () => ({
 
 vi.mock("@/app/chat/components/unread-threads-panel", () => ({
   UnreadThreadsPanel: () => null,
-}));
-
-vi.mock("@/app/chat/components/day-separator", () => ({
-  default: () => null,
-}));
-
-vi.mock("@/hooks/use-is-apple-platform", () => ({
-  default: () => false,
-}));
-
-vi.mock("@/hooks/use-mobile", () => ({
-  MOBILE_BREAKPOINT: 768,
-  useIsMobileMedia: () => mockIsMobileMedia(),
-}));
-
-vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
-  useHeaderRoomSlotHost: () => mockHeaderRoomSlotHost(),
-}));
-
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  useRegisterBreadcrumbOverride: () => undefined,
-}));
-
-vi.mock("@/contexts/lazy-ably-provider", () => ({
-  default: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
-  useChatRoomRealtime: (options: unknown) => mockRoomRealtime(options),
-}));
-
-vi.mock("@/lib/ably/use-room-typing", () => ({
-  useRoomTyping: () => ({
-    typistIds: [],
-    handleComposerChange: () => {},
-    handleStopTyping: () => {},
-  }),
-}));
-
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
-  useSelectedRoomChannelHealth: () => undefined,
-}));
-
-vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
-  useClientLocalCalendarReady: () => true,
-}));
-
-vi.mock(
-  "@/app/chat/components/transcript-viewport",
-  () => import("./transcript-viewport-stub"),
-);
-
-vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
-  readStoredStreamParentMessageId: () => null,
-  useCoworkerDirectRoomStream: () => ({
-    streamOverlayMessages: [],
-    isStreaming: false,
-    activeStreamParentMessageId: null,
-    sendStreamMessage: vi.fn(),
-    consumePendingStreamMessage: vi.fn(),
-  }),
-}));
-
-vi.mock("@/app/chat/actions", () => ({
-  countUnreadThreadsAction: vi.fn(async () => ({
-    ok: true as const,
-    value: 0,
-  })),
-  deleteRoomMessageAction: vi.fn(),
-  editRoomMessageAction: vi.fn(),
-  listRoomMessagesAction: vi.fn(),
-  listThreadMessagesAction: vi.fn(),
-  markThreadReadAction: vi.fn(),
-  retryRoomMentionAction: vi.fn(),
-  sendRoomMessageAction: vi.fn(),
-  setMessageReactionAction: vi.fn(),
-}));
-
-vi.mock("@/components/chat/organization-chat-list.actions", () => ({
-  markOrganizationChatRoomReadAction: vi.fn(async (roomId: string) => ({
-    ok: true as const,
-    value: {
-      id: roomId,
-      unreadCount: 0,
-      unreadMentionCount: 0,
-      markedUnread: false,
-    },
-  })),
 }));
 
 vi.mock("@/components/chat/room-read-overlay", async (importOriginal) => {
@@ -269,25 +159,6 @@ vi.mock("../edit-channel-dialog", () => ({
       />
     </>
   ),
-}));
-
-vi.mock("../chat-participant-hover-card", () => ({
-  ChatParticipantHoverCard: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-}));
-
-vi.mock("@/components/chat/channel-discoverability-icon", () => ({
-  ChannelDiscoverabilityIcon: () => null,
-}));
-
-vi.mock("@/components/chat/live-member-presence-dot", () => ({
-  LiveMemberPresenceDot: () => null,
-  LiveMemberPresenceText: () => null,
-}));
-
-vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
 }));
 
 function channelRoom(): ChatRoom {
@@ -1132,8 +1003,8 @@ describe("retained channel history", () => {
       "fetch",
       vi.fn(() => new Promise<Response>(() => {})),
     );
-    mockRoomRealtime.mockClear();
-    mockRouterReplace.mockClear();
+    useChatRoomRealtimeMock.mockClear();
+    mockReplace.mockClear();
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -1181,7 +1052,7 @@ describe("channel cache access and navigation", () => {
       "fetch",
       vi.fn(() => new Promise<Response>(() => {})),
     );
-    mockRoomRealtime.mockClear();
+    useChatRoomRealtimeMock.mockClear();
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -1373,7 +1244,7 @@ describe("channel cache access and navigation", () => {
     );
     fireEvent.click(screen.getByText("Open B message"));
     expect(await screen.findByText("B retained")).toBeTruthy();
-    expect(mockRouterReplace).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
   it.each(["channel", "direct"] as const)(
@@ -1515,7 +1386,7 @@ describe("channel cache access and navigation", () => {
       { wrapper: CacheWrapper },
     );
     act(() =>
-      mockRoomRealtime.mock.calls.at(-1)![0].onMessage({
+      useChatRoomRealtimeMock.mock.calls.at(-1)![0].onMessage({
         eventType: "update",
         message: sampleMessage("newer realtime edit"),
       }),
@@ -1611,7 +1482,7 @@ describe("channel cache access and navigation", () => {
     );
     fireEvent.click(screen.getByText("loadOlder"));
     act(() =>
-      mockRoomRealtime.mock.calls.at(-1)![0].onMessage({
+      useChatRoomRealtimeMock.mock.calls.at(-1)![0].onMessage({
         eventType: "update",
         message: sampleMessage("newer edit"),
       }),

@@ -13,7 +13,6 @@ function client(paths: string[], response: unknown): CoreHttpClient {
     },
     post: async <T>() => ({}) as T,
     patch: async <T>() => ({}) as T,
-    delete: async <T>() => ({}) as T,
   };
 }
 
@@ -48,7 +47,7 @@ test("vendor and organization workspace services use the current-user Core route
   assert.equal(organizationWorkspaces[0]?.role, "owner");
 });
 
-test("TestV79 vendor discovery preserves membership roles", async () => {
+test("vendor discovery preserves membership roles", async () => {
   const { vendors } = await fetchVendorMemberships(
     client([], {
       data: [
@@ -67,7 +66,7 @@ test("TestV79 vendor discovery preserves membership roles", async () => {
   );
 });
 
-test("TestV79 discovery rejects malformed data and missing identities", async () => {
+test("discovery rejects malformed data and missing identities", async () => {
   await assert.rejects(
     fetchVendorMemberships(client([], { data: null })),
     /vendor response.*array/i,

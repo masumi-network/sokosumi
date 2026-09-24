@@ -16,7 +16,6 @@ function createClient(response: unknown, calls: string[]): CoreHttpClient {
     },
     post: async <T>() => undefined as T,
     patch: async <T>() => undefined as T,
-    delete: async <T>() => undefined as T,
   };
 }
 

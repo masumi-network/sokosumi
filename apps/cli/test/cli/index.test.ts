@@ -76,7 +76,7 @@ test("dispatches auth login and emits token-free JSON", async () => {
   assert.deepEqual(JSON.parse(output.join("")), result);
   assert.doesNotMatch(output.join(""), /access-token|refresh-token/);
 });
-test("TestV43 configured API URL wins over target-coded API-key inference", async () => {
+test("configured API URL wins over target-coded API-key inference", async () => {
   let selectedApiUrl: string | undefined;
   let selectedTarget: string | undefined;
   await runCli([], {
@@ -109,7 +109,6 @@ test("resource commands reject mismatched target API keys before Core requests",
         },
         post: async <T>() => ({}) as T,
         patch: async <T>() => ({}) as T,
-        delete: async <T>() => ({}) as T,
       },
       stdout: { write: () => undefined },
     }),
@@ -118,7 +117,7 @@ test("resource commands reject mismatched target API keys before Core requests",
   assert.equal(requested, false);
 });
 
-test("TestV42 preflight rejects unauthenticated resource commands before Core", async () => {
+test("preflight rejects unauthenticated resource commands before Core", async () => {
   let coreCalls = 0;
   const output: string[] = [];
   const errorMessage =
@@ -140,10 +139,6 @@ test("TestV42 preflight rejects unauthenticated resource commands before Core", 
           coreCalls += 1;
           return {} as T;
         },
-        delete: async <T>() => {
-          coreCalls += 1;
-          return {} as T;
-        },
       },
       stdout: { write: (value) => output.push(value) },
     }),
@@ -154,7 +149,7 @@ test("TestV42 preflight rejects unauthenticated resource commands before Core", 
   assert.deepEqual(JSON.parse(output.join("")), { error: errorMessage });
 });
 
-test("TestV24 preprod auth ignores a hosted mainnet auth URL flag", async () => {
+test("preprod auth ignores a hosted mainnet auth URL flag", async () => {
   let loginRequest: BrowserLoginOptions | undefined;
   await runCli(
     [
@@ -271,6 +266,17 @@ test("parses coworker registration vendor ID", () => {
   ]);
   assert.deepEqual(parsed.options["vendor-id"], "vendor-1");
 });
+
+test("rejects leftover dual-option aliases", () => {
+  assert.throws(
+    () => parseArgv(["coworkers", "list", "--capabilities", "tasks"]),
+    /Unknown option: --capabilities/,
+  );
+  assert.throws(
+    () => parseArgv(["tasks", "list", "--q", "review"]),
+    /Unknown option: --q/,
+  );
+});
 test("parses value options inline before and after positionals", () => {
   const expected = {
     positionals: ["agents", "list"],
@@ -316,7 +322,7 @@ test("rejects inline values for boolean options without echoing them", async () 
   assert.equal(output.join("").includes(secret), false);
 });
 
-test("TestV49 unsupported inline option values are never echoed", async () => {
+test("unsupported inline option values are never echoed", async () => {
   const secret = "soko_mainnet_secret";
   const output: string[] = [];
   await assert.rejects(
@@ -332,7 +338,7 @@ test("TestV49 unsupported inline option values are never echoed", async () => {
   assert.equal(output.join("").includes(secret), false);
 });
 
-test("TestV47 index JSON errors redact credential assignments", async () => {
+test("index JSON errors redact credential assignments", async () => {
   const apiKey = "index-api-key";
   const refreshToken = "index-refresh-token";
   const output: string[] = [];
@@ -347,7 +353,6 @@ test("TestV47 index JSON errors redact credential assignments", async () => {
         },
         post: async <T>() => ({}) as T,
         patch: async <T>() => ({}) as T,
-        delete: async <T>() => ({}) as T,
       },
       stdout: { write: (value) => output.push(value) },
     }),
@@ -420,7 +425,7 @@ test("auth status returns stable non-secret JSON", async () => {
   assert.deepEqual(JSON.parse(output.join("")), result);
 });
 
-test("TestV19 auth status rejected promises emit one redacted JSON error", async () => {
+test("auth status rejected promises emit one redacted JSON error", async () => {
   const secret = "status-secret-token";
   const output: string[] = [];
   const authManager = createTestAuthManager();
@@ -444,7 +449,7 @@ test("TestV19 auth status rejected promises emit one redacted JSON error", async
   assert.equal(output[0].includes(secret), false);
 });
 
-test("TestV59 malformed HOME config emits one redacted JSON error", () => {
+test("malformed HOME config emits one redacted JSON error", () => {
   const secret = "home-secret-token";
   const home = mkdtempSync(join(tmpdir(), `${secret}-`));
   const configPath = join(home, ".sokosumi", "config.json");
@@ -476,7 +481,7 @@ test("TestV59 malformed HOME config emits one redacted JSON error", () => {
   assert.equal(result.stdout.includes(secret), false);
 });
 
-test("TestV44 auth status accepts an untagged key with --preprod", async () => {
+test("auth status accepts an untagged key with --preprod", async () => {
   const output: string[] = [];
   const result = await runCli(["--preprod", "auth", "status", "--json"], {
     env: { SOKOSUMI_API_KEY: "legacy-api-key" },
@@ -491,7 +496,7 @@ test("TestV44 auth status accepts an untagged key with --preprod", async () => {
   assert.deepEqual(JSON.parse(output.join("")), result);
 });
 
-test("TestV44 auth status accepts an untagged key with --api-url", async () => {
+test("auth status accepts an untagged key with --api-url", async () => {
   const output: string[] = [];
   const result = await runCli(
     ["--api-url", "https://api.example.test", "auth", "status", "--json"],
@@ -522,7 +527,6 @@ test("dispatches discover JSON without opening a TUI", async () => {
       get: async <T>() => ({ data: [] }) as T,
       post: async <T>() => ({ data: null }) as T,
       patch: async <T>() => ({ data: null }) as T,
-      delete: async <T>() => ({ data: null }) as T,
     },
     stdout: { write: (value) => output.push(value) },
     tuiFn: async () => {
@@ -563,7 +567,6 @@ test("dispatches new read commands through their exact Core routes", async () =>
         },
         post: async <T>() => ({ data: null }) as T,
         patch: async <T>() => ({ data: null }) as T,
-        delete: async <T>() => ({ data: null }) as T,
       },
       stdout: { write: (value) => output.push(value) },
     });
@@ -604,10 +607,6 @@ test("new read commands reject unauthenticated calls before Core", async () => {
             coreCalls += 1;
             return {} as T;
           },
-          delete: async <T>() => {
-            coreCalls += 1;
-            return {} as T;
-          },
         },
         stdout: { write: (value) => output.push(value) },
       }),
@@ -638,7 +637,6 @@ test("new commands require their exact subcommand and no trailing args", async (
           get: async <T>() => ({}) as T,
           post: async <T>() => ({}) as T,
           patch: async <T>() => ({}) as T,
-          delete: async <T>() => ({}) as T,
         },
         stdout: { write: (value) => output.push(value) },
       }),
@@ -671,7 +669,6 @@ test("dispatches agents list through the injected Core client", async () => {
         }) as T,
       post: async <T>() => ({ data: null }) as T,
       patch: async <T>() => ({ data: null }) as T,
-      delete: async <T>() => ({ data: null }) as T,
     },
     stdout: { write: (value) => output.push(value) },
   });

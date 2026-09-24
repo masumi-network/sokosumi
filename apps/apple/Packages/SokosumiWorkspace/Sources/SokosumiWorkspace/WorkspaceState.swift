@@ -28,6 +28,7 @@ public final class WorkspaceState: ObservableObject {
   var messageNavigationRequest = UUID()
   public let thread = ThreadSession()
   public let threadOverview = RoomThreadOverview()
+  public let crossRoomThreads = CrossRoomThreads()
   @Published public internal(set) var threadAttentionRevision = 0
   public let messageEditing = MessageEditing()
   public let directStream = DirectStreamSession()
@@ -310,6 +311,8 @@ public final class WorkspaceState: ObservableObject {
     selectedRoomId = nil
     stopRealtime()
     clearTranscript()
+    // Parent text from the signed-in reader. The next account must not see it.
+    crossRoomThreads.reset()
   }
 
   /// User picked a room in the sidebar: persist it and open its transcript.
@@ -1096,7 +1099,9 @@ public final class WorkspaceState: ObservableObject {
   }
 
   public func syncReadAttention(auth: AuthState) async {
-    guard let room = rooms.first(where: { $0.id == transcriptRoomId }), let client = resolveClient(auth: auth) else { return }
+    // Behind the Threads view the room is off screen (row 24f1).
+    guard !sidebar.showsThreadsView,
+          let room = rooms.first(where: { $0.id == transcriptRoomId }), let client = resolveClient(auth: auth) else { return }
     do {
       try await readAttention.readIfNeeded(
         room: room,
@@ -1230,6 +1235,7 @@ public final class WorkspaceState: ObservableObject {
     selectedRoomId = nil
     stopRealtime()
     clearTranscript()
+    crossRoomThreads.reset()
     guard let client = resolveClient(auth: auth) else { return }
     do {
       guard let loaded = try await workspaceSession.load(client: client), generation == workspaceGeneration else { return }
@@ -1270,6 +1276,7 @@ public final class WorkspaceState: ObservableObject {
       pendingInvitations.reset()
       readAttention.reset()
       clearTranscript()
+      crossRoomThreads.reset()
       selectedRoomId = nil
       rooms = loaded
       switchError = nil

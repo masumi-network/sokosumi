@@ -8,7 +8,6 @@ function clientWith(response: unknown): CoreHttpClient {
     get: async <T>() => response as T,
     post: async <T>() => response as T,
     patch: async <T>() => response as T,
-    delete: async <T>() => response as T,
   };
 }
 
@@ -31,7 +30,7 @@ test("coworkers list emits JSON and applies search/limit", async () => {
   assert.equal(parsed.coworkers[0].name, "Research");
 });
 
-test("V21: coworkers register emits the Core vendorId request field", async () => {
+test("coworkers register emits the Core vendorId request field", async () => {
   let requestBody: unknown;
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
@@ -52,7 +51,6 @@ test("V21: coworkers register emits the Core vendorId request field", async () =
       } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
 
@@ -79,7 +77,7 @@ test("V21: coworkers register emits the Core vendorId request field", async () =
   assert.deepEqual(parsed.coworker.capabilities, ["tasks"]);
 });
 
-test("V21: coworkers register rejects a missing vendor ID before Core request", async () => {
+test("coworkers register rejects a missing vendor ID before Core request", async () => {
   let postCalled = false;
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
@@ -98,7 +96,6 @@ test("V21: coworkers register rejects a missing vendor ID before Core request", 
       return { data: {} } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
 
   await assert.rejects(
@@ -114,7 +111,7 @@ test("V21: coworkers register rejects a missing vendor ID before Core request", 
   assert.equal(postCalled, false);
 });
 
-test("TestV67 coworkers register blocks when no organization workspace exists", async () => {
+test("coworkers register blocks when no organization workspace exists", async () => {
   let postCalled = false;
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
@@ -126,7 +123,6 @@ test("TestV67 coworkers register blocks when no organization workspace exists", 
       return { data: {} } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
 
   await assert.rejects(
@@ -142,7 +138,7 @@ test("TestV67 coworkers register blocks when no organization workspace exists", 
   assert.equal(postCalled, false);
 });
 
-test("TestV67 coworkers register rejects non-admin Vendor before Core create", async () => {
+test("coworkers register rejects non-admin Vendor before Core create", async () => {
   let postCalled = false;
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
@@ -163,7 +159,6 @@ test("TestV67 coworkers register rejects non-admin Vendor before Core create", a
       return { data: {} } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
 
   await assert.rejects(
@@ -179,7 +174,7 @@ test("TestV67 coworkers register rejects non-admin Vendor before Core create", a
   assert.equal(postCalled, false);
 });
 
-test("TestV67 coworkers register no longer creates a Vendor; requires --vendor-id", async () => {
+test("coworkers register requires --vendor-id and does not create a Vendor", async () => {
   const posts: { path: string; body: unknown }[] = [];
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
@@ -195,7 +190,6 @@ test("TestV67 coworkers register no longer creates a Vendor; requires --vendor-i
       return { data: {} } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
 
   await assert.rejects(
@@ -204,11 +198,7 @@ test("TestV67 coworkers register no longer creates a Vendor; requires --vendor-i
         client,
         stdout: { write() {} },
         subcommand: "register",
-        options: {
-          name: "Ops Agent",
-          "vendor-name": "Acme Labs",
-          "vendor-slug": "acme-labs",
-        },
+        options: { name: "Ops Agent" },
       }),
     /vendor id is required/,
   );
@@ -238,7 +228,6 @@ test("coworkers update patches the coworker and returns it", async () => {
       body = requestBody;
       return { data: { id: "cw-1", name: "Renamed" } } as T;
     },
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runCoworkersCommand({
@@ -307,7 +296,6 @@ test("coworkers api-key mints a key and returns the full token", async () => {
       } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runCoworkersCommand({
@@ -337,7 +325,6 @@ test("coworkers update sends the mapped multi-field payload", async () => {
       body = requestBody;
       return { data: { id: "cw-1", name: "Ops" } } as T;
     },
-    delete: async <T>() => ({ data: {} }) as T,
   };
   await runCoworkersCommand({
     client,
@@ -376,7 +363,6 @@ test("coworkers update omits an empty name", async () => {
       body = requestBody as Record<string, unknown>;
       return { data: { id: "cw-1" } } as T;
     },
-    delete: async <T>() => ({ data: {} }) as T,
   };
   await runCoworkersCommand({
     client,
@@ -431,7 +417,6 @@ test("coworkers register --create-api-key mints and returns the key", async () =
       } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runCoworkersCommand({

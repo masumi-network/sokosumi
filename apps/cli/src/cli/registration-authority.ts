@@ -1,10 +1,8 @@
 import type { OrganizationWorkspace } from "../api/models/organization-workspace.js";
 import type { Vendor } from "../api/models/vendor.js";
 
-/** Web path everyone can open under Developer (default landing). */
 export const WEB_DEVELOPER_DEFAULT_ROUTE = "/developer/oauth-clients";
 
-/** Vendors the developer may register a Coworker under (V67, V79). */
 export function administeredVendors(vendors: readonly Vendor[]): Vendor[] {
   return vendors.filter((vendor) => vendor.role === "admin");
 }
@@ -15,10 +13,6 @@ function trimWebBase(webUrl: string | undefined): string {
     .replace(/\/+$/g, "");
 }
 
-/**
- * How to get an organization workspace before registration.
- * Optional `webUrl` should already be sanitized (no credentials).
- */
 export function describeRegistrationWorkspaceRequirement(
   webUrl?: string,
 ): string {
@@ -47,10 +41,6 @@ export function describeRegistrationAdminVendorRequirement(
   return `Registration requires Vendor role admin. Check memberships under Vendors here or \`sokosumi vendors me\`. Create one with \`sokosumi vendors create --name NAME --slug SLUG\`. Note: creating a Coworker still requires a platform admin. ${developerHome}`;
 }
 
-/**
- * Private registration requires at least one organization workspace (V67).
- * Does not invent a Workspace row; candidates come from `/v1/users/me/organizations`.
- */
 export function requireOrganizationWorkspacesForRegistration(
   workspaces: readonly OrganizationWorkspace[],
   webUrl?: string,
@@ -60,10 +50,6 @@ export function requireOrganizationWorkspacesForRegistration(
   }
 }
 
-/**
- * Registration may use only a Vendor the developer administers.
- * Foreign or non-admin memberships are rejected before Core create.
- */
 export function requireAdministeredVendorForRegistration(
   vendors: readonly Vendor[],
   vendorId: string,

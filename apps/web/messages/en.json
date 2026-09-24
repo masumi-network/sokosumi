@@ -5469,7 +5469,7 @@
       "UnreadNav": {
         "label": "Unread",
         "threads": "Threads",
-        "allUnreads": "All unreads",
+        "allUnreads": "Unreads",
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
         "unreadThreadsCapped": "More than {max} unread threads",
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
@@ -5478,14 +5478,13 @@
         "markAllReadError": "Could not mark everything as read.",
         "caughtUp": "All caught up",
         "allThreads": "All threads",
-        "nothingUnread": "{count, plural, one {Nothing unread in # chat} other {Nothing unread in # chats}}",
         "justRead": "Read just now"
       },
       "ThreadsView": {
         "title": "Threads",
         "listLabel": "Unread threads",
-        "empty": "You’re all caught up",
-        "emptyDescription": "New replies in threads you’re part of show up here.",
+        "empty": "You're all caught up",
+        "emptyDescription": "New replies in threads you're part of show up here.",
         "loadMore": "Show more",
         "loadError": "Could not load unread threads.",
         "retry": "Try again"
@@ -5665,7 +5664,7 @@
         "loadOlder": "Load older threads",
         "groupUnread": "Unread",
         "groupEarlier": "Earlier",
-        "groupUnreadEmpty": "All caught up.",
+        "groupUnreadEmpty": "All caught up",
         "startedBy": "Started by {name}",
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
         "unreadThreadsCapped": "More than {max} unread threads",
@@ -6068,8 +6067,6 @@
       "Chat": {
         "defaultName": "Soko Bot",
         "avatarAlt": "Soko Bot",
-        "legacyDivider": "{count, plural, one {# earlier message imported from your previous assistant} other {# earlier messages imported from your previous assistant}}",
-        "toolSteps": "{count, plural, one {# step} other {# steps}}",
         "answeredIn": "{seconds}s",
         "copy": "Copy",
         "copied": "Copied",

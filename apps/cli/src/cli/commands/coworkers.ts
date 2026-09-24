@@ -76,7 +76,7 @@ async function buildPayload(
   }
   const priority = parseInteger(option(options, "priority"), "--priority");
   if (priority !== undefined) payload.priority = priority;
-  const rawCapabilities = option(options, "capability", "capabilities");
+  const rawCapabilities = option(options, "capability");
   if (rawCapabilities !== undefined)
     payload.capabilities = normalizeCapabilities(rawCapabilities);
   const mergedMetadata = mergeChannels(metadata, channels);
@@ -154,9 +154,7 @@ export async function runCoworkersCommand({
   const command = subcommand || "list";
   if (command === "list") {
     const limit = parsePositiveInteger(option(options, "limit"), "--limit");
-    const capabilities = normalizeCapabilities(
-      option(options, "capability", "capabilities"),
-    );
+    const capabilities = normalizeCapabilities(option(options, "capability"));
     const { coworkers } = await fetchCoworkers(
       client,
       { scope: optionString(options, "scope"), capabilities },

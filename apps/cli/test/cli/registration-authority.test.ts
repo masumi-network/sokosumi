@@ -34,7 +34,7 @@ function workspace(organizationId: string): OrganizationWorkspace {
   };
 }
 
-test("TestV67 administeredVendors keeps only admin memberships", () => {
+test("administeredVendors keeps only admin memberships", () => {
   assert.deepEqual(
     administeredVendors([
       vendor({ id: "v-admin", role: "admin" }),
@@ -45,7 +45,7 @@ test("TestV67 administeredVendors keeps only admin memberships", () => {
   );
 });
 
-test("TestV67 empty organization workspaces block registration", () => {
+test("empty organization workspaces block registration", () => {
   assert.throws(
     () => requireOrganizationWorkspacesForRegistration([]),
     /organization workspace/,
@@ -55,7 +55,7 @@ test("TestV67 empty organization workspaces block registration", () => {
   );
 });
 
-test("TestV67 registration accepts only an administered Vendor", () => {
+test("registration accepts only an administered Vendor", () => {
   const vendors = [
     vendor({ id: "v-admin", role: "admin" }),
     vendor({ id: "v-dev", role: "developer" }),
@@ -74,7 +74,7 @@ test("TestV67 registration accepts only an administered Vendor", () => {
   );
 });
 
-test("TestV86 registration gate copy avoids unsupported Vendor invite guidance", () => {
+test("registration gate copy provides workspace and Vendor setup guidance", () => {
   assert.match(
     describeRegistrationWorkspaceRequirement("https://app.example.test"),
     /workspace switcher/,

@@ -32,17 +32,16 @@ function client(
       calls.push({ method: "PATCH", path, body });
       return response as T;
     },
-    delete: async <T>(path: string) => {
-      calls.push({ method: "DELETE", path });
-      return response as T;
-    },
   };
 }
 
 test("coworker services use Core routes, encode IDs, and repeat capabilities", async () => {
   const calls: Call[] = [];
   const api = client(calls, { data: [{ id: "cow-1" }] });
-  await fetchCoworkers(api, { scope: "owned", capability: ["tasks", "chat"] });
+  await fetchCoworkers(api, {
+    scope: "owned",
+    capabilities: ["tasks", "chat"],
+  });
   await fetchCurrentCoworker(api);
   await createCoworker(api, { name: "  Ops  ", vendorId: "vendor-1" });
   await updateCoworker(api, "cow/1", { caption: "Ops" });

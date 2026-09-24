@@ -40,10 +40,6 @@ export interface DiscoverCommandOptions {
   signal?: AbortSignal;
 }
 
-function errorMessage(reason: unknown): string {
-  return redactErrorMessage(reason);
-}
-
 export async function runDiscoverCommand({
   client,
   config,
@@ -84,19 +80,19 @@ export async function runDiscoverCommand({
     if (agentsResult.status === "rejected") {
       errors.push({
         resource: "agents",
-        message: errorMessage(agentsResult.reason),
+        message: redactErrorMessage(agentsResult.reason),
       });
     }
     if (coworkersResult.status === "rejected") {
       errors.push({
         resource: "coworkers",
-        message: errorMessage(coworkersResult.reason),
+        message: redactErrorMessage(coworkersResult.reason),
       });
     }
     if (jobsResult.status === "rejected") {
       errors.push({
         resource: "jobs",
-        message: errorMessage(jobsResult.reason),
+        message: redactErrorMessage(jobsResult.reason),
       });
     }
     if (errors.length > 0) result.errors = errors;

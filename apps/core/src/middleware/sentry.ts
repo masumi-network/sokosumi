@@ -71,9 +71,9 @@ export function sentryMiddleware(): MiddlewareHandler<{
           op: "http.server",
           name: `${c.req.method} ${routeTemplate}`,
           attributes: {
-            "http.method": c.req.method,
+            "http.request.method": c.req.method,
             "http.route": routeTemplate,
-            "http.url": url,
+            "url.full": url,
             "request.id": c.var.requestId,
           },
         },
@@ -93,12 +93,12 @@ export function sentryMiddleware(): MiddlewareHandler<{
 
             const span = Sentry.getActiveSpan();
             if (span) {
-              span.setAttribute("http.status_code", c.res.status);
+              span.setAttribute("http.response.status_code", c.res.status);
             }
           } catch (error) {
             const span = Sentry.getActiveSpan();
             if (span) {
-              span.setAttribute("http.status_code", 500);
+              span.setAttribute("http.response.status_code", 500);
             }
 
             throw error;

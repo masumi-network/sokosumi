@@ -168,7 +168,7 @@ import SwiftUI
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
             if workspaces.transcriptHasMore {
-              TranscriptBoundaryRow(isGap: false, status: workspaces.timeline.oldestBoundaryStatus) {
+              PageBoundaryRow(copy: .transcript(isGap: false), status: workspaces.timeline.oldestBoundaryStatus) {
                 scrollIntent.readOlder()
                 workspaces.loadOlderMessages(auth: auth)
               }
@@ -193,7 +193,7 @@ import SwiftUI
                 if hasGap {
                   // Web's `useLoadWhenVisible`: the row loads itself once it scrolls into
                   // view; a failure stays on it with Try again, never in the jump alert.
-                  TranscriptBoundaryRow(isGap: true, status: workspaces.timeline.boundaryLoads.status(of: message.id)) {
+                  PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.timeline.boundaryLoads.status(of: message.id)) {
                     workspaces.loadHistoryGap(before: message.id, auth: auth)
                   }
                   .onScrollVisibilityChange(threshold: 0.01) { visible in
