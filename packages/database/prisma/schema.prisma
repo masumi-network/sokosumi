@@ -3635,7 +3635,7 @@ model ChatRoomThreadReadState {
   parentMessageId String          @db.Uuid
   parentMessage   ChatRoomMessage @relation(fields: [parentMessageId], references: [id], onDelete: Cascade)
 
-  lastReadAt DateTime  @default(now())
+  lastReadAt DateTime @default(now())
   /// Null = unmuted. Set to now when the user mutes this thread. A muted
   /// thread stops counting toward room unread and stops writing CHAT
   /// notifications for this user, without changing whether they Participate.
