@@ -94,7 +94,7 @@ export function TaskScheduleCard({
   return (
     <li>
       <Card
-        className="bg-background h-full gap-0 py-0"
+        className="bg-background hover:bg-card-background-hover group relative h-full gap-0 py-0 transition-colors"
         data-testid="schedule-card"
       >
         <CardHeader className="flex items-center justify-between gap-3 px-4 py-3">
@@ -133,8 +133,9 @@ export function TaskScheduleCard({
           <span className="sr-only">{assigneeLabel}</span>
           <div className="flex min-w-0 flex-col gap-1">
             <CardTitle>
+              {/* Stretched over the card, so the whole card opens it. */}
               <Link
-                className="text-foreground line-clamp-2 text-sm font-medium hover:underline"
+                className="text-foreground line-clamp-2 text-sm font-medium outline-none group-hover:underline after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-ring"
                 href={taskSchedulePath(schedule.id)}
                 title={t("openSchedule")}
               >
@@ -153,7 +154,8 @@ export function TaskScheduleCard({
           {schedule.ownerId === currentUserId ? (
             <Button
               aria-label={tActions("edit")}
-              className="-my-2 -mr-2 shrink-0"
+              // Above the stretched link, or the card would swallow the click.
+              className="relative z-10 -my-2 -mr-2 shrink-0"
               onClick={() => setIsEditOpen(true)}
               size="icon"
               variant="ghost"

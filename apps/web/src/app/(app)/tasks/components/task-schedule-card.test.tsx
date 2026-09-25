@@ -166,6 +166,19 @@ describe("TaskScheduleCard", () => {
     );
   });
 
+  it("opens from anywhere on the card, with the edit left clickable", () => {
+    renderCard();
+
+    // One link per card, stretched over it — not a link per element.
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(
+      screen.getByRole("link", { name: "Weekly report" }).className,
+    ).toMatch(/after:inset-0/);
+    expect(screen.getByRole("button", { name: "edit" }).className).toMatch(
+      /z-10/,
+    );
+  });
+
   it("offers no edit to anyone but the owner", () => {
     renderCard({}, { currentUserId: "user_other" });
 
