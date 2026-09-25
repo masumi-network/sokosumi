@@ -16,12 +16,14 @@ const {
   replaceMock,
   searchParamsRef,
   scheduleDialogMock,
+  loadWhenVisibleMock,
 } = vi.hoisted(() => ({
   loadMoreTaskSchedulesMock: vi.fn(),
   projectSwitcherMock: vi.fn(),
   replaceMock: vi.fn(),
   searchParamsRef: { current: new URLSearchParams() },
   scheduleDialogMock: vi.fn(),
+  loadWhenVisibleMock: vi.fn(),
 }));
 
 vi.mock("next-intl", () => ({
@@ -52,6 +54,15 @@ vi.mock("./task-schedule-dialog", () => ({
 
 vi.mock("@/app/tasks/actions", () => ({
   loadMoreTaskSchedules: loadMoreTaskSchedulesMock,
+}));
+
+vi.mock("@/hooks/use-load-when-visible", () => ({
+  useLoadWhenVisible: (
+    _ref: unknown,
+    options: { armed: boolean; boundaryKey: string; onVisible: () => void },
+  ) => {
+    loadWhenVisibleMock(options);
+  },
 }));
 
 const ELENA: CoworkerOption = {
@@ -135,6 +146,7 @@ function renderView(
       selectedState={state}
       canCreate
       canCreatePrivate={false}
+      currentUserId="user_1"
     />,
   );
 }
@@ -179,7 +191,7 @@ describe("TaskSchedulesView", () => {
     const user = userEvent.setup();
     renderView([schedule({})]);
 
-    await user.click(screen.getByRole("radio", { name: "state.PAUSED" }));
+    await user.click(screen.getByRole("tab", { name: "state.PAUSED" }));
 
     expect(replaceMock).toHaveBeenCalledWith("/schedules?scheduleState=PAUSED");
   });
@@ -201,8 +213,11 @@ describe("TaskSchedulesView", () => {
     searchParamsRef.current = new URLSearchParams("scheduleState=ENDED");
     renderView([], { state: "ENDED" });
 
-    expect(screen.getByRole("radio", { name: "state.ENDED" })).toBeChecked();
-    await user.click(screen.getByRole("radio", { name: "filterAll" }));
+    expect(screen.getByRole("tab", { name: "state.ENDED" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await user.click(screen.getByRole("tab", { name: "filterAll" }));
 
     expect(replaceMock).toHaveBeenCalledWith("/schedules");
   });
@@ -251,6 +266,44 @@ describe("TaskSchedulesView", () => {
       await screen.findByRole("link", { name: /Older schedule/ }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "loadMore" })).toBeNull();
+  });
+
+  it("asks for the next page as the end of the grid comes into view", async () => {
+    loadMoreTaskSchedulesMock.mockResolvedValue({
+      schedules: [
+        schedule({
+          id: "01960001-0001-7001-8001-000000000009",
+          name: "Older schedule",
+        }),
+      ],
+      nextCursor: null,
+    });
+    renderView([schedule({})], { nextCursor: "cursor-1" });
+
+    const armed = loadWhenVisibleMock.mock.calls.at(-1)?.[0];
+    expect(armed).toEqual(
+      expect.objectContaining({
+        armed: true,
+        boundaryKey: "01960001-0001-7001-8001-000000000001",
+      }),
+    );
+
+    armed.onVisible();
+
+    expect(
+      await screen.findByRole("link", { name: /Older schedule/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("stops asking on its own once a page fails, and keeps a retry", async () => {
+    const user = userEvent.setup();
+    loadMoreTaskSchedulesMock.mockRejectedValue(new Error("nope"));
+    renderView([schedule({})], { nextCursor: "cursor-1" });
+
+    await user.click(screen.getByRole("button", { name: "loadMore" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("loadMoreError");
+    expect(loadWhenVisibleMock.mock.calls.at(-1)?.[0].armed).toBe(false);
   });
 
   it("scopes the project switcher to the selected project", () => {
