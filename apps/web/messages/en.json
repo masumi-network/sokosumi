@@ -2038,6 +2038,7 @@
         "noNextRun": "No upcoming run",
         "unassigned": "Unassigned",
         "unavailableAssignee": "Unavailable assignee",
+        "workspace": "Workspace",
         "Dialog": {
           "createTitle": "New schedule",
           "editTitle": "Edit schedule",

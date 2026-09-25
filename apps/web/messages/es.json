@@ -2038,6 +2038,7 @@
         "noNextRun": "Sin próxima ejecución",
         "unassigned": "Sin asignar",
         "unavailableAssignee": "Responsable no disponible",
+        "workspace": "Espacio de trabajo",
         "Dialog": {
           "createTitle": "Nueva programación",
           "editTitle": "Editar programación",

@@ -2038,6 +2038,7 @@
         "noNextRun": "Kein anstehender Lauf",
         "unassigned": "Nicht zugewiesen",
         "unavailableAssignee": "Nicht verfügbare Zuständigkeit",
+        "workspace": "Workspace",
         "Dialog": {
           "createTitle": "Neuer Zeitplan",
           "editTitle": "Zeitplan bearbeiten",
