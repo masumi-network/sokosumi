@@ -2,7 +2,7 @@
 
 import { ChevronRight, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import {
@@ -27,22 +27,26 @@ import { HubProjectHeader } from "./variant-hub-project";
  */
 function useScopedWorkspaceProject() {
   const pathname = usePathname();
+  const search = useSearchParams().toString();
+  const url = search ? `${pathname}?${search}` : pathname;
   const scope = useProjectScopeSwitch();
   const scopedProjectId =
     isProjectScopedPath(pathname) || detailPageOf(pathname)
       ? scope.projectId
       : null;
   const selectedProject = useSelectedScopeProject(scopedProjectId);
-  const clearedFrom = useRef<HTMLElement | null>(null);
+  const cleared = useRef<{ opener: HTMLElement; target: string } | null>(null);
 
   // The clear control leaves with the scope, and focus would fall to the page
-  // body. Once the unscoped page commits, hand it to the header instead.
+  // body. Once the clear's page commits, hand it to the header instead. The
+  // next committed page settles the clear: another link the reader followed
+  // first keeps its own focus.
   useEffect(() => {
-    const opener = clearedFrom.current;
-    if (scopedProjectId || !opener) return;
-    clearedFrom.current = null;
-    returnFocusTo(opener)(new Event("focus"));
-  }, [scopedProjectId]);
+    const clear = cleared.current;
+    if (!clear) return;
+    cleared.current = null;
+    if (url === clear.target) returnFocusTo(clear.opener)(new Event("focus"));
+  }, [url]);
 
   if (!scopedProjectId) return null;
   return {
@@ -51,7 +55,7 @@ function useScopedWorkspaceProject() {
     name: selectedProject?.name ?? null,
     logo: selectedProject?.logo ?? null,
     clear: (opener: HTMLElement) => {
-      clearedFrom.current = opener;
+      cleared.current = { opener, target: scope.switchHref(null) };
       scope.select(null);
     },
   };

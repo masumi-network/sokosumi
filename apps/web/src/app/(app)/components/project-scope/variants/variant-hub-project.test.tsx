@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -152,6 +153,23 @@ function renderNav(calendarBeta = true) {
   };
 }
 
+const FADE_WIDTH = 32;
+
+/**
+ * happy-dom applies no Tailwind: give the strip the end scroll padding its
+ * classes set, the width of the fade.
+ */
+function stubStripFade() {
+  const computed = window.getComputedStyle.bind(window);
+  vi.spyOn(window, "getComputedStyle").mockImplementation((element) =>
+    element instanceof HTMLUListElement
+      ? ({
+          scrollPaddingInlineEnd: `${FADE_WIDTH}px`,
+        } as CSSStyleDeclaration)
+      : computed(element),
+  );
+}
+
 /** Every scroll that would move something other than the strip. */
 function spyOnPageScrolls() {
   return [
@@ -227,6 +245,35 @@ describe("HubProjectHeader", () => {
     for (const spy of pageScrolls) expect(spy).not.toHaveBeenCalled();
   });
 
+  it("keeps the current tab clear of the fade while more tabs follow", () => {
+    stubStripFade();
+    mocks.pathname = "/projects/p-1/calendar";
+    const { list, navigate } = renderNav();
+
+    // Calendar ends at 380, and the fade starts 32 before the strip's end.
+    expect(list.scrollLeft).toBe(
+      3 * TAB_PITCH + TAB_WIDTH - (STRIP_WIDTH - FADE_WIDTH),
+    );
+
+    navigate("/projects/p-1/social");
+
+    // Social is the last tab: at the strip's end the fade is gone.
+    expect(list.scrollLeft).toBe(6 * TAB_PITCH + TAB_WIDTH - STRIP_WIDTH);
+  });
+
+  it("brings a keyboard-focused tab out from under the fade", () => {
+    stubStripFade();
+    const { list } = renderNav();
+    expect(list.scrollLeft).toBe(0);
+
+    // Tasks, 100 to 180, is inside the strip but under the fade from 168.
+    act(() => within(list).getByRole("link", { name: "tasks" }).focus());
+
+    expect(list.scrollLeft).toBe(
+      TAB_PITCH + TAB_WIDTH - (STRIP_WIDTH - FADE_WIDTH),
+    );
+  });
+
   it("leaves the page where it was when the Edit modal closes", () => {
     const pageScrolls = spyOnPageScrolls();
     const stripScroll = vi.spyOn(Element.prototype, "scrollTo");
@@ -251,17 +298,24 @@ describe("HubProjectHeader", () => {
   });
 
   it("fades the strip's end only while more tabs sit past it", () => {
-    let resize: () => void = () => {};
+    // Fires only for the elements the component asked to watch.
+    const observed = new Map<Element, () => void>();
     vi.stubGlobal(
       "ResizeObserver",
       class {
+        callback: () => void;
         constructor(callback: () => void) {
-          resize = callback;
+          this.callback = callback;
         }
-        observe() {}
-        disconnect() {}
+        observe(target: Element) {
+          observed.set(target, this.callback);
+        }
+        disconnect() {
+          observed.clear();
+        }
       },
     );
+    const resize = (target: Element) => observed.get(target)?.();
     const { list } = renderNav();
     Object.defineProperty(list, "scrollWidth", { value: 680 });
     Object.defineProperty(list, "clientWidth", {
@@ -277,8 +331,12 @@ describe("HubProjectHeader", () => {
     expect(list).not.toHaveAttribute("data-overflow-end");
 
     list.scrollLeft = 0;
+    fireEvent.scroll(list);
+    expect(list).toHaveAttribute("data-overflow-end");
+
+    // The strip widens to fit every tab: only the resize reports it.
     Object.defineProperty(list, "clientWidth", { value: 680 });
-    resize();
+    act(() => resize(list));
     expect(list).not.toHaveAttribute("data-overflow-end");
   });
 });
@@ -287,12 +345,23 @@ describe("revealDelta", () => {
   const strip = { left: 0, right: 200 };
 
   it.each([
-    ["in view", { left: 100, right: 180 }, 0],
-    ["past the end", { left: 300, right: 380 }, 180],
-    ["before the start", { left: -150, right: -70 }, -150],
-    ["wider than the strip", { left: 50, right: 350 }, 50],
-  ])("scrolls a tab %s by its gap", (_case, tab, delta) => {
-    expect(revealDelta(tab, strip)).toBe(delta);
+    ["in view", { left: 100, right: 180 }, 0, 0],
+    ["past the end", { left: 300, right: 380 }, 0, 180],
+    ["before the start", { left: -150, right: -70 }, 0, -150],
+    ["wider than the strip", { left: 50, right: 350 }, 0, 50],
+    // More tabs follow: the tab's end stops the fade's width short.
+    ["in view, clear of the fade", { left: 60, right: 140 }, 32, 0],
+    ["in view, under the fade", { left: 100, right: 180 }, 32, 12],
+    ["past the end, before more tabs", { left: 300, right: 380 }, 32, 212],
+    [
+      "before the start, before more tabs",
+      { left: -150, right: -70 },
+      32,
+      -150,
+    ],
+    ["wider than the strip less the fade", { left: 50, right: 250 }, 32, 50],
+  ])("scrolls a tab %s by its gap", (_case, tab, endFade, delta) => {
+    expect(revealDelta(tab, strip, endFade)).toBe(delta);
   });
 });
 

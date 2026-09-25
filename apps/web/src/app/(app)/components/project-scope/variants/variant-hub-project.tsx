@@ -27,6 +27,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
 import type { ScopeSlotProps } from "./scope-variants";
@@ -158,13 +159,14 @@ interface Span {
 
 /**
  * How far the strip must scroll to show the tab whole: negative scrolls left,
- * zero leaves it. A tab wider than the strip lines up with its start.
+ * zero leaves it. `endFade` keeps the tab's end that far clear of the strip's
+ * end, out from under the fade. A tab wider than the strip lines up with its
+ * start.
  */
-export function revealDelta(tab: Span, strip: Span): number {
+export function revealDelta(tab: Span, strip: Span, endFade = 0): number {
+  const end = strip.right - endFade;
   if (tab.left < strip.left) return tab.left - strip.left;
-  if (tab.right > strip.right) {
-    return Math.min(tab.right - strip.right, tab.left - strip.left);
-  }
+  if (tab.right > end) return Math.min(tab.right - end, tab.left - strip.left);
   return 0;
 }
 
@@ -176,6 +178,24 @@ export function hasOverflowEnd({
 }: Pick<HTMLElement, "scrollLeft" | "clientWidth" | "scrollWidth">): boolean {
   // A fractional width leaves part of a pixel at the true end.
   return scrollLeft + clientWidth < scrollWidth - 1;
+}
+
+/**
+ * Scrolls the strip alone until the tab shows whole. While more tabs follow,
+ * the fade covers the strip's end, so the tab stops short of it. The fade's
+ * width is the strip's end scroll padding.
+ */
+function revealTab(list: HTMLElement, tab: Element) {
+  const moreTabsFollow = tab.closest("li")?.nextElementSibling != null;
+  const fade = moreTabsFollow
+    ? Number.parseFloat(getComputedStyle(list).scrollPaddingInlineEnd) || 0
+    : 0;
+  const delta = revealDelta(
+    tab.getBoundingClientRect(),
+    list.getBoundingClientRect(),
+    fade,
+  );
+  if (delta !== 0) list.scrollTo({ left: list.scrollLeft + delta });
 }
 
 function HubSectionNav({
@@ -198,16 +218,11 @@ function HubSectionNav({
   useEffect(() => {
     const list = listRef.current;
     const tab = list?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (!list || !tab) return;
-    const delta = revealDelta(
-      tab.getBoundingClientRect(),
-      list.getBoundingClientRect(),
-    );
-    if (delta !== 0) list.scrollTo({ left: list.scrollLeft + delta });
+    if (list && tab) revealTab(list, tab);
   }, [pathname]);
 
   // With no scrollbar, a fade on the right edge is the only sign of more tabs.
-  useEffect(() => {
+  useMountEffect(() => {
     const list = listRef.current;
     if (!list) return;
     const update = () => setOverflowEnd(hasOverflowEnd(list));
@@ -219,7 +234,7 @@ function HubSectionNav({
       list.removeEventListener("scroll", update);
       observer.disconnect();
     };
-  }, []);
+  });
 
   return (
     <nav
@@ -229,7 +244,15 @@ function HubSectionNav({
       <ul
         ref={listRef}
         data-overflow-end={overflowEnd || undefined}
-        className="relative flex gap-4 overflow-x-auto text-sm [scrollbar-width:none] data-overflow-end:[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] [&::-webkit-scrollbar]:hidden"
+        // The browser scrolls a focused tab only once it leaves the strip,
+        // so a tab under the fade stays there. Keyboard focus only: a scroll
+        // under a press would move the tab away before the click lands.
+        onFocus={(event) => {
+          if (event.target.matches(":focus-visible")) {
+            revealTab(event.currentTarget, event.target);
+          }
+        }}
+        className="relative flex scroll-pe-(--strip-fade) gap-4 overflow-x-auto text-sm [--strip-fade:2rem] [scrollbar-width:none] data-overflow-end:[mask-image:linear-gradient(to_right,black_calc(100%-var(--strip-fade)),transparent)] [&::-webkit-scrollbar]:hidden"
       >
         {sections.map((section) => {
           const active = pathname === section.href;

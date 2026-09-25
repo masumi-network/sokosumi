@@ -152,6 +152,41 @@ describe.each(PLACES)("hub %s", (place) => {
     expect(document.activeElement).toBe(home);
   });
 
+  it("leaves focus alone on a later scope end, after a clear landed", async () => {
+    const user = userEvent.setup();
+    const { rerender, home } = renderInHeader(place);
+    await user.click(screen.getByRole("button", { name: "workspaceView" }));
+    mocks.search = "";
+    rerender();
+    expect(document.activeElement).toBe(home);
+    home.blur();
+
+    // Back to the scoped page, then the same unscoped page by another link.
+    mocks.search = "projectId=p-1";
+    rerender();
+    mocks.search = "";
+    rerender();
+
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("leaves focus alone when another link lands before the clear", async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderInHeader(place);
+    await user.click(screen.getByRole("button", { name: "workspaceView" }));
+
+    // The reader followed Chat before /tasks committed.
+    mocks.pathname = "/chat";
+    rerender();
+    expect(document.activeElement).toBe(document.body);
+
+    // The clear's own page, once Chat settled it, moves nothing either.
+    mocks.pathname = "/tasks";
+    mocks.search = "";
+    rerender();
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it("leaves focus alone when the scope ends without a clear", () => {
     const { rerender } = renderInHeader(place);
 
