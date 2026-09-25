@@ -31,6 +31,15 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+const highlightListMessageMock = vi.hoisted(() =>
+  vi.fn((_list: string, _messageId: string) => true),
+);
+
+vi.mock("@/app/chat/utils/room-message-highlight", () => ({
+  highlightListMessage: (list: string, messageId: string) =>
+    highlightListMessageMock(list, messageId),
+}));
+
 vi.mock("next-intl", () => ({
   useTimeZone: () => "UTC",
   useLocale: () => "en",
@@ -41,6 +50,8 @@ vi.mock("next-intl", () => ({
   useTranslations: () => {
     const labels: Record<string, string> = {
       authenticate: "Authenticate",
+      jumpToRecent: "Jump to recent",
+      showOlderComments: "Show {count} older comments",
       "billingCta.upgradePlan": "Get more credits",
       "billingCta.addCredits": "Add credits",
       "billingCta.placeholder":
@@ -76,6 +87,10 @@ vi.mock("next-intl", () => ({
 
       if (key === "actorSokoBotWithOwner") {
         return `${values?.assistant ?? ""} · ${values?.owner ?? ""}`.trim();
+      }
+
+      if (key === "showOlderComments") {
+        return `Show ${values?.count ?? ""} older comments`.trim();
       }
 
       if (
@@ -114,8 +129,13 @@ vi.mock("@/hooks/use-os-detection", () => ({
   }),
 }));
 
-const { createTaskCommentMock, markdownEditorProps } = vi.hoisted(() => ({
+const {
+  createTaskCommentMock,
+  loadOlderTaskActivityEventsMock,
+  markdownEditorProps,
+} = vi.hoisted(() => ({
   createTaskCommentMock: vi.fn(),
+  loadOlderTaskActivityEventsMock: vi.fn(),
   markdownEditorProps: {
     current: null as null | {
       onChange: (value: string) => void;
@@ -126,6 +146,7 @@ const { createTaskCommentMock, markdownEditorProps } = vi.hoisted(() => ({
 
 vi.mock("@/lib/actions/task/action", () => ({
   createTaskComment: createTaskCommentMock,
+  loadOlderTaskActivityEvents: loadOlderTaskActivityEventsMock,
 }));
 
 vi.mock("./markdown-editor", async (importOriginal) => {
@@ -1233,5 +1254,170 @@ describe("TaskActivitySection", () => {
 
       expect(screen.getByText("cc @Ada")).toBeInTheDocument();
     });
+  });
+
+  it("renders events oldest to newest with composer below the list", () => {
+    const events: TaskEvent[] = [
+      createEvent("older", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: null,
+        comment: "First",
+      }),
+      createEvent("newer", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Second",
+      }),
+    ];
+
+    const { container } = render(
+      <TaskActivitySection {...baseProps} events={events} />,
+    );
+
+    const comments = screen.getAllByText(/First|Second/);
+    expect(comments[0]).toHaveTextContent("First");
+    expect(comments[1]).toHaveTextContent("Second");
+
+    const section = container.querySelector("section");
+    expect(section).toBeTruthy();
+    const children = [...(section?.children ?? [])];
+    const listIndex = children.findIndex((el) =>
+      el.hasAttribute("data-chat-message-list"),
+    );
+    const formIndex = children.findIndex((el) => el.tagName === "FORM");
+    expect(listIndex).toBeGreaterThan(-1);
+    expect(formIndex).toBeGreaterThan(listIndex);
+  });
+
+  it("groups comments when commentCount is greater than 5", () => {
+    const events: TaskEvent[] = Array.from({ length: 6 }, (_, i) =>
+      createEvent(`c${i}`, {
+        createdAt: `2026-01-01T0${i}:00:00.000Z`,
+        status: null,
+        comment: `Comment ${i}`,
+      }),
+    );
+
+    render(
+      <TaskActivitySection {...baseProps} events={events} commentCount={6} />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Show 1 older comments" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Comment 0")).not.toBeInTheDocument();
+    expect(screen.getByText("Comment 5")).toBeInTheDocument();
+  });
+
+  it("shows Jump to recent and lands on the latest comment", async () => {
+    highlightListMessageMock.mockReturnValue(true);
+    const events: TaskEvent[] = [
+      createEvent("c1", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: null,
+        comment: "Old",
+      }),
+      createEvent("c2", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Latest",
+      }),
+    ];
+
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={events}
+        latestCommentId="c2"
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Jump to recent" }),
+    );
+
+    expect(highlightListMessageMock).toHaveBeenCalledWith(
+      "task-activity",
+      "c2",
+    );
+  });
+
+  it("hides Jump to recent when there are no comments", () => {
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={[
+          createEvent("status", {
+            createdAt: "2026-01-01T10:00:00.000Z",
+            status: TaskStatus.RUNNING,
+          }),
+        ]}
+        commentCount={0}
+        latestCommentId={null}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Jump to recent" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("loads older Core pages when expanding a comment group", async () => {
+    loadOlderTaskActivityEventsMock.mockResolvedValue({
+      ok: true,
+      value: [
+        createEvent("c0", {
+          createdAt: "2026-01-01T00:00:00.000Z",
+          status: null,
+          comment: "Oldest",
+        }),
+      ],
+    });
+
+    const events: TaskEvent[] = Array.from({ length: 3 }, (_, i) =>
+      createEvent(`c${i + 5}`, {
+        createdAt: `2026-01-01T1${i}:00:00.000Z`,
+        status: null,
+        comment: `Comment ${i + 5}`,
+      }),
+    );
+
+    render(
+      <TaskActivitySection {...baseProps} events={events} commentCount={8} />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Show 5 older comments/ }),
+    );
+
+    await waitFor(() => {
+      expect(loadOlderTaskActivityEventsMock).toHaveBeenCalledWith({
+        taskId: "task-1",
+        untilEventId: "c5",
+      });
+    });
+  });
+
+  it("places auth CTA on the chronologically latest matching event", () => {
+    const events: TaskEvent[] = [
+      createEvent("older-running", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: TaskStatus.RUNNING,
+      }),
+      createEvent("latest-auth", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.AUTHENTICATION_REQUIRED,
+        authenticationUrl: "https://example.com/oauth",
+      }),
+    ];
+
+    const { container } = render(
+      <TaskActivitySection {...baseProps} events={events} />,
+    );
+
+    const authLink = screen.getByRole("link", { name: "Authenticate" });
+    const row = authLink.closest("[data-message-id]");
+    expect(row).toHaveAttribute("data-message-id", "latest-auth");
+    expect(container.querySelectorAll("[data-message-id]").length).toBe(2);
   });
 });

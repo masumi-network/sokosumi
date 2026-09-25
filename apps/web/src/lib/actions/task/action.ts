@@ -19,6 +19,7 @@ import {
 import {
   type CreateTaskContext,
   type Task,
+  type TaskEvent,
   type TaskLink,
   TaskLinkRelation,
   TaskStatus,
@@ -735,6 +736,23 @@ export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
     }
   },
 );
+
+interface LoadOlderTaskActivityEventsParameters extends AuthenticatedRequest {
+  taskId: string;
+  untilEventId: string;
+}
+
+export const loadOlderTaskActivityEvents = withSession<
+  LoadOlderTaskActivityEventsParameters,
+  ActionResultDto<TaskEvent[], ActionError>
+>(async ({ taskId, untilEventId }) => {
+  try {
+    const events = await taskService.listTaskEventsBefore(taskId, untilEventId);
+    return toActionResult(ok(events));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
 
 export const removeTaskParticipant = withSession<
   RemoveTaskParticipantParameters,

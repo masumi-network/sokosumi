@@ -20,12 +20,21 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import { CHAT_MESSAGE_LIST_ATTRIBUTE } from "@/app/chat/chat-message-list";
+import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import {
   getEventActorInfo,
   resolveTaskEventActorKind,
   type TaskActivityActorInfo,
 } from "@/app/tasks/utils/task-activity-actors";
+import {
+  buildTaskActivityFeedItems,
+  getLatestTaskEventId,
+  isLatestMatchingStatusEvent,
+  mergeTaskActivityEvents,
+  TASK_ACTIVITY_MESSAGE_LIST,
+} from "@/app/tasks/utils/task-activity-feed";
 import { getTaskEventChargePresentation } from "@/app/tasks/utils/task-event-charge-presentation";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
@@ -41,7 +50,10 @@ import {
 } from "@/components/ui/file-upload";
 import { Separator } from "@/components/ui/separator";
 import { useOSDetection } from "@/hooks/use-os-detection";
-import { createTaskComment } from "@/lib/actions/task/action";
+import {
+  createTaskComment,
+  loadOlderTaskActivityEvents,
+} from "@/lib/actions/task/action";
 import { BlobStatus, Channel, TaskStatus } from "@/lib/clients/generated/core";
 import type {
   TaskEvent,
@@ -90,6 +102,10 @@ interface TaskActivityProps {
   actionCommentedLabel: string;
   actionUpdatedStatusLabel: string;
   events: TaskEvent[];
+  /** Total comment events on the Task (Core meta); drives grouping. */
+  commentCount?: number;
+  /** Newest comment event id from Core meta; Jump to recent target. */
+  latestCommentId?: string | null;
   taskFiles: TaskFile[];
   agentNameById?: Map<string, string>;
   userById?: Record<string, TaskActivityActorInfo>;
@@ -118,10 +134,6 @@ export interface MentionableUser {
 
 const NO_MENTIONABLE_USERS: readonly MentionableUser[] = [];
 const NO_PARTICIPANTS: TaskParticipant[] = [];
-
-function getEventTimestamp(event: TaskEvent): number {
-  return new Date(event.createdAt).getTime();
-}
 
 function isNewOptimisticEventId(id: string): boolean {
   return id.startsWith("optimistic:");
@@ -206,6 +218,8 @@ export function TaskActivitySection({
   actionCommentedLabel,
   actionUpdatedStatusLabel,
   events,
+  commentCount: commentCountProp,
+  latestCommentId: latestCommentIdProp,
   taskFiles,
   agentNameById,
   userById,
@@ -234,7 +248,9 @@ export function TaskActivitySection({
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
   const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
   const [isPending, startTransition] = useTransition();
+  const [, startExpandTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
+  const [commentsExpanded, setCommentsExpanded] = useState(false);
   const { os, isMobile } = useOSDetection();
   // Match chat and Core `excludeUserId`: @ of yourself does not enroll the writer.
   const viewerId = currentUser?.id;
@@ -279,11 +295,29 @@ export function TaskActivitySection({
 
   useEffect(() => abortActiveUploads, [abortActiveUploads]);
 
-  const orderedEvents = useMemo(() => {
-    return [...localEvents].sort(
-      (a, b) => getEventTimestamp(b) - getEventTimestamp(a),
-    );
-  }, [localEvents]);
+  const commentCount =
+    commentCountProp ??
+    localEvents.filter((event) => event.comment != null).length;
+  const latestCommentId =
+    latestCommentIdProp ??
+    [...localEvents]
+      .filter((event) => event.comment != null)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ||
+          b.id.localeCompare(a.id),
+      )[0]?.id ??
+    null;
+  const latestEventId = getLatestTaskEventId(localEvents);
+  const feedItems = useMemo(
+    () =>
+      buildTaskActivityFeedItems(localEvents, {
+        commentCount,
+        commentsExpanded,
+      }),
+    [localEvents, commentCount, commentsExpanded],
+  );
+  const showJumpToRecent = latestCommentId != null;
 
   const trimmedComment = comment.trim();
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
@@ -293,6 +327,66 @@ export function TaskActivitySection({
     trimmedComment.length === 0 ||
     !currentUser?.id ||
     isUploadingAttachments;
+
+  function handleJumpToRecent() {
+    if (!latestCommentId) {
+      return;
+    }
+    if (highlightListMessage(TASK_ACTIVITY_MESSAGE_LIST, latestCommentId)) {
+      return;
+    }
+    startExpandTransition(() => {
+      void (async () => {
+        const oldestLoaded = localEvents[0];
+        if (oldestLoaded) {
+          const result = await loadOlderTaskActivityEvents({
+            taskId,
+            untilEventId: oldestLoaded.id,
+          });
+          if (result.ok) {
+            setLocalEvents((prev) =>
+              mergeTaskActivityEvents(prev, result.value),
+            );
+            setCommentsExpanded(true);
+          }
+        } else {
+          setCommentsExpanded(true);
+        }
+        window.requestAnimationFrame(() => {
+          highlightListMessage(TASK_ACTIVITY_MESSAGE_LIST, latestCommentId);
+        });
+      })();
+    });
+  }
+
+  function handleExpandOlderComments() {
+    if (commentsExpanded) {
+      return;
+    }
+    const oldestLoaded = localEvents[0];
+    const needsOlderPages =
+      oldestLoaded != null &&
+      commentCount >
+        localEvents.filter((event) => event.comment != null).length;
+
+    if (!needsOlderPages) {
+      setCommentsExpanded(true);
+      return;
+    }
+
+    startExpandTransition(() => {
+      void (async () => {
+        const result = await loadOlderTaskActivityEvents({
+          taskId,
+          untilEventId: oldestLoaded.id,
+        });
+        if (result.ok) {
+          setLocalEvents((prev) => mergeTaskActivityEvents(prev, result.value));
+        }
+        setCommentsExpanded(true);
+      })();
+    });
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -347,7 +441,7 @@ export function TaskActivitySection({
       ),
     ];
 
-    setLocalEvents((prev) => [optimisticEvent, ...prev]);
+    setLocalEvents((prev) => [...prev, optimisticEvent]);
     setComment("");
 
     startTransition(() => {
@@ -437,96 +531,42 @@ export function TaskActivitySection({
         />
       </div>
 
-      {canComment ? (
-        <form
-          ref={formRef}
-          onSubmit={handleSubmit}
-          className="border-border rounded-lg border p-3"
-        >
-          <FileUpload
-            value={pendingUploadFiles}
-            onValueChange={setPendingUploadFiles}
-            onAccept={(files) => {
-              void handleAttachFiles(files);
-            }}
-            multiple
+      {showJumpToRecent ? (
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleJumpToRecent}
           >
-            <FileUploadDropzone
-              className="data-dragging:bg-card-background w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
-              onClick={(event) => event.preventDefault()}
-            >
-              <MarkdownEditor
-                ref={markdownEditorRef}
-                placeholder={placeholder}
-                className="border-border bg-senary w-full rounded-lg border"
-                value={comment}
-                onChange={setComment}
-                onSubmitShortcut={() => formRef.current?.requestSubmit()}
-                onAttachClick={() => attachmentTriggerRef.current?.click()}
-                attachLabel={_attachLabel}
-                isAttachmentUploading={isUploadingAttachments}
-                mentions={mentionOptions}
-              />
-              <FileUploadTrigger asChild>
-                <button
-                  ref={attachmentTriggerRef}
-                  type="button"
-                  className="sr-only"
-                  aria-label={_attachLabel}
-                >
-                  {_attachLabel}
-                </button>
-              </FileUploadTrigger>
-            </FileUploadDropzone>
-          </FileUpload>
-          {attachmentUrls.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-3">
-              {attachmentUrls.map((url) => (
-                <FileChipMiniPreviewWithMetadata
-                  key={url}
-                  url={url}
-                  onRemove={() =>
-                    setComment((prev) => removeTaskAttachmentLinks(prev, [url]))
-                  }
-                  removeLabel={t("removeAttachment")}
-                />
-              ))}
-            </div>
-          ) : null}
-          <div className="mt-2 flex items-center gap-3">
-            {!isMobile ? (
-              <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                <span>{t("sendWith")}</span>
-                <div className="flex items-center gap-0.5 opacity-60">
-                  {os === "MacOS" ? (
-                    <Command className="size-3" aria-hidden />
-                  ) : (
-                    <span className="text-xs">{t("ctrl")}</span>
-                  )}
-                  <CornerDownLeft className="size-3" aria-hidden />
-                </div>
-              </div>
-            ) : null}
-            <Button
-              size="icon"
-              className="ml-auto size-7 rounded-full"
-              aria-label={submitLabel}
-              type="submit"
-              disabled={isSubmitDisabled}
-            >
-              {isPending ? (
-                <Loader2 className="size-3.5 animate-spin" aria-hidden />
-              ) : (
-                <ArrowUp className="size-3.5" aria-hidden />
-              )}
-            </Button>
-          </div>
-        </form>
+            {t("jumpToRecent")}
+          </Button>
+        </div>
       ) : null}
 
-      {orderedEvents.length > 0 ? (
-        <div className="space-y-3">
-          {orderedEvents.map((event, index) => {
+      {feedItems.length > 0 ? (
+        <div
+          className="space-y-3"
+          {...{ [CHAT_MESSAGE_LIST_ATTRIBUTE]: TASK_ACTIVITY_MESSAGE_LIST }}
+        >
+          {feedItems.map((item) => {
+            if (item.type === "comment-group") {
+              return (
+                <div key="comment-group" className="flex justify-center py-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground"
+                    onClick={handleExpandOlderComments}
+                  >
+                    {t("showOlderComments", { count: item.hiddenCount })}
+                  </Button>
+                </div>
+              );
+            }
+
+            const event = item.event;
             const actorKind = resolveTaskEventActorKind(event);
             const actorLabel =
               actorKind === "coworker"
@@ -623,11 +663,16 @@ export function TaskActivitySection({
             const shouldShowSecondaryChargeLine =
               chargePresentation.shouldShowSecondaryChargeLine;
             const shouldShowAuthenticateButton =
-              index === 0 &&
-              event.status === TaskStatus.AUTHENTICATION_REQUIRED &&
-              Boolean(event.authenticationUrl);
-            const isOutOfCreditsEvent =
-              index === 0 && event.status === TaskStatus.OUT_OF_CREDITS;
+              isLatestMatchingStatusEvent(
+                event,
+                latestEventId,
+                TaskStatus.AUTHENTICATION_REQUIRED,
+              ) && Boolean(event.authenticationUrl);
+            const isOutOfCreditsEvent = isLatestMatchingStatusEvent(
+              event,
+              latestEventId,
+              TaskStatus.OUT_OF_CREDITS,
+            );
             // Only link to billing when we know the viewer's plan. Unknown
             // (admin / outside workspace) must not pretend the viewer is free.
             const shouldShowBillingButton =
@@ -656,6 +701,7 @@ export function TaskActivitySection({
             const row = (
               <div
                 key={event.id}
+                data-message-id={event.id}
                 className={cn(
                   "rounded-lg pr-3 pl-3",
                   isCardEvent && "bg-card-background border-border border",
@@ -813,6 +859,93 @@ export function TaskActivitySection({
             );
           })}
         </div>
+      ) : null}
+
+      {canComment ? (
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className="border-border rounded-lg border p-3"
+        >
+          <FileUpload
+            value={pendingUploadFiles}
+            onValueChange={setPendingUploadFiles}
+            onAccept={(files) => {
+              void handleAttachFiles(files);
+            }}
+            multiple
+          >
+            <FileUploadDropzone
+              className="data-dragging:bg-card-background w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
+              onClick={(event) => event.preventDefault()}
+            >
+              <MarkdownEditor
+                ref={markdownEditorRef}
+                placeholder={placeholder}
+                className="border-border bg-senary w-full rounded-lg border"
+                value={comment}
+                onChange={setComment}
+                onSubmitShortcut={() => formRef.current?.requestSubmit()}
+                onAttachClick={() => attachmentTriggerRef.current?.click()}
+                attachLabel={_attachLabel}
+                isAttachmentUploading={isUploadingAttachments}
+                mentions={mentionOptions}
+              />
+              <FileUploadTrigger asChild>
+                <button
+                  ref={attachmentTriggerRef}
+                  type="button"
+                  className="sr-only"
+                  aria-label={_attachLabel}
+                >
+                  {_attachLabel}
+                </button>
+              </FileUploadTrigger>
+            </FileUploadDropzone>
+          </FileUpload>
+          {attachmentUrls.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-3">
+              {attachmentUrls.map((url) => (
+                <FileChipMiniPreviewWithMetadata
+                  key={url}
+                  url={url}
+                  onRemove={() =>
+                    setComment((prev) => removeTaskAttachmentLinks(prev, [url]))
+                  }
+                  removeLabel={t("removeAttachment")}
+                />
+              ))}
+            </div>
+          ) : null}
+          <div className="mt-2 flex items-center gap-3">
+            {!isMobile ? (
+              <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                <span>{t("sendWith")}</span>
+                <div className="flex items-center gap-0.5 opacity-60">
+                  {os === "MacOS" ? (
+                    <Command className="size-3" aria-hidden />
+                  ) : (
+                    <span className="text-xs">{t("ctrl")}</span>
+                  )}
+                  <CornerDownLeft className="size-3" aria-hidden />
+                </div>
+              </div>
+            ) : null}
+            <Button
+              size="icon"
+              className="ml-auto size-7 rounded-full"
+              aria-label={submitLabel}
+              type="submit"
+              disabled={isSubmitDisabled}
+            >
+              {isPending ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <ArrowUp className="size-3.5" aria-hidden />
+              )}
+            </Button>
+          </div>
+        </form>
       ) : null}
     </section>
   );

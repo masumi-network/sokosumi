@@ -8,6 +8,7 @@ import type {
   Task,
   TaskActivitySummary,
   TaskEvent,
+  TaskEventsPaginationMetadata,
   TaskLink,
   TaskLinkDeleted,
   TaskParticipant,
@@ -215,6 +216,85 @@ export const taskService = (() => {
     }
   }
 
+  async function listTaskEvents(
+    taskId: string,
+    params: { cursor?: string | null; limit?: number } = {},
+  ): Promise<{
+    events: TaskEvent[];
+    pagination: TaskEventsPaginationMetadata;
+  }> {
+    const result = await coreClient.getTaskEvents(taskId, {
+      cursor: params.cursor ?? undefined,
+      limit: params.limit,
+    });
+
+    return {
+      events: result.data,
+      pagination: result.meta.pagination,
+    };
+  }
+
+  /**
+   * Load every TaskEvent page (oldest → newest) for Activities.
+   */
+  async function listAllTaskEvents(taskId: string): Promise<{
+    events: TaskEvent[];
+    pagination: TaskEventsPaginationMetadata;
+  }> {
+    const events: TaskEvent[] = [];
+    let cursor: string | undefined;
+    let pagination: TaskEventsPaginationMetadata | null = null;
+
+    for (;;) {
+      const page = await listTaskEvents(taskId, {
+        cursor,
+        limit: 100,
+      });
+      events.push(...page.events);
+      pagination = page.pagination;
+      const next = page.pagination.nextCursor;
+      if (!next || next === cursor) {
+        break;
+      }
+      cursor = next;
+    }
+
+    if (!pagination) {
+      throw new Error("Failed to list task events");
+    }
+
+    return { events, pagination };
+  }
+
+  /**
+   * Events strictly before `untilEventId` (ascending), for expanding older comments.
+   */
+  async function listTaskEventsBefore(
+    taskId: string,
+    untilEventId: string,
+  ): Promise<TaskEvent[]> {
+    const older: TaskEvent[] = [];
+    let cursor: string | undefined;
+
+    for (;;) {
+      const page = await listTaskEvents(taskId, {
+        cursor,
+        limit: 100,
+      });
+      for (const event of page.events) {
+        if (event.id === untilEventId) {
+          return older;
+        }
+        older.push(event);
+      }
+      const next = page.pagination.nextCursor;
+      if (!next || next === cursor) {
+        return older;
+      }
+      cursor = next;
+    }
+  }
+
   async function getTaskWorkspace(
     taskId: string,
   ): Promise<TaskWorkspace | null> {
@@ -387,6 +467,9 @@ export const taskService = (() => {
     listTasks,
     getTaskById,
     getTaskWorkspace,
+    listTaskEvents,
+    listAllTaskEvents,
+    listTaskEventsBefore,
     createTask,
     createTaskLink,
     createTaskEvent,
