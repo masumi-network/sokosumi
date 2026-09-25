@@ -1,6 +1,10 @@
 import type { Session } from "@sokosumi/utils";
 import { Suspense } from "react";
 import { ScopeSlot } from "@/app/components/project-scope/variants/scope-slot";
+import {
+  HeaderVariantCrumbs,
+  HeaderVariantTrailing,
+} from "@/app/components/project-scope/variants/variant-header";
 import { ScopeVariantPicker } from "@/app/components/project-scope/variants/variant-picker";
 import BreadcrumbNavigation from "@/components/breadcrumb-navigation/breadcrumb-navigation";
 
@@ -29,7 +33,9 @@ export default function Header({ className, session }: HeaderProps) {
 
       <HeaderCenter>
         <ScopeSlot place="header-center" />
-        <BreadcrumbNavigation className="flex flex-1" />
+        <HeaderVariantCrumbs>
+          <BreadcrumbNavigation className="flex flex-1" />
+        </HeaderVariantCrumbs>
       </HeaderCenter>
       <ScopeSlot place="header-mobile" />
 
@@ -39,7 +45,9 @@ export default function Header({ className, session }: HeaderProps) {
       </Suspense>
 
       <HeaderTrailing>
-        <HeaderProfileSection session={session} />
+        <HeaderVariantTrailing>
+          <HeaderProfileSection session={session} />
+        </HeaderVariantTrailing>
       </HeaderTrailing>
     </HeaderChrome>
   );

@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 
 import type { ScopeSlots } from "./scope-variants";
 import {
+  openScopeCreate,
   openScopeSheet,
   SidebarScopeMobileChip,
   useCurrentScope,
@@ -38,8 +39,7 @@ function SidebarScopeRow() {
   const { isMobile, state, setOpenMobile } = useSidebar();
   const sheetOpen = useScopeSheetOpen();
   const [open, setOpen] = useState(false);
-  const { projectId, name, label, mark, select, openCreate, createDialog } =
-    useCurrentScope();
+  const { projectId, name, label, mark, select } = useCurrentScope();
   const collapsed = state === "collapsed" && !isMobile;
 
   const content = (
@@ -99,7 +99,7 @@ function SidebarScopeRow() {
                   <ProjectScopeMenu
                     selectedProjectId={projectId}
                     onSelect={select}
-                    onCreate={openCreate}
+                    onCreate={openScopeCreate}
                     onDone={() => setOpen(false)}
                   />
                 </PopoverContent>
@@ -109,7 +109,6 @@ function SidebarScopeRow() {
         </SidebarMenu>
       </SidebarGroup>
       <SidebarSeparator />
-      {createDialog}
     </>
   );
 }

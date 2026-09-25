@@ -1,14 +1,20 @@
 "use client";
 
-import { ChevronsUpDown, Layers } from "lucide-react";
+import { ChevronRight, ChevronsUpDown, Layers } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import {
+  type ReactNode,
+  Suspense,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
+import { projectPageSection } from "@/app/components/project-scope/project-scope-href";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { useProjectScopeSwitch } from "@/app/components/project-scope/use-project-scope";
-import { useScopeProjects } from "@/app/components/project-scope/use-scope-projects";
+import { useSelectedScopeProject } from "@/app/components/project-scope/use-scope-projects";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,64 +30,77 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { authClient, useSession } from "@/lib/auth/auth.client";
+import { cn } from "@/lib/utils";
 
 import type { ScopeSlots } from "./scope-variants";
+import { useScopeVariant } from "./use-scope-variant";
+
+/** Tailwind's `sm`: the desktop trail shows from here, the mobile title below. */
+const SM_UP_QUERY = "(min-width: 40rem)";
+
+function subscribeSmUp(onChange: () => void) {
+  const query = window.matchMedia(SM_UP_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+/** False on the server and below `sm`, where the desktop trail is hidden. */
+function useIsSmUp(): boolean {
+  return useSyncExternalStore(
+    subscribeSmUp,
+    () => window.matchMedia(SM_UP_QUERY).matches,
+    () => false,
+  );
+}
 
 /**
  * The active workspace's name, read-only. Switching workspaces stays with the
  * header's workspace switch. Null while the session or the list loads.
  */
 function useWorkspaceName(): string | null {
-  const t = useTranslations("Components.OrganizationSwitcher");
-  const { data: session } = useSession();
-  const { data: organizations } = authClient.useListOrganizations();
-  if (!session) return null;
+  const t = useTranslations("App.ProjectScope");
+  const tSwitcher = useTranslations("Components.OrganizationSwitcher");
+  const { data: session, error: sessionError } = useSession();
+  const { data: organizations, error } = authClient.useListOrganizations();
+  if (!session) return sessionError ? t("workspace") : null;
   const organizationId = session.session.activeOrganizationId ?? null;
   if (!organizationId) {
-    return session.user.name || session.user.email || t("personalAccount");
+    return (
+      session.user.name || session.user.email || tSwitcher("personalAccount")
+    );
   }
-  return (
-    organizations?.find((organization) => organization.id === organizationId)
-      ?.name ?? null
-  );
+  const name = organizations?.find(
+    (organization) => organization.id === organizationId,
+  )?.name;
+  if (name) return name;
+  // A failed list, or one without this workspace yet, still names the crumb.
+  return organizations || error ? t("workspace") : null;
 }
 
 /** The current project, or the workspace view when none is chosen. */
-function ScopeLabel({
-  projectId,
-  nameClassName,
-}: {
-  projectId: string | null;
-  nameClassName: string;
-}) {
+function ScopeLabel({ projectId }: { projectId: string | null }) {
   const t = useTranslations("App.ProjectScope");
-  const { selectedProject } = useScopeProjects({
-    search: "",
-    selectedProjectId: projectId,
-  });
-  const name = projectId ? (selectedProject?.name ?? null) : t("workspaceView");
+  const selectedProject = useSelectedScopeProject(projectId);
+  const name = projectId
+    ? (selectedProject?.name ?? t("label"))
+    : t("workspaceView");
 
   return (
     <>
       {selectedProject ? (
-        <ProjectAvatar
-          name={selectedProject.name}
-          logo={selectedProject.logo}
-          className="size-5 shrink-0"
-        />
+        <span className="flex shrink-0" aria-hidden>
+          <ProjectAvatar
+            name={selectedProject.name}
+            logo={selectedProject.logo}
+            className="size-5"
+          />
+        </span>
       ) : (
         <Layers className="text-muted-foreground size-4 shrink-0" aria-hidden />
       )}
-      {name ? (
-        <span className={nameClassName} title={name}>
-          {name}
-        </span>
-      ) : (
-        <span
-          className="bg-muted h-3 w-16 shrink animate-pulse rounded-md"
-          aria-hidden
-        />
-      )}
+      <span className="min-w-0 truncate" title={name}>
+        {name}
+      </span>
       <ChevronsUpDown
         className="text-muted-foreground size-4 shrink-0"
         aria-hidden
@@ -90,41 +109,74 @@ function ScopeLabel({
   );
 }
 
-function Slash() {
+/** The app breadcrumbs' separator, so the whole trail reads as one. */
+function Separator() {
   return (
-    <span className="text-muted-foreground shrink-0 select-none" aria-hidden>
-      /
-    </span>
+    <ChevronRight
+      className="text-muted-foreground size-3.5 shrink-0"
+      aria-hidden
+    />
   );
 }
 
-/** Desktop (sm+): `<workspace> / <project ▾> /`, then the page breadcrumbs. */
+function WorkspaceCrumbSkeleton() {
+  return (
+    <span
+      className="bg-muted h-3 w-20 shrink-0 animate-pulse rounded-md"
+      aria-hidden
+    />
+  );
+}
+
+const WORKSPACE_CRUMB_CLASS =
+  "text-muted-foreground max-w-40 min-w-6 truncate font-medium";
+
+/** Links out of the project, or stays text when the workspace view is open. */
+function WorkspaceCrumb({ href }: { href: string | null }) {
+  const name = useWorkspaceName();
+  if (!name) return <WorkspaceCrumbSkeleton />;
+  if (!href) {
+    return (
+      <span className={WORKSPACE_CRUMB_CLASS} title={name}>
+        {name}
+      </span>
+    );
+  }
+  return (
+    <Link
+      href={href}
+      className={cn(
+        WORKSPACE_CRUMB_CLASS,
+        "hover:text-foreground focus-visible:ring-ring rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
+      )}
+      title={name}
+    >
+      {name}
+    </Link>
+  );
+}
+
+/** Desktop (sm+): `<workspace> › <project ▾>`. `HeaderTrail` adds the page. */
 function HeaderBreadcrumbScope() {
   const t = useTranslations("App.ProjectScope");
-  const workspaceName = useWorkspaceName();
+  const isSmUp = useIsSmUp();
   const scope = useProjectScopeSwitch();
   const [open, setOpen] = useState(false);
 
   return (
+    // -m-1 p-1: room for focus rings inside the clip.
     <div
-      className="flex min-w-0 shrink items-center gap-1 text-sm"
+      className="-m-1 flex min-w-0 shrink items-center gap-1 overflow-hidden p-1 text-sm"
       data-testid="project-scope-header"
     >
-      {workspaceName ? (
-        <Link
-          href={scope.switchHref(null)}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring max-w-40 truncate rounded-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-hidden"
-          title={workspaceName}
-        >
-          {workspaceName}
-        </Link>
-      ) : (
-        <span
-          className="bg-muted h-3 w-20 shrink-0 animate-pulse rounded-md"
-          aria-hidden
+      {isSmUp ? (
+        <WorkspaceCrumb
+          href={scope.projectId ? scope.switchHref(null) : null}
         />
+      ) : (
+        <WorkspaceCrumbSkeleton />
       )}
-      <Slash />
+      <Separator />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -134,13 +186,10 @@ function HeaderBreadcrumbScope() {
             aria-haspopup="dialog"
             aria-expanded={open}
             data-testid="project-scope-trigger"
-            className="text-foreground min-w-0 max-w-64 justify-start gap-1.5 px-2 font-medium has-[>svg]:px-2"
+            className="text-foreground max-w-64 min-w-16 shrink justify-start gap-1.5 overflow-hidden px-2 font-medium has-[>svg]:px-2"
           >
             <span className="sr-only">{t("switchLabel")}</span>
-            <ScopeLabel
-              projectId={scope.projectId}
-              nameClassName="min-w-0 truncate"
-            />
+            <ScopeLabel projectId={scope.projectId} />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-72 p-0">
@@ -152,9 +201,90 @@ function HeaderBreadcrumbScope() {
           />
         </PopoverContent>
       </Popover>
-      <Slash />
       {scope.createDialog}
     </div>
+  );
+}
+
+/**
+ * What follows the scope: a project page's section, or the page's own
+ * crumbs. Nothing where the scope already names the page.
+ */
+function useTrail(crumbs: ReactNode): ReactNode {
+  const pathname = usePathname();
+  const tBreadcrumb = useTranslations("Components.Breadcrumb");
+  const tScope = useTranslations("App.ProjectScope");
+
+  if (pathname === "/" || pathname === "/projects") return null;
+  const projectSection = projectPageSection(pathname);
+  if (projectSection === null) return crumbs;
+
+  const sections: Record<string, string> = {
+    "/calendar": tBreadcrumb("calendar"),
+    "/social": tScope("social"),
+    "/edit": tBreadcrumb("edit"),
+    "/design-md/edit": tBreadcrumb("editor"),
+  };
+  const section = sections[projectSection];
+  return section ? (
+    <span aria-current="page" className="text-foreground truncate">
+      {section}
+    </span>
+  ) : null;
+}
+
+function HeaderTrail({ crumbs }: { crumbs: ReactNode }) {
+  const trail = useTrail(crumbs);
+  if (!trail) return null;
+
+  return (
+    <div
+      className="-m-1 flex min-w-0 items-center gap-1 overflow-hidden p-1 text-sm whitespace-nowrap [&_ol]:flex-nowrap [&>nav]:min-w-0 [&>nav]:flex-initial"
+      data-testid="project-scope-header-trail"
+    >
+      <Separator />
+      {trail}
+    </div>
+  );
+}
+
+function CrumbsGate({ children }: { children: ReactNode }) {
+  return useScopeVariant() === "header" ? (
+    <HeaderTrail crumbs={children} />
+  ) : (
+    children
+  );
+}
+
+/**
+ * The app header's page crumbs. The header variant folds them into its own
+ * trail; every other variant renders them unchanged.
+ */
+export function HeaderVariantCrumbs({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={children}>
+      <CrumbsGate>{children}</CrumbsGate>
+    </Suspense>
+  );
+}
+
+function TrailingGate({ children }: { children: ReactNode }) {
+  if (useScopeVariant() !== "header") return children;
+  // Below sm the scope title needs the room: the workspace switch keeps its
+  // avatar, and its name stays for screen readers.
+  return (
+    <div className="contents max-sm:[&_[data-testid=header-workspace-chrome]_.max-w-24]:sr-only">
+      {children}
+    </div>
+  );
+}
+
+/** The header's trailing chrome, narrowed for the header variant on mobile. */
+export function HeaderVariantTrailing({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={children}>
+      <TrailingGate>{children}</TrailingGate>
+    </Suspense>
   );
 }
 
@@ -182,10 +312,7 @@ function HeaderMobileScope() {
             className="text-foreground min-w-0 flex-1 justify-start gap-1.5 overflow-hidden px-2 font-medium has-[>svg]:px-2 sm:hidden"
           >
             <span className="sr-only">{t("switchLabel")}</span>
-            <ScopeLabel
-              projectId={scope.projectId}
-              nameClassName="min-w-0 truncate"
-            />
+            <ScopeLabel projectId={scope.projectId} />
           </Button>
         </SheetTrigger>
         <SheetContent

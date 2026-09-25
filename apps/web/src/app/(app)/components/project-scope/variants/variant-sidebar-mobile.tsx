@@ -4,8 +4,12 @@ import { ChevronsUpDown, FolderKanban, Layers } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSyncExternalStore } from "react";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
-import { useProjectScopeSwitch } from "@/app/components/project-scope/use-project-scope";
-import { useScopeProjects } from "@/app/components/project-scope/use-scope-projects";
+import {
+  returnFocusTo,
+  useProjectScopeSwitch,
+} from "@/app/components/project-scope/use-project-scope";
+import { useSelectedScopeProject } from "@/app/components/project-scope/use-scope-projects";
+import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,18 +19,28 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 
 /**
- * The bottom sheet's open state, shared by the header chip that owns the sheet
- * and the sidebar row that hands off to it on mobile. The sidebar is itself a
- * sheet there and closes on the tap, so the menu cannot live inside it.
+ * Shared by the header chip, which owns the sheet and the Create dialog, and
+ * the sidebar row. The row can unmount under an open dialog: the sidebar is a
+ * sheet on mobile, and the whole sidebar remounts when the width crosses md.
+ * The header chip is always mounted, so the dialog lives there.
  */
-let sheetOpen = false;
+const state = { sheetOpen: false, createOpen: false };
 const listeners = new Set<() => void>();
 
-function setScopeSheetOpen(next: boolean) {
-  sheetOpen = next;
+function update(next: Partial<typeof state>) {
+  Object.assign(state, next);
   for (const listener of listeners) listener();
+}
+
+function setScopeSheetOpen(sheetOpen: boolean) {
+  update({ sheetOpen });
+}
+
+function setScopeCreateOpen(createOpen: boolean) {
+  update({ createOpen });
 }
 
 function subscribe(listener: () => void) {
@@ -40,10 +54,27 @@ export function openScopeSheet() {
   setScopeSheetOpen(true);
 }
 
+/** The switcher that opened Create project, to take focus back on cancel. */
+let createOpener: HTMLElement | null = null;
+
+/** Opens the chip's Create project dialog from anywhere. */
+export function openScopeCreate(opener: HTMLElement | null = null) {
+  createOpener = opener;
+  setScopeCreateOpen(true);
+}
+
 export function useScopeSheetOpen() {
   return useSyncExternalStore(
     subscribe,
-    () => sheetOpen,
+    () => state.sheetOpen,
+    () => false,
+  );
+}
+
+function useScopeCreateOpen() {
+  return useSyncExternalStore(
+    subscribe,
+    () => state.createOpen,
     () => false,
   );
 }
@@ -52,10 +83,7 @@ export function useScopeSheetOpen() {
 export function useCurrentScope() {
   const t = useTranslations("App.ProjectScope");
   const scope = useProjectScopeSwitch();
-  const { selectedProject } = useScopeProjects({
-    search: "",
-    selectedProjectId: scope.projectId,
-  });
+  const selectedProject = useSelectedScopeProject(scope.projectId);
   // A project still loading reads as "Project", never as the workspace.
   const name =
     scope.projectId === null
@@ -86,8 +114,11 @@ export function useCurrentScope() {
 export function SidebarScopeMobileChip() {
   const t = useTranslations("App.ProjectScope");
   const open = useScopeSheetOpen();
-  const { projectId, name, label, mark, select, openCreate, createDialog } =
-    useCurrentScope();
+  const createOpen = useScopeCreateOpen();
+  const { projectId, name, label, mark, select } = useCurrentScope();
+
+  // The store outlives this chip, as when the reader leaves the app shell.
+  useMountEffect(() => () => update({ sheetOpen: false, createOpen: false }));
 
   return (
     <>
@@ -124,14 +155,19 @@ export function SidebarScopeMobileChip() {
             <ProjectScopeMenu
               selectedProjectId={projectId}
               onSelect={select}
-              onCreate={openCreate}
+              onCreate={openScopeCreate}
               onDone={() => setScopeSheetOpen(false)}
               className="min-h-0 flex-1 rounded-none border-t"
             />
           </SheetContent>
         </Sheet>
       </div>
-      {createDialog}
+      <InlineCreateProjectModal
+        open={createOpen}
+        onOpenChange={setScopeCreateOpen}
+        onCreated={({ projectId: createdId }) => select(createdId)}
+        onCloseAutoFocus={(event) => returnFocusTo(createOpener)(event)}
+      />
     </>
   );
 }

@@ -11,8 +11,6 @@ import {
   useProjectScope,
   useProjectScopeSwitch,
 } from "@/app/components/project-scope/use-project-scope";
-import { useScopeProjects } from "@/app/components/project-scope/use-scope-projects";
-import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +29,8 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
+import type { ScopeSlotProps } from "./scope-variants";
+
 type SectionKey =
   | "overview"
   | "tasks"
@@ -45,31 +45,36 @@ interface Section {
   href: string;
 }
 
-function projectSections(projectId: string): Section[] {
+function projectSections(projectId: string, calendarBeta: boolean): Section[] {
   const projectPath = `/projects/${encodeURIComponent(projectId)}`;
-  return [
+  const sections: Section[] = [
     { key: "overview", href: projectPath },
     { key: "tasks", href: scopedHref("/tasks", projectId) },
     { key: "schedules", href: scopedHref(TASK_SCHEDULES_PATH, projectId) },
-    { key: "calendar", href: scopedHref("/calendar", projectId) },
+    // The project page, not `/calendar?projectId=`: the hub nav lives there.
+    { key: "calendar", href: `${projectPath}/calendar` },
     { key: "files", href: scopedHref("/drive", projectId) },
     { key: "history", href: scopedHref("/history", projectId) },
     { key: "social", href: `${projectPath}/social` },
   ];
+  // Both pages turn away readers without Calendar beta.
+  return calendarBeta
+    ? sections
+    : sections.filter(({ key }) => key !== "calendar" && key !== "social");
 }
 
 /**
  * SOK-1202 "hub": the project header carries the switcher and the project's
  * sections. The workspace sections open the scoped workspace page.
  */
-export function HubProjectHeader() {
+export function HubProjectHeader({ calendarBeta = false }: ScopeSlotProps) {
   const { projectId } = useProjectScope();
   if (!projectId) return null;
 
   return (
     <div className="space-y-2">
       <HubProjectSwitcher />
-      <HubSectionNav projectId={projectId} />
+      <HubSectionNav projectId={projectId} calendarBeta={calendarBeta} />
     </div>
   );
 }
@@ -80,10 +85,6 @@ function HubProjectSwitcher() {
   const [open, setOpen] = useState(false);
   const { projectId, select, openCreate, createDialog } =
     useProjectScopeSwitch();
-  const { selectedProject } = useScopeProjects({
-    search: "",
-    selectedProjectId: projectId,
-  });
 
   const menu = (
     <ProjectScopeMenu
@@ -94,14 +95,7 @@ function HubProjectSwitcher() {
     />
   );
 
-  const trigger = (
-    <SwitcherTrigger
-      projectName={selectedProject?.name ?? null}
-      projectLogo={selectedProject?.logo ?? null}
-      label={t("switchLabel")}
-      fallback={t("label")}
-    />
-  );
+  const trigger = <SwitcherTrigger label={t("switchLabel")} />;
 
   return (
     <>
@@ -135,21 +129,14 @@ function HubProjectSwitcher() {
 }
 
 interface SwitcherTriggerProps extends ComponentProps<typeof Button> {
-  projectName: string | null;
-  projectLogo: string | null;
   label: string;
-  fallback: string;
 }
 
-/** Forwards the Radix trigger props (aria-expanded, aria-haspopup, onClick). */
-function SwitcherTrigger({
-  projectName,
-  projectLogo,
-  label,
-  fallback,
-  className,
-  ...props
-}: SwitcherTriggerProps) {
+/**
+ * Forwards the Radix trigger props (aria-expanded, aria-haspopup, onClick).
+ * No project name: the page title right below already shows it.
+ */
+function SwitcherTrigger({ label, className, ...props }: SwitcherTriggerProps) {
   return (
     <Button
       type="button"
@@ -158,24 +145,22 @@ function SwitcherTrigger({
       className={cn("-ml-2 max-w-full min-w-0 justify-start", className)}
       {...props}
     >
-      {projectName ? (
-        <ProjectAvatar
-          name={projectName}
-          logo={projectLogo}
-          className="size-5 shrink-0"
-        />
-      ) : null}
-      <span className="sr-only">{label}: </span>
-      <span className="min-w-0 truncate">{projectName ?? fallback}</span>
+      <span className="text-muted-foreground min-w-0 truncate">{label}</span>
       <ChevronsUpDown className="text-muted-foreground size-4" aria-hidden />
     </Button>
   );
 }
 
-function HubSectionNav({ projectId }: { projectId: string }) {
+function HubSectionNav({
+  projectId,
+  calendarBeta,
+}: {
+  projectId: string;
+  calendarBeta: boolean;
+}) {
   const t = useTranslations("App.ProjectScope");
   const pathname = usePathname();
-  const sections = projectSections(projectId);
+  const sections = projectSections(projectId, calendarBeta);
 
   return (
     <nav

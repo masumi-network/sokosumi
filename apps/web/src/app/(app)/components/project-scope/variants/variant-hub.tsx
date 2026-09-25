@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { isProjectScopedPath } from "@/app/components/project-scope/project-scope-href";
 import { useProjectScopeSwitch } from "@/app/components/project-scope/use-project-scope";
-import { useScopeProjects } from "@/app/components/project-scope/use-scope-projects";
+import { useSelectedScopeProject } from "@/app/components/project-scope/use-scope-projects";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 
@@ -23,10 +23,7 @@ function useScopedWorkspaceProject() {
   const scopedProjectId = isProjectScopedPath(pathname)
     ? scope.projectId
     : null;
-  const { selectedProject } = useScopeProjects({
-    search: "",
-    selectedProjectId: scopedProjectId,
-  });
+  const selectedProject = useSelectedScopeProject(scopedProjectId);
 
   if (!scopedProjectId) return null;
   return {
@@ -51,11 +48,14 @@ function HubHeaderCrumb() {
         className="hover:bg-accent focus-visible:ring-ring flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-sm font-medium outline-none transition-colors focus-visible:ring-2"
       >
         {project.name ? (
-          <ProjectAvatar
-            name={project.name}
-            logo={project.logo}
-            className="size-5 shrink-0"
-          />
+          // The avatar's fallback initial would join the link's name.
+          <span aria-hidden className="shrink-0">
+            <ProjectAvatar
+              name={project.name}
+              logo={project.logo}
+              className="size-5 shrink-0"
+            />
+          </span>
         ) : null}
         <span className="sr-only">{t("label")}: </span>
         <span className="max-w-40 truncate">{project.name ?? t("label")}</span>

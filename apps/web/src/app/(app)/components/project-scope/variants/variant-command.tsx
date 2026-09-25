@@ -13,8 +13,11 @@ import {
 } from "react";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
-import { useProjectScopeSwitch } from "@/app/components/project-scope/use-project-scope";
-import { useScopeProjects } from "@/app/components/project-scope/use-scope-projects";
+import {
+  returnFocusTo,
+  useProjectScopeSwitch,
+} from "@/app/components/project-scope/use-project-scope";
+import { useSelectedScopeProject } from "@/app/components/project-scope/use-scope-projects";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,11 +39,14 @@ import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-targe
 import type { ScopeSlots } from "./scope-variants";
 
 /**
- * A bare key. Cmd/Ctrl+K is history search, and Cmd/Ctrl+Shift+P opens a
- * private window in Firefox, which a page cannot take back.
+ * Alt+P. A bare letter fails WCAG 2.1.4 and fires under speech input.
+ * Cmd/Ctrl+K is history search, and Cmd/Ctrl+Shift+P opens a private window
+ * in Firefox, which a page cannot take back. The physical key is matched,
+ * because Option+P on a Mac types "π".
  */
-const SHORTCUT_KEY = "p";
-const SHORTCUT_LABEL = "P";
+const SHORTCUT_CODE = "KeyP";
+const SHORTCUT_ARIA = "Alt+P";
+const SHORTCUT_LABEL = "Alt P";
 
 /** Surfaces that own their keys: a bare P there types, filters or picks. */
 const KEY_OWNING_SURFACE =
@@ -64,10 +70,7 @@ const SHEET_MENU_CLASS = cn(
 /** The scope in hand: an avatar and name, or the workspace view. */
 function ScopePillLabel({ projectId }: { projectId: string | null }) {
   const t = useTranslations("App.ProjectScope");
-  const { selectedProject } = useScopeProjects({
-    search: "",
-    selectedProjectId: projectId,
-  });
+  const selectedProject = useSelectedScopeProject(projectId);
 
   if (projectId === null) {
     return (
@@ -88,11 +91,14 @@ function ScopePillLabel({ projectId }: { projectId: string | null }) {
   }
   return (
     <>
-      <ProjectAvatar
-        name={selectedProject.name}
-        logo={selectedProject.logo}
-        className="size-5 shrink-0 rounded-md"
-      />
+      {/* The avatar's fallback initial would join the accessible name. */}
+      <span aria-hidden className="shrink-0">
+        <ProjectAvatar
+          name={selectedProject.name}
+          logo={selectedProject.logo}
+          className="size-5 shrink-0 rounded-md"
+        />
+      </span>
       <span className="min-w-0 truncate">{selectedProject.name}</span>
     </>
   );
@@ -129,7 +135,7 @@ function ScopePill({
   );
 }
 
-/** Opens the dialog on the bare key, unless the reader is typing or picking. */
+/** Opens the dialog on Alt+P, unless the reader is typing or picking. */
 function useScopeShortcut(
   triggerRef: RefObject<HTMLButtonElement | null>,
   open: () => void,
@@ -137,10 +143,11 @@ function useScopeShortcut(
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented || event.repeat) return;
-      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+      // AltGr arrives as Ctrl+Alt on Windows, so Ctrl rules it out too.
+      if (!event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) {
         return;
       }
-      if (event.key?.toLowerCase() !== SHORTCUT_KEY) return;
+      if (event.code !== SHORTCUT_CODE) return;
       if (isEditableKeyboardTarget(event.target)) return;
       if (
         event.target instanceof Element &&
@@ -165,22 +172,34 @@ function CommandScopeDesktop() {
   const scope = useProjectScopeSwitch();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const openDialog = useCallback(() => setOpen(true), []);
-  useScopeShortcut(triggerRef, openDialog);
+  // The shortcut opens the dialog from anywhere, so focus goes back there.
+  const shortcutOriginRef = useRef<HTMLElement | null>(null);
+  const openFromShortcut = useCallback(() => {
+    const origin = document.activeElement;
+    shortcutOriginRef.current =
+      origin instanceof HTMLElement && origin !== document.body ? origin : null;
+    setOpen(true);
+  }, []);
+  useScopeShortcut(triggerRef, openFromShortcut);
+
+  function changeOpen(nextOpen: boolean) {
+    if (nextOpen) shortcutOriginRef.current = null;
+    setOpen(nextOpen);
+  }
 
   return (
     <>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={changeOpen}>
         <DialogTrigger asChild>
           <ScopePill
             ref={triggerRef}
             projectId={scope.projectId}
-            aria-keyshortcuts={SHORTCUT_LABEL}
+            aria-keyshortcuts={SHORTCUT_ARIA}
             className="max-w-64 shrink-0 self-center pr-1 has-[>svg]:pr-1"
           >
             <kbd
               aria-hidden
-              className="text-muted-foreground bg-muted ml-auto shrink-0 rounded-full border px-1.5 font-sans text-xs"
+              className="text-muted-foreground bg-muted ml-auto shrink-0 rounded-full border px-1.5 font-sans text-xs whitespace-nowrap"
             >
               {SHORTCUT_LABEL}
             </kbd>
@@ -189,6 +208,11 @@ function CommandScopeDesktop() {
         <DialogContent
           showCloseButton={false}
           aria-describedby={undefined}
+          onCloseAutoFocus={(event) => {
+            const origin = shortcutOriginRef.current;
+            shortcutOriginRef.current = null;
+            returnFocusTo(origin)(event);
+          }}
           className="gap-0 overflow-hidden p-0 sm:max-w-lg"
         >
           <DialogTitle className="sr-only">{t("switchLabel")}</DialogTitle>

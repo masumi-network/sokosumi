@@ -96,19 +96,10 @@ function CombinedSheet({
   scope: ReturnType<typeof useCombinedScope>;
 }) {
   const t = useTranslations("App.ProjectScope");
-  const tWorkspace = useTranslations("Components.OrganizationSwitcher");
-  const tSidebar = useTranslations("App.Sidebar.Content.MenuItems");
   const open = useCombinedSheetOpen();
-  const workspaces = useCombinedWorkspaces();
-  const [step, setStep] = useState<"projects" | "workspaces">("projects");
-
-  function onOpenChange(next: boolean) {
-    setCombinedSheetOpen(next);
-    if (!next) setStep("projects");
-  }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={setCombinedSheetOpen}>
       <SheetContent
         side="bottom"
         aria-describedby={undefined}
@@ -117,58 +108,79 @@ function CombinedSheet({
         <SheetHeader className="border-b pr-12">
           <SheetTitle>{t("switchLabel")}</SheetTitle>
         </SheetHeader>
-        {step === "projects" ? (
-          <>
-            <button
-              type="button"
-              data-testid="project-scope-combined-workspace-row"
-              onClick={() => setStep("workspaces")}
-              className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring flex h-12 w-full shrink-0 items-center gap-2 border-b px-4 text-left text-sm font-medium outline-hidden focus-visible:ring-2 focus-visible:ring-inset"
-            >
-              <WorkspaceMark
-                workspaces={workspaces}
-                workspace={workspaces.active}
-              />
-              <span className="min-w-0 flex-1 truncate">
-                {workspaces.active?.name}
-              </span>
-              <span className="sr-only">{tWorkspace("switchWorkspace")}</span>
-              <ChevronRight
-                className="text-muted-foreground size-4 shrink-0"
-                aria-hidden
-              />
-            </button>
-            <ProjectScopeMenu
-              selectedProjectId={scope.projectId}
-              onSelect={scope.select}
-              onCreate={scope.openCreate}
-              onDone={() => onOpenChange(false)}
-              className="min-h-0 flex-1 rounded-none"
-            />
-          </>
-        ) : (
-          <>
-            <div className="border-b p-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                autoFocus
-                className="h-10 justify-start gap-1"
-                onClick={() => setStep("projects")}
-              >
-                <ChevronLeft className="size-4" aria-hidden />
-                {tSidebar("back")}
-              </Button>
-            </div>
-            <WorkspaceList
-              workspaces={workspaces}
-              onChosen={() => setStep("projects")}
-              className="overflow-y-auto p-2"
-            />
-          </>
-        )}
+        <CombinedSheetBody scope={scope} />
       </SheetContent>
     </Sheet>
+  );
+}
+
+/**
+ * Mounted only while the sheet is open: it reads workspaces on each open, and
+ * its step starts at the project list every time.
+ */
+function CombinedSheetBody({
+  scope,
+}: {
+  scope: ReturnType<typeof useCombinedScope>;
+}) {
+  const tWorkspace = useTranslations("Components.OrganizationSwitcher");
+  const tSidebar = useTranslations("App.Sidebar.Content.MenuItems");
+  const workspaces = useCombinedWorkspaces();
+  const [step, setStep] = useState<"projects" | "workspaces">("projects");
+
+  if (step === "projects") {
+    return (
+      <>
+        <button
+          type="button"
+          data-testid="project-scope-combined-workspace-row"
+          onClick={() => setStep("workspaces")}
+          className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring flex h-12 w-full shrink-0 items-center gap-2 border-b px-4 text-left text-sm font-medium outline-hidden focus-visible:ring-2 focus-visible:ring-inset"
+        >
+          <WorkspaceMark
+            workspaces={workspaces}
+            workspace={workspaces.active}
+          />
+          <span className="min-w-0 flex-1 truncate">
+            {workspaces.active?.name}
+          </span>
+          <span className="sr-only">{tWorkspace("switchWorkspace")}</span>
+          <ChevronRight
+            className="text-muted-foreground size-4 shrink-0"
+            aria-hidden
+          />
+        </button>
+        <ProjectScopeMenu
+          selectedProjectId={scope.projectId}
+          onSelect={scope.select}
+          onCreate={scope.openCreate}
+          onDone={() => setCombinedSheetOpen(false)}
+          className="min-h-0 flex-1 rounded-none"
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="border-b p-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          autoFocus
+          className="h-10 justify-start gap-1"
+          onClick={() => setStep("projects")}
+        >
+          <ChevronLeft className="size-4" aria-hidden />
+          {tSidebar("back")}
+        </Button>
+      </div>
+      <WorkspaceList
+        workspaces={workspaces}
+        onChosen={() => setStep("projects")}
+        className="overflow-y-auto p-2"
+      />
+    </>
   );
 }

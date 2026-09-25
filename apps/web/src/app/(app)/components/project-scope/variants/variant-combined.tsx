@@ -37,6 +37,17 @@ import {
 
 type CombinedScope = ReturnType<typeof useCombinedScope>;
 
+/** Rendered only while the popover is open, so it reads workspaces then. */
+function CombinedWorkspacePane() {
+  const workspaces = useCombinedWorkspaces();
+  return (
+    <WorkspaceList
+      workspaces={workspaces}
+      className="bg-sidebar max-h-[22rem] overflow-y-auto border-r"
+    />
+  );
+}
+
 /** Vercel's two panes: workspaces on the left, that workspace's projects. */
 function CombinedPopoverContent({
   scope,
@@ -48,7 +59,6 @@ function CombinedPopoverContent({
   onDone: () => void;
 }) {
   const t = useTranslations("App.ProjectScope");
-  const workspaces = useCombinedWorkspaces();
 
   return (
     <PopoverContent
@@ -58,10 +68,7 @@ function CombinedPopoverContent({
       aria-label={t("switchLabel")}
       className="grid w-[36rem] max-w-[calc(100vw-2rem)] grid-cols-[13rem_1fr] overflow-hidden p-0"
     >
-      <WorkspaceList
-        workspaces={workspaces}
-        className="bg-sidebar max-h-[22rem] overflow-y-auto border-r"
-      />
+      <CombinedWorkspacePane />
       <ProjectScopeMenu
         selectedProjectId={scope.projectId}
         onSelect={scope.select}

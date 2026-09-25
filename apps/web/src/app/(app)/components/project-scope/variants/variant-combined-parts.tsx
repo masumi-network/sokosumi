@@ -10,7 +10,7 @@ import {
   useProjectScope,
   useProjectScopeSwitch,
 } from "@/app/components/project-scope/use-project-scope";
-import { useScopeProjects } from "@/app/components/project-scope/use-scope-projects";
+import { useSelectedScopeProject } from "@/app/components/project-scope/use-scope-projects";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
@@ -27,24 +27,26 @@ const SKELETON_ROWS = 3;
 export function useCombinedScope() {
   const t = useTranslations("App.ProjectScope");
   const scope = useProjectScopeSwitch();
-  const { selectedProject } = useScopeProjects({
-    search: "",
-    selectedProjectId: scope.projectId,
-  });
+  const selectedProject = useSelectedScopeProject(scope.projectId);
 
   const name = scope.projectId
     ? (selectedProject?.name ?? t("label"))
     : t("workspaceView");
-  const mark = selectedProject ? (
-    <ProjectAvatar
-      name={selectedProject.name}
-      logo={selectedProject.logo}
-      className="size-5 shrink-0"
-    />
-  ) : scope.projectId ? (
-    <Skeleton className="size-5 shrink-0 rounded-lg" aria-hidden />
-  ) : (
-    <Layers className="size-4 shrink-0" aria-hidden />
+  // The avatar's fallback initial is text, so it would lead the trigger's name.
+  const mark = (
+    <span aria-hidden className="flex shrink-0">
+      {selectedProject ? (
+        <ProjectAvatar
+          name={selectedProject.name}
+          logo={selectedProject.logo}
+          className="size-5 shrink-0"
+        />
+      ) : scope.projectId ? (
+        <Skeleton className="size-5 shrink-0 rounded-lg" />
+      ) : (
+        <Layers className="size-4 shrink-0" />
+      )}
+    </span>
   );
 
   return { ...scope, name, mark };
@@ -60,6 +62,8 @@ export interface CombinedWorkspace {
 /**
  * The header switcher's workspaces and its switch (`useWorkspaceSwitcher`).
  * A project belongs to one workspace, so switching drops the project scope.
+ * Call it only inside open popover or sheet content: the read then runs when
+ * the user opens the switcher, and every open lists fresh workspaces.
  */
 export function useCombinedWorkspaces() {
   const t = useTranslations("Components.OrganizationSwitcher");
@@ -75,6 +79,7 @@ export function useCombinedWorkspaces() {
     queryFn: () => loadCombinedWorkspaces({}),
     enabled: userId != null,
     retry: false,
+    refetchOnMount: "always",
     refetchOnWindowFocus: false,
   });
 
@@ -193,12 +198,14 @@ export function WorkspaceList({
                 <button
                   type="button"
                   aria-current={isActive ? "true" : undefined}
-                  disabled={workspaces.isSwitching}
+                  // `disabled` would drop focus to the body mid-switch.
+                  aria-disabled={workspaces.isSwitching || undefined}
                   data-testid={`project-scope-workspace-${workspace.id ?? "personal"}`}
                   onClick={() => {
+                    if (workspaces.isSwitching) return;
                     void workspaces.select(workspace.id).then(onChosen);
                   }}
-                  className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring flex h-11 w-full items-center gap-2 rounded-sm px-2 text-left text-sm outline-hidden focus-visible:ring-2 disabled:opacity-50 md:h-8"
+                  className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring flex h-11 w-full items-center gap-2 rounded-sm px-2 text-left text-sm outline-hidden focus-visible:ring-2 aria-disabled:opacity-50 md:h-8"
                 >
                   <WorkspaceMark
                     workspaces={workspaces}

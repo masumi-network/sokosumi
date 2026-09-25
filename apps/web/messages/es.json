@@ -6571,6 +6571,7 @@
       "label": "Proyecto",
       "switchLabel": "Cambiar de proyecto",
       "workspaceView": "Todos los proyectos",
+      "workspace": "Espacio de trabajo",
       "pinned": "Fijados",
       "recent": "Recientes",
       "all": "Proyectos",
