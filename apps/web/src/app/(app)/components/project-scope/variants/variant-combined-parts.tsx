@@ -1,16 +1,20 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Check, Layers } from "lucide-react";
+import { Building2, Check, FolderKanban, Layers } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useId } from "react";
+import { type ReactNode, useId } from "react";
 import HeaderWorkspaceAvatar from "@/app/components/header/header-workspace-avatar";
 import {
   useProjectScope,
   useProjectScopeSwitch,
 } from "@/app/components/project-scope/use-project-scope";
-import { useSelectedScopeProject } from "@/app/components/project-scope/use-scope-projects";
+import {
+  useIsUnknownScopeProject,
+  useScopeProjectReadFailed,
+  useSelectedScopeProject,
+} from "@/app/components/project-scope/use-scope-projects";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
@@ -28,6 +32,8 @@ export function useCombinedScope() {
   const t = useTranslations("App.ProjectScope");
   const scope = useProjectScopeSwitch();
   const selectedProject = useSelectedScopeProject(scope.projectId);
+  const isUnknown = useIsUnknownScopeProject(scope.projectId);
+  const readFailed = useScopeProjectReadFailed(scope.projectId);
 
   const name = scope.projectId
     ? (selectedProject?.name ?? t("label"))
@@ -41,8 +47,10 @@ export function useCombinedScope() {
           logo={selectedProject.logo}
           className="size-5 shrink-0"
         />
-      ) : scope.projectId ? (
+      ) : scope.projectId && !isUnknown && !readFailed ? (
         <Skeleton className="size-5 shrink-0 rounded-lg" />
+      ) : scope.projectId ? (
+        <FolderKanban className="size-4 shrink-0" />
       ) : (
         <Layers className="size-4 shrink-0" />
       )}
@@ -102,13 +110,17 @@ export function useCombinedWorkspaces() {
 
   async function select(workspaceId: string | null) {
     if (workspaceId === activeId || isSwitching) return;
+    const startedAt = currentLocation();
     try {
       await handleSelectWorkspace(workspaceId);
     } catch {
       // The switcher already logged it; the old workspace stays active.
       return;
     }
-    if (projectId) router.replace(switchHref(null));
+    // A navigation during the switch is a newer choice: keep it.
+    if (projectId && currentLocation() === startedAt) {
+      router.replace(switchHref(null));
+    }
   }
 
   return {
@@ -124,7 +136,36 @@ export function useCombinedWorkspaces() {
   };
 }
 
+function currentLocation(): string {
+  return window.location.pathname + window.location.search;
+}
+
 export type CombinedWorkspaces = ReturnType<typeof useCombinedWorkspaces>;
+
+/**
+ * Holds the project list. While a workspace switch runs, the list still shows
+ * the old workspace's projects, and each would lead to a 404 in the new one.
+ */
+export function SwitchingPane({
+  isSwitching,
+  className,
+  children,
+}: {
+  isSwitching: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      inert={isSwitching}
+      aria-busy={isSwitching || undefined}
+      data-testid="project-scope-combined-project-pane"
+      className={className}
+    >
+      {children}
+    </div>
+  );
+}
 
 export function WorkspaceMark({
   workspaces,
@@ -133,8 +174,16 @@ export function WorkspaceMark({
   workspaces: CombinedWorkspaces;
   workspace: CombinedWorkspace | null;
 }) {
-  if (!workspaces.sessionUser || !workspace) {
+  if (workspaces.isPending) {
     return <Skeleton className="size-5 shrink-0 rounded-full" aria-hidden />;
+  }
+  if (!workspaces.sessionUser || !workspace) {
+    return (
+      <Building2
+        className="text-muted-foreground size-4 shrink-0"
+        aria-hidden
+      />
+    );
   }
   return (
     <HeaderWorkspaceAvatar

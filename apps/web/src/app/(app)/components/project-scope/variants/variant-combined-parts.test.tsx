@@ -8,7 +8,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   load: vi.fn(),
@@ -57,13 +57,16 @@ vi.mock("@/app/components/header/header-workspace-avatar", () => ({
   default: () => <span aria-hidden />,
 }));
 vi.mock("@/app/projects/components/project-avatar", () => ({
-  ProjectAvatar: () => <span aria-hidden />,
+  ProjectAvatar: () => <span aria-hidden data-testid="project-avatar" />,
 }));
 
 import {
   type CombinedWorkspaces,
+  SwitchingPane,
+  useCombinedScope,
   useCombinedWorkspaces,
   WorkspaceList,
+  WorkspaceMark,
 } from "./variant-combined-parts";
 
 function member(id: string, name: string) {
@@ -86,6 +89,11 @@ async function renderLoaded() {
   await waitFor(() => expect(hook.result.current.isPending).toBe(false));
   return hook;
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  window.history.replaceState(null, "", "/");
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -162,6 +170,29 @@ describe("useCombinedWorkspaces", () => {
     expect(mocks.replace).toHaveBeenCalledExactlyOnceWith("/tasks");
   });
 
+  it("keeps a navigation the user made during the switch", async () => {
+    mocks.search.current = "projectId=project-1";
+    let finish = () => {};
+    mocks.switchWorkspace.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const { result } = await renderLoaded();
+
+    let selecting = Promise.resolve();
+    act(() => {
+      selecting = result.current.select("org-2");
+    });
+    // A sidebar link, followed while the switch runs.
+    window.history.pushState(null, "", "/agents");
+    finish();
+    await act(() => selecting);
+
+    expect(mocks.switchWorkspace).toHaveBeenCalledWith("org-2");
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
   it("stays on the page after a switch with no project in scope", async () => {
     const { result } = await renderLoaded();
 
@@ -195,5 +226,134 @@ describe("WorkspaceList", () => {
       .setup()
       .click(screen.getByRole("button", { name: "retry" }));
     expect(refetch).toHaveBeenCalledOnce();
+  });
+});
+
+describe("useCombinedScope mark", () => {
+  function Mark() {
+    return <>{useCombinedScope().mark}</>;
+  }
+
+  function renderMark() {
+    const Wrapper = wrapper();
+    return render(
+      <Wrapper>
+        <Mark />
+      </Wrapper>,
+    );
+  }
+
+  function skeleton(container: HTMLElement) {
+    return container.querySelector('[data-slot="skeleton"]');
+  }
+
+  function projectIcon(container: HTMLElement) {
+    return container.querySelector(".lucide-folder-kanban");
+  }
+
+  beforeEach(() => {
+    mocks.search.current = "projectId=project-1";
+  });
+
+  it("pulses while the scoped project loads", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+    const { container } = renderMark();
+
+    expect(skeleton(container)).toBeInTheDocument();
+    expect(projectIcon(container)).not.toBeInTheDocument();
+  });
+
+  it("shows the project once it loads", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          project: { id: "project-1", name: "Apollo", logo: null },
+        }),
+      ),
+    );
+    renderMark();
+
+    expect(await screen.findByTestId("project-avatar")).toBeInTheDocument();
+  });
+
+  it("stops pulsing when the read fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: "down" }, { status: 502 })),
+    );
+    const { container } = renderMark();
+
+    await waitFor(() => expect(projectIcon(container)).toBeInTheDocument());
+    expect(skeleton(container)).not.toBeInTheDocument();
+  });
+
+  it("stops pulsing when Core does not know the project", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ project: null })),
+    );
+    const { container } = renderMark();
+
+    await waitFor(() => expect(projectIcon(container)).toBeInTheDocument());
+    expect(skeleton(container)).not.toBeInTheDocument();
+  });
+});
+
+describe("WorkspaceMark", () => {
+  const settled: CombinedWorkspaces = {
+    sessionUser: null,
+    rows: [],
+    activeId: null,
+    active: null,
+    isPending: false,
+    isError: true,
+    refetch: vi.fn(),
+    isSwitching: false,
+    select: vi.fn(),
+  };
+
+  it("pulses only while the workspaces load", () => {
+    const { container, rerender } = render(
+      <WorkspaceMark
+        workspaces={{ ...settled, isPending: true, isError: false }}
+        workspace={null}
+      />,
+    );
+    expect(
+      container.querySelector('[data-slot="skeleton"]'),
+    ).toBeInTheDocument();
+
+    rerender(<WorkspaceMark workspaces={settled} workspace={null} />);
+    expect(
+      container.querySelector('[data-slot="skeleton"]'),
+    ).not.toBeInTheDocument();
+    expect(
+      container.querySelector(".lucide-building-2, .lucide-building2"),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("SwitchingPane", () => {
+  it("shuts and marks busy only while a switch runs", () => {
+    const { rerender } = render(
+      <SwitchingPane isSwitching>
+        <button type="button">old project</button>
+      </SwitchingPane>,
+    );
+    const pane = screen.getByTestId("project-scope-combined-project-pane");
+    expect(pane).toHaveAttribute("inert");
+    expect(pane).toHaveAttribute("aria-busy", "true");
+
+    rerender(
+      <SwitchingPane isSwitching={false}>
+        <button type="button">old project</button>
+      </SwitchingPane>,
+    );
+    expect(pane).not.toHaveAttribute("inert");
+    expect(pane).not.toHaveAttribute("aria-busy");
   });
 });

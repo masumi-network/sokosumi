@@ -6,10 +6,24 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const mocks = vi.hoisted(() => ({
+  pathname: { current: "/tasks" },
+  isSwitching: { current: false },
+  isPending: { current: false },
+  active: {
+    current: { id: "org-1", name: "Acme", organization: null } as {
+      id: string;
+      name: string;
+      organization: null;
+    } | null,
+  },
+}));
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/tasks",
+  usePathname: () => mocks.pathname.current,
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -24,8 +38,21 @@ vi.mock("./variant-combined-parts", () => ({
     createDialog: null,
   }),
   useCombinedWorkspaces: () => ({
-    active: { id: "org-1", name: "Acme", organization: null },
+    active: mocks.active.current,
+    isPending: mocks.isPending.current,
+    isSwitching: mocks.isSwitching.current,
   }),
+  SwitchingPane: ({
+    isSwitching,
+    children,
+  }: {
+    isSwitching: boolean;
+    children: ReactNode;
+  }) => (
+    <div data-testid="project-pane" inert={isSwitching}>
+      {children}
+    </div>
+  ),
   WorkspaceList: () => <p>workspace list</p>,
   WorkspaceMark: () => null,
 }));
@@ -42,6 +69,10 @@ import {
 afterEach(() => {
   // The flag is module state, so it outlives each test's render.
   act(() => setCombinedSheetOpen(false));
+  mocks.pathname.current = "/tasks";
+  mocks.isSwitching.current = false;
+  mocks.isPending.current = false;
+  mocks.active.current = { id: "org-1", name: "Acme", organization: null };
 });
 
 function chip() {
@@ -104,6 +135,63 @@ describe("CombinedMobileChip", () => {
 
     await user.keyboard("{Escape}");
     await waitFor(() => expect(chip()).toHaveFocus());
+  });
+
+  it("sends focus to a visible header control when a chat room hides it", async () => {
+    mocks.pathname.current = "/chat/rooms/room-1";
+    const user = userEvent.setup();
+    render(
+      <header>
+        <CombinedMobileChip />
+        <button type="button">room menu</button>
+      </header>,
+    );
+    // happy-dom lays nothing out, so every element has one rect.
+    Object.defineProperty(chip(), "getClientRects", { value: () => [] });
+
+    act(() => setCombinedSheetOpen(true));
+    await screen.findByRole("dialog");
+    await user.keyboard("{Escape}");
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "room menu" })).toHaveFocus(),
+    );
+  });
+
+  it("names the workspace row once a failed load settles", async () => {
+    mocks.active.current = null;
+    render(<CombinedMobileChip />);
+    act(() => setCombinedSheetOpen(true));
+
+    const row = await screen.findByTestId(
+      "project-scope-combined-workspace-row",
+    );
+    expect(row).toHaveAccessibleName("switchWorkspace");
+  });
+
+  it("holds the old workspace's projects while a switch runs", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<CombinedMobileChip />);
+    act(() => setCombinedSheetOpen(true));
+    await user.click(
+      await screen.findByTestId("project-scope-combined-workspace-row"),
+    );
+    expect(screen.getByRole("button", { name: "back" })).toBeEnabled();
+
+    mocks.isSwitching.current = true;
+    rerender(<CombinedMobileChip />);
+    const back = screen.getByRole("button", { name: "back" });
+    expect(back).toBeDisabled();
+    await user.click(back);
+    expect(screen.getByText("workspace list")).toBeInTheDocument();
+  });
+
+  it("shuts the project list while a switch runs", async () => {
+    mocks.isSwitching.current = true;
+    render(<CombinedMobileChip />);
+    act(() => setCombinedSheetOpen(true));
+
+    expect(await screen.findByTestId("project-pane")).toHaveAttribute("inert");
   });
 
   it("starts at the project list on every open", async () => {

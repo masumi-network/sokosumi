@@ -27,6 +27,7 @@ vi.mock("@/app/projects/actions", () => ({
 
 import {
   useIsUnknownScopeProject,
+  useScopeProjectReadFailed,
   useScopeProjects,
   useSelectedScopeProject,
 } from "./use-scope-projects";
@@ -142,5 +143,32 @@ describe("useIsUnknownScopeProject", () => {
     // The same query answered: the name is in, and it is not unknown.
     await waitFor(() => expect(result.current.project?.name).toBe("Far Away"));
     expect(result.current.unknown).toBe(false);
+  });
+});
+
+describe("useScopeProjectReadFailed", () => {
+  it("is true once the read fails, and not for a null answer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        url.endsWith("/broken-1")
+          ? Promise.resolve(new Response(null, { status: 502 }))
+          : routeHandler(url),
+      ),
+    );
+    mocks.loadOne.mockReturnValue(null);
+    const { result } = renderHook(
+      () => ({
+        broken: useScopeProjectReadFailed("broken-1"),
+        gone: useScopeProjectReadFailed("gone-1"),
+        unknown: useIsUnknownScopeProject("gone-1"),
+      }),
+      { wrapper: wrapper() },
+    );
+
+    expect(result.current.broken).toBe(false);
+    await waitFor(() => expect(result.current.broken).toBe(true));
+    await waitFor(() => expect(result.current.unknown).toBe(true));
+    expect(result.current.gone).toBe(false);
   });
 });

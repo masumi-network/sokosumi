@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import {
+  SwitchingPane,
   useCombinedScope,
   useCombinedWorkspaces,
   WorkspaceList,
@@ -123,6 +124,10 @@ function CombinedSheetBody({
   const tSidebar = useTranslations("App.Sidebar.Content.MenuItems");
   const workspaces = useCombinedWorkspaces();
   const [step, setStep] = useState<"projects" | "workspaces">("projects");
+  // Settled with no active workspace, as when the list failed to load.
+  const workspaceName =
+    workspaces.active?.name ??
+    (workspaces.isPending ? null : tWorkspace("switchWorkspace"));
 
   if (step === "projects") {
     return (
@@ -137,22 +142,27 @@ function CombinedSheetBody({
             workspaces={workspaces}
             workspace={workspaces.active}
           />
-          <span className="min-w-0 flex-1 truncate">
-            {workspaces.active?.name}
-          </span>
-          <span className="sr-only">{tWorkspace("switchWorkspace")}</span>
+          <span className="min-w-0 flex-1 truncate">{workspaceName}</span>
+          {workspaces.active ? (
+            <span className="sr-only">{tWorkspace("switchWorkspace")}</span>
+          ) : null}
           <ChevronRight
             className="text-muted-foreground size-4 shrink-0"
             aria-hidden
           />
         </button>
-        <ProjectScopeMenu
-          selectedProjectId={scope.projectId}
-          onSelect={scope.select}
-          onCreate={scope.openCreate}
-          onDone={() => setCombinedSheetOpen(false)}
-          className="min-h-0 flex-1 rounded-none"
-        />
+        <SwitchingPane
+          isSwitching={workspaces.isSwitching}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <ProjectScopeMenu
+            selectedProjectId={scope.projectId}
+            onSelect={scope.select}
+            onCreate={scope.openCreate}
+            onDone={() => setCombinedSheetOpen(false)}
+            className="min-h-0 flex-1 rounded-none"
+          />
+        </SwitchingPane>
       </>
     );
   }
@@ -165,6 +175,8 @@ function CombinedSheetBody({
           variant="ghost"
           size="sm"
           autoFocus
+          // Back would show the old workspace's projects mid-switch.
+          disabled={workspaces.isSwitching}
           className="h-10 justify-start gap-1"
           onClick={() => setStep("projects")}
         >

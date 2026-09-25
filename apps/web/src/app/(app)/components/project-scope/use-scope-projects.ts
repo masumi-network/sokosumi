@@ -129,6 +129,14 @@ export function useIsUnknownScopeProject(
   return selected.isSuccess && selected.data === null;
 }
 
+/** True once the read that names the scoped project has failed. */
+export function useScopeProjectReadFailed(
+  selectedProjectId: string | null,
+): boolean {
+  const { selected } = useSelectedProjectQuery(selectedProjectId, []);
+  return selected.isError;
+}
+
 /**
  * The one project a trigger names. It reads that project alone, so a closed
  * menu loads no list; rows already loaded name it in the meantime.

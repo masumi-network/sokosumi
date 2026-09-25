@@ -25,6 +25,7 @@ import {
 
 import type { ScopeSlots } from "./scope-variants";
 import {
+  SwitchingPane,
   useCombinedScope,
   useCombinedWorkspaces,
   WorkspaceList,
@@ -38,13 +39,30 @@ import {
 type CombinedScope = ReturnType<typeof useCombinedScope>;
 
 /** Rendered only while the popover is open, so it reads workspaces then. */
-function CombinedWorkspacePane() {
+function CombinedPanes({
+  scope,
+  onDone,
+}: {
+  scope: CombinedScope;
+  onDone: () => void;
+}) {
   const workspaces = useCombinedWorkspaces();
   return (
-    <WorkspaceList
-      workspaces={workspaces}
-      className="bg-sidebar max-h-[22rem] overflow-y-auto border-r"
-    />
+    <>
+      <WorkspaceList
+        workspaces={workspaces}
+        className="bg-sidebar max-h-[22rem] overflow-y-auto border-r"
+      />
+      <SwitchingPane isSwitching={workspaces.isSwitching} className="min-w-0">
+        <ProjectScopeMenu
+          selectedProjectId={scope.projectId}
+          onSelect={scope.select}
+          onCreate={scope.openCreate}
+          onDone={onDone}
+          className="rounded-none"
+        />
+      </SwitchingPane>
+    </>
   );
 }
 
@@ -68,14 +86,7 @@ function CombinedPopoverContent({
       aria-label={t("switchLabel")}
       className="grid w-[36rem] max-w-[calc(100vw-2rem)] grid-cols-[13rem_1fr] overflow-hidden p-0"
     >
-      <CombinedWorkspacePane />
-      <ProjectScopeMenu
-        selectedProjectId={scope.projectId}
-        onSelect={scope.select}
-        onCreate={scope.openCreate}
-        onDone={onDone}
-        className="min-w-0 rounded-none"
-      />
+      <CombinedPanes scope={scope} onDone={onDone} />
     </PopoverContent>
   );
 }
