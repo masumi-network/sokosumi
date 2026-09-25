@@ -137,7 +137,7 @@ import SwiftUI
 
     @ViewBuilder
     private var transcriptBody: some View {
-      if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {
+      if workspaces.transcriptRoomId != roomId || (workspaces.transcriptLoading && !hasLiveMessages) {
         ProgressView("Loading messages…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else if !hasLiveMessages {
