@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 
 import { requireTaskCommentAccess } from "@/helpers/access-control";
+import { forbidden } from "@/helpers/error";
 import { userSummaryFromLoadedRelation } from "@/helpers/loaded-relation-summaries";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -65,6 +66,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             user: { select: { id: true, name: true, image: true } },
           },
         });
+        // Comment access ≠ join eligibility (PRIVATE + workspace member).
+        // Not added and not already present → reject, not fake success.
+        if (!added && !rows.some((row) => row.userId === userId)) {
+          throw forbidden("You cannot subscribe to this task");
+        }
         return {
           participants: rows,
           addedUserIds: added ? [userId] : [],

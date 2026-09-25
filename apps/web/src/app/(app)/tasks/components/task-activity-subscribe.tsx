@@ -61,7 +61,7 @@ export function TaskActivitySubscribeControl({
   const t = useTranslations("App.Tasks.Detail");
   const tApp = useTranslations("App");
   const router = useRouter();
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const [pendingRemove, setPendingRemove] = useState<PendingRemove | null>(
     null,
   );
@@ -177,6 +177,7 @@ export function TaskActivitySubscribeControl({
           variant="ghost"
           size="sm"
           className="text-muted-foreground h-auto px-1.5 py-0.5 text-xs font-medium"
+          disabled={isPending}
           onClick={handleSubscribeToggle}
         >
           {showUnsubscribeLabel ? t("unsubscribe") : t("subscribe")}
@@ -240,6 +241,7 @@ export function TaskActivitySubscribeControl({
                     variant="ghost"
                     size="icon"
                     className="text-muted-foreground size-6 shrink-0"
+                    disabled={isPending}
                     aria-label={t("removeParticipant", { name: user.name })}
                     onClick={() =>
                       setPendingRemove({ userId: user.id, name: user.name })

@@ -146,6 +146,20 @@ describe("POST /{id}/participants", () => {
     expect(waitUntilMock).not.toHaveBeenCalled();
   });
 
+  it("forbids when join eligibility fails and the viewer is not a participant", async () => {
+    addSelfAsTaskParticipantMock.mockResolvedValue({ added: false });
+    findManyMock.mockResolvedValue([]);
+    const app = mountApp();
+
+    const response = await app.request(
+      "http://localhost/tsk_123/participants",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(notifyTaskParticipantsAddedMock).not.toHaveBeenCalled();
+  });
+
   it("forbids a viewer who cannot comment", async () => {
     const { forbidden } = await import("@/helpers/error");
     requireTaskCommentAccessMock.mockImplementation(() => {

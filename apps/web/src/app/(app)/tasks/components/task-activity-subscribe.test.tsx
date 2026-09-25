@@ -257,9 +257,7 @@ describe("TaskActivitySubscribeControl", () => {
     );
     renderControl();
     await user.click(screen.getByRole("button", { name: "subscribe" }));
-    expect(
-      screen.getByRole("button", { name: "unsubscribe" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "unsubscribe" })).toBeDisabled();
     resolveSubscribe!({ ok: true, value: { taskId: "task-1" } });
     await waitFor(() => {
       expect(refreshMock).toHaveBeenCalled();
