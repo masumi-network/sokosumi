@@ -1,4 +1,4 @@
-import { notFound } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
   requireProjectAccess,
@@ -32,24 +32,42 @@ const sessionSelect = {
   createdAt: true,
 } as const;
 
-export async function bindSession(options: {
+/**
+ * Record a conversation the agent has just created, against its project.
+ *
+ * Reachable only through Core's agent surface, which accepts only grants of
+ * the `agent` audience — so the only caller that can reach this is the agent
+ * itself, in the request that created the session. That is what makes the
+ * binding a statement about *who created the conversation* rather than about
+ * who knows its id.
+ *
+ * The previous arrangement let the browser bind any id it named. Possession of
+ * an unbound id was therefore treated as ownership, so a leaked id from an
+ * older conversation could be attached to the attacker's own project and read.
+ *
+ * @throws 409 if the id is already bound elsewhere — a second claim on a
+ * conversation is never a legitimate creation.
+ */
+export async function registerCreatedSession(options: {
   projectId: string;
-  workspaceId: string;
   userId: string;
   eveSessionId: string;
   title: string | null;
 }): Promise<SessionView> {
-  const access = await requireProjectAccess(options);
+  const access = await requireProjectAccessForUser({
+    projectId: options.projectId,
+    userId: options.userId,
+  });
 
   const existing = await prisma.projectImageSession.findUnique({
     where: { eveSessionId: options.eveSessionId },
     select: { ...sessionSelect, projectId: true },
   });
   if (existing) {
-    // The unique index already guarantees one project per eve session; this
-    // turns the resulting constraint error into the honest answer.
-    if (existing.projectId !== options.projectId) {
-      throw notFound("Conversation not found");
+    // Creation happens once. A repeat for the same project is the agent
+    // retrying its own call, which is fine; anything else is a claim.
+    if (existing.projectId !== access.projectId) {
+      throw conflict("That conversation is already recorded elsewhere.");
     }
     return await touchSession(existing.id);
   }

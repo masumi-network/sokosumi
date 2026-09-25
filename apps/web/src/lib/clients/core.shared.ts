@@ -85,7 +85,6 @@ import type {
   PostProjectsByIdCloseRetryData,
   PostProjectsByIdImageStudioAssetsByAssetIdReviewData,
   PostProjectsByIdImageStudioJobsData,
-  PostProjectsByIdImageStudioSessionsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
@@ -387,7 +386,6 @@ import {
   postProjectsByIdImageStudioAssetsByAssetIdReview as corePostProjectsByIdImageStudioAssetsByAssetIdReview,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
-  postProjectsByIdImageStudioSessions as corePostProjectsByIdImageStudioSessions,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
@@ -3124,22 +3122,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function postProjectsByIdImageStudioSessions(
-    id: string,
-    body: NonNullable<PostProjectsByIdImageStudioSessionsData["body"]>,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostProjectsByIdImageStudioSessions({
-          client,
-          path: { id },
-          body,
-        }),
-      "Failed to bind image studio conversation",
-    );
-  }
-
   async function getProjectsByIdSocialPosts(
     id: string,
     query?: GetProjectsByIdSocialPostsData["query"],
@@ -5721,7 +5703,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobsByJobIdCancel,
     postProjectsByIdImageStudioAssetsByAssetIdReview,
     deleteProjectsByIdImageStudioAssetsByAssetIdReview,
-    postProjectsByIdImageStudioSessions,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsByPostId,
     patchProjectsByIdSocialPostsByPostId,

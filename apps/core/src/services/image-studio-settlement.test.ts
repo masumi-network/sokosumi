@@ -17,6 +17,7 @@ const {
   assetFindFirstMock,
   assetCreateMock,
   downloadImageMock,
+  fetchQueueStatusMock,
   putMock,
   requireProjectAccessForUserMock,
 } = vi.hoisted(() => ({
@@ -27,6 +28,7 @@ const {
   assetFindFirstMock: vi.fn(),
   assetCreateMock: vi.fn(),
   downloadImageMock: vi.fn(),
+  fetchQueueStatusMock: vi.fn(),
   putMock: vi.fn(),
   requireProjectAccessForUserMock: vi.fn(),
 }));
@@ -74,12 +76,16 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
     "@/lib/image-studio/fal-client",
   )),
   downloadImage: downloadImageMock,
+  fetchQueueStatus: fetchQueueStatusMock,
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
-import { settleWithImage } from "@/services/image-studio-jobs.service";
+import {
+  reconcileJob,
+  settleWithImage,
+} from "@/services/image-studio-jobs.service";
 
 const JOB = {
   id: "job-1",
@@ -122,6 +128,67 @@ beforeEach(() => {
   });
 });
 
+describe("the settlement lease", () => {
+  it("is not touched at all by an unrelated failed poll", async () => {
+    // An independent review held one settler inside the Blob put, made another
+    // reader's status request unreachable, and watched the active lease go
+    // null — so a second worker downloaded and stored the same image. A poll
+    // does not hold this lease, so it has no business writing to it.
+    const touched: string[] = [];
+    jobUpdateManyMock.mockImplementation(async (args: never) => {
+      const data = (args as unknown as { data: Record<string, unknown> }).data;
+      for (const key of ["settleLeaseAt", "settleLeaseOwner"]) {
+        if (key in data) touched.push(key);
+      }
+      return { count: 1 };
+    });
+    jobUpdateMock.mockImplementation(async (args: never) => {
+      const data = (args as unknown as { data: Record<string, unknown> }).data;
+      for (const key of ["settleLeaseAt", "settleLeaseOwner"]) {
+        if (key in data) touched.push(key);
+      }
+      return { unreachableSince: new Date() };
+    });
+    jobFindUniqueMock.mockResolvedValue({ ...JOB, status: "QUEUED" });
+    fetchQueueStatusMock.mockResolvedValue({
+      kind: "unreachable",
+      message: "socket hang up",
+    });
+
+    await reconcileJob("job-1");
+
+    expect(touched).toEqual([]);
+  });
+
+  it("claims with an owner and releases only as that owner", async () => {
+    const calls: Array<{
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    }> = [];
+    jobUpdateManyMock.mockImplementation(async (args: never) => {
+      const typed = args as unknown as {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+      };
+      calls.push(typed);
+      return { count: 1 };
+    });
+    downloadImageMock.mockRejectedValue(new Error("connection reset"));
+    jobUpdateMock.mockResolvedValue({ unreachableSince: null });
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    const claim = calls.find((call) => call.data.settleLeaseOwner != null);
+    const release = calls.find(
+      (call) => call.data.settleLeaseAt === null && call.where.settleLeaseOwner,
+    );
+    expect(claim).toBeDefined();
+    // Handed back by the same owner that took it, so a concurrent failure
+    // elsewhere cannot unlock a settlement that is still running.
+    expect(release?.where.settleLeaseOwner).toBe(claim?.data.settleLeaseOwner);
+  });
+});
+
 describe("concurrent settlement", () => {
   it("does the paid work once when many settlers race one job", async () => {
     // Only the first caller wins the lease; the rest are refused before they
@@ -130,7 +197,7 @@ describe("concurrent settlement", () => {
     jobUpdateManyMock.mockImplementation(async (args: { data: unknown }) => {
       const data = args.data as Record<string, unknown>;
       const isLeaseClaim =
-        Object.keys(data).length === 1 && "submitLeaseAt" in data;
+        "settleLeaseOwner" in data && data.settleLeaseAt instanceof Date;
       if (!isLeaseClaim) return { count: 1 };
       claims += 1;
       return { count: claims === 1 ? 1 : 0 };

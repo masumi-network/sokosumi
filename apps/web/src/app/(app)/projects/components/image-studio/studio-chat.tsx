@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { bindImageStudioSession } from "@/lib/actions/image-studio/action";
 import { cn } from "@/lib/utils";
 
 import type { StudioAsset, StudioLabels } from "./types";
@@ -78,8 +77,6 @@ export function StudioChat({
   const [tokenError, setTokenError] = useState<
     null | "unavailable" | "transient"
   >(null);
-  const [bindWarning, setBindWarning] = useState(false);
-  const boundSessionRef = useRef<string | null>(resumeSessionId);
   /** The message currently in flight, so a later failure can put it back. */
   const lastSentRef = useRef<string | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
@@ -128,44 +125,15 @@ export function StudioChat({
     return body.token;
   }, [projectId]);
 
-  /**
-   * Persist the session binding, retrying until it sticks.
-   *
-   * The binding is what makes a conversation resumable and project-scoped, so
-   * losing it to one failed request leaves a working chat that nobody can get
-   * back to. The session is only recorded as bound once Core has confirmed it.
-   */
-  const bindSession = useCallback(
-    async (eveSessionId: string, attempt = 0): Promise<void> => {
-      try {
-        await bindImageStudioSession({
-          projectId,
-          eveSessionId,
-          title: null,
-        });
-        boundSessionRef.current = eveSessionId;
-        setBindWarning(false);
-      } catch {
-        if (attempt >= 3) {
-          setBindWarning(true);
-          return;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
-        await bindSession(eveSessionId, attempt + 1);
-      }
-    },
-    [projectId],
-  );
+  // The conversation is recorded against this project by the agent, inside the
+  // request that creates it, using the principal Core has just verified. There
+  // is nothing for the browser to bind, and so nothing to sequence, retry or
+  // wait for — which is what the prewarm/bind/gate arrangement here was doing,
+  // and racing.
 
   const agent = useEveAgent({
     agent: "image-studio",
     auth: { bearer: fetchToken },
-    // Create the durable session as soon as the person starts composing, so
-    // it can be bound to this project before it carries anything. The agent
-    // refuses an unbound session, and ownership is established here — by a
-    // signed-in user through Core — rather than by whoever contacts the
-    // session first.
-    prewarm: draft.trim().length > 0,
     ...(resumeSessionId
       ? {
           initialSession: { sessionId: resumeSessionId, streamIndex: 0 },
@@ -188,10 +156,6 @@ export function StudioChat({
           }
         : input;
     },
-    onSessionChange: (session) => {
-      if (!session || boundSessionRef.current === session.sessionId) return;
-      void bindSession(session.sessionId);
-    },
     onError: () => {
       const message = lastSentRef.current;
       lastSentRef.current = null;
@@ -206,15 +170,6 @@ export function StudioChat({
   // Read inside the submit handler without making it depend on the render.
   const agentErrorRef = useRef<Error | null>(agent.error ?? null);
   agentErrorRef.current = agent.error ?? null;
-
-  /**
-   * The agent refuses an unbound session, so a message may only be sent once
-   * this conversation is recorded against the project. Failing closed here is
-   * what keeps ownership with the signed-in user rather than with whoever
-   * reaches the session first.
-   */
-  const sessionId = agent.session?.sessionId ?? null;
-  const canSend = sessionId === null || boundSessionRef.current === sessionId;
 
   // Following a growing transcript is DOM synchronization.
   useEffect(() => {
@@ -256,7 +211,7 @@ export function StudioChat({
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     const message = draft.trim();
-    if (message.length === 0 || isResuming || !canSend) return;
+    if (message.length === 0 || isResuming) return;
 
     handleDraftChange("");
     lastSentRef.current = message;
@@ -362,15 +317,6 @@ export function StudioChat({
           <p className="mt-1 break-words">{agent.error.message}</p>
           <p className="mt-1">{labels.assistantErrorHint}</p>
         </div>
-      ) : null}
-
-      {bindWarning ? (
-        <p
-          className="border-border text-muted-foreground border-t px-4 py-2 text-xs"
-          role="status"
-        >
-          {labels.bindWarning}
-        </p>
       ) : null}
 
       <form

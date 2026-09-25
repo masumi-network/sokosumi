@@ -86,7 +86,6 @@ export default async function ProjectStudioPage({
     thinking: t("thinking"),
     assistantError: t("assistantError"),
     assistantErrorHint: t("assistantErrorHint"),
-    bindWarning: t("bindWarning"),
     loadOlder: t("loadOlder"),
     errorSessionExpired: t("errorSessionExpired"),
     errorRefreshFailed: t("errorRefreshFailed"),

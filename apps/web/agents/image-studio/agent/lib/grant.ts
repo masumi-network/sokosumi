@@ -9,12 +9,19 @@ import crypto from "node:crypto";
  * workspace import would drag Core's module graph into it, which is precisely
  * what the studio agent must not have.
  *
- * A grant names a user and a project. It is not permission — Core re-reads
- * that user's current project membership on every call, so a grant minted a
- * moment before a removal stops working immediately.
+ * A grant names a user, a project and the surface it may be spent at. It is
+ * not permission — Core re-reads that user's current project membership on
+ * every call, so a grant minted a moment before a removal stops working
+ * immediately.
+ *
+ * The audience is what keeps the browser's token and the agent's token apart.
+ * They share a format and a secret, so without it the page's token was also a
+ * valid credential at Core's agent surface.
  */
 
-const VERSION = "v1";
+const VERSION = "v2";
+
+export type GrantAudience = "browser" | "agent";
 const TTL_SECONDS = 120;
 
 function secret(): string {
@@ -30,8 +37,10 @@ export function mintGrant(claims: {
   projectId: string;
 }): string {
   const expiresAt = Math.floor(Date.now() / 1000) + TTL_SECONDS;
+  // Always "agent": this is the token the agent spends at Core.
   const payload = [
     VERSION,
+    "agent",
     claims.userId,
     claims.projectId,
     String(expiresAt),
@@ -48,11 +57,17 @@ export interface GrantClaims {
   projectId: string;
 }
 
-/** Verifies a token minted by Web for the browser. Same format, same secret. */
+/**
+ * Verifies a token minted by Web for the browser. Same format, same secret.
+ *
+ * Only accepts the `browser` audience: a token the agent minted for Core is
+ * not a credential for talking to the agent.
+ */
 export function verifyGrant(token: string): GrantClaims | null {
   const parts = token.split(".");
-  if (parts.length !== 5 || parts[0] !== VERSION) return null;
-  const [, userId, projectId, expiresAtRaw, signature] = parts as [
+  if (parts.length !== 6 || parts[0] !== VERSION) return null;
+  const [, audience, userId, projectId, expiresAtRaw, signature] = parts as [
+    string,
     string,
     string,
     string,
@@ -64,7 +79,7 @@ export function verifyGrant(token: string): GrantClaims | null {
 
   const expected = crypto
     .createHmac("sha256", secret())
-    .update([VERSION, userId, projectId, expiresAtRaw].join("."))
+    .update([VERSION, audience, userId, projectId, expiresAtRaw].join("."))
     .digest("base64url");
   const expectedBytes = Buffer.from(expected);
   const actualBytes = Buffer.from(signature);
@@ -74,6 +89,8 @@ export function verifyGrant(token: string): GrantClaims | null {
   ) {
     return null;
   }
+  // The page's token, and only the page's token.
+  if (audience !== "browser") return null;
   if (Math.floor(Date.now() / 1000) >= expiresAt) return null;
   return { userId, projectId };
 }

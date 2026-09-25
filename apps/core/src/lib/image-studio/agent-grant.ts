@@ -11,15 +11,31 @@ import crypto from "node:crypto";
  * Shared-secret HMAC rather than a key pair: both ends are ours, they deploy
  * together, and ADR 0007 singled out per-network key material as a cost worth
  * avoiding.
+ *
+ * Every grant names the surface it may be spent at. Without that, the token
+ * Web mints for the *browser* — same format, same secret — was also a valid
+ * credential at Core's agent surface, so a page could call the agent's own
+ * endpoints directly and skip the agent entirely. An audience makes the two
+ * non-interchangeable.
  */
 
-const VERSION = "v1";
+const VERSION = "v2";
+
+/**
+ * Where a grant may be spent.
+ *
+ * `browser` — minted by Web, held by the page, accepted only by the agent's
+ * HTTP channel. `agent` — minted by the agent, accepted only by Core's agent
+ * surface. Neither is accepted in the other's place.
+ */
+export type AgentGrantAudience = "browser" | "agent";
 const DEFAULT_TTL_SECONDS = 120;
 const MAX_TTL_SECONDS = 600;
 
 export interface AgentGrantClaims {
   userId: string;
   projectId: string;
+  audience: AgentGrantAudience;
   /** Seconds since the epoch. */
   expiresAt: number;
 }
@@ -27,6 +43,7 @@ export interface AgentGrantClaims {
 function payloadOf(claims: AgentGrantClaims): string {
   return [
     VERSION,
+    claims.audience,
     claims.userId,
     claims.projectId,
     String(claims.expiresAt),
@@ -44,6 +61,7 @@ export function mintAgentGrant(
   options: {
     userId: string;
     projectId: string;
+    audience: AgentGrantAudience;
     ttlSeconds?: number;
     now?: Date;
   },
@@ -56,6 +74,7 @@ export function mintAgentGrant(
   const claims: AgentGrantClaims = {
     userId: options.userId,
     projectId: options.projectId,
+    audience: options.audience,
     expiresAt: Math.floor((options.now ?? new Date()).getTime() / 1000) + ttl,
   };
   const payload = payloadOf(claims);
@@ -64,30 +83,38 @@ export function mintAgentGrant(
 
 export type AgentGrantResult =
   | { ok: true; claims: AgentGrantClaims }
-  | { ok: false; reason: "malformed" | "signature" | "expired" };
+  | { ok: false; reason: "malformed" | "signature" | "expired" | "audience" };
 
 export function verifyAgentGrant(
   token: string,
   secret: string,
+  /** The surface doing the verifying. A grant for elsewhere is refused. */
+  audience: AgentGrantAudience,
   now: Date = new Date(),
 ): AgentGrantResult {
   const parts = token.split(".");
-  if (parts.length !== 5 || parts[0] !== VERSION) {
+  if (parts.length !== 6 || parts[0] !== VERSION) {
     return { ok: false, reason: "malformed" };
   }
-  const [, userId, projectId, expiresAtRaw, signature] = parts as [
-    string,
-    string,
-    string,
-    string,
-    string,
-  ];
+  const [, tokenAudience, userId, projectId, expiresAtRaw, signature] =
+    parts as [string, string, string, string, string, string];
   const expiresAt = Number(expiresAtRaw);
   if (!userId || !projectId || !Number.isFinite(expiresAt)) {
     return { ok: false, reason: "malformed" };
   }
+  if (tokenAudience !== "browser" && tokenAudience !== "agent") {
+    return { ok: false, reason: "malformed" };
+  }
 
-  const expected = sign(payloadOf({ userId, projectId, expiresAt }), secret);
+  const expected = sign(
+    payloadOf({
+      userId,
+      projectId,
+      audience: tokenAudience,
+      expiresAt,
+    }),
+    secret,
+  );
   const expectedBytes = Buffer.from(expected);
   const actualBytes = Buffer.from(signature);
   if (
@@ -97,8 +124,18 @@ export function verifyAgentGrant(
     return { ok: false, reason: "signature" };
   }
 
+  // Audience is compared only after the signature, so a wrong-surface token
+  // is refused on its merits rather than telling an unauthenticated caller
+  // which audience the endpoint wants.
+  if (tokenAudience !== audience) {
+    return { ok: false, reason: "audience" };
+  }
+
   if (Math.floor(now.getTime() / 1000) >= expiresAt) {
     return { ok: false, reason: "expired" };
   }
-  return { ok: true, claims: { userId, projectId, expiresAt } };
+  return {
+    ok: true,
+    claims: { userId, projectId, audience: tokenAudience, expiresAt },
+  };
 }

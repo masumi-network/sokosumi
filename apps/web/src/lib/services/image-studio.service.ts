@@ -5,7 +5,6 @@ import type {
   CreateProjectImageJobRequest,
   ProjectImageAsset,
   ProjectImageJob,
-  ProjectImageSession,
   ProjectImageStudioState,
   ReviewProjectImageAssetRequest,
 } from "@/lib/clients/generated/core/types.gen";
@@ -80,18 +79,6 @@ export const imageStudioService = {
         projectId,
         assetId,
       );
-    return result.data;
-  },
-
-  async bindSession(
-    projectId: string,
-    eveSessionId: string,
-    title: string | null,
-  ): Promise<ProjectImageSession> {
-    const result = await coreClient.postProjectsByIdImageStudioSessions(
-      projectId,
-      { eveSessionId, title },
-    );
     return result.data;
   },
 };

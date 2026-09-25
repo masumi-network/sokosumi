@@ -2580,7 +2580,6 @@
           "thinking": "Trabajando…",
           "assistantError": "El asistente no pudo terminar eso",
           "assistantErrorHint": "Tu mensaje sigue en el cuadro. Vuelve a enviarlo o reformúlalo.",
-          "bindWarning": "Esta conversación no se pudo guardar en el proyecto, así que puede que no reaparezca tras recargar.",
           "loadOlder": "Cargar versiones anteriores",
           "errorSessionExpired": "Tu sesión ha caducado. Recarga para continuar.",
           "errorRefreshFailed": "No se pudo actualizar. Reintentando.",

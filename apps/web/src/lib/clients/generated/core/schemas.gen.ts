@@ -16762,28 +16762,6 @@ export const ReviewProjectImageAssetRequestSchema = {
     ]
 } as const;
 
-export const BindProjectImageSessionRequestSchema = {
-    type: 'object',
-    properties: {
-        eveSessionId: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 200
-        },
-        title: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 200,
-            default: null
-        }
-    },
-    required: [
-        'eveSessionId'
-    ]
-} as const;
-
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {

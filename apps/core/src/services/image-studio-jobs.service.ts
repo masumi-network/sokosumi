@@ -237,6 +237,24 @@ async function claimForSubmission(jobId: string): Promise<boolean> {
 }
 
 /**
+ * States in which the provider may still have something to tell us.
+ *
+ * `SUBMISSION_UNCERTAIN` belongs here. It means we lost contact, not that the
+ * request was lost: the job may well be running, and if we hold its
+ * `falRequestId` we can still ask. Treating it as terminal made every paid
+ * image behind a six-hour outage permanently unreachable — polling, the cron
+ * and the completion callback all refused to look at it again.
+ *
+ * Recovery never re-submits. Submission is the part that costs money and is
+ * fenced by `submitAttempts`; this is only ever reading and settling.
+ */
+const LIVE_STATUSES = [
+  ProjectImageJobStatus.QUEUED,
+  ProjectImageJobStatus.RUNNING,
+  ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
+] as const;
+
+/**
  * Take the exclusive right to settle this job.
  *
  * Reuses `submitLeaseAt`: a job being settled is past submission, so the field
@@ -244,19 +262,35 @@ async function claimForSubmission(jobId: string): Promise<boolean> {
  * A settler that dies leaves the lease behind; the deadline is what lets the
  * next one through.
  */
-async function claimForSettlement(jobId: string): Promise<boolean> {
+async function claimForSettlement(jobId: string): Promise<string | null> {
+  const owner = crypto.randomUUID();
   const deadline = new Date(Date.now() - SETTLE_LEASE_MS);
   const claimed = await prisma.projectImageJob.updateMany({
     where: {
       id: jobId,
-      status: {
-        in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
-      },
-      OR: [{ submitLeaseAt: null }, { submitLeaseAt: { lt: deadline } }],
+      status: { in: [...LIVE_STATUSES] },
+      OR: [{ settleLeaseAt: null }, { settleLeaseAt: { lt: deadline } }],
     },
-    data: { submitLeaseAt: new Date() },
+    data: { settleLeaseAt: new Date(), settleLeaseOwner: owner },
   });
-  return claimed.count === 1;
+  return claimed.count === 1 ? owner : null;
+}
+
+/**
+ * Give the settlement lease back, if we are the ones holding it.
+ *
+ * Fenced by owner. An unconditional release let an unrelated failed status
+ * read — which never held this lease — unlock a settler that was still
+ * downloading, so two workers stored the same image at once.
+ */
+async function releaseSettlementLease(
+  jobId: string,
+  owner: string,
+): Promise<void> {
+  await prisma.projectImageJob.updateMany({
+    where: { id: jobId, settleLeaseOwner: owner },
+    data: { settleLeaseAt: null, settleLeaseOwner: null },
+  });
 }
 
 /** Long enough for a download and an upload, short enough to retry. */
@@ -457,11 +491,12 @@ export async function sweepStalledSubmissions(
 export async function reconcileJob(jobId: string): Promise<void> {
   const job = await prisma.projectImageJob.findUnique({ where: { id: jobId } });
   if (!job) return;
+  // Without a provider request id there is nothing to ask about.
   if (!job.falRequestId) return;
-  if (
-    job.status !== ProjectImageJobStatus.QUEUED &&
-    job.status !== ProjectImageJobStatus.RUNNING
-  ) {
+  // Includes SUBMISSION_UNCERTAIN: we hold its request id, so the provider can
+  // still tell us it succeeded. Refusing to look was what made paid images
+  // behind an outage permanently unreachable.
+  if (!(LIVE_STATUSES as readonly string[]).includes(job.status)) {
     return;
   }
 
@@ -481,16 +516,33 @@ export async function reconcileJob(jobId: string): Promise<void> {
 
   await prisma.projectImageJob.updateMany({
     where: { id: job.id },
-    data: { polledAt: new Date(), pollFailures: 0, lastPollError: null },
+    data: { polledAt: new Date() },
   });
+  await noteReachable(job.id);
 
   switch (status.kind) {
     case "in_queue":
+      // The provider still has it. If we had given up on it, take that back.
+      await prisma.projectImageJob.updateMany({
+        where: {
+          id: job.id,
+          status: ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
+        },
+        data: { status: ProjectImageJobStatus.QUEUED, settledAt: null },
+      });
       return;
     case "in_progress":
       await prisma.projectImageJob.updateMany({
-        where: { id: job.id, status: ProjectImageJobStatus.QUEUED },
-        data: { status: ProjectImageJobStatus.RUNNING },
+        where: {
+          id: job.id,
+          status: {
+            in: [
+              ProjectImageJobStatus.QUEUED,
+              ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
+            ],
+          },
+        },
+        data: { status: ProjectImageJobStatus.RUNNING, settledAt: null },
       });
       return;
     case "not_found":
@@ -502,9 +554,7 @@ export async function reconcileJob(jobId: string): Promise<void> {
         await prisma.projectImageJob.updateMany({
           where: {
             id: job.id,
-            status: {
-              in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
-            },
+            status: { in: [...LIVE_STATUSES] },
           },
           data: {
             status: ProjectImageJobStatus.CANCELED,
@@ -542,55 +592,83 @@ export async function reconcileJob(jobId: string): Promise<void> {
 }
 
 /**
- * How long the provider may stay unreachable for one request before we stop.
+ * How long one outage may last before we stop waiting on a request.
  *
- * Measured against wall-clock time since submission, not a count of attempts.
- * A count is not a duration: the browser polls every three seconds and several
- * readers can poll at once, so a twelve-attempt budget could be spent in under
- * a minute of one bad connection — and the job, already paid for, was gone.
+ * Bounds the outage, not the request. Measuring from submission meant a job
+ * that had been queued for seven hours was written off by its very first
+ * failed read, and a count of attempts was worse still: the browser polls
+ * every three seconds and several readers can poll at once, so a twelve-
+ * attempt budget could be spent inside a minute.
  */
 const UNREACHABLE_GRACE_MS = 6 * 60 * 60 * 1000;
 
+/** What we could not reach. The distinction is visible to the reader. */
+type UnreachableSource = "provider" | "authorization";
+
 /**
- * Record a read that never reached the provider.
+ * Record a read that never arrived.
  *
- * Never settles the job on its own. It gives up only once the request has been
- * outstanding for {@link UNREACHABLE_GRACE_MS}, and even then the job is marked
- * as possibly charged, because we never got an answer either way.
+ * Never settles the job on its own, and never touches the settlement lease —
+ * it does not hold it. It gives up only once *this outage* has run for
+ * {@link UNREACHABLE_GRACE_MS}, and even then the job stays recoverable: the
+ * provider may still have the image, and {@link LIVE_STATUSES} keeps polling
+ * and settlement open to it.
  */
-async function noteUnreachable(jobId: string, message: string): Promise<void> {
+async function noteUnreachable(
+  jobId: string,
+  message: string,
+  source: UnreachableSource = "provider",
+): Promise<void> {
+  const now = new Date();
   const updated = await prisma.projectImageJob.update({
     where: { id: jobId },
     data: {
-      polledAt: new Date(),
+      polledAt: now,
       pollFailures: { increment: 1 },
       lastPollError: message.slice(0, 500),
-      // Whoever held the settle lease is done with it; the next reader should
-      // not have to wait out the deadline.
-      submitLeaseAt: null,
+      unreachableSource: source,
     },
-    select: { pollFailures: true, submittedAt: true, createdAt: true },
+    select: { unreachableSince: true },
   });
 
-  const startedAt = updated.submittedAt ?? updated.createdAt;
-  if (Date.now() - startedAt.getTime() < UNREACHABLE_GRACE_MS) return;
+  // First failure of a run: start the clock and wait.
+  if (!updated.unreachableSince) {
+    await prisma.projectImageJob.updateMany({
+      where: { id: jobId, unreachableSince: null },
+      data: { unreachableSince: now },
+    });
+    return;
+  }
+
+  const outageMs = now.getTime() - updated.unreachableSince.getTime();
+  if (outageMs < UNREACHABLE_GRACE_MS) return;
 
   await prisma.projectImageJob.updateMany({
-    where: {
-      id: jobId,
-      status: {
-        in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
-      },
-    },
+    where: { id: jobId, status: { in: [...LIVE_STATUSES] } },
     data: {
-      // Not FAILED: this request was sent and may well have been billed, so
-      // offering a retry that looks free would be a lie. The uncertain status
-      // is what makes the UI say so.
+      // Not FAILED: this request was sent and may have been billed, so
+      // offering a retry that looks free would be a lie. Not terminal either —
+      // this status stays pollable, so the image is still recoverable if the
+      // provider comes back with it.
       status: ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
-      error: `The provider could not be reached for this request for ${Math.round(
-        UNREACHABLE_GRACE_MS / 3_600_000,
-      )} hours (${message.slice(0, 200)}).`,
-      settledAt: new Date(),
+      error:
+        source === "authorization"
+          ? `Could not confirm who this image belongs to for ${Math.round(outageMs / 3_600_000)} hours (${message.slice(0, 200)}).`
+          : `The provider could not be reached for this request for ${Math.round(outageMs / 3_600_000)} hours (${message.slice(0, 200)}).`,
+      settledAt: now,
+    },
+  });
+}
+
+/** Any read that got through ends the outage. */
+async function noteReachable(jobId: string): Promise<void> {
+  await prisma.projectImageJob.updateMany({
+    where: { id: jobId, unreachableSince: { not: null } },
+    data: {
+      unreachableSince: null,
+      unreachableSource: null,
+      pollFailures: 0,
+      lastPollError: null,
     },
   });
 }
@@ -606,15 +684,12 @@ async function failJob(jobId: string, message: string): Promise<void> {
   await prisma.projectImageJob.updateMany({
     where: {
       id: jobId,
-      status: {
-        in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
-      },
+      status: { in: [...LIVE_STATUSES] },
     },
     data: {
       status: ProjectImageJobStatus.FAILED,
       error: message.slice(0, 500),
       settledAt: new Date(),
-      submitLeaseAt: null,
     },
   });
 }
@@ -634,10 +709,10 @@ export async function settleWithImage(
     include: { asset: { select: { id: true } } },
   });
   if (!job || job.asset) return;
-  if (
-    job.status !== ProjectImageJobStatus.QUEUED &&
-    job.status !== ProjectImageJobStatus.RUNNING
-  ) {
+  // An uncertain job is still settleable. The callback that arrives after an
+  // outage is exactly the case this has to accept, and it is the one the
+  // webhook takes.
+  if (!(LIVE_STATUSES as readonly string[]).includes(job.status)) {
     return;
   }
 
@@ -646,7 +721,8 @@ export async function settleWithImage(
   // *row* — but only after each of them has already downloaded the image and
   // written it to storage. The lease moves that deduplication in front of the
   // network, so the work happens once rather than being undone afterwards.
-  if (!(await claimForSettlement(job.id))) return;
+  const lease = await claimForSettlement(job.id);
+  if (!lease) return;
 
   // Re-check the destination *and* the person who asked for this, at the
   // moment the image arrives.
@@ -665,19 +741,20 @@ export async function settleWithImage(
     project = { id: access.projectId, workspaceId: access.workspaceId };
   } catch (error) {
     if (!isAccessDenied(error)) {
+      await releaseSettlementLease(job.id, lease);
       // We could not find out. That is not a refusal, and discarding a paid
       // image because a connection blipped is the worse of the two mistakes.
       // Leave the job live; a later reconcile or the cron will ask again.
       await noteUnreachable(
         job.id,
-        error instanceof Error
-          ? `access check unavailable: ${error.message}`
-          : "access check unavailable",
+        error instanceof Error ? error.message : "access check unavailable",
+        "authorization",
       );
       return;
     }
     // A real refusal: the project is gone, or the requester no longer has
     // access to it. Nothing is downloaded and nothing is stored.
+    await releaseSettlementLease(job.id, lease);
     await prisma.projectImageJob.updateMany({
       where: { id: job.id },
       data: {
@@ -692,6 +769,7 @@ export async function settleWithImage(
 
   const env = getEnv();
   if (!env.BLOB_READ_WRITE_TOKEN) {
+    await releaseSettlementLease(job.id, lease);
     await failJob(job.id, "Image storage is not configured.");
     return;
   }
@@ -707,6 +785,7 @@ export async function settleWithImage(
     // failed download is our problem, not a verdict on the job: leave the row
     // live so a later reconcile or the webhook can fetch it again rather than
     // offering the person another paid generation.
+    await releaseSettlementLease(job.id, lease);
     await noteUnreachable(
       job.id,
       error instanceof Error ? error.message : "image download failed",
@@ -759,6 +838,7 @@ export async function settleWithImage(
     });
   } catch (error) {
     if (isUniqueViolation(error)) return; // Another settler won; its asset stands.
+    await releaseSettlementLease(job.id, lease);
     throw error;
   }
 }
@@ -844,7 +924,10 @@ async function insertAsset(input: {
         status: ProjectImageJobStatus.SUCCEEDED,
         settledAt: new Date(),
         error: null,
-        submitLeaseAt: null,
+        settleLeaseAt: null,
+        settleLeaseOwner: null,
+        unreachableSince: null,
+        unreachableSource: null,
       },
     });
   }, "Another image finished in this lineage at the same moment. Try again.");
@@ -881,9 +964,7 @@ export async function reconcileProjectJobs(projectId: string): Promise<void> {
   const pending = await prisma.projectImageJob.findMany({
     where: {
       projectId,
-      status: {
-        in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
-      },
+      status: { in: [...LIVE_STATUSES] },
     },
     orderBy: { createdAt: "asc" },
     take: LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT,
@@ -927,7 +1008,7 @@ export async function reconcileStaleJobs(options: {
   const stale = await prisma.projectImageJob.findMany({
     where: {
       status: {
-        in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
+        in: [...LIVE_STATUSES],
       },
       updatedAt: { lt: new Date(Date.now() - options.olderThanMs) },
     },
@@ -1019,9 +1100,7 @@ async function finaliseCancellations(limit: number): Promise<number> {
   const requested = await prisma.projectImageJob.findMany({
     where: {
       cancelRequestedAt: { not: null },
-      status: {
-        in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
-      },
+      status: { in: [...LIVE_STATUSES] },
     },
     orderBy: { cancelRequestedAt: "asc" },
     take: limit,

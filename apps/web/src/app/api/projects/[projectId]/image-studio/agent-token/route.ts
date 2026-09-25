@@ -22,7 +22,7 @@ import { projectService } from "@/lib/services/project.service";
  */
 
 const TTL_SECONDS = 300;
-const VERSION = "v1";
+const VERSION = "v2";
 
 export async function POST(
   _request: NextRequest,
@@ -86,7 +86,17 @@ export async function POST(
   }
 
   const expiresAt = Math.floor(Date.now() / 1000) + TTL_SECONDS;
-  const payload = [VERSION, userId, projectId, String(expiresAt)].join(".");
+  // Audience "browser": spendable at the agent's HTTP channel and nowhere
+  // else. The same format and secret are used for the agent's own grants to
+  // Core, so without this the page held a working credential for Core's agent
+  // surface and could have skipped the agent entirely.
+  const payload = [
+    VERSION,
+    "browser",
+    userId,
+    projectId,
+    String(expiresAt),
+  ].join(".");
   const signature = crypto
     .createHmac("sha256", secret)
     .update(payload)

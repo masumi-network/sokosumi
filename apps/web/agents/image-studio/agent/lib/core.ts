@@ -85,6 +85,69 @@ export async function authorizeSession(
   }
 }
 
+/**
+ * Confirm the caller still has access to the project they name.
+ *
+ * Used on session *creation*, which names no session and so has nothing to
+ * authorize against. Without it a valid, unexpired token created a
+ * message-bearing conversation after the person's membership had been
+ * revoked — the create path was the one door with no current-access lookup
+ * behind it.
+ */
+export async function authorizeProjectAccess(
+  identity: AgentIdentity,
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${baseUrl()}/image-studio-agent/access`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${mintGrant(identity)}`,
+        "content-type": "application/json",
+      },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!response.ok) return false;
+    const body = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+    } | null;
+    return body?.ok === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Record a conversation this request has just created, against its project.
+ *
+ * Called from inside the create request, before the session id has reached
+ * anybody. Returns false if Core would not record it, and the channel then
+ * fails the creation: an unrecorded conversation is unreachable afterwards
+ * anyway, and leaving one behind is what made unbound ids claimable.
+ */
+export async function registerCreatedSession(
+  identity: AgentIdentity,
+  eveSessionId: string,
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${baseUrl()}/image-studio-agent/sessions`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${mintGrant(identity)}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ eveSessionId }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!response.ok) return false;
+    const body = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+    } | null;
+    return body?.ok === true;
+  } catch {
+    return false;
+  }
+}
+
 export interface VersionSummary {
   id: string;
   version: number;

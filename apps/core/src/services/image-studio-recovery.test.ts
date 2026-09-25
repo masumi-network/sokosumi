@@ -136,11 +136,7 @@ beforeEach(() => {
   jobUpdateManyMock.mockResolvedValue({ count: 1 });
   // `noteUnreachable` reads these back to decide whether the grace period has
   // run out, so the default stands for "sent a moment ago".
-  jobUpdateMock.mockResolvedValue({
-    pollFailures: 1,
-    submittedAt: new Date(),
-    createdAt: new Date(),
-  });
+  jobUpdateMock.mockResolvedValue({ unreachableSince: new Date() });
   requireProjectAccessForUserMock.mockResolvedValue({
     projectId: "project-1",
     workspaceId: "workspace-1",
@@ -289,11 +285,7 @@ describe("a download that fails after the provider produced the image", () => {
       userId: "user-1",
     });
     downloadImageMock.mockRejectedValue(new Error("connection reset"));
-    jobUpdateMock.mockResolvedValue({
-      pollFailures: 1,
-      submittedAt: new Date(),
-      createdAt: new Date(),
-    });
+    jobUpdateMock.mockResolvedValue({ unreachableSince: new Date() });
 
     await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
 
@@ -321,10 +313,9 @@ describe("the unreachable grace period", () => {
       kind: "unreachable",
       message: "socket hang up",
     });
+    // Forty failures, but the outage only began a minute ago.
     jobUpdateMock.mockResolvedValue({
-      pollFailures: 40,
-      submittedAt: new Date(Date.now() - 60_000),
-      createdAt: new Date(Date.now() - 60_000),
+      unreachableSince: new Date(Date.now() - 60_000),
     });
 
     await reconcileJob("job-1");
@@ -342,10 +333,9 @@ describe("the unreachable grace period", () => {
       kind: "unreachable",
       message: "socket hang up",
     });
+    // The outage itself has now run for seven hours.
     jobUpdateMock.mockResolvedValue({
-      pollFailures: 3,
-      submittedAt: new Date(Date.now() - 7 * 60 * 60 * 1000),
-      createdAt: new Date(Date.now() - 7 * 60 * 60 * 1000),
+      unreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
     });
 
     await reconcileJob("job-1");
@@ -368,11 +358,7 @@ describe("an access check that cannot answer", () => {
         code: "P1001",
       }),
     );
-    jobUpdateMock.mockResolvedValue({
-      pollFailures: 1,
-      submittedAt: new Date(),
-      createdAt: new Date(),
-    });
+    jobUpdateMock.mockResolvedValue({ unreachableSince: new Date() });
 
     await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
 

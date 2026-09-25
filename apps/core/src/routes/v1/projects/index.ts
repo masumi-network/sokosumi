@@ -11,7 +11,6 @@ import mountReviewProjectImageAsset from "./[id]/image-studio/asset-review-post.
 import mountGetProjectImageStudio from "./[id]/image-studio/get.js";
 import mountCancelProjectImageJob from "./[id]/image-studio/job-cancel-post.js";
 import mountCreateProjectImageJob from "./[id]/image-studio/jobs-post.js";
-import mountBindProjectImageSession from "./[id]/image-studio/sessions-post.js";
 import mountDeleteProjectJob from "./[id]/jobs/[jobId]/delete.js";
 import mountPostProjectJob from "./[id]/jobs/post.js";
 import mountGetProjectNeedsAttention from "./[id]/needs-attention/get.js";
@@ -71,7 +70,6 @@ mountCreateProjectImageJob(app);
 mountCancelProjectImageJob(app);
 mountGetProjectImageAssetContent(app);
 mountReviewProjectImageAsset(app);
-mountBindProjectImageSession(app);
 mountGetProject(app);
 mountPatchProject(app);
 mountDeleteProject(app);

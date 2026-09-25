@@ -4277,6 +4277,17 @@ model ProjectImageJob {
   /// update that moves PENDING -> SUBMITTING, so exactly one caller can ever
   /// reach fal for this row.
   submitLeaseAt  DateTime?
+
+  /// Held by the one worker currently downloading and storing the image.
+  ///
+  /// Separate from `submitLeaseAt` on purpose. Reusing that field made the two
+  /// leases indistinguishable, and an unrelated failed poll — which owns
+  /// neither — released the settler's lease and let a second worker download
+  /// and store the same image concurrently.
+  settleLeaseAt    DateTime?
+  /// Who holds `settleLeaseAt`. A lease is released only by its owner, so a
+  /// failure elsewhere cannot unlock a settlement that is still running.
+  settleLeaseOwner String?
   /// How many times the row has been claimed for submission. Once this is
   /// non-zero the row is never auto-submitted again, whatever its status.
   submitAttempts Int       @default(0)
@@ -4301,9 +4312,18 @@ model ProjectImageJob {
   /// Consecutive reconcile attempts that could not reach the provider at all.
   ///
   /// A transport failure says nothing about the job, so it must not settle it.
-  /// This counts how long that has been going on, so a job whose request the
-  /// provider has genuinely lost still stops eventually.
   pollFailures  Int       @default(0)
+  /// When the current run of unreachable reads began; cleared by any read that
+  /// gets through.
+  ///
+  /// The outage is what the grace period bounds, not the age of the request.
+  /// Measuring from `submittedAt` meant a job that had been queued for hours
+  /// was written off by its first failed read.
+  unreachableSince DateTime?
+  /// What could not be reached — the provider, or our own database. Display
+  /// only, but the distinction matters: telling somebody the provider was
+  /// unreachable for six hours when one database lookup failed is a lie.
+  unreachableSource String?
   /// Why the last reconcile could not reach the provider. Display only.
   lastPollError String?
 

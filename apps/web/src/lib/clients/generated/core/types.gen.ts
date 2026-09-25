@@ -5005,11 +5005,6 @@ export type ReviewProjectImageAssetRequest = {
     feedback?: string | null;
 };
 
-export type BindProjectImageSessionRequest = {
-    eveSessionId: string;
-    title?: string | null;
-};
-
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
@@ -35248,87 +35243,6 @@ export type PostProjectsByIdImageStudioAssetsByAssetIdReviewResponses = {
 };
 
 export type PostProjectsByIdImageStudioAssetsByAssetIdReviewResponse = PostProjectsByIdImageStudioAssetsByAssetIdReviewResponses[keyof PostProjectsByIdImageStudioAssetsByAssetIdReviewResponses];
-
-export type PostProjectsByIdImageStudioSessionsData = {
-    body: BindProjectImageSessionRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/projects/{id}/image-studio/sessions';
-};
-
-export type PostProjectsByIdImageStudioSessionsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostProjectsByIdImageStudioSessionsError = PostProjectsByIdImageStudioSessionsErrors[keyof PostProjectsByIdImageStudioSessionsErrors];
-
-export type PostProjectsByIdImageStudioSessionsResponses = {
-    /**
-     * Bound conversation
-     */
-    201: {
-        data: ProjectImageSession;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostProjectsByIdImageStudioSessionsResponse = PostProjectsByIdImageStudioSessionsResponses[keyof PostProjectsByIdImageStudioSessionsResponses];
 
 export type DeleteProjectsByIdData = {
     body?: never;

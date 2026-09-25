@@ -1,7 +1,11 @@
 import { type AuthFn, withAuthChallenges } from "eve/channels/auth";
 import { eveChannel } from "eve/channels/eve";
 
-import { authorizeSession } from "../lib/core";
+import {
+  authorizeProjectAccess,
+  authorizeSession,
+  registerCreatedSession,
+} from "../lib/core";
 import { verifyGrant } from "../lib/grant";
 
 /**
@@ -58,13 +62,19 @@ const studioToken: AuthFn<Request> = withAuthChallenges(
     const claims = verifyGrant(header.slice(7));
     if (!claims) return null;
 
-    // Creating a session names no session, so there is nothing yet to authorize
-    // against; the agent binds it on `session.started`. Every other request
-    // names one, and that one must belong to this project.
+    // Every request is authorized against the caller's *current* access.
+    //
+    // A request that names a session is checked against that session's
+    // binding. Creation names none — and that was the hole: `POST
+    // /eve/v1/session` accepts an initial message, so a valid, unexpired token
+    // could start a conversation, and a turn, after the person had been
+    // removed from the project. It now costs the same lookup as everything
+    // else.
     const eveSessionId = sessionIdFromUrl(request.url);
-    if (eveSessionId && !(await authorizeSession(claims, eveSessionId))) {
-      return null;
-    }
+    const authorized = eveSessionId
+      ? await authorizeSession(claims, eveSessionId)
+      : await authorizeProjectAccess(claims);
+    if (!authorized) return null;
 
     return {
       authenticator: "sokosumi-studio-token",
@@ -80,6 +90,71 @@ const studioToken: AuthFn<Request> = withAuthChallenges(
   [{ scheme: "Bearer" }],
 );
 
-export default eveChannel({
-  auth: [studioToken],
-});
+const base = eveChannel({ auth: [studioToken] });
+
+/**
+ * Record every conversation this channel creates, before its id is returned.
+ *
+ * Ownership is established here, by the agent, using the principal the auth
+ * policy just verified — not later, and not by the browser. The id eve mints
+ * is not known to anyone else until this handler answers, so binding inside
+ * the create request is what makes the binding mean "this caller created it".
+ *
+ * Failing to record it fails the creation. A conversation Core does not know
+ * about cannot be streamed, resumed or listed, and leaving one behind is
+ * exactly the unbound session that used to be claimable by whoever learned
+ * its id.
+ */
+function recordOnCreate(handler: RouteHandler): RouteHandler {
+  return async (request: Request, context: never) => {
+    const header = request.headers.get("authorization") ?? "";
+    const claims = header.startsWith("Bearer ")
+      ? verifyGrant(header.slice(7))
+      : null;
+    if (!claims) return new Response(null, { status: 401 });
+
+    const response = await handler(request, context);
+    // Only the HTTP create route is wrapped; the union also covers WebSocket
+    // upgrades, which carry no session id to record.
+    if (!(response instanceof Response)) return response;
+    if (response.status >= 300) return response;
+
+    const body = (await response
+      .clone()
+      .json()
+      .catch(() => null)) as {
+      sessionId?: unknown;
+    } | null;
+    const sessionId =
+      typeof body?.sessionId === "string" ? body.sessionId : null;
+    if (!sessionId) return response;
+
+    if (!(await registerCreatedSession(claims, sessionId))) {
+      return Response.json(
+        {
+          ok: false,
+          error: "The conversation could not be started. Try again.",
+        },
+        { status: 503 },
+      );
+    }
+    return response;
+  };
+}
+
+type RouteHandler = (
+  request: Request,
+  context: never,
+) => Promise<Response | unknown>;
+
+export default {
+  ...base,
+  routes: base.routes.map((route) =>
+    route.path === "/eve/v1/session" && route.method === "POST"
+      ? {
+          ...route,
+          handler: recordOnCreate(route.handler as RouteHandler),
+        }
+      : route,
+  ),
+};

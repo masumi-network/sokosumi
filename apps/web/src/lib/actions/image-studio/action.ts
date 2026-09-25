@@ -6,7 +6,6 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type {
   ProjectImageAsset,
   ProjectImageJob,
-  ProjectImageSession,
 } from "@/lib/clients/generated/core/types.gen";
 import { imageStudioService } from "@/lib/services/image-studio.service";
 import {
@@ -52,12 +51,6 @@ interface ClearReviewParameters extends AuthenticatedRequest {
 interface CancelParameters extends AuthenticatedRequest {
   projectId: string;
   jobId: string;
-}
-
-interface BindSessionParameters extends AuthenticatedRequest {
-  projectId: string;
-  eveSessionId: string;
-  title: string | null;
 }
 
 function rethrow(error: unknown, fallback: string): never {
@@ -129,16 +122,5 @@ export const requestImageJobCancel = withSession<
     return await imageStudioService.cancelJob(projectId, jobId);
   } catch (error) {
     rethrow(error, "Could not request cancellation.");
-  }
-});
-
-export const bindImageStudioSession = withSession<
-  BindSessionParameters,
-  ProjectImageSession
->(async ({ projectId, eveSessionId, title }) => {
-  try {
-    return await imageStudioService.bindSession(projectId, eveSessionId, title);
-  } catch (error) {
-    rethrow(error, "Could not save the conversation.");
   }
 });
