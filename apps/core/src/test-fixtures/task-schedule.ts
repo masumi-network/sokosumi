@@ -617,7 +617,7 @@ export const taskScheduleTestPrisma = {
       },
     ),
   },
-  /** Only the releases write Tasks; routes must never write them. */
+  /** Releases mint Tasks; the legacy shim also writes Task.scheduleId. */
   task: {
     create: vi.fn(
       async ({
@@ -643,7 +643,17 @@ export const taskScheduleTestPrisma = {
         .filter((row) => matchesRow(row, where))
         .slice(0, take),
     ),
-    update: vi.fn(),
+    update: vi.fn(
+      async ({ where, data }: { where: { id: string }; data: Data }) => {
+        const row = taskScheduleTestDb.tasks.find((r) => r.id === where.id);
+        if (!row) throw new Error(`No Task ${where.id}`);
+        const updated = { ...row, ...data };
+        taskScheduleTestDb.tasks = taskScheduleTestDb.tasks.map((r) =>
+          r.id === where.id ? updated : r,
+        );
+        return updated;
+      },
+    ),
     updateMany: vi.fn(async ({ where, data }: { where: Where; data: Data }) => {
       let count = 0;
       taskScheduleTestDb.tasks = taskScheduleTestDb.tasks.map((row) => {

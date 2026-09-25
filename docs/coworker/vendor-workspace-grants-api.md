@@ -173,31 +173,36 @@ Pause, resume, and end answer **409** `schedule_state_conflict` from the wrong
 state. A Run change answers **409** `schedule_run_state_conflict` or **422**
 `schedule_run_target_invalid`.
 
-### Legacy schedule shim (until 2026-09-29)
+### Legacy schedule shim (until EOD 2026-09-29 CEST)
 
-Until **2026-09-29**, Core keeps a temporary adapter on the old per-Task
-schedule routes so vendors that have not switched to `/v1/tasks/schedules`
-can still create, update, and read a repeating **rule**. Set
-`LEGACY_TASK_SCHEDULE_SHIM=0` (or `false` / `off`) to restore **410 Gone**
-immediately. Default is on (`1`). Remove the adapter after the sunset.
+Until **end of day 2026-09-29 CEST**, Core translates the old per-Task
+schedule routes into Task Schedules so vendors (for example Serviceplan)
+can still create, update, and read a repeating **rule**. This is not a
+transparent proxy of the old series model.
 
-The adapter **translates** into Task Schedule. It does not restore untyped
-Task `metadata` as source of truth, schedule-status exceptions, quarantine,
-or person assignees on a series.
+- Default on: `LEGACY_TASK_SCHEDULE_SHIM=1`.
+- Early off: `0` / `false` / `off`.
+- Hard off after `2026-09-29T22:00:00.000Z` (EOD CEST) even if the flag is on.
+
+The adapter does not restore untyped Task `metadata` as source of truth,
+schedule-status exceptions, quarantine, or person assignees on a series.
 
 | Old route | Shim |
 | --- | --- |
-| `POST /v1/tasks/scheduled` | Creates a Task Schedule. Response is a legacy projection (`id` / `scheduleId` = schedule UUID, `scheduleRevision`, typed `schedule`). |
-| `PUT /v1/tasks/{id}/schedule` | Updates the linked schedule, or creates one from the Task blueprint when none is linked. |
-| `GET /v1/tasks/{id}/schedule` | Reads that projection. Dedicated legacy read — Task DTOs still omit `metadata` / `nextRunAt` / `scheduleRevision`. |
-| `DELETE /v1/tasks/{id}/schedule` | Deletes the linked Task Schedule. Released Tasks stay. |
-| `PUT /v1/tasks/{id}/calendar-schedule` | Replaces the rule (`expectedScheduleRevision` → `expectedRevision`). |
-| `PUT /v1/tasks/{id}/calendar-source` | Moves `projectId` (`workspace` or `project`). |
+| `PUT /v1/tasks/{id}/schedule` | **Primary create** (this is the path Serviceplan hits). Creates a Task Schedule from the Task blueprint + rule, then sets `Task.scheduleId`. A later PUT on the same Task id PATCHes that schedule. |
+| `POST /v1/tasks/scheduled` | Creates a Task Schedule from the old create body. |
+| `PUT /v1/tasks/{id}/calendar-schedule` | Replaces the rule (`expectedScheduleRevision` → `expectedRevision`). Resolves `scheduleId` from the Task link. |
+| `PUT /v1/tasks/{id}/calendar-source` | Moves `projectId`. Same link. |
+| `GET /v1/tasks/{id}/schedule/occurrences` | Lists Runs (`GET /v1/tasks/schedules/{id}/runs` shape). Closest legacy read of schedule state. |
+| `GET /v1/tasks/{id}/schedule` | Shim-only read of the rule (legacy projection). **There was no historical GET for the schedule resource** — old clients read `metadata` / `nextRunAt` / `scheduleRevision` on the Task DTO, which stay omitted. |
 
-`{id}` is resolved in this order: Task Schedule id, Task.`scheduleId`, the
-cutover id of a deleted template Task, then the id this shim assigned on
-PUT-create. If a template Task id was never mapped and the Task row is gone,
-the call answers **404**.
+Create/update responses are a **legacy schedule projection** (`id` /
+`scheduleId` = schedule UUID, `scheduleRevision`, typed `schedule`), not
+the old Task DTO.
+
+`{id}` resolve order: Task Schedule id, then Task.`scheduleId` (written on
+PUT-create), then the cutover id of a deleted template Task. If a template
+Task id was never mapped and the Task row is gone, the call answers **404**.
 
 A one-time start (`schedule.mode: "once"`) answers **422** pointing at
 `runAt` on `POST /v1/tasks`. A person assignee (`assigneeUserId`) answers
@@ -205,7 +210,11 @@ A one-time start (`schedule.mode: "once"`) answers **422** pointing at
 typed recurring rule answer **422** with a pointer to the new shape — Core
 does not guess.
 
-Occurrence skip/move/restore (`…/schedule/occurrences`) stays **410**.
+Still **410**: `DELETE /v1/tasks/{id}/schedule` and occurrence
+skip/move/restore (`PATCH …/schedule/occurrences/{occurrenceId}`).
+
+Every shim hit logs `legacyTaskScheduleShim` with `method`, `path`,
+`mappedTarget`, `coworkerId`, `vendorId`, `organizationId`, `workspaceId`.
 
 ### Removed per-Task schedule routes
 

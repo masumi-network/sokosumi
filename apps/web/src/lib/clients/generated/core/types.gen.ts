@@ -43456,81 +43456,12 @@ export type DeleteTasksByIdScheduleData = {
 
 export type DeleteTasksByIdScheduleErrors = {
     /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Gone. Branch on `kind`: task_schedule_moved.
      */
     410: TaskScheduleMovedError;
 };
 
 export type DeleteTasksByIdScheduleError = DeleteTasksByIdScheduleErrors[keyof DeleteTasksByIdScheduleErrors];
-
-export type DeleteTasksByIdScheduleResponses = {
-    /**
-     * Task Schedule deleted
-     */
-    204: void;
-};
-
-export type DeleteTasksByIdScheduleResponse = DeleteTasksByIdScheduleResponses[keyof DeleteTasksByIdScheduleResponses];
 
 export type GetTasksByIdScheduleData = {
     body?: never;
@@ -44041,14 +43972,90 @@ export type PutTasksByIdCalendarSourceResponse = PutTasksByIdCalendarSourceRespo
 
 export type GetTasksByIdScheduleOccurrencesData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * Only Runs at or after this time
+         */
+        from?: Date;
+        /**
+         * Only Runs before this time
+         */
+        to?: Date;
+    };
     url: '/tasks/{id}/schedule/occurrences';
 };
 
 export type GetTasksByIdScheduleOccurrencesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Gone. Branch on `kind`: task_schedule_moved.
      */
@@ -44056,6 +44063,22 @@ export type GetTasksByIdScheduleOccurrencesErrors = {
 };
 
 export type GetTasksByIdScheduleOccurrencesError = GetTasksByIdScheduleOccurrencesErrors[keyof GetTasksByIdScheduleOccurrencesErrors];
+
+export type GetTasksByIdScheduleOccurrencesResponses = {
+    /**
+     * Runs of the linked Task Schedule
+     */
+    200: {
+        data: Array<TaskScheduleRun>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdScheduleOccurrencesResponse = GetTasksByIdScheduleOccurrencesResponses[keyof GetTasksByIdScheduleOccurrencesResponses];
 
 export type PatchTasksByIdScheduleOccurrencesByOccurrenceIdData = {
     body?: never;

@@ -65,23 +65,36 @@ interface ShimLogTarget {
   get: (key: string) => unknown;
   var: {
     authContext?: AuthenticationContext | null;
-    workspaceContext?: { workspaceId?: string } | null;
+    workspaceContext?: {
+      workspaceId?: string;
+      organizationId?: string | null;
+    } | null;
   };
 }
 
 export function logLegacyTaskScheduleShimHit(
   c: ShimLogTarget,
-  route: string,
+  hit: { method: string; path: string; mappedTarget: string },
 ): void {
   const log = c.get("log") as
     | { set?: (value: Record<string, unknown>) => void }
     | undefined;
   const auth = c.var.authContext;
+  const coworker = auth && isCoworkerAuthContext(auth) ? auth : null;
+  const organizationId =
+    coworker?.context?.organizationId ??
+    (auth && auth.actor !== "coworker" ? auth.organizationId : null) ??
+    c.var.workspaceContext?.organizationId ??
+    null;
   log?.set?.({
     legacyTaskScheduleShim: {
-      route,
+      method: hit.method,
+      path: hit.path,
+      mappedTarget: hit.mappedTarget,
+      coworkerId: coworker?.coworkerId ?? null,
+      vendorId: coworker?.vendorId ?? null,
+      organizationId,
       workspaceId: c.var.workspaceContext?.workspaceId ?? null,
-      vendorId: auth && isCoworkerAuthContext(auth) ? auth.vendorId : null,
     },
   });
 }
@@ -365,4 +378,13 @@ export function mapTaskBlueprintToCreate(
   });
 }
 
-export { shimCreatedTaskScheduleId };
+/** Task↔TaskSchedule link after a shim create on an existing Task. */
+export async function linkTaskToSchedule(
+  taskId: string,
+  scheduleId: string,
+): Promise<void> {
+  await prisma.task.update({
+    where: { id: taskId },
+    data: { scheduleId },
+  });
+}

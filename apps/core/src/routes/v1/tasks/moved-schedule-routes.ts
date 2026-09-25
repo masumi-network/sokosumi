@@ -8,6 +8,7 @@ import {
 } from "@/helpers/error";
 import {
   findTaskBlueprint,
+  linkTaskToSchedule,
   logLegacyTaskScheduleShimHit,
   mapLegacyCalendarScheduleToUpdate,
   mapLegacyCalendarSourceToUpdate,
@@ -21,14 +22,14 @@ import {
   requireLegacyTaskScheduleShim,
   requireResolvedTaskScheduleId,
   resolveTaskScheduleId,
-  shimCreatedTaskScheduleId,
 } from "@/helpers/legacy-task-schedule-shim";
 import {
   jsonContent,
   jsonErrorResponse,
+  jsonPaginatedSuccessResponse,
   jsonSuccessResponse,
 } from "@/helpers/openapi";
-import { created, empty, ok } from "@/helpers/response";
+import { created, ok } from "@/helpers/response";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -42,9 +43,14 @@ import {
   legacyTaskScheduleProjectionSchema,
 } from "@/schemas/legacy-task-schedule.schema";
 import {
+  taskScheduleRunListQuerySchema,
+  taskScheduleRunSchema,
+} from "@/schemas/task-schedule.schema";
+import {
   createTaskSchedule,
-  deleteTaskSchedule,
   getTaskSchedule,
+  listTaskScheduleRuns,
+  mapTaskScheduleRun,
   updateTaskSchedule,
 } from "@/services/task-schedule.service";
 
@@ -81,22 +87,7 @@ const shimErrorResponses = {
 };
 
 const SHIM_UNTIL =
-  "Temporary adapter until 2026-09-29 (`LEGACY_TASK_SCHEDULE_SHIM`). Translates to `/v1/tasks/schedules`. A one-time start is `runAt` on POST /v1/tasks.";
-
-const OCCURRENCE_ROUTES = [
-  {
-    method: "get" as const,
-    path: "/{id}/schedule/occurrences",
-    params: taskParams,
-    replacement: "GET /v1/tasks/schedules/{id}/runs",
-  },
-  {
-    method: "patch" as const,
-    path: "/{id}/schedule/occurrences/{occurrenceId}",
-    params: occurrenceParams,
-    replacement: "PATCH /v1/tasks/schedules/{id}/runs/{runId}",
-  },
-];
+  "Temporary adapter until EOD 2026-09-29 CEST (`LEGACY_TASK_SCHEDULE_SHIM`). Translates to `/v1/tasks/schedules`. A one-time start is `runAt` on POST /v1/tasks.";
 
 function throwGone(replacement: string): never {
   throw gone(
@@ -111,8 +102,8 @@ function throwGone(replacement: string): never {
 /**
  * Per-Task schedule routes of the old series model (ADR 0041).
  *
- * Temporary: until 2026-09-29, create / update / read / delete translate
- * to Task Schedule. Occurrence skip/move/restore stays 410.
+ * Temporary: until EOD 2026-09-29 CEST, create / update / read translate
+ * to Task Schedule. DELETE and occurrence skip/move/restore stay 410.
  * Remove this adapter after the sunset.
  */
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -144,7 +135,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
   app.openapi(createScheduled, async (c) => {
     requireLegacyTaskScheduleShim("POST /v1/tasks/schedules");
-    logLegacyTaskScheduleShimHit(c, "POST /v1/tasks/scheduled");
+    logLegacyTaskScheduleShimHit(c, {
+      method: "POST",
+      path: "/v1/tasks/scheduled",
+      mappedTarget: "POST /v1/tasks/schedules",
+    });
     const input = mapLegacyCreateToTaskSchedule(c.req.valid("json"));
     const schedule = await createTaskSchedule(c.var, input);
     return created(c, mapTaskScheduleToLegacyProjection(schedule));
@@ -155,7 +150,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       method: "put",
       path: "/{id}/schedule",
       deprecated: true,
-      description: `Create or update a Task Schedule from the old PUT /tasks/{id}/schedule body. ${SHIM_UNTIL}`,
+      description: `Create or update a Task Schedule from the old PUT /tasks/{id}/schedule body (Serviceplan create path). ${SHIM_UNTIL}`,
       tags: ["Tasks"],
       request: {
         params: taskParams,
@@ -177,12 +172,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
   app.openapi(putSchedule, async (c) => {
     requireLegacyTaskScheduleShim("POST /v1/tasks/schedules");
-    logLegacyTaskScheduleShimHit(c, "PUT /v1/tasks/{id}/schedule");
     const taskId = c.req.valid("param").id;
     const scheduleInput = parseLegacyPutScheduleBody(c.req.valid("json"));
     const existingId = await resolveTaskScheduleId(taskId);
 
     if (existingId) {
+      logLegacyTaskScheduleShimHit(c, {
+        method: "PUT",
+        path: "/v1/tasks/{id}/schedule",
+        mappedTarget: "PATCH /v1/tasks/schedules/{id}",
+      });
       const current = await getTaskSchedule(c.var, existingId);
       const schedule = await updateTaskSchedule(
         c.var,
@@ -192,6 +191,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return ok(c, mapTaskScheduleToLegacyProjection(schedule));
     }
 
+    logLegacyTaskScheduleShimHit(c, {
+      method: "PUT",
+      path: "/v1/tasks/{id}/schedule",
+      mappedTarget: "POST /v1/tasks/schedules",
+    });
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     const task = await findTaskBlueprint(taskId);
     if (!task || task.workspaceId !== workspace.workspaceId) {
@@ -200,8 +204,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const createdSchedule = await createTaskSchedule(
       c.var,
       mapTaskBlueprintToCreate(task, scheduleInput),
-      { id: shimCreatedTaskScheduleId(taskId) },
     );
+    await linkTaskToSchedule(taskId, createdSchedule.id);
     return ok(c, mapTaskScheduleToLegacyProjection(createdSchedule));
   });
 
@@ -210,7 +214,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       method: "get",
       path: "/{id}/schedule",
       deprecated: true,
-      description: `Read the Task Schedule linked to a Task (or the schedule id itself). ${SHIM_UNTIL}`,
+      description: `Read the Task Schedule linked to a Task (or the schedule id itself). Old Task GET no longer carries metadata/nextRunAt/scheduleRevision; this is the shim read of the rule. ${SHIM_UNTIL}`,
       tags: ["Tasks"],
       request: { params: taskParams },
       responses: {
@@ -228,7 +232,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
   app.openapi(getSchedule, async (c) => {
     requireLegacyTaskScheduleShim("GET /v1/tasks/schedules/{id}");
-    logLegacyTaskScheduleShimHit(c, "GET /v1/tasks/{id}/schedule");
+    logLegacyTaskScheduleShimHit(c, {
+      method: "GET",
+      path: "/v1/tasks/{id}/schedule",
+      mappedTarget: "GET /v1/tasks/schedules/{id}",
+    });
     const scheduleId = await requireResolvedTaskScheduleId(
       c.req.valid("param").id,
     );
@@ -241,28 +249,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       method: "delete",
       path: "/{id}/schedule",
       deprecated: true,
-      description: `Delete the Task Schedule linked to a Task. ${SHIM_UNTIL}`,
+      description:
+        "Removed. Repeating rules are Task Schedules; use DELETE /v1/tasks/schedules/{id}.",
       tags: ["Tasks"],
       request: { params: taskParams },
-      responses: {
-        204: { description: "Task Schedule deleted" },
-        401: jsonErrorResponse("Unauthorized"),
-        403: jsonErrorResponse("Forbidden"),
-        404: jsonErrorResponse("Not Found"),
-        409: jsonErrorResponse("Conflict"),
-        ...goneResponses,
-      },
+      responses: goneResponses,
     }),
   );
 
-  app.openapi(deleteSchedule, async (c) => {
-    requireLegacyTaskScheduleShim("DELETE /v1/tasks/schedules/{id}");
-    logLegacyTaskScheduleShimHit(c, "DELETE /v1/tasks/{id}/schedule");
-    const scheduleId = await requireResolvedTaskScheduleId(
-      c.req.valid("param").id,
-    );
-    await deleteTaskSchedule(c.var, scheduleId);
-    return empty(c);
+  app.openapi(deleteSchedule, () => {
+    throwGone("DELETE /v1/tasks/schedules/{id}");
   });
 
   const putCalendarSchedule = withCoworkerContextHeaderParameters(
@@ -294,7 +290,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
   app.openapi(putCalendarSchedule, async (c) => {
     requireLegacyTaskScheduleShim("PATCH /v1/tasks/schedules/{id}");
-    logLegacyTaskScheduleShimHit(c, "PUT /v1/tasks/{id}/calendar-schedule");
+    logLegacyTaskScheduleShimHit(c, {
+      method: "PUT",
+      path: "/v1/tasks/{id}/calendar-schedule",
+      mappedTarget: "PATCH /v1/tasks/schedules/{id}",
+    });
     const update = mapLegacyCalendarScheduleToUpdate(
       parseLegacyCalendarScheduleBody(c.req.valid("json")),
     );
@@ -334,7 +334,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
   app.openapi(putCalendarSource, async (c) => {
     requireLegacyTaskScheduleShim("PATCH /v1/tasks/schedules/{id}");
-    logLegacyTaskScheduleShimHit(c, "PUT /v1/tasks/{id}/calendar-source");
+    logLegacyTaskScheduleShimHit(c, {
+      method: "PUT",
+      path: "/v1/tasks/{id}/calendar-source",
+      mappedTarget: "PATCH /v1/tasks/schedules/{id}",
+    });
     const update = mapLegacyCalendarSourceToUpdate(
       parseLegacyCalendarSourceBody(c.req.valid("json")),
     );
@@ -345,19 +349,64 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     return ok(c, mapTaskScheduleToLegacyProjection(schedule));
   });
 
-  for (const moved of OCCURRENCE_ROUTES) {
-    const route = createRoute({
-      method: moved.method,
-      path: moved.path,
+  const getOccurrences = withCoworkerContextHeaderParameters(
+    createRoute({
+      method: "get",
+      path: "/{id}/schedule/occurrences",
       deprecated: true,
-      description: `Removed. Repeating rules are Task Schedules; use ${moved.replacement}. A one-time start is \`runAt\` on POST /v1/tasks or PATCH /v1/tasks/{id}.`,
+      description: `List Runs of the linked Task Schedule (old occurrence ledger). ${SHIM_UNTIL}`,
       tags: ["Tasks"],
-      request: { params: moved.params },
-      responses: goneResponses,
-    });
+      request: {
+        params: taskParams,
+        query: taskScheduleRunListQuerySchema,
+      },
+      responses: {
+        200: jsonPaginatedSuccessResponse(
+          z.array(taskScheduleRunSchema),
+          "Runs of the linked Task Schedule",
+        ),
+        401: jsonErrorResponse("Unauthorized"),
+        403: jsonErrorResponse("Forbidden"),
+        404: jsonErrorResponse("Not Found"),
+        ...goneResponses,
+      },
+    }),
+  );
 
-    app.openapi(route, () => {
-      throwGone(moved.replacement);
+  app.openapi(getOccurrences, async (c) => {
+    requireLegacyTaskScheduleShim("GET /v1/tasks/schedules/{id}/runs");
+    logLegacyTaskScheduleShimHit(c, {
+      method: "GET",
+      path: "/v1/tasks/{id}/schedule/occurrences",
+      mappedTarget: "GET /v1/tasks/schedules/{id}/runs",
     });
-  }
+    const scheduleId = await requireResolvedTaskScheduleId(
+      c.req.valid("param").id,
+    );
+    const { runs, pagination } = await listTaskScheduleRuns(
+      c.var,
+      scheduleId,
+      c.req.valid("query"),
+    );
+    return ok(
+      c,
+      z.array(taskScheduleRunSchema).parse(runs.map(mapTaskScheduleRun)),
+      pagination,
+    );
+  });
+
+  const patchOccurrence = createRoute({
+    method: "patch",
+    path: "/{id}/schedule/occurrences/{occurrenceId}",
+    deprecated: true,
+    description:
+      "Removed. Repeating rules are Task Schedules; use PATCH /v1/tasks/schedules/{id}/runs/{runId}.",
+    tags: ["Tasks"],
+    request: { params: occurrenceParams },
+    responses: goneResponses,
+  });
+
+  app.openapi(patchOccurrence, () => {
+    throwGone("PATCH /v1/tasks/schedules/{id}/runs/{runId}");
+  });
 }

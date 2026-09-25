@@ -2,6 +2,8 @@ import { TaskScheduleEndsMode } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { describe, expect, it, vi } from "vitest";
 
+import { isLegacyTaskScheduleShimEnabled } from "@/config/env";
+
 import {
   migratedTaskScheduleId,
   shimCreatedTaskScheduleId,
@@ -112,5 +114,15 @@ describe("legacy task schedule ids", () => {
     expect(shimmed).toMatch(uuidV8);
     expect(migrated).not.toBe(shimmed);
     expect(migratedTaskScheduleId(TEMPLATE_ID)).toBe(migrated);
+  });
+});
+
+describe("legacy task schedule shim sunset", () => {
+  it("is off at EOD 2026-09-29 CEST even when the flag is on", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-29T22:00:00.000Z"));
+    process.env.LEGACY_TASK_SCHEDULE_SHIM = "1";
+    expect(isLegacyTaskScheduleShimEnabled()).toBe(false);
+    vi.useRealTimers();
   });
 });

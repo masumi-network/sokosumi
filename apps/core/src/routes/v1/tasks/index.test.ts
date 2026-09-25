@@ -153,7 +153,7 @@ describe("tasks routes OpenAPI query contract", () => {
     expect(doc.paths?.["/{id}/share"]?.delete?.responses).toHaveProperty("200");
   });
 
-  it("documents the per-Task schedule shim as deprecated, with occurrences still 410-only", () => {
+  it("documents the per-Task schedule shim as deprecated", () => {
     const doc = tasksRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -166,12 +166,15 @@ describe("tasks routes OpenAPI query contract", () => {
       { operation: doc.paths?.["/scheduled"]?.post, success: "201" },
       { operation: doc.paths?.["/{id}/schedule"]?.put, success: "200" },
       { operation: doc.paths?.["/{id}/schedule"]?.get, success: "200" },
-      { operation: doc.paths?.["/{id}/schedule"]?.delete, success: "204" },
       {
         operation: doc.paths?.["/{id}/calendar-schedule"]?.put,
         success: "200",
       },
       { operation: doc.paths?.["/{id}/calendar-source"]?.put, success: "200" },
+      {
+        operation: doc.paths?.["/{id}/schedule/occurrences"]?.get,
+        success: "200",
+      },
     ];
 
     for (const { operation, success } of shimmed) {
@@ -181,7 +184,7 @@ describe("tasks routes OpenAPI query contract", () => {
     }
 
     const goneOnly = [
-      doc.paths?.["/{id}/schedule/occurrences"]?.get,
+      doc.paths?.["/{id}/schedule"]?.delete,
       doc.paths?.["/{id}/schedule/occurrences/{occurrenceId}"]?.patch,
     ];
 

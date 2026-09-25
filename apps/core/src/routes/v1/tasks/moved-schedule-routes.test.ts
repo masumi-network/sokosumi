@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { migratedTaskScheduleId } from "@/helpers/legacy-task-schedule-id";
-import { shimCreatedTaskScheduleId } from "@/helpers/legacy-task-schedule-shim";
 import {
   COWORKER_AUTH,
   COWORKER_ID,
@@ -226,7 +225,7 @@ describe("legacy per-Task schedule shim", () => {
       );
     });
 
-    it("creates from a Task blueprint and a later PUT finds the shim id", async () => {
+    it("creates from a Task blueprint and links Task.scheduleId", async () => {
       seedTask({
         id: TASK_ID,
         name: "From task",
@@ -238,9 +237,11 @@ describe("legacy per-Task schedule shim", () => {
 
       expect(created.status).toBe(200);
       const { data } = (await created.json()) as Projection;
-      expect(data.id).toBe(shimCreatedTaskScheduleId(TASK_ID));
       expect(data.name).toBe("From task");
       expect(data.schedule.expr).toBe("0 9 * * 1");
+      expect(
+        taskScheduleTestDb.tasks.find((row) => row.id === TASK_ID)?.scheduleId,
+      ).toBe(data.id);
 
       const updated = await send("PUT", `/${TASK_ID}/schedule`, {
         mode: "recurring",
@@ -252,6 +253,52 @@ describe("legacy per-Task schedule shim", () => {
       expect(updatedData.id).toBe(data.id);
       expect(updatedData.schedule.expr).toBe("0 11 * * 1");
       expect(taskScheduleTestDb.schedules).toHaveLength(1);
+    });
+
+    it("Serviceplan path: coworker PUT creates, calendar PUT updates, occurrences read", async () => {
+      seedTask({
+        id: TASK_ID,
+        name: "Weekly content",
+        assigneeId: COWORKER_ID,
+      });
+      const coworkerApp = app(COWORKER_AUTH);
+
+      const created = await send(
+        "PUT",
+        `/${TASK_ID}/schedule`,
+        WEEKLY,
+        coworkerApp,
+      );
+      expect(created.status).toBe(200);
+      const { data: createdData } = (await created.json()) as Projection;
+      expect(
+        taskScheduleTestDb.tasks.find((row) => row.id === TASK_ID)?.scheduleId,
+      ).toBe(createdData.id);
+
+      const updated = await send(
+        "PUT",
+        `/${TASK_ID}/calendar-schedule`,
+        {
+          expectedScheduleRevision: createdData.scheduleRevision,
+          discardFutureExceptions: true,
+          schedule: { mode: "recurring", expr: "0 8 * * 1", timezone: "UTC" },
+        },
+        coworkerApp,
+      );
+      expect(updated.status).toBe(200);
+      const { data: updatedData } = (await updated.json()) as Projection;
+      expect(updatedData.id).toBe(createdData.id);
+      expect(updatedData.schedule.expr).toBe("0 8 * * 1");
+
+      const reads = await send(
+        "GET",
+        `/${TASK_ID}/schedule/occurrences`,
+        undefined,
+        coworkerApp,
+      );
+      expect(reads.status).toBe(200);
+      const body = (await reads.json()) as { data: { id: string }[] };
+      expect(body.data.length).toBeGreaterThan(0);
     });
 
     it("answers 404 when the Task is missing", async () => {
@@ -321,47 +368,77 @@ describe("legacy per-Task schedule shim", () => {
     });
   });
 
-  describe("DELETE /{id}/schedule", () => {
-    it("deletes the linked Task Schedule", async () => {
-      const created = await send("POST", "/scheduled", CREATE_BODY);
-      const { data } = (await created.json()) as Projection;
+  describe("DELETE /{id}/schedule stays 410", () => {
+    it("answers 410 task_schedule_moved", async () => {
+      const response = await send("DELETE", `/${TASK_ID}/schedule`);
 
-      const response = await send("DELETE", `/${data.id}/schedule`);
-
-      expect(response.status).toBe(204);
-      expect(taskScheduleTestDb.schedules).toHaveLength(0);
+      expect(response.status).toBe(410);
+      expect(await response.json()).toMatchObject({
+        kind: "task_schedule_moved",
+        replacement: "DELETE /v1/tasks/schedules/{id}",
+      });
     });
   });
 
-  describe("occurrences stay 410", () => {
-    it.each([
-      [
-        "GET",
-        `/${TASK_ID}/schedule/occurrences`,
-        "GET /v1/tasks/schedules/{id}/runs",
-      ],
-      [
+  describe("occurrences", () => {
+    it("GET lists Runs of the schedule created via PUT /{id}/schedule", async () => {
+      seedTask({
+        id: TASK_ID,
+        name: "From task",
+        assigneeId: COWORKER_ID,
+      });
+      const created = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
+      expect(created.status).toBe(200);
+
+      const response = await send("GET", `/${TASK_ID}/schedule/occurrences`);
+
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        data: { id: string; state: string }[];
+      };
+      expect(body.data.length).toBeGreaterThan(0);
+      expect(body.data[0]?.state).toBeDefined();
+    });
+
+    it("PATCH occurrence stays 410", async () => {
+      const response = await send(
         "PATCH",
         `/${TASK_ID}/schedule/occurrences/occ_1`,
-        "PATCH /v1/tasks/schedules/{id}/runs/{runId}",
-      ],
-    ])(
-      "%s %s answers 410 task_schedule_moved",
-      async (method, path, replacement) => {
-        const response = await send(
-          method,
-          path,
-          method === "GET" ? undefined : {},
-        );
+        {},
+      );
 
-        expect(response.status).toBe(410);
-        expect(await response.json()).toMatchObject({
-          error: "Gone",
-          kind: "task_schedule_moved",
-          replacement,
-        });
-      },
-    );
+      expect(response.status).toBe(410);
+      expect(await response.json()).toMatchObject({
+        error: "Gone",
+        kind: "task_schedule_moved",
+        replacement: "PATCH /v1/tasks/schedules/{id}/runs/{runId}",
+      });
+    });
+  });
+
+  describe("after EOD 2026-09-29 CEST", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("answers 410 on PUT /{id}/schedule even when the flag is on", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-09-29T22:00:00.000Z"));
+      process.env.LEGACY_TASK_SCHEDULE_SHIM = "1";
+      seedTask({
+        id: TASK_ID,
+        name: "Weekly content",
+        assigneeId: COWORKER_ID,
+      });
+
+      const response = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
+
+      expect(response.status).toBe(410);
+      expect(await response.json()).toMatchObject({
+        kind: "task_schedule_moved",
+        replacement: "POST /v1/tasks/schedules",
+      });
+    });
   });
 
   describe("when LEGACY_TASK_SCHEDULE_SHIM is off", () => {
@@ -379,10 +456,10 @@ describe("legacy per-Task schedule shim", () => {
         "GET /v1/tasks/schedules/{id}",
       ],
       [
-        "DELETE",
-        `/${TASK_ID}/schedule`,
+        "GET",
+        `/${TASK_ID}/schedule/occurrences`,
         undefined,
-        "DELETE /v1/tasks/schedules/{id}",
+        "GET /v1/tasks/schedules/{id}/runs",
       ],
       [
         "PUT",
