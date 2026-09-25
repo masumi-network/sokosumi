@@ -310,7 +310,11 @@ export async function notifyTaskParticipantsAdded(
   }
 }
 
-/** Null when the Task is archived or settled after the mentioning event. */
+/**
+ * Null when the Task is archived or settled after the mentioning event.
+ * Missing TaskEvent (self-join synthetic eventId) still alerts when the Task
+ * is not archived and has no settled status event yet.
+ */
 async function findTaskForParticipantAlert(
   taskId: string,
   eventId: string,
@@ -320,20 +324,23 @@ async function findTaskForParticipantAlert(
     where: { id: eventId },
     select: { createdAt: true },
   });
-  if (!event) {
-    return null;
-  }
 
   return prisma.task.findFirst({
     where: {
       id: taskId,
       archivedAt: null,
-      events: {
-        none: {
-          status: { in: TASK_SETTLED_STATUSES },
-          createdAt: { gt: event.createdAt },
-        },
-      },
+      events: event
+        ? {
+            none: {
+              status: { in: TASK_SETTLED_STATUSES },
+              createdAt: { gt: event.createdAt },
+            },
+          }
+        : {
+            none: {
+              status: { in: TASK_SETTLED_STATUSES },
+            },
+          },
     },
     select: {
       id: true,

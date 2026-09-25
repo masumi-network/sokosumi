@@ -1,7 +1,10 @@
 import { TaskVisibility } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
-import { addTaskParticipantsFromComment } from "./task-participants";
+import {
+  addSelfAsTaskParticipant,
+  addTaskParticipantsFromComment,
+} from "./task-participants";
 
 function workspaceOf(users: Array<{ id: string; name: string }>) {
   return {
@@ -170,5 +173,119 @@ describe("addTaskParticipantsFromComment", () => {
       data: [{ taskId: "tsk_1", userId: "user_alice" }],
       skipDuplicates: true,
     });
+  });
+});
+
+describe("addSelfAsTaskParticipant", () => {
+  it("inserts the viewer when they are a workspace member", async () => {
+    const createMany = vi.fn().mockResolvedValue({ count: 1 });
+    const result = await addSelfAsTaskParticipant(
+      {
+        workspace: {
+          findUnique: vi.fn().mockResolvedValue(
+            workspaceOf([
+              { id: "user_alice", name: "Alice" },
+              { id: "user_bob", name: "Bob" },
+            ]),
+          ),
+        },
+        taskParticipant: {
+          findMany: vi.fn().mockResolvedValue([]),
+          createMany,
+        },
+      },
+      {
+        taskId: "tsk_1",
+        workspaceId: "ws_1",
+        visibility: TaskVisibility.PUBLIC,
+        ownerId: "user_owner",
+        userId: "user_alice",
+      },
+    );
+
+    expect(result).toEqual({ added: true });
+    expect(createMany).toHaveBeenCalledWith({
+      data: [{ taskId: "tsk_1", userId: "user_alice" }],
+      skipDuplicates: true,
+    });
+  });
+
+  it("is a no-op when the viewer is already a participant", async () => {
+    const createMany = vi.fn();
+    const result = await addSelfAsTaskParticipant(
+      {
+        workspace: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(
+              workspaceOf([{ id: "user_alice", name: "Alice" }]),
+            ),
+        },
+        taskParticipant: {
+          findMany: vi.fn().mockResolvedValue([{ userId: "user_alice" }]),
+          createMany,
+        },
+      },
+      {
+        taskId: "tsk_1",
+        workspaceId: "ws_1",
+        visibility: TaskVisibility.PUBLIC,
+        ownerId: "user_owner",
+        userId: "user_alice",
+      },
+    );
+
+    expect(result).toEqual({ added: false });
+    expect(createMany).not.toHaveBeenCalled();
+  });
+
+  it("skips non-members and PRIVATE non-owners", async () => {
+    const createMany = vi.fn();
+    const nonMember = await addSelfAsTaskParticipant(
+      {
+        workspace: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(workspaceOf([{ id: "user_bob", name: "Bob" }])),
+        },
+        taskParticipant: {
+          findMany: vi.fn().mockResolvedValue([]),
+          createMany,
+        },
+      },
+      {
+        taskId: "tsk_1",
+        workspaceId: "ws_1",
+        visibility: TaskVisibility.PUBLIC,
+        ownerId: "user_owner",
+        userId: "user_alice",
+      },
+    );
+    const privateOther = await addSelfAsTaskParticipant(
+      {
+        workspace: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(
+              workspaceOf([{ id: "user_alice", name: "Alice" }]),
+            ),
+        },
+        taskParticipant: {
+          findMany: vi.fn().mockResolvedValue([]),
+          createMany,
+        },
+      },
+      {
+        taskId: "tsk_1",
+        workspaceId: "ws_1",
+        visibility: TaskVisibility.PRIVATE,
+        ownerId: "user_owner",
+        userId: "user_alice",
+      },
+    );
+
+    expect(nonMember).toEqual({ added: false });
+    expect(privateOther).toEqual({ added: false });
+    expect(createMany).not.toHaveBeenCalled();
   });
 });
