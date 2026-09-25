@@ -796,6 +796,7 @@ async function TaskActivitySectionContent({
       viewerPlan={viewerPlan}
       mentionableUsers={mentionableUsers.map(({ id, name }) => ({ id, name }))}
       participants={task.participants}
+      taskOwnerId={task.ownerId}
       canComment={canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
         taskOwnerId: task.ownerId,

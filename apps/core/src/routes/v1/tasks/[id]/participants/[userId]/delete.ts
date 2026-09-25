@@ -8,7 +8,7 @@ import { ok } from "@/helpers/response";
 import { markTaskParticipantRemovedRead } from "@/helpers/task-notifications";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskParticipantSchema } from "@/schemas/task.schema";
 
 const paramsSchema = z.object({
@@ -32,7 +32,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}/participants/{userId}",
   description:
-    "Remove a Task participant. The Task owner may remove any participant. A participant may remove only themselves. Missing participants are a no-op. Does not change owner or assignee.",
+    "Remove a Task participant. The Task owner may remove any participant. A participant may remove only themselves. Missing participants are a no-op. Does not change owner or assignee. Human session only.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -48,7 +48,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id, userId } = c.req.valid("param");
-    const actor = requireUserContext(c.var.authContext);
+    const actor = requireOwnerUserContext(c.var.authContext);
 
     const participants = await prisma.$transaction(async (tx) => {
       const task = await requireTaskReadForRouteVars(c.var, id, tx);

@@ -10,7 +10,7 @@ import { notifyTaskParticipantsAdded } from "@/helpers/task-notifications";
 import { addSelfAsTaskParticipant } from "@/helpers/task-participants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskParticipantSchema } from "@/schemas/task.schema";
 
 const paramsSchema = z.object({
@@ -30,7 +30,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/participants",
   description:
-    "Subscribe the authenticated viewer as a Task participant. Idempotent. Does not accept other user ids. Requires comment access.",
+    "Subscribe the authenticated viewer as a Task participant. Idempotent. Does not accept other user ids. Requires comment access. Human session only.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -46,7 +46,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
-    const { userId } = requireUserContext(c.var.authContext);
+    const { userId } = requireOwnerUserContext(c.var.authContext);
 
     const { participants, addedUserIds } = await prisma.$transaction(
       async (tx) => {

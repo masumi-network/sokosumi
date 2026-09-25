@@ -161,4 +161,27 @@ describe("POST /{id}/participants", () => {
     expect(response.status).toBe(403);
     expect(addSelfAsTaskParticipantMock).not.toHaveBeenCalled();
   });
+
+  it("forbids coworker auth even with X-Context-User-Id", async () => {
+    const app = new OpenAPIHonoWithAuth();
+    app.use("*", async (c, next) => {
+      c.set("authContext", {
+        actor: "coworker",
+        coworkerId: "cw_1",
+        vendorId: "vnd_1",
+        context: { userId: "user_alice", organizationId: "org_123" },
+      } as AuthenticationContext);
+      c.set("isAuthenticated", true);
+      return await next();
+    });
+    mountPostTaskParticipant(app);
+
+    const response = await app.request(
+      "http://localhost/tsk_123/participants",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(addSelfAsTaskParticipantMock).not.toHaveBeenCalled();
+  });
 });

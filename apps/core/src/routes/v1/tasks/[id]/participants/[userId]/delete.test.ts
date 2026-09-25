@@ -196,4 +196,27 @@ describe("DELETE /{id}/participants/{userId}", () => {
       "tsk_123",
     );
   });
+
+  it("forbids coworker auth even with X-Context-User-Id", async () => {
+    const app = new OpenAPIHonoWithAuth();
+    app.use("*", async (c, next) => {
+      c.set("authContext", {
+        actor: "coworker",
+        coworkerId: "cw_1",
+        vendorId: "vnd_1",
+        context: { userId: "user_owner", organizationId: "org_123" },
+      } as AuthenticationContext);
+      c.set("isAuthenticated", true);
+      return await next();
+    });
+    mountDeleteTaskParticipant(app);
+
+    const response = await app.request(
+      "http://localhost/tsk_123/participants/user_alice",
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(deleteManyMock).not.toHaveBeenCalled();
+  });
 });
