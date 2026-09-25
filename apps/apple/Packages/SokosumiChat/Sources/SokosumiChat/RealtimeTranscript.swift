@@ -147,7 +147,7 @@ public func applyRealtimeTombstone(
 /// rows win by id, oldest first. Rows missing from the page stay — merge
 /// never drops ids the list GET omits. Local-only rows never come over the
 /// wire, so they cannot leak in here.
-public func mergeRealtimePage(
+func mergeRealtimePage(
   messages: [Components.Schemas.ChatRoomMessage],
   page: [Components.Schemas.ChatRoomMessage]
 ) -> [Components.Schemas.ChatRoomMessage] {
