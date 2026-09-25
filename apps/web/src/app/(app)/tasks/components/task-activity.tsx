@@ -560,11 +560,11 @@ export function TaskActivitySection({
       </div>
 
       {showJumpToRecent ? (
-        <div>
+        <div className="flex justify-center">
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            className="h-7 rounded-full px-3 text-xs font-semibold"
             onClick={handleJumpToRecent}
           >
             {t("jumpToRecent")}
