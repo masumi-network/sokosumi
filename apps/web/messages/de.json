@@ -2378,7 +2378,24 @@
           "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
           "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
           "unauthenticated": "Melde dich an, um fortzufahren.",
-          "unauthenticatedAction": "Anmelden"
+          "unauthenticatedAction": "Anmelden",
+          "published": "Beitrag veröffentlicht.",
+          "publishFailed": "Veröffentlichung fehlgeschlagen: {error}"
+        },
+        "needsReconnect": "Konto muss neu verbunden werden",
+        "needsReconnectLink": "Konto erneut verbinden",
+        "viewOnX": "Auf X ansehen",
+        "publishedAt": "Veröffentlicht {date}",
+        "failedAt": "Fehlgeschlagen {date}",
+        "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
+        "actions": {
+          "publishNow": "Jetzt veröffentlichen",
+          "retry": "Erneut versuchen"
+        },
+        "publishDialog": {
+          "title": "Diesen Beitrag jetzt veröffentlichen?",
+          "description": "Der Beitrag wird sofort auf X veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
+          "confirm": "Jetzt veröffentlichen"
         }
       },
       "Detail": {

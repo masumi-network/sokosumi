@@ -309,3 +309,251 @@ describe("initiateProjectXConnection", () => {
     },
   );
 });
+
+describe("publishXPost", () => {
+  const publishInput = {
+    connectedAccountId: "ca_123",
+    executorUserId: "sokosumi:project-executor:project_123",
+    text: "Hello world",
+  };
+
+  function stubSession(execute: () => Promise<Response> | Response) {
+    const fetchMock = vi.fn(
+      async (url: URL, init?: RequestInit): Promise<Response> => {
+        const path = url.pathname;
+        if (path === "/api/v3.1/tool_router/session") {
+          const body = JSON.parse(String(init?.body));
+          // REST rejects the SDK's array shorthand before any post is sent.
+          if (Array.isArray(body.toolkits)) {
+            return Response.json(
+              { error: "Invalid toolkits" },
+              { status: 400 },
+            );
+          }
+          return new Response(JSON.stringify({ session_id: "sess_1" }));
+        }
+        if (path.endsWith("/execute")) {
+          return execute();
+        }
+        if (init?.method === "DELETE") {
+          return new Response(JSON.stringify({}));
+        }
+        throw new Error(`unexpected ${path}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  function calls(fetchMock: ReturnType<typeof stubSession>) {
+    return fetchMock.mock.calls.map(([url, init]) => ({
+      path: url.pathname,
+      method: init?.method ?? "GET",
+      body: typeof init?.body === "string" ? JSON.parse(init.body) : undefined,
+    }));
+  }
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({
+      COMPOSIO_API_BASE_URL: "https://backend.composio.dev",
+      COMPOSIO_API_KEY: "test-composio-key",
+    });
+  });
+
+  it("creates a restricted session, executes the create-post tool, and deletes the session", async () => {
+    const fetchMock = stubSession(
+      () =>
+        new Response(
+          JSON.stringify({
+            data: { data: { data: { id: "1907", text: "Hello world" } } },
+            error: null,
+            successful: true,
+          }),
+        ),
+    );
+    const { publishXPost } = await import("./composio.client");
+
+    await expect(publishXPost(publishInput)).resolves.toEqual({
+      externalId: "1907",
+    });
+
+    const requests = calls(fetchMock);
+    expect(requests).toHaveLength(3);
+    expect(requests[0]).toMatchObject({
+      path: "/api/v3.1/tool_router/session",
+      method: "POST",
+      body: {
+        user_id: publishInput.executorUserId,
+        toolkits: { enable: ["twitter"] },
+        connected_accounts: { twitter: ["ca_123"] },
+        manage_connections: { enable: false, enable_connection_removal: false },
+        tools: { twitter: { enable: ["TWITTER_CREATION_OF_A_POST"] } },
+        workbench: { enable: false, enable_proxy_execution: false },
+        search: { enable: false },
+      },
+    });
+    expect(requests[1]).toEqual({
+      path: "/api/v3.1/tool_router/session/sess_1/execute",
+      method: "POST",
+      body: {
+        tool_slug: "TWITTER_CREATION_OF_A_POST",
+        arguments: { text: "Hello world" },
+      },
+    });
+    expect(requests[2]).toMatchObject({
+      path: "/api/v3.1/tool_router/session/sess_1",
+      method: "DELETE",
+    });
+  });
+
+  it("keeps a successful publish when session cleanup fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: URL, init?: RequestInit): Promise<Response> => {
+        const path = url.pathname;
+        if (path === "/api/v3.1/tool_router/session") {
+          return new Response(JSON.stringify({ session_id: "sess_1" }));
+        }
+        if (path.endsWith("/execute")) {
+          return new Response(
+            JSON.stringify({ data: { id: "1907" }, error: null }),
+          );
+        }
+        if (init?.method === "DELETE") {
+          return new Response("boom", { status: 500 });
+        }
+        throw new Error(`unexpected ${path}`);
+      }),
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { publishXPost } = await import("./composio.client");
+
+    await expect(publishXPost(publishInput)).resolves.toEqual({
+      externalId: "1907",
+    });
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("parses a flat tool result", async () => {
+    stubSession(
+      () => new Response(JSON.stringify({ data: { id: "42" }, error: null })),
+    );
+    const { publishXPost } = await import("./composio.client");
+
+    await expect(publishXPost(publishInput)).resolves.toEqual({
+      externalId: "42",
+    });
+  });
+
+  it("raises a tool error carrying only the sanitized provider message", async () => {
+    const opaqueId = "opaque_1234567890abcdefghijklmnopqrstuvwxyz";
+    const fetchMock = stubSession(
+      () =>
+        new Response(
+          JSON.stringify({
+            data: null,
+            error: {
+              message: `Duplicate content.\nsession sess_1 Bearer bearer-secret api_key=api-secret https://internal.example/path ${opaqueId} {"access_token":"short-secret","client_secret":"client-secret","authorization":"Basic dXNlcjpwYXNz","password":"my secret"}`,
+              status: 403,
+            },
+            successful: false,
+          }),
+        ),
+    );
+    const { ComposioToolError, publishXPost } = await import(
+      "./composio.client"
+    );
+
+    const error = await publishXPost(publishInput).catch((e) => e);
+    expect(error).toBeInstanceOf(ComposioToolError);
+    expect(error).toMatchObject({
+      providerMessage:
+        'Duplicate content. session [redacted] Bearer [redacted] api_key=[redacted] [redacted-url] [redacted-id] {"access_token":"[redacted]","client_secret":"[redacted]","authorization":"[redacted]","password":"[redacted]"}',
+      providerStatus: 403,
+    });
+    expect(error.message).not.toContain("sess_1");
+    expect(error.providerMessage).not.toContain("bearer-secret");
+    expect(error.providerMessage).not.toContain("api-secret");
+    expect(error.providerMessage).not.toContain("internal.example");
+    expect(error.providerMessage).not.toContain(opaqueId);
+    expect(error.providerMessage).not.toContain("short-secret");
+    expect(error.providerMessage).not.toContain("client-secret");
+    expect(error.providerMessage).not.toContain("dXNlcjpwYXNz");
+    expect(error.providerMessage).not.toContain("my secret");
+    expect(calls(fetchMock).at(-1)).toMatchObject({
+      path: "/api/v3.1/tool_router/session/sess_1",
+      method: "DELETE",
+    });
+  });
+
+  it("marks the result uncertain when no post id comes back", async () => {
+    stubSession(() => new Response(JSON.stringify({ data: { text: "x" } })));
+    const { ComposioPublishOutcomeUnknownError, publishXPost } = await import(
+      "./composio.client"
+    );
+
+    await expect(publishXPost(publishInput)).rejects.toBeInstanceOf(
+      ComposioPublishOutcomeUnknownError,
+    );
+  });
+
+  it("does not allow automatic retries after a create-post transport timeout", async () => {
+    stubSession(() => {
+      throw new DOMException("Timed out", "TimeoutError");
+    });
+    const { ComposioPublishOutcomeUnknownError, publishXPost } = await import(
+      "./composio.client"
+    );
+    await expect(publishXPost(publishInput)).rejects.toBeInstanceOf(
+      ComposioPublishOutcomeUnknownError,
+    );
+  });
+
+  it.each([500, 502, 503])(
+    "treats create-post HTTP %s as an uncertain external outcome",
+    async (status) => {
+      stubSession(() => new Response("unavailable", { status }));
+      const { ComposioPublishOutcomeUnknownError, publishXPost } = await import(
+        "./composio.client"
+      );
+      await expect(publishXPost(publishInput)).rejects.toBeInstanceOf(
+        ComposioPublishOutcomeUnknownError,
+      );
+    },
+  );
+
+  it("preserves retryable errors before the create-post request starts", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })),
+    );
+    const { ComposioApiError, publishXPost } = await import(
+      "./composio.client"
+    );
+    await expect(publishXPost(publishInput)).rejects.toMatchObject({
+      constructor: ComposioApiError,
+      httpStatus: 503,
+    });
+  });
+
+  it("deletes the session when the execute call fails upstream", async () => {
+    const fetchMock = stubSession(
+      () => new Response("rate limited", { status: 429 }),
+    );
+    const { ComposioApiError, publishXPost } = await import(
+      "./composio.client"
+    );
+
+    await expect(publishXPost(publishInput)).rejects.toMatchObject({
+      constructor: ComposioApiError,
+      httpStatus: 429,
+    });
+    expect(calls(fetchMock).at(-1)).toMatchObject({
+      path: "/api/v3.1/tool_router/session/sess_1",
+      method: "DELETE",
+    });
+  });
+});

@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const coreClientMock = {
+  deleteProjectsByIdJobsByJobId: vi.fn(),
   deleteProjectsByIdSocialConnectionsByConnectionId: vi.fn(),
+  deleteProjectsByIdTasksByTaskId: vi.fn(),
   getProjects: vi.fn(),
   getProjectsById: vi.fn(),
   getProjectsByIdCalendar: vi.fn(),
@@ -11,6 +13,7 @@ const coreClientMock = {
   getProjectsByIdContextMd: vi.fn(),
   getProjectsByIdSocialConnections: vi.fn(),
   getProjectsByIdSocialPosts: vi.fn(),
+  getProjectsByIdSocialPostsByPostId: vi.fn(),
   getProjectsStats: vi.fn(),
   patchProjectsById: vi.fn(),
   patchProjectsByIdSocialPostsByPostId: vi.fn(),
@@ -22,9 +25,12 @@ const coreClientMock = {
   postProjectsByIdSocialConnectionsInitiate: vi.fn(),
   postProjectsByIdSocialPosts: vi.fn(),
   postProjectsByIdSocialPostsByPostIdCancel: vi.fn(),
+  postProjectsByIdSocialPostsByPostIdPublish: vi.fn(),
   postProjectsByIdSocialPostsByPostIdSchedule: vi.fn(),
   putProjectsByIdDesignMd: vi.fn(),
   deleteProjectsByIdDesignMd: vi.fn(),
+  postProjectsByIdJobs: vi.fn(),
+  postProjectsByIdTasks: vi.fn(),
 };
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -314,6 +320,43 @@ describe("project.service", () => {
     );
   });
 
+  it("adds and removes project jobs and tasks via Core", async () => {
+    const project = buildProject();
+    coreClientMock.postProjectsByIdJobs.mockResolvedValue({ data: project });
+    coreClientMock.deleteProjectsByIdJobsByJobId.mockResolvedValue({
+      data: project,
+    });
+    coreClientMock.postProjectsByIdTasks.mockResolvedValue({ data: project });
+    coreClientMock.deleteProjectsByIdTasksByTaskId.mockResolvedValue({
+      data: project,
+    });
+
+    const { projectService } = await import("./project.service");
+    await projectService.addJob("project-1", "job-1");
+    await projectService.removeJob("project-1", "job-1");
+    await projectService.addTask("project-1", "task-1");
+    await projectService.removeTask("project-1", "task-1");
+
+    expect(coreClientMock.postProjectsByIdJobs).toHaveBeenCalledWith(
+      "project-1",
+      { jobId: "job-1" },
+    );
+    expect(coreClientMock.deleteProjectsByIdJobsByJobId).toHaveBeenCalledWith({
+      id: "project-1",
+      jobId: "job-1",
+    });
+    expect(coreClientMock.postProjectsByIdTasks).toHaveBeenCalledWith(
+      "project-1",
+      { taskId: "task-1" },
+    );
+    expect(coreClientMock.deleteProjectsByIdTasksByTaskId).toHaveBeenCalledWith(
+      {
+        id: "project-1",
+        taskId: "task-1",
+      },
+    );
+  });
+
   it("loads project memory and returns null on 404", async () => {
     const contextMd = {
       content: "# Memory",
@@ -500,6 +543,21 @@ describe("project.service", () => {
       );
     });
 
+    it("reads a single social post", async () => {
+      coreClientMock.getProjectsByIdSocialPostsByPostId.mockResolvedValue({
+        data: post,
+      });
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.getSocialPost("project-1", "post-1"),
+      ).resolves.toEqual(post);
+      expect(
+        coreClientMock.getProjectsByIdSocialPostsByPostId,
+      ).toHaveBeenCalledWith("project-1", "post-1");
+    });
+
     it("creates, updates, schedules, and cancels with the generated request DTOs", async () => {
       const scheduledAt = new Date("2026-10-01T10:00:00.000Z");
       coreClientMock.postProjectsByIdSocialPosts.mockResolvedValue({
@@ -563,6 +621,51 @@ describe("project.service", () => {
       expect(
         coreClientMock.postProjectsByIdSocialPostsByPostIdCancel,
       ).toHaveBeenCalledWith("project-1", "post-1", { revision: 2 });
+    });
+
+    it("publishes a post now with the observed revision", async () => {
+      const publishedAt = new Date("2026-09-15T10:00:00.000Z");
+      coreClientMock.postProjectsByIdSocialPostsByPostIdPublish.mockResolvedValue(
+        {
+          data: {
+            ...post,
+            status: "PUBLISHED",
+            publishedAt,
+            publishedUrl: "https://x.com/sokosumi/status/1",
+            revision: 4,
+          },
+        },
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.publishSocialPost("project-1", "post-1", {
+          revision: 3,
+        }),
+      ).resolves.toMatchObject({
+        status: "PUBLISHED",
+        publishedAt,
+        publishedUrl: "https://x.com/sokosumi/status/1",
+        revision: 4,
+      });
+      expect(
+        coreClientMock.postProjectsByIdSocialPostsByPostIdPublish,
+      ).toHaveBeenCalledWith("project-1", "post-1", { revision: 3 });
+    });
+
+    it("propagates Core errors from publishing", async () => {
+      coreClientMock.postProjectsByIdSocialPostsByPostIdPublish.mockRejectedValue(
+        new Error("Social post cannot be published now"),
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.publishSocialPost("project-1", "post-1", {
+          revision: 0,
+        }),
+      ).rejects.toThrow("Social post cannot be published now");
     });
 
     it("propagates Core errors from social post mutations", async () => {

@@ -90,6 +90,7 @@ import type {
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
   PostProjectsByIdSocialPostsByPostIdCancelData,
+  PostProjectsByIdSocialPostsByPostIdPublishData,
   PostProjectsByIdSocialPostsByPostIdScheduleData,
   PostProjectsByIdSocialPostsData,
   PostProjectsByIdTasksData,
@@ -394,6 +395,7 @@ import {
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
   postProjectsByIdSocialPosts as corePostProjectsByIdSocialPosts,
   postProjectsByIdSocialPostsByPostIdCancel as corePostProjectsByIdSocialPostsByPostIdCancel,
+  postProjectsByIdSocialPostsByPostIdPublish as corePostProjectsByIdSocialPostsByPostIdPublish,
   postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
   postProjectsByIdStar as corePostProjectsByIdStar,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
@@ -3247,6 +3249,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdSocialPostsByPostIdPublish(
+    id: string,
+    postId: string,
+    body: NonNullable<PostProjectsByIdSocialPostsByPostIdPublishData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdPublish({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to publish Project social post",
+    );
+  }
+
   async function completeComposioCallback(
     body: NonNullable<PostComposioCallbackCompleteData["body"]>,
   ) {
@@ -5767,6 +5786,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     patchProjectsByIdSocialPostsByPostId,
     postProjectsByIdSocialPosts,
     postProjectsByIdSocialPostsByPostIdCancel,
+    postProjectsByIdSocialPostsByPostIdPublish,
     postProjectsByIdSocialPostsByPostIdSchedule,
     completeComposioCallback,
     getProjectsStats,
