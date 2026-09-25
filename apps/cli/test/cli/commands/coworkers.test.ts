@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { CoreHttpClient } from "../../../src/api/http-client.js";
+import {
+  type CoreHttpClient,
+  createApiError,
+} from "../../../src/api/http-client.js";
 import { runCoworkersCommand } from "../../../src/cli/commands/coworkers.js";
 
 function clientWith(response: unknown): CoreHttpClient {
@@ -99,6 +102,97 @@ test("coworkers register creates and connects the coworker to the selected works
   assert.equal(parsed.workspaceAccess.status, "GRANTED");
 });
 
+test("ordinary developer gets organizer instructions when Core denies Coworker creation", async () => {
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      if (path.endsWith("/organizations"))
+        return { data: [{ id: "org-1", role: "member" }] } as T;
+      if (path.endsWith("/vendors/me"))
+        return { data: [{ id: "vendor-1", role: "admin" }] } as T;
+      throw new Error(`Unexpected GET ${path}`);
+    },
+    post: async (path: string) => {
+      assert.equal(path, "/v1/coworkers");
+      throw createApiError(403, { error: "Forbidden" });
+    },
+    patch: async <T>() => ({}) as T,
+  };
+
+  await assert.rejects(
+    runCoworkersCommand({
+      client,
+      stdout: { write() {} },
+      subcommand: "register",
+      target: "preprod",
+      options: {
+        name: "Ops Agent",
+        "vendor-id": "vendor-1",
+        "workspace-id": "org-1",
+      },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /platform admin/);
+      assert.match(error.message, /organizer/);
+      assert.match(error.message, /vendor-1/);
+      assert.match(error.message, /coworkers connect/);
+      assert.match(error.message, /coworkers api-key/);
+      return true;
+    },
+  );
+});
+
+test("API key failure keeps the created Coworker ID for recovery", async () => {
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      if (path.endsWith("/organizations"))
+        return { data: [{ id: "org-1", role: "owner" }] } as T;
+      if (path.endsWith("/vendors/me"))
+        return { data: [{ id: "vendor-1", role: "admin" }] } as T;
+      throw new Error(`Unexpected GET ${path}`);
+    },
+    post: async <T>(path: string) => {
+      if (path === "/v1/coworkers")
+        return { data: { id: "cw-1", name: "Ops Agent" } } as T;
+      if (path.endsWith("/workspace-access"))
+        return {
+          data: {
+            id: "access-1",
+            coworkerId: "cw-1",
+            workspaceId: "workspace-1",
+            status: "GRANTED",
+          },
+        } as T;
+      if (path.endsWith("/api-keys"))
+        throw new Error("Key service unavailable");
+      throw new Error(`Unexpected POST ${path}`);
+    },
+    patch: async <T>() => ({}) as T,
+  };
+
+  await assert.rejects(
+    runCoworkersCommand({
+      client,
+      stdout: { write() {} },
+      subcommand: "register",
+      target: "preprod",
+      options: {
+        name: "Ops Agent",
+        "vendor-id": "vendor-1",
+        "workspace-id": "org-1",
+        "create-api-key": true,
+      },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /Coworker cw-1/);
+      assert.match(error.message, /coworkers api-key cw-1/);
+      assert.match(error.message, /Do not register again/);
+      return true;
+    },
+  );
+});
+
 test("coworkers register rejects Mainnet before any Core request", async () => {
   let requestCount = 0;
   const client: CoreHttpClient = {
@@ -122,6 +216,34 @@ test("coworkers register rejects Mainnet before any Core request", async () => {
         target: "mainnet",
         options: { name: "Ops Agent", "vendor-id": "vendor-1" },
       }),
+    /Preprod only/,
+  );
+  assert.equal(requestCount, 0);
+});
+
+test("coworkers connect rejects Mainnet before any Core request", async () => {
+  let requestCount = 0;
+  const client: CoreHttpClient = {
+    get: async <T>() => {
+      requestCount += 1;
+      return { data: [] } as T;
+    },
+    post: async <T>() => {
+      requestCount += 1;
+      return { data: {} } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+  };
+
+  await assert.rejects(
+    runCoworkersCommand({
+      client,
+      stdout: { write() {} },
+      subcommand: "connect",
+      positionalId: "cw-1",
+      target: "mainnet",
+      options: { "vendor-id": "vendor-1", "workspace-id": "org-1" },
+    }),
     /Preprod only/,
   );
   assert.equal(requestCount, 0);

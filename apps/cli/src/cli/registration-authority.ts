@@ -57,7 +57,7 @@ export function requireSelectedOrganizationWorkspace(
   const selectedId = workspaceId?.trim();
   if (!selectedId) {
     throw new Error(
-      "workspace id is required for registration (run `sokosumi workspaces list` and pass --workspace-id)",
+      "workspace id is required. Run `sokosumi --preprod workspaces list` and pass its organization ID as --workspace-id.",
     );
   }
   const workspace = workspaces.find(

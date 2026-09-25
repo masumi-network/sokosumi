@@ -65,6 +65,7 @@ type ValueOptionName =
   | "input-file"
   | "max-credits"
   | "vendor-id"
+  | "workspace-id"
   | "slug";
 
 type CliOptionValue = string | string[];
@@ -230,6 +231,12 @@ Global options:
 ${formatGlobalOptionHelp()
   .map((line) => `  ${line}`)
   .join("\n")}
+
+Developer setup on Preprod:
+  1. Create your Vendor: sokosumi --preprod vendors create --name NAME --slug SLUG
+  2. Give its ID and your final Coworker name to the organizer. Ask for the Coworker ID.
+  3. Connect: sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID
+  4. Create the runtime key: sokosumi --preprod coworkers api-key COWORKER_ID --json
 `;
 }
 
@@ -263,6 +270,7 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "input-file",
   "max-credits",
   "vendor-id",
+  "workspace-id",
   "slug",
 ]);
 

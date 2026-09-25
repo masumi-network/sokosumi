@@ -202,7 +202,20 @@ export async function runCoworkersCommand({
     const vendorId = String(payload.vendorId);
     const { vendors } = await fetchVendorMemberships(client, signal);
     requireAdministeredVendorForRegistration(vendors, vendorId);
-    const { coworker } = await createCoworker(client, payload, signal);
+    let coworker: Awaited<ReturnType<typeof createCoworker>>["coworker"];
+    try {
+      ({ coworker } = await createCoworker(client, payload, signal));
+    } catch (error) {
+      if (error instanceof Error && "status" in error && error.status === 403) {
+        throw new Error(
+          `Only a Sokosumi platform admin can create a Coworker.\n` +
+            `Send Vendor ${vendorId} and your final Coworker name to the organizer.\n` +
+            `After you receive a Coworker ID, run \`sokosumi --preprod coworkers connect COWORKER_ID --vendor-id ${vendorId} --workspace-id ${workspace.organizationId}\`.\n` +
+            "Then create its runtime key with `sokosumi --preprod coworkers api-key COWORKER_ID --json`.",
+        );
+      }
+      throw error;
+    }
     const coworkerId = String(record(coworker).id || "");
     let workspaceAccess: CoworkerWorkspaceAccess;
     try {
@@ -224,16 +237,22 @@ export async function runCoworkersCommand({
     }
     let apiKey: unknown = null;
     if (optionBoolean(options, "create-api-key")) {
-      const result = await createCoworkerApiKey(
-        client,
-        coworkerId,
-        {
-          name: optionString(options, "api-key-name"),
-          expiresAt: optionString(options, "api-key-expires-at"),
-        },
-        signal,
-      );
-      apiKey = result.apiKey;
+      try {
+        const result = await createCoworkerApiKey(
+          client,
+          coworkerId,
+          {
+            name: optionString(options, "api-key-name"),
+            expiresAt: optionString(options, "api-key-expires-at"),
+          },
+          signal,
+        );
+        apiKey = result.apiKey;
+      } catch (error) {
+        throw new Error(
+          `Coworker ${coworkerId} is connected to Workspace ${workspace.organizationId}, but API key creation could not be confirmed. Do not register again. If you did not receive a usable key, run \`sokosumi --preprod coworkers api-key ${coworkerId} --json\` to create one. Cause: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     }
     if (json) writeJson(stdout, { coworker, workspaceAccess, apiKey });
     else {
@@ -263,10 +282,14 @@ export async function runCoworkersCommand({
     requirePreprodCoworkerRegistration(target);
     const coworkerId = positionalId || optionString(options, "coworker-id");
     if (!coworkerId)
-      throw new Error("coworker id is required for `coworkers connect`");
+      throw new Error(
+        "coworker id is required for `coworkers connect`. Ask the organizer for the Coworker ID after they create it under your Vendor.",
+      );
     const vendorId = optionString(options, "vendor-id")?.trim();
     if (!vendorId)
-      throw new Error("vendor id is required for `coworkers connect`");
+      throw new Error(
+        "vendor id is required for `coworkers connect`. Run `sokosumi --preprod vendors me` to find the Vendor you administer.",
+      );
     const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
       client,
       signal,
