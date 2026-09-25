@@ -72,6 +72,8 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         assets: assets.map((asset) => ({
           ...asset,
           contentPath: assetContentPath(projectId, asset.id),
+          // Omit rather than send null: see the schema comment on `review`.
+          review: asset.review ?? undefined,
         })),
         jobs,
         sessions,

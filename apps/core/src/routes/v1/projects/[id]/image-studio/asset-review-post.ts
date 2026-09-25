@@ -80,6 +80,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       imageStudioAssetSchema.parse({
         ...asset,
         contentPath: assetContentPath(projectId, asset.id),
+        review: asset.review ?? undefined,
       }),
     );
   });
@@ -100,6 +101,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       imageStudioAssetSchema.parse({
         ...asset,
         contentPath: assetContentPath(projectId, asset.id),
+        review: asset.review ?? undefined,
       }),
     );
   });

@@ -80,6 +80,25 @@ export function falModelForKind(kind: "GENERATE" | "EDIT"): string {
   return kind === "EDIT" ? IMAGE_MODEL_EDIT : IMAGE_MODEL_GENERATE;
 }
 
+/**
+ * The id the queue's per-request routes are mounted under.
+ *
+ * A model id is `owner/app`; anything after that is a sub-path selecting a
+ * variant, such as `/edit`. Submission goes to the full path, but status,
+ * result and cancel live under `owner/app` only — asking for them under the
+ * sub-path answers 405. fal's own submit response says the same thing in its
+ * `status_url`, which always drops the variant.
+ *
+ * Verified against the live queue on 2026-09-25: polling
+ * `…/gemini-3.1-flash-image-preview/edit/requests/{id}/status` returns 405,
+ * while `…/gemini-3.1-flash-image-preview/requests/{id}/status` returns the
+ * request. Getting this wrong makes every refinement look like a failure.
+ */
+export function queueRequestModel(model: string): string {
+  const segments = model.split("/");
+  return segments.length > 2 ? segments.slice(0, 2).join("/") : model;
+}
+
 export function buildFalInput(
   input: FalGenerationInput,
 ): Record<string, unknown> {
@@ -186,7 +205,7 @@ export async function fetchQueueStatus(options: {
   model: string;
   requestId: string;
 }): Promise<FalStatus> {
-  const url = `${QUEUE_ORIGIN}/${options.model}/requests/${encodeURIComponent(options.requestId)}/status`;
+  const url = `${QUEUE_ORIGIN}/${queueRequestModel(options.model)}/requests/${encodeURIComponent(options.requestId)}/status`;
   let response: Response;
   try {
     response = await fetch(url, {
@@ -237,7 +256,7 @@ export async function fetchQueueResult(options: {
   | { kind: "pending" }
   | { kind: "error"; message: string }
 > {
-  const url = `${QUEUE_ORIGIN}/${options.model}/requests/${encodeURIComponent(options.requestId)}`;
+  const url = `${QUEUE_ORIGIN}/${queueRequestModel(options.model)}/requests/${encodeURIComponent(options.requestId)}`;
   let response: Response;
   try {
     response = await fetch(url, {
@@ -293,7 +312,7 @@ export async function cancelQueued(options: {
   model: string;
   requestId: string;
 }): Promise<"accepted" | "already_finished" | "unknown"> {
-  const url = `${QUEUE_ORIGIN}/${options.model}/requests/${encodeURIComponent(options.requestId)}/cancel`;
+  const url = `${QUEUE_ORIGIN}/${queueRequestModel(options.model)}/requests/${encodeURIComponent(options.requestId)}/cancel`;
   try {
     const response = await fetch(url, {
       method: "PUT",

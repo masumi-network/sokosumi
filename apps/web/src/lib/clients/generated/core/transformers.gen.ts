@@ -2338,7 +2338,9 @@ const projectImageReviewSchemaResponseTransformer = (data: any) => {
 
 const projectImageAssetSchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
-    data.review = projectImageReviewSchemaResponseTransformer(data.review);
+    if (data.review) {
+        data.review = projectImageReviewSchemaResponseTransformer(data.review);
+    }
     return data;
 };
 

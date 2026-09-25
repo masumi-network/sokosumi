@@ -4939,7 +4939,7 @@ export type ProjectImageAsset = {
     createdAt: Date;
     jobId: string;
     contentPath: string;
-    review: ProjectImageReview;
+    review?: ProjectImageReview;
 };
 
 export type ProjectImageReview = {
@@ -4947,7 +4947,7 @@ export type ProjectImageReview = {
     feedback: string | null;
     decidedAt: Date;
     decidedByUserId: string;
-} | null;
+};
 
 export type ProjectImageJob = {
     id: string;

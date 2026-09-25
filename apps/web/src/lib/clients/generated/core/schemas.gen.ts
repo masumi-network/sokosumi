@@ -16417,16 +16417,12 @@ export const ProjectImageAssetSchema = {
         'contentType',
         'createdAt',
         'jobId',
-        'contentPath',
-        'review'
+        'contentPath'
     ]
 } as const;
 
 export const ProjectImageReviewSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         decision: {
             type: 'string',
