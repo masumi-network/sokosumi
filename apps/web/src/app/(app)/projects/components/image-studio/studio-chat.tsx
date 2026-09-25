@@ -48,6 +48,62 @@ export function classifyTokenFailure(
   return permanent ? "unavailable" : "transient";
 }
 
+/**
+ * The header this client names its creation with, so a retry of one intent
+ * lands on the conversation the first attempt created.
+ *
+ * eve's own name for this is `operationId` in the create body, but the
+ * frontend store builds that body itself from a fixed set of fields, so a
+ * header is the carrier a React caller has. The agent folds the two together.
+ */
+const INTENT_HEADER = "x-sokosumi-studio-intent";
+
+/**
+ * A name for "this first message", stable across every retry of it.
+ *
+ * Without one, a create whose response never arrives leaves the browser with
+ * no session id at all, and the next attempt starts a second conversation
+ * saying the same thing. It is stored rather than held in memory so a reload
+ * mid-attempt is still the same attempt, and it is dropped the moment a
+ * session exists, because from then on the session id is the identity.
+ */
+function intentStorageKey(projectId: string): string {
+  return `sokosumi:image-studio:intent:${projectId}`;
+}
+
+function newIntentId(): string {
+  try {
+    return window.crypto.randomUUID();
+  } catch {
+    // Insecure context or no WebCrypto: still unique enough to dedupe one
+    // person's retries of one message, which is all this has to do.
+    return `intent-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  }
+}
+
+/** The session id an agent error names, when it names one. */
+export function recoverableSessionId(error: unknown): string | null {
+  const body = (error as { body?: unknown } | null)?.body;
+  if (typeof body !== "string") return null;
+  try {
+    const parsed = JSON.parse(body) as { sessionId?: unknown };
+    return typeof parsed.sessionId === "string" && parsed.sessionId.length > 0
+      ? parsed.sessionId
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The conversation, and the one thing about it that can change identity.
+ *
+ * A create can answer with the id of a conversation whose first message may
+ * already have been delivered — the agent says so rather than guessing, and
+ * carries the id. Re-keying the conversation on that id is the recovery: the
+ * transcript is replayed, so the person sees whether their message got through
+ * instead of sending it into a second conversation to find out.
+ */
 export function StudioChat({
   labels,
   onActivity,
@@ -56,8 +112,45 @@ export function StudioChat({
   selectedAsset,
 }: {
   labels: StudioLabels;
+  onActivity: () => void;
+  projectId: string;
+  resumeSessionId: string | null;
+  selectedAsset: StudioAsset | null;
+}) {
+  const [recoveredSessionId, setRecoveredSessionId] = useState<string | null>(
+    null,
+  );
+  const sessionId = recoveredSessionId ?? resumeSessionId;
+  return (
+    <StudioConversation
+      key={sessionId ?? "new"}
+      labels={labels}
+      onActivity={onActivity}
+      onRecoverSession={setRecoveredSessionId}
+      projectId={projectId}
+      resumeSessionId={sessionId}
+      selectedAsset={selectedAsset}
+    />
+  );
+}
+
+function StudioConversation({
+  labels,
+  onActivity,
+  onRecoverSession,
+  projectId,
+  resumeSessionId,
+  selectedAsset,
+}: {
+  labels: StudioLabels;
   /** Fires when the agent settles a turn, so the page can look for results. */
   onActivity: () => void;
+  /**
+   * Attach to a conversation the agent named rather than this mount's. Used
+   * once, when a creation answers that it will not guess whether the first
+   * message got through.
+   */
+  onRecoverSession: (sessionId: string) => void;
   projectId: string;
   resumeSessionId: string | null;
   /**
@@ -70,6 +163,12 @@ export function StudioChat({
   const draftKey = `sokosumi:image-studio:draft:${projectId}`;
   const [draft, setDraft] = useState("");
   /**
+   * The name this client has given its first message, while it still has no
+   * session id to identify the conversation by. Read fresh on every request
+   * through the `headers` resolver, so it needs no rerender to take effect.
+   */
+  const intentRef = useRef<string | null>(null);
+  /**
    * `null` while the token works. `"unavailable"` is permanent for this page
    * load (the feature is not configured, or this session cannot see the
    * project); `"transient"` is worth another try.
@@ -79,6 +178,15 @@ export function StudioChat({
   >(null);
   /** The message currently in flight, so a later failure can put it back. */
   const lastSentRef = useRef<string | null>(null);
+  /**
+   * What is in the composer right now.
+   *
+   * Read by the failure path instead of a `setState` updater, because a
+   * restore can be followed in the same batch by attaching to a recovered
+   * conversation — which remounts this component, so an updater queued against
+   * it may never run and the text would be lost with it.
+   */
+  const draftRef = useRef("");
   const transcriptRef = useRef<HTMLDivElement>(null);
 
   // Read the current selection inside callbacks without making them depend on
@@ -91,11 +199,56 @@ export function StudioChat({
   useEffect(() => {
     try {
       const saved = window.sessionStorage.getItem(draftKey);
-      if (saved) setDraft(saved);
+      if (saved) {
+        draftRef.current = saved;
+        setDraft(saved);
+      }
     } catch {
       // No draft restore; nothing else depends on it.
     }
   }, [draftKey]);
+
+  // Pick up an attempt that was in flight when the page went away, so a reload
+  // mid-create is still the same attempt rather than a second conversation.
+  useEffect(() => {
+    if (resumeSessionId) return;
+    try {
+      intentRef.current = window.sessionStorage.getItem(
+        intentStorageKey(projectId),
+      );
+    } catch {
+      // Without storage the intent lives for this page load only, which still
+      // covers retrying a message that is sitting in the composer.
+    }
+  }, [projectId, resumeSessionId]);
+
+  /**
+   * Name this attempt, once, and keep the name until a session exists.
+   *
+   * Called before the first submit rather than on mount: a conversation nobody
+   * has spoken into has no attempt to identify.
+   */
+  const claimIntent = useCallback(() => {
+    if (intentRef.current) return;
+    const intentId = newIntentId();
+    intentRef.current = intentId;
+    try {
+      window.sessionStorage.setItem(intentStorageKey(projectId), intentId);
+    } catch {
+      // Memory-only is still enough for a same-page retry.
+    }
+  }, [projectId]);
+
+  /** The session id is the identity from here on; the intent has done its job. */
+  const releaseIntent = useCallback(() => {
+    if (!intentRef.current) return;
+    intentRef.current = null;
+    try {
+      window.sessionStorage.removeItem(intentStorageKey(projectId));
+    } catch {
+      // Nothing depends on the removal succeeding.
+    }
+  }, [projectId]);
 
   const fetchToken = useCallback(async () => {
     let response: Response;
@@ -134,6 +287,10 @@ export function StudioChat({
   const agent = useEveAgent({
     agent: "image-studio",
     auth: { bearer: fetchToken },
+    // Resolved before every request, so the current attempt's name rides along
+    // without the store being rebuilt to carry it.
+    headers: (): Record<string, string> =>
+      intentRef.current ? { [INTENT_HEADER]: intentRef.current } : {},
     ...(resumeSessionId
       ? {
           initialSession: { sessionId: resumeSessionId, streamIndex: 0 },
@@ -156,10 +313,21 @@ export function StudioChat({
           }
         : input;
     },
-    onError: () => {
+    onError: (error) => {
       const message = lastSentRef.current;
       lastSentRef.current = null;
       if (message) restoreFailedMessage(message);
+      // The agent refused to guess whether the first message got through, and
+      // named the conversation so this can stop guessing too: attach to it and
+      // replay. What the person sees is then what actually happened.
+      const recovered = recoverableSessionId(error);
+      if (recovered && !resumeSessionId) {
+        releaseIntent();
+        onRecoverSession(recovered);
+      }
+    },
+    onSessionChange: (session) => {
+      if (session) releaseIntent();
     },
     onFinish: () => onActivity(),
   });
@@ -178,6 +346,7 @@ export function StudioChat({
   }, [agent.data.messages.length]);
 
   function handleDraftChange(value: string) {
+    draftRef.current = value;
     setDraft(value);
     try {
       window.sessionStorage.setItem(draftKey, value);
@@ -197,15 +366,16 @@ export function StudioChat({
    * text wins and the failed message is dropped rather than overwriting it.
    */
   function restoreFailedMessage(message: string) {
-    setDraft((current) => {
-      if (current.trim().length > 0) return current;
-      try {
-        window.sessionStorage.setItem(draftKey, message);
-      } catch {
-        // Persistence is a convenience; the restored text is what matters.
-      }
-      return message;
-    });
+    if (draftRef.current.trim().length > 0) return;
+    draftRef.current = message;
+    try {
+      window.sessionStorage.setItem(draftKey, message);
+    } catch {
+      // Persistence is a convenience; the restored text is what matters —
+      // except across the remount a recovery causes, where storage is how it
+      // survives.
+    }
+    setDraft(message);
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -215,6 +385,9 @@ export function StudioChat({
 
     handleDraftChange("");
     lastSentRef.current = message;
+    // Only the first message needs a name of its own; after that the session
+    // id identifies the conversation and every send is addressed to it.
+    if (!agent.session) claimIntent();
     try {
       await agent.send(message, isBusy ? { turnPolicy: "steer" } : undefined);
       // Resolving proves the client accepted it, not that it succeeded — so

@@ -24181,6 +24181,8 @@ export type PostImageStudioAgentSessionsData = {
     body: {
         eveSessionId: string;
         title?: string | null;
+        clientIntentId?: string | null;
+        expectsInitialTurn?: boolean;
     };
     path?: never;
     query?: never;
@@ -24248,6 +24250,36 @@ export type PostImageStudioAgentSessionsErrors = {
             method: string;
         };
     };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PostImageStudioAgentSessionsError = PostImageStudioAgentSessionsErrors[keyof PostImageStudioAgentSessionsErrors];
@@ -24259,7 +24291,11 @@ export type PostImageStudioAgentSessionsResponses = {
     201: {
         data: {
             sessionId: string;
+            eveSessionId: string;
             created: boolean;
+            initialTurn: 'NONE' | 'PENDING' | 'CLAIMED' | 'DELIVERING' | 'DELIVERED' | 'UNCERTAIN';
+            mayDeliver: boolean;
+            deliveryToken: string | null;
         };
         meta: {
             timestamp: Date;
@@ -24270,6 +24306,119 @@ export type PostImageStudioAgentSessionsResponses = {
 };
 
 export type PostImageStudioAgentSessionsResponse = PostImageStudioAgentSessionsResponses[keyof PostImageStudioAgentSessionsResponses];
+
+export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnData = {
+    body: {
+        outcome: 'dispatching' | 'delivered' | 'undelivered' | 'uncertain';
+        deliveryToken?: string | null;
+    };
+    path: {
+        eveSessionId: string;
+    };
+    query?: never;
+    url: '/image-studio-agent/sessions/{eveSessionId}/initial-turn';
+};
+
+export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnError = PostImageStudioAgentSessionsByEveSessionIdInitialTurnErrors[keyof PostImageStudioAgentSessionsByEveSessionIdInitialTurnErrors];
+
+export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses = {
+    /**
+     * First-message state recorded
+     */
+    200: {
+        data: {
+            sessionId: string;
+            eveSessionId: string;
+            initialTurn: 'NONE' | 'PENDING' | 'CLAIMED' | 'DELIVERING' | 'DELIVERED' | 'UNCERTAIN';
+            accepted: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponse = PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses[keyof PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses];
 
 export type GetUsersRegisteredData = {
     body?: never;

@@ -16,6 +16,7 @@ const {
   jobUpdateManyMock,
   jobFindManyMock,
   fetchQueueStatusMock,
+  fetchQueueResultMock,
   downloadImageMock,
   putMock,
   assetCreateMock,
@@ -29,6 +30,7 @@ const {
   jobUpdateManyMock: vi.fn(),
   jobFindManyMock: vi.fn(),
   fetchQueueStatusMock: vi.fn(),
+  fetchQueueResultMock: vi.fn(),
   downloadImageMock: vi.fn(),
   putMock: vi.fn(),
   assetCreateMock: vi.fn(),
@@ -81,6 +83,7 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
     "@/lib/image-studio/fal-client",
   )),
   fetchQueueStatus: fetchQueueStatusMock,
+  fetchQueueResult: fetchQueueResultMock,
   downloadImage: downloadImageMock,
   submitToQueue: submitToQueueMock,
 }));
@@ -213,6 +216,67 @@ describe("the grace period", () => {
     // lookup failed is a lie.
     expect(message).not.toContain("provider could not be reached");
     expect(message).toContain("belongs to");
+  });
+
+  it("does not let the image's address end an outage in fetching its bytes", async () => {
+    // The `result` clock covers finding the image *and* downloading it. A
+    // healthy metadata read used to clear it on every reconcile, so a download
+    // that had been failing for hours had its elapsed time reset each time and
+    // could never run out.
+    jobFindUniqueMock.mockResolvedValue(
+      uncertainJob({
+        status: "QUEUED",
+        statusUnreachableSince: null,
+        resultUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
+      }),
+    );
+    fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
+    fetchQueueResultMock.mockResolvedValue({
+      kind: "completed",
+      images: [{ url: "https://v3b.fal.media/files/a.png" }],
+    });
+    downloadImageMock.mockRejectedValue(new Error("connection reset"));
+    jobUpdateMock.mockResolvedValue({
+      resultUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
+    });
+
+    await reconcileJob("job-1");
+
+    const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
+    expect(written.some((data) => data.resultUnreachableSince === null)).toBe(
+      false,
+    );
+    // And the outage that never ended can now reach the grace period.
+    const message = written.find((data) => data.error)?.error as string;
+    expect(message).toContain("could not fetch");
+    expect(written.some((data) => data.status === "SUBMISSION_UNCERTAIN")).toBe(
+      true,
+    );
+  });
+
+  it("ends that outage once the bytes are actually stored", async () => {
+    jobFindUniqueMock.mockResolvedValue(
+      uncertainJob({
+        status: "QUEUED",
+        statusUnreachableSince: null,
+        resultUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
+      }),
+    );
+    fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
+    fetchQueueResultMock.mockResolvedValue({
+      kind: "completed",
+      images: [{ url: "https://v3b.fal.media/files/a.png" }],
+    });
+
+    await reconcileJob("job-1");
+
+    expect(assetCreateMock).toHaveBeenCalledTimes(1);
+    // Publishing the asset is what clears the clocks, in the same update that
+    // records the success — so the outage ends exactly when it really ended.
+    const settled = jobUpdateManyMock.mock.calls
+      .map((call) => call[0].data)
+      .find((data) => data.status === "SUCCEEDED");
+    expect(settled?.resultUnreachableSince).toBeNull();
   });
 
   it("forgets the outage once a read gets through", async () => {

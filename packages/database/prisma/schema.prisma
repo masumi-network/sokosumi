@@ -4201,6 +4201,32 @@ enum ProjectImageReviewDecision {
   REJECTED
 }
 
+/// What is known about a conversation's very first message.
+///
+/// A session row is written *before* that message is delivered, so the row's
+/// existence says nothing about delivery. This says what is known, and it is
+/// the only thing a retry is allowed to act on.
+enum ProjectImageInitialTurn {
+  /// No first message was ever meant for this conversation — it was created
+  /// empty and will be spoken to through the ordinary send route.
+  NONE
+  /// A first message is owed and nothing has been dispatched. Safe to deliver.
+  PENDING
+  /// One attempt holds the right to deliver it but has not tried yet. A later
+  /// attempt for the same intent may take that right over: the first one may
+  /// never have learned it held it, and nothing has run either way.
+  CLAIMED
+  /// A dispatch has been attempted and its outcome is not in yet. This is the
+  /// state no retry may take over, because taking it over is the duplicate.
+  DELIVERING
+  /// The runtime accepted it. Delivering again would be a duplicate turn.
+  DELIVERED
+  /// An attempt may or may not have been accepted. Never redelivered
+  /// automatically: that is the duplicate-turn mistake. The conversation is
+  /// resumable, so the person can see what happened and decide.
+  UNCERTAIN
+}
+
 /// One eve conversation, permanently bound to one project.
 ///
 /// eve owns the transcript; this row is what makes the transcript
@@ -4224,11 +4250,31 @@ model ProjectImageSession {
   /// by a second project.
   eveSessionId String @unique
 
+  /// The client's own name for the intent that created this conversation,
+  /// carried through every retry of it. This — not possession of an eve
+  /// session id, and not the existence of this row — is what makes a repeated
+  /// creation land on the same conversation instead of starting a second one.
+  ///
+  /// Null for a caller that names no intent; such a caller gets no dedupe,
+  /// which is the eve contract for a create without an `operationId`.
+  clientIntentId String?
+
+  /// What is known about the first message, and the lease on delivering it.
+  ///
+  /// The owner is a token minted for one attempt. A later attempt can take the
+  /// lease while it is only CLAIMED, and the token is what then fences the
+  /// earlier one out: it cannot announce a dispatch it no longer owns, so two
+  /// attempts at one intent still produce one delivery.
+  initialTurn           ProjectImageInitialTurn @default(NONE)
+  initialTurnLeaseAt    DateTime?
+  initialTurnLeaseOwner String?
+
   title          String?
   lastActivityAt DateTime @default(now())
 
   jobs ProjectImageJob[]
 
+  @@unique([projectId, clientIntentId])
   @@index([projectId, lastActivityAt])
   @@index([workspaceId])
   @@index([createdByUserId])
@@ -4276,7 +4322,7 @@ model ProjectImageJob {
   /// Non-null once a submitter has claimed the row. Set in the same atomic
   /// update that moves PENDING -> SUBMITTING, so exactly one caller can ever
   /// reach fal for this row.
-  submitLeaseAt  DateTime?
+  submitLeaseAt DateTime?
 
   /// Held by the one worker currently downloading and storing the image.
   ///
@@ -4290,7 +4336,7 @@ model ProjectImageJob {
   settleLeaseOwner String?
   /// How many times the row has been claimed for submission. Once this is
   /// non-zero the row is never auto-submitted again, whatever its status.
-  submitAttempts Int       @default(0)
+  submitAttempts   Int       @default(0)
 
   falRequestId String?
   /// Provider-facing error text, already stripped of anything secret.
@@ -4305,14 +4351,14 @@ model ProjectImageJob {
   /// UI reads to say "cancellation requested".
   cancelRequestedAt DateTime?
 
-  submittedAt   DateTime?
-  settledAt     DateTime?
+  submittedAt            DateTime?
+  settledAt              DateTime?
   /// Last time a reconcile actually reached the provider.
-  polledAt      DateTime?
+  polledAt               DateTime?
   /// Consecutive reconcile attempts that could not reach the provider at all.
   ///
   /// A transport failure says nothing about the job, so it must not settle it.
-  pollFailures  Int       @default(0)
+  pollFailures           Int       @default(0)
   /// When each dependency's current outage began, one column per dependency;
   /// each is cleared by a read that gets through to *that* dependency.
   ///
@@ -4332,7 +4378,7 @@ model ProjectImageJob {
   /// Which dependency the current `error` describes. Display only.
   unreachableSource      String?
   /// Why the last reconcile could not reach the provider. Display only.
-  lastPollError String?
+  lastPollError          String?
 
   asset ProjectImageAsset?
 

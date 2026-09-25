@@ -602,11 +602,18 @@ export async function reconcileJob(jobId: string): Promise<void> {
     await noteUnreachable(job.id, result.message, "result");
     return;
   }
-  await noteReachable(job.id, "result");
   if (result.kind === "error") {
+    // A verdict, so the dependency answered and there are no bytes to come.
+    await noteReachable(job.id, "result");
     await failJob(job.id, result.message);
     return;
   }
+  // Deliberately *not* cleared here. Getting the image's address is half of
+  // this dependency; fetching its bytes is the other half, and it is the half
+  // that was failing. Clearing on the metadata read reset the clock of an
+  // outage that had not ended, on every reconcile, so it could never run out.
+  // {@link settleWithImage} clears it once the bytes are actually stored.
+  //
   // Settled even when cancellation was requested: fal may accept a
   // cancellation and finish anyway, and an image we paid for should be kept.
   await settleWithImage(job.id, result.images[0]!.url);
@@ -714,6 +721,10 @@ async function noteUnreachable(
  * A successful queue-status read used to clear the single shared clock, which
  * meant a continuing result or authorization failure had its elapsed time
  * reset on every ordinary reconcile and could never reach the grace period.
+ *
+ * "Got through" means the whole operation the clock covers, not its first
+ * step. The `result` clock covers fetching the image's address *and*
+ * downloading its bytes, so only a stored image ends it.
  */
 async function noteReachable(
   jobId: string,
@@ -896,6 +907,8 @@ export async function settleWithImage(
     await releaseSettlementLease(job.id, lease);
     throw error;
   }
+  // The outage this dependency was in ends here, not earlier: publishing the
+  // asset clears every clock in the same transaction that records the success.
 }
 
 /**

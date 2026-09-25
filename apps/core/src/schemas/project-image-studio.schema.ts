@@ -218,20 +218,82 @@ export function assetContentPath(projectId: string, assetId: string): string {
   return `/v1/projects/${projectId}/image-studio/assets/${assetId}/content`;
 }
 
+/** What is known about a conversation's first message. */
+export const imageStudioInitialTurnSchema = z.enum([
+  "NONE",
+  "PENDING",
+  "CLAIMED",
+  "DELIVERING",
+  "DELIVERED",
+  "UNCERTAIN",
+]);
+
 /** Body of the agent's session registration call. */
 export const registerImageStudioSessionRequestSchema = z.object({
   /** The id eve minted for the session the agent has just created. */
   eveSessionId: z.string().min(1).max(200),
   title: z.string().max(200).nullish(),
+  /**
+   * The caller's stable name for this creation, repeated by every retry of it.
+   * Conversations are matched on this, so a retry lands on the conversation
+   * its first attempt created rather than starting a second one.
+   */
+  clientIntentId: z.string().min(1).max(200).nullish(),
+  /** True when a first message is owed once the conversation is recorded. */
+  expectsInitialTurn: z.boolean().optional(),
 });
 
 /** What the agent needs back to decide whether to deliver the first message. */
 export const registerImageStudioSessionSchema = z.object({
   sessionId: z.string().uuid(),
   /**
-   * True when this call created the record. False means the agent is retrying
-   * an `operationId` creation onto a conversation it already owns, whose first
-   * message has already been delivered.
+   * The conversation this creation belongs to. Not necessarily the id in the
+   * request: a retry of a known intent is answered with the conversation the
+   * first attempt created, and the id this attempt minted is abandoned.
+   */
+  eveSessionId: z.string(),
+  /**
+   * True when this call inserted the record. Says nothing about whether the
+   * first message was delivered — that is `initialTurn`, and confusing the two
+   * is what dropped first messages on retry.
    */
   created: z.boolean(),
+  initialTurn: imageStudioInitialTurnSchema,
+  /**
+   * True only for the one caller holding the delivery lease. Every other
+   * caller must not dispatch, whatever else it knows.
+   */
+  mayDeliver: z.boolean(),
+  /**
+   * The lease granted to this caller. Presented again when announcing the
+   * dispatch and reporting its outcome, so an attempt whose lease was taken
+   * over cannot deliver after the fact.
+   */
+  deliveryToken: z.string().nullable(),
+});
+
+/** Body of the agent's initial-turn outcome call. */
+export const recordImageStudioInitialTurnRequestSchema = z.object({
+  /**
+   * What the deliverer is about to do, or observed. `dispatching` is announced
+   * before the send, so a crashed attempt can be told from one that never
+   * started. `undelivered` means the runtime refused, so the message is owed
+   * again; `uncertain` means the outcome could not be read and nothing may
+   * redeliver it automatically.
+   */
+  outcome: z.enum(["dispatching", "delivered", "undelivered", "uncertain"]),
+  /** The lease the caller was granted when the conversation was recorded. */
+  deliveryToken: z.string().min(1).max(200).nullish(),
+});
+
+/** The conversation's first-message state after recording the outcome. */
+export const recordImageStudioInitialTurnSchema = z.object({
+  sessionId: z.string().uuid(),
+  eveSessionId: z.string(),
+  initialTurn: imageStudioInitialTurnSchema,
+  /**
+   * False when this caller no longer held the lease, which means another
+   * attempt has taken the delivery over and this one must not send.
+   */
+  accepted: z.boolean(),
 });

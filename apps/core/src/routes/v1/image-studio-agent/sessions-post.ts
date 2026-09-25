@@ -10,19 +10,25 @@ import {
 import { registerCreatedSession } from "@/services/image-studio-sessions.service";
 
 /**
- * Record a conversation the image-studio agent has just created.
+ * Record a conversation the image-studio agent has just created, and say what
+ * is owed to it.
  *
  * The agent calls this from inside its own create request, before the new eve
  * session id has reached anybody and before the conversation's first message
  * is delivered. Only the agent can reach this surface — the token the browser
  * holds carries a different audience — so reaching it is itself the proof of
  * creation that possession of an id never was.
+ *
+ * The response separates the two facts the agent needs and the previous
+ * version conflated. `created` is about this row. `initialTurn` and
+ * `mayDeliver` are about the first message, which is dispatched after this
+ * call returns and therefore cannot be inferred from the row existing.
  */
 const route = createRoute({
   method: "post",
   path: "/sessions",
   description:
-    "Record an eve session the agent has just created against its project. Repeating the call for a session the same project already owns returns the existing record with created=false, so the conversation's first message is not delivered twice.",
+    "Record an eve session the agent has just created against its project, and resolve what is owed to it. Retries naming the same clientIntentId resolve to the conversation the first attempt created; mayDeliver is granted to exactly one caller, so the conversation's first message is neither delivered twice nor silently dropped.",
   tags: ["Image studio agent"],
   request: {
     body: {
@@ -43,6 +49,8 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
     409: jsonErrorResponse("Conflict"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+    503: jsonErrorResponse("Service Unavailable"),
   },
 });
 
@@ -58,11 +66,17 @@ export default function mount(
       userId: context.userId,
       eveSessionId: input.eveSessionId,
       title: input.title ?? null,
+      clientIntentId: input.clientIntentId ?? null,
+      expectsInitialTurn: input.expectsInitialTurn ?? false,
     });
 
     return created(c, {
       sessionId: session.id,
+      eveSessionId: session.eveSessionId,
       created: session.wasCreated,
+      initialTurn: session.initialTurn,
+      mayDeliver: session.mayDeliver,
+      deliveryToken: session.deliveryToken,
     });
   });
 }
