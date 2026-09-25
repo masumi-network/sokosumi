@@ -10,11 +10,26 @@ import { mintGrant } from "./grant";
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
+/**
+ * Core's origin, as this service can learn it.
+ *
+ * `CORE_APP_BASE_URL` and nothing else. The app around this agent resolves
+ * Core through `@vercel/related-projects`, but that runs inside Next; the
+ * agent is a separate service in the same deployment and only sees real
+ * environment variables, so a deployment has to name Core here.
+ *
+ * `NEXT_PUBLIC_CORE_APP_BASE_URL` used to be the fallback and could never
+ * work: Next builds that value with `/v1` already appended, and the grant
+ * surface this file calls is mounted at the origin, not under `/v1`. Every
+ * call would have 404'd, which the channel reads as "no access" — a
+ * configuration mistake wearing the face of a revoked membership. The suffix
+ * is stripped here for the same reason, so a value copied from the browser
+ * config is corrected rather than silently wrong.
+ */
 function baseUrl(): string {
-  const value =
-    process.env.CORE_APP_BASE_URL ?? process.env.NEXT_PUBLIC_CORE_APP_BASE_URL;
+  const value = process.env.CORE_APP_BASE_URL;
   if (!value) throw new Error("CORE_APP_BASE_URL is not configured");
-  return value.replace(/\/$/, "");
+  return value.replace(/\/+$/, "").replace(/\/v1$/, "");
 }
 
 export interface AgentIdentity {
