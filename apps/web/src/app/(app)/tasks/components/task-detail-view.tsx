@@ -470,14 +470,6 @@ async function TaskMetadataSection({
       title={t("properties")}
       taskId={task.id}
       editable={!isReadOnly}
-      canRemoveParticipants={canCommentOnTaskForViewer({
-        taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-        taskOwnerId: task.ownerId,
-        sessionUserId: session?.user.id,
-        forceReadOnly,
-        taskStatus: task.status,
-        hasAssignedSeat,
-      })}
       task={{
         status: task.status,
         visibility: task.visibility,
@@ -485,7 +477,6 @@ async function TaskMetadataSection({
         owner: task.owner,
         organization: task.organization,
         assignee: task.assignee,
-        participants: task.participants,
         creator: task.creator,
         credits: task.credits,
       }}
@@ -515,7 +506,6 @@ async function TaskMetadataSection({
         credits: t("credits"),
         created: t("created"),
         updated: t("updated"),
-        participants: t("participants"),
         personalAssistantFallback: tTasks("personalAssistant"),
         formatSokoBotRole: (values) => t("actorSokoBotRole", values),
       }}
@@ -805,6 +795,7 @@ async function TaskActivitySectionContent({
       collapseLabel={t("collapse")}
       viewerPlan={viewerPlan}
       mentionableUsers={mentionableUsers.map(({ id, name }) => ({ id, name }))}
+      participants={task.participants}
       canComment={canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
         taskOwnerId: task.ownerId,
