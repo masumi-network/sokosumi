@@ -55,19 +55,23 @@
     let enabled: Bool
     let receive: ([NSItemProvider]) -> Void
 
+    private var acceptsAttachments: Bool {
+      enabled && !ingress.isReceiving
+    }
+
     func body(content: Content) -> some View {
       content
         .focusable()
         .focusEffectDisabled()
-        .onPasteCommand(of: enabled ? [.fileURL, .png, .tiff] : []) { receive($0) }
+        .onPasteCommand(of: acceptsAttachments ? [.fileURL, .png, .tiff] : []) { receive($0) }
         .onDrop(of: [.fileURL], isTargeted: $ingress.isTargeted) { providers in
-          guard enabled else { return false }
+          guard acceptsAttachments else { return false }
           ingress.isTargeted = false
           receive(providers)
           return true
         }
         .overlay {
-          if enabled, ingress.isTargeted {
+          if acceptsAttachments, ingress.isDropTargeted {
             ComposerAttachmentDropOverlay()
           }
         }

@@ -18,6 +18,7 @@ import SwiftUI
     var content = ComposerContent("")
     var channels: [ComposerChannel] = []
     var mentions: [ComposerMention] = []
+    var attachmentsEnabled = true
     var attach: (() -> Void)?
     var attachFromDrive: (() -> Void)?
     var attachFiles: (([URL]) -> Void)?
@@ -48,6 +49,7 @@ import SwiftUI
           } label: {
             Image(systemName: "paperclip")
           }
+          .disabled(!attachmentsEnabled)
           .menuStyle(.borderlessButton)
           .fixedSize()
           .help("Attach files")

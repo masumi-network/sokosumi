@@ -7,18 +7,29 @@
   /// Native paste/drop decoding, scoped to the same lifetime as its composer's uploads.
   @MainActor final class ComposerAttachmentIngress: ObservableObject {
     @Published var isTargeted = false
-    private(set) var pending: Task<Void, Never>?
+    @Published var isEditorTargeted = false
+    @Published private(set) var pending: Task<Void, Never>?
+
+    var isDropTargeted: Bool {
+      isTargeted || isEditorTargeted
+    }
+
+    var isReceiving: Bool {
+      pending != nil
+    }
 
     func cancel() {
       pending?.cancel()
       pending = nil
       isTargeted = false
+      isEditorTargeted = false
     }
 
     /// `files` receives container copies. The caller deletes `scratch` when the upload finishes.
     func receive(_ providers: [NSItemProvider], files: @escaping ([URL], URL) -> Void, image: @escaping (Data) -> Void, failure: @escaping (Error) -> Void) {
       guard pending == nil else { return }
       isTargeted = false
+      isEditorTargeted = false
       pending = Task {
         var scratch: URL?
         var handedOff = false
@@ -94,8 +105,10 @@
                 url.stopAccessingSecurityScopedResource()
               }
             }
-            let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
             guard values.isRegularFile == true else { throw AttachmentUpload.Failure.invalidFile }
+            try AttachmentUpload.validate(size: values.fileSize ?? 0)
+            _ = try AttachmentUpload.contentType(filename: name)
             let folder = scratch.appendingPathComponent(UUID().uuidString, isDirectory: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             let dest = folder.appendingPathComponent(name)
