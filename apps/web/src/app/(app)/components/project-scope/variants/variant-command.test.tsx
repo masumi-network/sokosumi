@@ -5,11 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   isApple: false,
+  pathname: "/agents",
 }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mocks.push }),
-  usePathname: () => "/agents",
+  usePathname: () => mocks.pathname,
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next-intl", () => ({
@@ -91,6 +92,7 @@ function dialog() {
 beforeEach(() => {
   mocks.push.mockReset();
   mocks.isApple = false;
+  mocks.pathname = "/agents";
 });
 
 afterEach(() => {
@@ -238,5 +240,35 @@ describe("CommandScopeDesktop focus", () => {
 
     await waitFor(() => expect(dialog()).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(pill));
+  });
+});
+
+function renderMobile() {
+  const Mobile = commandSlots["header-mobile"];
+  if (!Mobile) throw new Error("No header-mobile slot");
+  return render(<Mobile />);
+}
+
+describe("CommandScopeMobile", () => {
+  it("renders nothing on a chat room", () => {
+    mocks.pathname = "/chat/rooms/x";
+    const { container } = renderMobile();
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("opens the sheet, navigates once on a choice, and closes", async () => {
+    const user = userEvent.setup();
+    renderMobile();
+
+    await user.click(screen.getByTestId("project-scope-command-trigger"));
+    expect(
+      screen.getByRole("dialog", { name: "switchLabel" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "choose" }));
+
+    expect(mocks.push).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(dialog()).toBeNull());
   });
 });

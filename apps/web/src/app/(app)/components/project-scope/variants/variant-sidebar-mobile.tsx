@@ -3,7 +3,7 @@
 import { ChevronsUpDown, FolderKanban, Layers } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useSyncExternalStore } from "react";
+import { useRef, useSyncExternalStore } from "react";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import {
@@ -120,6 +120,7 @@ export function SidebarScopeMobileChip() {
   const open = useScopeSheetOpen();
   const createOpen = useScopeCreateOpen();
   const { projectId, name, label, mark, select } = useCurrentScope();
+  const chipRef = useRef<HTMLButtonElement>(null);
 
   // The store outlives this chip, as when the reader leaves the app shell.
   useMountEffect(() => () => update({ sheetOpen: false, createOpen: false }));
@@ -137,13 +138,14 @@ export function SidebarScopeMobileChip() {
         <Sheet open={open} onOpenChange={setScopeSheetOpen}>
           <SheetTrigger asChild>
             <Button
+              ref={chipRef}
               type="button"
               variant="ghost"
               size="sm"
               aria-label={label}
               title={name}
               data-testid="project-scope-sidebar-chip"
-              className="max-w-[40vw] min-w-0 gap-1.5 px-2 font-medium"
+              className="max-w-[40vw] min-w-0 shrink gap-1.5 px-2 font-medium"
             >
               <span aria-hidden className="flex shrink-0">
                 {mark}
@@ -158,6 +160,8 @@ export function SidebarScopeMobileChip() {
           <SheetContent
             side="bottom"
             aria-describedby={undefined}
+            // A chat room hides the chip, so the sidebar row opens this sheet.
+            onCloseAutoFocus={(event) => returnFocusTo(chipRef.current)(event)}
             className="max-h-[85dvh] gap-0 rounded-t-lg pb-[env(safe-area-inset-bottom)]"
           >
             <SheetHeader className="pr-12 pb-2">

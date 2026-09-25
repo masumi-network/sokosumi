@@ -7,6 +7,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 const mocks = vi.hoisted(() => ({
   pathname: "/tasks",
   search: "",
+  isMobile: false,
   push: vi.fn(),
   fetch: vi.fn(),
 }));
@@ -19,7 +20,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
-vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
+vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => mocks.isMobile }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: {
@@ -54,6 +55,9 @@ function Harness({ chip = true }: { chip?: boolean }) {
   if (!SidebarTop || !HeaderMobile) throw new Error("Missing sidebar slots");
   return (
     <SidebarProvider>
+      <header>
+        <button type="button">header-home</button>
+      </header>
       <SidebarTop />
       {chip ? <HeaderMobile /> : null}
     </SidebarProvider>
@@ -93,6 +97,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.pathname = "/tasks";
   mocks.search = "";
+  mocks.isMobile = false;
   mocks.fetch.mockImplementation(() =>
     Promise.resolve(
       Response.json({ project: { id: "p-1", name: "Acme", logo: null } }),
@@ -176,5 +181,44 @@ describe("sidebar variant", () => {
     expect(
       await screen.findByRole("dialog", { name: "create-project" }),
     ).toBeInTheDocument();
+  });
+
+  it("hands the mobile row off to the chip's bottom sheet", async () => {
+    const user = userEvent.setup();
+    mocks.isMobile = true;
+    renderHarness();
+
+    await user.click(row());
+
+    expect(
+      await screen.findByRole("dialog", { name: "switchLabel" }),
+    ).toBeInTheDocument();
+    expect(row()).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("sends focus to a visible header control when the hidden chip's sheet closes", async () => {
+    const user = userEvent.setup();
+    mocks.isMobile = true;
+    mocks.pathname = "/chat/rooms/r-1";
+    renderHarness();
+    // happy-dom gives every element one rect; a `display: none` chip has none.
+    vi.spyOn(chip(), "getClientRects").mockReturnValue({
+      length: 0,
+    } as DOMRectList);
+
+    await user.click(row());
+    await screen.findByRole("dialog", { name: "switchLabel" });
+    await user.keyboard("{Escape}");
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "switchLabel" }),
+      ).not.toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "header-home" }),
+      ),
+    );
   });
 });
