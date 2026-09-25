@@ -36,8 +36,8 @@
         #expect(abs(bounds.height / scale - (width == 300 ? 64 : 136)) < 3)
       }
 
-      @Test(arguments: ["portrait", "landscape"])
-      func fittedImageRoundsEveryCorner(shape: String) async throws {
+      @Test(arguments: ["portrait", "landscape"], [CGFloat(1), 2])
+      func fittedImageRoundsEveryCorner(shape: String, scale: CGFloat) async throws {
         URLProtocol.registerClass(ScrollMediaProtocol.self)
         defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
         let url = try #require(URL(string: "https://scroll-fixture.invalid/attachment-corners/\(shape).svg?format=svg&shape=\(shape)"))
@@ -45,19 +45,29 @@
         let host = NSHostingView(rootView: MessageAttachmentView(attachment: attachment).frame(width: 400).background(.background))
         let window = window(host, width: 400)
         defer { window.orderOut(nil) }
-        var shot = try bitmap(host)
+        var shot = try bitmap(host, scale: scale)
         var bounds = CGRect.zero
         for _ in 0 ..< 250 {
           try await Task.sleep(for: .milliseconds(20))
-          shot = try bitmap(host)
+          shot = try bitmap(host, scale: scale)
           bounds = greenBounds(shot)
           if bounds.width > 0 {
             break
           }
         }
         try #require(bounds.width > 0)
-        for column in [bounds.minX + 2, bounds.maxX - 4] {
-          for row in [bounds.minY + 2, bounds.maxY - 4] {
+        let expectedSize = shape == "portrait" ? CGSize(width: 160, height: 320) : CGSize(width: 400, height: 400 / 1.5)
+        #expect(abs(bounds.width / scale - expectedSize.width) < 3)
+        #expect(abs(bounds.height / scale - expectedSize.height) < 3)
+        for column in [bounds.minX + scale, bounds.maxX - 2 * scale] {
+          #expect(isGreen(shot, column: Int(column), row: Int(bounds.midY)), "The fitted image must reach both straight vertical edges.")
+        }
+        for row in [bounds.minY + scale, bounds.maxY - 2 * scale] {
+          #expect(isGreen(shot, column: Int(bounds.midX), row: Int(row)), "The fitted image must reach both straight horizontal edges.")
+        }
+        // Probe the same 1–2 point corner inset at both Retina and CI's 1x scale.
+        for column in [bounds.minX + scale, bounds.maxX - 2 * scale] {
+          for row in [bounds.minY + scale, bounds.maxY - 2 * scale] {
             #expect(!isGreen(shot, column: Int(column), row: Int(row)), "The fitted image's corner must be clipped, including its trailing edge.")
           }
         }
@@ -103,9 +113,18 @@
         return window
       }
 
-      private func bitmap(_ view: NSView) throws -> NSBitmapImageRep {
+      private func bitmap(_ view: NSView, scale: CGFloat? = nil) throws -> NSBitmapImageRep {
         view.layoutSubtreeIfNeeded()
-        let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        let bitmap: NSBitmapImageRep
+        if let scale {
+          bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil,
+                                                 pixelsWide: Int(view.bounds.width * scale), pixelsHigh: Int(view.bounds.height * scale),
+                                                 bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                                 colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+          bitmap.size = view.bounds.size
+        } else {
+          bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        }
         view.cacheDisplay(in: view.bounds, to: bitmap)
         return bitmap
       }
