@@ -233,13 +233,20 @@ function useTrail(crumbs: ReactNode): ReactNode {
   ) : null;
 }
 
+/**
+ * One line. The current page's crumb gives way first and ends in an
+ * ellipsis; the crumbs before it keep their width.
+ */
+const HEADER_TRAIL_CLASS =
+  "-m-1 flex min-w-0 items-center gap-1 overflow-hidden p-1 text-sm whitespace-nowrap [&_ol]:min-w-0 [&_ol]:flex-nowrap [&>nav]:min-w-0 [&>nav]:flex-initial [&_li:last-child]:min-w-0 [&_[data-slot=breadcrumb-page]]:truncate";
+
 function HeaderTrail({ crumbs }: { crumbs: ReactNode }) {
   const trail = useTrail(crumbs);
   if (!trail) return null;
 
   return (
     <div
-      className="-m-1 flex min-w-0 items-center gap-1 overflow-hidden p-1 text-sm whitespace-nowrap [&_ol]:flex-nowrap [&>nav]:min-w-0 [&>nav]:flex-initial"
+      className={HEADER_TRAIL_CLASS}
       data-testid="project-scope-header-trail"
     >
       <Separator />
@@ -269,14 +276,16 @@ export function HeaderVariantCrumbs({ children }: { children: ReactNode }) {
 }
 
 /**
- * Variants whose `header-mobile` slot is a text pill or chip. Hub's chip is
- * an avatar and leaves the workspace name its room.
+ * Variants with a `header-mobile` slot: a text pill, or hub's avatar and
+ * clear button. Hub's chip is small, but a phone header still has no room
+ * for it beside the workspace name.
  */
 const NARROW_TRAILING_VARIANTS: ReadonlySet<ScopeVariantId> = new Set([
   "header",
   "command",
   "combined",
   "sidebar",
+  "hub",
 ]);
 
 /** Below sm the workspace switch keeps its avatar; its name goes sr-only. */
@@ -285,14 +294,14 @@ const NARROW_TRAILING_CLASS =
 
 function TrailingGate({ children }: { children: ReactNode }) {
   if (!NARROW_TRAILING_VARIANTS.has(useScopeVariant())) return children;
-  // Below sm the scope pill needs the room, or its avatar and chevron paint
-  // over the workspace name. The name stays for screen readers.
+  // Below sm the scope control needs the room, or it paints over the
+  // workspace name. The name stays for screen readers.
   return <div className={NARROW_TRAILING_CLASS}>{children}</div>;
 }
 
 /**
  * The header's trailing chrome, narrowed on mobile for every variant with a
- * text pill in `header-mobile`.
+ * `header-mobile` slot.
  */
 export function HeaderVariantTrailing({ children }: { children: ReactNode }) {
   return (

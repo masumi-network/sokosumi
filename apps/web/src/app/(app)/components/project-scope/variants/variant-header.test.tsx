@@ -1,5 +1,6 @@
 import { render, renderHook, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ComponentProps } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ScopeVariantId } from "./scope-variants";
 
@@ -21,10 +22,17 @@ const mocks = vi.hoisted(() => ({
   variant: "header" as ScopeVariantId,
   session: { data: null, error: null } as SessionState,
   organizations: { data: undefined, error: null } as OrganizationsState,
+  projectId: null as string | null,
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mocks.pathname,
+}));
+vi.mock("next/link", () => ({
+  default: ({
+    prefetch: _prefetch,
+    ...props
+  }: ComponentProps<"a"> & { prefetch?: boolean }) => <a {...props} />,
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -41,7 +49,14 @@ vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
   ProjectScopeMenu: () => null,
 }));
 vi.mock("@/app/components/project-scope/use-project-scope", () => ({
-  useProjectScopeSwitch: () => ({}),
+  useProjectScopeSwitch: () => ({
+    projectId: mocks.projectId,
+    switchHref: (projectId: string | null) =>
+      projectId ? `/projects/${projectId}` : "/projects",
+    select: vi.fn(),
+    openCreate: vi.fn(),
+    createDialog: null,
+  }),
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   useSelectedScopeProject: () => null,
@@ -53,6 +68,7 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
 import {
   HeaderVariantCrumbs,
   HeaderVariantTrailing,
+  headerSlots,
   useWorkspaceName,
 } from "./variant-header";
 
@@ -67,6 +83,11 @@ beforeEach(() => {
   mocks.variant = "header";
   mocks.session = { data: null, error: null };
   mocks.organizations = { data: undefined, error: null };
+  mocks.projectId = null;
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("HeaderVariantCrumbs trail", () => {
@@ -102,6 +123,18 @@ describe("HeaderVariantCrumbs trail", () => {
 
     const trail = screen.getByTestId("project-scope-header-trail");
     expect(trail).toContainElement(screen.getByTestId("server-crumbs"));
+  });
+
+  it("lets only the current page's crumb shrink, with an ellipsis", () => {
+    mocks.pathname = "/agents";
+    renderCrumbs();
+
+    const trail = screen.getByTestId("project-scope-header-trail");
+    expect(trail).toHaveClass(
+      "[&_ol]:min-w-0",
+      "[&_li:last-child]:min-w-0",
+      "[&_[data-slot=breadcrumb-page]]:truncate",
+    );
   });
 
   it("renders the server crumbs unchanged for other variants", () => {
@@ -201,7 +234,7 @@ describe("HeaderVariantTrailing", () => {
     );
   }
 
-  it.each<ScopeVariantId>(["header", "command", "combined", "sidebar"])(
+  it.each<ScopeVariantId>(["header", "command", "combined", "sidebar", "hub"])(
     "hides the workspace name below sm for %s",
     (variant) => {
       mocks.variant = variant;
@@ -215,15 +248,78 @@ describe("HeaderVariantTrailing", () => {
     },
   );
 
-  it.each<ScopeVariantId>(["hub", "current"])(
-    "leaves the trailing chrome alone for %s",
-    (variant) => {
-      mocks.variant = variant;
-      const { container } = renderTrailing();
+  it("leaves the trailing chrome alone for current", () => {
+    mocks.variant = "current";
+    const { container } = renderTrailing();
 
-      expect(screen.getByTestId("trailing-child").parentElement).toBe(
-        container,
-      );
-    },
-  );
+    expect(screen.getByTestId("trailing-child").parentElement).toBe(container);
+  });
+});
+
+describe("HeaderBreadcrumbScope", () => {
+  const HeaderBreadcrumbScope = headerSlots["header-center"];
+  if (!HeaderBreadcrumbScope) throw new Error("No header-center slot");
+
+  beforeEach(() => {
+    // sm and up, where the workspace crumb shows.
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    mocks.session = {
+      data: {
+        user: { name: "Ada", email: "ada@example.com" },
+        session: { activeOrganizationId: "org-1" },
+      },
+      error: null,
+    };
+    mocks.organizations = {
+      data: [{ id: "org-1", name: "Acme" }],
+      error: null,
+    };
+  });
+
+  it("links the workspace crumb out of a project", () => {
+    mocks.pathname = "/projects/p-1";
+    mocks.projectId = "p-1";
+    render(<HeaderBreadcrumbScope />);
+
+    expect(screen.getByRole("link", { name: "Acme" })).toHaveAttribute(
+      "href",
+      "/projects",
+    );
+  });
+
+  it("keeps the workspace crumb as text in the workspace view", () => {
+    mocks.pathname = "/tasks";
+    render(<HeaderBreadcrumbScope />);
+
+    expect(screen.getByText("Acme").tagName).toBe("SPAN");
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+});
+
+describe("HeaderMobileScope", () => {
+  const HeaderMobileScope = headerSlots["header-mobile"];
+  if (!HeaderMobileScope) throw new Error("No header-mobile slot");
+
+  it("renders the switcher on a workspace page", () => {
+    mocks.pathname = "/tasks";
+    render(<HeaderMobileScope />);
+
+    expect(
+      screen.getByTestId("project-scope-trigger-mobile"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders nothing on a chat room, whose toolbar owns the space", () => {
+    mocks.pathname = "/chat/rooms/r-1";
+    const { container } = render(<HeaderMobileScope />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
 });

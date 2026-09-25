@@ -4,7 +4,7 @@ import { ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ComponentProps, useState } from "react";
+import { type ComponentProps, useEffect, useRef, useState } from "react";
 import { scopedHref } from "@/app/components/project-scope/project-scope-href";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import {
@@ -161,13 +161,25 @@ function HubSectionNav({
   const t = useTranslations("App.ProjectScope");
   const pathname = usePathname();
   const sections = projectSections(projectId, calendarBeta);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  // The strip scrolls with its scrollbar hidden, and narrow screens or long
+  // labels push later tabs past the edge. Bring the current one into view.
+  useEffect(() => {
+    listRef.current
+      ?.querySelector<HTMLElement>('[aria-current="page"]')
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [pathname]);
 
   return (
     <nav
       aria-label={t("sections")}
       className="before:bg-border relative before:absolute before:inset-x-0 before:bottom-0 before:h-px"
     >
-      <ul className="relative flex gap-4 overflow-x-auto text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <ul
+        ref={listRef}
+        className="relative flex gap-4 overflow-x-auto text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {sections.map((section) => {
           const active = pathname === section.href;
           return (
