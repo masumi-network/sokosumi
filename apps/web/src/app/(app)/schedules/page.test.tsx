@@ -63,6 +63,7 @@ describe("SchedulesPage", () => {
     vi.clearAllMocks();
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
+      user: { id: "user-1" },
     });
     getProjectFilterOptionsMock.mockResolvedValue([PROJECT]);
     loadTaskScheduleAssigneeOptionsMock.mockResolvedValue({
@@ -104,6 +105,7 @@ describe("SchedulesPage", () => {
         selectedProjectId: PROJECT.id,
         canCreate: true,
         canCreatePrivate: true,
+        currentUserId: "user-1",
       }),
     );
   });

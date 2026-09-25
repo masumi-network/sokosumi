@@ -2038,6 +2038,8 @@
         "noNextRun": "No upcoming run",
         "unassigned": "Unassigned",
         "unavailableAssignee": "Unavailable assignee",
+        "workspace": "Workspace",
+        "openSchedule": "Open schedule",
         "Dialog": {
           "createTitle": "New schedule",
           "editTitle": "Edit schedule",

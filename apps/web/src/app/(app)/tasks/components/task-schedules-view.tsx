@@ -1,18 +1,13 @@
 "use client";
 
 import { CalendarSync, Plus } from "lucide-react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useOptimistic, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { loadMoreTaskSchedules } from "@/app/tasks/actions";
-import {
-  formatTaskScheduleRule,
-  taskScheduleAssigneeLabel,
-  taskSchedulePath,
-} from "@/app/tasks/utils/task-schedule-view";
+import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import {
   parseTaskScheduleStateFilter,
   TASK_SCHEDULE_STATE_PARAM,
@@ -26,8 +21,8 @@ import {
 } from "@/lib/clients/generated/core";
 import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { TaskScheduleCard } from "./task-schedule-card";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
-import { TaskScheduleStateBadge } from "./task-schedule-state-badge";
 import { TasksProjectSwitcher } from "./tasks-project-switcher";
 
 const ALL_STATES = "all";
@@ -42,6 +37,8 @@ interface TaskSchedulesViewProps {
   selectedState: TaskScheduleState | null;
   canCreate: boolean;
   canCreatePrivate: boolean;
+  /** Only the owner of a schedule edits it from its card. */
+  currentUserId: string | null;
 }
 
 /**
@@ -58,6 +55,7 @@ export function TaskSchedulesView({
   selectedState,
   canCreate,
   canCreatePrivate,
+  currentUserId,
 }: TaskSchedulesViewProps) {
   const t = useTranslations("App.Tasks.Schedules");
   const router = useRouter();
@@ -151,41 +149,41 @@ export function TaskSchedulesView({
         </div>
       </div>
 
-      <div className="bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
-        {rows.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
-            <CalendarSync
-              className="text-muted-foreground size-6"
-              aria-hidden
+      {rows.length === 0 ? (
+        <div className="border-border flex flex-col items-center gap-2 rounded-xl border px-4 py-16 text-center">
+          <CalendarSync className="text-muted-foreground size-6" aria-hidden />
+          <p className="text-muted-foreground max-w-sm text-sm text-pretty">
+            {t("empty")}
+          </p>
+        </div>
+      ) : (
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {rows.map((schedule) => (
+            <TaskScheduleCard
+              assigneeDisplayOptions={assigneeDisplayOptions}
+              canCreatePrivate={canCreatePrivate}
+              coworkerOptions={coworkerOptions}
+              currentUserId={currentUserId}
+              key={schedule.id}
+              projectOptions={projectOptions}
+              schedule={schedule}
             />
-            <p className="text-muted-foreground max-w-sm text-sm text-pretty">
-              {t("empty")}
-            </p>
-          </div>
-        ) : (
-          <ul className="divide-border divide-y">
-            {rows.map((schedule) => (
-              <TaskScheduleRow
-                key={schedule.id}
-                schedule={schedule}
-                coworkerOptions={assigneeDisplayOptions}
-              />
-            ))}
-          </ul>
-        )}
-        {more.nextCursor ? (
-          <div className="border-border border-t px-4 py-3">
-            <Button
-              variant="outline"
-              className="text-muted-foreground hover:text-foreground w-full text-xs"
-              onClick={handleLoadMore}
-              disabled={isLoadingMore}
-            >
-              {isLoadingMore ? t("loadingMore") : t("loadMore")}
-            </Button>
-          </div>
-        ) : null}
-      </div>
+          ))}
+        </ul>
+      )}
+
+      {more.nextCursor ? (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLoadMore}
+            disabled={isLoadingMore}
+          >
+            {isLoadingMore ? t("loadingMore") : t("loadMore")}
+          </Button>
+        </div>
+      ) : null}
 
       {isCreateOpen ? (
         <TaskScheduleDialog
@@ -198,57 +196,5 @@ export function TaskSchedulesView({
         />
       ) : null}
     </div>
-  );
-}
-
-function TaskScheduleRow({
-  schedule,
-  coworkerOptions,
-}: {
-  schedule: TaskSchedule;
-  coworkerOptions: CoworkerOption[];
-}) {
-  const t = useTranslations("App.Tasks.Schedules");
-  const tSchedule = useTranslations("App.Tasks.Schedule");
-  const formatter = useFormatter();
-
-  return (
-    <li>
-      <Link
-        href={taskSchedulePath(schedule.id)}
-        className="hover:bg-card-background-hover flex flex-col gap-2 px-4 py-3 transition-colors sm:flex-row sm:items-center sm:gap-4"
-      >
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-foreground line-clamp-1 text-sm font-medium">
-            {schedule.name}
-          </span>
-          <span className="text-muted-foreground line-clamp-1 text-xs">
-            {formatTaskScheduleRule(schedule.rule, formatter, tSchedule)}
-          </span>
-        </div>
-        <div className="text-muted-foreground flex shrink-0 items-center gap-3 text-xs sm:gap-4">
-          <span className="tabular-nums">
-            {schedule.nextRunAt
-              ? t("nextRun", {
-                  datetime: formatter.dateTime(
-                    schedule.nextRunAt,
-                    "dateTimeMedium",
-                  ),
-                })
-              : t("noNextRun")}
-          </span>
-          <span className="max-w-40 truncate">
-            {taskScheduleAssigneeLabel(schedule, coworkerOptions, {
-              unassigned: t("unassigned"),
-              unavailable: t("unavailableAssignee"),
-            })}
-          </span>
-          <TaskScheduleStateBadge
-            schedule={schedule}
-            label={t(`state.${schedule.state}`)}
-          />
-        </div>
-      </Link>
-    </li>
   );
 }

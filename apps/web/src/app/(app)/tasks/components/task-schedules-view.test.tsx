@@ -135,6 +135,7 @@ function renderView(
       selectedState={state}
       canCreate
       canCreatePrivate={false}
+      currentUserId="user_1"
     />,
   );
 }
