@@ -260,10 +260,11 @@ function HubSectionNav({
             revealTab(event.currentTarget, event.target);
           }
         }}
-        onBlur={(event) => {
+        onBlur={() => {
           // Only a window switch keeps the record: focus that moved within
-          // the page, even to nothing, makes a return to the tab fresh.
-          if (event.relatedTarget || document.hasFocus()) {
+          // the page, even to nothing, leaves the page focused and makes a
+          // return to the tab fresh.
+          if (document.hasFocus()) {
             lastFocusRef.current = null;
           }
         }}
