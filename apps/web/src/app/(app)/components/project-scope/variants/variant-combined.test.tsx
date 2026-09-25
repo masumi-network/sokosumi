@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   activate: vi.fn(),
   startCreate: vi.fn(),
   createFor: vi.fn(),
+  scopedFor: vi.fn(),
+  scopedSwitch: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -59,6 +61,10 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
 // but its switch goes through the `switcher` the trigger passes down.
 vi.mock("./variant-combined-parts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./variant-combined-parts")>()),
+  useScopedWorkspaceSwitch: (switcher: WorkspaceSwitcher) => {
+    mocks.scopedFor(switcher);
+    return mocks.scopedSwitch;
+  },
   useCombinedScope: () => ({
     projectId: null,
     name: "All projects",
@@ -227,14 +233,13 @@ describe("HeaderTrigger", () => {
     },
   );
 
-  it("activates a created personal workspace through its own switch", async () => {
+  it("activates a created workspace like a picked one, through its own switch", async () => {
     render(<HeaderTrigger />);
-    const activateCreated = mocks.createFor.mock.lastCall?.[0] as (
-      id: string | null,
-    ) => Promise<void>;
 
-    await act(() => activateCreated(null));
-
-    expect(mocks.activate).toHaveBeenCalledExactlyOnceWith(null);
+    // The scoped switch drops the project; the raw one would leave a 404.
+    expect(mocks.createFor).toHaveBeenLastCalledWith(mocks.scopedSwitch);
+    const switcher = mocks.scopedFor.mock.lastCall?.[0] as WorkspaceSwitcher;
+    await act(() => switcher.handleSelectWorkspace("org-2"));
+    expect(mocks.activate).toHaveBeenCalledExactlyOnceWith("org-2");
   });
 });

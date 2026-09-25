@@ -59,6 +59,7 @@ import {
   SwitchingPane,
   useCombinedScope,
   useCombinedWorkspaces,
+  useScopedWorkspaceSwitch,
   WorkspaceList,
   WorkspaceMark,
 } from "./variant-combined-parts";
@@ -220,6 +221,40 @@ describe("useCombinedWorkspaces", () => {
     await act(() => result.current.select("org-2"));
 
     expect(mocks.switchWorkspace).toHaveBeenCalledWith("org-2");
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("useScopedWorkspaceSwitch", () => {
+  function renderSwitch() {
+    return renderHook(
+      () =>
+        useScopedWorkspaceSwitch({
+          isPending: false,
+          handleSelectWorkspace: mocks.switchWorkspace,
+        }),
+      { wrapper: wrapper() },
+    );
+  }
+
+  it("drops the project scope once a created workspace is active", async () => {
+    mocks.search.current = "projectId=project-1";
+    const { result } = renderSwitch();
+
+    await act(() => result.current(null));
+
+    expect(mocks.switchWorkspace).toHaveBeenCalledExactlyOnceWith(null);
+    expect(mocks.replace).toHaveBeenCalledExactlyOnceWith("/tasks");
+  });
+
+  it("rejects a failed switch, so the caller can say so, and keeps the scope", async () => {
+    mocks.search.current = "projectId=project-1";
+    mocks.switchWorkspace.mockRejectedValue(new Error("switch failed"));
+    const { result } = renderSwitch();
+
+    await expect(act(() => result.current(null))).rejects.toThrow(
+      "switch failed",
+    );
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 });

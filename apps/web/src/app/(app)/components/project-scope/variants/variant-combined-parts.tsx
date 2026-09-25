@@ -73,6 +73,25 @@ export interface CombinedWorkspace {
 export type WorkspaceSwitcher = ReturnType<typeof useWorkspaceSwitcher>;
 
 /**
+ * Switches workspace through `switcher`, then drops the project scope: a
+ * project belongs to one workspace, and its page 404s in another. A failed
+ * switch rejects and keeps the scope, so a caller can report it.
+ */
+export function useScopedWorkspaceSwitch(switcher: WorkspaceSwitcher) {
+  const router = useRouter();
+  const { projectId, switchHref } = useProjectScope();
+
+  return async (workspaceId: string | null) => {
+    const startedAt = currentLocation();
+    await switcher.handleSelectWorkspace(workspaceId);
+    // A navigation during the switch is a newer choice: keep it.
+    if (projectId && currentLocation() === startedAt) {
+      router.replace(switchHref(null));
+    }
+  };
+}
+
+/**
  * The header switcher's workspaces and a switch through `switcher`.
  * A project belongs to one workspace, so switching drops the project scope.
  * Call it only inside open popover or sheet content: the read then runs when
@@ -82,10 +101,9 @@ export type WorkspaceSwitcher = ReturnType<typeof useWorkspaceSwitcher>;
  */
 export function useCombinedWorkspaces(switcher: WorkspaceSwitcher) {
   const t = useTranslations("Components.OrganizationSwitcher");
-  const router = useRouter();
   const { data: session } = useSession();
-  const { projectId, switchHref } = useProjectScope();
-  const { isPending: isSwitching, handleSelectWorkspace } = switcher;
+  const switchWorkspace = useScopedWorkspaceSwitch(switcher);
+  const isSwitching = switcher.isPending;
   const userId = session?.user.id ?? null;
 
   const query = useQuery({
@@ -116,16 +134,10 @@ export function useCombinedWorkspaces(switcher: WorkspaceSwitcher) {
 
   async function select(workspaceId: string | null) {
     if (workspaceId === activeId || isSwitching) return;
-    const startedAt = currentLocation();
     try {
-      await handleSelectWorkspace(workspaceId);
+      await switchWorkspace(workspaceId);
     } catch {
       // The switcher already logged it; the old workspace stays active.
-      return;
-    }
-    // A navigation during the switch is a newer choice: keep it.
-    if (projectId && currentLocation() === startedAt) {
-      router.replace(switchHref(null));
     }
   }
 

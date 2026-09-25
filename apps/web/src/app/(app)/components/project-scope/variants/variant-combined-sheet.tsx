@@ -28,9 +28,8 @@ import {
 } from "./variant-combined-parts";
 
 /**
- * The bottom sheet's open state. The sidebar trigger opens it from inside the
- * mobile sidebar sheet, which closes on the same tap, so the bottom sheet
- * lives with the header chip and the two share this flag.
+ * The bottom sheet's open state, shared by the chip and the sheet's content,
+ * which closes the sheet after a pick.
  */
 let sheetOpen = false;
 const listeners = new Set<() => void>();
@@ -57,11 +56,8 @@ export function useCombinedSheetOpen() {
 
 /**
  * Below `md`: a chip with the current scope. It opens a bottom sheet with the
- * project list, and one row there swaps in the workspace list.
- *
- * The chip is the sheet's trigger even when the sidebar button opens it: that
- * button unmounts with the sidebar sheet, so Radix returns focus to the chip,
- * and Create project finds the chip through its `aria-controls`.
+ * project list, and one row there swaps in the workspace list. Create project
+ * finds the chip through its `aria-controls`.
  */
 export function CombinedMobileChip() {
   const t = useTranslations("App.ProjectScope");

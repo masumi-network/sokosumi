@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mocks.pathname,
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }));
 vi.mock("next/link", () => ({
   default: ({
@@ -54,6 +55,12 @@ vi.mock("@/app/components/project-scope/use-project-scope", async () => {
     typeof import("@/app/components/project-scope/project-scope-href")
   >("@/app/components/project-scope/project-scope-href");
   return {
+    // The workspace crumb's scoped switch reads the scope it drops.
+    useProjectScope: () => ({
+      projectId: mocks.projectId,
+      switchHref: (projectId: string | null) =>
+        switchScopeHref(mocks.pathname, projectId),
+    }),
     useProjectScopeSwitch: () => ({
       projectId: mocks.projectId,
       hrefFor: (href: string) => scopedHref(href, mocks.projectId),

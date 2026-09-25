@@ -20,6 +20,7 @@ import {
   SwitchingPane,
   useCombinedScope,
   useCombinedWorkspaces,
+  useScopedWorkspaceSwitch,
   WorkspaceList,
   type WorkspaceSwitcher,
 } from "./variant-combined-parts";
@@ -102,7 +103,10 @@ function HeaderTrigger() {
   const workspaceName = useWorkspaceName();
   // Here, not in the content: a switch and its dialogs outlive the popover.
   const switcher = useWorkspaceSwitcher();
-  const createWorkspace = useCreateWorkspace(switcher.handleSelectWorkspace);
+  // A created personal workspace activates like a picked one.
+  const createWorkspace = useCreateWorkspace(
+    useScopedWorkspaceSwitch(switcher),
+  );
   const [open, setOpen] = useState(false);
 
   return (

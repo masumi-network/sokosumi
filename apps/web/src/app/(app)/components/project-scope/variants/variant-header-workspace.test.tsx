@@ -30,6 +30,8 @@ const mocks = vi.hoisted(() => ({
   isSwitching: false,
   startCreate: vi.fn(),
   createFor: vi.fn(),
+  scopedFor: vi.fn(),
+  scopedSwitch: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -47,6 +49,20 @@ vi.mock("@/lib/auth/auth.client", () => ({
 vi.mock("./variant-combined-actions", () => ({
   loadCombinedWorkspaces: mocks.load,
 }));
+vi.mock("./variant-combined-parts", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./variant-combined-parts")>();
+  return {
+    ...actual,
+    // Tested in its own file; here only its hand-off to Create workspace.
+    useScopedWorkspaceSwitch: (
+      switcher: Parameters<typeof actual.useScopedWorkspaceSwitch>[0],
+    ) => {
+      mocks.scopedFor(switcher);
+      return mocks.scopedSwitch;
+    },
+  };
+});
 vi.mock("@/app/components/header/header-workspace-avatar", () => ({
   default: () => <span aria-hidden />,
 }));
@@ -184,7 +200,11 @@ describe("WorkspaceCrumb", () => {
     signInToAcme();
     renderCrumb();
 
-    expect(mocks.createFor).toHaveBeenLastCalledWith(mocks.switchWorkspace);
+    // The scoped switch drops the project; the raw one would leave a 404.
+    expect(mocks.createFor).toHaveBeenLastCalledWith(mocks.scopedSwitch);
+    expect(mocks.scopedFor).toHaveBeenLastCalledWith(
+      expect.objectContaining({ handleSelectWorkspace: mocks.switchWorkspace }),
+    );
     // Outside the popover: they stay after it closes.
     expect(screen.getByText("create dialogs")).toBeInTheDocument();
   });
