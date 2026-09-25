@@ -57,7 +57,12 @@ vi.mock("./variant-combined-parts", () => ({
   WorkspaceMark: () => null,
 }));
 vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
-  ProjectScopeMenu: () => <p>project menu</p>,
+  ProjectScopeMenu: () => (
+    <>
+      <p>project menu</p>
+      <input data-slot="command-input" aria-label="search" />
+    </>
+  ),
 }));
 
 import {
@@ -167,6 +172,73 @@ describe("CombinedMobileChip", () => {
       "project-scope-combined-workspace-row",
     );
     expect(row).toHaveAccessibleName("switchWorkspace");
+  });
+
+  it("names the workspace row while the workspaces load", async () => {
+    mocks.active.current = null;
+    mocks.isPending.current = true;
+    render(<CombinedMobileChip />);
+    act(() => setCombinedSheetOpen(true));
+
+    expect(
+      await screen.findByRole("button", { name: "switchWorkspace" }),
+    ).toHaveAttribute("data-testid", "project-scope-combined-workspace-row");
+  });
+
+  it("names the active workspace, then the action", async () => {
+    render(<CombinedMobileChip />);
+    act(() => setCombinedSheetOpen(true));
+
+    const row = await screen.findByTestId(
+      "project-scope-combined-workspace-row",
+    );
+    expect(row).toHaveAccessibleName("Acme switchWorkspace");
+  });
+
+  it("focuses the search once a switch ends on the project list", async () => {
+    mocks.isSwitching.current = true;
+    const { rerender } = render(<CombinedMobileChip />);
+    act(() => setCombinedSheetOpen(true));
+    const sheet = await screen.findByRole("dialog");
+    // Where Radix parks focus when the inert pane refuses autofocus.
+    act(() => sheet.focus());
+
+    mocks.isSwitching.current = false;
+    rerender(<CombinedMobileChip />);
+
+    expect(screen.getByRole("textbox", { name: "search" })).toHaveFocus();
+  });
+
+  it("focuses Back once a switch ends on the workspace list", async () => {
+    mocks.isSwitching.current = true;
+    const user = userEvent.setup();
+    const { rerender } = render(<CombinedMobileChip />);
+    act(() => setCombinedSheetOpen(true));
+    await user.click(
+      await screen.findByTestId("project-scope-combined-workspace-row"),
+    );
+    expect(screen.getByRole("button", { name: "back" })).toBeDisabled();
+    act(() => screen.getByRole("dialog").focus());
+
+    mocks.isSwitching.current = false;
+    rerender(<CombinedMobileChip />);
+
+    expect(screen.getByRole("button", { name: "back" })).toHaveFocus();
+  });
+
+  it("leaves focus where the user moved it when a switch ends", async () => {
+    mocks.isSwitching.current = true;
+    const { rerender } = render(<CombinedMobileChip />);
+    act(() => setCombinedSheetOpen(true));
+    const row = await screen.findByTestId(
+      "project-scope-combined-workspace-row",
+    );
+    act(() => row.focus());
+
+    mocks.isSwitching.current = false;
+    rerender(<CombinedMobileChip />);
+
+    expect(row).toHaveFocus();
   });
 
   it("holds the old workspace's projects while a switch runs", async () => {

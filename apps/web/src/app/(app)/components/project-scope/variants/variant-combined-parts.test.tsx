@@ -227,6 +227,77 @@ describe("WorkspaceList", () => {
       .click(screen.getByRole("button", { name: "retry" }));
     expect(refetch).toHaveBeenCalledOnce();
   });
+
+  function listed(overrides: Partial<CombinedWorkspaces> = {}) {
+    const workspaces: CombinedWorkspaces = {
+      sessionUser: null,
+      rows: [
+        { id: "org-1", name: "Acme", organization: null },
+        { id: "org-2", name: "Globex", organization: null },
+      ],
+      activeId: "org-1",
+      active: { id: "org-1", name: "Acme", organization: null },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+      isSwitching: false,
+      select: vi.fn(async () => {}),
+      ...overrides,
+    };
+    return workspaces;
+  }
+
+  function row(name: string) {
+    return screen.getByRole("button", { name });
+  }
+
+  it("marks only the active workspace as current", () => {
+    render(<WorkspaceList workspaces={listed()} />);
+
+    expect(row("Acme")).toHaveAttribute("aria-current", "true");
+    expect(row("Globex")).not.toHaveAttribute("aria-current");
+    expect(row("Globex")).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("switches on a click and reports the choice once the switch settles", async () => {
+    let finish = () => {};
+    const select = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const onChosen = vi.fn();
+    render(
+      <WorkspaceList workspaces={listed({ select })} onChosen={onChosen} />,
+    );
+
+    await userEvent.setup().click(row("Globex"));
+    expect(select).toHaveBeenCalledExactlyOnceWith("org-2");
+    expect(onChosen).not.toHaveBeenCalled();
+
+    await act(async () => finish());
+    expect(onChosen).toHaveBeenCalledOnce();
+  });
+
+  it("ignores clicks while a switch runs", async () => {
+    const select = vi.fn(async () => {});
+    const onChosen = vi.fn();
+    render(
+      <WorkspaceList
+        workspaces={listed({ select, isSwitching: true })}
+        onChosen={onChosen}
+      />,
+    );
+
+    expect(row("Acme")).toHaveAttribute("aria-disabled", "true");
+    expect(row("Globex")).toHaveAttribute("aria-disabled", "true");
+    await userEvent.setup().click(row("Globex"));
+    await act(async () => {});
+
+    expect(select).not.toHaveBeenCalled();
+    expect(onChosen).not.toHaveBeenCalled();
+  });
 });
 
 describe("useCombinedScope mark", () => {

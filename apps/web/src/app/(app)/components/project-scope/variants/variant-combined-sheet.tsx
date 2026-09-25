@@ -3,7 +3,7 @@
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { returnFocusTo } from "@/app/components/project-scope/use-project-scope";
@@ -111,6 +111,12 @@ export function CombinedMobileChip() {
   );
 }
 
+/** The control each step would autofocus, had it not mounted mid-switch. */
+const STEP_FOCUS_SELECTOR = {
+  projects: '[data-slot="command-input"]',
+  workspaces: "button",
+} as const;
+
 /**
  * Mounted only while the sheet is open: it reads workspaces on each open, and
  * its step starts at the project list every time.
@@ -124,6 +130,26 @@ function CombinedSheetBody({
   const tSidebar = useTranslations("App.Sidebar.Content.MenuItems");
   const workspaces = useCombinedWorkspaces();
   const [step, setStep] = useState<"projects" | "workspaces">("projects");
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const wasSwitching = useRef(workspaces.isSwitching);
+
+  // A step that mounts mid-switch cannot autofocus: the project pane is inert
+  // and Back is disabled, so Radix parks focus on the sheet. Once the switch
+  // ends, focus the step's control, unless the user has moved focus since.
+  useEffect(() => {
+    const ended = wasSwitching.current && !workspaces.isSwitching;
+    wasSwitching.current = workspaces.isSwitching;
+    const body = bodyRef.current;
+    if (!ended || !body) return;
+    const focused = document.activeElement;
+    const parked =
+      focused == null ||
+      focused === document.body ||
+      focused === body.closest('[role="dialog"]');
+    if (!parked) return;
+    body.querySelector<HTMLElement>(STEP_FOCUS_SELECTOR[step])?.focus();
+  }, [workspaces.isSwitching, step]);
+
   // Settled with no active workspace, as when the list failed to load.
   const workspaceName =
     workspaces.active?.name ??
@@ -131,7 +157,8 @@ function CombinedSheetBody({
 
   if (step === "projects") {
     return (
-      <>
+      // `contents` keeps the sheet's flex layout; the ref scopes the focus query.
+      <div ref={bodyRef} className="contents">
         <button
           type="button"
           data-testid="project-scope-combined-workspace-row"
@@ -142,10 +169,15 @@ function CombinedSheetBody({
             workspaces={workspaces}
             workspace={workspaces.active}
           />
-          <span className="min-w-0 flex-1 truncate">{workspaceName}</span>
-          {workspaces.active ? (
-            <span className="sr-only">{tWorkspace("switchWorkspace")}</span>
-          ) : null}
+          {/* The fallback repeats the sr-only name below, so hide it once. */}
+          <span
+            aria-hidden={workspaces.active ? undefined : true}
+            className="min-w-0 flex-1 truncate"
+          >
+            {workspaceName}
+          </span>
+          {/* Names the row in every state, pending included. */}
+          <span className="sr-only">{tWorkspace("switchWorkspace")}</span>
           <ChevronRight
             className="text-muted-foreground size-4 shrink-0"
             aria-hidden
@@ -163,12 +195,12 @@ function CombinedSheetBody({
             className="min-h-0 flex-1 rounded-none"
           />
         </SwitchingPane>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div ref={bodyRef} className="contents">
       <div className="border-b p-1">
         <Button
           type="button"
@@ -189,6 +221,6 @@ function CombinedSheetBody({
         onChosen={() => setStep("projects")}
         className="overflow-y-auto p-2"
       />
-    </>
+    </div>
   );
 }
