@@ -1157,4 +1157,22 @@ describe("task participant actions", () => {
       value: { taskId: "task-1" },
     });
   });
+
+  it("returns the Core error when subscribe fails", async () => {
+    taskServiceMock.subscribeTaskParticipant.mockRejectedValue(
+      new Error("Forbidden"),
+    );
+    toCoreApiActionErrorMock.mockReturnValue({
+      message: "Forbidden",
+      code: "FORBIDDEN",
+    });
+    const { subscribeTaskParticipant } = await import("./action");
+
+    const result = await subscribeTaskParticipant({ taskId: "task-1" });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { message: "Forbidden", code: "FORBIDDEN" },
+    });
+  });
 });
