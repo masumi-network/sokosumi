@@ -70,6 +70,42 @@ describe("table cell editing", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Row changed");
     expect(input).toHaveValue("Keep me");
   });
+  it("sizes a select cell like the text cell it sits beside", () => {
+    const select: TableColumn = {
+      ...column,
+      id: "00000000-0000-4000-8000-000000000004",
+      name: "Stage",
+      type: "single_select",
+      options: ["Contacted"],
+    };
+    render(
+      <>
+        <TableCell
+          column={column}
+          row={row}
+          disabled={false}
+          onSave={vi.fn()}
+          onHistory={() => {}}
+        />
+        <TableCell
+          column={select}
+          row={{ ...row, values: {} }}
+          disabled={false}
+          onSave={vi.fn()}
+          onHistory={() => {}}
+        />
+      </>,
+    );
+    // Rule 6 of .cursor/rules/dynamic-type.mdc: focusable editables are pure
+    // rem via withEditableTextSize, and form controls share the h-10 height.
+    for (const control of [
+      screen.getByRole("textbox", { name: "Company" }),
+      screen.getByRole("combobox", { name: "Stage" }),
+    ]) {
+      expect(control).toHaveClass("text-base", "md:text-sm", "h-10");
+      expect(control.className).not.toMatch(/(^|\s)text-sm(\s|$)/);
+    }
+  });
   it("cancels a draft with Escape without saving", () => {
     const save = vi.fn();
     render(

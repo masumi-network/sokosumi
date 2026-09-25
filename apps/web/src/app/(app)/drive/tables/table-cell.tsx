@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { TableColumn, TableRow } from "@/lib/clients/generated/core";
+import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { isTableRejection } from "./table-mutations";
 import { parseTableInput, tableError, tableValueText } from "./table-value";
 
@@ -100,7 +101,9 @@ export function TableCell({
         {column.type === "checkbox" || column.type === "single_select" ? (
           <select
             {...props}
-            className="bg-background min-h-9 min-w-32 flex-1 rounded px-2 text-sm"
+            className={withEditableTextSize(
+              "bg-background h-10 min-w-32 flex-1 rounded px-2",
+            )}
           >
             <option value="">{t("unknown")}</option>
             {column.type === "checkbox" ? (

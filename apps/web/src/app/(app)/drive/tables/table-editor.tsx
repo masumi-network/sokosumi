@@ -33,6 +33,7 @@ import type {
   TableView,
 } from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
+import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { TableCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
 import { createTableMutations, isTableRejection } from "./table-mutations";
@@ -392,7 +393,9 @@ function TableWorkspace({
       )}
       <div className="flex flex-wrap items-center gap-2">
         <select
-          className="bg-background rounded-md border px-3 py-2 text-sm"
+          className={withEditableTextSize(
+            "bg-background h-10 rounded-md border px-3 py-2",
+          )}
           aria-label={t("view")}
           value={view?.id ?? ""}
           onChange={(event) => {
@@ -786,7 +789,9 @@ function TableWorkspace({
                 <Label htmlFor="filter-column">{t("filter")}</Label>
                 <select
                   id="filter-column"
-                  className="bg-background rounded-md border p-2 text-sm"
+                  className={withEditableTextSize(
+                    "bg-background h-10 rounded-md border px-2",
+                  )}
                   value={definition.filters?.[0]?.columnId ?? ""}
                   onChange={(event) =>
                     handleDefinition({
@@ -814,7 +819,9 @@ function TableWorkspace({
                   <>
                     <select
                       aria-label={t("operator")}
-                      className="bg-background rounded-md border p-2 text-sm"
+                      className={withEditableTextSize(
+                        "bg-background h-10 rounded-md border px-2",
+                      )}
                       value={definition.filters[0].operator}
                       onChange={(event) =>
                         handleDefinition({
@@ -991,7 +998,9 @@ function TableWorkspace({
                 <select
                   id="table-agent"
                   disabled={pending || !!enrichmentRequest}
-                  className="bg-background rounded-md border p-2 text-sm"
+                  className={withEditableTextSize(
+                    "bg-background h-10 rounded-md border px-2",
+                  )}
                   value={agent}
                   onChange={(event) => setAgent(event.target.value)}
                 >
@@ -1071,6 +1080,12 @@ function TableWorkspace({
                           (body) => dataTableService.view(table.id, body),
                         );
                         setViewVersion(saved.version);
+                        // Selecting the view remounts this workspace keyed on
+                        // the view ID, and the remount seeds its definition
+                        // from the table query. Refresh that query first, or a
+                        // just-saved view reopens with the default definition
+                        // and silently drops its filters and hidden columns.
+                        await refresh();
                         if (allowNavigation(true, "save-view"))
                           onViewChange(saved.id);
                       } else if (dialog === "rename")

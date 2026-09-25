@@ -10,7 +10,7 @@ import { TableCell } from "@/app/drive/tables/table-cell";
 import { TableColumnDialog } from "@/app/drive/tables/table-column-dialog";
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { TableEditor } from "@/app/drive/tables/table-editor";
-import type { TableView } from "@/lib/clients/generated/core";
+import type { TableColumn, TableView } from "@/lib/clients/generated/core";
 
 const f = vi.hoisted(() => {
   const column = {
@@ -35,7 +35,7 @@ const f = vi.hoisted(() => {
   };
   return {
     column,
-    columns: [column],
+    columns: [column] as TableColumn[],
     tableVersion: 1,
     tableArchived: null as Date | null,
     row,
@@ -45,8 +45,20 @@ const f = vi.hoisted(() => {
     create: vi.fn(),
     update: vi.fn(),
     get: vi.fn(),
+    view: vi.fn(),
+    invalidate: vi.fn(async () => {}),
     push: vi.fn(),
     views: [] as TableView[],
+    score: {
+      id: "00000000-0000-4000-8000-000000000005",
+      tableId: "00000000-0000-4000-8000-000000000002",
+      name: "Score",
+      description: "",
+      type: "number" as const,
+      options: [],
+      position: 1,
+      version: 1,
+    },
   };
 });
 vi.mock("next-intl", () => ({
@@ -62,7 +74,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({ data: { session: { activeOrganizationId: null } } }),
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries: async () => {} }),
+  useQueryClient: () => ({ invalidateQueries: f.invalidate }),
   useQuery: ({ queryKey }: { queryKey: string[] }) => ({
     isPending: false,
     error: null,
@@ -102,6 +114,7 @@ vi.mock("@/lib/services/data-table.client", () => ({
     update: f.update,
     projects: vi.fn(),
     get: (...args: unknown[]) => f.get(...args),
+    view: (...args: unknown[]) => f.view(...args),
     query: vi.fn(),
     history: vi.fn(),
     agents: vi.fn(),
@@ -114,6 +127,7 @@ beforeEach(() => {
   f.tableVersion = 1;
   f.tableArchived = null;
   f.views = [];
+  f.invalidate.mockImplementation(async () => {});
 });
 afterEach(cleanup);
 it("F6: invalid enrichment stays editable without sending an invalid request", async () => {
@@ -697,4 +711,88 @@ it("column conflict reload shows latest columns before rebuilding a save", async
   fireEvent.click(screen.getByRole("button", { name: "save" }));
   await waitFor(() => expect(f.update).toHaveBeenCalledTimes(2));
   expect(f.update.mock.calls[1][1].version).toBe(2);
+});
+
+it("applies a just-saved view instead of reopening the default definition", async () => {
+  const saved: TableView = {
+    id: "00000000-0000-4000-8000-000000000006",
+    tableId: f.column.tableId,
+    name: "Company only",
+    version: 1,
+    definition: {
+      filters: [],
+      sort: null,
+      visibleColumnIds: [f.column.id],
+    },
+  };
+  f.columns = [f.column, f.score];
+  f.view.mockResolvedValue(saved);
+  // The saved view only reaches the editor through the table query; publish it
+  // when the editor invalidates, the way the Core refetch does.
+  f.invalidate.mockImplementation(async () => {
+    // A refetch is a round trip, not a microtask: the view only becomes
+    // visible to the editor after the network settles.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    f.views = [saved];
+  });
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.click(screen.getByRole("button", { name: "configureView" }));
+  fireEvent.change(screen.getByLabelText("viewName"), {
+    target: { value: "Company only" },
+  });
+  const boxes = screen
+    .getAllByRole("checkbox")
+    .filter((box) => box.closest("fieldset"));
+  fireEvent.click(boxes[1]);
+  fireEvent.click(screen.getByRole("button", { name: "save" }));
+  await waitFor(() => expect(f.view).toHaveBeenCalledTimes(1));
+  expect(f.view.mock.calls[0][1].definition.visibleColumnIds).toEqual([
+    f.column.id,
+  ]);
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("columnheader", { name: /Score/ }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(
+    screen.getByRole("columnheader", { name: /Company/ }),
+  ).toBeInTheDocument();
+});
+
+it("sizes the raw editor and column selects like the shared editable seam", () => {
+  // These are plain <select> elements, outside the primitive list that
+  // editable-text-size-primitives.test.ts guards, so they need their own check.
+  render(<TableEditor id={f.column.tableId} />);
+  expect(screen.getByRole("combobox", { name: "view" })).toHaveClass(
+    "text-base",
+    "md:text-sm",
+    "h-10",
+  );
+  cleanup();
+  render(
+    <TableColumnDialog
+      table={{
+        id: f.column.tableId,
+        workspaceId: "ws",
+        title: "Table",
+        description: "",
+        version: 1,
+        columns: [f.column],
+        views: [],
+        archivedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        projectId: null,
+        createdBy: "user",
+      }}
+      column={f.column}
+      onClose={vi.fn()}
+      onSaved={vi.fn()}
+    />,
+  );
+  expect(screen.getByLabelText("type")).toHaveClass(
+    "text-base",
+    "md:text-sm",
+    "h-10",
+  );
 });

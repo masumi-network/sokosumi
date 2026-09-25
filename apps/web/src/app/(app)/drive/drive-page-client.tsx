@@ -362,7 +362,9 @@ function DrivePageWorkspace({
   const isTablesView = viewParam === "tables";
   const isTasksView = viewParam === "tasks";
   const isBrowseView =
-    !isTasksView && (viewParam === "browse" || folderParam.length > 0);
+    !isTablesView &&
+    !isTasksView &&
+    (viewParam === "browse" || folderParam.length > 0);
   const isRecentsView = !isTablesView && !isTasksView && !isBrowseView;
   const primaryView: DrivePrimaryView = isTablesView
     ? "tables"
@@ -1457,10 +1459,12 @@ function DrivePageWorkspace({
                 </div>
               </div>
             )}
-            <TableCreateDialog
-              key={activeOrganizationId ?? "personal"}
-              workspaceId={activeOrganizationId}
-            />
+            {isTablesView && (
+              <TableCreateDialog
+                key={activeOrganizationId ?? "personal"}
+                workspaceId={activeOrganizationId}
+              />
+            )}
             {!isTablesView && !isRecentsView && filesSortControl}
             {!isTablesView && filesViewModeSwitch}
           </div>

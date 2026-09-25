@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { DataTable, TableColumn } from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
+import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { TABLE_TYPES } from "./table-create-dialog";
 import { isTableRejection } from "./table-mutations";
 import { tableError } from "./table-value";
@@ -165,7 +166,9 @@ export function TableColumnDialog({
             <Label htmlFor="column-type">{t("type")}</Label>
             <select
               id="column-type"
-              className="bg-background rounded-md border px-3 py-2 text-sm"
+              className={withEditableTextSize(
+                "bg-background h-10 rounded-md border px-3 py-2",
+              )}
               value={type}
               onChange={(event) =>
                 setType(event.target.value as TableColumn["type"])

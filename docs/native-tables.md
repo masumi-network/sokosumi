@@ -48,9 +48,9 @@ Current bounds: 100 columns, 10,000 rows including archived rows, 100 rows per m
 Use a disposable local database named `native_tables` with all migrations applied. Do not point the integration suite at a shared or production database.
 
 ```sh
-RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://USER@127.0.0.1:PORT/native_tables pnpm --filter core test src/helpers/data-table.integration.test.ts src/helpers/data-table-values.test.ts --maxWorkers=1
+RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://USER@127.0.0.1:PORT/native_tables pnpm --filter core test src/helpers/data-table.integration.test.ts src/helpers/data-table-values.test.ts src/helpers/data-table-bounds.integration.test.ts src/helpers/data-table-review.integration.test.ts --maxWorkers=1
 pnpm --filter core test src/services/__tests__/soko-bot-tables.test.ts src/services/soko-bot-runtime.service.test.ts --maxWorkers=1
-pnpm --filter web test 'src/app/(app)/drive/tables/table-cell.test.tsx' 'src/app/(app)/drive/tables/table-value.test.ts' --maxWorkers=1
+pnpm --filter web test 'src/app/(app)/drive/' --maxWorkers=1
 pnpm --filter @sokosumi/utils test --maxWorkers=1
 pnpm --filter @sokosumi/soko-bot test --maxWorkers=1
 pnpm check
