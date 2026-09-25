@@ -239,9 +239,8 @@ export function HeaderVariantCrumbs({ children }: { children: ReactNode }) {
 }
 
 /**
- * Variants with a `header-mobile` slot: a text pill, or hub's avatar and
- * clear button. Hub's chip is small, but a phone header still has no room
- * for it beside the workspace name.
+ * Variants that adapt workspace chrome for their scope controls.
+ * Combined replaces it; the others keep only its avatar on phones.
  */
 const NARROW_TRAILING_VARIANTS: ReadonlySet<ScopeVariantId> = new Set([
   "header",
@@ -256,11 +255,11 @@ const NARROW_TRAILING_CLASS =
   "contents max-sm:[&_[data-testid=header-workspace-chrome]_[data-slot=header-workspace-name]]:sr-only";
 
 /**
- * From md up, combined's own header control switches workspaces, so today's
+ * Combined's own header control switches workspaces at every width, so today's
  * switch and its loading placeholder give way. The tools after them stay.
  */
 const COMBINED_TRAILING_CLASS =
-  "md:[&_[data-testid=header-workspace-chrome]]:hidden md:[&_[data-testid=header-workspace-chrome-skeleton]]:hidden";
+  "[&_[data-testid=header-workspace-chrome]]:hidden [&_[data-testid=header-workspace-chrome-skeleton]]:hidden";
 
 function TrailingGate({ children }: { children: ReactNode }) {
   const variant = useScopeVariant();

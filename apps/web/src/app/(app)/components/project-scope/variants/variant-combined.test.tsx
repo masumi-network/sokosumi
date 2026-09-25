@@ -127,6 +127,14 @@ afterEach(() => {
 });
 
 describe("HeaderTrigger", () => {
+  it("keeps both responsive controls in the workspace slot", () => {
+    render(<HeaderTrigger />);
+
+    expect(
+      screen.getByTestId("project-scope-combined-chip"),
+    ).toBeInTheDocument();
+    expect(combinedSlots["header-mobile"]).toBeUndefined();
+  });
   it("names the workspace and the project, and opens both panes", async () => {
     const user = userEvent.setup();
     render(<HeaderTrigger />);
@@ -148,13 +156,13 @@ describe("HeaderTrigger", () => {
     expect(trigger()).toHaveAccessibleName("switchLabel All projects");
   });
 
-  it("shows from md up; the chip and today's switch cover smaller screens", () => {
+  it("shows the desktop control from md up", () => {
     render(<HeaderTrigger />);
 
     expect(trigger().parentElement).toHaveClass("max-md:hidden");
     // Dialogs stay outside the hidden box.
     expect(
-      screen.getByTestId("create-dialogs").closest(".max-md\\:hidden"),
+      screen.getAllByTestId("create-dialogs")[0]?.closest(".max-md\\:hidden"),
     ).toBeNull();
   });
 

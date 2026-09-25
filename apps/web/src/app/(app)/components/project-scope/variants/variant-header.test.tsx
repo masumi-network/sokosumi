@@ -410,7 +410,7 @@ describe("HeaderVariantTrailing", () => {
     ["sidebar", false],
     ["hub", false],
   ])(
-    "hands the workspace switch to combined's own control from md up (%s: %s)",
+    "hands the workspace switch to combined's own control at every width (%s: %s)",
     (variant, handedOver) => {
       mocks.variant = variant;
       renderTrailing();
@@ -418,10 +418,10 @@ describe("HeaderVariantTrailing", () => {
       const className =
         screen.getByTestId("trailing-child").parentElement?.className ?? "";
       for (const target of [
-        "md:[&_[data-testid=header-workspace-chrome]]:hidden",
-        "md:[&_[data-testid=header-workspace-chrome-skeleton]]:hidden",
+        "[&_[data-testid=header-workspace-chrome]]:hidden",
+        "[&_[data-testid=header-workspace-chrome-skeleton]]:hidden",
       ]) {
-        expect(className.includes(target)).toBe(handedOver);
+        expect(className.split(" ").includes(target)).toBe(handedOver);
       }
     },
   );

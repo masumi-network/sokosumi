@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
+import { useCreateWorkspace } from "@/app/components/header/use-create-workspace";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { returnFocusTo } from "@/app/components/project-scope/use-project-scope";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
@@ -16,16 +17,19 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 import {
   SwitchingPane,
   useCombinedScope,
   useCombinedWorkspaces,
+  useScopedWorkspaceSwitch,
   WorkspaceList,
   WorkspaceMark,
   type WorkspaceSwitcher,
 } from "./variant-combined-parts";
+import { useWorkspaceName } from "./variant-header-workspace";
 
 /**
  * The bottom sheet's open state, shared by the chip and the sheet's content,
@@ -55,7 +59,7 @@ export function useCombinedSheetOpen() {
 }
 
 /**
- * Below `md`: a chip with the current scope. It opens a bottom sheet with the
+ * Below `md`: the workspace control opens a bottom sheet with the
  * project list, and one row there swaps in the workspace list. Create project
  * finds the chip through its `aria-controls`.
  */
@@ -64,8 +68,12 @@ export function CombinedMobileChip() {
   const pathname = usePathname();
   const open = useCombinedSheetOpen();
   const scope = useCombinedScope();
+  const workspaceName = useWorkspaceName();
   // Here, not in the body: the switch outlives a close of the sheet.
   const switcher = useWorkspaceSwitcher();
+  const createWorkspace = useCreateWorkspace(
+    useScopedWorkspaceSwitch(switcher),
+  );
   const chipRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -75,18 +83,30 @@ export function CombinedMobileChip() {
           <Button
             ref={chipRef}
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
             data-testid="project-scope-combined-chip"
             className={cn(
-              "min-w-0 max-w-40 shrink justify-start gap-1.5 px-2 font-medium md:hidden",
+              "min-w-0 max-w-40 shrink justify-start gap-1.5 overflow-hidden px-2 font-medium md:hidden",
               // A chat room's toolbar takes this row on phones.
               pathname && isChatRoomPathname(pathname) && "hidden",
             )}
           >
-            {scope.mark}
-            <span className="sr-only">{t("switchLabel")}</span>
-            <span className="min-w-0 flex-1 truncate">{scope.name}</span>
+            <span className="sr-only">
+              {t("switchLabel")}{" "}
+              {[workspaceName, scope.name].filter(Boolean).join(" / ")}
+            </span>
+            <span aria-hidden className="flex min-w-0 items-center gap-1.5">
+              {workspaceName ? (
+                <span className="text-muted-foreground min-w-0 truncate">
+                  {workspaceName}
+                </span>
+              ) : (
+                <Skeleton className="h-3 w-12 shrink-0" />
+              )}
+              <span className="text-muted-foreground shrink-0">/</span>
+              <span className="min-w-0 truncate">{scope.name}</span>
+            </span>
             <ChevronDown
               className="text-muted-foreground size-3.5 shrink-0"
               aria-hidden
@@ -103,10 +123,18 @@ export function CombinedMobileChip() {
           <SheetHeader className="border-b pr-12">
             <SheetTitle>{t("switchLabel")}</SheetTitle>
           </SheetHeader>
-          <CombinedSheetBody scope={scope} switcher={switcher} />
+          <CombinedSheetBody
+            scope={scope}
+            switcher={switcher}
+            onCreateWorkspace={(canCreatePersonal) => {
+              setCombinedSheetOpen(false);
+              createWorkspace.start(canCreatePersonal);
+            }}
+          />
         </SheetContent>
       </Sheet>
       {scope.createDialog}
+      {createWorkspace.dialogs}
     </>
   );
 }
@@ -124,9 +152,11 @@ const STEP_FOCUS_SELECTOR = {
 function CombinedSheetBody({
   scope,
   switcher,
+  onCreateWorkspace,
 }: {
   scope: ReturnType<typeof useCombinedScope>;
   switcher: WorkspaceSwitcher;
+  onCreateWorkspace: (canCreatePersonal: boolean) => void;
 }) {
   const tWorkspace = useTranslations("Components.OrganizationSwitcher");
   const tSidebar = useTranslations("App.Sidebar.Content.MenuItems");
@@ -221,6 +251,7 @@ function CombinedSheetBody({
       <WorkspaceList
         workspaces={workspaces}
         onChosen={() => setStep("projects")}
+        onCreateWorkspace={onCreateWorkspace}
         className="overflow-y-auto p-2"
       />
     </div>

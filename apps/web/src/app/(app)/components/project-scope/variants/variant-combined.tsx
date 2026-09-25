@@ -94,8 +94,7 @@ function CombinedPopoverContent({
 
 /**
  * The header's workspace control from md up, as `Workspace / Project`: one
- * control for both. Below md the chip opens the sheet, and the header keeps
- * today's workspace switch.
+ * control for both. Below md the same workspace slot opens the sheet.
  */
 function HeaderTrigger() {
   const t = useTranslations("App.ProjectScope");
@@ -160,6 +159,7 @@ function HeaderTrigger() {
           />
         </Popover>
       </div>
+      <CombinedMobileChip />
       {scope.createDialog}
       {createWorkspace.dialogs}
     </>
@@ -169,5 +169,4 @@ function HeaderTrigger() {
 /** SOK-1202 variant "combined": Vercel's two-pane workspace/project switcher. */
 export const combinedSlots: ScopeSlots = {
   "header-workspace": HeaderTrigger,
-  "header-mobile": CombinedMobileChip,
 };

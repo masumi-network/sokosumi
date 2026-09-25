@@ -12,7 +12,10 @@ import type { WorkspaceSwitcher } from "./variant-combined-parts";
 
 const mocks = vi.hoisted(() => ({
   pathname: { current: "/tasks" },
+  workspaceName: { current: "Acme" as string | null },
   activate: vi.fn(),
+  startCreate: vi.fn(),
+  scopedSwitch: vi.fn(),
   isSwitching: { current: false },
   isPending: { current: false },
   active: {
@@ -34,6 +37,12 @@ vi.mock("@/lib/activate-organization-workspace", () => ({
   isUserNotMemberOfOrganizationError: () => false,
 }));
 vi.mock("@/lib/auth/auth.client", () => ({ useSession: vi.fn() }));
+vi.mock("@/app/components/header/use-create-workspace", () => ({
+  useCreateWorkspace: () => ({ start: mocks.startCreate, dialogs: null }),
+}));
+vi.mock("./variant-header-workspace", () => ({
+  useWorkspaceName: () => mocks.workspaceName.current,
+}));
 vi.mock("./variant-combined-actions", () => ({
   loadCombinedWorkspaces: vi.fn(),
 }));
@@ -57,6 +66,7 @@ vi.mock("next-intl", () => ({
 // but its switch goes through the `switcher` the chip passes down.
 vi.mock("./variant-combined-parts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./variant-combined-parts")>()),
+  useScopedWorkspaceSwitch: () => mocks.scopedSwitch,
   useCombinedScope: () => ({
     projectId: null,
     name: "All projects",
@@ -75,6 +85,7 @@ vi.mock("./variant-combined-parts", async (importOriginal) => ({
     active: mocks.active.current,
     isPending: mocks.isPending.current,
     isError: false,
+    hasPersonalWorkspace: false,
     refetch: vi.fn(),
     isSwitching: mocks.isSwitching.current || switcher.isPending,
     select: (id: string | null) => switcher.handleSelectWorkspace(id),
@@ -96,6 +107,7 @@ import {
 } from "./variant-combined-sheet";
 
 beforeEach(() => {
+  vi.clearAllMocks();
   mocks.activate.mockResolvedValue(undefined);
 });
 
@@ -103,6 +115,7 @@ afterEach(() => {
   // The flag is module state, so it outlives each test's render.
   act(() => setCombinedSheetOpen(false));
   mocks.pathname.current = "/tasks";
+  mocks.workspaceName.current = "Acme";
   mocks.isSwitching.current = false;
   mocks.isPending.current = false;
   mocks.active.current = { id: "org-1", name: "Acme", organization: null };
@@ -133,6 +146,36 @@ describe("combined sheet store", () => {
 });
 
 describe("CombinedMobileChip", () => {
+  it("keeps Create workspace available through the combined control", async () => {
+    const user = userEvent.setup();
+    render(<CombinedMobileChip />);
+    await user.click(chip());
+    await user.click(
+      await screen.findByRole("button", { name: "Acme switchWorkspace" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "createWorkspace" }),
+    );
+
+    expect(mocks.startCreate).toHaveBeenCalledExactlyOnceWith(true);
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("names the workspace and project in one control", () => {
+    render(<CombinedMobileChip />);
+
+    expect(chip()).toHaveAccessibleName("switchLabel Acme / All projects");
+  });
+
+  it("keeps the project accessible while the workspace name loads", () => {
+    mocks.workspaceName.current = null;
+    render(<CombinedMobileChip />);
+
+    expect(chip()).toHaveAccessibleName("switchLabel All projects");
+  });
+
   it("is the sheet's trigger and takes focus back on Escape", async () => {
     const user = userEvent.setup();
     render(<CombinedMobileChip />);
