@@ -37,9 +37,12 @@
 
     private func receive(_ providers: [NSItemProvider]) {
       guard enabled else { return }
-      ingress.receive(providers, files: { files in
-        guard enabled else { return }
-        uploads.upload(files) { file in try await workspaces.uploadAttachment(file, roomId: roomId, auth: auth) }
+      ingress.receive(providers, files: { files, scratch in
+        guard enabled else {
+          try? FileManager.default.removeItem(at: scratch)
+          return
+        }
+        uploads.upload(files, cleanupDirectory: scratch) { file in try await workspaces.uploadAttachment(file, roomId: roomId, auth: auth) }
       }, image: { data in
         guard enabled else { return }
         uploads.upload(data, filename: "image.png", using: { file in try await workspaces.uploadAttachment(file, roomId: roomId, auth: auth) })
