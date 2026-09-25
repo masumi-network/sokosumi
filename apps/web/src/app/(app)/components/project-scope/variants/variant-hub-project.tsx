@@ -209,6 +209,8 @@ function HubSectionNav({
   const pathname = usePathname();
   const sections = projectSections(projectId, calendarBeta);
   const listRef = useRef<HTMLUListElement>(null);
+  // The tab that had focus last, kept while focus leaves the window.
+  const lastFocusRef = useRef<Element | null>(null);
   const [overflowEnd, setOverflowEnd] = useState(false);
 
   // The strip scrolls with its scrollbar hidden, and narrow screens or long
@@ -247,9 +249,22 @@ function HubSectionNav({
         // The browser scrolls a focused tab only once it leaves the strip,
         // so a tab under the fade stays there. Keyboard focus only: a scroll
         // under a press would move the tab away before the click lands.
+        // A window that gets focus back refocuses its tab from nowhere, and
+        // the reader may have scrolled the strip since: leave it there.
         onFocus={(event) => {
-          if (event.target.matches(":focus-visible")) {
+          const refocus =
+            event.relatedTarget == null &&
+            event.target === lastFocusRef.current;
+          lastFocusRef.current = event.target;
+          if (!refocus && event.target.matches(":focus-visible")) {
             revealTab(event.currentTarget, event.target);
+          }
+        }}
+        onBlur={(event) => {
+          // Only a window switch keeps the record: focus that moved within
+          // the page, even to nothing, makes a return to the tab fresh.
+          if (event.relatedTarget || document.hasFocus()) {
+            lastFocusRef.current = null;
           }
         }}
         className="relative flex scroll-pe-(--strip-fade) gap-4 overflow-x-auto text-sm [--strip-fade:2rem] [scrollbar-width:none] data-overflow-end:[mask-image:linear-gradient(to_right,black_calc(100%-var(--strip-fade)),transparent)] [&::-webkit-scrollbar]:hidden"

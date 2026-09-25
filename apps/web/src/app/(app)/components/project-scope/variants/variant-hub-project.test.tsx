@@ -159,13 +159,11 @@ const FADE_WIDTH = 32;
  * happy-dom applies no Tailwind: give the strip the end scroll padding its
  * classes set, the width of the fade.
  */
-function stubStripFade() {
+function stubStripFade(scrollPaddingInlineEnd = `${FADE_WIDTH}px`) {
   const computed = window.getComputedStyle.bind(window);
   vi.spyOn(window, "getComputedStyle").mockImplementation((element) =>
     element instanceof HTMLUListElement
-      ? ({
-          scrollPaddingInlineEnd: `${FADE_WIDTH}px`,
-        } as CSSStyleDeclaration)
+      ? ({ scrollPaddingInlineEnd } as CSSStyleDeclaration)
       : computed(element),
   );
 }
@@ -272,6 +270,64 @@ describe("HubProjectHeader", () => {
     expect(list.scrollLeft).toBe(
       TAB_PITCH + TAB_WIDTH - (STRIP_WIDTH - FADE_WIDTH),
     );
+  });
+
+  it("reveals a tab past the end when the strip has no end padding", () => {
+    // Without the fade's padding the computed value is "auto", not a length.
+    stubStripFade("auto");
+    mocks.pathname = "/projects/p-1/calendar";
+    const { list } = renderNav();
+
+    // Calendar, 300 to 380, scrolls in until its end meets the strip's.
+    expect(list.scrollLeft).toBe(3 * TAB_PITCH + TAB_WIDTH - STRIP_WIDTH);
+  });
+
+  it("leaves a scrolled strip when the window gives its tab focus back", () => {
+    stubStripFade();
+    const { list } = renderNav();
+    const tasks = within(list).getByRole("link", { name: "tasks" });
+    act(() => tasks.focus());
+    const revealed = TAB_PITCH + TAB_WIDTH - (STRIP_WIDTH - FADE_WIDTH);
+    expect(list.scrollLeft).toBe(revealed);
+    list.scrollLeft = 0;
+
+    // The window gets focus back: the same tab, from no element.
+    fireEvent.focusIn(tasks, { relatedTarget: null });
+    expect(list.scrollLeft).toBe(0);
+
+    // Keyboard focus from elsewhere in the page still brings it out.
+    const trigger = screen.getByRole("button", { name: "switchLabel" });
+    fireEvent.focusIn(tasks, { relatedTarget: trigger });
+    expect(list.scrollLeft).toBe(revealed);
+
+    // Focus left for the page, then came back from no element: fresh again.
+    list.scrollLeft = 0;
+    fireEvent.focusOut(tasks, { relatedTarget: trigger });
+    fireEvent.focusIn(tasks, { relatedTarget: null });
+    expect(list.scrollLeft).toBe(revealed);
+  });
+
+  it("brings a tab out again after a click on the page cleared focus", () => {
+    stubStripFade();
+    const { list } = renderNav();
+    const tasks = within(list).getByRole("link", { name: "tasks" });
+    act(() => tasks.focus());
+    const revealed = TAB_PITCH + TAB_WIDTH - (STRIP_WIDTH - FADE_WIDTH);
+    list.scrollLeft = 0;
+
+    // A window switch blurs with no element while the document loses focus.
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    fireEvent.focusOut(tasks, { relatedTarget: null });
+    fireEvent.focusIn(tasks, { relatedTarget: null });
+    expect(list.scrollLeft).toBe(0);
+
+    // A click on empty page also blurs with no element, but the document
+    // keeps focus: the next Tab back to the tab is fresh.
+    hasFocus.mockReturnValue(true);
+    fireEvent.focusOut(tasks, { relatedTarget: null });
+    fireEvent.focusIn(tasks, { relatedTarget: null });
+    expect(list.scrollLeft).toBe(revealed);
+    hasFocus.mockRestore();
   });
 
   it("leaves the page where it was when the Edit modal closes", () => {
