@@ -284,15 +284,26 @@ export function TaskActivitySection({
   );
 
   useEffect(() => {
-    // Merge so expanded older pages survive parent refresh (truncated feed).
+    setCommentsExpanded(false);
+    setPendingJumpId(null);
+  }, [taskId]);
+
+  useEffect(() => {
+    // Same task: merge so expanded older pages survive truncated refresh.
     // Drop optimistic rows — the refreshed prop carries the persisted event.
-    setLocalEvents((prev) =>
-      mergeTaskActivityEvents(
+    // Different task: replace the feed entirely.
+    setLocalEvents((prev) => {
+      const sameTask =
+        prev.length > 0 && prev.every((event) => event.taskId === taskId);
+      if (!sameTask) {
+        return events;
+      }
+      return mergeTaskActivityEvents(
         prev.filter((event) => !event.id.startsWith("optimistic:")),
         events,
-      ),
-    );
-  }, [events]);
+      );
+    });
+  }, [events, taskId]);
 
   const abortActiveUploads = useCallback(() => {
     for (const controller of activeUploadControllersRef.current) {

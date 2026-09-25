@@ -785,6 +785,7 @@ async function TaskActivitySectionContent({
 
   return (
     <TaskActivitySection
+      key={taskId}
       taskId={taskId}
       title={t("activity")}
       placeholder={t("commentPlaceholder")}
