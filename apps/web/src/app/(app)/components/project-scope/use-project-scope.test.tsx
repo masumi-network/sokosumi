@@ -1,0 +1,159 @@
+import { act, render } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  pathname: { current: "/tasks" },
+  search: { current: new URLSearchParams() },
+  modal: {
+    current: null as null | {
+      open: boolean;
+      onOpenChange: (open: boolean) => void;
+      onCreated: (result: { projectId: string; name: string }) => void;
+      onCloseAutoFocus?: (event: Event) => void;
+    },
+  },
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mocks.push }),
+  usePathname: () => mocks.pathname.current,
+  useSearchParams: () => mocks.search.current,
+}));
+vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
+  InlineCreateProjectModal: (
+    props: NonNullable<typeof mocks.modal.current>,
+  ) => {
+    mocks.modal.current = props;
+    return null;
+  },
+}));
+
+import { returnFocusTo, useProjectScopeSwitch } from "./use-project-scope";
+
+function modal() {
+  if (!mocks.modal.current) throw new Error("Modal never rendered");
+  return mocks.modal.current;
+}
+
+function renderSwitch() {
+  const latest: { current: ReturnType<typeof useProjectScopeSwitch> | null } = {
+    current: null,
+  };
+  function Harness() {
+    const scope = useProjectScopeSwitch();
+    latest.current = scope;
+    return scope.createDialog;
+  }
+  render(<Harness />);
+  return () => {
+    if (!latest.current) throw new Error("Hook never rendered");
+    return latest.current;
+  };
+}
+
+function closeEvent() {
+  return new Event("focusout", { cancelable: true });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.pathname.current = "/tasks";
+  mocks.search.current = new URLSearchParams();
+  mocks.modal.current = null;
+  document.body.innerHTML = "";
+});
+
+describe("returnFocusTo", () => {
+  it("prevents the default focus and focuses a connected opener", () => {
+    const opener = document.createElement("button");
+    const other = document.createElement("button");
+    document.body.append(opener, other);
+    other.focus();
+    const event = closeEvent();
+
+    returnFocusTo(opener)(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("does nothing without an opener", () => {
+    const event = closeEvent();
+
+    returnFocusTo(null)(event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("does nothing for an opener that left the page", () => {
+    const opener = document.createElement("button");
+    const focus = vi.spyOn(opener, "focus");
+    const event = closeEvent();
+
+    returnFocusTo(opener)(event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(focus).not.toHaveBeenCalled();
+  });
+});
+
+describe("useProjectScopeSwitch", () => {
+  it("returns focus to the opener when Create project is canceled", () => {
+    const opener = document.createElement("button");
+    const other = document.createElement("button");
+    document.body.append(opener, other);
+    const current = renderSwitch();
+    expect(modal().open).toBe(false);
+
+    act(() => current().openCreate(opener));
+    expect(modal().open).toBe(true);
+
+    act(() => modal().onOpenChange(false));
+    expect(modal().open).toBe(false);
+    other.focus();
+    const event = closeEvent();
+    modal().onCloseAutoFocus?.(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(opener);
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("leaves focus alone when Create project opened without an opener", () => {
+    const current = renderSwitch();
+
+    act(() => current().openCreate());
+    act(() => modal().onOpenChange(false));
+    const event = closeEvent();
+    modal().onCloseAutoFocus?.(event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("pushes the switch href for a chosen project", () => {
+    const current = renderSwitch();
+
+    current().select("p-1");
+
+    expect(mocks.push).toHaveBeenCalledWith("/tasks?projectId=p-1");
+  });
+
+  it("pushes the workspace href for null on a project page", () => {
+    mocks.pathname.current = "/projects/p-1/files";
+    const current = renderSwitch();
+
+    current().select(null);
+
+    expect(mocks.push).toHaveBeenCalledWith("/projects");
+  });
+
+  it("opens a created project", () => {
+    mocks.pathname.current = "/history";
+    renderSwitch();
+
+    modal().onCreated({ projectId: "p-new", name: "New" });
+
+    expect(mocks.push).toHaveBeenCalledWith("/history?projectId=p-new");
+  });
+});
