@@ -28,8 +28,8 @@ const {
   userFindUniqueMock,
   buildCreditsPayloadMock,
   memberFindManyMock,
+  memberFindUniqueMock,
   resolveMemberOrganizationByIdMock,
-  getMemberByUserIdAndOrganizationIdMock,
   prismaTransactionMock,
   txUserFindUniqueMock,
   assertCoworkerUserContextBindingMock,
@@ -37,8 +37,8 @@ const {
   userFindUniqueMock: vi.fn(),
   buildCreditsPayloadMock: vi.fn(),
   memberFindManyMock: vi.fn(),
+  memberFindUniqueMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
-  getMemberByUserIdAndOrganizationIdMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   txUserFindUniqueMock: vi.fn(),
   assertCoworkerUserContextBindingMock: vi.fn(),
@@ -51,6 +51,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findMany: memberFindManyMock,
+      findUnique: memberFindUniqueMock,
     },
     $transaction: prismaTransactionMock,
   },
@@ -69,13 +70,6 @@ vi.mock("@/helpers/subscription", () => ({
 vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: (...args: unknown[]) =>
     resolveMemberOrganizationByIdMock(...args),
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {
-    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
-      getMemberByUserIdAndOrganizationIdMock(...args),
-  },
 }));
 
 const CREDITS_PAYLOAD = {
@@ -181,7 +175,7 @@ describe("coworker user route allowlist", () => {
     resolveMemberOrganizationByIdMock.mockResolvedValue({
       organization: { id: "org_1" },
     });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(MEMBER_RECORD);
+    memberFindUniqueMock.mockResolvedValue(MEMBER_RECORD);
     txUserFindUniqueMock.mockResolvedValue(USER_RECORD);
     prismaTransactionMock.mockImplementation(
       async (
@@ -252,7 +246,7 @@ describe("coworker user route allowlist", () => {
       "http://localhost/me/organizations/org_1/member",
     );
     expect(response.status).toBe(403);
-    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
+    expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker with context headers on preferences", async () => {

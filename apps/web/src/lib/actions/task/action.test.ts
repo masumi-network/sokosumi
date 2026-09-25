@@ -824,6 +824,28 @@ describe("updateTask Run at", () => {
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
+  it("clears Run at in the patch before assigning a human", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.DRAFT,
+    });
+    const { updateTask } = await import("./action");
+
+    await updateTask({
+      ...baseInput,
+      assigneeId: null,
+      assigneeUserId: "user-2",
+      desiredStatus: TaskStatus.DRAFT,
+      runAt: null,
+    });
+
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
+      "task-1",
+      expect.objectContaining({ assigneeUserId: "user-2", runAt: null }),
+    );
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+
   it("leaves Queued with a status event, which clears the Run at on Core", async () => {
     taskServiceMock.patchTask.mockResolvedValue({
       id: "task-1",

@@ -5,8 +5,7 @@ import { format } from "date-fns";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Temporal } from "temporal-polyfill";
-import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
-import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
+import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
@@ -22,7 +21,6 @@ import {
   getLatestCalendarDate,
   resolveCalendarDate,
 } from "@/lib/schedules/calendar-range";
-import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
 import {
   taskService,
@@ -90,18 +88,17 @@ export async function loadCalendarPageContext(
   activeOrganizationId: string | null,
   options: { requireSources?: boolean } = {},
 ) {
-  const [sources, coworkers, memberOptions] = await Promise.all([
+  const [sources, coworkerOptions] = await Promise.all([
     taskService.getWorkspaceCalendarSources().catch((error: unknown) => {
       if (options.requireSources) throw error;
       return [];
     }),
-    coworkerService.listCoworkers().catch(() => []),
-    listTaskAssigneeMemberOptions(activeOrganizationId),
+    listTaskAssigneeOptions(activeOrganizationId),
   ]);
 
   return {
     sources,
-    coworkerOptions: [...memberOptions, ...getCoworkerOptions(coworkers)],
+    coworkerOptions,
   };
 }
 

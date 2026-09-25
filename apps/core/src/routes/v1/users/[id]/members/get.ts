@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { memberRepository } from "@sokosumi/database/repositories";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -11,6 +10,8 @@ import {
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
 import { membersWithOrganizationSchema } from "@/schemas/member.schema";
+
+const memberOrganizationInclude = { organization: true } as const;
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,
@@ -65,10 +66,11 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    const members = await memberRepository.getMembersWithOrganizationByUserId(
-      resolvedUserId,
-      prisma,
-    );
+    const members = await prisma.member.findMany({
+      where: { userId: resolvedUserId },
+      include: memberOrganizationInclude,
+      orderBy: [{ role: "asc" }],
+    });
 
     return ok(c, membersWithOrganizationSchema.parse(members));
   });

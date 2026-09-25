@@ -2000,6 +2000,7 @@
         "clear": "Entfernen",
         "cancel": "Abbrechen",
         "notInFuture": "Wähle einen Zeitpunkt in der Zukunft.",
+        "requiresAgent": "Für geplante Tasks ist ein Agent erforderlich. Wähle einen aus, um eine Startzeit festzulegen.",
         "footer": "Startet {datetime}",
         "badge": {
           "overdue": "Startet gleich",
@@ -2037,6 +2038,7 @@
         "noNextRun": "Kein anstehender Lauf",
         "unassigned": "Nicht zugewiesen",
         "unavailableAssignee": "Nicht verfügbare Zuständigkeit",
+        "workspace": "Workspace",
         "Dialog": {
           "createTitle": "Neuer Zeitplan",
           "editTitle": "Zeitplan bearbeiten",

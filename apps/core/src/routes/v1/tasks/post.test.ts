@@ -619,6 +619,21 @@ describe("POST /tasks", () => {
     expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a human assignee when a Task has a Run at", async () => {
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Human later",
+        assigneeUserId: "user_assignee",
+        runAt: FUTURE_RUN_AT,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
   it("keeps the requested status when no Run at is set", async () => {
     const response = await createApp().request("http://localhost/", {
       method: "POST",

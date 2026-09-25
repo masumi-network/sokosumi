@@ -70,11 +70,8 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   projectId?: string | null;
   context?: TaskContextSelectionInput;
   desiredStatus: TaskStatus;
-  /**
-   * New ISO Run at. Core queues the Task (or moves its time); it is never
-   * cleared here, since leaving Queued through a status event clears it.
-   */
-  runAt?: string;
+  /** New ISO Run at, or null to clear it before changing assignee. */
+  runAt?: string | null;
 }
 
 interface TaskMutationError {
@@ -601,7 +598,9 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
         ...(context
           ? { context: toCoreTaskContext(context, session.user.id) }
           : {}),
-        ...(runAt ? { runAt: new Date(runAt) } : {}),
+        ...(runAt !== undefined
+          ? { runAt: runAt === null ? null : new Date(runAt) }
+          : {}),
       });
 
       if (desiredStatus !== patchedTask.status) {
