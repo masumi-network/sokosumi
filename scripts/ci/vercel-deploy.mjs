@@ -95,6 +95,8 @@ export function usageMessage() {
     "`/deploy all`",
     "",
     "Deploys web + core for the named network(s) at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
+    "",
+    "Add `--reset-db` on the first line (for example `/deploy preprod --reset-db`) to first reset this PR's Neon preview database to its parent. The Core build then applies every migration the parent lacks, this PR's included.",
   ].join("\n");
 }
 
@@ -405,8 +407,11 @@ export async function settlePreviewDeployments(options) {
           .map(({ target, state }) => `${target.name} (${state})`)
           .join(", "),
       ),
-      // Callers name the networks to deploy again.
-      { networks: [...new Set(failed.map(({ target }) => target.network))] },
+      // Callers name the networks to deploy again, and whether Core failed.
+      {
+        networks: [...new Set(failed.map(({ target }) => target.network))],
+        apps: [...new Set(failed.map(({ target }) => target.app))],
+      },
     );
   }
   return { kind: "deploy", deployments: settled };

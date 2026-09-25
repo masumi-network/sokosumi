@@ -76,6 +76,11 @@ describe("parseDeployComment", () => {
       kind: "usage",
     });
     assert.deepEqual(parseDeployComment("/deploy staging"), { kind: "usage" });
+    // The plain /deploy job never deploys a `--reset-db` comment without the
+    // reset.
+    assert.deepEqual(parseDeployComment("/deploy all --reset-db"), {
+      kind: "usage",
+    });
     assert.deepEqual(parseDeployComment("/deploy all mainnet"), {
       kind: "usage",
     });
@@ -1243,9 +1248,20 @@ describe("git preview policy", () => {
     assert.match(resetJob, /github\.event_name == 'issue_comment'/);
     assert.match(resetJob, /github\.event\.issue\.pull_request/);
     assert.match(resetJob, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
-    assert.match(
-      resetJob,
-      /startsWith\(github\.event\.comment\.body, '\/reset-db'\)/,
+    // `/deploy --reset-db` needs the keys too, so it runs here and the
+    // `comment` job skips it. Without the skip, that job would also post a
+    // usage reply.
+    const takesDeployReset =
+      "(startsWith(github.event.comment.body, '/deploy') && contains(github.event.comment.body, '--reset-db'))";
+    assert.ok(
+      resetJob.includes(
+        `      (startsWith(github.event.comment.body, '/reset-db') || ${takesDeployReset})\n`,
+      ),
+    );
+    assert.ok(
+      jobBlock(workflow, "comment").includes(
+        `      contains(github.event.comment.body, '/deploy') &&\n      !${takesDeployReset}\n`,
+      ),
     );
     // Commenters without an association to the repository get no job.
     assert.match(
