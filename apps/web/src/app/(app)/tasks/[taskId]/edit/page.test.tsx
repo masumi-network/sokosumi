@@ -192,6 +192,7 @@ describe("EditTaskPage", () => {
       assigneeId: "cow_123",
       assigneeSokoBotId: null,
       status: "READY",
+      projectId: "project_1",
       workspace: {
         organizationId: "org-current",
       },
@@ -249,7 +250,7 @@ describe("EditTaskPage", () => {
           assigneeId: "cow_123",
           assigneeSokoBotId: null,
           assigneeUserId: null,
-          projectId: null,
+          projectId: "project_1",
           status: "READY",
           runAt: null,
         },
@@ -257,7 +258,9 @@ describe("EditTaskPage", () => {
     );
     expect(screen.getByTestId("task-edit-modal")).toBeInTheDocument();
     // Opened directly, the page still names the task's project.
-    expect(projectScopeMarkerMock).toHaveBeenCalledWith({ projectId: null });
+    expect(projectScopeMarkerMock).toHaveBeenCalledWith({
+      projectId: "project_1",
+    });
   });
 
   it("renders the edit modal for a queued task", async () => {
@@ -306,5 +309,7 @@ describe("EditTaskPage", () => {
       }),
     );
     expect(screen.getByTestId("task-edit-modal")).toBeInTheDocument();
+    // A task with no project reports the workspace.
+    expect(projectScopeMarkerMock).toHaveBeenCalledWith({ projectId: null });
   });
 });

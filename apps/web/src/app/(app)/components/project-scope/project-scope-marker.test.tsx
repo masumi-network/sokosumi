@@ -50,6 +50,38 @@ describe("ProjectScopeMarker", () => {
     expect(read(container, "/tasks/t1/edit")).toBe("p1");
   });
 
+  it("publishes for the detail page when mounted on a sub-route", () => {
+    mocks.pathname.current = "/tasks/t1/edit";
+    const { container } = render(
+      <>
+        <ProjectScopeMarker projectId="p1" />
+        <Reader pathname="/tasks/t1" />
+        <Reader pathname="/tasks/t1/edit" />
+      </>,
+    );
+
+    expect(read(container, "/tasks/t1")).toBe("p1");
+    expect(read(container, "/tasks/t1/edit")).toBe("p1");
+  });
+
+  it("keeps the detail page's project when an edit modal opens over it", () => {
+    const tree = () => (
+      <>
+        <ProjectScopeMarker projectId="p1" />
+        <Reader pathname="/tasks/t1" />
+        <Reader pathname="/tasks/t1/edit" />
+      </>
+    );
+    const { container, rerender } = render(tree());
+
+    // The intercepted edit route keeps the detail page, and its marker, mounted.
+    mocks.pathname.current = "/tasks/t1/edit";
+    rerender(tree());
+
+    expect(read(container, "/tasks/t1")).toBe("p1");
+    expect(read(container, "/tasks/t1/edit")).toBe("p1");
+  });
+
   it("is ignored on any other path", () => {
     const { container } = render(
       <>
