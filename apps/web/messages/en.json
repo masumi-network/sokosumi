@@ -2581,7 +2581,11 @@
           "assistantError": "The assistant could not finish that",
           "assistantErrorHint": "Your message is still in the box. Try sending it again, or rephrase it.",
           "bindWarning": "This conversation could not be saved to the project, so it may not reappear after a reload.",
-          "loadOlder": "Load older versions"
+          "loadOlder": "Load older versions",
+          "errorSessionExpired": "Your session expired. Reload to continue.",
+          "errorRefreshFailed": "Could not refresh. Retrying.",
+          "errorLoadOlderFailed": "Could not load older versions.",
+          "retryConnection": "Try connecting again"
         }
       }
     },

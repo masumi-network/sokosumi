@@ -45,7 +45,14 @@ export function StudioChat({
 }) {
   const draftKey = `sokosumi:image-studio:draft:${projectId}`;
   const [draft, setDraft] = useState("");
-  const [tokenError, setTokenError] = useState(false);
+  /**
+   * `null` while the token works. `"unavailable"` is permanent for this page
+   * load (the feature is not configured, or this session cannot see the
+   * project); `"transient"` is worth another try.
+   */
+  const [tokenError, setTokenError] = useState<
+    null | "unavailable" | "transient"
+  >(null);
   const [bindWarning, setBindWarning] = useState(false);
   const boundSessionRef = useRef<string | null>(resumeSessionId);
   const transcriptRef = useRef<HTMLDivElement>(null);
@@ -67,15 +74,27 @@ export function StudioChat({
   }, [draftKey]);
 
   const fetchToken = useCallback(async () => {
-    const response = await fetch(
-      `/api/projects/${projectId}/image-studio/agent-token`,
-      { method: "POST", credentials: "same-origin" },
-    );
+    let response: Response;
+    try {
+      response = await fetch(
+        `/api/projects/${projectId}/image-studio/agent-token`,
+        { method: "POST", credentials: "same-origin" },
+      );
+    } catch (error) {
+      // Never reached the server; retrying is reasonable.
+      setTokenError("transient");
+      throw error;
+    }
     if (!response.ok) {
-      setTokenError(true);
+      // A 503 with `Retry-After` is the mint route saying Core was briefly
+      // slow — not that the studio is unavailable. Treating every failure as
+      // permanent disabled the chat until the page was reloaded.
+      const retriable =
+        response.status === 503 && response.headers.has("retry-after");
+      setTokenError(retriable ? "transient" : "unavailable");
       throw new Error("studio token unavailable");
     }
-    setTokenError(false);
+    setTokenError(null);
     const body = (await response.json()) as { token: string };
     return body.token;
   }, [projectId]);
@@ -174,7 +193,7 @@ export function StudioChat({
     }
   }
 
-  if (tokenError) {
+  if (tokenError === "unavailable") {
     return (
       <section
         aria-label={labels.chatTitle}
@@ -235,6 +254,23 @@ export function StudioChat({
           </p>
         ) : null}
       </div>
+
+      {tokenError === "transient" ? (
+        <div className="border-border border-t px-4 py-3 text-sm" role="alert">
+          <p className="text-muted-foreground">{labels.errorRefreshFailed}</p>
+          <Button
+            className="mt-2"
+            onClick={() => {
+              setTokenError(null);
+              void fetchToken().catch(() => {});
+            }}
+            size="sm"
+            variant="secondary"
+          >
+            {labels.retryConnection}
+          </Button>
+        </div>
+      ) : null}
 
       {agent.error ? (
         <div

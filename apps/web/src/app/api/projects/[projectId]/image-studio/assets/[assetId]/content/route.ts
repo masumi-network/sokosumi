@@ -47,8 +47,10 @@ export async function GET(
       status: 200,
       headers: {
         "content-type": upstream.headers.get("content-type") ?? "image/png",
-        // Private: the bytes are stable but permission to read them is not.
-        "cache-control": "private, max-age=300",
+        // Mirrors Core's policy rather than inventing a laxer one: the bytes
+        // are stable, but permission to read them is not, so every reuse
+        // revalidates through the route that checks access.
+        "cache-control": "private, no-cache",
         ...(upstream.headers.get("etag")
           ? { etag: upstream.headers.get("etag")! }
           : {}),

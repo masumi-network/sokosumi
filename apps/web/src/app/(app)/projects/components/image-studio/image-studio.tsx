@@ -27,7 +27,7 @@ import {
   type StudioLabels,
   type StudioState,
 } from "./types";
-import { useStudioState } from "./use-studio-state";
+import { type StudioErrorCode, useStudioState } from "./use-studio-state";
 
 type Filter = "all" | "approved";
 
@@ -276,11 +276,24 @@ export function ImageStudio({
     });
   }
 
+  function errorMessage(code: StudioErrorCode | null) {
+    switch (code) {
+      case "session_expired":
+        return labels.errorSessionExpired;
+      case "refresh_failed":
+        return labels.errorRefreshFailed;
+      case "load_older_failed":
+        return labels.errorLoadOlderFailed;
+      default:
+        return null;
+    }
+  }
+
   return (
     <div className="space-y-6">
       {studio.error || actionError ? (
         <p className="text-muted-foreground text-sm" role="status">
-          {actionError ?? studio.error}
+          {actionError ?? errorMessage(studio.error)}
         </p>
       ) : null}
 

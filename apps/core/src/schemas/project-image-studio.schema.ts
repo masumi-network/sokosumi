@@ -126,6 +126,12 @@ export const imageStudioJobSchema = z
     submittedAt: dateTimeSchema.nullable(),
     settledAt: dateTimeSchema.nullable(),
     /**
+     * Set once the provider accepted a cancellation request. Not the same as
+     * the job being over: fal may accept a cancellation and finish anyway, so
+     * a job can carry this and still produce a version.
+     */
+    cancelRequestedAt: dateTimeSchema.nullable(),
+    /**
      * True only for a submission whose outcome is unknown. A client must not
      * offer a one-click retry for these without saying that it may be charged
      * a second time.

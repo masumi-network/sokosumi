@@ -228,8 +228,9 @@ export async function fetchQueueStatus(options: {
     };
   }
   if (response.status === 404) return { kind: "not_found" };
-  // A gateway 5xx is fal's infrastructure, not a verdict on the request.
-  if (response.status >= 500) {
+  // A gateway 5xx is fal's infrastructure, and a 429 is "ask again", not a
+  // verdict on the request. Neither says the job failed.
+  if (response.status >= 500 || response.status === 429) {
     return { kind: "unreachable", message: `fal returned ${response.status}` };
   }
   if (!response.ok) {
@@ -289,7 +290,7 @@ export async function fetchQueueResult(options: {
   if (response.status === 202 || response.status === 404) {
     return { kind: "pending" };
   }
-  if (response.status >= 500) {
+  if (response.status >= 500 || response.status === 429) {
     return { kind: "unreachable", message: `fal returned ${response.status}` };
   }
   if (!response.ok) {

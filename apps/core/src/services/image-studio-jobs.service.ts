@@ -164,23 +164,42 @@ async function reserveJob(input: CreateImageJobInput) {
         ? ProjectImageJobKind.EDIT
         : ProjectImageJobKind.GENERATE;
 
-    const job = await tx.projectImageJob.create({
-      data: {
-        projectId: input.projectId,
-        workspaceId: input.workspaceId,
-        sessionId: input.sessionId,
-        requestedByUserId: input.userId,
-        kind,
-        model: falModelForKind(kind),
-        prompt: input.prompt,
-        settings: { ...input.settings },
-        referenceAssetIds: input.referenceAssetIds,
-        parentAssetId: input.parentAssetId,
-        idempotencyKey: input.idempotencyKey,
-        status: ProjectImageJobStatus.PENDING,
-      },
-    });
-    return { job, created: true };
+    try {
+      const job = await tx.projectImageJob.create({
+        data: {
+          projectId: input.projectId,
+          workspaceId: input.workspaceId,
+          sessionId: input.sessionId,
+          requestedByUserId: input.userId,
+          kind,
+          model: falModelForKind(kind),
+          prompt: input.prompt,
+          settings: { ...input.settings },
+          referenceAssetIds: input.referenceAssetIds,
+          parentAssetId: input.parentAssetId,
+          idempotencyKey: input.idempotencyKey,
+          status: ProjectImageJobStatus.PENDING,
+        },
+      });
+      return { job, created: true };
+    } catch (error) {
+      // Two callers passed the existence check together and the index caught
+      // the loser. That is the index doing its job, not an error worth
+      // surfacing: the answer the caller wants is the row that won.
+      // `serializableTransaction` retries serialization conflicts (P2034),
+      // not unique violations, so this has to be handled here.
+      if (!isUniqueViolation(error)) throw error;
+      const winner = await tx.projectImageJob.findUnique({
+        where: {
+          projectId_idempotencyKey: {
+            projectId: input.projectId,
+            idempotencyKey: input.idempotencyKey,
+          },
+        },
+      });
+      if (!winner) throw error;
+      return { job: winner, created: false };
+    }
   }, "Another image request is being accepted for this project. Try again.");
 }
 
@@ -576,7 +595,11 @@ export async function settleWithImage(
       LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES,
     );
   } catch (error) {
-    await failJob(
+    // fal has already produced the image, so it has already been paid for. A
+    // failed download is our problem, not a verdict on the job: leave the row
+    // live so a later reconcile or the webhook can fetch it again rather than
+    // offering the person another paid generation.
+    await noteUnreachable(
       job.id,
       error instanceof Error ? error.message : "image download failed",
     );

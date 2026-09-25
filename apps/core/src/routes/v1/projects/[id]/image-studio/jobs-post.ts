@@ -81,6 +81,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         createdAt: job.createdAt,
         submittedAt: job.submittedAt,
         settledAt: job.settledAt,
+        cancelRequestedAt: job.cancelRequestedAt,
         retryMayDuplicateCharge: job.status === "SUBMISSION_UNCERTAIN",
       }),
     );

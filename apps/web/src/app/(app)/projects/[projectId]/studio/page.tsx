@@ -88,6 +88,10 @@ export default async function ProjectStudioPage({
     assistantErrorHint: t("assistantErrorHint"),
     bindWarning: t("bindWarning"),
     loadOlder: t("loadOlder"),
+    errorSessionExpired: t("errorSessionExpired"),
+    errorRefreshFailed: t("errorRefreshFailed"),
+    errorLoadOlderFailed: t("errorLoadOlderFailed"),
+    retryConnection: t("retryConnection"),
   };
 
   // A session id in the URL is a request to resume, not a right to. Only a

@@ -2352,6 +2352,9 @@ const projectImageJobSchemaResponseTransformer = (data: any) => {
     if (data.settledAt) {
         data.settledAt = new Date(data.settledAt);
     }
+    if (data.cancelRequestedAt) {
+        data.cancelRequestedAt = new Date(data.cancelRequestedAt);
+    }
     return data;
 };
 

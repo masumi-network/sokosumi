@@ -320,6 +320,22 @@ describe("image studio job submission", () => {
     expect(JSON.stringify(submitted)).not.toContain("image-studio/secret");
   });
 
+  it("returns the winning row when two callers race the same key into the index", async () => {
+    // Both passed the existence check; Postgres caught the loser. The answer
+    // the caller wants is the row that won, not a 500.
+    jobFindUniqueMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(jobRow({ status: "QUEUED" }));
+    jobCreateMock.mockRejectedValue(
+      Object.assign(new Error("unique"), { code: "P2002" }),
+    );
+
+    const job = await createImageJob(BASE_INPUT);
+
+    expect(job.status).toBe("QUEUED");
+    expect(submitToQueueMock).not.toHaveBeenCalled();
+  });
+
   it("does not submit when the same key is replayed while the first attempt is uncertain", async () => {
     jobFindUniqueMock.mockResolvedValue(
       jobRow({ status: "SUBMISSION_UNCERTAIN", submitAttempts: 1 }),

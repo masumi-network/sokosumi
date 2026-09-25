@@ -39,8 +39,14 @@ export interface StudioStateHook {
   loadOlder: () => Promise<void>;
   hasOlder: boolean;
   isRefreshing: boolean;
-  error: string | null;
+  /** A code the page maps to a localized message, never a display string. */
+  error: StudioErrorCode | null;
 }
+
+export type StudioErrorCode =
+  | "session_expired"
+  | "refresh_failed"
+  | "load_older_failed";
 
 export function useStudioState(options: {
   projectId: string;
@@ -50,7 +56,7 @@ export function useStudioState(options: {
 }): StudioStateHook {
   const { projectId, initialState, initialSelectedAssetId } = options;
   const [state, setState] = useState<StudioState>(initialState);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<StudioErrorCode | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selection, setSelection] = useState<Selection>({
     assetId: initialSelectedAssetId ?? initialState.assets[0]?.id ?? null,
@@ -61,40 +67,62 @@ export function useStudioState(options: {
   // selection change never restarts the poll.
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const onSelectionChange = options.onSelectionChange;
 
+  /**
+   * Fold a fresh payload into what is on screen.
+   *
+   * The auto-selection decision is made here rather than inside a `setState`
+   * updater: an updater must be pure, and React may run it twice or during a
+   * later render. Calling `router.replace` from inside one produced a
+   * "cannot update a component while rendering" warning and could replace the
+   * URL twice.
+   */
   const applyState = useCallback(
     (next: StudioState) => {
-      setState((previous) => {
-        const current = selectionRef.current;
-        const known = new Set(previous.assets.map((asset) => asset.id));
-        const arrived = next.assets.filter((asset) => !known.has(asset.id));
+      const previous = stateRef.current;
+      const current = selectionRef.current;
 
-        if (arrived.length > 0) {
-          // Newest first, so the first arrival is the one to consider.
-          const candidate = arrived[0]!;
-          const startedAt = next.jobs.find(
-            (job) => job.assetId === candidate.id,
-          )?.createdAt;
-          // The generated client transforms date fields into `Date`, but a
-          // payload straight off `fetch()` in this hook has not been through
-          // that transformer, so accept either.
-          const jobStartedAt = startedAt
-            ? new Date(startedAt as unknown as string).getTime()
-            : null;
+      const known = new Set(previous.assets.map((asset) => asset.id));
+      const arrived = next.assets.filter((asset) => !known.has(asset.id));
+      // Older pages already loaded are not in `next`. Keeping them means
+      // "load older" is not undone by the next poll.
+      const returned = new Set(next.assets.map((asset) => asset.id));
+      const keptOlder = previous.assets.filter(
+        (asset) => !returned.has(asset.id),
+      );
 
-          const selectionIsUntouched =
-            current.chosenByUserAt === null ||
-            (jobStartedAt !== null && current.chosenByUserAt < jobStartedAt);
+      let selected: string | null = null;
+      if (arrived.length > 0) {
+        // Newest first, so the first arrival is the one to consider.
+        const candidate = arrived[0]!;
+        const startedAt = next.jobs.find(
+          (job) => job.assetId === candidate.id,
+        )?.createdAt;
+        const jobStartedAt = startedAt
+          ? new Date(startedAt as unknown as string).getTime()
+          : null;
 
-          // Nothing selected yet is the first-use case: show the first image.
-          if (current.assetId === null || selectionIsUntouched) {
-            setSelection({ assetId: candidate.id, chosenByUserAt: null });
-            onSelectionChange?.(candidate.id);
-          }
+        const selectionIsUntouched =
+          current.chosenByUserAt === null ||
+          (jobStartedAt !== null && current.chosenByUserAt < jobStartedAt);
+
+        // Nothing selected yet is the first-use case: show the first image.
+        if (current.assetId === null || selectionIsUntouched) {
+          selected = candidate.id;
         }
-        return next;
-      });
+      }
+
+      const merged = { ...next, assets: [...next.assets, ...keptOlder] };
+      stateRef.current = merged;
+      setState(merged);
+
+      if (selected) {
+        setSelection({ assetId: selected, chosenByUserAt: null });
+        onSelectionChange?.(selected);
+      }
     },
     [onSelectionChange],
   );
@@ -112,17 +140,17 @@ export function useStudioState(options: {
         { credentials: "same-origin", cache: "no-store" },
       );
       if (!response.ok) {
+        // A code, not a sentence: the page owns the wording so German and
+        // Spanish readers do not get an English string on a translated page.
         setError(
-          response.status === 401
-            ? "Your session expired. Reload to continue."
-            : "Could not refresh. Retrying.",
+          response.status === 401 ? "session_expired" : "refresh_failed",
         );
         return;
       }
       setError(null);
       applyState((await response.json()) as StudioState);
     } catch {
-      setError("Could not refresh. Retrying.");
+      setError("refresh_failed");
     } finally {
       setIsRefreshing(false);
     }
@@ -160,19 +188,20 @@ export function useStudioState(options: {
       );
       if (!response.ok) return;
       const older = (await response.json()) as StudioState;
-      setState((previous) => {
-        const known = new Set(previous.assets.map((asset) => asset.id));
-        return {
-          ...previous,
-          assets: [
-            ...previous.assets,
-            ...older.assets.filter((asset) => !known.has(asset.id)),
-          ],
-          nextCursor: older.nextCursor,
-        };
-      });
+      const previous = stateRef.current;
+      const known = new Set(previous.assets.map((asset) => asset.id));
+      const merged = {
+        ...previous,
+        assets: [
+          ...previous.assets,
+          ...older.assets.filter((asset) => !known.has(asset.id)),
+        ],
+        nextCursor: older.nextCursor,
+      };
+      stateRef.current = merged;
+      setState(merged);
     } catch {
-      setError("Could not load older versions.");
+      setError("load_older_failed");
     } finally {
       setIsRefreshing(false);
     }

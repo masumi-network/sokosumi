@@ -16585,6 +16585,14 @@ export const ProjectImageJobSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        cancelRequestedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         retryMayDuplicateCharge: {
             type: 'boolean'
         }
@@ -16600,6 +16608,7 @@ export const ProjectImageJobSchema = {
         'createdAt',
         'submittedAt',
         'settledAt',
+        'cancelRequestedAt',
         'retryMayDuplicateCharge'
     ]
 } as const;

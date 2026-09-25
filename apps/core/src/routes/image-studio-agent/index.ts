@@ -1,12 +1,15 @@
 import { Hono } from "hono";
 
-import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { requireProjectAccessForUser } from "@/lib/image-studio/access";
 import { verifyAgentGrant } from "@/lib/image-studio/agent-grant";
-import { assetContentPath } from "@/schemas/project-image-studio.schema";
+import {
+  assetContentPath,
+  createImageJobRequestSchema,
+} from "@/schemas/project-image-studio.schema";
 import {
   getAsset,
+  getJob,
   listAssets,
   listJobs,
 } from "@/services/image-studio-assets.service";
@@ -130,53 +133,49 @@ app.post("/generations", async (c) => {
   const context = await authorize(c.req.raw);
   if (context instanceof Response) return context;
 
-  const body = (await c.req.json().catch(() => null)) as {
-    prompt?: unknown;
-    parentAssetId?: unknown;
-    referenceAssetIds?: unknown;
-    aspectRatio?: unknown;
-    resolution?: unknown;
-    idempotencyKey?: unknown;
-    sessionId?: unknown;
-  } | null;
+  // The same schema the session-authenticated route uses. Hand-rolled `typeof`
+  // checks let a non-UUID reference reach Prisma as a 500, and let an
+  // unsupported aspect ratio be written, counted against the hourly spend cap,
+  // and only then refused by fal.
+  const raw = (await c.req.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  if (!raw) return c.json({ ok: false, error: "invalid_input" }, 400);
 
-  const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
-  const idempotencyKey =
-    typeof body?.idempotencyKey === "string" ? body.idempotencyKey.trim() : "";
-  if (prompt.length === 0 || idempotencyKey.length < 8) {
-    return c.json({ ok: false, error: "invalid_input" }, 400);
+  const parsed = createImageJobRequestSchema.safeParse({
+    ...raw,
+    settings: {
+      ...(typeof raw.aspectRatio === "string"
+        ? { aspectRatio: raw.aspectRatio }
+        : {}),
+      ...(typeof raw.resolution === "string"
+        ? { resolution: raw.resolution }
+        : {}),
+    },
+  });
+  if (!parsed.success) {
+    return c.json(
+      {
+        ok: false,
+        error: "invalid_input",
+        detail: parsed.error.issues[0]?.message,
+      },
+      400,
+    );
   }
-
-  const referenceAssetIds = Array.isArray(body?.referenceAssetIds)
-    ? body.referenceAssetIds.filter(
-        (value): value is string => typeof value === "string",
-      )
-    : [];
-  if (referenceAssetIds.length > LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB) {
-    return c.json({ ok: false, error: "too_many_references" }, 400);
-  }
+  const input = parsed.data;
 
   const job = await createImageJob({
     projectId: context.projectId,
     workspaceId: context.workspaceId,
     userId: context.userId,
-    sessionId: typeof body?.sessionId === "string" ? body.sessionId : null,
-    prompt,
-    settings: {
-      ...DEFAULT_SETTINGS,
-      aspectRatio:
-        typeof body?.aspectRatio === "string"
-          ? body.aspectRatio
-          : DEFAULT_SETTINGS.aspectRatio,
-      resolution:
-        typeof body?.resolution === "string"
-          ? body.resolution
-          : DEFAULT_SETTINGS.resolution,
-    },
-    referenceAssetIds,
-    parentAssetId:
-      typeof body?.parentAssetId === "string" ? body.parentAssetId : null,
-    idempotencyKey,
+    sessionId: input.sessionId,
+    prompt: input.prompt,
+    settings: { ...DEFAULT_SETTINGS, ...input.settings },
+    referenceAssetIds: input.referenceAssetIds,
+    parentAssetId: input.parentAssetId,
+    idempotencyKey: input.idempotencyKey,
   });
 
   return c.json({
@@ -197,9 +196,11 @@ app.get("/generations/:jobId", async (c) => {
   const context = await authorize(c.req.raw);
   if (context instanceof Response) return context;
 
+  const jobId = c.req.param("jobId");
   await reconcileProjectJobs(context.projectId);
-  const jobs = await listJobs({ ...context, limit: 50 });
-  const job = jobs.find((candidate) => candidate.id === c.req.param("jobId"));
+  // By id, not by scanning a page: a busy project pushed older jobs out of the
+  // window, and the agent then told the person their generation was gone.
+  const job = await getJob({ ...context, jobId });
   if (!job) return c.json({ ok: false, error: "not_found" }, 404);
 
   const asset = job.assetId

@@ -153,7 +153,7 @@ describe("useStudioState", () => {
     expect(result.current.selectedAsset?.id).toBe("a1");
   });
 
-  it("surfaces an expired session instead of silently showing stale state", async () => {
+  it("reports an expired session as a code the page can localize", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response("{}", { status: 401 })),
@@ -170,6 +170,7 @@ describe("useStudioState", () => {
       await result.current.refresh();
     });
 
-    expect(result.current.error).toContain("session expired");
+    // A code, not a sentence: the wording lives in the message catalogues.
+    expect(result.current.error).toBe("session_expired");
   });
 });

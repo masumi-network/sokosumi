@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 import type { AgentIdentity } from "./core";
 
 /**
@@ -39,5 +41,12 @@ export function idempotencyKeyFor(
   },
   discriminator: string,
 ): string {
-  return `eve:${ctx.session.id}:${ctx.session.turn.id}:${discriminator}`;
+  // Hashed because the discriminator carries the prompt, which may run to
+  // thousands of characters, while Core caps the key at 200. An unbounded key
+  // turned a long prompt into a 400 instead of a generation.
+  const digest = crypto
+    .createHash("sha256")
+    .update(discriminator)
+    .digest("base64url");
+  return `eve:${ctx.session.id}:${ctx.session.turn.id}:${digest}`;
 }

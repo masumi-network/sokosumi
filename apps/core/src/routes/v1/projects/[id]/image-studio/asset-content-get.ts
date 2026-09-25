@@ -58,10 +58,12 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     return c.body(result.stream, 200, {
       "content-type": result.contentType,
       "content-length": String(result.size),
-      // The bytes never change for a given asset, but the *permission* to read
-      // them can be revoked, so only the browser that authenticated may keep a
-      // copy and a shared cache must not.
-      "cache-control": "private, max-age=300",
+      // The bytes never change for a given asset, but the *permission* to
+      // read them can be revoked at any moment. `no-cache` keeps the browser's
+      // copy while forcing it back through this route — which re-checks access
+      // — before reusing it, so a removed member's cached image stops being
+      // served. The etag below is what makes that revalidation cheap (304).
+      "cache-control": "private, no-cache",
       etag: `"${result.checksum}"`,
       "content-disposition": `inline; filename="${assetId}"`,
     });

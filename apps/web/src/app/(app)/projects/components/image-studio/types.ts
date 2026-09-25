@@ -76,4 +76,8 @@ export interface StudioLabels {
   assistantErrorHint: string;
   bindWarning: string;
   loadOlder: string;
+  errorSessionExpired: string;
+  errorRefreshFailed: string;
+  errorLoadOlderFailed: string;
+  retryConnection: string;
 }

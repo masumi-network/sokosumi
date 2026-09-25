@@ -4969,6 +4969,7 @@ export type ProjectImageJob = {
     createdAt: Date;
     submittedAt: Date | null;
     settledAt: Date | null;
+    cancelRequestedAt: Date | null;
     retryMayDuplicateCharge: boolean;
 };
 

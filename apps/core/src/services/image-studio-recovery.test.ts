@@ -286,6 +286,33 @@ describe("cancellation", () => {
   });
 });
 
+describe("a download that fails after the provider produced the image", () => {
+  it("keeps the job recoverable rather than failing it", async () => {
+    jobFindUniqueMock.mockResolvedValue(queuedJob());
+    requireProjectAccessForUserMock.mockResolvedValue({
+      projectId: "project-1",
+      workspaceId: "workspace-1",
+      userId: "user-1",
+    });
+    downloadImageMock.mockRejectedValue(new Error("connection reset"));
+    jobUpdateMock.mockResolvedValue({ pollFailures: 1 });
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    // The image exists and has been paid for. Marking the job FAILED here
+    // offered the person a "free-looking" retry that buys a second one.
+    const statuses = jobUpdateManyMock.mock.calls.map(
+      (call) => call[0].data?.status,
+    );
+    expect(statuses).not.toContain("FAILED");
+    expect(jobUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ pollFailures: { increment: 1 } }),
+      }),
+    );
+  });
+});
+
 describe("a reservation whose process died before it claimed submission", () => {
   it("is finished rather than left holding the project's concurrency", async () => {
     const created = new Date(Date.now() - 120_000);

@@ -285,8 +285,42 @@ export interface JobView {
   createdAt: Date;
   submittedAt: Date | null;
   settledAt: Date | null;
+  /** Set once the provider accepted a cancellation request for this job. */
+  cancelRequestedAt: Date | null;
   /** True when a retry could buy a second image. */
   retryMayDuplicateCharge: boolean;
+}
+
+/**
+ * One job by id, scoped to the project.
+ *
+ * Exists so a caller does not have to find a job inside a page of recent ones:
+ * an older id is still a real job, and answering "not found" for it is a lie.
+ */
+export async function getJob(options: {
+  jobId: string;
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+}): Promise<JobView | null> {
+  await requireProjectAccess(options);
+  const job = await prisma.projectImageJob.findFirst({
+    where: { id: options.jobId, projectId: options.projectId },
+    select: {
+      id: true,
+      status: true,
+      kind: true,
+      prompt: true,
+      error: true,
+      parentAssetId: true,
+      createdAt: true,
+      submittedAt: true,
+      settledAt: true,
+      cancelRequestedAt: true,
+      asset: { select: { id: true } },
+    },
+  });
+  return job ? toJobView(job) : null;
 }
 
 export async function listJobs(options: {
@@ -310,10 +344,27 @@ export async function listJobs(options: {
       createdAt: true,
       submittedAt: true,
       settledAt: true,
+      cancelRequestedAt: true,
       asset: { select: { id: true } },
     },
   });
-  return jobs.map((job) => ({
+  return jobs.map(toJobView);
+}
+
+function toJobView(job: {
+  id: string;
+  status: ProjectImageJobStatus;
+  kind: string;
+  prompt: string;
+  error: string | null;
+  parentAssetId: string | null;
+  createdAt: Date;
+  submittedAt: Date | null;
+  settledAt: Date | null;
+  cancelRequestedAt: Date | null;
+  asset: { id: string } | null;
+}): JobView {
+  return {
     id: job.id,
     status: job.status,
     kind: job.kind,
@@ -324,7 +375,8 @@ export async function listJobs(options: {
     createdAt: job.createdAt,
     submittedAt: job.submittedAt,
     settledAt: job.settledAt,
+    cancelRequestedAt: job.cancelRequestedAt,
     retryMayDuplicateCharge:
       job.status === ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
-  }));
+  };
 }
