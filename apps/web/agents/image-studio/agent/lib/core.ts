@@ -195,29 +195,18 @@ export async function registerCreatedSession(
     );
     if (!response.ok) return unrecorded;
     const body = (await response.json().catch(() => null)) as {
-      data?: {
-        eveSessionId?: unknown;
-        initialTurn?: unknown;
-        mayDeliver?: unknown;
-        deliveryToken?: unknown;
-      };
+      data?: unknown;
     } | null;
-    const recordedId = body?.data?.eveSessionId;
-    // An answer we cannot read is not an answer. Treating it as a success
-    // would mean dispatching into a conversation Core may not have recorded.
-    if (typeof recordedId !== "string" || recordedId.length === 0) {
+    const data = body?.data as Record<string, unknown> | undefined;
+    const recordedId = data?.eveSessionId;
+    const facts = readDeliveryFacts(data);
+    // An answer we cannot read whole is not an answer. Treating a partial one
+    // as a success would mean dispatching into a conversation Core may not
+    // have recorded, or on a lease it never granted.
+    if (typeof recordedId !== "string" || recordedId.length === 0 || !facts) {
       return unrecorded;
     }
-    return {
-      recorded: true,
-      eveSessionId: recordedId,
-      initialTurn: readInitialTurn(body?.data?.initialTurn),
-      mayDeliver: body?.data?.mayDeliver === true,
-      deliveryToken:
-        typeof body?.data?.deliveryToken === "string"
-          ? body.data.deliveryToken
-          : null,
-    };
+    return { recorded: true, eveSessionId: recordedId, ...facts };
   } catch {
     return unrecorded;
   }
@@ -314,24 +303,17 @@ export async function transitionInitialTurn(
       return unreadable(response.status === 404 ? "denied" : "unavailable");
     }
     const body = (await response.json().catch(() => null)) as {
-      data?: {
-        accepted?: unknown;
-        initialTurn?: unknown;
-        mayDeliver?: unknown;
-        deliveryToken?: unknown;
-      };
+      data?: unknown;
     } | null;
-    if (!body?.data) return unreadable("unavailable");
-    return {
-      outcome: "ok",
-      accepted: body.data.accepted === true,
-      initialTurn: readInitialTurn(body.data.initialTurn),
-      mayDeliver: body.data.mayDeliver === true,
-      deliveryToken:
-        typeof body.data.deliveryToken === "string"
-          ? body.data.deliveryToken
-          : null,
-    };
+    const data = body?.data as Record<string, unknown> | undefined;
+    const facts = readDeliveryFacts(data);
+    // Partial or ill-typed is unreadable, not lenient. A 200 that merely
+    // carried a `data` object used to pass for an answer, and the send route
+    // then treated its recognized state as licence to deliver unfenced.
+    if (!facts || typeof data?.accepted !== "boolean") {
+      return unreadable("unavailable");
+    }
+    return { outcome: "ok", accepted: data.accepted, ...facts };
   } catch {
     return unreadable("unavailable");
   }
@@ -346,11 +328,59 @@ const INITIAL_TURNS: readonly InitialTurn[] = [
   "UNCERTAIN",
 ];
 
-/** An unreadable state is treated as "in flight", never as "safe to send". */
-function readInitialTurn(value: unknown): InitialTurn {
-  return INITIAL_TURNS.includes(value as InitialTurn)
-    ? (value as InitialTurn)
-    : "DELIVERING";
+/** The part of either response that decides whether a message may go. */
+interface DeliveryFacts {
+  initialTurn: InitialTurn;
+  mayDeliver: boolean;
+  deliveryToken: string | null;
+}
+
+/**
+ * Read the delivery half of a Core response, or refuse to read it at all.
+ *
+ * Every field here is load-bearing, so every field is checked. A body that
+ * merely *had* a `data` object used to be treated as an answer: a 200 carrying
+ * only `{"initialTurn":"DELIVERED"}` was read as a recognized state with
+ * `mayDeliver` quietly false, and the send route took "recognized state" as
+ * licence to hand the message to the ordinary path — which fences
+ * authorization, not delivery ownership. One first message then went twice.
+ *
+ * So a partial or ill-typed body is not a lenient success; it is no answer,
+ * and the caller must treat it the way it treats a 503.
+ *
+ * The lease is checked against `mayDeliver` rather than on its own, because
+ * the two are one fact stated twice: Core grants the right to deliver by
+ * minting a token, and grants nothing when it mints none. A body where they
+ * disagree is not a body this protocol can act on.
+ *
+ * `accepted` is deliberately *not* required to be true. A terminal claim —
+ * "this conversation's first message was already delivered" — is a perfectly
+ * good answer that says no.
+ */
+function readDeliveryFacts(value: unknown): DeliveryFacts | null {
+  if (typeof value !== "object" || value === null) return null;
+  const data = value as Record<string, unknown>;
+
+  const initialTurn = data.initialTurn;
+  if (
+    typeof initialTurn !== "string" ||
+    !INITIAL_TURNS.includes(initialTurn as InitialTurn)
+  ) {
+    return null;
+  }
+  if (typeof data.mayDeliver !== "boolean") return null;
+
+  const deliveryToken = data.deliveryToken;
+  if (deliveryToken !== null && typeof deliveryToken !== "string") return null;
+  const holdsLease =
+    typeof deliveryToken === "string" && deliveryToken.length > 0;
+  if (holdsLease !== data.mayDeliver) return null;
+
+  return {
+    initialTurn: initialTurn as InitialTurn,
+    mayDeliver: data.mayDeliver,
+    deliveryToken: holdsLease ? (deliveryToken as string) : null,
+  };
 }
 
 export interface VersionSummary {

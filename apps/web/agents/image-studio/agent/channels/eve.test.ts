@@ -749,6 +749,37 @@ describe("an ordinary send into a conversation that still owes its first message
     },
   );
 
+  it.each([
+    ["a partial DELIVERED body", "DELIVERED"],
+    ["a partial NONE body", "NONE"],
+    ["a partial UNCERTAIN body", "UNCERTAIN"],
+  ])(
+    "does not take %s as licence to deliver unfenced",
+    async (_label, initialTurn) => {
+      // The reproduced shape: a 200 naming a state the channel recognizes,
+      // with the fields that decide ownership missing. Read leniently it looks
+      // like "nothing is owed", and the message went to the ordinary path —
+      // which fences authorization, not delivery. The client now refuses to
+      // read it, so the state the body claimed never reaches this switch.
+      transitionMock.mockResolvedValue({
+        outcome: "unavailable",
+        accepted: false,
+        initialTurn,
+        mayDeliver: false,
+        deliveryToken: null,
+      });
+      const { ctx, sent } = creationContext("wrun_partial");
+
+      const response = await send("wrun_partial", { message: "x" }, ctx);
+
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({
+        code: "initial_turn_unavailable",
+      });
+      expect(sent).toEqual([]);
+    },
+  );
+
   it("fails closed even while another attempt holds the delivery", async () => {
     // The fence is live; an unreadable claim must not walk through it.
     transitionMock.mockResolvedValue({
