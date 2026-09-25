@@ -1139,6 +1139,44 @@ struct WorkspaceStateTests {
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
   }
 
+  /// A room can accept a send before its first page arrives. That older snapshot
+  /// must neither erase the accepted message nor duplicate a row already confirmed.
+  @Test(arguments: [false, true])
+  func sendDuringInitialHistoryPreservesConfirmation(historyIncludesSend: Bool) async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440000"
+    let confirmedID = "550e8400-e29b-41d4-a716-446655440501"
+    let historical = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440500", roomId: roomID, content: "earlier")
+    let confirmed = transcriptMessage(id: confirmedID, roomId: roomID, content: "hello")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: historyIncludesSend ? [historical, confirmed] : [historical], nextCursor: nil)),
+      (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "hello")),
+      (200, roomReadBody(id: roomID, unread: 0))
+    ])
+    transport.pauseGET = true
+    await state.reload(auth: auth)
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("get/chats/rooms/{id}/messages") {
+      await Task.yield()
+    }
+    #expect(state.transcriptLoading)
+    let accepted = state.sendMessage("hello", auth: auth)
+    #expect(accepted)
+    if accepted {
+      #expect(state.displayedTranscript.map(\.content) == ["hello"])
+      await waitForOutboundIdle(state)
+      #expect(state.transcriptLoading)
+      #expect(state.outboundShells.isEmpty)
+      #expect(state.transcriptMessages.map(\.id) == [confirmedID])
+    }
+    transport.pauseGET = false
+    transport.releasePausedRequest()
+    await waitForTranscriptIdle(state)
+    #expect(state.displayedTranscript.map(\.content) == ["earlier", "hello"])
+    #expect(state.transcriptMessages.filter { $0.id == confirmedID }.count == 1)
+  }
+
   @Test func sendPaintsPendingThenConfirmed() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440501"
