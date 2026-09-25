@@ -56,9 +56,8 @@ export function stripResetDbFlag(body) {
   return kept.join(" ");
 }
 
-export function apiKeyVariable(network) {
-  return `NEON_PREVIEW_API_KEY_${network.toUpperCase()}`;
-}
+/** The org-wide Neon key. It reaches both preview projects. */
+export const NEON_API_KEY_VARIABLE = "NEON_API_KEY";
 
 export function projectIdVariable(network) {
   return `NEON_PREVIEW_PROJECT_ID_${network.toUpperCase()}`;
@@ -84,12 +83,12 @@ function requiredEnv(env, variable) {
   return value;
 }
 
-/** Neon config per network, each with its own project-scoped key. */
+/** Neon config per network: its own project, with the one org key. */
 export function readPreviewNeonConfigs(env, networks) {
   return networks.map((network) => ({
     network,
     config: {
-      apiKey: requiredEnv(env, apiKeyVariable(network)),
+      apiKey: requiredEnv(env, NEON_API_KEY_VARIABLE),
       projectId: requiredEnv(env, projectIdVariable(network)),
     },
   }));

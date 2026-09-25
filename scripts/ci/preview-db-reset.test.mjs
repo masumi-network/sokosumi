@@ -22,8 +22,7 @@ const PULL_REQUEST = {
 };
 
 const NEON_ENV = {
-  NEON_PREVIEW_API_KEY_MAINNET: "key-mainnet",
-  NEON_PREVIEW_API_KEY_PREPROD: "key-preprod",
+  NEON_API_KEY: "neon-key",
   NEON_PREVIEW_PROJECT_ID_MAINNET: "prj-mainnet",
   NEON_PREVIEW_PROJECT_ID_PREPROD: "prj-preprod",
 };
@@ -184,35 +183,32 @@ describe("parseNetworkCommand for /reset-db", () => {
 });
 
 describe("readPreviewNeonConfigs", () => {
-  it("returns one config per requested network, with that network's key", () => {
-    assert.deepEqual(readPreviewNeonConfigs(NEON_ENV, ["preprod"]), [
+  it("returns one config per requested network, with the org key", () => {
+    assert.deepEqual(readPreviewNeonConfigs(NEON_ENV, ["mainnet", "preprod"]), [
+      {
+        network: "mainnet",
+        config: { apiKey: "neon-key", projectId: "prj-mainnet" },
+      },
       {
         network: "preprod",
-        config: { apiKey: "key-preprod", projectId: "prj-preprod" },
+        config: { apiKey: "neon-key", projectId: "prj-preprod" },
       },
     ]);
   });
 
-  it("fails without a requested network's key or project id", () => {
+  it("fails without the Neon key or a requested network's project id", () => {
     assert.throws(
       () => readPreviewNeonConfigs({}, ["mainnet"]),
-      /^Error: NEON_PREVIEW_API_KEY_MAINNET is not set$/,
+      /^Error: NEON_API_KEY is not set$/,
     );
     assert.throws(
-      () =>
-        readPreviewNeonConfigs(
-          { NEON_PREVIEW_API_KEY_MAINNET: "key-mainnet" },
-          ["mainnet"],
-        ),
+      () => readPreviewNeonConfigs({ NEON_API_KEY: "neon-key" }, ["mainnet"]),
       /^Error: NEON_PREVIEW_PROJECT_ID_MAINNET is not set$/,
     );
     assert.throws(
       () =>
-        readPreviewNeonConfigs(
-          { ...NEON_ENV, NEON_PREVIEW_API_KEY_MAINNET: " " },
-          ["mainnet"],
-        ),
-      /NEON_PREVIEW_API_KEY_MAINNET is not set/,
+        readPreviewNeonConfigs({ ...NEON_ENV, NEON_API_KEY: " " }, ["mainnet"]),
+      /NEON_API_KEY is not set/,
     );
   });
 });
@@ -313,8 +309,7 @@ describe("runPreviewDbResetComment", () => {
       ],
     );
     for (const call of neonCalls) {
-      const network = call.path.split("/")[2].replace("prj-", "");
-      assert.equal(call.auth, `Bearer key-${network}`, call.path);
+      assert.equal(call.auth, "Bearer neon-key", call.path);
     }
     // Each Neon request gets its own 30-second limit. The workflow's
     // timeout-minutes counts on it.
@@ -369,19 +364,19 @@ describe("runPreviewDbResetComment", () => {
     );
   });
 
-  it("resets nothing when a requested network's key is missing", async () => {
-    const { NEON_PREVIEW_API_KEY_PREPROD: _unset, ...neonEnv } = NEON_ENV;
+  it("resets nothing when the Neon key is missing", async () => {
+    const { NEON_API_KEY: _unset, ...neonEnv } = NEON_ENV;
     const { options, posted, reactions, created, neonCalls } = setup({
       neonEnv,
     });
     await assert.rejects(
       () => runPreviewDbResetComment(options),
-      /NEON_PREVIEW_API_KEY_PREPROD is not set/,
+      /NEON_API_KEY is not set/,
     );
     assert.deepEqual(neonCalls, []);
     assert.deepEqual(created, []);
     assert.deepEqual(posted, [
-      "`/reset-db` failed: NEON_PREVIEW_API_KEY_PREPROD is not set. Nothing was reset.",
+      "`/reset-db` failed: NEON_API_KEY is not set. Nothing was reset.",
     ]);
     assert.deepEqual(reactions, ["eyes"]);
   });
@@ -926,7 +921,7 @@ globalThis.fetch = async (url, init = {}) => {
     assert.equal(run.status, 1, run.stderr);
     assert.match(
       run.stdout,
-      /^COMMENT Preview deploy failed: NEON_PREVIEW_API_KEY_MAINNET is not set\. Nothing was reset\.$/m,
+      /^COMMENT Preview deploy failed: NEON_API_KEY is not set\. Nothing was reset\.$/m,
     );
   });
 });
