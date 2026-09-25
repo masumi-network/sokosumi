@@ -132,6 +132,30 @@ describe("notifyTaskParticipantsAdded", () => {
       "user_b",
     ]);
   });
+
+  it("alerts on a synthetic eventId when no TaskEvent row exists", async () => {
+    prismaTaskEventFindUniqueMock.mockResolvedValue(null);
+    prismaTaskFindFirstMock.mockResolvedValue(taskWithParticipants(["user_a"]));
+
+    await notifyTaskParticipantsAdded("task_1", "synthetic-uuid", ["user_a"]);
+
+    expect(prismaTaskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "task_1",
+          archivedAt: null,
+          status: { notIn: ["COMPLETED", "FAILED", "CANCELED"] },
+        },
+      }),
+    );
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_a",
+        eventId: "synthetic-uuid",
+        messageKey: "Notifications.Task.participantAdded",
+      }),
+    );
+  });
 });
 
 describe("dispatchTaskNotification", () => {

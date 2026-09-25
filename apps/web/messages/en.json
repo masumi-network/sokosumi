@@ -1831,10 +1831,10 @@
         "assignee": "Assignee",
         "schedule": "Schedule",
         "privateSchedule": "Private schedule",
-        "participants": "Participants",
-        "removeParticipant": "Remove {name}",
-        "removeParticipantConfirmTitle": "Remove {name}?",
-        "removeParticipantConfirmDescription": "They will no longer be a participant on this task.",
+        "participantsList": "Task participants",
+        "subscribe": "Subscribe",
+        "unsubscribe": "Unsubscribe",
+        "subscribeError": "Couldn’t subscribe. Try again.",
         "removeParticipantError": "Couldn’t remove participant. Try again."
       },
       "NewTask": {
