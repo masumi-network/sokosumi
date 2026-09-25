@@ -20,7 +20,8 @@ import UniformTypeIdentifiers
     @State private var quotedLink: QuotedLink?
     @State private var insertion: ComposerInsertion?
     @State private var pasteGeneration = 0
-    @StateObject private var uploads: ComposeUploads
+    @EnvironmentObject private var uploads: ComposeUploads
+    @EnvironmentObject private var attachmentIngress: ComposerAttachmentIngress
 
     /// A pasted Message link that became the pending quote.
     private struct QuotedLink {
@@ -43,7 +44,6 @@ import UniformTypeIdentifiers
       let savedDraft = SavedComposeDraft(userId: userId, organizationId: organizationId, roomId: roomId, parentMessageId: parentMessageId)
       self.savedDraft = savedDraft
       _draft = State(initialValue: savedDraft.load())
-      _uploads = StateObject(wrappedValue: ComposeUploads(savedDraft: savedDraft))
     }
 
     private var composerPlaceholder: String {
@@ -99,12 +99,6 @@ import UniformTypeIdentifiers
           uploads.add(attachment)
         })
       }
-      .dropDestination(for: URL.self) { files, _ in
-        guard workspaces.canAttachFiles(roomId: roomId), uploads.uploadingName == nil else { return false }
-        attachFiles(files)
-        return true
-      }
-      .onDisappear { Task { @MainActor in uploads.cancel() } }
       .padding([.horizontal, .bottom], 8)
       .background(.background)
       .onChange(of: workspaces.directStream.restoredDraft, initial: true) { _, _ in
@@ -134,6 +128,7 @@ import UniformTypeIdentifiers
         input.attachFromDrive = { drivePickerPresented = true }
         input.attachFiles = { files in attachFiles(files) }
         input.attachImage = { data in attachImage(data) }
+        input.attachmentDragChanged = { attachmentIngress.isTargeted = $0 }
       }
       return input
     }
