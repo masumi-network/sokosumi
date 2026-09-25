@@ -32,9 +32,6 @@ vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
   }: ComponentProps<typeof InlineCreateProjectModal>) =>
     open ? <div data-testid="create-project-dialog" /> : null,
 }));
-vi.mock("@/app/projects/components/project-avatar", () => ({
-  ProjectAvatar: () => <span aria-hidden />,
-}));
 // The menu has its own suite. Here it only has to report a choice. The input
 // stands in for its search, which holds focus while the switcher is open.
 vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
