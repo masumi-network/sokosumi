@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,14 +9,17 @@ const mocks = vi.hoisted(() => ({
   loadOne: vi.fn(),
   organizationId: { current: "org-a" },
   userId: { current: "user-1" },
+  signedOut: { current: false },
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
-    data: {
-      user: { id: mocks.userId.current },
-      session: { activeOrganizationId: mocks.organizationId.current },
-    },
+    data: mocks.signedOut.current
+      ? null
+      : {
+          user: { id: mocks.userId.current },
+          session: { activeOrganizationId: mocks.organizationId.current },
+        },
     isPending: false,
     error: null,
   }),
@@ -74,6 +77,7 @@ beforeEach(() => {
   localStorage.clear();
   mocks.organizationId.current = "org-a";
   mocks.userId.current = "user-1";
+  mocks.signedOut.current = false;
   mocks.loadPinned.mockResolvedValue([]);
 });
 
@@ -152,9 +156,77 @@ describe("useScopeProjects", () => {
     await waitFor(() => expect(result.current.isSearchPending).toBe(false));
     expect(result.current.all.map(({ id }) => id)).toEqual(["far-1"]);
   });
+
+  it("reports a failed Pinned read, and Retry asks both reads again", async () => {
+    mocks.load.mockResolvedValue({
+      projects: [project("a-1", "Alpha")],
+      nextCursor: null,
+    });
+    mocks.loadPinned.mockRejectedValueOnce(new Error("Core down"));
+    const { result } = renderHook(
+      () => useScopeProjects({ search: "", selectedProjectId: null }),
+      { wrapper: wrapper() },
+    );
+
+    // The page answered; the Pinned read alone failed.
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.all.map(({ id }) => id)).toEqual(["a-1"]);
+    expect(mocks.load).toHaveBeenCalledTimes(1);
+    expect(mocks.loadPinned).toHaveBeenCalledTimes(1);
+
+    result.current.refetch();
+
+    await waitFor(() => expect(result.current.isError).toBe(false));
+    expect(mocks.load).toHaveBeenCalledTimes(2);
+    expect(mocks.loadPinned).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("useSelectedScopeProject", () => {
+  it("names the project from the menu's cached page before Core answers", async () => {
+    let resolveRead: (response: Response) => void = () => {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRead = resolve;
+          }),
+      ),
+    );
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    // The workspace page an open menu loaded earlier.
+    client.setQueryData(["project-scope-page", "user-1", "org-a", ""], {
+      projects: [project("p-1", "Cached Name")],
+      nextCursor: null,
+    });
+    const { result } = renderHook(() => useSelectedScopeProject("p-1"), {
+      wrapper: wrapper(client),
+    });
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    expect(result.current?.name).toBe("Cached Name");
+    expect(mocks.load).not.toHaveBeenCalled();
+
+    resolveRead(Response.json({ project: project("p-1", "Fresh Name") }));
+    await waitFor(() => expect(result.current?.name).toBe("Fresh Name"));
+  });
+
+  it("asks Core nothing until a session names the workspace", async () => {
+    mocks.signedOut.current = true;
+    const { result } = renderHook(() => useSelectedScopeProject("p-1"), {
+      wrapper: wrapper(),
+    });
+
+    // Long enough for an enabled read to reach fetch.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.loadOne).not.toHaveBeenCalled();
+    expect(result.current).toBeNull();
+  });
+
   it("asks Core for the named project and loads no list", async () => {
     mocks.loadOne.mockReturnValue(project("far-1", "Far Away"));
     const { result } = renderHook(() => useSelectedScopeProject("far-1"), {

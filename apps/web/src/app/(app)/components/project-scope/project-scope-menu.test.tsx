@@ -210,6 +210,43 @@ describe("ProjectScopeMenu", () => {
     expect(screen.getByRole("listbox")).not.toHaveAttribute("aria-busy");
   });
 
+  it("says the list failed and asks both reads again on Retry", async () => {
+    const user = userEvent.setup();
+    mocks.load.mockRejectedValueOnce(new Error("Core down"));
+    setup();
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("error"),
+    );
+    expect(mocks.load).toHaveBeenCalledTimes(1);
+    expect(mocks.loadPinned).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "retry" }));
+
+    await screen.findByText("Active One");
+    expect(mocks.load).toHaveBeenCalledTimes(2);
+    expect(mocks.loadPinned).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("status")).toHaveTextContent("");
+    expect(screen.queryByRole("button", { name: "retry" })).toBeNull();
+  });
+
+  it("says the list failed when only the Pinned read fails", async () => {
+    const user = userEvent.setup();
+    mocks.loadPinned.mockRejectedValueOnce(new Error("Core down"));
+    setup();
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("error"),
+    );
+
+    await user.click(screen.getByRole("button", { name: "retry" }));
+
+    await screen.findByText("Pinned One");
+    expect(mocks.loadPinned).toHaveBeenCalledTimes(2);
+    expect(mocks.load).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("status")).toHaveTextContent("");
+  });
+
   it("tells assistive tech which choice is current", async () => {
     setup({ selectedProjectId: "active-1" });
 

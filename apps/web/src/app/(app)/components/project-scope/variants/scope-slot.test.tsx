@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   pathname: { current: "/tasks" },
   search: { current: new URLSearchParams() },
   project: { current: null as null | { id: string; name: string } },
+  hubHeaderSlot: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -36,10 +37,17 @@ vi.mock("@/app/projects/actions", () => ({
 vi.mock("./variant-combined", () => ({ combinedSlots: {} }));
 vi.mock("./variant-command", () => ({ commandSlots: {} }));
 vi.mock("./variant-header", () => ({ headerSlots: {} }));
-vi.mock("./variant-hub", () => ({ hubSlots: {} }));
+vi.mock("./variant-hub", () => ({
+  hubSlots: {
+    "project-header": (props: { calendarBeta?: boolean }) => {
+      mocks.hubHeaderSlot(props);
+      return null;
+    },
+  },
+}));
 vi.mock("./variant-sidebar", () => ({ sidebarSlots: {} }));
 
-import { ScopeOldWay, ScopeStaleGuard } from "./scope-slot";
+import { ScopeOldWay, ScopeSlot, ScopeStaleGuard } from "./scope-slot";
 
 const SELECTED_KEY = "project-scope-selected";
 
@@ -88,6 +96,18 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+describe("ScopeSlot", () => {
+  it("hands the active variant's piece the props of its mount point", () => {
+    setPage("/projects/p-1", "variant=hub");
+
+    render(<ScopeSlot place="project-header" calendarBeta />);
+
+    expect(mocks.hubHeaderSlot).toHaveBeenLastCalledWith({
+      calendarBeta: true,
+    });
+  });
 });
 
 describe("ScopeOldWay", () => {
