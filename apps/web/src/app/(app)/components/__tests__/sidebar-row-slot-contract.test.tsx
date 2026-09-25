@@ -126,7 +126,7 @@ function renderSidebar() {
             <PersonalAssistantNav
               bot={{ id: "bot-1", imageUrl: null, seed: "seed" }}
             />
-            <MenuItems calendarMenuEnabled />
+            <MenuItems />
             <OrganizationChatList
               rooms={rooms}
               archivedRooms={archivedRooms}

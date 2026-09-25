@@ -7,10 +7,10 @@ import type { AuthenticationContext } from "@/middleware/auth";
 
 import app, { mountComposioCallback } from "./index";
 
-const { completeComposioCallbackMock, requireCalendarBetaAccessMock } =
+const { completeComposioCallbackMock, requireSocialBetaAccessMock } =
   vi.hoisted(() => ({
     completeComposioCallbackMock: vi.fn(),
-    requireCalendarBetaAccessMock: vi.fn(),
+    requireSocialBetaAccessMock: vi.fn(),
   }));
 
 const SESSION_AUTH: AuthenticationContext = {
@@ -35,8 +35,8 @@ vi.mock("@/services/composio-callback-completion.service", () => ({
   completeComposioCallback: completeComposioCallbackMock,
 }));
 
-vi.mock("@/helpers/calendar-beta-access", () => ({
-  requireCalendarBetaAccess: requireCalendarBetaAccessMock,
+vi.mock("@/helpers/social-beta-access", () => ({
+  requireSocialBetaAccess: requireSocialBetaAccessMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
@@ -57,7 +57,7 @@ function createApp(authContext: AuthenticationContext) {
 describe("POST /composio/callback/complete", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireCalendarBetaAccessMock.mockResolvedValue(undefined);
+    requireSocialBetaAccessMock.mockResolvedValue(undefined);
   });
 
   it("rejects a callback completion request with no JSON body", async () => {
@@ -101,12 +101,12 @@ describe("POST /composio/callback/complete", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(requireCalendarBetaAccessMock).not.toHaveBeenCalled();
+    expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
     expect(completeComposioCallbackMock).not.toHaveBeenCalled();
   });
 
-  it("gates callback redemption behind Calendar beta access", async () => {
-    requireCalendarBetaAccessMock.mockRejectedValue(
+  it("gates callback redemption behind Social beta access", async () => {
+    requireSocialBetaAccessMock.mockRejectedValue(
       forbidden("Calendar is only available to utxo AG workspace members"),
     );
     const response = await createApp(SESSION_AUTH).request(
@@ -122,7 +122,7 @@ describe("POST /composio/callback/complete", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(requireCalendarBetaAccessMock).toHaveBeenCalledWith(
+    expect(requireSocialBetaAccessMock).toHaveBeenCalledWith(
       "user_123",
       expect.anything(),
     );

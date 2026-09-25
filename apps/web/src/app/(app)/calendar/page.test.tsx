@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionMock = vi.fn();
-const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const getWorkspaceCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
 const listTaskAssigneeOptionsMock = vi.fn();
@@ -43,11 +42,6 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
 }));
 
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
-}));
-
 vi.mock("@/app/tasks/utils/task-assignee-options", () => ({
   listTaskAssigneeOptions: (organizationId: string | null) =>
     listTaskAssigneeOptionsMock(organizationId),
@@ -70,7 +64,6 @@ import CalendarPage from "./page";
 describe("CalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getSessionMock.mockResolvedValue(null);
     getWorkspaceCalendarMock.mockResolvedValue({
       items: [],
@@ -92,18 +85,7 @@ describe("CalendarPage", () => {
     getProjectFilterOptionsMock.mockResolvedValue([]);
   });
 
-  it("does not load Calendar data outside the Calendar beta", async () => {
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
-
-    await expect(
-      CalendarPage({ searchParams: Promise.resolve({}) }),
-    ).rejects.toThrow("NEXT_NOT_FOUND");
-
-    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
-    expect(getWorkspaceCalendarSourcesMock).not.toHaveBeenCalled();
-  });
-
-  it("loads Calendar data for Calendar beta users", async () => {
+  it("loads Calendar data for any authorized user", async () => {
     render(await CalendarPage({ searchParams: Promise.resolve({}) }));
 
     expect(getWorkspaceCalendarMock).toHaveBeenCalledOnce();

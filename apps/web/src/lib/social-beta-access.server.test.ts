@@ -10,7 +10,7 @@ vi.mock("@/lib/services/user.service", () => ({
   },
 }));
 
-describe("hasCurrentUserCalendarBetaAccess", () => {
+describe("hasCurrentUserSocialBetaAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
@@ -22,11 +22,11 @@ describe("hasCurrentUserCalendarBetaAccess", () => {
       { organization: { slug: "utxo" } },
     ]);
 
-    const { hasCurrentUserCalendarBetaAccess } = await import(
-      "./calendar-beta-access.server"
+    const { hasCurrentUserSocialBetaAccess } = await import(
+      "./social-beta-access.server"
     );
 
-    await expect(hasCurrentUserCalendarBetaAccess()).resolves.toBe(true);
+    await expect(hasCurrentUserSocialBetaAccess()).resolves.toBe(true);
   });
 
   it("fails closed when memberships cannot be loaded", async () => {
@@ -34,10 +34,10 @@ describe("hasCurrentUserCalendarBetaAccess", () => {
       new Error("Core unavailable"),
     );
 
-    const { hasCurrentUserCalendarBetaAccess } = await import(
-      "./calendar-beta-access.server"
+    const { hasCurrentUserSocialBetaAccess } = await import(
+      "./social-beta-access.server"
     );
 
-    await expect(hasCurrentUserCalendarBetaAccess()).resolves.toBe(false);
+    await expect(hasCurrentUserSocialBetaAccess()).resolves.toBe(false);
   });
 });
