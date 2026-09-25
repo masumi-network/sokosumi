@@ -1139,6 +1139,94 @@ struct WorkspaceStateTests {
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
   }
 
+  /// History confirms room/thread sends even when their POST answer arrives late or is lost.
+  @Test(arguments: [false, true], [false, true])
+  func historyConfirmsSendBeforeOrAfterPOSTFailure(threadReply: Bool, failedFirst: Bool) async throws {
+    let fixture = try historyConfirmationFixture(threadReply: threadReply)
+    let (state, shell) = (fixture.state, fixture.shell)
+    let persisted = fixture.persisted
+    let timeline = threadReply ? state.thread.timeline : state.timeline
+    let outbox = threadReply ? state.thread.outbox : state.outbox
+    var gate: CheckedContinuation<Void, Never>?
+    var failures = 0
+    var retainedByJob: NSObject? = NSObject()
+    weak var jobLifetime = retainedByJob
+    outbox.enqueue(shell, send: { [retainedByJob] in
+      _ = retainedByJob
+      await withCheckedContinuation { gate = $0 }
+      throw URLError(.networkConnectionLost)
+    }, confirmed: { _ in Issue.record("The POST never confirms") }, failed: { _ in failures += 1 })
+    retainedByJob = nil
+    while gate == nil {
+      await Task.yield()
+    }
+    if failedFirst {
+      gate?.resume()
+      while outbox.isSending {
+        await Task.yield()
+      }
+      #expect(outbox.shells.first?.status == .failed)
+    }
+    // Equal client IDs in another room, thread, sender, or local shell cannot confirm.
+    var otherRoom = persisted
+    otherRoom.roomId = "other-room"
+    var otherThread = persisted
+    otherThread.parentMessageId = "other-parent"
+    var otherSender = persisted
+    otherSender.sender = .case1(.init(_type: .user, user: .init(id: "peer", name: "Peer", email: "peer@example.com", presence: .online)))
+    timeline.messages = [otherRoom, otherThread, otherSender, chatRoomMessage(from: shell)]
+    #expect(outbox.shells.count == 1)
+    timeline.messages = []
+    let client = try #require(state.clientResolver?())
+    #expect(try await timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: timeline.generation))
+    #expect(outbox.shells.isEmpty)
+    #expect((jobLifetime == nil) == failedFirst)
+    let displayed = threadReply ? state.thread.displayedReplies : state.displayedTranscript
+    #expect(displayed.map(\.id) == [persisted.id])
+    if !failedFirst {
+      #expect(outbox.isSending)
+      gate?.resume()
+      while outbox.isSending {
+        await Task.yield()
+      }
+    }
+    #expect(failures == (failedFirst ? 1 : 0))
+    #expect(outbox.shells.isEmpty)
+  }
+
+  private struct HistoryConfirmationFixture {
+    let state: WorkspaceState
+    let shell: OutboundShell
+    let persisted: Components.Schemas.ChatRoomMessage
+  }
+
+  private func historyConfirmationFixture(threadReply: Bool) throws -> HistoryConfirmationFixture {
+    let roomID = "550e8400-e29b-41d4-a716-446655440000"
+    let shell = OutboundShell(
+      clientTurnId: "history-confirmed-turn", roomId: roomID, parentMessageId: threadReply ? "root" : nil,
+      content: "hello", createdAt: Date(timeIntervalSince1970: 1_767_225_600),
+      sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)
+    )
+    var persisted = chatRoomMessage(from: shell)
+    persisted.id = "550e8400-e29b-41d4-a716-446655440501"
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .custom { date, encoder in
+      var container = encoder.singleValueContainer()
+      try container.encode(date.ISO8601Format(.init(includingFractionalSeconds: true)))
+    }
+    let data = try encoder.encode(persisted)
+    let body = try #require(String(bytes: data, encoding: .utf8))
+    let (state, _, _, _) = try ephemeralState([(200, transcriptPageBody(messages: [body], nextCursor: nil))], visible: false)
+    state.timeline.reset(roomId: roomID)
+    if threadReply {
+      var parent = persisted
+      parent.id = "root"
+      parent.parentMessageId = nil
+      state.thread.open(parent)
+    }
+    return HistoryConfirmationFixture(state: state, shell: shell, persisted: persisted)
+  }
+
   /// A room can accept a send before its first page arrives. That older snapshot
   /// must neither erase the accepted message nor duplicate a row already confirmed.
   @Test(arguments: [false, true])

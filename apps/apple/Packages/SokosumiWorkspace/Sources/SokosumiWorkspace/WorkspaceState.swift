@@ -251,6 +251,8 @@ public final class WorkspaceState: ObservableObject {
     messageEditing.$source.map { $0?.id }.removeDuplicates().dropFirst()
       .sink { [weak self] _ in self?.objectWillChange.send() }
       .store(in: &threadObservations)
+    timeline.$messages.sink { [weak outbox] in outbox?.reconcile(messages: $0) }
+      .store(in: &threadObservations)
     outboxObservation = outbox.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }

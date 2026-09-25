@@ -21,6 +21,7 @@ public final class ThreadSession: ObservableObject {
   public let outbox: RoomOutbox
   public let recovery = ChatRefreshScheduler()
   public private(set) var loadTask: Task<Void, Never>?
+  private var transcriptObservation: AnyCancellable?
   private let service = ChatService()
   private let now: () -> Date
   private let makeId: () -> String
@@ -29,6 +30,7 @@ public final class ThreadSession: ObservableObject {
     self.now = now
     self.makeId = makeId
     outbox = RoomOutbox(now: now)
+    transcriptObservation = timeline.$messages.sink { [weak outbox] in outbox?.reconcile(messages: $0) }
   }
 
   public var displayedReplies: [Message] {
