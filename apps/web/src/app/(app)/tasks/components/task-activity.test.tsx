@@ -1421,6 +1421,112 @@ describe("TaskActivitySection", () => {
     expect(container.querySelectorAll("[data-message-id]").length).toBe(2);
   });
 
+  it("keeps expanded older comments after events prop refresh", async () => {
+    loadOlderTaskActivityEventsMock.mockResolvedValue({
+      ok: true,
+      value: [
+        createEvent("c0", {
+          createdAt: "2026-01-01T00:00:00.000Z",
+          status: null,
+          comment: "Oldest",
+        }),
+      ],
+    });
+
+    const truncatedFeed: TaskEvent[] = Array.from({ length: 3 }, (_, i) =>
+      createEvent(`c${i + 5}`, {
+        createdAt: `2026-01-01T1${i}:00:00.000Z`,
+        status: null,
+        comment: `Comment ${i + 5}`,
+      }),
+    );
+
+    const { rerender } = render(
+      <TaskActivitySection
+        {...baseProps}
+        events={truncatedFeed}
+        commentCount={8}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Show 5 older comments/ }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Oldest")).toBeInTheDocument();
+    });
+
+    rerender(
+      <TaskActivitySection
+        {...baseProps}
+        events={[...truncatedFeed]}
+        commentCount={8}
+      />,
+    );
+
+    expect(screen.getByText("Oldest")).toBeInTheDocument();
+  });
+
+  it("does not leak expanded events across taskId changes", async () => {
+    loadOlderTaskActivityEventsMock.mockResolvedValue({
+      ok: true,
+      value: [
+        createEvent("c0", {
+          createdAt: "2026-01-01T00:00:00.000Z",
+          status: null,
+          comment: "Oldest",
+        }),
+      ],
+    });
+
+    const truncatedFeed: TaskEvent[] = Array.from({ length: 3 }, (_, i) =>
+      createEvent(`c${i + 5}`, {
+        createdAt: `2026-01-01T1${i}:00:00.000Z`,
+        status: null,
+        comment: `Comment ${i + 5}`,
+      }),
+    );
+
+    const { rerender } = render(
+      <TaskActivitySection
+        {...baseProps}
+        taskId="task-1"
+        events={truncatedFeed}
+        commentCount={8}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Show 5 older comments/ }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Oldest")).toBeInTheDocument();
+    });
+
+    const otherTaskEvents: TaskEvent[] = [
+      createEvent("other-c1", {
+        createdAt: "2026-02-01T10:00:00.000Z",
+        status: null,
+        comment: "Other task comment",
+      }),
+    ];
+
+    rerender(
+      <TaskActivitySection
+        {...baseProps}
+        taskId="task-2"
+        events={otherTaskEvents}
+        commentCount={1}
+        latestCommentId="other-c1"
+      />,
+    );
+
+    expect(screen.queryByText("Oldest")).not.toBeInTheDocument();
+    expect(screen.getByText("Other task comment")).toBeInTheDocument();
+  });
+
   it("keeps expand control when older-page load fails", async () => {
     loadOlderTaskActivityEventsMock.mockResolvedValue({
       ok: false,

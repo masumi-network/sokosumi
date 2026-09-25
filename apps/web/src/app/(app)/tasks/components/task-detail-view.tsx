@@ -742,7 +742,7 @@ async function TaskActivitySectionContent({
     hasAssignedSeatPromise,
     mentionableUsersPromise,
     getTranslations("App.Tasks.Detail"),
-    taskService.listAllTaskEvents(taskId),
+    taskService.listTaskActivityFeed(taskId),
   ]);
   const {
     userById: actorsUserById,
@@ -785,6 +785,7 @@ async function TaskActivitySectionContent({
 
   return (
     <TaskActivitySection
+      key={taskId}
       taskId={taskId}
       title={t("activity")}
       placeholder={t("commentPlaceholder")}

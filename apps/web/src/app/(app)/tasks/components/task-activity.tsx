@@ -251,6 +251,7 @@ export function TaskActivitySection({
   const [, startExpandTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
+  const [pendingJumpId, setPendingJumpId] = useState<string | null>(null);
   const { os, isMobile } = useOSDetection();
   // Match chat and Core `excludeUserId`: @ of yourself does not enroll the writer.
   const viewerId = currentUser?.id;
@@ -283,8 +284,26 @@ export function TaskActivitySection({
   );
 
   useEffect(() => {
-    setLocalEvents(events);
-  }, [events]);
+    setCommentsExpanded(false);
+    setPendingJumpId(null);
+  }, [taskId]);
+
+  useEffect(() => {
+    // Same task: merge so expanded older pages survive truncated refresh.
+    // Drop optimistic rows — the refreshed prop carries the persisted event.
+    // Different task: replace the feed entirely.
+    setLocalEvents((prev) => {
+      const sameTask =
+        prev.length > 0 && prev.every((event) => event.taskId === taskId);
+      if (!sameTask) {
+        return events;
+      }
+      return mergeTaskActivityEvents(
+        prev.filter((event) => !event.id.startsWith("optimistic:")),
+        events,
+      );
+    });
+  }, [events, taskId]);
 
   const abortActiveUploads = useCallback(() => {
     for (const controller of activeUploadControllersRef.current) {
@@ -319,6 +338,19 @@ export function TaskActivitySection({
     [localEvents, commentCount, commentsExpanded],
   );
   const showJumpToRecent = latestCommentId != null;
+  const oldestLoadedCommentId =
+    localEvents.find((event) => event.comment != null)?.id ??
+    localEvents[0]?.id ??
+    null;
+
+  useEffect(() => {
+    if (!pendingJumpId) {
+      return;
+    }
+    if (highlightListMessage(TASK_ACTIVITY_MESSAGE_LIST, pendingJumpId)) {
+      setPendingJumpId(null);
+    }
+  }, [pendingJumpId, localEvents, commentsExpanded, feedItems]);
 
   const trimmedComment = comment.trim();
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
@@ -338,11 +370,10 @@ export function TaskActivitySection({
     }
     startExpandTransition(() => {
       void (async () => {
-        const oldestLoaded = localEvents[0];
-        if (oldestLoaded) {
+        if (oldestLoadedCommentId) {
           const result = await loadOlderTaskActivityEvents({
             taskId,
-            untilEventId: oldestLoaded.id,
+            untilEventId: oldestLoadedCommentId,
           });
           if (result.ok) {
             setLocalEvents((prev) =>
@@ -353,9 +384,7 @@ export function TaskActivitySection({
         } else {
           setCommentsExpanded(true);
         }
-        window.requestAnimationFrame(() => {
-          highlightListMessage(TASK_ACTIVITY_MESSAGE_LIST, latestCommentId);
-        });
+        setPendingJumpId(latestCommentId);
       })();
     });
   }
@@ -364,11 +393,8 @@ export function TaskActivitySection({
     if (commentsExpanded) {
       return;
     }
-    const oldestLoaded = localEvents[0];
     const needsOlderPages =
-      oldestLoaded != null &&
-      commentCount >
-        localEvents.filter((event) => event.comment != null).length;
+      oldestLoadedCommentId != null && commentCount > localCommentCount;
 
     if (!needsOlderPages) {
       setCommentsExpanded(true);
@@ -379,7 +405,7 @@ export function TaskActivitySection({
       void (async () => {
         const result = await loadOlderTaskActivityEvents({
           taskId,
-          untilEventId: oldestLoaded.id,
+          untilEventId: oldestLoadedCommentId,
         });
         if (!result.ok) {
           return;
