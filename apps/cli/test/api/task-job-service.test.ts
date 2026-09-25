@@ -70,12 +70,49 @@ test("task services encode IDs and serialize all list filters", async () => {
         path: "/v1/tasks?q=review&scope=workspace&coworkerId=cow%2F1&take=10&status=READY&status=DONE",
       },
       { method: "GET", path: "/v1/tasks/task%2F1/jobs" },
-      { method: "GET", path: "/v1/tasks/task%2F1/events" },
+      { method: "GET", path: "/v1/tasks/task%2F1/events?limit=100" },
       { method: "POST", path: "/v1/tasks/task%2F1/events" },
     ],
   );
   assert.deepEqual(calls[0]?.body, { name: "Task" });
   assert.deepEqual(calls[5]?.body, { comment: "Done" });
+});
+
+test("fetchTaskEvents follows nextCursor until the list is complete", async () => {
+  const calls: Call[] = [];
+  const pages = [
+    {
+      data: [{ id: "evt_1" }, { id: "evt_2" }],
+      meta: { pagination: { nextCursor: "evt_2", limit: 2, total: 3 } },
+    },
+    {
+      data: [{ id: "evt_3" }],
+      meta: { pagination: { nextCursor: null, limit: 2, total: 3 } },
+    },
+  ];
+  let pageIndex = 0;
+  const api: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      calls.push({ method: "GET", path });
+      const page = pages[pageIndex++] ?? pages.at(-1);
+      return page as T;
+    },
+    post: async <T>() => ({ data: null }) as T,
+    patch: async <T>() => ({ data: null }) as T,
+  };
+
+  const { events } = await fetchTaskEvents(api, "task/1");
+  assert.deepEqual(
+    events.map((event) => (event as { id: string }).id),
+    ["evt_1", "evt_2", "evt_3"],
+  );
+  assert.deepEqual(
+    calls.map(({ path }) => path),
+    [
+      "/v1/tasks/task%2F1/events?limit=100",
+      "/v1/tasks/task%2F1/events?limit=100&cursor=evt_2",
+    ],
+  );
 });
 
 test("task and job services validate IDs and required payload fields", async () => {

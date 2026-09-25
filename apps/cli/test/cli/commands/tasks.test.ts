@@ -153,7 +153,7 @@ test("tasks create requires a coworker id and a description", async () => {
 test("tasks get returns the task with its events and jobs", async () => {
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
-      if (path.endsWith("/events"))
+      if (path.includes("/events"))
         return { data: [{ id: "ev-1", status: "READY" }] } as T;
       if (path.endsWith("/jobs")) return { data: [{ id: "job-1" }] } as T;
       return { data: { id: "task-1", name: "Build", status: "READY" } } as T;
@@ -260,7 +260,7 @@ test("tasks create rejects an invalid status", async () => {
 test("tasks get still emits the task when a details fetch fails", async () => {
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
-      if (path.endsWith("/events")) throw new Error("events boom");
+      if (path.includes("/events")) throw new Error("events boom");
       if (path.endsWith("/jobs")) return { data: [] } as T;
       return { data: { id: "task-1", name: "Build", status: "READY" } } as T;
     },

@@ -123,15 +123,39 @@ export async function fetchTaskEvents(
   signal?: AbortSignal,
 ): Promise<{ response: ApiResponse<unknown[]>; events: unknown[] }> {
   requireId(taskId, "taskId");
-  const response = listResponse(
-    parseApiResponse(
-      await client.get<unknown>(
-        `${TASKS_PATH}/${encodeURIComponent(taskId)}/events`,
-        signal,
-      ),
-    ),
-  );
-  return { response, events: response.data };
+
+  const events: unknown[] = [];
+  let cursor: string | undefined;
+  let lastResponse: ApiResponse<unknown[]> | undefined;
+
+  for (;;) {
+    const params = new URLSearchParams({ limit: "100" });
+    if (cursor) params.set("cursor", cursor);
+    const path = `${TASKS_PATH}/${encodeURIComponent(taskId)}/events?${params}`;
+    const response = listResponse(
+      parseApiResponse(await client.get<unknown>(path, signal)),
+    );
+    lastResponse = response;
+    events.push(...response.data);
+
+    const pagination =
+      response.meta?.pagination &&
+      typeof response.meta.pagination === "object" &&
+      !Array.isArray(response.meta.pagination)
+        ? (response.meta.pagination as Record<string, unknown>)
+        : null;
+    const next =
+      typeof pagination?.nextCursor === "string" && pagination.nextCursor
+        ? pagination.nextCursor
+        : null;
+    if (!next || next === cursor) break;
+    cursor = next;
+  }
+
+  return {
+    response: { ...(lastResponse ?? { data: [] }), data: events },
+    events,
+  };
 }
 
 export async function createTaskEvent(
