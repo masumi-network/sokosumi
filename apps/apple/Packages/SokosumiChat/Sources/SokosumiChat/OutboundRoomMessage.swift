@@ -134,7 +134,7 @@ public func confirmOutbound(
   return (next, remaining)
 }
 
-public func failOutbound(
+func failOutbound(
   shells: [OutboundShell],
   clientTurnId: String,
   errorMessage: String?
@@ -148,7 +148,7 @@ public func failOutbound(
   }
 }
 
-public func markOutboundPending(
+func markOutboundPending(
   shells: [OutboundShell],
   clientTurnId: String
 ) -> [OutboundShell] {
