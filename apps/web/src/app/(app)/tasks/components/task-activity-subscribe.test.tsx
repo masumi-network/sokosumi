@@ -56,7 +56,6 @@ function renderControl(
       viewerId="viewer-1"
       viewerName="Viewer"
       viewerImage={null}
-      taskOwnerId={null}
       participants={[]}
       canComment
       {...overrides}
@@ -144,10 +143,11 @@ describe("TaskActivitySubscribeControl", () => {
     expect(screen.queryByTestId("task-subscribe-face-remainder")).toBeNull();
   });
 
-  it("lists every participant in the dropdown without remove for non-owners", async () => {
+  it("lists every participant in the dropdown without remove controls", async () => {
     const user = userEvent.setup();
     renderControl({
       participants: [
+        participant("viewer-1", "Viewer"),
         participant("u1", "Ada"),
         participant("u2", "Bea"),
         participant("u3", "Cara"),
@@ -156,6 +156,7 @@ describe("TaskActivitySubscribeControl", () => {
     });
     await user.click(screen.getByRole("button", { name: "participantsList" }));
     const menu = screen.getByRole("menu");
+    expect(within(menu).getByText("Viewer")).toBeInTheDocument();
     expect(within(menu).getByText("Ada")).toBeInTheDocument();
     expect(within(menu).getByText("Bea")).toBeInTheDocument();
     expect(within(menu).getByText("Cara")).toBeInTheDocument();
@@ -163,64 +164,6 @@ describe("TaskActivitySubscribeControl", () => {
     expect(
       within(menu).queryByRole("button", { name: /^removeParticipant:/ }),
     ).toBeNull();
-  });
-
-  it("lets the viewer remove themselves from the dropdown", async () => {
-    const user = userEvent.setup();
-    renderControl({
-      participants: [
-        participant("viewer-1", "Viewer"),
-        participant("u2", "Bea"),
-      ],
-    });
-    await user.click(screen.getByRole("button", { name: "participantsList" }));
-    const menu = screen.getByRole("menu");
-    expect(
-      within(menu).getByRole("button", { name: "removeParticipant:Viewer" }),
-    ).toBeInTheDocument();
-    expect(
-      within(menu).queryByRole("button", { name: "removeParticipant:Bea" }),
-    ).toBeNull();
-
-    await user.click(
-      within(menu).getByRole("button", { name: "removeParticipant:Viewer" }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: "removeParticipant:Viewer" }),
-    );
-    expect(removeTaskParticipantMock).toHaveBeenCalledWith({
-      taskId: "task-1",
-      userId: "viewer-1",
-    });
-  });
-
-  it("lets the task owner remove any participant from the dropdown", async () => {
-    const user = userEvent.setup();
-    renderControl({
-      viewerId: "owner-1",
-      viewerName: "Owner",
-      taskOwnerId: "owner-1",
-      participants: [participant("u1", "Ada"), participant("u2", "Bea")],
-    });
-    await user.click(screen.getByRole("button", { name: "participantsList" }));
-    const menu = screen.getByRole("menu");
-    expect(
-      within(menu).getByRole("button", { name: "removeParticipant:Ada" }),
-    ).toBeInTheDocument();
-    expect(
-      within(menu).getByRole("button", { name: "removeParticipant:Bea" }),
-    ).toBeInTheDocument();
-
-    await user.click(
-      within(menu).getByRole("button", { name: "removeParticipant:Ada" }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: "removeParticipant:Ada" }),
-    );
-    expect(removeTaskParticipantMock).toHaveBeenCalledWith({
-      taskId: "task-1",
-      userId: "u1",
-    });
   });
 
   it("subscribes the viewer when Subscribe is pressed", async () => {

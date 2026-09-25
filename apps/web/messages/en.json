@@ -1835,9 +1835,6 @@
         "subscribe": "Subscribe",
         "unsubscribe": "Unsubscribe",
         "subscribeError": "Couldn’t subscribe. Try again.",
-        "removeParticipant": "Remove {name}",
-        "removeParticipantConfirmTitle": "Remove {name}?",
-        "removeParticipantConfirmDescription": "They will no longer be a participant on this task.",
         "removeParticipantError": "Couldn’t remove participant. Try again."
       },
       "NewTask": {

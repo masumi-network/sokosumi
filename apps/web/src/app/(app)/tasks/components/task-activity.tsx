@@ -109,8 +109,6 @@ interface TaskActivityProps {
   mentionableUsers?: readonly MentionableUser[];
   /** Task participants in join order. */
   participants?: TaskParticipant[];
-  /** Task owner. Owners may remove any participant from the subscribe dropdown. */
-  taskOwnerId?: string | null;
 }
 
 export interface MentionableUser {
@@ -220,7 +218,6 @@ export function TaskActivitySection({
   canComment = true,
   mentionableUsers = NO_MENTIONABLE_USERS,
   participants = NO_PARTICIPANTS,
-  taskOwnerId = null,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
@@ -435,7 +432,6 @@ export function TaskActivitySection({
           viewerId={currentUser?.id ?? null}
           viewerName={currentUser?.name ?? null}
           viewerImage={currentUser?.image ?? null}
-          taskOwnerId={taskOwnerId}
           participants={participants}
           canComment={canComment}
         />
