@@ -339,6 +339,9 @@ test("coworkers connect grants access to an existing Coworker", async () => {
   const calls: { path: string; body: unknown }[] = [];
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
+      if (path === "/v1/coworkers/cw-1") {
+        return { data: { id: "cw-1", vendor: { id: "vendor-1" } } } as T;
+      }
       if (path.includes("/organizations")) {
         return {
           data: [{ id: "org-1", name: "Acme Org", role: "owner" }],
@@ -379,6 +382,61 @@ test("coworkers connect grants access to an existing Coworker", async () => {
   ]);
   assert.equal(JSON.parse(output.join("")).workspaceAccess.status, "GRANTED");
 });
+
+// V85: the selected Vendor must own the Coworker before Workspace access changes.
+for (const [label, vendor, message] of [
+  [
+    "a different Vendor",
+    { id: "vendor-2" },
+    /belongs to Vendor vendor-2.*selected vendor-1/,
+  ],
+  ["missing Vendor data", null, /could not verify.*Vendor/],
+] as const) {
+  test(`coworkers connect rejects ${label} before granting access`, async () => {
+    let grants = 0;
+    const client: CoreHttpClient = {
+      get: async <T>(path: string) => {
+        if (path.endsWith("/organizations"))
+          return { data: [{ id: "org-1", role: "member" }] } as T;
+        if (path.endsWith("/vendors/me"))
+          return {
+            data: [
+              { id: "vendor-1", role: "admin" },
+              { id: "vendor-2", role: "admin" },
+            ],
+          } as T;
+        assert.equal(path, "/v1/coworkers/cw-1");
+        return { data: { id: "cw-1", vendor } } as T;
+      },
+      post: async <T>() => {
+        grants++;
+        return {
+          data: {
+            id: "access-1",
+            coworkerId: "cw-1",
+            workspaceId: "workspace-1",
+            status: "GRANTED",
+          },
+        } as T;
+      },
+      patch: async () => {
+        throw new Error("Unexpected PATCH");
+      },
+    };
+    await assert.rejects(
+      runCoworkersCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "connect",
+        positionalId: "cw-1",
+        target: "preprod",
+        options: { "vendor-id": "vendor-1", "workspace-id": "org-1" },
+      }),
+      message,
+    );
+    assert.equal(grants, 0);
+  });
+}
 
 test("coworkers register rejects a missing vendor ID before Core request", async () => {
   let postCalled = false;

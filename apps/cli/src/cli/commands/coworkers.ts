@@ -2,6 +2,7 @@ import type { CoworkerWorkspaceAccess } from "../../api/models/coworker-workspac
 import {
   createCoworker,
   createCoworkerApiKey,
+  fetchCoworker,
   fetchCoworkers,
   fetchCurrentCoworker,
   grantCoworkerWorkspaceAccess,
@@ -349,6 +350,17 @@ export async function runCoworkersCommand({
     );
     const { vendors } = await fetchVendorMemberships(client, signal);
     requireAdministeredVendorForRegistration(vendors, vendorId);
+    const { coworker } = await fetchCoworker(client, coworkerId, signal);
+    if (!coworker.vendor) {
+      throw new Error(
+        `Core could not verify the Vendor for Coworker ${coworkerId}. Workspace access was not requested. Ask the organizer to check the Coworker record.`,
+      );
+    }
+    if (coworker.vendor.id !== vendorId) {
+      throw new Error(
+        `Coworker ${coworkerId} belongs to Vendor ${coworker.vendor.id}, but --vendor-id selected ${vendorId}. Check the Coworker ID and Vendor ID with the organizer before retrying.`,
+      );
+    }
     const { access } = await grantCoworkerWorkspaceAccess(
       client,
       coworkerId,

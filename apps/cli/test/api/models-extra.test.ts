@@ -18,6 +18,7 @@ test("new Core models tolerate unexpected values with sibling defaults", () => {
     priority: 0,
     slug: null,
     name: null,
+    vendor: null,
     caption: null,
     company: null,
     companyLogo: null,

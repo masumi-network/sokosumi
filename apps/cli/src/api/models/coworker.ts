@@ -1,3 +1,5 @@
+import { parseVendor, type Vendor } from "./vendor.js";
+
 export interface CoworkerPrice {
   credits: number | null;
   includedFee: number | null;
@@ -11,6 +13,7 @@ export interface Coworker {
   priority: number;
   slug: string | null;
   name: string | null;
+  vendor: Vendor | null;
   caption: string | null;
   company: string | null;
   companyLogo: string | null;
@@ -57,6 +60,7 @@ export function parseCoworker(input: unknown): Coworker {
         : 0,
     slug: typeof value.slug === "string" ? value.slug : null,
     name: typeof value.name === "string" ? value.name : null,
+    vendor: value.vendor == null ? null : parseVendor(value.vendor),
     caption: typeof value.caption === "string" ? value.caption : null,
     company: typeof value.company === "string" ? value.company : null,
     companyLogo:

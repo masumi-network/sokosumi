@@ -75,6 +75,21 @@ export async function fetchCurrentCoworker(
   return { response, coworker: parseCoworker(response.data) };
 }
 
+export async function fetchCoworker(
+  client: CoreHttpClient,
+  coworkerId: string,
+  signal?: AbortSignal,
+): Promise<{ response: ApiResponse<unknown>; coworker: Coworker }> {
+  requireId(coworkerId, "coworkerId");
+  const response = parseApiResponse(
+    await client.get<unknown>(
+      `${COWORKERS_PATH}/${encodeURIComponent(coworkerId)}`,
+      signal,
+    ),
+  );
+  return { response, coworker: parseCoworker(response.data) };
+}
+
 function mutationPayload(data: CoworkerMutationData): Record<string, unknown> {
   const payload: Record<string, unknown> = { ...data };
   if (typeof data.name === "string") payload.name = data.name.trim();

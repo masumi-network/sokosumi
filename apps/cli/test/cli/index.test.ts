@@ -158,6 +158,8 @@ test("developer connects a provisioned Coworker through CLI arguments", async ()
       coreClient: {
         get: async <T>(path: string) => {
           calls.push({ method: "GET", path });
+          if (path === "/v1/coworkers/cw-1")
+            return { data: { id: "cw-1", vendor: { id: "vendor-1" } } } as T;
           if (path.endsWith("/organizations"))
             return { data: [{ id: "org-1", role: "member" }] } as T;
           if (path.endsWith("/vendors/me"))
@@ -184,6 +186,7 @@ test("developer connects a provisioned Coworker through CLI arguments", async ()
   assert.deepEqual(calls, [
     { method: "GET", path: "/v1/users/me/organizations" },
     { method: "GET", path: "/v1/vendors/me" },
+    { method: "GET", path: "/v1/coworkers/cw-1" },
     {
       method: "POST",
       path: "/v1/coworkers/cw-1/workspace-access",
