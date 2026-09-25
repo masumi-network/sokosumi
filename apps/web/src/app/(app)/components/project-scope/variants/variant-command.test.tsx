@@ -29,7 +29,8 @@ vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
 vi.mock("@/app/projects/components/project-avatar", () => ({
   ProjectAvatar: () => <span aria-hidden />,
 }));
-// The menu has its own suite. Here it only has to report a choice.
+// The menu has its own suite. Here it only has to report a choice. The input
+// stands in for its search, which holds focus while the switcher is open.
 vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
   ProjectScopeMenu: ({
     onSelect,
@@ -41,6 +42,7 @@ vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
     onDone?: () => void;
   }) => (
     <div>
+      <input aria-label="search" />
       <button
         type="button"
         onClick={() => {
@@ -125,9 +127,10 @@ describe("CommandScopeDesktop shortcut", () => {
     mocks.isApple = true;
     const { origin } = setup();
     fireEvent.keyDown(origin, OPTION_P);
-    const inside = screen.getByRole("button", { name: "choose" });
+    // The key lands in the search, an editable field, like in real use.
+    const search = screen.getByRole("textbox", { name: "search" });
 
-    expect(fireEvent.keyDown(inside, init)).toBe(false);
+    expect(fireEvent.keyDown(search, init)).toBe(false);
     expect(dialog()).not.toBeNull();
   });
 
@@ -243,6 +246,38 @@ describe("CommandScopeDesktop focus", () => {
     const { origin, pill } = setup();
     origin.focus();
     await user.click(pill);
+    expect(dialog()).not.toBeNull();
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(dialog()).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(pill));
+  });
+
+  it("forgets the shortcut origin once a close uses it", async () => {
+    const user = userEvent.setup();
+    const { origin, pill } = setup();
+    origin.focus();
+    fireEvent.keyDown(origin, ALT_P);
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(document.activeElement).toBe(origin));
+
+    await user.click(pill);
+    expect(dialog()).not.toBeNull();
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(dialog()).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(pill));
+  });
+
+  it("returns focus to the pill, not the body, after a shortcut from the body", async () => {
+    const user = userEvent.setup();
+    const { pill } = setup();
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    expect(document.activeElement).toBe(document.body);
+    fireEvent.keyDown(document.body, ALT_P);
     expect(dialog()).not.toBeNull();
 
     await user.keyboard("{Escape}");
