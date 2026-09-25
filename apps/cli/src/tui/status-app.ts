@@ -48,6 +48,7 @@ import {
   administeredVendors,
   describeRegistrationAdminVendorRequirement,
   describeRegistrationWorkspaceRequirement,
+  isPreprodCoworkerRegistrationTarget,
 } from "../cli/registration-authority.js";
 import {
   COWORKER_FRAMEWORK_PRESETS,
@@ -1154,16 +1155,22 @@ function StatusApp({
     const adminVendors = administeredVendors(vendors);
     const missingWorkspace = !resourceLoading && workspaces.length === 0;
     const missingAdminVendor = !resourceLoading && adminVendors.length === 0;
-    const registrationBlocked = missingWorkspace || missingAdminVendor;
+    const preprodOnly = !isPreprodCoworkerRegistrationTarget(
+      selectedConfig.target,
+    );
+    const registrationBlocked =
+      preprodOnly || missingWorkspace || missingAdminVendor;
     const rawWebUrl = String(env.SOKOSUMI_WEB_URL || "").trim();
     const webBase = rawWebUrl ? sanitizeApiUrl(rawWebUrl) : "";
-    const gateHint = resourceLoading
-      ? "Checking workspace and Vendor admin authority…"
-      : missingWorkspace
-        ? describeRegistrationWorkspaceRequirement(webBase || undefined)
-        : missingAdminVendor
-          ? describeRegistrationAdminVendorRequirement(webBase || undefined)
-          : "Choose a preset runtime. Connect it under an administered Vendor in a later step.";
+    const gateHint = preprodOnly
+      ? "Coworker registration is Preprod only. Restart with `sokosumi --preprod` to register."
+      : resourceLoading
+        ? "Checking workspace and Vendor admin authority…"
+        : missingWorkspace
+          ? describeRegistrationWorkspaceRequirement(webBase || undefined)
+          : missingAdminVendor
+            ? describeRegistrationAdminVendorRequirement(webBase || undefined)
+            : "Choose a preset runtime. Then register it with `coworkers register` and the selected Workspace.";
     signedInContent = React.createElement(
       Box,
       { flexDirection: "column", width: "100%" },
@@ -1193,7 +1200,7 @@ function StatusApp({
           label: vendor.name || "Unnamed vendor",
           hint:
             vendor.role === "admin"
-              ? "admin · can register Coworkers"
+              ? "admin · Vendor access"
               : vendor.role || undefined,
         }))
       : [{ value: "empty", label: "No vendors found", hint: "empty" }];
@@ -1206,7 +1213,7 @@ function StatusApp({
         { dimColor: true },
         resourceLoading
           ? "Loading vendor memberships…"
-          : "Admin role is required to register Coworkers under a Vendor.",
+          : "Choose an administered Vendor. Core also checks who can create Coworkers.",
       ),
       React.createElement(SelectInput, {
         items: vendorItems,

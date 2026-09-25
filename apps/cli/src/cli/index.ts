@@ -145,6 +145,7 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "agents hire": "AGENT_ID",
   "coworkers list": "",
   "coworkers register": "[options]",
+  "coworkers connect": "COWORKER_ID [options]",
   "coworkers update": "COWORKER_ID [options]",
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
@@ -387,6 +388,9 @@ export async function runCli(
     throw error;
   }
   const { positionals, options } = parsed;
+  const coworkerRegistration =
+    positionals[0] === "coworkers" &&
+    (positionals[1] === "register" || positionals[1] === "connect");
 
   if (options.help) {
     stdout.write(formatHelpText());
@@ -403,6 +407,7 @@ export async function runCli(
       environment: dependencies.env || process.env,
       loadFiles: dependencies.env === undefined,
       preprod: options.preprod,
+      preprodDefault: coworkerRegistration,
       apiUrl: options["api-url"],
       authUrl: options["auth-url"],
       clientId: options["client-id"],
@@ -477,12 +482,15 @@ export async function runCli(
     if (
       section === "coworkers" &&
       (command === undefined ||
-        ["list", "register", "update", "api-key", "me"].includes(command))
+        ["list", "register", "connect", "update", "api-key", "me"].includes(
+          command,
+        ))
     ) {
       await runCoworkersCommand({
         client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
+        target: config.target,
         subcommand: command,
         positionalId,
         options,

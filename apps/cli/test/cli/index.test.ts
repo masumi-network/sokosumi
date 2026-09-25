@@ -117,6 +117,27 @@ test("resource commands reject mismatched target API keys before Core requests",
   assert.equal(requested, false);
 });
 
+test("Coworker registration defaults to Preprod", async () => {
+  let requests = 0;
+  await assert.rejects(
+    runCli(["coworkers", "register", "--json"], {
+      env: { SOKOSUMI_AUTH_TOKEN: "auth-token" },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async <T>() => {
+          requests += 1;
+          return { data: [] } as T;
+        },
+        post: async <T>() => ({}) as T,
+        patch: async <T>() => ({}) as T,
+      },
+      stdout: { write: () => undefined },
+    }),
+    /organization workspace/,
+  );
+  assert.equal(requests, 1);
+});
+
 test("preflight rejects unauthenticated resource commands before Core", async () => {
   let coreCalls = 0;
   const output: string[] = [];

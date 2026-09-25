@@ -11,9 +11,9 @@
 
 [VERIFIED] The documented Skill installer adds Skill files. The CLI package has `"private": true`, and the README says npm publication is disabled. A Skill install does not install the CLI binary. [Distribution](../../skills/sokosumi/references/distribution.md#L16) · [Package](../../package.json#L2) · [README](../../README.md)
 
-[VERIFIED] CLI registration does not send a selected workspace ID. Core labels Coworker creation "admin only" and requires platform admin auth. [CLI registration](../../src/cli/commands/coworkers.ts#L183) · [Core route](../../../core/src/routes/v1/coworkers/post.ts#L20)
+[VERIFIED: source] CLI registration sends the selected organization ID to Core's Workspace access route after Coworker creation. Core still requires platform admin auth to create the Coworker. [CLI registration](../../src/cli/commands/coworkers.ts) · [Core route](../../../core/src/routes/v1/coworkers/post.ts)
 
-[VERIFIED] The CLI target resolver defaults to Mainnet when no target or API URL is supplied. The current `coworkers register` command has no Preprod-only guard. [Target resolver](../../src/auth/config.ts#L178) · [Register command](../../src/cli/commands/coworkers.ts#L183)
+[VERIFIED: CLI source] The CLI defaults to Preprod for `coworkers register` and `coworkers connect` when no target is configured. Both commands reject Mainnet before a Core request. Other commands retain their target selection. [Session bootstrap](../../src/auth/bootstrap.ts) · [Register command](../../src/cli/commands/coworkers.ts)
 
 [VERIFIED: source only] The create handler sets `isWhitelisted: false`, and the whitelist route requires platform admin authentication. This does not verify a Preprod deployment default. [Create route](../../../core/src/routes/v1/coworkers/post.ts#L75) · [Whitelist route](../../../core/src/routes/v1/coworkers/[id]/whitelist/patch.ts#L18)
 
@@ -45,7 +45,7 @@
 
 [CORRECTION, REPORTED: user clarification, 2026-09-24] An earlier amendment proposed allowing Vendor admins to create Coworker records on Preprod. User clarified that permissions stay unchanged and work outside the CLI is owned by the team. Withdraw the proposed Core permission change. If the team keeps current permissions, a platform admin must provision the Coworker before the CLI can finish workspace setup.
 
-[PROPOSED] Keep the CLI and Skill within existing Sokosumi authorization boundaries. The CLI may create a Coworker only when the signed-in user has the required existing Core role. A Vendor admin can use current CLI commands to manage a platform-admin-provisioned Coworker and create its runtime key. Workspace-grant support remains CLI work. Do not invent a Core endpoint or claim that developer OAuth grants platform-admin authority.
+[VERIFIED: CLI source] The CLI and Skill use existing Sokosumi authorization boundaries. The CLI may create a Coworker only when the signed-in user has the required existing Core role. A Vendor admin can use CLI commands to manage a platform-admin-provisioned Coworker, create its runtime key, and request Workspace access. The CLI does not change Core permissions or grant platform-admin authority. [CLI command](../../src/cli/commands/coworkers.ts)
 
 [REPORTED: user decision, 2026-09-24] Coworker registration is Preprod-only for this developer flow. The CLI shows “Preprod only” on Mainnet and sends no registration request. Other CLI commands remain network-configurable.
 

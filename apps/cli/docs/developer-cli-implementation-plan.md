@@ -28,7 +28,7 @@ The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](a
 
 [VERIFIED] The current CLI lists organization workspaces but does not create one. When none exists, it directs the user to the Sokosumi Web workspace switcher. [Workspace guidance](../src/cli/registration-authority.ts#L18-L23) · [Workspace command](../src/cli/commands/workspaces.ts#L39-L45)
 
-[VERIFIED] Core has a Vendor-admin Workspace access route, but the CLI does not call it yet. The current `coworkers register` command creates a Coworker through Core and does not grant Workspace access. [CLI command](../src/cli/commands/coworkers.ts#L183) · [Core route](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts#L48-L74)
+[VERIFIED: CLI source] `coworkers register` creates a Coworker through Core, then requests Workspace access. `coworkers connect` requests access for an existing Coworker. Both report completion only after `GRANTED`. Live Preprod access remains unverified. [CLI command](../src/cli/commands/coworkers.ts) · [Core route](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts)
 
 The runtime initiates its local connection outward. Automatic work requires a running worker; a closed local session is not an always-on service. Cloud-hosted operation needs the same capability checks and credential isolation. Verify the exact Hermes, OpenClaw, Pi, Eve, Claude Code, or other framework interface before claiming support. A tool-call integration does not prove automatic execution support.
 
@@ -190,8 +190,8 @@ These units describe independently reviewable outcomes, not a forced user journe
 1c. [DONE / PR developer Vendor create] Developer self-service Vendor create uses Core `POST /v1/vendors`; the caller becomes admin. This does not create a Coworker.
 2. [DONE 2026-09-21 / SOK-967 / ADR 0005] Runtime identity uses `coworker_*`. Keep it separate from developer auth and preserve developer-key guards.
 3. [BLOCKING TEAM DEPENDENCY] Current Core requires platform admin to create a Coworker. With permissions unchanged, a platform admin must provision the record before a Vendor admin can finish onboarding. The CLI must not bypass this role check. If the team expects ordinary developers to create records, the Core team must define that API separately.
-4. [CLI MVP] Enforce Preprod-only Coworker registration in CLI. On Mainnet, show “Preprod only” and send no registration request. Keep other CLI commands network-configurable.
-5. [CLI MVP] Select an existing Coworker, administered Vendor, and Workspace. Add CLI support for the existing Core workspace-access route. Report registration complete only after `GRANTED`. The current CLI directs users to Web to create or join a Workspace.
+4. [IMPLEMENTED IN CLI SOURCE; LIVE PREPROD NOT CHECKED] Enforce Preprod-only Coworker registration in CLI. On Mainnet, show “Preprod only” and send no registration request. Keep other CLI commands network-configurable.
+5. [IMPLEMENTED IN CLI SOURCE; LIVE PREPROD NOT CHECKED] Select an existing Coworker, administered Vendor, and Workspace. Use the existing Core workspace-access route. Report registration complete only after `GRANTED`. The CLI directs users to Web to create or join a Workspace.
 6. [CLI MVP] Connect Hermes through a framework-neutral adapter and prove one authorized Sokosumi Task operation.
 7. [MPS MVP] Trace the existing Task/MPS path on Cardano Preprod, then prove seller receipt in the configured Coworker wallet. Do not equate Task credit debit or `TaskPaymentClaim.PURCHASED` with receipt.
 8. [LATER] Add waitlist request and platform-admin review after the current submission surface is confirmed.

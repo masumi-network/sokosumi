@@ -48,8 +48,16 @@ SOKOSUMI_API_KEY=soko_preprod_... pnpm --filter @sokosumi/cli sokosumi -- auth s
 pnpm --filter @sokosumi/cli sokosumi -- auth logout
 ```
 
-`coworkers register` requires `--vendor-id` because Core requires the owning
-vendor on create. It accepts command options for JSON fields. `tasks create`
+`coworkers register` requires `--vendor-id` and `--workspace-id`. The workspace
+value is an organization ID from `workspaces list`. Coworker `register` and
+`connect` use Preprod by default when no target is configured. Registration is
+still Preprod only. The command creates the Coworker, then asks Core to grant
+Workspace access. It reports success only when Core returns `GRANTED`. If the
+Coworker record is created but access is pending or fails, retry with
+`coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORG_ID --preprod`.
+Core keeps its existing role checks. `coworkers register` can still require a
+platform-admin role to create the record. `coworkers connect` attaches an
+existing record through the existing Core access route. It accepts command options for JSON fields. `tasks create`
 and `tasks comment` also accept command options for JSON fields. Use
 `--metadata-json` or `--metadata-file` for coworker metadata. Use
 `--channel provider=value` to add coworker channel metadata. The

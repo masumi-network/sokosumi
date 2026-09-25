@@ -30,8 +30,8 @@ test("coworkers list emits JSON and applies search/limit", async () => {
   assert.equal(parsed.coworkers[0].name, "Research");
 });
 
-test("coworkers register emits the Core vendorId request field", async () => {
-  let requestBody: unknown;
+test("coworkers register creates and connects the coworker to the selected workspace", async () => {
+  const calls: { path: string; body: unknown }[] = [];
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
       if (path.includes("/vendors/me")) {
@@ -44,8 +44,18 @@ test("coworkers register emits the Core vendorId request field", async () => {
       }
       return { data: {} } as T;
     },
-    post: async <T>(_path: string, body: unknown) => {
-      requestBody = body;
+    post: async <T>(path: string, body: unknown) => {
+      calls.push({ path, body });
+      if (path.endsWith("/workspace-access")) {
+        return {
+          data: {
+            id: "access-1",
+            coworkerId: "cw-1",
+            workspaceId: "workspace-1",
+            status: "GRANTED",
+          },
+        } as T;
+      }
       return {
         data: { id: "cw-1", name: "Ops Agent", capabilities: ["tasks"] },
       } as T;
@@ -59,22 +69,193 @@ test("coworkers register emits the Core vendorId request field", async () => {
     stdout: { write: (value) => output.push(value) },
     json: true,
     subcommand: "register",
+    target: "preprod",
     options: {
       name: "Ops Agent",
       "vendor-id": "vendor-1",
+      "workspace-id": "org-1",
       capability: "tasks",
     },
   });
 
-  assert.deepEqual(requestBody, {
-    vendorId: "vendor-1",
-    name: "Ops Agent",
-    capabilities: ["tasks"],
-  });
+  assert.deepEqual(calls, [
+    {
+      path: "/v1/coworkers",
+      body: {
+        vendorId: "vendor-1",
+        name: "Ops Agent",
+        capabilities: ["tasks"],
+      },
+    },
+    {
+      path: "/v1/coworkers/cw-1/workspace-access",
+      body: { organizationId: "org-1" },
+    },
+  ]);
   const parsed = JSON.parse(output.join(""));
   assert.equal(parsed.coworker.id, "cw-1");
   assert.equal(parsed.coworker.name, "Ops Agent");
   assert.deepEqual(parsed.coworker.capabilities, ["tasks"]);
+  assert.equal(parsed.workspaceAccess.status, "GRANTED");
+});
+
+test("coworkers register rejects Mainnet before any Core request", async () => {
+  let requestCount = 0;
+  const client: CoreHttpClient = {
+    get: async <T>() => {
+      requestCount += 1;
+      return { data: [] } as T;
+    },
+    post: async <T>() => {
+      requestCount += 1;
+      return { data: {} } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+  };
+
+  await assert.rejects(
+    () =>
+      runCoworkersCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "register",
+        target: "mainnet",
+        options: { name: "Ops Agent", "vendor-id": "vendor-1" },
+      }),
+    /Preprod only/,
+  );
+  assert.equal(requestCount, 0);
+});
+
+test("coworkers register requires a selected member Workspace", async () => {
+  let createCalled = false;
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      if (path.includes("/organizations")) {
+        return {
+          data: [{ id: "org-1", name: "Acme Org", role: "owner" }],
+        } as T;
+      }
+      return { data: [{ id: "vendor-1", role: "admin" }] } as T;
+    },
+    post: async <T>(path: string) => {
+      if (path === "/v1/coworkers") createCalled = true;
+      return { data: {} } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+  };
+
+  await assert.rejects(
+    () =>
+      runCoworkersCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "register",
+        target: "preprod",
+        options: {
+          name: "Ops Agent",
+          "vendor-id": "vendor-1",
+          "workspace-id": "org-other",
+        },
+      }),
+    /not in your organization memberships/,
+  );
+  assert.equal(createCalled, false);
+});
+
+test("pending workspace access reports the created Coworker and retry command", async () => {
+  const calls: string[] = [];
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      if (path.includes("/organizations")) {
+        return {
+          data: [{ id: "org-1", name: "Acme Org", role: "owner" }],
+        } as T;
+      }
+      return { data: [{ id: "vendor-1", role: "admin" }] } as T;
+    },
+    post: async <T>(path: string) => {
+      calls.push(path);
+      if (path.endsWith("/workspace-access")) {
+        return {
+          data: {
+            id: "access-1",
+            coworkerId: "cw-1",
+            workspaceId: "workspace-1",
+            status: "PENDING",
+          },
+        } as T;
+      }
+      return { data: { id: "cw-1", name: "Ops Agent" } } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+  };
+
+  await assert.rejects(
+    () =>
+      runCoworkersCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "register",
+        target: "preprod",
+        options: {
+          name: "Ops Agent",
+          "vendor-id": "vendor-1",
+          "workspace-id": "org-1",
+          "create-api-key": true,
+        },
+      }),
+    /Coworker cw-1 was created, but Workspace access is PENDING.*coworkers connect cw-1/,
+  );
+  assert.deepEqual(calls, [
+    "/v1/coworkers",
+    "/v1/coworkers/cw-1/workspace-access",
+  ]);
+});
+
+test("coworkers connect grants access to an existing Coworker", async () => {
+  const calls: { path: string; body: unknown }[] = [];
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      if (path.includes("/organizations")) {
+        return {
+          data: [{ id: "org-1", name: "Acme Org", role: "owner" }],
+        } as T;
+      }
+      return { data: [{ id: "vendor-1", role: "admin" }] } as T;
+    },
+    post: async <T>(path: string, body: unknown) => {
+      calls.push({ path, body });
+      return {
+        data: {
+          id: "access-1",
+          coworkerId: "cw-1",
+          workspaceId: "workspace-1",
+          status: "GRANTED",
+        },
+      } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+  };
+  const output: string[] = [];
+
+  await runCoworkersCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    subcommand: "connect",
+    positionalId: "cw-1",
+    target: "preprod",
+    options: { "vendor-id": "vendor-1", "workspace-id": "org-1" },
+  });
+
+  assert.deepEqual(calls, [
+    {
+      path: "/v1/coworkers/cw-1/workspace-access",
+      body: { organizationId: "org-1" },
+    },
+  ]);
+  assert.equal(JSON.parse(output.join("")).workspaceAccess.status, "GRANTED");
 });
 
 test("coworkers register rejects a missing vendor ID before Core request", async () => {
@@ -104,7 +285,11 @@ test("coworkers register rejects a missing vendor ID before Core request", async
         client,
         stdout: { write() {} },
         subcommand: "register",
-        options: { name: "Ops Agent" },
+        target: "preprod",
+        options: {
+          name: "Ops Agent",
+          "workspace-id": "org-1",
+        },
       }),
     /vendor id is required/,
   );
@@ -131,7 +316,12 @@ test("coworkers register blocks when no organization workspace exists", async ()
         client,
         stdout: { write() {} },
         subcommand: "register",
-        options: { name: "Ops Agent", "vendor-id": "vendor-1" },
+        target: "preprod",
+        options: {
+          name: "Ops Agent",
+          "vendor-id": "vendor-1",
+          "workspace-id": "org-1",
+        },
       }),
     /organization workspace/,
   );
@@ -167,7 +357,12 @@ test("coworkers register rejects non-admin Vendor before Core create", async () 
         client,
         stdout: { write() {} },
         subcommand: "register",
-        options: { name: "Ops Agent", "vendor-id": "vendor-1" },
+        target: "preprod",
+        options: {
+          name: "Ops Agent",
+          "vendor-id": "vendor-1",
+          "workspace-id": "org-1",
+        },
       }),
     /requires admin/,
   );
@@ -198,7 +393,11 @@ test("coworkers register requires --vendor-id and does not create a Vendor", asy
         client,
         stdout: { write() {} },
         subcommand: "register",
-        options: { name: "Ops Agent" },
+        target: "preprod",
+        options: {
+          name: "Ops Agent",
+          "workspace-id": "org-1",
+        },
       }),
     /vendor id is required/,
   );
@@ -432,6 +631,16 @@ test("coworkers register --create-api-key mints and returns the key", async () =
         return {
           data: { id: "key-1", name: "deploy", token: "soko_secret_value" },
         } as T;
+      if (path.endsWith("/workspace-access")) {
+        return {
+          data: {
+            id: "access-1",
+            coworkerId: "cw-1",
+            workspaceId: "workspace-1",
+            status: "GRANTED",
+          },
+        } as T;
+      }
       return {
         data: { id: "cw-1", name: "Ops", capabilities: ["tasks"] },
       } as T;
@@ -444,16 +653,19 @@ test("coworkers register --create-api-key mints and returns the key", async () =
     stdout: { write: (value) => output.push(value) },
     json: true,
     subcommand: "register",
+    target: "preprod",
     options: {
       name: "Ops",
       "vendor-id": "vendor-1",
+      "workspace-id": "org-1",
       "create-api-key": true,
       "api-key-name": "deploy",
     },
   });
   assert.equal(calls[0]?.path, "/v1/coworkers");
-  assert.equal(calls[1]?.path, "/v1/coworkers/cw-1/api-keys");
-  const keyBody = calls[1]?.body;
+  assert.equal(calls[1]?.path, "/v1/coworkers/cw-1/workspace-access");
+  assert.equal(calls[2]?.path, "/v1/coworkers/cw-1/api-keys");
+  const keyBody = calls[2]?.body;
   if (!keyBody || typeof keyBody !== "object" || !("name" in keyBody))
     throw new Error("api-key request body missing name");
   assert.equal(keyBody.name, "deploy");

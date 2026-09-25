@@ -1,15 +1,20 @@
+import type { CoworkerWorkspaceAccess } from "../../api/models/coworker-workspace-access.js";
 import {
   createCoworker,
   createCoworkerApiKey,
   fetchCoworkers,
   fetchCurrentCoworker,
+  grantCoworkerWorkspaceAccess,
   updateCoworker,
 } from "../../api/services/coworker-service.js";
 import { fetchOrganizationWorkspaces } from "../../api/services/organization-workspace-service.js";
 import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
+import type { CliTargetConfig } from "../../auth/config.js";
 import {
   requireAdministeredVendorForRegistration,
   requireOrganizationWorkspacesForRegistration,
+  requirePreprodCoworkerRegistration,
+  requireSelectedOrganizationWorkspace,
 } from "../registration-authority.js";
 import {
   applyListFilters,
@@ -32,6 +37,7 @@ import {
 } from "./command-helpers.js";
 
 export interface CoworkersCommandContext extends CommandContext {
+  target?: CliTargetConfig["target"];
   subcommand?: string;
   positionalId?: string;
   options?: CommandOptions;
@@ -147,6 +153,7 @@ export async function runCoworkersCommand({
   stdout,
   json = false,
   signal,
+  target,
   subcommand,
   positionalId,
   options,
@@ -181,21 +188,45 @@ export async function runCoworkersCommand({
     return;
   }
   if (command === "register") {
+    requirePreprodCoworkerRegistration(target);
     const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
       client,
       signal,
     );
     requireOrganizationWorkspacesForRegistration(organizationWorkspaces);
+    const workspace = requireSelectedOrganizationWorkspace(
+      organizationWorkspaces,
+      optionString(options, "workspace-id"),
+    );
     const payload = await buildPayload(options, false);
     const vendorId = String(payload.vendorId);
     const { vendors } = await fetchVendorMemberships(client, signal);
     requireAdministeredVendorForRegistration(vendors, vendorId);
     const { coworker } = await createCoworker(client, payload, signal);
+    const coworkerId = String(record(coworker).id || "");
+    let workspaceAccess: CoworkerWorkspaceAccess;
+    try {
+      ({ access: workspaceAccess } = await grantCoworkerWorkspaceAccess(
+        client,
+        coworkerId,
+        { organizationId: workspace.organizationId },
+        signal,
+      ));
+    } catch (error) {
+      throw new Error(
+        `Coworker ${coworkerId} was created, but Workspace access could not be confirmed. Retry with \`sokosumi coworkers connect ${coworkerId} --vendor-id ${vendorId} --workspace-id ${workspace.organizationId} --preprod\`. Cause: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    if (workspaceAccess.status !== "GRANTED") {
+      throw new Error(
+        `Coworker ${coworkerId} was created, but Workspace access is ${workspaceAccess.status}. Registration is incomplete. Retry with \`sokosumi coworkers connect ${coworkerId} --vendor-id ${vendorId} --workspace-id ${workspace.organizationId} --preprod\` after access is approved.`,
+      );
+    }
     let apiKey: unknown = null;
     if (optionBoolean(options, "create-api-key")) {
       const result = await createCoworkerApiKey(
         client,
-        String(record(coworker).id),
+        coworkerId,
         {
           name: optionString(options, "api-key-name"),
           expiresAt: optionString(options, "api-key-expires-at"),
@@ -204,11 +235,11 @@ export async function runCoworkersCommand({
       );
       apiKey = result.apiKey;
     }
-    if (json) writeJson(stdout, { coworker, apiKey });
+    if (json) writeJson(stdout, { coworker, workspaceAccess, apiKey });
     else {
       const coworkerValue = record(coworker);
       writeText(stdout, [
-        `Created coworker ${String(coworkerValue.name || coworkerValue.id)} [${String(coworkerValue.id)}]`,
+        `Registered coworker ${String(coworkerValue.name || coworkerValue.id)} [${coworkerId}] in Workspace ${workspace.name || workspace.organizationId} [${workspace.organizationId}]`,
         coworkerValue.baseURL
           ? `baseURL: ${String(coworkerValue.baseURL)}`
           : undefined,
@@ -226,6 +257,43 @@ export async function runCoworkersCommand({
           : undefined,
       ]);
     }
+    return;
+  }
+  if (command === "connect") {
+    requirePreprodCoworkerRegistration(target);
+    const coworkerId = positionalId || optionString(options, "coworker-id");
+    if (!coworkerId)
+      throw new Error("coworker id is required for `coworkers connect`");
+    const vendorId = optionString(options, "vendor-id")?.trim();
+    if (!vendorId)
+      throw new Error("vendor id is required for `coworkers connect`");
+    const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
+      client,
+      signal,
+    );
+    requireOrganizationWorkspacesForRegistration(organizationWorkspaces);
+    const workspace = requireSelectedOrganizationWorkspace(
+      organizationWorkspaces,
+      optionString(options, "workspace-id"),
+    );
+    const { vendors } = await fetchVendorMemberships(client, signal);
+    requireAdministeredVendorForRegistration(vendors, vendorId);
+    const { access } = await grantCoworkerWorkspaceAccess(
+      client,
+      coworkerId,
+      { organizationId: workspace.organizationId },
+      signal,
+    );
+    if (access.status !== "GRANTED") {
+      throw new Error(
+        `Coworker ${coworkerId} Workspace access is ${access.status}. Registration is incomplete. Wait for Workspace approval, then retry this command.`,
+      );
+    }
+    if (json) writeJson(stdout, { coworkerId, workspaceAccess: access });
+    else
+      writeText(stdout, [
+        `Connected coworker ${coworkerId} to Workspace ${workspace.name || workspace.organizationId} [${workspace.organizationId}]`,
+      ]);
     return;
   }
   if (command === "update") {
