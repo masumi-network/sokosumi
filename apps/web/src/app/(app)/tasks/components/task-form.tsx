@@ -49,6 +49,11 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
@@ -1392,17 +1397,28 @@ export function TaskForm({
               ) : null}
             </div>
             <div className="flex items-center gap-3 sm:ml-auto">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                disabled={createdTask !== null || !isAgentAssignee}
-                aria-label={labels.openRunAt}
-                aria-pressed={hasRunAt}
-                onClick={() => setIsRunAtModalOpen(true)}
-              >
-                <CalendarClock className="size-4" aria-hidden />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={createdTask !== null}
+                    aria-disabled={!isAgentAssignee}
+                    aria-label={labels.openRunAt}
+                    aria-pressed={hasRunAt}
+                    className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:bg-background aria-disabled:hover:text-foreground"
+                    onClick={() => {
+                      if (isAgentAssignee) setIsRunAtModalOpen(true);
+                    }}
+                  >
+                    <CalendarClock className="size-4" aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={6} className="max-w-64">
+                  {isAgentAssignee ? labels.openRunAt : tRunAt("requiresAgent")}
+                </TooltipContent>
+              </Tooltip>
               <Button
                 type="button"
                 className="min-w-28 items-center justify-between gap-1"

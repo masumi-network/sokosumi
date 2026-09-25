@@ -1057,7 +1057,8 @@ describe("TaskForm", () => {
     expect(createTaskMock.mock.calls[0]?.[0]).not.toHaveProperty("runAt");
   });
 
-  it("disables the Run at button without an agent assignee", () => {
+  it("explains why scheduling is unavailable without an agent assignee", async () => {
+    const user = userEvent.setup();
     render(
       <TaskForm
         mode="create"
@@ -1077,9 +1078,19 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("button", { name: "Set start time" }),
-    ).toBeDisabled();
+    const trigger = screen.getByRole("button", { name: "Set start time" });
+    expect(trigger).toHaveAttribute("aria-disabled", "true");
+
+    await user.hover(trigger);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "requiresAgent",
+    );
+
+    trigger.focus();
+    expect(trigger).toHaveFocus();
+
+    await user.click(trigger);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("clears the Run at when a non-Queued status is picked", async () => {
