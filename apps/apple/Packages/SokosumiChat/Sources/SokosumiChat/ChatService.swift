@@ -105,7 +105,7 @@ public struct ChatService: Sendable {
   }
 
   /// Restores the server-selected workspace without writing a preference.
-  public func loadInitialState(client: Client) async throws -> InitialWorkspaceState {
+  func loadInitialState(client: Client) async throws -> InitialWorkspaceState {
     let access = try await fetchAccess(client: client)
     guard access.gate == .ready else { throw ChatServiceError.blocked(access.gate) }
     let organizations = try await fetchOrganizations(client: client)
@@ -139,7 +139,7 @@ public struct ChatService: Sendable {
   /// Explicit user switch only: persist the preference, then reload rooms
   /// under the new workspace. If rooms fail after a successful PUT, restore
   /// `previous` so Core does not keep a preference the UI never committed.
-  public func switchWorkspace(
+  func switchWorkspace(
     client: Client,
     selection: WorkspaceSelection,
     previous: WorkspaceSelection? = nil
@@ -162,7 +162,7 @@ public struct ChatService: Sendable {
   /// `GET /chats/rooms` walked to completion. Nil slug omits the org header
   /// (personal); a slug sends `X-Organization-Slug`. Web's archived list walks
   /// the same route with `kind=channel&status=archived`.
-  public func listRooms(
+  func listRooms(
     client: Client,
     organizationSlug: String?,
     kind: Components.Schemas.ChatRoomKind? = nil,

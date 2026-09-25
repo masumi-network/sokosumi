@@ -2,7 +2,7 @@ import CoreAPI
 import Foundation
 
 public enum AttachmentUpload {
-  public static let maximumSize = 100 * 1024 * 1024
+  private static let maximumSize = 100 * 1024 * 1024
 
   public enum Failure: LocalizedError {
     case invalidFile, tooLarge, unsupportedType, invalidResponse
