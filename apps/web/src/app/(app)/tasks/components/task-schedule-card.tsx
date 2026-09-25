@@ -18,6 +18,7 @@ import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -93,59 +94,59 @@ export function TaskScheduleCard({
   return (
     <li>
       <Card
-        className="bg-background h-full gap-3 py-4"
+        className="bg-background h-full gap-0 py-0"
         data-testid="schedule-card"
       >
-        <CardHeader className="flex items-start justify-between gap-3 px-4">
-          <div className="flex min-w-0 flex-col items-start gap-2">
-            {/* A stored assignee the workspace no longer lists keeps a face. */}
-            {assigneeId ? (
-              <span
-                aria-hidden
-                className="flex shrink-0 items-center"
-                data-testid="schedule-card-assignee"
-                title={assigneeLabel}
-              >
-                <AssigneeAvatar
-                  assignee={assignee ? toAssigneeView(assignee) : null}
-                  size="lg"
-                />
-              </span>
-            ) : null}
-            <span className="sr-only">{assigneeLabel}</span>
-            <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
-              {project ? (
-                <ProjectAvatar
-                  className="size-4 rounded-sm"
-                  logo={project.logo}
-                  name={project.name}
-                />
-              ) : (
-                <span aria-hidden className="bg-primary size-4 rounded-full" />
-              )}
-              <span className="line-clamp-1">{sourceName}</span>
-            </span>
-            <div className="flex min-w-0 flex-col gap-1">
-              <CardTitle>
-                <Link
-                  className="text-foreground line-clamp-2 text-sm font-medium hover:underline"
-                  href={taskSchedulePath(schedule.id)}
-                  title={t("openSchedule")}
-                >
-                  {schedule.name}
-                </Link>
-              </CardTitle>
-              <CardDescription className="line-clamp-1 text-xs">
-                {formatTaskScheduleRule(schedule.rule, formatter, tSchedule)}
-              </CardDescription>
-            </div>
-          </div>
+        <CardHeader className="flex items-center justify-between gap-3 px-4 py-3">
+          <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+            {project ? (
+              <ProjectAvatar
+                className="size-4 rounded-sm"
+                logo={project.logo}
+                name={project.name}
+              />
+            ) : (
+              <span aria-hidden className="bg-primary size-4 rounded-full" />
+            )}
+            <span className="line-clamp-1">{sourceName}</span>
+          </span>
           <TaskScheduleStateBadge
             label={t(`state.${schedule.state}`)}
             schedule={schedule}
           />
         </CardHeader>
-        <CardFooter className="mt-auto items-end justify-between gap-3 px-4 text-xs">
+        <CardContent className="border-border flex flex-1 flex-col items-start gap-2 border-t px-4 py-4">
+          {/* A stored assignee the workspace no longer lists keeps a face. */}
+          {assigneeId ? (
+            <span
+              aria-hidden
+              className="flex shrink-0 items-center"
+              data-testid="schedule-card-assignee"
+              title={assigneeLabel}
+            >
+              <AssigneeAvatar
+                assignee={assignee ? toAssigneeView(assignee) : null}
+                size="lg"
+              />
+            </span>
+          ) : null}
+          <span className="sr-only">{assigneeLabel}</span>
+          <div className="flex min-w-0 flex-col gap-1">
+            <CardTitle>
+              <Link
+                className="text-foreground line-clamp-2 text-sm font-medium hover:underline"
+                href={taskSchedulePath(schedule.id)}
+                title={t("openSchedule")}
+              >
+                {schedule.name}
+              </Link>
+            </CardTitle>
+            <CardDescription className="line-clamp-1 text-xs">
+              {formatTaskScheduleRule(schedule.rule, formatter, tSchedule)}
+            </CardDescription>
+          </div>
+        </CardContent>
+        <CardFooter className="items-end justify-between gap-3 px-4 pb-4 text-xs">
           <span className="text-muted-foreground tabular-nums">
             {nextRunLabel}
           </span>

@@ -14,13 +14,21 @@ import {
 } from "@/app/tasks/utils/task-schedules-filters";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import {
   type TaskSchedule,
   TaskScheduleState,
 } from "@/lib/clients/generated/core";
 import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { cn } from "@/lib/utils";
 import { TaskScheduleCard } from "./task-schedule-card";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
 import { TasksProjectSwitcher } from "./tasks-project-switcher";
@@ -114,27 +122,35 @@ export function TaskSchedulesView({
     ),
   ];
 
+  const shownValue = shownState ?? ALL_STATES;
+
   return (
-    <div className="flex flex-col gap-4">
+    <Tabs
+      className="flex flex-col gap-4"
+      onValueChange={handleStateChange}
+      value={shownValue}
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ToggleGroup
-          type="single"
-          value={shownState ?? ALL_STATES}
-          onValueChange={(next) => {
-            if (next) handleStateChange(next);
-          }}
+        <TabsList
           aria-label={t("stateFilter")}
-          className="bg-card-background gap-1 rounded-lg p-1"
+          className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-fit")}
         >
-          <ToggleGroupItem value={ALL_STATES} className="px-3 text-sm">
+          <TabsTrigger
+            className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+            value={ALL_STATES}
+          >
             {t("filterAll")}
-          </ToggleGroupItem>
+          </TabsTrigger>
           {Object.values(TaskScheduleState).map((value) => (
-            <ToggleGroupItem key={value} value={value} className="px-3 text-sm">
+            <TabsTrigger
+              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+              key={value}
+              value={value}
+            >
               {t(`state.${value}`)}
-            </ToggleGroupItem>
+            </TabsTrigger>
           ))}
-        </ToggleGroup>
+        </TabsList>
         <div className="flex items-center gap-2 sm:gap-3">
           <TasksProjectSwitcher
             projectOptions={projectOptions}
@@ -149,41 +165,47 @@ export function TaskSchedulesView({
         </div>
       </div>
 
-      {rows.length === 0 ? (
-        <div className="border-border flex flex-col items-center gap-2 rounded-xl border px-4 py-16 text-center">
-          <CalendarSync className="text-muted-foreground size-6" aria-hidden />
-          <p className="text-muted-foreground max-w-sm text-sm text-pretty">
-            {t("empty")}
-          </p>
-        </div>
-      ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {rows.map((schedule) => (
-            <TaskScheduleCard
-              assigneeDisplayOptions={assigneeDisplayOptions}
-              canCreatePrivate={canCreatePrivate}
-              coworkerOptions={coworkerOptions}
-              currentUserId={currentUserId}
-              key={schedule.id}
-              projectOptions={projectOptions}
-              schedule={schedule}
+      {/* One panel, always the shown state's, so the list is its tab's panel. */}
+      <TabsContent className="flex flex-col gap-4" value={shownValue}>
+        {rows.length === 0 ? (
+          <div className="border-border flex flex-col items-center gap-2 rounded-xl border px-4 py-16 text-center">
+            <CalendarSync
+              className="text-muted-foreground size-6"
+              aria-hidden
             />
-          ))}
-        </ul>
-      )}
+            <p className="text-muted-foreground max-w-sm text-sm text-pretty">
+              {t("empty")}
+            </p>
+          </div>
+        ) : (
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {rows.map((schedule) => (
+              <TaskScheduleCard
+                assigneeDisplayOptions={assigneeDisplayOptions}
+                canCreatePrivate={canCreatePrivate}
+                coworkerOptions={coworkerOptions}
+                currentUserId={currentUserId}
+                key={schedule.id}
+                projectOptions={projectOptions}
+                schedule={schedule}
+              />
+            ))}
+          </ul>
+        )}
 
-      {more.nextCursor ? (
-        <div className="flex justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLoadMore}
-            disabled={isLoadingMore}
-          >
-            {isLoadingMore ? t("loadingMore") : t("loadMore")}
-          </Button>
-        </div>
-      ) : null}
+        {more.nextCursor ? (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLoadMore}
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore ? t("loadingMore") : t("loadMore")}
+            </Button>
+          </div>
+        ) : null}
+      </TabsContent>
 
       {isCreateOpen ? (
         <TaskScheduleDialog
@@ -195,6 +217,6 @@ export function TaskSchedulesView({
           onSaved={(scheduleId) => router.push(taskSchedulePath(scheduleId))}
         />
       ) : null}
-    </div>
+    </Tabs>
   );
 }

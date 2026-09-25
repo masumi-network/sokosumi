@@ -180,7 +180,7 @@ describe("TaskSchedulesView", () => {
     const user = userEvent.setup();
     renderView([schedule({})]);
 
-    await user.click(screen.getByRole("radio", { name: "state.PAUSED" }));
+    await user.click(screen.getByRole("tab", { name: "state.PAUSED" }));
 
     expect(replaceMock).toHaveBeenCalledWith("/schedules?scheduleState=PAUSED");
   });
@@ -202,8 +202,11 @@ describe("TaskSchedulesView", () => {
     searchParamsRef.current = new URLSearchParams("scheduleState=ENDED");
     renderView([], { state: "ENDED" });
 
-    expect(screen.getByRole("radio", { name: "state.ENDED" })).toBeChecked();
-    await user.click(screen.getByRole("radio", { name: "filterAll" }));
+    expect(screen.getByRole("tab", { name: "state.ENDED" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await user.click(screen.getByRole("tab", { name: "filterAll" }));
 
     expect(replaceMock).toHaveBeenCalledWith("/schedules");
   });
