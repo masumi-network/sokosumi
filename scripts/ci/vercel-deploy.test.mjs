@@ -4,7 +4,10 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { apiKeyVariable, projectIdVariable } from "./preview-db-reset.mjs";
+import {
+  NEON_API_KEY_VARIABLE,
+  projectIdVariable,
+} from "./preview-db-reset.mjs";
 import {
   createGitDeployment,
   deployTargets,
@@ -1315,7 +1318,7 @@ describe("git preview policy", () => {
     assert.match(workflow, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
   });
 
-  it("gives the Neon preview keys only to the comment-gated reset-db job", async () => {
+  it("gives the Neon key only to the comment-gated reset-db job", async () => {
     const workflow = await readFile(
       path.join(repoRoot, ".github/workflows/preview-deploy.yml"),
       "utf8",
@@ -1324,7 +1327,7 @@ describe("git preview policy", () => {
     assert.match(resetJob, /github\.event_name == 'issue_comment'/);
     assert.match(resetJob, /github\.event\.issue\.pull_request/);
     assert.match(resetJob, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
-    // `/deploy --reset-db` needs the keys too, so it runs here and the
+    // `/deploy --reset-db` needs the key too, so it runs here and the
     // `comment` job skips it. Without the skip, that job would also post a
     // usage reply.
     const takesDeployReset =
@@ -1365,9 +1368,10 @@ describe("git preview policy", () => {
       ["GITHUB_TOKEN", "secrets.GITHUB_TOKEN"],
       ["VERCEL_TOKEN", "secrets.VERCEL_TOKEN"],
       ["VERCEL_ORG_ID", "vars.VERCEL_TEAM_ID"],
-      ...["mainnet", "preprod"].flatMap((network) => [
-        [apiKeyVariable(network), `secrets.${apiKeyVariable(network)}`],
-        [projectIdVariable(network), `vars.${projectIdVariable(network)}`],
+      [NEON_API_KEY_VARIABLE, `secrets.${NEON_API_KEY_VARIABLE}`],
+      ...["mainnet", "preprod"].map((network) => [
+        projectIdVariable(network),
+        `vars.${projectIdVariable(network)}`,
       ]),
     ];
     for (const [name, value] of env) {
@@ -1383,9 +1387,14 @@ describe("git preview policy", () => {
     for (const jobId of ["comment", "opened"]) {
       assert.doesNotMatch(jobBlock(workflow, jobId), /NEON_/);
     }
-    // NEON_API_KEY is an Actions secret that other workflows read, and Cursor
-    // Cloud agents hold it too. The reset keys live only in the environment.
-    assert.doesNotMatch(workflow, /secrets\.NEON_API_KEY/);
+    // NEON_API_KEY reaches every project in the Neon organization. Only the
+    // reset job, which runs the default branch's code, may read it.
+    assert.equal(workflow.match(/secrets\.NEON_API_KEY\b/g)?.length, 1);
+    assert.match(resetJob, /secrets\.NEON_API_KEY\b/);
+    assert.match(
+      resetJob,
+      /^ {10}ref: \$\{\{ github\.event\.repository\.default_branch \}\}$/m,
+    );
   });
 
   it("treats pull_request_target as an opened-preview event name", () => {

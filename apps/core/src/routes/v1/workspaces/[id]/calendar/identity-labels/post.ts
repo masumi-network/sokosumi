@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -53,7 +52,6 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireOwnerUserContext(c.var.authContext);
-    await requireCalendarBetaAccess(userContext.userId, prisma);
 
     const { id: workspaceId } = c.req.valid("param");
     const activeWorkspace = requireWorkspaceContext(c.var.workspaceContext);

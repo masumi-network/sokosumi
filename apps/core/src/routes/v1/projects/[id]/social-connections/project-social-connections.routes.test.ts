@@ -17,13 +17,13 @@ const {
   finalizeProjectSocialConnectionMock,
   initiateProjectSocialConnectionMock,
   listProjectSocialConnectionsMock,
-  requireCalendarBetaAccessMock,
+  requireSocialBetaAccessMock,
 } = vi.hoisted(() => ({
   disconnectProjectSocialConnectionMock: vi.fn(),
   finalizeProjectSocialConnectionMock: vi.fn(),
   initiateProjectSocialConnectionMock: vi.fn(),
   listProjectSocialConnectionsMock: vi.fn(),
-  requireCalendarBetaAccessMock: vi.fn(),
+  requireSocialBetaAccessMock: vi.fn(),
 }));
 
 vi.mock("@/services/project-social-connections.service", () => ({
@@ -33,8 +33,8 @@ vi.mock("@/services/project-social-connections.service", () => ({
   listProjectSocialConnections: listProjectSocialConnectionsMock,
 }));
 
-vi.mock("@/helpers/calendar-beta-access", () => ({
-  requireCalendarBetaAccess: requireCalendarBetaAccessMock,
+vi.mock("@/helpers/social-beta-access", () => ({
+  requireSocialBetaAccess: requireSocialBetaAccessMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
@@ -119,7 +119,7 @@ function createApp(
 describe("Project social connection routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireCalendarBetaAccessMock.mockResolvedValue(undefined);
+    requireSocialBetaAccessMock.mockResolvedValue(undefined);
     listProjectSocialConnectionsMock.mockResolvedValue([connection]);
     initiateProjectSocialConnectionMock.mockResolvedValue({
       connectionId: CONNECTION_ID,
@@ -362,7 +362,7 @@ describe("Project social connection routes", () => {
       expect(responses.map((response) => response.status)).toEqual([
         403, 403, 403, 403,
       ]);
-      expect(requireCalendarBetaAccessMock).not.toHaveBeenCalled();
+      expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
       expect(listProjectSocialConnectionsMock).not.toHaveBeenCalled();
       expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
       expect(finalizeProjectSocialConnectionMock).not.toHaveBeenCalled();
@@ -370,8 +370,8 @@ describe("Project social connection routes", () => {
     },
   );
 
-  it("gates every social-connection operation behind Calendar beta access", async () => {
-    requireCalendarBetaAccessMock.mockRejectedValue(
+  it("gates every social-connection operation behind Social beta access", async () => {
+    requireSocialBetaAccessMock.mockRejectedValue(
       forbidden("Calendar is only available to utxo AG workspace members"),
     );
     const app = createApp();
@@ -402,7 +402,7 @@ describe("Project social connection routes", () => {
     expect(responses.map((response) => response.status)).toEqual([
       403, 403, 403, 403,
     ]);
-    expect(requireCalendarBetaAccessMock).toHaveBeenCalledWith(
+    expect(requireSocialBetaAccessMock).toHaveBeenCalledWith(
       USER_ID,
       expect.anything(),
     );
