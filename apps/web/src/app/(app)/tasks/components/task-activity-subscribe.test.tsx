@@ -183,7 +183,6 @@ describe("TaskActivitySubscribeControl", () => {
     await user.click(screen.getByRole("button", { name: "unsubscribe" }));
     expect(removeTaskParticipantMock).toHaveBeenCalledWith({
       taskId: "task-1",
-      userId: "viewer-1",
     });
   });
 

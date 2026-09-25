@@ -96,10 +96,7 @@ export function TaskActivitySubscribeControl({
 
     startTransition(async () => {
       if (viewerIsParticipant) {
-        const result = await removeTaskParticipant({
-          taskId,
-          userId: viewerId,
-        });
+        const result = await removeTaskParticipant({ taskId });
         if (!result.ok) {
           setVisibleParticipants(previous);
           toast.error(t("removeParticipantError"));

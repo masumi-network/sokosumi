@@ -32,7 +32,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}/participants/{userId}",
   description:
-    "Remove a Task participant. The Task owner may remove any participant. A participant may remove only themselves. Missing participants are a no-op. Does not change owner or assignee. Human session only.",
+    "Leave a Task as a participant (self only). `userId` must be the authenticated viewer. Missing participants are a no-op. Does not change owner or assignee. Human session only.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -50,15 +50,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id, userId } = c.req.valid("param");
     const actor = requireOwnerUserContext(c.var.authContext);
 
+    if (userId !== actor.userId) {
+      throw forbidden("Only a participant may remove themselves");
+    }
+
     const participants = await prisma.$transaction(async (tx) => {
-      const task = await requireTaskReadForRouteVars(c.var, id, tx);
-      const isOwner = task.ownerId === actor.userId;
-      const isSelf = userId === actor.userId;
-      if (!isOwner && !isSelf) {
-        throw forbidden(
-          "Only the Task owner or the participant themselves may remove a participant",
-        );
-      }
+      await requireTaskReadForRouteVars(c.var, id, tx);
 
       await tx.taskParticipant.deleteMany({
         where: { taskId: id, userId },

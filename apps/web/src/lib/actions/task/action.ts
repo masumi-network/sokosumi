@@ -136,7 +136,6 @@ interface CreateTaskCommentParameters extends AuthenticatedRequest {
 
 interface RemoveTaskParticipantParameters extends AuthenticatedRequest {
   taskId: string;
-  userId: string;
 }
 
 interface SubscribeTaskParticipantParameters extends AuthenticatedRequest {
@@ -739,16 +738,16 @@ export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
 
 export const removeTaskParticipant = withSession<
   RemoveTaskParticipantParameters,
-  ActionResultDto<{ taskId: string; userId: string }, ActionError>
->(async ({ taskId, userId }) => {
+  ActionResultDto<{ taskId: string }, ActionError>
+>(async ({ taskId, session }) => {
   try {
-    await taskService.removeTaskParticipant(taskId, userId);
+    await taskService.removeTaskParticipant(taskId, session.user.id);
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
-  return toActionResult(ok({ taskId, userId }));
+  return toActionResult(ok({ taskId }));
 });
 
 export const subscribeTaskParticipant = withSession<

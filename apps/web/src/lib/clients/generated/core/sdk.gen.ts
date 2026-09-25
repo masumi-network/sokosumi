@@ -3654,7 +3654,7 @@ export const patchTasksByIdLinksByLinkId = <ThrowOnError extends boolean = false
 });
 
 /**
- * Subscribe the authenticated viewer as a Task participant. Idempotent. Does not accept other user ids. Requires comment access.
+ * Subscribe the authenticated viewer as a Task participant. Idempotent. Does not accept other user ids. Requires comment access. Human session only.
  */
 export const postTasksByIdParticipants = <ThrowOnError extends boolean = false>(options: Options<PostTasksByIdParticipantsData, ThrowOnError>): RequestResult<PostTasksByIdParticipantsResponses, PostTasksByIdParticipantsErrors, ThrowOnError> => (options.client ?? client).post<PostTasksByIdParticipantsResponses, PostTasksByIdParticipantsErrors, ThrowOnError>({
     responseTransformer: postTasksByIdParticipantsResponseTransformer,
@@ -3663,7 +3663,7 @@ export const postTasksByIdParticipants = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Remove a Task participant. The Task owner may remove any participant. A participant may remove only themselves. Missing participants are a no-op. Does not change owner or assignee.
+ * Leave a Task as a participant (self only). `userId` must be the authenticated viewer. Missing participants are a no-op. Does not change owner or assignee. Human session only.
  */
 export const deleteTasksByIdParticipantsByUserId = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksByIdParticipantsByUserIdData, ThrowOnError>): RequestResult<DeleteTasksByIdParticipantsByUserIdResponses, DeleteTasksByIdParticipantsByUserIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksByIdParticipantsByUserIdResponses, DeleteTasksByIdParticipantsByUserIdErrors, ThrowOnError>({
     responseTransformer: deleteTasksByIdParticipantsByUserIdResponseTransformer,

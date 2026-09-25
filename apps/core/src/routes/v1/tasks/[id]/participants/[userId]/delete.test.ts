@@ -95,8 +95,8 @@ describe("DELETE /{id}/participants/{userId}", () => {
     ]);
   });
 
-  it("lets the Task owner remove any participant", async () => {
-    const app = mountApp(ownerAuth);
+  it("lets a participant remove only themselves", async () => {
+    const app = mountApp(participantAuth);
 
     const response = await app.request(
       "http://localhost/tsk_123/participants/user_alice",
@@ -123,21 +123,20 @@ describe("DELETE /{id}/participants/{userId}", () => {
     );
   });
 
-  it("lets a participant remove only themselves", async () => {
-    const app = mountApp(participantAuth);
+  it("forbids the Task owner from removing another participant", async () => {
+    const app = mountApp(ownerAuth);
 
     const response = await app.request(
       "http://localhost/tsk_123/participants/user_alice",
       { method: "DELETE" },
     );
 
-    expect(response.status).toBe(200);
-    expect(deleteManyMock).toHaveBeenCalledWith({
-      where: { taskId: "tsk_123", userId: "user_alice" },
-    });
+    expect(response.status).toBe(403);
+    expect(deleteManyMock).not.toHaveBeenCalled();
+    expect(markTaskParticipantRemovedReadMock).not.toHaveBeenCalled();
   });
 
-  it("forbids a commenter who is neither owner nor that participant", async () => {
+  it("forbids a commenter from removing another participant", async () => {
     const app = mountApp(commenterAuth);
 
     const response = await app.request(
@@ -180,10 +179,10 @@ describe("DELETE /{id}/participants/{userId}", () => {
   it("treats a missing participant row as a no-op", async () => {
     deleteManyMock.mockResolvedValue({ count: 0 });
     findManyMock.mockResolvedValue([]);
-    const app = mountApp(ownerAuth);
+    const app = mountApp(participantAuth);
 
     const response = await app.request(
-      "http://localhost/tsk_123/participants/user_ghost",
+      "http://localhost/tsk_123/participants/user_alice",
       { method: "DELETE" },
     );
 
@@ -192,7 +191,7 @@ describe("DELETE /{id}/participants/{userId}", () => {
       data: { participants: [] },
     });
     expect(markTaskParticipantRemovedReadMock).toHaveBeenCalledWith(
-      "user_ghost",
+      "user_alice",
       "tsk_123",
     );
   });
@@ -212,7 +211,7 @@ describe("DELETE /{id}/participants/{userId}", () => {
     mountDeleteTaskParticipant(app);
 
     const response = await app.request(
-      "http://localhost/tsk_123/participants/user_alice",
+      "http://localhost/tsk_123/participants/user_owner",
       { method: "DELETE" },
     );
 
