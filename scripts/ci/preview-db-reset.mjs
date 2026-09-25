@@ -4,7 +4,8 @@
  * the PR's Neon preview branch (`preview/<head ref>`) to its parent, then
  * redeploys Core so its Vercel build runs `prisma migrate deploy` on the
  * clean branch. Use it after renaming a migration that the preview database
- * already applied.
+ * already applied. `/deploy <networks> --reset-db` does the same reset, then
+ * deploys web and Core like `/deploy`.
  *
  *   node scripts/ci/preview-db-reset.mjs    # `reset-db` job in preview-deploy.yml
  */
@@ -22,17 +23,38 @@ import {
 import {
   commentCommandOptions,
   isMainModule,
+  parseNetworkCommand,
   previewGitSource,
   readActionsContext,
+  runPreviewDeployComment,
   runPullRequestCommand,
   settlePreviewDeployments,
   summarizeCliDeployResult,
+  usageMessage,
   VERCEL_TEAM_ID,
 } from "./vercel-deploy.mjs";
 
 // Node's fetch can wait 300 seconds for a response. A hung Neon request would
 // then run the job into its timeout, and no reply would post.
 const NEON_REQUEST_TIMEOUT_MS = 30_000;
+
+export const RESET_DB_FLAG = "--reset-db";
+
+/**
+ * The comment's first line without `--reset-db`, or null when that line is
+ * not a `/deploy` command with the flag. Commands read only the first line.
+ */
+export function stripResetDbFlag(body) {
+  // trim() also drops a leading byte order mark.
+  const text = String(body ?? "");
+  const end = text.search(/\r?\n/);
+  const tokens = (end === -1 ? text : text.slice(0, end)).trim().split(/\s+/);
+  const kept = tokens.filter((token) => token.toLowerCase() !== RESET_DB_FLAG);
+  if (tokens[0].toLowerCase() !== "/deploy" || kept.length === tokens.length) {
+    return null;
+  }
+  return kept.join(" ");
+}
 
 export function apiKeyVariable(network) {
   return `NEON_PREVIEW_API_KEY_${network.toUpperCase()}`;
@@ -100,7 +122,55 @@ async function neonStep(step, request) {
   }
 }
 
-export async function runPreviewDbResetComment(options) {
+/** The `/reset-db` command: reset, then redeploy Core only. */
+const RESET_DB_COMMAND = {
+  name: "/reset-db",
+  subject: "`/reset-db`",
+  apps: ["core"],
+  redeploy: "Core redeploy",
+  deployed: "redeployed Core",
+  retry: (networks) => `/reset-db ${networks.join(" ")}`,
+};
+
+/** `/deploy --reset-db`: reset, then deploy web and Core like `/deploy`. */
+const DEPLOY_RESET_COMMAND = {
+  name: "/deploy",
+  subject: "Preview deploy",
+  apps: undefined,
+  redeploy: "web and Core deploy",
+  deployed: "deployed web and Core",
+  retry: (networks) => `/deploy ${networks.join(" ")} ${RESET_DB_FLAG}`,
+};
+
+export function runPreviewDbResetComment(options) {
+  return runResetCommand(options, RESET_DB_COMMAND, resetUsageMessage());
+}
+
+/**
+ * Run `/deploy <networks> --reset-db`. The workflow sends a `/deploy` comment
+ * here whenever its body holds the flag, so a comment with the flag on a
+ * later line runs a plain `/deploy`.
+ */
+export function runDeployWithResetComment(options) {
+  const commentBody = stripResetDbFlag(options.commentBody);
+  if (commentBody === null) {
+    return runPreviewDeployComment(options);
+  }
+  return runResetCommand(
+    { ...options, commentBody },
+    DEPLOY_RESET_COMMAND,
+    usageMessage(),
+  );
+}
+
+/** The `reset-db` job's entry: `/deploy` comments and `/reset-db` comments. */
+export function runResetDbJobComment(options) {
+  return parseNetworkCommand(options.commentBody, "/deploy").kind === "ignore"
+    ? runPreviewDbResetComment(options)
+    : runDeployWithResetComment(options);
+}
+
+async function runResetCommand(options, command, usage) {
   const {
     repoId,
     vercelToken,
@@ -114,10 +184,10 @@ export async function runPreviewDbResetComment(options) {
   } = options;
 
   return runPullRequestCommand(options, {
-    name: "/reset-db",
-    subject: "`/reset-db`",
+    name: command.name,
+    subject: command.subject,
     action: "reset preview databases",
-    usage: resetUsageMessage(),
+    usage,
     run: async ({ networks, pullRequest, comment, react }) => {
       const branchName = `${PREVIEW_BRANCH_PREFIX}${pullRequest.head.ref}`;
       const fetchWithTimeout = (url, init) =>
@@ -182,7 +252,7 @@ export async function runPreviewDbResetComment(options) {
         const notes = [networkError(failed, error)];
         if (reset.length > 0) {
           notes.push(
-            `\`${branchName}\` was reset on ${reset.join(", ")} without a Core redeploy. Comment \`/deploy ${reset.join(" ")}\` to run the migrations.`,
+            `\`${branchName}\` was reset on ${reset.join(", ")} without a ${command.redeploy}. Comment \`/deploy ${reset.join(" ")}\` to run the migrations.`,
           );
         }
         const busy = !unfinished && isNeonBusy(error);
@@ -200,7 +270,7 @@ export async function runPreviewDbResetComment(options) {
         }
         // A refusal repeats until its cause changes, for example a branch
         // with children.
-        const retry = `\`/reset-db ${[failed, ...untried].join(" ")}\``;
+        const retry = `\`${command.retry([failed, ...untried])}\``;
         notes.push(
           unfinished || busy
             ? `Comment ${retry} to try again.`
@@ -213,7 +283,7 @@ export async function runPreviewDbResetComment(options) {
       try {
         ({ deployments } = await settlePreviewDeployments({
           networks,
-          apps: ["core"],
+          apps: command.apps,
           git: previewGitSource(pullRequest, repoId),
           vercelToken,
           teamId,
@@ -222,11 +292,15 @@ export async function runPreviewDbResetComment(options) {
           pollDeployment,
         }));
       } catch (error) {
-        // A failed build names its networks. A failed Vercel request does
-        // not, so every network may lack its migrations.
+        // A failed build names its networks and apps. A failed Vercel
+        // request does not, so every network may lack its migrations.
         const failed = error?.networks ?? networks;
+        const next =
+          error?.apps?.includes("core") === false
+            ? `Core ran the migrations. Comment \`/deploy ${failed.join(" ")}\` to deploy again.`
+            : `If \`prisma migrate deploy\` failed in the build log, fix the migration first. Then comment \`/deploy ${failed.join(" ")}\` to run the migrations.`;
         throw new Error(
-          `\`${branchName}\` was reset on ${networks.join(", ")}, but the Core redeploy failed: ${errorSentence(error)} If \`prisma migrate deploy\` failed in the build log, fix the migration first. Then comment \`/deploy ${failed.join(" ")}\` to run the migrations.`,
+          `\`${branchName}\` was reset on ${networks.join(", ")}, but the ${command.redeploy} failed: ${errorSentence(error)} ${next}`,
         );
       }
 
@@ -234,7 +308,7 @@ export async function runPreviewDbResetComment(options) {
       // "failed" reply that invites a second reset.
       try {
         await comment(
-          `Reset \`${branchName}\` to its parent on ${networks.join(", ")} and redeployed Core. The Core build ran \`prisma migrate deploy\` on the clean branch.`,
+          `Reset \`${branchName}\` to its parent on ${networks.join(", ")} and ${command.deployed}. The Core build ran \`prisma migrate deploy\` on the clean branch.`,
         );
       } catch (error) {
         console.warn(`Success reply failed: ${errorSentence(error)}`);
@@ -251,7 +325,7 @@ export async function runPreviewDbResetComment(options) {
 
 async function cliResetDb(env = process.env) {
   const { event, ...context } = await readActionsContext(env);
-  const result = await runPreviewDbResetComment(
+  const result = await runResetDbJobComment(
     commentCommandOptions(event, { ...context, neonEnv: env }),
   );
   console.log(JSON.stringify(summarizeCliDeployResult(result)));

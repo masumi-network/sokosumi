@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
+import { pathToFileURL } from "node:url";
 
 import {
   readPreviewNeonConfigs,
   resetUsageMessage,
+  runDeployWithResetComment,
   runPreviewDbResetComment,
+  runResetDbJobComment,
+  stripResetDbFlag,
 } from "./preview-db-reset.mjs";
-import { parseNetworkCommand } from "./vercel-deploy.mjs";
+import { parseNetworkCommand, usageMessage } from "./vercel-deploy.mjs";
 
 const PULL_REQUEST = {
   head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
@@ -657,6 +664,199 @@ describe("runPreviewDbResetComment", () => {
   });
 });
 
+describe("stripResetDbFlag", () => {
+  it("drops the flag from a /deploy first line and ignores other comments", () => {
+    for (const [body, expected] of [
+      ["/deploy all --reset-db", "/deploy all"],
+      ["/deploy --reset-db preprod", "/deploy preprod"],
+      ["/deploy --reset-db", "/deploy"],
+      ["  /DEPLOY mainnet --RESET-DB\nsee above", "/DEPLOY mainnet"],
+      ["\uFEFF/deploy all --reset-db", "/deploy all"],
+      ["/deploy all", null],
+      ["/deploy all\n--reset-db", null],
+      ["/deploy all --reset-dbx", null],
+      ["/reset-db all --reset-db", null],
+      ["please /deploy all --reset-db", null],
+      ["", null],
+      [undefined, null],
+    ]) {
+      assert.equal(stripResetDbFlag(body), expected, JSON.stringify(body));
+    }
+  });
+});
+
+describe("runDeployWithResetComment", () => {
+  function deployReset(overrides = {}) {
+    return setup({
+      commentBody: "/deploy all --reset-db",
+      listFiles: async () => [{ filename: "apps/core/src/index.ts" }],
+      ...overrides,
+    });
+  }
+
+  it("resets each network's preview branch, then deploys web and Core", async () => {
+    const { options, posted, reactions, created, neonCalls } = deployReset();
+    const result = await runDeployWithResetComment(options);
+
+    assert.equal(result.kind, "reset");
+    assert.deepEqual(
+      restoreCalls(neonCalls).map((call) => call.path),
+      [
+        "/projects/prj-mainnet/branches/br-prj-mainnet/restore",
+        "/projects/prj-preprod/branches/br-prj-preprod/restore",
+      ],
+    );
+    assert.deepEqual(
+      created.map((input) => [input.target.network, input.target.app]),
+      [
+        ["mainnet", "web"],
+        ["mainnet", "core"],
+        ["preprod", "web"],
+        ["preprod", "core"],
+      ],
+    );
+    assert.deepEqual(posted, [
+      "Reset `preview/feat/x` to its parent on mainnet, preprod and deployed web and Core. The Core build ran `prisma migrate deploy` on the clean branch.",
+    ]);
+    assert.deepEqual(reactions, ["eyes", "rocket"]);
+  });
+
+  it("resets only the named network", async () => {
+    const { options, created, neonCalls } = deployReset({
+      commentBody: "/deploy preprod --reset-db",
+    });
+    await runDeployWithResetComment(options);
+    assert.deepEqual(
+      restoreCalls(neonCalls).map((call) => call.path),
+      ["/projects/prj-preprod/branches/br-prj-preprod/restore"],
+    );
+    assert.deepEqual(
+      created.map((input) => input.target.network),
+      ["preprod", "preprod"],
+    );
+  });
+
+  it("replies with the /deploy usage when no network is named", async () => {
+    const { options, posted, neonCalls } = deployReset({
+      commentBody: "/deploy --reset-db",
+    });
+    const result = await runDeployWithResetComment(options);
+    assert.equal(result.kind, "usage");
+    assert.deepEqual(posted, [usageMessage()]);
+    assert.match(posted[0], /`--reset-db` on the first line/);
+    assert.deepEqual(neonCalls, []);
+  });
+
+  it("gives the /deploy form in the retry advice", async () => {
+    const { options, posted, created } = deployReset({
+      neon: { restoreStatus: { "prj-preprod": 409 } },
+    });
+    await assert.rejects(() => runDeployWithResetComment(options));
+    assert.deepEqual(created, []);
+    assert.deepEqual(posted, [
+      "Preview deploy failed: preprod: the restore failed: Neon answered 409: restore failed 409. `preview/feat/x` was reset on mainnet without a web and Core deploy. Comment `/deploy mainnet` to run the migrations. Neon refused the reset on preprod. Comment `/deploy preprod --reset-db` once the cause is fixed.",
+    ]);
+  });
+
+  it("says the reset happened when the web and Core deploy fails", async () => {
+    for (const [failedApp, next] of [
+      [
+        "web",
+        "Core ran the migrations. Comment `/deploy mainnet` to deploy again.",
+      ],
+      [
+        "core",
+        "If `prisma migrate deploy` failed in the build log, fix the migration first. Then comment `/deploy mainnet` to run the migrations.",
+      ],
+    ]) {
+      const { options, posted } = deployReset({
+        commentBody: "/deploy mainnet --reset-db",
+        createDeployment: async (input) => ({
+          id: `dpl_${input.target.name}`,
+          readyState: input.target.app === failedApp ? "ERROR" : "READY",
+        }),
+      });
+      await assert.rejects(() => runDeployWithResetComment(options));
+      assert.equal(posted.length, 1);
+      const prefix =
+        "Preview deploy failed: `preview/feat/x` was reset on mainnet, but the web and Core deploy failed: ";
+      assert.ok(posted[0].startsWith(prefix), posted[0]);
+      assert.match(posted[0].slice(prefix.length), /^\S+ \(ERROR\)\. /);
+      assert.ok(posted[0].endsWith(` (ERROR). ${next}`), posted[0]);
+    }
+  });
+
+  it("names only the failed networks, and gives the migrate advice when any Core failed", async () => {
+    for (const [failing, next] of [
+      [
+        ["preprod/web"],
+        "Core ran the migrations. Comment `/deploy preprod` to deploy again.",
+      ],
+      [
+        ["mainnet/web", "preprod/core"],
+        "If `prisma migrate deploy` failed in the build log, fix the migration first. Then comment `/deploy mainnet preprod` to run the migrations.",
+      ],
+    ]) {
+      const { options, posted } = deployReset({
+        createDeployment: async (input) => ({
+          id: `dpl_${input.target.name}`,
+          readyState: failing.includes(
+            `${input.target.network}/${input.target.app}`,
+          )
+            ? "ERROR"
+            : "READY",
+        }),
+      });
+      await assert.rejects(() => runDeployWithResetComment(options));
+      assert.equal(posted.length, 1);
+      assert.ok(
+        posted[0].startsWith(
+          "Preview deploy failed: `preview/feat/x` was reset on mainnet, preprod, but the web and Core deploy failed: ",
+        ),
+        posted[0],
+      );
+      assert.ok(posted[0].endsWith(` (ERROR). ${next}`), posted[0]);
+    }
+  });
+
+  it("runs a plain /deploy when the flag is not on the first line", async () => {
+    const { options, posted, reactions, created, neonCalls } = deployReset({
+      commentBody: "/deploy mainnet\nno --reset-db this time",
+    });
+    const result = await runDeployWithResetComment(options);
+    assert.equal(result.kind, "deploy");
+    assert.deepEqual(neonCalls, []);
+    assert.deepEqual(
+      created.map((input) => input.target.app),
+      ["web", "core"],
+    );
+    assert.deepEqual(posted, []);
+    assert.deepEqual(reactions, ["eyes", "rocket"]);
+  });
+});
+
+describe("runResetDbJobComment", () => {
+  it("sends /deploy comments to the deploy flow and the rest to /reset-db", async () => {
+    for (const [commentBody, restores, apps] of [
+      ["/deploy mainnet --reset-db", 1, ["web", "core"]],
+      ["/deploy mainnet\n--reset-db", 0, ["web", "core"]],
+      ["/reset-db mainnet", 1, ["core"]],
+    ]) {
+      const { options, created, neonCalls } = setup({
+        commentBody,
+        listFiles: async () => [{ filename: "apps/core/src/index.ts" }],
+      });
+      await runResetDbJobComment(options);
+      assert.equal(restoreCalls(neonCalls).length, restores, commentBody);
+      assert.deepEqual(
+        created.map((input) => input.target.app),
+        apps,
+        commentBody,
+      );
+    }
+  });
+});
+
 describe("the /reset-db script", () => {
   // The workflow runs the file itself. If it stopped running as a script, the
   // job would pass without a reply.
@@ -668,5 +868,65 @@ describe("the /reset-db script", () => {
     );
     assert.equal(run.status, 1);
     assert.match(run.stderr, /VERCEL_TOKEN is required/);
+  });
+
+  // The job starts the script for `/deploy --reset-db` too, so the script
+  // must route those comments to the deploy flow.
+  it("runs /deploy --reset-db comments when started as a script", (t) => {
+    const dir = mkdtempSync(path.join(tmpdir(), "reset-db-cli-"));
+    t.after(() => rmSync(dir, { recursive: true, force: true }));
+    const eventPath = path.join(dir, "event.json");
+    writeFileSync(
+      eventPath,
+      JSON.stringify({
+        comment: {
+          body: "/deploy mainnet --reset-db",
+          user: { login: "alice" },
+          id: 1,
+        },
+        issue: { number: 7, pull_request: {} },
+        repository: { id: 99 },
+      }),
+    );
+    // Answers GitHub and prints each posted comment. Neon is never reached,
+    // because the Neon variables are unset.
+    const stubPath = path.join(dir, "fetch-stub.mjs");
+    writeFileSync(
+      stubPath,
+      `const pullRequest = ${JSON.stringify(PULL_REQUEST)};
+globalThis.fetch = async (url, init = {}) => {
+  const json = (body) => new Response(JSON.stringify(body), { status: 200 });
+  if (url.endsWith("/permission")) return json({ permission: "write" });
+  if (url.endsWith("/pulls/7")) return json(pullRequest);
+  if (url.endsWith("/issues/7/comments")) {
+    console.log("COMMENT " + JSON.parse(init.body).body);
+  }
+  return json({});
+};
+`,
+    );
+    const run = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        pathToFileURL(stubPath).href,
+        new URL("./preview-db-reset.mjs", import.meta.url).pathname,
+      ],
+      {
+        env: {
+          PATH: process.env.PATH,
+          VERCEL_TOKEN: "vercel-token",
+          GITHUB_TOKEN: "github-token",
+          GITHUB_REPOSITORY: "owner/repo",
+          GITHUB_EVENT_PATH: eventPath,
+        },
+        encoding: "utf8",
+      },
+    );
+    assert.equal(run.status, 1, run.stderr);
+    assert.match(
+      run.stdout,
+      /^COMMENT Preview deploy failed: NEON_PREVIEW_API_KEY_MAINNET is not set\. Nothing was reset\.$/m,
+    );
   });
 });

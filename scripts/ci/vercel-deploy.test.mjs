@@ -23,6 +23,7 @@ import {
   runPreviewDeployComment,
   runPreviewDeployOpened,
   runPreviewFromGithubEvent,
+  settlePreviewDeployments,
   summarizeCliDeployResult,
   usageMessage,
   VERCEL_PROJECTS,
@@ -76,6 +77,11 @@ describe("parseDeployComment", () => {
       kind: "usage",
     });
     assert.deepEqual(parseDeployComment("/deploy staging"), { kind: "usage" });
+    // The plain /deploy job never deploys a `--reset-db` comment without the
+    // reset.
+    assert.deepEqual(parseDeployComment("/deploy all --reset-db"), {
+      kind: "usage",
+    });
     assert.deepEqual(parseDeployComment("/deploy all mainnet"), {
       kind: "usage",
     });
@@ -580,6 +586,81 @@ describe("pollDeploymentUntilSettled", () => {
         }),
       /did not finish/,
     );
+  });
+});
+
+describe("settlePreviewDeployments", () => {
+  // A job that ends early releases the per-PR queue while a Core build it
+  // started can still migrate, and a queued reset could then restore the
+  // branch under it.
+  function deferred() {
+    let resolve;
+    const promise = new Promise((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  }
+
+  async function settledBefore(promise, release) {
+    let done = false;
+    const watched = promise.then(
+      () => {
+        done = true;
+      },
+      () => {
+        done = true;
+      },
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    const early = done;
+    release();
+    await watched;
+    return early;
+  }
+
+  it("waits for every poll before it reports a failed one", async () => {
+    const core = deferred();
+    const run = settlePreviewDeployments({
+      networks: ["mainnet"],
+      git: {},
+      createDeployment: async ({ target }) => ({
+        id: target.app,
+        readyState: "BUILDING",
+      }),
+      pollDeployment: async (deployment) => {
+        if (deployment.id === "web") {
+          throw new Error("fetch failed");
+        }
+        await core.promise;
+        return { ...deployment, readyState: "READY" };
+      },
+    });
+    assert.equal(await settledBefore(run, core.resolve), false);
+    await assert.rejects(run, /fetch failed/);
+  });
+
+  it("polls the created deployments, then reports the first failure", async () => {
+    const core = deferred();
+    const polled = [];
+    const run = settlePreviewDeployments({
+      networks: ["mainnet"],
+      git: {},
+      createDeployment: async ({ target }) => {
+        if (target.app === "web") {
+          throw new Error("Vercel 500");
+        }
+        return { id: target.app, readyState: "BUILDING" };
+      },
+      pollDeployment: async (deployment) => {
+        polled.push(deployment.id);
+        await core.promise;
+        throw new Error("poll failed");
+      },
+    });
+    assert.equal(await settledBefore(run, core.resolve), false);
+    // web comes first in the target order, so its create error wins.
+    await assert.rejects(run, /Vercel 500/);
+    assert.deepEqual(polled, ["core"]);
   });
 });
 
@@ -1243,15 +1324,25 @@ describe("git preview policy", () => {
     assert.match(resetJob, /github\.event_name == 'issue_comment'/);
     assert.match(resetJob, /github\.event\.issue\.pull_request/);
     assert.match(resetJob, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
-    assert.match(
-      resetJob,
-      /startsWith\(github\.event\.comment\.body, '\/reset-db'\)/,
+    // `/deploy --reset-db` needs the keys too, so it runs here and the
+    // `comment` job skips it. Without the skip, that job would also post a
+    // usage reply.
+    const takesDeployReset =
+      "(startsWith(github.event.comment.body, '/deploy') && contains(github.event.comment.body, '--reset-db'))";
+    assert.ok(
+      resetJob.includes(
+        `      (startsWith(github.event.comment.body, '/reset-db') || ${takesDeployReset})\n`,
+      ),
     );
-    // Commenters without an association to the repository get no job.
-    assert.match(
-      resetJob,
-      /contains\(fromJSON\('\["OWNER", "MEMBER", "COLLABORATOR"\]'\), github\.event\.comment\.author_association\)/,
+    assert.ok(
+      jobBlock(workflow, "comment").includes(
+        `      contains(github.event.comment.body, '/deploy') &&\n      !${takesDeployReset}\n`,
+      ),
     );
+    // Like `/deploy`, the reset lets the script's write-access check decide.
+    // author_association can report a private organization member as
+    // CONTRIBUTOR, which would skip the job with no reply.
+    assert.doesNotMatch(workflow, /github\.event\.comment\.author_association/);
     assert.match(resetJob, /^    environment: preview-database$/m);
     assert.match(
       checkoutStep(resetJob, "reset-db"),

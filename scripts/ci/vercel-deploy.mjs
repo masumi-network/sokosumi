@@ -95,6 +95,8 @@ export function usageMessage() {
     "`/deploy all`",
     "",
     "Deploys web + core for the named network(s) at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
+    "",
+    "Add `--reset-db` on the first line (for example `/deploy preprod --reset-db`) to first reset this PR's Neon preview database to its parent. The Core build then applies every migration the parent lacks, this PR's included.",
   ].join("\n");
 }
 
@@ -391,12 +393,23 @@ export async function settlePreviewDeployments(options) {
       }));
 
   const targets = deployTargets(networks, apps);
-  const created = await Promise.all(
+  // Wait for every deployment, also after one fails, so the job keeps the
+  // per-PR queue while a Core build it started can still migrate.
+  const created = await Promise.allSettled(
     targets.map((target) => create({ target, ...git })),
   );
-  const settled = await Promise.all(
-    created.map((deployment) => poll(deployment)),
+  const polled = await Promise.allSettled(
+    created.map((result) =>
+      result.status === "fulfilled"
+        ? poll(result.value)
+        : Promise.reject(result.reason),
+    ),
   );
+  const rejected = polled.find((result) => result.status === "rejected");
+  if (rejected) {
+    throw rejected.reason;
+  }
+  const settled = polled.map((result) => result.value);
   const failed = failedDeployments(targets, settled);
   if (failed.length > 0) {
     throw Object.assign(
@@ -405,8 +418,11 @@ export async function settlePreviewDeployments(options) {
           .map(({ target, state }) => `${target.name} (${state})`)
           .join(", "),
       ),
-      // Callers name the networks to deploy again.
-      { networks: [...new Set(failed.map(({ target }) => target.network))] },
+      // Callers name the networks to deploy again, and whether Core failed.
+      {
+        networks: [...new Set(failed.map(({ target }) => target.network))],
+        apps: [...new Set(failed.map(({ target }) => target.app))],
+      },
     );
   }
   return { kind: "deploy", deployments: settled };
