@@ -1,4 +1,5 @@
-import { render, renderHook, screen } from "@testing-library/react";
+import type { SessionUser } from "@sokosumi/utils";
+import { render, renderHook, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -64,6 +65,18 @@ vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
 vi.mock("@/app/projects/components/project-avatar", () => ({
   ProjectAvatar: () => null,
 }));
+// The real workspace switch renders in the narrow-trailing test; keep its
+// modal and actions out.
+vi.mock("@/hooks/use-modal", () => ({
+  default: () => ({ Component: null, showModal: vi.fn() }),
+}));
+vi.mock("@/lib/actions/workspace-gate/action", () => ({
+  createPersonalWorkspaceAction: vi.fn(),
+}));
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+
+import HeaderWorkspaceSwitch from "@/app/components/header/header-workspace-switch.client";
+import BreadcrumbNavigationClient from "@/components/breadcrumb-navigation/breadcrumb-navigation.client";
 
 import {
   HeaderVariantCrumbs,
@@ -72,7 +85,39 @@ import {
   useWorkspaceName,
 } from "./variant-header";
 
-const SERVER_CRUMBS = <nav data-testid="server-crumbs">crumbs</nav>;
+// What the server BreadcrumbNavigation hands the header, once resolved.
+const SERVER_CRUMBS = (
+  <BreadcrumbNavigationClient
+    organizations={[]}
+    breadcrumbMessages={{ tasks: "Tasks", agents: "Agents" }}
+  />
+);
+
+/** sm and up, where the desktop breadcrumb and workspace crumb show. */
+function stubSmUp() {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  );
+}
+
+function signInToAcme() {
+  mocks.session = {
+    data: {
+      user: { name: "Ada", email: "ada@example.com" },
+      session: { activeOrganizationId: "org-1" },
+    },
+    error: null,
+  };
+  mocks.organizations = {
+    data: [{ id: "org-1", name: "Acme" }],
+    error: null,
+  };
+}
 
 function renderCrumbs() {
   return render(<HeaderVariantCrumbs>{SERVER_CRUMBS}</HeaderVariantCrumbs>);
@@ -90,15 +135,47 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("HeaderVariantCrumbs trail", () => {
-  it.each([["/"], ["/projects"], ["/projects/p1"], ["/projects/p1/unknown"]])(
-    "renders no trail on %s",
+describe("HeaderVariantCrumbs breadcrumb", () => {
+  beforeEach(() => {
+    stubSmUp();
+    signInToAcme();
+  });
+
+  function breadcrumb() {
+    return screen.getByRole("navigation", { name: "breadcrumb" });
+  }
+
+  it.each([["/"], ["/projects"]])(
+    "holds the workspace and scope, with no page crumb, on %s",
     (pathname) => {
       mocks.pathname = pathname;
       renderCrumbs();
 
-      expect(screen.queryByTestId("project-scope-header-trail")).toBeNull();
-      expect(screen.queryByTestId("server-crumbs")).toBeNull();
+      const nav = breadcrumb();
+      expect(within(nav).getByText("Acme")).toBeInTheDocument();
+      expect(
+        within(nav).getByTestId("project-scope-trigger"),
+      ).not.toHaveAttribute("aria-current");
+      expect(within(nav).getAllByRole("listitem")).toHaveLength(2);
+    },
+  );
+
+  it.each([["/projects/p1"], ["/projects/p1/unknown"]])(
+    "marks the scope as the current page on %s",
+    (pathname) => {
+      mocks.pathname = pathname;
+      mocks.projectId = "p1";
+      renderCrumbs();
+
+      const nav = breadcrumb();
+      expect(
+        within(nav).getByRole("link", { name: "Acme" }),
+      ).toBeInTheDocument();
+      expect(within(nav).getByTestId("project-scope-trigger")).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      expect(within(nav).getAllByRole("listitem")).toHaveLength(2);
     },
   );
 
@@ -107,43 +184,100 @@ describe("HeaderVariantCrumbs trail", () => {
     ["/projects/p1/social", "social"],
     ["/projects/p1/edit", "edit"],
     ["/projects/p1/design-md/edit", "editor"],
-  ])("names the project section on %s", (pathname, label) => {
+  ])("holds workspace, scope and section on %s", (pathname, label) => {
     mocks.pathname = pathname;
+    mocks.projectId = "p1";
     renderCrumbs();
 
-    const trail = screen.getByTestId("project-scope-header-trail");
-    expect(trail).toHaveTextContent(label);
-    expect(screen.getByText(label)).toHaveAttribute("aria-current", "page");
-    expect(screen.queryByTestId("server-crumbs")).toBeNull();
+    const nav = breadcrumb();
+    expect(within(nav).getByRole("link", { name: "Acme" })).toBeInTheDocument();
+    expect(
+      within(nav).getByTestId("project-scope-trigger"),
+    ).not.toHaveAttribute("aria-current");
+    expect(within(nav).getByText(label)).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(nav).getAllByRole("listitem")).toHaveLength(3);
   });
 
-  it("keeps the server crumbs on a page outside a project", () => {
+  it("keeps a section crumb readable instead of a sliver", () => {
+    mocks.pathname = "/projects/p1/calendar";
+    mocks.projectId = "p1";
+    renderCrumbs();
+
+    const page = screen.getByText("calendar");
+    expect(page).toHaveAttribute("data-slot", "breadcrumb-page");
+    expect(page.closest("li")).toHaveClass("min-w-12");
+  });
+
+  it("folds the server crumbs into one breadcrumb on a workspace page", () => {
+    // /tasks?projectId=p1: the query does not reach the pathname.
+    mocks.pathname = "/tasks";
+    mocks.projectId = "p1";
+    renderCrumbs();
+
+    expect(
+      screen.getAllByRole("navigation", { name: "breadcrumb" }),
+    ).toHaveLength(1);
+    const nav = breadcrumb();
+    expect(nav).toBe(screen.getByTestId("project-scope-header"));
+    expect(nav.querySelectorAll("ol")).toHaveLength(1);
+    expect(within(nav).getByRole("link", { name: "Acme" })).toBeInTheDocument();
+    expect(
+      within(nav).getByTestId("project-scope-trigger"),
+    ).toBeInTheDocument();
+    expect(within(nav).getByText("Tasks")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(nav).getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  it("lets only the server's current crumb shrink, with an ellipsis and room", () => {
     mocks.pathname = "/agents";
     renderCrumbs();
 
-    const trail = screen.getByTestId("project-scope-header-trail");
-    expect(trail).toContainElement(screen.getByTestId("server-crumbs"));
-  });
-
-  it("lets only the current page's crumb shrink, with an ellipsis", () => {
-    mocks.pathname = "/agents";
-    renderCrumbs();
-
-    const trail = screen.getByTestId("project-scope-header-trail");
-    expect(trail).toHaveClass(
+    expect(screen.getByTestId("project-scope-header")).toHaveClass(
       "[&_ol]:min-w-0",
-      "[&_li:last-child]:min-w-0",
+      "[&_li:last-child]:min-w-12",
       "[&_[data-slot=breadcrumb-page]]:truncate",
     );
   });
 
-  it("renders the server crumbs unchanged for other variants", () => {
-    mocks.variant = "command";
-    mocks.pathname = "/projects/p1/calendar";
+  it("leaves the scope's own width alone when it ends the trail", () => {
+    mocks.pathname = "/projects/p1";
+    mocks.projectId = "p1";
     renderCrumbs();
 
-    expect(screen.getByTestId("server-crumbs")).toBeInTheDocument();
-    expect(screen.queryByTestId("project-scope-header-trail")).toBeNull();
+    expect(screen.getByTestId("project-scope-header")).not.toHaveClass(
+      "[&_li:last-child]:min-w-12",
+    );
+  });
+
+  it("spaces the scope like the breadcrumb primitive", () => {
+    mocks.pathname = "/agents";
+    renderCrumbs();
+
+    expect(screen.getByTestId("project-scope-header")).toHaveClass(
+      "gap-1.5",
+      "sm:gap-2.5",
+    );
+    expect(
+      screen.getByTestId("project-scope-header").querySelector("ol"),
+    ).toHaveClass("gap-1.5", "sm:gap-2.5");
+  });
+
+  it("renders the server crumbs unchanged for other variants", () => {
+    mocks.variant = "command";
+    mocks.pathname = "/tasks";
+    renderCrumbs();
+
+    expect(within(breadcrumb()).getByText("Tasks")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.queryByTestId("project-scope-header")).toBeNull();
   });
 });
 
@@ -243,10 +377,43 @@ describe("HeaderVariantTrailing", () => {
       const wrapper = screen.getByTestId("trailing-child").parentElement;
       expect(wrapper).toHaveClass("contents");
       expect(wrapper?.className).toContain(
-        "max-sm:[&_[data-testid=header-workspace-chrome]_.max-w-24]:sr-only",
+        "max-sm:[&_[data-testid=header-workspace-chrome]_[data-slot=header-workspace-name]]:sr-only",
       );
     },
   );
+
+  it("targets the real workspace switch's name", () => {
+    const sessionUser: SessionUser = {
+      id: "user-1",
+      name: "Ada",
+      email: "ada@example.com",
+      emailVerified: true,
+      image: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      termsAccepted: true,
+      marketingOptIn: false,
+    };
+    const { container } = render(
+      <HeaderVariantTrailing>
+        <div data-testid="header-workspace-chrome">
+          <HeaderWorkspaceSwitch
+            sessionUser={sessionUser}
+            members={[]}
+            hasPersonalWorkspace
+            activeOrganizationId={null}
+            isPending={false}
+            onSelectWorkspace={vi.fn()}
+          />
+        </div>
+      </HeaderVariantTrailing>,
+    );
+
+    const name = container.querySelector(
+      "[data-testid=header-workspace-chrome] [data-slot=header-workspace-name]",
+    );
+    expect(name).toHaveTextContent("Ada");
+  });
 
   it("leaves the trailing chrome alone for current", () => {
     mocks.variant = "current";
@@ -256,37 +423,16 @@ describe("HeaderVariantTrailing", () => {
   });
 });
 
-describe("HeaderBreadcrumbScope", () => {
-  const HeaderBreadcrumbScope = headerSlots["header-center"];
-  if (!HeaderBreadcrumbScope) throw new Error("No header-center slot");
-
+describe("HeaderVariantCrumbs workspace crumb", () => {
   beforeEach(() => {
-    // sm and up, where the workspace crumb shows.
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn(() => ({
-        matches: true,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      })),
-    );
-    mocks.session = {
-      data: {
-        user: { name: "Ada", email: "ada@example.com" },
-        session: { activeOrganizationId: "org-1" },
-      },
-      error: null,
-    };
-    mocks.organizations = {
-      data: [{ id: "org-1", name: "Acme" }],
-      error: null,
-    };
+    stubSmUp();
+    signInToAcme();
   });
 
   it("links the workspace crumb out of a project", () => {
     mocks.pathname = "/projects/p-1";
     mocks.projectId = "p-1";
-    render(<HeaderBreadcrumbScope />);
+    renderCrumbs();
 
     expect(screen.getByRole("link", { name: "Acme" })).toHaveAttribute(
       "href",
@@ -295,8 +441,8 @@ describe("HeaderBreadcrumbScope", () => {
   });
 
   it("keeps the workspace crumb as text in the workspace view", () => {
-    mocks.pathname = "/tasks";
-    render(<HeaderBreadcrumbScope />);
+    mocks.pathname = "/projects";
+    renderCrumbs();
 
     expect(screen.getByText("Acme").tagName).toBe("SPAN");
     expect(screen.queryByRole("link")).toBeNull();

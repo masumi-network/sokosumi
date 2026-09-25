@@ -262,7 +262,10 @@ export default function HeaderWorkspaceSwitch({
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-1.5">
               {activeWorkspace ? (
                 <>
-                  <span className="max-w-24 truncate text-right leading-none font-medium md:max-w-none md:leading-tight">
+                  <span
+                    data-slot="header-workspace-name"
+                    className="max-w-24 truncate text-right leading-none font-medium md:max-w-none md:leading-tight"
+                  >
                     {activeWorkspace.name}
                   </span>
                   <HeaderWorkspaceAvatar

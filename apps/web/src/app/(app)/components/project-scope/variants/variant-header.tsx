@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, ChevronsUpDown, Layers } from "lucide-react";
+import { ChevronsUpDown, Layers } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -16,6 +16,14 @@ import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-m
 import { useProjectScopeSwitch } from "@/app/components/project-scope/use-project-scope";
 import { useSelectedScopeProject } from "@/app/components/project-scope/use-scope-projects";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import { BreadcrumbLandmarkContext } from "@/components/breadcrumb-navigation/breadcrumb-navigation.client";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -109,16 +117,6 @@ function ScopeLabel({ projectId }: { projectId: string | null }) {
   );
 }
 
-/** The app breadcrumbs' separator, so the whole trail reads as one. */
-function Separator() {
-  return (
-    <ChevronRight
-      className="text-muted-foreground size-3.5 shrink-0"
-      aria-hidden
-    />
-  );
-}
-
 function WorkspaceCrumbSkeleton() {
   return (
     <span
@@ -156,68 +154,24 @@ function WorkspaceCrumb({ href }: { href: string | null }) {
   );
 }
 
-/** Desktop (sm+): `<workspace> › <project ▾>`. `HeaderTrail` adds the page. */
-function HeaderBreadcrumbScope() {
-  const t = useTranslations("App.ProjectScope");
-  const isSmUp = useIsSmUp();
-  const scope = useProjectScopeSwitch();
-  const [open, setOpen] = useState(false);
-
-  return (
-    // -m-1 p-1: room for focus rings inside the clip.
-    <div
-      className="-m-1 flex min-w-0 shrink items-center gap-1 overflow-hidden p-1 text-sm"
-      data-testid="project-scope-header"
-    >
-      {isSmUp ? (
-        <WorkspaceCrumb
-          href={scope.projectId ? scope.switchHref(null) : null}
-        />
-      ) : (
-        <WorkspaceCrumbSkeleton />
-      )}
-      <Separator />
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            aria-haspopup="dialog"
-            aria-expanded={open}
-            data-testid="project-scope-trigger"
-            className="text-foreground max-w-64 min-w-16 shrink justify-start gap-1.5 overflow-hidden px-2 font-medium has-[>svg]:px-2"
-          >
-            <span className="sr-only">{t("switchLabel")}</span>
-            <ScopeLabel projectId={scope.projectId} />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-72 p-0">
-          <ProjectScopeMenu
-            selectedProjectId={scope.projectId}
-            onSelect={scope.select}
-            onCreate={scope.openCreate}
-            onDone={() => setOpen(false)}
-          />
-        </PopoverContent>
-      </Popover>
-      {scope.createDialog}
-    </div>
-  );
-}
-
 /**
- * What follows the scope: a project page's section, or the page's own
- * crumbs. Nothing where the scope already names the page.
+ * The crumb after the scope: a project section's name, the page's own server
+ * crumbs, or none. On a project's own page the scope is the current page.
  */
-function useTrail(crumbs: ReactNode): ReactNode {
+type PageCrumb =
+  | { kind: "section"; label: string }
+  | { kind: "crumbs" }
+  | { kind: "scope" }
+  | null;
+
+function usePageCrumb(): PageCrumb {
   const pathname = usePathname();
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const tScope = useTranslations("App.ProjectScope");
 
   if (pathname === "/" || pathname === "/projects") return null;
   const projectSection = projectPageSection(pathname);
-  if (projectSection === null) return crumbs;
+  if (projectSection === null) return { kind: "crumbs" };
 
   const sections: Record<string, string> = {
     "/calendar": tBreadcrumb("calendar"),
@@ -225,47 +179,108 @@ function useTrail(crumbs: ReactNode): ReactNode {
     "/edit": tBreadcrumb("edit"),
     "/design-md/edit": tBreadcrumb("editor"),
   };
-  const section = sections[projectSection];
-  return section ? (
-    <span aria-current="page" className="text-foreground truncate">
-      {section}
-    </span>
-  ) : null;
+  const label = sections[projectSection];
+  return label ? { kind: "section", label } : { kind: "scope" };
 }
 
 /**
  * One line. The current page's crumb gives way first and ends in an
  * ellipsis; the crumbs before it keep their width.
  */
-const HEADER_TRAIL_CLASS =
-  "-m-1 flex min-w-0 items-center gap-1 overflow-hidden p-1 text-sm whitespace-nowrap [&_ol]:min-w-0 [&_ol]:flex-nowrap [&>nav]:min-w-0 [&>nav]:flex-initial [&_li:last-child]:min-w-0 [&_[data-slot=breadcrumb-page]]:truncate";
+const HEADER_BREADCRUMB_CLASS =
+  "-m-1 flex min-w-0 items-center gap-1.5 overflow-hidden p-1 text-sm whitespace-nowrap sm:gap-2.5 [&_ol]:min-w-0 [&_ol]:flex-nowrap [&_[data-slot=breadcrumb-page]]:truncate";
 
-function HeaderTrail({ crumbs }: { crumbs: ReactNode }) {
-  const trail = useTrail(crumbs);
-  if (!trail) return null;
+/** The server's current crumb keeps room for a few characters. */
+const SERVER_PAGE_CRUMB_CLASS = "[&_li:last-child]:min-w-12";
+
+/** Desktop (sm+): `<workspace> › <project ▾> › <page>`, one breadcrumb. */
+function HeaderBreadcrumb({ crumbs }: { crumbs: ReactNode }) {
+  const t = useTranslations("App.ProjectScope");
+  const isSmUp = useIsSmUp();
+  const scope = useProjectScopeSwitch();
+  const pageCrumb = usePageCrumb();
+  const [open, setOpen] = useState(false);
+  const hasServerCrumbs = pageCrumb?.kind === "crumbs";
 
   return (
-    <div
-      className={HEADER_TRAIL_CLASS}
-      data-testid="project-scope-header-trail"
+    // -m-1 p-1: room for focus rings inside each clip. The list clips too,
+    // so a squeezed scope never paints over the server crumbs.
+    <Breadcrumb
+      className={cn(
+        HEADER_BREADCRUMB_CLASS,
+        hasServerCrumbs && SERVER_PAGE_CRUMB_CLASS,
+      )}
+      data-testid="project-scope-header"
     >
-      <Separator />
-      {trail}
-    </div>
+      <BreadcrumbList className="-m-1 overflow-hidden p-1">
+        <BreadcrumbItem className="min-w-6">
+          {isSmUp ? (
+            <WorkspaceCrumb
+              href={scope.projectId ? scope.switchHref(null) : null}
+            />
+          ) : (
+            <WorkspaceCrumbSkeleton />
+          )}
+        </BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem className="min-w-16">
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-haspopup="dialog"
+                aria-expanded={open}
+                aria-current={pageCrumb?.kind === "scope" ? "page" : undefined}
+                data-testid="project-scope-trigger"
+                className="text-foreground max-w-64 min-w-16 shrink justify-start gap-1.5 overflow-hidden px-2 font-medium has-[>svg]:px-2"
+              >
+                <span className="sr-only">{t("switchLabel")}</span>
+                <ScopeLabel projectId={scope.projectId} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-72 p-0">
+              <ProjectScopeMenu
+                selectedProjectId={scope.projectId}
+                onSelect={scope.select}
+                onCreate={scope.openCreate}
+                onDone={() => setOpen(false)}
+              />
+            </PopoverContent>
+          </Popover>
+        </BreadcrumbItem>
+        {pageCrumb?.kind === "section" || hasServerCrumbs ? (
+          <BreadcrumbSeparator />
+        ) : null}
+        {pageCrumb?.kind === "section" ? (
+          <BreadcrumbItem className="min-w-12">
+            <BreadcrumbPage>{pageCrumb.label}</BreadcrumbPage>
+          </BreadcrumbItem>
+        ) : null}
+        {/* The server crumbs drop their own landmark and join this list. */}
+        {hasServerCrumbs ? (
+          <BreadcrumbLandmarkContext value={false}>
+            {crumbs}
+          </BreadcrumbLandmarkContext>
+        ) : null}
+      </BreadcrumbList>
+      {scope.createDialog}
+    </Breadcrumb>
   );
 }
 
 function CrumbsGate({ children }: { children: ReactNode }) {
   return useScopeVariant() === "header" ? (
-    <HeaderTrail crumbs={children} />
+    <HeaderBreadcrumb crumbs={children} />
   ) : (
     children
   );
 }
 
 /**
- * The app header's page crumbs. The header variant folds them into its own
- * trail; every other variant renders them unchanged.
+ * The app header's page crumbs. The header variant folds them into its
+ * breadcrumb after the scope; every other variant renders them unchanged.
  */
 export function HeaderVariantCrumbs({ children }: { children: ReactNode }) {
   return (
@@ -290,7 +305,7 @@ const NARROW_TRAILING_VARIANTS: ReadonlySet<ScopeVariantId> = new Set([
 
 /** Below sm the workspace switch keeps its avatar; its name goes sr-only. */
 const NARROW_TRAILING_CLASS =
-  "contents max-sm:[&_[data-testid=header-workspace-chrome]_.max-w-24]:sr-only";
+  "contents max-sm:[&_[data-testid=header-workspace-chrome]_[data-slot=header-workspace-name]]:sr-only";
 
 function TrailingGate({ children }: { children: ReactNode }) {
   if (!NARROW_TRAILING_VARIANTS.has(useScopeVariant())) return children;
@@ -360,8 +375,10 @@ function HeaderMobileScope() {
   );
 }
 
-/** SOK-1202 variant "header": a breadcrumb-style scope in the app header. */
+/**
+ * SOK-1202 variant "header": a breadcrumb-style scope in the app header. The
+ * desktop scope rides in `HeaderVariantCrumbs`, so one breadcrumb holds it.
+ */
 export const headerSlots: ScopeSlots = {
-  "header-center": HeaderBreadcrumbScope,
   "header-mobile": HeaderMobileScope,
 };

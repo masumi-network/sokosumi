@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React from "react";
+import React, { createContext, useContext } from "react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -36,6 +36,12 @@ interface BreadcrumbNavigationClientProps {
   className?: string | undefined;
 }
 
+/**
+ * False inside a parent breadcrumb: the crumbs render as bare items that join
+ * its list, so one landmark holds the whole trail.
+ */
+export const BreadcrumbLandmarkContext = createContext(true);
+
 const CHAT_ROOM_BREADCRUMB_LABEL_KEY = "__chatChannelLabel";
 const CHAT_ROOM_BREADCRUMB_HREF_KEY = "__chatChannelHref";
 
@@ -47,6 +53,7 @@ export default function BreadcrumbNavigationClient({
 }: BreadcrumbNavigationClientProps) {
   const pathname = usePathname();
   const override = useBreadcrumbOverride();
+  const ownsLandmark = useContext(BreadcrumbLandmarkContext);
 
   const segments = resolveCurrentSegment(
     override?.pathname === pathname
@@ -59,24 +66,26 @@ export default function BreadcrumbNavigationClient({
         ),
   );
 
+  const items = segments.map((segment, index) => (
+    <React.Fragment key={`${segment.href}-${segment.label}-${index}`}>
+      <BreadcrumbItem>
+        {segment.isCurrent ? (
+          <BreadcrumbPage>{segment.label}</BreadcrumbPage>
+        ) : (
+          <BreadcrumbLink asChild>
+            <Link href={segment.href}>{segment.label}</Link>
+          </BreadcrumbLink>
+        )}
+      </BreadcrumbItem>
+      {index < segments.length - 1 && <BreadcrumbSeparator />}
+    </React.Fragment>
+  ));
+
+  if (!ownsLandmark) return items;
+
   return (
     <Breadcrumb className={className}>
-      <BreadcrumbList>
-        {segments.map((segment, index) => (
-          <React.Fragment key={`${segment.href}-${segment.label}-${index}`}>
-            <BreadcrumbItem>
-              {segment.isCurrent ? (
-                <BreadcrumbPage>{segment.label}</BreadcrumbPage>
-              ) : (
-                <BreadcrumbLink asChild>
-                  <Link href={segment.href}>{segment.label}</Link>
-                </BreadcrumbLink>
-              )}
-            </BreadcrumbItem>
-            {index < segments.length - 1 && <BreadcrumbSeparator />}
-          </React.Fragment>
-        ))}
-      </BreadcrumbList>
+      <BreadcrumbList>{items}</BreadcrumbList>
     </Breadcrumb>
   );
 }

@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import BreadcrumbNavigationClient from "@/components/breadcrumb-navigation/breadcrumb-navigation.client";
+import BreadcrumbNavigationClient, {
+  BreadcrumbLandmarkContext,
+} from "@/components/breadcrumb-navigation/breadcrumb-navigation.client";
 import {
   BreadcrumbOverrideProvider,
   useRegisterBreadcrumbOverride,
@@ -320,5 +322,43 @@ describe("BreadcrumbNavigationClient", () => {
     expect(screen.getByText("Developer")).toBeInTheDocument();
     expect(screen.getByText("Vendors")).toBeInTheDocument();
     expect(screen.queryByText(vendorId)).not.toBeInTheDocument();
+  });
+
+  it("renders its own breadcrumb landmark by default", () => {
+    usePathnameMock.mockReturnValue("/admin/users");
+
+    render(
+      <BreadcrumbNavigationClient
+        organizations={organizations}
+        breadcrumbMessages={breadcrumbMessages}
+      />,
+    );
+
+    const nav = screen.getByRole("navigation", { name: "breadcrumb" });
+    expect(nav.querySelectorAll("ol > li")).toHaveLength(3);
+    expect(screen.getByText("Users")).toHaveAttribute("aria-current", "page");
+  });
+
+  it("renders bare items that join a parent breadcrumb's list", () => {
+    usePathnameMock.mockReturnValue("/admin/users");
+
+    render(
+      <nav aria-label="breadcrumb">
+        <ol data-testid="parent-list">
+          <BreadcrumbLandmarkContext value={false}>
+            <BreadcrumbNavigationClient
+              organizations={organizations}
+              breadcrumbMessages={breadcrumbMessages}
+            />
+          </BreadcrumbLandmarkContext>
+        </ol>
+      </nav>,
+    );
+
+    expect(screen.getAllByRole("navigation")).toHaveLength(1);
+    const list = screen.getByTestId("parent-list");
+    expect(list.querySelectorAll("ol")).toHaveLength(0);
+    expect(list.querySelectorAll(":scope > li")).toHaveLength(3);
+    expect(screen.getByText("Users")).toHaveAttribute("aria-current", "page");
   });
 });
