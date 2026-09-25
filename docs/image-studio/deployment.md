@@ -25,13 +25,29 @@ them has a default, and each absence has its own visible symptom.
 | Key | Why | Absent |
 | --- | --- | --- |
 | `IMAGE_STUDIO_AGENT_SECRET` | HMAC secret, at least 32 characters. Web signs the short-lived token the browser hands the agent; the agent signs the grant it presents to Core. | `POST /api/projects/:projectId/image-studio/agent-token` answers `503 not_configured`, and the chat replaces its composer with **Studio assistant not available**. |
-| `AI_GATEWAY_API_KEY` | The agent selects an AI Gateway model id (`anthropic/claude-sonnet-5`), so this is the credential behind every model call it makes. | The chat opens and the first turn dies at the first model call. |
+| a Gateway credential | The agent selects an AI Gateway model id (`anthropic/claude-sonnet-5`), so every model call needs one. **Two routes, and one of them is already on** — see below. | The chat opens and the first turn dies at the first model call. |
 | `CORE_APP_BASE_URL` | Core's **origin** for the agent service. The app resolves Core through `@vercel/related-projects`, but that runs inside Next; the agent is a separate service and reads this variable directly. | The agent throws `CORE_APP_BASE_URL is not configured`, every authorization returns false, and the channel answers `401`. |
 
 `CORE_APP_BASE_URL` is the origin, with no `/v1`. Do not copy
 `NEXT_PUBLIC_CORE_APP_BASE_URL` into it by hand: Next builds that value with
 `/v1` already appended and it is client-exposed. (A `/v1` suffix is stripped
 defensively, but the variable to set is the origin.)
+
+#### The Gateway credential: OIDC first
+
+The Gateway accepts either a Vercel project OIDC token or an explicit
+`AI_GATEWAY_API_KEY`, and OIDC needs no variable set. Both preprod projects have
+it on — `oidcTokenConfig` is `{"enabled": true, "issuerMode": "team"}` on
+`sokosumi-app-preprod` and `sokosumi-core-preprod` (`GET /v9/projects/<id>`,
+checked 2026-09-25) — so their deployments are issued a `VERCEL_OIDC_TOKEN`, and
+the agent's build output bundles `@vercel/oidc`, which is what reads and
+refreshes it.
+
+So **plan on setting no model credential at all**, and treat
+`AI_GATEWAY_API_KEY` as the fallback for when a turn fails on credentials
+rather than on anything else. What OIDC being enabled does not prove is that a
+turn succeeds: that takes one real turn, which costs money. Confirm
+`oidcTokenConfig.enabled` is still true before relying on this.
 
 ### Core project (`sokosumi-core-preprod`, `sokosumi-core-mainnet`)
 
@@ -41,8 +57,11 @@ defensively, but the variable to set is the origin.)
 | `FAL_KEY` | Submits the generation. | `FAL_KEY is not configured` on the first generate. |
 | `BLOB_READ_WRITE_TOKEN` | Stores the image that comes back. | The job completes at fal and then fails to settle. |
 
-Core already carries `FAL_KEY` and `BLOB_READ_WRITE_TOKEN` for Soko Bot and
-the rest of the platform; `IMAGE_STUDIO_AGENT_SECRET` is the one it is missing.
+Core carries `FAL_KEY` and `BLOB_READ_WRITE_TOKEN` for Soko Bot and the rest of
+the platform, so in practice `IMAGE_STUDIO_AGENT_SECRET` is the only one it is
+missing — but read the project rather than trusting that sentence:
+`vercel env ls preview --cwd apps/core` lists names and targets without
+revealing any value.
 
 No credential belongs in a `NEXT_PUBLIC_*` variable. The browser never sees the
 Gateway key or either HMAC secret — it only ever holds the five-minute token
@@ -68,27 +87,36 @@ Then, with `BRANCH` set to the branch the preview was built from:
 ```sh
 BRANCH=codepat/project-image-studio-01a0d5d6
 
-vercel link --project sokosumi-app-preprod --scope masumi --cwd apps/web
+vercel link --project sokosumi-app-preprod --team masumi --yes --cwd apps/web
 vercel env add IMAGE_STUDIO_AGENT_SECRET preview "$BRANCH" --cwd apps/web --force --yes \
   < /tmp/image-studio-agent-secret
 
-vercel link --project sokosumi-core-preprod --scope masumi --cwd apps/core
+vercel link --project sokosumi-core-preprod --team masumi --yes --cwd apps/core
 vercel env add IMAGE_STUDIO_AGENT_SECRET preview "$BRANCH" --cwd apps/core --force --yes \
   < /tmp/image-studio-agent-secret
 
 shred -u /tmp/image-studio-agent-secret
 ```
 
-The Gateway key is an existing, already authorized credential — take it from
-the team's secret store or from `sokosumi-core-preprod`, which has been calling
-the Gateway for Soko Bot and project memory. Never echo it:
+`vercel link` also writes `apps/<app>/.env.local` with a fresh
+`VERCEL_OIDC_TOKEN` in it. That is a credential on disk. Both `.env*` and
+`.vercel/` are gitignored, so nothing can be committed by accident, but delete
+them when you are done rather than leaving them in the worktree.
+
+That is the whole of the secret work, because OIDC covers the model credential.
+
+**Only if a turn fails on credentials** does `AI_GATEWAY_API_KEY` come into it,
+and then someone has to supply the value: it cannot be sourced from Core, where
+`vercel env ls` shows it as type `Secret` and Vercel will not hand a sensitive
+value back. It has to come from the team's own secret store or a key minted in
+the AI Gateway dashboard. Never echo it:
 
 ```sh
 vercel env add AI_GATEWAY_API_KEY preview "$BRANCH" --cwd apps/web --force --yes \
   < /path/to/gateway-key
 ```
 
-And Core's origin for that branch, which follows the branch alias:
+Core's origin for that branch follows the branch alias:
 
 ```sh
 printf 'https://sokosumi-core-preprod-git-%s.preview.sokosumi.com' \
@@ -98,49 +126,72 @@ printf 'https://sokosumi-core-preprod-git-%s.preview.sokosumi.com' \
 
 That host is the same one `resolveCoreRelatedProjectFallbackHost()` derives, so
 the agent and the app agree on which Core they are talking to. It is not a
-secret.
+secret. The Web project already holds a `CORE_APP_BASE_URL`, but on the
+**Production** target only, so Preview has to be given its own.
 
 Preview variables are applied at build time, so **redeploy after setting them**
 (`/deploy preprod` on the pull request). Remove the branch-scoped variables
 when the branch is done; they outlive the branch otherwise.
 
-For production, set the same keys on the Preview-wide or Production scope of
+For production, the same keys go on the Preview-wide or Production scope of
 `sokosumi-app-mainnet` and `sokosumi-core-mainnet`, with a secret generated for
-that network — never the preprod one.
+that network — never the preprod one. Two things there are unchecked and must be
+read before anyone plans that rollout: whether the mainnet projects have
+`oidcTokenConfig.enabled`, and that `sokosumi-app-preprod` has no
+`IMAGE_STUDIO_AGENT_SECRET` on **any** target, Production included — so
+production Web is missing it too, not only this preview.
 
 ## Verifying
 
+Ordered so that each step adds one thing, not so that the cheap steps come
+first — only step 1 is free.
+
 1. `POST /api/projects/:projectId/image-studio/agent-token` returns a token
-   rather than `503 not_configured`. That covers the Web secret alone.
+   rather than `503 not_configured`. That covers the Web secret alone, and
+   spends nothing.
 2. Open the studio on a project and send a message. A `401` from
    `/eve/image-studio/v1/*` means the two halves disagree about the secret, or
-   the agent cannot reach Core.
-3. Generate one image. That is the first call that needs `FAL_KEY`,
-   `BLOB_READ_WRITE_TOKEN` and the Gateway key together, and it costs money —
-   so it is the last step, not the first.
+   the agent cannot reach Core; a credential error from the Gateway instead
+   means OIDC did not carry, and that is when `AI_GATEWAY_API_KEY` is worth
+   adding. **This step already costs money**: the turn is a billed Gateway
+   call, priced per token, before any image exists.
+3. Generate one image. This adds the fal charge and is the first call that needs
+   `FAL_KEY` and `BLOB_READ_WRITE_TOKEN` as well.
 
 ## Deploy side effects
 
-- **Migrations.** Core's `vercel-build` ends in `prisma:migrate:deploy`, so a
-  Core deploy — *including a preview* — migrates that network's shared
-  database. The studio added six migrations:
-  `20260925001732_project_image_studio`,
+- **Migrations.** Core's `vercel-build` ends in `prisma:migrate:deploy`, so
+  every Core deploy — *including a preview* — writes schema to whatever
+  database that deployment's `DATABASE_URL` resolves to. The studio added six
+  migrations: `20260925001732_project_image_studio`,
   `20260925014414_image_job_cancel_request_and_poll_failures`,
   `20260925032529_image_studio_settle_lease_and_outage`,
   `20260925043309_image_studio_per_dependency_outages`,
   `20260925120000_image_studio_initial_turn_state` and
-  `20260925130000_image_studio_initial_turn_lease_owner`. They are additive —
-  new tables, columns and enum values for the studio's own rows — and a Core
-  preview on this branch has already applied them to preprod, so redeploying
-  the same revision migrates nothing further.
+  `20260925130000_image_studio_initial_turn_lease_owner`. They are additive:
+  new tables, columns and enum values for the studio's own rows.
+
+  What a build log does and does not tell you: a successful
+  `prisma migrate deploy` proves that *those* migrations ran against *that*
+  connection at *that* time. It does not identify the database — Prisma prints
+  the host redacted — and it does not tell you what is pending now. Before
+  relying on either, check `DATABASE_URL`'s scope on the Core project and the
+  `_prisma_migrations` table of the database the next deploy will actually
+  reach. Treat an unverified "it is the shared database" and an unverified
+  "nothing is pending" as equally unknown.
 - **Crons.** `/sync/image-jobs` is registered in `apps/core/vercel.json` and
   runs on production deployments only. Previews settle instead by
   reconciliation: reading a project's studio state or asking the agent to check
   a generation polls fal for that project's open jobs.
 - **Webhook.** Core registers a fal callback at its own public origin
-  (`/webhooks/fal/image-jobs`) whenever that origin is a reachable `https`
-  host, which a branch preview is. Nothing to configure; if the callback never
-  arrives, reconciliation still settles the job.
+  (`/webhooks/fal/image-jobs`) whenever that origin is `https` and not
+  localhost. Registering it is not the same as fal being able to deliver it:
+  deployment protection on the Core project will answer fal's POST instead of
+  Core, and the route independently rejects anything it cannot verify against
+  fal's JWKS. So `https` alone establishes nothing — check the project's
+  protection setting if you are counting on the callback. Nothing needs
+  configuring either way, because reconciliation settles the job when the
+  callback does not arrive.
 - **Web build.** `withEve()` adds the agent service to the Web build. It builds
   through `node ../../node_modules/eve/bin/eve.js build --skip-sandbox-prewarm`
   and needs no sandbox provider, because the agent runs with
