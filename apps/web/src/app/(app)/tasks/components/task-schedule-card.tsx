@@ -94,7 +94,7 @@ export function TaskScheduleCard({
   return (
     <li>
       <Card
-        className="bg-background hover:bg-card-background-hover group relative h-full gap-0 py-0 transition-colors"
+        className="bg-background hover:bg-card-background-hover group relative h-full gap-0 py-0 transition-colors select-none"
         data-testid="schedule-card"
       >
         <CardHeader className="flex items-center justify-between gap-3 px-4 py-3">
@@ -154,8 +154,10 @@ export function TaskScheduleCard({
           {schedule.ownerId === currentUserId ? (
             <Button
               aria-label={tActions("edit")}
-              // Above the stretched link, or the card would swallow the click.
-              className="relative z-10 -my-2 -mr-2 shrink-0"
+              // Above the stretched link, or the card would swallow the
+              // click. Its own hover step, since ghost's `accent` is the
+              // card's hover colour and would read as no hover at all.
+              className="hover:bg-quinary hover:text-foreground relative z-10 -my-2 -mr-2 shrink-0"
               onClick={() => setIsEditOpen(true)}
               size="icon"
               variant="ghost"
