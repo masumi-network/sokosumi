@@ -8,7 +8,6 @@ import { Temporal } from "temporal-polyfill";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
-import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import {
   type Project,
   TaskStatus,
@@ -122,10 +121,6 @@ export async function loadWorkspaceCalendarPage({
 }): Promise<LoadedWorkspaceCalendarPage> {
   await connection();
   const session = await getSession();
-  if (!(await hasCurrentUserCalendarBetaAccess())) {
-    notFound();
-  }
-
   const params = await searchParams;
   const { calendarStatus, latestCalendarDate, initialDate, range } =
     resolveCalendarPageQuery(

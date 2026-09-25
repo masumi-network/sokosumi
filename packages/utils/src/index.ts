@@ -43,7 +43,6 @@ export {
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
 } from "./billing-notification-message-keys.js";
-export { CALENDAR_BETA_ORGANIZATION_SLUG } from "./calendar-beta.js";
 export {
   CALENDAR_CLIENT_VERSION,
   CALENDAR_CLIENT_VERSION_HEADER,
@@ -327,6 +326,7 @@ export {
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
+export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,

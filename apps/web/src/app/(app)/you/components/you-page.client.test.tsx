@@ -56,7 +56,6 @@ function renderYouPage(
   return render(
     <YouPageClient
       sessionUser={sessionUser}
-      calendarMenuEnabled={false}
       planName="Pro"
       totalCredits={15_750}
       extraCredits={15_750}
@@ -124,7 +123,7 @@ describe("YouPageClient", () => {
   });
 
   it("groups Calendar and Files in the first nav section", () => {
-    renderYouPage({ calendarMenuEnabled: true });
+    renderYouPage();
 
     const calendar = screen.getByTestId("you-calendar");
     const files = screen.getByTestId("you-files");
@@ -137,15 +136,8 @@ describe("YouPageClient", () => {
     ).toBeTruthy();
   });
 
-  it("hides Calendar when calendar menu is disabled", () => {
-    renderYouPage({ calendarMenuEnabled: false });
-
-    expect(screen.queryByTestId("you-calendar")).toBeNull();
-    expect(screen.getByTestId("you-files")).toHaveAttribute("href", "/drive");
-  });
-
-  it("lists Schedules without the Calendar beta", () => {
-    renderYouPage({ calendarMenuEnabled: false });
+  it("lists Schedules", () => {
+    renderYouPage();
 
     expect(screen.getByTestId("you-schedules")).toHaveAttribute(
       "href",

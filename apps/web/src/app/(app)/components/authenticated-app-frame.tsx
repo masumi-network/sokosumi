@@ -12,7 +12,6 @@ import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { signInRedirectPath } from "@/lib/auth/auth.server";
 import { readRouteSession } from "@/lib/auth/route-session";
-import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import type { Notice } from "@/lib/clients/generated/core";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { userService } from "@/lib/services/user.service";
@@ -71,15 +70,12 @@ export default async function AuthenticatedAppFrame({
   );
 
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
-  const [hasAssignedSeat, calendarBetaEnabled] = await Promise.all([
-    organizationSeatService
-      .hasAssignedSeat(activeOrganizationId)
-      .catch((error) => {
-        console.error("Failed to resolve assigned organization seat", error);
-        return activeOrganizationId == null;
-      }),
-    hasCurrentUserCalendarBetaAccess(),
-  ]);
+  const hasAssignedSeat = await organizationSeatService
+    .hasAssignedSeat(activeOrganizationId)
+    .catch((error) => {
+      console.error("Failed to resolve assigned organization seat", error);
+      return activeOrganizationId == null;
+    });
 
   // AuthSessionHydrator must be an earlier sibling, not a wrapper.
   // Wrapping chrome would flush Header/Drive layout effects first.
@@ -116,7 +112,6 @@ export default async function AuthenticatedAppFrame({
                           sessionUser={session.user}
                           activeOrganizationId={activeOrganizationId}
                           adminMenuEnabled={adminMenuEnabled}
-                          calendarMenuEnabled={calendarBetaEnabled}
                         />
                         <Suspense fallback={null}>
                           <AppShellOverlays />
