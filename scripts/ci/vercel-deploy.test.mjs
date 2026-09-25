@@ -1263,11 +1263,10 @@ describe("git preview policy", () => {
         `      contains(github.event.comment.body, '/deploy') &&\n      !${takesDeployReset}\n`,
       ),
     );
-    // Commenters without an association to the repository get no job.
-    assert.match(
-      resetJob,
-      /contains\(fromJSON\('\["OWNER", "MEMBER", "COLLABORATOR"\]'\), github\.event\.comment\.author_association\)/,
-    );
+    // Like `/deploy`, the reset lets the script's write-access check decide.
+    // author_association can report a private organization member as
+    // CONTRIBUTOR, which would skip the job with no reply.
+    assert.doesNotMatch(workflow, /github\.event\.comment\.author_association/);
     assert.match(resetJob, /^    environment: preview-database$/m);
     assert.match(
       checkoutStep(resetJob, "reset-db"),

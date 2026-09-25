@@ -101,15 +101,14 @@ jobs:
   reset-db:
     name: Reset preview database
     # Start only for a comment that begins with `/reset-db`, or with `/deploy`
-    # and holds `--reset-db`, from a repository owner, organization member, or
-    # collaborator. Other commenters get no job, so they cannot fill the queue.
-    # The script still checks write access. The `comment` job skips the
+    # and holds `--reset-db`. As for `/deploy`, the script then requires write
+    # access. The comment's author_association is no gate: GitHub can report a
+    # private organization member as CONTRIBUTOR. The `comment` job skips the
     # `/deploy` comments that this job takes.
     if: >
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request &&
       github.event.comment.user.type != 'Bot' &&
-      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
       (startsWith(github.event.comment.body, '/reset-db') || (startsWith(github.event.comment.body, '/deploy') && contains(github.event.comment.body, '--reset-db')))
     # The per-network Neon preview keys live in this environment. Limit the
     # environment to the default branch: issue_comment runs from it, and runs
