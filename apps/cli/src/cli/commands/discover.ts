@@ -15,6 +15,7 @@ export const CLI_COMMANDS = [
   "agents hire",
   "coworkers list",
   "coworkers register",
+  "coworkers provision",
   "coworkers connect",
   "coworkers update",
   "coworkers api-key",

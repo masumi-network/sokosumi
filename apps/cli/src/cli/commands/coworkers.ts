@@ -45,8 +45,9 @@ export interface CoworkersCommandContext extends CommandContext {
 
 async function buildPayload(
   options: CommandOptions | undefined,
-  update: boolean,
+  command: "register" | "provision" | "update",
 ): Promise<Record<string, unknown>> {
+  const update = command === "update";
   const metadata = await readOptionalJsonObject(
     option(options, "metadata-json"),
     option(options, "metadata-file"),
@@ -56,11 +57,15 @@ async function buildPayload(
   const payload: Record<string, unknown> = {};
   const vendorId = optionString(options, "vendor-id")?.trim();
   if (update && vendorId !== undefined)
-    throw new Error("--vendor-id is only supported for `coworkers register`");
+    throw new Error(
+      "--vendor-id is only supported for `coworkers register` or `coworkers provision`",
+    );
   if (!update) {
     if (!vendorId) {
       throw new Error(
-        "vendor id is required for `coworkers register` (create one first with `sokosumi vendors create --name NAME --slug SLUG`)",
+        command === "provision"
+          ? "vendor id is required for `coworkers provision`. Ask the developer for their Vendor ID."
+          : "vendor id is required for `coworkers register` (create one first with `sokosumi vendors create --name NAME --slug SLUG`)",
       );
     }
     payload.vendorId = vendorId;
@@ -187,6 +192,49 @@ export async function runCoworkersCommand({
     else printCoworkerList(stdout, filtered);
     return;
   }
+  if (command === "provision") {
+    requirePreprodCoworkerRegistration(target);
+    if (option(options, "workspace-id") !== undefined) {
+      throw new Error(
+        "Use `coworkers connect` to grant Workspace access after provisioning. Omit --workspace-id here.",
+      );
+    }
+    if (optionBoolean(options, "create-api-key")) {
+      throw new Error(
+        "The developer creates their runtime key with `coworkers api-key COWORKER_ID --json`. Omit --create-api-key here.",
+      );
+    }
+    const payload = await buildPayload(options, "provision");
+    const vendorId = String(payload.vendorId);
+    let coworker: Awaited<ReturnType<typeof createCoworker>>["coworker"];
+    try {
+      ({ coworker } = await createCoworker(client, payload, signal));
+    } catch (error) {
+      if (error instanceof Error && "status" in error && error.status === 403) {
+        throw new Error(
+          "Only a Sokosumi platform admin can provision a Coworker.\n" +
+            `Send Vendor ${vendorId} and your final Coworker name to the organizer.\n` +
+            `After you receive a Coworker ID, run \`sokosumi --preprod coworkers connect COWORKER_ID --vendor-id ${vendorId} --workspace-id ORGANIZATION_ID\`.\n` +
+            "Then create its runtime key with `sokosumi --preprod coworkers api-key COWORKER_ID --json`.",
+        );
+      }
+      throw error;
+    }
+    if (!coworker.id?.trim()) {
+      throw new Error(
+        "Core returned no Coworker ID. Creation may have succeeded. Check `sokosumi --preprod coworkers list --scope all` before retrying.",
+      );
+    }
+    if (json) writeJson(stdout, { coworker });
+    else
+      writeText(stdout, [
+        `Provisioned ${coworker.name} [${coworker.id}] under Vendor ${vendorId}.`,
+        `Give Coworker ID ${coworker.id} to the developer. They run:`,
+        `  sokosumi --preprod coworkers connect ${coworker.id} --vendor-id ${vendorId} --workspace-id ORGANIZATION_ID`,
+        `  sokosumi --preprod coworkers api-key ${coworker.id} --json`,
+      ]);
+    return;
+  }
   if (command === "register") {
     requirePreprodCoworkerRegistration(target);
     const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
@@ -198,7 +246,7 @@ export async function runCoworkersCommand({
       organizationWorkspaces,
       optionString(options, "workspace-id"),
     );
-    const payload = await buildPayload(options, false);
+    const payload = await buildPayload(options, "register");
     const vendorId = String(payload.vendorId);
     const { vendors } = await fetchVendorMemberships(client, signal);
     requireAdministeredVendorForRegistration(vendors, vendorId);
@@ -325,7 +373,7 @@ export async function runCoworkersCommand({
     const { coworker } = await updateCoworker(
       client,
       id,
-      await buildPayload(options, true),
+      await buildPayload(options, "update"),
       signal,
     );
     if (json) writeJson(stdout, { coworker });
