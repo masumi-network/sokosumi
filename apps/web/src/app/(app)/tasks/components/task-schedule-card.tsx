@@ -74,28 +74,16 @@ export function TaskScheduleCard({
     ? (assigneeDisplayOptions.find((option) => option.id === assigneeId) ??
       null)
     : null;
-  const owner =
-    assigneeDisplayOptions.find((option) => option.id === schedule.ownerId) ??
-    null;
   const project = schedule.projectId
     ? (projectOptions.find((option) => option.id === schedule.projectId) ??
       null)
     : null;
   const sourceName = project?.name ?? t("workspace");
-  // A stored assignee the workspace no longer lists still gets a face.
-  const avatars: (TaskAssigneeView | null)[] = [
-    ...(assigneeId ? [assignee ? toAssigneeView(assignee) : null] : []),
-    ...(owner ? [toAssigneeView(owner)] : []),
-  ];
-  const peopleNames = [
-    taskScheduleAssigneeLabel(schedule, assigneeDisplayOptions, {
-      unassigned: t("unassigned"),
-      unavailable: t("unavailableAssignee"),
-    }),
-    owner?.name,
-  ]
-    .filter((name): name is string => Boolean(name?.trim()))
-    .join(", ");
+  const assigneeLabel = taskScheduleAssigneeLabel(
+    schedule,
+    assigneeDisplayOptions,
+    { unassigned: t("unassigned"), unavailable: t("unavailableAssignee") },
+  );
   const nextRunLabel = schedule.nextRunAt
     ? t("nextRun", {
         datetime: formatter.dateTime(schedule.nextRunAt, "dateTimeMedium"),
@@ -110,28 +98,21 @@ export function TaskScheduleCard({
       >
         <CardHeader className="flex items-start justify-between gap-3 px-4">
           <div className="flex min-w-0 flex-col items-start gap-2">
-            {peopleNames ? (
-              <>
-                {avatars.length > 0 ? (
-                  <span
-                    aria-hidden
-                    className="-space-x-2 flex shrink-0 items-center"
-                    data-testid="schedule-card-people"
-                    title={peopleNames}
-                  >
-                    {avatars.map((view, index) => (
-                      <AssigneeAvatar
-                        assignee={view}
-                        // Assignee first, owner laid over it.
-                        key={view?.id ?? `unknown-${index}`}
-                        size="lg"
-                      />
-                    ))}
-                  </span>
-                ) : null}
-                <span className="sr-only">{peopleNames}</span>
-              </>
+            {/* A stored assignee the workspace no longer lists keeps a face. */}
+            {assigneeId ? (
+              <span
+                aria-hidden
+                className="flex shrink-0 items-center"
+                data-testid="schedule-card-assignee"
+                title={assigneeLabel}
+              >
+                <AssigneeAvatar
+                  assignee={assignee ? toAssigneeView(assignee) : null}
+                  size="lg"
+                />
+              </span>
             ) : null}
+            <span className="sr-only">{assigneeLabel}</span>
             <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
               {project ? (
                 <ProjectAvatar

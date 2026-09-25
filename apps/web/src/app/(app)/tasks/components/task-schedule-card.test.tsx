@@ -109,7 +109,7 @@ function renderCard(
 }
 
 describe("TaskScheduleCard", () => {
-  it("shows the rule, the next run, the state, and who it runs for", () => {
+  it("shows the rule, the next run, the state, and its assignee", () => {
     renderCard();
 
     expect(screen.getByRole("link", { name: "Weekly report" })).toHaveAttribute(
@@ -121,9 +121,9 @@ describe("TaskScheduleCard", () => {
     );
     expect(screen.getByText("nextRun(Mon, 9:00)")).toBeInTheDocument();
     expect(screen.getByText("state.ACTIVE")).toBeInTheDocument();
-    expect(screen.getByTestId("schedule-card-people")).toHaveAttribute(
+    expect(screen.getByTestId("schedule-card-assignee")).toHaveAttribute(
       "title",
-      "Elena, Maya",
+      "Elena",
     );
   });
 
@@ -145,10 +145,8 @@ describe("TaskScheduleCard", () => {
     renderCard({ nextRunAt: null, assigneeId: null });
 
     expect(screen.getByText("noNextRun")).toBeInTheDocument();
-    expect(screen.getByTestId("schedule-card-people")).toHaveAttribute(
-      "title",
-      "unassigned, Maya",
-    );
+    expect(screen.getByText("unassigned")).toBeInTheDocument();
+    expect(screen.queryByTestId("schedule-card-assignee")).toBeNull();
   });
 
   it("lets the owner edit the schedule in place", async () => {
