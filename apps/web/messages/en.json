@@ -2000,6 +2000,7 @@
         "clear": "Clear",
         "cancel": "Cancel",
         "notInFuture": "Choose a time in the future.",
+        "requiresAgent": "Scheduled tasks require an agent. Choose one to set a start time.",
         "footer": "Starts {datetime}",
         "badge": {
           "overdue": "Starting soon",
