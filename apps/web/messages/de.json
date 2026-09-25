@@ -1831,10 +1831,10 @@
         "assignee": "Zuständig",
         "schedule": "Zeitplan",
         "privateSchedule": "Privater Zeitplan",
-        "participants": "Beteiligte",
-        "removeParticipant": "{name} entfernen",
-        "removeParticipantConfirmTitle": "{name} entfernen?",
-        "removeParticipantConfirmDescription": "Die Person ist danach nicht mehr an dieser Aufgabe beteiligt.",
+        "participantsList": "Task-Teilnehmer",
+        "subscribe": "Abonnieren",
+        "unsubscribe": "Abbestellen",
+        "subscribeError": "Abonnieren fehlgeschlagen. Bitte erneut versuchen.",
         "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut."
       },
       "NewTask": {

@@ -35,6 +35,7 @@ const taskServiceMock = {
   createTaskEvent: vi.fn(),
   getTaskById: vi.fn(),
   removeTaskParticipant: vi.fn(),
+  subscribeTaskParticipant: vi.fn(),
 };
 const toCoreApiActionErrorMock = vi.fn();
 
@@ -1135,6 +1136,39 @@ describe("task participant actions", () => {
       taskId: "task-1",
       userId: "user-2",
     });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { message: "Forbidden", code: "FORBIDDEN" },
+    });
+  });
+
+  it("subscribes the viewer as a Task participant", async () => {
+    taskServiceMock.subscribeTaskParticipant.mockResolvedValue([]);
+    const { subscribeTaskParticipant } = await import("./action");
+
+    const result = await subscribeTaskParticipant({ taskId: "task-1" });
+
+    expect(taskServiceMock.subscribeTaskParticipant).toHaveBeenCalledWith(
+      "task-1",
+    );
+    expect(result).toEqual({
+      ok: true,
+      value: { taskId: "task-1" },
+    });
+  });
+
+  it("returns the Core error when subscribe fails", async () => {
+    taskServiceMock.subscribeTaskParticipant.mockRejectedValue(
+      new Error("Forbidden"),
+    );
+    toCoreApiActionErrorMock.mockReturnValue({
+      message: "Forbidden",
+      code: "FORBIDDEN",
+    });
+    const { subscribeTaskParticipant } = await import("./action");
+
+    const result = await subscribeTaskParticipant({ taskId: "task-1" });
 
     expect(result).toEqual({
       ok: false,

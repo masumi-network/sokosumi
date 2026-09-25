@@ -139,6 +139,10 @@ interface RemoveTaskParticipantParameters extends AuthenticatedRequest {
   userId: string;
 }
 
+interface SubscribeTaskParticipantParameters extends AuthenticatedRequest {
+  taskId: string;
+}
+
 interface CreateTaskLinkParameters extends AuthenticatedRequest {
   taskId: string;
   relatedTaskId: string;
@@ -745,6 +749,20 @@ export const removeTaskParticipant = withSession<
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
   return toActionResult(ok({ taskId, userId }));
+});
+
+export const subscribeTaskParticipant = withSession<
+  SubscribeTaskParticipantParameters,
+  ActionResultDto<{ taskId: string }, ActionError>
+>(async ({ taskId }) => {
+  try {
+    await taskService.subscribeTaskParticipant(taskId);
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${taskId}`);
+  return toActionResult(ok({ taskId }));
 });
 
 export const createTaskLink = withSession<
