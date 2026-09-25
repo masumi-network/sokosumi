@@ -206,6 +206,7 @@ const baseEnvSchema = z.object({
     .string()
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
+
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
@@ -420,27 +421,6 @@ export function getEnv(): EnvConfig {
     envConfig = validateEnv();
   }
   return envConfig;
-}
-
-/**
- * EOD 2026-09-29 CEST (UTC+2). After this instant the shim answers 410
- * regardless of `LEGACY_TASK_SCHEDULE_SHIM`. Temporary; delete with the adapter.
- */
-export const LEGACY_TASK_SCHEDULE_SHIM_SUNSET_AT = new Date(
-  "2026-09-29T22:00:00.000Z",
-);
-
-/**
- * Temporary. Remove after 2026-09-29. Reads `process.env` so tests can stub
- * the flag without resetting the cached env config. Dated gate wins.
- */
-export function isLegacyTaskScheduleShimEnabled(): boolean {
-  if (Date.now() >= LEGACY_TASK_SCHEDULE_SHIM_SUNSET_AT.getTime()) {
-    return false;
-  }
-  const raw = process.env.LEGACY_TASK_SCHEDULE_SHIM ?? "1";
-  const normalized = raw.trim().toLowerCase();
-  return normalized !== "0" && normalized !== "false" && normalized !== "off";
 }
 
 /**

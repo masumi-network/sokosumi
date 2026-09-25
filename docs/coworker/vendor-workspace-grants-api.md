@@ -173,74 +173,37 @@ Pause, resume, and end answer **409** `schedule_state_conflict` from the wrong
 state. A Run change answers **409** `schedule_run_state_conflict` or **422**
 `schedule_run_target_invalid`.
 
-### Legacy schedule shim (until EOD 2026-09-29 CEST)
+### Legacy vendor schedules (until EOD 2026-09-29 CEST)
 
-Until **end of day 2026-09-29 CEST**, Core translates the old per-Task
-schedule routes into Task Schedules so vendors (for example Serviceplan)
-can still create, update, and read a repeating **rule**. This is not a
-transparent proxy of the old series model.
+Until **end of day 2026-09-29 CEST**, Coworkers of the vendors listed in
+`LEGACY_TASK_SCHEDULE_VENDOR_IDS` (comma-separated vendor ids) keep the
+per-Task schedule API their client was built on, translated to Task
+Schedules. Every other caller gets the current API and the 410s below. After
+`2026-09-29T22:00:00.000Z` the list is ignored.
 
-- Default on: `LEGACY_TASK_SCHEDULE_SHIM=1`.
-- Early off: `0` / `false` / `off`.
-- Hard off after `2026-09-29T22:00:00.000Z` (EOD CEST) even if the flag is on.
-
-The adapter does not restore untyped Task `metadata` as source of truth,
-schedule-status exceptions, quarantine, or person assignees on a series.
-
-| Old route | Shim |
+| Old call | What the listed vendor gets |
 | --- | --- |
-| `PUT /v1/tasks/{id}/schedule` | **Primary create** (this is the path Serviceplan hits). Creates a Task Schedule from the Task blueprint + rule. A later PUT on the same Task id PATCHes that schedule; re-sending the current rule changes nothing. |
-| `POST /v1/tasks/scheduled` | Creates a Task Schedule from the old create body. |
-| `PUT /v1/tasks/{id}/calendar-schedule` | Replaces the rule (`expectedScheduleRevision` → `expectedRevision`). Resolves the schedule as below. |
-| `PUT /v1/tasks/{id}/calendar-source` | Moves `projectId`. Same resolution. |
-| `GET /v1/tasks/{id}/schedule/occurrences` | Lists Runs (`GET /v1/tasks/schedules/{id}/runs` shape). Closest legacy read of schedule state. |
-| `GET /v1/tasks/{id}/schedule` | Shim-only read of the rule (legacy projection). **There was no historical GET for the schedule resource** — old clients read `metadata` / `nextRunAt` / `scheduleRevision` on the Task DTO, which stay omitted. |
+| `PUT /v1/tasks/{id}/schedule`, recurring | Makes a Task Schedule from the Task (the Task stays as it is), changes its rule, or resumes a paused one. Re-sending the current rule changes nothing. |
+| `PUT /v1/tasks/{id}/schedule`, once on `2099-12-31` | Pauses the schedule, the hold these clients paused with. |
+| `PUT /v1/tasks/{id}/schedule`, once | Starts the Task itself once: sets its `runAt`. On a repeating job: **422**. |
+| `GET /v1/tasks?sort=nextRunAt` | Live schedules as their old template Tasks (Queued, rule in `metadata`, next Run in `nextRunAt`; a paused one shows the hold), plus Queued one-time Tasks. |
+| `GET /v1/tasks`, `GET /v1/tasks/{id}` | A template id reads as its schedule; one-time Tasks carry `metadata` and `nextRunAt`. |
+| `POST /v1/tasks/{id}/events` on a template | `READY` is accepted; `CANCELED` ends the schedule. |
+| `GET /v1/tasks/{id}/links` on a Run's Task | Adds a `schedule_series` link to the Queued template, which these clients use to tell a scheduled run. |
 
-Create/update responses are a **legacy schedule projection** (`id` /
-`scheduleId` = schedule UUID, `scheduleRevision`, typed `schedule`), not
-the old Task DTO.
-
-`{id}` resolve order: Task Schedule id, then `Task.scheduleId` (a Task a
-Run released), then the schedule the cutover made from a template Task
-(archived by the cutover), then the schedule a PUT made from that Task. An
-`{id}` none of these finds answers **404**.
-
-PUT-create needs the same access as the new routes: the Task belongs to the
-acting member, is not archived or parked, and a Coworker created it, is its
-assignee, or shares the assignee's vendor. As before, the Task must be
-Draft, Ready, or Queued. Anything else answers **404** or **403**. The
-create is keyed on the Task id in the workspace, so a retry or a concurrent
-PUT returns the first schedule. The Task itself is left as it is: a Draft
-stays a Draft and never runs, a Queued Task is still work of its own, and
-the schedule's Runs create new Tasks.
-
-An `M H */N * *` cron with no `intervalDays` still means every N days from
-the rule write, as the old release and the cutover read it.
-
-`occurrences` (with `endsMode: "after"`) counts the Runs still to come from
-the rule write on, as it did before; responses report the Runs still to
-come.
-
-Calendar PUTs accept `operationId` but do not replay: a retry after a
-success answers **409** (revision conflict). Read the schedule again
-(`GET /v1/tasks/{id}/schedule`) and send its `scheduleRevision`.
-
-A one-time start (`schedule.mode: "once"`) answers **422** pointing at
-`runAt` on `POST /v1/tasks`. A person assignee (`assigneeUserId`) answers
-**422** pointing at `POST /v1/tasks/schedules`, whether sent on the body or
-set on the Task a PUT would copy. Payloads that are not a typed recurring
-rule answer **422** with the new route in `replacement` — Core does not
-guess.
-
-Still **410**: `DELETE /v1/tasks/{id}/schedule` and occurrence
-skip/move/restore (`PATCH …/schedule/occurrences/{occurrenceId}`).
-
-Every shim hit logs `legacyTaskScheduleShim` with `method`, `path`,
-`mappedTarget`, `coworkerId`, `vendorId`, `organizationId`, `workspaceId`.
+A template id is the Task a PUT made the schedule from, the template the
+cutover archived, or the schedule id for one made elsewhere. A PUT needs the
+same access as the new routes: the Task belongs to the acting member, is
+Draft, Ready, or Queued, not archived or parked, and the Coworker created it,
+is its assignee, or shares the assignee's vendor. The create is keyed on the
+Task, so a retry returns the first schedule. `occurrences` counts the Runs
+still to come, and an `M H */N * *` cron with no `intervalDays` means every N
+days, as before. A person assignee answers **422**. Every answer of the layer
+logs `legacyTaskScheduleShim`.
 
 ### Removed per-Task schedule routes
 
-When the shim is off, or after 2026-09-29, the old per-Task schedule routes
+For every other caller, and for everyone after 2026-09-29, the old per-Task schedule routes
 answer **410 Gone** with `kind` `task_schedule_moved` and the route to call
 instead in `replacement`:
 

@@ -400,6 +400,10 @@ const taskSchedule = {
       return row ? withInclude(row, include) : null;
     },
   ),
+  findUnique: vi.fn(
+    async ({ where }: { where: { id: string } }) =>
+      taskScheduleTestDb.schedules.find((row) => row.id === where.id) ?? null,
+  ),
   findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
     const row = taskScheduleTestDb.schedules.find((r) => r.id === where.id);
     if (!row) throw new Error(`No TaskSchedule ${where.id}`);
@@ -573,6 +577,11 @@ export const taskScheduleTestPrisma = {
   taskSchedule,
   taskScheduleRun,
   taskScheduleCreateOperation: {
+    findMany: vi.fn(async ({ where }: { where: Where }) =>
+      taskScheduleTestDb.createOperations.filter((row) =>
+        matchesRow(row, where),
+      ),
+    ),
     findUnique: vi.fn(
       async ({
         where: { workspaceId_operationId: key },
@@ -617,7 +626,7 @@ export const taskScheduleTestPrisma = {
       },
     ),
   },
-  /** Releases mint Tasks; the legacy shim reads them as blueprints. */
+  /** Releases mint Tasks; the legacy vendor layer reads them as templates. */
   task: {
     findFirst: vi.fn(async ({ where }: { where: Where }) => {
       const row = taskScheduleTestDb.tasks.find((r) => matchesRow(r, where));
@@ -643,8 +652,22 @@ export const taskScheduleTestPrisma = {
       },
     ),
     findUnique: vi.fn(
-      async ({ where }: { where: { id: string } }) =>
-        taskScheduleTestDb.tasks.find((row) => row.id === where.id) ?? null,
+      async ({
+        where,
+        select,
+      }: {
+        where: { id: string };
+        select?: { schedule?: boolean };
+      }) => {
+        const row = taskScheduleTestDb.tasks.find((r) => r.id === where.id);
+        if (!row || !select?.schedule) return row ?? null;
+        return {
+          ...row,
+          schedule:
+            taskScheduleTestDb.schedules.find((s) => s.id === row.scheduleId) ??
+            null,
+        };
+      },
     ),
     findMany: vi.fn(async ({ where, take }: { where: Where; take?: number }) =>
       taskScheduleTestDb.tasks
