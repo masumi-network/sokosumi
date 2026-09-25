@@ -17,6 +17,8 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
+  // SOK-1202 harness: the project header reads the scope variant.
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("next/server", () => ({

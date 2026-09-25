@@ -20,6 +20,8 @@ const {
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
+  // SOK-1202 harness: the project header reads the scope variant.
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("next-intl/server", async () => {
