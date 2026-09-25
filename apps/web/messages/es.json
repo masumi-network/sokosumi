@@ -974,6 +974,25 @@
         "REJECTED": "Rechazado. No se creó nada.",
         "EXPIRED": "Caducó sin decisión. Pídeselo de nuevo a tu Soko Bot si sigue siendo necesario."
       }
+    },
+    "Mermaid": {
+      "title": "Diagrama de flujo Mermaid",
+      "copy": "Copiar código",
+      "enlarge": "Ampliar",
+      "inspect": "Desplázate para explorar el diagrama. Usa los controles de zoom para ajustar su tamaño.",
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "close": "Cerrar",
+      "alt": "Diagrama de flujo. El texto completo está disponible en Código del diagrama.",
+      "source": "Código del diagrama",
+      "waiting": "Esperando a que termine el diagrama…",
+      "loading": "Preparando el diagrama…",
+      "unsupported": "Este diagrama usa sintaxis o funciones no compatibles. Puedes ver o copiar su código abajo.",
+      "tooLarge": "Este diagrama supera el límite de renderizado. Puedes ver o copiar su código abajo.",
+      "tooMany": "Solo se pueden mostrar ocho diagramas por sección del mensaje. Puedes ver o copiar este código abajo.",
+      "failed": "No se pudo mostrar este diagrama. Revisa la sintaxis del código de abajo.",
+      "copied": "Código copiado.",
+      "copyFailed": "No se pudo copiar. Selecciona el código del diagrama de abajo y cópialo manualmente."
     }
   },
   "Join": {

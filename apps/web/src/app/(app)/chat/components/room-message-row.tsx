@@ -650,6 +650,7 @@ function ChannelMarkdownSegment({
 }) {
   return (
     <RoomMessageMarkdown
+      enableMermaid
       content={content}
       markdownClassName={ROOM_MESSAGE_MARKDOWN_CLASSNAME}
       coworkersById={coworkersById}
