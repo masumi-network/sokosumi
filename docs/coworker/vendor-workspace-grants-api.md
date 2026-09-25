@@ -207,14 +207,23 @@ Run released), then the schedule the cutover made from a template Task
 
 PUT-create needs the same access as the new routes: the Task belongs to the
 acting member, is not archived or parked, and a Coworker created it, is its
-assignee, or shares the assignee's vendor. Anything else answers **404** or
-**403**. The create is keyed on the Task id, so a retry or a concurrent PUT
-returns the first schedule. The Task itself is left as it is: a Draft stays
-a Draft and never runs, and the schedule's Runs create new Tasks.
+assignee, or shares the assignee's vendor. As before, the Task must be
+Draft, Ready, or Queued. Anything else answers **404** or **403**. The
+create is keyed on the Task id in the workspace, so a retry or a concurrent
+PUT returns the first schedule. The Task itself is left as it is: a Draft
+stays a Draft and never runs, a Queued Task is still work of its own, and
+the schedule's Runs create new Tasks.
+
+An `M H */N * *` cron with no `intervalDays` still means every N days from
+the rule write, as the old release and the cutover read it.
 
 `occurrences` (with `endsMode: "after"`) counts the Runs still to come from
 the rule write on, as it did before; responses report the Runs still to
 come.
+
+Calendar PUTs accept `operationId` but do not replay: a retry after a
+success answers **409** (revision conflict). Read the schedule again
+(`GET /v1/tasks/{id}/schedule`) and send its `scheduleRevision`.
 
 A one-time start (`schedule.mode: "once"`) answers **422** pointing at
 `runAt` on `POST /v1/tasks`. A person assignee (`assigneeUserId`) answers

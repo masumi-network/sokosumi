@@ -43296,7 +43296,7 @@ export type PatchTasksSchedulesByIdRunsByRunIdResponses = {
 export type PatchTasksSchedulesByIdRunsByRunIdResponse = PatchTasksSchedulesByIdRunsByRunIdResponses[keyof PatchTasksSchedulesByIdRunsByRunIdResponses];
 
 export type PostTasksScheduledData = {
-    body?: LegacyCreateScheduledTaskRequest;
+    body: LegacyCreateScheduledTaskRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -43557,7 +43557,7 @@ export type GetTasksByIdScheduleResponses = {
 export type GetTasksByIdScheduleResponse = GetTasksByIdScheduleResponses[keyof GetTasksByIdScheduleResponses];
 
 export type PutTasksByIdScheduleData = {
-    body?: LegacyPutTaskScheduleRequest;
+    body: LegacyPutTaskScheduleRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -43695,7 +43695,7 @@ export type PutTasksByIdScheduleResponses = {
 export type PutTasksByIdScheduleResponse = PutTasksByIdScheduleResponses[keyof PutTasksByIdScheduleResponses];
 
 export type PutTasksByIdCalendarScheduleData = {
-    body?: LegacyPutCalendarTaskScheduleRequest;
+    body: LegacyPutCalendarTaskScheduleRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -43833,7 +43833,7 @@ export type PutTasksByIdCalendarScheduleResponses = {
 export type PutTasksByIdCalendarScheduleResponse = PutTasksByIdCalendarScheduleResponses[keyof PutTasksByIdCalendarScheduleResponses];
 
 export type PutTasksByIdCalendarSourceData = {
-    body?: LegacyPutCalendarTaskScheduleSourceRequest;
+    body: LegacyPutCalendarTaskScheduleSourceRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.

@@ -9,6 +9,7 @@ import {
   COWORKER_AUTH,
   COWORKER_ID,
   MEMBER_ID,
+  PERSONAL_WORKSPACE_ID,
   PROJECT_ID,
   resetTaskScheduleTestDb,
   seedTask,
@@ -16,6 +17,7 @@ import {
   taskScheduleTestDb,
   taskScheduleTestPrisma,
   userAuth,
+  VENDOR_ID,
 } from "@/test-fixtures/task-schedule";
 import {
   createTaskScheduleTestApp,
@@ -24,6 +26,11 @@ import {
 
 import mount from "./moved-schedule-routes";
 
+const { logSet } = vi.hoisted(() => ({ logSet: vi.fn() }));
+vi.mock("@/lib/evlog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evlog")>()),
+  tryUseLogger: () => ({ set: logSet }),
+}));
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
   authMiddleware: (await import("@/test-fixtures/auth-middleware"))
@@ -58,6 +65,11 @@ const CREATE_BODY = {
   assigneeId: COWORKER_ID,
   schedule: WEEKLY,
 };
+
+/** A Task as vendors created it before the PUT: a Draft. */
+function seedBlueprint(overrides: Parameters<typeof seedTask>[0] = {}) {
+  return seedTask({ status: TaskStatus.DRAFT, ...overrides });
+}
 
 function app(
   auth = undefined as Parameters<typeof createTaskScheduleTestApp>[1],
@@ -176,6 +188,36 @@ describe("legacy per-Task schedule shim", () => {
     });
   });
 
+  describe("shim hit log", () => {
+    it("logs a Coworker hit with its vendor, workspace, and target", async () => {
+      await send("POST", "/scheduled", CREATE_BODY, app(COWORKER_AUTH));
+
+      expect(logSet).toHaveBeenCalledWith({
+        legacyTaskScheduleShim: expect.objectContaining({
+          method: "POST",
+          path: "/v1/tasks/scheduled",
+          mappedTarget: "POST /v1/tasks/schedules",
+          coworkerId: COWORKER_ID,
+          vendorId: VENDOR_ID,
+        }),
+      });
+    });
+
+    it("logs a hit whose body fails validation", async () => {
+      const response = await send("PUT", `/${TASK_ID}/schedule`, {
+        version: 2,
+      });
+
+      expect(response.status).toBe(422);
+      expect(logSet).toHaveBeenCalledWith({
+        legacyTaskScheduleShim: expect.objectContaining({
+          method: "PUT",
+          path: "/v1/tasks/{id}/schedule",
+        }),
+      });
+    });
+  });
+
   describe("GET /{id}/schedule", () => {
     it("reads the schedule created via POST /scheduled", async () => {
       const created = await send("POST", "/scheduled", CREATE_BODY);
@@ -191,7 +233,7 @@ describe("legacy per-Task schedule shim", () => {
 
     it("resolves a Task by scheduleId", async () => {
       const schedule = seedTaskSchedule({ name: "From task" });
-      seedTask({ id: TASK_ID, scheduleId: schedule.id, name: "Child" });
+      seedBlueprint({ id: TASK_ID, scheduleId: schedule.id, name: "Child" });
 
       const response = await send("GET", `/${TASK_ID}/schedule`);
 
@@ -251,7 +293,7 @@ describe("legacy per-Task schedule shim", () => {
     });
 
     it("creates from a Task blueprint, keyed on the Task, and leaves the Task alone", async () => {
-      seedTask({
+      seedBlueprint({
         id: TASK_ID,
         name: "From task",
         description: "Blueprint",
@@ -284,7 +326,7 @@ describe("legacy per-Task schedule shim", () => {
     });
 
     it("Serviceplan path: coworker PUT creates, calendar PUT updates, occurrences read", async () => {
-      seedTask({
+      seedBlueprint({
         id: TASK_ID,
         name: "Weekly content",
         assigneeId: COWORKER_ID,
@@ -344,7 +386,7 @@ describe("legacy per-Task schedule shim", () => {
       ],
       ["an archived Task", { archivedAt: new Date("2026-09-24T12:00:00Z") }],
     ])("answers 404 on %s and creates nothing", async (_label, overrides) => {
-      seedTask({ id: TASK_ID, name: "Not yours", ...overrides });
+      seedBlueprint({ id: TASK_ID, name: "Not yours", ...overrides });
 
       const response = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
 
@@ -354,7 +396,7 @@ describe("legacy per-Task schedule shim", () => {
     });
 
     it("answers 403 to a Coworker on a Task it did not create and is not assigned", async () => {
-      seedTask({ id: TASK_ID, name: "Someone else's", assigneeId: null });
+      seedBlueprint({ id: TASK_ID, name: "Someone else's", assigneeId: null });
 
       const response = await send(
         "PUT",
@@ -367,8 +409,62 @@ describe("legacy per-Task schedule shim", () => {
       expect(taskScheduleTestDb.schedules).toHaveLength(0);
     });
 
+    it("answers 403 on a Task that already started", async () => {
+      seedBlueprint({
+        id: TASK_ID,
+        name: "Running",
+        status: TaskStatus.RUNNING,
+      });
+
+      const response = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
+
+      expect(response.status).toBe(403);
+      expect(taskScheduleTestDb.schedules).toHaveLength(0);
+    });
+
+    it("ignores a create ledger row another workspace keyed on the same Task id", async () => {
+      const foreign = seedTaskSchedule({
+        workspaceId: PERSONAL_WORKSPACE_ID,
+        organizationId: null,
+      });
+      taskScheduleTestDb.createOperations.push({
+        id: "op_foreign",
+        createdAt: new Date(),
+        workspaceId: PERSONAL_WORKSPACE_ID,
+        operationId: shimCreateOperationId(TASK_ID),
+        requestFingerprint: "foreign",
+        scheduleId: foreign.id,
+      });
+      seedBlueprint({ id: TASK_ID, name: "Weekly content" });
+
+      const response = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
+
+      expect(response.status).toBe(200);
+      const { data } = (await response.json()) as Projection;
+      expect(data.id).not.toBe(foreign.id);
+      expect(taskScheduleTestDb.schedules).toHaveLength(2);
+    });
+
+    it("reads an `M H */N * *` cron as every N days, as the old release did", async () => {
+      seedBlueprint({ id: TASK_ID, name: "Every third day" });
+      const everyThirdDay = { ...WEEKLY, expr: "0 9 */3 * *" };
+
+      const created = await send("PUT", `/${TASK_ID}/schedule`, everyThirdDay);
+
+      expect(created.status).toBe(200);
+      const { data: createdData } = (await created.json()) as Projection;
+      expect(taskScheduleTestDb.schedules[0]).toMatchObject({
+        expr: "0 9 */3 * *",
+        intervalDays: 3,
+      });
+
+      const resent = await send("PUT", `/${TASK_ID}/schedule`, everyThirdDay);
+      const { data } = (await resent.json()) as Projection;
+      expect(data.scheduleRevision).toBe(createdData.scheduleRevision);
+    });
+
     it("answers 403 on a parked Task", async () => {
-      seedTask({
+      seedBlueprint({
         id: TASK_ID,
         name: "Parked",
         status: TaskStatus.GRANT_PENDING,
@@ -381,7 +477,7 @@ describe("legacy per-Task schedule shim", () => {
     });
 
     it("rejects a Task assigned to a person with 422", async () => {
-      seedTask({
+      seedBlueprint({
         id: TASK_ID,
         name: "For a person",
         assigneeId: null,
@@ -398,11 +494,11 @@ describe("legacy per-Task schedule shim", () => {
     });
 
     it("replays the first schedule when a racing PUT misses it and creates again", async () => {
-      seedTask({ id: TASK_ID, name: "Weekly content" });
+      seedBlueprint({ id: TASK_ID, name: "Weekly content" });
       const first = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
       const { data: firstData } = (await first.json()) as Projection;
       // The racing request resolved before the first one committed.
-      taskScheduleTestPrisma.taskScheduleCreateOperation.findFirst.mockResolvedValueOnce(
+      taskScheduleTestPrisma.taskScheduleCreateOperation.findUnique.mockResolvedValueOnce(
         null,
       );
 
@@ -415,7 +511,7 @@ describe("legacy per-Task schedule shim", () => {
     });
 
     it("keeps the schedule as it is when the same rule is re-sent", async () => {
-      seedTask({ id: TASK_ID, name: "Weekly content" });
+      seedBlueprint({ id: TASK_ID, name: "Weekly content" });
       const created = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
       const { data: createdData } = (await created.json()) as Projection;
       const epochId = taskScheduleTestDb.schedules[0]?.epochId;
@@ -521,6 +617,18 @@ describe("legacy per-Task schedule shim", () => {
     });
   });
 
+  it.each([
+    ["POST", "/scheduled"],
+    ["PUT", `/${TASK_ID}/calendar-schedule`],
+    ["PUT", `/${TASK_ID}/calendar-source`],
+  ])("%s %s without a body answers 422, not 500", async (method, path) => {
+    const response = await app().request(`http://localhost${path}`, {
+      method,
+    });
+
+    expect(response.status).toBe(422);
+  });
+
   describe("DELETE /{id}/schedule stays 410", () => {
     it("answers 410 task_schedule_moved", async () => {
       const response = await send("DELETE", `/${TASK_ID}/schedule`);
@@ -535,7 +643,7 @@ describe("legacy per-Task schedule shim", () => {
 
   describe("occurrences", () => {
     it("GET lists Runs of the schedule created via PUT /{id}/schedule", async () => {
-      seedTask({
+      seedBlueprint({
         id: TASK_ID,
         name: "From task",
         assigneeId: COWORKER_ID,
@@ -578,7 +686,7 @@ describe("legacy per-Task schedule shim", () => {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(new Date("2026-09-29T22:00:00.000Z"));
       process.env.LEGACY_TASK_SCHEDULE_SHIM = "1";
-      seedTask({
+      seedBlueprint({
         id: TASK_ID,
         name: "Weekly content",
         assigneeId: COWORKER_ID,

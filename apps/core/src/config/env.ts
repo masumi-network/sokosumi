@@ -206,21 +206,6 @@ const baseEnvSchema = z.object({
     .string()
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
-  /**
-   * Temporary adapter for the removed per-Task schedule routes.
-   * Hard-off after EOD 2026-09-29 CEST (`LEGACY_TASK_SCHEDULE_SHIM_SUNSET_AT`)
-   * even when this flag is on. Set 0/false/off to return 410 earlier.
-   */
-  LEGACY_TASK_SCHEDULE_SHIM: z
-    .string()
-    .default("1")
-    .transform((value) => {
-      const normalized = value.trim().toLowerCase();
-      return (
-        normalized !== "0" && normalized !== "false" && normalized !== "off"
-      );
-    }),
-
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**

@@ -573,12 +573,6 @@ export const taskScheduleTestPrisma = {
   taskSchedule,
   taskScheduleRun,
   taskScheduleCreateOperation: {
-    findFirst: vi.fn(
-      async ({ where }: { where: Where }) =>
-        taskScheduleTestDb.createOperations.find((row) =>
-          matchesRow(row, where),
-        ) ?? null,
-    ),
     findUnique: vi.fn(
       async ({
         where: { workspaceId_operationId: key },

@@ -1,5 +1,9 @@
 import { z } from "@hono/zod-openapi";
-import { type TaskSchedule, TaskScheduleEndsMode } from "@sokosumi/database";
+import {
+  type TaskSchedule,
+  TaskScheduleEndsMode,
+  TaskStatus,
+} from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { isLegacyTaskScheduleShimEnabled } from "@/config/env";
@@ -16,12 +20,9 @@ import {
 } from "@/helpers/legacy-task-schedule-id";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
+import { tryUseLogger } from "@/lib/evlog";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
-import {
-  type AuthenticationContext,
-  isCoworkerAuthContext,
-  requireUserContext,
-} from "@/middleware/auth";
+import { isCoworkerAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   type LegacyCreateScheduledTaskRequest,
@@ -39,7 +40,7 @@ import {
 } from "@/schemas/task-schedule.schema";
 import {
   canWriteTaskSchedule,
-  type TaskScheduleReader,
+  type ScheduleActor,
 } from "@/services/task-schedule.service";
 
 const NEW_CREATE = "POST /v1/tasks/schedules";
@@ -66,32 +67,24 @@ export function requireLegacyTaskScheduleShim(replacement: string): void {
   );
 }
 
-interface ShimLogTarget {
-  get: (key: string) => unknown;
-  var: {
-    authContext?: AuthenticationContext | null;
-    workspaceContext?: {
-      workspaceId?: string;
-      organizationId?: string | null;
-    } | null;
-  };
+export interface LegacyTaskScheduleShimHit {
+  method: string;
+  path: string;
+  mappedTarget: string;
 }
 
 export function logLegacyTaskScheduleShimHit(
-  c: ShimLogTarget,
-  hit: { method: string; path: string; mappedTarget: string },
+  vars: EnvVariables["Variables"],
+  hit: LegacyTaskScheduleShimHit,
 ): void {
-  const log = c.get("log") as
-    | { set?: (value: Record<string, unknown>) => void }
-    | undefined;
-  const auth = c.var.authContext;
-  const coworker = auth && isCoworkerAuthContext(auth) ? auth : null;
+  const auth = vars.authContext;
+  const coworker = isCoworkerAuthContext(auth) ? auth : null;
   const organizationId =
     coworker?.context?.organizationId ??
-    (auth && auth.actor !== "coworker" ? auth.organizationId : null) ??
-    c.var.workspaceContext?.organizationId ??
+    (auth.actor !== "coworker" ? auth.organizationId : null) ??
+    vars.workspaceContext?.organizationId ??
     null;
-  log?.set?.({
+  tryUseLogger()?.set({
     legacyTaskScheduleShim: {
       method: hit.method,
       path: hit.path,
@@ -99,7 +92,7 @@ export function logLegacyTaskScheduleShimHit(
       coworkerId: coworker?.coworkerId ?? null,
       vendorId: coworker?.vendorId ?? null,
       organizationId,
-      workspaceId: c.var.workspaceContext?.workspaceId ?? null,
+      workspaceId: vars.workspaceContext?.workspaceId ?? null,
     },
   });
 }
@@ -112,19 +105,25 @@ function throwUnmappable(message: string, replacement: string): never {
 
 /**
  * Route validation hook: with the shim off a bad body still answers 410, and
- * a body the old shape rejects answers 422 with the new route to use.
+ * a body the old shape rejects is logged as a shim hit and answers 422 with
+ * the new route to use.
  */
-export function legacyTaskScheduleShimValidationHook(replacement: string) {
+export function legacyTaskScheduleShimValidationHook(
+  hit: LegacyTaskScheduleShimHit,
+) {
+  const replacement = hit.mappedTarget;
   return (
     result: { target: string } & (
       | { success: true }
       | { success: false; error: z.ZodError }
     ),
+    c: { var: EnvVariables["Variables"] },
   ): undefined => {
     if (result.success) {
       return undefined;
     }
     requireLegacyTaskScheduleShim(replacement);
+    logLegacyTaskScheduleShimHit(c.var, hit);
     if (result.target === "json") {
       throwUnmappable(
         `${formatZodErrorMessage(result.error)}. Use ${replacement} with a typed rule.`,
@@ -141,6 +140,27 @@ type LegacyRecurringSchedule = Extract<
   { mode: "recurring" }
 >;
 
+const LEGACY_INTERVAL_DAYS_CRON = /^(\d+) (\d+) \*\/(\d+) \* \*$/;
+
+/**
+ * The old release, and the cutover after it, read an `M H *\/N * *` cron
+ * with no `intervalDays` as every N days from the rule write.
+ */
+function legacyIntervalDays(schedule: LegacyRecurringSchedule): {
+  intervalDays: number | undefined;
+  inferred: boolean;
+} {
+  if (schedule.intervalDays != null && schedule.intervalDays > 1) {
+    return { intervalDays: schedule.intervalDays, inferred: false };
+  }
+  const days = Number(
+    LEGACY_INTERVAL_DAYS_CRON.exec(schedule.expr.trim())?.[3],
+  );
+  return days > 1
+    ? { intervalDays: days, inferred: true }
+    : { intervalDays: schedule.intervalDays, inferred: false };
+}
+
 /**
  * Old `occurrences` counted the Runs still to come from the rule write on,
  * while `targetRunCount` counts every Run the schedule releases.
@@ -150,11 +170,13 @@ function mapRecurringRule(
   releasedCount = 0,
 ): TaskScheduleRule {
   const endsMode = ENDS_MODE_TO_NEW[schedule.endsMode];
+  const { intervalDays, inferred } = legacyIntervalDays(schedule);
   return {
     expr: schedule.expr,
     timezone: schedule.timezone,
-    intervalDays: schedule.intervalDays,
-    anchorAt: schedule.anchorAt,
+    intervalDays,
+    anchorAt:
+      schedule.anchorAt ?? (inferred ? new Date().toISOString() : undefined),
     endsMode,
     endsOn: endsMode === TaskScheduleEndsMode.ON ? schedule.endsOn : undefined,
     targetRunCount:
@@ -262,7 +284,8 @@ export function legacyRuleMatches(
     intervalDays === current.intervalDays &&
     (intervalDays == null ||
       intervalDays <= 1 ||
-      sameInstant(rule.anchorAt, current.anchorAt))
+      schedule.anchorAt == null ||
+      sameInstant(schedule.anchorAt, current.anchorAt))
   );
 }
 
@@ -322,6 +345,7 @@ const uuidSchema = z.guid();
  * cutover moved, or a Task this shim made a schedule from.
  */
 export async function resolveTaskScheduleId(
+  vars: EnvVariables["Variables"],
   taskId: string,
 ): Promise<string | null> {
   // TaskSchedule.id is a Postgres uuid: any other id fails the cast.
@@ -351,17 +375,24 @@ export async function resolveTaskScheduleId(
     return migrated.id;
   }
 
-  const shimCreated = await prisma.taskScheduleCreateOperation.findFirst({
-    where: { operationId: shimCreateOperationId(taskId) },
+  const { workspaceId } = requireWorkspaceContext(vars.workspaceContext);
+  const shimCreated = await prisma.taskScheduleCreateOperation.findUnique({
+    where: {
+      workspaceId_operationId: {
+        workspaceId,
+        operationId: shimCreateOperationId(taskId),
+      },
+    },
     select: { scheduleId: true },
   });
   return shimCreated?.scheduleId ?? null;
 }
 
 export async function requireResolvedTaskScheduleId(
+  vars: EnvVariables["Variables"],
   taskId: string,
 ): Promise<string> {
-  const scheduleId = await resolveTaskScheduleId(taskId);
+  const scheduleId = await resolveTaskScheduleId(vars, taskId);
   if (!scheduleId) {
     throw notFound(
       "No Task Schedule is linked to this Task. Use GET /v1/tasks/schedules/{id} with the schedule id.",
@@ -370,52 +401,28 @@ export async function requireResolvedTaskScheduleId(
   return scheduleId;
 }
 
-function scheduleWriter(vars: EnvVariables["Variables"]): TaskScheduleReader {
-  const { authContext } = vars;
-  const { userId } = requireUserContext(authContext);
-  return isCoworkerAuthContext(authContext)
-    ? {
-        kind: "coworker",
-        coworkerId: authContext.coworkerId,
-        vendorId: authContext.vendorId,
-        userId,
-      }
-    : { kind: "user", userId };
-}
+const SCHEDULABLE_TASK_STATUSES: ReadonlySet<TaskStatus> = new Set([
+  TaskStatus.DRAFT,
+  TaskStatus.READY,
+  TaskStatus.QUEUED,
+]);
 
 /**
- * A PUT that re-sends the current rule writes nothing, but answers only a
- * caller that could have written it, as the update would.
- */
-export async function requireLegacyScheduleWrite(
-  vars: EnvVariables["Variables"],
-  scheduleId: string,
-): Promise<void> {
-  const schedule = await prisma.taskSchedule.findFirst({
-    where: { id: scheduleId },
-    include: { assignee: { select: { vendorId: true } } },
-  });
-  if (!schedule || !canWriteTaskSchedule(scheduleWriter(vars), schedule)) {
-    throw forbidden("Only the owner can change this Task Schedule");
-  }
-}
-
-/**
- * The Task a PUT turns into a schedule. The schedule belongs to the acting
- * member, so the Task must too, and a Coworker must be one that may write the
- * schedule it becomes. The Task itself is left as it is.
+ * The Task a PUT turns into a schedule, checked after the caller passed the
+ * schedule create gate. The schedule belongs to the acting member, so the
+ * Task must too; a Coworker must be one that may write the schedule it
+ * becomes; and, as before, only a Task that has not started qualifies. The
+ * Task itself is left as it is.
  */
 export async function requireTaskBlueprint(
-  vars: EnvVariables["Variables"],
+  actor: ScheduleActor,
   taskId: string,
 ) {
-  const writer = scheduleWriter(vars);
-  const workspace = requireWorkspaceContext(vars.workspaceContext);
   const task = await prisma.task.findFirst({
     where: {
       id: taskId,
-      workspaceId: workspace.workspaceId,
-      ownerId: writer.userId,
+      workspaceId: actor.workspace.workspaceId,
+      ownerId: actor.userId,
       archivedAt: null,
     },
     include: { assignee: { select: { vendorId: true } } },
@@ -424,10 +431,13 @@ export async function requireTaskBlueprint(
     throw notFound("Task not found");
   }
   requireTaskNotParked(task);
-  if (!canWriteTaskSchedule(writer, task)) {
+  if (!canWriteTaskSchedule(actor, task)) {
     throw forbidden(
       "Coworkers can only schedule the acting member's Tasks they created, are assigned to, or that are assigned to their vendor siblings",
     );
+  }
+  if (!SCHEDULABLE_TASK_STATUSES.has(task.status)) {
+    throw forbidden("You can only schedule draft, ready, or queued tasks");
   }
   return task;
 }

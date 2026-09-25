@@ -3565,13 +3565,13 @@ export const patchTasksSchedulesByIdRunsByRunId = <ThrowOnError extends boolean 
  *
  * @deprecated
  */
-export const postTasksScheduled = <ThrowOnError extends boolean = false>(options?: Options<PostTasksScheduledData, ThrowOnError>): RequestResult<PostTasksScheduledResponses, PostTasksScheduledErrors, ThrowOnError> => (options?.client ?? client).post<PostTasksScheduledResponses, PostTasksScheduledErrors, ThrowOnError>({
+export const postTasksScheduled = <ThrowOnError extends boolean = false>(options: Options<PostTasksScheduledData, ThrowOnError>): RequestResult<PostTasksScheduledResponses, PostTasksScheduledErrors, ThrowOnError> => (options.client ?? client).post<PostTasksScheduledResponses, PostTasksScheduledErrors, ThrowOnError>({
     responseTransformer: postTasksScheduledResponseTransformer,
     url: '/tasks/scheduled',
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...options.headers
     }
 });
 
