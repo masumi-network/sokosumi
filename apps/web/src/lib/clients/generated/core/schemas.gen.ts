@@ -21176,6 +21176,37 @@ export const TaskWorkspaceSchema = {
     ]
 } as const;
 
+export const TaskEventsPaginationMetadataSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/PaginationMetadata'
+        },
+        {
+            type: 'object',
+            properties: {
+                commentCount: {
+                    type: 'integer',
+                    minimum: 0,
+                    example: 3,
+                    description: 'Count of events on this task with a non-null comment'
+                },
+                latestCommentId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'evt_124',
+                    description: 'Id of the newest comment event (createdAt desc, then id desc), or null'
+                }
+            },
+            required: [
+                'commentCount',
+                'latestCommentId'
+            ]
+        }
+    ]
+} as const;
+
 export const MasumiPaymentSchema = {
     type: 'object',
     properties: {

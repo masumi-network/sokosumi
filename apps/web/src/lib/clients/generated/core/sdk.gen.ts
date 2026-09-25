@@ -3747,7 +3747,7 @@ export const putTasksByIdWorkspace = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * List task events
+ * List task events (paginated, oldest first)
  */
 export const getTasksByIdEvents = <ThrowOnError extends boolean = false>(options: Options<GetTasksByIdEventsData, ThrowOnError>): RequestResult<GetTasksByIdEventsResponses, GetTasksByIdEventsErrors, ThrowOnError> => (options.client ?? client).get<GetTasksByIdEventsResponses, GetTasksByIdEventsErrors, ThrowOnError>({
     responseTransformer: getTasksByIdEventsResponseTransformer,

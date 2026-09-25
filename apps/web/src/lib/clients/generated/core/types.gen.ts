@@ -6234,6 +6234,17 @@ export type TaskWorkspace = {
     organizationId: string | null;
 };
 
+export type TaskEventsPaginationMetadata = PaginationMetadata & {
+    /**
+     * Count of events on this task with a non-null comment
+     */
+    commentCount: number;
+    /**
+     * Id of the newest comment event (createdAt desc, then id desc), or null
+     */
+    latestCommentId: string | null;
+};
+
 /**
  * On-chain Masumi credit charge for a credit-bearing task event. Coworker-only; allowed on any credit-bearing event; omit credits when set.
  */
@@ -44493,11 +44504,35 @@ export type GetTasksByIdEventsData = {
     path: {
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
     url: '/tasks/{id}/events';
 };
 
 export type GetTasksByIdEventsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -44528,6 +44563,21 @@ export type GetTasksByIdEventsErrors = {
             method: string;
         };
     };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type GetTasksByIdEventsError = GetTasksByIdEventsErrors[keyof GetTasksByIdEventsErrors];
@@ -44541,7 +44591,7 @@ export type GetTasksByIdEventsResponses = {
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination?: PaginationMetadata;
+            pagination: TaskEventsPaginationMetadata;
         };
     };
 };
