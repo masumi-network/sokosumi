@@ -1,8 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
-import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
+import { type KeyboardEvent as ReactKeyboardEvent, useEffect } from "react";
 
 import {
   parseScopeVariant,
@@ -16,22 +15,6 @@ import {
   useScopeVariantOptedIn,
 } from "./use-scope-variant";
 import styles from "./variant-picker.module.css";
-
-/** Widgets whose arrow and digit keys already mean something. */
-const KEY_OWNING_SURFACE =
-  '[role="dialog"],[role="alertdialog"],[role="menu"],[role="menubar"],[role="listbox"],[role="combobox"],[role="tablist"],[role="radiogroup"],[role="slider"],[role="grid"],[role="tree"],[role="toolbar"]';
-
-function isKeyTakenElsewhere(event: KeyboardEvent): boolean {
-  if (event.defaultPrevented || event.repeat) return true;
-  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
-    return true;
-  }
-  if (isEditableKeyboardTarget(event.target)) return true;
-  return (
-    event.target instanceof Element &&
-    event.target.closest(KEY_OWNING_SURFACE) !== null
-  );
-}
 
 /**
  * SOK-1202 harness: flips between the scope switcher variants. The URL is the
@@ -61,28 +44,35 @@ function Picker() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (isKeyTakenElsewhere(event)) return;
-      const index = SCOPE_VARIANTS.findIndex(({ id }) => id === active);
-      let next: number | null = null;
-      if (event.key === "ArrowRight") next = index + 1;
-      if (event.key === "ArrowLeft") next = index - 1;
-      const digit = Number.parseInt(event.key, 10);
-      if (digit >= 1 && digit <= SCOPE_VARIANTS.length) next = digit - 1;
-      if (next === null) return;
-      const count = SCOPE_VARIANTS.length;
-      const variant = SCOPE_VARIANTS[(next + count) % count];
-      if (!variant) return;
-      event.preventDefault();
-      choose(variant.id);
+  // Keys work only inside the picker: page-wide digits and arrows would be
+  // single-key shortcuts (WCAG 2.1.4) and steal scrolling.
+  function onKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+      return;
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  });
+    const index = SCOPE_VARIANTS.findIndex(({ id }) => id === active);
+    let next: number | null = null;
+    if (event.key === "ArrowRight") next = index + 1;
+    if (event.key === "ArrowLeft") next = index - 1;
+    const digit = Number.parseInt(event.key, 10);
+    if (digit >= 1 && digit <= SCOPE_VARIANTS.length) next = digit - 1;
+    if (next === null) return;
+    const count = SCOPE_VARIANTS.length;
+    const variant = SCOPE_VARIANTS[(next + count) % count];
+    if (!variant) return;
+    event.preventDefault();
+    choose(variant.id);
+    event.currentTarget
+      .querySelector<HTMLElement>(`[data-variant="${variant.id}"]`)
+      ?.focus();
+  }
 
   return (
-    <nav className={styles.picker} aria-label="SOK-1202 variants">
+    <nav
+      className={styles.picker}
+      aria-label="SOK-1202 variants"
+      onKeyDown={onKeyDown}
+    >
       {SCOPE_VARIANTS.map(({ id, label }) => (
         <button
           key={id}

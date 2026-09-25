@@ -102,6 +102,16 @@ export function ProjectScopeMenu({
     ? projects.all
     : projects.all.filter((project) => !shortlistIds.has(project.id));
 
+  // Not `CommandEmpty` for "empty": Create and Manage are always mounted, so
+  // cmdk never counts the list as empty.
+  const statusText = projects.isError
+    ? t("error")
+    : projects.isPending
+      ? t("loading")
+      : projects.isSearching && rest.length === 0
+        ? t("empty")
+        : null;
+
   return (
     <Command ref={menuRef} shouldFilter={false} className={className}>
       <CommandInput
@@ -110,33 +120,29 @@ export function ProjectScopeMenu({
         value={search}
         onValueChange={setSearch}
       />
-      <CommandList>
+      {/* Outside the listbox, which may hold only options, and always
+          mounted, so a screen reader hears each change. */}
+      <div
+        className={cn(
+          "flex items-center justify-between gap-2 px-3",
+          statusText && "py-2",
+        )}
+      >
+        <p role="status" className="text-muted-foreground text-sm">
+          {statusText}
+        </p>
         {projects.isError ? (
-          <div className="flex items-center justify-between gap-2 px-3 py-2">
-            <p role="status" className="text-muted-foreground text-sm">
-              {t("error")}
-            </p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={projects.refetch}
-            >
-              {t("retry")}
-            </Button>
-          </div>
-        ) : projects.isPending ? (
-          <p role="status" className="text-muted-foreground px-3 py-2 text-sm">
-            {t("loading")}
-          </p>
-        ) : projects.isSearching && rest.length === 0 ? (
-          // Not `CommandEmpty`: Create and Manage are always mounted, so
-          // cmdk never counts the list as empty.
-          <p role="status" className="text-muted-foreground px-3 py-2 text-sm">
-            {t("empty")}
-          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={projects.refetch}
+          >
+            {t("retry")}
+          </Button>
         ) : null}
-
+      </div>
+      <CommandList>
         {projects.isSearching ? null : (
           <CommandGroup>
             <CommandItem

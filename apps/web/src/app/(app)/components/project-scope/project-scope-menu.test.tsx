@@ -1,12 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   load: vi.fn(),
   loadPinned: vi.fn(),
-  loadOne: vi.fn(),
   push: vi.fn(),
 }));
 
@@ -30,7 +29,6 @@ vi.mock("@/app/projects/actions", () => ({
   loadMoreProjects: mocks.load,
   loadPinnedProjects: mocks.loadPinned,
 }));
-vi.mock("./actions", () => ({ loadScopeProject: mocks.loadOne }));
 vi.mock("@/app/projects/components/project-avatar", () => ({
   ProjectAvatar: () => <span aria-hidden />,
 }));
@@ -83,6 +81,11 @@ function searchResults(byQuery: Record<string, ReturnType<typeof project>[]>) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The trigger's project read; the menu never needs it.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.resolve(Response.json({ project: null }))),
+  );
   localStorage.clear();
   mocks.loadPinned.mockResolvedValue([
     project("pinned-1", "Pinned One"),
@@ -97,6 +100,10 @@ beforeEach(() => {
     ],
     nextCursor: null,
   });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("ProjectScopeMenu", () => {

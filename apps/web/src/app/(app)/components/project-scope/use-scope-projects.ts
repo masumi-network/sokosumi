@@ -1,17 +1,16 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useDeferredValue } from "react";
+import { useDebounce } from "use-debounce";
 import { orderSidebarProjects } from "@/app/components/sidebar/components/order-sidebar-projects";
 import { loadMoreProjects } from "@/app/projects/actions";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { usePinnedProjects } from "@/hooks/use-pinned-projects";
 import {
   type RecentProjectsScope,
   useRecentProjectIds,
 } from "@/hooks/use-recent-projects";
 import { useSession } from "@/lib/auth/auth.client";
-
-import { loadScopeProject } from "./actions";
 
 /** One switcher row. Closed projects never become one. */
 export interface ScopeProject {
@@ -61,14 +60,31 @@ function isSameScope(
   return previous[1] === next[1] && previous[2] === next[2];
 }
 
+/** Root of the scoped project's cache key, for a refresh after navigation. */
+export const SCOPE_SELECTED_QUERY_KEY = "project-scope-selected";
+
 /**
- * The one project a trigger names. It reads rows already loaded and asks Core
- * only for a project they miss, so a closed menu loads no list.
+ * Reads one project through a Route Handler, not a server action: triggers
+ * read it on mount, and Next serializes server actions per session.
  */
-export function useSelectedScopeProject(
+async function fetchScopeProject(
+  projectId: string,
+): Promise<ScopeProject | null> {
+  const response = await fetch(
+    `/api/project-scope/${encodeURIComponent(projectId)}`,
+    { credentials: "same-origin", cache: "no-store" },
+  );
+  if (!response.ok) {
+    throw new Error(`Project scope read failed: ${response.status}`);
+  }
+  const body = (await response.json()) as { project: ScopeProject | null };
+  return body.project;
+}
+
+function useSelectedProjectQuery(
   selectedProjectId: string | null,
-  loaded: ScopeProject[] = [],
-): ScopeProject | null {
+  loaded: ScopeProject[],
+) {
   const scope = useWorkspaceScope();
   // Rows an open menu already loaded; never a fetch of its own.
   const cachedPage = useQueryClient().getQueryData<
@@ -83,22 +99,51 @@ export function useSelectedScopeProject(
 
   const selected = useQuery({
     queryKey: [
-      "project-scope-selected",
+      SCOPE_SELECTED_QUERY_KEY,
       scope?.userId ?? null,
       scope?.organizationId ?? null,
       selectedProjectId,
     ],
     queryFn: () => {
       if (!selectedProjectId) throw new Error("No project selected");
-      return loadScopeProject({ projectId: selectedProjectId });
+      return fetchScopeProject(selectedProjectId);
     },
-    enabled: selectedProjectId != null && listed == null && scope != null,
+    // Always asked, even when a list has the row: a rename shows up here
+    // once the guard marks this stale on navigation.
+    enabled: selectedProjectId != null && scope != null,
     retry: false,
     refetchOnWindowFocus: false,
   });
 
-  if (listed) return toRow(listed);
-  return selected.data ? toRow(selected.data) : null;
+  return { listed, selected };
+}
+
+/**
+ * True once Core says the scoped project is not in this workspace, as after
+ * a workspace switch that kept the URL, or a stale shared link.
+ */
+export function useIsUnknownScopeProject(
+  selectedProjectId: string | null,
+): boolean {
+  const { selected } = useSelectedProjectQuery(selectedProjectId, []);
+  return selected.isSuccess && selected.data === null;
+}
+
+/**
+ * The one project a trigger names. It reads that project alone, so a closed
+ * menu loads no list; rows already loaded name it in the meantime.
+ */
+export function useSelectedScopeProject(
+  selectedProjectId: string | null,
+  loaded: ScopeProject[] = [],
+): ScopeProject | null {
+  const { listed, selected } = useSelectedProjectQuery(
+    selectedProjectId,
+    loaded,
+  );
+  // Core's answer wins; a listed row names the project while it loads.
+  if (selected.isSuccess) return selected.data ? toRow(selected.data) : null;
+  return listed ? toRow(listed) : null;
 }
 
 /**
@@ -116,7 +161,11 @@ export function useScopeProjects({
   const scope = useWorkspaceScope();
   const pinned = usePinnedProjects(scope);
   const visitedIds = useRecentProjectIds(scope);
-  const query = useDeferredValue(search.trim());
+  // One Core search per pause in typing, not one per keystroke.
+  const [query] = useDebounce(
+    search.trim(),
+    getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
+  );
 
   const page = useQuery({
     queryKey: pageQueryKey(scope, query),

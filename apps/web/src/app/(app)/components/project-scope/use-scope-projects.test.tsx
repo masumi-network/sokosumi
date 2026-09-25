@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   load: vi.fn(),
@@ -24,9 +24,9 @@ vi.mock("@/app/projects/actions", () => ({
   loadMoreProjects: mocks.load,
   loadPinnedProjects: mocks.loadPinned,
 }));
-vi.mock("./actions", () => ({ loadScopeProject: mocks.loadOne }));
 
 import {
+  useIsUnknownScopeProject,
   useScopeProjects,
   useSelectedScopeProject,
 } from "./use-scope-projects";
@@ -44,11 +44,22 @@ function wrapper() {
   );
 }
 
+/** The Route Handler, answering with whatever `loadOne` gives for the id. */
+function routeHandler(url: string) {
+  const projectId = decodeURIComponent(url.split("/").pop() ?? "");
+  return Promise.resolve(Response.json({ project: mocks.loadOne(projectId) }));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal("fetch", vi.fn(routeHandler));
   localStorage.clear();
   mocks.organizationId.current = "org-a";
   mocks.loadPinned.mockResolvedValue([]);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("useScopeProjects", () => {
@@ -86,13 +97,13 @@ describe("useScopeProjects", () => {
 
 describe("useSelectedScopeProject", () => {
   it("asks Core for the named project and loads no list", async () => {
-    mocks.loadOne.mockResolvedValue(project("far-1", "Far Away"));
+    mocks.loadOne.mockReturnValue(project("far-1", "Far Away"));
     const { result } = renderHook(() => useSelectedScopeProject("far-1"), {
       wrapper: wrapper(),
     });
 
     await waitFor(() => expect(result.current?.name).toBe("Far Away"));
-    expect(mocks.loadOne).toHaveBeenCalledWith({ projectId: "far-1" });
+    expect(mocks.loadOne).toHaveBeenCalledWith("far-1");
     expect(mocks.load).not.toHaveBeenCalled();
     expect(mocks.loadPinned).not.toHaveBeenCalled();
   });
@@ -104,5 +115,27 @@ describe("useSelectedScopeProject", () => {
 
     expect(result.current).toBeNull();
     expect(mocks.loadOne).not.toHaveBeenCalled();
+  });
+});
+
+describe("useIsUnknownScopeProject", () => {
+  it("is true only once Core says the project is not here", async () => {
+    mocks.loadOne.mockReturnValue(null);
+    const { result } = renderHook(() => useIsUnknownScopeProject("gone-1"), {
+      wrapper: wrapper(),
+    });
+
+    expect(result.current).toBe(false);
+    await waitFor(() => expect(result.current).toBe(true));
+  });
+
+  it("stays false for a project Core knows", async () => {
+    mocks.loadOne.mockReturnValue(project("far-1", "Far Away"));
+    const { result } = renderHook(() => useIsUnknownScopeProject("far-1"), {
+      wrapper: wrapper(),
+    });
+
+    await waitFor(() => expect(mocks.loadOne).toHaveBeenCalled());
+    expect(result.current).toBe(false);
   });
 });

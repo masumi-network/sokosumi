@@ -8,6 +8,16 @@ import {
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { getHostname } from "@/lib/utils/url";
 
+function MaybeOldWay({
+  replaced,
+  children,
+}: {
+  replaced: boolean;
+  children: React.ReactNode;
+}) {
+  return replaced ? <ScopeOldWay>{children}</ScopeOldWay> : children;
+}
+
 interface ProjectDetailHeaderMetadataItem {
   label: string;
   value: string;
@@ -42,7 +52,8 @@ export function ProjectDetailHeader({
   return (
     <div className="space-y-4">
       <ScopeSlot place="project-header" calendarBeta={calendarBeta} />
-      <ScopeOldWay>
+      {/* A switcher replaces the way back to the list, not to the project. */}
+      <MaybeOldWay replaced={backHref === "/projects"}>
         <Link
           href={backHref}
           className={`text-muted-foreground hover:text-foreground items-center gap-1.5 text-sm transition-colors ${
@@ -52,7 +63,7 @@ export function ProjectDetailHeader({
           <ArrowLeft className="size-4" aria-hidden />
           <span>{backLabel}</span>
         </Link>
-      </ScopeOldWay>
+      </MaybeOldWay>
 
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">

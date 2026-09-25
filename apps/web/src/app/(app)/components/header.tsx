@@ -1,6 +1,9 @@
 import type { Session } from "@sokosumi/utils";
 import { Suspense } from "react";
-import { ScopeSlot } from "@/app/components/project-scope/variants/scope-slot";
+import {
+  ScopeSlot,
+  ScopeStaleGuard,
+} from "@/app/components/project-scope/variants/scope-slot";
 import {
   HeaderVariantCrumbs,
   HeaderVariantTrailing,
@@ -43,6 +46,7 @@ export default function Header({ className, session }: HeaderProps) {
       <Suspense fallback={null}>
         <ScopeVariantPicker />
       </Suspense>
+      <ScopeStaleGuard />
 
       <HeaderTrailing>
         <HeaderVariantTrailing>
