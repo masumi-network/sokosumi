@@ -974,6 +974,25 @@
         "REJECTED": "Abgelehnt. Es wurde nichts erstellt.",
         "EXPIRED": "Ohne Entscheidung abgelaufen. Frage deinen Soko Bot bei Bedarf erneut."
       }
+    },
+    "Mermaid": {
+      "title": "Mermaid-Flussdiagramm",
+      "copy": "Quelltext kopieren",
+      "enlarge": "Vergrößern",
+      "inspect": "Scrolle, um das Diagramm zu erkunden. Passe die Größe mit den Zoom-Steuerelementen an.",
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern",
+      "close": "Schließen",
+      "alt": "Flussdiagramm. Der vollständige Text steht unter Diagramm-Quelltext.",
+      "source": "Diagramm-Quelltext",
+      "waiting": "Das Diagramm wird noch empfangen…",
+      "loading": "Diagramm wird vorbereitet…",
+      "unsupported": "Dieses Diagramm verwendet nicht unterstützte Syntax oder Funktionen. Unten kannst du den Quelltext ansehen oder kopieren.",
+      "tooLarge": "Dieses Diagramm überschreitet das Darstellungslimit. Unten kannst du den Quelltext ansehen oder kopieren.",
+      "tooMany": "Pro Nachrichtenabschnitt können nur acht Diagramme dargestellt werden. Unten kannst du diesen Quelltext ansehen oder kopieren.",
+      "failed": "Dieses Diagramm konnte nicht dargestellt werden. Prüfe die Syntax im Quelltext unten.",
+      "copied": "Quelltext kopiert.",
+      "copyFailed": "Kopieren fehlgeschlagen. Wähle den Diagramm-Quelltext unten aus und kopiere ihn manuell."
     }
   },
   "Join": {
@@ -1831,10 +1850,10 @@
         "assignee": "Zuständig",
         "schedule": "Zeitplan",
         "privateSchedule": "Privater Zeitplan",
-        "participants": "Beteiligte",
-        "removeParticipant": "{name} entfernen",
-        "removeParticipantConfirmTitle": "{name} entfernen?",
-        "removeParticipantConfirmDescription": "Die Person ist danach nicht mehr an dieser Aufgabe beteiligt.",
+        "participantsList": "Task-Teilnehmer",
+        "subscribe": "Abonnieren",
+        "unsubscribe": "Abbestellen",
+        "subscribeError": "Abonnieren fehlgeschlagen. Bitte erneut versuchen.",
         "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut."
       },
       "NewTask": {

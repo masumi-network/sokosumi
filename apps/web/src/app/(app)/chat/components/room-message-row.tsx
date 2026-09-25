@@ -623,6 +623,7 @@ function MessageUnfurlList({
 
 function ChannelMarkdownSegment({
   content,
+  enableMermaid,
   coworkersById,
   coworkersBySlug,
   sokoBotsById,
@@ -636,6 +637,7 @@ function ChannelMarkdownSegment({
   openingDirectParticipantKey,
 }: {
   content: string;
+  enableMermaid: boolean;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
@@ -650,6 +652,7 @@ function ChannelMarkdownSegment({
 }) {
   return (
     <RoomMessageMarkdown
+      enableMermaid={enableMermaid}
       content={content}
       markdownClassName={ROOM_MESSAGE_MARKDOWN_CLASSNAME}
       coworkersById={coworkersById}
@@ -669,6 +672,7 @@ function ChannelMarkdownSegment({
 
 export function ChannelMessageText({
   content,
+  enableMermaid = true,
   coworkersById,
   coworkersBySlug,
   sokoBotsById,
@@ -682,6 +686,7 @@ export function ChannelMessageText({
   openingDirectParticipantKey,
 }: {
   content: string;
+  enableMermaid?: boolean;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
@@ -710,6 +715,7 @@ export function ChannelMessageText({
     return (
       <ChannelMarkdownSegment
         content={segments[0].content}
+        enableMermaid={enableMermaid}
         coworkersById={coworkersById}
         coworkersBySlug={coworkersBySlug}
         sokoBotsById={sokoBotsById}
@@ -734,6 +740,7 @@ export function ChannelMessageText({
               <ChannelMarkdownSegment
                 key={`text-${i}-${segment.start}`}
                 content={segment.content}
+                enableMermaid={enableMermaid}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
                 sokoBotsById={sokoBotsById}

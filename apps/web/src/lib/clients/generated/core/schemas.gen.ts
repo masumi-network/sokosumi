@@ -4536,7 +4536,7 @@ export const TaskSchema = {
             items: {
                 $ref: '#/components/schemas/TaskParticipant'
             },
-            description: 'Workspace members added by @ in Task comment activity, in join order. Owner and assignee are omitted unless they were mentioned. Empty until someone is mentioned.',
+            description: 'Workspace members on the Task (via @ mention or self-subscribe), in join order. Owner and assignee are omitted unless they also joined. Empty until someone joins.',
             example: []
         },
         coworkerId: {
@@ -4985,7 +4985,7 @@ export const TaskParticipantSchema = {
             type: 'string',
             format: 'date-time',
             example: '2026-09-24T12:00:00.000Z',
-            description: 'When the @ mention added this person to the Task.'
+            description: 'When this person joined the Task (via @ mention or self-subscribe).'
         }
     },
     required: [
@@ -20092,7 +20092,7 @@ export const TaskListItemSchema = {
             items: {
                 $ref: '#/components/schemas/TaskParticipant'
             },
-            description: 'Workspace members added by @ in Task comment activity, in join order. Owner and assignee are omitted unless they were mentioned. Empty until someone is mentioned.',
+            description: 'Workspace members on the Task (via @ mention or self-subscribe), in join order. Owner and assignee are omitted unless they also joined. Empty until someone joins.',
             example: []
         },
         coworkerId: {
