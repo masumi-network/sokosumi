@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 struct MessageAttachmentView: View {
   let attachment: MessageAttachment
+  var compact = false
   /// The message's image viewer; an image opens it on itself.
   @Environment(MessageImageViewerPresentation.self) private var imageViewer: MessageImageViewerPresentation?
   @State private var previewPresented = false
@@ -14,8 +15,11 @@ struct MessageAttachmentView: View {
       switch attachment.kind {
       case .image:
         Button { imageViewer?.openURL = attachment.url } label: {
-          MessageImageView(url: attachment.url, maxSize: CGSize(width: 640, height: 360))
-            .clipShape(.rect(cornerRadius: 8))
+          MessageImageView(url: attachment.url,
+                           maxSize: compact ? CGSize(width: 64, height: 64) : CGSize(width: 640, height: 320),
+                           fills: compact, cropAspectRatio: compact ? 1 : nil, cornerRadius: 8)
+            .frame(width: compact ? 64 : nil, height: compact ? 64 : nil)
+            .clipped()
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Preview \(attachment.filename)")
@@ -47,7 +51,7 @@ struct MessageAttachmentView: View {
         .font(.callout)
       }
     }
-    .frame(maxWidth: .infinity, alignment: .leading)
+    .frame(maxWidth: compact ? (attachment.kind == .image || attachment.kind == .file ? 64 : 384) : .infinity, alignment: .leading)
     .sheet(isPresented: $previewPresented) {
       VStack(spacing: 16) {
         AttachmentViewerToolbar(attachment: attachment) { previewPresented = false }
