@@ -1170,7 +1170,7 @@ function StatusApp({
           ? describeRegistrationWorkspaceRequirement(webBase || undefined)
           : missingAdminVendor
             ? describeRegistrationAdminVendorRequirement(webBase || undefined)
-            : "Choose a preset runtime. Then register it with `coworkers register` and the selected Workspace.";
+            : "Choose a preset to see the next step. An organizer must provision its Coworker ID first. Then use `coworkers connect` for the selected Workspace.";
     signedInContent = React.createElement(
       Box,
       { flexDirection: "column", width: "100%" },
@@ -1253,7 +1253,7 @@ function StatusApp({
         { dimColor: true },
         resourceLoading
           ? "Loading organization workspaces…"
-          : "Choose a workspace before registering a workspace-only Coworker.",
+          : "Choose a workspace for the Coworker.",
       ),
       React.createElement(SelectInput, {
         items: workspaceItems,
@@ -1279,7 +1279,7 @@ function StatusApp({
       React.createElement(
         Text,
         { dimColor: true },
-        "Sign in is done. Review Vendors and Workspaces, then register a Coworker.",
+        "Sign in is done. Review Vendors and Workspaces, then connect an organizer-provisioned Coworker.",
       ),
       React.createElement(Text, { dimColor: true }, "sokosumi coworkers list"),
       React.createElement(

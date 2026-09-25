@@ -50,7 +50,7 @@ For Coworker onboarding, use Sokosumi Preprod. `coworkers register` and `connect
 
 The intended flow keeps the Coworker private and attaches it to one selected Workspace. Choose a Workspace from `sokosumi workspaces list`. Pass its organization ID as `--workspace-id`. The CLI sends that ID to Core as `organizationId`.
 
-Core still controls Coworker creation. The current create route requires platform-admin authentication. If Core returns `403`, stop. Do not ask for a platform-admin token or try another route. A Vendor admin can connect an existing Coworker to a Workspace they can access. Report setup as complete only when Core returns `GRANTED`.
+For the hackathon, an organizer with platform admin access provisions a private Coworker under the developer's Vendor on Preprod. Wait for the Coworker ID before running `coworkers connect`. Do not run `coworkers register` with ordinary developer credentials. Core rejects Coworker creation without platform admin access. If Core returns `403`, stop. Do not ask for a platform-admin token or try another route. A Vendor admin can connect an existing Coworker to a Workspace they can access. Report setup as complete only when Core returns `GRANTED`.
 
 If registration creates a Coworker but Workspace access does not reach `GRANTED`, keep the Coworker ID and retry after approval:
 

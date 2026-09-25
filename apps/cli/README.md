@@ -6,7 +6,11 @@ Private workspace package `@sokosumi/cli`; package path `apps/cli`; binary `soko
 
 [REPORTED: user direction, 2026-09-24] The MVP onboards an existing hosted agent as a private Coworker in a selected Preprod Workspace, then proves an MPS payment reaches its Cardano Preprod wallet. Core permission changes are outside this CLI work. Current Core requires a platform admin to create the Coworker record. Global listing requires a separate waitlist request and platform-admin approval. Cardano x402 buyers reach Coworkers through Sokosumi after the MPS-first MVP.
 
-This is planned work, not a new installed capability. See [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md) and the [implementation plan](docs/developer-cli-implementation-plan.md). Existing commands below remain the current interface.
+[REPORTED: user decision, 2026-09-25] Hackathon registration is organizer-led. A platform admin provisions a private Coworker under the developer's Vendor on Preprod. The developer then connects that Coworker to an existing organization Workspace. Each developer waits for the organizer's Coworker ID before using `coworkers connect`.
+
+The hosted-agent adapter and payment proof are planned work. The registration
+and connection commands below are implemented. See [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md)
+and the [implementation plan](docs/developer-cli-implementation-plan.md).
 
 Install the framework-neutral Skill from the repository:
 
@@ -30,7 +34,7 @@ Or:
 pnpm --filter @sokosumi/cli sokosumi
 ```
 
-That opens the Ink screen. Choose a sign-in method with Up and Down, then press Enter. Use Esc to go back and q to quit. Choose browser OAuth or a user API key, then choose a preset Coworker runtime (pi-sokosumi, Eve, Hermes, OpenClaw). Register is marked `(soon)` and remains preset-only. OAuth opens Core `/signin`. Stored OAuth credentials and user API keys use the OS vault. Linux persistent auth needs Secret Service. If no vault is available, use `SOKOSUMI_API_KEY` or stdin for the current run.
+That opens the Ink screen. Choose a sign-in method with Up and Down, then press Enter. Use Esc to go back and q to quit. Choose browser OAuth or a user API key, then choose a preset Coworker runtime (pi-sokosumi, Eve, Hermes, OpenClaw). The Ink Register screen remains preset-only. Use the headless commands below to connect the Coworker. OAuth opens Core `/signin`. Stored OAuth credentials and user API keys use the OS vault. Linux persistent auth needs Secret Service. If no vault is available, use `SOKOSUMI_API_KEY` or stdin for the current run.
 
 Headless:
 
@@ -48,16 +52,20 @@ SOKOSUMI_API_KEY=soko_preprod_... pnpm --filter @sokosumi/cli sokosumi -- auth s
 pnpm --filter @sokosumi/cli sokosumi -- auth logout
 ```
 
-`coworkers register` requires `--vendor-id` and `--workspace-id`. The workspace
-value is an organization ID from `workspaces list`. Coworker `register` and
-`connect` use Preprod by default when no target is configured. Registration is
-still Preprod only. The command creates the Coworker, then asks Core to grant
-Workspace access. It reports success only when Core returns `GRANTED`. If the
-Coworker record is created but access is pending or fails, retry with
-`coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORG_ID --preprod`.
-Core keeps its existing role checks. `coworkers register` can still require a
-platform-admin role to create the record. `coworkers connect` attaches an
-existing record through the existing Core access route. It accepts command options for JSON fields. `tasks create`
+For hackathon participants, connect the organizer-provisioned Coworker:
+
+```bash
+pnpm --filter @sokosumi/cli sokosumi -- --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID --json
+```
+
+Use the organization ID from `workspaces list` as `--workspace-id`. Coworker
+`register` and `connect` use Preprod by default when no target is configured.
+Both commands work on Preprod only. `coworkers register` requires platform admin
+access. That command creates the Coworker, then asks Core to grant Workspace
+access. It reports success only when Core returns `GRANTED`. If the Coworker
+record is created but access is pending or fails, retry with `coworkers connect`.
+Core keeps its existing role checks. `coworkers connect` attaches an existing
+record through the Core access route. It accepts command options for JSON fields. `tasks create`
 and `tasks comment` also accept command options for JSON fields. Use
 `--metadata-json` or `--metadata-file` for coworker metadata. Use
 `--channel provider=value` to add coworker channel metadata. The
