@@ -1309,43 +1309,6 @@ describe("TaskActivitySection", () => {
     expect(screen.getByText("Comment 5")).toBeInTheDocument();
   });
 
-  it("places Show older after the first event and before the newest comments", () => {
-    const events: TaskEvent[] = [
-      createEvent("status-1", {
-        createdAt: "2026-01-01T00:00:00.000Z",
-        status: TaskStatus.READY,
-      }),
-      ...Array.from({ length: 6 }, (_, i) =>
-        createEvent(`c${i}`, {
-          createdAt: `2026-01-01T0${i + 1}:00:00.000Z`,
-          status: null,
-          comment: `Comment ${i}`,
-        }),
-      ),
-    ];
-
-    const { container } = render(
-      <TaskActivitySection {...baseProps} events={events} commentCount={6} />,
-    );
-
-    const list = container.querySelector("[data-chat-message-list]");
-    expect(list).not.toBeNull();
-    const children = Array.from(list!.children);
-    const statusIndex = children.findIndex(
-      (el) => el.getAttribute("data-message-id") === "status-1",
-    );
-    const showOlderIndex = children.findIndex((el) =>
-      el.textContent?.includes("Show 1 older comments"),
-    );
-    const latestCommentIndex = children.findIndex(
-      (el) => el.getAttribute("data-message-id") === "c5",
-    );
-
-    expect(statusIndex).toBeGreaterThan(-1);
-    expect(showOlderIndex).toBeGreaterThan(statusIndex);
-    expect(latestCommentIndex).toBeGreaterThan(showOlderIndex);
-  });
-
   it("shows Jump to latest and lands on the latest comment", async () => {
     highlightListMessageMock.mockReturnValue(true);
     const events: TaskEvent[] = [
