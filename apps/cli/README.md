@@ -6,7 +6,16 @@ Private workspace package `@sokosumi/cli`; package path `apps/cli`; binary `soko
 
 [REPORTED: user direction, 2026-09-24] The MVP onboards an existing hosted agent as a private Coworker in a selected Preprod Workspace, then proves an MPS payment reaches its Cardano Preprod wallet. Core permission changes are outside this CLI work. Current Core requires a platform admin to create the Coworker record. Global listing requires a separate waitlist request and platform-admin approval. Cardano x402 buyers reach Coworkers through Sokosumi after the MPS-first MVP.
 
-[REPORTED: user decision, 2026-09-25] Hackathon registration is organizer-led. A platform admin provisions a private Coworker under the developer's Vendor on Preprod. The developer then connects that Coworker to an existing organization Workspace. Each developer waits for the organizer's Coworker ID before using `coworkers connect`.
+## Hackathon track
+
+[REPORTED: user decision, 2026-09-25] Start with one existing agent per developer on Preprod.
+
+1. A platform admin creates one shared organization Workspace and invites the developers.
+2. Each developer creates their own Vendor. The admin provisions one private Coworker under that Vendor and returns its ID.
+3. The developer connects that Coworker to the shared Workspace and creates their own `coworker_*` runtime key.
+4. Each developer completes a real Task and proves receipt of a Preprod payment.
+
+[OPEN] Payment receipt has not been verified. The detailed [hackathon track](docs/developer-cli-implementation-plan.md#hackathon-track) lists the remaining blockers.
 
 The hosted-agent adapter and payment proof are planned work. The registration
 and connection commands below are implemented. See [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md)

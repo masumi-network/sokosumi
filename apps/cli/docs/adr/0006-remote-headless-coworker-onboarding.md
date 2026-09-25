@@ -45,6 +45,8 @@
 
 [CORRECTION, REPORTED: user clarification, 2026-09-24] An earlier amendment proposed allowing Vendor admins to create Coworker records on Preprod. User clarified that permissions stay unchanged and work outside the CLI is owned by the team. Withdraw the proposed Core permission change. If the team keeps current permissions, a platform admin must provision the Coworker before the CLI can finish workspace setup.
 
+[DECISION, REPORTED: user confirmation, 2026-09-25] The hackathon uses one organization Workspace created by a platform admin. Each invited developer creates a Vendor. A platform admin creates one private Coworker under that Vendor for the developer's existing agent and returns its ID. The developer connects the Coworker to the shared Workspace and creates the runtime key. Start with one agent per developer. Each developer must complete a real Task and prove Preprod payment receipt. This confirms admin provisioning as the hackathon path; it does not resolve general self-service registration. [Hackathon track](../developer-cli-implementation-plan.md#hackathon-track)
+
 [VERIFIED: CLI source] The CLI and Skill use existing Sokosumi authorization boundaries. The CLI may create a Coworker only when the signed-in user has the required existing Core role. A Vendor admin can use CLI commands to manage a platform-admin-provisioned Coworker, create its runtime key, and request Workspace access. The CLI does not change Core permissions or grant platform-admin authority. [CLI command](../../src/cli/commands/coworkers.ts)
 
 [REPORTED: user decision, 2026-09-24] Coworker registration is Preprod-only for this developer flow. The CLI shows “Preprod only” on Mainnet and sends no registration request. Other CLI commands remain network-configurable.
@@ -63,9 +65,9 @@
 
 ## Consequences
 
-[INFERRED] This flow needs Core or the OAuth service to support remote device approval. SOK-1135 currently describes a target-scoped developer API key after CLI OAuth. It does not define a device grant or Coworker key handoff.
+[CORRECTION, INFERRED: 2026-09-25] An earlier draft treated remote device approval as necessary for this flow. The hackathon developer runs the CLI on their laptop, where the current loopback OAuth can return. A remote approval contract is needed only if the CLI itself runs on the agent host. The hosted runtime still needs safe delivery of its `coworker_*` key.
 
-[VERIFIED] The current CLI target resolver selects Mainnet by default. Enforcing Preprod-only Coworker registration and showing the Mainnet note requires a CLI change. This ADR records the direction; it does not claim that the guard is implemented. [Target resolver](../../src/auth/config.ts#L178) · [Register command](../../src/cli/commands/coworkers.ts#L183)
+[CORRECTION, VERIFIED: CLI source, 2026-09-25] An earlier draft said the Preprod guard still needed a CLI change. The current CLI defaults `coworkers register` and `coworkers connect` to Preprod when no target is configured, and rejects Mainnet for those commands before a Core request. Other commands keep their selected target. Live Preprod behavior remains unverified. [Session bootstrap](../../src/auth/bootstrap.ts) · [Register command](../../src/cli/commands/coworkers.ts)
 
 [VERIFIED] Human workspace visibility uses `CoworkerWorkspaceAccess` or a global whitelist. A Coworker created with `isWhitelisted: false` will not appear in a workspace until that workspace has a `GRANTED` access record. Runtime Task access uses `VendorGrant`. [Access rule](../../../core/src/helpers/access-control.ts#L199) · [Coworker defaults](../../../core/src/routes/v1/coworkers/post.ts#L121) · [Grant guide](../../../../docs/coworker/vendor-workspace-grants-api.md#L7)
 
@@ -73,6 +75,7 @@
 
 ## Least confident decisions
 
-1. [OPEN] Whether platform-admin pre-provisioning is the intended first release path for Coworker records. Current Core create authorization does not allow an ordinary Vendor admin to create one.
-2. [OPEN] How a remote runtime receives an owner approval URL and a `coworker_*` key. The current OAuth flow only supports a same-machine callback.
-3. [OPEN] Which surface accepts a waitlist request. No matching route or CLI command was found in the checked source.
+1. [OPEN] Whether the admin can provision all developers quickly enough with the current Core API. A CLI batch command remains an option, not an accepted requirement.
+2. [OPEN] How the hosted runtime receives its `coworker_*` key and sends a payable Task event. Local CLI OAuth works on the developer's laptop; a remote approval URL is still unbuilt.
+3. [OPEN] Whether the actual Preprod seller identity, wallet, Seats, and credits support one paid Task per developer. No live receipt has been checked.
+4. [OPEN] Which surface accepts a waitlist request. No matching route or CLI command was found in the checked source.

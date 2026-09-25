@@ -10,6 +10,20 @@ Status: MPS-first MVP plan, user-confirmed 2026-09-24. This plan does not declar
 
 The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](adr/0004-coworker-capabilities-and-graduation.md). Follow those documents before implementing a slice. Use the existing TypeScript CLI and Core HTTP boundary. Skills CLI installs the Skill files only. The CLI binary release path is open. Do not claim one-command installation until that path is chosen.
 
+## Hackathon track
+
+[REPORTED: user decision, 2026-09-25] Use one shared organization Workspace on Preprod. Start with one existing agent per developer and one private Coworker record for that agent. Keep implementation changes under `apps/cli`; use existing Core permissions and routes. The success check is a real Task completed by each developer's Coworker, followed by proof that the intended developer received the Preprod payment.
+
+1. [REPORTED: user decision] A platform admin creates the organization Workspace and invites all developers. [VERIFIED: `CONTEXT.md:250`] On a paid Organization, its owner or admin must assign a Seat before a member can use Tasks. Check the actual Preprod plan and Seat capacity before the event; they have not been verified.
+2. [VERIFIED: `apps/core/src/routes/v1/vendors/post.ts:23-25,87-104`] Each developer can create their own Vendor and becomes its admin. The developer gives the organizer the Vendor ID and final Coworker name. [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:82-113`] Creation derives a unique slug from the name. Check name availability before provisioning.
+3. [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:77-80,110-135`] A platform admin creates the Coworker under that Vendor. Core checks that the Vendor exists, but the organizer must verify that the Vendor ID belongs to the intended developer. Core creates the Coworker with `isWhitelisted: false`. The organizer returns the Coworker ID only. The ID identifies a record; the `coworker_*` key grants runtime access and stays with the developer.
+4. [VERIFIED: `apps/cli/src/cli/commands/coworkers.ts:250-315`; `apps/core/src/helpers/coworker-workspace-access.ts:458-481`] The developer runs the CLI on their laptop. They connect the Coworker to the shared Workspace and create its key. A Vendor admin who belongs to that Workspace gets `GRANTED` access through the current Core route. Different Vendors can connect Coworkers to the same Workspace. A `GRANTED` record makes a private Coworker selectable by Workspace members.
+5. [REPORTED: user decision] Each developer runs their agent against a real Task and proves Preprod payment receipt. [VERIFIED: `apps/core/src/routes/v1/tasks/[id]/events/post.ts:319-328,419-460`; `apps/core/src/services/task-payment-claim.service.ts:146`] The assigned Coworker can submit `masumiPayment` on a Task event. `TaskPaymentClaim.PURCHASED` alone does not prove that the seller received funds. Collect the actual seller receipt for each developer.
+
+[OPEN] The hosted-agent adapter, MPS seller identity and wallet setup, safe runtime-key delivery, CLI executable distribution, Preprod credits, and Seat capacity need an event test. The CLI has no `masumiPayment` command yet. The admin may use the existing Core create route; an admin batch command in the CLI is an option, not an accepted requirement. The current `coworkers register` command checks that the caller administers the selected Vendor and belongs to the Workspace, so it is not a general batch provisioner. [CLI preflight](../src/cli/commands/coworkers.ts#L190-L205)
+
+[OPEN] Choose Task visibility after a pilot. A Workspace grant lets members select the Coworker; it does not make every private Task visible to it. A Coworker can see public Tasks and private Tasks assigned to itself or a same-Vendor Coworker. [Task visibility](../../core/src/helpers/task-visibility.ts#L132-L170)
+
 ## Architecture and ownership
 
 [REPORTED: approved boundaries] One developer CLI lives in `apps/cli`. Skills teach supported runtimes how to use the integration. Thin adapters handle framework-specific execution. They do not duplicate Core's authorization or Masumi's settlement logic.
@@ -190,7 +204,7 @@ These units describe independently reviewable outcomes, not a forced user journe
 1c. [DONE / PR developer Vendor create] Developer self-service Vendor create uses Core `POST /v1/vendors`; the caller becomes admin. This does not create a Coworker.
 2. [DONE 2026-09-21 / SOK-967 / ADR 0005] Runtime identity uses `coworker_*`. Keep it separate from developer auth and preserve developer-key guards.
 3. [BLOCKING TEAM DEPENDENCY] Current Core requires platform admin to create a Coworker. With permissions unchanged, a platform admin must provision the record before a Vendor admin can finish onboarding. The CLI must not bypass this role check. If the team expects ordinary developers to create records, the Core team must define that API separately.
-   [REPORTED: user decision, 2026-09-25] For the hackathon, this is an organizer task for each developer. The organizer provisions a private Preprod Coworker under the developer's Vendor and returns its ID. The developer then uses `coworkers connect` for the selected Workspace. This flow does not provide instant self-service registration.
+   [REPORTED: user decision, 2026-09-25] For the hackathon, this is an organizer task for each developer. Follow the [hackathon track](#hackathon-track). This flow does not provide instant self-service registration.
 4. [IMPLEMENTED IN CLI SOURCE; LIVE PREPROD NOT CHECKED] Enforce Preprod-only Coworker registration in CLI. On Mainnet, show “Preprod only” and send no registration request. Keep other CLI commands network-configurable.
 5. [IMPLEMENTED IN CLI SOURCE; LIVE PREPROD NOT CHECKED] Select an existing Coworker, administered Vendor, and Workspace. Use the existing Core workspace-access route. Report registration complete only after `GRANTED`. The CLI directs users to Web to create or join a Workspace.
 6. [CLI MVP] Connect Hermes through a framework-neutral adapter and prove one authorized Sokosumi Task operation.
@@ -288,6 +302,7 @@ Future implementation checks use non-production fixtures first. Keep regression 
 
 ## Least confident decisions
 
-1. Runtime credential exchange and command invocation remain proposed. Existing developer authentication guards stay intact until an approved extension specifies the separate runtime boundary.
-2. Local chat transport and recovery require protocol design and framework-specific verification.
-3. Hosted Masumi provisioning and customer-to-seller settlement require confirmation against the deployed service. No production compatibility or payout claim follows from static API types.
+1. [OPEN] MPS seller identity, wallet ownership, and actual Preprod receipt need a live pilot for each intended payment path. Static API types do not prove payout.
+2. [OPEN] Runtime credential exchange and command invocation remain proposed. Existing developer authentication guards stay intact until an approved extension specifies the separate runtime boundary.
+3. [OPEN] Preprod Seat and credit capacity need a live check before participant onboarding. The documented Seat rule does not prove the event Workspace has enough capacity.
+4. [OPEN] Local chat transport and recovery require protocol design and framework-specific verification.
