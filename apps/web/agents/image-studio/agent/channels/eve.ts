@@ -554,10 +554,16 @@ function settleOwedFirstMessage(handler: RouteHandler): RouteHandler {
     }
 
     const claimed = await transitionInitialTurn(claims, sessionId, "claim");
-    // Core would not say — the conversation is not this caller's, or the
-    // lookup failed. Either way the answer belongs to the route that owns it,
-    // which re-authorizes and denies with its own challenge.
-    if (!claimed.ok) return await handler(request, context);
+    // A real verdict that this conversation is not this caller's. The route
+    // that owns denial gives it, challenge and all.
+    if (claimed.outcome === "denied") return await handler(request, context);
+    // No usable answer. Passing it on would hand the message to a route that
+    // checks *authorization* — which can succeed quite independently of who
+    // owns the delivery — so an unreachable transition endpoint would switch
+    // the fence off for an otherwise entitled caller and let the same first
+    // message go twice. Nothing is dispatched on a delivery state we could
+    // not establish.
+    if (claimed.outcome === "unavailable") return initialTurnUnavailable();
 
     if (claimed.mayDeliver) {
       return await deliverOwedFirstMessage({
@@ -661,6 +667,25 @@ function notDelivering(
     default:
       return inFlightInitialTurn(sessionId);
   }
+}
+
+/**
+ * We could not find out what this conversation is owed, so nothing goes.
+ *
+ * No message is dispatched on this path. What the claim left behind in Core is
+ * not knowable from here — it may have committed and lost its answer — so a
+ * retry does not assume anything about it: it asks again, and the durable
+ * state decides what happens next.
+ */
+function initialTurnUnavailable(): Response {
+  return Response.json(
+    {
+      ok: false,
+      code: "initial_turn_unavailable",
+      error: "The conversation could not be reached. Try again.",
+    },
+    { status: 503 },
+  );
 }
 
 function inFlightInitialTurn(sessionId: string): Response {

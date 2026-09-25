@@ -563,7 +563,7 @@ describe("delivering the first message", () => {
     // A later attempt for the same intent took the lease over. This one has
     // lost the right to deliver, and delivering anyway is the duplicate turn.
     transitionMock.mockResolvedValue({
-      ok: true,
+      outcome: "ok",
       accepted: false,
       initialTurn: "DELIVERING",
       mayDeliver: false,
@@ -628,14 +628,14 @@ describe("an ordinary send into a conversation that still owes its first message
       async (_identity, _sessionId, transition) =>
         transition === "claim"
           ? {
-              ok: true,
+              outcome: "ok",
               accepted: mayDeliver,
               initialTurn,
               mayDeliver,
               deliveryToken: mayDeliver ? "lease-9" : null,
             }
           : {
-              ok: true,
+              outcome: "ok",
               accepted: true,
               initialTurn,
               mayDeliver: false,
@@ -701,12 +701,11 @@ describe("an ordinary send into a conversation that still owes its first message
     expect(transitionMock.mock.calls.map((call) => call[2])).toEqual(["claim"]);
   });
 
-  it("leaves an unanswerable claim to the route that owns the denial", async () => {
-    // The conversation is not this caller's, or Core did not answer. Saying
-    // "a delivery is in flight" would be both wrong and a leak; the installed
-    // handler re-authorizes and denies with its own challenge.
+  it("leaves a denial to the route that owns it, challenge and all", async () => {
+    // Core's considered answer that this conversation is not this caller's.
+    // Saying "a delivery is in flight" would be both wrong and a leak.
     transitionMock.mockResolvedValue({
-      ok: false,
+      outcome: "denied",
       accepted: false,
       initialTurn: "DELIVERING",
       mayDeliver: false,
@@ -718,6 +717,52 @@ describe("an ordinary send into a conversation that still owes its first message
     const response = await send("wrun_denied", { message: "x" }, ctx);
 
     expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toContain("Bearer");
+    expect(sent).toEqual([]);
+  });
+
+  it.each([["a 503 from the transition endpoint"], ["a lost acknowledgement"]])(
+    "fails closed on %s rather than dispatching unfenced",
+    async () => {
+      // Passing an unreadable claim on would hand the message to a route that
+      // checks authorization — which succeeds independently of who owns the
+      // delivery — so the fence would be off for an entitled caller and the same
+      // first message could go twice.
+      transitionMock.mockResolvedValue({
+        outcome: "unavailable",
+        accepted: false,
+        initialTurn: "DELIVERING",
+        mayDeliver: false,
+        deliveryToken: null,
+      });
+      const { ctx, sent } = creationContext("wrun_unreachable");
+
+      const response = await send("wrun_unreachable", { message: "x" }, ctx);
+
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({
+        code: "initial_turn_unavailable",
+      });
+      // No message reached the runtime. What the claim left in Core is not
+      // knowable from here, so a retry asks again rather than assuming.
+      expect(sent).toEqual([]);
+    },
+  );
+
+  it("fails closed even while another attempt holds the delivery", async () => {
+    // The fence is live; an unreadable claim must not walk through it.
+    transitionMock.mockResolvedValue({
+      outcome: "unavailable",
+      accepted: false,
+      initialTurn: "DELIVERING",
+      mayDeliver: false,
+      deliveryToken: null,
+    });
+    const { ctx, sent } = creationContext("wrun_competing");
+
+    const response = await send("wrun_competing", { message: "same" }, ctx);
+
+    expect(response.status).toBe(503);
     expect(sent).toEqual([]);
   });
 
@@ -743,7 +788,7 @@ describe("an ordinary send into a conversation that still owes its first message
       mayDeliver(options.eveSessionId),
     );
     transitionMock.mockResolvedValue({
-      ok: true,
+      outcome: "ok",
       accepted: true,
       initialTurn: "DELIVERING",
       mayDeliver: false,

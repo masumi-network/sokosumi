@@ -231,14 +231,26 @@ export type InitialTurnTransition =
   | "undelivered"
   | "uncertain";
 
+/**
+ * Why a transition did not produce an answer, when it did not.
+ *
+ * `denied` and `unavailable` were once one flag, and conflating them was a
+ * defect: an unreadable claim result was treated like a refusal and the
+ * request was waved on to the ordinary route, which checks authorization —
+ * something that can succeed quite independently of who owns the delivery. So
+ * an unreachable transition endpoint switched the fence off for a caller who
+ * was perfectly entitled to be there, and the same first message went twice.
+ *
+ * - `ok` — Core answered; read `accepted`, `initialTurn` and the lease.
+ * - `denied` — Core answered that this conversation is not this caller's.
+ *   That is a real verdict, and the route that owns denial should give it,
+ *   challenge and all.
+ * - `unavailable` — no usable answer. Nothing may be dispatched on it.
+ */
+export type InitialTurnOutcome = "ok" | "denied" | "unavailable";
+
 export interface InitialTurnMove {
-  /**
-   * False when Core did not answer the question — the conversation is not this
-   * caller's, or the call did not get through. Distinct from a considered
-   * refusal, because the two deserve different answers: an unanswerable
-   * question is left to the route that owns it.
-   */
-  ok: boolean;
+  outcome: InitialTurnOutcome;
   /** False when Core refused the move, or could not be reached. */
   accepted: boolean;
   initialTurn: InitialTurn;
@@ -274,14 +286,14 @@ export async function transitionInitialTurn(
   transition: InitialTurnTransition,
   deliveryToken: string | null = null,
 ): Promise<InitialTurnMove> {
-  const unanswered: InitialTurnMove = {
-    ok: false,
+  const unreadable = (outcome: InitialTurnOutcome): InitialTurnMove => ({
+    outcome,
     accepted: false,
     // Unreadable is treated as "in flight", never as "safe to send".
     initialTurn: "DELIVERING",
     mayDeliver: false,
     deliveryToken: null,
-  };
+  });
   try {
     const response = await fetch(
       `${baseUrl()}/v1/image-studio-agent/sessions/${encodeURIComponent(eveSessionId)}/initial-turn`,
@@ -295,7 +307,12 @@ export async function transitionInitialTurn(
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       },
     );
-    if (!response.ok) return unanswered;
+    // 404 is Core's considered answer that this conversation is not this
+    // caller's. Everything else — a misconfigured grant, a validation error, a
+    // 5xx — is an answer we did not get, and must not be read as one.
+    if (!response.ok) {
+      return unreadable(response.status === 404 ? "denied" : "unavailable");
+    }
     const body = (await response.json().catch(() => null)) as {
       data?: {
         accepted?: unknown;
@@ -304,9 +321,9 @@ export async function transitionInitialTurn(
         deliveryToken?: unknown;
       };
     } | null;
-    if (!body?.data) return unanswered;
+    if (!body?.data) return unreadable("unavailable");
     return {
-      ok: true,
+      outcome: "ok",
       accepted: body.data.accepted === true,
       initialTurn: readInitialTurn(body.data.initialTurn),
       mayDeliver: body.data.mayDeliver === true,
@@ -316,7 +333,7 @@ export async function transitionInitialTurn(
           : null,
     };
   } catch {
-    return unanswered;
+    return unreadable("unavailable");
   }
 }
 
