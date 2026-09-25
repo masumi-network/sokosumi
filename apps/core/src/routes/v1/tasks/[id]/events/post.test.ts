@@ -3080,6 +3080,50 @@ describe("POST /{id}/events", () => {
     );
   });
 
+  /** SOK-1207. The owner canceled it, so there is nothing to tell them. */
+  it.each([
+    ["does not notify the owner who canceled their own task", USER_ID, 0],
+    ["notifies the owner when the event carries no userId", null, 1],
+  ])("%s", async (_title, eventUserId, notificationCount) => {
+    requireTaskCancelAccessMock.mockResolvedValue(
+      createTask({ status: TaskStatus.RUNNING }),
+    );
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.CANCELED,
+            userId: eventUserId,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: "org_123",
+      role: "user",
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: TaskStatus.CANCELED }),
+    });
+
+    expect(response.status).toBe(201);
+    await Promise.all(waitUntilCapturedPromises);
+    expect(
+      createNotificationMock.mock.calls.filter(
+        ([input]) => input.messageKey === "Notifications.Task.canceled",
+      ),
+    ).toHaveLength(notificationCount);
+  });
+
   it("lets an org workspace member cancel another member's task", async () => {
     requireTaskCancelAccessMock.mockResolvedValue(
       createTask({

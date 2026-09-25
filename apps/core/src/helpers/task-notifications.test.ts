@@ -51,6 +51,7 @@ import {
   markTaskParticipantRemovedRead,
   notifyTaskHumanAssignee,
   notifyTaskParticipantsAdded,
+  notifyTaskStatusEvent,
 } from "./task-notifications";
 
 describe("notifyTaskParticipantsAdded", () => {
@@ -191,6 +192,7 @@ describe("dispatchTaskNotification", () => {
         { ...SETTLED_TASK, assigneeUserId: "user_2" },
         "event_resume",
         status,
+        null,
       );
 
       for (const readerId of ["user_1", "user_2"]) {
@@ -226,7 +228,7 @@ describe("dispatchTaskNotification", () => {
   it.each(["COMPLETED", "FAILED", "CANCELED"])(
     "says a %s task has stopped waiting on its reader",
     async (status) => {
-      await dispatchTaskNotification(SETTLED_TASK, "event_1", status);
+      await dispatchTaskNotification(SETTLED_TASK, "event_1", status, null);
 
       expect(markSettledAttentionReadMock).toHaveBeenCalledWith(
         "user_1",
@@ -251,7 +253,7 @@ describe("dispatchTaskNotification", () => {
   ])(
     "still hands a %s task's key on, for the helper to refuse",
     async (status, expectedKey) => {
-      await dispatchTaskNotification(SETTLED_TASK, "event_1", status);
+      await dispatchTaskNotification(SETTLED_TASK, "event_1", status, null);
 
       expect(markSettledAttentionReadMock).toHaveBeenCalledWith(
         "user_1",
@@ -276,7 +278,7 @@ describe("dispatchTaskNotification", () => {
   it("marks a mentioned person's added row read when the task settles", async () => {
     prismaTaskParticipantFindManyMock.mockResolvedValue([{ userId: "user_3" }]);
 
-    await dispatchTaskNotification(SETTLED_TASK, "event_1", "COMPLETED");
+    await dispatchTaskNotification(SETTLED_TASK, "event_1", "COMPLETED", null);
 
     expect(markAttentionReadMock).toHaveBeenCalledWith(
       "user_3",
@@ -296,6 +298,7 @@ describe("dispatchTaskNotification", () => {
       { ...SETTLED_TASK, assigneeUserId: "user_2" },
       "event_1",
       "CANCELED",
+      null,
     );
 
     expect(markSettledAttentionReadMock).toHaveBeenCalledWith(
@@ -315,6 +318,7 @@ describe("dispatchTaskNotification", () => {
       { ...SETTLED_TASK, assigneeUserId: "user_1" },
       "event_1",
       "CANCELED",
+      null,
     );
 
     expect(markSettledAttentionReadMock).toHaveBeenCalledTimes(1);
@@ -329,7 +333,7 @@ describe("dispatchTaskNotification", () => {
   it("clears the settled rows even when the outcome write fails", async () => {
     createNotificationMock.mockRejectedValue(new Error("write failed"));
 
-    await dispatchTaskNotification(SETTLED_TASK, "event_1", "COMPLETED");
+    await dispatchTaskNotification(SETTLED_TASK, "event_1", "COMPLETED", null);
 
     expect(markSettledAttentionReadMock).toHaveBeenCalledWith(
       "user_1",
@@ -354,6 +358,7 @@ describe("dispatchTaskNotification", () => {
       },
       "event_1",
       "COMPLETED",
+      null,
     );
 
     expect(createNotificationMock).toHaveBeenCalledWith(
@@ -362,6 +367,90 @@ describe("dispatchTaskNotification", () => {
           coworkerName: "Nora",
           taskName: "Launch",
         },
+      }),
+    );
+  });
+
+  /**
+   * SOK-1207. An owner who cancels or completes their own task was emailed
+   * about it. They are the only notifying statuses a person can set.
+   */
+  it.each(["CANCELED", "COMPLETED"])(
+    "does not tell the owner about a %s they set themselves",
+    async (status) => {
+      prismaTaskParticipantFindManyMock.mockResolvedValue([
+        { userId: "user_3" },
+      ]);
+
+      await dispatchTaskNotification(SETTLED_TASK, "event_1", status, "user_1");
+
+      expect(createNotificationMock).not.toHaveBeenCalled();
+      expect(markSettledAttentionReadMock).toHaveBeenCalledWith(
+        "user_1",
+        "TASK",
+        "task_1",
+        `Notifications.Task.${status.toLowerCase()}`,
+      );
+      expect(markAttentionReadMock).toHaveBeenCalledWith(
+        "user_3",
+        "TASK",
+        "task_1",
+        ["Notifications.Task.participantAdded"],
+        "task-participant-settled-read",
+      );
+    },
+  );
+
+  it("tells the owner when a teammate cancels their task", async () => {
+    await dispatchTaskNotification(
+      { ...SETTLED_TASK, assigneeUserId: "user_2" },
+      "event_1",
+      "CANCELED",
+      "user_2",
+    );
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_1",
+        messageKey: "Notifications.Task.canceled",
+      }),
+    );
+  });
+});
+
+describe("notifyTaskStatusEvent", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    createNotificationMock.mockResolvedValue({});
+    markSettledAttentionReadMock.mockResolvedValue(0);
+    prismaTaskParticipantFindManyMock.mockResolvedValue([]);
+    prismaTaskFindUniqueMock.mockResolvedValue({
+      id: "task_1",
+      ownerId: "user_1",
+      assigneeUserId: null,
+      name: "Launch",
+      assignee: null,
+      assigneeSokoBot: null,
+      project: null,
+      projectId: null,
+      workspaceId: null,
+    });
+  });
+
+  it("skips the owner's notification when the owner wrote the event", async () => {
+    await notifyTaskStatusEvent("task_1", "event_1", "CANCELED", "user_1");
+
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  /** Agents write events with no `userId`, so the owner still hears. */
+  it("tells the owner when an agent cancels the task", async () => {
+    await notifyTaskStatusEvent("task_1", "event_1", "CANCELED", null);
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_1",
+        messageKey: "Notifications.Task.canceled",
       }),
     );
   });
