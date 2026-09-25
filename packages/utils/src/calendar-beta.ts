@@ -1,1 +1,0 @@
-export const CALENDAR_BETA_ORGANIZATION_SLUG = "utxo";

@@ -41,7 +41,7 @@ export function AppSidebarFallback() {
               this frame has not loaded yet, so both are left out rather than
               guessed: a row that appears once is cheaper than one that
               appears and then goes away. */}
-          <MenuItems calendarMenuEnabled={false} />
+          <MenuItems />
           <SidebarSeparator />
           <SidebarChatListSkeleton />
         </div>

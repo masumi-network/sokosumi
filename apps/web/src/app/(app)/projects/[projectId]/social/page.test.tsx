@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const hasCurrentUserCalendarBetaAccessMock = vi.fn();
+const hasCurrentUserSocialBetaAccessMock = vi.fn();
 const getProjectByIdMock = vi.fn();
 const listSocialPostsMock = vi.fn();
 const listSocialConnectionsMock = vi.fn();
@@ -26,9 +26,8 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
+vi.mock("@/lib/social-beta-access.server", () => ({
+  hasCurrentUserSocialBetaAccess: () => hasCurrentUserSocialBetaAccessMock(),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -79,14 +78,14 @@ function buildConnection(status: "active" | "disconnected", id: string) {
 describe("ProjectSocialPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
+    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(true);
     getProjectByIdMock.mockResolvedValue(PROJECT);
     listSocialPostsMock.mockResolvedValue({ posts: [], nextCursor: null });
     listSocialConnectionsMock.mockResolvedValue([]);
   });
 
   it("does not load Project data outside the Calendar beta", async () => {
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
+    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
 
     await expect(
       ProjectSocialPage({ params: Promise.resolve({ projectId: PROJECT.id }) }),

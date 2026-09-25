@@ -220,15 +220,15 @@ describe("GET /projects/{id}/calendar", () => {
     );
   });
 
-  it("rejects users outside the Calendar beta before reading the Project", async () => {
+  it("serves a user who belongs to no beta organization", async () => {
     memberFindFirstMock.mockResolvedValue(null);
 
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,
     );
 
-    expect(response.status).toBe(403);
-    expect(projectFindFirstMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(projectFindFirstMock).toHaveBeenCalled();
   });
 
   it("returns calendar items for a closed Project", async () => {

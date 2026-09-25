@@ -570,13 +570,13 @@ describe("GET /workspaces/calendar", () => {
     expect(items.map((item) => item.canChangeRun)).toEqual([false, true]);
   });
 
-  it("rejects users outside the Calendar beta before reading calendar data", async () => {
+  it("serves a user who belongs to no beta organization", async () => {
     memberFindFirstMock.mockResolvedValue(null);
 
     const response = await requestCalendar(createApp());
 
-    expect(response.status).toBe(403);
-    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalled();
   });
 
   it("filters workspace Calendar results to the requested Project source", async () => {

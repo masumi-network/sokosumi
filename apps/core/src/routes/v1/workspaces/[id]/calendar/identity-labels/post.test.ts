@@ -89,7 +89,6 @@ describe("POST /workspaces/{id}/calendar/identity-labels", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    memberFindFirstMock.mockResolvedValue({ id: "calendar_beta_member" });
     workspaceFindUniqueMock.mockResolvedValue({
       userId: "user_current",
       organizationId: null,
@@ -232,13 +231,13 @@ describe("POST /workspaces/{id}/calendar/identity-labels", () => {
     expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("requires Calendar beta access", async () => {
+  it("serves a user who belongs to no beta organization", async () => {
     memberFindFirstMock.mockResolvedValue(null);
 
     const response = await requestLabels(createApp(), ["user_current"]);
 
-    expect(response.status).toBe(403);
-    expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(workspaceFindUniqueMock).toHaveBeenCalled();
   });
 
   it("rejects batches larger than 50 refs", async () => {
@@ -248,6 +247,5 @@ describe("POST /workspaces/{id}/calendar/identity-labels", () => {
     );
 
     expect(response.status).toBe(422);
-    expect(memberFindFirstMock).not.toHaveBeenCalled();
   });
 });
