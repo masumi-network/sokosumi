@@ -94,7 +94,7 @@ export function TaskScheduleCard({
   return (
     <li>
       <Card
-        className="bg-background hover:bg-card-background-hover group relative h-full gap-0 py-0 transition-colors select-none"
+        className="bg-background hover:bg-card-background-hover group relative h-full gap-0 py-0 transition-colors"
         data-testid="schedule-card"
       >
         <CardHeader className="flex items-center justify-between gap-3 px-4 py-3">
@@ -110,32 +110,34 @@ export function TaskScheduleCard({
             )}
             <span className="line-clamp-1">{sourceName}</span>
           </span>
-          <TaskScheduleStateBadge
-            label={t(`state.${schedule.state}`)}
-            schedule={schedule}
-          />
+          <span className="shrink-0">
+            <TaskScheduleStateBadge
+              label={t(`state.${schedule.state}`)}
+              schedule={schedule}
+            />
+          </span>
         </CardHeader>
         <CardContent className="border-border flex flex-1 flex-col items-start gap-2 border-t px-4 py-4">
-          {/* A stored assignee the workspace no longer lists keeps a face. */}
-          {assigneeId ? (
-            <span
-              aria-hidden
-              className="flex shrink-0 items-center"
-              data-testid="schedule-card-assignee"
-              title={assigneeLabel}
-            >
-              <AssigneeAvatar
-                assignee={assignee ? toAssigneeView(assignee) : null}
-                size="lg"
-              />
-            </span>
-          ) : null}
+          {/* Always a face — an unresolved or absent assignee shows "?" —
+              so every card in the grid stands the same height. */}
+          <span
+            aria-hidden
+            className="flex shrink-0 items-center"
+            data-testid="schedule-card-assignee"
+            title={assigneeLabel}
+          >
+            <AssigneeAvatar
+              assignee={assignee ? toAssigneeView(assignee) : null}
+              size="lg"
+            />
+          </span>
           <span className="sr-only">{assigneeLabel}</span>
-          <div className="flex min-w-0 flex-col gap-1">
-            <CardTitle>
+          <div className="flex w-full min-w-0 flex-col gap-1">
+            {/* Two lines, reserved whether or not the name needs them. */}
+            <CardTitle className="min-h-10">
               {/* Stretched over the card, so the whole card opens it. */}
               <Link
-                className="text-foreground line-clamp-2 text-sm font-medium outline-none group-hover:underline after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-ring"
+                className="text-foreground line-clamp-2 text-sm font-medium break-words outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-ring"
                 href={taskSchedulePath(schedule.id)}
                 title={t("openSchedule")}
               >
@@ -148,7 +150,7 @@ export function TaskScheduleCard({
           </div>
         </CardContent>
         <CardFooter className="items-end justify-between gap-3 px-4 pb-4 text-xs">
-          <span className="text-muted-foreground tabular-nums">
+          <span className="text-muted-foreground line-clamp-1 min-w-0 tabular-nums">
             {nextRunLabel}
           </span>
           {schedule.ownerId === currentUserId ? (

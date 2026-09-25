@@ -146,7 +146,11 @@ describe("TaskScheduleCard", () => {
 
     expect(screen.getByText("noNextRun")).toBeInTheDocument();
     expect(screen.getByText("unassigned")).toBeInTheDocument();
-    expect(screen.queryByTestId("schedule-card-assignee")).toBeNull();
+    // Still a face, so the card keeps the height of an assigned one.
+    expect(screen.getByTestId("schedule-card-assignee")).toHaveAttribute(
+      "title",
+      "unassigned",
+    );
   });
 
   it("lets the owner edit the schedule in place", async () => {
