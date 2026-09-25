@@ -189,10 +189,10 @@ schedule-status exceptions, quarantine, or person assignees on a series.
 
 | Old route | Shim |
 | --- | --- |
-| `PUT /v1/tasks/{id}/schedule` | **Primary create** (this is the path Serviceplan hits). Creates a Task Schedule from the Task blueprint + rule, then sets `Task.scheduleId`. A later PUT on the same Task id PATCHes that schedule. |
+| `PUT /v1/tasks/{id}/schedule` | **Primary create** (this is the path Serviceplan hits). Creates a Task Schedule from the Task blueprint + rule. A later PUT on the same Task id PATCHes that schedule; re-sending the current rule changes nothing. |
 | `POST /v1/tasks/scheduled` | Creates a Task Schedule from the old create body. |
-| `PUT /v1/tasks/{id}/calendar-schedule` | Replaces the rule (`expectedScheduleRevision` → `expectedRevision`). Resolves `scheduleId` from the Task link. |
-| `PUT /v1/tasks/{id}/calendar-source` | Moves `projectId`. Same link. |
+| `PUT /v1/tasks/{id}/calendar-schedule` | Replaces the rule (`expectedScheduleRevision` → `expectedRevision`). Resolves the schedule as below. |
+| `PUT /v1/tasks/{id}/calendar-source` | Moves `projectId`. Same resolution. |
 | `GET /v1/tasks/{id}/schedule/occurrences` | Lists Runs (`GET /v1/tasks/schedules/{id}/runs` shape). Closest legacy read of schedule state. |
 | `GET /v1/tasks/{id}/schedule` | Shim-only read of the rule (legacy projection). **There was no historical GET for the schedule resource** — old clients read `metadata` / `nextRunAt` / `scheduleRevision` on the Task DTO, which stay omitted. |
 
@@ -200,15 +200,28 @@ Create/update responses are a **legacy schedule projection** (`id` /
 `scheduleId` = schedule UUID, `scheduleRevision`, typed `schedule`), not
 the old Task DTO.
 
-`{id}` resolve order: Task Schedule id, then Task.`scheduleId` (written on
-PUT-create), then the cutover id of a deleted template Task. If a template
-Task id was never mapped and the Task row is gone, the call answers **404**.
+`{id}` resolve order: Task Schedule id, then `Task.scheduleId` (a Task a
+Run released), then the schedule the cutover made from a template Task
+(archived by the cutover), then the schedule a PUT made from that Task. An
+`{id}` none of these finds answers **404**.
+
+PUT-create needs the same access as the new routes: the Task belongs to the
+acting member, is not archived or parked, and a Coworker created it, is its
+assignee, or shares the assignee's vendor. Anything else answers **404** or
+**403**. The create is keyed on the Task id, so a retry or a concurrent PUT
+returns the first schedule. The Task itself is left as it is: a Draft stays
+a Draft and never runs, and the schedule's Runs create new Tasks.
+
+`occurrences` (with `endsMode: "after"`) counts the Runs still to come from
+the rule write on, as it did before; responses report the Runs still to
+come.
 
 A one-time start (`schedule.mode: "once"`) answers **422** pointing at
 `runAt` on `POST /v1/tasks`. A person assignee (`assigneeUserId`) answers
-**422** pointing at `POST /v1/tasks/schedules`. Payloads that are not a
-typed recurring rule answer **422** with a pointer to the new shape — Core
-does not guess.
+**422** pointing at `POST /v1/tasks/schedules`, whether sent on the body or
+set on the Task a PUT would copy. Payloads that are not a typed recurring
+rule answer **422** with the new route in `replacement` — Core does not
+guess.
 
 Still **410**: `DELETE /v1/tasks/{id}/schedule` and occurrence
 skip/move/restore (`PATCH …/schedule/occurrences/{occurrenceId}`).

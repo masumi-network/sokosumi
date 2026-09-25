@@ -1,8 +1,10 @@
+import { z } from "@hono/zod-openapi";
 import { type TaskSchedule, TaskScheduleEndsMode } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { isLegacyTaskScheduleShimEnabled } from "@/config/env";
 import {
+  forbidden,
   formatZodErrorMessage,
   gone,
   notFound,
@@ -10,23 +12,22 @@ import {
 } from "@/helpers/error";
 import {
   migratedTaskScheduleId,
-  shimCreatedTaskScheduleId,
+  shimCreateOperationId,
 } from "@/helpers/legacy-task-schedule-id";
+import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
+import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
+  requireUserContext,
 } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   type LegacyCreateScheduledTaskRequest,
   type LegacyPutCalendarSourceRequest,
-  type LegacyPutCalendarTaskScheduleRequest,
   type LegacyTaskScheduleInput,
-  legacyCreateScheduledTaskRequestSchema,
   legacyEndsModeFromTaskSchedule,
-  legacyPutCalendarSourceRequestSchema,
-  legacyPutCalendarTaskScheduleRequestSchema,
-  legacyPutTaskScheduleRequestSchema,
   legacyTaskScheduleProjectionSchema,
 } from "@/schemas/legacy-task-schedule.schema";
 import {
@@ -36,6 +37,10 @@ import {
   taskScheduleRuleReplacementSchema,
   type UpdateTaskScheduleRequest,
 } from "@/schemas/task-schedule.schema";
+import {
+  canWriteTaskSchedule,
+  type TaskScheduleReader,
+} from "@/services/task-schedule.service";
 
 const NEW_CREATE = "POST /v1/tasks/schedules";
 const NEW_PATCH = "PATCH /v1/tasks/schedules/{id}";
@@ -105,8 +110,44 @@ function throwUnmappable(message: string, replacement: string): never {
   });
 }
 
+/**
+ * Route validation hook: with the shim off a bad body still answers 410, and
+ * a body the old shape rejects answers 422 with the new route to use.
+ */
+export function legacyTaskScheduleShimValidationHook(replacement: string) {
+  return (
+    result: { target: string } & (
+      | { success: true }
+      | { success: false; error: z.ZodError }
+    ),
+  ): undefined => {
+    if (result.success) {
+      return undefined;
+    }
+    requireLegacyTaskScheduleShim(replacement);
+    if (result.target === "json") {
+      throwUnmappable(
+        `${formatZodErrorMessage(result.error)}. Use ${replacement} with a typed rule.`,
+        replacement,
+      );
+    }
+    defaultValidationHook(result);
+    return undefined;
+  };
+}
+
+type LegacyRecurringSchedule = Extract<
+  LegacyTaskScheduleInput,
+  { mode: "recurring" }
+>;
+
+/**
+ * Old `occurrences` counted the Runs still to come from the rule write on,
+ * while `targetRunCount` counts every Run the schedule releases.
+ */
 function mapRecurringRule(
-  schedule: Extract<LegacyTaskScheduleInput, { mode: "recurring" }>,
+  schedule: LegacyRecurringSchedule,
+  releasedCount = 0,
 ): TaskScheduleRule {
   const endsMode = ENDS_MODE_TO_NEW[schedule.endsMode];
   return {
@@ -117,23 +158,33 @@ function mapRecurringRule(
     endsMode,
     endsOn: endsMode === TaskScheduleEndsMode.ON ? schedule.endsOn : undefined,
     targetRunCount:
-      endsMode === TaskScheduleEndsMode.AFTER
-        ? schedule.occurrences
+      endsMode === TaskScheduleEndsMode.AFTER && schedule.occurrences != null
+        ? releasedCount + schedule.occurrences
         : undefined,
   };
 }
 
-function rejectOnceOrPersonAssignee(
+function remainingOccurrences(schedule: TaskSchedule): number | null {
+  return schedule.targetRunCount == null
+    ? null
+    : schedule.targetRunCount - schedule.releasedCount;
+}
+
+export function requireRecurringSchedule(
   schedule: LegacyTaskScheduleInput,
-  assigneeUserId: string | null | undefined,
-  replacement: string,
-): asserts schedule is Extract<LegacyTaskScheduleInput, { mode: "recurring" }> {
+): asserts schedule is LegacyRecurringSchedule {
   if (schedule.mode === "once") {
     throwUnmappable(
       `A one-time start is runAt on ${NEW_TASK_CREATE} or PATCH /v1/tasks/{id}, not a Task Schedule. Repeating rules belong on ${NEW_CREATE}.`,
       NEW_TASK_CREATE,
     );
   }
+}
+
+function rejectPersonAssignee(
+  assigneeUserId: string | null | undefined,
+  replacement: string,
+): void {
   if (assigneeUserId != null) {
     throwUnmappable(
       `Task Schedules cannot be assigned to workspace members. Send assigneeId (Coworker) or assigneeSokoBotId on ${replacement}.`,
@@ -166,23 +217,11 @@ function parseMappedRuleReplacement(rule: TaskScheduleRule): TaskScheduleRule {
   return parsed.data;
 }
 
-export function parseLegacyCreateBody(
-  body: unknown,
-): LegacyCreateScheduledTaskRequest {
-  const parsed = legacyCreateScheduledTaskRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    throwUnmappable(
-      `${formatZodErrorMessage(parsed.error)}. Use ${NEW_CREATE} with a typed rule.`,
-      NEW_CREATE,
-    );
-  }
-  return parsed.data;
-}
-
 export function mapLegacyCreateToTaskSchedule(
   body: LegacyCreateScheduledTaskRequest,
 ): CreateTaskScheduleRequest {
-  rejectOnceOrPersonAssignee(body.schedule, body.assigneeUserId, NEW_CREATE);
+  requireRecurringSchedule(body.schedule);
+  rejectPersonAssignee(body.assigneeUserId, NEW_CREATE);
   return parseMappedCreate({
     operationId: body.operationId,
     name: body.name,
@@ -194,66 +233,51 @@ export function mapLegacyCreateToTaskSchedule(
   });
 }
 
-export function parseLegacyPutScheduleBody(
-  body: unknown,
-): Extract<LegacyTaskScheduleInput, { mode: "recurring" }> {
-  const parsed = legacyPutTaskScheduleRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    throwUnmappable(
-      `${formatZodErrorMessage(parsed.error)}. Use ${NEW_PATCH} with a typed rule.`,
-      NEW_PATCH,
-    );
+function sameInstant(
+  a: string | Date | null | undefined,
+  b: string | Date | null | undefined,
+): boolean {
+  if (a == null || b == null) {
+    return a == null && b == null;
   }
-  rejectOnceOrPersonAssignee(parsed.data, undefined, NEW_PATCH);
-  return parsed.data;
+  return new Date(a).getTime() === new Date(b).getTime();
 }
 
-export function mapLegacyPutScheduleToUpdate(
-  schedule: LegacyTaskScheduleInput,
-  expectedRevision: number,
+/**
+ * The old PUT kept the rule, its epoch, and its exceptions when the body
+ * matched it, so a client re-sending its rule changed nothing.
+ */
+export function legacyRuleMatches(
+  current: TaskSchedule,
+  schedule: LegacyRecurringSchedule,
+): boolean {
+  const rule = mapRecurringRule(schedule);
+  const intervalDays = rule.intervalDays ?? null;
+  return (
+    rule.expr === current.expr &&
+    rule.timezone === current.timezone &&
+    rule.endsMode === current.endsMode &&
+    sameInstant(rule.endsOn, current.endsOn) &&
+    (rule.targetRunCount ?? null) === remainingOccurrences(current) &&
+    intervalDays === current.intervalDays &&
+    (intervalDays == null ||
+      intervalDays <= 1 ||
+      sameInstant(rule.anchorAt, current.anchorAt))
+  );
+}
+
+/** A rule replacement; the old PUT sent no revision, so it takes the current one. */
+export function mapLegacyRuleToUpdate(
+  schedule: LegacyRecurringSchedule,
+  current: TaskSchedule,
+  expectedRevision = current.revision,
 ): UpdateTaskScheduleRequest {
-  rejectOnceOrPersonAssignee(schedule, undefined, NEW_PATCH);
   return {
     expectedRevision,
-    rule: parseMappedRuleReplacement(mapRecurringRule(schedule)),
+    rule: parseMappedRuleReplacement(
+      mapRecurringRule(schedule, current.releasedCount),
+    ),
   };
-}
-
-export function parseLegacyCalendarScheduleBody(
-  body: unknown,
-): LegacyPutCalendarTaskScheduleRequest {
-  const parsed = legacyPutCalendarTaskScheduleRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    throwUnmappable(
-      `${formatZodErrorMessage(parsed.error)}. Use ${NEW_PATCH} with expectedRevision and a typed rule.`,
-      NEW_PATCH,
-    );
-  }
-  rejectOnceOrPersonAssignee(parsed.data.schedule, undefined, NEW_PATCH);
-  return parsed.data;
-}
-
-export function mapLegacyCalendarScheduleToUpdate(
-  body: LegacyPutCalendarTaskScheduleRequest,
-): UpdateTaskScheduleRequest {
-  rejectOnceOrPersonAssignee(body.schedule, undefined, NEW_PATCH);
-  return {
-    expectedRevision: body.expectedScheduleRevision,
-    rule: parseMappedRuleReplacement(mapRecurringRule(body.schedule)),
-  };
-}
-
-export function parseLegacyCalendarSourceBody(
-  body: unknown,
-): LegacyPutCalendarSourceRequest {
-  const parsed = legacyPutCalendarSourceRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    throwUnmappable(
-      `${formatZodErrorMessage(parsed.error)}. Use ${NEW_PATCH} with expectedRevision and projectId.`,
-      NEW_PATCH,
-    );
-  }
-  return parsed.data;
 }
 
 export function mapLegacyCalendarSourceToUpdate(
@@ -284,22 +308,31 @@ export function mapTaskScheduleToLegacyProjection(schedule: TaskSchedule) {
       timezone: schedule.timezone,
       endsMode,
       endsOn: schedule.endsOn,
-      occurrences: schedule.targetRunCount,
+      occurrences: remainingOccurrences(schedule),
       intervalDays: schedule.intervalDays,
       anchorAt: schedule.anchorAt,
     },
   });
 }
 
+const uuidSchema = z.guid();
+
+/**
+ * `{id}` is a Task Schedule id, a Task a Run released, a template Task the
+ * cutover moved, or a Task this shim made a schedule from.
+ */
 export async function resolveTaskScheduleId(
   taskId: string,
 ): Promise<string | null> {
-  const byScheduleId = await prisma.taskSchedule.findFirst({
-    where: { id: taskId },
-    select: { id: true },
-  });
-  if (byScheduleId) {
-    return byScheduleId.id;
+  // TaskSchedule.id is a Postgres uuid: any other id fails the cast.
+  if (uuidSchema.safeParse(taskId).success) {
+    const byScheduleId = await prisma.taskSchedule.findFirst({
+      where: { id: taskId },
+      select: { id: true },
+    });
+    if (byScheduleId) {
+      return byScheduleId.id;
+    }
   }
 
   const task = await prisma.task.findUnique({
@@ -310,21 +343,19 @@ export async function resolveTaskScheduleId(
     return task.scheduleId;
   }
 
-  const migratedId = migratedTaskScheduleId(taskId);
   const migrated = await prisma.taskSchedule.findFirst({
-    where: { id: migratedId },
+    where: { id: migratedTaskScheduleId(taskId) },
     select: { id: true },
   });
   if (migrated) {
     return migrated.id;
   }
 
-  const shimId = shimCreatedTaskScheduleId(taskId);
-  const shimmed = await prisma.taskSchedule.findFirst({
-    where: { id: shimId },
-    select: { id: true },
+  const shimCreated = await prisma.taskScheduleCreateOperation.findFirst({
+    where: { operationId: shimCreateOperationId(taskId) },
+    select: { scheduleId: true },
   });
-  return shimmed?.id ?? null;
+  return shimCreated?.scheduleId ?? null;
 }
 
 export async function requireResolvedTaskScheduleId(
@@ -333,34 +364,83 @@ export async function requireResolvedTaskScheduleId(
   const scheduleId = await resolveTaskScheduleId(taskId);
   if (!scheduleId) {
     throw notFound(
-      "No Task Schedule is linked to this Task. The template id may have been deleted in the cutover. Use GET /v1/tasks/schedules/{id} with the schedule id.",
+      "No Task Schedule is linked to this Task. Use GET /v1/tasks/schedules/{id} with the schedule id.",
     );
   }
   return scheduleId;
 }
 
-export async function findTaskBlueprint(taskId: string) {
-  return prisma.task.findUnique({
-    where: { id: taskId },
-    select: {
-      id: true,
-      workspaceId: true,
-      name: true,
-      description: true,
-      projectId: true,
-      visibility: true,
-      assigneeId: true,
-      assigneeSokoBotId: true,
-      scheduleId: true,
-    },
-  });
+function scheduleWriter(vars: EnvVariables["Variables"]): TaskScheduleReader {
+  const { authContext } = vars;
+  const { userId } = requireUserContext(authContext);
+  return isCoworkerAuthContext(authContext)
+    ? {
+        kind: "coworker",
+        coworkerId: authContext.coworkerId,
+        vendorId: authContext.vendorId,
+        userId,
+      }
+    : { kind: "user", userId };
 }
 
+/**
+ * A PUT that re-sends the current rule writes nothing, but answers only a
+ * caller that could have written it, as the update would.
+ */
+export async function requireLegacyScheduleWrite(
+  vars: EnvVariables["Variables"],
+  scheduleId: string,
+): Promise<void> {
+  const schedule = await prisma.taskSchedule.findFirst({
+    where: { id: scheduleId },
+    include: { assignee: { select: { vendorId: true } } },
+  });
+  if (!schedule || !canWriteTaskSchedule(scheduleWriter(vars), schedule)) {
+    throw forbidden("Only the owner can change this Task Schedule");
+  }
+}
+
+/**
+ * The Task a PUT turns into a schedule. The schedule belongs to the acting
+ * member, so the Task must too, and a Coworker must be one that may write the
+ * schedule it becomes. The Task itself is left as it is.
+ */
+export async function requireTaskBlueprint(
+  vars: EnvVariables["Variables"],
+  taskId: string,
+) {
+  const writer = scheduleWriter(vars);
+  const workspace = requireWorkspaceContext(vars.workspaceContext);
+  const task = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      workspaceId: workspace.workspaceId,
+      ownerId: writer.userId,
+      archivedAt: null,
+    },
+    include: { assignee: { select: { vendorId: true } } },
+  });
+  if (!task) {
+    throw notFound("Task not found");
+  }
+  requireTaskNotParked(task);
+  if (!canWriteTaskSchedule(writer, task)) {
+    throw forbidden(
+      "Coworkers can only schedule the acting member's Tasks they created, are assigned to, or that are assigned to their vendor siblings",
+    );
+  }
+  return task;
+}
+
+/**
+ * The create is keyed on the Task, so a retry or a concurrent PUT replays
+ * the first schedule instead of making a second.
+ */
 export function mapTaskBlueprintToCreate(
-  task: NonNullable<Awaited<ReturnType<typeof findTaskBlueprint>>>,
-  schedule: LegacyTaskScheduleInput,
+  task: Awaited<ReturnType<typeof requireTaskBlueprint>>,
+  schedule: LegacyRecurringSchedule,
 ): CreateTaskScheduleRequest {
-  rejectOnceOrPersonAssignee(schedule, undefined, NEW_CREATE);
+  rejectPersonAssignee(task.assigneeUserId, NEW_CREATE);
   if (!task.name?.trim()) {
     throwUnmappable(
       `The Task has no name. Use ${NEW_CREATE} with name and a typed rule.`,
@@ -368,6 +448,7 @@ export function mapTaskBlueprintToCreate(
     );
   }
   return parseMappedCreate({
+    operationId: shimCreateOperationId(task.id),
     name: task.name,
     description: task.description,
     projectId: task.projectId,
@@ -375,16 +456,5 @@ export function mapTaskBlueprintToCreate(
     assigneeId: task.assigneeId,
     assigneeSokoBotId: task.assigneeSokoBotId,
     rule: mapRecurringRule(schedule),
-  });
-}
-
-/** Task↔TaskSchedule link after a shim create on an existing Task. */
-export async function linkTaskToSchedule(
-  taskId: string,
-  scheduleId: string,
-): Promise<void> {
-  await prisma.task.update({
-    where: { id: taskId },
-    data: { scheduleId },
   });
 }

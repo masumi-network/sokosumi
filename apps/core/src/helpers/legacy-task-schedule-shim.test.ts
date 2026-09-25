@@ -6,12 +6,15 @@ import { isLegacyTaskScheduleShimEnabled } from "@/config/env";
 
 import {
   migratedTaskScheduleId,
-  shimCreatedTaskScheduleId,
+  shimCreateOperationId,
 } from "@/helpers/legacy-task-schedule-id";
 import {
+  legacyRuleMatches,
   mapLegacyCreateToTaskSchedule,
-  mapLegacyPutScheduleToUpdate,
+  mapLegacyRuleToUpdate,
+  mapTaskScheduleToLegacyProjection,
 } from "@/helpers/legacy-task-schedule-shim";
+import { seedTaskSchedule } from "@/test-fixtures/task-schedule";
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
@@ -85,28 +88,74 @@ describe("legacy task schedule mapping", () => {
     }
   });
 
-  it("maps a PUT body onto expectedRevision plus a typed rule", () => {
+  it("maps a PUT body onto the current revision plus a typed rule", () => {
+    const current = seedTaskSchedule({ revision: 3 });
+
     expect(
-      mapLegacyPutScheduleToUpdate(
+      mapLegacyRuleToUpdate(
         {
           mode: "recurring",
           expr: "0 10 * * 1",
           timezone: "UTC",
           endsMode: "never",
         },
-        3,
+        current,
       ),
     ).toMatchObject({
       expectedRevision: 3,
       rule: { expr: "0 10 * * 1", endsMode: TaskScheduleEndsMode.NEVER },
     });
   });
+
+  it("counts occurrences from the Runs already released", () => {
+    const current = seedTaskSchedule({
+      endsMode: TaskScheduleEndsMode.AFTER,
+      targetRunCount: 5,
+      releasedCount: 3,
+    });
+    const rule = {
+      mode: "recurring" as const,
+      expr: "0 9 * * 1",
+      timezone: "UTC",
+      endsMode: "after" as const,
+    };
+
+    expect(
+      mapTaskScheduleToLegacyProjection(current).schedule.occurrences,
+    ).toBe(2);
+    expect(legacyRuleMatches(current, { ...rule, occurrences: 2 })).toBe(true);
+    expect(legacyRuleMatches(current, { ...rule, occurrences: 5 })).toBe(false);
+    expect(
+      mapLegacyRuleToUpdate({ ...rule, occurrences: 4 }, current).rule,
+    ).toMatchObject({ targetRunCount: 7 });
+  });
+
+  it("matches a re-sent rule regardless of the anchor of a daily rule", () => {
+    const current = seedTaskSchedule();
+
+    expect(
+      legacyRuleMatches(current, {
+        mode: "recurring",
+        expr: "0 9 * * 1",
+        timezone: "UTC",
+        endsMode: "never",
+      }),
+    ).toBe(true);
+    expect(
+      legacyRuleMatches(current, {
+        mode: "recurring",
+        expr: "0 9 * * 1",
+        timezone: "Europe/Berlin",
+        endsMode: "never",
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("legacy task schedule ids", () => {
   it("mints RFC 9562 UUID v8 ids, distinct per kind", () => {
     const migrated = migratedTaskScheduleId(TEMPLATE_ID);
-    const shimmed = shimCreatedTaskScheduleId(TEMPLATE_ID);
+    const shimmed = shimCreateOperationId(TEMPLATE_ID);
     const uuidV8 =
       /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 

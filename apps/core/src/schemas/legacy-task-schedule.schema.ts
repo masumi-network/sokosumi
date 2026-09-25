@@ -153,9 +153,6 @@ export type LegacyTaskScheduleInput = z.infer<
 export type LegacyCreateScheduledTaskRequest = z.infer<
   typeof legacyCreateScheduledTaskRequestSchema
 >;
-export type LegacyPutCalendarTaskScheduleRequest = z.infer<
-  typeof legacyPutCalendarTaskScheduleRequestSchema
->;
 export type LegacyPutCalendarSourceRequest = z.infer<
   typeof legacyPutCalendarSourceRequestSchema
 >;

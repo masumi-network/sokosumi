@@ -1,6 +1,10 @@
+import { TaskScheduleEndsMode, TaskStatus } from "@sokosumi/database";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { migratedTaskScheduleId } from "@/helpers/legacy-task-schedule-id";
+import {
+  migratedTaskScheduleId,
+  shimCreateOperationId,
+} from "@/helpers/legacy-task-schedule-id";
 import {
   COWORKER_AUTH,
   COWORKER_ID,
@@ -10,6 +14,8 @@ import {
   seedTask,
   seedTaskSchedule,
   taskScheduleTestDb,
+  taskScheduleTestPrisma,
+  userAuth,
 } from "@/test-fixtures/task-schedule";
 import {
   createTaskScheduleTestApp,
@@ -70,7 +76,12 @@ type Projection = {
     name: string;
     nextRunAt: string | null;
     scheduleRevision: number;
-    schedule: { mode: string; expr: string; endsMode: string };
+    schedule: {
+      mode: string;
+      expr: string;
+      endsMode: string;
+      occurrences?: number | null;
+    };
   };
 };
 
@@ -158,6 +169,9 @@ describe("legacy per-Task schedule shim", () => {
       });
 
       expect(response.status).toBe(422);
+      expect(await response.json()).toMatchObject({
+        replacement: "POST /v1/tasks/schedules",
+      });
       expect(taskScheduleTestDb.schedules).toHaveLength(0);
     });
   });
@@ -186,7 +200,7 @@ describe("legacy per-Task schedule shim", () => {
       expect(data.id).toBe(schedule.id);
     });
 
-    it("resolves a cutover template Task id after the template row is gone", async () => {
+    it("resolves the schedule the cutover minted for a template Task id", async () => {
       const schedule = seedTaskSchedule({
         id: migratedTaskScheduleId(TASK_ID),
         name: "Migrated",
@@ -203,6 +217,17 @@ describe("legacy per-Task schedule shim", () => {
       const response = await send("GET", `/${TASK_ID}/schedule`);
 
       expect(response.status).toBe(404);
+    });
+
+    it("answers 404 for a non-UUID id without querying it as a schedule id", async () => {
+      const response = await send("GET", "/tsk_123/schedule");
+
+      expect(response.status).toBe(404);
+      expect(
+        taskScheduleTestPrisma.taskSchedule.findFirst,
+      ).not.toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "tsk_123" } }),
+      );
     });
   });
 
@@ -225,7 +250,7 @@ describe("legacy per-Task schedule shim", () => {
       );
     });
 
-    it("creates from a Task blueprint and links Task.scheduleId", async () => {
+    it("creates from a Task blueprint, keyed on the Task, and leaves the Task alone", async () => {
       seedTask({
         id: TASK_ID,
         name: "From task",
@@ -241,7 +266,10 @@ describe("legacy per-Task schedule shim", () => {
       expect(data.schedule.expr).toBe("0 9 * * 1");
       expect(
         taskScheduleTestDb.tasks.find((row) => row.id === TASK_ID)?.scheduleId,
-      ).toBe(data.id);
+      ).toBeUndefined();
+      expect(taskScheduleTestDb.createOperations).toMatchObject([
+        { operationId: shimCreateOperationId(TASK_ID), scheduleId: data.id },
+      ]);
 
       const updated = await send("PUT", `/${TASK_ID}/schedule`, {
         mode: "recurring",
@@ -271,9 +299,10 @@ describe("legacy per-Task schedule shim", () => {
       );
       expect(created.status).toBe(200);
       const { data: createdData } = (await created.json()) as Projection;
-      expect(
-        taskScheduleTestDb.tasks.find((row) => row.id === TASK_ID)?.scheduleId,
-      ).toBe(createdData.id);
+      expect(taskScheduleTestDb.schedules[0]).toMatchObject({
+        id: createdData.id,
+        creatorCoworkerId: COWORKER_ID,
+      });
 
       const updated = await send(
         "PUT",
@@ -305,6 +334,130 @@ describe("legacy per-Task schedule shim", () => {
       const response = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
 
       expect(response.status).toBe(404);
+    });
+
+    it.each([
+      ["another member's Task", { ownerId: MEMBER_ID }],
+      [
+        "another member's private Task",
+        { ownerId: MEMBER_ID, visibility: "PRIVATE" as const },
+      ],
+      ["an archived Task", { archivedAt: new Date("2026-09-24T12:00:00Z") }],
+    ])("answers 404 on %s and creates nothing", async (_label, overrides) => {
+      seedTask({ id: TASK_ID, name: "Not yours", ...overrides });
+
+      const response = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
+
+      expect(response.status).toBe(404);
+      expect(taskScheduleTestDb.schedules).toHaveLength(0);
+      expect(taskScheduleTestDb.createOperations).toHaveLength(0);
+    });
+
+    it("answers 403 to a Coworker on a Task it did not create and is not assigned", async () => {
+      seedTask({ id: TASK_ID, name: "Someone else's", assigneeId: null });
+
+      const response = await send(
+        "PUT",
+        `/${TASK_ID}/schedule`,
+        WEEKLY,
+        app(COWORKER_AUTH),
+      );
+
+      expect(response.status).toBe(403);
+      expect(taskScheduleTestDb.schedules).toHaveLength(0);
+    });
+
+    it("answers 403 on a parked Task", async () => {
+      seedTask({
+        id: TASK_ID,
+        name: "Parked",
+        status: TaskStatus.GRANT_PENDING,
+      });
+
+      const response = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
+
+      expect(response.status).toBe(403);
+      expect(taskScheduleTestDb.schedules).toHaveLength(0);
+    });
+
+    it("rejects a Task assigned to a person with 422", async () => {
+      seedTask({
+        id: TASK_ID,
+        name: "For a person",
+        assigneeId: null,
+        assigneeUserId: MEMBER_ID,
+      });
+
+      const response = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
+
+      expect(response.status).toBe(422);
+      expect(await response.json()).toMatchObject({
+        replacement: "POST /v1/tasks/schedules",
+      });
+      expect(taskScheduleTestDb.schedules).toHaveLength(0);
+    });
+
+    it("replays the first schedule when a racing PUT misses it and creates again", async () => {
+      seedTask({ id: TASK_ID, name: "Weekly content" });
+      const first = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
+      const { data: firstData } = (await first.json()) as Projection;
+      // The racing request resolved before the first one committed.
+      taskScheduleTestPrisma.taskScheduleCreateOperation.findFirst.mockResolvedValueOnce(
+        null,
+      );
+
+      const second = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
+
+      expect(second.status).toBe(200);
+      const { data } = (await second.json()) as Projection;
+      expect(data.id).toBe(firstData.id);
+      expect(taskScheduleTestDb.schedules).toHaveLength(1);
+    });
+
+    it("keeps the schedule as it is when the same rule is re-sent", async () => {
+      seedTask({ id: TASK_ID, name: "Weekly content" });
+      const created = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
+      const { data: createdData } = (await created.json()) as Projection;
+      const epochId = taskScheduleTestDb.schedules[0]?.epochId;
+
+      const resent = await send("PUT", `/${TASK_ID}/schedule`, WEEKLY);
+
+      expect(resent.status).toBe(200);
+      const { data } = (await resent.json()) as Projection;
+      expect(data.scheduleRevision).toBe(createdData.scheduleRevision);
+      expect(taskScheduleTestDb.schedules[0]?.epochId).toBe(epochId);
+    });
+
+    it("answers 403 to a reader re-sending the rule of a schedule it cannot write", async () => {
+      const schedule = seedTaskSchedule();
+
+      const response = await send(
+        "PUT",
+        `/${schedule.id}/schedule`,
+        WEEKLY,
+        app(userAuth(MEMBER_ID)),
+      );
+
+      expect(response.status).toBe(403);
+    });
+
+    it("counts occurrences from the Runs already released", async () => {
+      const schedule = seedTaskSchedule({
+        endsMode: TaskScheduleEndsMode.AFTER,
+        targetRunCount: 5,
+        releasedCount: 3,
+      });
+
+      const response = await send("PUT", `/${schedule.id}/schedule`, {
+        ...WEEKLY,
+        endsMode: "after",
+        occurrences: 4,
+      });
+
+      expect(response.status).toBe(200);
+      const { data } = (await response.json()) as Projection;
+      expect(data.schedule.occurrences).toBe(4);
+      expect(taskScheduleTestDb.schedules[0]?.targetRunCount).toBe(7);
     });
 
     it("rejects once-mode with 422", async () => {
@@ -444,6 +597,17 @@ describe("legacy per-Task schedule shim", () => {
   describe("when LEGACY_TASK_SCHEDULE_SHIM is off", () => {
     beforeEach(() => {
       process.env.LEGACY_TASK_SCHEDULE_SHIM = "0";
+    });
+
+    it("answers 410, not 422, to an invalid body", async () => {
+      const response = await send("PUT", `/${TASK_ID}/schedule`, {
+        version: 2,
+      });
+
+      expect(response.status).toBe(410);
+      expect(await response.json()).toMatchObject({
+        kind: "task_schedule_moved",
+      });
     });
 
     it.each([

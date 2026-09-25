@@ -573,6 +573,12 @@ export const taskScheduleTestPrisma = {
   taskSchedule,
   taskScheduleRun,
   taskScheduleCreateOperation: {
+    findFirst: vi.fn(
+      async ({ where }: { where: Where }) =>
+        taskScheduleTestDb.createOperations.find((row) =>
+          matchesRow(row, where),
+        ) ?? null,
+    ),
     findUnique: vi.fn(
       async ({
         where: { workspaceId_operationId: key },
@@ -617,8 +623,16 @@ export const taskScheduleTestPrisma = {
       },
     ),
   },
-  /** Releases mint Tasks; the legacy shim also writes Task.scheduleId. */
+  /** Releases mint Tasks; the legacy shim reads them as blueprints. */
   task: {
+    findFirst: vi.fn(async ({ where }: { where: Where }) => {
+      const row = taskScheduleTestDb.tasks.find((r) => matchesRow(r, where));
+      if (!row) return null;
+      const vendor = row.assigneeId
+        ? taskScheduleTestDb.coworkers.get(row.assigneeId)
+        : undefined;
+      return { ...row, assignee: vendor ?? null };
+    }),
     create: vi.fn(
       async ({
         data: { events, ...data },

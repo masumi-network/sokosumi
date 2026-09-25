@@ -23,9 +23,9 @@ export function migratedTaskScheduleId(templateTaskId: string): string {
 }
 
 /**
- * Schedule id this shim assigns when PUT /tasks/{id}/schedule creates a
- * series from a Task that the cutover never mapped.
+ * Create `operationId` of the schedule PUT /tasks/{id}/schedule makes from a
+ * Task: its ledger row finds the schedule again and replays a retry.
  */
-export function shimCreatedTaskScheduleId(taskId: string): string {
+export function shimCreateOperationId(taskId: string): string {
   return taskScheduleCutoverId("legacy-shim", taskId);
 }
