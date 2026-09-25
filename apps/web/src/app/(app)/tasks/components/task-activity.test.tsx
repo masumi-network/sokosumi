@@ -50,7 +50,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => {
     const labels: Record<string, string> = {
       authenticate: "Authenticate",
-      jumpToRecent: "Jump to recent",
+      jumpToRecent: "Jump to latest",
       showOlderComments: "Show {count} older comments",
       "billingCta.upgradePlan": "Get more credits",
       "billingCta.addCredits": "Add credits",
@@ -1346,7 +1346,7 @@ describe("TaskActivitySection", () => {
     expect(latestCommentIndex).toBeGreaterThan(showOlderIndex);
   });
 
-  it("shows Jump to recent and lands on the latest comment", async () => {
+  it("shows Jump to latest and lands on the latest comment", async () => {
     highlightListMessageMock.mockReturnValue(true);
     const events: TaskEvent[] = [
       createEvent("c1", {
@@ -1370,7 +1370,7 @@ describe("TaskActivitySection", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Jump to recent" }),
+      screen.getByRole("button", { name: "Jump to latest" }),
     );
 
     expect(highlightListMessageMock).toHaveBeenCalledWith(
@@ -1379,7 +1379,7 @@ describe("TaskActivitySection", () => {
     );
   });
 
-  it("hides Jump to recent when there are no comments", () => {
+  it("hides Jump to latest when there are no comments", () => {
     render(
       <TaskActivitySection
         {...baseProps}
@@ -1395,7 +1395,7 @@ describe("TaskActivitySection", () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: "Jump to recent" }),
+      screen.queryByRole("button", { name: "Jump to latest" }),
     ).not.toBeInTheDocument();
   });
 
@@ -1613,7 +1613,7 @@ describe("TaskActivitySection", () => {
     });
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Jump to recent" }),
+      screen.getByRole("button", { name: "Jump to latest" }),
     );
 
     expect(highlightListMessageMock).toHaveBeenCalled();

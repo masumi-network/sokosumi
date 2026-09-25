@@ -104,7 +104,7 @@ interface TaskActivityProps {
   events: TaskEvent[];
   /** Total comment events on the Task (Core meta); drives grouping. */
   commentCount?: number;
-  /** Newest comment event id from Core meta; Jump to recent target. */
+  /** Newest comment event id from Core meta; Jump to latest target. */
   latestCommentId?: string | null;
   taskFiles: TaskFile[];
   agentNameById?: Map<string, string>;

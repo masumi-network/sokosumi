@@ -1682,7 +1682,7 @@
         "jobsUnknownAgent": "Agent unavailable",
         "activity": "Activities",
         "emptyActivity": "No activities yet.",
-        "jumpToRecent": "Jump to recent",
+        "jumpToRecent": "Jump to latest",
         "showOlderComments": "Show {count, plural, one {# older comment} other {# older comments}}",
         "sourcesFiles": "Files",
         "sourcesLinks": "Links",
