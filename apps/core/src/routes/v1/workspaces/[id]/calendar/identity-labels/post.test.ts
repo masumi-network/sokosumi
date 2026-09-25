@@ -231,13 +231,13 @@ describe("POST /workspaces/{id}/calendar/identity-labels", () => {
     expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("serves a user who belongs to no beta organization", async () => {
-    memberFindFirstMock.mockResolvedValue(null);
-
+  it("serves any authorized owner without a membership lookup", async () => {
     const response = await requestLabels(createApp(), ["user_current"]);
 
     expect(response.status).toBe(200);
     expect(workspaceFindUniqueMock).toHaveBeenCalled();
+    // A personal workspace resolves no organization membership at all.
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("rejects batches larger than 50 refs", async () => {
@@ -247,5 +247,6 @@ describe("POST /workspaces/{id}/calendar/identity-labels", () => {
     );
 
     expect(response.status).toBe(422);
+    expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
   });
 });

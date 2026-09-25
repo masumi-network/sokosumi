@@ -193,9 +193,7 @@ describe("GET /workspaces/calendar", () => {
     );
   });
 
-  it("serves a user who belongs to no beta organization", async () => {
-    memberFindFirstMock.mockResolvedValue(null);
-
+  it("serves any authorized user without a membership lookup", async () => {
     const response = await createApp({
       actor: "user",
       userId: "user_123",
@@ -207,6 +205,7 @@ describe("GET /workspaces/calendar", () => {
 
     expect(response.status).toBe(200);
     expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalled();
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("reads the calendar for the personal workspace without an active organization", async () => {

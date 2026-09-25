@@ -220,15 +220,14 @@ describe("GET /projects/{id}/calendar", () => {
     );
   });
 
-  it("serves a user who belongs to no beta organization", async () => {
-    memberFindFirstMock.mockResolvedValue(null);
-
+  it("serves any authorized user without a membership lookup", async () => {
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,
     );
 
     expect(response.status).toBe(200);
     expect(projectFindFirstMock).toHaveBeenCalled();
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("returns calendar items for a closed Project", async () => {

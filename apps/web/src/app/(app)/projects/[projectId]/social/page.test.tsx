@@ -84,7 +84,7 @@ describe("ProjectSocialPage", () => {
     listSocialConnectionsMock.mockResolvedValue([]);
   });
 
-  it("does not load Project data outside the Calendar beta", async () => {
+  it("does not load Project data outside the Social beta", async () => {
     hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
 
     await expect(

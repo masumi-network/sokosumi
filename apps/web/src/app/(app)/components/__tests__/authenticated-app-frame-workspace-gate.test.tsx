@@ -172,8 +172,9 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     render(ui);
     expect(redirectMock).not.toHaveBeenCalled();
     expect(ui).toBeTruthy();
-    expect(privateCachedAppSidebarMock).toHaveBeenCalledWith(
-      expect.objectContaining({ adminMenuEnabled: false }),
+    // The sidebar no longer takes a Calendar flag: everyone sees Calendar.
+    expect(privateCachedAppSidebarMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "calendarMenuEnabled",
     );
   });
 });
