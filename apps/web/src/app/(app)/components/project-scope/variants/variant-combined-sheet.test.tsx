@@ -6,11 +6,13 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { WorkspaceSwitcher } from "./variant-combined-parts";
 
 const mocks = vi.hoisted(() => ({
   pathname: { current: "/tasks" },
+  activate: vi.fn(),
   isSwitching: { current: false },
   isPending: { current: false },
   active: {
@@ -24,11 +26,37 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mocks.pathname.current,
+  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn(), push: vi.fn() }),
+}));
+// The real `useWorkspaceSwitcher` runs; only the activation call is faked.
+vi.mock("@/lib/activate-organization-workspace", () => ({
+  activateOrganizationWorkspace: mocks.activate,
+  isUserNotMemberOfOrganizationError: () => false,
+}));
+vi.mock("@/lib/auth/auth.client", () => ({ useSession: vi.fn() }));
+vi.mock("./variant-combined-actions", () => ({
+  loadCombinedWorkspaces: vi.fn(),
+}));
+vi.mock("@/app/projects/actions", () => ({
+  loadMoreProjects: vi.fn(),
+  loadPinnedProjects: vi.fn(),
+}));
+vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
+  InlineCreateProjectModal: () => null,
+}));
+vi.mock("@/app/components/header/header-workspace-avatar", () => ({
+  default: () => null,
+}));
+vi.mock("@/app/projects/components/project-avatar", () => ({
+  ProjectAvatar: () => null,
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
-vi.mock("./variant-combined-parts", () => ({
+// The panes are real. The workspaces read Core, so a fixed list stands in,
+// but its switch goes through the `switcher` the chip passes down.
+vi.mock("./variant-combined-parts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./variant-combined-parts")>()),
   useCombinedScope: () => ({
     projectId: null,
     name: "All projects",
@@ -37,24 +65,20 @@ vi.mock("./variant-combined-parts", () => ({
     openCreate: vi.fn(),
     createDialog: null,
   }),
-  useCombinedWorkspaces: () => ({
+  useCombinedWorkspaces: (switcher: WorkspaceSwitcher) => ({
+    sessionUser: null,
+    rows: [
+      { id: "org-1", name: "Acme", organization: null },
+      { id: "org-2", name: "Globex", organization: null },
+    ],
+    activeId: "org-1",
     active: mocks.active.current,
     isPending: mocks.isPending.current,
-    isSwitching: mocks.isSwitching.current,
+    isError: false,
+    refetch: vi.fn(),
+    isSwitching: mocks.isSwitching.current || switcher.isPending,
+    select: (id: string | null) => switcher.handleSelectWorkspace(id),
   }),
-  SwitchingPane: ({
-    isSwitching,
-    children,
-  }: {
-    isSwitching: boolean;
-    children: ReactNode;
-  }) => (
-    <div data-testid="project-pane" inert={isSwitching}>
-      {children}
-    </div>
-  ),
-  WorkspaceList: () => <p>workspace list</p>,
-  WorkspaceMark: () => null,
 }));
 vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
   ProjectScopeMenu: () => (
@@ -71,6 +95,10 @@ import {
   useCombinedSheetOpen,
 } from "./variant-combined-sheet";
 
+beforeEach(() => {
+  mocks.activate.mockResolvedValue(undefined);
+});
+
 afterEach(() => {
   // The flag is module state, so it outlives each test's render.
   act(() => setCombinedSheetOpen(false));
@@ -82,6 +110,10 @@ afterEach(() => {
 
 function chip() {
   return screen.getByTestId("project-scope-combined-chip");
+}
+
+function workspaceList() {
+  return screen.queryByRole("list", { name: "switchWorkspace" });
 }
 
 describe("combined sheet store", () => {
@@ -255,7 +287,7 @@ describe("CombinedMobileChip", () => {
     const back = screen.getByRole("button", { name: "back" });
     expect(back).toBeDisabled();
     await user.click(back);
-    expect(screen.getByText("workspace list")).toBeInTheDocument();
+    expect(workspaceList()).toBeInTheDocument();
   });
 
   it("shuts the project list while a switch runs", async () => {
@@ -263,7 +295,54 @@ describe("CombinedMobileChip", () => {
     render(<CombinedMobileChip />);
     act(() => setCombinedSheetOpen(true));
 
-    expect(await screen.findByTestId("project-pane")).toHaveAttribute("inert");
+    expect(
+      await screen.findByTestId("project-scope-combined-project-pane"),
+    ).toHaveAttribute("inert");
+  });
+
+  it("stays busy when the sheet closes and reopens mid-switch", async () => {
+    let finish = () => {};
+    mocks.activate.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    render(<CombinedMobileChip />);
+
+    await user.click(chip());
+    await user.click(
+      await screen.findByTestId("project-scope-combined-workspace-row"),
+    );
+    await user.click(screen.getByRole("button", { name: "Globex" }));
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    await user.click(chip());
+
+    // The old workspace's projects would 404 once the switch lands.
+    const pane = await screen.findByTestId(
+      "project-scope-combined-project-pane",
+    );
+    expect(pane).toHaveAttribute("inert");
+    expect(pane).toHaveAttribute("aria-busy", "true");
+    await user.click(
+      screen.getByTestId("project-scope-combined-workspace-row"),
+    );
+    for (const name of ["Acme", "Globex"]) {
+      expect(screen.getByRole("button", { name })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    }
+    await user.click(screen.getByRole("button", { name: "Globex" }));
+    expect(mocks.activate).toHaveBeenCalledExactlyOnceWith("org-2");
+
+    await act(async () => finish());
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "back" })).toBeEnabled(),
+    );
   });
 
   it("starts at the project list on every open", async () => {
@@ -274,7 +353,7 @@ describe("CombinedMobileChip", () => {
     await user.click(
       await screen.findByTestId("project-scope-combined-workspace-row"),
     );
-    expect(screen.getByText("workspace list")).toBeInTheDocument();
+    expect(workspaceList()).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
     await waitFor(() =>
@@ -283,6 +362,6 @@ describe("CombinedMobileChip", () => {
     await user.click(chip());
 
     expect(await screen.findByText("project menu")).toBeInTheDocument();
-    expect(screen.queryByText("workspace list")).not.toBeInTheDocument();
+    expect(workspaceList()).not.toBeInTheDocument();
   });
 });

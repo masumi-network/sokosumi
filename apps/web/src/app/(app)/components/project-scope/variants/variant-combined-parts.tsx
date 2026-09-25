@@ -15,7 +15,7 @@ import {
   useScopeProjectReadFailed,
   useSelectedScopeProject,
 } from "@/app/components/project-scope/use-scope-projects";
-import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
+import type { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,19 +67,22 @@ export interface CombinedWorkspace {
   organization: OrganizationRecord | null;
 }
 
+export type WorkspaceSwitcher = ReturnType<typeof useWorkspaceSwitcher>;
+
 /**
- * The header switcher's workspaces and its switch (`useWorkspaceSwitcher`).
+ * The header switcher's workspaces and a switch through `switcher`.
  * A project belongs to one workspace, so switching drops the project scope.
  * Call it only inside open popover or sheet content: the read then runs when
  * the user opens the switcher, and every open lists fresh workspaces.
+ * The content unmounts on close, so the surface's trigger owns `switcher`:
+ * a switch that runs through a close and a reopen stays busy.
  */
-export function useCombinedWorkspaces() {
+export function useCombinedWorkspaces(switcher: WorkspaceSwitcher) {
   const t = useTranslations("Components.OrganizationSwitcher");
   const router = useRouter();
   const { data: session } = useSession();
   const { projectId, switchHref } = useProjectScope();
-  const { isPending: isSwitching, handleSelectWorkspace } =
-    useWorkspaceSwitcher();
+  const { isPending: isSwitching, handleSelectWorkspace } = switcher;
   const userId = session?.user.id ?? null;
 
   const query = useQuery({

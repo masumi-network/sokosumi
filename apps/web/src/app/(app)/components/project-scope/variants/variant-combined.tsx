@@ -4,6 +4,7 @@ import { ChevronsUpDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
+import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import {
   Popover,
   PopoverContent,
@@ -29,6 +30,7 @@ import {
   useCombinedScope,
   useCombinedWorkspaces,
   WorkspaceList,
+  type WorkspaceSwitcher,
 } from "./variant-combined-parts";
 import {
   CombinedMobileChip,
@@ -41,12 +43,14 @@ type CombinedScope = ReturnType<typeof useCombinedScope>;
 /** Rendered only while the popover is open, so it reads workspaces then. */
 function CombinedPanes({
   scope,
+  switcher,
   onDone,
 }: {
   scope: CombinedScope;
+  switcher: WorkspaceSwitcher;
   onDone: () => void;
 }) {
-  const workspaces = useCombinedWorkspaces();
+  const workspaces = useCombinedWorkspaces(switcher);
   return (
     <>
       <WorkspaceList
@@ -69,10 +73,12 @@ function CombinedPanes({
 /** Vercel's two panes: workspaces on the left, that workspace's projects. */
 function CombinedPopoverContent({
   scope,
+  switcher,
   side,
   onDone,
 }: {
   scope: CombinedScope;
+  switcher: WorkspaceSwitcher;
   side: "bottom" | "right";
   onDone: () => void;
 }) {
@@ -86,7 +92,7 @@ function CombinedPopoverContent({
       aria-label={t("switchLabel")}
       className="grid w-[36rem] max-w-[calc(100vw-2rem)] grid-cols-[13rem_1fr] overflow-hidden p-0"
     >
-      <CombinedPanes scope={scope} onDone={onDone} />
+      <CombinedPanes scope={scope} switcher={switcher} onDone={onDone} />
     </PopoverContent>
   );
 }
@@ -100,6 +106,8 @@ function SidebarHeaderTrigger() {
   const t = useTranslations("App.ProjectScope");
   const { isMobile, setOpenMobile } = useSidebar();
   const scope = useCombinedScope();
+  // Here, not in the content: the switch outlives a close of the popover.
+  const switcher = useWorkspaceSwitcher();
   const sheetOpen = useCombinedSheetOpen();
   const [open, setOpen] = useState(false);
 
@@ -165,6 +173,7 @@ function SidebarHeaderTrigger() {
         </Tooltip>
         <CombinedPopoverContent
           scope={scope}
+          switcher={switcher}
           side="bottom"
           onDone={() => setOpen(false)}
         />
@@ -179,6 +188,7 @@ function RailTrigger() {
   const t = useTranslations("App.ProjectScope");
   const { isMobile } = useSidebar();
   const scope = useCombinedScope();
+  const switcher = useWorkspaceSwitcher();
   const [open, setOpen] = useState(false);
 
   // Below `md` the sidebar is a sheet and never the rail.
@@ -209,6 +219,7 @@ function RailTrigger() {
             </Tooltip>
             <CombinedPopoverContent
               scope={scope}
+              switcher={switcher}
               side="right"
               onDone={() => setOpen(false)}
             />

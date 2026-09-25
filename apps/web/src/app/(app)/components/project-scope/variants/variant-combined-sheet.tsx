@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { returnFocusTo } from "@/app/components/project-scope/use-project-scope";
+import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -23,6 +24,7 @@ import {
   useCombinedWorkspaces,
   WorkspaceList,
   WorkspaceMark,
+  type WorkspaceSwitcher,
 } from "./variant-combined-parts";
 
 /**
@@ -66,6 +68,8 @@ export function CombinedMobileChip() {
   const pathname = usePathname();
   const open = useCombinedSheetOpen();
   const scope = useCombinedScope();
+  // Here, not in the body: the switch outlives a close of the sheet.
+  const switcher = useWorkspaceSwitcher();
   const chipRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -103,7 +107,7 @@ export function CombinedMobileChip() {
           <SheetHeader className="border-b pr-12">
             <SheetTitle>{t("switchLabel")}</SheetTitle>
           </SheetHeader>
-          <CombinedSheetBody scope={scope} />
+          <CombinedSheetBody scope={scope} switcher={switcher} />
         </SheetContent>
       </Sheet>
       {scope.createDialog}
@@ -123,12 +127,14 @@ const STEP_FOCUS_SELECTOR = {
  */
 function CombinedSheetBody({
   scope,
+  switcher,
 }: {
   scope: ReturnType<typeof useCombinedScope>;
+  switcher: WorkspaceSwitcher;
 }) {
   const tWorkspace = useTranslations("Components.OrganizationSwitcher");
   const tSidebar = useTranslations("App.Sidebar.Content.MenuItems");
-  const workspaces = useCombinedWorkspaces();
+  const workspaces = useCombinedWorkspaces(switcher);
   const [step, setStep] = useState<"projects" | "workspaces">("projects");
   const bodyRef = useRef<HTMLDivElement>(null);
   const wasSwitching = useRef(workspaces.isSwitching);

@@ -37,12 +37,6 @@ vi.mock("@/lib/auth/auth.client", () => ({
     error: null,
   }),
 }));
-vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
-  useWorkspaceSwitcher: () => ({
-    isPending: mocks.isSwitching.current,
-    handleSelectWorkspace: mocks.switchWorkspace,
-  }),
-}));
 vi.mock("./variant-combined-actions", () => ({
   loadCombinedWorkspaces: mocks.load,
 }));
@@ -83,9 +77,15 @@ function wrapper() {
 }
 
 async function renderLoaded() {
-  const hook = renderHook(() => useCombinedWorkspaces(), {
-    wrapper: wrapper(),
-  });
+  // The trigger owns the switcher; the content only reads it.
+  const hook = renderHook(
+    () =>
+      useCombinedWorkspaces({
+        isPending: mocks.isSwitching.current,
+        handleSelectWorkspace: mocks.switchWorkspace,
+      }),
+    { wrapper: wrapper() },
+  );
   await waitFor(() => expect(hook.result.current.isPending).toBe(false));
   return hook;
 }
@@ -191,6 +191,27 @@ describe("useCombinedWorkspaces", () => {
 
     expect(mocks.switchWorkspace).toHaveBeenCalledWith("org-2");
     expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("drops the project scope when the switch ends after the content closed", async () => {
+    mocks.search.current = "projectId=project-1";
+    let finish = () => {};
+    mocks.switchWorkspace.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const hook = await renderLoaded();
+
+    let selecting = Promise.resolve();
+    act(() => {
+      selecting = hook.result.current.select("org-2");
+    });
+    hook.unmount();
+    finish();
+    await selecting;
+
+    expect(mocks.replace).toHaveBeenCalledExactlyOnceWith("/tasks");
   });
 
   it("stays on the page after a switch with no project in scope", async () => {
