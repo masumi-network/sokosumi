@@ -66,8 +66,8 @@ interface PatchTaskInput {
   assigneeUserId?: string | null;
   projectId?: string | null;
   context?: CreateTaskContext;
-  /** A future time queues the Task, or moves the time of a Queued one. */
-  runAt?: Date;
+  /** A future time queues the Task; null clears a saved Run at. */
+  runAt?: Date | null;
 }
 
 interface CreateTaskEventInput {

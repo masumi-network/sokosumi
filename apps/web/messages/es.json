@@ -2000,6 +2000,7 @@
         "clear": "Quitar",
         "cancel": "Cancelar",
         "notInFuture": "Elige una hora en el futuro.",
+        "requiresAgent": "Las tareas programadas requieren un agente. Elige uno para fijar la hora de inicio.",
         "footer": "Empieza {datetime}",
         "badge": {
           "overdue": "Empieza en breve",
