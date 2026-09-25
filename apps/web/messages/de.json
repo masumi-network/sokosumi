@@ -6566,6 +6566,29 @@
         "title": "Du",
         "description": "Dein Konto, Workspace, Credits und Einstellungen"
       }
+    },
+    "ProjectScope": {
+      "label": "Projekt",
+      "switchLabel": "Projekt wechseln",
+      "workspaceView": "Alle Projekte",
+      "pinned": "Angepinnt",
+      "recent": "Zuletzt",
+      "all": "Projekte",
+      "searchPlaceholder": "Projekt suchen...",
+      "empty": "Keine Projekte gefunden.",
+      "loading": "Projekte werden geladen...",
+      "error": "Projekte konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "create": "Projekt erstellen",
+      "manage": "Projekte verwalten",
+      "sections": "Projektbereiche",
+      "overview": "Übersicht",
+      "tasks": "Aufgaben",
+      "schedules": "Zeitpläne",
+      "calendar": "Kalender",
+      "files": "Dateien",
+      "history": "Verlauf",
+      "social": "Social"
     }
   },
   "Share": {

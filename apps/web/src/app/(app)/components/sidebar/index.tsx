@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
+import { ScopeSlot } from "@/app/components/project-scope/variants/scope-slot";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -105,12 +106,14 @@ export default function Sidebar({
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
         <div className="flex h-full w-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
           <SidebarLogo />
+          <ScopeSlot place="sidebar-header" />
           <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
         {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
         <div className="flex w-full flex-col gap-0">
+          <ScopeSlot place="sidebar-top" />
           <PersonalAssistantNav enabled={sokoBotMenuEnabled} />
           {sokoBotMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
           <MenuItems calendarMenuEnabled={calendarMenuEnabled} />

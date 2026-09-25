@@ -1,5 +1,7 @@
 import type { Session } from "@sokosumi/utils";
 import { Suspense } from "react";
+import { ScopeSlot } from "@/app/components/project-scope/variants/scope-slot";
+import { ScopeVariantPicker } from "@/app/components/project-scope/variants/variant-picker";
 import BreadcrumbNavigation from "@/components/breadcrumb-navigation/breadcrumb-navigation";
 
 import { HeaderCenter } from "./header/header-center.client";
@@ -26,8 +28,15 @@ export default function Header({ className, session }: HeaderProps) {
       </div>
 
       <HeaderCenter>
+        <ScopeSlot place="header-center" />
         <BreadcrumbNavigation className="flex flex-1" />
       </HeaderCenter>
+      <ScopeSlot place="header-mobile" />
+
+      {/* SOK-1202 variant harness. */}
+      <Suspense fallback={null}>
+        <ScopeVariantPicker />
+      </Suspense>
 
       <HeaderTrailing>
         <HeaderProfileSection session={session} />

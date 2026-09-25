@@ -1,6 +1,10 @@
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
+import {
+  ScopeOldWay,
+  ScopeSlot,
+} from "@/app/components/project-scope/variants/scope-slot";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { getHostname } from "@/lib/utils/url";
 
@@ -34,15 +38,18 @@ export function ProjectDetailHeader({
 
   return (
     <div className="space-y-4">
-      <Link
-        href={backHref}
-        className={`text-muted-foreground hover:text-foreground items-center gap-1.5 text-sm transition-colors ${
-          showBackOnMobile ? "inline-flex" : "hidden md:inline-flex"
-        }`}
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        <span>{backLabel}</span>
-      </Link>
+      <ScopeSlot place="project-header" />
+      <ScopeOldWay>
+        <Link
+          href={backHref}
+          className={`text-muted-foreground hover:text-foreground items-center gap-1.5 text-sm transition-colors ${
+            showBackOnMobile ? "inline-flex" : "hidden md:inline-flex"
+          }`}
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          <span>{backLabel}</span>
+        </Link>
+      </ScopeOldWay>
 
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">

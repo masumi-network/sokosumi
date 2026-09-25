@@ -14,9 +14,11 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ComponentType, Fragment, type SVGProps } from "react";
+import { type ComponentType, Fragment, Suspense, type SVGProps } from "react";
 import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
+import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
+import { useReplacesOldProjectNavigation } from "@/app/components/project-scope/variants/use-scope-variant";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { SheetClose } from "@/components/ui/sheet";
 import {
@@ -53,7 +55,43 @@ interface MenuItemsProps {
   calendarMenuEnabled: boolean;
 }
 
-export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
+/** Today's links: no scope carried, Projects row shown. */
+const UNSCOPED = {
+  hrefFor: (href: string) => href,
+  showsProjectsRow: true,
+};
+
+/**
+ * SOK-1202 harness: a variant carries the project scope on every link and
+ * replaces the Projects row. The unscoped list holds the place while the
+ * search params resolve.
+ */
+export default function MenuItems(props: MenuItemsProps) {
+  return (
+    <Suspense fallback={<MenuItemsList {...props} {...UNSCOPED} />}>
+      <ScopedMenuItems {...props} />
+    </Suspense>
+  );
+}
+
+function ScopedMenuItems(props: MenuItemsProps) {
+  const { hrefFor } = useProjectScope();
+  const replaces = useReplacesOldProjectNavigation();
+  return replaces ? (
+    <MenuItemsList {...props} hrefFor={hrefFor} showsProjectsRow={false} />
+  ) : (
+    <MenuItemsList {...props} {...UNSCOPED} />
+  );
+}
+
+function MenuItemsList({
+  calendarMenuEnabled,
+  hrefFor,
+  showsProjectsRow,
+}: MenuItemsProps & {
+  hrefFor: (href: string) => string;
+  showsProjectsRow: boolean;
+}) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   // Soft read: Instant Nav shell may mount before HistorySearchDialogProvider.
@@ -110,12 +148,16 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
       label: t("exploreAgents"),
       Icon: Bot,
     },
-    {
-      key: "projects",
-      href: "/projects",
-      label: t("projects"),
-      Icon: FolderKanban,
-    },
+    ...(showsProjectsRow
+      ? [
+          {
+            key: "projects",
+            href: "/projects",
+            label: t("projects"),
+            Icon: FolderKanban,
+          },
+        ]
+      : []),
     {
       key: "task-manager",
       href: "/tasks",
@@ -235,7 +277,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                         >
                           <SheetClose asChild>
                             <Link
-                              href={href}
+                              href={hrefFor(href)}
                               aria-current={isActive ? "page" : undefined}
                               className={cn(
                                 key === "new-task"
