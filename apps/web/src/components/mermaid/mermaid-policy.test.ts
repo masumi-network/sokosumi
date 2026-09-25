@@ -18,6 +18,8 @@ describe("untrusted Mermaid policy", () => {
     'flowchart LR\nA["&#60;script&#62;"]',
     'flowchart LR\nA["#60;img src=x#62;"]',
     'flowchart LR\nA["`![x](https://example.com)`"]',
+    "flowchart LR\nA[<!-- comment --!>]",
+    "flowchart LR\nA --!> B",
     "sequenceDiagram\nA->>B: hi",
   ])("rejects active/unsupported source before DOM work: %s", (source) => {
     expect(mermaidSourceError(source)).toBe("unsupported");

@@ -9,6 +9,8 @@ import {
 
 let queue = Promise.resolve();
 let nextId = 0;
+// Bounded, page-local results; never retain Blob URLs or failed renders.
+const cache = new Map<string, string>();
 
 /** SVG is untrusted even when produced by our pinned renderer. No active DOM. */
 export function sanitizeMermaidSvg(svg: string): string {
@@ -50,6 +52,30 @@ export function renderMermaid(
     if (signal.aborted) throw new DOMException("Aborted", "AbortError");
     if (mermaidSourceError(source)) throw new Error("Unsupported flowchart");
     const tokens = getComputedStyle(document.documentElement);
+    const cacheKey = JSON.stringify([
+      source,
+      dark,
+      tokens.fontSize,
+      ...["--card-background", "--muted", "--foreground"].map((token) =>
+        tokens.getPropertyValue(token),
+      ),
+    ]);
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      cache.delete(cacheKey);
+      cache.set(cacheKey, cached);
+      return cached;
+    }
+    // Give input and paint a turn between diagrams. The active Mermaid layout
+    // itself is synchronous and cannot be interrupted by AbortSignal.
+    await new Promise<void>((resolve) => {
+      if (typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(() => resolve(), { timeout: 100 });
+      } else {
+        setTimeout(resolve, 0);
+      }
+    });
+    if (signal.aborted) throw new DOMException("Aborted", "AbortError");
     const canvas = document.createElement("canvas").getContext("2d");
     function color(token: string) {
       if (!canvas) throw new Error("Color conversion unavailable");
@@ -106,7 +132,13 @@ export function renderMermaid(
         container,
       );
       if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-      return sanitizeMermaidSvg(svg);
+      const clean = sanitizeMermaidSvg(svg);
+      // At most 16 results of at most 64K code units (roughly 2 MiB total).
+      if (clean.length <= 65_536) {
+        cache.set(cacheKey, clean);
+        if (cache.size > 16) cache.delete(cache.keys().next().value!);
+      }
+      return clean;
     } finally {
       container.remove();
     }

@@ -20,10 +20,10 @@ export function mermaidSourceError(
     /\b(click|style|classDef|class|linkStyle|href|callback|call|url|image|icon)\b/i.test(
       source,
     ) ||
-    /\$\$|\/\//.test(source)
+    /\$\$|\/\/|--!>/.test(source)
   )
     return "unsupported";
-  if ((source.match(/-->|---|==>|-\.->/g) ?? []).length > MAX_MERMAID_EDGES)
+  if ((source.match(/--!?>|---|==>|-\.->/g) ?? []).length > MAX_MERMAID_EDGES)
     return "tooLarge";
   return null;
 }

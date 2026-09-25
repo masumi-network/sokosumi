@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,7 +31,6 @@ export function MermaidBlock({
   const dark = resolvedTheme === "dark";
   return (
     <MermaidDiagram
-      key={`${source}\0${complete}\0${dark}`}
       source={source}
       complete={complete}
       overLimit={overLimit}
@@ -40,7 +39,7 @@ export function MermaidBlock({
   );
 }
 
-function MermaidDiagram({
+const MermaidDiagram = memo(function MermaidDiagram({
   source,
   complete,
   overLimit,
@@ -49,74 +48,101 @@ function MermaidDiagram({
   const t = useTranslations("Components.Mermaid");
   const root = useRef<HTMLElement>(null);
   const [result, setResult] = useState<{
+    source: string;
+    dark: boolean;
     url?: string;
     failed?: boolean;
   }>();
-  const [copyStatus, setCopyStatus] = useState<"copied" | "copyFailed" | null>(
-    null,
-  );
+  const [copyResult, setCopyResult] = useState<{
+    source: string;
+    status: "copied" | "copyFailed";
+  }>();
+  const copyStatus = copyResult?.source === source ? copyResult.status : null;
   const [zoom, setZoom] = useState(1);
   const error = overLimit ? "tooMany" : mermaidSourceError(source);
-  const url = complete && !error ? result?.url : undefined;
+  const current =
+    result?.source === source && result.dark === dark ? result : undefined;
+  const url = complete && !error ? current?.url : undefined;
   const status = !complete
     ? "waiting"
-    : (error ?? (result?.failed ? "failed" : !url ? "loading" : null));
+    : (error ?? (current?.failed ? "failed" : !url ? "loading" : null));
 
   useEffect(() => {
     if (!complete || error) return;
-    const controller = new AbortController();
+    let controller: AbortController | undefined;
     let objectUrl: string | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let started = false;
-    function start() {
-      if (started) return;
-      started = true;
-      timer = setTimeout(async () => {
-        try {
-          const { renderMermaid } = await import("./render-mermaid");
-          if (controller.signal.aborted) return;
-          const svg = await renderMermaid(source, dark, controller.signal);
-          if (controller.signal.aborted) return;
-          objectUrl = URL.createObjectURL(
-            new Blob([svg], { type: "image/svg+xml" }),
-          );
-          setResult({ url: objectUrl });
-        } catch {
-          if (!controller.signal.aborted) setResult({ failed: true });
-        }
-      }, 300);
-    }
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
+    let disposed = false;
+    async function start() {
+      if (controller || objectUrl) return;
+      const attempt = new AbortController();
+      controller = attempt;
+      try {
+        const { renderMermaid } = await import("./render-mermaid");
+        if (attempt.signal.aborted) return;
+        const svg = await renderMermaid(source, dark, attempt.signal);
+        if (attempt.signal.aborted) return;
+        objectUrl = URL.createObjectURL(
+          new Blob([svg], { type: "image/svg+xml" }),
+        );
+        setResult({ source, dark, url: objectUrl });
         observer.disconnect();
-        start();
+      } catch {
+        if (!attempt.signal.aborted) {
+          setResult({ source, dark, failed: true });
+          observer.disconnect();
+        }
       }
-    });
+    }
+    // Observe the chat's scrollport, so ancestor clipping does not erase the
+    // preload margin. The document viewport remains the fallback.
+    let scrollRoot = root.current?.parentElement ?? null;
+    while (
+      scrollRoot &&
+      !/auto|scroll/.test(getComputedStyle(scrollRoot).overflowY)
+    ) {
+      scrollRoot = scrollRoot.parentElement;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (disposed) return;
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void start();
+        } else if (!objectUrl) {
+          controller?.abort();
+          controller = undefined;
+        }
+      },
+      { root: scrollRoot, rootMargin: "600px 0px" },
+    );
     if (root.current) observer.observe(root.current);
     return () => {
-      controller.abort();
+      disposed = true;
+      controller?.abort();
       observer.disconnect();
-      clearTimeout(timer);
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [source, complete, error, dark]);
+
+  // Retain the last image until its replacement arrives, including when a
+  // streamed block briefly reopens. Never reuse an already revoked URL.
+  useEffect(() => {
+    const objectUrl = result?.url;
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [result?.url]);
 
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(source);
-      setCopyStatus("copied");
+      setCopyResult({ source, status: "copied" });
     } catch {
-      setCopyStatus("copyFailed");
+      setCopyResult({ source, status: "copyFailed" });
     }
   }
 
   function sourceDisclosure(open: boolean) {
     return (
-      <details
-        key={url ? "rendered" : "source"}
-        open={open}
-        className="mt-2 text-sm"
-      >
+      <details open={open} className="mt-2 text-sm">
         <summary className="cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-ring">
           {t("source")}
         </summary>
@@ -141,10 +167,16 @@ function MermaidDiagram({
         <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
           {t("copy")}
         </Button>
-        {url && (
+        {complete && !error && !current?.failed && (
           <Dialog>
             <DialogTrigger asChild>
-              <Button type="button" variant="outline" size="sm">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!url}
+                className="transition-none"
+              >
                 {t("enlarge")}
               </Button>
             </DialogTrigger>
@@ -181,13 +213,13 @@ function MermaidDiagram({
                 </DialogClose>
               </div>
               <div
-                role="region"
+                role="group"
                 aria-label={t("title")}
                 tabIndex={0}
                 className="max-h-[60dvh] overflow-auto overscroll-contain rounded border border-border p-3 focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <img
-                  onError={() => setResult({ failed: true })}
+                  onError={() => setResult({ source, dark, failed: true })}
                   src={url}
                   alt={t("alt")}
                   className="max-w-none"
@@ -202,27 +234,34 @@ function MermaidDiagram({
           </Dialog>
         )}
       </figcaption>
-      <p role="status" className="text-muted-foreground text-sm">
+      <p role="status" className="min-h-5 text-muted-foreground text-sm">
         {[status ? t(status) : "", copyStatus ? t(copyStatus) : ""]
           .filter(Boolean)
           .join(" ")}
       </p>
-      {url && (
+      {complete && !error && !current?.failed && (
         <div
-          role="region"
+          role="group"
           aria-label={t("title")}
           tabIndex={0}
-          className="mt-2 max-h-96 overflow-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-ring"
+          className="mt-2 h-64 overflow-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-ring"
         >
-          <img
-            src={url}
-            alt={t("alt")}
-            className="max-w-none"
-            onError={() => setResult({ failed: true })}
-          />
+          {url && (
+            <img
+              src={url}
+              alt={t("alt")}
+              className="max-w-none"
+              onError={() => setResult({ source, dark, failed: true })}
+            />
+          )}
         </div>
       )}
-      {sourceDisclosure(!url)}
+      {sourceDisclosure(
+        !complete ||
+          Boolean(error) ||
+          Boolean(current?.failed) ||
+          copyStatus === "copyFailed",
+      )}
     </figure>
   );
-}
+});

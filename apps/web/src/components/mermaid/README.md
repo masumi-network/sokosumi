@@ -67,8 +67,19 @@ Recheck these references and security advisories when updating the pinned versio
 Per diagram: at most 4,000 UTF-16 code units, 200 identifier/word tokens, 100
 lines and 50 edges (including Mermaid's own `maxEdges` guard). Per Markdown
 message section: at most eight rendered diagrams; later blocks retain source.
-Only complete, policy-compliant blocks entering the viewport import Mermaid,
-after 300ms of stability. Work is serialized and cancellable while queued.
+Complete, policy-compliant blocks within 600px above/below the nearest scrolling
+ancestor (or viewport) import Mermaid immediately. Leaving that band cancels
+unfinished work; re-entry retries. Work stays serialized and yields to an idle
+callback (100ms maximum wait, timer fallback) before each uncached layout.
+Completed diagrams disconnect their observers. Source/theme changes cancel old
+work without remounting the figure. Identical source, theme, font size and color
+tokens reuse sanitized SVG in a page-local LRU cache: at most 16 entries, each at
+most 65,536 UTF-16 code units (roughly 2 MiB total). Failures are not cached.
+The inline preview reserves 16rem in both loading and ready states; its toolbar
+and status line also retain space. Large diagrams scroll within that preview;
+Enlarge remains available. Source starts collapsed for renderable complete
+blocks, and open for partial/error blocks. User-opened source stays open when
+the image arrives.
 No renderer import occurs for ordinary code or unfinished blocks.
 
 These are input/work bounds, not a hard wall-clock deadline. Mermaid's active
