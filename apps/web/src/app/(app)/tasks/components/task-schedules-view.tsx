@@ -3,8 +3,7 @@
 import { CalendarSync, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useOptimistic, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useOptimistic, useRef, useState, useTransition } from "react";
 
 import { loadMoreTaskSchedules } from "@/app/tasks/actions";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
@@ -22,6 +21,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
 import {
   type TaskSchedule,
   TaskScheduleState,
@@ -75,6 +75,8 @@ export function TaskSchedulesView({
     nextCursor,
   });
   const [isLoadingMore, startLoadingMore] = useTransition();
+  const [hasFailed, setHasFailed] = useState(false);
+  const boundaryRef = useRef<HTMLDivElement | null>(null);
   // The filter is server state; show the pick until the navigation lands.
   const [shownState, setShownState] = useOptimistic(selectedState);
   const [, startFiltering] = useTransition();
@@ -97,6 +99,7 @@ export function TaskSchedulesView({
   function handleLoadMore() {
     const cursor = more.nextCursor;
     if (!cursor) return;
+    setHasFailed(false);
     startLoadingMore(async () => {
       try {
         const page = await loadMoreTaskSchedules({
@@ -109,7 +112,9 @@ export function TaskSchedulesView({
           nextCursor: page.nextCursor,
         }));
       } catch {
-        toast.error(t("loadMoreError"));
+        // Stop loading on its own until the reader asks again, rather than
+        // hammering a server that just said no.
+        setHasFailed(true);
       }
     });
   }
@@ -123,6 +128,13 @@ export function TaskSchedulesView({
   ];
 
   const shownValue = shownState ?? ALL_STATES;
+
+  useLoadWhenVisible(boundaryRef, {
+    armed: Boolean(more.nextCursor) && !isLoadingMore && !hasFailed,
+    // A new last row means a moved boundary, which asks for the next page.
+    boundaryKey: rows.at(-1)?.id ?? "",
+    onVisible: handleLoadMore,
+  });
 
   return (
     <Tabs
@@ -194,12 +206,24 @@ export function TaskSchedulesView({
         )}
 
         {more.nextCursor ? (
-          <div className="flex justify-center">
+          // Loads on its own as it scrolls into view, and stays a button so a
+          // click works where no observer runs.
+          <div
+            className="flex flex-col items-center gap-2"
+            data-testid="schedules-load-more"
+            ref={boundaryRef}
+          >
+            {hasFailed ? (
+              <p className="text-destructive text-xs" role="alert">
+                {t("loadMoreError")}
+              </p>
+            ) : null}
             <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLoadMore}
+              aria-busy={isLoadingMore}
               disabled={isLoadingMore}
+              onClick={handleLoadMore}
+              size="sm"
+              variant="outline"
             >
               {isLoadingMore ? t("loadingMore") : t("loadMore")}
             </Button>
