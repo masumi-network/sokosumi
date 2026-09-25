@@ -29,6 +29,14 @@ jobs:
       github.event.issue.pull_request &&
       github.event.comment.user.type != 'Bot' &&
       contains(github.event.comment.body, '/deploy')
+    # All three jobs share one group per PR. A Core build during a reset could
+    # migrate the branch before or after the restore. Every job in the group
+    # needs `queue: max`: with the default, a newer job cancels the one that
+    # waits, whichever job that is.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
+      queue: max
     permissions:
       contents: read
       pull-requests: write
@@ -63,6 +71,10 @@ jobs:
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.user.type != 'Bot' &&
       github.event.pull_request.head.repo.full_name == github.repository
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
+      queue: max
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -84,3 +96,61 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
         run: node scripts/ci/vercel-deploy.mjs preview
+
+  reset-db:
+    name: Reset preview database
+    # Start only for a comment that begins with the command, from a repository
+    # owner, organization member, or collaborator. Other commenters get no job,
+    # so they cannot fill the queue. The script still checks write access.
+    if: >
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      github.event.comment.user.type != 'Bot' &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
+      startsWith(github.event.comment.body, '/reset-db')
+    # The per-network Neon preview keys live in this environment. Limit the
+    # environment to the default branch: issue_comment runs from it, and runs
+    # on other branches then cannot read the keys.
+    environment: preview-database
+    # A reset drops open connections, so it waits for the PR's other preview
+    # jobs, and they wait for it. See the `comment` job.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    runs-on: ubuntu-latest
+    # The job must outlast the script, or no reply posts. Neon takes about 17
+    # minutes for two networks with one operation each: each request stops
+    # after 30 seconds, a restore tries up to 5 times, and each network polls
+    # for up to 5 minutes. An operation still running then gets one more poll
+    # of up to 35 seconds. The Core deployments add up to 15 minutes. Vercel
+    # and GitHub requests have no time limit of their own.
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          # Privileged (Neon preview keys, VERCEL_TOKEN). Default branch only,
+          # never a PR tree.
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Reset preview database
+        env:
+          NEON_PREVIEW_API_KEY_MAINNET: ${{ secrets.NEON_PREVIEW_API_KEY_MAINNET }}
+          NEON_PREVIEW_API_KEY_PREPROD: ${{ secrets.NEON_PREVIEW_API_KEY_PREPROD }}
+          NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
+          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ci/preview-db-reset.mjs

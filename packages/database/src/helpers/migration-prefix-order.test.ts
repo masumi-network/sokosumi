@@ -239,7 +239,7 @@ describe.skipIf(!baseRef)("prisma/migrations against the base ref", () => {
         `Newest migration on the base (${baseRef}): ${newestOnBase}.`,
         "not-after-base, unstamped: rename the folder to <stamp>_<name>, with a 14-digit stamp above that newest one. `date -u +%Y%m%d%H%M%S` gives one when the clock is past it.",
         "removed: restore the folder. Applied migrations keep their names. To undo one, add a new migration.",
-        "A Preview that applied the old name needs its Neon branch reset from its parent, then `/deploy <network>`.",
+        "A Preview that applied the old name needs `/reset-db <network>` on the PR.",
       ].join("\n"),
     ).toEqual([]);
   });

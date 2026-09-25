@@ -48,6 +48,7 @@ cloud-agent-db:
 # The doc-script check reads every Markdown file and package.json; the
 # turbo and Vercel contract tests read the workflows, turbo.json, the
 # workspace file, both vercel.json files, and the web build wrapper. The
-# migration step test reads the migration order test.
+# migration step test reads the migration order test. The /reset-db tests
+# import the Neon client.
 ci-config:
-  - "{*.md,**/*.md,*.mdc,**/*.mdc,package.json,**/package.json,.github/**,scripts/ci/**,turbo.json,pnpm-workspace.yaml,apps/*/vercel.json,apps/web/scripts/**,packages/database/src/helpers/migration-prefix-order.test.ts}"
+  - "{*.md,**/*.md,*.mdc,**/*.mdc,package.json,**/package.json,.github/**,scripts/ci/**,scripts/cloud-agent-db/neon-api.mjs,turbo.json,pnpm-workspace.yaml,apps/*/vercel.json,apps/web/scripts/**,packages/database/src/helpers/migration-prefix-order.test.ts}"
