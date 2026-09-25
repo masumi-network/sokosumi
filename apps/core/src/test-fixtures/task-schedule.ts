@@ -400,6 +400,10 @@ const taskSchedule = {
       return row ? withInclude(row, include) : null;
     },
   ),
+  findUnique: vi.fn(
+    async ({ where }: { where: { id: string } }) =>
+      taskScheduleTestDb.schedules.find((row) => row.id === where.id) ?? null,
+  ),
   findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
     const row = taskScheduleTestDb.schedules.find((r) => r.id === where.id);
     if (!row) throw new Error(`No TaskSchedule ${where.id}`);
@@ -573,6 +577,11 @@ export const taskScheduleTestPrisma = {
   taskSchedule,
   taskScheduleRun,
   taskScheduleCreateOperation: {
+    findMany: vi.fn(async ({ where }: { where: Where }) =>
+      taskScheduleTestDb.createOperations.filter((row) =>
+        matchesRow(row, where),
+      ),
+    ),
     findUnique: vi.fn(
       async ({
         where: { workspaceId_operationId: key },
@@ -617,8 +626,16 @@ export const taskScheduleTestPrisma = {
       },
     ),
   },
-  /** Only the releases write Tasks; routes must never write them. */
+  /** Releases mint Tasks; the legacy vendor layer reads them as templates. */
   task: {
+    findFirst: vi.fn(async ({ where }: { where: Where }) => {
+      const row = taskScheduleTestDb.tasks.find((r) => matchesRow(r, where));
+      if (!row) return null;
+      const vendor = row.assigneeId
+        ? taskScheduleTestDb.coworkers.get(row.assigneeId)
+        : undefined;
+      return { ...row, assignee: vendor ?? null };
+    }),
     create: vi.fn(
       async ({
         data: { events, ...data },
@@ -634,12 +651,40 @@ export const taskScheduleTestPrisma = {
         return row;
       },
     ),
+    findUnique: vi.fn(
+      async ({
+        where,
+        select,
+      }: {
+        where: { id: string };
+        select?: { schedule?: boolean };
+      }) => {
+        const row = taskScheduleTestDb.tasks.find((r) => r.id === where.id);
+        if (!row || !select?.schedule) return row ?? null;
+        return {
+          ...row,
+          schedule:
+            taskScheduleTestDb.schedules.find((s) => s.id === row.scheduleId) ??
+            null,
+        };
+      },
+    ),
     findMany: vi.fn(async ({ where, take }: { where: Where; take?: number }) =>
       taskScheduleTestDb.tasks
         .filter((row) => matchesRow(row, where))
         .slice(0, take),
     ),
-    update: vi.fn(),
+    update: vi.fn(
+      async ({ where, data }: { where: { id: string }; data: Data }) => {
+        const row = taskScheduleTestDb.tasks.find((r) => r.id === where.id);
+        if (!row) throw new Error(`No Task ${where.id}`);
+        const updated = { ...row, ...data };
+        taskScheduleTestDb.tasks = taskScheduleTestDb.tasks.map((r) =>
+          r.id === where.id ? updated : r,
+        );
+        return updated;
+      },
+    ),
     updateMany: vi.fn(async ({ where, data }: { where: Where; data: Data }) => {
       let count = 0;
       taskScheduleTestDb.tasks = taskScheduleTestDb.tasks.map((row) => {
