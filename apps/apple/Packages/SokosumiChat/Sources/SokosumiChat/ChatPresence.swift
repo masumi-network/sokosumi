@@ -94,7 +94,7 @@ public struct ChatPresenceMember: Equatable, Sendable {
 
 /// Aggregates multi-device members into per-user online/afk. Users absent
 /// from the result are offline (callers fall back to the room DTO value).
-public func aggregateChatPresence(
+func aggregateChatPresence(
   members: [ChatPresenceMember],
   now: Date = Date(),
   onlineWindow: TimeInterval = 5 * 60

@@ -4,7 +4,7 @@ import Foundation
 import HTTPTypes
 import OpenAPIRuntime
 import SokosumiAuth
-import SokosumiChat
+@testable import SokosumiChat
 @testable import SokosumiWorkspace
 import Testing
 
