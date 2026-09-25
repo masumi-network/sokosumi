@@ -69,6 +69,8 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 import prisma from "@/lib/db/prisma";
 import {
   reconcileJob,
+  reconcileProjectJobs,
+  reconcileStaleJobs,
   settleWithImage,
 } from "@/services/image-studio-jobs.service";
 
@@ -167,7 +169,7 @@ describe.skipIf(!enabled)("finding 1 — uncertain jobs stay recoverable", () =>
     const job = await makeJob({
       status: "SUBMISSION_UNCERTAIN",
       settledAt: new Date(),
-      unreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
+      statusUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
     });
 
     // The completion callback the webhook drives.
@@ -184,7 +186,7 @@ describe.skipIf(!enabled)("finding 1 — uncertain jobs stay recoverable", () =>
 
   it("gives up only after the outage itself has run for six hours", async () => {
     const job = await makeJob({
-      unreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
+      statusUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
       pollFailures: 2,
     });
     fetchQueueStatusMock.mockResolvedValue({
@@ -265,3 +267,149 @@ describe.skipIf(!enabled)(
     });
   },
 );
+
+describe.skipIf(!enabled)("outage clocks are per dependency", () => {
+  it("a healthy status read does not reset a continuing result outage", async () => {
+    // Reproduced by an independent review as RESULT_OUTAGE_RESET: every
+    // successful status read cleared the single shared clock, so a continuing
+    // result failure could be reconciled forever without its elapsed time ever
+    // reaching the grace period.
+    const startedAt = new Date(Date.now() - 7 * 60 * 60 * 1000);
+    const job = await makeJob({ resultUnreachableSince: startedAt });
+    fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
+    fetchQueueResultMock.mockResolvedValue({
+      kind: "unreachable",
+      message: "result fetch failed",
+    });
+
+    await reconcileJob(job.id);
+
+    const row = await prisma.projectImageJob.findUniqueOrThrow({
+      where: { id: job.id },
+    });
+    // The status read succeeded, so only its own clock is clear.
+    expect(row.statusUnreachableSince).toBeNull();
+    // The result outage keeps the seven hours it has actually been failing,
+    // and so reaches the grace period.
+    expect(row.status).toBe("SUBMISSION_UNCERTAIN");
+    expect(row.error).toContain("could not fetch");
+  });
+
+  it("a healthy status read does not reset a continuing authorization outage", async () => {
+    // AUTH_OUTAGE_RESET in the same review.
+    const startedAt = new Date(Date.now() - 7 * 60 * 60 * 1000);
+    const job = await makeJob({ authUnreachableSince: startedAt });
+    fetchQueueStatusMock.mockResolvedValue({ kind: "in_queue" });
+
+    await reconcileJob(job.id);
+
+    let row = await prisma.projectImageJob.findUniqueOrThrow({
+      where: { id: job.id },
+    });
+    expect(row.authUnreachableSince?.getTime()).toBe(startedAt.getTime());
+
+    // Now the ownership lookup fails again, on its own long-running outage.
+    accessMock.mockRejectedValue(new Error("P1001 cannot reach database"));
+    await settleWithImage(job.id, "https://v3b.fal.media/a.png");
+
+    row = await prisma.projectImageJob.findUniqueOrThrow({
+      where: { id: job.id },
+    });
+    expect(row.status).toBe("SUBMISSION_UNCERTAIN");
+    expect(row.error).toContain("belongs to");
+  });
+
+  it("a newly failing dependency does not inherit another's elapsed time", async () => {
+    // SOURCE_SWITCH: a seven-hour authorization outage followed by the *first*
+    // failed provider read was announced as a seven-hour provider outage.
+    const job = await makeJob({
+      authUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
+    });
+    fetchQueueStatusMock.mockResolvedValue({
+      kind: "unreachable",
+      message: "first provider failure",
+    });
+
+    await reconcileJob(job.id);
+
+    const row = await prisma.projectImageJob.findUniqueOrThrow({
+      where: { id: job.id },
+    });
+    // Still live: the provider has been unreachable for seconds, not hours.
+    expect(row.status).toBe("QUEUED");
+    expect(row.statusUnreachableSince).not.toBeNull();
+    expect(row.authUnreachableSince).not.toBeNull();
+  });
+});
+
+describe.skipIf(!enabled)("bounded recovery sweeps make progress", () => {
+  // These assert what a *bounded* batch reaches, so the project must hold only
+  // the rows under test — a leftover live job would fill a slot on its own
+  // merits and prove nothing either way.
+  beforeEach(async () => {
+    if (!enabled) return;
+    await prisma.projectImageAsset.deleteMany({ where: { projectId } });
+    await prisma.projectImageJob.deleteMany({ where: { projectId } });
+  });
+
+  it("are not starved by uncertain rows with no provider request id", async () => {
+    // PROJECT_STARVATION / CRON_STARVATION: rows with no request id can never
+    // be advanced by a provider read, but they sorted first and consumed the
+    // whole batch, so the job that could have progressed was never reached.
+    const older = new Date(Date.now() - 9 * 60 * 60 * 1000);
+    for (let n = 0; n < 3; n++) {
+      await prisma.projectImageJob.create({
+        data: {
+          projectId,
+          workspaceId,
+          requestedByUserId: userId,
+          kind: "GENERATE",
+          model: "fal-ai/gemini-3.1-flash-image-preview",
+          prompt: "stranded",
+          settings: {},
+          referenceAssetIds: [],
+          idempotencyKey: `no-id-${n}-${Math.random()}`,
+          status: "SUBMISSION_UNCERTAIN",
+          falRequestId: null,
+          submitAttempts: 1,
+          createdAt: older,
+          updatedAt: older,
+        },
+      });
+    }
+    const recoverable = await makeJob();
+    fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
+
+    await reconcileProjectJobs(projectId);
+
+    expect(fetchQueueStatusMock).toHaveBeenCalled();
+    const row = await prisma.projectImageJob.findUniqueOrThrow({
+      where: { id: recoverable.id },
+    });
+    expect(row.status).toBe("SUCCEEDED");
+
+    // The stranded rows are still there, still fenced against resubmission.
+    const stranded = await prisma.projectImageJob.findMany({
+      where: { projectId, falRequestId: null },
+    });
+    expect(stranded).toHaveLength(3);
+    for (const job of stranded) expect(job.submitAttempts).toBe(1);
+  });
+
+  it("reaches a recoverable job through the cron sweep too", async () => {
+    const old = new Date(Date.now() - 9 * 60 * 60 * 1000);
+    const recoverable = await makeJob();
+    await prisma.projectImageJob.update({
+      where: { id: recoverable.id },
+      data: { updatedAt: old },
+    });
+    fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
+
+    await reconcileStaleJobs({ olderThanMs: 60_000, limit: 3 });
+
+    const row = await prisma.projectImageJob.findUniqueOrThrow({
+      where: { id: recoverable.id },
+    });
+    expect(row.status).toBe("SUCCEEDED");
+  });
+});

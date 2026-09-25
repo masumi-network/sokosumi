@@ -95,10 +95,10 @@ describe("authorizing an existing conversation", () => {
 });
 
 describe("recording a conversation at creation", () => {
-  it("records one the agent has just created", async () => {
+  it("records one the agent has just created, and says it created it", async () => {
     sessionFindUniqueMock.mockResolvedValue(null);
 
-    await registerCreatedSession({
+    const result = await registerCreatedSession({
       projectId: "project-a",
       userId: "user-a",
       eveSessionId: "wrun_new",
@@ -114,6 +114,26 @@ describe("recording a conversation at creation", () => {
         }),
       }),
     );
+    expect(result.wasCreated).toBe(true);
+  });
+
+  it("reports a repeat for the same project as not created", async () => {
+    // This is what stops an `operationId` retry delivering the conversation's
+    // first message a second time.
+    sessionFindUniqueMock.mockResolvedValue({
+      ...VIEW,
+      projectId: "project-a",
+    });
+
+    const result = await registerCreatedSession({
+      projectId: "project-a",
+      userId: "user-a",
+      eveSessionId: "wrun_A",
+      title: null,
+    });
+
+    expect(result.wasCreated).toBe(false);
+    expect(sessionCreateMock).not.toHaveBeenCalled();
   });
 
   it("refuses to take over one already recorded elsewhere", async () => {

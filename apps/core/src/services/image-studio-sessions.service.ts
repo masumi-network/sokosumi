@@ -45,6 +45,10 @@ const sessionSelect = {
  * an unbound id was therefore treated as ownership, so a leaked id from an
  * older conversation could be attached to the attacker's own project and read.
  *
+ * Reports whether this call created the record. A repeat for the same project
+ * is the agent retrying an `operationId` creation onto a conversation it
+ * already owns, whose first message has already been delivered.
+ *
  * @throws 409 if the id is already bound elsewhere — a second claim on a
  * conversation is never a legitimate creation.
  */
@@ -53,7 +57,7 @@ export async function registerCreatedSession(options: {
   userId: string;
   eveSessionId: string;
   title: string | null;
-}): Promise<SessionView> {
+}): Promise<SessionView & { wasCreated: boolean }> {
   const access = await requireProjectAccessForUser({
     projectId: options.projectId,
     userId: options.userId,
@@ -69,10 +73,13 @@ export async function registerCreatedSession(options: {
     if (existing.projectId !== access.projectId) {
       throw conflict("That conversation is already recorded elsewhere.");
     }
-    return await touchSession(existing.id);
+    // Not created by this call. The agent uses that to tell an `operationId`
+    // retry from a first creation, so it does not deliver the conversation's
+    // first message a second time.
+    return { ...(await touchSession(existing.id)), wasCreated: false };
   }
 
-  return await prisma.projectImageSession.create({
+  const session = await prisma.projectImageSession.create({
     data: {
       projectId: access.projectId,
       workspaceId: access.workspaceId,
@@ -82,6 +89,7 @@ export async function registerCreatedSession(options: {
     },
     select: sessionSelect,
   });
+  return { ...session, wasCreated: true };
 }
 
 export async function touchSession(sessionId: string): Promise<SessionView> {

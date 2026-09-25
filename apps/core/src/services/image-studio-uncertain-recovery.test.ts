@@ -111,7 +111,7 @@ function uncertainJob(overrides: Record<string, unknown> = {}) {
     cancelRequestedAt: null,
     createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000),
     submittedAt: new Date(Date.now() - 8 * 60 * 60 * 1000),
-    unreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
+    statusUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
     asset: null,
     ...overrides,
   };
@@ -120,7 +120,7 @@ function uncertainJob(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   jobUpdateManyMock.mockResolvedValue({ count: 1 });
-  jobUpdateMock.mockResolvedValue({ unreachableSince: null });
+  jobUpdateMock.mockResolvedValue({ statusUnreachableSince: null });
   jobFindManyMock.mockResolvedValue([]);
   requireProjectAccessForUserMock.mockResolvedValue({
     projectId: "project-1",
@@ -174,13 +174,13 @@ describe("the grace period", () => {
   it("bounds the outage, not the age of the request", async () => {
     // Eight hours old, but this is the first read that failed.
     jobFindUniqueMock.mockResolvedValue(
-      uncertainJob({ status: "QUEUED", unreachableSince: null }),
+      uncertainJob({ status: "QUEUED", statusUnreachableSince: null }),
     );
     fetchQueueStatusMock.mockResolvedValue({
       kind: "unreachable",
       message: "socket hang up",
     });
-    jobUpdateMock.mockResolvedValue({ unreachableSince: null });
+    jobUpdateMock.mockResolvedValue({ statusUnreachableSince: null });
 
     await reconcileJob("job-1");
 
@@ -188,10 +188,10 @@ describe("the grace period", () => {
     expect(written.some((data) => data.status === "SUBMISSION_UNCERTAIN")).toBe(
       false,
     );
-    // The clock starts instead.
-    expect(written.some((data) => data.unreachableSince instanceof Date)).toBe(
-      true,
-    );
+    // This dependency's clock starts instead.
+    expect(
+      written.some((data) => data.statusUnreachableSince instanceof Date),
+    ).toBe(true);
   });
 
   it("says what was actually unreachable", async () => {
@@ -200,7 +200,7 @@ describe("the grace period", () => {
       new Error("connection pool timeout"),
     );
     jobUpdateMock.mockResolvedValue({
-      unreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
+      authUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
     });
 
     await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
@@ -222,10 +222,12 @@ describe("the grace period", () => {
     await reconcileJob("job-1");
 
     const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
-    expect(
-      written.some(
-        (data) => data.unreachableSince === null && data.pollFailures === 0,
-      ),
-    ).toBe(true);
+    // Only the dependency that answered is cleared.
+    expect(written.some((data) => data.statusUnreachableSince === null)).toBe(
+      true,
+    );
+    expect(written.some((data) => data.authUnreachableSince === null)).toBe(
+      false,
+    );
   });
 });

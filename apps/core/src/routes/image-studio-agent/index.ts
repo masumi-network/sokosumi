@@ -1,8 +1,5 @@
 import { Hono } from "hono";
 
-import { getEnv } from "@/config/env";
-import { requireProjectAccessForUser } from "@/lib/image-studio/access";
-import { verifyAgentGrant } from "@/lib/image-studio/agent-grant";
 import {
   assetContentPath,
   createImageJobRequestSchema,
@@ -18,10 +15,9 @@ import {
   DEFAULT_SETTINGS,
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
-import {
-  authorizeAgentSession,
-  registerCreatedSession,
-} from "@/services/image-studio-sessions.service";
+import { authorizeAgentSession } from "@/services/image-studio-sessions.service";
+
+import { authorizeAgentGrant as authorize } from "./authorize";
 
 /**
  * The surface the image-studio agent calls.
@@ -37,46 +33,6 @@ import {
  * bytes. Approval is a human decision, and the bytes have one authorized
  * route which requires a browser session.
  */
-
-interface GrantContext {
-  userId: string;
-  projectId: string;
-  workspaceId: string;
-}
-
-async function authorize(request: Request): Promise<GrantContext | Response> {
-  const secret = getEnv().IMAGE_STUDIO_AGENT_SECRET;
-  if (!secret) {
-    // No secret configured means the agent surface is off, not open.
-    return Response.json(
-      { ok: false, error: "not_configured" },
-      { status: 503 },
-    );
-  }
-  const header = request.headers.get("authorization") ?? "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!token) {
-    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
-  // "agent": only the agent may spend a grant here. The token Web mints for
-  // the browser carries a different audience, so a page cannot call this
-  // surface directly and bypass the agent.
-  const verified = verifyAgentGrant(token, secret, "agent");
-  if (!verified.ok) {
-    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
-  // The grant says who; the database says whether they may. Still true even
-  // when the grant is seconds old.
-  const access = await requireProjectAccessForUser({
-    projectId: verified.claims.projectId,
-    userId: verified.claims.userId,
-  });
-  return {
-    userId: access.userId,
-    projectId: access.projectId,
-    workspaceId: access.workspaceId,
-  };
-}
 
 const app = new Hono();
 
@@ -97,37 +53,6 @@ app.post("/access", async (c) => {
   const context = await authorize(c.req.raw);
   if (context instanceof Response) return context;
   return c.json({ ok: true });
-});
-
-/**
- * Record a conversation the agent has just created.
- *
- * The agent calls this inside the create request, before the new session id
- * has been returned to anybody. Only the agent can reach this surface — the
- * browser's token carries a different audience — so reaching it is itself the
- * proof of creation that possession of an id never was.
- */
-app.post("/sessions", async (c) => {
-  const context = await authorize(c.req.raw);
-  if (context instanceof Response) return context;
-
-  const body = (await c.req.json().catch(() => null)) as {
-    eveSessionId?: unknown;
-    title?: unknown;
-  } | null;
-  const eveSessionId =
-    typeof body?.eveSessionId === "string" ? body.eveSessionId.trim() : "";
-  if (!eveSessionId || eveSessionId.length > 200) {
-    return c.json({ ok: false, error: "invalid_input" }, 400);
-  }
-
-  const session = await registerCreatedSession({
-    projectId: context.projectId,
-    userId: context.userId,
-    eveSessionId,
-    title: typeof body?.title === "string" ? body.title.slice(0, 200) : null,
-  });
-  return c.json({ ok: true, sessionId: session.id });
 });
 
 app.post("/sessions/:eveSessionId/authorize", async (c) => {

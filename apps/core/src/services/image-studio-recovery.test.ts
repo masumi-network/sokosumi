@@ -136,7 +136,7 @@ beforeEach(() => {
   jobUpdateManyMock.mockResolvedValue({ count: 1 });
   // `noteUnreachable` reads these back to decide whether the grace period has
   // run out, so the default stands for "sent a moment ago".
-  jobUpdateMock.mockResolvedValue({ unreachableSince: new Date() });
+  jobUpdateMock.mockResolvedValue({ statusUnreachableSince: new Date() });
   requireProjectAccessForUserMock.mockResolvedValue({
     projectId: "project-1",
     workspaceId: "workspace-1",
@@ -285,7 +285,7 @@ describe("a download that fails after the provider produced the image", () => {
       userId: "user-1",
     });
     downloadImageMock.mockRejectedValue(new Error("connection reset"));
-    jobUpdateMock.mockResolvedValue({ unreachableSince: new Date() });
+    jobUpdateMock.mockResolvedValue({ statusUnreachableSince: new Date() });
 
     await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
 
@@ -315,7 +315,7 @@ describe("the unreachable grace period", () => {
     });
     // Forty failures, but the outage only began a minute ago.
     jobUpdateMock.mockResolvedValue({
-      unreachableSince: new Date(Date.now() - 60_000),
+      statusUnreachableSince: new Date(Date.now() - 60_000),
     });
 
     await reconcileJob("job-1");
@@ -335,7 +335,7 @@ describe("the unreachable grace period", () => {
     });
     // The outage itself has now run for seven hours.
     jobUpdateMock.mockResolvedValue({
-      unreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
+      statusUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
     });
 
     await reconcileJob("job-1");
@@ -358,7 +358,7 @@ describe("an access check that cannot answer", () => {
         code: "P1001",
       }),
     );
-    jobUpdateMock.mockResolvedValue({ unreachableSince: new Date() });
+    jobUpdateMock.mockResolvedValue({ statusUnreachableSince: new Date() });
 
     await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
 

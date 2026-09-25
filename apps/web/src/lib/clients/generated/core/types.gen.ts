@@ -24177,6 +24177,100 @@ export type GetHistoryResponses = {
 
 export type GetHistoryResponse = GetHistoryResponses[keyof GetHistoryResponses];
 
+export type PostImageStudioAgentSessionsData = {
+    body: {
+        eveSessionId: string;
+        title?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/image-studio-agent/sessions';
+};
+
+export type PostImageStudioAgentSessionsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostImageStudioAgentSessionsError = PostImageStudioAgentSessionsErrors[keyof PostImageStudioAgentSessionsErrors];
+
+export type PostImageStudioAgentSessionsResponses = {
+    /**
+     * Conversation recorded
+     */
+    201: {
+        data: {
+            sessionId: string;
+            created: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostImageStudioAgentSessionsResponse = PostImageStudioAgentSessionsResponses[keyof PostImageStudioAgentSessionsResponses];
+
 export type GetUsersRegisteredData = {
     body?: never;
     path?: never;

@@ -147,7 +147,7 @@ describe("the settlement lease", () => {
       for (const key of ["settleLeaseAt", "settleLeaseOwner"]) {
         if (key in data) touched.push(key);
       }
-      return { unreachableSince: new Date() };
+      return { statusUnreachableSince: new Date() };
     });
     jobFindUniqueMock.mockResolvedValue({ ...JOB, status: "QUEUED" });
     fetchQueueStatusMock.mockResolvedValue({
@@ -174,7 +174,7 @@ describe("the settlement lease", () => {
       return { count: 1 };
     });
     downloadImageMock.mockRejectedValue(new Error("connection reset"));
-    jobUpdateMock.mockResolvedValue({ unreachableSince: null });
+    jobUpdateMock.mockResolvedValue({ statusUnreachableSince: null });
 
     await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
 

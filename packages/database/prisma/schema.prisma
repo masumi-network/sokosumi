@@ -4313,17 +4313,24 @@ model ProjectImageJob {
   ///
   /// A transport failure says nothing about the job, so it must not settle it.
   pollFailures  Int       @default(0)
-  /// When the current run of unreachable reads began; cleared by any read that
-  /// gets through.
+  /// When each dependency's current outage began, one column per dependency;
+  /// each is cleared by a read that gets through to *that* dependency.
   ///
   /// The outage is what the grace period bounds, not the age of the request.
-  /// Measuring from `submittedAt` meant a job that had been queued for hours
-  /// was written off by its first failed read.
-  unreachableSince DateTime?
-  /// What could not be reached — the provider, or our own database. Display
-  /// only, but the distinction matters: telling somebody the provider was
-  /// unreachable for six hours when one database lookup failed is a lie.
-  unreachableSource String?
+  /// Measuring from `submittedAt` meant a job queued for hours was written off
+  /// by its first failed read.
+  ///
+  /// Tracked separately because these fail independently. A single shared
+  /// timestamp meant a healthy queue-status read reset a continuing result or
+  /// authorization outage — so a job could be reconciled forever without its
+  /// real failure ever reaching the grace period — and a newly failing
+  /// dependency inherited the previous one's start time, reporting a first
+  /// failed provider read as a seven-hour provider outage.
+  statusUnreachableSince DateTime?
+  resultUnreachableSince DateTime?
+  authUnreachableSince   DateTime?
+  /// Which dependency the current `error` describes. Display only.
+  unreachableSource      String?
   /// Why the last reconcile could not reach the provider. Display only.
   lastPollError String?
 

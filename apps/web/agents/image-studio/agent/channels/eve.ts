@@ -93,19 +93,30 @@ const studioToken: AuthFn<Request> = withAuthChallenges(
 const base = eveChannel({ auth: [studioToken] });
 
 /**
- * Record every conversation this channel creates, before its id is returned.
+ * Create the conversation, record it, and only then let its first turn run.
  *
  * Ownership is established here, by the agent, using the principal the auth
  * policy just verified — not later, and not by the browser. The id eve mints
- * is not known to anyone else until this handler answers, so binding inside
- * the create request is what makes the binding mean "this caller created it".
+ * is not known to anyone else until this handler answers, so recording it
+ * inside the create request is what makes the binding mean "this caller
+ * created it".
  *
- * Failing to record it fails the creation. A conversation Core does not know
- * about cannot be streamed, resumed or listed, and leaving one behind is
- * exactly the unbound session that used to be claimable by whoever learned
- * its id.
+ * The order matters as much as the recording. eve's `createSession` starts the
+ * initial workflow *with* the message before it returns the session id, so
+ * wrapping it and registering afterwards meant a failed registration returned
+ * "could not be started, try again" about a conversation whose first turn was
+ * already running — unlisted, unresumable, and inviting a retry that would
+ * dispatch the same text into a second session. Splitting creation from the
+ * first message removes that window: the session is created empty, recorded
+ * durably, and the message is then delivered through this channel's own send
+ * route, which re-authorizes it against the binding we just wrote.
+ *
+ * So a 503 from here is honest. Nothing has executed, and retrying is free.
  */
-function recordOnCreate(handler: RouteHandler): RouteHandler {
+function recordOnCreate(
+  handler: RouteHandler,
+  sendToSession: RouteHandler,
+): RouteHandler {
   return async (request: Request, context: never) => {
     const header = request.headers.get("authorization") ?? "";
     const claims = header.startsWith("Bearer ")
@@ -113,7 +124,25 @@ function recordOnCreate(handler: RouteHandler): RouteHandler {
       : null;
     if (!claims) return new Response(null, { status: 401 });
 
-    const response = await handler(request, context);
+    const submitted = (await request
+      .clone()
+      .json()
+      .catch(() => null)) as Record<string, unknown> | null;
+    // Everything except the thing that would execute.
+    const { message: _message, ...withoutMessage } = submitted ?? {};
+    const firstMessage =
+      typeof submitted?.message === "string" ? submitted.message : null;
+
+    const response = await handler(
+      firstMessage === null
+        ? request
+        : new Request(request.url, {
+            method: request.method,
+            headers: request.headers,
+            body: JSON.stringify(withoutMessage),
+          }),
+      context,
+    );
     // Only the HTTP create route is wrapped; the union also covers WebSocket
     // upgrades, which carry no session id to record.
     if (!(response instanceof Response)) return response;
@@ -122,14 +151,13 @@ function recordOnCreate(handler: RouteHandler): RouteHandler {
     const body = (await response
       .clone()
       .json()
-      .catch(() => null)) as {
-      sessionId?: unknown;
-    } | null;
+      .catch(() => null)) as { sessionId?: unknown } | null;
     const sessionId =
       typeof body?.sessionId === "string" ? body.sessionId : null;
     if (!sessionId) return response;
 
-    if (!(await registerCreatedSession(claims, sessionId))) {
+    const registration = await registerCreatedSession(claims, sessionId);
+    if (!registration.recorded) {
       return Response.json(
         {
           ok: false,
@@ -137,6 +165,29 @@ function recordOnCreate(handler: RouteHandler): RouteHandler {
         },
         { status: 503 },
       );
+    }
+
+    // `created: false` means eve handed back a session this caller already
+    // owns — an `operationId` retry. Its first message was delivered by the
+    // attempt that created it, and delivering it again is the duplicate turn
+    // this whole arrangement exists to avoid.
+    if (firstMessage === null || !registration.created) return response;
+
+    const delivered = await sendToSession(
+      new Request(
+        `${new URL(request.url).origin}/eve/v1/session/${sessionId}`,
+        {
+          method: "POST",
+          headers: request.headers,
+          body: JSON.stringify({ message: firstMessage }),
+        },
+      ),
+      { ...(context as object), params: { sessionId } } as never,
+    );
+    if (delivered instanceof Response && delivered.status >= 300) {
+      // The conversation exists and is recorded; the message did not go. Say
+      // so with the send's own status rather than claiming creation failed.
+      return delivered;
     }
     return response;
   };
@@ -147,13 +198,21 @@ type RouteHandler = (
   context: never,
 ) => Promise<Response | unknown>;
 
+const sendRoute = base.routes.find(
+  (route: { path: string; method?: string }) =>
+    route.path === "/eve/v1/session/:sessionId" && route.method === "POST",
+);
+
 export default {
   ...base,
   routes: base.routes.map((route) =>
     route.path === "/eve/v1/session" && route.method === "POST"
       ? {
           ...route,
-          handler: recordOnCreate(route.handler as RouteHandler),
+          handler: recordOnCreate(
+            route.handler as RouteHandler,
+            sendRoute?.handler as RouteHandler,
+          ),
         }
       : route,
   ),

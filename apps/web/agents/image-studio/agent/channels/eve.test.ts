@@ -77,23 +77,37 @@ function createRequest(body: unknown): Request {
 
 /** Stands in for eve's session runtime; records what it was asked to do. */
 function creationContext(sessionId = "wrun_new") {
-  const calls: unknown[] = [];
+  const calls: Array<Record<string, unknown>> = [];
+  const sent: string[] = [];
   return {
     calls,
+    sent,
     ctx: {
-      __eveRouteSessionCreator: async (input: unknown) => {
+      __eveRouteSessionCreator: async (input: Record<string, unknown>) => {
         calls.push(input);
         return { sessionId };
       },
+      attachSession: (id: string) => ({
+        send: async (message: string) => {
+          sent.push(message);
+          return { status: "accepted", sessionId: id, deliveryId: "d1" };
+        },
+      }),
     },
   };
+}
+
+/** What the creation runtime was actually handed to execute. */
+function executedInput(call: Record<string, unknown> | undefined): unknown {
+  const input = call?.input as Record<string, unknown> | undefined;
+  return input?.message;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   authorizeProjectAccessMock.mockResolvedValue(true);
   authorizeSessionMock.mockResolvedValue(true);
-  registerMock.mockResolvedValue(true);
+  registerMock.mockResolvedValue({ recorded: true, created: true });
 });
 
 describe("creating a conversation", () => {
@@ -130,7 +144,7 @@ describe("creating a conversation", () => {
   });
 
   it("fails the creation if the conversation could not be recorded", async () => {
-    registerMock.mockResolvedValue(false);
+    registerMock.mockResolvedValue({ recorded: false, created: false });
     const { ctx } = creationContext();
 
     const response = await route("/eve/v1/session", "POST").handler(
@@ -206,5 +220,93 @@ describe("an existing conversation", () => {
 
     expect(response.status).toBe(200);
     expect(attached).toBe(1);
+  });
+});
+
+describe("the conversation's first message", () => {
+  it("is not dispatched until the conversation is durably recorded", async () => {
+    // eve's createSession starts the initial workflow *with* the message
+    // before it returns the session id, so registering afterwards meant a
+    // failed registration reported "could not be started, try again" about a
+    // turn that was already running.
+    const order: string[] = [];
+    registerMock.mockImplementation(async () => {
+      order.push("registered");
+      return { recorded: true, created: true };
+    });
+    const { ctx, calls, sent } = creationContext("wrun_ordered");
+    const inner = ctx.__eveRouteSessionCreator;
+    ctx.__eveRouteSessionCreator = async (input: Record<string, unknown>) => {
+      order.push("created");
+      return await inner(input);
+    };
+    const attach = ctx.attachSession;
+    ctx.attachSession = (id: string) => {
+      const session = attach(id);
+      return {
+        send: async (message: string) => {
+          order.push("dispatched");
+          return await session.send(message);
+        },
+      };
+    };
+
+    const response = await route("/eve/v1/session", "POST").handler(
+      createRequest({ message: "first message" }),
+      ctx,
+    );
+
+    expect(response.status).toBeLessThan(300);
+    expect(order).toEqual(["created", "registered", "dispatched"]);
+    // The creation itself carried nothing executable.
+    expect(executedInput(calls[0])).toBeUndefined();
+    expect(sent).toEqual(["first message"]);
+  });
+
+  it("does not run at all when the conversation cannot be recorded", async () => {
+    registerMock.mockResolvedValue({ recorded: false, created: false });
+    const { ctx, calls, sent } = creationContext();
+
+    const response = await route("/eve/v1/session", "POST").handler(
+      createRequest({ message: "retry me" }),
+      ctx,
+    );
+
+    expect(response.status).toBe(503);
+    // A session was created, but it is empty: nothing executed, so the 503's
+    // invitation to retry is honest and costs nothing.
+    expect(sent).toEqual([]);
+    expect(executedInput(calls[0])).toBeUndefined();
+  });
+
+  it("is not delivered again for a conversation already recorded", async () => {
+    // `created: false` is how Core reports an `operationId` retry landing on a
+    // session this caller already owns. Its first message was delivered by the
+    // attempt that created it, and sending it again is the duplicate turn this
+    // arrangement exists to avoid. (The branch is driven directly here; eve's
+    // own operationId dedupe is not exercised by this test.)
+    registerMock.mockResolvedValue({ recorded: true, created: false });
+    const { ctx, sent } = creationContext("wrun_same");
+
+    const response = await route("/eve/v1/session", "POST").handler(
+      createRequest({ message: "same message" }),
+      ctx,
+    );
+
+    expect(response.status).toBeLessThan(300);
+    expect(sent).toEqual([]);
+  });
+
+  it("still creates an empty conversation when none was sent", async () => {
+    const { ctx, sent } = creationContext();
+
+    const response = await route("/eve/v1/session", "POST").handler(
+      createRequest({}),
+      ctx,
+    );
+
+    expect(response.status).toBeLessThan(300);
+    expect(registerMock).toHaveBeenCalledTimes(1);
+    expect(sent).toEqual([]);
   });
 });

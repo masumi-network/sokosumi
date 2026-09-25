@@ -217,3 +217,21 @@ export const imageStudioListSchema = z
 export function assetContentPath(projectId: string, assetId: string): string {
   return `/v1/projects/${projectId}/image-studio/assets/${assetId}/content`;
 }
+
+/** Body of the agent's session registration call. */
+export const registerImageStudioSessionRequestSchema = z.object({
+  /** The id eve minted for the session the agent has just created. */
+  eveSessionId: z.string().min(1).max(200),
+  title: z.string().max(200).nullish(),
+});
+
+/** What the agent needs back to decide whether to deliver the first message. */
+export const registerImageStudioSessionSchema = z.object({
+  sessionId: z.string().uuid(),
+  /**
+   * True when this call created the record. False means the agent is retrying
+   * an `operationId` creation onto a conversation it already owns, whose first
+   * message has already been delivered.
+   */
+  created: z.boolean(),
+});

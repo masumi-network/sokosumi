@@ -255,6 +255,24 @@ const LIVE_STATUSES = [
 ] as const;
 
 /**
+ * The rows a bounded provider-recovery sweep may usefully pick up.
+ *
+ * Live *and* holding a provider request id. Without an id there is nothing to
+ * ask the provider, so `reconcileJob` returns immediately and never touches
+ * the row's ordering timestamp — which meant a handful of such rows sat at the
+ * head of `updatedAt asc` forever and consumed the whole batch, starving every
+ * job that could actually have made progress. They stay in the table, and the
+ * no-resubmission fence still covers them; they are simply not candidates for
+ * a sweep whose only tool is a provider read.
+ */
+function recoverableSelection() {
+  return {
+    status: { in: [...LIVE_STATUSES] },
+    falRequestId: { not: null },
+  };
+}
+
+/**
  * Take the exclusive right to settle this job.
  *
  * Reuses `submitLeaseAt`: a job being settled is past submission, so the field
@@ -510,7 +528,7 @@ export async function reconcileJob(jobId: string): Promise<void> {
   // the provider's own callback — finish it. Only a run of failures long
   // enough to be structural gives up.
   if (status.kind === "unreachable") {
-    await noteUnreachable(job.id, status.message);
+    await noteUnreachable(job.id, status.message, "status");
     return;
   }
 
@@ -518,7 +536,9 @@ export async function reconcileJob(jobId: string): Promise<void> {
     where: { id: job.id },
     data: { polledAt: new Date() },
   });
-  await noteReachable(job.id);
+  // Only the status read got through. A continuing result or authorization
+  // failure keeps its own elapsed time.
+  await noteReachable(job.id, "status");
 
   switch (status.kind) {
     case "in_queue":
@@ -579,9 +599,10 @@ export async function reconcileJob(jobId: string): Promise<void> {
   });
   if (result.kind === "pending") return;
   if (result.kind === "unreachable") {
-    await noteUnreachable(job.id, result.message);
+    await noteUnreachable(job.id, result.message, "result");
     return;
   }
+  await noteReachable(job.id, "result");
   if (result.kind === "error") {
     await failJob(job.id, result.message);
     return;
@@ -602,24 +623,52 @@ export async function reconcileJob(jobId: string): Promise<void> {
  */
 const UNREACHABLE_GRACE_MS = 6 * 60 * 60 * 1000;
 
-/** What we could not reach. The distinction is visible to the reader. */
-type UnreachableSource = "provider" | "authorization";
+/**
+ * Which dependency a read needed.
+ *
+ * These fail independently, so each keeps its own clock. `status` is the queue
+ * status read, `result` the result fetch and image download, `authorization`
+ * our own ownership lookup.
+ */
+type UnreachableSource = "status" | "result" | "authorization";
+
+/** The column holding each dependency's outage start. */
+const OUTAGE_COLUMN = {
+  status: "statusUnreachableSince",
+  result: "resultUnreachableSince",
+  authorization: "authUnreachableSince",
+} as const satisfies Record<UnreachableSource, string>;
+
+/** How the reader is told which dependency let them down. */
+const OUTAGE_WORDING: Record<UnreachableSource, (hours: number) => string> = {
+  status: (hours) =>
+    `The provider could not be reached for this request for ${hours} hours`,
+  result: (hours) =>
+    `The provider produced an image we could not fetch for ${hours} hours`,
+  authorization: (hours) =>
+    `Could not confirm who this image belongs to for ${hours} hours`,
+};
 
 /**
- * Record a read that never arrived.
+ * Record a read that never arrived, against the dependency that failed.
  *
  * Never settles the job on its own, and never touches the settlement lease —
- * it does not hold it. It gives up only once *this outage* has run for
- * {@link UNREACHABLE_GRACE_MS}, and even then the job stays recoverable: the
- * provider may still have the image, and {@link LIVE_STATUSES} keeps polling
- * and settlement open to it.
+ * it does not hold it. It gives up only once *this dependency's* outage has
+ * run for {@link UNREACHABLE_GRACE_MS}, and even then the job stays
+ * recoverable: {@link LIVE_STATUSES} keeps polling and settlement open to it.
+ *
+ * Per dependency because a shared clock reported the wrong thing twice over.
+ * A newly failing dependency inherited the previous one's start time, so the
+ * first failed provider read after a long authorization outage was announced
+ * as a seven-hour provider outage.
  */
 async function noteUnreachable(
   jobId: string,
   message: string,
-  source: UnreachableSource = "provider",
+  source: UnreachableSource = "status",
 ): Promise<void> {
   const now = new Date();
+  const column = OUTAGE_COLUMN[source];
   const updated = await prisma.projectImageJob.update({
     where: { id: jobId },
     data: {
@@ -628,48 +677,52 @@ async function noteUnreachable(
       lastPollError: message.slice(0, 500),
       unreachableSource: source,
     },
-    select: { unreachableSince: true },
+    select: { [column]: true } as Record<string, true>,
   });
 
-  // First failure of a run: start the clock and wait.
-  if (!updated.unreachableSince) {
+  const startedAt = (updated as Record<string, Date | null>)[column] ?? null;
+
+  // First failure of this dependency's current run: start its clock and wait.
+  if (!startedAt) {
     await prisma.projectImageJob.updateMany({
-      where: { id: jobId, unreachableSince: null },
-      data: { unreachableSince: now },
+      where: { id: jobId, [column]: null },
+      data: { [column]: now },
     });
     return;
   }
 
-  const outageMs = now.getTime() - updated.unreachableSince.getTime();
+  const outageMs = now.getTime() - startedAt.getTime();
   if (outageMs < UNREACHABLE_GRACE_MS) return;
 
+  const hours = Math.round(outageMs / 3_600_000);
   await prisma.projectImageJob.updateMany({
     where: { id: jobId, status: { in: [...LIVE_STATUSES] } },
     data: {
       // Not FAILED: this request was sent and may have been billed, so
       // offering a retry that looks free would be a lie. Not terminal either —
-      // this status stays pollable, so the image is still recoverable if the
-      // provider comes back with it.
+      // this status stays pollable, so the image is still recoverable.
       status: ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
-      error:
-        source === "authorization"
-          ? `Could not confirm who this image belongs to for ${Math.round(outageMs / 3_600_000)} hours (${message.slice(0, 200)}).`
-          : `The provider could not be reached for this request for ${Math.round(outageMs / 3_600_000)} hours (${message.slice(0, 200)}).`,
+      error: `${OUTAGE_WORDING[source](hours)} (${message.slice(0, 200)}).`,
       settledAt: now,
     },
   });
 }
 
-/** Any read that got through ends the outage. */
-async function noteReachable(jobId: string): Promise<void> {
+/**
+ * A read that got through ends *that dependency's* outage, and no other.
+ *
+ * A successful queue-status read used to clear the single shared clock, which
+ * meant a continuing result or authorization failure had its elapsed time
+ * reset on every ordinary reconcile and could never reach the grace period.
+ */
+async function noteReachable(
+  jobId: string,
+  source: UnreachableSource,
+): Promise<void> {
+  const column = OUTAGE_COLUMN[source];
   await prisma.projectImageJob.updateMany({
-    where: { id: jobId, unreachableSince: { not: null } },
-    data: {
-      unreachableSince: null,
-      unreachableSource: null,
-      pollFailures: 0,
-      lastPollError: null,
-    },
+    where: { id: jobId, [column]: { not: null } },
+    data: { [column]: null },
   });
 }
 
@@ -739,6 +792,7 @@ export async function settleWithImage(
       userId: job.requestedByUserId,
     });
     project = { id: access.projectId, workspaceId: access.workspaceId };
+    await noteReachable(job.id, "authorization");
   } catch (error) {
     if (!isAccessDenied(error)) {
       await releaseSettlementLease(job.id, lease);
@@ -789,6 +843,7 @@ export async function settleWithImage(
     await noteUnreachable(
       job.id,
       error instanceof Error ? error.message : "image download failed",
+      "result",
     );
     return;
   }
@@ -926,7 +981,10 @@ async function insertAsset(input: {
         error: null,
         settleLeaseAt: null,
         settleLeaseOwner: null,
-        unreachableSince: null,
+        // The job is done; no dependency is still owed a read.
+        statusUnreachableSince: null,
+        resultUnreachableSince: null,
+        authUnreachableSince: null,
         unreachableSource: null,
       },
     });
@@ -962,10 +1020,7 @@ export async function reconcileProjectJobs(projectId: string): Promise<void> {
     });
   });
   const pending = await prisma.projectImageJob.findMany({
-    where: {
-      projectId,
-      status: { in: [...LIVE_STATUSES] },
-    },
+    where: { projectId, ...recoverableSelection() },
     orderBy: { createdAt: "asc" },
     take: LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT,
     select: { id: true },
@@ -1007,9 +1062,7 @@ export async function reconcileStaleJobs(options: {
   const cancelled = await finaliseCancellations(options.limit);
   const stale = await prisma.projectImageJob.findMany({
     where: {
-      status: {
-        in: [...LIVE_STATUSES],
-      },
+      ...recoverableSelection(),
       updatedAt: { lt: new Date(Date.now() - options.olderThanMs) },
     },
     orderBy: { updatedAt: "asc" },

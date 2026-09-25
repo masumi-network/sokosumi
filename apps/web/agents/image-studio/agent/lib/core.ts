@@ -127,24 +127,29 @@ export async function authorizeProjectAccess(
 export async function registerCreatedSession(
   identity: AgentIdentity,
   eveSessionId: string,
-): Promise<boolean> {
+): Promise<{ recorded: boolean; created: boolean }> {
   try {
-    const response = await fetch(`${baseUrl()}/image-studio-agent/sessions`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${mintGrant(identity)}`,
-        "content-type": "application/json",
+    const response = await fetch(
+      `${baseUrl()}/v1/image-studio-agent/sessions`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${mintGrant(identity)}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ eveSessionId }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       },
-      body: JSON.stringify({ eveSessionId }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (!response.ok) return false;
+    );
+    if (!response.ok) return { recorded: false, created: false };
     const body = (await response.json().catch(() => null)) as {
-      ok?: boolean;
+      data?: { created?: boolean };
     } | null;
-    return body?.ok === true;
+    // `created: false` is an `operationId` retry landing on a session this
+    // caller already owns, which must not have its first message sent twice.
+    return { recorded: true, created: body?.data?.created === true };
   } catch {
-    return false;
+    return { recorded: false, created: false };
   }
 }
 
