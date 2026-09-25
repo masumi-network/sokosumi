@@ -143,11 +143,12 @@ function ScopePill({
 function useScopeShortcut(
   triggerRef: RefObject<HTMLButtonElement | null>,
   open: () => void,
+  isOpen: boolean,
   isApple: boolean,
 ) {
   useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented || event.repeat) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
       // AltGr arrives as Ctrl+Alt on Windows, so Ctrl rules it out too.
       if (!event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) {
         return;
@@ -156,6 +157,13 @@ function useScopeShortcut(
         ? event.code === SHORTCUT_CODE
         : event.key?.toLowerCase() === SHORTCUT_KEY;
       if (!matches) return;
+      // Open, the search has focus: a held or second Option+P would type "π"
+      // there and filter the list to nothing.
+      if (isOpen) {
+        event.preventDefault();
+        return;
+      }
+      if (event.repeat) return;
       if (isEditableKeyboardTarget(event.target)) return;
       if (
         event.target instanceof Element &&
@@ -169,9 +177,9 @@ function useScopeShortcut(
       event.preventDefault();
       open();
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [triggerRef, open, isApple]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [triggerRef, open, isOpen, isApple]);
 }
 
 /** `header-center`, `sm` and up: the pill, its key, and a centred dialog. */
@@ -191,21 +199,16 @@ function CommandScopeDesktop() {
       origin instanceof HTMLElement && origin !== document.body ? origin : null;
     setOpen(true);
   }, []);
-  useScopeShortcut(triggerRef, openFromShortcut, isApple);
+  useScopeShortcut(triggerRef, openFromShortcut, open, isApple);
 
-  function changeOpen(nextOpen: boolean) {
-    if (nextOpen) shortcutOriginRef.current = null;
-    setOpen(nextOpen);
-  }
-
-  function closeAfterChoice() {
+  function handleChoice() {
     shortcutOriginRef.current = null;
     setOpen(false);
   }
 
   return (
     <>
-      <Dialog open={open} onOpenChange={changeOpen}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <ScopePill
             ref={triggerRef}
@@ -236,7 +239,7 @@ function CommandScopeDesktop() {
             selectedProjectId={scope.projectId}
             onSelect={scope.select}
             onCreate={scope.openCreate}
-            onDone={closeAfterChoice}
+            onDone={handleChoice}
             className={DIALOG_MENU_CLASS}
           />
         </DialogContent>

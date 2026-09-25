@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -65,8 +66,9 @@ vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
 import { commandSlots } from "./variant-command";
 
 const ALT_P = { altKey: true, code: "KeyP", key: "p" };
+const OPTION_P = { altKey: true, code: "KeyP", key: "π" };
 
-function setup() {
+function setup(extra?: ReactNode) {
   const Desktop = commandSlots["header-center"];
   if (!Desktop) throw new Error("No header-center slot");
   render(
@@ -76,6 +78,7 @@ function setup() {
       <div role="menu">
         <button type="button">menu item</button>
       </div>
+      {extra}
       <Desktop />
     </>,
   );
@@ -85,8 +88,9 @@ function setup() {
   };
 }
 
+/** The switcher by name: some tests render another dialog beside it. */
 function dialog() {
-  return screen.queryByRole("dialog");
+  return screen.queryByRole("dialog", { name: "switchLabel" });
 }
 
 beforeEach(() => {
@@ -102,14 +106,28 @@ afterEach(() => {
 describe("CommandScopeDesktop shortcut", () => {
   it("opens on Alt+KeyP", () => {
     const { origin } = setup();
-    fireEvent.keyDown(origin, ALT_P);
+    // false: the handler cancelled the key.
+    expect(fireEvent.keyDown(origin, ALT_P)).toBe(false);
     expect(dialog()).not.toBeNull();
   });
 
-  it("opens on Option+KeyP on Apple, which types π", () => {
+  it("opens on Option+KeyP on Apple and cancels the π it would type", () => {
     mocks.isApple = true;
     const { origin } = setup();
-    fireEvent.keyDown(origin, { altKey: true, code: "KeyP", key: "π" });
+    expect(fireEvent.keyDown(origin, OPTION_P)).toBe(false);
+    expect(dialog()).not.toBeNull();
+  });
+
+  it.each([
+    ["a held Option+P", { ...OPTION_P, repeat: true }],
+    ["a second Option+P", OPTION_P],
+  ])("cancels %s while open, so the search types no π", (_name, init) => {
+    mocks.isApple = true;
+    const { origin } = setup();
+    fireEvent.keyDown(origin, OPTION_P);
+    const inside = screen.getByRole("button", { name: "choose" });
+
+    expect(fireEvent.keyDown(inside, init)).toBe(false);
     expect(dialog()).not.toBeNull();
   });
 
@@ -154,7 +172,10 @@ describe("CommandScopeDesktop shortcut", () => {
 
   it("ignores a key typed into an editable field", () => {
     setup();
-    fireEvent.keyDown(screen.getByRole("textbox", { name: "field" }), ALT_P);
+    const field = screen.getByRole("textbox", { name: "field" });
+    // true: the field still types the character, held or not.
+    expect(fireEvent.keyDown(field, ALT_P)).toBe(true);
+    expect(fireEvent.keyDown(field, { ...ALT_P, repeat: true })).toBe(true);
     expect(dialog()).toBeNull();
   });
 
@@ -163,6 +184,19 @@ describe("CommandScopeDesktop shortcut", () => {
     fireEvent.keyDown(screen.getByRole("button", { name: "menu item" }), ALT_P);
     expect(dialog()).toBeNull();
   });
+
+  it.each(["dialog", "alertdialog"])(
+    "ignores a key pressed inside role=%s",
+    (role) => {
+      setup(
+        <div role={role}>
+          <button type="button">inner</button>
+        </div>,
+      );
+      fireEvent.keyDown(screen.getByRole("button", { name: "inner" }), ALT_P);
+      expect(dialog()).toBeNull();
+    },
+  );
 
   it("ignores the key while the pill is hidden", () => {
     const { origin, pill } = setup();
