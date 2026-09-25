@@ -215,6 +215,16 @@ test("coworkers api-key requires an id", async () => {
       }),
     /coworker id is required/,
   );
+  await assert.rejects(
+    () =>
+      runCoworkersCommand({
+        client: clientWith({ data: {} }),
+        stdout: { write() {} },
+        subcommand: "api-key",
+        options: { "coworker-id": "cw-1" },
+      }),
+    /coworker id is required/,
+  );
 });
 
 test("coworkers update patches the coworker and returns it", async () => {
@@ -254,6 +264,16 @@ test("coworkers update requires an id and rejects a vendor id", async () => {
         stdout: { write() {} },
         subcommand: "update",
         options: { name: "x" },
+      }),
+    /coworker id is required/,
+  );
+  await assert.rejects(
+    () =>
+      runCoworkersCommand({
+        client,
+        stdout: { write() {} },
+        subcommand: "update",
+        options: { "coworker-id": "cw-1", name: "x" },
       }),
     /coworker id is required/,
   );
@@ -304,7 +324,7 @@ test("coworkers api-key mints a key and returns the full token", async () => {
     json: true,
     subcommand: "api-key",
     positionalId: "cw-1",
-    options: { name: "ci" },
+    options: { "api-key-name": "ci" },
   });
   assert.equal(path, "/v1/coworkers/cw-1/api-keys");
   assert.equal(body?.name, "ci");
@@ -385,7 +405,7 @@ test("coworkers api-key text output masks the token", async () => {
     stdout: { write: (value) => output.push(value) },
     subcommand: "api-key",
     positionalId: "cw-1",
-    options: { name: "ci" },
+    options: { "api-key-name": "ci" },
   });
   const text = output.join("");
   assert.doesNotMatch(text, /soko_secret_value/);
