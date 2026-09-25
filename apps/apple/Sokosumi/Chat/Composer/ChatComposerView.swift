@@ -20,7 +20,8 @@ import UniformTypeIdentifiers
     @State private var quotedLink: QuotedLink?
     @State private var insertion: ComposerInsertion?
     @State private var pasteGeneration = 0
-    @StateObject private var uploads: ComposeUploads
+    @EnvironmentObject private var uploads: ComposeUploads
+    @EnvironmentObject private var attachmentIngress: ComposerAttachmentIngress
 
     /// A pasted Message link that became the pending quote.
     private struct QuotedLink {
@@ -43,7 +44,6 @@ import UniformTypeIdentifiers
       let savedDraft = SavedComposeDraft(userId: userId, organizationId: organizationId, roomId: roomId, parentMessageId: parentMessageId)
       self.savedDraft = savedDraft
       _draft = State(initialValue: savedDraft.load())
-      _uploads = StateObject(wrappedValue: ComposeUploads(savedDraft: savedDraft))
     }
 
     private var composerPlaceholder: String {
@@ -64,9 +64,14 @@ import UniformTypeIdentifiers
       workspaces.directStream.roomId == roomId
     }
 
+    private var canAttachFiles: Bool {
+      workspaces.canAttachFiles(roomId: roomId) && uploads.uploadingName == nil && !attachmentIngress.isReceiving
+    }
+
     private var canSend: Bool {
       preparedContent.canSend(quoted: pendingQuote != nil && !requiresBody)
         && uploads.uploadingName == nil
+        && !attachmentIngress.isReceiving
         && (uploads.attachments.isEmpty || workspaces.canAttachFiles(roomId: roomId))
         && !workspaces.directStream.isBusy
         && workspaces.transcriptRoomId == roomId
@@ -82,7 +87,7 @@ import UniformTypeIdentifiers
         editor
         if preparedContent.isTooLong, !draft.isEmpty, workspaces.canAttachFiles(roomId: roomId) {
           Button("Attach message as Markdown file") { attachOverflow() }
-            .disabled(uploads.uploadingName != nil)
+            .disabled(!canAttachFiles)
         }
       }
       .fileImporter(isPresented: $filePickerPresented, allowedContentTypes: [.data], allowsMultipleSelection: true) { result in
@@ -95,16 +100,10 @@ import UniformTypeIdentifiers
         DriveFilePickerView(load: { folder, query in
           try await workspaces.driveItems(folder: folder, query: query, roomId: roomId, auth: auth)
         }, select: { attachment in
-          guard workspaces.canAttachFiles(roomId: roomId) else { return }
+          guard canAttachFiles else { return }
           uploads.add(attachment)
         })
       }
-      .dropDestination(for: URL.self) { files, _ in
-        guard workspaces.canAttachFiles(roomId: roomId), uploads.uploadingName == nil else { return false }
-        attachFiles(files)
-        return true
-      }
-      .onDisappear { Task { @MainActor in uploads.cancel() } }
       .padding([.horizontal, .bottom], 8)
       .background(.background)
       .onChange(of: workspaces.directStream.restoredDraft, initial: true) { _, _ in
@@ -132,8 +131,10 @@ import UniformTypeIdentifiers
       if workspaces.canAttachFiles(roomId: roomId) {
         input.attach = { filePickerPresented = true }
         input.attachFromDrive = { drivePickerPresented = true }
+        input.attachmentsEnabled = canAttachFiles
         input.attachFiles = { files in attachFiles(files) }
         input.attachImage = { data in attachImage(data) }
+        input.attachmentDragChanged = { attachmentIngress.isEditorTargeted = $0 }
       }
       return input
     }
@@ -164,7 +165,7 @@ import UniformTypeIdentifiers
     }
 
     private func attachFiles(_ files: [URL]) {
-      guard workspaces.canAttachFiles(roomId: roomId) else { return }
+      guard canAttachFiles else { return }
       uploads.upload(files) { file in
         try await workspaces.uploadAttachment(file, roomId: roomId, auth: auth)
       }
@@ -186,7 +187,7 @@ import UniformTypeIdentifiers
     }
 
     private func attachTemporary(_ data: Data, filename: String, completed: (() -> Void)? = nil) {
-      guard workspaces.canAttachFiles(roomId: roomId), uploads.uploadingName == nil else { return }
+      guard canAttachFiles else { return }
       uploads.upload(data, filename: filename, using: { file in
         try await workspaces.uploadAttachment(file, roomId: roomId, auth: auth)
       }, completed: completed)
