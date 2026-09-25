@@ -30,8 +30,8 @@ export type ScopeSlotPlace =
 
 /** What a mount point knows that the client cannot: server-only gates. */
 export interface ScopeSlotProps {
-  /** Calendar and Social exist only for Calendar beta users. */
-  calendarBeta?: boolean;
+  /** Social exists only for Social beta users. */
+  socialBeta?: boolean;
 }
 
 /** The pieces one variant renders, keyed by mount point. */

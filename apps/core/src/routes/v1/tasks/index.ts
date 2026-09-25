@@ -13,6 +13,7 @@ import mountPatchTaskLink from "./[id]/links/[linkId]/patch.js";
 import mountGetTaskLinks from "./[id]/links/get.js";
 import mountPostTaskLink from "./[id]/links/post.js";
 import mountDeleteTaskParticipant from "./[id]/participants/[userId]/delete.js";
+import mountPostTaskParticipant from "./[id]/participants/post.js";
 import mountPatchTask from "./[id]/patch.js";
 import mountDeleteTaskShareById from "./[id]/share/delete.js";
 import mountPutTaskShareById from "./[id]/share/put.js";
@@ -20,6 +21,7 @@ import mountGetTaskWorkspace from "./[id]/workspace/get.js";
 import mountPutTaskWorkspace from "./[id]/workspace/put.js";
 import mountPostTaskX402Payment from "./[id]/x402-payments/post.js";
 import mountGetTasks from "./get.js";
+import mountLegacyVendorSchedules from "./legacy-vendor-schedules/index.js";
 import mountMovedTaskScheduleRoutes from "./moved-schedule-routes.js";
 import mountPostTask from "./post.js";
 import mountDeleteTaskScheduleById from "./schedules/[id]/delete.js";
@@ -40,6 +42,8 @@ const app = new OpenAPIHonoWithAuth({
   requireOrganizationProductSeat: true,
 });
 
+// Temporary middleware in front of the routes below; see its index.
+mountLegacyVendorSchedules(app);
 mountGetTasks(app);
 // Before the `/{id}` routes so the literal path cannot be read as a task id.
 mountGetTaskSummary(app);
@@ -60,6 +64,7 @@ mountGetTaskLinks(app);
 mountPostTaskLink(app);
 mountDeleteTaskLink(app);
 mountPatchTaskLink(app);
+mountPostTaskParticipant(app);
 mountDeleteTaskParticipant(app);
 mountGetTaskById(app);
 mountPatchTask(app);

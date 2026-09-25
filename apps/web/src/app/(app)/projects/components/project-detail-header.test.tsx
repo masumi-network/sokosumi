@@ -96,19 +96,19 @@ describe("ProjectDetailHeader", () => {
     expect(back.className).not.toContain("hidden");
   });
 
-  it("hands the project-header slot the Calendar beta gate", () => {
+  it("hands the project-header slot the Social beta gate", () => {
     render(
       <ProjectDetailHeader
         projectName="Example project"
         backLabel="Back"
         metadata={[]}
-        calendarBeta
+        socialBeta
       />,
     );
 
     expect(mocks.scopeSlot).toHaveBeenLastCalledWith({
       place: "project-header",
-      calendarBeta: true,
+      socialBeta: true,
     });
   });
 

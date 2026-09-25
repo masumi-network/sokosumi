@@ -9,8 +9,8 @@ import {
 } from "@/app/projects/components/social-posts/constants";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import { PROJECTS_DETAIL_SHELL_CLASS } from "@/app/projects/constants";
-import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { projectService } from "@/lib/services/project.service";
+import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 // Wait for the current session and project access before rendering this page.
 export const instant = false;
@@ -23,7 +23,7 @@ export default async function ProjectSocialPage({
   params,
 }: ProjectSocialPageProps) {
   await connection();
-  if (!(await hasCurrentUserCalendarBetaAccess())) {
+  if (!(await hasCurrentUserSocialBetaAccess())) {
     notFound();
   }
 
@@ -52,8 +52,8 @@ export default async function ProjectSocialPage({
   return (
     <div className={PROJECTS_DETAIL_SHELL_CLASS}>
       <ProjectDetailHeader
-        // The page turns away anyone without Calendar beta.
-        calendarBeta
+        // The page turns away anyone without Social beta.
+        socialBeta
         backHref={`/projects/${project.id}`}
         backLabel={t("backToProject")}
         metadata={[

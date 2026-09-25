@@ -23,6 +23,8 @@ import SwiftUI
       let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
       ReplyThreadContent(messages: prepared?.overlaying(input.messages) ?? [], preparedTranscript: prepared,
                          preparationScope: input.scope, preparedHasMore: preparedHasMore)
+        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: workspaces.transcriptRoomId ?? "", parentMessageId: workspaces.thread.parent?.id))
+        .id([workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? ""])
         .onChange(of: workspaces.thread.timeline.hasMore) { _, hasMore in
           if preparedTranscript?.input == input {
             preparedHasMore = hasMore

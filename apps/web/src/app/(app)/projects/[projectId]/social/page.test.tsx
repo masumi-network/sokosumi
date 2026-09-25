@@ -1,12 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const hasCurrentUserCalendarBetaAccessMock = vi.fn();
+const hasCurrentUserSocialBetaAccessMock = vi.fn();
 const getProjectByIdMock = vi.fn();
 const listSocialPostsMock = vi.fn();
 const listSocialConnectionsMock = vi.fn();
 const projectSocialPostsMock = vi.fn();
 const projectSocialAccountsMock = vi.fn();
+const scopeSlotMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -28,10 +29,23 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
+vi.mock("@/lib/social-beta-access.server", () => ({
+  hasCurrentUserSocialBetaAccess: () => hasCurrentUserSocialBetaAccessMock(),
 }));
+
+// SOK-1202 harness: the hub's project header gets the Social beta gate.
+vi.mock(
+  "@/app/components/project-scope/variants/scope-slot",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/app/components/project-scope/variants/scope-slot")
+    >()),
+    ScopeSlot: (props: Record<string, unknown>) => {
+      scopeSlotMock(props);
+      return null;
+    },
+  }),
+);
 
 vi.mock("@/lib/services/project.service", () => ({
   projectService: {
@@ -81,14 +95,14 @@ function buildConnection(status: "active" | "disconnected", id: string) {
 describe("ProjectSocialPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
+    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(true);
     getProjectByIdMock.mockResolvedValue(PROJECT);
     listSocialPostsMock.mockResolvedValue({ posts: [], nextCursor: null });
     listSocialConnectionsMock.mockResolvedValue([]);
   });
 
-  it("does not load Project data outside the Calendar beta", async () => {
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
+  it("does not load Project data outside the Social beta", async () => {
+    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
 
     await expect(
       ProjectSocialPage({ params: Promise.resolve({ projectId: PROJECT.id }) }),
@@ -127,6 +141,11 @@ describe("ProjectSocialPage", () => {
     );
 
     expect(getProjectByIdMock).toHaveBeenCalledWith(PROJECT.id);
+    // Only Social beta readers get this far.
+    expect(scopeSlotMock).toHaveBeenLastCalledWith({
+      place: "project-header",
+      socialBeta: true,
+    });
     expect(listSocialPostsMock).toHaveBeenCalledTimes(3);
     expect(listSocialPostsMock).toHaveBeenCalledWith(PROJECT.id, {
       statuses: ["DRAFT"],

@@ -114,16 +114,12 @@ import { TestQueryProvider } from "@/test/query-provider";
 
 let sidebarIsMobile = true;
 
-function renderMenu(
-  hasAssignedSeat = true,
-  calendarMenuEnabled = false,
-  isMobile = true,
-) {
+function renderMenu(hasAssignedSeat = true, isMobile = true) {
   sidebarIsMobile = isMobile;
   return render(
     <TestQueryProvider>
       <OrganizationSeatContext value={hasAssignedSeat}>
-        <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
+        <MenuItems />
       </OrganizationSeatContext>
     </TestQueryProvider>,
   );
@@ -207,19 +203,8 @@ describe("MenuItems search action", () => {
     expect(screen.getByRole("link", { name: /projects/i })).toBeInTheDocument();
   });
 
-  it("shows Calendar only to Calendar beta users", () => {
-    const { rerender } = renderMenu();
-
-    expect(screen.queryByRole("link", { name: /calendar/i })).toBeNull();
-
-    sidebarIsMobile = true;
-    rerender(
-      <TestQueryProvider>
-        <OrganizationSeatContext value={true}>
-          <MenuItems calendarMenuEnabled />
-        </OrganizationSeatContext>
-      </TestQueryProvider>,
-    );
+  it("shows Calendar to everyone", () => {
+    renderMenu();
 
     expect(screen.getByRole("link", { name: /calendar/i })).toHaveAttribute(
       "href",
@@ -227,7 +212,7 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("shows Schedules to everyone, without the Calendar beta", () => {
+  it("shows Schedules to everyone", () => {
     renderMenu();
 
     expect(screen.getByRole("link", { name: /schedules/i })).toHaveAttribute(
@@ -237,13 +222,13 @@ describe("MenuItems search action", () => {
   });
 
   it("hides Files from the main menu on mobile", () => {
-    renderMenu(true, true, true);
+    renderMenu(true, true);
 
     expect(screen.queryByRole("link", { name: /drive/i })).toBeNull();
   });
 
   it("shows Files after Calendar on desktop", () => {
-    const { container } = renderMenu(true, true, false);
+    const { container } = renderMenu(true, false);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
     );
@@ -271,7 +256,7 @@ describe("MenuItems search action", () => {
   });
 
   it("orders primary destinations Search, Agents, Projects, Tasks, Schedules, Calendar, History", () => {
-    const { container } = renderMenu(true, true);
+    const { container } = renderMenu(true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
     );
@@ -296,7 +281,7 @@ describe("MenuItems search action", () => {
   it("keeps the separator under New Task on the collapsed rail", () => {
     const { container } = render(
       <TestQueryProvider>
-        <MenuItems calendarMenuEnabled={false} />
+        <MenuItems />
       </TestQueryProvider>,
     );
     const separator = container.querySelector('li[aria-hidden="true"]');
@@ -317,7 +302,7 @@ describe("MenuItems search action", () => {
   it("leaves only the icon in the flow on the collapsed rail, so the square centres it", () => {
     render(
       <TestQueryProvider>
-        <MenuItems calendarMenuEnabled={false} />
+        <MenuItems />
       </TestQueryProvider>,
     );
     const link = screen.getByRole("link", { name: "exploreAgents" });
@@ -342,7 +327,7 @@ describe("MenuItems search action", () => {
   });
 
   it("keeps the New Task pill's inset and padding across the collapse", () => {
-    renderMenu(true, true, false);
+    renderMenu(true, false);
     const pill = document.querySelector("[data-sidebar-new-task]");
     // The rail square's own 4px inset and padding, at every width, so the
     // collapse narrows the pill without sliding its edge.
@@ -358,7 +343,7 @@ describe("MenuItems search action", () => {
   });
 
   it("gives every menu item its label as a hover hint for the collapsed rail", () => {
-    renderMenu(true, true, false);
+    renderMenu(true, false);
 
     expect(
       screen.getAllByTestId("menu-tooltip").map((hint) => hint.textContent),
@@ -451,7 +436,7 @@ describe("MenuItems under a SOK-1202 scope variant", () => {
 
   it("keeps today's Projects row and plain links on the baseline", () => {
     searchRef.current = "projectId=p-1";
-    const { container } = renderMenu(true, false, false);
+    const { container } = renderMenu(true, false);
 
     expect(linkTo(container, "projects")).toHaveAttribute("href", "/projects");
     // The flyout is the row's hover hint, so it carries no tooltip.
@@ -472,7 +457,7 @@ describe("MenuItems under a SOK-1202 scope variant", () => {
 
   it("keeps a plain Projects link for the hub, its only way in", () => {
     searchRef.current = "variant=hub";
-    const { container } = renderMenu(true, false, false);
+    const { container } = renderMenu(true, false);
 
     expect(linkTo(container, "projects")).toHaveAttribute("href", "/projects");
     // A plain row, not today's flyout: it names itself in a tooltip.

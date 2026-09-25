@@ -51,10 +51,6 @@ interface MenuItemConfig {
   separatorAfter?: boolean;
 }
 
-interface MenuItemsProps {
-  calendarMenuEnabled: boolean;
-}
-
 /**
  * The Projects row: today's flyout, a plain link to the list (the hub variant
  * has no other way in), or gone because a switcher replaces it.
@@ -72,21 +68,20 @@ const UNSCOPED = {
  * replaces the Projects row. The unscoped list holds the place while the
  * search params resolve.
  */
-export default function MenuItems(props: MenuItemsProps) {
+export default function MenuItems() {
   return (
-    <Suspense fallback={<MenuItemsList {...props} {...UNSCOPED} />}>
-      <ScopedMenuItems {...props} />
+    <Suspense fallback={<MenuItemsList {...UNSCOPED} />}>
+      <ScopedMenuItems />
     </Suspense>
   );
 }
 
-function ScopedMenuItems(props: MenuItemsProps) {
+function ScopedMenuItems() {
   const { hrefFor } = useProjectScope();
   const variant = useScopeVariant();
-  if (variant === "current") return <MenuItemsList {...props} {...UNSCOPED} />;
+  if (variant === "current") return <MenuItemsList {...UNSCOPED} />;
   return (
     <MenuItemsList
-      {...props}
       hrefFor={hrefFor}
       projectsRow={variant === "hub" ? "link" : "none"}
     />
@@ -94,10 +89,9 @@ function ScopedMenuItems(props: MenuItemsProps) {
 }
 
 function MenuItemsList({
-  calendarMenuEnabled,
   hrefFor,
   projectsRow,
-}: MenuItemsProps & {
+}: {
   hrefFor: (href: string) => string;
   projectsRow: ProjectsRow;
 }) {
@@ -179,16 +173,12 @@ function MenuItemsList({
       label: t("schedules"),
       Icon: Repeat,
     },
-    ...(calendarMenuEnabled
-      ? [
-          {
-            key: "calendar",
-            href: "/calendar",
-            label: t("calendar"),
-            Icon: CalendarDays,
-          },
-        ]
-      : []),
+    {
+      key: "calendar",
+      href: "/calendar",
+      label: t("calendar"),
+      Icon: CalendarDays,
+    },
     // Desktop only: mobile keeps Files on the You page account surface.
     ...(!isMobile
       ? [

@@ -32,8 +32,8 @@ interface ProjectDetailHeaderProps {
   metadata: ProjectDetailHeaderMetadataItem[];
   showBackOnMobile?: boolean;
   actions?: React.ReactNode;
-  /** Calendar beta access, which decides the hub variant's section tabs. */
-  calendarBeta?: boolean;
+  /** Social beta access, which decides the hub variant's section tabs. */
+  socialBeta?: boolean;
 }
 
 export function ProjectDetailHeader({
@@ -45,13 +45,13 @@ export function ProjectDetailHeader({
   metadata,
   showBackOnMobile = false,
   actions,
-  calendarBeta = false,
+  socialBeta = false,
 }: ProjectDetailHeaderProps) {
   const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
 
   return (
     <div className="space-y-4">
-      <ScopeSlot place="project-header" calendarBeta={calendarBeta} />
+      <ScopeSlot place="project-header" socialBeta={socialBeta} />
       {/* A switcher replaces the way back to the list, not to the project. */}
       <MaybeOldWay replaced={backHref === "/projects"}>
         <Link

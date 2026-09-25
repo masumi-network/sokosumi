@@ -46,7 +46,7 @@ interface Section {
   href: string;
 }
 
-function projectSections(projectId: string, calendarBeta: boolean): Section[] {
+function projectSections(projectId: string, socialBeta: boolean): Section[] {
   const projectPath = `/projects/${encodeURIComponent(projectId)}`;
   const sections: Section[] = [
     { key: "overview", href: projectPath },
@@ -58,24 +58,22 @@ function projectSections(projectId: string, calendarBeta: boolean): Section[] {
     { key: "history", href: scopedHref("/history", projectId) },
     { key: "social", href: `${projectPath}/social` },
   ];
-  // Both pages turn away readers without Calendar beta.
-  return calendarBeta
-    ? sections
-    : sections.filter(({ key }) => key !== "calendar" && key !== "social");
+  // The Social page turns away readers without Social beta.
+  return socialBeta ? sections : sections.filter(({ key }) => key !== "social");
 }
 
 /**
  * SOK-1202 "hub": the project header carries the switcher and the project's
  * sections. The workspace sections open the scoped workspace page.
  */
-export function HubProjectHeader({ calendarBeta = false }: ScopeSlotProps) {
+export function HubProjectHeader({ socialBeta = false }: ScopeSlotProps) {
   const { projectId } = useProjectScope();
   if (!projectId) return null;
 
   return (
     <div className="space-y-2">
       <HubProjectSwitcher />
-      <HubSectionNav projectId={projectId} calendarBeta={calendarBeta} />
+      <HubSectionNav projectId={projectId} socialBeta={socialBeta} />
     </div>
   );
 }
@@ -200,14 +198,14 @@ function revealTab(list: HTMLElement, tab: Element) {
 
 function HubSectionNav({
   projectId,
-  calendarBeta,
+  socialBeta,
 }: {
   projectId: string;
-  calendarBeta: boolean;
+  socialBeta: boolean;
 }) {
   const t = useTranslations("App.ProjectScope");
   const pathname = usePathname();
-  const sections = projectSections(projectId, calendarBeta);
+  const sections = projectSections(projectId, socialBeta);
   const listRef = useRef<HTMLUListElement>(null);
   // The tab that had focus last, kept while focus leaves the window.
   const lastFocusRef = useRef<Element | null>(null);

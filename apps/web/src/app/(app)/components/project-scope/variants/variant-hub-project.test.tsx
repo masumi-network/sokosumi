@@ -64,13 +64,13 @@ import {
   revealDelta,
 } from "./variant-hub-project";
 
-function renderHeader(calendarBeta?: boolean) {
+function renderHeader(socialBeta?: boolean) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   render(
     <QueryClientProvider client={client}>
-      <HubProjectHeader calendarBeta={calendarBeta} />
+      <HubProjectHeader socialBeta={socialBeta} />
     </QueryClientProvider>,
   );
   return within(screen.getByRole("navigation", { name: "sections" }));
@@ -132,12 +132,12 @@ function stripLayout(element: HTMLElement): DOMRect {
 }
 
 /** Renders the header and lets the test move to another page. */
-function renderNav(calendarBeta = true) {
+function renderNav(socialBeta = true) {
   const client = new QueryClient();
   // A fresh element each time, or React skips the rerender.
   const view = () => (
     <QueryClientProvider client={client}>
-      <HubProjectHeader calendarBeta={calendarBeta} />
+      <HubProjectHeader socialBeta={socialBeta} />
     </QueryClientProvider>
   );
   const { rerender } = render(view());
@@ -179,7 +179,7 @@ function spyOnPageScrolls() {
 }
 
 describe("HubProjectHeader", () => {
-  it("lists every section, Calendar and Social included, with Calendar beta", () => {
+  it("lists every section, Social included, with Social beta", () => {
     const nav = renderHeader(true);
 
     expect(sectionLinks(nav)).toEqual([
@@ -194,13 +194,14 @@ describe("HubProjectHeader", () => {
     ]);
   });
 
-  it("drops Calendar and Social without Calendar beta", () => {
+  it("keeps Calendar but drops Social without Social beta", () => {
     const nav = renderHeader();
 
     expect(sectionLinks(nav).map(([name]) => name)).toEqual([
       "overview",
       "tasks",
       "schedules",
+      "calendar",
       "files",
       "history",
     ]);
@@ -221,7 +222,7 @@ describe("HubProjectHeader", () => {
     const client = new QueryClient();
     const { container } = render(
       <QueryClientProvider client={client}>
-        <HubProjectHeader calendarBeta />
+        <HubProjectHeader socialBeta />
       </QueryClientProvider>,
     );
 

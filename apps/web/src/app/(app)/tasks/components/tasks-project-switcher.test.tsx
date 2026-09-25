@@ -159,4 +159,43 @@ describe("TasksProjectSwitcher", () => {
       "/tasks?projectId=aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     );
   });
+
+  it("hides the closed trigger name below md while keeping accessible name and chrome", () => {
+    render(
+      <TasksProjectSwitcher
+        projectOptions={projectOptions}
+        selectedProjectId={RESEARCH_ID}
+        onProjectCreated={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole("combobox", { name: "Project" });
+    expect(trigger).toHaveAttribute("data-testid", "tasks-project-switcher");
+    expect(screen.getByTestId("project-avatar")).toBeInTheDocument();
+    expect(trigger.querySelector("svg.lucide-chevron-down")).toBeTruthy();
+
+    const nameLabel = trigger.querySelector("span.min-w-0");
+    expect(nameLabel).toHaveTextContent("Research");
+    expect(nameLabel?.className).toContain("hidden");
+    expect(nameLabel?.className).toContain("md:block");
+  });
+
+  it("hides the All projects label below md on the unscoped closed trigger", () => {
+    render(
+      <TasksProjectSwitcher
+        projectOptions={projectOptions}
+        selectedProjectId={null}
+        onProjectCreated={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole("combobox", { name: "Project" });
+    expect(trigger.querySelector("svg.lucide-folder")).toBeTruthy();
+    expect(trigger.querySelector("svg.lucide-chevron-down")).toBeTruthy();
+
+    const nameLabel = trigger.querySelector("span.min-w-0");
+    expect(nameLabel).toHaveTextContent("All projects");
+    expect(nameLabel?.className).toContain("hidden");
+    expect(nameLabel?.className).toContain("md:block");
+  });
 });

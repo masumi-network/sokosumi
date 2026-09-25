@@ -2,11 +2,13 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  hasCurrentUserCalendarBetaAccessMock,
+  hasCurrentUserSocialBetaAccessMock,
   projectServiceMock,
   notFoundMock,
+  scopeSlotMock,
 } = vi.hoisted(() => ({
-  hasCurrentUserCalendarBetaAccessMock: vi.fn(),
+  hasCurrentUserSocialBetaAccessMock: vi.fn(),
+  scopeSlotMock: vi.fn(),
   projectServiceMock: {
     getProjectCloseStatus: vi.fn(),
     getProjectById: vi.fn(),
@@ -33,14 +35,27 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
+vi.mock("@/lib/social-beta-access.server", () => ({
+  hasCurrentUserSocialBetaAccess: () => hasCurrentUserSocialBetaAccessMock(),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
 }));
+
+// SOK-1202 harness: the hub's project header gets the Social beta gate.
+vi.mock(
+  "@/app/components/project-scope/variants/scope-slot",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/app/components/project-scope/variants/scope-slot")
+    >()),
+    ScopeSlot: (props: Record<string, unknown>) => {
+      scopeSlotMock(props);
+      return null;
+    },
+  }),
+);
 
 vi.mock("@/app/projects/components/project-detail-actions", () => ({
   ProjectDetailActions: () => <div>Project actions</div>,
@@ -105,7 +120,7 @@ function buildProject() {
 describe("ProjectDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
+    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(true);
   });
 
   it("calls notFound without loading needs-attention when the project is missing", async () => {
@@ -302,9 +317,9 @@ describe("ProjectDetailPage", () => {
     );
   });
 
-  it("hides the Calendar card for non-beta sessions", async () => {
+  it("keeps the Calendar card but hides Social outside the beta", async () => {
     const project = buildProject();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
+    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
     projectServiceMock.getProjectById.mockResolvedValue(project);
     projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
       taskCount: 0,
@@ -320,15 +335,40 @@ describe("ProjectDetailPage", () => {
     render(html);
 
     expect(
-      screen.queryByRole("link", {
+      screen.getByRole("link", {
         name: "App.Projects.Detail.modules.calendar.title",
       }),
-    ).not.toBeInTheDocument();
+    ).toHaveAttribute("href", "/projects/project-1/calendar");
     expect(
       screen.queryByRole("link", {
         name: /App\.Projects\.Detail\.modules\.socialMedia\.title/i,
       }),
     ).not.toBeInTheDocument();
+    expect(scopeSlotMock).toHaveBeenLastCalledWith({
+      place: "project-header",
+      socialBeta: false,
+    });
+  });
+
+  it("hands the hub header Social beta access", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+    projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
+      taskCount: 0,
+      jobCount: 0,
+      items: [],
+    });
+
+    const { default: ProjectDetailPage } = await import("./page");
+    render(
+      await ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(scopeSlotMock).toHaveBeenLastCalledWith({
+      place: "project-header",
+      socialBeta: true,
+    });
   });
 
   it("renders Latest update above Briefing when a report exists", async () => {

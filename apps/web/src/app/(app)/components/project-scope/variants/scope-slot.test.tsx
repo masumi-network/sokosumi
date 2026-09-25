@@ -39,7 +39,7 @@ vi.mock("./variant-command", () => ({ commandSlots: {} }));
 vi.mock("./variant-header", () => ({ headerSlots: {} }));
 vi.mock("./variant-hub", () => ({
   hubSlots: {
-    "project-header": (props: { calendarBeta?: boolean }) => {
+    "project-header": (props: { socialBeta?: boolean }) => {
       mocks.hubHeaderSlot(props);
       return null;
     },
@@ -102,10 +102,10 @@ describe("ScopeSlot", () => {
   it("hands the active variant's piece the props of its mount point", () => {
     setPage("/projects/p-1", "variant=hub");
 
-    render(<ScopeSlot place="project-header" calendarBeta />);
+    render(<ScopeSlot place="project-header" socialBeta />);
 
     expect(mocks.hubHeaderSlot).toHaveBeenLastCalledWith({
-      calendarBeta: true,
+      socialBeta: true,
     });
   });
 });

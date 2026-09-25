@@ -147,7 +147,7 @@ function TasksProjectSwitcherChip({
               <Folder className="size-4 shrink-0" aria-hidden />
             )}
             <span
-              className="min-w-0 flex-1 truncate"
+              className="hidden min-w-0 flex-1 truncate md:block"
               title={selectedProject?.name ?? t("allProjects")}
             >
               {selectedProject?.name ?? t("allProjects")}

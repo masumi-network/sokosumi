@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { CalendarSourceType } from "@sokosumi/database";
-import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { notFound } from "@/helpers/error";
@@ -37,8 +36,8 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-    const userContext = await requireAuthorizedUserContext(c.var.authContext);
-    await requireCalendarBetaAccess(userContext.userId, prisma);
+    // Still an authorization check, even though nothing reads the context.
+    await requireAuthorizedUserContext(c.var.authContext);
     const workspaceId = workspaceContext.workspaceId;
     const isSchedulable = await canCreateTaskSchedules(c.var);
 
