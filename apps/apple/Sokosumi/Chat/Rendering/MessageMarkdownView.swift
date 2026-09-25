@@ -69,7 +69,22 @@ private struct MessageMarkdownContent: View {
         Text(source.trimmingCharacters(in: .whitespacesAndNewlines)).font(.system(size: emojiSize(count)))
       } else if let document = preparedDocument ?? document {
         ExpandableMessageBody(source: source, clampHeight: document.clampsLongBody) {
-          MarkdownBlocksView(blocks: document.blocks)
+          VStack(alignment: .leading, spacing: 8) {
+            ForEach(document.segments) { segment in
+              if segment.files.isEmpty {
+                MarkdownBlocksView(blocks: segment.blocks)
+              } else if segment.usesLargeImage, let file = segment.files.first {
+                MessageAttachmentView(attachment: file.attachment).id(file.attachment.url)
+              } else {
+                WrappingRow(alignment: .top, constrainsWidth: true) {
+                  ForEach(segment.files) { file in
+                    MessageAttachmentView(attachment: file.attachment, compact: true).id(file.attachment.url)
+                  }
+                }
+                .padding(.bottom, segment.files.last?.attachment.kind == .file ? 8 : 0)
+              }
+            }
+          }
         }
         .messageImageGallery(document.imageGallery)
       } else {

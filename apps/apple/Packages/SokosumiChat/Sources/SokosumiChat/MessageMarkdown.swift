@@ -11,8 +11,29 @@ public struct MessageMarkdownBlock: Identifiable, Equatable, Sendable {
   public fileprivate(set) var taskChecked: Bool?
 }
 
+/// The message's text blocks and whitespace-separated file runs, in source order.
+public struct MessageMarkdownSegment: Identifiable, Equatable, Sendable {
+  public let id: Int
+  public let blocks: [MessageMarkdownBlock]
+  public struct File: Identifiable, Equatable, Sendable {
+    /// The source link's offset distinguishes repeated URLs without losing occurrence order.
+    public let id: Int
+    public let attachment: MessageAttachment
+  }
+
+  public let files: [File]
+  public var attachments: [MessageAttachment] {
+    files.map(\.attachment)
+  }
+
+  public var usesLargeImage: Bool {
+    files.count == 1 && files[0].attachment.kind == .image
+  }
+}
+
 public struct MessageMarkdown: Equatable, Sendable {
   public let blocks: [MessageMarkdownBlock]
+  public let segments: [MessageMarkdownSegment]
   /// True unless some whitespace-only run of file links is exactly one image.
   public let clampsLongBody: Bool
   /// The images the body's viewer steps through.
@@ -25,9 +46,37 @@ public struct MessageMarkdown: Equatable, Sendable {
     var builder = MarkdownBlockBuilder(baseURL: baseURL)
     let built = document.children.flatMap { builder.blocks(for: $0) }.map { $0.resolving(mentions: mentions, channels: channels) }
     blocks = built
-    // Source gaps, not the parsed tree: a quote marker or list marker is not whitespace, but the tree drops it.
-    clampsLongBody = Self.longBodyClamps(scanning: linkified, blocks: built)
-    imageGallery = MessageImageGallery(blocks: built)
+    let runs = MarkdownBareDomains(linkified).attachmentRuns()
+    if runs.isEmpty {
+      segments = [MessageMarkdownSegment(id: 0, blocks: built, files: [])]
+    } else {
+      let characters = Array(linkified)
+      var cursor = 0
+      var rendered: [MessageMarkdownSegment] = []
+      func appendText(through end: Int) {
+        let source = String(characters[cursor ..< end])
+        guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let parsed = Markdown.Document(parsing: source)
+        let blocks = parsed.children.flatMap { builder.blocks(for: $0) }
+          .map { $0.resolving(mentions: mentions, channels: channels) }
+        rendered.append(MessageMarkdownSegment(id: cursor, blocks: blocks, files: []))
+      }
+      for run in runs {
+        appendText(through: run.range.lowerBound)
+        rendered.append(MessageMarkdownSegment(id: run.range.lowerBound, blocks: [], files: zip(run.offsets, run.attachments).map { .init(id: $0, attachment: $1) }))
+        cursor = run.range.upperBound
+      }
+      appendText(through: characters.count)
+      segments = rendered
+    }
+    // Rendering, clamping and the gallery share the same source runs. Parsed HTML images
+    // still participate through their text segment's native Markdown blocks.
+    clampsLongBody = runs.isEmpty
+      ? !Self.attachmentRows(in: built).contains { $0.count == 1 && $0[0].kind == .image }
+      : !segments.contains(where: \.usesLargeImage)
+    imageGallery = MessageImageGallery(segments.flatMap { segment in
+      segment.attachments + Self.attachmentRows(in: segment.blocks).flatMap(\.self)
+    })
   }
 }
 
