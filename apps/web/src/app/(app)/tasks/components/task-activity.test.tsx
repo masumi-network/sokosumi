@@ -1420,4 +1420,61 @@ describe("TaskActivitySection", () => {
     expect(row).toHaveAttribute("data-message-id", "latest-auth");
     expect(container.querySelectorAll("[data-message-id]").length).toBe(2);
   });
+
+  it("keeps expand control when older-page load fails", async () => {
+    loadOlderTaskActivityEventsMock.mockResolvedValue({
+      ok: false,
+      error: { code: "UNKNOWN", message: "nope" },
+    });
+
+    const events: TaskEvent[] = Array.from({ length: 3 }, (_, i) =>
+      createEvent(`c${i + 5}`, {
+        createdAt: `2026-01-01T1${i}:00:00.000Z`,
+        status: null,
+        comment: `Comment ${i + 5}`,
+      }),
+    );
+
+    render(
+      <TaskActivitySection {...baseProps} events={events} commentCount={8} />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Show 5 older comments/ }),
+    );
+
+    await waitFor(() => {
+      expect(loadOlderTaskActivityEventsMock).toHaveBeenCalled();
+    });
+
+    expect(
+      screen.getByRole("button", { name: /Show 5 older comments/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("jumps to an optimistic comment before refresh", async () => {
+    highlightListMessageMock.mockReturnValue(true);
+    createTaskCommentMock.mockImplementation(
+      () => new Promise(() => undefined),
+    );
+
+    render(<TaskActivitySection {...baseProps} latestCommentId="c-old" />);
+
+    act(() => {
+      markdownEditorProps.current?.onChange("Brand new");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Brand new")).toBeInTheDocument();
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Jump to recent" }),
+    );
+
+    expect(highlightListMessageMock).toHaveBeenCalled();
+    const targetId = highlightListMessageMock.mock.calls.at(-1)?.[1];
+    expect(String(targetId)).toMatch(/^optimistic:/);
+  });
 });

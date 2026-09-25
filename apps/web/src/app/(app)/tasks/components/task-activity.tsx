@@ -295,19 +295,20 @@ export function TaskActivitySection({
 
   useEffect(() => abortActiveUploads, [abortActiveUploads]);
 
-  const commentCount =
-    commentCountProp ??
-    localEvents.filter((event) => event.comment != null).length;
-  const latestCommentId =
-    latestCommentIdProp ??
+  const localCommentCount = localEvents.filter(
+    (event) => event.comment != null,
+  ).length;
+  // Prefer live local count when it outruns Core meta (optimistic append).
+  const commentCount = Math.max(commentCountProp ?? 0, localCommentCount);
+  const latestLocalCommentId =
     [...localEvents]
       .filter((event) => event.comment != null)
       .sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ||
           b.id.localeCompare(a.id),
-      )[0]?.id ??
-    null;
+      )[0]?.id ?? null;
+  const latestCommentId = latestLocalCommentId ?? latestCommentIdProp ?? null;
   const latestEventId = getLatestTaskEventId(localEvents);
   const feedItems = useMemo(
     () =>
@@ -380,9 +381,10 @@ export function TaskActivitySection({
           taskId,
           untilEventId: oldestLoaded.id,
         });
-        if (result.ok) {
-          setLocalEvents((prev) => mergeTaskActivityEvents(prev, result.value));
+        if (!result.ok) {
+          return;
         }
+        setLocalEvents((prev) => mergeTaskActivityEvents(prev, result.value));
         setCommentsExpanded(true);
       })();
     });
