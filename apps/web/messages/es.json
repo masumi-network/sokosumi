@@ -1831,10 +1831,11 @@
         "assignee": "Responsable",
         "schedule": "Programación",
         "privateSchedule": "Programación privada",
-        "participants": "Participantes",
+        "participantsList": "Participantes de la tarea",
+        "subscribe": "Suscribirse",
+        "unsubscribe": "Cancelar suscripción",
+        "subscribeError": "No se pudo suscribir. Inténtalo de nuevo.",
         "removeParticipant": "Quitar a {name}",
-        "removeParticipantConfirmTitle": "¿Quitar a {name}?",
-        "removeParticipantConfirmDescription": "Dejará de ser participante de esta tarea.",
         "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo."
       },
       "NewTask": {
