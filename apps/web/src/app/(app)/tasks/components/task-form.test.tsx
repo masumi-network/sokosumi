@@ -1530,6 +1530,42 @@ describe("TaskForm", () => {
     );
   });
 
+  it("keeps members unavailable for a queued task with member-only options", async () => {
+    const user = userEvent.setup();
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          mockCoworkerOption({
+            id: "user-1",
+            slug: "bob",
+            name: "Bob",
+            kind: "user",
+          }),
+        ]}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          assigneeId: "coworker-1",
+          status: TaskStatus.QUEUED,
+          runAt: RUN_AT_ISO,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+
+    expect(screen.queryByRole("option", { name: "Bob" })).toBeNull();
+    expect(screen.getByRole("option", { name: "Unassigned" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
   it.each([TaskStatus.DRAFT, TaskStatus.READY])(
     "sends a cleared Run at when reassigning a queued task to a human as %s",
     async (desiredStatus) => {

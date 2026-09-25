@@ -132,6 +132,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
   const [taskCoworkers, projectsPage, ownerBot] = await loadTasksPageData();
   const memberOptions =
     await listTaskAssigneeMemberOptions(activeOrganizationId);
+  // Core decides schedule eligibility; start that request before loading the board.
+  const coworkerOptionsPromise = listTaskAssigneeOptions(
+    activeOrganizationId,
+    memberOptions,
+  );
   const filters = parseTasksFilters(
     {
       scope,
@@ -294,10 +299,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           ]),
         ) as Record<KanbanColumnId, string | null>);
 
-  const coworkerOptions = await listTaskAssigneeOptions(
-    activeOrganizationId,
-    memberOptions,
-  );
+  const coworkerOptions = await coworkerOptionsPromise;
   const canCreateTask =
     await organizationSeatService.hasAssignedSeat(activeOrganizationId);
   const initialCreateTaskOpen = create === "true";
