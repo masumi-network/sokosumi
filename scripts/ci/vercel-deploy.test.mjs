@@ -23,6 +23,7 @@ import {
   runPreviewDeployComment,
   runPreviewDeployOpened,
   runPreviewFromGithubEvent,
+  settlePreviewDeployments,
   summarizeCliDeployResult,
   usageMessage,
   VERCEL_PROJECTS,
@@ -585,6 +586,81 @@ describe("pollDeploymentUntilSettled", () => {
         }),
       /did not finish/,
     );
+  });
+});
+
+describe("settlePreviewDeployments", () => {
+  // A job that ends early releases the per-PR queue while a Core build it
+  // started can still migrate, and a queued reset could then restore the
+  // branch under it.
+  function deferred() {
+    let resolve;
+    const promise = new Promise((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  }
+
+  async function settledBefore(promise, release) {
+    let done = false;
+    const watched = promise.then(
+      () => {
+        done = true;
+      },
+      () => {
+        done = true;
+      },
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    const early = done;
+    release();
+    await watched;
+    return early;
+  }
+
+  it("waits for every poll before it reports a failed one", async () => {
+    const core = deferred();
+    const run = settlePreviewDeployments({
+      networks: ["mainnet"],
+      git: {},
+      createDeployment: async ({ target }) => ({
+        id: target.app,
+        readyState: "BUILDING",
+      }),
+      pollDeployment: async (deployment) => {
+        if (deployment.id === "web") {
+          throw new Error("fetch failed");
+        }
+        await core.promise;
+        return { ...deployment, readyState: "READY" };
+      },
+    });
+    assert.equal(await settledBefore(run, core.resolve), false);
+    await assert.rejects(run, /fetch failed/);
+  });
+
+  it("polls the created deployments, then reports the first failure", async () => {
+    const core = deferred();
+    const polled = [];
+    const run = settlePreviewDeployments({
+      networks: ["mainnet"],
+      git: {},
+      createDeployment: async ({ target }) => {
+        if (target.app === "web") {
+          throw new Error("Vercel 500");
+        }
+        return { id: target.app, readyState: "BUILDING" };
+      },
+      pollDeployment: async (deployment) => {
+        polled.push(deployment.id);
+        await core.promise;
+        throw new Error("poll failed");
+      },
+    });
+    assert.equal(await settledBefore(run, core.resolve), false);
+    // web comes first in the target order, so its create error wins.
+    await assert.rejects(run, /Vercel 500/);
+    assert.deepEqual(polled, ["core"]);
   });
 });
 

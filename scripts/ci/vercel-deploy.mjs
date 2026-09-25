@@ -393,12 +393,23 @@ export async function settlePreviewDeployments(options) {
       }));
 
   const targets = deployTargets(networks, apps);
-  const created = await Promise.all(
+  // Wait for every deployment, also after one fails, so the job keeps the
+  // per-PR queue while a Core build it started can still migrate.
+  const created = await Promise.allSettled(
     targets.map((target) => create({ target, ...git })),
   );
-  const settled = await Promise.all(
-    created.map((deployment) => poll(deployment)),
+  const polled = await Promise.allSettled(
+    created.map((result) =>
+      result.status === "fulfilled"
+        ? poll(result.value)
+        : Promise.reject(result.reason),
+    ),
   );
+  const rejected = polled.find((result) => result.status === "rejected");
+  if (rejected) {
+    throw rejected.reason;
+  }
+  const settled = polled.map((result) => result.value);
   const failed = failedDeployments(targets, settled);
   if (failed.length > 0) {
     throw Object.assign(

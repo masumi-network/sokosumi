@@ -31,9 +31,11 @@ jobs:
       contains(github.event.comment.body, '/deploy') &&
       !(startsWith(github.event.comment.body, '/deploy') && contains(github.event.comment.body, '--reset-db'))
     # All three jobs share one group per PR. A Core build during a reset could
-    # migrate the branch before or after the restore. Every job in the group
-    # needs `queue: max`: with the default, a newer job cancels the one that
-    # waits, whichever job that is.
+    # migrate the branch before or after the restore. Each job waits for every
+    # deployment it starts, also after one fails. A build that outlasts the
+    # 15-minute poll limit, a create whose response is lost (no id to poll),
+    # or a cancelled job can still overlap a later reset. Every job in the group needs `queue: max`: with the default, a
+    # newer job cancels the one that waits, whichever job that is.
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
       cancel-in-progress: false
