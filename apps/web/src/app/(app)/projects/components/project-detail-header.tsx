@@ -1,8 +1,22 @@
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
+import {
+  ScopeOldWay,
+  ScopeSlot,
+} from "@/app/components/project-scope/variants/scope-slot";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { getHostname } from "@/lib/utils/url";
+
+function MaybeOldWay({
+  replaced,
+  children,
+}: {
+  replaced: boolean;
+  children: React.ReactNode;
+}) {
+  return replaced ? <ScopeOldWay>{children}</ScopeOldWay> : children;
+}
 
 interface ProjectDetailHeaderMetadataItem {
   label: string;
@@ -18,6 +32,8 @@ interface ProjectDetailHeaderProps {
   metadata: ProjectDetailHeaderMetadataItem[];
   showBackOnMobile?: boolean;
   actions?: React.ReactNode;
+  /** Social beta access, which decides the hub variant's section tabs. */
+  socialBeta?: boolean;
 }
 
 export function ProjectDetailHeader({
@@ -29,20 +45,25 @@ export function ProjectDetailHeader({
   metadata,
   showBackOnMobile = false,
   actions,
+  socialBeta = false,
 }: ProjectDetailHeaderProps) {
   const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
 
   return (
     <div className="space-y-4">
-      <Link
-        href={backHref}
-        className={`text-muted-foreground hover:text-foreground items-center gap-1.5 text-sm transition-colors ${
-          showBackOnMobile ? "inline-flex" : "hidden md:inline-flex"
-        }`}
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        <span>{backLabel}</span>
-      </Link>
+      <ScopeSlot place="project-header" socialBeta={socialBeta} />
+      {/* A switcher replaces the way back to the list, not to the project. */}
+      <MaybeOldWay replaced={backHref === "/projects"}>
+        <Link
+          href={backHref}
+          className={`text-muted-foreground hover:text-foreground items-center gap-1.5 text-sm transition-colors ${
+            showBackOnMobile ? "inline-flex" : "hidden md:inline-flex"
+          }`}
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          <span>{backLabel}</span>
+        </Link>
+      </MaybeOldWay>
 
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">

@@ -9,6 +9,7 @@ import {
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import { PROJECTS_CALENDAR_SHELL_CLASS } from "@/app/projects/constants";
 import { CreateTaskModalProvider } from "@/app/tasks/components/create-task-modal";
+import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 interface ProjectCalendarPageProps {
   params: Promise<{ projectId: string }>;
@@ -20,10 +21,11 @@ export default async function ProjectCalendarPage({
   searchParams,
 }: ProjectCalendarPageProps) {
   const { projectId } = await params;
-  const [page, t, formatter] = await Promise.all([
+  const [page, t, formatter, socialBeta] = await Promise.all([
     loadWorkspaceCalendarPage({ projectId, searchParams }),
     getTranslations("App.Projects.Detail"),
     getFormatter(),
+    hasCurrentUserSocialBetaAccess(),
   ]);
   const project = page.project;
   if (!project) {
@@ -34,6 +36,7 @@ export default async function ProjectCalendarPage({
     <CreateTaskModalProvider initialProjectId={project.id}>
       <div className={PROJECTS_CALENDAR_SHELL_CLASS}>
         <ProjectDetailHeader
+          socialBeta={socialBeta}
           backHref={`/projects/${project.id}`}
           backLabel={t("backToProject")}
           metadata={[

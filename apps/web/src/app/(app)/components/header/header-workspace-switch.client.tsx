@@ -1,21 +1,10 @@
 "use client";
 
 import type { SessionUser } from "@sokosumi/utils";
-import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
 import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,17 +13,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import useModal from "@/hooks/use-modal";
-import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
-import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import HeaderWorkspaceAvatar from "./header-workspace-avatar";
-
-type WorkspaceChoice = "personal" | "organization";
+import { HeaderWorkspaceLabel } from "./header-workspace-label";
+import { useCreateWorkspace } from "./use-create-workspace";
 
 interface HeaderWorkspaceSwitchProps {
   sessionUser: SessionUser;
@@ -130,78 +114,14 @@ export default function HeaderWorkspaceSwitch({
   const tOrganizationSwitcher = useTranslations(
     "Components.OrganizationSwitcher",
   );
-  const {
-    Component: CreateOrganizationModal,
-    showModal: showCreateOrganizationModal,
-  } = useModal(CreateOrganizationWizard);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isChoiceDialogOpen, setIsChoiceDialogOpen] = useState(false);
-  const [workspaceChoice, setWorkspaceChoice] =
-    useState<WorkspaceChoice>("personal");
-  const [isCreatingPersonal, setIsCreatingPersonal] = useState(false);
-  const tIdentity = useTranslations("WorkspaceGate.Identity");
-  const canCreatePersonal = !hasPersonalWorkspace;
-
-  async function activateCreatedPersonalWorkspace(): Promise<void> {
-    try {
-      await onSelectWorkspace(null);
-    } catch (error) {
-      console.error("Create personal workspace activation failed", error);
-      toast.error(tIdentity("personalActivateError"));
-    }
-  }
-
-  async function createAndActivatePersonal(): Promise<boolean> {
-    try {
-      const createResult = await createPersonalWorkspaceAction({});
-      if (!createResult.ok) {
-        if (
-          createResult.error.code ===
-          WorkspaceGateErrorCode.PERSONAL_WORKSPACE_ALREADY_EXISTS
-        ) {
-          await activateCreatedPersonalWorkspace();
-          return true;
-        }
-        console.error("Create personal workspace failed", createResult.error);
-        toast.error(tIdentity("personalCreateError"));
-        return false;
-      }
-      await activateCreatedPersonalWorkspace();
-      return true;
-    } catch (error) {
-      console.error("Create personal workspace failed", error);
-      toast.error(tIdentity("personalCreateError"));
-      return false;
-    }
-  }
+  const createWorkspace = useCreateWorkspace(onSelectWorkspace);
+  const { isCreatingPersonal } = createWorkspace;
 
   function handleOpenCreateWorkspace() {
     setIsDropdownOpen(false);
-    if (!canCreatePersonal) {
-      showCreateOrganizationModal();
-      return;
-    }
-    setWorkspaceChoice("personal");
-    setIsChoiceDialogOpen(true);
+    createWorkspace.start(!hasPersonalWorkspace);
   }
-
-  async function handleChoiceContinue() {
-    if (workspaceChoice === "organization") {
-      setIsChoiceDialogOpen(false);
-      showCreateOrganizationModal();
-      return;
-    }
-
-    setIsCreatingPersonal(true);
-    try {
-      if (await createAndActivatePersonal()) {
-        setIsChoiceDialogOpen(false);
-      }
-    } finally {
-      setIsCreatingPersonal(false);
-    }
-  }
-
   const personalWorkspace = useMemo<WorkspaceItem>(
     () => ({
       id: null,
@@ -245,7 +165,6 @@ export default function HeaderWorkspaceSwitch({
 
   return (
     <>
-      {CreateOrganizationModal}
       <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
         <DropdownMenuTrigger asChild>
           <button
@@ -259,35 +178,19 @@ export default function HeaderWorkspaceSwitch({
                 : tOrganizationSwitcher("switchWorkspace")
             }
           >
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-1.5">
-              {activeWorkspace ? (
-                <>
-                  <span className="max-w-24 truncate text-right leading-none font-medium md:max-w-none md:leading-tight">
-                    {activeWorkspace.name}
-                  </span>
-                  <HeaderWorkspaceAvatar
-                    sessionUser={sessionUser}
-                    organization={activeWorkspace.organization ?? null}
-                    className="size-4 shrink-0"
-                    logoSize={12}
-                    decorative
-                  />
-                </>
-              ) : (
-                <span
-                  data-testid="workspace-switcher-skeleton"
-                  className="col-span-2 flex items-center justify-end gap-1.5"
-                  aria-hidden
-                >
-                  <span className="bg-muted h-3 w-20 animate-pulse rounded-md" />
-                  <span className="bg-muted size-4 shrink-0 animate-pulse rounded-full" />
-                </span>
-              )}
-              <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 self-center md:row-span-2 md:size-4.5" />
-              <span className="text-muted-foreground col-span-2 col-start-1 max-md:hidden max-w-full truncate text-right text-xs leading-tight">
-                {sessionUser.email}
-              </span>
-            </div>
+            <HeaderWorkspaceLabel
+              name={activeWorkspace?.name ?? null}
+              email={sessionUser.email}
+              avatar={
+                <HeaderWorkspaceAvatar
+                  sessionUser={sessionUser}
+                  organization={activeWorkspace?.organization ?? null}
+                  className="size-4 shrink-0"
+                  logoSize={12}
+                  decorative
+                />
+              }
+            />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72" align="end">
@@ -331,87 +234,7 @@ export default function HeaderWorkspaceSwitch({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Dialog open={isChoiceDialogOpen} onOpenChange={setIsChoiceDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {tOrganizationSwitcher("createWorkspace")}
-            </DialogTitle>
-            <DialogDescription>{tIdentity("choiceHint")}</DialogDescription>
-          </DialogHeader>
-          <RadioGroup
-            value={workspaceChoice}
-            onValueChange={(value) => {
-              if (value === "personal" || value === "organization") {
-                setWorkspaceChoice(value);
-              }
-            }}
-            aria-label={tIdentity("choiceLabel")}
-            className="grid gap-3"
-            data-testid="workspace-switcher-create-choice"
-            disabled={isCreatingPersonal}
-          >
-            <Label
-              htmlFor="switcher-workspace-choice-personal"
-              className={cn(
-                "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                workspaceChoice === "personal" &&
-                  "border-primary bg-card-background",
-              )}
-            >
-              <RadioGroupItem
-                value="personal"
-                id="switcher-workspace-choice-personal"
-                className="mt-0.5"
-              />
-              <span className="space-y-1">
-                <span className="block text-sm font-medium">
-                  {tIdentity("personalTitle")}
-                </span>
-                <span className="text-muted-foreground block text-sm font-normal">
-                  {tIdentity("personalDescription")}
-                </span>
-              </span>
-            </Label>
-            <Label
-              htmlFor="switcher-workspace-choice-organization"
-              className={cn(
-                "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                workspaceChoice === "organization" &&
-                  "border-primary bg-card-background",
-              )}
-            >
-              <RadioGroupItem
-                value="organization"
-                id="switcher-workspace-choice-organization"
-                className="mt-0.5"
-              />
-              <span className="space-y-1">
-                <span className="block text-sm font-medium">
-                  {tIdentity("organizationTitle")}
-                </span>
-                <span className="text-muted-foreground block text-sm font-normal">
-                  {tIdentity("organizationDescription")}
-                </span>
-              </span>
-            </Label>
-          </RadioGroup>
-          <DialogFooter>
-            <Button
-              type="button"
-              disabled={isCreatingPersonal}
-              onClick={() => {
-                void handleChoiceContinue();
-              }}
-            >
-              {isCreatingPersonal ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
-              {tIdentity("continue")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {createWorkspace.dialogs}
     </>
   );
 }

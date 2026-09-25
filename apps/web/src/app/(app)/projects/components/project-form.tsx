@@ -16,7 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createProject, updateProject } from "@/lib/actions/project/action";
 
-export type ProjectCreationSource = "projects_page" | "task_form";
+export type ProjectCreationSource =
+  | "projects_page"
+  | "task_form"
+  | "project_switcher";
 
 export interface ProjectFormLabels {
   details: string;

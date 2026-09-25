@@ -7,11 +7,14 @@ const listSocialPostsMock = vi.fn();
 const listSocialConnectionsMock = vi.fn();
 const projectSocialPostsMock = vi.fn();
 const projectSocialAccountsMock = vi.fn();
+const scopeSlotMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
+  // SOK-1202 harness: the project header reads the scope variant.
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("next/server", () => ({
@@ -29,6 +32,20 @@ vi.mock("next-intl/server", async () => {
 vi.mock("@/lib/social-beta-access.server", () => ({
   hasCurrentUserSocialBetaAccess: () => hasCurrentUserSocialBetaAccessMock(),
 }));
+
+// SOK-1202 harness: the hub's project header gets the Social beta gate.
+vi.mock(
+  "@/app/components/project-scope/variants/scope-slot",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/app/components/project-scope/variants/scope-slot")
+    >()),
+    ScopeSlot: (props: Record<string, unknown>) => {
+      scopeSlotMock(props);
+      return null;
+    },
+  }),
+);
 
 vi.mock("@/lib/services/project.service", () => ({
   projectService: {
@@ -124,6 +141,11 @@ describe("ProjectSocialPage", () => {
     );
 
     expect(getProjectByIdMock).toHaveBeenCalledWith(PROJECT.id);
+    // Only Social beta readers get this far.
+    expect(scopeSlotMock).toHaveBeenLastCalledWith({
+      place: "project-header",
+      socialBeta: true,
+    });
     expect(listSocialPostsMock).toHaveBeenCalledTimes(3);
     expect(listSocialPostsMock).toHaveBeenCalledWith(PROJECT.id, {
       statuses: ["DRAFT"],

@@ -11,11 +11,15 @@ const listTaskAssigneeMemberOptionsMock = vi.fn();
 const workspaceCalendarMock = vi.fn();
 const calendarCreateTaskModalMock = vi.fn();
 const createTaskModalProviderMock = vi.fn();
+const hasCurrentUserSocialBetaAccessMock = vi.fn();
+const scopeSlotMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
+  // SOK-1202 harness: the project header reads the scope variant.
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("next/server", () => ({
@@ -77,6 +81,24 @@ vi.mock("@/lib/services/project.service", () => ({
   },
 }));
 
+vi.mock("@/lib/social-beta-access.server", () => ({
+  hasCurrentUserSocialBetaAccess: () => hasCurrentUserSocialBetaAccessMock(),
+}));
+
+// SOK-1202 harness: the hub's project header gets the Social beta gate.
+vi.mock(
+  "@/app/components/project-scope/variants/scope-slot",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/app/components/project-scope/variants/scope-slot")
+    >()),
+    ScopeSlot: (props: Record<string, unknown>) => {
+      scopeSlotMock(props);
+      return null;
+    },
+  }),
+);
+
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
     getWorkspaceCalendarSources: () => getWorkspaceCalendarSourcesMock(),
@@ -120,7 +142,27 @@ describe("ProjectCalendarPage", () => {
     ]);
     listCoworkersMock.mockResolvedValue([]);
     listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
+    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
   });
+
+  it.each([true, false])(
+    "hands the hub header Social beta access (%s)",
+    async (socialBeta) => {
+      hasCurrentUserSocialBetaAccessMock.mockResolvedValue(socialBeta);
+
+      render(
+        await ProjectCalendarPage({
+          params: Promise.resolve({ projectId: PROJECT.id }),
+          searchParams: Promise.resolve({}),
+        }),
+      );
+
+      expect(scopeSlotMock).toHaveBeenLastCalledWith({
+        place: "project-header",
+        socialBeta,
+      });
+    },
+  );
 
   it("loads only the route Project Calendar", async () => {
     render(

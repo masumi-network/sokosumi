@@ -3,17 +3,19 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const openHistorySearchMock = vi.fn();
 const setOpenMobileMock = vi.fn();
 const openNewTaskWizardMock = vi.fn();
-const { pathnameRef } = vi.hoisted(() => ({
+const { pathnameRef, searchRef } = vi.hoisted(() => ({
   pathnameRef: { current: "/" },
+  searchRef: { current: "" },
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathnameRef.current,
+  useSearchParams: () => new URLSearchParams(searchRef.current),
 }));
 
 vi.mock("next-intl", () => ({
@@ -405,5 +407,60 @@ describe("MenuItems rail selection bar", () => {
     pathnameRef.current = "/";
     renderMenu();
     expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
+  });
+});
+
+describe("MenuItems under a SOK-1202 scope variant", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    pathnameRef.current = "/tasks";
+  });
+
+  afterEach(() => {
+    pathnameRef.current = "/";
+    searchRef.current = "";
+  });
+
+  function hasTooltip(label: string) {
+    return screen
+      .queryAllByTestId("menu-tooltip")
+      .some((tooltip) => tooltip.textContent === label);
+  }
+
+  function linkTo(container: HTMLElement, label: string) {
+    return Array.from(container.querySelectorAll("a")).find((link) =>
+      link.textContent?.includes(label),
+    );
+  }
+
+  it("keeps today's Projects row and plain links on the baseline", () => {
+    searchRef.current = "projectId=p-1";
+    const { container } = renderMenu(true, false);
+
+    expect(linkTo(container, "projects")).toHaveAttribute("href", "/projects");
+    // The flyout is the row's hover hint, so it carries no tooltip.
+    expect(hasTooltip("projects")).toBe(false);
+    expect(linkTo(container, "history")).toHaveAttribute("href", "/history");
+  });
+
+  it("drops the Projects row and carries the scope on every link", () => {
+    searchRef.current = "variant=sidebar&projectId=p-1";
+    const { container } = renderMenu();
+
+    expect(linkTo(container, "projects")).toBeUndefined();
+    expect(linkTo(container, "history")).toHaveAttribute(
+      "href",
+      "/history?projectId=p-1",
+    );
+  });
+
+  it("keeps a plain Projects link for the hub, its only way in", () => {
+    searchRef.current = "variant=hub";
+    const { container } = renderMenu(true, false);
+
+    expect(linkTo(container, "projects")).toHaveAttribute("href", "/projects");
+    // A plain row, not today's flyout: it names itself in a tooltip.
+    expect(hasTooltip("projects")).toBe(true);
   });
 });

@@ -3,6 +3,7 @@
 import type { Project } from "@/lib/clients/generated/core/types.gen";
 
 import { CreateProjectWizard } from "./create-project-wizard";
+import type { ProjectCreationSource } from "./project-form";
 
 interface InlineCreateProjectModalProps {
   open: boolean;
@@ -13,6 +14,9 @@ interface InlineCreateProjectModalProps {
     name: string;
     project?: Project;
   }) => void;
+  onCloseAutoFocus?: (event: Event) => void;
+  /** Where the project was made, for the "Project created" event. */
+  creationSource?: ProjectCreationSource;
 }
 
 export function InlineCreateProjectModal({
@@ -20,6 +24,8 @@ export function InlineCreateProjectModal({
   onOpenChange,
   initialName = "",
   onCreated,
+  onCloseAutoFocus,
+  creationSource = "task_form",
 }: InlineCreateProjectModalProps) {
   function handleSuccess(projectId: string, name: string, project?: Project) {
     onCreated({ projectId, name, project });
@@ -36,8 +42,9 @@ export function InlineCreateProjectModal({
       open={open}
       onOpenChange={onOpenChange}
       initialName={initialName}
-      creationSource="task_form"
+      creationSource={creationSource}
       onSuccess={handleSuccess}
+      onCloseAutoFocus={onCloseAutoFocus}
     />
   );
 }

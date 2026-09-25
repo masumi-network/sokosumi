@@ -6585,6 +6585,33 @@
         "title": "You",
         "description": "Your account, workspace, credits, and settings"
       }
+    },
+    "ProjectScope": {
+      "label": "Project",
+      "switchLabel": "Switch project",
+      "workspaceView": "All projects",
+      "workspace": "Workspace",
+      "pinned": "Pinned",
+      "recent": "Recent",
+      "all": "Projects",
+      "searchPlaceholder": "Find a project...",
+      "empty": "No projects found.",
+      "loading": "Loading projects...",
+      "error": "Projects could not load.",
+      "workspacesError": "Workspaces could not load.",
+      "retry": "Try again",
+      "create": "Create project",
+      "manage": "Manage projects",
+      "sections": "Project sections",
+      "overview": "Overview",
+      "tasks": "Tasks",
+      "schedules": "Schedules",
+      "calendar": "Calendar",
+      "files": "Files",
+      "history": "History",
+      "social": "Social",
+      "current": "(current)",
+      "searching": "Searching projects..."
     }
   },
   "Share": {

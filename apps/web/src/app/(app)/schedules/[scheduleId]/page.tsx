@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-
+import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
 import TaskDetailLoading from "@/app/tasks/[taskId]/loading";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskScheduleActions } from "@/app/tasks/components/task-schedule-actions";
@@ -106,6 +106,8 @@ async function TaskScheduleDetailContent({
 
   return (
     <div className="min-h-full w-full">
+      {/* SOK-1202 harness: the switchers name the schedule's project. */}
+      <ProjectScopeMarker projectId={schedule.projectId ?? null} />
       <div className={TASK_DETAIL_SHELL_CLASS}>
         <div className={TASK_DETAIL_GRID_CLASS}>
           <div className={TASK_DETAIL_MAIN_CLASS}>

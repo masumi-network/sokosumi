@@ -1,22 +1,29 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { hasCurrentUserSocialBetaAccessMock, projectServiceMock, notFoundMock } =
-  vi.hoisted(() => ({
-    hasCurrentUserSocialBetaAccessMock: vi.fn(),
-    projectServiceMock: {
-      getProjectCloseStatus: vi.fn(),
-      getProjectById: vi.fn(),
-      getProjectsStats: vi.fn(),
-      getProjectNeedsAttention: vi.fn(),
-    },
-    notFoundMock: vi.fn(() => {
-      throw new Error("NOT_FOUND");
-    }),
-  }));
+const {
+  hasCurrentUserSocialBetaAccessMock,
+  projectServiceMock,
+  notFoundMock,
+  scopeSlotMock,
+} = vi.hoisted(() => ({
+  hasCurrentUserSocialBetaAccessMock: vi.fn(),
+  scopeSlotMock: vi.fn(),
+  projectServiceMock: {
+    getProjectCloseStatus: vi.fn(),
+    getProjectById: vi.fn(),
+    getProjectsStats: vi.fn(),
+    getProjectNeedsAttention: vi.fn(),
+  },
+  notFoundMock: vi.fn(() => {
+    throw new Error("NOT_FOUND");
+  }),
+}));
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
+  // SOK-1202 harness: the project header reads the scope variant.
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("next-intl/server", async () => {
@@ -35,6 +42,20 @@ vi.mock("@/lib/social-beta-access.server", () => ({
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
 }));
+
+// SOK-1202 harness: the hub's project header gets the Social beta gate.
+vi.mock(
+  "@/app/components/project-scope/variants/scope-slot",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/app/components/project-scope/variants/scope-slot")
+    >()),
+    ScopeSlot: (props: Record<string, unknown>) => {
+      scopeSlotMock(props);
+      return null;
+    },
+  }),
+);
 
 vi.mock("@/app/projects/components/project-detail-actions", () => ({
   ProjectDetailActions: () => <div>Project actions</div>,
@@ -323,6 +344,31 @@ describe("ProjectDetailPage", () => {
         name: /App\.Projects\.Detail\.modules\.socialMedia\.title/i,
       }),
     ).not.toBeInTheDocument();
+    expect(scopeSlotMock).toHaveBeenLastCalledWith({
+      place: "project-header",
+      socialBeta: false,
+    });
+  });
+
+  it("hands the hub header Social beta access", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+    projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
+      taskCount: 0,
+      jobCount: 0,
+      items: [],
+    });
+
+    const { default: ProjectDetailPage } = await import("./page");
+    render(
+      await ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(scopeSlotMock).toHaveBeenLastCalledWith({
+      place: "project-header",
+      socialBeta: true,
+    });
   });
 
   it("renders Latest update above Briefing when a report exists", async () => {

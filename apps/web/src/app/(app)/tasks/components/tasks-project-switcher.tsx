@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
+import { ScopeOldWay } from "@/app/components/project-scope/variants/scope-slot";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import {
@@ -39,7 +40,16 @@ interface TasksProjectSwitcherProps {
   onProjectCreated?: (project: ProjectFilterOption) => void;
 }
 
-export function TasksProjectSwitcher({
+/** SOK-1202 harness: every scope variant replaces this per-page chip. */
+export function TasksProjectSwitcher(props: TasksProjectSwitcherProps) {
+  return (
+    <ScopeOldWay>
+      <TasksProjectSwitcherChip {...props} />
+    </ScopeOldWay>
+  );
+}
+
+function TasksProjectSwitcherChip({
   projectOptions,
   selectedProjectId,
   onProjectCreated,

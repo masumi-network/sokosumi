@@ -6585,6 +6585,33 @@
         "title": "Tú",
         "description": "Tu cuenta, workspace, créditos y ajustes"
       }
+    },
+    "ProjectScope": {
+      "label": "Proyecto",
+      "switchLabel": "Cambiar de proyecto",
+      "workspaceView": "Todos los proyectos",
+      "workspace": "Espacio de trabajo",
+      "pinned": "Fijados",
+      "recent": "Recientes",
+      "all": "Proyectos",
+      "searchPlaceholder": "Buscar un proyecto...",
+      "empty": "No se encontraron proyectos.",
+      "loading": "Cargando proyectos...",
+      "error": "No se pudieron cargar los proyectos.",
+      "workspacesError": "No se pudieron cargar los espacios de trabajo.",
+      "retry": "Reintentar",
+      "create": "Crear proyecto",
+      "manage": "Gestionar proyectos",
+      "sections": "Secciones del proyecto",
+      "overview": "Resumen",
+      "tasks": "Tareas",
+      "schedules": "Programaciones",
+      "calendar": "Calendario",
+      "files": "Archivos",
+      "history": "Historial",
+      "social": "Social",
+      "current": "(actual)",
+      "searching": "Buscando proyectos..."
     }
   },
   "Share": {
