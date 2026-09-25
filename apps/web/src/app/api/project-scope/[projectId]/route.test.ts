@@ -57,6 +57,17 @@ describe("GET /api/project-scope/[projectId]", () => {
     expect(await (await read("p-1")).json()).toEqual({ project: null });
   });
 
+  it("answers null for an id Core rejects as a bad request", async () => {
+    mocks.getProjectById.mockRejectedValue(
+      new CoreApiRequestError("Bad request", { status: 400 }),
+    );
+
+    const response = await read("p-1");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ project: null });
+  });
+
   it("answers null for an id Core rejects as malformed", async () => {
     // Core's request validation answers 422 for `not-a-uuid`.
     mocks.getProjectById.mockRejectedValue(
@@ -75,6 +86,23 @@ describe("GET /api/project-scope/[projectId]", () => {
     );
 
     expect((await read("p-1")).status).toBe(503);
+  });
+
+  it("answers 503 when the session read cannot reach Core", async () => {
+    mocks.readRouteSession.mockResolvedValue({
+      status: "unavailable",
+      reason: "timeout",
+    });
+
+    const response = await read("p-1");
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("1");
+    expect(await response.json()).toEqual({
+      error: "Project unavailable",
+      reason: "timeout",
+    });
+    expect(mocks.getProjectById).not.toHaveBeenCalled();
   });
 
   it("refuses a signed-out reader without asking Core", async () => {

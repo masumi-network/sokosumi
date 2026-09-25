@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  detailPageOf,
   readProjectScope,
   scopedHref,
   switchScopeHref,
@@ -48,6 +49,8 @@ describe("scopedHref", () => {
   it("leaves unscoped links and the workspace view alone", () => {
     expect(scopedHref("/agents", "p1")).toBe("/agents");
     expect(scopedHref("/tasks", null)).toBe("/tasks");
+    // The sidebar's plain Drive link opens Recents, not the Tasks view.
+    expect(scopedHref("/drive", null)).toBe("/drive");
   });
 });
 
@@ -73,6 +76,20 @@ describe("switchScopeHref", () => {
     );
   });
 
+  it("keeps Drive on its tasks view for all projects", () => {
+    expect(switchScopeHref("/drive", null)).toBe("/drive?view=tasks");
+  });
+
+  it("goes from a task or schedule detail page to its list", () => {
+    expect(switchScopeHref("/tasks/t1", "q")).toBe("/tasks?projectId=q");
+    expect(switchScopeHref("/tasks/t1", null)).toBe("/tasks");
+    expect(switchScopeHref("/tasks/t1/edit", "q")).toBe("/tasks?projectId=q");
+    expect(switchScopeHref("/schedules/s1", "q")).toBe(
+      "/schedules?projectId=q",
+    );
+    expect(switchScopeHref("/schedules/s1", null)).toBe("/schedules");
+  });
+
   it("leaves a project page for the list when the workspace is chosen", () => {
     expect(switchScopeHref("/projects/p1/social", null)).toBe("/projects");
   });
@@ -80,5 +97,29 @@ describe("switchScopeHref", () => {
   it("opens the project from an unscoped page", () => {
     expect(switchScopeHref("/agents", "p 1")).toBe("/projects/p%201");
     expect(switchScopeHref("/agents", null)).toBe("/agents");
+  });
+});
+
+describe("detailPageOf", () => {
+  it("finds a task or schedule detail page and its list", () => {
+    expect(detailPageOf("/tasks/t1")).toEqual({
+      path: "/tasks/t1",
+      list: "/tasks",
+    });
+    expect(detailPageOf("/tasks/t1/edit")).toEqual({
+      path: "/tasks/t1",
+      list: "/tasks",
+    });
+    expect(detailPageOf("/schedules/s1")).toEqual({
+      path: "/schedules/s1",
+      list: "/schedules",
+    });
+  });
+
+  it("is null on lists and other pages", () => {
+    expect(detailPageOf("/tasks")).toBeNull();
+    expect(detailPageOf("/schedules")).toBeNull();
+    expect(detailPageOf("/tasksboard/t1")).toBeNull();
+    expect(detailPageOf("/projects/p1")).toBeNull();
   });
 });

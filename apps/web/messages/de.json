@@ -6590,7 +6590,9 @@
       "calendar": "Kalender",
       "files": "Dateien",
       "history": "Verlauf",
-      "social": "Social"
+      "social": "Social",
+      "current": "(aktuell)",
+      "searching": "Projekte werden gesucht..."
     }
   },
   "Share": {

@@ -126,15 +126,19 @@ export function useIsUnknownScopeProject(
   selectedProjectId: string | null,
 ): boolean {
   const { selected } = useSelectedProjectQuery(selectedProjectId, []);
-  return selected.isSuccess && selected.data === null;
+  // Core's last answer: a failed refetch keeps it.
+  return selected.data === null;
 }
 
-/** True once the read that names the scoped project has failed. */
+/**
+ * True once the read that names the scoped project has failed with no answer
+ * in hand. A failed refetch keeps the last answer, so it is not a failure.
+ */
 export function useScopeProjectReadFailed(
   selectedProjectId: string | null,
 ): boolean {
   const { selected } = useSelectedProjectQuery(selectedProjectId, []);
-  return selected.isError;
+  return selected.isError && selected.data === undefined;
 }
 
 /**
@@ -149,8 +153,11 @@ export function useSelectedScopeProject(
     selectedProjectId,
     loaded,
   );
-  // Core's answer wins; a listed row names the project while it loads.
-  if (selected.isSuccess) return selected.data ? toRow(selected.data) : null;
+  // Core's answer wins, and a failed refetch keeps the last one. A listed row
+  // names the project while it loads.
+  if (selected.data !== undefined) {
+    return selected.data ? toRow(selected.data) : null;
+  }
   return listed ? toRow(listed) : null;
 }
 
@@ -170,8 +177,9 @@ export function useScopeProjects({
   const pinned = usePinnedProjects(scope);
   const visitedIds = useRecentProjectIds(scope);
   // One Core search per pause in typing, not one per keystroke.
+  const typed = search.trim();
   const [query] = useDebounce(
-    search.trim(),
+    typed,
     getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
   );
 
@@ -220,6 +228,11 @@ export function useScopeProjects({
     all: pageProjects,
     selectedProject,
     isSearching: query.length > 0,
+    /**
+     * The rows do not answer the typed search yet: the pause in typing has
+     * not ended, or the rows are the last search's, kept while Core answers.
+     */
+    isSearchPending: typed !== query || page.isPlaceholderData,
     isPending: scope == null || page.isPending || pinned.isPending,
     isError: page.isError || pinned.isError,
     refetch() {

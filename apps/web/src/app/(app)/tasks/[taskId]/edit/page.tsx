@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
+import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
@@ -94,76 +95,80 @@ export default async function EditTaskPage({
   ]);
 
   return (
-    <TaskEditModal
-      taskId={taskId}
-      title={tEdit("title")}
-      initialDesignMdAttachment={initialDesignMdAttachment}
-      labels={{
-        details: tEdit("details"),
-        detailsDescription: tEdit("detailsDescription"),
-        name: tEdit("name"),
-        namePlaceholder: tEdit("namePlaceholder"),
-        descriptionPlaceholder: tEdit("descriptionPlaceholder"),
-        projectLabel: tEdit("projectLabel"),
-        projectNone: tEdit("projectNone"),
-        projectSearchPlaceholder: tEdit("projectSearchPlaceholder"),
-        projectEmptyResults: tEdit("projectEmptyResults"),
-        projectCreate: tEdit("projectCreate"),
-        projectCreateNamed: tEdit.raw("projectCreateNamed") as string,
-        coworker: tEdit("coworker"),
-        unassigned: tEdit("unassigned"),
-        unavailableAssignee: tEdit("unavailableAssignee"),
-        changeCoworker: tEdit("changeCoworker"),
-        noCoworkerMatches: tEdit("noCoworkerMatches"),
-        status: tEdit("status"),
-        statusDescription: tEdit("statusDescription"),
-        statusDraft: tEdit("statusDraft"),
-        changeStatus: tEdit("changeStatus"),
-        noStatusMatches: tEdit("noStatusMatches"),
-        statusReady: tEdit("statusReady"),
-        statusQueued: tStatus("QUEUED"),
-        untitledTask: tEdit("untitledTask"),
-        saveError: tEdit("saveError"),
-        statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
-        back: tEdit("back"),
-        uploadFile: tEdit("uploadFile"),
-        uploadFileError: tEdit("uploadFileError"),
-        uploadingFile: getTaskAttachmentUploadLabelTemplate(
-          tEdit,
-          "uploadingFile",
-        ),
-        uploadingFiles: getTaskAttachmentUploadLabelTemplate(
-          tEdit,
-          "uploadingFiles",
-        ),
-        removeAttachment: tEdit("removeAttachment"),
-        submit: tEdit("save"),
-        openRunAt: tEdit("openRunAt"),
-        cancel: tEdit("cancel"),
-        ctrl: tEdit("ctrl"),
-      }}
-      coworkerOptions={withCurrentTaskAssigneeOption(
-        coworkerOptions,
-        taskResult.assignee,
-        {
-          fallbackName: tTasks("sokoBot"),
-          vendorName: tTasks("sokoBots"),
-        },
-      )}
-      projectOptions={projectOptions}
-      agentNameById={agentNameById}
-      initialValues={{
-        name: taskResult.name,
-        description: taskResult.description ?? "",
-        assigneeId: taskFormAssigneeId(taskResult),
-        assigneeSokoBotId: taskResult.assigneeSokoBotId ?? null,
-        assigneeUserId: taskResult.assigneeUserId ?? null,
-        projectId: taskResult.projectId ?? null,
-        status: taskResult.status,
-        selectableStatuses: taskResult.selectableStatuses,
-        runAt: taskResult.runAt?.toISOString() ?? null,
-      }}
-    />
+    <>
+      {/* SOK-1202 harness: the switchers name the task's project. */}
+      <ProjectScopeMarker projectId={taskResult.projectId ?? null} />
+      <TaskEditModal
+        taskId={taskId}
+        title={tEdit("title")}
+        initialDesignMdAttachment={initialDesignMdAttachment}
+        labels={{
+          details: tEdit("details"),
+          detailsDescription: tEdit("detailsDescription"),
+          name: tEdit("name"),
+          namePlaceholder: tEdit("namePlaceholder"),
+          descriptionPlaceholder: tEdit("descriptionPlaceholder"),
+          projectLabel: tEdit("projectLabel"),
+          projectNone: tEdit("projectNone"),
+          projectSearchPlaceholder: tEdit("projectSearchPlaceholder"),
+          projectEmptyResults: tEdit("projectEmptyResults"),
+          projectCreate: tEdit("projectCreate"),
+          projectCreateNamed: tEdit.raw("projectCreateNamed") as string,
+          coworker: tEdit("coworker"),
+          unassigned: tEdit("unassigned"),
+          unavailableAssignee: tEdit("unavailableAssignee"),
+          changeCoworker: tEdit("changeCoworker"),
+          noCoworkerMatches: tEdit("noCoworkerMatches"),
+          status: tEdit("status"),
+          statusDescription: tEdit("statusDescription"),
+          statusDraft: tEdit("statusDraft"),
+          changeStatus: tEdit("changeStatus"),
+          noStatusMatches: tEdit("noStatusMatches"),
+          statusReady: tEdit("statusReady"),
+          statusQueued: tStatus("QUEUED"),
+          untitledTask: tEdit("untitledTask"),
+          saveError: tEdit("saveError"),
+          statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
+          back: tEdit("back"),
+          uploadFile: tEdit("uploadFile"),
+          uploadFileError: tEdit("uploadFileError"),
+          uploadingFile: getTaskAttachmentUploadLabelTemplate(
+            tEdit,
+            "uploadingFile",
+          ),
+          uploadingFiles: getTaskAttachmentUploadLabelTemplate(
+            tEdit,
+            "uploadingFiles",
+          ),
+          removeAttachment: tEdit("removeAttachment"),
+          submit: tEdit("save"),
+          openRunAt: tEdit("openRunAt"),
+          cancel: tEdit("cancel"),
+          ctrl: tEdit("ctrl"),
+        }}
+        coworkerOptions={withCurrentTaskAssigneeOption(
+          coworkerOptions,
+          taskResult.assignee,
+          {
+            fallbackName: tTasks("sokoBot"),
+            vendorName: tTasks("sokoBots"),
+          },
+        )}
+        projectOptions={projectOptions}
+        agentNameById={agentNameById}
+        initialValues={{
+          name: taskResult.name,
+          description: taskResult.description ?? "",
+          assigneeId: taskFormAssigneeId(taskResult),
+          assigneeSokoBotId: taskResult.assigneeSokoBotId ?? null,
+          assigneeUserId: taskResult.assigneeUserId ?? null,
+          projectId: taskResult.projectId ?? null,
+          status: taskResult.status,
+          selectableStatuses: taskResult.selectableStatuses,
+          runAt: taskResult.runAt?.toISOString() ?? null,
+        }}
+      />
+    </>
   );
 }
 

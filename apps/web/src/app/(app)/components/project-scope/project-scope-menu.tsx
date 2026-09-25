@@ -84,13 +84,7 @@ export function ProjectScopeMenu({
           className="size-5 shrink-0"
         />
         <span className="min-w-0 flex-1 truncate">{project.name}</span>
-        <Check
-          className={cn(
-            "size-4 shrink-0",
-            project.id === selectedProjectId ? "opacity-100" : "opacity-0",
-          )}
-          aria-hidden
-        />
+        <CurrentMark current={project.id === selectedProjectId} />
       </CommandItem>
     );
   }
@@ -103,14 +97,18 @@ export function ProjectScopeMenu({
     : projects.all.filter((project) => !shortlistIds.has(project.id));
 
   // Not `CommandEmpty` for "empty": Create and Manage are always mounted, so
-  // cmdk never counts the list as empty.
+  // cmdk never counts the list as empty. The rows of a search Core has not
+  // answered yet are the last search's, so they cannot mean "none found".
+  const busy = projects.isPending || projects.isSearchPending;
   const statusText = projects.isError
     ? t("error")
     : projects.isPending
       ? t("loading")
-      : projects.isSearching && rest.length === 0
-        ? t("empty")
-        : null;
+      : projects.isSearchPending
+        ? t("searching")
+        : projects.isSearching && rest.length === 0
+          ? t("empty")
+          : null;
 
   return (
     <Command ref={menuRef} shouldFilter={false} className={className}>
@@ -142,7 +140,7 @@ export function ProjectScopeMenu({
           </Button>
         ) : null}
       </div>
-      <CommandList>
+      <CommandList aria-busy={busy || undefined}>
         {projects.isSearching ? null : (
           <CommandGroup>
             <CommandItem
@@ -152,13 +150,7 @@ export function ProjectScopeMenu({
             >
               <Layers className="size-4 shrink-0" aria-hidden />
               <span className="flex-1 truncate">{t("workspaceView")}</span>
-              <Check
-                className={cn(
-                  "size-4 shrink-0",
-                  selectedProjectId === null ? "opacity-100" : "opacity-0",
-                )}
-                aria-hidden
-              />
+              <CurrentMark current={selectedProjectId === null} />
             </CommandItem>
           </CommandGroup>
         )}
@@ -209,5 +201,19 @@ export function ProjectScopeMenu({
         </CommandGroup>
       </CommandList>
     </Command>
+  );
+}
+
+/** The check on the current choice, with words for assistive tech. */
+function CurrentMark({ current }: { current: boolean }) {
+  const t = useTranslations("App.ProjectScope");
+  return (
+    <>
+      <Check
+        className={cn("size-4 shrink-0", current ? "opacity-100" : "opacity-0")}
+        aria-hidden
+      />
+      {current ? <span className="sr-only">{t("current")}</span> : null}
+    </>
   );
 }

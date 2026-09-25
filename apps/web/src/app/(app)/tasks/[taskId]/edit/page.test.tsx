@@ -12,6 +12,7 @@ const getOrganizationMembersMock = vi.fn(async () => []);
 const getTranslationsMock = vi.fn();
 const autoContextSwitchMock = vi.fn();
 const taskEditModalMock = vi.fn();
+const projectScopeMarkerMock = vi.fn();
 const buildAgentNameByIdMock = vi.fn();
 const notFoundMock = vi.fn();
 const redirectMock = vi.fn();
@@ -29,6 +30,13 @@ vi.mock("@/app/components/auto-context-switch", () => ({
   AutoContextSwitch: (props: unknown) => {
     autoContextSwitchMock(props);
     return <div data-testid="auto-context-switch" />;
+  },
+}));
+
+vi.mock("@/app/components/project-scope/project-scope-marker", () => ({
+  ProjectScopeMarker: (props: unknown) => {
+    projectScopeMarkerMock(props);
+    return null;
   },
 }));
 
@@ -248,6 +256,8 @@ describe("EditTaskPage", () => {
       }),
     );
     expect(screen.getByTestId("task-edit-modal")).toBeInTheDocument();
+    // Opened directly, the page still names the task's project.
+    expect(projectScopeMarkerMock).toHaveBeenCalledWith({ projectId: null });
   });
 
   it("renders the edit modal for a queued task", async () => {

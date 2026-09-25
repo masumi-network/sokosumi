@@ -1,4 +1,5 @@
 import { act, render } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
       onOpenChange: (open: boolean) => void;
       onCreated: (result: { projectId: string; name: string }) => void;
       onCloseAutoFocus?: (event: Event) => void;
+      creationSource?: string;
     },
   },
 }));
@@ -29,6 +31,7 @@ vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
   },
 }));
 
+import { ProjectScopeMarker } from "./project-scope-marker";
 import { returnFocusTo, useProjectScopeSwitch } from "./use-project-scope";
 
 function modal() {
@@ -36,7 +39,7 @@ function modal() {
   return mocks.modal.current;
 }
 
-function renderSwitch() {
+function renderSwitch(page: ReactNode = null) {
   const latest: { current: ReturnType<typeof useProjectScopeSwitch> | null } = {
     current: null,
   };
@@ -45,7 +48,12 @@ function renderSwitch() {
     latest.current = scope;
     return scope.createDialog;
   }
-  render(<Harness />);
+  render(
+    <>
+      {page}
+      <Harness />
+    </>,
+  );
   return () => {
     if (!latest.current) throw new Error("Hook never rendered");
     return latest.current;
@@ -196,5 +204,49 @@ describe("useProjectScopeSwitch", () => {
     modal().onCreated({ projectId: "p-new", name: "New" });
 
     expect(mocks.push).toHaveBeenCalledWith("/history?projectId=p-new");
+  });
+
+  it("tracks a project made here as made from the switcher", () => {
+    renderSwitch();
+
+    expect(modal().creationSource).toBe("project_switcher");
+  });
+});
+
+describe("useProjectScope on a detail page", () => {
+  it("reads the task's project from its marker", () => {
+    mocks.pathname.current = "/tasks/t-1";
+    const current = renderSwitch(<ProjectScopeMarker projectId="p-1" />);
+
+    expect(current().projectId).toBe("p-1");
+    // The sidebar's links carry it.
+    expect(current().hrefFor("/drive")).toBe("/drive?view=tasks&projectId=p-1");
+    expect(current().hrefFor("/agents")).toBe("/agents");
+  });
+
+  it("goes to the task list on a switch", () => {
+    mocks.pathname.current = "/tasks/t-1";
+    const current = renderSwitch(<ProjectScopeMarker projectId="p-1" />);
+
+    current().select("p-2");
+    expect(mocks.push).toHaveBeenLastCalledWith("/tasks?projectId=p-2");
+    current().select(null);
+    expect(mocks.push).toHaveBeenLastCalledWith("/tasks");
+  });
+
+  it("reads a schedule's project and goes to the schedule list", () => {
+    mocks.pathname.current = "/schedules/s-1";
+    const current = renderSwitch(<ProjectScopeMarker projectId="p-1" />);
+
+    expect(current().projectId).toBe("p-1");
+    current().select(null);
+    expect(mocks.push).toHaveBeenLastCalledWith("/schedules");
+  });
+
+  it("is the workspace for an item with no project", () => {
+    mocks.pathname.current = "/tasks/t-1";
+    const current = renderSwitch(<ProjectScopeMarker projectId={null} />);
+
+    expect(current().projectId).toBeNull();
   });
 });

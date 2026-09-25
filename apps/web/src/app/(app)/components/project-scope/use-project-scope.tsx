@@ -9,16 +9,20 @@ import {
   scopedHref,
   switchScopeHref,
 } from "./project-scope-href";
+import { useMarkedProjectId } from "./project-scope-marker";
 
-/** The reader's project scope, read from the URL. */
+/**
+ * The reader's project scope, read from the URL, or on a task or schedule
+ * detail page from the project that page marked.
+ */
 export function useProjectScope() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const markedProjectId = useMarkedProjectId(pathname);
   // Null outside the App Router, as in component tests.
-  const projectId = readProjectScope(
-    pathname,
-    searchParams ?? new URLSearchParams(),
-  );
+  const projectId =
+    readProjectScope(pathname, searchParams ?? new URLSearchParams()) ??
+    markedProjectId;
 
   return {
     projectId,
@@ -79,6 +83,7 @@ export function useProjectScopeSwitch() {
     <InlineCreateProjectModal
       open={createOpen}
       onOpenChange={setCreateOpen}
+      creationSource="project_switcher"
       onCreated={({ projectId }) => select(projectId)}
       onCloseAutoFocus={(event) => returnFocusTo(openerRef.current)(event)}
     />
