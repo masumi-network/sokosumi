@@ -8,8 +8,8 @@ import { putLegacySchedule } from "./put-schedule";
 
 /**
  * Temporary vendor compatibility layer for the per-Task schedule API that
- * Task Schedules replaced (ADR 0041). Until EOD 2026-09-29 CEST, Coworkers
- * of the vendors in `LEGACY_TASK_SCHEDULE_VENDOR_IDS` read and write their
+ * Task Schedules replaced (ADR 0041). Until it is removed, Coworkers of the
+ * vendors in `LEGACY_TASK_SCHEDULE_VENDOR_IDS` read and write their
  * schedules through the old routes, translated to Task Schedules. Every
  * other caller passes straight through to the current routes.
  *

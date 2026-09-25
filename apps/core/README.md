@@ -117,8 +117,8 @@ SENTRY_ENVIRONMENT=   # development | staging | production
 # Maintenance (HTTP 503 on all routes; read at startup)
 MAINTENANCE_MODE=false
 
-# Temporary until EOD 2026-09-29 CEST. Vendor ids (comma separated) whose coworkers
-# keep the old per-Task schedule API. Empty: nobody. Off after 2026-09-29T22:00:00.000Z.
+# Temporary. Vendor ids (comma separated) whose coworkers keep the old per-Task
+# schedule API. Empty: nobody.
 LEGACY_TASK_SCHEDULE_VENDOR_IDS=
 ```
 

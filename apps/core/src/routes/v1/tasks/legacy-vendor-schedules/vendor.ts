@@ -12,11 +12,6 @@ import {
 export type RouteVars = EnvVariables["Variables"];
 export type LegacyContext = Context<EnvVariables>;
 
-/** EOD 2026-09-29 CEST (UTC+2): from here on every vendor gets the current API. */
-export const LEGACY_VENDOR_SCHEDULES_SUNSET_AT = new Date(
-  "2026-09-29T22:00:00.000Z",
-);
-
 /**
  * The Coworker auth of a vendor listed in `LEGACY_TASK_SCHEDULE_VENDOR_IDS`
  * (comma separated), else null. Read per request so tests can set it.
@@ -24,10 +19,7 @@ export const LEGACY_VENDOR_SCHEDULES_SUNSET_AT = new Date(
 export function legacyScheduleVendor(
   auth: AuthenticationContext,
 ): CoworkerAuthenticationContext | null {
-  if (
-    !isCoworkerAuthContext(auth) ||
-    Date.now() >= LEGACY_VENDOR_SCHEDULES_SUNSET_AT.getTime()
-  ) {
+  if (!isCoworkerAuthContext(auth)) {
     return null;
   }
   const listed = (process.env.LEGACY_TASK_SCHEDULE_VENDOR_IDS ?? "")
@@ -36,7 +28,7 @@ export function legacyScheduleVendor(
   return listed ? auth : null;
 }
 
-/** Every answer of this layer is logged, so the sunset can be checked. */
+/** Every answer of this layer is logged, so its remaining use can be checked. */
 export function logLegacyScheduleHit(
   c: LegacyContext,
   path: string,

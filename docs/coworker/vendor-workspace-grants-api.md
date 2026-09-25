@@ -173,13 +173,12 @@ Pause, resume, and end answer **409** `schedule_state_conflict` from the wrong
 state. A Run change answers **409** `schedule_run_state_conflict` or **422**
 `schedule_run_target_invalid`.
 
-### Legacy vendor schedules (until EOD 2026-09-29 CEST)
+### Legacy vendor schedules (temporary)
 
-Until **end of day 2026-09-29 CEST**, Coworkers of the vendors listed in
+Until this compatibility layer is removed, Coworkers of the vendors listed in
 `LEGACY_TASK_SCHEDULE_VENDOR_IDS` (comma-separated vendor ids) keep the
 per-Task schedule API their client was built on, translated to Task
-Schedules. Every other caller gets the current API and the 410s below. After
-`2026-09-29T22:00:00.000Z` the list is ignored.
+Schedules. Every other caller gets the current API and the 410s below.
 
 | Old call | What the listed vendor gets |
 | --- | --- |
@@ -203,7 +202,7 @@ logs `legacyTaskScheduleShim`.
 
 ### Removed per-Task schedule routes
 
-For every other caller, and for everyone after 2026-09-29, the old per-Task schedule routes
+For every caller outside `LEGACY_TASK_SCHEDULE_VENDOR_IDS`, the old per-Task schedule routes
 answer **410 Gone** with `kind` `task_schedule_moved` and the route to call
 instead in `replacement`:
 

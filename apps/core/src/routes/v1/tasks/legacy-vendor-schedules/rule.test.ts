@@ -75,7 +75,7 @@ describe("legacy schedule vendor gate", () => {
     vi.useRealTimers();
   });
 
-  it("admits only Coworkers of listed vendors, until the sunset", () => {
+  it("admits only Coworkers of listed vendors", () => {
     expect(legacyScheduleVendor(COWORKER_AUTH)).toBeNull();
 
     process.env.LEGACY_TASK_SCHEDULE_VENDOR_IDS = ` other, ${
@@ -83,9 +83,5 @@ describe("legacy schedule vendor gate", () => {
     } `;
     expect(legacyScheduleVendor(COWORKER_AUTH)).toBe(COWORKER_AUTH);
     expect(legacyScheduleVendor(userAuth())).toBeNull();
-
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-09-29T22:00:00.000Z"));
-    expect(legacyScheduleVendor(COWORKER_AUTH)).toBeNull();
   });
 });

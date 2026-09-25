@@ -148,16 +148,6 @@ describe("legacy PUT /{id}/schedule", () => {
 
       expect(response.status).toBe(410);
     });
-
-    it("answers 410 after EOD 2026-09-29 CEST", async () => {
-      vi.useFakeTimers({ toFake: ["Date"] });
-      vi.setSystemTime(new Date("2026-09-29T22:00:00.000Z"));
-      seedBlueprint();
-
-      const response = await put(WEEKLY);
-
-      expect(response.status).toBe(410);
-    });
   });
 
   it.each([
