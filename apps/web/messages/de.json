@@ -2039,7 +2039,6 @@
         "unassigned": "Nicht zugewiesen",
         "unavailableAssignee": "Nicht verfügbare Zuständigkeit",
         "workspace": "Workspace",
-        "openSchedule": "Zeitplan öffnen",
         "Dialog": {
           "createTitle": "Neuer Zeitplan",
           "editTitle": "Zeitplan bearbeiten",

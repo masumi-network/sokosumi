@@ -139,7 +139,6 @@ export function TaskScheduleCard({
               <Link
                 className="text-foreground line-clamp-2 text-sm font-medium break-words outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-ring"
                 href={taskSchedulePath(schedule.id)}
-                title={t("openSchedule")}
               >
                 {schedule.name}
               </Link>
@@ -149,7 +148,9 @@ export function TaskScheduleCard({
             </CardDescription>
           </div>
         </CardContent>
-        <CardFooter className="items-end justify-between gap-3 px-4 pb-4 text-xs">
+        {/* `min-h-6` is the icon button's own height, so a card without one
+            does not stand shorter than a card with one. */}
+        <CardFooter className="min-h-6 items-end justify-between gap-3 px-4 pb-4 text-xs">
           <span className="text-muted-foreground line-clamp-1 min-w-0 tabular-nums">
             {nextRunLabel}
           </span>
