@@ -1,5 +1,6 @@
 import {
-  TaskScheduleOccurrenceState,
+  TaskScheduleRunState,
+  TaskScheduleState,
   TaskStatus,
   VendorGrantStatus,
 } from "@sokosumi/database";
@@ -15,6 +16,8 @@ const {
   memberFindFirstMock,
   projectFindFirstMock,
   taskFindFirstMock,
+  taskFindManyMock,
+  taskCountMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
   vendorGrantFindUniqueMock,
@@ -24,6 +27,8 @@ const {
   memberFindFirstMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
+  taskCountMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
@@ -57,8 +62,12 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: { findFirst: coworkerFindFirstMock },
     member: { findFirst: memberFindFirstMock },
     project: { findFirst: projectFindFirstMock },
-    task: { findFirst: taskFindFirstMock },
-    taskScheduleOccurrence: {
+    task: {
+      count: taskCountMock,
+      findFirst: taskFindFirstMock,
+      findMany: taskFindManyMock,
+    },
+    taskScheduleRun: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
     },
@@ -111,27 +120,22 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
 function createOccurrence(overrides: Record<string, unknown> = {}) {
   return {
     id: "00000000-0000-7000-8000-000000000001",
-    scheduleVersion: 2,
-    seriesTaskId: "task_123",
     originalScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
     effectiveScheduledAt: new Date("2026-06-03T09:00:00.000Z"),
-    state: TaskScheduleOccurrenceState.RELEASED,
+    state: TaskScheduleRunState.PLANNED,
     sourceWorkspaceId: WORKSPACE_ID,
     sourceType: "PROJECT",
     sourceProjectId: PROJECT_ID,
-    sourceAccuracy: "INFERRED",
-    timeAccuracy: "APPROXIMATE",
-    epochId: null,
-    seriesTask: {
-      id: "task_123",
+    schedule: {
+      id: "33333333-3333-7333-8333-333333333333",
       name: "Prepare release notes",
       ownerId: "user_123",
-      status: TaskStatus.QUEUED,
+      state: TaskScheduleState.ACTIVE,
+      revision: 3,
       assigneeId: null,
       assigneeUserId: null,
-      metadata: JSON.stringify({ version: 2, mode: "recurring" }),
-      scheduleRevision: 3,
     },
+    releasedTask: null,
     ...overrides,
   };
 }
@@ -152,9 +156,44 @@ describe("GET /projects/{id}/calendar", () => {
     vendorGrantFindUniqueMock.mockResolvedValue(null);
     resolveWorkspaceForContextMock.mockResolvedValue({ id: WORKSPACE_ID });
     taskFindFirstMock.mockResolvedValue(null);
+    taskFindManyMock.mockResolvedValue([]);
+    taskCountMock.mockResolvedValue(0);
   });
 
-  it("returns only occurrences attributed to the route Project", async () => {
+  it("shows the Project's Queued Tasks at their Run at", async () => {
+    taskFindManyMock.mockResolvedValue([
+      {
+        id: "0190f3a2-0000-7000-8000-00000000aaaa",
+        name: "Send the invoice",
+        ownerId: "user_123",
+        status: TaskStatus.QUEUED,
+        assigneeId: null,
+        assigneeUserId: null,
+        runAt: new Date("2026-06-04T08:00:00.000Z"),
+        workspaceId: WORKSPACE_ID,
+        projectId: PROJECT_ID,
+      },
+    ]);
+
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock.mock.lastCall?.[0].where).toEqual(
+      expect.objectContaining({ projectId: PROJECT_ID }),
+    );
+    const body = await response.json();
+    expect(body.data).toContainEqual(
+      expect.objectContaining({
+        kind: "RUN_AT",
+        taskId: "0190f3a2-0000-7000-8000-00000000aaaa",
+        sourceId: `project:${PROJECT_ID}`,
+      }),
+    );
+  });
+
+  it("returns only Runs attributed to the route Project", async () => {
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,
     );
@@ -166,7 +205,7 @@ describe("GET /projects/{id}/calendar", () => {
           expect.objectContaining({
             sourceProjectId: PROJECT_ID,
             sourceType: "PROJECT",
-            sourceAccuracy: "INFERRED",
+            taskName: "Prepare release notes",
           }),
         ],
       }),
@@ -253,7 +292,11 @@ describe("GET /projects/{id}/calendar", () => {
         expect.objectContaining({
           OR: expect.arrayContaining([
             expect.objectContaining({
-              seriesTask: { is: { archivedAt: null } },
+              releasedTask: {
+                is: {
+                  AND: expect.arrayContaining([{ archivedAt: null }]),
+                },
+              },
             }),
           ]),
         }),
@@ -294,109 +337,44 @@ describe("GET /projects/{id}/calendar", () => {
     );
   });
 
-  it("excludes archived Tasks from the Project Calendar", async () => {
+  it("hides skipped Runs and archived created Tasks from the Project Calendar", async () => {
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,
     );
 
     expect(response.status).toBe(200);
-    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          AND: expect.arrayContaining([
-            {
-              OR: [
-                {
-                  state: {
-                    in: [
-                      TaskScheduleOccurrenceState.PLANNED,
-                      TaskScheduleOccurrenceState.SKIPPED,
-                    ],
-                  },
-                  seriesTask: { is: { archivedAt: null } },
-                },
-                {
-                  state: TaskScheduleOccurrenceState.RELEASED,
-                  releasedTask: { is: { archivedAt: null } },
-                },
-                {
-                  state: TaskScheduleOccurrenceState.RELEASED,
-                  releasedTaskId: null,
-                  seriesTask: { is: { archivedAt: null } },
-                },
-              ],
+    const where = taskScheduleOccurrenceFindManyMock.mock.lastCall?.[0].where;
+    expect(where.state).toEqual({
+      in: [TaskScheduleRunState.PLANNED, TaskScheduleRunState.RELEASED],
+    });
+    expect(where.AND).toEqual([
+      {
+        OR: [
+          {
+            state: TaskScheduleRunState.PLANNED,
+            schedule: {
+              is: {
+                AND: [
+                  { state: TaskScheduleState.ACTIVE },
+                  buildHumanTaskVisibilityWhere("user_123"),
+                ],
+              },
             },
-            {
-              OR: [
-                {
-                  state: {
-                    in: [
-                      TaskScheduleOccurrenceState.PLANNED,
-                      TaskScheduleOccurrenceState.SKIPPED,
-                    ],
-                  },
-                  seriesTask: {
-                    is: buildHumanTaskVisibilityWhere("user_123"),
-                  },
-                },
-                {
-                  state: TaskScheduleOccurrenceState.RELEASED,
-                  releasedTask: {
-                    is: buildHumanTaskVisibilityWhere("user_123"),
-                  },
-                },
-                {
-                  state: TaskScheduleOccurrenceState.RELEASED,
-                  releasedTaskId: null,
-                  seriesTask: {
-                    is: buildHumanTaskVisibilityWhere("user_123"),
-                  },
-                },
-              ],
+          },
+          {
+            state: TaskScheduleRunState.RELEASED,
+            releasedTask: {
+              is: {
+                AND: [
+                  { archivedAt: null },
+                  buildHumanTaskVisibilityWhere("user_123"),
+                ],
+              },
             },
-          ]),
-        }),
-      }),
-    );
-  });
-
-  it("filters planned and released Project occurrences by task status", async () => {
-    const response = await createApp().request(
-      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&status=READY`,
-    );
-
-    expect(response.status).toBe(200);
-    const taskFilter = { status: TaskStatus.READY };
-    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          AND: expect.arrayContaining([
-            {
-              OR: [
-                {
-                  state: {
-                    in: [
-                      TaskScheduleOccurrenceState.PLANNED,
-                      TaskScheduleOccurrenceState.SKIPPED,
-                    ],
-                  },
-                  seriesTask: { is: taskFilter },
-                },
-                {
-                  state: TaskScheduleOccurrenceState.RELEASED,
-                  releasedTask: { is: taskFilter },
-                },
-                {
-                  state: TaskScheduleOccurrenceState.RELEASED,
-                  releasedTaskId: null,
-                  seriesTask: { is: taskFilter },
-                },
-              ],
-            },
-          ]),
-        }),
-      }),
-    );
+          },
+        ],
+      },
+    ]);
   });
 
   it("does not read schedule data when the Project is outside the workspace", async () => {
@@ -410,7 +388,7 @@ describe("GET /projects/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("limits a delegated coworker to Tasks it can read", async () => {
+  it("limits a delegated coworker to schedules and Tasks it can read", async () => {
     vendorGrantFindUniqueMock.mockResolvedValue({
       id: "grant_123",
       status: VendorGrantStatus.GRANTED,
@@ -434,41 +412,29 @@ describe("GET /projects/{id}/calendar", () => {
         baseURL: true,
       },
     });
-    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          AND: expect.arrayContaining([
-            expect.objectContaining({
-              OR: expect.arrayContaining([
-                expect.objectContaining({
-                  state: {
-                    in: [
-                      TaskScheduleOccurrenceState.PLANNED,
-                      TaskScheduleOccurrenceState.SKIPPED,
-                    ],
-                  },
-                  seriesTask: {
-                    is: expect.objectContaining({
-                      archivedAt: null,
-                      status: { not: TaskStatus.DRAFT },
-                    }),
-                  },
-                }),
-                expect.objectContaining({
-                  state: TaskScheduleOccurrenceState.RELEASED,
-                  releasedTask: {
-                    is: expect.objectContaining({
-                      archivedAt: null,
-                      status: { not: TaskStatus.DRAFT },
-                    }),
-                  },
-                }),
-              ]),
-            }),
-          ]),
-        }),
-      }),
-    );
+    const where = taskScheduleOccurrenceFindManyMock.mock.lastCall?.[0].where;
+    expect(where.AND).toEqual([
+      {
+        OR: [
+          expect.objectContaining({
+            state: TaskScheduleRunState.PLANNED,
+          }),
+          {
+            state: TaskScheduleRunState.RELEASED,
+            releasedTask: {
+              is: {
+                AND: expect.arrayContaining([
+                  expect.objectContaining({
+                    archivedAt: null,
+                    status: { not: TaskStatus.DRAFT },
+                  }),
+                ]),
+              },
+            },
+          },
+        ],
+      },
+    ]);
     expect(taskScheduleOccurrenceCountMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({

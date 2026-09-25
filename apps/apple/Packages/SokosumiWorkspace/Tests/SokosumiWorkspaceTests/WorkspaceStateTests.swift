@@ -1549,6 +1549,15 @@ private func coworkerDirect(roomId: String) -> Components.Schemas.ChatRoom {
   )
 }
 
+/// Same id `roomsBody(names: ["general"])` emits.
+private func generalChannel(id: String = "550e8400-e29b-41d4-a716-446655440000") -> Components.Schemas.ChatRoom {
+  .init(
+    id: id, name: "general", kind: .channel, isSelfDirect: false, isGroupDirect: false, createdByUserId: "user_1",
+    createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
+    userMembers: [], coworkerMembers: [], sokoBotMembers: []
+  )
+}
+
 private struct ThreadStreamFixtures {
   let root: String
   let reply: String
@@ -2018,12 +2027,11 @@ extension WorkspaceStateTests {
 
   @Test func pinMutationsUpdateOnlyAfterSuccess() async throws {
     let (state, auth, transport, _) = try ephemeralState([
-      (200, roomsBody(names: ["general"])),
       (200, #"{"data":{"messageId":"message","pinnedMessageCount":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#),
       (403, #"{"message":"Denied"}"#)
     ], visible: false)
-    state.rooms = try await ChatService().listRooms(client: #require(state.resolveClient(auth: auth)), organizationSlug: nil)
-    let room = try #require(state.rooms.first)
+    let room = generalChannel()
+    state.rooms = [room]
     state.timeline.reset(roomId: room.id)
     state.pins.reset(roomId: room.id)
     var message = chatRoomMessage(from: .init(clientTurnId: "pin", roomId: room.id, content: "Pinned",
@@ -2040,16 +2048,15 @@ extension WorkspaceStateTests {
 
   @Test func oldPinMutationCannotUpdateNewRoom() async throws {
     let (state, auth, transport, _) = try ephemeralState([
-      (200, roomsBody(names: ["general"])),
       (200, #"{"data":{"messageId":"message","pinnedMessageCount":0},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#)
     ], visible: false)
-    state.rooms = try await ChatService().listRooms(client: #require(state.resolveClient(auth: auth)), organizationSlug: nil)
-    let room = try #require(state.rooms.first)
+    let room = generalChannel()
+    state.rooms = [room]
     state.timeline.reset(roomId: room.id)
     state.pins.reset(roomId: room.id)
     transport.pauseDELETE = true
     let request = Task { try await state.setPinned(false, messageId: "message", auth: auth) }
-    while transport.operationIDs.count < 2 {
+    while transport.operationIDs.isEmpty {
       await Task.yield()
     }
     #expect(state.isUpdatingPin("message"))
@@ -2101,19 +2108,18 @@ extension WorkspaceStateTests {
   @Test func sendingFromHistoryPreservesLoadedRowsAndPendingPinMutation() async throws {
     let roomId = "550e8400-e29b-41d4-a716-446655440000"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: roomId, content: "Old")], nextCursor: nil)),
       (200, #"{"data":{"messageId":"old","pinnedMessageCount":0},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#),
       (500, #"{"message":"Unavailable"}"#),
       (500, #"{"message":"Unavailable"}"#)
     ], visible: false)
-    state.rooms = try await ChatService().listRooms(client: #require(state.resolveClient(auth: auth)), organizationSlug: nil)
+    state.rooms = [generalChannel(id: roomId)]
     state.timeline.reset(roomId: roomId)
     state.pins.reset(roomId: roomId)
     #expect(try await state.jumpToMessage("old", auth: auth))
     transport.pauseDELETE = true
     let unpin = Task { try await state.setPinned(false, messageId: "old", auth: auth) }
-    while transport.operationIDs.count < 3 {
+    while transport.operationIDs.count < 2 {
       await Task.yield()
     }
     let revision = state.pins.revision

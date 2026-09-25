@@ -1,4 +1,8 @@
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
+
+/** Pause, resume, and end each have their own Task Schedule route. */
+export type TaskScheduleStateAction = "pause" | "resume" | "end";
+
 import type {
   ActivateEnterpriseContractRequest,
   AdminSokoBotActionRequest,
@@ -11,6 +15,7 @@ import type {
   CreateEnterpriseContractRequest,
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
+  CreateTaskScheduleRequest,
   DeleteJobsByIdShareError,
   DeleteProjectsByIdJobsByJobIdData,
   DeleteProjectsByIdSocialConnectionsByConnectionIdData,
@@ -40,13 +45,13 @@ import type {
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
-  GetTasksByIdScheduleOccurrencesData,
   GetTasksData,
+  GetTasksSchedulesByIdRunsData,
+  GetTasksSchedulesData,
   GetTasksSummaryData,
   GetWorkspacesCalendarData,
   JudgeSokoBotLabTurnRequest,
   ListAdminTaskX402PaymentsData,
-  MutateTaskScheduleOccurrenceRequest,
   Notice,
   PaginationMetadata,
   PatchAdminVendorData,
@@ -88,17 +93,13 @@ import type {
   PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
-  PostTasksScheduledData,
   PostUsersByIdFilesData,
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
   PostWorkspacesDesignMdAdhocData,
-  PutCalendarTaskScheduleRequest,
-  PutCalendarTaskScheduleSourceRequest,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutProjectsByIdDesignMdData,
-  PutTaskScheduleRequest,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   RefundAdminTaskX402PaymentData,
@@ -108,6 +109,8 @@ import type {
   SokoBotVersionWrite,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
+  UpdateTaskScheduleRequest,
+  UpdateTaskScheduleRunRequest,
 } from "@/lib/clients/generated/core";
 import {
   addAdminMatchedChannelParticipant as coreAddAdminMatchedChannelParticipant,
@@ -161,8 +164,9 @@ import {
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
-  deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
+  deleteTasksByIdParticipantsByUserId as coreDeleteTasksByIdParticipantsByUserId,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
+  deleteTasksSchedulesById as coreDeleteTasksSchedulesById,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   deleteUsersByIdPersonalWorkspace as coreDeleteUsersByIdPersonalWorkspace,
   disconnectMySokoBotIntegration as coreDisconnectMySokoBotIntegration,
@@ -252,11 +256,14 @@ import {
   getShareByToken as coreGetShareByToken,
   getSokoBotTeam as coreGetSokoBotTeam,
   getSubscriptionCatalog as coreGetSubscriptionCatalog,
+  getTaskScheduleAssignees as coreGetTaskScheduleAssignees,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
-  getTasksByIdScheduleOccurrences as coreGetTasksByIdScheduleOccurrences,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
+  getTasksSchedules as coreGetTasksSchedules,
+  getTasksSchedulesById as coreGetTasksSchedulesById,
+  getTasksSchedulesByIdRuns as coreGetTasksSchedulesByIdRuns,
   getTasksSummary as coreGetTasksSummary,
   getToolsSiteIcon as coreGetToolsSiteIcon,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
@@ -319,7 +326,8 @@ import {
   patchProjectsById as corePatchProjectsById,
   patchProjectsByIdSocialPostsByPostId as corePatchProjectsByIdSocialPostsByPostId,
   patchTasksById as corePatchTasksById,
-  patchTasksByIdScheduleOccurrencesByOccurrenceId as corePatchTasksByIdScheduleOccurrencesByOccurrenceId,
+  patchTasksSchedulesById as corePatchTasksSchedulesById,
+  patchTasksSchedulesByIdRunsByRunId as corePatchTasksSchedulesByIdRunsByRunId,
   patchVendor as corePatchVendor,
   performAdminSokoBotAction as corePerformAdminSokoBotAction,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
@@ -382,7 +390,10 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
-  postTasksScheduled as corePostTasksScheduled,
+  postTasksSchedules as corePostTasksSchedules,
+  postTasksSchedulesByIdEnd as corePostTasksSchedulesByIdEnd,
+  postTasksSchedulesByIdPause as corePostTasksSchedulesByIdPause,
+  postTasksSchedulesByIdResume as corePostTasksSchedulesByIdResume,
   postUsersByIdCoworkerAccessByAccessIdApprove as corePostUsersByIdCoworkerAccessByAccessIdApprove,
   postUsersByIdCoworkerAccessByAccessIdDeny as corePostUsersByIdCoworkerAccessByAccessIdDeny,
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
@@ -406,9 +417,6 @@ import {
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
-  putTasksByIdCalendarSchedule as corePutTasksByIdCalendarSchedule,
-  putTasksByIdCalendarSource as corePutTasksByIdCalendarSource,
-  putTasksByIdSchedule as corePutTasksByIdSchedule,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
@@ -487,8 +495,8 @@ function transformTaskListResponseEnvelope(data: any) {
   data.data = (data.data ?? []).map((item: any) => {
     item.createdAt = toDate(item.createdAt);
     item.updatedAt = toDate(item.updatedAt);
-    if (item.nextRunAt) {
-      item.nextRunAt = toDate(item.nextRunAt);
+    if (item.runAt) {
+      item.runAt = toDate(item.runAt);
     }
 
     return item;
@@ -505,8 +513,8 @@ function transformTaskResponseEnvelope(data: any) {
 
   task.createdAt = toDate(task.createdAt);
   task.updatedAt = toDate(task.updatedAt);
-  if (task.nextRunAt) {
-    task.nextRunAt = toDate(task.nextRunAt);
+  if (task.runAt) {
+    task.runAt = toDate(task.runAt);
   }
   task.events = task.events.map((event: any) => ({
     ...event,
@@ -3674,22 +3682,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function createScheduledTask(
-    body: NonNullable<PostTasksScheduledData["body"]>,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostTasksScheduled({
-          client,
-          body,
-          responseTransformer: async (data) =>
-            transformTaskResponseEnvelope(data),
-        }),
-      "Failed to create scheduled task",
-    );
-  }
-
   async function createTaskEvent(
     id: string,
     body: {
@@ -3709,6 +3701,7 @@ export function createCoreClient(getClient: GetCoreClient) {
         | "FAILED"
         | "CANCELED";
       comment?: string;
+      mentionedUserIds?: string[];
     },
   ) {
     return executeCoreOperation(
@@ -3782,6 +3775,18 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function deleteTaskParticipant(id: string, userId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteTasksByIdParticipantsByUserId({
+          client,
+          path: { id, userId },
+        }),
+      "Failed to remove task participant",
+    );
+  }
+
   async function deleteTask(id: string) {
     return executeCoreOperation(
       getClient,
@@ -3796,118 +3801,114 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function putTaskSchedule(id: string, body: PutTaskScheduleRequest) {
+  async function listTaskSchedules(query?: GetTasksSchedulesData["query"]) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePutTasksByIdSchedule({
+        coreGetTasksSchedules({
           client,
-          path: { id },
-          body,
-          responseTransformer: async (data) =>
-            transformTaskResponseEnvelope(data),
+          query,
+          cache: "no-store",
         }),
-      "Failed to save task schedule",
+      "Failed to fetch Task Schedules",
     );
   }
 
-  async function putTaskCalendarSchedule(
+  async function getTaskScheduleAssignees() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetTaskScheduleAssignees({ client, cache: "no-store" }),
+      "Failed to fetch Task Schedule assignees",
+    );
+  }
+
+  async function createTaskSchedule(body: CreateTaskScheduleRequest) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostTasksSchedules({ client, body }),
+      "Failed to create Task Schedule",
+    );
+  }
+
+  async function getTaskSchedule(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksSchedulesById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Task Schedule",
+    );
+  }
+
+  async function updateTaskSchedule(
     id: string,
-    body: PutCalendarTaskScheduleRequest,
+    body: UpdateTaskScheduleRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePatchTasksSchedulesById({ client, path: { id }, body }),
+      "Failed to update Task Schedule",
+    );
+  }
+
+  async function changeTaskScheduleState(
+    id: string,
+    action: TaskScheduleStateAction,
+  ) {
+    const operation = {
+      pause: corePostTasksSchedulesByIdPause,
+      resume: corePostTasksSchedulesByIdResume,
+      end: corePostTasksSchedulesByIdEnd,
+    }[action];
+    return executeCoreOperation(
+      getClient,
+      (client) => operation({ client, path: { id } }),
+      `Failed to ${action} Task Schedule`,
+    );
+  }
+
+  async function deleteTaskScheduleById(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreDeleteTasksSchedulesById({ client, path: { id } }),
+      "Failed to delete Task Schedule",
+    );
+  }
+
+  async function listTaskScheduleRuns(
+    id: string,
+    query?: GetTasksSchedulesByIdRunsData["query"],
   ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePutTasksByIdCalendarSchedule({
-          client,
-          path: { id },
-          body,
-          responseTransformer: async (data) =>
-            transformTaskResponseEnvelope(data),
-        }),
-      "Failed to save Calendar task schedule",
-    );
-  }
-
-  async function putTaskCalendarSource(
-    id: string,
-    body: PutCalendarTaskScheduleSourceRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePutTasksByIdCalendarSource({
-          client,
-          path: { id },
-          body,
-        }),
-      "Failed to move Calendar task source",
-    );
-  }
-
-  /**
-   * Series removal has no body, so its idempotency identity and observed
-   * revision travel as request metadata. A custom revision header avoids
-   * deployment platforms applying HTTP `If-Match` semantics themselves.
-   */
-  async function deleteTaskSchedule(
-    id: string,
-    precondition: {
-      operationId: string;
-      expectedScheduleRevision: number;
-    },
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreDeleteTasksByIdSchedule({
-          client,
-          path: { id },
-          headers: {
-            "idempotency-key": precondition.operationId,
-            "x-sokosumi-schedule-revision": String(
-              precondition.expectedScheduleRevision,
-            ),
-          },
-          responseTransformer: async (data) =>
-            transformTaskResponseEnvelope(data),
-        }),
-      "Failed to clear task schedule",
-    );
-  }
-
-  async function getTaskScheduleOccurrences(
-    id: string,
-    query: GetTasksByIdScheduleOccurrencesData["query"],
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetTasksByIdScheduleOccurrences({
+        coreGetTasksSchedulesByIdRuns({
           client,
           path: { id },
           query,
           cache: "no-store",
         }),
-      "Failed to fetch task schedule occurrences",
+      "Failed to fetch Task Schedule Runs",
     );
   }
 
-  async function mutateTaskScheduleOccurrence(
+  async function changeTaskScheduleRun(
     id: string,
-    occurrenceId: string,
-    body: MutateTaskScheduleOccurrenceRequest,
+    runId: string,
+    body: UpdateTaskScheduleRunRequest,
   ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePatchTasksByIdScheduleOccurrencesByOccurrenceId({
+        corePatchTasksSchedulesByIdRunsByRunId({
           client,
-          path: { id, occurrenceId },
+          path: { id, runId },
           body,
-          cache: "no-store",
         }),
-      "Failed to mutate task schedule occurrence",
+      "Failed to change Task Schedule Run",
     );
   }
 
@@ -5401,7 +5402,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     createOrganizationLogoUploadSession,
     createVendorLogoUploadSession,
     createTask,
-    createScheduledTask,
     createTaskFileUploadSession,
     createTaskLink,
     createTaskEvent,
@@ -5412,8 +5412,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteProjectsByIdTasksByTaskId,
     deleteTaskShare,
     deleteTaskLink,
+    deleteTaskParticipant,
     deleteTask,
-    deleteTaskSchedule,
     getChatRoom,
     getChatRoomInvitations,
     getChatRoomMessages,
@@ -5635,17 +5635,21 @@ export function createCoreClient(getClient: GetCoreClient) {
     revokeMyOauthConsent,
     getTaskById,
     getTaskLinks,
-    getTaskScheduleOccurrences,
     getTaskWorkspace,
     getTasks,
     getTasksSummary,
     patchTask,
     putJobShare,
-    putTaskCalendarSchedule,
-    putTaskCalendarSource,
-    putTaskSchedule,
     putTaskShare,
-    mutateTaskScheduleOccurrence,
+    listTaskSchedules,
+    getTaskScheduleAssignees,
+    createTaskSchedule,
+    getTaskSchedule,
+    updateTaskSchedule,
+    changeTaskScheduleState,
+    deleteTaskScheduleById,
+    listTaskScheduleRuns,
+    changeTaskScheduleRun,
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
     getMySokoBot,

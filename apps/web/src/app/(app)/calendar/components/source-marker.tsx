@@ -6,7 +6,6 @@ import type { WorkspaceCalendarSource } from "@/lib/clients/generated/core";
 const SOURCE_PALETTE_CLASSES = {
   blue: "bg-chart-1",
   violet: "bg-chart-2",
-  amber: "bg-chart-4",
 } as const;
 
 export function SourceMarker({

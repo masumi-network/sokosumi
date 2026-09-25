@@ -135,7 +135,7 @@ vi.mock("@/app/components/list-mobile-create-fab", () => ({
   ListMobileCreateFab: () => null,
 }));
 
-const SCHEDULED_TASK: TaskWithCoworker = {
+const TASK: TaskWithCoworker = {
   id: "task-1",
   name: "Weekly report",
   status: TaskStatus.DRAFT,
@@ -147,16 +147,15 @@ const SCHEDULED_TASK: TaskWithCoworker = {
   updatedAt: "2026-06-01T08:00:00.000Z",
   jobsCount: 0,
   commentsCount: 0,
+  participants: [],
   columnId: "backlog",
   events: [],
   agents: [],
   assignee: { id: "coworker-1", name: "Soko", kind: "coworker" },
-  metadata: JSON.stringify({ version: 2, mode: "recurring" }),
-  nextRunAt: "2026-06-25T09:00:00.000Z",
 } as TaskWithCoworker;
 
-const CANCELED_SCHEDULED_TASK: TaskWithCoworker = {
-  ...SCHEDULED_TASK,
+const CANCELED_TASK: TaskWithCoworker = {
+  ...TASK,
   status: TaskStatus.CANCELED,
   columnId: "done",
 };
@@ -208,7 +207,6 @@ const labels = {
   loadMore: "Load more",
   loading: "Loading",
   dragError: "Could not update the task",
-  scheduleActiveError: "This task runs on a schedule",
   loadMoreError: "Could not load more",
   loadJobsError: "Could not load jobs",
   reopenToReady: {
@@ -251,7 +249,7 @@ const EMPTY_JOBS_FILTERS: JobsListFilters = {
   projectId: null,
 };
 
-function renderBoard(tasks: TaskWithCoworker[] = [SCHEDULED_TASK]) {
+function renderBoard(tasks: TaskWithCoworker[] = [TASK]) {
   return render(
     <TasksView
       tasks={tasks}
@@ -316,39 +314,23 @@ describe("TasksView board drag", () => {
     vi.clearAllMocks();
   });
 
-  it("restores a scheduled task rejected with schedule_active and says why", async () => {
+  it("restores a task rejected with status_not_selectable and says why", async () => {
     vi.mocked(setTaskStatusFromDrag).mockResolvedValue({
       ok: false,
-      error: { kind: "schedule_active" },
+      error: { kind: "status_not_selectable" },
     });
     renderBoard();
 
     await dropOnTodo("task-1", "backlog");
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(labels.scheduleActiveError),
+      expect(toast.error).toHaveBeenCalledWith("Errors.updateStatus"),
     );
     expect(boardCard("task-1")).toHaveAttribute("data-column", "backlog");
     expect(boardCard("task-1")).toHaveAttribute(
       "data-status",
       TaskStatus.DRAFT,
     );
-    expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
-  });
-
-  it("gives a quarantined series its own copy rather than the upgrade modal", async () => {
-    vi.mocked(setTaskStatusFromDrag).mockResolvedValue({
-      ok: false,
-      error: { kind: "schedule_quarantined" },
-    });
-    renderBoard();
-
-    await dropOnTodo("task-1", "backlog");
-
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("quarantined"),
-    );
-    expect(boardCard("task-1")).toHaveAttribute("data-column", "backlog");
     expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
   });
 
@@ -372,9 +354,9 @@ describe("TasksView board drag", () => {
     const user = userEvent.setup();
     vi.mocked(setTaskStatusFromDrag).mockResolvedValue({
       ok: false,
-      error: { kind: "schedule_active" },
+      error: { kind: "status_not_selectable" },
     });
-    renderBoard([CANCELED_SCHEDULED_TASK]);
+    renderBoard([CANCELED_TASK]);
 
     await dropOnTodo("task-1", "done");
     // The reopen branch owns its own rollback and clears the dialog state
@@ -388,7 +370,7 @@ describe("TasksView board drag", () => {
     );
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(labels.scheduleActiveError),
+      expect(toast.error).toHaveBeenCalledWith("Errors.updateStatus"),
     );
     expect(boardCard("task-1")).toHaveAttribute("data-column", "done");
     expect(boardCard("task-1")).toHaveAttribute(

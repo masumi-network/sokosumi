@@ -126,7 +126,8 @@ Amendment 2 reversed the proposal. Keep the findings; do not re-shop.
   true**. Core has **zero** route files importing `neverthrow` and only two
   non-test files:
   [`x402-settlement.ts`](../../apps/core/src/helpers/x402-settlement.ts) and
-  [`task-schedule-quarantine.service.ts`](../../apps/core/src/services/task-schedule-quarantine.service.ts).
+  `task-schedule-quarantine.service.ts` (removed with
+  [ADR 0041](0041-recurring-rules-move-to-task-schedule.md)).
   `neverthrow` is a **web** convention (42 files under
   `apps/web/src/lib/actions/`), bound to `ActionResultDto`.
 - **A worker-only host alongside Vercel** for a `pg-boss` consumer — fallback

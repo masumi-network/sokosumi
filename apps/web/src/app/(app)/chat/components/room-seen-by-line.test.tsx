@@ -195,6 +195,13 @@ describe("RoomSeenByLine", () => {
     expect(trigger).not.toBeNull();
     await user.click(trigger as HTMLElement);
 
+    // Pinned above the faces: left to Radix it opens below them over the
+    // composer while it fits there, and above once it does not.
+    expect(await screen.findByTestId("room-seen-by-detail")).toHaveAttribute(
+      "data-side",
+      "top",
+    );
+
     const readers = await screen.findAllByTestId(/^room-seen-by-reader-/);
     expect(readers.map((row) => row.getAttribute("data-testid"))).toEqual([
       "room-seen-by-reader-user-a",
@@ -228,15 +235,13 @@ describe("RoomSeenByLine", () => {
 
     await user.click(line() as HTMLElement);
 
-    expect(
-      await screen.findByTestId("room-seen-by-pending-user-lagging"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("room-seen-by-pending-user-never"),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("room-seen-by-pending-user-read"),
-    ).not.toBeInTheDocument();
+    // Shown straight away: nothing to unfold, so nothing grows on click.
+    const pending = await screen.findAllByTestId(/^room-seen-by-pending-user-/);
+    expect(pending.map((row) => row.getAttribute("data-testid"))).toEqual([
+      "room-seen-by-pending-user-lagging",
+      "room-seen-by-pending-user-never",
+    ]);
+    expect(screen.queryByRole("button", { name: /not yet/ })).toBeNull();
   });
 
   it("says nothing about who has not read when everyone has", async () => {
@@ -249,7 +254,7 @@ describe("RoomSeenByLine", () => {
       await screen.findByTestId("room-seen-by-reader-user-a"),
     ).toBeInTheDocument();
     expect(
-      screen.queryByTestId("room-seen-by-pending-title"),
+      screen.queryByTestId("room-seen-by-pending"),
     ).not.toBeInTheDocument();
   });
 });

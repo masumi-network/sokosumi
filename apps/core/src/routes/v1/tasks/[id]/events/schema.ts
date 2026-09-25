@@ -173,6 +173,14 @@ export function createTaskEventRequestSchema(
         .string()
         .optional()
         .openapi({ example: "Task Event is running" }),
+      mentionedUserIds: z
+        .array(z.string())
+        .optional()
+        .openapi({
+          description:
+            "Workspace member ids @-mentioned in this comment. Unknown ids are ignored. Also read from @userId tokens in comment. Does not add participants unless comment is set.",
+          example: ["user_123"],
+        }),
       authenticationUrl: z
         .httpUrl()
         .optional()

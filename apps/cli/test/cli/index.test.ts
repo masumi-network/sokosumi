@@ -276,6 +276,19 @@ test("rejects leftover dual-option aliases", () => {
     () => parseArgv(["tasks", "list", "--q", "review"]),
     /Unknown option: --q/,
   );
+  assert.throws(
+    () => parseArgv(["coworkers", "api-key", "cw-1", "--expires-at", "soon"]),
+    /Unknown option: --expires-at/,
+  );
+  const parsed = parseArgv([
+    "tasks",
+    "list",
+    "--status",
+    "READY",
+    "--status",
+    "DONE",
+  ]);
+  assert.equal(parsed.options.status, "DONE");
 });
 test("parses value options inline before and after positionals", () => {
   const expected = {

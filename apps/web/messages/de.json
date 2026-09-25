@@ -296,6 +296,7 @@
       "drive": "Dateien",
       "soko-bots": "Soko Bots",
       "calendar": "Kalender",
+      "schedules": "Zeitpläne",
       "threads": "Threads"
     },
     "Jobs": {
@@ -1561,8 +1562,7 @@
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
         "loadMore": "Weitere Aufgaben konnten nicht geladen werden",
         "loadCreateTask": "Formular zum Erstellen einer Aufgabe konnte nicht geladen werden",
-        "loadJobs": "Jobs konnten nicht geladen werden",
-        "scheduleActive": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne den Zeitplan, bevor du sie verschiebst."
+        "loadJobs": "Jobs konnten nicht geladen werden"
       },
       "Card": {
         "comments": "Kommentare",
@@ -1765,9 +1765,7 @@
             "parent": "Übergeordnete Aufgabe",
             "subtask": "Unteraufgabe",
             "duplicate": "Duplikat",
-            "addSubtask": "Unteraufgabe hinzufügen",
-            "scheduleRun": "Geplanter Lauf",
-            "scheduleSeries": "Zeitplan"
+            "addSubtask": "Unteraufgabe hinzufügen"
           },
           "personalWorkspace": "Persönlich",
           "startWorking": "Arbeit beginnen",
@@ -1775,7 +1773,9 @@
           "waitExternal": "Auf Externes warten",
           "resumeRunning": "Fortsetzen",
           "resumeReady": "Zurück zu Bereit",
-          "markComplete": "Als erledigt markieren"
+          "markComplete": "Als erledigt markieren",
+          "repeat": "Wiederholen",
+          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut."
         },
         "ShareModal": {
           "title": "Share task",
@@ -1809,7 +1809,6 @@
           "switchError": "Arbeitsbereich konnte nicht gewechselt werden. Bitte versuche es erneut."
         },
         "clonedFrom": "Geklont von {name}",
-        "schedule": "Zeitplan",
         "pendingApproval": "Freigabe ausstehend",
         "VendorGrantApproval": {
           "title": "Freigabe des Vendor-Zugriffs erforderlich",
@@ -1828,47 +1827,15 @@
           "description": "Diese Aufgabe ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt.",
           "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt. Sie ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt."
         },
-        "ScheduleSeries": {
-          "title": "Zeitplan",
-          "calendar": "Kalender",
-          "repeats": "Wiederholung",
-          "timezone": "Zeitzone",
-          "nextRun": "Nächster Lauf",
-          "removed": "Dieser Zeitplan wurde entfernt. Vergangene Läufe bleiben unten erhalten.",
-          "tabsLabel": "Zeitplanläufe",
-          "upcomingTab": "Anstehend",
-          "historyTab": "Verlauf",
-          "upcomingListLabel": "Anstehende Läufe",
-          "historyListLabel": "Vergangene Läufe",
-          "upcomingEmpty": "Keine anstehenden Läufe. Neue Läufe erscheinen hier, sobald der Zeitplan sie einplant.",
-          "upcomingEmptyRemoved": "Keine anstehenden Läufe – dieser Zeitplan wurde entfernt.",
-          "historyEmpty": "Keine vergangenen Läufe. Gestartete, abgebrochene und verpasste Läufe erscheinen hier.",
-          "loadMore": "Mehr laden",
-          "loading": "Wird geladen",
-          "loadMoreError": "Weitere Läufe konnten nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.",
-          "occurrencesError": "Läufe konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
-          "movedFrom": "Verschoben von {original}",
-          "statePlanned": "Geplant",
-          "stateSkipped": "Übersprungen",
-          "stateCanceled": "Abgebrochen",
-          "stateReleased": "Gestartet",
-          "stateMissed": "Verpasst",
-          "archivedRun": "Archiviert",
-          "move": "Verschieben",
-          "skip": "Überspringen",
-          "restore": "Wiederherstellen",
-          "mutationError": "Dieser Lauf konnte nicht geändert werden. Bitte versuche es erneut.",
-          "moveSource": "Kalender wechseln",
-          "moveSourceTitle": "Diesen Zeitplan verschieben?",
-          "moveSourceLabel": "Zielkalender",
-          "moveSourceDescription": "Wähle den Kalender, in dem dieser Zeitplan neue Läufe erstellt. Beim Verschieben werden {count, plural, =0 {keine geänderten anstehenden Läufe} one {# geänderter anstehender Lauf} other {# geänderte anstehende Läufe}} abgebrochen. Vergangene und bereits gestartete Läufe bleiben unverändert.",
-          "moveSourceCancel": "Aktuellen Kalender behalten",
-          "moveSourceConfirm": "Zeitplan verschieben",
-          "moveSourceSuccess": "Der Zeitplan wurde in den neuen Kalender verschoben.",
-          "moveSourceError": "Dieser Zeitplan konnte nicht verschoben werden. Lade die Aufgabe neu und versuche es erneut."
-        },
         "files": "Dateien",
-        "assignee": "Zuständig"
+        "assignee": "Zuständig",
+        "schedule": "Zeitplan",
+        "privateSchedule": "Privater Zeitplan",
+        "participants": "Beteiligte",
+        "removeParticipant": "{name} entfernen",
+        "removeParticipantConfirmTitle": "{name} entfernen?",
+        "removeParticipantConfirmDescription": "Die Person ist danach nicht mehr an dieser Aufgabe beteiligt.",
+        "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut."
       },
       "NewTask": {
         "ContextAttachments": {
@@ -1921,7 +1888,7 @@
         "removeAttachment": "Anhang entfernen",
         "createTask": "Task erstellen",
         "scheduleTask": "Task planen",
-        "openSchedule": "Zeitplan festlegen",
+        "openRunAt": "Startzeit festlegen",
         "cancel": "Abbrechen",
         "ctrl": "Strg",
         "defaultBadge": "Standard",
@@ -1974,104 +1941,73 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Anhang entfernen",
         "save": "Speichern",
-        "openSchedule": "Zeitplan festlegen",
+        "openRunAt": "Startzeit festlegen",
         "cancel": "Abbrechen",
         "ctrl": "Strg",
         "unassigned": "Nicht zugewiesen",
         "unavailableAssignee": "Zuweisung nicht verfügbar"
       },
       "Schedule": {
-        "title": "Zeitplan",
-        "description": "Einmalige oder wiederkehrende Ausführung planen.",
-        "clearSchedule": "Zeitplan entfernen",
-        "series": {
-          "discardTitle": "{count, plural, one {# geänderten Lauf} other {# geänderte Läufe}} verwerfen?",
-          "discardDescription": "Wenn du eine neue Regel für die gesamte Serie speicherst, {count, plural, one {wird der verschobene oder übersprungene bevorstehende Lauf abgebrochen} other {werden die # verschobenen oder übersprungenen bevorstehenden Läufe abgebrochen}}. Bereits erfolgte Läufe bleiben erhalten.",
-          "discardCancel": "Aktuellen Zeitplan behalten",
-          "discardConfirm": "Speichern und verwerfen",
-          "removeTitle": "Diesen Zeitplan entfernen?",
-          "removeDescription": "Diese Aufgabe läuft dann nicht mehr nach einem Zeitplan. Bereits erfolgte Läufe bleiben erhalten, bevorstehende Läufe werden abgebrochen.",
-          "removeCancel": "Zeitplan behalten",
-          "removeConfirm": "Zeitplan entfernen",
-          "revisionConflict": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Aufgabe neu, öffne den Zeitplan erneut und wende deine Änderung noch einmal an.",
-          "quarantined": "Dieser Zeitplan ist zur Reparatur pausiert und kann nicht geändert werden. Wende dich an den Support, um ihn wiederherzustellen.",
-          "operationConflict": "Diese Speicherung wurde bereits mit anderen Angaben gesendet. Öffne den Zeitplan erneut und versuche es noch einmal.",
-          "activeSeries": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne zuerst ihren Zeitplan.",
-          "unknownCount": "Wir konnten nicht prüfen, welche bevorstehenden Läufe eine neue Regel abbrechen würde. Lade die Seite neu, öffne den Zeitplan erneut und versuche es noch einmal.",
-          "occurrenceLocked": "Dieses Vorkommen kann nicht mehr geändert werden.",
-          "occurrenceTargetInvalid": "Dieser Zeitpunkt ist kein gültiges Ziel."
-        },
-        "occurrenceMove": {
-          "title": "Vorkommen verschieben",
-          "description": "Wähle eine neue Zeit für diesen Lauf.",
-          "label": "Neue Zeit",
-          "confirm": "Vorkommen verschieben",
-          "cancel": "Abbrechen",
-          "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
-          "error": "Dieses Vorkommen konnte nicht verschoben werden. Bitte versuche es erneut."
-        },
-        "occurrenceRestore": {
-          "title": "Vorkommen wiederherstellen",
-          "description": "Stelle diesen Lauf zur ursprünglichen Zeit wieder her oder wähle eine andere zukünftige Zeit.",
-          "label": "Wiederhergestellte Zeit",
-          "confirm": "Vorkommen wiederherstellen",
-          "cancel": "Abbrechen",
-          "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
-          "error": "Dieses Vorkommen konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
-        },
         "option": {
-          "oneTime": "One-time",
-          "daily": "Daily",
-          "dailyWithTime": "Daily ({time})",
-          "dailyEveryNWithTime": "Every {n} days ({time})",
-          "weekly": "Weekly",
-          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
-          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
-          "monthly": "Monthly",
-          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
-          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
-          "custom": "Custom cron"
+          "daily": "Täglich",
+          "dailyWithTime": "Täglich ({time})",
+          "dailyEveryNWithTime": "Alle {n} Tage ({time})",
+          "weekly": "Wöchentlich",
+          "weeklyWithWeekdayTime": "Wöchentlich ({weekday}, {time})",
+          "weeklyListWithTime": "Wöchentlich ({weekdays}, {time})",
+          "monthly": "Monatlich",
+          "monthlyWithDayTime": "Monatlich (am {day}., {time})",
+          "monthlyEveryNWithDayTime": "Alle {n} Monate (am {day}., {time})",
+          "custom": "Benutzerdefinierter Cron"
         },
-        "pickDateTime": "Run once at",
-        "timeOfDay": "Time of day",
-        "repeatEvery": "Repeat every",
-        "repeatOn": "Repeat on",
-        "ends": "Ends",
-        "never": "Never",
-        "on": "On date",
-        "after": "After",
-        "occurrences": "occurrences",
-        "pickDate": "Pick a date",
-        "preview": "Preview",
-        "noPreview": "No upcoming runs",
+        "firstRun": "Erster Lauf",
+        "timeOfDay": "Uhrzeit",
+        "repeatEvery": "Wiederholen alle",
+        "repeatOn": "Wiederholen am",
+        "ends": "Endet",
+        "never": "Nie",
+        "on": "Am Datum",
+        "after": "Nach",
+        "occurrences": "Läufen",
+        "pickDate": "Datum auswählen",
+        "preview": "Vorschau",
+        "noPreview": "Keine anstehenden Läufe",
         "timezone": "Zeitzone",
         "customCron": "Benutzerdefinierter Cron-Ausdruck",
-        "customCronValid": "Valid cron expression",
+        "customCronValid": "Gültiger Cron-Ausdruck",
         "unit": {
-          "day": "day",
-          "week": "week",
-          "month": "month"
+          "day": "Tag(e)",
+          "week": "Woche(n)",
+          "month": "Monat(e)"
         },
-        "save": "Save",
-        "cancel": "Cancel",
-        "footer": {
-          "oneTimeAt": "Einmal am {datetime}"
-        },
-        "card": {
-          "overdue": "Überfällig",
-          "dueInMinutes": "Fällig in {minutes, plural, one {# Minute} other {# Minuten}}",
-          "dueInHours": "Fällig in {hours, plural, one {# Stunde} other {# Stunden}}",
-          "tomorrowAt": "Morgen um {time}",
-          "nextRunAt": "Nächste Ausführung: {datetime}"
-        },
+        "save": "Speichern",
+        "cancel": "Abbrechen",
         "errors": {
-          "required": "This field is required.",
-          "futureDateTime": "Select a future date and time.",
-          "invalidTime": "Enter a valid time (HH:MM).",
-          "positiveInteger": "Enter a positive integer.",
-          "selectAtLeastOneWeekday": "Select at least one weekday.",
-          "endDateInPast": "End date cannot be in the past.",
-          "invalidCron": "Enter a valid cron expression for the selected timezone."
+          "required": "Dieses Feld ist erforderlich.",
+          "futureDateTime": "Wähle ein Datum und eine Uhrzeit in der Zukunft.",
+          "invalidTime": "Gib eine gültige Uhrzeit ein (HH:MM).",
+          "positiveInteger": "Gib eine positive ganze Zahl ein.",
+          "selectAtLeastOneWeekday": "Wähle mindestens einen Wochentag.",
+          "endDateInPast": "Das Enddatum darf nicht in der Vergangenheit liegen.",
+          "invalidCron": "Gib einen gültigen Cron-Ausdruck für die ausgewählte Zeitzone ein."
+        }
+      },
+      "RunAt": {
+        "title": "Startzeit",
+        "description": "Der Task wartet bis zu diesem Zeitpunkt und wechselt dann zu Bereit.",
+        "label": "Starten am",
+        "apply": "Übernehmen",
+        "clear": "Entfernen",
+        "cancel": "Abbrechen",
+        "notInFuture": "Wähle einen Zeitpunkt in der Zukunft.",
+        "requiresAgent": "Für geplante Tasks ist ein Agent erforderlich. Wähle einen aus, um eine Startzeit festzulegen.",
+        "footer": "Startet {datetime}",
+        "badge": {
+          "overdue": "Startet gleich",
+          "inMinutes": "Startet in {minutes, plural, one {# Minute} other {# Minuten}}",
+          "inHours": "Startet in {hours, plural, one {# Stunde} other {# Stunden}}",
+          "tomorrowAt": "Startet morgen um {time}",
+          "at": "Startet {datetime}"
         }
       },
       "EmptyState": {
@@ -2084,6 +2020,88 @@
         "back": "Back",
         "addTaskHint": "Start by adding a task",
         "elenaAvatarAlt": "Elena avatar"
+      },
+      "Schedules": {
+        "stateFilter": "Status des Zeitplans",
+        "filterAll": "Alle",
+        "state": {
+          "ACTIVE": "Aktiv",
+          "PAUSED": "Pausiert",
+          "ENDED": "Beendet"
+        },
+        "newSchedule": "Neuer Zeitplan",
+        "empty": "Hier gibt es noch keine Zeitpläne. Ein Zeitplan erstellt bei jedem Lauf einen neuen Task.",
+        "loadMore": "Mehr laden",
+        "loadingMore": "Wird geladen…",
+        "loadMoreError": "Weitere Zeitpläne ließen sich nicht laden.",
+        "nextRun": "Nächster Lauf {datetime}",
+        "noNextRun": "Kein anstehender Lauf",
+        "unassigned": "Nicht zugewiesen",
+        "unavailableAssignee": "Nicht verfügbare Zuständigkeit",
+        "workspace": "Workspace",
+        "Dialog": {
+          "createTitle": "Neuer Zeitplan",
+          "editTitle": "Zeitplan bearbeiten",
+          "createDescription": "Jeder Lauf erstellt aus diesen Angaben einen neuen Task.",
+          "futureOnlyNotice": "Änderungen gelten nur für künftige Läufe. Bereits erstellte Tasks bleiben unverändert.",
+          "name": "Name",
+          "description": "Beschreibung",
+          "assignee": "Zuständig",
+          "create": "Zeitplan erstellen",
+          "save": "Änderungen speichern",
+          "created": "Zeitplan erstellt",
+          "saved": "Zeitplan gespeichert",
+          "errors": {
+            "stale": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Seite neu und versuche es erneut.",
+            "saveFailed": "Der Zeitplan ließ sich nicht speichern."
+          }
+        },
+        "Actions": {
+          "edit": "Bearbeiten",
+          "pause": "Pausieren",
+          "resume": "Fortsetzen",
+          "end": "Beenden",
+          "delete": "Löschen",
+          "paused": "Zeitplan pausiert",
+          "resumed": "Zeitplan fortgesetzt",
+          "ended": "Zeitplan beendet",
+          "deleted": "Zeitplan gelöscht",
+          "failed": "Der Zeitplan ließ sich nicht ändern. Versuche es erneut.",
+          "confirmEndTitle": "Diesen Zeitplan beenden?",
+          "confirmEndDescription": "Er erstellt endgültig keine Tasks mehr, und seine übersprungenen oder verschobenen Läufe entfallen. Bereits erstellte Tasks bleiben.",
+          "confirmDeleteTitle": "Diesen Zeitplan löschen?",
+          "confirmDeleteDescription": "Der Zeitplan und seine anstehenden Läufe werden entfernt. Bereits erstellte Tasks bleiben, ohne Verknüpfung zum Zeitplan.",
+          "confirmEnd": "Zeitplan beenden",
+          "confirmDelete": "Zeitplan löschen",
+          "cancel": "Abbrechen"
+        },
+        "Detail": {
+          "back": "Zeitpläne",
+          "upcomingRuns": "Anstehende Läufe",
+          "noUpcomingRuns": "Noch keine Läufe geplant.",
+          "noUpcomingRunsInactive": "Solange der Zeitplan pausiert oder beendet ist, sind keine Läufe geplant.",
+          "runSkipped": "Übersprungen",
+          "runMoved": "Verschoben",
+          "createdTasks": "Erstellte Tasks",
+          "noCreatedTasks": "Noch keine Tasks erstellt.",
+          "properties": "Eigenschaften",
+          "state": "Status",
+          "rule": "Wiederholung",
+          "timezone": "Zeitzone",
+          "nextRun": "Nächster Lauf",
+          "ends": "Endet",
+          "assignee": "Zuständig",
+          "project": "Projekt",
+          "noProject": "Kein Projekt",
+          "released": "Bisherige Läufe",
+          "endsOn": "Am {date}",
+          "endsAfter": "Nach {count, plural, one {# Lauf} other {# Läufen}}",
+          "endsNever": "Nie"
+        },
+        "Page": {
+          "title": "Zeitpläne",
+          "description": "Alle Zeitpläne in deinem Workspace. Jeder Lauf erstellt einen neuen Task."
+        }
       }
     },
     "Projects": {
@@ -2554,6 +2572,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Kalender",
+          "schedules": "Zeitpläne",
           "projectsLoading": "Projekte werden geladen…",
           "projectsError": "Projekte konnten nicht geladen werden.",
           "retryProjects": "Erneut versuchen"
@@ -6467,46 +6486,35 @@
       "view": {
         "month": "Monat",
         "week": "Woche",
-        "agenda": "Agenda",
-        "schedules": "Zeitpläne"
+        "agenda": "Agenda"
       },
       "source": {
         "label": "Quelle",
         "all": "Alle Quellen",
         "WORKSPACE": "Workspace",
-        "PROJECT": "Projekt",
-        "LEGACY_UNKNOWN": "Legacy-Quelle"
+        "PROJECT": "Projekt"
       },
       "event": {
         "accessibleName": "{task}, {source}",
-        "accessibleNameSkipped": "{task}, {source}, übersprungen",
-        "editSchedule": "Zeitplan bearbeiten",
-        "moveOccurrence": "Vorkommen verschieben",
-        "skipOccurrence": "Vorkommen überspringen",
-        "restoreOccurrence": "Vorkommen wiederherstellen",
-        "mutationError": "Dieses Vorkommen konnte nicht geändert werden. Bitte versuche es erneut.",
-        "openTask": "Task öffnen",
-        "moveNotAllowed": "Nur der Besitzer der Aufgabe kann sie neu planen."
+        "moveNotAllowed": "Nur anstehende Läufe deiner eigenen aktiven Zeitpläne lassen sich verschieben.",
+        "moveRun": "Lauf verschieben",
+        "skipRun": "Lauf überspringen",
+        "restoreRun": "Lauf wiederherstellen",
+        "openSchedule": "Zeitplan öffnen",
+        "runStale": "Dieser Zeitplan wurde an anderer Stelle geändert. Der Kalender lädt neu; versuche es erneut.",
+        "runInvalidTime": "Wähle eine Zeit in der Zukunft, innerhalb der nächsten 90 Tage.",
+        "runError": "Dieser Lauf konnte nicht geändert werden. Versuche es erneut."
+      },
+      "runMove": {
+        "title": "Lauf verschieben",
+        "description": "Wähle eine neue Zeit für diesen Lauf von {name}. Der Zeitplan bleibt, wie er ist.",
+        "label": "Neue Zeit",
+        "confirm": "Lauf verschieben",
+        "cancel": "Abbrechen",
+        "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit."
       },
       "create": {
         "fab": "Task planen"
-      },
-      "edit": {
-        "title": "Zeitplan bearbeiten",
-        "description": "Aendere den Zeitplan fuer {name}.",
-        "loadError": "Dieser Task konnte nicht geladen werden. Bitte versuche es erneut.",
-        "saveError": "Dieser Zeitplan konnte nicht gespeichert werden. Bitte versuche es erneut.",
-        "clearError": "Dieser Zeitplan konnte nicht entfernt werden. Bitte versuche es erneut.",
-        "clearPending": "Zeitplan wird entfernt…",
-        "clearTitle": "Zeitplan entfernen?",
-        "clearDescription": "Dieser Task wird nicht mehr nach einem Zeitplan ausgeführt.",
-        "clearCancel": "Abbrechen",
-        "clearConfirm": "Zeitplan entfernen"
-      },
-      "accuracy": {
-        "inferred": "Abgeleitete Quelle",
-        "unknown": "Unbekannte Quelle",
-        "approximate": "Ungefähre Zeit"
       },
       "status": {
         "label": "Aufgabenstatus",
@@ -6534,15 +6542,10 @@
         "label": "Zeitzone"
       },
       "empty": {
-        "title": "Keine geplanten Freigaben entsprechen diesen Filtern.",
-        "schedulesTitle": "Keine Zeitpläne entsprechen diesen Filtern."
+        "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
       },
       "schedules": {
-        "nextRun": "Nächster Lauf",
-        "noNextRun": "Kein nächster Lauf",
-        "edit": "Zeitplan bearbeiten",
-        "openTask": "Aufgabe öffnen",
-        "loadMore": "Mehr laden"
+        "link": "Zeitpläne"
       },
       "pagination": {
         "error": "Weitere Ereignisse konnten nicht geladen werden."
@@ -6554,7 +6557,8 @@
       },
       "agenda": {
         "upcoming": "Als Nächstes",
-        "loading": "Wird geladen…"
+        "loading": "Wird geladen…",
+        "loadMore": "Mehr laden"
       }
     },
     "You": {
@@ -6743,6 +6747,7 @@
         "scheduleSourceChangedByMember": "Ein Teammitglied hat {taskName} in eine andere Kalenderquelle verschoben",
         "scheduleOccurrenceChangedByMember": "Ein Teammitglied hat einen Termin von {taskName} geändert",
         "assigned": "Dir wurde {taskName} zugewiesen",
+        "participantAdded": "Du wurdest als Teilnehmer zu {taskName} hinzugefügt",
         "followUp": "{taskName} wartet weiterhin auf dich"
       },
       "Billing": {

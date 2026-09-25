@@ -7,16 +7,14 @@ const {
   memberFindFirstMock,
   projectEventFindManyMock,
   resolveMemberOrganizationByIdMock,
-  taskEventFindManyMock,
-  taskScheduleOccurrenceFindManyMock,
+  taskScheduleRunFindManyMock,
   userFindManyMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
   memberFindFirstMock: vi.fn(),
   projectEventFindManyMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
-  taskEventFindManyMock: vi.fn(),
-  taskScheduleOccurrenceFindManyMock: vi.fn(),
+  taskScheduleRunFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
 }));
@@ -31,9 +29,8 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     member: { findFirst: memberFindFirstMock },
     projectEvent: { findMany: projectEventFindManyMock },
-    taskEvent: { findMany: taskEventFindManyMock },
-    taskScheduleOccurrence: {
-      findMany: taskScheduleOccurrenceFindManyMock,
+    taskScheduleRun: {
+      findMany: taskScheduleRunFindManyMock,
     },
     user: { findMany: userFindManyMock },
     workspace: { findUnique: workspaceFindUniqueMock },
@@ -97,21 +94,19 @@ describe("POST /workspaces/{id}/calendar/identity-labels", () => {
       userId: "user_current",
       organizationId: null,
     });
-    taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
+    taskScheduleRunFindManyMock.mockResolvedValue([]);
     projectEventFindManyMock.mockResolvedValue([]);
-    taskEventFindManyMock.mockResolvedValue([]);
     userFindManyMock.mockResolvedValue([]);
   });
 
   it("reveals only the current personal owner among proven Calendar actors", async () => {
-    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+    taskScheduleRunFindManyMock.mockResolvedValue([
       { actorUserId: "user_current" },
       { actorUserId: "user_former" },
     ]);
     projectEventFindManyMock.mockResolvedValue([
       { actorUserId: "user_deleted" },
     ]);
-    taskEventFindManyMock.mockResolvedValue([{ userId: "user_current" }]);
     userFindManyMock.mockResolvedValue([
       { id: "user_current", name: "Ada Lovelace" },
     ]);
@@ -140,7 +135,7 @@ describe("POST /workspaces/{id}/calendar/identity-labels", () => {
         requestId: "req_calendar_identity_labels",
       }),
     });
-    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith({
+    expect(taskScheduleRunFindManyMock).toHaveBeenCalledWith({
       where: {
         sourceWorkspaceId: WORKSPACE_ID,
         actorUserId: {
@@ -160,17 +155,6 @@ describe("POST /workspaces/{id}/calendar/identity-labels", () => {
       distinct: ["actorUserId"],
       select: { actorUserId: true },
     });
-    expect(taskEventFindManyMock).toHaveBeenCalledWith({
-      where: {
-        task: { workspaceId: WORKSPACE_ID },
-        scheduleKind: { not: null },
-        userId: {
-          in: ["user_current", "user_former", "user_deleted", "user_unknown"],
-        },
-      },
-      distinct: ["userId"],
-      select: { userId: true },
-    });
     expect(userFindManyMock).toHaveBeenCalledWith({
       where: {
         id: {
@@ -188,9 +172,9 @@ describe("POST /workspaces/{id}/calendar/identity-labels", () => {
       organizationId: "org_123",
     });
     resolveMemberOrganizationByIdMock.mockResolvedValue({ id: "org_123" });
-    taskEventFindManyMock.mockResolvedValue([
-      { userId: "user_current" },
-      { userId: "user_former" },
+    taskScheduleRunFindManyMock.mockResolvedValue([
+      { actorUserId: "user_current" },
+      { actorUserId: "user_former" },
     ]);
     userFindManyMock.mockResolvedValue([
       { id: "user_current", name: "Current member" },

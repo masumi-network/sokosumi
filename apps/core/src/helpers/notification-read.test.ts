@@ -11,6 +11,7 @@ import { notificationFeedWhere } from "@/helpers/notification-feed";
 import {
   markNotificationsRead,
   markSettledAttentionRead,
+  TASK_RUN_ATTENTION_MESSAGE_KEYS,
 } from "./notification-read";
 
 const { captureExceptionMock, notificationUpdateManyAndReturnMock } =
@@ -156,11 +157,6 @@ describe("markSettledAttentionRead", () => {
    * SOK-916 user stories 14 and 15. A task nobody was waiting on any more left
    * its attention row unread, and the follow-up sync would have reminded the
    * reader a day later to answer a question that had stopped being asked.
-   *
-   * Every attention key except the operator-removed schedule. That row asks
-   * the owner to put a schedule back, which a run completing, failing or
-   * being canceled answers not at all, and the schedule is still gone
-   * afterwards.
    */
   it.each([
     "Notifications.Task.completed",
@@ -182,10 +178,7 @@ describe("markSettledAttentionRead", () => {
           referenceId: "task_123",
           isRead: false,
           messageKey: {
-            in: TASK_ATTENTION_MESSAGE_KEYS.filter(
-              (attentionKey) =>
-                attentionKey !== "Notifications.Task.scheduleRemovedByOperator",
-            ),
+            in: TASK_RUN_ATTENTION_MESSAGE_KEYS,
           },
         }),
       }),

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getTaskByIdMock = vi.fn();
-const listCoworkersMock = vi.fn();
+const listTaskAssigneeOptionsMock = vi.fn();
 const listProjectsMock = vi.fn();
 const getAvailableAgentsWithCreditsPriceMock = vi.fn();
 const resolveEffectiveDesignMdMock = vi.fn();
@@ -12,11 +12,9 @@ const getOrganizationMembersMock = vi.fn(async () => []);
 const getTranslationsMock = vi.fn();
 const autoContextSwitchMock = vi.fn();
 const taskEditModalMock = vi.fn();
-const getCoworkerOptionsMock = vi.fn();
 const buildAgentNameByIdMock = vi.fn();
 const notFoundMock = vi.fn();
 const redirectMock = vi.fn();
-const readSchedulePreconditionMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
@@ -45,18 +43,17 @@ vi.mock("@/app/tasks/utils/agent-names", () => ({
   buildAgentNameById: (...args: unknown[]) => buildAgentNameByIdMock(...args),
 }));
 
-vi.mock("@/app/tasks/utils/task-schedule-precondition", () => ({
-  readTaskScheduleSeriesPrecondition: (...args: unknown[]) =>
-    readSchedulePreconditionMock(...args),
-}));
-
 vi.mock("@/app/tasks/utils/coworker-options", () => ({
-  getCoworkerOptions: (...args: unknown[]) => getCoworkerOptionsMock(...args),
   getUserOptions: () => [],
   withOwnerSokoBotOption: (options: unknown) => options,
   withCurrentTaskAssigneeOption: (options: unknown) => options,
   taskFormAssigneeId: (task: { assigneeId?: string | null }) =>
     task.assigneeId ?? "",
+}));
+
+vi.mock("@/app/tasks/utils/task-assignee-options", () => ({
+  listTaskAssigneeOptions: (...args: unknown[]) =>
+    listTaskAssigneeOptionsMock(...args),
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
@@ -67,12 +64,6 @@ vi.mock("@/lib/services/agent.service", () => ({
   agentService: {
     getAvailableAgentsWithCreditsPrice: (...args: unknown[]) =>
       getAvailableAgentsWithCreditsPriceMock(...args),
-  },
-}));
-
-vi.mock("@/lib/services/coworker.service", () => ({
-  coworkerService: {
-    listCoworkers: (...args: unknown[]) => listCoworkersMock(...args),
   },
 }));
 
@@ -132,11 +123,7 @@ describe("EditTaskPage", () => {
       translator.raw = (key: string) => key;
       return translator;
     });
-    readSchedulePreconditionMock.mockResolvedValue({
-      scheduleRevision: 7,
-      futureExceptionCount: 2,
-    });
-    getCoworkerOptionsMock.mockReturnValue([
+    listTaskAssigneeOptionsMock.mockResolvedValue([
       { value: "cow_123", label: "Coworker" },
     ]);
     buildAgentNameByIdMock.mockReturnValue({
@@ -183,7 +170,7 @@ describe("EditTaskPage", () => {
       targetOrganizationId: "org-workspace",
       successMessage: 'switchedWorkspace:{"account":"Workspace Org"}',
     });
-    expect(listCoworkersMock).not.toHaveBeenCalled();
+    expect(listTaskAssigneeOptionsMock).not.toHaveBeenCalled();
     expect(getAvailableAgentsWithCreditsPriceMock).not.toHaveBeenCalled();
     expect(taskEditModalMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("auto-context-switch")).toBeInTheDocument();
@@ -207,7 +194,6 @@ describe("EditTaskPage", () => {
       },
       user: { id: "user_1" },
     });
-    listCoworkersMock.mockResolvedValue([{ id: "cow_123", name: "Coworker" }]);
     listProjectsMock.mockResolvedValue({
       projects: [{ id: "project_1", name: "Project" }],
       pagination: { nextCursor: null },
@@ -232,17 +218,13 @@ describe("EditTaskPage", () => {
     );
 
     expect(autoContextSwitchMock).not.toHaveBeenCalled();
-    expect(listCoworkersMock).toHaveBeenCalledWith("tasks");
+    expect(listTaskAssigneeOptionsMock).toHaveBeenCalledWith("org-current");
     expect(listProjectsMock).toHaveBeenCalledWith({ limit: 100 });
     expect(getAvailableAgentsWithCreditsPriceMock).toHaveBeenCalled();
     expect(resolveEffectiveDesignMdMock).toHaveBeenCalled();
     expect(taskEditModalMock).toHaveBeenCalledWith(
       expect.objectContaining({
         taskId: "task_1",
-        // The edit surface carries the precondition for every schedule write
-        // it can make, read from the ledger endpoint on the server.
-        scheduleRevision: 7,
-        futureExceptionCount: 2,
         coworkerOptions: [{ value: "cow_123", label: "Coworker" }],
         projectOptions: [{ id: "project_1", name: "Project" }],
         agentNameById: {
@@ -261,8 +243,7 @@ describe("EditTaskPage", () => {
           assigneeUserId: null,
           projectId: null,
           status: "READY",
-          metadata: undefined,
-          nextRunAt: null,
+          runAt: null,
         },
       }),
     );
@@ -277,8 +258,7 @@ describe("EditTaskPage", () => {
       assigneeId: "cow_123",
       assigneeSokoBotId: null,
       status: "QUEUED",
-      metadata: { schedule: { mode: "daily", timezone: "UTC" } },
-      nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
+      runAt: new Date("2030-06-25T09:00:00.000Z"),
       workspace: {
         organizationId: "org-current",
       },
@@ -289,7 +269,6 @@ describe("EditTaskPage", () => {
       },
       user: { id: "user_1" },
     });
-    listCoworkersMock.mockResolvedValue([{ id: "cow_123", name: "Coworker" }]);
     listProjectsMock.mockResolvedValue({
       projects: [],
       pagination: { nextCursor: null },
@@ -312,6 +291,7 @@ describe("EditTaskPage", () => {
       expect.objectContaining({
         initialValues: expect.objectContaining({
           status: "QUEUED",
+          runAt: "2030-06-25T09:00:00.000Z",
         }),
       }),
     );

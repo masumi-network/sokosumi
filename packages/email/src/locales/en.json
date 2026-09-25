@@ -116,6 +116,10 @@
               "subject": "Sokosumi - You were assigned {taskName}",
               "body": "You were assigned {taskName}."
             },
+            "participantAdded": {
+              "subject": "Sokosumi - You were added to {taskName} as a participant",
+              "body": "You were added to {taskName} as a participant."
+            },
             "inputRequired": {
               "subject": "Sokosumi - {coworkerName} needs your input for {taskName}",
               "body": "{taskName} stopped because {coworkerName} needs your input."
@@ -131,10 +135,6 @@
             "outOfCredits": {
               "subject": "Sokosumi - {taskName} ran out of credits",
               "body": "{taskName} stopped because it ran out of credits."
-            },
-            "scheduleRemovedByOperator": {
-              "subject": "Sokosumi - The schedule for {taskName} was removed",
-              "body": "The schedule for {taskName} was removed after a review."
             }
           }
         },
@@ -153,30 +153,6 @@
             "canceled": {
               "subject": "Sokosumi - {taskName} was canceled",
               "body": "{taskName} was canceled."
-            },
-            "scheduleRepaired": {
-              "subject": "Sokosumi - The schedule for {taskName} was repaired",
-              "body": "The schedule for {taskName} was repaired."
-            },
-            "scheduleRemovedByOperator": {
-              "subject": "Sokosumi - The schedule for {taskName} was removed after review",
-              "body": "The schedule for {taskName} was removed after review."
-            },
-            "scheduleUpdatedByMember": {
-              "subject": "Sokosumi - A teammate updated the schedule for {taskName}",
-              "body": "A teammate updated the schedule for {taskName}."
-            },
-            "scheduleRemovedByMember": {
-              "subject": "Sokosumi - A teammate removed the schedule for {taskName}",
-              "body": "A teammate removed the schedule for {taskName}."
-            },
-            "scheduleSourceChangedByMember": {
-              "subject": "Sokosumi - A teammate moved {taskName} to another calendar source",
-              "body": "A teammate moved {taskName} to another calendar source."
-            },
-            "scheduleOccurrenceChangedByMember": {
-              "subject": "Sokosumi - A teammate changed an occurrence of {taskName}",
-              "body": "A teammate changed an occurrence of {taskName}."
             },
             "updated": {
               "subject": "Sokosumi - {taskName} changed",
@@ -250,11 +226,11 @@
         "projectLabel": "Project",
         "reasons": {
           "assigned": "{taskName} was assigned to you a day ago, and you have not opened it yet.",
+          "participantAdded": "You were added to {taskName} as a participant a day ago, and you have not opened it yet.",
           "inputRequired": "{taskName} stopped a day ago because {coworkerName} needs your input. It is still waiting.",
           "approvalRequired": "{taskName} stopped a day ago because {coworkerName} needs your approval. It is still waiting.",
           "authenticationRequired": "{taskName} stopped a day ago because {coworkerName} needs you to sign in somewhere. It is still waiting.",
-          "outOfCredits": "{taskName} stopped a day ago because it ran out of credits. It is still waiting.",
-          "scheduleRemovedByOperator": "The schedule for {taskName} was removed after a review a day ago, and you have not opened the notice yet."
+          "outOfCredits": "{taskName} stopped a day ago because it ran out of credits. It is still waiting."
         }
       },
       "billing": {

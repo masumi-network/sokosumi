@@ -9,6 +9,7 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden } from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
@@ -35,6 +36,7 @@ const {
   resolveEffectiveDesignMdMock,
   requireTaskAssignableCoworkerMock,
   requireTaskAssignableSokoBotMock,
+  requireTaskAssignableUserMock,
   taskCreateMock,
   taskFindUniqueOrThrowMock,
   uploadProjectBriefingFileMock,
@@ -52,6 +54,7 @@ const {
   resolveEffectiveDesignMdMock: vi.fn().mockResolvedValue(null),
   requireTaskAssignableCoworkerMock: vi.fn(),
   requireTaskAssignableSokoBotMock: vi.fn(),
+  requireTaskAssignableUserMock: vi.fn(),
   taskCreateMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
   uploadProjectBriefingFileMock: vi.fn(),
@@ -121,8 +124,6 @@ function buildMapTaskResponse(task: {
     description: task.description ?? null,
     status: task.status ?? TaskStatus.DRAFT,
     visibility: TaskVisibility.PUBLIC,
-    metadata: null,
-    nextRunAt: null,
     credits: 0,
     events: [],
     jobs: [],
@@ -148,13 +149,17 @@ function buildMapTaskResponse(task: {
     share: null,
     links: [],
     files: [],
+    runAt: null,
+    scheduleId: null,
     selectableStatuses: [],
+    participants: [],
   };
 }
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
+  requireTaskAssignableUser: requireTaskAssignableUserMock,
 }));
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({
@@ -208,6 +213,7 @@ vi.mock("@/clients/openrouter.client", () => ({
 }));
 
 const CREATE_GRANT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+const FUTURE_RUN_AT = "2099-01-05T09:00:00.000Z";
 
 function mockWorkspaceGrantInTransaction(
   status: VendorGrantStatus,
@@ -474,6 +480,7 @@ describe("createTaskRequestSchema", () => {
 describe("POST /tasks", () => {
   function createApp() {
     const app = new OpenAPIHonoWithAuth();
+    app.onError(errorHandler);
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
@@ -556,6 +563,148 @@ describe("POST /tasks", () => {
         }),
       }),
     );
+  });
+
+  it("queues a Task that starts at its Run at", async () => {
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Later",
+        assigneeId: "cow_123",
+        runAt: FUTURE_RUN_AT,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.QUEUED,
+          runAt: new Date(FUTURE_RUN_AT),
+          events: {
+            create: expect.objectContaining({ status: TaskStatus.QUEUED }),
+          },
+        }),
+      }),
+    );
+  });
+
+  it("rejects a Run at that has passed", async () => {
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Too late",
+        assigneeId: "cow_123",
+        runAt: "2020-01-01T09:00:00.000Z",
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      kind: CORE_API_ERROR_KINDS.RUN_AT_NOT_IN_FUTURE,
+    });
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Run at on a Task without an agent assignee", async () => {
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Nobody", runAt: FUTURE_RUN_AT }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a human assignee when a Task has a Run at", async () => {
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Human later",
+        assigneeUserId: "user_assignee",
+        runAt: FUTURE_RUN_AT,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the requested status when no Run at is set", async () => {
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Now", status: TaskStatus.READY }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.READY,
+          runAt: null,
+        }),
+      }),
+    );
+  });
+
+  it("returns no participants when the owner and a human assignee are set", async () => {
+    requireTaskAssignableUserMock.mockResolvedValue(undefined);
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Assigned task",
+        description: null,
+        assigneeUserId: "user_assignee",
+        status: TaskStatus.DRAFT,
+        channel: Channel.SOKOSUMI,
+      }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.data.ownerId).toBe("user_123");
+    expect(body.data.participants).toEqual([]);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          ownerId: "user_123",
+          assigneeUserId: "user_assignee",
+        }),
+      }),
+    );
+    expect(taskCreateMock.mock.calls[0]?.[0].data).not.toHaveProperty(
+      "participants",
+    );
+  });
+
+  it("rejects two assignees", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Ready task",
+        assigneeId: "cow_123",
+        assigneeUserId: "user_123",
+        status: TaskStatus.READY,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("persists PRIVATE visibility in an organization workspace", async () => {
@@ -1521,6 +1670,54 @@ describe("POST /tasks delegated coworker create grant", () => {
         }),
       }),
     );
+  });
+
+  it("queues a delegated create at its Run at", async () => {
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.GRANTED, false);
+
+    const response = await createDelegatedCoworkerApp().request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Vendor later",
+          assigneeId: "cow_123",
+          runAt: FUTURE_RUN_AT,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.QUEUED,
+          runAt: new Date(FUTURE_RUN_AT),
+          creatorCoworkerId: "cow_123",
+        }),
+      }),
+    );
+  });
+
+  it("does not park a delegated create with a Run at", async () => {
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
+
+    const response = await createDelegatedCoworkerApp().request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Vendor later",
+          assigneeId: "cow_123",
+          runAt: FUTURE_RUN_AT,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("rejects create when workspace access was DENIED", async () => {

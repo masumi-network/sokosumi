@@ -8,14 +8,12 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import { type ComponentProps, isValidElement, type ReactNode } from "react";
+import { type ComponentProps, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
-import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
-import { selectionToApiBody } from "@/lib/utils/task-schedule";
 
 interface FullCalendarProps {
   borderless?: boolean;
@@ -45,43 +43,27 @@ interface FullCalendarProps {
 
 const {
   calendarRealtimeBridgeMock,
-  alertDialogActionMock,
-  alertDialogMock,
-  clearTaskScheduleMock,
+  changeTaskScheduleRunMock,
   filterDropdownMenuMock,
   fullCalendarMock,
   getProjectCalendarMock,
-  getTaskByIdMock,
   getWorkspaceCalendarMock,
   interactionPluginMock,
-  loadTaskScheduleSeriesPreconditionMock,
-  metadataToSelectionMock,
   openCreateTaskModalMock,
   pushMock,
   refreshMock,
-  mutateTaskOccurrenceMock,
-  saveCalendarTaskScheduleMock,
-  taskScheduleSectionMock,
   toastErrorMock,
 } = vi.hoisted(() => ({
   calendarRealtimeBridgeMock: vi.fn(),
-  alertDialogActionMock: vi.fn(),
-  alertDialogMock: vi.fn(),
-  clearTaskScheduleMock: vi.fn(),
+  changeTaskScheduleRunMock: vi.fn(),
   filterDropdownMenuMock: vi.fn(),
   fullCalendarMock: vi.fn(),
   getProjectCalendarMock: vi.fn(),
-  getTaskByIdMock: vi.fn(),
   getWorkspaceCalendarMock: vi.fn(),
   interactionPluginMock: {},
-  loadTaskScheduleSeriesPreconditionMock: vi.fn(),
-  metadataToSelectionMock: vi.fn(),
   openCreateTaskModalMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
-  mutateTaskOccurrenceMock: vi.fn(),
-  saveCalendarTaskScheduleMock: vi.fn(),
-  taskScheduleSectionMock: vi.fn(),
   toastErrorMock: vi.fn(),
 }));
 
@@ -157,9 +139,6 @@ vi.mock("next-intl", async () => {
       if (key === "event.accessibleName") {
         return `${values?.task}, ${values?.source}`;
       }
-      if (key === "event.accessibleNameSkipped") {
-        return `${values?.task}, ${values?.source}, skipped`;
-      }
       return key;
     },
   };
@@ -170,7 +149,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("sonner", () => ({
-  toast: { error: (...args: unknown[]) => toastErrorMock(...args) },
+  toast: {
+    error: (...args: unknown[]) => toastErrorMock(...args),
+    info: vi.fn(),
+  },
 }));
 
 vi.mock("@/app/tasks/components/create-task-modal", () => ({
@@ -178,25 +160,6 @@ vi.mock("@/app/tasks/components/create-task-modal", () => ({
     handleOpenWithDefaults: openCreateTaskModalMock,
   }),
 }));
-
-vi.mock("@/components/ui/alert-dialog", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/components/ui/alert-dialog")>();
-
-  return {
-    ...actual,
-    AlertDialog: (props: ComponentProps<typeof actual.AlertDialog>) => {
-      alertDialogMock(props);
-      return <actual.AlertDialog {...props} />;
-    },
-    AlertDialogAction: (
-      props: ComponentProps<typeof actual.AlertDialogAction>,
-    ) => {
-      alertDialogActionMock(props);
-      return <actual.AlertDialogAction {...props} />;
-    },
-  };
-});
 
 vi.mock("@/components/common/filter-dropdown-menu", () => ({
   FilterDropdownMenu: (props: unknown) => {
@@ -215,91 +178,28 @@ vi.mock("@/components/ui/avatar", () => ({
   AvatarImage: (props: ComponentProps<"img">) => <img {...props} />,
 }));
 
-vi.mock("@/components/task-schedule-section", () => ({
-  TaskScheduleSection: ({
-    canClearSchedule,
-    initialSelection,
-    onClearSchedule,
-    onSave,
-  }: {
-    canClearSchedule?: boolean;
-    initialSelection?: TaskScheduleSelection;
-    onClearSchedule?: () => void;
-    onSave?: (selection: TaskScheduleSelection) => void;
-  }) => {
-    taskScheduleSectionMock({
-      canClearSchedule,
-      initialSelection,
-      onClearSchedule,
-      onSave,
-    });
-    return (
-      <div>
-        {canClearSchedule ? (
-          <button type="button" onClick={onClearSchedule}>
-            clear schedule
-          </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={() =>
-            onSave?.({
-              mode: "once",
-              oneTimeLocalIso: "2030-01-02T09:00",
-              timezone: "UTC",
-            })
-          }
-        >
-          save schedule
-        </button>
-        <button
-          type="button"
-          onClick={() => initialSelection && onSave?.({ ...initialSelection })}
-        >
-          save unchanged schedule
-        </button>
-      </div>
-    );
-  },
-}));
-
-vi.mock("@/lib/actions/task/action", () => ({
-  clearTaskSchedule: clearTaskScheduleMock,
-  mutateTaskOccurrence: mutateTaskOccurrenceMock,
-  saveCalendarTaskSchedule: saveCalendarTaskScheduleMock,
-}));
-
-vi.mock("@/app/tasks/actions", () => ({
-  loadTaskScheduleSeriesPrecondition: loadTaskScheduleSeriesPreconditionMock,
+vi.mock("@/lib/actions/task-schedule/action", () => ({
+  changeTaskScheduleRun: changeTaskScheduleRunMock,
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getProjectsByIdCalendar: getProjectCalendarMock,
-    getTaskById: getTaskByIdMock,
     getWorkspaceCalendar: getWorkspaceCalendarMock,
   },
 }));
 
-vi.mock("@/lib/utils/task-schedule", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/utils/task-schedule")>();
-  return {
-    ...actual,
-    metadataToSelection: metadataToSelectionMock,
-  };
-});
-
 import { WorkspaceCalendar } from "./workspace-calendar";
 
 const ITEM: WorkspaceCalendarItem = {
-  id: "occurrence-1",
-  taskId: "task-1",
-  canEditSchedule: true,
-  canMutateOccurrence: true,
+  id: "run-1",
+  kind: "RUN",
+  scheduleId: "schedule-1",
   scheduleRevision: 3,
+  canChangeRun: true,
+  taskId: null,
   taskName: "Prepare release notes",
-  taskStatus: "QUEUED",
+  taskStatus: null,
   taskAssigneeId: "coworker-1",
   taskOwnerId: "user-1",
   scheduledAt: new Date("2030-01-02T09:00:00.000Z"),
@@ -309,40 +209,36 @@ const ITEM: WorkspaceCalendarItem = {
   sourceWorkspaceId: "workspace-1",
   sourceType: "PROJECT",
   sourceProjectId: "project-1",
-  sourceAccuracy: "EXACT",
-  timeAccuracy: "EXACT",
-};
-
-/** A Task whose rule is live, so an unread ledger leaves its count unknown. */
-const ACTIVE_SERIES_TASK = {
-  id: "task-1",
-  metadata: '{"version":2,"mode":"recurring"}',
-  scheduleRevision: 3,
-};
-
-const SECOND_ITEM: WorkspaceCalendarItem = {
-  ...ITEM,
-  id: "occurrence-2",
-  taskId: "task-2",
-  taskName: "Publish release notes",
 };
 
 const READ_ONLY_ITEM: WorkspaceCalendarItem = {
   ...ITEM,
-  canEditSchedule: false,
-  canMutateOccurrence: false,
+  canChangeRun: false,
 };
 
 const RELEASED_ITEM: WorkspaceCalendarItem = {
   ...READ_ONLY_ITEM,
-  id: "occurrence-released-1",
+  id: "run-released-1",
   state: "RELEASED",
+  taskId: "task-1",
+  taskStatus: "COMPLETED",
 };
 
-const SKIPPED_ITEM: WorkspaceCalendarItem = {
+const MOVED_ITEM: WorkspaceCalendarItem = {
   ...ITEM,
-  id: "occurrence-skipped-1",
-  state: "SKIPPED",
+  id: "run-moved-1",
+  scheduledAt: new Date("2030-01-03T10:30:00.000Z"),
+};
+
+const RUN_AT_ITEM: WorkspaceCalendarItem = {
+  ...READ_ONLY_ITEM,
+  id: "task-run-at-1",
+  kind: "RUN_AT",
+  scheduleId: null,
+  scheduleRevision: null,
+  taskId: "task-run-at-1",
+  taskStatus: "QUEUED",
+  originalScheduledAt: null,
 };
 
 const SOURCES: WorkspaceCalendarSource[] = [
@@ -377,9 +273,10 @@ const CALENDAR_PAGE = {
 
 function renderCalendar(
   props: Partial<ComponentProps<typeof WorkspaceCalendar>> = {},
+  searchParams = "?timezone=UTC",
 ) {
   return render(
-    <NuqsTestingAdapter searchParams="?timezone=UTC">
+    <NuqsTestingAdapter searchParams={searchParams}>
       <WorkspaceCalendar
         initialDate="2030-01-02"
         items={[ITEM]}
@@ -400,71 +297,23 @@ function createDeferred<T>() {
   return { promise, resolve: resolvePromise };
 }
 
-function getClearConfirmationHandlers() {
-  const submit = (
-    alertDialogActionMock.mock.calls.at(-1)?.[0] as
-      | { onClick?: (event: { preventDefault: () => void }) => void }
-      | undefined
-  )?.onClick;
-  const dismiss = (
-    alertDialogMock.mock.calls.at(-1)?.[0] as
-      | { onOpenChange?: (open: boolean) => void }
-      | undefined
-  )?.onOpenChange;
-  if (!submit || !dismiss) {
-    throw new Error("Expected clear confirmation handlers");
-  }
-
-  const event = { preventDefault: vi.fn() };
-  return { dismiss, event, submit };
-}
-
-async function openEditor(
+async function openEventMenu(
   user: ReturnType<typeof userEvent.setup>,
-  item: WorkspaceCalendarItem = ITEM,
+  index = 0,
 ) {
   await user.click(
     screen.getAllByRole("button", {
-      name: `${item.taskName}, Release planning`,
-    })[0],
+      name: "Prepare release notes, Release planning",
+    })[index],
   );
-  await user.click(
-    screen.getByRole("menuitem", { name: "event.editSchedule" }),
-  );
-  await screen.findByRole("dialog");
-}
-
-async function openClearConfirmation(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("button", { name: "clear schedule" }));
-  return screen.getByRole("alertdialog");
 }
 
 describe("WorkspaceCalendar editing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    saveCalendarTaskScheduleMock.mockResolvedValue({
+    changeTaskScheduleRunMock.mockResolvedValue({
       ok: true,
-      value: { taskId: "task-1" },
-    });
-    mutateTaskOccurrenceMock.mockResolvedValue({
-      ok: true,
-      value: { taskId: "task-1", scheduleRevision: 4 },
-    });
-    clearTaskScheduleMock.mockResolvedValue({
-      ok: true,
-      value: { taskId: "task-1" },
-    });
-    metadataToSelectionMock.mockReturnValue({
-      mode: "recurring",
-      cron: "0 9 * * *",
-      timezone: "UTC",
-    });
-    getTaskByIdMock.mockResolvedValue({
-      data: { id: "task-1", metadata: '{"version":2}', scheduleRevision: 3 },
-    });
-    loadTaskScheduleSeriesPreconditionMock.mockResolvedValue({
-      scheduleRevision: 3,
-      futureExceptionCount: 0,
+      value: { scheduleId: "schedule-1", runId: "run-1" },
     });
     getWorkspaceCalendarMock.mockResolvedValue({
       data: [],
@@ -565,7 +414,7 @@ describe("WorkspaceCalendar editing", () => {
     );
   });
 
-  it("opens the shared task modal with a locked Project and clicked schedule", async () => {
+  it("opens the shared task modal with a locked Project and the clicked Run at", async () => {
     const user = userEvent.setup();
     renderCalendar({ lockedProjectId: "project-1" });
 
@@ -575,15 +424,11 @@ describe("WorkspaceCalendar editing", () => {
 
     expect(openCreateTaskModalMock).toHaveBeenCalledWith({
       projectId: "project-1",
-      schedule: {
-        mode: "once",
-        oneTimeLocalIso: "2030-01-02T09:00",
-        timezone: "UTC",
-      },
+      runAt: { localIso: "2030-01-02T09:00", timezone: "UTC" },
     });
   });
 
-  it("opens create with a schedulable once-time when the clicked hour is already past", () => {
+  it("opens create with a future Run at when the clicked hour is already past", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
     render(
@@ -601,23 +446,12 @@ describe("WorkspaceCalendar editing", () => {
       screen.getAllByRole("button", { name: "past hour calendar slot" })[0],
     );
 
-    const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
-      schedule: TaskScheduleSelection;
-    };
-    expect(schedule.schedule).toEqual({
-      mode: "once",
-      oneTimeLocalIso: "2026-09-08T18:06",
-      timezone: "Europe/Prague",
-    });
-
-    vi.advanceTimersByTime(2 * 60 * 1000);
-    expect(selectionToApiBody(schedule.schedule)).toEqual({
-      mode: "once",
-      runAt: new Date("2026-09-08T16:06:00.000Z"),
+    expect(openCreateTaskModalMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      runAt: { localIso: "2026-09-08T18:06", timezone: "Europe/Prague" },
     });
   });
 
-  it("opens create with a schedulable once-time when month midnight is already past", () => {
+  it("opens create with a future Run at when month midnight is already past", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
     render(
@@ -635,17 +469,12 @@ describe("WorkspaceCalendar editing", () => {
       screen.getAllByRole("button", { name: "past midnight calendar slot" })[0],
     );
 
-    const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
-      schedule: TaskScheduleSelection;
-    };
-    expect(schedule.schedule.oneTimeLocalIso).toBe("2026-09-08T18:06");
-    expect(selectionToApiBody(schedule.schedule)).toEqual({
-      mode: "once",
-      runAt: new Date("2026-09-08T16:06:00.000Z"),
+    expect(openCreateTaskModalMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      runAt: { localIso: "2026-09-08T18:06", timezone: "Europe/Prague" },
     });
   });
 
-  it("keeps a future clicked hour as the seeded once-time", () => {
+  it("keeps a future clicked hour as the prefilled Run at", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
     render(
@@ -665,11 +494,7 @@ describe("WorkspaceCalendar editing", () => {
 
     expect(openCreateTaskModalMock).toHaveBeenCalledWith({
       projectId: undefined,
-      schedule: {
-        mode: "once",
-        oneTimeLocalIso: "2026-09-08T19:00",
-        timezone: "Europe/Prague",
-      },
+      runAt: { localIso: "2026-09-08T19:00", timezone: "Europe/Prague" },
     });
   });
 
@@ -819,512 +644,106 @@ describe("WorkspaceCalendar editing", () => {
     expect(openCreateTaskModalMock).not.toHaveBeenCalled();
   });
 
-  it("opens an existing event editor and saves its schedule", async () => {
+  it("opens a released Run's Task directly and a planned Run's schedule from its menu", async () => {
     const user = userEvent.setup();
-    renderCalendar();
+    renderCalendar({ items: [RELEASED_ITEM, ITEM] });
 
-    await openEditor(user);
-    expect(await screen.findByRole("dialog")).toHaveTextContent("edit.title");
-    expect(getTaskByIdMock).toHaveBeenCalledWith("task-1");
-    expect(metadataToSelectionMock).toHaveBeenCalledWith(
-      '{"version":2}',
-      expect.any(String),
-    );
+    const released = screen.getAllByRole("button", {
+      name: "Prepare release notes, Release planning",
+    })[0];
+    expect(released).not.toHaveAttribute("aria-haspopup");
+    await user.click(released);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task-1");
 
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
-    await waitFor(() =>
-      expect(saveCalendarTaskScheduleMock).toHaveBeenCalledWith(
-        expect.objectContaining({ taskId: "task-1" }),
-      ),
-    );
-  });
-
-  it("preserves an open editor when another member invalidates the calendar", async () => {
-    const user = userEvent.setup();
-    renderCalendar({ currentUserId: "user-1", workspaceId: "workspace-1" });
-    await openEditor(user);
-    const bridge = calendarRealtimeBridgeMock.mock.calls.at(-1)?.[0];
-    act(() => bridge.onInvalidated());
-    expect(screen.getByRole("dialog")).toHaveTextContent("edit.title");
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
-    await waitFor(() =>
-      expect(saveCalendarTaskScheduleMock).toHaveBeenCalled(),
-    );
-  });
-
-  it("saves a changed series with the observed revision and one operation identity", async () => {
-    const user = userEvent.setup();
-    renderCalendar();
-
-    await openEditor(user);
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
-
-    await waitFor(() =>
-      expect(saveCalendarTaskScheduleMock).toHaveBeenCalledWith({
-        taskId: "task-1",
-        operationId: expect.stringMatching(
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-        ),
-        expectedScheduleRevision: 3,
-        schedule: {
-          mode: "once",
-          oneTimeLocalIso: "2030-01-02T09:00",
-          timezone: "UTC",
-        },
-      }),
-    );
-    expect(loadTaskScheduleSeriesPreconditionMock).toHaveBeenCalledWith(
-      "task-1",
-    );
-  });
-
-  it("does not submit a schedule the user never changed", async () => {
-    const user = userEvent.setup();
-    renderCalendar();
-
-    await openEditor(user);
+    await openEventMenu(user, 1);
     await user.click(
-      screen.getByRole("button", { name: "save unchanged schedule" }),
+      screen.getByRole("menuitem", { name: "event.openSchedule" }),
     );
-
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-    );
-    expect(saveCalendarTaskScheduleMock).not.toHaveBeenCalled();
+    expect(pushMock).toHaveBeenLastCalledWith("/schedules/schedule-1");
   });
 
-  it("confirms discarding future exceptions only when the endpoint reports some", async () => {
-    const user = userEvent.setup();
-    loadTaskScheduleSeriesPreconditionMock.mockResolvedValue({
-      scheduleRevision: 3,
-      futureExceptionCount: 2,
-    });
-    renderCalendar();
-
-    await openEditor(user);
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
-
-    const confirmation = await screen.findByRole("alertdialog");
-    expect(confirmation).toHaveTextContent("discardTitle");
-    expect(saveCalendarTaskScheduleMock).not.toHaveBeenCalled();
-
-    await user.click(
-      within(confirmation).getByRole("button", {
-        name: "discardConfirm",
-      }),
-    );
-
-    await waitFor(() =>
-      expect(saveCalendarTaskScheduleMock).toHaveBeenCalled(),
-    );
-  });
-
-  it("keeps the current schedule when the discard confirmation is declined", async () => {
-    const user = userEvent.setup();
-    loadTaskScheduleSeriesPreconditionMock.mockResolvedValue({
-      scheduleRevision: 3,
-      futureExceptionCount: 1,
-    });
-    renderCalendar();
-
-    await openEditor(user);
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
-    const confirmation = await screen.findByRole("alertdialog");
-    await user.click(
-      within(confirmation).getByRole("button", {
-        name: "discardCancel",
-      }),
-    );
-
-    expect(saveCalendarTaskScheduleMock).not.toHaveBeenCalled();
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-  });
-
-  it("keeps the editor open with actionable copy when the revision is stale", async () => {
-    const user = userEvent.setup();
-    saveCalendarTaskScheduleMock.mockResolvedValue({
-      ok: false,
-      error: { kind: "schedule_revision_conflict" },
-    });
-    renderCalendar();
-
-    await openEditor(user);
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
-
-    const dialog = await screen.findByRole("dialog");
-    await waitFor(() =>
-      expect(within(dialog).getByRole("alert")).toHaveTextContent(
-        "revisionConflict",
-      ),
-    );
-    expect(refreshMock).not.toHaveBeenCalled();
-  });
-
-  it("refuses a full-series edit while the discarded run count is unknown", async () => {
-    const user = userEvent.setup();
-    getTaskByIdMock.mockResolvedValue({ data: ACTIVE_SERIES_TASK });
-    loadTaskScheduleSeriesPreconditionMock.mockRejectedValue(
-      new Error("read failed"),
-    );
-    renderCalendar();
-
-    await openEditor(user);
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
-
-    const dialog = await screen.findByRole("dialog");
-    await waitFor(() =>
-      expect(within(dialog).getByRole("alert")).toHaveTextContent(
-        "unknownCount",
-      ),
-    );
-    expect(saveCalendarTaskScheduleMock).not.toHaveBeenCalled();
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-  });
-
-  it("still removes a series through its confirmation while the count is unknown", async () => {
-    const user = userEvent.setup();
-    getTaskByIdMock.mockResolvedValue({ data: ACTIVE_SERIES_TASK });
-    loadTaskScheduleSeriesPreconditionMock.mockRejectedValue(
-      new Error("read failed"),
-    );
-    renderCalendar();
-
-    await openEditor(user);
-    await openClearConfirmation(user);
-    await user.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
-
-    await waitFor(() =>
-      expect(clearTaskScheduleMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          taskId: "task-1",
-          expectedScheduleRevision: 3,
-        }),
-      ),
-    );
-  });
-
-  it("refuses a second full-series save after a revision conflict staled the count", async () => {
-    const user = userEvent.setup();
-    saveCalendarTaskScheduleMock.mockResolvedValue({
-      ok: false,
-      error: { kind: "schedule_revision_conflict" },
-    });
-    renderCalendar();
-
-    await openEditor(user);
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
-    await waitFor(() =>
-      expect(saveCalendarTaskScheduleMock).toHaveBeenCalledOnce(),
-    );
-
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
-
-    const dialog = await screen.findByRole("dialog");
-    await waitFor(() =>
-      expect(within(dialog).getByRole("alert")).toHaveTextContent(
-        "unknownCount",
-      ),
-    );
-    expect(saveCalendarTaskScheduleMock).toHaveBeenCalledOnce();
-  });
-
-  it("reports a quarantined series distinctly from a stale revision", async () => {
-    const user = userEvent.setup();
-    saveCalendarTaskScheduleMock.mockResolvedValue({
-      ok: false,
-      error: { kind: "schedule_quarantined" },
-    });
-    renderCalendar();
-
-    await openEditor(user);
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
-
-    const dialog = await screen.findByRole("dialog");
-    await waitFor(() =>
-      expect(within(dialog).getByRole("alert")).toHaveTextContent(
-        "quarantined",
-      ),
-    );
-  });
-
-  it("keeps one removal operation identity across a retry", async () => {
-    const user = userEvent.setup();
-    clearTaskScheduleMock
-      .mockResolvedValueOnce({ ok: false, error: { kind: "unexpected" } })
-      .mockResolvedValueOnce({ ok: true, value: { taskId: ITEM.taskId } });
-    renderCalendar();
-
-    await openEditor(user);
-    await openClearConfirmation(user);
-    await user.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
-    const confirmation = await screen.findByRole("alertdialog");
-    await user.click(
-      within(confirmation).getByRole("button", { name: "edit.clearConfirm" }),
-    );
-
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-    );
-    const [first, second] = clearTaskScheduleMock.mock.calls.map(
-      ([input]) => input as { operationId: string },
-    );
-    expect(first.operationId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
-    expect(second.operationId).toBe(first.operationId);
-  });
-
-  it("preserves the schedule when removal is canceled", async () => {
-    const user = userEvent.setup();
-    renderCalendar();
-
-    await openEditor(user);
-    await openClearConfirmation(user);
-    await user.click(screen.getByRole("button", { name: "edit.clearCancel" }));
-
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(clearTaskScheduleMock).not.toHaveBeenCalled();
-  });
-
-  it("submits a rapid duplicate removal only once", async () => {
-    const user = userEvent.setup();
-    const request = createDeferred<{
-      ok: true;
-      value: { taskId: string };
-    }>();
-    clearTaskScheduleMock.mockReturnValue(request.promise);
-    renderCalendar();
-
-    await openEditor(user);
-    await openClearConfirmation(user);
-    const { event, submit } = getClearConfirmationHandlers();
-    act(() => {
-      submit(event);
-      submit(event);
-    });
-
-    expect(clearTaskScheduleMock).toHaveBeenCalledOnce();
-    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
-
-    await act(async () => {
-      request.resolve({ ok: true, value: { taskId: ITEM.taskId } });
-      await request.promise;
-    });
-  });
-
-  it("rejects confirmation dismissal while removal is pending", async () => {
-    const user = userEvent.setup();
-    const request = createDeferred<{
-      ok: true;
-      value: { taskId: string };
-    }>();
-    clearTaskScheduleMock.mockReturnValue(request.promise);
-    renderCalendar();
-
-    await openEditor(user);
-    await openClearConfirmation(user);
-    const { dismiss, event, submit } = getClearConfirmationHandlers();
-    act(() => {
-      submit(event);
-      dismiss(false);
-    });
-
-    expect(
-      screen.getByRole("button", { name: "edit.clearConfirm" }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "edit.clearCancel" }),
-    ).toBeDisabled();
-
-    await user.keyboard("{Escape}");
-    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
-
-    await act(async () => {
-      request.resolve({ ok: true, value: { taskId: ITEM.taskId } });
-      await request.promise;
-    });
-  });
-
-  it("does not let a stale removal completion close a newer editor", async () => {
-    const user = userEvent.setup();
-    const request = createDeferred<{
-      ok: true;
-      value: { taskId: string };
-    }>();
-    clearTaskScheduleMock.mockReturnValue(request.promise);
-    getTaskByIdMock.mockImplementation((taskId: string) =>
-      Promise.resolve({
-        data: {
-          id: taskId,
-          metadata:
-            taskId === SECOND_ITEM.taskId
-              ? '{"task":"second"}'
-              : '{"task":"first"}',
-        },
-      }),
-    );
-    renderCalendar({ items: [ITEM, SECOND_ITEM] });
-
-    await openEditor(user);
-    await openClearConfirmation(user);
-    fireEvent.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
-
-    const calendarProps = fullCalendarMock.mock.calls[0]?.[0] as
-      | FullCalendarProps
-      | undefined;
-    const secondEvent = calendarProps?.eventContent?.({
-      event: { id: SECOND_ITEM.id, title: SECOND_ITEM.taskName },
-    });
-    if (
-      !isValidElement<{
-        onEditSchedule: (taskId: string) => void;
-      }>(secondEvent)
-    ) {
-      throw new Error("Expected the second calendar event to be editable");
-    }
-    await act(async () => {
-      secondEvent.props.onEditSchedule(SECOND_ITEM.taskId);
-    });
-    await waitFor(() =>
-      expect(metadataToSelectionMock).toHaveBeenCalledWith(
-        '{"task":"second"}',
-        expect.any(String),
-      ),
-    );
-
-    await act(async () => {
-      request.resolve({ ok: true, value: { taskId: ITEM.taskId } });
-      await request.promise;
-    });
-
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-  });
-
-  it("closes the editor after an immediate removal success", async () => {
-    const user = userEvent.setup();
-    renderCalendar();
-
-    await openEditor(user);
-    await openClearConfirmation(user);
-    await user.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
-
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-    );
-    expect(clearTaskScheduleMock).toHaveBeenCalledWith({
-      taskId: ITEM.taskId,
-      operationId: expect.stringMatching(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-      ),
-      expectedScheduleRevision: 3,
-    });
-    expect(refreshMock).toHaveBeenCalledOnce();
-  });
-
-  it("keeps a removal failure in the confirmation and allows retry", async () => {
-    const user = userEvent.setup();
-    clearTaskScheduleMock
-      .mockResolvedValueOnce({ ok: false, error: { kind: "unexpected" } })
-      .mockResolvedValueOnce({
-        ok: true,
-        value: { taskId: ITEM.taskId },
-      });
-    renderCalendar();
-
-    await openEditor(user);
-    await openClearConfirmation(user);
-    await user.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
-
-    const confirmation = await screen.findByRole("alertdialog");
-    expect(within(confirmation).getByRole("alert")).toHaveTextContent(
-      "edit.clearError",
-    );
-    expect(
-      within(confirmation).getByRole("button", {
-        name: "edit.clearConfirm",
-      }),
-    ).toBeEnabled();
-    expect(
-      within(confirmation).getByRole("button", { name: "edit.clearCancel" }),
-    ).toBeEnabled();
-
-    await user.click(
-      within(confirmation).getByRole("button", {
-        name: "edit.clearConfirm",
-      }),
-    );
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-    );
-
-    expect(clearTaskScheduleMock).toHaveBeenCalledTimes(2);
-    expect(refreshMock).toHaveBeenCalledOnce();
-  });
-
-  it("keeps a rejected removal in the confirmation and allows retry", async () => {
-    const user = userEvent.setup();
-    clearTaskScheduleMock
-      .mockRejectedValueOnce(new Error("network failure"))
-      .mockResolvedValueOnce({
-        ok: true,
-        value: { taskId: ITEM.taskId },
-      });
-    renderCalendar();
-
-    await openEditor(user);
-    await openClearConfirmation(user);
-    await user.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
-
-    const confirmation = await screen.findByRole("alertdialog");
-    expect(within(confirmation).getByRole("alert")).toHaveTextContent(
-      "edit.clearError",
-    );
-    expect(
-      within(confirmation).getByRole("button", {
-        name: "edit.clearConfirm",
-      }),
-    ).toBeEnabled();
-    expect(
-      within(confirmation).getByRole("button", { name: "edit.clearCancel" }),
-    ).toBeEnabled();
-
-    await user.click(
-      within(confirmation).getByRole("button", {
-        name: "edit.clearConfirm",
-      }),
-    );
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-    );
-
-    expect(clearTaskScheduleMock).toHaveBeenCalledTimes(2);
-    expect(refreshMock).toHaveBeenCalledOnce();
-  });
-
-  it("opens a released event in its read-only task detail", async () => {
-    const user = userEvent.setup();
+  it("opens a Task on tap but not after a drag the calendar will not move", () => {
     renderCalendar({ items: [RELEASED_ITEM] });
+    const card = screen.getByRole("button", {
+      name: "Prepare release notes, Release planning",
+    });
 
-    await user.click(
-      screen.getAllByRole("button", {
-        name: "Prepare release notes, Release planning",
-      })[0],
-    );
-    await user.click(screen.getByRole("menuitem", { name: "event.openTask" }));
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 3,
+      clientY: 0,
+    });
+    fireEvent.click(card);
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task-1");
 
-    expect(pushMock).toHaveBeenCalledWith(`/tasks/${RELEASED_ITEM.taskId}`);
-    expect(getTaskByIdMock).not.toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    pushMock.mockClear();
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 20,
+      clientY: 0,
+    });
+    fireEvent.click(card);
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
-  it("makes only unreleased owned occurrence events draggable", () => {
+  it("keeps a read-only Run's menu closed after a drag the calendar will not move", () => {
+    renderCalendar({ items: [READ_ONLY_ITEM] });
+    const card = screen.getByTestId("calendar-event");
+
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 20,
+      clientY: 0,
+    });
+    fireEvent.click(card);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.click(card);
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+
+  it("shows a Queued Task at its Run at, opening the Task directly", async () => {
+    const user = userEvent.setup();
+    renderCalendar({ items: [RUN_AT_ITEM] });
+
+    const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
+    expect(props.events).toEqual([
+      expect.objectContaining({
+        id: RUN_AT_ITEM.id,
+        start: RUN_AT_ITEM.scheduledAt.toISOString(),
+        startEditable: false,
+      }),
+    ]);
+
+    await openEventMenu(user);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task-run-at-1");
+  });
+
+  it("makes only Runs the caller can change draggable", () => {
     renderCalendar({
-      items: [
-        ITEM,
-        { ...READ_ONLY_ITEM, id: "occurrence-readonly" },
-        RELEASED_ITEM,
-      ],
+      items: [ITEM, { ...READ_ONLY_ITEM, id: "run-readonly" }, RELEASED_ITEM],
     });
 
     const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
@@ -1332,18 +751,18 @@ describe("WorkspaceCalendar editing", () => {
       return props.events?.find((candidate) => candidate.id === id);
     }
     expect(event(ITEM.id)?.startEditable).toBe(true);
-    expect(event("occurrence-readonly")?.startEditable).toBe(false);
+    expect(event("run-readonly")?.startEditable).toBe(false);
     expect(event(RELEASED_ITEM.id)?.startEditable).toBe(false);
     expect(
       props.events?.every((entry) => entry.durationEditable === false),
     ).toBe(true);
     expect(props.editable).toBe(false);
     expect(props.eventAllow?.({}, { id: ITEM.id })).toBe(true);
-    expect(props.eventAllow?.({}, { id: "occurrence-readonly" })).toBe(false);
+    expect(props.eventAllow?.({}, { id: "run-readonly" })).toBe(false);
     expect(props.eventAllow?.({}, { id: RELEASED_ITEM.id })).toBe(false);
   });
 
-  it("refuses a drop on an occurrence the caller cannot move", () => {
+  it("refuses a drop on a Run the caller cannot change", () => {
     renderCalendar({ items: [READ_ONLY_ITEM] });
 
     const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
@@ -1359,15 +778,15 @@ describe("WorkspaceCalendar editing", () => {
     });
 
     expect(revert).toHaveBeenCalledOnce();
-    expect(mutateTaskOccurrenceMock).not.toHaveBeenCalled();
+    expect(changeTaskScheduleRunMock).not.toHaveBeenCalled();
   });
 
-  it("moves a dropped occurrence optimistically and sends its new time", async () => {
+  it("moves a dropped Run optimistically through the Run route", async () => {
     const request = createDeferred<{
       ok: true;
-      value: { taskId: string; scheduleRevision: number };
+      value: { scheduleId: string; runId: string };
     }>();
-    mutateTaskOccurrenceMock.mockReturnValue(request.promise);
+    changeTaskScheduleRunMock.mockReturnValue(request.promise);
     renderCalendar();
 
     const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
@@ -1381,15 +800,12 @@ describe("WorkspaceCalendar editing", () => {
       });
     });
 
-    expect(mutateTaskOccurrenceMock).toHaveBeenCalledWith({
-      taskId: ITEM.taskId,
-      occurrenceId: ITEM.id,
-      operationId: expect.stringMatching(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-      ),
-      expectedScheduleRevision: 3,
-      action: "reschedule",
-      scheduledAt: droppedAt.toISOString(),
+    expect(changeTaskScheduleRunMock).toHaveBeenCalledWith({
+      scheduleId: "schedule-1",
+      runId: ITEM.id,
+      expectedRevision: 3,
+      action: "move",
+      scheduledAt: droppedAt,
     });
     const optimistic = (
       fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps
@@ -1400,33 +816,32 @@ describe("WorkspaceCalendar editing", () => {
     await act(async () => {
       request.resolve({
         ok: true,
-        value: { taskId: ITEM.taskId, scheduleRevision: 4 },
+        value: { scheduleId: "schedule-1", runId: ITEM.id },
       });
       await request.promise;
     });
     await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
   });
 
-  it("rolls a failed drop back and shows the mapped copy", async () => {
-    mutateTaskOccurrenceMock.mockResolvedValue({
+  it("rolls a refused drop back and says why", async () => {
+    changeTaskScheduleRunMock.mockResolvedValue({
       ok: false,
-      error: { kind: "schedule_occurrence_not_reschedulable" },
+      error: { kind: "invalid_time", message: "Too far ahead" },
     });
     renderCalendar();
 
     const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
-    const droppedAt = new Date("2030-01-03T10:30:00.000Z");
     const revert = vi.fn();
 
     await act(async () => {
       props.eventDrop?.({
-        event: { id: ITEM.id, start: droppedAt },
+        event: { id: ITEM.id, start: new Date("2030-01-03T10:30:00.000Z") },
         revert,
       });
     });
 
     await waitFor(() =>
-      expect(toastErrorMock).toHaveBeenCalledWith("occurrenceLocked", {
+      expect(toastErrorMock).toHaveBeenCalledWith("event.runInvalidTime", {
         duration: Infinity,
       }),
     );
@@ -1438,10 +853,10 @@ describe("WorkspaceCalendar editing", () => {
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
-  it("refreshes the route when a drop hits a stale series", async () => {
-    mutateTaskOccurrenceMock.mockResolvedValue({
+  it("refreshes the route when a drop hits a Run that changed meanwhile", async () => {
+    changeTaskScheduleRunMock.mockResolvedValue({
       ok: false,
-      error: { kind: "schedule_revision_conflict" },
+      error: { kind: "stale", message: "Task Schedule changed" },
     });
     renderCalendar();
 
@@ -1454,147 +869,116 @@ describe("WorkspaceCalendar editing", () => {
     });
 
     await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
-    expect(toastErrorMock).toHaveBeenCalledWith("revisionConflict", {
+    expect(toastErrorMock).toHaveBeenCalledWith("event.runStale", {
       duration: Infinity,
     });
   });
 
-  it("offers Move on a movable occurrence and keeps it off a released one", async () => {
+  it("moves a Run to the time picked in its dialog", async () => {
     const user = userEvent.setup();
     renderCalendar({ items: [ITEM, RELEASED_ITEM] });
 
-    await user.click(
-      screen.getAllByRole("button", {
-        name: "Prepare release notes, Release planning",
-      })[0],
-    );
-    await user.click(
-      screen.getByRole("menuitem", { name: "event.moveOccurrence" }),
-    );
-    expect(await screen.findByRole("dialog")).toBeInTheDocument();
-
+    await openEventMenu(user, 1);
+    expect(
+      screen.queryByRole("menuitem", { name: "event.moveRun" }),
+    ).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
+
+    await openEventMenu(user, 0);
+    await user.click(screen.getByRole("menuitem", { name: "event.moveRun" }));
+    const dialog = await screen.findByRole("dialog");
+    const input = within(dialog).getByLabelText("runMove.label");
+    expect(input).toHaveValue("2030-01-02T09:00");
+    fireEvent.change(input, { target: { value: "2030-01-04T08:15" } });
+    await user.click(
+      within(dialog).getByRole("button", { name: "runMove.confirm" }),
+    );
+
+    await waitFor(() =>
+      expect(changeTaskScheduleRunMock).toHaveBeenCalledWith({
+        scheduleId: "schedule-1",
+        runId: ITEM.id,
+        expectedRevision: 3,
+        action: "move",
+        scheduledAt: new Date("2030-01-04T08:15:00.000Z"),
+      }),
+    );
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-
-    await user.click(
-      screen.getAllByRole("button", {
-        name: "Prepare release notes, Release planning",
-      })[1],
-    );
-    expect(
-      screen.queryByRole("menuitem", { name: "event.moveOccurrence" }),
-    ).not.toBeInTheDocument();
+    expect(refreshMock).toHaveBeenCalledOnce();
   });
 
-  it("skips a planned occurrence from its event menu", async () => {
+  it("closes the move dialog and refreshes when the Run changed meanwhile", async () => {
+    changeTaskScheduleRunMock.mockResolvedValue({
+      ok: false,
+      error: { kind: "stale", message: "Task Schedule changed" },
+    });
     const user = userEvent.setup();
     renderCalendar();
 
+    await openEventMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "event.moveRun" }));
+    const dialog = await screen.findByRole("dialog");
     await user.click(
-      screen.getAllByRole("button", {
-        name: "Prepare release notes, Release planning",
-      })[0],
-    );
-    await user.click(
-      screen.getByRole("menuitem", { name: "event.skipOccurrence" }),
+      within(dialog).getByRole("button", { name: "runMove.confirm" }),
     );
 
     await waitFor(() =>
-      expect(mutateTaskOccurrenceMock).toHaveBeenCalledWith({
-        taskId: ITEM.taskId,
-        occurrenceId: ITEM.id,
-        operationId: expect.any(String),
-        expectedScheduleRevision: 3,
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(toastErrorMock).toHaveBeenCalledWith("event.runStale", {
+      duration: Infinity,
+    });
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("skips a planned Run from its event menu", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await openEventMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "event.skipRun" }));
+
+    await waitFor(() =>
+      expect(changeTaskScheduleRunMock).toHaveBeenCalledWith({
+        scheduleId: "schedule-1",
+        runId: ITEM.id,
+        expectedRevision: 3,
         action: "skip",
       }),
     );
     expect(refreshMock).toHaveBeenCalledOnce();
   });
 
-  it("crosses out a skipped occurrence and offers restore at its original time", async () => {
+  it("restores a moved Run to the rule's time", async () => {
     const user = userEvent.setup();
-    renderCalendar({ items: [SKIPPED_ITEM] });
+    renderCalendar({ items: [MOVED_ITEM] });
 
-    const event = screen.getAllByRole("button", {
-      name: "Prepare release notes, Release planning, skipped",
-    })[0];
-    expect(screen.getAllByTestId("calendar-event")[0]).toHaveClass(
-      "line-through",
-    );
-    await user.click(event);
+    await openEventMenu(user);
     await user.click(
-      screen.getByRole("menuitem", { name: "event.restoreOccurrence" }),
+      screen.getByRole("menuitem", { name: "event.restoreRun" }),
     );
-
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByLabelText("label")).toHaveValue(
-      "2030-01-02T09:00",
-    );
-    await user.click(within(dialog).getByRole("button", { name: "confirm" }));
 
     await waitFor(() =>
-      expect(mutateTaskOccurrenceMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          taskId: SKIPPED_ITEM.taskId,
-          occurrenceId: SKIPPED_ITEM.id,
-          expectedScheduleRevision: 3,
-          action: "restore",
-          scheduledAt: "2030-01-02T09:00:00.000Z",
-        }),
-      ),
+      expect(changeTaskScheduleRunMock).toHaveBeenCalledWith({
+        scheduleId: "schedule-1",
+        runId: MOVED_ITEM.id,
+        expectedRevision: 3,
+        action: "restore",
+      }),
     );
+    expect(refreshMock).toHaveBeenCalledOnce();
   });
 
-  it("keeps the newest event selection when an earlier event fetch resolves last", async () => {
+  it("offers restore only on a moved Run", async () => {
     const user = userEvent.setup();
-    const firstRequest = createDeferred<{
-      data: { id: string; metadata: string };
-    }>();
-    const secondRequest = createDeferred<{
-      data: { id: string; metadata: string };
-    }>();
-    getTaskByIdMock.mockImplementation((taskId: string) =>
-      taskId === ITEM.taskId ? firstRequest.promise : secondRequest.promise,
-    );
-    renderCalendar({ items: [ITEM, SECOND_ITEM] });
+    renderCalendar();
 
-    await user.click(
-      screen.getAllByRole("button", {
-        name: "Prepare release notes, Release planning",
-      })[0],
-    );
-    await user.click(
-      screen.getByRole("menuitem", { name: "event.editSchedule" }),
-    );
-    await user.click(
-      screen.getAllByRole("button", {
-        name: "Publish release notes, Release planning",
-      })[0],
-    );
-    await user.click(
-      screen.getByRole("menuitem", { name: "event.editSchedule" }),
-    );
+    await openEventMenu(user);
 
-    await act(async () => {
-      secondRequest.resolve({
-        data: { id: SECOND_ITEM.taskId, metadata: '{"task":"second"}' },
-      });
-      await secondRequest.promise;
-    });
-    expect(metadataToSelectionMock).toHaveBeenCalledWith(
-      '{"task":"second"}',
-      expect.any(String),
-    );
-
-    await act(async () => {
-      firstRequest.resolve({
-        data: { id: ITEM.taskId, metadata: '{"task":"first"}' },
-      });
-      await firstRequest.promise;
-    });
-
-    expect(metadataToSelectionMock).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("menuitem", { name: "event.restoreRun" }),
+    ).not.toBeInTheDocument();
   });
 });

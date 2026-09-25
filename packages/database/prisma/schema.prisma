@@ -61,9 +61,9 @@ model User {
   notificationPreferences NotificationPreference[]
   notifications           Notification[]
 
-  calendarOccurrencesActed TaskScheduleOccurrence[] @relation("TaskScheduleOccurrenceActor")
-  projectCloseOperations   ProjectCloseOperation[]  @relation("ProjectCloseOperationActor")
-  projectEventsActed       ProjectEvent[]           @relation("ProjectEventActor")
+  taskScheduleRunsActed  TaskScheduleRun[]       @relation("TaskScheduleRunActor")
+  projectCloseOperations ProjectCloseOperation[] @relation("ProjectCloseOperationActor")
+  projectEventsActed     ProjectEvent[]          @relation("ProjectEventActor")
 
   // Chat display preferences. Not delivery: these change what the reader sees,
   // never which notifications are created or sent.
@@ -73,8 +73,8 @@ model User {
   utmAttribution UTMAttribution?
 
   // Vendor membership and coworker assignments
-  vendorMembers       VendorMember[]
-  coworkerAssignments CoworkerAssignment[]
+  vendorMembers           VendorMember[]
+  coworkerAssignments     CoworkerAssignment[]
   createdVendors          Vendor[]             @relation("VendorCreatedBy")
   vendorMemberInvitesSent VendorMemberInvite[] @relation("VendorMemberInviteInvitedBy")
   vendorMemberInvitesGot  VendorMemberInvite[] @relation("VendorMemberInviteAcceptedBy")
@@ -86,13 +86,17 @@ model User {
   createdSocialPosts      SocialPost[]             @relation("SocialPostCreatorUser")
   scheduledSocialPosts    SocialPost[]             @relation("SocialPostScheduledByUser")
   assignedTasks           Task[]                   @relation("TaskAssigneeUser")
+  ownedTaskSchedules      TaskSchedule[]           @relation("TaskScheduleOwner")
+  createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorUser")
+  assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssigneeUser")
+  taskParticipations      TaskParticipant[]        @relation("TaskParticipantUser")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
   coworkerUsages          CoworkerUsage[]
   sokoBotUsages           SokoBotUsage[]
   sokoBotTurns            SokoBotTurn[]
-  sokoBotRequestedTurns   SokoBotTurn[] @relation("SokoBotTurnRequestedBy")
-  sokoBotRequestedAvatars SokoBotAvatar[] @relation("SokoBotAvatarRequestedBy")
+  sokoBotRequestedTurns   SokoBotTurn[]            @relation("SokoBotTurnRequestedBy")
+  sokoBotRequestedAvatars SokoBotAvatar[]          @relation("SokoBotAvatarRequestedBy")
   sokoBotPendingDecisions SokoBotPendingDecision[]
   sokoBotSchedules        SokoBotSchedule[]
   sokoBotLegacyMessages   SokoBotLegacyMessage[]
@@ -247,6 +251,7 @@ model Organization {
   workspace      Workspace?
   jobs           Job[]
   tasks          Task[]
+  taskSchedules  TaskSchedule[]
   transactions   Transaction[]
   coworkerUsages CoworkerUsage[]
   sokoBotUsages  SokoBotUsage[]
@@ -277,11 +282,12 @@ model Workspace {
   organizationId String?       @unique
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  jobs                    Job[]
-  tasks                   Task[]
-  socialPosts             SocialPost[]
-  projects                Project[]
-  scheduleOccurrences     TaskScheduleOccurrence[]
+  jobs                     Job[]
+  tasks                    Task[]
+  socialPosts              SocialPost[]
+  taskSchedules            TaskSchedule[]
+  projects                 Project[]
+  taskScheduleRuns         TaskScheduleRun[]
   scheduleCreateOperations TaskScheduleCreateOperation[]
   notifications            Notification[]
   vendorGrants             VendorGrant[]
@@ -562,12 +568,13 @@ model Project {
   closingAt        DateTime?
   closedAt         DateTime?
 
-  jobs                  Job[]
-  tasks                 Task[]
-  scheduleOccurrences   TaskScheduleOccurrence[]
-  closeOperation        ProjectCloseOperation?
-  events                ProjectEvent[]
-  stars                 ProjectStar[]
+  jobs             Job[]
+  tasks            Task[]
+  taskSchedules    TaskSchedule[]
+  taskScheduleRuns TaskScheduleRun[]
+  closeOperation   ProjectCloseOperation?
+  events           ProjectEvent[]
+  stars            ProjectStar[]
 
   socialConnections       ProjectSocialConnection[]
   socialPosts             SocialPost[]
@@ -605,23 +612,23 @@ model ProjectStar {
 }
 
 model ProjectSocialConnection {
-  id                        String   @id @default(uuid(7)) @db.Uuid
-  projectId                 String   @db.Uuid
-  provider                  String
-  externalAccountId         String
-  externalHandle            String?
+  id                         String    @id @default(uuid(7)) @db.Uuid
+  projectId                  String    @db.Uuid
+  provider                   String
+  externalAccountId          String
+  externalHandle             String?
   composioConnectedAccountId String
-  status                    String
-  activeExternalAccountKey  String?
-  connectorUserId           String
-  connectedAt               DateTime?
-  disconnectedAt            DateTime?
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
+  status                     String
+  activeExternalAccountKey   String?
+  connectorUserId            String
+  connectedAt                DateTime?
+  disconnectedAt             DateTime?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  audits  ProjectSocialConnectionAudit[]
-  intents ProjectSocialConnectionIntent[]
+  project     Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  audits      ProjectSocialConnectionAudit[]
+  intents     ProjectSocialConnectionIntent[]
   socialPosts SocialPost[]
 
   @@unique([projectId, activeExternalAccountKey])
@@ -635,15 +642,15 @@ model ProjectSocialConnectionIntent {
   projectId String  @db.Uuid
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  initiatingUserId String
-  provider         String
-  action           String
+  initiatingUserId   String
+  provider           String
+  action             String
   socialConnectionId String?                  @db.Uuid
   socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
   authConfigId       String
   callbackRedeemedAt DateTime?
   expiresAt          DateTime
-  createdAt          DateTime @default(now())
+  createdAt          DateTime                 @default(now())
 
   @@index([expiresAt])
   @@map("project_social_connection_intent")
@@ -1833,15 +1840,18 @@ model Coworker {
   assignments     CoworkerAssignment[]
   workspaceAccess CoworkerWorkspaceAccess[]
 
-  assignedTasks       Task[]                   @relation("TaskAssignee")
-  createdTasks        Task[]                   @relation("TaskCreatorCoworker")
-  createdSocialPosts  SocialPost[]             @relation("SocialPostCreatorCoworker")
-  taskEvents          TaskEvent[]
-  uploadedTaskFiles   TaskFile[]               @relation("TaskFileUploadedByCoworker")
-  coworkerUsages      CoworkerUsage[]
-  chatRoomMemberships ChatRoomCoworkerMember[]
-  chatRoomMessages    ChatRoomMessage[]        @relation("ChatRoomCoworkerSender")
-  chatRoomMentions    ChatRoomMention[]
+  assignedTasks           Task[]                   @relation("TaskAssignee")
+  createdTasks            Task[]                   @relation("TaskCreatorCoworker")
+  createdSocialPosts      SocialPost[]             @relation("SocialPostCreatorCoworker")
+  assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssignee")
+  createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorCoworker")
+  changedTaskScheduleRuns TaskScheduleRun[]        @relation("TaskScheduleRunActorCoworker")
+  taskEvents              TaskEvent[]
+  uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByCoworker")
+  coworkerUsages          CoworkerUsage[]
+  chatRoomMemberships     ChatRoomCoworkerMember[]
+  chatRoomMessages        ChatRoomMessage[]        @relation("ChatRoomCoworkerSender")
+  chatRoomMentions        ChatRoomMention[]
 
   @@index([archivedAt])
   @@index([vendorId])
@@ -2033,16 +2043,17 @@ model SokoBot {
   /// Legacy shadow coworker. Empty after PA cutover; column kept (SOK-946).
   coworker Coworker?
 
-  chatRoomMemberships ChatRoomSokoBotMember[]
-  chatRoomMessages    ChatRoomMessage[]       @relation("ChatRoomSokoBotSender")
-  chatRoomMentions    ChatRoomMention[]
-  apiKeys             CoworkerApiKey[]
-  assignedTasks       Task[]                  @relation("TaskAssigneeSokoBot")
-  labRuns             SokoBotLabRun[]
-  installedSkills     SokoBotInstalledSkill[]
-  integrations        SokoBotIntegration[]
-  taskWatches         SokoBotTaskWatch[]
-  nudges              SokoBotNudge[]
+  chatRoomMemberships   ChatRoomSokoBotMember[]
+  chatRoomMessages      ChatRoomMessage[]       @relation("ChatRoomSokoBotSender")
+  chatRoomMentions      ChatRoomMention[]
+  apiKeys               CoworkerApiKey[]
+  assignedTasks         Task[]                  @relation("TaskAssigneeSokoBot")
+  assignedTaskSchedules TaskSchedule[]          @relation("TaskScheduleAssigneeSokoBot")
+  labRuns               SokoBotLabRun[]
+  installedSkills       SokoBotInstalledSkill[]
+  integrations          SokoBotIntegration[]
+  taskWatches           SokoBotTaskWatch[]
+  nudges                SokoBotNudge[]
 
   /// Timezone for the morning briefing and "today" in ingest packets.
   ingestTimezone      String    @default("Europe/Berlin")
@@ -2100,16 +2111,17 @@ model SokoBot {
   lastSeenInboxAt       DateTime?
   consecutivePollErrors Int       @default(0)
 
-  createdTasks       Task[]                   @relation("TaskCreatorSokoBot")
-  createdSocialPosts SocialPost[]             @relation("SocialPostCreatorSokoBot")
-  taskEvents         TaskEvent[]
-  uploadedTaskFiles  TaskFile[]               @relation("TaskFileUploadedBySokoBot")
-  sokoBotUsages      SokoBotUsage[]
-  turns              SokoBotTurn[]
-  memoryRevisions    SokoBotMemoryRevision[]
-  legacyMessages     SokoBotLegacyMessage[]
-  pendingDecisions   SokoBotPendingDecision[]
-  schedules          SokoBotSchedule[]
+  createdTasks         Task[]                   @relation("TaskCreatorSokoBot")
+  createdSocialPosts   SocialPost[]             @relation("SocialPostCreatorSokoBot")
+  createdTaskSchedules TaskSchedule[]           @relation("TaskScheduleCreatorSokoBot")
+  taskEvents           TaskEvent[]
+  uploadedTaskFiles    TaskFile[]               @relation("TaskFileUploadedBySokoBot")
+  sokoBotUsages        SokoBotUsage[]
+  turns                SokoBotTurn[]
+  memoryRevisions      SokoBotMemoryRevision[]
+  legacyMessages       SokoBotLegacyMessage[]
+  pendingDecisions     SokoBotPendingDecision[]
+  schedules            SokoBotSchedule[]
 
   // One LIVE bot per user and workspace. Partial, because a plain unique would
   // let a tombstone block its owner from ever creating a new bot.
@@ -2698,17 +2710,22 @@ model Task {
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
 
+  /// Humans added by @ in Task comment activity. Not owner or assignee.
+  participants TaskParticipant[]
+
   projectId String?  @db.Uuid
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
-  metadata         String?
-  nextRunAt        DateTime?
-  scheduleRevision Int       @default(0)
+  /// The Run whose release created this Task.
+  releasedScheduleRun TaskScheduleRun? @relation("TaskScheduleRunReleasedTask")
 
-  scheduleOccurrences        TaskScheduleOccurrence[]     @relation("ScheduleOccurrenceSeries")
-  releasedScheduleOccurrence TaskScheduleOccurrence?      @relation("ScheduleOccurrenceReleasedTask")
-  scheduleQuarantine         TaskScheduleQuarantine?
-  scheduleCreateOperation    TaskScheduleCreateOperation?
+  /// Task Schedule whose Run created this Task. Deleting the schedule
+  /// keeps the Task (ADR 0041).
+  scheduleId String?       @db.Uuid
+  schedule   TaskSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+
+  /// The one time this Task is set to start instead of now. Never repeats.
+  runAt DateTime?
 
   @@index([organizationId])
   @@index([workspaceId])
@@ -2719,18 +2736,131 @@ model Task {
   @@index([assigneeSokoBotId])
   @@index([assigneeUserId])
   @@index([projectId])
-  @@index([status, nextRunAt])
   @@index([pendingVendorGrantId])
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
   @@index([workspaceId, visibility])
+  @@index([scheduleId])
+  @@index([status, runAt])
   @@map("task")
 }
 
-/// Idempotency ledger for atomic v2 scheduled Task creation. A key is scoped to
-/// the active workspace, so retries return the original Task without duplicating
-/// its occurrence ledger rows.
+enum TaskScheduleState {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum TaskScheduleEndsMode {
+  NEVER
+  ON
+  AFTER
+}
+
+/// A repeating rule plus the blueprint of the Task each Run creates
+/// (ADR 0041). Not a Task: it has no Task status, only its own state.
+model TaskSchedule {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Fixed at create so the schedule's access rules never shift.
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  ownerId String
+  owner   User   @relation("TaskScheduleOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  /// Exactly one creator FK is set (DB check), as on Task.
+  creatorUserId String?
+  creatorUser   User?   @relation("TaskScheduleCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
+
+  creatorCoworkerId String?
+  creatorCoworker   Coworker? @relation("TaskScheduleCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
+
+  creatorSokoBotId String?  @db.Uuid
+  creatorSokoBot   SokoBot? @relation("TaskScheduleCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
+
+  state TaskScheduleState @default(ACTIVE)
+
+  /// Rule. `expr` is a cron expression in `timezone`; `intervalDays` > 1 runs
+  /// every N calendar days from `anchorAt` at the anchor's local time instead.
+  expr              String
+  timezone          String
+  intervalDays      Int?
+  anchorAt          DateTime
+  ruleEffectiveFrom DateTime
+  /// Identity of the current rule. A rule edit starts a new epoch, so its
+  /// Runs never collide with those of the rule it replaced.
+  epochId           String   @db.Uuid
+
+  endsMode       TaskScheduleEndsMode @default(NEVER)
+  endsOn         DateTime?
+  targetRunCount Int?
+  releasedCount  Int                  @default(0)
+  nextRunAt      DateTime?
+
+  /// Optimistic concurrency token for PATCH.
+  revision Int @default(0)
+
+  /// Blueprint of the Task each Run creates.
+  name        String
+  description String?
+  projectId   String?        @db.Uuid
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  visibility  TaskVisibility @default(PUBLIC)
+
+  /// At most one assignee FK is set (DB check), as on Task.
+  assigneeId        String?
+  assignee          Coworker? @relation("TaskScheduleAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigneeSokoBotId String?   @db.Uuid
+  assigneeSokoBot   SokoBot?  @relation("TaskScheduleAssigneeSokoBot", fields: [assigneeSokoBotId], references: [id], onDelete: SetNull)
+  assigneeUserId    String?
+  assigneeUser      User?     @relation("TaskScheduleAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+
+  tasks           Task[]
+  runs            TaskScheduleRun[]
+  createOperation TaskScheduleCreateOperation?
+
+  @@index([state, nextRunAt])
+  @@index([workspaceId, createdAt, id])
+  @@index([projectId])
+  @@index([organizationId])
+  @@index([ownerId])
+  @@index([creatorUserId])
+  @@index([creatorCoworkerId])
+  @@index([creatorSokoBotId])
+  @@index([assigneeId])
+  @@index([assigneeSokoBotId])
+  @@index([assigneeUserId])
+  @@map("task_schedule")
+}
+
+/// A workspace member pulled onto a Task by @ in comment activity.
+/// Distinct from Chat Participant. Unique per Task and user. createdAt is join time.
+model TaskParticipant {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("TaskParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId], map: "task_participant_taskId_userId_key")
+  @@index([userId], map: "task_participant_userId_idx")
+  @@index([taskId, createdAt], map: "task_participant_taskId_createdAt_idx")
+  @@map("task_participant")
+}
+
+/// Idempotency ledger for Task Schedule create. A key is scoped to the active
+/// workspace, so a retried create returns the original schedule instead of
+/// making a second one.
 model TaskScheduleCreateOperation {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -2740,12 +2870,12 @@ model TaskScheduleCreateOperation {
 
   operationId String @db.Uuid
 
-  /// SHA-256 of the creation-affecting request payload. Reusing an operation
-  /// ID for a different Task request is a conflict rather than a replay.
+  /// SHA-256 of the create request. Reusing an operation ID for a different
+  /// request is a conflict rather than a replay.
   requestFingerprint String
 
-  taskId String @unique
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  scheduleId String       @unique @db.Uuid
+  schedule   TaskSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, operationId])
   @@index([workspaceId, createdAt])
@@ -2795,106 +2925,64 @@ enum TaskLinkType {
   BLOCKS
   PARENT
   DUPLICATE
-  /// Schedule series edge: fromTask = template, toTask = run (system-created).
-  SCHEDULE
 }
 
 enum CalendarSourceType {
   WORKSPACE
   PROJECT
-  LEGACY_UNKNOWN
 }
 
-enum CalendarSourceAccuracy {
-  EXACT
-  INFERRED
-  UNKNOWN
-}
-
-enum CalendarTimeAccuracy {
-  EXACT
-  APPROXIMATE
-}
-
-enum TaskScheduleOccurrenceState {
+enum TaskScheduleRunState {
   PLANNED
   SKIPPED
   CANCELED
   RELEASED
 }
 
-model TaskScheduleOccurrence {
+/// SQL-only checks (Prisma cannot express them): a released Run has its Task
+/// and only a released one does; at most one actor; a PROJECT source has its
+/// project and no other source does.
+model TaskScheduleRun {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  seriesTaskId String
-  seriesTask   Task   @relation("ScheduleOccurrenceSeries", fields: [seriesTaskId], references: [id], onDelete: Cascade)
+  scheduleId String       @db.Uuid
+  schedule   TaskSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   releasedTaskId String? @unique
-  releasedTask   Task?   @relation("ScheduleOccurrenceReleasedTask", fields: [releasedTaskId], references: [id], onDelete: Cascade)
+  releasedTask   Task?   @relation("TaskScheduleRunReleasedTask", fields: [releasedTaskId], references: [id], onDelete: Cascade)
 
-  /// Normal occurrences require epoch/original/timezone identity. Legacy rows
-  /// are distinguished by legacyLinkId. Raw database checks enforce both
-  /// branches because Prisma cannot express conditional field requirements.
-  epochId              String?   @db.Uuid
-  originalScheduledAt  DateTime?
+  /// A Run is identified by its schedule's rule epoch and its rule time;
+  /// a move changes only the effective time.
+  epochId              String   @db.Uuid
+  originalScheduledAt  DateTime
   effectiveScheduledAt DateTime
-  legacyLinkId         String?   @unique
 
-  /// Distinguishes indexed v1 plans from epoch-backed v2 rows and legacy
-  /// released ledger records. Database checks enforce the valid field branch.
-  scheduleVersion Int @default(2)
+  state TaskScheduleRunState
 
-  state TaskScheduleOccurrenceState
-
-  sourceWorkspaceId String                 @db.Uuid
-  sourceWorkspace   Workspace              @relation(fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
+  sourceWorkspaceId String             @db.Uuid
+  sourceWorkspace   Workspace          @relation(fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
   sourceType        CalendarSourceType
-  sourceProjectId   String?                @db.Uuid
-  sourceProject     Project?               @relation(fields: [sourceProjectId], references: [id], onDelete: Restrict)
-  sourceAccuracy    CalendarSourceAccuracy @default(EXACT)
-  timeAccuracy      CalendarTimeAccuracy   @default(EXACT)
+  sourceProjectId   String?            @db.Uuid
+  sourceProject     Project?           @relation(fields: [sourceProjectId], references: [id], onDelete: Restrict)
 
-  actorUserId  String?
-  actorUser    User?   @relation("TaskScheduleOccurrenceActor", fields: [actorUserId], references: [id], onDelete: SetNull)
-  timezone     String?
-  ruleSnapshot Json?
+  /// Who last skipped, moved, or restored this Run: a person or a
+  /// Coworker vendor, at most one of them.
+  actorUserId     String?
+  actorUser       User?     @relation("TaskScheduleRunActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorCoworkerId String?
+  actorCoworker   Coworker? @relation("TaskScheduleRunActorCoworker", fields: [actorCoworkerId], references: [id], onDelete: SetNull)
+  timezone        String
 
-  @@unique([seriesTaskId, epochId, originalScheduledAt], map: "task_schedule_occurrence_series_epoch_original_key")
-  @@unique([seriesTaskId, originalScheduledAt], map: "task_schedule_occurrence_v1_planned_original_key", where: { scheduleVersion: 1, legacyLinkId: null })
-  @@index([seriesTaskId, effectiveScheduledAt, id], map: "task_schedule_occurrence_series_effective_id_idx")
-  @@index([seriesTaskId, originalScheduledAt, id], map: "task_schedule_occurrence_series_original_id_idx")
-  @@index([sourceWorkspaceId, effectiveScheduledAt, id], map: "task_schedule_occurrence_workspace_effective_id_idx")
-  @@index([sourceProjectId, effectiveScheduledAt, id], map: "task_schedule_occurrence_project_effective_id_idx")
+  @@unique([scheduleId, epochId, originalScheduledAt], map: "task_schedule_run_schedule_epoch_original_key")
+  @@index([scheduleId, effectiveScheduledAt, id], map: "task_schedule_run_schedule_effective_id_idx")
+  @@index([sourceWorkspaceId, effectiveScheduledAt, id], map: "task_schedule_run_workspace_effective_id_idx")
+  @@index([sourceProjectId, effectiveScheduledAt, id], map: "task_schedule_run_project_effective_id_idx")
   @@index([state, effectiveScheduledAt, id])
   @@index([actorUserId])
-  @@map("task_schedule_occurrence")
-}
-
-enum TaskScheduleQuarantineReason {
-  INVALID_METADATA
-  INVALID_TIMEZONE
-  INVALID_STATUS
-  NEXT_RUN_MISMATCH
-}
-
-model TaskScheduleQuarantine {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  taskId String @unique
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  reason            TaskScheduleQuarantineReason
-  details           String
-  capturedMetadata  String?
-  capturedNextRunAt DateTime?
-  capturedStatus    TaskStatus
-
-  @@index([createdAt, id])
-  @@map("task_schedule_quarantine")
+  @@index([actorCoworkerId])
+  @@map("task_schedule_run")
 }
 
 enum ProjectCloseOperationState {
@@ -3057,17 +3145,6 @@ enum TaskPaymentClaimStatus {
   REFUNDED
 }
 
-enum TaskScheduleEventKind {
-  CREATED
-  UPDATED
-  REMOVED
-  SOURCE_CHANGED
-  OCCURRENCE_RESCHEDULED
-  OCCURRENCE_SKIPPED
-  OCCURRENCE_RESTORED
-  RELEASED
-}
-
 /// VERIFIED is terminal for the automated flow (PR1-SPEC §4): the node signs
 /// the X-PAYMENT header locally and Soko cannot observe settlement, so nothing
 /// may auto-progress a VERIFIED record until the phased-settlement reconciler
@@ -3119,10 +3196,6 @@ model TaskEvent {
 
   status TaskStatus?
 
-  scheduleKind        TaskScheduleEventKind?
-  schedulePayload     Json?
-  scheduleOperationId String?                @db.Uuid
-
   comment           String?
   cents             BigInt?
   authenticationUrl String?
@@ -3143,7 +3216,6 @@ model TaskEvent {
   paymentClaim TaskPaymentClaim?
   x402Payment  TaskX402Payment?
 
-  @@unique([taskId, scheduleOperationId], map: "taskEvent_taskId_scheduleOperationId_key", where: { scheduleOperationId: { not: null } })
   @@index([transactionId])
   @@index([sokoBotId])
   @@index([taskId, createdAt])
@@ -3834,7 +3906,7 @@ model ChatRoomThreadReadState {
   parentMessageId String          @db.Uuid
   parentMessage   ChatRoomMessage @relation(fields: [parentMessageId], references: [id], onDelete: Cascade)
 
-  lastReadAt DateTime @default(now())
+  lastReadAt DateTime  @default(now())
   /// Null = unmuted. Set to now when the user mutes this thread. A muted
   /// thread stops counting toward room unread and stops writing CHAT
   /// notifications for this user, without changing whether they Participate.

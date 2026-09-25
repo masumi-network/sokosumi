@@ -45,6 +45,29 @@ const {
   },
 }));
 
+const { loadTaskScheduleDialogOptionsMock, scheduleDialogPropsMock } =
+  vi.hoisted(() => ({
+    loadTaskScheduleDialogOptionsMock: vi.fn(),
+    scheduleDialogPropsMock: vi.fn(),
+  }));
+
+vi.mock("@/app/tasks/actions", () => ({
+  loadTaskScheduleDialogOptions: loadTaskScheduleDialogOptionsMock,
+}));
+
+vi.mock("@/app/tasks/components/task-schedule-dialog", () => ({
+  TaskScheduleDialog: (props: { onSaved?: (scheduleId: string) => void }) => {
+    scheduleDialogPropsMock(props);
+    return (
+      <div role="dialog" aria-label="schedule dialog">
+        <button type="button" onClick={() => props.onSaved?.("schedule-9")}>
+          save schedule
+        </button>
+      </div>
+    );
+  },
+}));
+
 vi.mock("@/components/modals/global-modals-context", () => ({
   useGlobalModalsContext: () => ({
     showCalendarClientUpgradeModal: showCalendarClientUpgradeModalMock,
@@ -805,90 +828,11 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
-  it("hides archive for org member on a scheduled task they do not own", async () => {
-    // Core rejects archiving a Task whose series is still live, so the menu
-    // must not offer it.
-    renderActions({
-      status: TaskStatus.READY,
-      isReadOnly: true,
-      isTaskOwner: false,
-      isOrgOwnerOrAdmin: false,
-      hasActiveSchedule: true,
-      currentOrganizationId: "org-current",
-      organizations: undefined,
-    });
-
-    expect(
-      screen.queryByRole("button", { name: actionsMenuLabel }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("hides archive for plain org member on grant-pending scheduled task", async () => {
-    renderActions({
-      status: "GRANT_PENDING" as TaskStatus,
-      isReadOnly: true,
-      isTaskOwner: false,
-      isOrgOwnerOrAdmin: false,
-      hasActiveSchedule: true,
-      currentOrganizationId: "org-current",
-      organizations: undefined,
-    });
-
-    expect(
-      screen.queryByRole("button", { name: actionsMenuLabel }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
-  });
-
-  it("hides cancel and archive on a queued scheduled task while its series is live", async () => {
-    renderActions({
-      status: TaskStatus.QUEUED,
-      isReadOnly: true,
-      canCancel: true,
-      isTaskOwner: false,
-      isOrgOwnerOrAdmin: false,
-      hasActiveSchedule: true,
-      currentOrganizationId: "org-current",
-      organizations: undefined,
-    });
-
-    expect(
-      screen.queryByRole("button", { name: actionsMenuLabel }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("keeps editing and relations available to the owner while a series is live", async () => {
-    const user = userEvent.setup();
-    renderActions({
-      status: TaskStatus.QUEUED,
-      isTaskOwner: true,
-      hasActiveSchedule: true,
-      currentOrganizationId: "org-current",
-    });
-
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-
-    // Fields and relations stay editable; only the lifecycle paths the series
-    // owns disappear.
-    expect(screen.getByRole("link", { name: labels.edit })).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: "Mark as" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: "Create related" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
-    expect(
-      screen.queryByRole("menuitem", { name: "Move to workspace" }),
-    ).toBeNull();
-    expect(screen.queryByRole("menuitem", { name: labels.cancel })).toBeNull();
-  });
-
-  it("explains a schedule_active rejection instead of opening the upgrade modal", async () => {
+  it("reports a stale status list instead of opening the upgrade modal", async () => {
     const user = userEvent.setup();
     vi.mocked(setTaskStatusFromDrag).mockResolvedValueOnce({
       ok: false,
-      error: { kind: "schedule_active" },
+      error: { kind: "status_not_selectable" },
     });
 
     renderActions({
@@ -903,35 +847,10 @@ describe("TaskDetailActions", () => {
     );
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("activeSeries"),
+      expect(toast.error).toHaveBeenCalledWith("Errors.updateStatus"),
     );
     expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
-    expect(refreshMock).not.toHaveBeenCalled();
-  });
-
-  it("explains a quarantined series instead of opening the upgrade modal", async () => {
-    const user = userEvent.setup();
-    vi.mocked(setTaskStatusFromDrag).mockResolvedValueOnce({
-      ok: false,
-      error: { kind: "schedule_quarantined" },
-    });
-
-    renderActions({
-      status: TaskStatus.READY,
-      defaultAssigneeId: "user-1",
-      assigneeKind: "human",
-      organizations: undefined,
-    });
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(
-      screen.getByRole("menuitem", { name: labels.startWorking }),
-    );
-
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("quarantined"),
-    );
-    expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
-    expect(refreshMock).not.toHaveBeenCalled();
+    expect(refreshMock).toHaveBeenCalled();
   });
 
   it("hides share and overflow actions in read-only workspace mode", () => {
@@ -2052,5 +1971,54 @@ describe("TaskDetailActions", () => {
     await user.click(actionsButton);
 
     expect(screen.queryByRole("menuitem", { name: "Related" })).toBeNull();
+  });
+
+  describe("Repeat", () => {
+    const blueprint = {
+      name: "Review onboarding",
+      description: "Check the new accounts",
+      projectId: null,
+      visibility: "PUBLIC" as const,
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+    };
+
+    it("opens the Task Schedule dialog prefilled from the Task and leaves the Task alone", async () => {
+      const user = userEvent.setup();
+      const options = { coworkerOptions, projectOptions: [] };
+      loadTaskScheduleDialogOptionsMock.mockResolvedValue(options);
+      renderActions({ repeatBlueprint: blueprint });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "repeat" }));
+
+      await screen.findByRole("dialog", { name: "schedule dialog" });
+      expect(scheduleDialogPropsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          initialBlueprint: blueprint,
+          coworkerOptions,
+          projectOptions: [],
+        }),
+      );
+
+      await user.click(screen.getByRole("button", { name: "save schedule" }));
+
+      expect(pushMock).toHaveBeenCalledWith("/schedules/schedule-9");
+      // The original Task is neither changed nor linked to the schedule.
+      expect(setTaskStatusFromDrag).not.toHaveBeenCalled();
+      expect(createTaskLink).not.toHaveBeenCalled();
+      expect(createTaskAndLink).not.toHaveBeenCalled();
+      expect(deleteTask).not.toHaveBeenCalled();
+    });
+
+    it("is not offered where no schedule can be created", async () => {
+      const user = userEvent.setup();
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(screen.queryByRole("menuitem", { name: "repeat" })).toBeNull();
+    });
   });
 });

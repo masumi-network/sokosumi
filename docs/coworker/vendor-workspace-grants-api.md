@@ -76,7 +76,7 @@ propagate to the generated web client via `pnpm --filter web generate:core:snaps
 **Unchanged:**
 
 - **`tasks` capability** required on all task/job routes.
-- **DRAFT** tasks invisible to coworkers on list/read (404 / excluded from list). Contextual assignee or creator may still write a schedule on a DRAFT (see Schedule routes below).
+- **DRAFT** tasks invisible to coworkers on list/read (404 / excluded from list).
 - **Bare coworker auth** (no user context headers): no delegated create; list uses
   baseline filter only.
 
@@ -142,25 +142,59 @@ After **deny/revoke** on the create grant: parked task → **`CANCELED`**.
 
 ---
 
-## Atomic scheduled Task create (`POST /v1/tasks/scheduled`)
+## Task Schedules (`/v1/tasks/schedules`)
 
-Scheduled creation is a distinct v2 Calendar operation. It requires a UUID
-`operationId`, an explicit active-workspace source (`workspace` or `project`),
-an assignee, and a schedule. Core atomically creates the `QUEUED` Task, v2 rule
-epoch, planned occurrence index, and workspace-scoped idempotency result.
+A repeating rule is a **Task Schedule**, its own resource
+([ADR 0041](../adr/0041-recurring-rules-move-to-task-schedule.md)). It holds the
+rule (cron `expr` or every `intervalDays` from `anchorAt`, `timezone`, end rule)
+and the blueprint of the Task each Run creates (name, description, project,
+visibility, one assignee of any kind). At every Run, Core creates a new `READY`
+Task that carries the schedule's id in `scheduleId`. A Task never repeats; a
+one-time start is `runAt` on `POST /v1/tasks`.
 
-Scheduled creation has no approval round-trip: a missing grant is **not**
-requested and it never creates `GRANT_PENDING` work. A Coworker caller must
-still pass the standard coworker-user binding — a **GRANTED** workspace grant or
-a baseline assignee/sibling task relationship with the contextual user — plus
-the `tasks` capability. Calendar beta and organization-seat checks apply to that
-user. The Coworker may target any usable task-capable Coworker in the active
-workspace, including one from a different vendor. Core records the caller as
-creator and the selected Coworker as assignee separately.
+A Coworker needs `X-Context-*` headers, the `tasks` capability, and a
+**GRANTED** workspace grant. A missing grant is requested and the call answers
+**403** `grant_required` until a human approves; nothing parks. The
+organization seat applies to the contextual user, and Task Schedules are not
+behind the Calendar beta. The Coworker reads the workspace's public schedules
+and the contextual user's private ones in its vendor family, as for Tasks. It
+changes only the contextual user's schedules that it created or whose assignee
+is in its vendor family. A schedule's workspace is fixed at creation.
 
-Project sources are rechecked inside the transaction and reject Projects that
-are closing or closed. Retrying the same `operationId` in the same workspace
-returns the original Task without creating another occurrence ledger.
+`POST /v1/tasks/schedules` takes an optional `operationId` (a UUID, scoped to
+the workspace) so a timed-out create can be retried safely: a retry with the
+same key and body returns the schedule the first request made, and the same
+key with a different body or from another creator answers **409**
+`schedule_operation_conflict`. Without it, every create makes a new schedule.
+
+`PATCH /v1/tasks/schedules/{id}` takes the `expectedRevision` the caller read
+and answers **409** `schedule_revision_conflict` when the schedule changed.
+Pause, resume, and end answer **409** `schedule_state_conflict` from the wrong
+state. A Run change answers **409** `schedule_run_state_conflict` or **422**
+`schedule_run_target_invalid`.
+
+### Removed per-Task schedule routes
+
+The old per-Task schedule routes answer **410 Gone** with `kind`
+`task_schedule_moved` and the route to call instead in `replacement`:
+
+| Removed route | `replacement` |
+| --- | --- |
+| `POST /v1/tasks/scheduled` | `POST /v1/tasks/schedules` |
+| `PUT /v1/tasks/{id}/schedule` | `POST /v1/tasks/schedules` (a one-time start is `runAt` on `POST /v1/tasks`) |
+| `DELETE /v1/tasks/{id}/schedule` | `DELETE /v1/tasks/schedules/{id}` |
+| `PUT /v1/tasks/{id}/calendar-schedule` | `PATCH /v1/tasks/schedules/{id}` |
+| `PUT /v1/tasks/{id}/calendar-source` | `PATCH /v1/tasks/schedules/{id}` |
+| `GET /v1/tasks/{id}/schedule/occurrences` | `GET /v1/tasks/schedules/{id}/runs` |
+| `PATCH /v1/tasks/{id}/schedule/occurrences/{occurrenceId}` | `PATCH /v1/tasks/schedules/{id}/runs/{runId}` |
+
+The Task DTO no longer carries `metadata`, `nextRunAt`, or `scheduleRevision`,
+and `GET /v1/tasks` no longer accepts `hasSchedule` or `sort=nextRunAt`. It
+carries `runAt` and `scheduleId`; filter `GET /v1/tasks?scheduleId=` for the
+Tasks a schedule created. Task events no longer carry `scheduleKind`,
+`schedulePayload`, or `scheduleOperationId`. Calendar items no longer carry
+`sourceAccuracy` or `timeAccuracy`, and `LEGACY_UNKNOWN` is gone from
+`sourceType`.
 
 ---
 
@@ -170,33 +204,23 @@ returns the original Task without creating another occurrence ledger.
 | --- | --- | --- |
 | GET | `/v1/tasks` | With **GRANTED** grant, list all non-DRAFT tasks in workspace. `status=DRAFT` filter → **400**. |
 | GET | `/v1/tasks/{id}` | Baseline unchanged. Out-of-scope: upsert PENDING grant, **403** unless **GRANTED**. Same gate for task events, links, jobs list. |
-| POST | `/v1/tasks` | Delegated create flow above. |
-| POST | `/v1/tasks/scheduled` | Atomic v2 scheduled creation; no approval round-trip. Coworker needs an authorized user binding (**GRANTED** grant or baseline task) plus the `tasks` capability; Calendar beta / seat checks apply to that user; never parks work. |
+| POST | `/v1/tasks` | Delegated create flow above. Optional `runAt` (future time, Coworker or Soko Bot assignee required) creates the Task in `QUEUED`; Core moves it to `READY` at that time and clears `runAt`. `runAt` cannot park: while the grant is pending it answers **422**. |
+| GET, POST | `/v1/tasks/schedules` | List (filters `projectId`, `state`) and create Task Schedules. See Task Schedules above. |
+| GET, PATCH, DELETE | `/v1/tasks/schedules/{id}` | Read, edit (revision-checked), or delete a Task Schedule. Deleting keeps the Tasks it created. |
+| POST | `/v1/tasks/schedules/{id}/pause`, `/resume`, `/end` | Change the schedule's state (Active, Paused, Ended). |
+| GET | `/v1/tasks/schedules/{id}/runs` | List the schedule's Runs. |
+| PATCH | `/v1/tasks/schedules/{id}/runs/{runId}` | Skip, move, or restore one upcoming Run. |
 | POST | `/v1/tasks/{id}/events` | **`GRANT_PENDING`** → **403** `task_parked`. |
 | POST | `/v1/tasks/{id}/jobs` | Parent **`GRANT_PENDING`** → **403** `task_parked`. |
-| PATCH | `/v1/tasks/{id}` (+ schedule, etc.) | Collaborators cannot mutate parked tasks. |
-| PUT | `/v1/tasks/{id}/schedule` | Assignee, creator, or same-vendor sibling Coworker may edit the series. No Calendar beta gate; organization seat applies to the effective user. |
-| DELETE | `/v1/tasks/{id}/schedule` | Assignee, creator, or same-vendor sibling Coworker may remove the series. Deliberately no Calendar beta or seat gate (escape hatch). |
-| PUT | `/v1/tasks/{id}/calendar-schedule`, `/calendar-source` | Assignee, creator, or same-vendor sibling Coworker may replace or move the series. Calendar beta follows the effective user, and so does their organization seat. |
-| PATCH | `/v1/tasks/{id}/schedule/occurrences/{occurrenceId}` | Assignee, creator, or same-vendor sibling Coworker may mutate an occurrence. Calendar beta follows the effective user; no seat gate. |
-| GET | `/v1/tasks/{id}/schedule/occurrences` | Same read gate as `GET /v1/tasks/{id}` (assignee / sibling, not creator). Calendar beta follows the effective user; no seat gate. |
+| PATCH | `/v1/tasks/{id}` | Collaborators cannot mutate parked tasks. |
 | GET | `/v1/jobs/{id}` | Sibling read uses workspace grant gate; writes blocked if parent task parked. |
 
 On these Task-collaboration routes, a standalone Coworker key (no
 `X-Context-*` headers) skips the user-scoped gates and is scoped by the Task
-relationship: mutations other than the schedule routes below require the Task
-to be assigned to the calling Coworker, and reads may also use the
-vendor-sibling baseline.
-
-**Schedule routes are wider than assignment.** The five schedule mutations
-above accept the assignee, the Coworker that created the Task
-(`creatorCoworkerId`, so the legacy `POST /v1/tasks` then
-`PUT /v1/tasks/{id}/schedule` flow can target any assignee exactly like
-`POST /v1/tasks/scheduled`), *or* any Coworker from the same vendor as the
-assignee (non-DRAFT Task). With `X-Context-*` the Task must also belong to the
-contextual user (that is how creator-on-DRAFT is visible). A standalone key
-404s DRAFT before the creator check. Status transitions, jobs, and files stay
-assignee-only.
+relationship: mutations require the Task to be assigned to the calling
+Coworker, and reads may also use the vendor-sibling baseline. Status
+transitions, jobs, and files stay assignee-only. Task Schedule routes always
+need `X-Context-*` headers.
 
 ---
 

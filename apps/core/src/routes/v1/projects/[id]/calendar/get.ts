@@ -14,7 +14,7 @@ import {
 } from "@/lib/hono";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
-  getCalendarTaskWhere,
+  getCalendarAccessWhere,
   parseWorkspaceCalendarQuery,
   readWorkspaceCalendar,
 } from "@/routes/v1/workspaces/calendar/read";
@@ -38,7 +38,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/{id}/calendar",
     description:
-      "List indexed planned and released schedule occurrences for a Project",
+      "List the Task Schedule Runs of a Project: planned ones and the ones that created their Task",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -74,7 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project not found");
     }
 
-    const taskWhere = await getCalendarTaskWhere(
+    const access = await getCalendarAccessWhere(
       authContext,
       workspace.workspaceId,
     );
@@ -83,7 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspace.workspaceId,
       userContext.userId,
       parseWorkspaceCalendarQuery(c.req.valid("query")),
-      { projectId: project.id, taskWhere },
+      { projectId: project.id, access },
     );
 
     return ok(c, items, pagination);

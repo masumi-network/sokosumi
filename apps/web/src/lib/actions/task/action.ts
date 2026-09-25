@@ -2,8 +2,6 @@
 
 import {
   buildAdHocDesignMdPrefix,
-  CORE_API_ERROR_KINDS,
-  hasActiveTaskSchedule,
   taskContextSelectionAttachesAnything,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
@@ -13,13 +11,12 @@ import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
+import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   CoreApiRequestError,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import {
-  type CalendarTaskScheduleSource,
-  type CreateScheduledTaskRequest,
   type CreateTaskContext,
   type Task,
   type TaskLink,
@@ -28,22 +25,12 @@ import {
   type UserWritableTaskLinkRelation,
 } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
-import {
-  type TaskScheduleSeriesPrecondition,
-  taskScheduleService,
-} from "@/lib/services/task-schedule.service";
-import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
-import {
-  hasTaskScheduleChanged,
-  selectionToApiBody,
-} from "@/lib/utils/task-schedule";
 import {
   TASK_MUTATION_ERROR_KINDS,
   type TaskMutationErrorKind,
-} from "@/lib/utils/task-schedule-feedback";
+} from "@/lib/utils/task-mutation-error-kinds";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
-import { isUuidString } from "@/lib/utils/uuid";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -58,7 +45,8 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   projectId?: string | null;
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
-  schedule?: TaskScheduleSelection;
+  /** ISO time to start the Task at; Core then creates it Queued. */
+  runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
 }
 
@@ -81,75 +69,10 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   assigneeUserId?: string | null;
   projectId?: string | null;
   context?: TaskContextSelectionInput;
-  currentStatus: TaskStatus;
   desiredStatus: TaskStatus;
-  schedule?: TaskScheduleSelection;
-  hadSchedule?: boolean;
-  /** Series revision the edit form was opened against; required once live. */
-  expectedScheduleRevision?: number;
-  /** Browser-minted identity of this save attempt; reused across retries. */
-  scheduleOperationId?: string;
-  originalSchedule?: TaskScheduleSelection;
+  /** New ISO Run at, or null to clear it before changing assignee. */
+  runAt?: string | null;
 }
-
-interface CreateScheduledTaskParameters extends AuthenticatedRequest {
-  operationId: string;
-  source: CreateScheduledTaskRequest["source"];
-  description?: string | null;
-  assigneeId?: string | null;
-  assigneeUserId?: string | null;
-  context?: TaskContextSelectionInput;
-  schedule: TaskScheduleSelection;
-}
-
-interface SaveTaskScheduleParameters
-  extends AuthenticatedRequest,
-    TaskScheduleSeriesPrecondition {
-  taskId: string;
-  schedule: TaskScheduleSelection;
-}
-
-interface ClearTaskScheduleParameters
-  extends AuthenticatedRequest,
-    TaskScheduleSeriesPrecondition {
-  taskId: string;
-}
-
-interface MoveCalendarTaskSourceParameters
-  extends AuthenticatedRequest,
-    TaskScheduleSeriesPrecondition {
-  taskId: string;
-  source: CalendarTaskScheduleSource;
-}
-
-interface TaskOccurrenceMutationBase
-  extends AuthenticatedRequest,
-    TaskScheduleSeriesPrecondition {
-  taskId: string;
-  occurrenceId: string;
-}
-
-interface RescheduleTaskOccurrenceParameters
-  extends TaskOccurrenceMutationBase {
-  action: "reschedule";
-  /** Absolute UTC instant the occurrence moves to, as an ISO string. */
-  scheduledAt: string;
-}
-
-interface SkipTaskOccurrenceParameters extends TaskOccurrenceMutationBase {
-  action: "skip";
-}
-
-interface RestoreTaskOccurrenceParameters extends TaskOccurrenceMutationBase {
-  action: "restore";
-  /** Omit to restore the occurrence to its original projected time. */
-  scheduledAt?: string;
-}
-
-type MutateTaskOccurrenceParameters =
-  | RescheduleTaskOccurrenceParameters
-  | SkipTaskOccurrenceParameters
-  | RestoreTaskOccurrenceParameters;
 
 interface TaskMutationError {
   kind: TaskMutationErrorKind;
@@ -163,24 +86,6 @@ export type CreateTaskResult = TaskMutationActionResult<{
 }>;
 type UpdateTaskResult = TaskMutationActionResult<{ taskId: string }>;
 type SetTaskStatusResult = TaskMutationActionResult<{ taskId: string }>;
-type CreateScheduledTaskResult = TaskMutationActionResult<{
-  taskId: string;
-  name: string;
-}>;
-type SaveTaskScheduleResult = TaskMutationActionResult<{
-  taskId: string;
-}>;
-type ClearTaskScheduleResult = TaskMutationActionResult<{
-  taskId: string;
-}>;
-type MoveCalendarTaskSourceResult = TaskMutationActionResult<{
-  taskId: string;
-  scheduleRevision: number;
-}>;
-type MutateTaskOccurrenceResult = TaskMutationActionResult<{
-  taskId: string;
-  scheduleRevision: number;
-}>;
 type CreateTaskAndLinkResult = TaskMutationActionResult<{
   taskId: string;
   createdTaskId: string;
@@ -225,6 +130,13 @@ interface MoveTaskToWorkspaceParameters extends AuthenticatedRequest {
 interface CreateTaskCommentParameters extends AuthenticatedRequest {
   taskId: string;
   comment: string;
+  /** Workspace members @-mentioned in the comment; Core adds them as Task participants. */
+  mentionedUserIds?: string[];
+}
+
+interface RemoveTaskParticipantParameters extends AuthenticatedRequest {
+  taskId: string;
+  userId: string;
 }
 
 interface CreateTaskLinkParameters extends AuthenticatedRequest {
@@ -249,7 +161,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   projectId?: string | null;
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
-  schedule?: TaskScheduleSelection;
+  runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
@@ -281,89 +193,13 @@ function rethrowTaskActionError(
   throw new Error(message ?? fallbackMessage);
 }
 
-/**
- * Arms a schedule on a Task that has none. There is no live series to
- * serialize against yet, so this is the one remaining legacy-contract write;
- * every change to a live series goes through the revision-safe path below.
- */
-async function armTaskSchedule(
-  taskId: string,
-  schedule: TaskScheduleSelection,
-): Promise<TaskStatus> {
-  const task = await taskScheduleService.setSchedule(
-    taskId,
-    getActiveScheduleBody(schedule),
-  );
-  return task.status;
-}
-
-/**
- * Applies a change to a live series under the revision the caller observed.
- * The removal and the replacement are the same user operation from the UI's
- * point of view, so they share one operation identity.
- */
-async function applyTaskSeriesChange(
-  taskId: string,
-  schedule: TaskScheduleSelection,
-  precondition: TaskScheduleSeriesPrecondition,
-): Promise<TaskStatus> {
-  const task =
-    schedule.mode === "none"
-      ? await taskScheduleService.removeCalendarSeries(taskId, precondition)
-      : await taskScheduleService.editCalendarSeries(
-          taskId,
-          precondition,
-          getActiveScheduleBody(schedule),
-        );
-  return task.status;
-}
-
-function resolveUpdateTargetStatus(
-  desiredStatus: TaskStatus,
-  statusAfterSchedule: TaskStatus,
-  scheduleWasMutated: boolean,
-  scheduleActiveOnServer: boolean,
-  isAgentAssignee: boolean,
-): TaskStatus {
-  if (scheduleWasMutated) {
-    if (scheduleActiveOnServer) {
-      // Schedule apply may land Ready. For agents, honor an explicit Queued
-      // choice with a follow-up event. Humans stay on the schedule result.
-      if (
-        isAgentAssignee &&
-        desiredStatus === TaskStatus.QUEUED &&
-        statusAfterSchedule !== TaskStatus.QUEUED
-      ) {
-        return desiredStatus;
-      }
-      return statusAfterSchedule;
-    }
-
-    if (desiredStatus === TaskStatus.QUEUED) {
-      return statusAfterSchedule;
-    }
-
-    return desiredStatus;
-  }
-
-  if (scheduleActiveOnServer && desiredStatus !== TaskStatus.QUEUED) {
-    return statusAfterSchedule;
-  }
-
-  return desiredStatus;
-}
-
+/** Queued needs a Run at (ADR 0041), so a Queued create without one is Ready. */
 function resolveCreateStatus(
   requestedStatus: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">,
-  schedule?: TaskScheduleSelection,
 ): Extract<TaskStatus, "DRAFT" | "READY"> {
-  if (!schedule || schedule.mode === "none") {
-    return requestedStatus === TaskStatus.QUEUED
-      ? TaskStatus.READY
-      : requestedStatus;
-  }
-
-  return TaskStatus.DRAFT;
+  return requestedStatus === TaskStatus.QUEUED
+    ? TaskStatus.READY
+    : requestedStatus;
 }
 
 function normalizeLinkNote(note?: string | null): string | null | undefined {
@@ -382,66 +218,6 @@ function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
   if (relatedTaskId) {
     revalidatePath(`/tasks/${relatedTaskId}`);
   }
-}
-
-function revalidateCalendarTaskMutationRoutes(task: Task) {
-  revalidatePath("/calendar");
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${task.id}`);
-
-  if (task.projectId) {
-    revalidatePath(`/projects/${task.projectId}/calendar`);
-  }
-}
-
-function revalidateCalendarSourceMoveRoutes(
-  taskId: string,
-  projectIds: Array<string | null>,
-) {
-  revalidatePath("/calendar");
-  revalidatePath("/projects");
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${taskId}`);
-  for (const projectId of new Set(projectIds.filter(Boolean))) {
-    revalidatePath(`/projects/${projectId}/calendar`);
-  }
-}
-
-/**
- * A logical user operation owns one UUID, minted in the browser and reused
- * across retries so Core can replay it. Server actions never mint one — a
- * fresh identity per invocation would turn every retry into a new operation.
- */
-function requireOperationId(operationId: string | undefined): string {
-  if (!operationId || !isUuidString(operationId)) {
-    throw new Error("Operation ID must be a UUID");
-  }
-  return operationId;
-}
-
-/**
- * A live series is only written with a revision Core actually reported. Sending
- * an invented one would be presented to the user as "someone else changed this
- * schedule", so a missing revision fails here instead.
- */
-function requireScheduleRevision(revision: number | undefined): number {
-  if (typeof revision !== "number") {
-    throw new Error("Core returned no scheduleRevision for an active series");
-  }
-  return revision;
-}
-
-function getActiveScheduleBody(schedule: TaskScheduleSelection) {
-  if (schedule.mode === "none") {
-    throw new Error("Active schedule required");
-  }
-
-  const body = selectionToApiBody(schedule);
-  if (!body) {
-    throw new Error("Invalid schedule");
-  }
-
-  return body;
 }
 
 /**
@@ -582,7 +358,7 @@ async function createTaskFromDescription(input: {
   userId: string;
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
-  schedule?: TaskScheduleSelection;
+  runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
 }): Promise<Task> {
   const trimmedDescription = input.description.trim();
@@ -600,51 +376,22 @@ async function createTaskFromDescription(input: {
     input.assigneeSokoBotId,
     input.assigneeUserId,
   );
-  const isAgentAssignee =
-    assigneeWrite.assigneeId != null || assigneeWrite.assigneeSokoBotId != null;
-
   const trimmedName = input.name
     ? normalizeTaskNameForCoreApi(input.name)
     : undefined;
 
-  const task = await taskService.createTask({
+  return taskService.createTask({
     description: trimmedDescription,
     ...assigneeWrite,
     projectId: normalizedProjectId ?? null,
     ...(context ? { context } : {}),
-    status: resolveCreateStatus(input.status, input.schedule),
+    // Core creates a Task with a Run at in Queued and ignores its status.
+    ...(input.runAt
+      ? { runAt: new Date(input.runAt) }
+      : { status: resolveCreateStatus(input.status) }),
     ...(input.visibility ? { visibility: input.visibility } : {}),
     ...(trimmedName ? { name: trimmedName } : {}),
   });
-
-  try {
-    if (
-      input.status !== TaskStatus.DRAFT &&
-      input.schedule &&
-      input.schedule.mode !== "none"
-    ) {
-      const statusAfterSchedule = await armTaskSchedule(
-        task.id,
-        input.schedule,
-      );
-      // Create always goes Draft → schedule. Agents that asked for Queued but
-      // landed Ready need a follow-up event. Humans keep Ready and save.
-      if (
-        isAgentAssignee &&
-        input.status === TaskStatus.QUEUED &&
-        statusAfterSchedule != null &&
-        statusAfterSchedule !== TaskStatus.QUEUED
-      ) {
-        await taskService.createTaskEvent(task.id, {
-          status: TaskStatus.QUEUED,
-        });
-      }
-    }
-    return task;
-  } catch (error) {
-    await archiveCreatedTaskAfterFailure(task.id);
-    throw error;
-  }
 }
 
 async function collectParentLinksToReplace(input: {
@@ -773,7 +520,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     session,
     context,
     status,
-    schedule,
+    runAt,
     visibility,
   }) => {
     try {
@@ -787,7 +534,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         userId: session.user.id,
         context,
         status,
-        schedule,
+        runAt,
         visibility,
       });
 
@@ -808,228 +555,6 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   },
 );
 
-export const createScheduledTask = withSession<
-  CreateScheduledTaskParameters,
-  CreateScheduledTaskResult
->(
-  async ({
-    operationId,
-    source,
-    description,
-    assigneeId,
-    assigneeUserId,
-    context,
-    schedule,
-    session,
-  }) => {
-    const trimmedAssigneeId = assigneeId?.trim() || null;
-    const trimmedAssigneeUserId = assigneeUserId?.trim() || null;
-    const trimmedDescription = description?.trim();
-    requireOperationId(operationId);
-    if (
-      (!trimmedAssigneeId && !trimmedAssigneeUserId) ||
-      (trimmedAssigneeId && trimmedAssigneeUserId)
-    ) {
-      throw new Error("Exactly one assignee is required");
-    }
-
-    const scheduleBody = getActiveScheduleBody(schedule);
-
-    try {
-      const task = await taskService.createScheduledTask({
-        operationId,
-        source,
-        ...(typeof description !== "undefined"
-          ? { description: trimmedDescription || null }
-          : {}),
-        assigneeId: trimmedAssigneeId,
-        ...(trimmedAssigneeUserId
-          ? { assigneeUserId: trimmedAssigneeUserId }
-          : {}),
-        ...(context
-          ? { context: toCoreTaskContext(context, session.user.id) }
-          : {}),
-        schedule: scheduleBody,
-      });
-      revalidateCalendarTaskMutationRoutes(task);
-      return taskMutationSuccess({ taskId: task.id, name: task.name });
-    } catch (error) {
-      const mutationErrorKind = toTaskMutationErrorKind(error);
-      if (mutationErrorKind) {
-        return taskMutationFailure(mutationErrorKind);
-      }
-      rethrowTaskActionError(
-        error,
-        "Failed to create scheduled task",
-        "Failed to create scheduled task",
-      );
-    }
-  },
-);
-
-export const saveCalendarTaskSchedule = withSession<
-  SaveTaskScheduleParameters,
-  SaveTaskScheduleResult
->(async ({ taskId, operationId, expectedScheduleRevision, schedule }) => {
-  const normalizedTaskId = taskId.trim();
-  if (!normalizedTaskId) {
-    throw new Error("Task required");
-  }
-  requireOperationId(operationId);
-
-  const scheduleBody = getActiveScheduleBody(schedule);
-
-  try {
-    const task = await taskScheduleService.editCalendarSeries(
-      normalizedTaskId,
-      { operationId, expectedScheduleRevision },
-      scheduleBody,
-    );
-    revalidateCalendarTaskMutationRoutes(task);
-    return taskMutationSuccess({ taskId: task.id });
-  } catch (error) {
-    const mutationErrorKind = toTaskMutationErrorKind(error);
-    if (mutationErrorKind) {
-      return taskMutationFailure(mutationErrorKind);
-    }
-    rethrowTaskActionError(
-      error,
-      "Failed to save task schedule",
-      "Failed to save task schedule",
-    );
-  }
-});
-
-export const clearTaskSchedule = withSession<
-  ClearTaskScheduleParameters,
-  ClearTaskScheduleResult
->(async ({ taskId, operationId, expectedScheduleRevision }) => {
-  const normalizedTaskId = taskId.trim();
-  if (!normalizedTaskId) {
-    throw new Error("Task required");
-  }
-  requireOperationId(operationId);
-
-  try {
-    const task = await taskScheduleService.removeCalendarSeries(
-      normalizedTaskId,
-      { operationId, expectedScheduleRevision },
-    );
-    revalidateCalendarTaskMutationRoutes(task);
-    return taskMutationSuccess({ taskId: task.id });
-  } catch (error) {
-    const mutationErrorKind = toTaskMutationErrorKind(error);
-    if (mutationErrorKind) {
-      return taskMutationFailure(mutationErrorKind);
-    }
-    rethrowTaskActionError(
-      error,
-      "Failed to clear task schedule",
-      "Failed to clear task schedule",
-    );
-  }
-});
-
-export const moveCalendarTaskSource = withSession<
-  MoveCalendarTaskSourceParameters,
-  MoveCalendarTaskSourceResult
->(async ({ taskId, operationId, expectedScheduleRevision, source }) => {
-  const normalizedTaskId = taskId.trim();
-  if (!normalizedTaskId) {
-    throw new Error("Task required");
-  }
-  requireOperationId(operationId);
-
-  try {
-    const result = await taskScheduleService.moveCalendarSeriesSource(
-      normalizedTaskId,
-      { operationId, expectedScheduleRevision },
-      source,
-    );
-    revalidateCalendarSourceMoveRoutes(normalizedTaskId, [
-      result.previousSource.type === "project"
-        ? result.previousSource.projectId
-        : null,
-      result.source.type === "project" ? result.source.projectId : null,
-    ]);
-    return taskMutationSuccess({
-      taskId: normalizedTaskId,
-      scheduleRevision: result.scheduleRevision,
-    });
-  } catch (error) {
-    const mutationErrorKind = toTaskMutationErrorKind(error);
-    if (mutationErrorKind) {
-      return taskMutationFailure(mutationErrorKind);
-    }
-    rethrowTaskActionError(
-      error,
-      "Failed to move Calendar task source",
-      "Failed to move Calendar task source",
-    );
-  }
-});
-
-export const mutateTaskOccurrence = withSession<
-  MutateTaskOccurrenceParameters,
-  MutateTaskOccurrenceResult
->(async (parameters) => {
-  const { taskId, occurrenceId, operationId, expectedScheduleRevision } =
-    parameters;
-  const normalizedTaskId = taskId.trim();
-  const normalizedOccurrenceId = occurrenceId.trim();
-  if (!normalizedTaskId) {
-    throw new Error("Task required");
-  }
-  if (!normalizedOccurrenceId) {
-    throw new Error("Occurrence required");
-  }
-  requireOperationId(operationId);
-
-  try {
-    const task = await taskService.getTaskById(normalizedTaskId);
-    if (!task) {
-      throw new Error("Task not found");
-    }
-
-    const mutation =
-      parameters.action === "reschedule"
-        ? {
-            action: parameters.action,
-            scheduledAt: new Date(parameters.scheduledAt),
-          }
-        : parameters.action === "restore" && parameters.scheduledAt
-          ? {
-              action: parameters.action,
-              scheduledAt: new Date(parameters.scheduledAt),
-            }
-          : { action: parameters.action };
-    const result = await taskScheduleService.mutateOccurrence(
-      normalizedTaskId,
-      normalizedOccurrenceId,
-      {
-        operationId,
-        expectedScheduleRevision,
-        ...mutation,
-      },
-    );
-    revalidateCalendarTaskMutationRoutes(task);
-    return taskMutationSuccess({
-      taskId: normalizedTaskId,
-      scheduleRevision: result.scheduleRevision,
-    });
-  } catch (error) {
-    const mutationErrorKind = toTaskMutationErrorKind(error);
-    if (mutationErrorKind) {
-      return taskMutationFailure(mutationErrorKind);
-    }
-    rethrowTaskActionError(
-      error,
-      "Failed to change task occurrence",
-      "Failed to change task occurrence",
-    );
-  }
-});
-
 export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
   async ({
     taskId,
@@ -1040,13 +565,8 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     assigneeUserId,
     projectId,
     context,
-    currentStatus,
     desiredStatus,
-    schedule,
-    hadSchedule = false,
-    expectedScheduleRevision,
-    scheduleOperationId,
-    originalSchedule,
+    runAt,
     session,
   }) => {
     const trimmedDescription = description.trim();
@@ -1066,77 +586,31 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     try {
       const normalizedProjectId = normalizeOptionalProjectId(projectId);
 
-      const assigneeWrite = resolveAssigneeWrite(
-        assigneeId,
-        assigneeSokoBotId,
-        assigneeUserId,
-      );
-      // While a series is live, field edits take the same revision as release,
-      // so Core rejects an edit written against a revision the release already
-      // moved past.
+      // A new Run at queues the Task inside the patch, so the status the
+      // patch returns is the one a following event must move away from.
       const patchedTask = await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
-        ...assigneeWrite,
+        ...resolveAssigneeWrite(assigneeId, assigneeSokoBotId, assigneeUserId),
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
           : {}),
         ...(context
           ? { context: toCoreTaskContext(context, session.user.id) }
           : {}),
-        ...(hadSchedule ? { expectedScheduleRevision } : {}),
+        ...(runAt !== undefined
+          ? { runAt: runAt === null ? null : new Date(runAt) }
+          : {}),
       });
 
-      let statusAfterSchedule = currentStatus;
-      let scheduleActiveOnServer = hadSchedule || schedule?.mode !== "none";
-      const scheduleChanged =
-        schedule &&
-        hasTaskScheduleChanged(
-          originalSchedule ?? { mode: "none", timezone: "UTC" },
-          schedule,
-          hadSchedule,
-        );
-      let scheduleWasMutated = false;
-
-      if (schedule && scheduleChanged) {
-        scheduleWasMutated = true;
-        // The field edit above incremented the revision, so the schedule write
-        // in this same user operation must send the value it returned.
-        statusAfterSchedule = hadSchedule
-          ? await applyTaskSeriesChange(taskId, schedule, {
-              operationId: requireOperationId(scheduleOperationId),
-              expectedScheduleRevision: requireScheduleRevision(
-                patchedTask.scheduleRevision ?? expectedScheduleRevision,
-              ),
-            })
-          : await armTaskSchedule(taskId, schedule);
-        scheduleActiveOnServer = schedule.mode !== "none";
-      }
-
-      const isAgentAssignee =
-        assigneeWrite.assigneeId != null ||
-        assigneeWrite.assigneeSokoBotId != null;
-      const targetStatus = resolveUpdateTargetStatus(
-        desiredStatus,
-        statusAfterSchedule,
-        scheduleWasMutated,
-        scheduleActiveOnServer,
-        isAgentAssignee,
-      );
-
-      if (targetStatus !== statusAfterSchedule) {
+      if (desiredStatus !== patchedTask.status) {
         await taskService.createTaskEvent(taskId, {
-          status: targetStatus,
+          status: desiredStatus,
         });
       }
 
-      if (scheduleWasMutated) {
-        // Already covers both Task routes, plus the Calendar ones.
-        revalidateCalendarTaskMutationRoutes(patchedTask);
-      } else {
-        revalidatePath("/tasks");
-        revalidatePath(`/tasks/${taskId}`);
-      }
+      revalidatePath("/tasks");
+      revalidatePath(`/tasks/${taskId}`);
       if (typeof normalizedProjectId !== "undefined") {
         revalidatePath("/projects");
       }
@@ -1168,20 +642,6 @@ export const setTaskStatusFromDrag = withSession<
     const currentStatus = task.status as TaskStatus;
 
     if (desiredStatus !== currentStatus) {
-      // A live series owns this Task's status. Dropping it in another column
-      // used to silently unschedule it; the drag is now refused so the user
-      // decides what happens to the series. Ready → Queued is the one move
-      // Core still accepts (selectableStatuses / events).
-      if (
-        hasActiveTaskSchedule(task.metadata, task.nextRunAt) &&
-        !(
-          currentStatus === TaskStatus.READY &&
-          desiredStatus === TaskStatus.QUEUED
-        )
-      ) {
-        return taskMutationFailure(CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE);
-      }
-
       const trimmedComment = comment?.trim();
       if (
         userTaskStatusTransitionRequiresComment(currentStatus, desiredStatus) &&
@@ -1250,7 +710,7 @@ export const moveTaskToWorkspace = withSession<
 });
 
 export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
-  async ({ taskId, comment }) => {
+  async ({ taskId, comment, mentionedUserIds }) => {
     const trimmedComment = comment.trim();
     if (!trimmedComment) {
       return;
@@ -1259,6 +719,7 @@ export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
     try {
       await taskService.createTaskEvent(taskId, {
         comment: trimmedComment,
+        ...(mentionedUserIds?.length ? { mentionedUserIds } : {}),
       });
       revalidatePath("/tasks");
       revalidatePath(`/tasks/${taskId}`);
@@ -1271,6 +732,20 @@ export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
     }
   },
 );
+
+export const removeTaskParticipant = withSession<
+  RemoveTaskParticipantParameters,
+  ActionResultDto<{ taskId: string; userId: string }, ActionError>
+>(async ({ taskId, userId }) => {
+  try {
+    await taskService.removeTaskParticipant(taskId, userId);
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${taskId}`);
+  return toActionResult(ok({ taskId, userId }));
+});
 
 export const createTaskLink = withSession<
   CreateTaskLinkParameters,
@@ -1364,7 +839,7 @@ export const createTaskAndLink = withSession<
     session,
     status,
     context,
-    schedule,
+    runAt,
     visibility,
     relation,
     note,
@@ -1387,7 +862,7 @@ export const createTaskAndLink = withSession<
         userId: session.user.id,
         context,
         status,
-        schedule,
+        runAt,
         visibility,
       });
 

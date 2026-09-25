@@ -23,6 +23,7 @@ function buildTask(
     events: [],
     agents: [],
     assignee: null,
+    participants: [],
     ...overrides,
   };
 }

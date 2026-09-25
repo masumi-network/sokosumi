@@ -1,15 +1,13 @@
 "use client";
 
-import { hasActiveTaskSchedule } from "@sokosumi/utils";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import { TaskScheduleDisplay } from "@/components/task-schedule-display";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
 import { TaskPrivateIndicator } from "./task-private-indicator";
+import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskCardProps {
@@ -75,21 +73,14 @@ export function TaskCard({
               </div>
             ) : null}
 
-            {task.status === TaskStatus.QUEUED &&
-            hasActiveTaskSchedule(
-              task.metadata,
-              task.nextRunAt ? new Date(task.nextRunAt) : null,
-            ) ? (
-              <TaskScheduleDisplay
-                variant="card"
-                metadata={task.metadata}
-                nextRunAt={task.nextRunAt ? new Date(task.nextRunAt) : null}
-              />
+            {task.runAt ? (
+              <TaskRunAtBadge runAt={task.runAt} className="flex" />
             ) : null}
 
             <TaskMetaDetails
               project={task.project}
               assignee={task.assignee}
+              participants={task.participants}
               commentsCount={task.commentsCount}
               createdAt={task.createdAt}
               variant="card"

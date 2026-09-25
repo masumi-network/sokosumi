@@ -8,6 +8,7 @@ import {
   HardDrive,
   LifeBuoy,
   LogOut,
+  Repeat,
   Scale,
   ShieldCheck,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import type {
   AccountSummaryCreditProps,
 } from "@/app/components/sidebar/components/account-summary-types";
 import { CreditsCycleOverview } from "@/app/components/sidebar/components/credits-cycle-overview.client";
+import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import {
   YOU_DEVELOPER_PATH,
   YOU_HELP_PATH,
@@ -158,6 +160,12 @@ export function YouPageClient({
 
         <nav aria-label={tYou("title")} className="space-y-6">
           <MobileStackedMenuGroup>
+            <MobileStackedMenuLink
+              href={TASK_SCHEDULES_PATH}
+              icon={<Repeat className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("schedules")}
+              testId="you-schedules"
+            />
             {calendarMenuEnabled ? (
               <MobileStackedMenuLink
                 href={CALENDAR_HREF}

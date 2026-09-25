@@ -1,8 +1,8 @@
 import {
   Channel,
   NotificationKind,
-  TaskLinkType,
   TaskStatus,
+  TaskVisibility,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
@@ -34,6 +34,8 @@ const {
   getCardanoV2ReadySourcesMock,
   getCreditCostsOrThrowMock,
   sokoBotFindFirstMock,
+  prismaTaskEventFindUniqueMock,
+  prismaTaskFindFirstMock,
   prismaTaskFindUniqueMock,
   prismaTransactionMock,
   projectMemoryRefreshMock,
@@ -42,7 +44,6 @@ const {
   requireTaskCollaborationMock,
   requireTaskStatusWriteAccessMock,
   requireTaskCancelAccessMock,
-  removeTaskSchedulePlannedOccurrencesMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
@@ -55,6 +56,8 @@ const {
   getCardanoV2ReadySourcesMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
   sokoBotFindFirstMock: vi.fn(),
+  prismaTaskEventFindUniqueMock: vi.fn(),
+  prismaTaskFindFirstMock: vi.fn(),
   prismaTaskFindUniqueMock: vi.fn().mockResolvedValue({
     id: "tsk_123",
     ownerId: "user_123",
@@ -72,7 +75,6 @@ const {
   requireTaskCollaborationMock: vi.fn(),
   requireTaskStatusWriteAccessMock: vi.fn(),
   requireTaskCancelAccessMock: vi.fn(),
-  removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
@@ -96,11 +98,6 @@ const notifyLowBalanceAfterChargeMock = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/helpers/billing-notifications", () => ({
   notifyLowBalanceAfterCharge: (...args: unknown[]) =>
     notifyLowBalanceAfterChargeMock(...args),
-}));
-
-vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
-  removeTaskSchedulePlannedOccurrences:
-    removeTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/helpers/task-credits", async (importOriginal) => {
@@ -127,7 +124,11 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
     task: {
+      findFirst: prismaTaskFindFirstMock,
       findUnique: prismaTaskFindUniqueMock,
+    },
+    taskEvent: {
+      findUnique: prismaTaskEventFindUniqueMock,
     },
     sokoBot: {
       findFirst: sokoBotFindFirstMock,
@@ -244,6 +245,13 @@ interface TransactionMock {
   taskLink?: {
     findMany: ReturnType<typeof vi.fn>;
   };
+  workspace?: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
+  taskParticipant?: {
+    findMany: ReturnType<typeof vi.fn>;
+    createMany: ReturnType<typeof vi.fn>;
+  };
 }
 
 function createTask(
@@ -256,9 +264,9 @@ function createTask(
     ownerId: string;
     workspaceId: string;
     projectId: string | null;
-    metadata: string | null;
-    nextRunAt: Date | null;
-    scheduleRevision: number;
+    runAt: Date | null;
+    scheduleId: string | null;
+    visibility: TaskVisibility;
   }> = {},
 ) {
   return {
@@ -271,9 +279,9 @@ function createTask(
     workspaceId: "ws_123",
     organizationId: null,
     projectId: null,
-    metadata: null,
-    nextRunAt: null,
-    scheduleRevision: 0,
+    runAt: null,
+    scheduleId: null,
+    visibility: TaskVisibility.PUBLIC,
     ...overrides,
   };
 }
@@ -347,6 +355,14 @@ function mockTransaction(tx: TransactionMock) {
     };
   }
 
+  tx.workspace ??= {
+    findUnique: vi.fn().mockResolvedValue(null),
+  };
+  tx.taskParticipant ??= {
+    findMany: vi.fn().mockResolvedValue([]),
+    createMany: vi.fn().mockResolvedValue({ count: 0 }),
+  };
+
   const innerCreate = tx.taskEvent.create;
   const findUnique = (tx.taskEvent.findUnique ??= vi.fn());
   tx.taskEvent.findFirst ??= vi.fn().mockResolvedValue(null);
@@ -416,6 +432,21 @@ describe("POST /{id}/events", () => {
       workspaceId: "ws_123",
       owner: { notificationsOptIn: true },
     });
+    prismaTaskEventFindUniqueMock.mockResolvedValue({ createdAt: new Date() });
+    prismaTaskFindFirstMock.mockImplementation(
+      async (args: {
+        select: { participants: { where: { userId: { in: string[] } } } };
+      }) => ({
+        id: "tsk_123",
+        name: "Test task",
+        project: { name: "Test project" },
+        projectId: "proj_123",
+        workspaceId: "ws_123",
+        participants: args.select.participants.where.userId.in.map(
+          (userId) => ({ userId }),
+        ),
+      }),
+    );
     requireTaskCollaborationMock.mockResolvedValue(createTask());
     requireTaskStatusWriteAccessMock.mockImplementation(
       (vars: unknown, taskId: string, tx?: unknown) =>
@@ -3265,13 +3296,9 @@ describe("POST /{id}/events", () => {
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
   });
 
-  it("rejects READY → QUEUED when the task has no schedule (SOK-1033)", async () => {
+  it("rejects READY → QUEUED when the task has no Run at", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
-      createTask({
-        status: TaskStatus.READY,
-        metadata: null,
-        nextRunAt: null,
-      }),
+      createTask({ status: TaskStatus.READY, runAt: null }),
     );
 
     const tx: TransactionMock = {
@@ -3291,6 +3318,7 @@ describe("POST /{id}/events", () => {
       organizationId: null,
       role: "user",
     });
+    app.onError(errorHandler);
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
       method: "POST",
@@ -3301,17 +3329,19 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(await response.text()).toContain(
-      "A schedule is required before moving a task to Queued",
-    );
+    expect(await response.json()).toMatchObject({
+      kind: "queued_requires_run_at",
+      message: "Set a Run at on the task to move it to Queued",
+    });
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
-  it("allows READY → QUEUED when the task has an active schedule (SOK-1033)", async () => {
+  it("allows READY → QUEUED when the task has a Run at", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
       createTask({
         status: TaskStatus.READY,
-        nextRunAt: new Date("2099-01-01T09:00:00.000Z"),
+        runAt: new Date("2099-01-01T09:00:00.000Z"),
       }),
     );
 
@@ -3347,16 +3377,18 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(tx.task.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: { status: TaskStatus.QUEUED },
-      }),
-    );
+    expect(tx.task.updateMany).toHaveBeenCalledWith({
+      where: { id: TASK_ID, status: TaskStatus.READY },
+      data: { status: TaskStatus.QUEUED },
+    });
   });
 
-  it("clears schedule fields when canceling a queued task", async () => {
+  it("clears the Run at when canceling a queued task", async () => {
     requireTaskCancelAccessMock.mockResolvedValue(
-      createTask({ status: TaskStatus.QUEUED }),
+      createTask({
+        status: TaskStatus.QUEUED,
+        runAt: new Date("2099-01-05T09:00:00.000Z"),
+      }),
     );
 
     const tx: TransactionMock = {
@@ -3392,25 +3424,18 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(tx.task.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: TASK_ID, status: TaskStatus.QUEUED },
-        data: {
-          status: TaskStatus.CANCELED,
-          metadata: null,
-          nextRunAt: null,
-        },
-      }),
-    );
-    expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
-      tx,
-      TASK_ID,
-    );
+    expect(tx.task.updateMany).toHaveBeenCalledWith({
+      where: { id: TASK_ID, status: TaskStatus.QUEUED },
+      data: { status: TaskStatus.CANCELED, runAt: null },
+    });
   });
 
-  it("clears schedule fields when a queued task becomes ready", async () => {
+  it("clears the Run at when a queued task becomes ready", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.QUEUED }),
+      createTask({
+        status: TaskStatus.QUEUED,
+        runAt: new Date("2099-01-05T09:00:00.000Z"),
+      }),
     );
 
     const tx: TransactionMock = {
@@ -3441,42 +3466,19 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(tx.task.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: TASK_ID, status: TaskStatus.QUEUED },
-        data: {
-          status: TaskStatus.READY,
-          metadata: null,
-          nextRunAt: null,
-        },
-      }),
-    );
-    expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
-      tx,
-      TASK_ID,
-    );
+    expect(tx.task.updateMany).toHaveBeenCalledWith({
+      where: { id: TASK_ID, status: TaskStatus.QUEUED },
+      data: { status: TaskStatus.READY, runAt: null },
+    });
   });
 
-  describe("active schedule series (SOK-884)", () => {
-    const ACTIVE_SERIES_TASK = {
+  describe("Queued Task with a Run at (ADR 0041)", () => {
+    const QUEUED_WITH_RUN_AT = {
       status: TaskStatus.QUEUED,
-      metadata: JSON.stringify({
-        version: 2,
-        epochId: "11111111-1111-4111-8111-111111111111",
-        mode: "recurring",
-        createdAt: "2026-09-01T09:00:00.000Z",
-        ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
-        timezone: "UTC",
-        expr: "0 9 * * *",
-        endsMode: "never",
-        anchorAt: "2026-09-01T09:00:00.000Z",
-        epochReleaseCount: 0,
-      }),
-      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
-      scheduleRevision: 2,
+      runAt: new Date("2026-09-10T09:00:00.000Z"),
     };
 
-    function createSeriesApp() {
+    function createPersonApp() {
       const app = createApp({
         actor: "user",
         userId: USER_ID,
@@ -3487,107 +3489,49 @@ describe("POST /{id}/events", () => {
       return app;
     }
 
-    it("rejects canceling a Task whose schedule series is still active", async () => {
-      requireTaskCancelAccessMock.mockResolvedValue(
-        createTask(ACTIVE_SERIES_TASK),
-      );
-      const tx: TransactionMock = {
-        taskEvent: { create: vi.fn() },
-        task: { updateMany: vi.fn() },
-      };
-      mockTransaction(tx);
-
-      const response = await createSeriesApp().request(
-        `http://localhost/${TASK_ID}/events`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: TaskStatus.CANCELED }),
-        },
-      );
-
-      expect(response.status).toBe(409);
-      expect((await response.json()).kind).toBe("schedule_active");
-      expect(tx.taskEvent.create).not.toHaveBeenCalled();
-      expect(tx.task.updateMany).not.toHaveBeenCalled();
-    });
-
-    it("rejects any generic status change while the schedule series is active", async () => {
-      requireTaskStatusWriteAccessMock.mockResolvedValue(
-        createTask(ACTIVE_SERIES_TASK),
-      );
-      const tx: TransactionMock = {
-        taskEvent: { create: vi.fn() },
-        task: { updateMany: vi.fn() },
-      };
-      mockTransaction(tx);
-
-      const response = await createSeriesApp().request(
-        `http://localhost/${TASK_ID}/events`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: TaskStatus.READY }),
-        },
-      );
-
-      expect(response.status).toBe(409);
-      expect((await response.json()).kind).toBe("schedule_active");
-      expect(tx.task.updateMany).not.toHaveBeenCalled();
-    });
-
-    it("still accepts a comment while the schedule series is active", async () => {
-      requireTaskCommentAccessMock.mockResolvedValue(
-        createTask(ACTIVE_SERIES_TASK),
+    it.each([
+      TaskStatus.DRAFT,
+      TaskStatus.READY,
+      TaskStatus.RUNNING,
+      TaskStatus.AWAITING_EXTERNAL,
+      TaskStatus.COMPLETED,
+    ])("lets a person move it to %s and clears the Run at", async (status) => {
+      requireTaskCollaborationMock.mockResolvedValue(
+        createTask(QUEUED_WITH_RUN_AT),
       );
       const tx: TransactionMock = {
         taskEvent: {
-          create: vi.fn().mockResolvedValue(
-            createTaskEvent({
-              status: null,
-              comment: "Series note",
-              userId: USER_ID,
-              coworkerId: null,
-            }),
-          ),
+          create: vi
+            .fn()
+            .mockResolvedValue(
+              createTaskEvent({ status, userId: USER_ID, coworkerId: null }),
+            ),
         },
-        task: { updateMany: vi.fn() },
+        task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
       };
       mockTransaction(tx);
 
-      const response = await createSeriesApp().request(
+      const response = await createPersonApp().request(
         `http://localhost/${TASK_ID}/events`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ comment: "Series note" }),
+          body: JSON.stringify({ status }),
         },
       );
 
       expect(response.status).toBe(201);
-      expect(tx.taskEvent.create).toHaveBeenCalled();
+      expect((await response.json()).data).toMatchObject({ status });
+      expect(tx.task.updateMany).toHaveBeenCalledWith({
+        where: { id: TASK_ID, status: TaskStatus.QUEUED },
+        data: { status, runAt: null },
+      });
     });
 
-    it("never cancels released Tasks linked from the template", async () => {
-      const RELEASED_RUN_ID = "tsk_released_run";
+    it("lets a person cancel it and clears the Run at", async () => {
       requireTaskCancelAccessMock.mockResolvedValue(
-        createTask({ status: TaskStatus.READY }),
+        createTask(QUEUED_WITH_RUN_AT),
       );
-      // The template still owns a released run that has not reached a terminal
-      // status. Canceling the template must write the template row only —
-      // released Tasks are independent and are never cascaded.
-      const taskLinkFindMany = vi.fn().mockResolvedValue([
-        {
-          type: TaskLinkType.SCHEDULE,
-          sourceTaskId: TASK_ID,
-          targetTaskId: RELEASED_RUN_ID,
-          targetTask: {
-            id: RELEASED_RUN_ID,
-            status: TaskStatus.RUNNING,
-            archivedAt: null,
-          },
-        },
-      ]);
       const tx: TransactionMock = {
         taskEvent: {
           create: vi.fn().mockResolvedValue(
@@ -3599,11 +3543,10 @@ describe("POST /{id}/events", () => {
           ),
         },
         task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
-        taskLink: { findMany: taskLinkFindMany },
       };
       mockTransaction(tx);
 
-      const response = await createSeriesApp().request(
+      const response = await createPersonApp().request(
         `http://localhost/${TASK_ID}/events`,
         {
           method: "POST",
@@ -3613,18 +3556,89 @@ describe("POST /{id}/events", () => {
       );
 
       expect(response.status).toBe(201);
-      // The running released run is never looked up, the single status write is
-      // pinned to the template id, and nothing is published for the run.
-      expect(taskLinkFindMany).not.toHaveBeenCalled();
-      expect(tx.task.updateMany).toHaveBeenCalledTimes(1);
       expect(tx.task.updateMany).toHaveBeenCalledWith({
-        where: { id: TASK_ID, status: TaskStatus.READY },
-        data: { status: TaskStatus.CANCELED, metadata: null, nextRunAt: null },
+        where: { id: TASK_ID, status: TaskStatus.QUEUED },
+        data: { status: TaskStatus.CANCELED, runAt: null },
       });
-      expect(JSON.stringify(tx.task.updateMany.mock.calls)).not.toContain(
-        RELEASED_RUN_ID,
+    });
+
+    it("accepts a comment without touching the Task", async () => {
+      requireTaskCommentAccessMock.mockResolvedValue(
+        createTask(QUEUED_WITH_RUN_AT),
       );
-      expect(publishTaskEventDataMock).toHaveBeenCalledTimes(1);
+      const tx: TransactionMock = {
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
+            createTaskEvent({
+              status: null,
+              comment: "Queued note",
+              userId: USER_ID,
+              coworkerId: null,
+            }),
+          ),
+        },
+        task: { updateMany: vi.fn() },
+      };
+      mockTransaction(tx);
+
+      const response = await createPersonApp().request(
+        `http://localhost/${TASK_ID}/events`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comment: "Queued note" }),
+        },
+      );
+
+      expect(response.status).toBe(201);
+      expect(tx.taskEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          taskId: TASK_ID,
+          status: null,
+          comment: "Queued note",
+        }),
+      });
+      expect(tx.task.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
+  it("cancels a Task created by a Task Schedule like any other Task", async () => {
+    requireTaskCancelAccessMock.mockResolvedValue(
+      createTask({ status: TaskStatus.READY, scheduleId: "sch_123" }),
+    );
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.CANCELED,
+            userId: USER_ID,
+            coworkerId: null,
+          }),
+        ),
+      },
+      task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+    app.onError(errorHandler);
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: TaskStatus.CANCELED }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.task.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.task.updateMany).toHaveBeenCalledWith({
+      where: { id: TASK_ID, status: TaskStatus.READY },
+      data: { status: TaskStatus.CANCELED },
     });
   });
 
@@ -3873,6 +3887,312 @@ describe("POST /{id}/events", () => {
         "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\nhttps://elena.serviceplan-agents.com/files/tasks/25735e16-0000-0000-0000-000000000001/deliverables/01a019d9-cda2-76f8-902a-d8ce5250ea6f",
         tx,
       );
+    });
+  });
+
+  it("adds a mentioned workspace member and notifies only that new participant", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi
+          .fn()
+          .mockResolvedValue(createTaskEvent({ comment: "hi", status: null })),
+      },
+      task: { updateMany: vi.fn() },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({
+          user: null,
+          organization: {
+            members: [
+              { user: { id: "user_alice", name: "Alice" } },
+              { user: { id: "user_bob", name: "Bob" } },
+            ],
+          },
+        }),
+      },
+      taskParticipant: {
+        findMany: vi.fn().mockResolvedValue([{ userId: "user_bob" }]),
+        createMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: "org_123",
+      role: "user",
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        comment: "Please look @user_alice @user_outside @all",
+        mentionedUserIds: ["user_alice", "user_stranger"],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskParticipant?.createMany).toHaveBeenCalledWith({
+      data: [{ taskId: TASK_ID, userId: "user_alice" }],
+      skipDuplicates: true,
+    });
+    await Promise.all(waitUntilCapturedPromises);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_alice",
+        kind: NotificationKind.TASK,
+        referenceId: TASK_ID,
+        messageKey: "Notifications.Task.participantAdded",
+      }),
+    );
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not add or notify mentioned teammates on a PRIVATE task", async () => {
+    requireTaskCommentAccessMock.mockResolvedValue(
+      createTask({ visibility: TaskVisibility.PRIVATE }),
+    );
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi
+          .fn()
+          .mockResolvedValue(createTaskEvent({ comment: "hi", status: null })),
+      },
+      task: { updateMany: vi.fn() },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({
+          user: null,
+          organization: {
+            members: [
+              { user: { id: "user_alice", name: "Alice" } },
+              { user: { id: USER_ID, name: "Owner" } },
+            ],
+          },
+        }),
+      },
+      taskParticipant: {
+        findMany: vi.fn().mockResolvedValue([]),
+        createMany: vi.fn(),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: "org_123",
+      role: "user",
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        comment: "Secret @user_alice",
+        mentionedUserIds: ["user_alice"],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskParticipant?.createMany).not.toHaveBeenCalled();
+    await Promise.all(waitUntilCapturedPromises);
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("writes the mention before the settle notification on the same event", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            comment: "done @user_alice",
+            status: TaskStatus.COMPLETED,
+          }),
+        ),
+      },
+      task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({
+          user: null,
+          organization: {
+            members: [{ user: { id: "user_alice", name: "Alice" } }],
+          },
+        }),
+      },
+      taskParticipant: {
+        findMany: vi.fn().mockResolvedValue([]),
+        createMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+    const keys: string[] = [];
+    createNotificationMock.mockImplementation(
+      async (input: { messageKey: string }) => {
+        keys.push(input.messageKey);
+        return {};
+      },
+    );
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: "org_123",
+      role: "user",
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        comment: "done @user_alice",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    await Promise.all(waitUntilCapturedPromises);
+    expect(keys[0]).toBe("Notifications.Task.participantAdded");
+    expect(keys).toContain("Notifications.Task.completed");
+  });
+
+  it("adds the owner and human assignee when mentioned, not the comment author", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi
+          .fn()
+          .mockResolvedValue(createTaskEvent({ comment: "hi", status: null })),
+      },
+      task: { updateMany: vi.fn() },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({
+          user: null,
+          organization: {
+            members: [
+              { user: { id: USER_ID, name: "Author" } },
+              { user: { id: "user_owner", name: "Owner" } },
+              { user: { id: "user_assignee", name: "Assignee" } },
+            ],
+          },
+        }),
+      },
+      taskParticipant: {
+        findMany: vi.fn().mockResolvedValue([]),
+        createMany: vi.fn().mockResolvedValue({ count: 2 }),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: "org_123",
+      role: "user",
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        comment: `See @${USER_ID} @user_owner @user_assignee @cow_123`,
+        mentionedUserIds: ["cow_123"],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskParticipant?.createMany).toHaveBeenCalledWith({
+      data: [
+        { taskId: TASK_ID, userId: "user_owner" },
+        { taskId: TASK_ID, userId: "user_assignee" },
+      ],
+      skipDuplicates: true,
+    });
+  });
+
+  it("does not insert or notify when every mention is already a participant", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi
+          .fn()
+          .mockResolvedValue(createTaskEvent({ comment: "hi", status: null })),
+      },
+      task: { updateMany: vi.fn() },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({
+          user: null,
+          organization: {
+            members: [{ user: { id: "user_bob", name: "Bob" } }],
+          },
+        }),
+      },
+      taskParticipant: {
+        findMany: vi.fn().mockResolvedValue([{ userId: "user_bob" }]),
+        createMany: vi.fn(),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: "org_123",
+      role: "user",
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        comment: "Again @user_bob",
+        mentionedUserIds: ["user_bob"],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskParticipant?.createMany).not.toHaveBeenCalled();
+    await Promise.all(waitUntilCapturedPromises);
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("lets a coworker comment add a workspace member", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            comment: "hi",
+            status: null,
+            userId: null,
+            coworkerId: COWORKER_ID,
+          }),
+        ),
+      },
+      task: { updateMany: vi.fn() },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({
+          user: null,
+          organization: {
+            members: [{ user: { id: "user_alice", name: "Alice" } }],
+          },
+        }),
+      },
+      taskParticipant: {
+        findMany: vi.fn().mockResolvedValue([]),
+        createMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        comment: "Please look @user_alice",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskParticipant?.createMany).toHaveBeenCalledWith({
+      data: [{ taskId: TASK_ID, userId: "user_alice" }],
+      skipDuplicates: true,
     });
   });
 });

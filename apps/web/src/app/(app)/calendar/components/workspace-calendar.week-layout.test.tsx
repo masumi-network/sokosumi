@@ -57,13 +57,14 @@ const WEEK_SOURCE: WorkspaceCalendarSource = {
 };
 
 const WEEK_ITEM: WorkspaceCalendarItem = {
-  id: "occurrence-1",
-  taskId: "task-1",
-  canEditSchedule: true,
-  canMutateOccurrence: true,
+  id: "run-1",
+  kind: "RUN",
+  scheduleId: "schedule-1",
   scheduleRevision: 3,
+  canChangeRun: true,
+  taskId: null,
   taskName: "Prepare release notes",
-  taskStatus: "QUEUED",
+  taskStatus: null,
   taskAssigneeId: null,
   taskOwnerId: "user-1",
   scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
@@ -73,8 +74,6 @@ const WEEK_ITEM: WorkspaceCalendarItem = {
   sourceWorkspaceId: "workspace-1",
   sourceType: "WORKSPACE",
   sourceProjectId: null,
-  sourceAccuracy: "EXACT",
-  timeAccuracy: "EXACT",
 };
 
 describe("WorkspaceCalendar week layout", () => {
@@ -209,14 +208,14 @@ describe("WorkspaceCalendar week layout", () => {
     fireEvent.click(card);
 
     expect(
-      screen.getByRole("menuitem", { name: "event.openTask" }),
+      screen.getByRole("menuitem", { name: "event.openSchedule" }),
     ).toBeInTheDocument();
   });
 
   // FullCalendar ignores a drag on a card the caller cannot move, which
   // used to leave the browser selecting text. The card is unselectable and
-  // a mouse drag on someone else's task explains who can reschedule it.
-  it("explains a mouse drag on a task the caller does not own", () => {
+  // a mouse drag on a Run the caller cannot change explains which ones move.
+  it("explains a mouse drag on a Run the caller cannot change", () => {
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC">
         <WorkspaceCalendar
@@ -224,8 +223,7 @@ describe("WorkspaceCalendar week layout", () => {
           items={[
             {
               ...WEEK_ITEM,
-              canEditSchedule: false,
-              canMutateOccurrence: false,
+              canChangeRun: false,
             },
           ]}
         />

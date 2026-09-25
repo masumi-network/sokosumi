@@ -690,6 +690,8 @@ const SUSPENSE_WRAPPED = new Set([
   "(app)/agents/[agentId]/jobs/layout.tsx",
   "(app)/chat/rooms/[roomId]/page.tsx",
   "(app)/projects/(root)/page.tsx",
+  "(app)/schedules/[scheduleId]/page.tsx",
+  "(app)/schedules/page.tsx",
   "(app)/tasks/(root)/page.tsx",
 ]);
 

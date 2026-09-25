@@ -14,6 +14,7 @@ const MOBILE_TAB_LIST_PATHS = [
   "/agents",
   "/drive",
   "/calendar",
+  "/schedules",
   "/projects",
   "/you",
   "/history",
@@ -89,7 +90,12 @@ export function resolveMobileAppBackTarget(
     return null;
   }
   if (pathname === root) {
-    if (root === "/agents" || root === "/drive" || root === "/calendar") {
+    if (
+      root === "/agents" ||
+      root === "/drive" ||
+      root === "/calendar" ||
+      root === "/schedules"
+    ) {
       return { href: "/", labelKey: "back" };
     }
     if (MOBILE_TAB_LIST_PATH_SET.has(root)) {

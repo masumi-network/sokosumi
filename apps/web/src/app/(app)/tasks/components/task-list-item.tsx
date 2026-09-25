@@ -7,6 +7,7 @@ import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
 import { TaskPrivateIndicator } from "./task-private-indicator";
+import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskListItemProps {
@@ -72,9 +73,11 @@ export function TaskListItem({
             />
             <TaskPrivateIndicator visibility={task.visibility} />
           </div>
+          {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
           <TaskMetaDetails
             project={task.project}
             assignee={task.assignee}
+            participants={task.participants}
             commentsCount={task.commentsCount}
             createdAt={task.createdAt}
             variant="list"

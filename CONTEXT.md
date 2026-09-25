@@ -102,6 +102,18 @@ _Avoid_: Allowed transition, manual status option, status dropdown values
 The control on a Task that changes its status: a searchable list of the selectable statuses with the current one checked.
 _Avoid_: Status select, status dropdown
 
+**Run at**:
+The one time a Task is set to start, instead of now. A Task has at most one; it never repeats.
+_Avoid_: Schedule, scheduled task (for a single Task), once mode
+
+**Task Schedule**:
+A repeating rule plus the blueprint of the Task it makes: each Run creates a new Task from that blueprint. Not a Task; it has no Task status, only Active, Paused, or Ended. Editing it changes future Runs only.
+_Avoid_: Recurring task, series task, template Task, automation
+
+**Run** (of a Task Schedule):
+One point in time at which a Task Schedule creates a Task. A single Run can be skipped, moved, or restored without changing the rule. The Run only creates the Task; the work happens when the Task is picked up, which is not part of the Run. Distinct from a Task's Run at and from a Job.
+_Avoid_: Occurrence, instance
+
 ### Social publishing
 
 **Social account**:
@@ -135,6 +147,10 @@ _Avoid_: Active connection, credential log
 **Social scheduling authorization**:
 The consent granted when a Social account is connected that lets the Project's scheduler publish through that Project social connection until it is disconnected.
 _Avoid_: Per-post approval, connector approval
+
+**Social post**:
+One piece of content a Project intends to publish through exactly one Project social connection at one planned time. Not a Job or a Task.
+_Avoid_: Job, Task
 
 ### Task payments
 

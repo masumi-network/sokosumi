@@ -22,7 +22,6 @@ import {
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
 import {
-  applyTaskListScheduleWhere,
   applyTaskListStatusWhere,
   buildTaskListStatusWhere,
 } from "@/helpers/task-list-filters";
@@ -97,12 +96,13 @@ const projectIdQuerySchema = z
   });
 
 const taskSortQuerySchema = z
-  .enum(["nextRunAt"])
+  .enum(["createdAt"])
   .optional()
   .openapi({
     param: { name: "sort", in: "query" },
-    description: "Sort tasks by nextRunAt ascending (nulls last)",
-    example: "nextRunAt",
+    description:
+      "createdAt: newest created first. Omitted: most recently updated first.",
+    example: "createdAt",
   });
 
 const taskVisibilityQuerySchema = z
@@ -115,15 +115,14 @@ const taskVisibilityQuerySchema = z
     example: TaskVisibility.PUBLIC,
   });
 
-const hasScheduleQuerySchema = z
-  .enum(["true", "false"])
+const scheduleIdQuerySchema = z
+  .string()
+  .uuid()
   .optional()
-  .transform((value) => (value === undefined ? undefined : value === "true"))
   .openapi({
-    param: { name: "hasSchedule", in: "query" },
-    description:
-      "When true, only tasks with an active schedule series (metadata or nextRunAt set). When false, only tasks without one. Omit to return all tasks.",
-    example: "true",
+    param: { name: "scheduleId", in: "query" },
+    description: "Only the Tasks this Task Schedule created",
+    example: "01960001-0001-7001-8001-000000000042",
   });
 
 const query = z
@@ -134,7 +133,7 @@ const query = z
     projectId: projectIdQuerySchema,
     sort: taskSortQuerySchema,
     visibility: taskVisibilityQuerySchema,
-    hasSchedule: hasScheduleQuerySchema,
+    scheduleId: scheduleIdQuerySchema,
     assigneeId: z
       .string()
       .optional()
@@ -186,7 +185,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List tasks in the active workspace (paginated). hasSchedule=true returns only tasks with an active schedule series (metadata or nextRunAt set); hasSchedule=false returns only tasks without one. Use sort=nextRunAt to order series by their next run.",
+      "List tasks in the active workspace (paginated). Filter by scheduleId for the Tasks a Task Schedule created.",
     tags: ["Tasks"],
     request: {
       query,
@@ -208,9 +207,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeId,
       assigneeSokoBotId,
       assigneeUserId,
-      hasSchedule,
       projectId,
       q,
+      scheduleId,
       scope,
       sort,
       status: statuses,
@@ -233,6 +232,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       projectId === undefined
         ? {}
         : { projectId: projectId === "null" ? null : projectId };
+    const scheduleFilter = scheduleId ? { scheduleId } : {};
 
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
@@ -275,6 +275,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),
             ...(assigneeUserId ? { assigneeUserId } : {}),
             ...projectFilter,
+            ...scheduleFilter,
             ...searchFilter,
           },
           statusWhere,
@@ -286,6 +287,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...requestedVisibility,
             AND: [listAccessFilter],
             ...projectFilter,
+            ...scheduleFilter,
             ...searchFilter,
           },
           statusWhere,
@@ -307,6 +309,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...requestedVisibility,
           AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
           ...projectFilter,
+          ...scheduleFilter,
           ...searchFilter,
         },
         statusWhere,
@@ -325,21 +328,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),
           ...(assigneeUserId ? { assigneeUserId } : {}),
           ...projectFilter,
+          ...scheduleFilter,
           ...searchFilter,
         },
         statusWhere,
       );
     }
 
-    where = applyTaskListScheduleWhere(where, hasSchedule);
-
     const takePlusOne = take + 1;
     const orderBy =
-      sort === "nextRunAt"
-        ? ([
-            { nextRunAt: { sort: "asc" as const, nulls: "last" as const } },
-            { id: "asc" as const },
-          ] as const)
+      sort === "createdAt"
+        ? ([{ createdAt: "desc" as const }, { id: "desc" as const }] as const)
         : ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const);
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of

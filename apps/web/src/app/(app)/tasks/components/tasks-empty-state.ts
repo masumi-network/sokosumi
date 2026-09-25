@@ -1,6 +1,5 @@
+import type { TasksTabValue } from "@/app/tasks/utils/tasks-tab";
 import type { TasksViewMode } from "@/lib/ui-preferences/tasks-view-mode";
-
-type TasksTabValue = "tasks" | "jobs";
 
 interface ShouldShowTasksEmptyStateOverlayParams {
   activeTab: TasksTabValue;

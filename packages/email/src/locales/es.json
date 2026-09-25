@@ -116,6 +116,10 @@
               "subject": "Sokosumi - Se te asignó {taskName}",
               "body": "Se te asignó {taskName}."
             },
+            "participantAdded": {
+              "subject": "Sokosumi - Te añadieron a {taskName} como participante",
+              "body": "Te añadieron a {taskName} como participante."
+            },
             "inputRequired": {
               "subject": "Sokosumi - {coworkerName} necesita tu input para {taskName}",
               "body": "{taskName} se detuvo porque {coworkerName} necesita tu input."
@@ -131,10 +135,6 @@
             "outOfCredits": {
               "subject": "Sokosumi - {taskName} se quedó sin créditos",
               "body": "{taskName} se detuvo porque se quedó sin créditos."
-            },
-            "scheduleRemovedByOperator": {
-              "subject": "Sokosumi - La programación de {taskName} se eliminó",
-              "body": "La programación de {taskName} se eliminó tras una revisión."
             }
           }
         },
@@ -153,30 +153,6 @@
             "canceled": {
               "subject": "Sokosumi - Se canceló {taskName}",
               "body": "Se canceló {taskName}."
-            },
-            "scheduleRepaired": {
-              "subject": "Sokosumi - Se reparó la programación de {taskName}",
-              "body": "Se reparó la programación de {taskName}."
-            },
-            "scheduleRemovedByOperator": {
-              "subject": "Sokosumi - Se eliminó la programación de {taskName} después de revisarla",
-              "body": "Se eliminó la programación de {taskName} después de revisarla."
-            },
-            "scheduleUpdatedByMember": {
-              "subject": "Sokosumi - Un compañero actualizó la programación de {taskName}",
-              "body": "Un compañero actualizó la programación de {taskName}."
-            },
-            "scheduleRemovedByMember": {
-              "subject": "Sokosumi - Un compañero eliminó la programación de {taskName}",
-              "body": "Un compañero eliminó la programación de {taskName}."
-            },
-            "scheduleSourceChangedByMember": {
-              "subject": "Sokosumi - Un compañero movió {taskName} a otra fuente del calendario",
-              "body": "Un compañero movió {taskName} a otra fuente del calendario."
-            },
-            "scheduleOccurrenceChangedByMember": {
-              "subject": "Sokosumi - Un compañero cambió una ocurrencia de {taskName}",
-              "body": "Un compañero cambió una ocurrencia de {taskName}."
             },
             "updated": {
               "subject": "Sokosumi - {taskName} cambió",
@@ -250,11 +226,11 @@
         "projectLabel": "Proyecto",
         "reasons": {
           "assigned": "{taskName} se te asignó hace un día y todavía no la has abierto.",
+          "participantAdded": "Te añadieron a {taskName} como participante hace un día y todavía no la has abierto.",
           "inputRequired": "{taskName} se detuvo hace un día porque {coworkerName} necesita tu input. Sigue esperando.",
           "approvalRequired": "{taskName} se detuvo hace un día porque {coworkerName} necesita tu aprobación. Sigue esperando.",
           "authenticationRequired": "{taskName} se detuvo hace un día porque {coworkerName} necesita que inicies sesión en algún sitio. Sigue esperando.",
-          "outOfCredits": "{taskName} se detuvo hace un día porque se quedó sin créditos. Sigue esperando.",
-          "scheduleRemovedByOperator": "La programación de {taskName} se eliminó tras una revisión hace un día y todavía no has abierto el aviso."
+          "outOfCredits": "{taskName} se detuvo hace un día porque se quedó sin créditos. Sigue esperando."
         }
       },
       "billing": {

@@ -33,6 +33,8 @@ export interface TaskWithCoworker {
   updatedAt: string;
   jobsCount: number;
   assignee?: TaskAssigneeView | null;
+  /** Task participants (humans added by comment `@`), in join order. */
+  participants: TaskAssigneeView[];
   share?: TaskShare | null;
   commentsCount: number;
   columnId: KanbanColumnId;
@@ -40,8 +42,8 @@ export interface TaskWithCoworker {
   descriptionPlain?: string | null;
   events: TaskEvent[];
   agents: CoreAgentDto[];
-  metadata?: string | null;
-  nextRunAt?: string | null;
+  /** ISO Run at of a Queued Task. */
+  runAt?: string | null;
 }
 
 export type KanbanColumnId =
