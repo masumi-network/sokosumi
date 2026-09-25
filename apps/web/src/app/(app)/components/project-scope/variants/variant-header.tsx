@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronsUpDown, Layers } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -37,11 +36,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { authClient, useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 
 import type { ScopeSlots, ScopeVariantId } from "./scope-variants";
 import { useScopeVariant } from "./use-scope-variant";
+import {
+  WorkspaceCrumb,
+  WorkspaceCrumbSkeleton,
+} from "./variant-header-workspace";
 
 /** Tailwind's `sm`: the desktop trail shows from here, the mobile title below. */
 const SM_UP_QUERY = "(min-width: 40rem)";
@@ -59,30 +61,6 @@ function useIsSmUp(): boolean {
     () => window.matchMedia(SM_UP_QUERY).matches,
     () => false,
   );
-}
-
-/**
- * The active workspace's name, read-only. Switching workspaces stays with the
- * header's workspace switch. Null while the session or the list loads.
- */
-export function useWorkspaceName(): string | null {
-  const t = useTranslations("App.ProjectScope");
-  const tSwitcher = useTranslations("Components.OrganizationSwitcher");
-  const { data: session, error: sessionError } = useSession();
-  const { data: organizations, error } = authClient.useListOrganizations();
-  if (!session) return sessionError ? t("workspace") : null;
-  const organizationId = session.session.activeOrganizationId ?? null;
-  if (!organizationId) {
-    return (
-      session.user.name || session.user.email || tSwitcher("personalAccount")
-    );
-  }
-  const name = organizations?.find(
-    (organization) => organization.id === organizationId,
-  )?.name;
-  if (name) return name;
-  // A failed list, or one without this workspace yet, still names the crumb.
-  return organizations || error ? t("workspace") : null;
 }
 
 /** The current project, or the workspace view when none is chosen. */
@@ -114,43 +92,6 @@ function ScopeLabel({ projectId }: { projectId: string | null }) {
         aria-hidden
       />
     </>
-  );
-}
-
-function WorkspaceCrumbSkeleton() {
-  return (
-    <span
-      className="bg-muted h-3 w-20 shrink-0 animate-pulse rounded-md"
-      aria-hidden
-    />
-  );
-}
-
-const WORKSPACE_CRUMB_CLASS =
-  "text-muted-foreground max-w-40 min-w-6 truncate font-medium";
-
-/** Links out of the project, or stays text when the workspace view is open. */
-function WorkspaceCrumb({ href }: { href: string | null }) {
-  const name = useWorkspaceName();
-  if (!name) return <WorkspaceCrumbSkeleton />;
-  if (!href) {
-    return (
-      <span className={WORKSPACE_CRUMB_CLASS} title={name}>
-        {name}
-      </span>
-    );
-  }
-  return (
-    <Link
-      href={href}
-      className={cn(
-        WORKSPACE_CRUMB_CLASS,
-        "hover:text-foreground focus-visible:ring-ring rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
-      )}
-      title={name}
-    >
-      {name}
-    </Link>
   );
 }
 
@@ -224,13 +165,7 @@ function HeaderBreadcrumb({ crumbs }: { crumbs: ReactNode }) {
     >
       <BreadcrumbList className="-m-1 overflow-hidden p-1">
         <BreadcrumbItem className="min-w-6">
-          {isSmUp ? (
-            <WorkspaceCrumb
-              href={scope.projectId ? scope.switchHref(null) : null}
-            />
-          ) : (
-            <WorkspaceCrumbSkeleton />
-          )}
+          {isSmUp ? <WorkspaceCrumb /> : <WorkspaceCrumbSkeleton />}
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem className="min-w-16">

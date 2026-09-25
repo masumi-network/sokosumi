@@ -1,5 +1,5 @@
 import type { SessionUser } from "@sokosumi/utils";
-import { render, renderHook, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -80,6 +80,13 @@ vi.mock("@/lib/actions/workspace-gate/action", () => ({
   createPersonalWorkspaceAction: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+// The workspace crumb's switch has its own tests; keep its router out.
+vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
+  useWorkspaceSwitcher: () => ({
+    isPending: false,
+    handleSelectWorkspace: vi.fn(),
+  }),
+}));
 
 import HeaderWorkspaceSwitch from "@/app/components/header/header-workspace-switch.client";
 import BreadcrumbNavigationClient from "@/components/breadcrumb-navigation/breadcrumb-navigation.client";
@@ -88,7 +95,6 @@ import {
   HeaderVariantCrumbs,
   HeaderVariantTrailing,
   headerSlots,
-  useWorkspaceName,
 } from "./variant-header";
 
 // What the server BreadcrumbNavigation hands the header, once resolved.
@@ -126,6 +132,9 @@ function signInToAcme() {
 }
 
 const TASK_ID = "0b5c1c6e-6f9a-4e7b-9a53-1f0d2f3a4b5c";
+
+/** The first crumb: a workspace switch that names the workspace. */
+const WORKSPACE_SWITCH = "switchWorkspace Acme";
 
 const CRUMB = "breadcrumb-item";
 const SEPARATOR = "breadcrumb-separator";
@@ -196,7 +205,7 @@ describe("HeaderVariantCrumbs breadcrumb", () => {
 
       const nav = breadcrumb();
       expect(
-        within(nav).getByRole("link", { name: "Acme" }),
+        within(nav).getByRole("button", { name: WORKSPACE_SWITCH }),
       ).toBeInTheDocument();
       expect(within(nav).getByTestId("project-scope-trigger")).toHaveAttribute(
         "aria-current",
@@ -217,7 +226,9 @@ describe("HeaderVariantCrumbs breadcrumb", () => {
     renderCrumbs();
 
     const nav = breadcrumb();
-    expect(within(nav).getByRole("link", { name: "Acme" })).toBeInTheDocument();
+    expect(
+      within(nav).getByRole("button", { name: WORKSPACE_SWITCH }),
+    ).toBeInTheDocument();
     expect(
       within(nav).getByTestId("project-scope-trigger"),
     ).not.toHaveAttribute("aria-current");
@@ -250,7 +261,9 @@ describe("HeaderVariantCrumbs breadcrumb", () => {
     const nav = breadcrumb();
     expect(nav).toBe(screen.getByTestId("project-scope-header"));
     expect(nav.querySelectorAll("ol")).toHaveLength(1);
-    expect(within(nav).getByRole("link", { name: "Acme" })).toBeInTheDocument();
+    expect(
+      within(nav).getByRole("button", { name: WORKSPACE_SWITCH }),
+    ).toBeInTheDocument();
     expect(
       within(nav).getByTestId("project-scope-trigger"),
     ).toBeInTheDocument();
@@ -359,84 +372,6 @@ describe("HeaderVariantCrumbs breadcrumb", () => {
   });
 });
 
-describe("useWorkspaceName", () => {
-  function session(activeOrganizationId: string | null, name = "Ada") {
-    return {
-      data: {
-        user: { name, email: "ada@example.com" },
-        session: { activeOrganizationId },
-      },
-      error: null,
-    };
-  }
-
-  it("waits while the session loads", () => {
-    const { result } = renderHook(() => useWorkspaceName());
-    expect(result.current).toBeNull();
-  });
-
-  it("falls back to the generic name when the session fails", () => {
-    mocks.session = { data: null, error: new Error("offline") };
-    const { result } = renderHook(() => useWorkspaceName());
-    expect(result.current).toBe("workspace");
-  });
-
-  it("names the personal account after the user", () => {
-    mocks.session = session(null);
-    const { result } = renderHook(() => useWorkspaceName());
-    expect(result.current).toBe("Ada");
-  });
-
-  it("falls back to the email, then the personal account label", () => {
-    mocks.session = session(null, "");
-    const { result, rerender } = renderHook(() => useWorkspaceName());
-    expect(result.current).toBe("ada@example.com");
-
-    mocks.session = {
-      data: {
-        user: { name: "", email: "" },
-        session: { activeOrganizationId: null },
-      },
-      error: null,
-    };
-    rerender();
-    expect(result.current).toBe("personalAccount");
-  });
-
-  it("names the active organization from the list", () => {
-    mocks.session = session("org-1");
-    mocks.organizations = {
-      data: [{ id: "org-1", name: "Acme" }],
-      error: null,
-    };
-    const { result } = renderHook(() => useWorkspaceName());
-    expect(result.current).toBe("Acme");
-  });
-
-  it("waits while the organization list loads", () => {
-    mocks.session = session("org-1");
-    const { result } = renderHook(() => useWorkspaceName());
-    expect(result.current).toBeNull();
-  });
-
-  it("falls back to the generic name when the list fails", () => {
-    mocks.session = session("org-1");
-    mocks.organizations = { data: undefined, error: new Error("500") };
-    const { result } = renderHook(() => useWorkspaceName());
-    expect(result.current).toBe("workspace");
-  });
-
-  it("falls back to the generic name when the list lacks the organization", () => {
-    mocks.session = session("org-1");
-    mocks.organizations = {
-      data: [{ id: "org-2", name: "Other" }],
-      error: null,
-    };
-    const { result } = renderHook(() => useWorkspaceName());
-    expect(result.current).toBe("workspace");
-  });
-});
-
 describe("HeaderVariantTrailing", () => {
   function renderTrailing() {
     return render(
@@ -507,24 +442,22 @@ describe("HeaderVariantCrumbs workspace crumb", () => {
     signInToAcme();
   });
 
-  it("links the workspace crumb out of a project", () => {
-    mocks.pathname = "/projects/p-1";
-    mocks.projectId = "p-1";
-    renderCrumbs();
+  it.each([
+    ["in a project", "/projects/p-1", "p-1"],
+    ["in the workspace view", "/projects", null],
+  ])(
+    "makes the workspace crumb a workspace switch %s",
+    (_case, pathname, projectId) => {
+      mocks.pathname = pathname;
+      mocks.projectId = projectId;
+      renderCrumbs();
 
-    expect(screen.getByRole("link", { name: "Acme" })).toHaveAttribute(
-      "href",
-      "/projects",
-    );
-  });
-
-  it("keeps the workspace crumb as text in the workspace view", () => {
-    mocks.pathname = "/projects";
-    renderCrumbs();
-
-    expect(screen.getByText("Acme").tagName).toBe("SPAN");
-    expect(screen.queryByRole("link")).toBeNull();
-  });
+      const crumb = screen.getByRole("button", { name: WORKSPACE_SWITCH });
+      expect(crumb).toHaveAttribute("aria-haspopup", "dialog");
+      expect(crumb).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("link")).toBeNull();
+    },
+  );
 });
 
 describe("HeaderMobileScope", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Check, FolderKanban, Layers } from "lucide-react";
+import { Building2, Check, FolderKanban, Layers, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useId } from "react";
@@ -26,6 +26,9 @@ import { cn } from "@/lib/utils";
 import { loadCombinedWorkspaces } from "./variant-combined-actions";
 
 const SKELETON_ROWS = 3;
+
+const WORKSPACE_ROW_CLASS =
+  "hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring flex h-11 w-full items-center gap-2 rounded-sm px-2 text-left text-sm outline-hidden focus-visible:ring-2 aria-disabled:opacity-50 md:h-8";
 
 /** The switch plus what a trigger shows: the scope's name and mark. */
 export function useCombinedScope() {
@@ -133,6 +136,7 @@ export function useCombinedWorkspaces(switcher: WorkspaceSwitcher) {
     active: rows.find((row) => row.id === activeId) ?? null,
     isPending: session == null || query.isPending,
     isError: query.isError,
+    hasPersonalWorkspace: query.data?.hasPersonalWorkspace ?? false,
     refetch: () => void query.refetch(),
     isSwitching,
     select,
@@ -199,14 +203,20 @@ export function WorkspaceMark({
   );
 }
 
-/** The left pane: every workspace, the active one checked. */
+/**
+ * The left pane: every workspace, the active one checked. With
+ * `onCreateWorkspace`, a last row starts Create workspace; it gets whether a
+ * personal workspace can still be made.
+ */
 export function WorkspaceList({
   workspaces,
   onChosen,
+  onCreateWorkspace,
   className,
 }: {
   workspaces: CombinedWorkspaces;
   onChosen?: () => void;
+  onCreateWorkspace?: (canCreatePersonal: boolean) => void;
   className?: string;
 }) {
   const t = useTranslations("Components.OrganizationSwitcher");
@@ -269,7 +279,7 @@ export function WorkspaceList({
                     if (workspaces.isSwitching) return;
                     void workspaces.select(workspace.id).then(onChosen);
                   }}
-                  className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring flex h-11 w-full items-center gap-2 rounded-sm px-2 text-left text-sm outline-hidden focus-visible:ring-2 aria-disabled:opacity-50 md:h-8"
+                  className={WORKSPACE_ROW_CLASS}
                 >
                   <WorkspaceMark
                     workspaces={workspaces}
@@ -291,6 +301,23 @@ export function WorkspaceList({
           })}
         </ul>
       )}
+      {onCreateWorkspace && !workspaces.isPending && !workspaces.isError ? (
+        <button
+          type="button"
+          aria-disabled={workspaces.isSwitching || undefined}
+          data-testid="project-scope-create-workspace"
+          onClick={() => {
+            if (workspaces.isSwitching) return;
+            onCreateWorkspace(!workspaces.hasPersonalWorkspace);
+          }}
+          className={cn(WORKSPACE_ROW_CLASS, "text-muted-foreground")}
+        >
+          <Plus className="size-4 shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">
+            {t("createWorkspace")}
+          </span>
+        </button>
+      ) : null}
     </div>
   );
 }

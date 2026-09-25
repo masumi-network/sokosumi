@@ -234,6 +234,7 @@ describe("WorkspaceList", () => {
       active: null,
       isPending: false,
       isError: true,
+      hasPersonalWorkspace: false,
       refetch,
       isSwitching: false,
       select: vi.fn(),
@@ -260,6 +261,7 @@ describe("WorkspaceList", () => {
       active: { id: "org-1", name: "Acme", organization: null },
       isPending: false,
       isError: false,
+      hasPersonalWorkspace: false,
       refetch: vi.fn(),
       isSwitching: false,
       select: vi.fn(async () => {}),
@@ -318,6 +320,60 @@ describe("WorkspaceList", () => {
 
     expect(select).not.toHaveBeenCalled();
     expect(onChosen).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [false, true],
+    [true, false],
+  ])(
+    "starts Create workspace with a personal workspace %s: can make one %s",
+    async (hasPersonalWorkspace, canCreatePersonal) => {
+      const onCreateWorkspace = vi.fn();
+      render(
+        <WorkspaceList
+          workspaces={listed({ hasPersonalWorkspace })}
+          onCreateWorkspace={onCreateWorkspace}
+        />,
+      );
+
+      await userEvent.setup().click(row("createWorkspace"));
+
+      expect(onCreateWorkspace).toHaveBeenCalledExactlyOnceWith(
+        canCreatePersonal,
+      );
+    },
+  );
+
+  it.each([
+    ["no handler", {}, false],
+    ["the list loading", { isPending: true }, true],
+    ["the list failed", { isError: true }, true],
+  ])("offers no Create workspace with %s", (_case, overrides, withHandler) => {
+    render(
+      <WorkspaceList
+        workspaces={listed(overrides)}
+        onCreateWorkspace={withHandler ? vi.fn() : undefined}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "createWorkspace" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("ignores Create workspace while a switch runs", async () => {
+    const onCreateWorkspace = vi.fn();
+    render(
+      <WorkspaceList
+        workspaces={listed({ isSwitching: true })}
+        onCreateWorkspace={onCreateWorkspace}
+      />,
+    );
+
+    expect(row("createWorkspace")).toHaveAttribute("aria-disabled", "true");
+    await userEvent.setup().click(row("createWorkspace"));
+
+    expect(onCreateWorkspace).not.toHaveBeenCalled();
   });
 });
 
@@ -403,6 +459,7 @@ describe("WorkspaceMark", () => {
     active: null,
     isPending: false,
     isError: true,
+    hasPersonalWorkspace: false,
     refetch: vi.fn(),
     isSwitching: false,
     select: vi.fn(),
