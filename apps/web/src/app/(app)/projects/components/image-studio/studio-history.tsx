@@ -74,7 +74,7 @@ export function StudioHistory({
               className="text-muted-foreground size-4 animate-spin"
               aria-hidden
             />
-            <span className="text-muted-foreground text-[11px]">
+            <span className="text-muted-foreground text-xs">
               {job.status === "QUEUED" || job.status === "PENDING"
                 ? labels.queued
                 : labels.generating}
@@ -98,7 +98,7 @@ export function StudioHistory({
                 "group relative size-24 shrink-0 overflow-hidden rounded-lg border transition-colors outline-none",
                 "focus-visible:ring-ring-halo focus-visible:ring-[3px]",
                 isSelected
-                  ? "border-primary ring-primary/30 ring-2"
+                  ? "border-primary ring-ring-halo ring-2"
                   : "border-border hover:border-primary-tertiary",
               )}
               data-asset-id={asset.id}
@@ -112,7 +112,7 @@ export function StudioHistory({
                 loading="lazy"
                 src={assetContentUrl(projectId, asset.id)}
               />
-              <span className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/55 px-1.5 py-1 text-[10px] font-medium text-white">
+              <span className="bg-muted text-foreground absolute inset-x-0 bottom-0 flex items-center justify-between px-1.5 py-1 text-xs font-medium">
                 <span>v{asset.version}</span>
                 {decision === "APPROVED" ? (
                   <span className="flex items-center gap-0.5">

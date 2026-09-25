@@ -85,18 +85,18 @@ export function StudioPreview({
             )}
           >
             {compareWith ? (
-              <figure className="relative flex size-full items-center justify-center bg-black/5">
+              <figure className="bg-muted relative flex size-full items-center justify-center">
                 <img
                   alt={compareWith.prompt}
                   className="max-h-full max-w-full object-contain"
                   src={assetContentUrl(projectId, compareWith.id)}
                 />
-                <figcaption className="absolute top-2 left-2 rounded bg-black/60 px-2 py-0.5 text-[11px] text-white">
+                <figcaption className="bg-card-background text-foreground border-border absolute top-2 left-2 rounded border px-2 py-0.5 text-xs">
                   v{compareWith.version}
                 </figcaption>
               </figure>
             ) : null}
-            <figure className="relative flex size-full items-center justify-center bg-black/5">
+            <figure className="bg-muted relative flex size-full items-center justify-center">
               <img
                 alt={asset.prompt}
                 className={cn(
@@ -105,7 +105,7 @@ export function StudioPreview({
                 )}
                 src={assetContentUrl(projectId, asset.id)}
               />
-              <figcaption className="absolute top-2 left-2 rounded bg-black/60 px-2 py-0.5 text-[11px] text-white">
+              <figcaption className="bg-card-background text-foreground border-border absolute top-2 left-2 rounded border px-2 py-0.5 text-xs">
                 v{asset.version}
               </figcaption>
             </figure>
@@ -120,7 +120,7 @@ export function StudioPreview({
         )}
 
         {inFlight ? (
-          <div className="bg-background/80 absolute inset-x-0 bottom-0 flex items-center gap-3 px-4 py-3 backdrop-blur">
+          <div className="bg-card-background border-border absolute inset-x-0 bottom-0 flex items-center gap-3 border-t px-4 py-3">
             <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden />
             <p className="min-w-0 flex-1 truncate text-sm">
               {inFlight.status === "QUEUED" || inFlight.status === "PENDING"
