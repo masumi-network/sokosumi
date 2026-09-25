@@ -33,6 +33,7 @@ import {
  */
 export function StudioPreview({
   asset,
+  cancelRequestedJobIds,
   compareWith,
   labels,
   onApprove,
@@ -41,6 +42,7 @@ export function StudioPreview({
   onClearReview,
   onRegenerate,
   onReject,
+  onRetryFailed,
   onSubmitAnyway,
   onToggleCompare,
   pendingJobs,
@@ -49,6 +51,8 @@ export function StudioPreview({
   settledProblemJob,
 }: {
   asset: StudioAsset | null;
+  /** Jobs the provider has accepted a cancellation request for. */
+  cancelRequestedJobIds: string[];
   compareWith: StudioAsset | null;
   labels: StudioLabels;
   onApprove: (feedback: string) => void;
@@ -57,6 +61,8 @@ export function StudioPreview({
   onClearReview: () => void;
   onRegenerate: () => void;
   onReject: (feedback: string) => void;
+  /** Retries the failed job's own prompt and reference, not the selection. */
+  onRetryFailed: (job: StudioJob) => void;
   onSubmitAnyway: (job: StudioJob) => void;
   onToggleCompare: () => void;
   pendingJobs: StudioJob[];
@@ -64,9 +70,19 @@ export function StudioPreview({
   reviewBusy: boolean;
   settledProblemJob: StudioJob | null;
 }) {
-  const [feedback, setFeedback] = useState("");
+  /**
+   * Notes keyed by version.
+   *
+   * One shared string submitted whatever was typed against whichever version
+   * happened to be selected when Approve was pressed — so a note written on v1
+   * was filed against v2. Keying by asset id makes that impossible, and lets a
+   * saved note reappear when its version is selected again.
+   */
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const decision = asset?.review?.decision ?? null;
   const inFlight = pendingJobs[0] ?? null;
+  const savedFeedback = asset?.review?.feedback ?? "";
+  const feedback = asset ? (drafts[asset.id] ?? savedFeedback) : "";
 
   return (
     <section aria-label={labels.title} className="min-w-0 space-y-4">
@@ -130,11 +146,14 @@ export function StudioPreview({
               <span className="text-muted-foreground">{inFlight.prompt}</span>
             </p>
             <Button
+              disabled={cancelRequestedJobIds.includes(inFlight.id)}
               onClick={() => onCancelJob(inFlight.id)}
               size="sm"
               variant="ghost"
             >
-              {labels.cancel}
+              {cancelRequestedJobIds.includes(inFlight.id)
+                ? labels.cancelRequested
+                : labels.cancel}
             </Button>
           </div>
         ) : null}
@@ -178,7 +197,7 @@ export function StudioPreview({
           </p>
           <Button
             className="mt-3"
-            onClick={onRegenerate}
+            onClick={() => onRetryFailed(settledProblemJob)}
             size="sm"
             variant="secondary"
           >
@@ -243,7 +262,10 @@ export function StudioPreview({
           <Textarea
             aria-label={labels.feedbackPlaceholder}
             className="min-h-16"
-            onChange={(event) => setFeedback(event.currentTarget.value)}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              setDrafts((current) => ({ ...current, [asset.id]: value }));
+            }}
             placeholder={labels.feedbackPlaceholder}
             value={feedback}
           />

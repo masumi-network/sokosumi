@@ -69,4 +69,11 @@ export interface StudioLabels {
   elapsed: string;
   lineage: string;
   from: string;
+  you: string;
+  studio: string;
+  thinking: string;
+  assistantError: string;
+  assistantErrorHint: string;
+  bindWarning: string;
+  loadOlder: string;
 }

@@ -2365,6 +2365,9 @@ const projectImageStudioStateSchemaResponseTransformer = (data: any) => {
     data.assets = data.assets.map((item: any) => projectImageAssetSchemaResponseTransformer(item));
     data.jobs = data.jobs.map((item: any) => projectImageJobSchemaResponseTransformer(item));
     data.sessions = data.sessions.map((item: any) => projectImageSessionSchemaResponseTransformer(item));
+    if (data.nextCursor) {
+        data.nextCursor = new Date(data.nextCursor);
+    }
     return data;
 };
 

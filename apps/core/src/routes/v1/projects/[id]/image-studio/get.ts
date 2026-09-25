@@ -13,6 +13,7 @@ import {
   assetContentPath,
   imageStudioListSchema,
   imageStudioProjectParamsSchema,
+  imageStudioStateQuerySchema,
 } from "@/schemas/project-image-studio.schema";
 import { listAssets, listJobs } from "@/services/image-studio-assets.service";
 import { reconcileProjectJobs } from "@/services/image-studio-jobs.service";
@@ -29,7 +30,10 @@ const route = withOrganizationSlugHeaderParameter(
     description:
       "Image studio state for a Project: versions with their review decisions, recent generation jobs, and the conversations bound to this Project.",
     tags: ["Projects"],
-    request: { params: imageStudioProjectParamsSchema },
+    request: {
+      params: imageStudioProjectParamsSchema,
+      query: imageStudioStateQuerySchema,
+    },
     responses: {
       200: jsonSuccessResponse(imageStudioListSchema, "Image studio state"),
       401: jsonErrorResponse("Unauthorized"),
@@ -44,6 +48,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const userContext = requireInteractiveUserAuthContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
+    const query = c.req.valid("query");
     const scope = {
       projectId,
       workspaceId: workspaceContext.workspaceId,
@@ -60,8 +65,13 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     // "Generating" for ever.
     await reconcileProjectJobs(projectId);
 
-    const [assets, jobs, sessions] = await Promise.all([
-      listAssets({ ...scope, limit: ASSET_PAGE }),
+    const [assetPage, jobs, sessions] = await Promise.all([
+      listAssets({
+        ...scope,
+        limit: ASSET_PAGE,
+        ...(query.before ? { before: new Date(query.before) } : {}),
+        ...(query.assetId ? { pinnedAssetId: query.assetId } : {}),
+      }),
       listJobs({ ...scope, limit: JOB_PAGE }),
       listSessions({ ...scope, limit: SESSION_PAGE }),
     ]);
@@ -69,7 +79,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     return ok(
       c,
       imageStudioListSchema.parse({
-        assets: assets.map((asset) => ({
+        assets: assetPage.assets.map((asset) => ({
           ...asset,
           contentPath: assetContentPath(projectId, asset.id),
           // Omit rather than send null: see the schema comment on `review`.
@@ -77,6 +87,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         })),
         jobs,
         sessions,
+        nextCursor: assetPage.nextCursor,
       }),
     );
   });

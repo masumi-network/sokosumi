@@ -1,7 +1,7 @@
 "use client";
 
 import { useEveAgent } from "eve/react";
-import { Loader2, SendHorizonal } from "lucide-react";
+import { AlertTriangle, Loader2, SendHorizonal } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { bindImageStudioSession } from "@/lib/actions/image-studio/action";
 import { cn } from "@/lib/utils";
 
-import type { StudioLabels } from "./types";
+import type { StudioAsset, StudioLabels } from "./types";
 
 /**
  * The conversation, running on the eve agent mounted at
@@ -29,18 +29,31 @@ export function StudioChat({
   onActivity,
   projectId,
   resumeSessionId,
+  selectedAsset,
 }: {
   labels: StudioLabels;
   /** Fires when the agent settles a turn, so the page can look for results. */
   onActivity: () => void;
   projectId: string;
   resumeSessionId: string | null;
+  /**
+   * What the person is looking at. Sent with every turn so "make this warmer"
+   * has a referent — without it the agent had no way to know which version
+   * "this" meant, and would have to guess or ask.
+   */
+  selectedAsset: StudioAsset | null;
 }) {
   const draftKey = `sokosumi:image-studio:draft:${projectId}`;
   const [draft, setDraft] = useState("");
   const [tokenError, setTokenError] = useState(false);
+  const [bindWarning, setBindWarning] = useState(false);
   const boundSessionRef = useRef<string | null>(resumeSessionId);
   const transcriptRef = useRef<HTMLDivElement>(null);
+
+  // Read the current selection inside callbacks without making them depend on
+  // it; the hook's options are captured when its store is created.
+  const selectedAssetRef = useRef<StudioAsset | null>(selectedAsset);
+  selectedAssetRef.current = selectedAsset;
 
   // Restore the draft once, on mount. Storage can throw in a private window
   // or with site data blocked, so the composer must work without it.
@@ -67,6 +80,35 @@ export function StudioChat({
     return body.token;
   }, [projectId]);
 
+  /**
+   * Persist the session binding, retrying until it sticks.
+   *
+   * The binding is what makes a conversation resumable and project-scoped, so
+   * losing it to one failed request leaves a working chat that nobody can get
+   * back to. The session is only recorded as bound once Core has confirmed it.
+   */
+  const bindSession = useCallback(
+    async (eveSessionId: string, attempt = 0): Promise<void> => {
+      try {
+        await bindImageStudioSession({
+          projectId,
+          eveSessionId,
+          title: null,
+        });
+        boundSessionRef.current = eveSessionId;
+        setBindWarning(false);
+      } catch {
+        if (attempt >= 3) {
+          setBindWarning(true);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
+        await bindSession(eveSessionId, attempt + 1);
+      }
+    },
+    [projectId],
+  );
+
   const agent = useEveAgent({
     agent: "image-studio",
     auth: { bearer: fetchToken },
@@ -76,19 +118,25 @@ export function StudioChat({
           resume: true,
         }
       : {}),
+    // Attach the current selection to every turn without threading it through
+    // each call site. It is ephemeral per-turn context, not session history.
+    prepareSend: (input) => {
+      const asset = selectedAssetRef.current;
+      return asset
+        ? {
+            ...input,
+            clientContext: {
+              selectedVersionId: asset.id,
+              selectedVersionNumber: asset.version,
+              selectedVersionPrompt: asset.prompt,
+              note: "The person is looking at this version. Treat 'this', 'it', and 'the image' as referring to it.",
+            },
+          }
+        : input;
+    },
     onSessionChange: (session) => {
-      // Bind the conversation to the project the first time eve names it, so
-      // a reload can resume it and so nothing else can claim that session id.
       if (!session || boundSessionRef.current === session.sessionId) return;
-      boundSessionRef.current = session.sessionId;
-      void bindImageStudioSession({
-        projectId,
-        eveSessionId: session.sessionId,
-        title: null,
-      }).catch(() => {
-        // The conversation still works; it just will not be listed until the
-        // next successful bind.
-      });
+      void bindSession(session.sessionId);
     },
     onFinish: () => onActivity(),
   });
@@ -115,8 +163,15 @@ export function StudioChat({
     event.preventDefault();
     const message = draft.trim();
     if (message.length === 0 || isResuming) return;
-    handleDraftChange("");
-    await agent.send(message, isBusy ? { turnPolicy: "steer" } : undefined);
+    try {
+      await agent.send(message, isBusy ? { turnPolicy: "steer" } : undefined);
+      // Cleared only once the send was accepted. Clearing first meant a
+      // failed send — an expired session, no model credit — took the message
+      // with it and left nothing to retry.
+      handleDraftChange("");
+    } catch {
+      // `agent.error` renders below; the draft is still in the composer.
+    }
   }
 
   if (tokenError) {
@@ -154,14 +209,11 @@ export function StudioChat({
         ) : null}
         {agent.data.messages.map((message) => (
           <article
-            className={cn(
-              "text-sm leading-relaxed",
-              message.role === "user" ? "text-foreground" : "text-foreground",
-            )}
+            className="text-foreground text-sm leading-relaxed"
             key={message.id}
           >
             <p className="text-muted-foreground mb-1 text-xs font-medium">
-              {message.role === "user" ? "You" : "Studio"}
+              {message.role === "user" ? labels.you : labels.studio}
             </p>
             {message.parts.map((part, index) =>
               part.type === "text" ? (
@@ -179,10 +231,33 @@ export function StudioChat({
         {isBusy ? (
           <p className="text-muted-foreground flex items-center gap-2 text-xs">
             <Loader2 className="size-3 animate-spin" aria-hidden />
-            {labels.generating}
+            {labels.thinking}
           </p>
         ) : null}
       </div>
+
+      {agent.error ? (
+        <div
+          className="border-border text-muted-foreground border-t px-4 py-3 text-sm"
+          role="alert"
+        >
+          <p className="text-foreground flex items-center gap-2 font-medium">
+            <AlertTriangle className="size-4 shrink-0" aria-hidden />
+            {labels.assistantError}
+          </p>
+          <p className="mt-1 break-words">{agent.error.message}</p>
+          <p className="mt-1">{labels.assistantErrorHint}</p>
+        </div>
+      ) : null}
+
+      {bindWarning ? (
+        <p
+          className="border-border text-muted-foreground border-t px-4 py-2 text-xs"
+          role="status"
+        >
+          {labels.bindWarning}
+        </p>
+      ) : null}
 
       <form
         className="border-border flex items-end gap-2 border-t p-3"
@@ -190,7 +265,7 @@ export function StudioChat({
       >
         <Textarea
           aria-label={labels.promptPlaceholder}
-          className="max-h-40 min-h-11 resize-none"
+          className={cn("max-h-40 min-h-11 resize-none")}
           disabled={isResuming}
           onChange={(event) => handleDraftChange(event.currentTarget.value)}
           onKeyDown={(event) => {

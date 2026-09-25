@@ -2574,7 +2574,14 @@
           "filterApproved": "Aprobadas",
           "elapsed": "Transcurrido",
           "lineage": "Linaje",
-          "from": "Prompt"
+          "from": "Prompt",
+          "you": "Tú",
+          "studio": "Estudio",
+          "thinking": "Trabajando…",
+          "assistantError": "El asistente no pudo terminar eso",
+          "assistantErrorHint": "Tu mensaje sigue en el cuadro. Vuelve a enviarlo o reformúlalo.",
+          "bindWarning": "Esta conversación no se pudo guardar en el proyecto, así que puede que no reaparezca tras recargar.",
+          "loadOlder": "Cargar versiones anteriores"
         }
       }
     },

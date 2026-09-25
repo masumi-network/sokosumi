@@ -29,7 +29,11 @@ export default async function ProjectStudioPage({
   }
 
   const [state, t, formatter] = await Promise.all([
-    imageStudioService.getState(project.id),
+    imageStudioService.getState(project.id, {
+      // A selection in the URL may be older than the newest page, so Core is
+      // told to include it whatever its age.
+      ...(query.v ? { assetId: query.v } : {}),
+    }),
     getTranslations("App.Projects.Detail.imageStudio"),
     getFormatter(),
   ]);
@@ -77,6 +81,13 @@ export default async function ProjectStudioPage({
     elapsed: t("elapsed"),
     lineage: t("lineage"),
     from: t("from"),
+    you: t("you"),
+    studio: t("studio"),
+    thinking: t("thinking"),
+    assistantError: t("assistantError"),
+    assistantErrorHint: t("assistantErrorHint"),
+    bindWarning: t("bindWarning"),
+    loadOlder: t("loadOlder"),
   };
 
   // A session id in the URL is a request to resume, not a right to. Only a

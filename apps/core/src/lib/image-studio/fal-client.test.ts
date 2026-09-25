@@ -4,10 +4,12 @@ vi.mock("@/config/env", () => ({ getEnv: () => ({ FAL_KEY: "test-key" }) }));
 
 import {
   buildFalInput,
+  downloadImage,
   falModelForKind,
   fetchQueueStatus,
   IMAGE_MODEL_EDIT,
   IMAGE_MODEL_GENERATE,
+  isAllowedMediaUrl,
   parseImages,
   queueRequestModel,
   submitToQueue,
@@ -216,5 +218,118 @@ describe("parseImages", () => {
   it("ignores anything that is not a usable image entry", () => {
     expect(parseImages({ images: [null, {}, { url: "" }] })).toEqual([]);
     expect(parseImages(null)).toEqual([]);
+  });
+});
+
+describe("media URL allow-list", () => {
+  it("accepts the provider's media hosts over https", () => {
+    expect(isAllowedMediaUrl("https://v3b.fal.media/files/a.png")).toBe(true);
+    expect(isAllowedMediaUrl("https://rest.fal.ai/x")).toBe(true);
+  });
+
+  it("refuses anything else", () => {
+    // The URL comes from a provider payload, so it is input. Without this an
+    // attacker-shaped payload could have Core fetch an internal address and
+    // write the response into blob storage.
+    expect(isAllowedMediaUrl("http://v3b.fal.media/a.png")).toBe(false);
+    expect(isAllowedMediaUrl("https://169.254.169.254/latest/meta-data")).toBe(
+      false,
+    );
+    expect(isAllowedMediaUrl("https://fal.media.evil.test/a.png")).toBe(false);
+    expect(isAllowedMediaUrl("file:///etc/passwd")).toBe(false);
+    expect(isAllowedMediaUrl("not a url")).toBe(false);
+  });
+});
+
+describe("downloadImage", () => {
+  it("refuses a URL outside the allow-list before making any request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      downloadImage("https://internal.test/a.png", 1024),
+    ).rejects.toThrow(/allowed provider host/);
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("re-checks every redirect hop", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(null, {
+            status: 302,
+            headers: { location: "https://169.254.169.254/latest/meta-data" },
+          }),
+      ),
+    );
+    // A permitted host must not be able to bounce us somewhere else.
+    await expect(
+      downloadImage("https://v3b.fal.media/files/a.png", 1024),
+    ).rejects.toThrow(/allowed provider host/);
+    vi.unstubAllGlobals();
+  });
+
+  it("stops a redirect loop", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(null, {
+            status: 302,
+            headers: { location: "https://v3b.fal.media/files/loop.png" },
+          }),
+      ),
+    );
+    await expect(
+      downloadImage("https://v3b.fal.media/files/a.png", 1024),
+    ).rejects.toThrow(/too many redirects/);
+    vi.unstubAllGlobals();
+  });
+
+  it("stops reading once the limit is passed, without trusting content-length", async () => {
+    let produced = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        produced += 1;
+        controller.enqueue(new Uint8Array(64));
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(body, {
+            status: 200,
+            // Understates the real size on purpose.
+            headers: { "content-length": "8", "content-type": "image/png" },
+          }),
+      ),
+    );
+
+    await expect(
+      downloadImage("https://v3b.fal.media/files/a.png", 128),
+    ).rejects.toThrow(/larger than 128 bytes/);
+    // Enforced as bytes arrive: a lying header cannot make Core buffer an
+    // unbounded response first and check afterwards.
+    expect(produced).toBeLessThan(10);
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the bytes when they fit", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(new Uint8Array([1, 2, 3]), {
+            status: 200,
+            headers: { "content-type": "image/png" },
+          }),
+      ),
+    );
+    await expect(
+      downloadImage("https://v3b.fal.media/files/a.png", 1024),
+    ).resolves.toMatchObject({ contentType: "image/png" });
+    vi.unstubAllGlobals();
   });
 });

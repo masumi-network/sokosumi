@@ -146,12 +146,19 @@ const withImageStudioAgent = (config: NextConfig) =>
     agents: {
       "image-studio": {
         root: "./agents/image-studio",
+        // Invoked through `node` with an explicit path rather than as a bare
+        // `eve`. The generated service build runs from the agent root with a
+        // plain PATH, so a bare binary name exits 127 ("eve: command not
+        // found") after Next.js has already succeeded — which is what broke
+        // both Vercel previews on the first push here.
+        //
         // `--skip-sandbox-prewarm` because this agent has no sandbox tools:
         // `defaultTools: false` removes bash, read_file and write_file, and no
         // authored tool calls `ctx.getSandbox()`. Prewarming a template it
         // will never open would otherwise make the build depend on a sandbox
         // provider being available on the build machine.
-        buildCommand: "eve build --skip-sandbox-prewarm",
+        buildCommand:
+          "node ../../node_modules/eve/bin/eve.js build --skip-sandbox-prewarm",
       },
     },
   });

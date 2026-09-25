@@ -4285,10 +4285,27 @@ model ProjectImageJob {
   /// Provider-facing error text, already stripped of anything secret.
   error        String?
 
-  submittedAt DateTime?
-  settledAt   DateTime?
+  /// When somebody asked the provider to stop, and it accepted.
+  ///
+  /// Separate from `status` because fal documents that an accepted
+  /// cancellation may still complete: for a request already running it only
+  /// signals the runner. Writing CANCELED as a terminal status here threw away
+  /// images we had paid for. The job keeps reconciling; this field is what the
+  /// UI reads to say "cancellation requested".
+  cancelRequestedAt DateTime?
+
+  submittedAt   DateTime?
+  settledAt     DateTime?
   /// Last time a reconcile actually reached the provider.
-  polledAt    DateTime?
+  polledAt      DateTime?
+  /// Consecutive reconcile attempts that could not reach the provider at all.
+  ///
+  /// A transport failure says nothing about the job, so it must not settle it.
+  /// This counts how long that has been going on, so a job whose request the
+  /// provider has genuinely lost still stops eventually.
+  pollFailures  Int       @default(0)
+  /// Why the last reconcile could not reach the provider. Display only.
+  lastPollError String?
 
   asset ProjectImageAsset?
 

@@ -17,8 +17,14 @@ import type {
  * Nothing here decides anything.
  */
 export const imageStudioService = {
-  async getState(projectId: string): Promise<ProjectImageStudioState> {
-    const result = await coreClient.getProjectsByIdImageStudio(projectId);
+  async getState(
+    projectId: string,
+    query: { assetId?: string; before?: Date } = {},
+  ): Promise<ProjectImageStudioState> {
+    const result = await coreClient.getProjectsByIdImageStudio(
+      projectId,
+      query,
+    );
     return result.data;
   },
 

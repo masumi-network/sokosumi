@@ -20,7 +20,13 @@ import {
 import { StudioChat } from "./studio-chat";
 import { StudioHistory } from "./studio-history";
 import { StudioPreview } from "./studio-preview";
-import { isActive, type StudioLabels, type StudioState } from "./types";
+import {
+  isActive,
+  type StudioAsset,
+  type StudioJob,
+  type StudioLabels,
+  type StudioState,
+} from "./types";
 import { useStudioState } from "./use-studio-state";
 
 type Filter = "all" | "approved";
@@ -50,6 +56,9 @@ export function ImageStudio({
   const searchParams = useSearchParams();
   const [filter, setFilter] = useState<Filter>("all");
   const [comparing, setComparing] = useState(false);
+  const [cancelRequestedJobIds, setCancelRequestedJobIds] = useState<string[]>(
+    [],
+  );
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -72,7 +81,15 @@ export function ImageStudio({
     onSelectionChange: syncSelectionToUrl,
   });
 
-  const { selectedAsset, selectAsset, state, activeJobs, refresh } = studio;
+  const {
+    selectedAsset,
+    selectAsset,
+    state,
+    activeJobs,
+    refresh,
+    loadOlder,
+    hasOlder,
+  } = studio;
 
   const visibleAssets = useMemo(
     () =>
@@ -166,18 +183,29 @@ export function ImageStudio({
     });
   }
 
-  function handleRegenerate() {
-    if (!selectedAsset) return;
+  /**
+   * Start a generation, always on somebody's explicit terms.
+   *
+   * Settings come from whatever the work derives from, never from a default.
+   * Forcing 1:1/1K turned a landscape 2K original into a square thumbnail,
+   * which reads as the product ignoring the request.
+   */
+  function startGeneration(input: {
+    prompt: string;
+    parentAssetId: string | null;
+    referenceAssetIds: string[];
+    settings: { aspectRatio: string; resolution: string };
+  }) {
     setActionError(null);
     startTransition(async () => {
       try {
         await startImageGeneration({
           projectId,
-          prompt: selectedAsset.prompt,
-          aspectRatio: "1:1",
-          resolution: "1K",
-          parentAssetId: selectedAsset.id,
-          referenceAssetIds: [selectedAsset.id],
+          prompt: input.prompt,
+          aspectRatio: input.settings.aspectRatio,
+          resolution: input.settings.resolution,
+          parentAssetId: input.parentAssetId,
+          referenceAssetIds: input.referenceAssetIds,
           sessionId: null,
           // New key per click: this is a deliberate second image, not a retry
           // of a request that may already be in flight.
@@ -190,34 +218,57 @@ export function ImageStudio({
     });
   }
 
-  function handleSubmitAnyway(job: {
-    prompt: string;
-    parentAssetId: string | null;
-  }) {
-    setActionError(null);
-    startTransition(async () => {
-      try {
-        await startImageGeneration({
-          projectId,
-          prompt: job.prompt,
-          aspectRatio: "1:1",
-          resolution: "1K",
-          parentAssetId: job.parentAssetId,
-          referenceAssetIds: job.parentAssetId ? [job.parentAssetId] : [],
-          sessionId: null,
-          idempotencyKey: `ui:${crypto.randomUUID()}`,
-        });
-        await refresh();
-      } catch (error) {
-        setActionError(error instanceof Error ? error.message : labels.failed);
-      }
+  function settingsOf(asset: StudioAsset | null) {
+    return {
+      aspectRatio: asset?.settings?.aspectRatio ?? "1:1",
+      resolution: asset?.settings?.resolution ?? "1K",
+    };
+  }
+
+  function handleRegenerate() {
+    if (!selectedAsset) return;
+    startGeneration({
+      prompt: selectedAsset.prompt,
+      parentAssetId: selectedAsset.id,
+      referenceAssetIds: [selectedAsset.id],
+      settings: settingsOf(selectedAsset),
     });
+  }
+
+  /**
+   * Retry a generation that definitely failed, on its own terms.
+   *
+   * Previously this reran the *selected* version's prompt and reference, so a
+   * failure while looking at something else bought an unrelated image — and
+   * bought nothing at all when nothing was selected yet.
+   */
+  function handleRetryFailed(job: StudioJob) {
+    const parent = job.parentAssetId
+      ? (state.assets.find((asset) => asset.id === job.parentAssetId) ?? null)
+      : null;
+    startGeneration({
+      prompt: job.prompt,
+      parentAssetId: job.parentAssetId,
+      referenceAssetIds: job.parentAssetId ? [job.parentAssetId] : [],
+      settings: settingsOf(parent),
+    });
+  }
+
+  function handleSubmitAnyway(job: StudioJob) {
+    handleRetryFailed(job);
   }
 
   function handleCancelJob(jobId: string) {
     startTransition(async () => {
       try {
-        await requestImageJobCancel({ projectId, jobId });
+        const result = await requestImageJobCancel({ projectId, jobId });
+        // Only that the provider accepted the request. It may still finish, so
+        // nothing here treats the job as over.
+        if (result.accepted) {
+          setCancelRequestedJobIds((current) =>
+            current.includes(jobId) ? current : [...current, jobId],
+          );
+        }
         await refresh();
       } catch (error) {
         setActionError(error instanceof Error ? error.message : labels.failed);
@@ -236,6 +287,7 @@ export function ImageStudio({
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(22rem,1fr)]">
         <StudioPreview
           asset={selectedAsset}
+          cancelRequestedJobIds={cancelRequestedJobIds}
           compareWith={comparing ? parentAsset : null}
           labels={labels}
           onApprove={(feedback) => handleReview("APPROVED", feedback)}
@@ -244,6 +296,7 @@ export function ImageStudio({
           onClearReview={handleClearReview}
           onRegenerate={handleRegenerate}
           onReject={(feedback) => handleReview("REJECTED", feedback)}
+          onRetryFailed={handleRetryFailed}
           onSubmitAnyway={handleSubmitAnyway}
           onToggleCompare={() => setComparing((value) => !value)}
           pendingJobs={activeJobs}
@@ -257,6 +310,7 @@ export function ImageStudio({
           onActivity={() => void refresh()}
           projectId={projectId}
           resumeSessionId={resumeSessionId}
+          selectedAsset={selectedAsset}
         />
       </div>
 
@@ -298,14 +352,25 @@ export function ImageStudio({
             )}
           </p>
         ) : (
-          <StudioHistory
-            activeJobs={activeJobs}
-            assets={visibleAssets}
-            labels={labels}
-            onSelect={selectAsset}
-            projectId={projectId}
-            selectedAssetId={selectedAsset?.id ?? null}
-          />
+          <>
+            <StudioHistory
+              activeJobs={activeJobs}
+              assets={visibleAssets}
+              labels={labels}
+              onSelect={selectAsset}
+              projectId={projectId}
+              selectedAssetId={selectedAsset?.id ?? null}
+            />
+            {hasOlder ? (
+              <Button
+                onClick={() => void loadOlder()}
+                size="sm"
+                variant="ghost"
+              >
+                {labels.loadOlder}
+              </Button>
+            ) : null}
+          </>
         )}
       </div>
     </div>

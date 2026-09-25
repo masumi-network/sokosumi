@@ -15,6 +15,7 @@ import {
   DEFAULT_SETTINGS,
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
+import { authorizeAgentSession } from "@/services/image-studio-sessions.service";
 
 /**
  * The surface the image-studio agent calls.
@@ -70,12 +71,34 @@ async function authorize(request: Request): Promise<GrantContext | Response> {
 
 const app = new Hono();
 
+/**
+ * Authorize one operation on an eve session.
+ *
+ * Called by the agent's channel policy on every request that names a session,
+ * before eve does anything with it. The answer is deliberately minimal: it
+ * says yes or no, and nothing about the conversation.
+ */
+app.post("/sessions/:eveSessionId/authorize", async (c) => {
+  const context = await authorize(c.req.raw);
+  if (context instanceof Response) return context;
+
+  const eveSessionId = c.req.param("eveSessionId");
+  if (!eveSessionId) return c.json({ ok: false, error: "invalid_input" }, 400);
+
+  const session = await authorizeAgentSession({
+    eveSessionId,
+    projectId: context.projectId,
+    userId: context.userId,
+  });
+  return c.json({ ok: true, sessionId: session.id });
+});
+
 app.get("/versions", async (c) => {
   const context = await authorize(c.req.raw);
   if (context instanceof Response) return context;
 
   await reconcileProjectJobs(context.projectId);
-  const [assets, jobs] = await Promise.all([
+  const [assetPage, jobs] = await Promise.all([
     listAssets({ ...context, limit: 40 }),
     listJobs({ ...context, limit: 20 }),
   ]);
@@ -84,7 +107,7 @@ app.get("/versions", async (c) => {
     ok: true,
     // No URLs. The agent describes versions; it never hands out a way to read
     // the bytes, and neither the model nor a tool result should carry one.
-    versions: assets.map((asset) => ({
+    versions: assetPage.assets.map((asset) => ({
       id: asset.id,
       version: asset.version,
       lineageId: asset.rootId,

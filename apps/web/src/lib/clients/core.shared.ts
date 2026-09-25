@@ -41,6 +41,7 @@ import type {
   GetJobsData,
   GetNotificationsData,
   GetProjectsByIdCalendarData,
+  GetProjectsByIdImageStudioData,
   GetProjectsByIdSocialPostsData,
   GetProjectsData,
   GetProjectsStatsData,
@@ -3041,13 +3042,17 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getProjectsByIdImageStudio(id: string) {
+  async function getProjectsByIdImageStudio(
+    id: string,
+    query?: GetProjectsByIdImageStudioData["query"],
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreGetProjectsByIdImageStudio({
           client,
           path: { id },
+          query,
           cache: "no-store",
         }),
       "Failed to fetch Project image studio",

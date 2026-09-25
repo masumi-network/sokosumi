@@ -16,7 +16,10 @@ import {
 } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { requireProjectAccess } from "@/lib/image-studio/access";
+import {
+  requireProjectAccess,
+  requireProjectAccessForUser,
+} from "@/lib/image-studio/access";
 import {
   buildFalInput,
   cancelQueued,
@@ -412,9 +415,19 @@ export async function reconcileJob(jobId: string): Promise<void> {
     model: job.model,
     requestId: job.falRequestId,
   });
+
+  // A read that never reached fal tells us nothing about the job, so it must
+  // not settle it. Count it, keep the row live, and let a later attempt — or
+  // the provider's own callback — finish it. Only a run of failures long
+  // enough to be structural gives up.
+  if (status.kind === "unreachable") {
+    await noteUnreachable(job.id, status.message);
+    return;
+  }
+
   await prisma.projectImageJob.updateMany({
     where: { id: job.id },
-    data: { polledAt: new Date() },
+    data: { polledAt: new Date(), pollFailures: 0, lastPollError: null },
   });
 
   switch (status.kind) {
@@ -427,8 +440,8 @@ export async function reconcileJob(jobId: string): Promise<void> {
       });
       return;
     case "not_found":
-      // fal forgot it. Nothing more will arrive, and we already paid or did
-      // not — either way there is no image coming.
+      // fal answered, and the answer is that the request is gone. Nothing more
+      // is coming, so this one really is terminal.
       await failJob(job.id, "fal no longer has this request");
       return;
     case "error":
@@ -443,11 +456,43 @@ export async function reconcileJob(jobId: string): Promise<void> {
     requestId: job.falRequestId,
   });
   if (result.kind === "pending") return;
+  if (result.kind === "unreachable") {
+    await noteUnreachable(job.id, result.message);
+    return;
+  }
   if (result.kind === "error") {
     await failJob(job.id, result.message);
     return;
   }
+  // Settled even when cancellation was requested: fal may accept a
+  // cancellation and finish anyway, and an image we paid for should be kept.
   await settleWithImage(job.id, result.images[0]!.url);
+}
+
+/**
+ * How many consecutive unreachable reads before a job is given up on.
+ *
+ * With the cron at five minutes this is roughly an hour of the provider being
+ * unreachable for one request while every other signal is silent.
+ */
+const MAX_CONSECUTIVE_POLL_FAILURES = 12;
+
+async function noteUnreachable(jobId: string, message: string): Promise<void> {
+  const updated = await prisma.projectImageJob.update({
+    where: { id: jobId },
+    data: {
+      polledAt: new Date(),
+      pollFailures: { increment: 1 },
+      lastPollError: message.slice(0, 500),
+    },
+    select: { pollFailures: true },
+  });
+  if (updated.pollFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+    await failJob(
+      jobId,
+      `The provider could not be reached for this request (${message.slice(0, 200)}).`,
+    );
+  }
 }
 
 async function failJob(jobId: string, message: string): Promise<void> {
@@ -488,18 +533,30 @@ export async function settleWithImage(
     return;
   }
 
-  // Re-check that the destination still exists before spending a download and
-  // a blob write on it. A project deleted mid-flight has nowhere to put this.
-  const project = await prisma.project.findUnique({
-    where: { id: job.projectId },
-    select: { id: true, workspaceId: true },
-  });
-  if (!project) {
+  // Re-check the destination *and* the person who asked for this, at the
+  // moment the image arrives.
+  //
+  // There is no request context here — this runs from a webhook, a cron, or
+  // somebody else's page load — so the check has to be made explicitly.
+  // Without it, a job started by someone who has since been removed from the
+  // organization still downloaded the image, wrote it into blob storage, and
+  // published a version into a project they can no longer see.
+  let project: { id: string; workspaceId: string };
+  try {
+    const access = await requireProjectAccessForUser({
+      projectId: job.projectId,
+      userId: job.requestedByUserId,
+    });
+    project = { id: access.projectId, workspaceId: access.workspaceId };
+  } catch {
+    // Either the project is gone or the requester no longer has access to it.
+    // In both cases the image is not downloaded and nothing is stored.
     await prisma.projectImageJob.updateMany({
       where: { id: job.id },
       data: {
         status: ProjectImageJobStatus.ORPHANED,
-        error: "The project was removed before the image arrived.",
+        error:
+          "The image was discarded: the project or the requester's access to it is gone.",
         settledAt: new Date(),
       },
     });
@@ -677,6 +734,13 @@ function isUniqueViolation(error: unknown): boolean {
  */
 export async function reconcileProjectJobs(projectId: string): Promise<void> {
   await sweepStalledSubmissions();
+  // Deployments without a reachable webhook settle here, so this is also where
+  // a reservation stranded by a crashed request gets picked back up.
+  await recoverUnclaimedReservations().catch((error) => {
+    console.warn("[image-studio] reservation recovery failed", {
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  });
   const pending = await prisma.projectImageJob.findMany({
     where: {
       projectId,
@@ -711,8 +775,18 @@ export async function reconcileProjectJobs(projectId: string): Promise<void> {
 export async function reconcileStaleJobs(options: {
   olderThanMs: number;
   limit: number;
-}): Promise<{ swept: number; reconciled: number }> {
+}): Promise<{
+  swept: number;
+  reconciled: number;
+  recovered: number;
+  abandoned: number;
+  cancelled: number;
+}> {
   const swept = await sweepStalledSubmissions();
+  // Reservations whose process died before it reached fal. Provably unsent,
+  // so finishing them costs nothing that was not already intended.
+  const recovery = await recoverUnclaimedReservations();
+  const cancelled = await finaliseCancellations(options.limit);
   const stale = await prisma.projectImageJob.findMany({
     where: {
       status: {
@@ -736,7 +810,13 @@ export async function reconcileStaleJobs(options: {
       });
     }
   }
-  return { swept, reconciled };
+  return {
+    swept,
+    reconciled,
+    recovered: recovery.submitted,
+    abandoned: recovery.abandoned,
+    cancelled,
+  };
 }
 
 /**
@@ -764,23 +844,152 @@ export async function requestCancel(options: {
     model: job.model,
     requestId: job.falRequestId,
   });
+
   if (outcome === "accepted") {
+    // Recorded as a request, not as an outcome. fal documents that a request
+    // already in progress is only signalled, so it can still finish — and when
+    // it does we keep the image rather than throwing away something paid for.
+    // The job stays live and keeps reconciling.
     await prisma.projectImageJob.updateMany({
       where: {
         id: job.id,
         status: {
           in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
         },
+        cancelRequestedAt: null,
       },
-      data: {
-        status: ProjectImageJobStatus.CANCELED,
-        settledAt: new Date(),
-        error: "Cancellation was requested.",
-      },
+      data: { cancelRequestedAt: new Date() },
     });
   }
+
+  if (outcome === "already_finished") {
+    // Nothing to cancel; let the normal reconcile collect the result.
+    await reconcileJob(job.id).catch(() => {});
+  }
+
   return { accepted: outcome === "accepted" };
 }
+
+/**
+ * Settle a job the provider confirms it never started.
+ *
+ * Only reached from the sweep, and only for a job whose cancellation was
+ * requested and which fal now reports as gone. This is the one path that
+ * writes CANCELED, and by then the provider has already said there is no
+ * result coming.
+ */
+async function finaliseCancellations(limit: number): Promise<number> {
+  const requested = await prisma.projectImageJob.findMany({
+    where: {
+      cancelRequestedAt: { not: null },
+      status: {
+        in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
+      },
+    },
+    orderBy: { cancelRequestedAt: "asc" },
+    take: limit,
+    select: { id: true, model: true, falRequestId: true },
+  });
+
+  let finalised = 0;
+  for (const job of requested) {
+    if (!job.falRequestId) continue;
+    const status = await fetchQueueStatus({
+      model: job.model,
+      requestId: job.falRequestId,
+    });
+    // Unreachable says nothing; leave it for the next pass.
+    if (status.kind === "unreachable") continue;
+    if (status.kind === "not_found") {
+      const settled = await prisma.projectImageJob.updateMany({
+        where: {
+          id: job.id,
+          status: {
+            in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
+          },
+        },
+        data: {
+          status: ProjectImageJobStatus.CANCELED,
+          settledAt: new Date(),
+          error: "Cancelled before the provider produced an image.",
+        },
+      });
+      finalised += settled.count;
+      continue;
+    }
+    // Still queued, running, or finished: the ordinary reconcile handles it,
+    // including keeping an image that arrived despite the cancellation.
+    await reconcileJob(job.id).catch(() => {});
+  }
+  return finalised;
+}
+
+/**
+ * Recover a reservation whose process died before it claimed the submission.
+ *
+ * A row created by `reserveJob` but never claimed has provably not reached
+ * fal: `submitAttempts` is still zero, and the claim and the network call are
+ * the same step. Nothing was bought, so this is safe to finish — unlike
+ * `SUBMITTING`, which must never go backwards.
+ *
+ * Without this, a crash in that window left a `PENDING` row consuming the
+ * project's concurrency budget for ever, and the replay path handed every
+ * retry the same stuck row.
+ */
+export async function recoverUnclaimedReservations(
+  now: Date = new Date(),
+): Promise<{ submitted: number; abandoned: number }> {
+  const stale = await prisma.projectImageJob.findMany({
+    where: {
+      status: ProjectImageJobStatus.PENDING,
+      submitAttempts: 0,
+      createdAt: { lt: new Date(now.getTime() - PENDING_RECOVERY_AFTER_MS) },
+    },
+    orderBy: { createdAt: "asc" },
+    take: 20,
+    select: { id: true, createdAt: true },
+  });
+
+  let submitted = 0;
+  let abandoned = 0;
+  for (const job of stale) {
+    // Past this age the person who asked has long gone; releasing the slot is
+    // kinder than buying an image nobody is waiting for.
+    if (job.createdAt.getTime() < now.getTime() - PENDING_ABANDON_AFTER_MS) {
+      const released = await prisma.projectImageJob.updateMany({
+        where: {
+          id: job.id,
+          status: ProjectImageJobStatus.PENDING,
+          submitAttempts: 0,
+        },
+        data: {
+          status: ProjectImageJobStatus.FAILED,
+          error:
+            "Abandoned before it was sent to the provider. Nothing was charged.",
+          settledAt: new Date(),
+        },
+      });
+      abandoned += released.count;
+      continue;
+    }
+    if (!(await claimForSubmission(job.id))) continue;
+    try {
+      await sendClaimedJob(job.id);
+      submitted += 1;
+    } catch (error) {
+      console.warn("[image-studio] recovery submit failed", {
+        jobId: job.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
+  }
+  return { submitted, abandoned };
+}
+
+/** Old enough that its creator is not still waiting on the same request. */
+const PENDING_RECOVERY_AFTER_MS = 60_000;
+/** Old enough that sending it would surprise somebody. */
+const PENDING_ABANDON_AFTER_MS = 30 * 60_000;
 
 /**
  * Minimal PNG header read, so a stored version knows its own size without

@@ -35,6 +35,9 @@ export interface StudioStateHook {
   selectAsset: (assetId: string) => void;
   activeJobs: StudioJob[];
   refresh: () => Promise<void>;
+  /** Appends the next, older page of versions. */
+  loadOlder: () => Promise<void>;
+  hasOlder: boolean;
   isRefreshing: boolean;
   error: string | null;
 }
@@ -99,8 +102,13 @@ export function useStudioState(options: {
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
+      // The selection is pinned into the request so a version older than the
+      // newest page is still returned, and the preview does not empty out at
+      // image 101.
+      const selected = selectionRef.current.assetId;
+      const query = selected ? `?assetId=${encodeURIComponent(selected)}` : "";
       const response = await fetch(
-        `/api/projects/${projectId}/image-studio/state`,
+        `/api/projects/${projectId}/image-studio/state${query}`,
         { credentials: "same-origin", cache: "no-store" },
       );
       if (!response.ok) {
@@ -133,6 +141,43 @@ export function useStudioState(options: {
     return () => clearInterval(timer);
   }, [hasActive, refresh]);
 
+  /**
+   * Fetch the next page of older versions and keep what is already shown.
+   *
+   * Merged by id rather than replaced, so an already-pinned selection and the
+   * newest page both survive.
+   */
+  const loadOlder = useCallback(async () => {
+    const cursor = state.nextCursor;
+    if (!cursor) return;
+    setIsRefreshing(true);
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/image-studio/state?before=${encodeURIComponent(
+          new Date(cursor as unknown as string).toISOString(),
+        )}`,
+        { credentials: "same-origin", cache: "no-store" },
+      );
+      if (!response.ok) return;
+      const older = (await response.json()) as StudioState;
+      setState((previous) => {
+        const known = new Set(previous.assets.map((asset) => asset.id));
+        return {
+          ...previous,
+          assets: [
+            ...previous.assets,
+            ...older.assets.filter((asset) => !known.has(asset.id)),
+          ],
+          nextCursor: older.nextCursor,
+        };
+      });
+    } catch {
+      setError("Could not load older versions.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [projectId, state.nextCursor]);
+
   const selectAsset = useCallback(
     (assetId: string) => {
       setSelection({ assetId, chosenByUserAt: Date.now() });
@@ -150,6 +195,8 @@ export function useStudioState(options: {
     selectAsset,
     activeJobs,
     refresh,
+    loadOlder,
+    hasOlder: state.nextCursor !== null,
     isRefreshing,
     error,
   };

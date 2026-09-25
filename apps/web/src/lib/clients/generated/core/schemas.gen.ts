@@ -16336,12 +16336,21 @@ export const ProjectImageStudioStateSchema = {
             items: {
                 $ref: '#/components/schemas/ProjectImageSession'
             }
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         }
     },
     required: [
         'assets',
         'jobs',
-        'sessions'
+        'sessions',
+        'nextCursor'
     ]
 } as const;
 
@@ -16397,6 +16406,9 @@ export const ProjectImageAssetSchema = {
             type: 'string',
             format: 'uuid'
         },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
         contentPath: {
             type: 'string'
         },
@@ -16417,8 +16429,55 @@ export const ProjectImageAssetSchema = {
         'contentType',
         'createdAt',
         'jobId',
+        'settings',
         'contentPath'
     ]
+} as const;
+
+export const ProjectImageSettingsSchema = {
+    type: 'object',
+    properties: {
+        aspectRatio: {
+            type: 'string',
+            enum: [
+                '1:1',
+                '4:3',
+                '3:4',
+                '16:9',
+                '9:16',
+                '3:2',
+                '2:3'
+            ],
+            default: '1:1'
+        },
+        resolution: {
+            type: 'string',
+            enum: [
+                '0.5K',
+                '1K',
+                '2K'
+            ],
+            default: '1K'
+        },
+        outputFormat: {
+            type: 'string',
+            enum: [
+                'png',
+                'jpeg',
+                'webp'
+            ],
+            default: 'png'
+        },
+        seed: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 2147483647,
+            default: null
+        }
+    }
 } as const;
 
 export const ProjectImageReviewSchema = {
@@ -16631,52 +16690,6 @@ export const CreateProjectImageJobRequestSchema = {
         'prompt',
         'idempotencyKey'
     ]
-} as const;
-
-export const ProjectImageSettingsSchema = {
-    type: 'object',
-    properties: {
-        aspectRatio: {
-            type: 'string',
-            enum: [
-                '1:1',
-                '4:3',
-                '3:4',
-                '16:9',
-                '9:16',
-                '3:2',
-                '2:3'
-            ],
-            default: '1:1'
-        },
-        resolution: {
-            type: 'string',
-            enum: [
-                '0.5K',
-                '1K',
-                '2K'
-            ],
-            default: '1K'
-        },
-        outputFormat: {
-            type: 'string',
-            enum: [
-                'png',
-                'jpeg',
-                'webp'
-            ],
-            default: 'png'
-        },
-        seed: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0,
-            maximum: 2147483647,
-            default: null
-        }
-    }
 } as const;
 
 export const CancelProjectImageJobResponseSchema = {

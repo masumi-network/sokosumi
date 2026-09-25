@@ -50,6 +50,41 @@ async function call<T>(
   return body;
 }
 
+/**
+ * Authorize one operation on a session, against its live project binding.
+ *
+ * Returns false rather than throwing so the channel policy can answer 401
+ * without leaking whether the session exists, belongs elsewhere, or the
+ * caller's access was revoked.
+ */
+export async function authorizeSession(
+  identity: AgentIdentity,
+  eveSessionId: string,
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${baseUrl()}/image-studio-agent/sessions/${encodeURIComponent(eveSessionId)}/authorize`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${mintGrant(identity)}`,
+          "content-type": "application/json",
+        },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      },
+    );
+    if (!response.ok) return false;
+    const body = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+    } | null;
+    return body?.ok === true;
+  } catch {
+    // Fail closed. An authorization we could not perform is not an
+    // authorization we may assume.
+    return false;
+  }
+}
+
 export interface VersionSummary {
   id: string;
   version: number;

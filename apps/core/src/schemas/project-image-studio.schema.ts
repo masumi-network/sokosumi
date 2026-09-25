@@ -93,6 +93,12 @@ export const imageStudioAssetSchema = z
     createdAt: dateTimeSchema,
     jobId: z.string().uuid(),
     /**
+     * The provider input this version was made with, so a variation can be
+     * asked for on the same terms. Without it the client had to guess, and a
+     * landscape 2K original quietly came back square and 1K.
+     */
+    settings: imageStudioSettingsSchema,
+    /**
      * Where the bytes are served from. Always a Core route: the stored object
      * is private and has no URL a client could fetch directly.
      */
@@ -168,11 +174,26 @@ export const bindImageSessionRequestSchema = z
   })
   .openapi("BindProjectImageSessionRequest");
 
+export const imageStudioStateQuerySchema = z.object({
+  /**
+   * A version the caller is looking at. It is returned whatever its age, so a
+   * selection older than the newest page does not vanish from the client.
+   */
+  assetId: z.string().uuid().optional(),
+  /** `createdAt` of the oldest asset the caller already has, for older pages. */
+  before: z.string().datetime().optional(),
+});
+
 export const imageStudioListSchema = z
   .object({
     assets: z.array(imageStudioAssetSchema),
     jobs: z.array(imageStudioJobSchema),
     sessions: z.array(imageStudioSessionSchema),
+    /**
+     * Pass as `before` to fetch the next, older page. Null when the caller has
+     * reached the beginning.
+     */
+    nextCursor: dateTimeSchema.nullable(),
   })
   .openapi("ProjectImageStudioState");
 

@@ -2574,7 +2574,14 @@
           "filterApproved": "Approved",
           "elapsed": "Elapsed",
           "lineage": "Lineage",
-          "from": "Prompt"
+          "from": "Prompt",
+          "you": "You",
+          "studio": "Studio",
+          "thinking": "Working…",
+          "assistantError": "The assistant could not finish that",
+          "assistantErrorHint": "Your message is still in the box. Try sending it again, or rephrase it.",
+          "bindWarning": "This conversation could not be saved to the project, so it may not reappear after a reload.",
+          "loadOlder": "Load older versions"
         }
       }
     },

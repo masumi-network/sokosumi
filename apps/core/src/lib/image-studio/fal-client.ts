@@ -39,12 +39,21 @@ export type FalSubmitOutcome =
   /** No usable answer. The request may or may not be in the queue. */
   | { kind: "uncertain"; message: string };
 
+/**
+ * What a status read found.
+ *
+ * `unreachable` is deliberately distinct from `error`. `error` means fal
+ * answered and told us something about the request; `unreachable` means we
+ * never got an answer, which says nothing about the job. Collapsing the two
+ * turned a momentary network blip into a permanently abandoned paid request.
+ */
 export type FalStatus =
   | { kind: "in_queue"; queuePosition: number | null }
   | { kind: "in_progress" }
   | { kind: "completed" }
   | { kind: "not_found" }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string }
+  | { kind: "unreachable"; message: string };
 
 export interface FalImage {
   url: string;
@@ -214,11 +223,15 @@ export async function fetchQueueStatus(options: {
     });
   } catch (error) {
     return {
-      kind: "error",
+      kind: "unreachable",
       message: error instanceof Error ? error.message : "status read failed",
     };
   }
   if (response.status === 404) return { kind: "not_found" };
+  // A gateway 5xx is fal's infrastructure, not a verdict on the request.
+  if (response.status >= 500) {
+    return { kind: "unreachable", message: `fal returned ${response.status}` };
+  }
   if (!response.ok) {
     return { kind: "error", message: await readErrorMessage(response) };
   }
@@ -226,6 +239,9 @@ export async function fetchQueueStatus(options: {
     status?: string;
     queue_position?: number;
   } | null;
+  if (body === null) {
+    return { kind: "unreachable", message: "fal returned an unreadable body" };
+  }
   switch (body?.status) {
     case "IN_QUEUE":
       return {
@@ -255,6 +271,7 @@ export async function fetchQueueResult(options: {
   | { kind: "images"; images: FalImage[] }
   | { kind: "pending" }
   | { kind: "error"; message: string }
+  | { kind: "unreachable"; message: string }
 > {
   const url = `${QUEUE_ORIGIN}/${queueRequestModel(options.model)}/requests/${encodeURIComponent(options.requestId)}`;
   let response: Response;
@@ -265,17 +282,23 @@ export async function fetchQueueResult(options: {
     });
   } catch (error) {
     return {
-      kind: "error",
+      kind: "unreachable",
       message: error instanceof Error ? error.message : "result read failed",
     };
   }
   if (response.status === 202 || response.status === 404) {
     return { kind: "pending" };
   }
+  if (response.status >= 500) {
+    return { kind: "unreachable", message: `fal returned ${response.status}` };
+  }
   if (!response.ok) {
     return { kind: "error", message: await readErrorMessage(response) };
   }
   const body = await response.json().catch(() => null);
+  if (body === null) {
+    return { kind: "unreachable", message: "fal returned an unreadable body" };
+  }
   const images = parseImages(body);
   if (images.length === 0) {
     return { kind: "error", message: "fal returned no image" };
@@ -374,28 +397,105 @@ export async function uploadReference(options: {
   return body.file_url;
 }
 
-/** Download a generated image, refusing anything larger than `maxBytes`. */
+/**
+ * Hosts whose media we will fetch.
+ *
+ * The URL being downloaded comes from a provider payload, so it is input, not
+ * a constant. Without this list a compromised or spoofed payload could point
+ * Core at an internal address and have it fetch and store the response —
+ * server-side request forgery with a storage bucket attached. An allow-list is
+ * checked after every redirect hop, so a permitted host cannot bounce us
+ * somewhere else either.
+ */
+const ALLOWED_MEDIA_HOST_SUFFIXES = [".fal.media", ".fal.ai"] as const;
+
+/** Bounded so a redirect loop cannot spin. */
+const MAX_REDIRECTS = 3;
+
+export function isAllowedMediaUrl(candidate: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(candidate);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:") return false;
+  const host = url.hostname.toLowerCase();
+  return ALLOWED_MEDIA_HOST_SUFFIXES.some(
+    (suffix) => host === suffix.slice(1) || host.endsWith(suffix),
+  );
+}
+
+/**
+ * Download a generated image.
+ *
+ * Redirects are followed by hand so every hop is re-checked against the
+ * allow-list, and the body is read incrementally so the limit is enforced as
+ * bytes arrive rather than after the whole response is already in memory. A
+ * response that lies about `content-length` therefore cannot make Core buffer
+ * an unbounded amount.
+ */
 export async function downloadImage(
   url: string,
   maxBytes: number,
 ): Promise<{ bytes: Uint8Array; contentType: string }> {
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
-  });
-  if (!response.ok) {
-    throw new Error(`image download failed (${response.status})`);
+  let current = url;
+  for (let hop = 0; ; hop += 1) {
+    if (!isAllowedMediaUrl(current)) {
+      throw new Error("image URL is not an allowed provider host");
+    }
+    const response = await fetch(current, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      if (hop >= MAX_REDIRECTS) throw new Error("too many redirects");
+      const location = response.headers.get("location");
+      if (!location) throw new Error("redirect without a location");
+      // Resolve relative redirects against the hop we are on, then re-check.
+      current = new URL(location, current).toString();
+      continue;
+    }
+
+    if (!response.ok) {
+      throw new Error(`image download failed (${response.status})`);
+    }
+
+    const declared = Number(response.headers.get("content-length") ?? "0");
+    if (Number.isFinite(declared) && declared > maxBytes) {
+      throw new Error(`image is larger than ${maxBytes} bytes`);
+    }
+    if (!response.body) throw new Error("image response had no body");
+
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    const reader = response.body.getReader();
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        // Enforced per chunk: `content-length` is a claim, the body is the
+        // fact, and waiting for the end to find out is the whole problem.
+        if (total > maxBytes) {
+          throw new Error(`image is larger than ${maxBytes} bytes`);
+        }
+        chunks.push(value);
+      }
+    } finally {
+      await reader.cancel().catch(() => {});
+    }
+
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return {
+      bytes,
+      contentType: response.headers.get("content-type") ?? "image/png",
+    };
   }
-  const declared = Number(response.headers.get("content-length") ?? "0");
-  if (declared > maxBytes) {
-    throw new Error(`image is larger than ${maxBytes} bytes`);
-  }
-  const buffer = new Uint8Array(await response.arrayBuffer());
-  // `content-length` is a claim; the body is the fact.
-  if (buffer.byteLength > maxBytes) {
-    throw new Error(`image is larger than ${maxBytes} bytes`);
-  }
-  return {
-    bytes: buffer,
-    contentType: response.headers.get("content-type") ?? "image/png",
-  };
 }

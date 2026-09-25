@@ -19,6 +19,7 @@ import { requireProjectAccess } from "@/lib/image-studio/access";
 
 export interface AssetView {
   id: string;
+  settings: unknown;
   rootId: string;
   parentId: string | null;
   version: number;
@@ -40,6 +41,7 @@ export interface AssetView {
 
 const assetSelect = {
   id: true,
+  settings: true,
   rootId: true,
   parentId: true,
   version: true,
@@ -61,19 +63,56 @@ const assetSelect = {
   },
 } as const;
 
+/**
+ * A page of versions, newest first, plus any version the caller is looking at.
+ *
+ * The pinned asset matters: a selection is preserved in the URL, and a project
+ * past one page of history would otherwise reload to an empty preview because
+ * the selected version was not in the newest page. It is fetched by id
+ * regardless of age and merged in.
+ */
 export async function listAssets(options: {
   projectId: string;
   workspaceId: string;
   userId: string;
   limit: number;
-}): Promise<AssetView[]> {
+  /** Return versions older than this timestamp instead of the newest page. */
+  before?: Date;
+  /** Always include this version, whatever its age. */
+  pinnedAssetId?: string;
+}): Promise<{ assets: AssetView[]; nextCursor: Date | null }> {
   await requireProjectAccess(options);
-  return await prisma.projectImageAsset.findMany({
-    where: { projectId: options.projectId },
+
+  const page = await prisma.projectImageAsset.findMany({
+    where: {
+      projectId: options.projectId,
+      ...(options.before ? { createdAt: { lt: options.before } } : {}),
+    },
     orderBy: { createdAt: "desc" },
-    take: options.limit,
+    take: options.limit + 1,
     select: assetSelect,
   });
+
+  const hasMore = page.length > options.limit;
+  const assets = hasMore ? page.slice(0, options.limit) : page;
+
+  if (
+    options.pinnedAssetId &&
+    !assets.some((asset) => asset.id === options.pinnedAssetId)
+  ) {
+    const pinned = await prisma.projectImageAsset.findFirst({
+      where: { id: options.pinnedAssetId, projectId: options.projectId },
+      select: assetSelect,
+    });
+    // Appended rather than sorted in: it is older than everything on the page
+    // by construction, and the client keys off ids, not position.
+    if (pinned) assets.push(pinned);
+  }
+
+  return {
+    assets,
+    nextCursor: hasMore ? (assets.at(-1)?.createdAt ?? null) : null,
+  };
 }
 
 export async function getAsset(options: {

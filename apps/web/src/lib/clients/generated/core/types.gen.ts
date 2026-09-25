@@ -4923,6 +4923,7 @@ export type ProjectImageStudioState = {
     assets: Array<ProjectImageAsset>;
     jobs: Array<ProjectImageJob>;
     sessions: Array<ProjectImageSession>;
+    nextCursor: Date | null;
 };
 
 export type ProjectImageAsset = {
@@ -4938,8 +4939,16 @@ export type ProjectImageAsset = {
     contentType: string;
     createdAt: Date;
     jobId: string;
+    settings: ProjectImageSettings;
     contentPath: string;
     review?: ProjectImageReview;
+};
+
+export type ProjectImageSettings = {
+    aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3';
+    resolution?: '0.5K' | '1K' | '2K';
+    outputFormat?: 'png' | 'jpeg' | 'webp';
+    seed?: number | null;
 };
 
 export type ProjectImageReview = {
@@ -4979,13 +4988,6 @@ export type CreateProjectImageJobRequest = {
     parentAssetId?: string | null;
     sessionId?: string | null;
     idempotencyKey: string;
-};
-
-export type ProjectImageSettings = {
-    aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3';
-    resolution?: '0.5K' | '1K' | '2K';
-    outputFormat?: 'png' | 'jpeg' | 'webp';
-    seed?: number | null;
 };
 
 export type CancelProjectImageJobResponse = {
@@ -34705,7 +34707,10 @@ export type GetProjectsByIdImageStudioData = {
     path: {
         id: string;
     };
-    query?: never;
+    query?: {
+        assetId?: string;
+        before?: Date;
+    };
     url: '/projects/{id}/image-studio';
 };
 

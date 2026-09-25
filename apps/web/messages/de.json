@@ -2574,7 +2574,14 @@
           "filterApproved": "Freigegeben",
           "elapsed": "Vergangen",
           "lineage": "Verlauf",
-          "from": "Prompt"
+          "from": "Prompt",
+          "you": "Du",
+          "studio": "Studio",
+          "thinking": "Arbeitet…",
+          "assistantError": "Der Assistent konnte das nicht abschließen",
+          "assistantErrorHint": "Deine Nachricht steht noch im Feld. Sende sie erneut oder formuliere sie um.",
+          "bindWarning": "Diese Unterhaltung konnte nicht im Projekt gespeichert werden und ist nach einem Neuladen möglicherweise nicht mehr da.",
+          "loadOlder": "Ältere Versionen laden"
         }
       }
     },
