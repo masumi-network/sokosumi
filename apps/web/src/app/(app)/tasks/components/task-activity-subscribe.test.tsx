@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,12 +6,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskActivitySubscribeControl } from "@/app/tasks/components/task-activity-subscribe";
 import type { TaskParticipant } from "@/lib/clients/generated/core/types.gen";
 
-const { subscribeTaskParticipantMock, removeTaskParticipantMock, refreshMock } =
-  vi.hoisted(() => ({
-    subscribeTaskParticipantMock: vi.fn(),
-    removeTaskParticipantMock: vi.fn(),
-    refreshMock: vi.fn(),
-  }));
+const {
+  subscribeTaskParticipantMock,
+  removeTaskParticipantMock,
+  refreshMock,
+  toastErrorMock,
+} = vi.hoisted(() => ({
+  subscribeTaskParticipantMock: vi.fn(),
+  removeTaskParticipantMock: vi.fn(),
+  refreshMock: vi.fn(),
+  toastErrorMock: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: refreshMock }),
@@ -20,6 +25,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/actions/task/action", () => ({
   subscribeTaskParticipant: subscribeTaskParticipantMock,
   removeTaskParticipant: removeTaskParticipantMock,
+}));
+
+vi.mock("sonner", () => ({
+  toast: { error: (...args: unknown[]) => toastErrorMock(...args) },
 }));
 
 vi.mock("next-intl", () => ({
@@ -59,6 +68,7 @@ describe("TaskActivitySubscribeControl", () => {
     subscribeTaskParticipantMock.mockReset();
     removeTaskParticipantMock.mockReset();
     refreshMock.mockReset();
+    toastErrorMock.mockReset();
     subscribeTaskParticipantMock.mockResolvedValue({
       ok: true,
       value: { taskId: "task-1" },
@@ -173,5 +183,50 @@ describe("TaskActivitySubscribeControl", () => {
       taskId: "task-1",
       userId: "viewer-1",
     });
+  });
+
+  it("keeps Unsubscribe after subscribe succeeds before refresh props land", async () => {
+    const user = userEvent.setup();
+    let resolveSubscribe: (value: {
+      ok: true;
+      value: { taskId: string };
+    }) => void;
+    subscribeTaskParticipantMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSubscribe = resolve;
+      }),
+    );
+    renderControl();
+    await user.click(screen.getByRole("button", { name: "subscribe" }));
+    expect(
+      screen.getByRole("button", { name: "unsubscribe" }),
+    ).toBeInTheDocument();
+    resolveSubscribe!({ ok: true, value: { taskId: "task-1" } });
+    await waitFor(() => {
+      expect(refreshMock).toHaveBeenCalled();
+    });
+    // Still committed local state — props never changed.
+    expect(
+      screen.getByRole("button", { name: "unsubscribe" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "subscribe" })).toBeNull();
+  });
+
+  it("reverts to Subscribe when the subscribe action fails", async () => {
+    const user = userEvent.setup();
+    subscribeTaskParticipantMock.mockResolvedValue({
+      ok: false,
+      error: { kind: "forbidden" },
+    });
+    renderControl();
+    await user.click(screen.getByRole("button", { name: "subscribe" }));
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("subscribeError");
+    });
+    expect(
+      screen.getByRole("button", { name: "subscribe" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "unsubscribe" })).toBeNull();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 });

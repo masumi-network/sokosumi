@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useOptimistic, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
@@ -42,10 +42,15 @@ export function TaskActivitySubscribeControl({
   const t = useTranslations("App.Tasks.Detail");
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const [visibleParticipants, setVisibleParticipants] = useOptimistic(
-    participants,
-    (_current, next: TaskParticipant[]): TaskParticipant[] => next,
-  );
+  // Committed state, not `useOptimistic`. An optimistic value is discarded
+  // when the async transition ends and falls back to `participants` until
+  // `router.refresh()` lands — so Subscribe briefly snaps back to Unsubscribe.
+  const [visibleParticipants, setVisibleParticipants] = useState(participants);
+  const [serverParticipants, setServerParticipants] = useState(participants);
+  if (serverParticipants !== participants) {
+    setServerParticipants(participants);
+    setVisibleParticipants(participants);
+  }
 
   const viewerIsParticipant =
     viewerId != null &&
@@ -66,32 +71,17 @@ export function TaskActivitySubscribeControl({
   const faces = visibleParticipants.slice(0, READ_RECEIPT_FACE_CAP);
   const remainingCount = visibleParticipants.length - faces.length;
 
-  function applyParticipants(next: TaskParticipant[]) {
-    setVisibleParticipants(next);
-  }
-
   function handleSubscribeToggle() {
     if (!viewerId) {
       return;
     }
 
-    startTransition(async () => {
-      if (viewerIsParticipant) {
-        applyParticipants(
-          visibleParticipants.filter(
-            (participant) => participant.user.id !== viewerId,
-          ),
-        );
-        const result = await removeTaskParticipant({
-          taskId,
-          userId: viewerId,
-        });
-        if (!result.ok) {
-          toast.error(t("removeParticipantError"));
-          return;
-        }
-      } else {
-        applyParticipants([
+    const previous = visibleParticipants;
+    const next = viewerIsParticipant
+      ? visibleParticipants.filter(
+          (participant) => participant.user.id !== viewerId,
+        )
+      : [
           ...visibleParticipants,
           {
             user: {
@@ -101,9 +91,24 @@ export function TaskActivitySubscribeControl({
             },
             addedAt: new Date(),
           },
-        ]);
+        ];
+    setVisibleParticipants(next);
+
+    startTransition(async () => {
+      if (viewerIsParticipant) {
+        const result = await removeTaskParticipant({
+          taskId,
+          userId: viewerId,
+        });
+        if (!result.ok) {
+          setVisibleParticipants(previous);
+          toast.error(t("removeParticipantError"));
+          return;
+        }
+      } else {
         const result = await subscribeTaskParticipant({ taskId });
         if (!result.ok) {
+          setVisibleParticipants(previous);
           toast.error(t("subscribeError"));
           return;
         }
