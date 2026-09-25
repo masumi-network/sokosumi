@@ -1,5 +1,7 @@
 import { TaskScheduleState } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import type { Next } from "hono";
+import { HTTPException } from "hono/http-exception";
 
 import { formatZodErrorMessage } from "@/helpers/error";
 import { ok } from "@/helpers/response";
@@ -33,6 +35,19 @@ import {
   logLegacyScheduleHit,
   throwUnmappable,
 } from "./vendor";
+
+function isScheduleOperationConflict(error: unknown): boolean {
+  if (!(error instanceof HTTPException) || error.status !== 409) {
+    return false;
+  }
+  const cause = error.cause;
+  return (
+    typeof cause === "object" &&
+    cause !== null &&
+    "kind" in cause &&
+    cause.kind === CORE_API_ERROR_KINDS.SCHEDULE_OPERATION_CONFLICT
+  );
+}
 
 /**
  * `PUT /v1/tasks/{id}/schedule`: create, change, pause, and resume a
@@ -98,9 +113,22 @@ export async function putLegacySchedule(c: LegacyContext, next: Next) {
 
   const actor = await resolveScheduleActor(c.var);
   const task = await requireTaskBlueprint(actor, taskId);
-  const created = await createTaskSchedule(
-    c.var,
-    mapTaskBlueprintToCreate(task, body),
-  );
-  return ok(c, legacySeriesView(created, taskId));
+  try {
+    const created = await createTaskSchedule(
+      c.var,
+      mapTaskBlueprintToCreate(task, body),
+    );
+    return ok(c, legacySeriesView(created, taskId));
+  } catch (error) {
+    // An inferred */N anchor is this request's clock, so two creates of one
+    // rule disagree on the ledger. Replay the first when the rule matches.
+    if (!isScheduleOperationConflict(error)) {
+      throw error;
+    }
+    const existing = await resolveLegacySeries(taskId, workspaceId);
+    if (!existing || !legacyRuleMatches(existing, body)) {
+      throw error;
+    }
+    return ok(c, legacySeriesView(existing, taskId));
+  }
 }

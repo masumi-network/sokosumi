@@ -287,6 +287,25 @@ describe("legacy PUT /{id}/schedule", () => {
       expect(taskScheduleTestDb.schedules).toHaveLength(1);
     });
 
+    it("replays a racing every-N-days PUT instead of conflicting on its anchor", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-09-01T09:00:00.000Z"));
+      seedBlueprint();
+      const everyThirdDay = { ...WEEKLY, expr: "0 9 */3 * *" };
+      const first = await view(await put(everyThirdDay));
+      vi.setSystemTime(new Date("2026-09-01T09:00:01.000Z"));
+      // The racing request resolved before the first one committed.
+      taskScheduleTestPrisma.taskScheduleCreateOperation.findUnique.mockResolvedValueOnce(
+        null,
+      );
+
+      const second = await view(await put(everyThirdDay));
+
+      expect(second.scheduleId).toBe(first.scheduleId);
+      expect(second.scheduleRevision).toBe(first.scheduleRevision);
+      expect(taskScheduleTestDb.schedules).toHaveLength(1);
+    });
+
     it("ignores a create ledger row another workspace keyed on the same Task id", async () => {
       const foreign = seedTaskSchedule({
         workspaceId: PERSONAL_WORKSPACE_ID,
