@@ -109,7 +109,7 @@ export function ReadReceiptFaces({
             size === "sm" ? "text-[0.5rem]" : "text-[0.625rem]",
             TONE[tone],
           )}
-          style={{ zIndex: faces.length + 1 }}
+          style={{ zIndex: 0 }}
           aria-hidden
         >
           +{remainingCount}

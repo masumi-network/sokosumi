@@ -101,10 +101,7 @@ function TaskActorCluster({
             </span>
           ))}
           {remainder > 0 ? (
-            <span
-              className="bg-muted text-muted-foreground ring-background relative -ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[0.625rem] font-medium tabular-nums ring-2"
-              style={{ zIndex: faces.length + 1 }}
-            >
+            <span className="bg-muted text-muted-foreground ring-background relative -ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[0.625rem] font-medium tabular-nums ring-2">
               +{remainder}
             </span>
           ) : null}

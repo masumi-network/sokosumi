@@ -117,12 +117,9 @@ describe("TaskActivitySubscribeControl", () => {
     expect(screen.getByTestId("task-subscribe-face-u2")).toBeInTheDocument();
     expect(screen.getByTestId("task-subscribe-face-u3")).toBeInTheDocument();
     expect(screen.queryByTestId("task-subscribe-face-u4")).toBeNull();
-    const remainder = screen.getByTestId("task-subscribe-face-remainder");
-    expect(remainder).toHaveTextContent("+2");
-    // Last face used to sit above +N (z-index 0) and hide the plus.
-    expect(Number(remainder.style.zIndex)).toBeGreaterThan(
-      Number(screen.getByTestId("task-subscribe-face-u3").style.zIndex),
-    );
+    expect(
+      screen.getByTestId("task-subscribe-face-remainder"),
+    ).toHaveTextContent("+2");
   });
 
   it("omits the remainder when there are three or fewer participants", () => {
