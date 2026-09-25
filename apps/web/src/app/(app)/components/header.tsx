@@ -27,32 +27,34 @@ interface HeaderProps {
 
 export default function Header({ className, session }: HeaderProps) {
   return (
-    <HeaderChrome className={className}>
-      <div className="flex size-8 shrink-0 items-center justify-center md:hidden">
-        <Suspense fallback={<HeaderLeadingBrandFallback />}>
-          <HeaderLeadingControl />
-        </Suspense>
-      </div>
+    <>
+      <HeaderChrome className={className}>
+        <div className="flex size-8 shrink-0 items-center justify-center md:hidden">
+          <Suspense fallback={<HeaderLeadingBrandFallback />}>
+            <HeaderLeadingControl />
+          </Suspense>
+        </div>
 
-      <HeaderCenter>
-        <ScopeSlot place="header-center" />
-        <HeaderVariantCrumbs>
-          <BreadcrumbNavigation className="flex flex-1" />
-        </HeaderVariantCrumbs>
-      </HeaderCenter>
-      <ScopeSlot place="header-mobile" />
+        <HeaderCenter>
+          <ScopeSlot place="header-center" />
+          <HeaderVariantCrumbs>
+            <BreadcrumbNavigation className="flex flex-1" />
+          </HeaderVariantCrumbs>
+        </HeaderCenter>
+        <ScopeSlot place="header-mobile" />
+        <ScopeStaleGuard />
 
-      {/* SOK-1202 variant harness. */}
+        <HeaderTrailing>
+          <HeaderVariantTrailing>
+            <HeaderProfileSection session={session} />
+          </HeaderVariantTrailing>
+        </HeaderTrailing>
+      </HeaderChrome>
+      {/* SOK-1202 variant harness. Outside the header: its backdrop filter
+          would make the header the box that `position: fixed` measures. */}
       <Suspense fallback={null}>
         <ScopeVariantPicker />
       </Suspense>
-      <ScopeStaleGuard />
-
-      <HeaderTrailing>
-        <HeaderVariantTrailing>
-          <HeaderProfileSection session={session} />
-        </HeaderVariantTrailing>
-      </HeaderTrailing>
-    </HeaderChrome>
+    </>
   );
 }

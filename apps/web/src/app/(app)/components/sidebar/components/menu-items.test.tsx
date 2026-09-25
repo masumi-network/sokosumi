@@ -437,6 +437,12 @@ describe("MenuItems under a SOK-1202 scope variant", () => {
     searchRef.current = "";
   });
 
+  function hasTooltip(label: string) {
+    return screen
+      .queryAllByTestId("menu-tooltip")
+      .some((tooltip) => tooltip.textContent === label);
+  }
+
   function linkTo(container: HTMLElement, label: string) {
     return Array.from(container.querySelectorAll("a")).find((link) =>
       link.textContent?.includes(label),
@@ -445,9 +451,11 @@ describe("MenuItems under a SOK-1202 scope variant", () => {
 
   it("keeps today's Projects row and plain links on the baseline", () => {
     searchRef.current = "projectId=p-1";
-    const { container } = renderMenu();
+    const { container } = renderMenu(true, false, false);
 
     expect(linkTo(container, "projects")).toHaveAttribute("href", "/projects");
+    // The flyout is the row's hover hint, so it carries no tooltip.
+    expect(hasTooltip("projects")).toBe(false);
     expect(linkTo(container, "history")).toHaveAttribute("href", "/history");
   });
 
@@ -464,8 +472,10 @@ describe("MenuItems under a SOK-1202 scope variant", () => {
 
   it("keeps a plain Projects link for the hub, its only way in", () => {
     searchRef.current = "variant=hub";
-    const { container } = renderMenu();
+    const { container } = renderMenu(true, false, false);
 
     expect(linkTo(container, "projects")).toHaveAttribute("href", "/projects");
+    // A plain row, not today's flyout: it names itself in a tooltip.
+    expect(hasTooltip("projects")).toBe(true);
   });
 });

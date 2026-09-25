@@ -131,11 +131,16 @@ describe("useIsUnknownScopeProject", () => {
 
   it("stays false for a project Core knows", async () => {
     mocks.loadOne.mockReturnValue(project("far-1", "Far Away"));
-    const { result } = renderHook(() => useIsUnknownScopeProject("far-1"), {
-      wrapper: wrapper(),
-    });
+    const { result } = renderHook(
+      () => ({
+        unknown: useIsUnknownScopeProject("far-1"),
+        project: useSelectedScopeProject("far-1"),
+      }),
+      { wrapper: wrapper() },
+    );
 
-    await waitFor(() => expect(mocks.loadOne).toHaveBeenCalled());
-    expect(result.current).toBe(false);
+    // The same query answered: the name is in, and it is not unknown.
+    await waitFor(() => expect(result.current.project?.name).toBe("Far Away"));
+    expect(result.current.unknown).toBe(false);
   });
 });

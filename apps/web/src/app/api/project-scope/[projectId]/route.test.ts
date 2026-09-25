@@ -58,8 +58,9 @@ describe("GET /api/project-scope/[projectId]", () => {
   });
 
   it("answers null for an id Core rejects as malformed", async () => {
+    // Core's request validation answers 422 for `not-a-uuid`.
     mocks.getProjectById.mockRejectedValue(
-      new CoreApiRequestError("Bad id", { status: 400 }),
+      new CoreApiRequestError("Bad id", { status: 422 }),
     );
 
     const response = await read("null");

@@ -60,17 +60,6 @@ export function useCombinedSheetOpen() {
  * button unmounts with the sidebar sheet, so Radix returns focus to the chip,
  * and Create project finds the chip through its `aria-controls`.
  */
-/** Where focus lands when the chip is hidden: the header's first control. */
-function firstVisibleHeaderControl(): HTMLElement | null {
-  const controls = document.querySelectorAll<HTMLElement>(
-    "header a[href], header button",
-  );
-  return (
-    Array.from(controls).find((control) => control.getClientRects().length) ??
-    null
-  );
-}
-
 export function CombinedMobileChip() {
   const t = useTranslations("App.ProjectScope");
   const pathname = usePathname();
@@ -106,11 +95,8 @@ export function CombinedMobileChip() {
         <SheetContent
           side="bottom"
           aria-describedby={undefined}
-          onCloseAutoFocus={(event) => {
-            // Radix returns focus to the chip, which a chat room hides.
-            if (chipRef.current?.getClientRects().length) return;
-            returnFocusTo(firstVisibleHeaderControl())(event);
-          }}
+          // Radix returns focus to the chip, which a chat room hides.
+          onCloseAutoFocus={(event) => returnFocusTo(chipRef.current)(event)}
           className="max-h-[85dvh] gap-0 rounded-t-xl p-0 pb-[env(safe-area-inset-bottom)]"
         >
           <SheetHeader className="border-b pr-12">

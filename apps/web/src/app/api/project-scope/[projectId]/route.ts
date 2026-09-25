@@ -38,8 +38,9 @@ export async function GET(
   } catch (error) {
     const status =
       error instanceof CoreApiRequestError && error.status ? error.status : 502;
-    // Core rejects an id that is not a uuid: no such project, not an outage.
-    if (status === 400) {
+    // Core rejects an id that is not a uuid (422 from its request
+    // validation): no such project, not an outage.
+    if (status === 400 || status === 422) {
       return NextResponse.json(
         { project: null },
         { headers: { "Cache-Control": "no-store" } },

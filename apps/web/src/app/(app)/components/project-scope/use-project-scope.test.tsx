@@ -86,7 +86,39 @@ describe("returnFocusTo", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  it("does nothing for an opener that left the page", () => {
+  it("falls back to the header's first visible control for a gone opener", () => {
+    const opener = document.createElement("button");
+    const header = document.createElement("header");
+    const back = document.createElement("a");
+    back.href = "/chat";
+    header.append(back);
+    document.body.append(header);
+    const event = closeEvent();
+
+    returnFocusTo(opener)(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(back);
+  });
+
+  it("falls back for an opener a chat room hides", () => {
+    const opener = document.createElement("button");
+    const header = document.createElement("header");
+    const toggle = document.createElement("button");
+    header.append(toggle);
+    document.body.append(opener, header);
+    // happy-dom lays nothing out, so every element reports one rect.
+    vi.spyOn(opener, "getClientRects").mockReturnValue({
+      length: 0,
+    } as unknown as DOMRectList);
+    const event = closeEvent();
+
+    returnFocusTo(opener)(event);
+
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  it("leaves focus to Radix when neither opener nor header can take it", () => {
     const opener = document.createElement("button");
     const focus = vi.spyOn(opener, "focus");
     const event = closeEvent();
@@ -137,6 +169,15 @@ describe("useProjectScopeSwitch", () => {
     current().select("p-1");
 
     expect(mocks.push).toHaveBeenCalledWith("/tasks?projectId=p-1");
+  });
+
+  it("stays put when the chosen scope is the one in hand", () => {
+    mocks.search.current = new URLSearchParams("projectId=p-1&status=done");
+    const current = renderSwitch();
+
+    current().select("p-1");
+
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("pushes the workspace href for null on a project page", () => {

@@ -37,10 +37,25 @@ export function useProjectScope() {
  */
 export function returnFocusTo(opener: HTMLElement | null) {
   return (event: Event) => {
-    if (!opener?.isConnected) return;
+    if (!opener) return;
+    // A chat room hides some openers, and a navigation can remove one.
+    const target = isVisible(opener) ? opener : firstVisibleHeaderControl();
+    if (!target) return;
     event.preventDefault();
-    opener.focus();
+    target.focus();
   };
+}
+
+function isVisible(element: HTMLElement): boolean {
+  return element.isConnected && element.getClientRects().length > 0;
+}
+
+/** The header's first visible control: a fallback that is always there. */
+function firstVisibleHeaderControl(): HTMLElement | null {
+  const controls = document.querySelectorAll<HTMLElement>(
+    "header a[href], header button",
+  );
+  return Array.from(controls).find(isVisible) ?? null;
 }
 
 /**
@@ -55,6 +70,8 @@ export function useProjectScopeSwitch() {
   const openerRef = useRef<HTMLElement | null>(null);
 
   function select(nextProjectId: string | null) {
+    // Re-picking the scope in hand would only wipe the page's own filters.
+    if (nextProjectId === scope.projectId) return;
     router.push(scope.switchHref(nextProjectId));
   }
 
