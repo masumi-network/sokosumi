@@ -144,11 +144,7 @@ describe("notifyTaskParticipantsAdded", () => {
         where: {
           id: "task_1",
           archivedAt: null,
-          events: {
-            none: {
-              status: { in: ["COMPLETED", "FAILED", "CANCELED"] },
-            },
-          },
+          status: { notIn: ["COMPLETED", "FAILED", "CANCELED"] },
         },
       }),
     );

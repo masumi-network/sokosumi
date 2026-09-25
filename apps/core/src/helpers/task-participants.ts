@@ -142,18 +142,10 @@ export async function addSelfAsTaskParticipant(
     return { added: false };
   }
 
-  const existing = await tx.taskParticipant.findMany({
-    where: { taskId: params.taskId, userId: params.userId },
-    select: { userId: true },
-  });
-  if (existing.length > 0) {
-    return { added: false };
-  }
-
-  await tx.taskParticipant.createMany({
+  const result = await tx.taskParticipant.createMany({
     data: [{ taskId: params.taskId, userId: params.userId }],
     skipDuplicates: true,
   });
 
-  return { added: true };
+  return { added: result.count > 0 };
 }

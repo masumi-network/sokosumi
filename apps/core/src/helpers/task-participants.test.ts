@@ -190,7 +190,7 @@ describe("addSelfAsTaskParticipant", () => {
           ),
         },
         taskParticipant: {
-          findMany: vi.fn().mockResolvedValue([]),
+          findMany: vi.fn(),
           createMany,
         },
       },
@@ -210,8 +210,8 @@ describe("addSelfAsTaskParticipant", () => {
     });
   });
 
-  it("is a no-op when the viewer is already a participant", async () => {
-    const createMany = vi.fn();
+  it("is a no-op when createMany inserts nothing (already present or race)", async () => {
+    const createMany = vi.fn().mockResolvedValue({ count: 0 });
     const result = await addSelfAsTaskParticipant(
       {
         workspace: {
@@ -222,7 +222,7 @@ describe("addSelfAsTaskParticipant", () => {
             ),
         },
         taskParticipant: {
-          findMany: vi.fn().mockResolvedValue([{ userId: "user_alice" }]),
+          findMany: vi.fn(),
           createMany,
         },
       },
@@ -236,7 +236,7 @@ describe("addSelfAsTaskParticipant", () => {
     );
 
     expect(result).toEqual({ added: false });
-    expect(createMany).not.toHaveBeenCalled();
+    expect(createMany).toHaveBeenCalled();
   });
 
   it("skips non-members and PRIVATE non-owners", async () => {
@@ -249,7 +249,7 @@ describe("addSelfAsTaskParticipant", () => {
             .mockResolvedValue(workspaceOf([{ id: "user_bob", name: "Bob" }])),
         },
         taskParticipant: {
-          findMany: vi.fn().mockResolvedValue([]),
+          findMany: vi.fn(),
           createMany,
         },
       },
@@ -271,7 +271,7 @@ describe("addSelfAsTaskParticipant", () => {
             ),
         },
         taskParticipant: {
-          findMany: vi.fn().mockResolvedValue([]),
+          findMany: vi.fn(),
           createMany,
         },
       },
