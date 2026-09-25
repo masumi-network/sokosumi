@@ -69,7 +69,6 @@ import UniformTypeIdentifiers
         && uploads.uploadingName == nil
         && (uploads.attachments.isEmpty || workspaces.canAttachFiles(roomId: roomId))
         && !workspaces.directStream.isBusy
-        && (parentMessageId != nil || !workspaces.transcriptLoading)
         && workspaces.transcriptRoomId == roomId
         && (parentMessageId == nil || workspaces.thread.parent?.id == parentMessageId)
     }
