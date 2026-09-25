@@ -28,8 +28,16 @@ export type ScopeSlotPlace =
   | "header-mobile"
   | "project-header";
 
+/** What a mount point knows that the client cannot: server-only gates. */
+export interface ScopeSlotProps {
+  /** Calendar and Social exist only for Calendar beta users. */
+  calendarBeta?: boolean;
+}
+
 /** The pieces one variant renders, keyed by mount point. */
-export type ScopeSlots = Partial<Record<ScopeSlotPlace, ComponentType>>;
+export type ScopeSlots = Partial<
+  Record<ScopeSlotPlace, ComponentType<ScopeSlotProps>>
+>;
 
 export function parseScopeVariant(
   value: string | null | undefined,

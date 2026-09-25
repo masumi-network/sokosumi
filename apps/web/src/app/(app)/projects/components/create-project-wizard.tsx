@@ -34,6 +34,7 @@ interface CreateProjectWizardProps {
   creationSource?: ProjectCreationSource;
   onSuccess?: (projectId: string, name: string, project?: Project) => void;
   onSubmittingChange?: (isSubmitting: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export function CreateProjectWizard({
@@ -43,6 +44,7 @@ export function CreateProjectWizard({
   creationSource,
   onSuccess,
   onSubmittingChange,
+  onCloseAutoFocus,
 }: CreateProjectWizardProps) {
   const t = useTranslations("App.Projects");
   const [step, setStep] = useState(0);
@@ -150,6 +152,7 @@ export function CreateProjectWizard({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         data-testid="create-project-wizard"
+        onCloseAutoFocus={onCloseAutoFocus}
         className="bg-background top-0 left-0 grid h-dvh w-screen max-w-none! translate-x-0 translate-y-0 grid-rows-[auto_1fr_auto] gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[720px] sm:max-h-[92dvh] sm:w-[calc(100vw-4rem)] sm:max-w-2xl! sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border [&>button]:top-5 [&>button]:right-5 sm:[&>button]:top-6 sm:[&>button]:right-6"
       >
         <DialogTitle className="sr-only">{t("Wizard.title")}</DialogTitle>

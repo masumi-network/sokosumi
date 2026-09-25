@@ -28,6 +28,12 @@ describe("readProjectScope", () => {
     expect(readProjectScope("/projects", params())).toBeNull();
     expect(readProjectScope("/agents", params("projectId=p1"))).toBeNull();
   });
+
+  it("reads Drive's No project folder as no scope, not a project id", () => {
+    expect(
+      readProjectScope("/drive", params("view=tasks&projectId=null")),
+    ).toBeNull();
+  });
 });
 
 describe("scopedHref", () => {
@@ -56,6 +62,15 @@ describe("switchScopeHref", () => {
       "/projects/p2/calendar",
     );
     expect(switchScopeHref("/projects/p1/edit", "p2")).toBe("/projects/p2");
+    expect(switchScopeHref("/projects/p1/design-md/edit", "p2")).toBe(
+      "/projects/p2",
+    );
+  });
+
+  it("keeps Drive on its tasks view", () => {
+    expect(switchScopeHref("/drive", "p2")).toBe(
+      "/drive?view=tasks&projectId=p2",
+    );
   });
 
   it("leaves a project page for the list when the workspace is chosen", () => {

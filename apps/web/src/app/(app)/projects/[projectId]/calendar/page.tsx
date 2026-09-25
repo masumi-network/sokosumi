@@ -34,6 +34,8 @@ export default async function ProjectCalendarPage({
     <CreateTaskModalProvider initialProjectId={project.id}>
       <div className={PROJECTS_CALENDAR_SHELL_CLASS}>
         <ProjectDetailHeader
+          // The page loader turns away anyone without Calendar beta.
+          calendarBeta
           backHref={`/projects/${project.id}`}
           backLabel={t("backToProject")}
           metadata={[

@@ -52,6 +52,8 @@ export default async function ProjectSocialPage({
   return (
     <div className={PROJECTS_DETAIL_SHELL_CLASS}>
       <ProjectDetailHeader
+        // The page turns away anyone without Calendar beta.
+        calendarBeta
         backHref={`/projects/${project.id}`}
         backLabel={t("backToProject")}
         metadata={[

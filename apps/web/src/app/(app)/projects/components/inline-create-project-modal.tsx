@@ -13,6 +13,7 @@ interface InlineCreateProjectModalProps {
     name: string;
     project?: Project;
   }) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export function InlineCreateProjectModal({
@@ -20,6 +21,7 @@ export function InlineCreateProjectModal({
   onOpenChange,
   initialName = "",
   onCreated,
+  onCloseAutoFocus,
 }: InlineCreateProjectModalProps) {
   function handleSuccess(projectId: string, name: string, project?: Project) {
     onCreated({ projectId, name, project });
@@ -38,6 +40,7 @@ export function InlineCreateProjectModal({
       initialName={initialName}
       creationSource="task_form"
       onSuccess={handleSuccess}
+      onCloseAutoFocus={onCloseAutoFocus}
     />
   );
 }

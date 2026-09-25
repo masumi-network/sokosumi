@@ -74,6 +74,7 @@ export default async function ProjectDetailPage({
         <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
           <div className="min-w-0 space-y-8">
             <ProjectDetailHeader
+              calendarBeta={calendarBetaEnabled}
               projectName={project.name}
               projectLogo={project.logo}
               websiteUrl={project.websiteUrl}

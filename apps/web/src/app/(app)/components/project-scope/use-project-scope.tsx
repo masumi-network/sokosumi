@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 
 import {
@@ -31,6 +31,19 @@ export function useProjectScope() {
 }
 
 /**
+ * Sends focus back to the switcher when Create project closes. Without it,
+ * focus falls to the page body, because the menu that opened the dialog is
+ * gone.
+ */
+export function returnFocusTo(opener: HTMLElement | null) {
+  return (event: Event) => {
+    if (!opener?.isConnected) return;
+    event.preventDefault();
+    opener.focus();
+  };
+}
+
+/**
  * The switch itself, shared by every switcher: navigate on a choice, and own
  * the Create project dialog. The dialog outlives the popover or sheet that
  * opened it, so render `createDialog` beside that container, not inside it.
@@ -39,6 +52,7 @@ export function useProjectScopeSwitch() {
   const router = useRouter();
   const scope = useProjectScope();
   const [createOpen, setCreateOpen] = useState(false);
+  const openerRef = useRef<HTMLElement | null>(null);
 
   function select(nextProjectId: string | null) {
     router.push(scope.switchHref(nextProjectId));
@@ -49,13 +63,17 @@ export function useProjectScopeSwitch() {
       open={createOpen}
       onOpenChange={setCreateOpen}
       onCreated={({ projectId }) => select(projectId)}
+      onCloseAutoFocus={(event) => returnFocusTo(openerRef.current)(event)}
     />
   );
 
   return {
     ...scope,
     select,
-    openCreate: () => setCreateOpen(true),
+    openCreate: (opener: HTMLElement | null = null) => {
+      openerRef.current = opener;
+      setCreateOpen(true);
+    },
     createDialog,
   };
 }

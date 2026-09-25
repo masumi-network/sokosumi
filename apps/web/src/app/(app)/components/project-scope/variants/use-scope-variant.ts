@@ -42,15 +42,26 @@ export function storeScopeVariant(variant: ScopeVariantId) {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
-/** The active variant: the URL param first, then the tab's stored choice. */
-export function useScopeVariant(): ScopeVariantId {
+function useChosenScopeVariant(): ScopeVariantId | null {
   const searchParams = useSearchParams();
   const stored = useSyncExternalStore(subscribe, readStored, () => null);
   return (
     parseScopeVariant(searchParams?.get(SCOPE_VARIANT_PARAM)) ??
-    parseScopeVariant(stored) ??
-    "current"
+    parseScopeVariant(stored)
   );
+}
+
+/** The active variant: the URL param first, then the tab's stored choice. */
+export function useScopeVariant(): ScopeVariantId {
+  return useChosenScopeVariant() ?? "current";
+}
+
+/**
+ * True once a `?variant=` link opened in this tab. Until then the harness
+ * stays out of sight, so the preview reads as main.
+ */
+export function useScopeVariantOptedIn(): boolean {
+  return useChosenScopeVariant() !== null;
 }
 
 /** True when a new variant replaces today's project navigation. */

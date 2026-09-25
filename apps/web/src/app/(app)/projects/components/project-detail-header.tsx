@@ -22,6 +22,8 @@ interface ProjectDetailHeaderProps {
   metadata: ProjectDetailHeaderMetadataItem[];
   showBackOnMobile?: boolean;
   actions?: React.ReactNode;
+  /** Calendar beta access, which decides the hub variant's section tabs. */
+  calendarBeta?: boolean;
 }
 
 export function ProjectDetailHeader({
@@ -33,12 +35,13 @@ export function ProjectDetailHeader({
   metadata,
   showBackOnMobile = false,
   actions,
+  calendarBeta = false,
 }: ProjectDetailHeaderProps) {
   const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
 
   return (
     <div className="space-y-4">
-      <ScopeSlot place="project-header" />
+      <ScopeSlot place="project-header" calendarBeta={calendarBeta} />
       <ScopeOldWay>
         <Link
           href={backHref}

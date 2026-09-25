@@ -4,6 +4,7 @@ import { type ReactNode, Suspense } from "react";
 
 import type {
   ScopeSlotPlace,
+  ScopeSlotProps,
   ScopeSlots,
   ScopeVariantId,
 } from "./scope-variants";
@@ -26,16 +27,20 @@ const SLOTS: Record<ScopeVariantId, ScopeSlots> = {
   hub: hubSlots,
 };
 
-function ActiveSlot({ place }: { place: ScopeSlotPlace }) {
+interface ScopeSlotMountProps extends ScopeSlotProps {
+  place: ScopeSlotPlace;
+}
+
+function ActiveSlot({ place, ...props }: ScopeSlotMountProps) {
   const Slot = SLOTS[useScopeVariant()][place];
-  return Slot ? <Slot /> : null;
+  return Slot ? <Slot {...props} /> : null;
 }
 
 /** A mount point in the app chrome. Renders the active variant's piece. */
-export function ScopeSlot({ place }: { place: ScopeSlotPlace }) {
+export function ScopeSlot(props: ScopeSlotMountProps) {
   return (
     <Suspense fallback={null}>
-      <ActiveSlot place={place} />
+      <ActiveSlot {...props} />
     </Suspense>
   );
 }

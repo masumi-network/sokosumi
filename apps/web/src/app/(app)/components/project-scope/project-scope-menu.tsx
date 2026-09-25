@@ -3,7 +3,7 @@
 import { Check, FolderKanban, Layers, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,11 +22,26 @@ const WORKSPACE_VALUE = "__workspace__";
 const CREATE_VALUE = "__create_project__";
 const MANAGE_VALUE = "__manage_projects__";
 
+/**
+ * The trigger of the popover, sheet or dialog that holds the menu. Radix links
+ * the two through `aria-controls`. The menu unmounts on Create, so the create
+ * dialog cannot return focus to it.
+ */
+function openerOf(menu: Element | null): HTMLElement | null {
+  const host = menu?.closest('[role="dialog"][id]');
+  if (!host) return null;
+  const opener = document.querySelector(
+    `[aria-controls="${CSS.escape(host.id)}"]`,
+  );
+  return opener instanceof HTMLElement ? opener : null;
+}
+
 interface ProjectScopeMenuProps {
   selectedProjectId: string | null;
   /** A project id, or null for the workspace view. */
   onSelect: (projectId: string | null) => void;
-  onCreate: () => void;
+  /** Gets the control that opened the menu, to take focus back on cancel. */
+  onCreate: (opener: HTMLElement | null) => void;
   /** Closes whatever holds the menu. Runs after every choice. */
   onDone?: () => void;
   className?: string;
@@ -47,6 +62,7 @@ export function ProjectScopeMenu({
   const t = useTranslations("App.ProjectScope");
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
   const projects = useScopeProjects({ search, selectedProjectId });
 
   function choose(projectId: string | null) {
@@ -87,7 +103,7 @@ export function ProjectScopeMenu({
     : projects.all.filter((project) => !shortlistIds.has(project.id));
 
   return (
-    <Command shouldFilter={false} className={className}>
+    <Command ref={menuRef} shouldFilter={false} className={className}>
       <CommandInput
         autoFocus
         placeholder={t("searchPlaceholder")}
@@ -164,8 +180,9 @@ export function ProjectScopeMenu({
             value={CREATE_VALUE}
             data-testid="project-scope-create"
             onSelect={() => {
+              const opener = openerOf(menuRef.current);
               onDone?.();
-              onCreate();
+              onCreate(opener);
             }}
           >
             <Plus className="size-4 shrink-0" aria-hidden />

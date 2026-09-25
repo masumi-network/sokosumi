@@ -18,7 +18,7 @@ import { type ComponentType, Fragment, Suspense, type SVGProps } from "react";
 import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
-import { useReplacesOldProjectNavigation } from "@/app/components/project-scope/variants/use-scope-variant";
+import { useScopeVariant } from "@/app/components/project-scope/variants/use-scope-variant";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { SheetClose } from "@/components/ui/sheet";
 import {
@@ -55,10 +55,16 @@ interface MenuItemsProps {
   calendarMenuEnabled: boolean;
 }
 
-/** Today's links: no scope carried, Projects row shown. */
+/**
+ * The Projects row: today's flyout, a plain link to the list (the hub variant
+ * has no other way in), or gone because a switcher replaces it.
+ */
+type ProjectsRow = "flyout" | "link" | "none";
+
+/** Today's links: no scope carried, the Projects flyout shown. */
 const UNSCOPED = {
   hrefFor: (href: string) => href,
-  showsProjectsRow: true,
+  projectsRow: "flyout" as ProjectsRow,
 };
 
 /**
@@ -76,21 +82,24 @@ export default function MenuItems(props: MenuItemsProps) {
 
 function ScopedMenuItems(props: MenuItemsProps) {
   const { hrefFor } = useProjectScope();
-  const replaces = useReplacesOldProjectNavigation();
-  return replaces ? (
-    <MenuItemsList {...props} hrefFor={hrefFor} showsProjectsRow={false} />
-  ) : (
-    <MenuItemsList {...props} {...UNSCOPED} />
+  const variant = useScopeVariant();
+  if (variant === "current") return <MenuItemsList {...props} {...UNSCOPED} />;
+  return (
+    <MenuItemsList
+      {...props}
+      hrefFor={hrefFor}
+      projectsRow={variant === "hub" ? "link" : "none"}
+    />
   );
 }
 
 function MenuItemsList({
   calendarMenuEnabled,
   hrefFor,
-  showsProjectsRow,
+  projectsRow,
 }: MenuItemsProps & {
   hrefFor: (href: string) => string;
-  showsProjectsRow: boolean;
+  projectsRow: ProjectsRow;
 }) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
@@ -148,7 +157,7 @@ function MenuItemsList({
       label: t("exploreAgents"),
       Icon: Bot,
     },
-    ...(showsProjectsRow
+    ...(projectsRow !== "none"
       ? [
           {
             key: "projects",
@@ -220,7 +229,7 @@ function MenuItemsList({
                 ariaKeyshortcuts,
                 separatorAfter,
               }) => {
-                if (key === "projects") {
+                if (key === "projects" && projectsRow === "flyout") {
                   return <ProjectsMenuItem key={key} />;
                 }
                 const isActive = href ? isPathActive(href) : false;

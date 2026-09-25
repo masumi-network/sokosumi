@@ -28,6 +28,17 @@ export function isProjectScopedPath(pathname: string): boolean {
   return Object.hasOwn(SCOPED_PAGES, pathname);
 }
 
+const DRIVE_NO_PROJECT = "null";
+
+/**
+ * The part of a project page's path after its id ("" on the overview), or
+ * null off project pages.
+ */
+export function projectPageSection(pathname: string): string | null {
+  const projectPage = PROJECT_PAGE.exec(pathname);
+  return projectPage ? pathname.slice(projectPage[0].length) : null;
+}
+
 /**
  * The project the reader is working in: the project page they are on, or the
  * project filter of a scoped workspace page. Null is the workspace view.
@@ -39,7 +50,9 @@ export function readProjectScope(
   const projectPage = PROJECT_PAGE.exec(pathname);
   if (projectPage?.[1]) return decodeURIComponent(projectPage[1]);
   if (!isProjectScopedPath(pathname)) return null;
-  return searchParams.get(PROJECT_SCOPE_PARAM) || null;
+  const projectId = searchParams.get(PROJECT_SCOPE_PARAM);
+  // Drive writes "null" for its No project folder: no scope, not an id.
+  return projectId && projectId !== DRIVE_NO_PROJECT ? projectId : null;
 }
 
 /** A navigation link that keeps the reader's project scope. */
@@ -66,10 +79,9 @@ export function switchScopeHref(
 ): string {
   if (isProjectScopedPath(pathname)) return scopedHref(pathname, projectId);
 
-  const projectPage = PROJECT_PAGE.exec(pathname);
-  if (projectPage) {
+  const section = projectPageSection(pathname);
+  if (section !== null) {
     if (!projectId) return "/projects";
-    const section = pathname.slice(projectPage[0].length);
     const keep = PROJECT_ONLY_SUBPATHS.has(section) ? "" : section;
     return `/projects/${encodeURIComponent(projectId)}${keep}`;
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDeferredValue } from "react";
 import { orderSidebarProjects } from "@/app/components/sidebar/components/order-sidebar-projects";
 import { loadMoreProjects } from "@/app/projects/actions";
@@ -44,6 +44,63 @@ function useWorkspaceScope(): RecentProjectsScope | null {
   };
 }
 
+function pageQueryKey(scope: RecentProjectsScope | null, query: string) {
+  return [
+    "project-scope-page",
+    scope?.userId ?? null,
+    scope?.organizationId ?? null,
+    query,
+  ] as const;
+}
+
+/** Same user and workspace; the search part of the key may differ. */
+function isSameScope(
+  previous: readonly unknown[],
+  next: ReturnType<typeof pageQueryKey>,
+): boolean {
+  return previous[1] === next[1] && previous[2] === next[2];
+}
+
+/**
+ * The one project a trigger names. It reads rows already loaded and asks Core
+ * only for a project they miss, so a closed menu loads no list.
+ */
+export function useSelectedScopeProject(
+  selectedProjectId: string | null,
+  loaded: ScopeProject[] = [],
+): ScopeProject | null {
+  const scope = useWorkspaceScope();
+  // Rows an open menu already loaded; never a fetch of its own.
+  const cachedPage = useQueryClient().getQueryData<
+    Awaited<ReturnType<typeof loadMoreProjects>>
+  >(pageQueryKey(scope, ""));
+  const listed =
+    selectedProjectId == null
+      ? undefined
+      : [...loaded, ...(cachedPage?.projects ?? [])].find(
+          (project) => project.id === selectedProjectId,
+        );
+
+  const selected = useQuery({
+    queryKey: [
+      "project-scope-selected",
+      scope?.userId ?? null,
+      scope?.organizationId ?? null,
+      selectedProjectId,
+    ],
+    queryFn: () => {
+      if (!selectedProjectId) throw new Error("No project selected");
+      return loadScopeProject({ projectId: selectedProjectId });
+    },
+    enabled: selectedProjectId != null && listed == null && scope != null,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  if (listed) return toRow(listed);
+  return selected.data ? toRow(selected.data) : null;
+}
+
 /**
  * Everything a project switcher lists: Pinned, then recently visited, then
  * the workspace's projects in Core's activity order. A search asks Core, so it
@@ -62,12 +119,7 @@ export function useScopeProjects({
   const query = useDeferredValue(search.trim());
 
   const page = useQuery({
-    queryKey: [
-      "project-scope-page",
-      scope?.userId ?? null,
-      scope?.organizationId ?? null,
-      query,
-    ],
+    queryKey: pageQueryKey(scope, query),
     queryFn: () => {
       if (!scope) throw new Error("No workspace scope");
       return loadMoreProjects({
@@ -77,7 +129,13 @@ export function useScopeProjects({
       });
     },
     enabled: scope != null,
-    placeholderData: keepPreviousData,
+    // Keep rows while a search refines, never across a workspace switch: an
+    // old workspace's project would still be clickable.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery &&
+      isSameScope(previousQuery.queryKey, pageQueryKey(scope, query))
+        ? previous
+        : undefined,
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -92,27 +150,10 @@ export function useScopeProjects({
     cap: SCOPE_SHORTLIST_CAP,
   });
 
-  const known = new Map(
-    [...pinnedProjects, ...pageProjects].map((project) => [
-      project.id,
-      project,
-    ]),
-  );
-  const listed = selectedProjectId ? known.get(selectedProjectId) : undefined;
-
-  const selected = useQuery({
-    queryKey: ["project-scope-selected", selectedProjectId],
-    queryFn: () => {
-      if (!selectedProjectId) throw new Error("No project selected");
-      return loadScopeProject({ projectId: selectedProjectId });
-    },
-    enabled: selectedProjectId != null && listed == null && scope != null,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
-
-  const selectedProject: ScopeProject | null =
-    listed ?? (selected.data ? toRow(selected.data) : null);
+  const selectedProject = useSelectedScopeProject(selectedProjectId, [
+    ...pinnedProjects,
+    ...pageProjects,
+  ]);
 
   return {
     /** Shown only while the search box is empty. */
