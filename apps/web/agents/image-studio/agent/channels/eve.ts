@@ -4,9 +4,10 @@ import { eveChannel } from "eve/channels/eve";
 import {
   authorizeProjectAccess,
   authorizeSession,
+  type InitialTurnMove,
   type Registration,
-  recordInitialTurn,
   registerCreatedSession,
+  transitionInitialTurn,
 } from "../lib/core";
 import { type GrantClaims, verifyGrant } from "../lib/grant";
 
@@ -242,7 +243,7 @@ const NOT_READY_MAX_DELAY_MS = 2_000;
 
 /** What the first send left behind, which is not always what it returned. */
 type Delivery =
-  | { outcome: "delivered" }
+  | { outcome: "delivered"; response: Response }
   /** The runtime answered and refused. Nothing ran; the message is owed again. */
   | { outcome: "undelivered"; response: Response }
   /** We could not read the outcome. Never redelivered on its own. */
@@ -294,7 +295,7 @@ async function deliverFirstMessage(
       return { outcome: "uncertain" };
     }
 
-    if (response.status < 300) return { outcome: "delivered" };
+    if (response.status < 300) return { outcome: "delivered", response };
 
     if (response.status === 409 && Date.now() < deadline) {
       const body = (await response
@@ -372,14 +373,20 @@ function recordOnCreate(
         ? classified.response
         : new Response(null, { status: 401 });
     }
-    if (classified.kind === "forward") {
-      return await recordEmptyCreate(handler, request, context, claims);
-    }
-
     const intentId =
       request.headers.get(INTENT_HEADER)?.trim() ||
-      classified.bodyIntentId ||
+      (classified.kind === "defer" ? classified.bodyIntentId : null) ||
       null;
+
+    if (classified.kind === "forward") {
+      return await recordEmptyCreate(
+        handler,
+        request,
+        context,
+        claims,
+        intentId,
+      );
+    }
 
     // 1. The conversation, empty. Creating it costs nothing that has to be
     //    undone: a message-free session parks before initialization, so no
@@ -425,41 +432,166 @@ function recordOnCreate(
     if (!registration.mayDeliver) {
       return notDelivering(registration, sessionId, created);
     }
-    const token = registration.deliveryToken;
 
-    // Announced *before* the send, and refused if a later attempt for this
-    // intent has taken the lease over. Without this step a crashed attempt is
-    // indistinguishable from one that never started, and the message is
-    // stranded as "unknown" for something that provably never ran.
-    if (!(await recordInitialTurn(claims, sessionId, "dispatching", token))) {
-      return Response.json(
-        {
-          ok: false,
-          error: "The conversation could not be started. Try again.",
-        },
-        { status: 503 },
-      );
-    }
-
-    const delivery = await deliverFirstMessage(
-      sendToSession,
-      request,
-      sessionId,
-      classified.turnBody,
+    return await deliverOwedFirstMessage({
+      claims,
       context,
+      held: registration,
+      onDelivered: () => created,
+      request,
+      sendToSession,
+      sessionId,
+      turnBody: classified.turnBody,
+    });
+  };
+}
+
+/**
+ * Deliver a first message this caller holds the lease for, and say what
+ * happened to it.
+ *
+ * Shared by both paths that can carry one — creation, and an ordinary send
+ * into a conversation whose first message is still owed — because the first
+ * message is one thing however it arrives. Keeping this only on creation was
+ * the hole: a resumed page sent the restored prompt through the ordinary
+ * route, which delivered it while the durable state still said nobody had, so
+ * a retry of the original creation could dispatch the same text again.
+ */
+async function deliverOwedFirstMessage(options: {
+  claims: GrantClaims;
+  context: never;
+  held: InitialTurnMove | Registration;
+  /**
+   * What to answer with when it goes. Creation answers with its own create
+   * response; an ordinary send answers with the runtime's, which carries the
+   * delivery id its client insists on.
+   */
+  onDelivered: (sent: Response) => Response;
+  request: Request;
+  sendToSession: RouteHandler;
+  sessionId: string;
+  turnBody: CreateBody;
+}): Promise<Response> {
+  const { claims, sessionId } = options;
+  const token = options.held.deliveryToken;
+
+  // Announced *before* the send, and refused if a later attempt for this
+  // conversation has taken the lease over. Without this step a crashed attempt
+  // is indistinguishable from one that never started, and the message is
+  // stranded as "unknown" for something that provably never ran.
+  const announced = await transitionInitialTurn(
+    claims,
+    sessionId,
+    "dispatching",
+    token,
+  );
+  if (!announced.accepted) {
+    return Response.json(
+      { ok: false, error: "The conversation could not be started. Try again." },
+      { status: 503 },
     );
-    if (delivery.outcome === "delivered") {
-      await recordInitialTurn(claims, sessionId, "delivered", token);
-      return created;
+  }
+
+  const delivery = await deliverFirstMessage(
+    options.sendToSession,
+    options.request,
+    sessionId,
+    options.turnBody,
+    options.context,
+  );
+  if (delivery.outcome === "delivered") {
+    await transitionInitialTurn(claims, sessionId, "delivered", token);
+    return options.onDelivered(delivery.response);
+  }
+  if (delivery.outcome === "undelivered") {
+    // Nothing ran. Returning the message to the queue is what makes the
+    // caller's retry deliver it rather than silently skip it.
+    await transitionInitialTurn(claims, sessionId, "undelivered", token);
+    return delivery.response;
+  }
+  await transitionInitialTurn(claims, sessionId, "uncertain", token);
+  return uncertainInitialTurn(sessionId);
+}
+
+/**
+ * Settle a first message that arrives through the ordinary send route.
+ *
+ * The page resumes the newest conversation on reload, and after a creation
+ * whose answer was lost that conversation's first message is still owed. The
+ * person's next message is then an ordinary send — and it *is* the first turn.
+ * So it enters the same decision creation does: claim, announce, send, report.
+ * Anything else about the session — later turns, HITL responses, controls —
+ * passes straight through.
+ *
+ * Asking costs one lookup on every message, including the ordinary ones that
+ * owe nothing. That is the price of the guarantee: the only way to skip the
+ * question is to assume the answer, and assuming it is what let the same text
+ * reach one conversation twice.
+ */
+function settleOwedFirstMessage(handler: RouteHandler): RouteHandler {
+  return async (request: Request, context: never) => {
+    const header = request.headers.get("authorization") ?? "";
+    const claims = header.startsWith("Bearer ")
+      ? verifyGrant(header.slice(7))
+      : null;
+    // No usable credential: the installed handler owns that answer, including
+    // its `WWW-Authenticate` challenge.
+    if (!claims) return await handler(request, context);
+
+    const sessionId =
+      (context as { params?: { sessionId?: string } } | null)?.params
+        ?.sessionId ?? sessionIdFromUrl(request.url);
+    if (!sessionId) return await handler(request, context);
+
+    const body = (await request
+      .clone()
+      .json()
+      .catch(() => null)) as CreateBody | null;
+    // Only a message can be a first turn. A HITL response answers a request
+    // that a delivered first turn must already have made.
+    if (!body || body.message === undefined) {
+      return await handler(request, context);
     }
-    if (delivery.outcome === "undelivered") {
-      // Nothing ran. Returning the message to the queue is what makes the
-      // caller's retry deliver it rather than silently skip it.
-      await recordInitialTurn(claims, sessionId, "undelivered", token);
-      return delivery.response;
+
+    const claimed = await transitionInitialTurn(claims, sessionId, "claim");
+    // Core would not say — the conversation is not this caller's, or the
+    // lookup failed. Either way the answer belongs to the route that owns it,
+    // which re-authorizes and denies with its own challenge.
+    if (!claimed.ok) return await handler(request, context);
+
+    if (claimed.mayDeliver) {
+      return await deliverOwedFirstMessage({
+        claims,
+        context,
+        held: claimed,
+        onDelivered: (sent) => sent,
+        request,
+        sendToSession: handler,
+        sessionId,
+        turnBody: body,
+      });
     }
-    await recordInitialTurn(claims, sessionId, "uncertain", token);
-    return uncertainInitialTurn(sessionId);
+
+    switch (claimed.initialTurn) {
+      case "NONE":
+      case "DELIVERED":
+        // Nothing is owed. An ordinary turn in an ordinary conversation.
+        return await handler(request, context);
+      case "UNCERTAIN": {
+        // The person is looking at the conversation and has decided to speak
+        // into it anyway. That is the explicit recovery the uncertainty was
+        // held open for, so it goes — and settles the state, so no retry of
+        // the original creation dispatches behind them.
+        const response = await handler(request, context);
+        if (response instanceof Response && response.status < 300) {
+          await transitionInitialTurn(claims, sessionId, "delivered");
+        }
+        return response;
+      }
+      default:
+        // Another attempt is mid-dispatch. Sending now is the duplicate.
+        return inFlightInitialTurn(sessionId);
+    }
   };
 }
 
@@ -475,6 +607,7 @@ async function recordEmptyCreate(
   request: Request,
   context: never,
   claims: GrantClaims,
+  intentId: string | null,
 ): Promise<Response | unknown> {
   const response = await handler(request, context);
   // Only the HTTP create route is wrapped; the union also covers WebSocket
@@ -482,21 +615,26 @@ async function recordEmptyCreate(
   if (!(response instanceof Response)) return response;
   if (response.status >= 300) return response;
 
-  const sessionId = await readSessionId(response);
-  if (!sessionId) return response;
+  const candidateId = await readSessionId(response);
+  if (!candidateId) return response;
 
+  // Carrying the intent matters even with nothing to say: this is how a page
+  // finds the conversation an earlier attempt may have created before saying
+  // something *different* into it. Nothing is owed by this call, so it takes
+  // no delivery lease — holding one it will not use would block the attempt
+  // that would.
   const registration = await registerCreatedSession(claims, {
-    eveSessionId: sessionId,
-    clientIntentId: null,
+    eveSessionId: candidateId,
+    clientIntentId: intentId,
     expectsInitialTurn: false,
   });
-  if (!registration.recorded) {
+  if (!registration.recorded || !registration.eveSessionId) {
     return Response.json(
       { ok: false, error: "The conversation could not be started. Try again." },
       { status: 503 },
     );
   }
-  return response;
+  return await withSessionId(response, registration.eveSessionId);
 }
 
 /**
@@ -521,17 +659,21 @@ function notDelivering(
     case "UNCERTAIN":
       return uncertainInitialTurn(sessionId);
     default:
-      return Response.json(
-        {
-          ok: false,
-          code: "initial_turn_in_flight",
-          sessionId,
-          error:
-            "The conversation's first message is already being delivered by another attempt.",
-        },
-        { status: 409 },
-      );
+      return inFlightInitialTurn(sessionId);
   }
+}
+
+function inFlightInitialTurn(sessionId: string): Response {
+  return Response.json(
+    {
+      ok: false,
+      code: "initial_turn_in_flight",
+      sessionId,
+      error:
+        "The conversation's first message is already being delivered by another attempt.",
+    },
+    { status: 409 },
+  );
 }
 
 function uncertainInitialTurn(sessionId: string): Response {
@@ -596,15 +738,28 @@ const sendRoute = base.routes.find(
 
 export default {
   ...base,
-  routes: base.routes.map((route) =>
-    route.path === "/eve/v1/session" && route.method === "POST"
-      ? {
-          ...route,
-          handler: recordOnCreate(
-            route.handler as RouteHandler,
-            sendRoute?.handler as RouteHandler,
-          ),
-        }
-      : route,
-  ),
+  routes: base.routes.map((route) => {
+    if (route.path === "/eve/v1/session" && route.method === "POST") {
+      return {
+        ...route,
+        // Deliberately handed the *unwrapped* send: creation already holds the
+        // delivery lease, and going through the wrapper would have it compete
+        // with itself for one.
+        handler: recordOnCreate(
+          route.handler as RouteHandler,
+          sendRoute?.handler as RouteHandler,
+        ),
+      };
+    }
+    if (
+      route.path === "/eve/v1/session/:sessionId" &&
+      route.method === "POST"
+    ) {
+      return {
+        ...route,
+        handler: settleOwedFirstMessage(route.handler as RouteHandler),
+      };
+    }
+    return route;
+  }),
 };

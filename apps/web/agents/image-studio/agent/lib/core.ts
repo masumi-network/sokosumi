@@ -223,28 +223,65 @@ export async function registerCreatedSession(
   }
 }
 
+/** What the caller wants to do with the first message, or observed doing. */
+export type InitialTurnTransition =
+  | "claim"
+  | "dispatching"
+  | "delivered"
+  | "undelivered"
+  | "uncertain";
+
+export interface InitialTurnMove {
+  /**
+   * False when Core did not answer the question — the conversation is not this
+   * caller's, or the call did not get through. Distinct from a considered
+   * refusal, because the two deserve different answers: an unanswerable
+   * question is left to the route that owns it.
+   */
+  ok: boolean;
+  /** False when Core refused the move, or could not be reached. */
+  accepted: boolean;
+  initialTurn: InitialTurn;
+  /** True only for a `claim` that granted the lease. */
+  mayDeliver: boolean;
+  deliveryToken: string | null;
+}
+
 /**
- * Move the first-message delivery this attempt is holding.
+ * Move the first message's delivery, or ask for the right to make it.
+ *
+ * One call for every path, because the first message is one thing however it
+ * arrives. `claim` is how an ordinary send into a conversation that still owes
+ * its first message enters the same decision creation does; a send that
+ * skipped it delivered the message while the state still said nobody had, so a
+ * retry of the original creation could dispatch the same text again.
  *
  * `dispatching` is announced before the send, so a crashed attempt can be told
- * from one that never started — the difference between a message that is still
- * owed and one whose fate is unknown. `undelivered` restores a retry: the
- * runtime answered and refused, so nothing ran. `uncertain` is everything that
- * could not be read that way, and it deliberately leaves the conversation in a
- * state nothing dispatches into on its own.
+ * from one that never started. `undelivered` restores a retry: the runtime
+ * answered and refused, so nothing ran. `uncertain` is everything that could
+ * not be read that way, and it deliberately leaves the conversation in a state
+ * nothing dispatches into on its own.
  *
- * Returns false when Core would not accept the move — the lease was taken over
- * by a later attempt for the same intent, or the call did not get through. In
- * either case this attempt has lost the right to deliver and must not send.
- * Failing to report is survivable: the lease is the backstop, and a lapsed
- * dispatch lease resolves to `UNCERTAIN` rather than to a redelivery.
+ * `accepted: false` means this caller does not hold the delivery — the lease
+ * was taken over, the state does not allow the move, or the call did not get
+ * through. In every one of those cases it must not send. Failing to report is
+ * survivable: the lease is the backstop, and a lapsed dispatch lease resolves
+ * to `UNCERTAIN` rather than to a redelivery.
  */
-export async function recordInitialTurn(
+export async function transitionInitialTurn(
   identity: AgentIdentity,
   eveSessionId: string,
-  outcome: "dispatching" | "delivered" | "undelivered" | "uncertain",
-  deliveryToken: string | null,
-): Promise<boolean> {
+  transition: InitialTurnTransition,
+  deliveryToken: string | null = null,
+): Promise<InitialTurnMove> {
+  const unanswered: InitialTurnMove = {
+    ok: false,
+    accepted: false,
+    // Unreadable is treated as "in flight", never as "safe to send".
+    initialTurn: "DELIVERING",
+    mayDeliver: false,
+    deliveryToken: null,
+  };
   try {
     const response = await fetch(
       `${baseUrl()}/v1/image-studio-agent/sessions/${encodeURIComponent(eveSessionId)}/initial-turn`,
@@ -254,17 +291,32 @@ export async function recordInitialTurn(
           authorization: `Bearer ${mintGrant(identity)}`,
           "content-type": "application/json",
         },
-        body: JSON.stringify({ outcome, deliveryToken }),
+        body: JSON.stringify({ transition, deliveryToken }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       },
     );
-    if (!response.ok) return false;
+    if (!response.ok) return unanswered;
     const body = (await response.json().catch(() => null)) as {
-      data?: { accepted?: unknown };
+      data?: {
+        accepted?: unknown;
+        initialTurn?: unknown;
+        mayDeliver?: unknown;
+        deliveryToken?: unknown;
+      };
     } | null;
-    return body?.data?.accepted === true;
+    if (!body?.data) return unanswered;
+    return {
+      ok: true,
+      accepted: body.data.accepted === true,
+      initialTurn: readInitialTurn(body.data.initialTurn),
+      mayDeliver: body.data.mayDeliver === true,
+      deliveryToken:
+        typeof body.data.deliveryToken === "string"
+          ? body.data.deliveryToken
+          : null,
+    };
   } catch {
-    return false;
+    return unanswered;
   }
 }
 

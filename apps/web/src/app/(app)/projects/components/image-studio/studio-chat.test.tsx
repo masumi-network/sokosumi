@@ -18,8 +18,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * no readiness state to wait on.
  */
 
-const { sendMock, useEveAgentMock } = vi.hoisted(() => ({
+const { sendMock, prewarmMock, useEveAgentMock } = vi.hoisted(() => ({
   sendMock: vi.fn(),
+  prewarmMock: vi.fn(),
   useEveAgentMock: vi.fn(),
 }));
 
@@ -50,6 +51,7 @@ function agentState(overrides: Record<string, unknown> = {}) {
     session: null,
     data: { messages: [] },
     send: sendMock,
+    prewarm: prewarmMock,
     ...overrides,
   };
 }
@@ -57,6 +59,7 @@ function agentState(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   sendMock.mockResolvedValue(undefined);
+  prewarmMock.mockResolvedValue(undefined);
   useEveAgentMock.mockImplementation(() => agentState());
   try {
     window.sessionStorage.clear();
@@ -153,6 +156,84 @@ describe("the first message", () => {
 
     // From here the session id is the identity.
     expect(headers()).toEqual({});
+  });
+});
+
+describe("a retry the person has edited", () => {
+  it("finds the earlier conversation first, then says the new thing into it", async () => {
+    // Reusing the earlier attempt's name for a different message asks the
+    // agent to create that conversation once — and it answers with the one
+    // that already exists, having said nothing. The edited message vanished.
+    renderChat();
+    const box = screen.getByPlaceholderText("Describe the image...");
+    fireEvent.change(box, { target: { value: "original request" } });
+    await act(async () => {
+      fireEvent.submit(box.closest("form") as HTMLFormElement);
+    });
+    const headers = latestOptions().headers as () => Record<string, string>;
+    const attempt = headers()["x-sokosumi-studio-intent"];
+    expect(attempt).toBeTruthy();
+
+    fireEvent.change(box, { target: { value: "a different request" } });
+    await act(async () => {
+      fireEvent.submit(box.closest("form") as HTMLFormElement);
+    });
+
+    // The conversation is resolved without saying anything, and only then is
+    // the new message sent. The earlier attempt's name is still what finds it.
+    expect(prewarmMock).toHaveBeenCalledTimes(1);
+    expect(headers()["x-sokosumi-studio-intent"]).toBe(attempt);
+    expect(sendMock).toHaveBeenLastCalledWith("a different request", undefined);
+  });
+
+  it("still replays an unchanged retry under the same name", async () => {
+    renderChat();
+    const box = screen.getByPlaceholderText("Describe the image...");
+    fireEvent.change(box, { target: { value: "same request" } });
+    await act(async () => {
+      fireEvent.submit(box.closest("form") as HTMLFormElement);
+    });
+    fireEvent.change(box, { target: { value: "same request" } });
+    await act(async () => {
+      fireEvent.submit(box.closest("form") as HTMLFormElement);
+    });
+
+    // Nothing to resolve: this is the same attempt, and create-once is right.
+    expect(prewarmMock).not.toHaveBeenCalled();
+  });
+
+  it("counts a changed selection as a changed message", async () => {
+    const { rerender } = render(
+      <StudioChat
+        projectId="project-1"
+        labels={LABELS}
+        selectedAsset={{ id: "old", version: 1, prompt: "old" } as never}
+        resumeSessionId={null}
+        onActivity={() => {}}
+      />,
+    );
+    const box = screen.getByPlaceholderText("Describe the image...");
+    fireEvent.change(box, { target: { value: "make this warmer" } });
+    await act(async () => {
+      fireEvent.submit(box.closest("form") as HTMLFormElement);
+    });
+
+    rerender(
+      <StudioChat
+        projectId="project-1"
+        labels={LABELS}
+        selectedAsset={{ id: "new", version: 2, prompt: "new" } as never}
+        resumeSessionId={null}
+        onActivity={() => {}}
+      />,
+    );
+    fireEvent.change(box, { target: { value: "make this warmer" } });
+    await act(async () => {
+      fireEvent.submit(box.closest("form") as HTMLFormElement);
+    });
+
+    // Same words, different referent — so it is a different thing to say.
+    expect(prewarmMock).toHaveBeenCalledTimes(1);
   });
 });
 

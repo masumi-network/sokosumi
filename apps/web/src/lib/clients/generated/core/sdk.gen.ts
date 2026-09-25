@@ -1632,7 +1632,7 @@ export const postImageStudioAgentSessions = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Move the conversation's first-message delivery, fenced on the lease token. 'dispatching' is announced before the send; 'delivered' closes it; 'undelivered' returns it to the queue for a later attempt; 'uncertain' leaves it in a state nothing redelivers automatically. accepted=false means another attempt now holds the lease and this caller must not send.
+ * Move the conversation's first-message delivery, fenced on the lease token. 'claim' asks for the right to deliver and returns the lease; 'dispatching' is announced before the send and requires that lease; 'delivered' closes it; 'undelivered' returns it to the queue for a later attempt; 'uncertain' leaves it in a state nothing redelivers automatically. accepted=false means this caller does not hold the delivery and must not send.
  */
 export const postImageStudioAgentSessionsByEveSessionIdInitialTurn = <ThrowOnError extends boolean = false>(options: Options<PostImageStudioAgentSessionsByEveSessionIdInitialTurnData, ThrowOnError>): RequestResult<PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses, PostImageStudioAgentSessionsByEveSessionIdInitialTurnErrors, ThrowOnError> => (options.client ?? client).post<PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses, PostImageStudioAgentSessionsByEveSessionIdInitialTurnErrors, ThrowOnError>({
     responseTransformer: postImageStudioAgentSessionsByEveSessionIdInitialTurnResponseTransformer,

@@ -50,8 +50,8 @@ vi.mock("@/lib/image-studio/access", () => ({
 
 import {
   authorizeAgentSession,
-  recordInitialTurn,
   registerCreatedSession,
+  transitionInitialTurn,
 } from "@/services/image-studio-sessions.service";
 
 const VIEW = {
@@ -147,6 +147,37 @@ describe("recording a conversation at creation", () => {
     expect(result.mayDeliver).toBe(true);
     expect(result.initialTurn).toBe("CLAIMED");
     expect(result.deliveryToken).toEqual(expect.any(String));
+  });
+
+  it("takes no delivery lease when this call carries no message", async () => {
+    // A page merely asking which conversation an intent names must not hold a
+    // lease it will not use: holding one blocks the attempt that would.
+    sessionFindUniqueMock.mockImplementation(
+      (args: { where?: Record<string, unknown>; select?: unknown }) => {
+        if (args.where?.projectId_clientIntentId) {
+          return Promise.resolve({ ...VIEW, projectId: "project-a" });
+        }
+        return Promise.resolve(
+          (args.select as Record<string, unknown>)?.initialTurn
+            ? { initialTurn: "PENDING" }
+            : null,
+        );
+      },
+    );
+
+    const result = await registerCreatedSession({
+      projectId: "project-a",
+      userId: "user-a",
+      eveSessionId: "wrun_resolve",
+      title: null,
+      clientIntentId: "intent-1",
+      expectsInitialTurn: false,
+    });
+
+    expect(result.eveSessionId).toBe("wrun_A");
+    expect(result.mayDeliver).toBe(false);
+    expect(result.initialTurn).toBe("PENDING");
+    expect(sessionUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("creates a conversation that owes nothing as NONE, and grants no delivery", async () => {
@@ -366,6 +397,56 @@ describe("recording a conversation at creation", () => {
   });
 });
 
+describe("entering the delivery from an ordinary send", () => {
+  it("claims an owed first message, so a resumed send settles it", async () => {
+    // The page resumes a conversation whose first message never went. That
+    // send *is* the first turn, so it enters the same decision creation does
+    // — and a send that skipped this left the state saying nobody had
+    // delivered, which let a retry of the original creation say it again.
+    sessionFindUniqueMock.mockImplementation((args: { select?: unknown }) =>
+      Promise.resolve(
+        (args.select as Record<string, unknown>)?.initialTurn
+          ? { initialTurn: "CLAIMED" }
+          : { ...VIEW, projectId: "project-a" },
+      ),
+    );
+    sessionUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    const result = await transitionInitialTurn({
+      projectId: "project-a",
+      userId: "user-a",
+      eveSessionId: "wrun_A",
+      transition: "claim",
+    });
+
+    expect(result.mayDeliver).toBe(true);
+    expect(result.accepted).toBe(true);
+    expect(result.deliveryToken).toEqual(expect.any(String));
+  });
+
+  it("refuses the claim while another attempt is mid-dispatch", async () => {
+    sessionFindUniqueMock.mockImplementation((args: { select?: unknown }) =>
+      Promise.resolve(
+        (args.select as Record<string, unknown>)?.initialTurn
+          ? { initialTurn: "DELIVERING" }
+          : { ...VIEW, projectId: "project-a" },
+      ),
+    );
+    sessionUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const result = await transitionInitialTurn({
+      projectId: "project-a",
+      userId: "user-a",
+      eveSessionId: "wrun_A",
+      transition: "claim",
+    });
+
+    expect(result.mayDeliver).toBe(false);
+    expect(result.accepted).toBe(false);
+    expect(result.initialTurn).toBe("DELIVERING");
+  });
+});
+
 describe("closing out the first delivery", () => {
   beforeEach(() => {
     sessionFindUniqueMock.mockImplementation((args: { select?: unknown }) =>
@@ -378,11 +459,11 @@ describe("closing out the first delivery", () => {
   });
 
   it("announces the dispatch before it happens, fenced on the lease", async () => {
-    const result = await recordInitialTurn({
+    const result = await transitionInitialTurn({
       projectId: "project-a",
       userId: "user-a",
       eveSessionId: "wrun_A",
-      outcome: "dispatching",
+      transition: "dispatching",
       deliveryToken: "lease-1",
     });
 
@@ -398,14 +479,28 @@ describe("closing out the first delivery", () => {
     expect(result.accepted).toBe(true);
   });
 
-  it("refuses an attempt whose lease was taken over", async () => {
-    sessionUpdateManyMock.mockResolvedValue({ count: 0 });
-
-    const result = await recordInitialTurn({
+  it("refuses to announce a dispatch with no lease at all", async () => {
+    // Everything else rests on the fence, so an unfenced announcement is
+    // refused rather than quietly allowed through.
+    const result = await transitionInitialTurn({
       projectId: "project-a",
       userId: "user-a",
       eveSessionId: "wrun_A",
-      outcome: "dispatching",
+      transition: "dispatching",
+    });
+
+    expect(result.accepted).toBe(false);
+    expect(sessionUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses an attempt whose lease was taken over", async () => {
+    sessionUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const result = await transitionInitialTurn({
+      projectId: "project-a",
+      userId: "user-a",
+      eveSessionId: "wrun_A",
+      transition: "dispatching",
       deliveryToken: "stale-lease",
     });
 
@@ -414,11 +509,11 @@ describe("closing out the first delivery", () => {
   });
 
   it("returns an owed message to the queue when the runtime refused it", async () => {
-    await recordInitialTurn({
+    await transitionInitialTurn({
       projectId: "project-a",
       userId: "user-a",
       eveSessionId: "wrun_A",
-      outcome: "undelivered",
+      transition: "undelivered",
       deliveryToken: "lease-1",
     });
 
@@ -439,11 +534,11 @@ describe("closing out the first delivery", () => {
   });
 
   it("closes an uncertain delivery once it is confirmed", async () => {
-    await recordInitialTurn({
+    await transitionInitialTurn({
       projectId: "project-a",
       userId: "user-a",
       eveSessionId: "wrun_A",
-      outcome: "delivered",
+      transition: "delivered",
     });
 
     expect(sessionUpdateManyMock).toHaveBeenCalledWith(
@@ -467,11 +562,11 @@ describe("closing out the first delivery", () => {
     );
 
     await expect(
-      recordInitialTurn({
+      transitionInitialTurn({
         projectId: "project-a",
         userId: "removed-user",
         eveSessionId: "wrun_A",
-        outcome: "delivered",
+        transition: "delivered",
       }),
     ).rejects.toMatchObject({ status: 404 });
     expect(sessionUpdateManyMock).not.toHaveBeenCalled();

@@ -272,28 +272,40 @@ export const registerImageStudioSessionSchema = z.object({
   deliveryToken: z.string().nullable(),
 });
 
-/** Body of the agent's initial-turn outcome call. */
+/** Body of the agent's initial-turn transition call. */
 export const recordImageStudioInitialTurnRequestSchema = z.object({
   /**
-   * What the deliverer is about to do, or observed. `dispatching` is announced
-   * before the send, so a crashed attempt can be told from one that never
-   * started. `undelivered` means the runtime refused, so the message is owed
-   * again; `uncertain` means the outcome could not be read and nothing may
-   * redeliver it automatically.
+   * What the caller wants to do, or observed. `claim` asks for the right to
+   * deliver — the way every first-message path, creation and an ordinary send
+   * into a conversation that still owes one, enters this decision.
+   * `dispatching` is announced before the send, so a crashed attempt can be
+   * told from one that never started. `undelivered` means the runtime refused,
+   * so the message is owed again; `uncertain` means the outcome could not be
+   * read and nothing may redeliver it automatically.
    */
-  outcome: z.enum(["dispatching", "delivered", "undelivered", "uncertain"]),
-  /** The lease the caller was granted when the conversation was recorded. */
+  transition: z.enum([
+    "claim",
+    "dispatching",
+    "delivered",
+    "undelivered",
+    "uncertain",
+  ]),
+  /** The lease the caller holds. Required to announce a dispatch. */
   deliveryToken: z.string().min(1).max(200).nullish(),
 });
 
-/** The conversation's first-message state after recording the outcome. */
+/** The conversation's first-message state after the transition. */
 export const recordImageStudioInitialTurnSchema = z.object({
   sessionId: z.string().uuid(),
   eveSessionId: z.string(),
   initialTurn: imageStudioInitialTurnSchema,
   /**
-   * False when this caller no longer held the lease, which means another
-   * attempt has taken the delivery over and this one must not send.
+   * False when the transition was refused: another attempt holds the lease, or
+   * the state does not allow it. Such a caller must not send.
    */
   accepted: z.boolean(),
+  /** True only for a `claim` that granted the lease. */
+  mayDeliver: z.boolean(),
+  /** The lease granted by a `claim`, presented on every later transition. */
+  deliveryToken: z.string().nullable(),
 });

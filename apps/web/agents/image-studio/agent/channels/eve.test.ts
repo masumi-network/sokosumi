@@ -32,19 +32,19 @@ const {
   authorizeSessionMock,
   authorizeProjectAccessMock,
   registerMock,
-  recordInitialTurnMock,
+  transitionMock,
 } = vi.hoisted(() => ({
   authorizeSessionMock: vi.fn(),
   authorizeProjectAccessMock: vi.fn(),
   registerMock: vi.fn(),
-  recordInitialTurnMock: vi.fn(),
+  transitionMock: vi.fn(),
 }));
 
 vi.mock("../lib/core", () => ({
   authorizeSession: authorizeSessionMock,
   authorizeProjectAccess: authorizeProjectAccessMock,
   registerCreatedSession: registerMock,
-  recordInitialTurn: recordInitialTurnMock,
+  transitionInitialTurn: transitionMock,
 }));
 
 process.env.IMAGE_STUDIO_AGENT_SECRET = "x".repeat(48);
@@ -156,7 +156,22 @@ beforeEach(() => {
   registerMock.mockImplementation(async (_identity, options) =>
     mayDeliver(options.eveSessionId),
   );
-  recordInitialTurnMock.mockResolvedValue(true);
+  transitionMock.mockImplementation(
+    async (_identity, _sessionId, transition) =>
+      transition === "claim"
+        ? {
+            accepted: false,
+            initialTurn: "DELIVERED",
+            mayDeliver: false,
+            deliveryToken: null,
+          }
+        : {
+            accepted: true,
+            initialTurn: "DELIVERED",
+            mayDeliver: false,
+            deliveryToken: null,
+          },
+  );
 });
 
 describe("creating a conversation", () => {
@@ -494,7 +509,7 @@ describe("delivering the first message", () => {
 
     expect(response.status).toBeLessThan(300);
     expect(sent).toHaveLength(2);
-    expect(recordInitialTurnMock).toHaveBeenCalledWith(
+    expect(transitionMock).toHaveBeenCalledWith(
       expect.anything(),
       "wrun_slow",
       "delivered",
@@ -512,7 +527,7 @@ describe("delivering the first message", () => {
     const response = await create({ message: "first message" }, ctx);
 
     expect(response.status).toBe(409);
-    expect(recordInitialTurnMock).toHaveBeenCalledWith(
+    expect(transitionMock).toHaveBeenCalledWith(
       expect.anything(),
       "wrun_refused",
       "undelivered",
@@ -536,7 +551,7 @@ describe("delivering the first message", () => {
       code: "initial_turn_uncertain",
       sessionId: "wrun_uncertain",
     });
-    expect(recordInitialTurnMock).toHaveBeenCalledWith(
+    expect(transitionMock).toHaveBeenCalledWith(
       expect.anything(),
       "wrun_uncertain",
       "uncertain",
@@ -547,12 +562,18 @@ describe("delivering the first message", () => {
   it("announces the dispatch before sending, and does not send when that is refused", async () => {
     // A later attempt for the same intent took the lease over. This one has
     // lost the right to deliver, and delivering anyway is the duplicate turn.
-    recordInitialTurnMock.mockResolvedValue(false);
+    transitionMock.mockResolvedValue({
+      ok: true,
+      accepted: false,
+      initialTurn: "DELIVERING",
+      mayDeliver: false,
+      deliveryToken: null,
+    });
     const { ctx, sent } = creationContext("wrun_fenced");
 
     const response = await create({ message: "first message" }, ctx);
 
-    expect(recordInitialTurnMock).toHaveBeenCalledWith(
+    expect(transitionMock).toHaveBeenCalledWith(
       expect.anything(),
       "wrun_fenced",
       "dispatching",
@@ -579,5 +600,163 @@ describe("delivering the first message", () => {
     // invitation to retry is honest and costs nothing.
     expect(sent).toEqual([]);
     expect(executedInput(calls[0])).toBeUndefined();
+  });
+});
+
+describe("an ordinary send into a conversation that still owes its first message", () => {
+  /** Drives the wrapped send route the way the browser does after a reload. */
+  async function send(
+    sessionId: string,
+    body: unknown,
+    ctx: Record<string, unknown>,
+  ) {
+    return await route("/eve/v1/session/:sessionId", "POST").handler(
+      new Request(`http://local/eve/v1/session/${sessionId}`, {
+        method: "POST",
+        headers: {
+          authorization: browserBearer(),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      }),
+      { ...ctx, params: { sessionId } },
+    );
+  }
+
+  function claimGrants(initialTurn: string, mayDeliver: boolean) {
+    transitionMock.mockImplementation(
+      async (_identity, _sessionId, transition) =>
+        transition === "claim"
+          ? {
+              ok: true,
+              accepted: mayDeliver,
+              initialTurn,
+              mayDeliver,
+              deliveryToken: mayDeliver ? "lease-9" : null,
+            }
+          : {
+              ok: true,
+              accepted: true,
+              initialTurn,
+              mayDeliver: false,
+              deliveryToken: null,
+            },
+    );
+  }
+
+  it("settles the owed first message instead of leaving the state behind", async () => {
+    // The page resumes the newest conversation on reload, and after a creation
+    // whose answer was lost that conversation's first message is still owed.
+    // A send that skipped this delivered the message while the state still
+    // said nobody had — so a retry of the original creation said it again.
+    claimGrants("CLAIMED", true);
+    const { ctx, sent } = creationContext("wrun_resumed");
+
+    const response = await send("wrun_resumed", { message: "restored" }, ctx);
+
+    expect(response.status).toBeLessThan(300);
+    expect(sent.map((record) => record.message)).toEqual(["restored"]);
+    const transitions = transitionMock.mock.calls.map((call) => call[2]);
+    expect(transitions).toEqual(["claim", "dispatching", "delivered"]);
+  });
+
+  it("refuses while another attempt is mid-dispatch", async () => {
+    claimGrants("DELIVERING", false);
+    const { ctx, sent } = creationContext("wrun_busy");
+
+    const response = await send("wrun_busy", { message: "restored" }, ctx);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      code: "initial_turn_in_flight",
+    });
+    expect(sent).toEqual([]);
+  });
+
+  it("lets the person speak into an uncertain conversation, and closes it", async () => {
+    // They can see the transcript. Sending is their decision, not a guess —
+    // and settling it stops a later retry dispatching behind them.
+    claimGrants("UNCERTAIN", false);
+    const { ctx, sent } = creationContext("wrun_unknown");
+
+    const response = await send("wrun_unknown", { message: "again" }, ctx);
+
+    expect(response.status).toBeLessThan(300);
+    expect(sent.map((record) => record.message)).toEqual(["again"]);
+    expect(transitionMock.mock.calls.map((call) => call[2])).toEqual([
+      "claim",
+      "delivered",
+    ]);
+  });
+
+  it("leaves an ordinary later turn alone", async () => {
+    claimGrants("DELIVERED", false);
+    const { ctx, sent } = creationContext("wrun_ordinary");
+
+    const response = await send("wrun_ordinary", { message: "next" }, ctx);
+
+    expect(response.status).toBeLessThan(300);
+    expect(sent.map((record) => record.message)).toEqual(["next"]);
+    // Claimed once to ask, then nothing: no delivery protocol to run.
+    expect(transitionMock.mock.calls.map((call) => call[2])).toEqual(["claim"]);
+  });
+
+  it("leaves an unanswerable claim to the route that owns the denial", async () => {
+    // The conversation is not this caller's, or Core did not answer. Saying
+    // "a delivery is in flight" would be both wrong and a leak; the installed
+    // handler re-authorizes and denies with its own challenge.
+    transitionMock.mockResolvedValue({
+      ok: false,
+      accepted: false,
+      initialTurn: "DELIVERING",
+      mayDeliver: false,
+      deliveryToken: null,
+    });
+    authorizeSessionMock.mockResolvedValue(false);
+    const { ctx, sent } = creationContext("wrun_denied");
+
+    const response = await send("wrun_denied", { message: "x" }, ctx);
+
+    expect(response.status).toBe(401);
+    expect(sent).toEqual([]);
+  });
+
+  it("does not treat an input response as a first message", async () => {
+    claimGrants("CLAIMED", true);
+    const { ctx } = creationContext("wrun_hitl");
+
+    await send(
+      "wrun_hitl",
+      { inputResponses: [{ requestId: "req_A", optionId: "approve" }] },
+      ctx,
+    );
+
+    // A HITL answer replies to a request only a delivered turn could have made.
+    expect(transitionMock).not.toHaveBeenCalled();
+  });
+
+  it("does not make creation compete with itself for the lease", async () => {
+    // Creation already holds the delivery; its inner send must go straight to
+    // the installed handler, or it would claim against its own attempt.
+    const { ctx, sent } = creationContext("wrun_created");
+    registerMock.mockImplementation(async (_identity, options) =>
+      mayDeliver(options.eveSessionId),
+    );
+    transitionMock.mockResolvedValue({
+      ok: true,
+      accepted: true,
+      initialTurn: "DELIVERING",
+      mayDeliver: false,
+      deliveryToken: null,
+    });
+
+    const response = await create({ message: "first message" }, ctx);
+
+    expect(response.status).toBeLessThan(300);
+    expect(sent).toHaveLength(1);
+    expect(transitionMock.mock.calls.map((call) => call[2])).toEqual([
+      "dispatching",
+      "delivered",
+    ]);
   });
 });

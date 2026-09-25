@@ -71,6 +71,40 @@ function intentStorageKey(projectId: string): string {
   return `sokosumi:image-studio:intent:${projectId}`;
 }
 
+/**
+ * The attempt, and what it was an attempt to say.
+ *
+ * The name alone was not enough. Reused for a *different* message it means
+ * "create-once for this conversation", which is exactly right for a replay and
+ * exactly wrong for an edit: the agent answers with the conversation the first
+ * attempt created and dispatches nothing, and the edited message disappears
+ * without a word. Keeping what the attempt said is what lets the two be told
+ * apart.
+ */
+interface StudioIntent {
+  id: string;
+  /** The message and selection this attempt was for. */
+  says: string;
+}
+
+function intentSays(message: string, asset: StudioAsset | null): string {
+  return JSON.stringify([message, asset?.id ?? null]);
+}
+
+function readIntent(projectId: string): StudioIntent | null {
+  try {
+    const raw = window.sessionStorage.getItem(intentStorageKey(projectId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StudioIntent>;
+    return typeof parsed.id === "string" && typeof parsed.says === "string"
+      ? { id: parsed.id, says: parsed.says }
+      : null;
+  } catch {
+    // No stored attempt; this page load starts its own.
+    return null;
+  }
+}
+
 function newIntentId(): string {
   try {
     return window.crypto.randomUUID();
@@ -163,11 +197,11 @@ function StudioConversation({
   const draftKey = `sokosumi:image-studio:draft:${projectId}`;
   const [draft, setDraft] = useState("");
   /**
-   * The name this client has given its first message, while it still has no
-   * session id to identify the conversation by. Read fresh on every request
-   * through the `headers` resolver, so it needs no rerender to take effect.
+   * The attempt this client is making, while it still has no session id to
+   * identify the conversation by. Read fresh on every request through the
+   * `headers` resolver, so it needs no rerender to take effect.
    */
-  const intentRef = useRef<string | null>(null);
+  const intentRef = useRef<StudioIntent | null>(null);
   /**
    * `null` while the token works. `"unavailable"` is permanent for this page
    * load (the feature is not configured, or this session cannot see the
@@ -212,14 +246,7 @@ function StudioConversation({
   // mid-create is still the same attempt rather than a second conversation.
   useEffect(() => {
     if (resumeSessionId) return;
-    try {
-      intentRef.current = window.sessionStorage.getItem(
-        intentStorageKey(projectId),
-      );
-    } catch {
-      // Without storage the intent lives for this page load only, which still
-      // covers retrying a message that is sitting in the composer.
-    }
+    intentRef.current = readIntent(projectId);
   }, [projectId, resumeSessionId]);
 
   /**
@@ -228,16 +255,22 @@ function StudioConversation({
    * Called before the first submit rather than on mount: a conversation nobody
    * has spoken into has no attempt to identify.
    */
-  const claimIntent = useCallback(() => {
-    if (intentRef.current) return;
-    const intentId = newIntentId();
-    intentRef.current = intentId;
-    try {
-      window.sessionStorage.setItem(intentStorageKey(projectId), intentId);
-    } catch {
-      // Memory-only is still enough for a same-page retry.
-    }
-  }, [projectId]);
+  const claimIntent = useCallback(
+    (says: string) => {
+      if (intentRef.current) return;
+      const intent = { id: newIntentId(), says };
+      intentRef.current = intent;
+      try {
+        window.sessionStorage.setItem(
+          intentStorageKey(projectId),
+          JSON.stringify(intent),
+        );
+      } catch {
+        // Memory-only is still enough for a same-page retry.
+      }
+    },
+    [projectId],
+  );
 
   /** The session id is the identity from here on; the intent has done its job. */
   const releaseIntent = useCallback(() => {
@@ -290,7 +323,7 @@ function StudioConversation({
     // Resolved before every request, so the current attempt's name rides along
     // without the store being rebuilt to carry it.
     headers: (): Record<string, string> =>
-      intentRef.current ? { [INTENT_HEADER]: intentRef.current } : {},
+      intentRef.current ? { [INTENT_HEADER]: intentRef.current.id } : {},
     ...(resumeSessionId
       ? {
           initialSession: { sessionId: resumeSessionId, streamIndex: 0 },
@@ -385,10 +418,25 @@ function StudioConversation({
 
     handleDraftChange("");
     lastSentRef.current = message;
-    // Only the first message needs a name of its own; after that the session
-    // id identifies the conversation and every send is addressed to it.
-    if (!agent.session) claimIntent();
     try {
+      // Only the first message needs a name of its own; after that the session
+      // id identifies the conversation and every send is addressed to it.
+      if (!agent.session) {
+        const says = intentSays(message, selectedAssetRef.current);
+        const attempt = intentRef.current;
+        if (attempt && attempt.says !== says) {
+          // The person changed their message before the earlier attempt's
+          // outcome came back. Reusing its name would ask the agent to create
+          // that conversation once — and it would answer with the one that
+          // already exists, having said nothing new. So find that conversation
+          // first, without saying anything, and then say the new thing into
+          // it. Whatever the earlier attempt did or did not deliver stays
+          // visible in the transcript rather than being guessed at.
+          await agent.prewarm();
+        } else {
+          claimIntent(says);
+        }
+      }
       await agent.send(message, isBusy ? { turnPolicy: "steer" } : undefined);
       // Resolving proves the client accepted it, not that it succeeded — so
       // the outcome is read from the agent's own error state, below.

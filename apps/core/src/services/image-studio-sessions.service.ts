@@ -122,7 +122,7 @@ export async function registerCreatedSession(options: {
     return {
       ...(await touchSession(existing.id)),
       wasCreated: false,
-      ...(await claimInitialTurn(existing.id)),
+      ...(await resolveInitialTurn(existing.id, options.expectsInitialTurn)),
     };
   }
 
@@ -159,14 +159,37 @@ export async function registerCreatedSession(options: {
     return {
       ...(await touchSession(winner.id)),
       wasCreated: false,
-      ...(await claimInitialTurn(winner.id)),
+      ...(await resolveInitialTurn(winner.id, options.expectsInitialTurn)),
     };
   }
 
   return {
     ...created,
     wasCreated: true,
-    ...(await claimInitialTurn(created.id)),
+    ...(await resolveInitialTurn(created.id, options.expectsInitialTurn)),
+  };
+}
+
+/**
+ * Take the delivery lease only when this call is the one carrying a message.
+ *
+ * A caller that is merely asking "which conversation is this intent?" — the
+ * page recovering an attempt whose outcome it never saw — must not take a
+ * lease it will not use, because holding one blocks the attempt that would.
+ */
+async function resolveInitialTurn(
+  sessionId: string,
+  expectsInitialTurn: boolean | undefined,
+): Promise<InitialTurnState> {
+  if (expectsInitialTurn) return await claimInitialTurn(sessionId);
+  const current = await prisma.projectImageSession.findUnique({
+    where: { id: sessionId },
+    select: { initialTurn: true },
+  });
+  return {
+    initialTurn: current?.initialTurn ?? ProjectImageInitialTurn.NONE,
+    mayDeliver: false,
+    deliveryToken: null,
   };
 }
 
@@ -278,21 +301,25 @@ async function claimInitialTurn(sessionId: string): Promise<InitialTurnState> {
 }
 
 /**
- * What the deliverer is about to do, or observed having done.
+ * What a caller wants to do with the first message, or observed having done.
  *
- * `dispatching` is announced *before* the send, and it is what makes the
- * difference between "nobody has tried" and "somebody has". Without it a
- * crashed attempt is indistinguishable from an attempt that never started.
+ * `claim` asks for the right to deliver it, and is how *every* first-message
+ * path — creation and an ordinary send into a conversation that still owes
+ * one — enters the same decision. `dispatching` is announced before the send,
+ * and it is what makes the difference between "nobody has tried" and "somebody
+ * has": without it a crashed attempt is indistinguishable from one that never
+ * started.
  */
-export type InitialTurnOutcome =
+export type InitialTurnTransition =
+  | "claim"
   | "dispatching"
   | "delivered"
   | "undelivered"
   | "uncertain";
 
-/** Which transitions each outcome is allowed to make. */
+/** Which states each transition is allowed to move from, and to. */
 const INITIAL_TURN_TRANSITIONS: Record<
-  InitialTurnOutcome,
+  Exclude<InitialTurnTransition, "claim">,
   { from: ProjectImageInitialTurn[]; to: ProjectImageInitialTurn }
 > = {
   dispatching: {
@@ -318,27 +345,36 @@ const INITIAL_TURN_TRANSITIONS: Record<
 };
 
 /**
- * Move the delivery this caller is holding, if it still holds it.
+ * Move the first message's delivery, for whichever caller is holding it.
  *
- * Fenced on the lease token. An attempt whose lease was taken over while it was
- * only claimed is refused here, and must not send — that refusal is the whole
- * reason two concurrent attempts at one intent produce one delivery.
+ * One entry point for every path, because the first message is one thing
+ * however it arrives. Creation reaches it through registration; an ordinary
+ * send into a conversation whose first turn is still owed reaches it here with
+ * `claim`. A send that skipped this was the hole: it delivered the message and
+ * left the state saying nobody had, so a retry of the original creation could
+ * dispatch the same text again.
+ *
+ * `dispatching` is fenced on the lease token and refuses without one. An
+ * attempt whose lease was taken over while it was only claimed is refused
+ * here, and must not send — that refusal is the whole reason two concurrent
+ * attempts at one intent produce one delivery.
  *
  * `undelivered` is the outcome that makes a retry work: the runtime answered,
  * and its answer was a refusal, so nothing ran and the message is owed again.
  * `uncertain` is everything that could not be read that way — a thrown send, a
  * 5xx, a lost acknowledgement — and it deliberately leaves the conversation in
- * a state no automatic retry will dispatch into. The person can still open it
- * and see for themselves, which is the only honest resolution available.
+ * a state no automatic retry will dispatch into. It is closed by `delivered`
+ * only when somebody has actually looked, which is why that transition accepts
+ * a caller holding no lease.
  *
  * @throws 404 when the conversation is not this project's, or the caller's
  * access to it is gone.
  */
-export async function recordInitialTurn(options: {
+export async function transitionInitialTurn(options: {
   projectId: string;
   userId: string;
   eveSessionId: string;
-  outcome: InitialTurnOutcome;
+  transition: InitialTurnTransition;
   deliveryToken?: string | null;
 }): Promise<SessionView & InitialTurnState & { accepted: boolean }> {
   const session = await authorizeAgentSession({
@@ -347,7 +383,25 @@ export async function recordInitialTurn(options: {
     userId: options.userId,
   });
 
-  const transition = INITIAL_TURN_TRANSITIONS[options.outcome];
+  if (options.transition === "claim") {
+    const claimed = await claimInitialTurn(session.id);
+    return { ...session, ...claimed, accepted: claimed.mayDeliver };
+  }
+
+  // A dispatch may only be announced by the attempt that holds the lease.
+  // Everything else about this protocol rests on that, so an unfenced
+  // announcement is refused rather than quietly allowed.
+  if (options.transition === "dispatching" && !options.deliveryToken) {
+    return {
+      ...session,
+      initialTurn: currentOrNone(await readInitialTurn(session.id)),
+      mayDeliver: false,
+      deliveryToken: null,
+      accepted: false,
+    };
+  }
+
+  const transition = INITIAL_TURN_TRANSITIONS[options.transition];
   const moved = await prisma.projectImageSession.updateMany({
     where: {
       id: session.id,
@@ -360,23 +414,35 @@ export async function recordInitialTurn(options: {
       initialTurn: transition.to,
       // A dispatch keeps its lease so a crashed attempt can still time out;
       // every other outcome is terminal for this attempt.
-      ...(options.outcome === "dispatching"
+      ...(options.transition === "dispatching"
         ? { initialTurnLeaseAt: new Date() }
         : { initialTurnLeaseAt: null, initialTurnLeaseOwner: null }),
     },
   });
 
-  const current = await prisma.projectImageSession.findUnique({
-    where: { id: session.id },
-    select: { initialTurn: true },
-  });
   return {
     ...session,
-    initialTurn: current?.initialTurn ?? ProjectImageInitialTurn.NONE,
+    initialTurn: currentOrNone(await readInitialTurn(session.id)),
     mayDeliver: false,
     deliveryToken: null,
     accepted: moved.count === 1,
   };
+}
+
+async function readInitialTurn(
+  sessionId: string,
+): Promise<ProjectImageInitialTurn | null> {
+  const current = await prisma.projectImageSession.findUnique({
+    where: { id: sessionId },
+    select: { initialTurn: true },
+  });
+  return current?.initialTurn ?? null;
+}
+
+function currentOrNone(
+  value: ProjectImageInitialTurn | null,
+): ProjectImageInitialTurn {
+  return value ?? ProjectImageInitialTurn.NONE;
 }
 
 function isUniqueViolation(error: unknown): boolean {

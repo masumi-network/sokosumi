@@ -24309,7 +24309,7 @@ export type PostImageStudioAgentSessionsResponse = PostImageStudioAgentSessionsR
 
 export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnData = {
     body: {
-        outcome: 'dispatching' | 'delivered' | 'undelivered' | 'uncertain';
+        transition: 'claim' | 'dispatching' | 'delivered' | 'undelivered' | 'uncertain';
         deliveryToken?: string | null;
     };
     path: {
@@ -24409,6 +24409,8 @@ export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses = {
             eveSessionId: string;
             initialTurn: 'NONE' | 'PENDING' | 'CLAIMED' | 'DELIVERING' | 'DELIVERED' | 'UNCERTAIN';
             accepted: boolean;
+            mayDeliver: boolean;
+            deliveryToken: string | null;
         };
         meta: {
             timestamp: Date;

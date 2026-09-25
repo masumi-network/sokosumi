@@ -39,7 +39,7 @@ vi.mock("@/lib/image-studio/access", () => ({
 }));
 vi.mock("@/services/image-studio-sessions.service", () => ({
   registerCreatedSession: state.register,
-  recordInitialTurn: state.recordInitialTurn,
+  transitionInitialTurn: state.recordInitialTurn,
 }));
 
 import { errorResponseSchema } from "@/helpers/error";
@@ -96,6 +96,8 @@ beforeEach(() => {
     eveSessionId: "wrun_A",
     initialTurn: "DELIVERED",
     accepted: true,
+    mayDeliver: false,
+    deliveryToken: null,
   });
 });
 
@@ -169,7 +171,7 @@ describe("closing out the first delivery", () => {
     const { status, json } = await post(
       "/sessions/wrun_A/initial-turn",
       token("browser"),
-      { outcome: "delivered" },
+      { transition: "delivered" },
     );
 
     expect(status).toBe(401);
@@ -177,11 +179,11 @@ describe("closing out the first delivery", () => {
     expect(state.recordInitialTurn).not.toHaveBeenCalled();
   });
 
-  it("records an outcome the schema allows", async () => {
+  it("records a transition the schema allows", async () => {
     const { status, json } = await post(
       "/sessions/wrun_A/initial-turn",
       token("agent"),
-      { outcome: "undelivered", deliveryToken: "lease-1" },
+      { transition: "undelivered", deliveryToken: "lease-1" },
     );
 
     expect(status).toBe(200);
@@ -191,17 +193,17 @@ describe("closing out the first delivery", () => {
     expect(state.recordInitialTurn).toHaveBeenCalledWith(
       expect.objectContaining({
         eveSessionId: "wrun_A",
-        outcome: "undelivered",
+        transition: "undelivered",
         deliveryToken: "lease-1",
       }),
     );
   });
 
-  it("refuses an outcome it does not define", async () => {
+  it("refuses a transition it does not define", async () => {
     const { status, json } = await post(
       "/sessions/wrun_A/initial-turn",
       token("agent"),
-      { outcome: "probably" },
+      { transition: "probably" },
     );
 
     expect(status).toBe(422);
