@@ -1,7 +1,7 @@
 "use client";
 
 import type { SessionUser } from "@sokosumi/utils";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
@@ -17,6 +17,7 @@ import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import HeaderWorkspaceAvatar from "./header-workspace-avatar";
+import { HeaderWorkspaceLabel } from "./header-workspace-label";
 import { useCreateWorkspace } from "./use-create-workspace";
 
 interface HeaderWorkspaceSwitchProps {
@@ -177,38 +178,19 @@ export default function HeaderWorkspaceSwitch({
                 : tOrganizationSwitcher("switchWorkspace")
             }
           >
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-1.5">
-              {activeWorkspace ? (
-                <>
-                  <span
-                    data-slot="header-workspace-name"
-                    className="max-w-24 truncate text-right leading-none font-medium md:max-w-none md:leading-tight"
-                  >
-                    {activeWorkspace.name}
-                  </span>
-                  <HeaderWorkspaceAvatar
-                    sessionUser={sessionUser}
-                    organization={activeWorkspace.organization ?? null}
-                    className="size-4 shrink-0"
-                    logoSize={12}
-                    decorative
-                  />
-                </>
-              ) : (
-                <span
-                  data-testid="workspace-switcher-skeleton"
-                  className="col-span-2 flex items-center justify-end gap-1.5"
-                  aria-hidden
-                >
-                  <span className="bg-muted h-3 w-20 animate-pulse rounded-md" />
-                  <span className="bg-muted size-4 shrink-0 animate-pulse rounded-full" />
-                </span>
-              )}
-              <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 self-center md:row-span-2 md:size-4.5" />
-              <span className="text-muted-foreground col-span-2 col-start-1 max-md:hidden max-w-full truncate text-right text-xs leading-tight">
-                {sessionUser.email}
-              </span>
-            </div>
+            <HeaderWorkspaceLabel
+              name={activeWorkspace?.name ?? null}
+              email={sessionUser.email}
+              avatar={
+                <HeaderWorkspaceAvatar
+                  sessionUser={sessionUser}
+                  organization={activeWorkspace?.organization ?? null}
+                  className="size-4 shrink-0"
+                  logoSize={12}
+                  decorative
+                />
+              }
+            />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72" align="end">

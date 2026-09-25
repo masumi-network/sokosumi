@@ -64,7 +64,7 @@ vi.mock("./variant-combined-parts", async (importOriginal) => {
   };
 });
 vi.mock("@/app/components/header/header-workspace-avatar", () => ({
-  default: () => <span aria-hidden />,
+  default: () => <span data-testid="workspace-avatar" aria-hidden />,
 }));
 vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
   useWorkspaceSwitcher: () => ({
@@ -111,7 +111,9 @@ function renderCrumb() {
 }
 
 function crumb() {
-  return screen.getByRole("button", { name: "switchWorkspace Acme" });
+  return screen.getByRole("button", {
+    name: "switchWorkspace Acme ada@example.com",
+  });
 }
 
 beforeEach(() => {
@@ -130,6 +132,15 @@ beforeEach(() => {
 });
 
 describe("WorkspaceCrumb", () => {
+  it("renders the workspace name, avatar, and account email in the crumb", () => {
+    signInToAcme();
+    renderCrumb();
+
+    expect(crumb()).toHaveTextContent("Acme");
+    expect(crumb()).toHaveTextContent("ada@example.com");
+    expect(screen.getByTestId("workspace-avatar")).toBeInTheDocument();
+  });
+
   it("holds a skeleton, not a switch, while the name loads", () => {
     renderCrumb();
 

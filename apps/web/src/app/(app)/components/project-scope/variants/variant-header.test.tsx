@@ -142,7 +142,7 @@ function signInToAcme() {
 const TASK_ID = "0b5c1c6e-6f9a-4e7b-9a53-1f0d2f3a4b5c";
 
 /** The first crumb: a workspace switch that names the workspace. */
-const WORKSPACE_SWITCH = "switchWorkspace Acme";
+const WORKSPACE_SWITCH = "switchWorkspace Acme ada@example.com";
 
 const CRUMB = "breadcrumb-item";
 const SEPARATOR = "breadcrumb-separator";
@@ -422,6 +422,26 @@ describe("HeaderVariantTrailing", () => {
         "[&_[data-testid=header-workspace-chrome-skeleton]]:hidden",
       ]) {
         expect(className.split(" ").includes(target)).toBe(handedOver);
+      }
+    },
+  );
+
+  it.each<ScopeVariantId>(["header", "combined", "command", "sidebar", "hub"])(
+    "removes duplicate workspace chrome only when the header crumb is visible (%s)",
+    (variant) => {
+      mocks.variant = variant;
+      renderTrailing();
+      const classes =
+        screen
+          .getByTestId("trailing-child")
+          .parentElement?.className.split(" ") ?? [];
+      for (const target of [
+        "header-workspace-chrome",
+        "header-workspace-chrome-skeleton",
+      ]) {
+        expect(classes.includes(`sm:[&_[data-testid=${target}]]:hidden`)).toBe(
+          variant === "header",
+        );
       }
     },
   );

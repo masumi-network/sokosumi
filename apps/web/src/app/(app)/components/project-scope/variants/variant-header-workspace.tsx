@@ -1,8 +1,10 @@
 "use client";
 
-import { ChevronsUpDown } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import HeaderWorkspaceAvatar from "@/app/components/header/header-workspace-avatar";
+import { HeaderWorkspaceLabel } from "@/app/components/header/header-workspace-label";
 import { useCreateWorkspace } from "@/app/components/header/use-create-workspace";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
@@ -82,6 +84,10 @@ function WorkspaceMenu({
 export function WorkspaceCrumb() {
   const t = useTranslations("Components.OrganizationSwitcher");
   const name = useWorkspaceName();
+  const { data: session } = useSession();
+  const { data: organizations } = authClient.useListOrganizations();
+  const organizationId = session?.session.activeOrganizationId;
+  const organization = organizations?.find(({ id }) => id === organizationId);
   // Here, not in the content: a switch and its dialogs outlive the popover.
   const switcher = useWorkspaceSwitcher();
   // A created personal workspace activates like a picked one.
@@ -105,17 +111,38 @@ export function WorkspaceCrumb() {
             aria-busy={switcher.isPending || undefined}
             data-testid="project-scope-header-workspace"
             className={cn(
-              "text-muted-foreground hover:text-foreground max-w-40 min-w-6 shrink justify-start gap-1 overflow-hidden px-1.5 font-medium has-[>svg]:px-1.5",
+              "text-foreground h-auto min-h-8 max-w-40 min-w-6 shrink justify-start overflow-hidden px-1.5 font-medium",
               switcher.isPending && "animate-pulse",
             )}
           >
-            <span className="sr-only">
-              {t("switchWorkspace")} {name}
-            </span>
-            <span aria-hidden className="min-w-0 truncate" title={name}>
-              {name}
-            </span>
-            <ChevronsUpDown className="size-3.5 shrink-0" aria-hidden />
+            <span className="sr-only">{t("switchWorkspace")}</span>
+            <HeaderWorkspaceLabel
+              name={name}
+              email={session?.user.email}
+              avatar={
+                session && (!organizationId || organization) ? (
+                  <HeaderWorkspaceAvatar
+                    sessionUser={session.user}
+                    organization={
+                      organization
+                        ? {
+                            ...organization,
+                            logo: organization.logo ?? null,
+                            metadata: organization.metadata ?? null,
+                            stripeCustomerId:
+                              organization.stripeCustomerId ?? null,
+                          }
+                        : null
+                    }
+                    className="size-4 shrink-0"
+                    logoSize={12}
+                    decorative
+                  />
+                ) : (
+                  <Building2 className="size-4 shrink-0" aria-hidden />
+                )
+              }
+            />
           </Button>
         </PopoverTrigger>
         <PopoverContent

@@ -254,6 +254,10 @@ const NARROW_TRAILING_VARIANTS: ReadonlySet<ScopeVariantId> = new Set([
 const NARROW_TRAILING_CLASS =
   "contents max-sm:[&_[data-testid=header-workspace-chrome]_[data-slot=header-workspace-name]]:sr-only";
 
+/** The workspace crumb is visible from sm up. Phones keep the original switch. */
+const HEADER_TRAILING_CLASS =
+  "sm:[&_[data-testid=header-workspace-chrome]]:hidden sm:[&_[data-testid=header-workspace-chrome-skeleton]]:hidden";
+
 /**
  * Combined's own header control switches workspaces at every width, so today's
  * switch and its loading placeholder give way. The tools after them stay.
@@ -271,6 +275,7 @@ function TrailingGate({ children }: { children: ReactNode }) {
       className={cn(
         NARROW_TRAILING_CLASS,
         variant === "combined" && COMBINED_TRAILING_CLASS,
+        variant === "header" && HEADER_TRAILING_CLASS,
       )}
     >
       {children}
