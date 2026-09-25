@@ -1,12 +1,15 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ScopeProject } from "@/app/components/project-scope/use-scope-projects";
+import type { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   isApple: false,
   pathname: "/agents",
+  selectedProject: undefined as ScopeProject | null | undefined,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -21,10 +24,13 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => mocks.isApple,
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
-  useSelectedScopeProject: () => undefined,
+  useSelectedScopeProject: () => mocks.selectedProject,
 }));
 vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
-  InlineCreateProjectModal: () => null,
+  InlineCreateProjectModal: ({
+    open,
+  }: ComponentProps<typeof InlineCreateProjectModal>) =>
+    open ? <div data-testid="create-project-dialog" /> : null,
 }));
 vi.mock("@/app/projects/components/project-avatar", () => ({
   ProjectAvatar: () => <span aria-hidden />,
@@ -99,6 +105,7 @@ beforeEach(() => {
   mocks.push.mockReset();
   mocks.isApple = false;
   mocks.pathname = "/agents";
+  mocks.selectedProject = undefined;
 });
 
 afterEach(() => {
@@ -131,6 +138,12 @@ describe("CommandScopeDesktop shortcut", () => {
     const search = screen.getByRole("textbox", { name: "search" });
 
     expect(fireEvent.keyDown(search, init)).toBe(false);
+    expect(dialog()).not.toBeNull();
+  });
+
+  it("opens on Alt+P off Apple with CapsLock on", () => {
+    const { origin } = setup();
+    fireEvent.keyDown(origin, { altKey: true, code: "KeyP", key: "P" });
     expect(dialog()).not.toBeNull();
   });
 
@@ -188,7 +201,7 @@ describe("CommandScopeDesktop shortcut", () => {
     expect(dialog()).toBeNull();
   });
 
-  it.each(["dialog", "alertdialog"])(
+  it.each(["dialog", "alertdialog", "listbox", "combobox"])(
     "ignores a key pressed inside role=%s",
     (role) => {
       setup(
@@ -224,6 +237,29 @@ describe("CommandScopeDesktop key hint", () => {
     const { pill } = setup();
     expect(pill.querySelector("kbd")?.textContent).toBe("⌥P");
     expect(pill.getAttribute("aria-keyshortcuts")).toBe("Alt+P");
+  });
+});
+
+describe("CommandScopeDesktop pill name", () => {
+  it.each([
+    ["the workspace view", "/agents", undefined, "switchLabel: workspaceView"],
+    [
+      "a project the list does not know",
+      "/projects/p1",
+      null,
+      "switchLabel: label",
+    ],
+    [
+      "a project",
+      "/projects/p1",
+      { id: "p1", name: "Acme", logo: null },
+      "switchLabel: Acme",
+    ],
+  ] as const)("names %s", (_name, pathname, project, name) => {
+    mocks.pathname = pathname;
+    mocks.selectedProject = project;
+    const { pill } = setup();
+    expect(pill).toHaveAccessibleName(name);
   });
 });
 
@@ -312,6 +348,19 @@ describe("CommandScopeDesktop focus", () => {
   });
 });
 
+describe("CommandScopeDesktop Create", () => {
+  it("opens Create project from the dialog", async () => {
+    const user = userEvent.setup();
+    const { pill } = setup();
+    await user.click(pill);
+    expect(screen.queryByTestId("create-project-dialog")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "create" }));
+
+    expect(screen.getByTestId("create-project-dialog")).toBeInTheDocument();
+  });
+});
+
 function renderMobile() {
   const Mobile = commandSlots["header-mobile"];
   if (!Mobile) throw new Error("No header-mobile slot");
@@ -339,5 +388,16 @@ describe("CommandScopeMobile", () => {
 
     expect(mocks.push).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(dialog()).toBeNull());
+  });
+
+  it("opens Create project from the sheet", async () => {
+    const user = userEvent.setup();
+    renderMobile();
+
+    await user.click(screen.getByTestId("project-scope-command-trigger"));
+    expect(screen.queryByTestId("create-project-dialog")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "create" }));
+
+    expect(screen.getByTestId("create-project-dialog")).toBeInTheDocument();
   });
 });

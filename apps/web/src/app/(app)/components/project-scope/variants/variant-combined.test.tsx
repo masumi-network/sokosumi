@@ -231,6 +231,43 @@ describe("RailTrigger", () => {
     expect(screen.getByText("project menu")).toBeInTheDocument();
   });
 
+  it("stays busy when the popover closes and reopens mid-switch", async () => {
+    let finish = () => {};
+    mocks.activate.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    render(<RailTrigger />);
+    const trigger = screen.getByTestId("project-scope-combined-rail-trigger");
+
+    await user.click(trigger);
+    await user.click(await screen.findByRole("button", { name: "Globex" }));
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    await user.click(trigger);
+
+    const pane = await screen.findByTestId(
+      "project-scope-combined-project-pane",
+    );
+    expect(pane).toHaveAttribute("inert");
+    expect(pane).toHaveAttribute("aria-busy", "true");
+    for (const name of ["Acme", "Globex"]) {
+      expect(screen.getByRole("button", { name })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    }
+    await user.click(screen.getByRole("button", { name: "Globex" }));
+    expect(mocks.activate).toHaveBeenCalledExactlyOnceWith("org-2");
+
+    await act(async () => finish());
+    await waitFor(() => expect(pane).not.toHaveAttribute("inert"));
+  });
+
   it("renders nothing on mobile, where the sidebar is a sheet", () => {
     mocks.isMobile.current = true;
     const { container } = render(<RailTrigger />);
