@@ -12,6 +12,7 @@ import {
   type CommandContext,
   type CommandOptions,
   option,
+  optionBoolean,
   optionString,
   parsePositiveInteger,
   readJsonObject,
@@ -181,11 +182,9 @@ export async function runJobsCommand({
     const id = positionalId || optionString(options, "id");
     if (!id) throw new Error("job id is required for `jobs get`");
     const { job } = await fetchJob(client, id, signal);
-    const details =
-      option(options, "details") === true ||
-      option(options, "details") === "true"
-        ? await collectJobDetails(client, id, signal)
-        : {};
+    const details = optionBoolean(options, "details")
+      ? await collectJobDetails(client, id, signal)
+      : {};
     if (json) writeJson(stdout, { job, ...details });
     else printJob(stdout, job, details);
     return;

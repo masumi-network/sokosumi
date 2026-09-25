@@ -60,17 +60,6 @@ export async function listOrganizationChatRoomsAction(): Promise<
   }
 }
 
-export async function listOrganizationArchivedChatRoomsAction(): Promise<
-  OrganizationChatListActionResult<ChatRoomsPage>
-> {
-  try {
-    const page = await chatRoomService.listArchivedRooms();
-    return listOk(page);
-  } catch {
-    return listCatch("Could not load archived chat rooms.");
-  }
-}
-
 export async function markOrganizationChatRoomReadAction(
   roomId: string,
 ): Promise<OrganizationChatListActionResult<ChatRoom>> {
