@@ -229,7 +229,7 @@ export async function runCoworkersCommand({
     return;
   }
   if (command === "update") {
-    const id = positionalId || optionString(options, "id", "coworker-id");
+    const id = positionalId || optionString(options, "id");
     if (!id) throw new Error("coworker id is required for `coworkers update`");
     const { coworker } = await updateCoworker(
       client,
@@ -247,14 +247,14 @@ export async function runCoworkersCommand({
     return;
   }
   if (command === "api-key") {
-    const id = positionalId || optionString(options, "id", "coworker-id");
+    const id = positionalId || optionString(options, "id");
     if (!id) throw new Error("coworker id is required for `coworkers api-key`");
     const { apiKey } = await createCoworkerApiKey(
       client,
       id,
       {
-        name: optionString(options, "name", "api-key-name"),
-        expiresAt: optionString(options, "expires-at", "api-key-expires-at"),
+        name: optionString(options, "api-key-name"),
+        expiresAt: optionString(options, "api-key-expires-at"),
       },
       signal,
     );

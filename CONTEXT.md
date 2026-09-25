@@ -148,6 +148,10 @@ _Avoid_: Active connection, credential log
 The consent granted when a Social account is connected that lets the Project's scheduler publish through that Project social connection until it is disconnected.
 _Avoid_: Per-post approval, connector approval
 
+**Social post**:
+One piece of content a Project intends to publish through exactly one Project social connection at one planned time. Not a Job or a Task.
+_Avoid_: Job, Task
+
 ### Task payments
 
 **Task payment claim**:
