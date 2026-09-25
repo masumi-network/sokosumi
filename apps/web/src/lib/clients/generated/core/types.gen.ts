@@ -4854,12 +4854,21 @@ export type SocialPost = {
     publishedExternalId: string | null;
     publishedUrl: string | null;
     lastError: string | null;
+    attemptCount: number;
+    nextAttemptAt: Date | null;
+    lastAttemptAt: Date | null;
+    lastAttempt: SocialPostLastAttempt | null;
     revision: number;
     createdAt: Date;
     updatedAt: Date;
     canEdit: boolean;
     canSchedule: boolean;
     canCancel: boolean;
+    canPublishNow: boolean;
+    /**
+     * The linked connection exists but is not active, so the post cannot go out until someone reconnects
+     */
+    connectionNeedsReconnect: boolean;
 };
 
 export const SocialPostStatus = {
@@ -4884,6 +4893,22 @@ export type SocialPostCreator = {
     kind: 'user' | 'coworker' | 'sokoBot';
     id: string;
     name: string | null;
+};
+
+export type SocialPostLastAttempt = {
+    attempt: number;
+    trigger: 'scheduler' | 'publish_now';
+    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | null;
+    errorKind: string | null;
+    providerOutcome: string | null;
+    finishedAt: Date | null;
+};
+
+export type PublishSocialPostRequest = {
+    /**
+     * Revision the client last observed; mismatches return 409
+     */
+    revision: number;
 };
 
 export type CreateSocialPostRequest = {
@@ -34087,6 +34112,148 @@ export type PostProjectsByIdSocialPostsResponses = {
 };
 
 export type PostProjectsByIdSocialPostsResponse = PostProjectsByIdSocialPostsResponses[keyof PostProjectsByIdSocialPostsResponses];
+
+export type PostProjectsByIdSocialPostsByPostIdPublishData = {
+    body: PublishSocialPostRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/publish';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdPublishErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdPublishError = PostProjectsByIdSocialPostsByPostIdPublishErrors[keyof PostProjectsByIdSocialPostsByPostIdPublishErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdPublishResponses = {
+    /**
+     * Social post publish attempted
+     */
+    200: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdPublishResponse = PostProjectsByIdSocialPostsByPostIdPublishResponses[keyof PostProjectsByIdSocialPostsByPostIdPublishResponses];
 
 export type GetProjectsByIdSocialPostsByPostIdData = {
     body?: never;

@@ -17,6 +17,7 @@ import mountInitiateProjectSocialConnection from "./[id]/social-connections/init
 import mountCancelProjectSocialPost from "./[id]/social-posts/[postId]/cancel/post.js";
 import mountGetProjectSocialPost from "./[id]/social-posts/[postId]/get.js";
 import mountPatchProjectSocialPost from "./[id]/social-posts/[postId]/patch.js";
+import mountPublishProjectSocialPost from "./[id]/social-posts/[postId]/publish/post.js";
 import mountScheduleProjectSocialPost from "./[id]/social-posts/[postId]/schedule/post.js";
 import mountListProjectSocialPosts from "./[id]/social-posts/get.js";
 import mountCreateProjectSocialPost from "./[id]/social-posts/post.js";
@@ -55,6 +56,7 @@ mountInitiateProjectSocialConnection(app);
 mountFinalizeProjectSocialConnection(app);
 mountDeleteProjectSocialConnection(app);
 mountListProjectSocialPosts(app);
+mountPublishProjectSocialPost(app);
 mountCreateProjectSocialPost(app);
 mountGetProjectSocialPost(app);
 mountPatchProjectSocialPost(app);

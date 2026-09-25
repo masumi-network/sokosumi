@@ -5,6 +5,13 @@ import { forbidden } from "@/helpers/error";
 
 type SocialBetaAccessClient = Pick<Prisma.TransactionClient, "member">;
 
+/** Filters a User relation to the beta workspace, for queries that cannot await a check. */
+export const SOCIAL_BETA_USER_WHERE = {
+  members: {
+    some: { organization: { slug: SOCIAL_BETA_ORGANIZATION_SLUG } },
+  },
+} satisfies Prisma.UserWhereInput;
+
 export async function hasSocialBetaAccess(
   userId: string,
   tx: SocialBetaAccessClient,
