@@ -51,6 +51,7 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { projectService } from "@/lib/services/project.service";
+import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import {
@@ -726,20 +727,31 @@ async function TaskActivitySectionContent({
   currentPlanPromise: Promise<SubscriptionPlanName | null>;
   mentionableUsersPromise: Promise<MentionableUser[]>;
 }) {
-  const [agents, session, viewerPlan, hasAssignedSeat, mentionableUsers, t] =
-    await Promise.all([
-      agentsPromise,
-      sessionPromise,
-      currentPlanPromise,
-      hasAssignedSeatPromise,
-      mentionableUsersPromise,
-      getTranslations("App.Tasks.Detail"),
-    ]);
+  const [
+    agents,
+    session,
+    viewerPlan,
+    hasAssignedSeat,
+    mentionableUsers,
+    t,
+    activityEvents,
+  ] = await Promise.all([
+    agentsPromise,
+    sessionPromise,
+    currentPlanPromise,
+    hasAssignedSeatPromise,
+    mentionableUsersPromise,
+    getTranslations("App.Tasks.Detail"),
+    taskService.listTaskActivityFeed(taskId),
+  ]);
   const {
     userById: actorsUserById,
     coworkerById,
     sokoBotById,
-  } = buildTaskActivityActors(task);
+  } = buildTaskActivityActors({
+    ...task,
+    events: activityEvents.events,
+  });
   const currentUser = session?.user
     ? {
         id: session.user.id,
@@ -773,6 +785,7 @@ async function TaskActivitySectionContent({
 
   return (
     <TaskActivitySection
+      key={taskId}
       taskId={taskId}
       title={t("activity")}
       placeholder={t("commentPlaceholder")}
@@ -784,7 +797,9 @@ async function TaskActivitySectionContent({
       actorSystemLabel={t("actorSystem")}
       actionCommentedLabel={t("actionCommented")}
       actionUpdatedStatusLabel={t("actionUpdatedStatus")}
-      events={task.events}
+      events={activityEvents.events}
+      commentCount={activityEvents.pagination.commentCount}
+      latestCommentId={activityEvents.pagination.latestCommentId}
       taskFiles={task.files}
       agentNameById={agentNameById}
       userById={userById}
