@@ -169,17 +169,29 @@ export function WorkspaceList({
       >
         {t("switchWorkspace")}
       </p>
-      {workspaces.isError ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="justify-start"
-          onClick={workspaces.refetch}
-        >
-          {tScope("retry")}
-        </Button>
-      ) : workspaces.isPending ? (
+      {/* Outside the list and always mounted, so a screen reader hears it. */}
+      <div
+        className={cn(
+          "flex flex-col items-start gap-1 px-2",
+          workspaces.isError && "py-1.5",
+        )}
+      >
+        <p role="status" className="text-muted-foreground text-sm">
+          {workspaces.isError ? tScope("workspacesError") : null}
+        </p>
+        {workspaces.isError ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="-mx-2"
+            onClick={workspaces.refetch}
+          >
+            {tScope("retry")}
+          </Button>
+        ) : null}
+      </div>
+      {workspaces.isError ? null : workspaces.isPending ? (
         <div className="flex flex-col gap-1" aria-hidden>
           {Array.from({ length: SKELETON_ROWS }, (_, index) => (
             <Skeleton key={index} className="h-11 w-full rounded-sm md:h-8" />

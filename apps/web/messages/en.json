@@ -6579,6 +6579,7 @@
       "empty": "No projects found.",
       "loading": "Loading projects...",
       "error": "Projects could not load.",
+      "workspacesError": "Workspaces could not load.",
       "retry": "Try again",
       "create": "Create project",
       "manage": "Manage projects",

@@ -33,6 +33,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 
@@ -41,12 +42,15 @@ import type { ScopeSlots } from "./scope-variants";
 /**
  * Alt+P. A bare letter fails WCAG 2.1.4 and fires under speech input.
  * Cmd/Ctrl+K is history search, and Cmd/Ctrl+Shift+P opens a private window
- * in Firefox, which a page cannot take back. The physical key is matched,
- * because Option+P on a Mac types "π".
+ * in Firefox, which a page cannot take back. On a Mac the physical key counts,
+ * because Option+P types "π". Elsewhere only the key that types "p" counts,
+ * so Dvorak and other layouts get the key the label names, and no other.
  */
 const SHORTCUT_CODE = "KeyP";
+const SHORTCUT_KEY = "p";
 const SHORTCUT_ARIA = "Alt+P";
 const SHORTCUT_LABEL = "Alt P";
+const SHORTCUT_LABEL_APPLE = "⌥P";
 
 /** Surfaces that own their keys: a bare P there types, filters or picks. */
 const KEY_OWNING_SURFACE =
@@ -139,6 +143,7 @@ function ScopePill({
 function useScopeShortcut(
   triggerRef: RefObject<HTMLButtonElement | null>,
   open: () => void,
+  isApple: boolean,
 ) {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -147,7 +152,10 @@ function useScopeShortcut(
       if (!event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) {
         return;
       }
-      if (event.code !== SHORTCUT_CODE) return;
+      const matches = isApple
+        ? event.code === SHORTCUT_CODE
+        : event.key?.toLowerCase() === SHORTCUT_KEY;
+      if (!matches) return;
       if (isEditableKeyboardTarget(event.target)) return;
       if (
         event.target instanceof Element &&
@@ -163,7 +171,7 @@ function useScopeShortcut(
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [triggerRef, open]);
+  }, [triggerRef, open, isApple]);
 }
 
 /** `header-center`, `sm` and up: the pill, its key, and a centred dialog. */
@@ -172,7 +180,10 @@ function CommandScopeDesktop() {
   const scope = useProjectScopeSwitch();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  // The shortcut opens the dialog from anywhere, so focus goes back there.
+  const isApple = useIsApplePlatform();
+  // The shortcut opens the dialog from anywhere, so a cancel sends focus back
+  // there. A choice navigates and may replace that element, so after a choice
+  // Radix focuses the pill, which stays in the header.
   const shortcutOriginRef = useRef<HTMLElement | null>(null);
   const openFromShortcut = useCallback(() => {
     const origin = document.activeElement;
@@ -180,11 +191,16 @@ function CommandScopeDesktop() {
       origin instanceof HTMLElement && origin !== document.body ? origin : null;
     setOpen(true);
   }, []);
-  useScopeShortcut(triggerRef, openFromShortcut);
+  useScopeShortcut(triggerRef, openFromShortcut, isApple);
 
   function changeOpen(nextOpen: boolean) {
     if (nextOpen) shortcutOriginRef.current = null;
     setOpen(nextOpen);
+  }
+
+  function closeAfterChoice() {
+    shortcutOriginRef.current = null;
+    setOpen(false);
   }
 
   return (
@@ -201,7 +217,7 @@ function CommandScopeDesktop() {
               aria-hidden
               className="text-muted-foreground bg-muted ml-auto shrink-0 rounded-full border px-1.5 font-sans text-xs whitespace-nowrap"
             >
-              {SHORTCUT_LABEL}
+              {isApple ? SHORTCUT_LABEL_APPLE : SHORTCUT_LABEL}
             </kbd>
           </ScopePill>
         </DialogTrigger>
@@ -220,7 +236,7 @@ function CommandScopeDesktop() {
             selectedProjectId={scope.projectId}
             onSelect={scope.select}
             onCreate={scope.openCreate}
-            onDone={() => setOpen(false)}
+            onDone={closeAfterChoice}
             className={DIALOG_MENU_CLASS}
           />
         </DialogContent>

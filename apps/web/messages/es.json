@@ -6579,6 +6579,7 @@
       "empty": "No se encontraron proyectos.",
       "loading": "Cargando proyectos...",
       "error": "No se pudieron cargar los proyectos.",
+      "workspacesError": "No se pudieron cargar los espacios de trabajo.",
       "retry": "Reintentar",
       "create": "Crear proyecto",
       "manage": "Gestionar proyectos",

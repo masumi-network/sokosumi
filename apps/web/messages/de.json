@@ -6579,6 +6579,7 @@
       "empty": "Keine Projekte gefunden.",
       "loading": "Projekte werden geladen...",
       "error": "Projekte konnten nicht geladen werden.",
+      "workspacesError": "Arbeitsbereiche konnten nicht geladen werden.",
       "retry": "Erneut versuchen",
       "create": "Projekt erstellen",
       "manage": "Projekte verwalten",

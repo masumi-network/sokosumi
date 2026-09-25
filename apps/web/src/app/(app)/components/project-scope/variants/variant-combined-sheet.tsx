@@ -3,15 +3,17 @@
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
+import { returnFocusTo } from "@/app/components/project-scope/use-project-scope";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -53,64 +55,72 @@ export function useCombinedSheetOpen() {
 /**
  * Below `md`: a chip with the current scope. It opens a bottom sheet with the
  * project list, and one row there swaps in the workspace list.
+ *
+ * The chip is the sheet's trigger even when the sidebar button opens it: that
+ * button unmounts with the sidebar sheet, so Radix returns focus to the chip,
+ * and Create project finds the chip through its `aria-controls`.
  */
+/** Where focus lands when the chip is hidden: the header's first control. */
+function firstVisibleHeaderControl(): HTMLElement | null {
+  const controls = document.querySelectorAll<HTMLElement>(
+    "header a[href], header button",
+  );
+  return (
+    Array.from(controls).find((control) => control.getClientRects().length) ??
+    null
+  );
+}
+
 export function CombinedMobileChip() {
   const t = useTranslations("App.ProjectScope");
   const pathname = usePathname();
   const open = useCombinedSheetOpen();
   const scope = useCombinedScope();
+  const chipRef = useRef<HTMLButtonElement>(null);
 
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        data-testid="project-scope-combined-chip"
-        onClick={() => setCombinedSheetOpen(true)}
-        className={cn(
-          "min-w-0 max-w-40 shrink justify-start gap-1.5 px-2 font-medium md:hidden",
-          // A chat room's toolbar takes this row on phones.
-          pathname && isChatRoomPathname(pathname) && "hidden",
-        )}
-      >
-        {scope.mark}
-        <span className="sr-only">{t("switchLabel")}</span>
-        <span className="min-w-0 flex-1 truncate">{scope.name}</span>
-        <ChevronDown
-          className="text-muted-foreground size-3.5 shrink-0"
-          aria-hidden
-        />
-      </Button>
-      <CombinedSheet scope={scope} />
+      <Sheet open={open} onOpenChange={setCombinedSheetOpen}>
+        <SheetTrigger asChild>
+          <Button
+            ref={chipRef}
+            type="button"
+            variant="outline"
+            size="sm"
+            data-testid="project-scope-combined-chip"
+            className={cn(
+              "min-w-0 max-w-40 shrink justify-start gap-1.5 px-2 font-medium md:hidden",
+              // A chat room's toolbar takes this row on phones.
+              pathname && isChatRoomPathname(pathname) && "hidden",
+            )}
+          >
+            {scope.mark}
+            <span className="sr-only">{t("switchLabel")}</span>
+            <span className="min-w-0 flex-1 truncate">{scope.name}</span>
+            <ChevronDown
+              className="text-muted-foreground size-3.5 shrink-0"
+              aria-hidden
+            />
+          </Button>
+        </SheetTrigger>
+        <SheetContent
+          side="bottom"
+          aria-describedby={undefined}
+          onCloseAutoFocus={(event) => {
+            // Radix returns focus to the chip, which a chat room hides.
+            if (chipRef.current?.getClientRects().length) return;
+            returnFocusTo(firstVisibleHeaderControl())(event);
+          }}
+          className="max-h-[85dvh] gap-0 rounded-t-xl p-0 pb-[env(safe-area-inset-bottom)]"
+        >
+          <SheetHeader className="border-b pr-12">
+            <SheetTitle>{t("switchLabel")}</SheetTitle>
+          </SheetHeader>
+          <CombinedSheetBody scope={scope} />
+        </SheetContent>
+      </Sheet>
       {scope.createDialog}
     </>
-  );
-}
-
-function CombinedSheet({
-  scope,
-}: {
-  scope: ReturnType<typeof useCombinedScope>;
-}) {
-  const t = useTranslations("App.ProjectScope");
-  const open = useCombinedSheetOpen();
-
-  return (
-    <Sheet open={open} onOpenChange={setCombinedSheetOpen}>
-      <SheetContent
-        side="bottom"
-        aria-describedby={undefined}
-        className="max-h-[85dvh] gap-0 rounded-t-xl p-0 pb-[env(safe-area-inset-bottom)]"
-      >
-        <SheetHeader className="border-b pr-12">
-          <SheetTitle>{t("switchLabel")}</SheetTitle>
-        </SheetHeader>
-        <CombinedSheetBody scope={scope} />
-      </SheetContent>
-    </Sheet>
   );
 }
 

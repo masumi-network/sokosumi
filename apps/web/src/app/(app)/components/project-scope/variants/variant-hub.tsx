@@ -35,6 +35,23 @@ function useScopedWorkspaceProject() {
   };
 }
 
+/** Leaves the project scope in place: the workspace version of this page. */
+function ClearScopeButton({ onClick }: { onClick: () => void }) {
+  const t = useTranslations("App.ProjectScope");
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      aria-label={t("workspaceView")}
+      className="text-muted-foreground size-6 shrink-0 px-0 has-[>svg]:px-0"
+      onClick={onClick}
+    >
+      <X className="size-3.5" aria-hidden />
+    </Button>
+  );
+}
+
 /** sm and up: "‹avatar› Project ×  ›" before the page breadcrumbs. */
 function HubHeaderCrumb() {
   const t = useTranslations("App.ProjectScope");
@@ -60,16 +77,7 @@ function HubHeaderCrumb() {
         <span className="sr-only">{t("label")}: </span>
         <span className="max-w-40 truncate">{project.name ?? t("label")}</span>
       </Link>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        aria-label={t("workspaceView")}
-        className="text-muted-foreground size-6 px-0 has-[>svg]:px-0"
-        onClick={project.clear}
-      >
-        <X className="size-3.5" aria-hidden />
-      </Button>
+      <ClearScopeButton onClick={project.clear} />
       <ChevronRight
         className="text-muted-foreground size-4 shrink-0"
         aria-hidden
@@ -78,7 +86,7 @@ function HubHeaderCrumb() {
   );
 }
 
-/** Below sm: the project's avatar, linking to the project. */
+/** Below sm: the project's avatar, linking to the project, and a clear. */
 function HubHeaderMobileChip() {
   const t = useTranslations("App.ProjectScope");
   const project = useScopedWorkspaceProject();
@@ -87,17 +95,20 @@ function HubHeaderMobileChip() {
   const label = project.name ? `${t("label")}: ${project.name}` : t("label");
 
   return (
-    <Link
-      href={project.href}
-      aria-label={label}
-      className="hover:bg-accent focus-visible:ring-ring flex size-8 shrink-0 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-2 sm:hidden"
-    >
-      <ProjectAvatar
-        name={project.name ?? t("label")}
-        logo={project.logo}
-        className="size-6"
-      />
-    </Link>
+    <div className="flex shrink-0 items-center sm:hidden">
+      <Link
+        href={project.href}
+        aria-label={label}
+        className="hover:bg-accent focus-visible:ring-ring flex size-8 shrink-0 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-2"
+      >
+        <ProjectAvatar
+          name={project.name ?? t("label")}
+          logo={project.logo}
+          className="size-6"
+        />
+      </Link>
+      <ClearScopeButton onClick={project.clear} />
+    </div>
   );
 }
 

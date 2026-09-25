@@ -1,8 +1,10 @@
 "use client";
 
 import { ChevronsUpDown, FolderKanban, Layers } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useSyncExternalStore } from "react";
+import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import {
   returnFocusTo,
@@ -20,6 +22,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import { cn } from "@/lib/utils";
 
 /**
  * Shared by the header chip, which owns the sheet and the Create dialog, and
@@ -113,6 +116,7 @@ export function useCurrentScope() {
 /** Below md: a compact scope chip in the header that opens a bottom sheet. */
 export function SidebarScopeMobileChip() {
   const t = useTranslations("App.ProjectScope");
+  const pathname = usePathname();
   const open = useScopeSheetOpen();
   const createOpen = useScopeCreateOpen();
   const { projectId, name, label, mark, select } = useCurrentScope();
@@ -122,7 +126,14 @@ export function SidebarScopeMobileChip() {
 
   return (
     <>
-      <div className="flex min-w-0 shrink md:hidden">
+      <div
+        className={cn(
+          "flex min-w-0 shrink md:hidden",
+          // A chat room's toolbar takes this row on phones. The sheet and the
+          // dialog stay mounted: the sidebar row opens them through the store.
+          isChatRoomPathname(pathname) && "hidden",
+        )}
+      >
         <Sheet open={open} onOpenChange={setScopeSheetOpen}>
           <SheetTrigger asChild>
             <Button

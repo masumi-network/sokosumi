@@ -32,7 +32,7 @@ import {
 import { authClient, useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 
-import type { ScopeSlots } from "./scope-variants";
+import type { ScopeSlots, ScopeVariantId } from "./scope-variants";
 import { useScopeVariant } from "./use-scope-variant";
 
 /** Tailwind's `sm`: the desktop trail shows from here, the mobile title below. */
@@ -57,7 +57,7 @@ function useIsSmUp(): boolean {
  * The active workspace's name, read-only. Switching workspaces stays with the
  * header's workspace switch. Null while the session or the list loads.
  */
-function useWorkspaceName(): string | null {
+export function useWorkspaceName(): string | null {
   const t = useTranslations("App.ProjectScope");
   const tSwitcher = useTranslations("Components.OrganizationSwitcher");
   const { data: session, error: sessionError } = useSession();
@@ -268,18 +268,32 @@ export function HeaderVariantCrumbs({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Variants whose `header-mobile` slot is a text pill or chip. Hub's chip is
+ * an avatar and leaves the workspace name its room.
+ */
+const NARROW_TRAILING_VARIANTS: ReadonlySet<ScopeVariantId> = new Set([
+  "header",
+  "command",
+  "combined",
+  "sidebar",
+]);
+
+/** Below sm the workspace switch keeps its avatar; its name goes sr-only. */
+const NARROW_TRAILING_CLASS =
+  "contents max-sm:[&_[data-testid=header-workspace-chrome]_.max-w-24]:sr-only";
+
 function TrailingGate({ children }: { children: ReactNode }) {
-  if (useScopeVariant() !== "header") return children;
-  // Below sm the scope title needs the room: the workspace switch keeps its
-  // avatar, and its name stays for screen readers.
-  return (
-    <div className="contents max-sm:[&_[data-testid=header-workspace-chrome]_.max-w-24]:sr-only">
-      {children}
-    </div>
-  );
+  if (!NARROW_TRAILING_VARIANTS.has(useScopeVariant())) return children;
+  // Below sm the scope pill needs the room, or its avatar and chevron paint
+  // over the workspace name. The name stays for screen readers.
+  return <div className={NARROW_TRAILING_CLASS}>{children}</div>;
 }
 
-/** The header's trailing chrome, narrowed for the header variant on mobile. */
+/**
+ * The header's trailing chrome, narrowed on mobile for every variant with a
+ * text pill in `header-mobile`.
+ */
 export function HeaderVariantTrailing({ children }: { children: ReactNode }) {
   return (
     <Suspense fallback={children}>
