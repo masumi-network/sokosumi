@@ -182,6 +182,7 @@ export function SidebarScopeMobileChip() {
         onOpenChange={setScopeCreateOpen}
         onCreated={({ projectId: createdId }) => select(createdId)}
         onCloseAutoFocus={(event) => returnFocusTo(createOpener)(event)}
+        creationSource="project_switcher"
       />
     </>
   );

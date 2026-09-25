@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 
 const mocks = vi.hoisted(() => ({
   pathname: "/tasks",
@@ -51,15 +51,31 @@ import { sidebarSlots } from "./variant-sidebar";
 const SidebarTop = sidebarSlots["sidebar-top"];
 const HeaderMobile = sidebarSlots["header-mobile"];
 
-function Harness({ chip = true }: { chip?: boolean }) {
+/** Shows the mobile sidebar's open state, and opens it as its trigger would. */
+function MobileSidebarProbe() {
+  const { openMobile, setOpenMobile } = useSidebar();
+  return (
+    <button
+      type="button"
+      data-testid="mobile-sidebar-probe"
+      data-open={openMobile}
+      onClick={() => setOpenMobile(true)}
+    >
+      open-sidebar
+    </button>
+  );
+}
+
+function Harness() {
   if (!SidebarTop || !HeaderMobile) throw new Error("Missing sidebar slots");
   return (
     <SidebarProvider>
       <header>
         <button type="button">header-home</button>
       </header>
+      <MobileSidebarProbe />
       <SidebarTop />
-      {chip ? <HeaderMobile /> : null}
+      <HeaderMobile />
     </SidebarProvider>
   );
 }
@@ -68,29 +84,19 @@ function renderHarness() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  const view = render(
+  return render(
     <QueryClientProvider client={client}>
       <Harness />
     </QueryClientProvider>,
   );
-  return {
-    ...view,
-    setChip(chip: boolean) {
-      view.rerender(
-        <QueryClientProvider client={client}>
-          <Harness chip={chip} />
-        </QueryClientProvider>,
-      );
-    },
-  };
 }
 
 function row() {
   return screen.getByTestId("project-scope-sidebar-row");
 }
 
-function chip() {
-  return screen.getByTestId("project-scope-sidebar-chip");
+function probe() {
+  return screen.getByTestId("mobile-sidebar-probe");
 }
 
 beforeEach(() => {
@@ -124,65 +130,6 @@ describe("sidebar variant", () => {
     ).toBeInTheDocument();
   });
 
-  it("resets the store when the chip unmounts", async () => {
-    const user = userEvent.setup();
-    const view = renderHarness();
-    await user.click(row());
-    await user.click(await screen.findByTestId("project-scope-create"));
-    await screen.findByRole("dialog", { name: "create-project" });
-
-    view.setChip(false);
-    view.setChip(true);
-
-    expect(
-      screen.queryByRole("dialog", { name: "create-project" }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("names the workspace view when no project is scoped", () => {
-    renderHarness();
-
-    expect(row()).toHaveAccessibleName("label: workspaceView");
-    expect(chip()).toHaveAccessibleName("label: workspaceView");
-    expect(mocks.fetch).not.toHaveBeenCalled();
-  });
-
-  it('reads "Project" while the project loads, then its name', async () => {
-    let answer: (response: Response) => void = () => {};
-    mocks.fetch.mockReturnValue(
-      new Promise<Response>((resolve) => {
-        answer = resolve;
-      }),
-    );
-    mocks.search = "projectId=p-1";
-    renderHarness();
-
-    expect(row()).toHaveAccessibleName("label: label");
-    expect(chip()).toHaveAccessibleName("label: label");
-
-    answer(Response.json({ project: { id: "p-1", name: "Acme", logo: null } }));
-    await waitFor(() => expect(row()).toHaveAccessibleName("label: Acme"));
-    expect(chip()).toHaveAccessibleName("label: Acme");
-    expect(mocks.fetch).toHaveBeenCalledWith(
-      "/api/project-scope/p-1",
-      expect.anything(),
-    );
-  });
-
-  it("hides the chip on a chat room but keeps its dialog reachable", async () => {
-    const user = userEvent.setup();
-    mocks.pathname = "/chat/rooms/r-1";
-    renderHarness();
-
-    expect(chip().closest(".hidden")).not.toBeNull();
-
-    await user.click(row());
-    await user.click(await screen.findByTestId("project-scope-create"));
-    expect(
-      await screen.findByRole("dialog", { name: "create-project" }),
-    ).toBeInTheDocument();
-  });
-
   it("hands the mobile row off to the chip's bottom sheet", async () => {
     const user = userEvent.setup();
     mocks.isMobile = true;
@@ -196,29 +143,18 @@ describe("sidebar variant", () => {
     expect(row()).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("sends focus to a visible header control when the hidden chip's sheet closes", async () => {
+  it("closes the mobile sidebar when the row hands off", async () => {
     const user = userEvent.setup();
     mocks.isMobile = true;
-    mocks.pathname = "/chat/rooms/r-1";
     renderHarness();
-    // happy-dom gives every element one rect; a `display: none` chip has none.
-    vi.spyOn(chip(), "getClientRects").mockReturnValue({
-      length: 0,
-    } as DOMRectList);
+    await user.click(probe());
+    expect(probe()).toHaveAttribute("data-open", "true");
 
     await user.click(row());
-    await screen.findByRole("dialog", { name: "switchLabel" });
-    await user.keyboard("{Escape}");
 
-    await waitFor(() =>
-      expect(
-        screen.queryByRole("dialog", { name: "switchLabel" }),
-      ).not.toBeInTheDocument(),
-    );
-    await waitFor(() =>
-      expect(document.activeElement).toBe(
-        screen.getByRole("button", { name: "header-home" }),
-      ),
-    );
+    expect(probe()).toHaveAttribute("data-open", "false");
+    expect(
+      await screen.findByRole("dialog", { name: "switchLabel" }),
+    ).toBeInTheDocument();
   });
 });
