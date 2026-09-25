@@ -634,6 +634,10 @@ export const taskScheduleTestPrisma = {
         return row;
       },
     ),
+    findUnique: vi.fn(
+      async ({ where }: { where: { id: string } }) =>
+        taskScheduleTestDb.tasks.find((row) => row.id === where.id) ?? null,
+    ),
     findMany: vi.fn(async ({ where, take }: { where: Where; take?: number }) =>
       taskScheduleTestDb.tasks
         .filter((row) => matchesRow(row, where))

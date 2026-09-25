@@ -206,6 +206,19 @@ const baseEnvSchema = z.object({
     .string()
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
+  /**
+   * Temporary adapter for the removed per-Task schedule routes.
+   * Remove after 2026-09-29. Default on; set 0/false/off to return 410 again.
+   */
+  LEGACY_TASK_SCHEDULE_SHIM: z
+    .string()
+    .default("1")
+    .transform((value) => {
+      const normalized = value.trim().toLowerCase();
+      return (
+        normalized !== "0" && normalized !== "false" && normalized !== "off"
+      );
+    }),
 
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
@@ -421,6 +434,16 @@ export function getEnv(): EnvConfig {
     envConfig = validateEnv();
   }
   return envConfig;
+}
+
+/**
+ * Temporary. Remove after 2026-09-29. Reads `process.env` so tests can stub
+ * the flag without resetting the cached env config.
+ */
+export function isLegacyTaskScheduleShimEnabled(): boolean {
+  const raw = process.env.LEGACY_TASK_SCHEDULE_SHIM ?? "1";
+  const normalized = raw.trim().toLowerCase();
+  return normalized !== "0" && normalized !== "false" && normalized !== "off";
 }
 
 /**

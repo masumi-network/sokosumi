@@ -6186,6 +6186,37 @@ export type CreateTaskContext = {
     memory?: boolean;
 };
 
+export type LegacyTaskScheduleProjection = {
+    id: string;
+    scheduleId: string;
+    name: string;
+    description: string | null;
+    projectId: string | null;
+    visibility: TaskVisibility;
+    assigneeId: string | null;
+    assigneeSokoBotId: string | null;
+    nextRunAt: Date | null;
+    scheduleRevision: number;
+    schedule: {
+        mode: 'recurring';
+        expr: string;
+        timezone: string;
+        endsMode: LegacyTaskScheduleEndsMode;
+        endsOn?: Date | null;
+        occurrences?: number | null;
+        intervalDays?: number | null;
+        anchorAt?: Date | null;
+    };
+};
+
+export const LegacyTaskScheduleEndsMode = {
+    NEVER: 'never',
+    ON: 'on',
+    AFTER: 'after'
+} as const;
+
+export type LegacyTaskScheduleEndsMode = typeof LegacyTaskScheduleEndsMode[keyof typeof LegacyTaskScheduleEndsMode];
+
 export type TaskScheduleMovedError = {
     error: string;
     message: string;
@@ -6198,6 +6229,66 @@ export type TaskScheduleMovedError = {
         path: string;
         method: string;
     };
+};
+
+export type LegacyCreateScheduledTaskRequest = {
+    operationId?: string;
+    source: LegacyCalendarTaskScheduleSource;
+    name: string;
+    description?: string | null;
+    assigneeId?: string | null;
+    assigneeSokoBotId?: string | null;
+    assigneeUserId?: string | null;
+    schedule: LegacyTaskScheduleInput;
+};
+
+export type LegacyCalendarTaskScheduleSource = {
+    type: 'workspace';
+} | {
+    type: 'project';
+    projectId: string;
+};
+
+export type LegacyTaskScheduleInput = {
+    mode: 'once';
+    runAt: Date;
+} | {
+    mode: 'recurring';
+    expr: string;
+    timezone?: string;
+    endsMode?: LegacyTaskScheduleEndsMode;
+    endsOn?: Date;
+    occurrences?: number;
+    intervalDays?: number;
+    anchorAt?: Date;
+};
+
+export type LegacyPutTaskScheduleRequest = {
+    mode: 'once';
+    runAt: Date;
+} | {
+    mode: 'recurring';
+    expr: string;
+    timezone?: string;
+    endsMode?: LegacyTaskScheduleEndsMode;
+    endsOn?: Date;
+    occurrences?: number;
+    intervalDays?: number;
+    anchorAt?: Date;
+};
+
+export type LegacyPutCalendarTaskScheduleRequest = {
+    operationId?: string;
+    expectedScheduleRevision: number;
+    discardFutureExceptions: true;
+    schedule: LegacyTaskScheduleInput;
+};
+
+export type LegacyPutCalendarTaskScheduleSourceRequest = {
+    operationId?: string;
+    expectedScheduleRevision: number;
+    discardFutureExceptions: true;
+    source: LegacyCalendarTaskScheduleSource;
 };
 
 export const UserWritableTaskLinkRelation = {
@@ -43205,7 +43296,21 @@ export type PatchTasksSchedulesByIdRunsByRunIdResponses = {
 export type PatchTasksSchedulesByIdRunsByRunIdResponse = PatchTasksSchedulesByIdRunsByRunIdResponses[keyof PatchTasksSchedulesByIdRunsByRunIdResponses];
 
 export type PostTasksScheduledData = {
-    body?: never;
+    body?: LegacyCreateScheduledTaskRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path?: never;
     query?: never;
     url: '/tasks/scheduled';
@@ -43213,15 +43318,135 @@ export type PostTasksScheduledData = {
 
 export type PostTasksScheduledErrors = {
     /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Gone. Branch on `kind`: task_schedule_moved.
      */
     410: TaskScheduleMovedError;
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PostTasksScheduledError = PostTasksScheduledErrors[keyof PostTasksScheduledErrors];
 
+export type PostTasksScheduledResponses = {
+    /**
+     * Legacy schedule projection of the created Task Schedule
+     */
+    201: {
+        data: LegacyTaskScheduleProjection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksScheduledResponse = PostTasksScheduledResponses[keyof PostTasksScheduledResponses];
+
 export type DeleteTasksByIdScheduleData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -43231,6 +43456,66 @@ export type DeleteTasksByIdScheduleData = {
 
 export type DeleteTasksByIdScheduleErrors = {
     /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Gone. Branch on `kind`: task_schedule_moved.
      */
     410: TaskScheduleMovedError;
@@ -43238,8 +43523,124 @@ export type DeleteTasksByIdScheduleErrors = {
 
 export type DeleteTasksByIdScheduleError = DeleteTasksByIdScheduleErrors[keyof DeleteTasksByIdScheduleErrors];
 
-export type PutTasksByIdScheduleData = {
+export type DeleteTasksByIdScheduleResponses = {
+    /**
+     * Task Schedule deleted
+     */
+    204: void;
+};
+
+export type DeleteTasksByIdScheduleResponse = DeleteTasksByIdScheduleResponses[keyof DeleteTasksByIdScheduleResponses];
+
+export type GetTasksByIdScheduleData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/schedule';
+};
+
+export type GetTasksByIdScheduleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Gone. Branch on `kind`: task_schedule_moved.
+     */
+    410: TaskScheduleMovedError;
+};
+
+export type GetTasksByIdScheduleError = GetTasksByIdScheduleErrors[keyof GetTasksByIdScheduleErrors];
+
+export type GetTasksByIdScheduleResponses = {
+    /**
+     * Legacy schedule projection
+     */
+    200: {
+        data: LegacyTaskScheduleProjection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdScheduleResponse = GetTasksByIdScheduleResponses[keyof GetTasksByIdScheduleResponses];
+
+export type PutTasksByIdScheduleData = {
+    body?: LegacyPutTaskScheduleRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -43249,15 +43650,135 @@ export type PutTasksByIdScheduleData = {
 
 export type PutTasksByIdScheduleErrors = {
     /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Gone. Branch on `kind`: task_schedule_moved.
      */
     410: TaskScheduleMovedError;
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PutTasksByIdScheduleError = PutTasksByIdScheduleErrors[keyof PutTasksByIdScheduleErrors];
 
+export type PutTasksByIdScheduleResponses = {
+    /**
+     * Legacy schedule projection
+     */
+    200: {
+        data: LegacyTaskScheduleProjection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutTasksByIdScheduleResponse = PutTasksByIdScheduleResponses[keyof PutTasksByIdScheduleResponses];
+
 export type PutTasksByIdCalendarScheduleData = {
-    body?: never;
+    body?: LegacyPutCalendarTaskScheduleRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -43267,15 +43788,135 @@ export type PutTasksByIdCalendarScheduleData = {
 
 export type PutTasksByIdCalendarScheduleErrors = {
     /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Gone. Branch on `kind`: task_schedule_moved.
      */
     410: TaskScheduleMovedError;
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PutTasksByIdCalendarScheduleError = PutTasksByIdCalendarScheduleErrors[keyof PutTasksByIdCalendarScheduleErrors];
 
+export type PutTasksByIdCalendarScheduleResponses = {
+    /**
+     * Legacy schedule projection
+     */
+    200: {
+        data: LegacyTaskScheduleProjection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutTasksByIdCalendarScheduleResponse = PutTasksByIdCalendarScheduleResponses[keyof PutTasksByIdCalendarScheduleResponses];
+
 export type PutTasksByIdCalendarSourceData = {
-    body?: never;
+    body?: LegacyPutCalendarTaskScheduleSourceRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
     path: {
         id: string;
     };
@@ -43285,12 +43926,118 @@ export type PutTasksByIdCalendarSourceData = {
 
 export type PutTasksByIdCalendarSourceErrors = {
     /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Gone. Branch on `kind`: task_schedule_moved.
      */
     410: TaskScheduleMovedError;
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PutTasksByIdCalendarSourceError = PutTasksByIdCalendarSourceErrors[keyof PutTasksByIdCalendarSourceErrors];
+
+export type PutTasksByIdCalendarSourceResponses = {
+    /**
+     * Legacy schedule projection
+     */
+    200: {
+        data: LegacyTaskScheduleProjection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutTasksByIdCalendarSourceResponse = PutTasksByIdCalendarSourceResponses[keyof PutTasksByIdCalendarSourceResponses];
 
 export type GetTasksByIdScheduleOccurrencesData = {
     body?: never;

@@ -21042,6 +21042,139 @@ export const CreateTaskContextSchema = {
     description: 'Task context attachments. DESIGN.md, project briefing, and project memory are attached by default; explicit false values opt out.'
 } as const;
 
+export const LegacyTaskScheduleProjectionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        scheduleId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        visibility: {
+            $ref: '#/components/schemas/TaskVisibility'
+        },
+        assigneeId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        assigneeSokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        nextRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        scheduleRevision: {
+            type: 'integer'
+        },
+        schedule: {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'recurring'
+                    ]
+                },
+                expr: {
+                    type: 'string'
+                },
+                timezone: {
+                    type: 'string'
+                },
+                endsMode: {
+                    $ref: '#/components/schemas/LegacyTaskScheduleEndsMode'
+                },
+                endsOn: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                occurrences: {
+                    type: [
+                        'integer',
+                        'null'
+                    ]
+                },
+                intervalDays: {
+                    type: [
+                        'integer',
+                        'null'
+                    ]
+                },
+                anchorAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'mode',
+                'expr',
+                'timezone',
+                'endsMode'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'scheduleId',
+        'name',
+        'description',
+        'projectId',
+        'visibility',
+        'assigneeId',
+        'assigneeSokoBotId',
+        'nextRunAt',
+        'scheduleRevision',
+        'schedule'
+    ]
+} as const;
+
+export const LegacyTaskScheduleEndsModeSchema = {
+    type: 'string',
+    enum: [
+        'never',
+        'on',
+        'after'
+    ]
+} as const;
+
 export const TaskScheduleMovedErrorSchema = {
     type: 'object',
     properties: {
@@ -21100,6 +21233,293 @@ export const TaskScheduleMovedErrorSchema = {
         'message',
         'replacement',
         'meta'
+    ]
+} as const;
+
+export const LegacyCreateScheduledTaskRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        source: {
+            $ref: '#/components/schemas/LegacyCalendarTaskScheduleSource'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        assigneeId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1
+        },
+        assigneeSokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        assigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1
+        },
+        schedule: {
+            $ref: '#/components/schemas/LegacyTaskScheduleInput'
+        }
+    },
+    required: [
+        'source',
+        'name',
+        'schedule'
+    ]
+} as const;
+
+export const LegacyCalendarTaskScheduleSourceSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'workspace'
+                    ]
+                }
+            },
+            required: [
+                'type'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'project'
+                    ]
+                },
+                projectId: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'type',
+                'projectId'
+            ]
+        }
+    ]
+} as const;
+
+export const LegacyTaskScheduleInputSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'once'
+                    ]
+                },
+                runAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'mode',
+                'runAt'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'recurring'
+                    ]
+                },
+                expr: {
+                    type: 'string',
+                    minLength: 1
+                },
+                timezone: {
+                    type: 'string',
+                    minLength: 1,
+                    default: 'UTC'
+                },
+                endsMode: {
+                    $ref: '#/components/schemas/LegacyTaskScheduleEndsMode'
+                },
+                endsOn: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                occurrences: {
+                    type: 'integer',
+                    exclusiveMinimum: 0
+                },
+                intervalDays: {
+                    type: 'integer',
+                    exclusiveMinimum: 0
+                },
+                anchorAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'mode',
+                'expr'
+            ]
+        }
+    ]
+} as const;
+
+export const LegacyPutTaskScheduleRequestSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'once'
+                    ]
+                },
+                runAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'mode',
+                'runAt'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'recurring'
+                    ]
+                },
+                expr: {
+                    type: 'string',
+                    minLength: 1
+                },
+                timezone: {
+                    type: 'string',
+                    minLength: 1,
+                    default: 'UTC'
+                },
+                endsMode: {
+                    $ref: '#/components/schemas/LegacyTaskScheduleEndsMode'
+                },
+                endsOn: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                occurrences: {
+                    type: 'integer',
+                    exclusiveMinimum: 0
+                },
+                intervalDays: {
+                    type: 'integer',
+                    exclusiveMinimum: 0
+                },
+                anchorAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'mode',
+                'expr'
+            ]
+        }
+    ]
+} as const;
+
+export const LegacyPutCalendarTaskScheduleRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        expectedScheduleRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        discardFutureExceptions: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        schedule: {
+            $ref: '#/components/schemas/LegacyTaskScheduleInput'
+        }
+    },
+    required: [
+        'expectedScheduleRevision',
+        'discardFutureExceptions',
+        'schedule'
+    ]
+} as const;
+
+export const LegacyPutCalendarTaskScheduleSourceRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        expectedScheduleRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        discardFutureExceptions: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        source: {
+            $ref: '#/components/schemas/LegacyCalendarTaskScheduleSource'
+        }
+    },
+    required: [
+        'expectedScheduleRevision',
+        'discardFutureExceptions',
+        'source'
     ]
 } as const;
 

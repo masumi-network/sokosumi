@@ -173,10 +173,45 @@ Pause, resume, and end answer **409** `schedule_state_conflict` from the wrong
 state. A Run change answers **409** `schedule_run_state_conflict` or **422**
 `schedule_run_target_invalid`.
 
+### Legacy schedule shim (until 2026-09-29)
+
+Until **2026-09-29**, Core keeps a temporary adapter on the old per-Task
+schedule routes so vendors that have not switched to `/v1/tasks/schedules`
+can still create, update, and read a repeating **rule**. Set
+`LEGACY_TASK_SCHEDULE_SHIM=0` (or `false` / `off`) to restore **410 Gone**
+immediately. Default is on (`1`). Remove the adapter after the sunset.
+
+The adapter **translates** into Task Schedule. It does not restore untyped
+Task `metadata` as source of truth, schedule-status exceptions, quarantine,
+or person assignees on a series.
+
+| Old route | Shim |
+| --- | --- |
+| `POST /v1/tasks/scheduled` | Creates a Task Schedule. Response is a legacy projection (`id` / `scheduleId` = schedule UUID, `scheduleRevision`, typed `schedule`). |
+| `PUT /v1/tasks/{id}/schedule` | Updates the linked schedule, or creates one from the Task blueprint when none is linked. |
+| `GET /v1/tasks/{id}/schedule` | Reads that projection. Dedicated legacy read — Task DTOs still omit `metadata` / `nextRunAt` / `scheduleRevision`. |
+| `DELETE /v1/tasks/{id}/schedule` | Deletes the linked Task Schedule. Released Tasks stay. |
+| `PUT /v1/tasks/{id}/calendar-schedule` | Replaces the rule (`expectedScheduleRevision` → `expectedRevision`). |
+| `PUT /v1/tasks/{id}/calendar-source` | Moves `projectId` (`workspace` or `project`). |
+
+`{id}` is resolved in this order: Task Schedule id, Task.`scheduleId`, the
+cutover id of a deleted template Task, then the id this shim assigned on
+PUT-create. If a template Task id was never mapped and the Task row is gone,
+the call answers **404**.
+
+A one-time start (`schedule.mode: "once"`) answers **422** pointing at
+`runAt` on `POST /v1/tasks`. A person assignee (`assigneeUserId`) answers
+**422** pointing at `POST /v1/tasks/schedules`. Payloads that are not a
+typed recurring rule answer **422** with a pointer to the new shape — Core
+does not guess.
+
+Occurrence skip/move/restore (`…/schedule/occurrences`) stays **410**.
+
 ### Removed per-Task schedule routes
 
-The old per-Task schedule routes answer **410 Gone** with `kind`
-`task_schedule_moved` and the route to call instead in `replacement`:
+When the shim is off, or after 2026-09-29, the old per-Task schedule routes
+answer **410 Gone** with `kind` `task_schedule_moved` and the route to call
+instead in `replacement`:
 
 | Removed route | `replacement` |
 | --- | --- |

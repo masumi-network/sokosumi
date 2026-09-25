@@ -230,6 +230,7 @@ export async function canCreateTaskSchedules(
 export async function createTaskSchedule(
   vars: RouteVars,
   input: CreateTaskScheduleRequest,
+  options?: { id?: string },
 ): Promise<TaskSchedule> {
   const actor = await resolveScheduleActor(vars);
   const domainActor = toDomainActor(actor);
@@ -276,6 +277,7 @@ export async function createTaskSchedule(
       ]);
       const schedule = await tx.taskSchedule.create({
         data: {
+          ...(options?.id ? { id: options.id } : {}),
           workspaceId: actor.workspace.workspaceId,
           organizationId: actor.workspace.organizationId,
           ...creator,
