@@ -176,10 +176,6 @@ vi.mock("../organization-chat-list.actions", () => ({
   reorderPinnedOrganizationChatRoomsAction: (
     ...args: Parameters<typeof reorderPinnedMock>
   ) => reorderPinnedMock(...args),
-  listOrganizationArchivedChatRoomsAction: vi.fn(async () => ({
-    ok: true,
-    value: { rooms: [], nextCursor: null },
-  })),
 }));
 
 vi.mock("../fetch-sidebar-room-collection", () => ({
