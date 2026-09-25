@@ -60,7 +60,7 @@ const {
   transactionTurnFindFirstMock,
   transactionTurnUpdateManyMock,
   transactionTaskUpdateMock,
-  transactionTaskEventCountMock,
+  transactionTaskEventFindManyMock,
   transactionTaskEventCreateMock,
   transactionTaskWatchUpsertMock,
   transactionWorkspaceFindFirstMock,
@@ -142,7 +142,7 @@ const {
   transactionTurnFindFirstMock: vi.fn(),
   transactionTurnUpdateManyMock: vi.fn(),
   transactionTaskUpdateMock: vi.fn(),
-  transactionTaskEventCountMock: vi.fn(),
+  transactionTaskEventFindManyMock: vi.fn(),
   transactionTaskEventCreateMock: vi.fn(),
   transactionTaskWatchUpsertMock: vi.fn(),
   transactionWorkspaceFindFirstMock: vi.fn(),
@@ -174,6 +174,16 @@ vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: availabilityMock,
 }));
+vi.mock("@/helpers/data-table", () => ({
+  resolveTableActor: vi.fn(),
+  createDataTable: vi.fn(),
+  listDataTables: vi.fn(),
+  requireDataTable: vi.fn(),
+  queryTableRows: vi.fn(),
+  batchTableRows: vi.fn(),
+  mutateDataTable: vi.fn(),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
@@ -280,7 +290,7 @@ vi.mock("@/lib/db/transaction", () => ({
           update: transactionTaskUpdateMock,
         },
         taskEvent: {
-          count: transactionTaskEventCountMock,
+          findMany: transactionTaskEventFindManyMock,
           create: transactionTaskEventCreateMock,
         },
         sokoBotTaskWatch: { upsert: transactionTaskWatchUpsertMock },
@@ -509,7 +519,7 @@ describe("SokoBotRuntimeService authorization", () => {
     transactionToolCallFindUniqueMock.mockResolvedValue(null);
     transactionToolCallCountMock.mockResolvedValue(0);
     transactionToolCallCreateMock.mockResolvedValue({});
-    transactionTaskEventCountMock.mockResolvedValue(0);
+    transactionTaskEventFindManyMock.mockResolvedValue([]);
     transactionTaskEventCreateMock.mockResolvedValue({ id: "event_1" });
     transactionTaskWatchUpsertMock.mockResolvedValue({});
     applyGuardedTaskStatusUpdateMock.mockResolvedValue(undefined);

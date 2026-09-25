@@ -3,6 +3,7 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import filesRouter from "./files/index.js";
 import foldersRouter from "./folders/index.js";
 import recentsRouter from "./recents/index.js";
+import tablesRouter from "./tables/index.js";
 import tasksRouter from "./tasks/index.js";
 
 const app = new OpenAPIHonoWithAuth({
@@ -10,6 +11,7 @@ const app = new OpenAPIHonoWithAuth({
   requireOrganizationProductSeat: true,
 });
 
+app.route("/tables", tablesRouter);
 app.route("/files", filesRouter);
 app.route("/folders", foldersRouter);
 app.route("/recents", recentsRouter);

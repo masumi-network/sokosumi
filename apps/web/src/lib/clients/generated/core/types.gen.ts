@@ -3095,6 +3095,90 @@ export type DeveloperTaskDetail = {
     } | null;
 };
 
+export type DataTable = {
+    id: string;
+    workspaceId: string;
+    projectId: string | null;
+    title: string;
+    description: string;
+    createdBy: string;
+    version: number;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    columns: Array<TableColumn>;
+    views: Array<TableView>;
+};
+
+export type TableColumn = {
+    id: string;
+    name: string;
+    description?: string;
+    type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+    options?: Array<string>;
+    tableId: string;
+    position: number;
+    version: number;
+};
+
+export type TableView = {
+    id: string;
+    tableId: string;
+    name: string;
+    version: number;
+    definition: {
+        filters?: Array<{
+            columnId: string;
+            operator: 'equals' | 'contains' | 'empty';
+            value?: string | number | boolean | Array<string> | null;
+        }>;
+        sort?: {
+            columnId: string;
+            direction: 'asc' | 'desc';
+        } | null;
+        visibleColumnIds?: Array<string>;
+    };
+};
+
+export type TableRow = {
+    id: string;
+    tableId: string;
+    values: {
+        [key: string]: string | number | boolean | Array<string> | null;
+    };
+    evidence: {
+        [key: string]: Array<{
+            url: string;
+            note?: string;
+        }>;
+    };
+    version: number;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type TableBatchResult = {
+    batchId: string;
+    rows: Array<TableRow>;
+};
+
+export type TableChange = {
+    id: string;
+    tableId: string;
+    batchId: string;
+    actorId: string;
+    actorKind: string;
+    actorName?: string | null;
+    taskId: string | null;
+    rowId: string | null;
+    columnId: string | null;
+    before?: unknown;
+    after?: unknown;
+    evidence?: unknown;
+    createdAt: Date;
+};
+
 export type DriveFileUploadSession = {
     /**
      * Presigned Blob PUT URL (time-scoped, path-scoped)
@@ -21894,6 +21978,1359 @@ export type GetDeveloperOwnedCoworkerTaskResponses = {
 };
 
 export type GetDeveloperOwnedCoworkerTaskResponse = GetDeveloperOwnedCoworkerTaskResponses[keyof GetDeveloperOwnedCoworkerTaskResponses];
+
+export type GetDriveTablesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        archived?: 'true' | 'false';
+        projectId?: string;
+    };
+    url: '/drive/tables';
+};
+
+export type GetDriveTablesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveTablesError = GetDriveTablesErrors[keyof GetDriveTablesErrors];
+
+export type GetDriveTablesResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: Array<DataTable>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveTablesResponse = GetDriveTablesResponses[keyof GetDriveTablesResponses];
+
+export type PostDriveTablesData = {
+    body?: {
+        key: string;
+        title: string;
+        description?: string;
+        projectId?: string | null;
+        columns: Array<{
+            id?: string;
+            name: string;
+            description?: string;
+            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+            options?: Array<string>;
+        }>;
+        rows?: Array<{
+            id?: string;
+            values: {
+                [key: string]: string | number | boolean | Array<string> | null;
+            };
+            evidence?: {
+                [key: string]: Array<{
+                    url: string;
+                    note?: string;
+                }>;
+            };
+        }>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/tables';
+};
+
+export type PostDriveTablesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTablesError = PostDriveTablesErrors[keyof PostDriveTablesErrors];
+
+export type PostDriveTablesResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: DataTable;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTablesResponse = PostDriveTablesResponses[keyof PostDriveTablesResponses];
+
+export type GetDriveTablesByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}';
+};
+
+export type GetDriveTablesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveTablesByIdError = GetDriveTablesByIdErrors[keyof GetDriveTablesByIdErrors];
+
+export type GetDriveTablesByIdResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: DataTable;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveTablesByIdResponse = GetDriveTablesByIdResponses[keyof GetDriveTablesByIdResponses];
+
+export type PatchDriveTablesByIdData = {
+    body?: {
+        key: string;
+        version: number;
+        title?: string;
+        description?: string;
+        archived?: boolean;
+        columns?: Array<{
+            id?: string;
+            name: string;
+            description?: string;
+            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+            options?: Array<string>;
+        }>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}';
+};
+
+export type PatchDriveTablesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveTablesByIdError = PatchDriveTablesByIdErrors[keyof PatchDriveTablesByIdErrors];
+
+export type PatchDriveTablesByIdResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: DataTable;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveTablesByIdResponse = PatchDriveTablesByIdResponses[keyof PatchDriveTablesByIdResponses];
+
+export type PostDriveTablesByIdQueryData = {
+    body?: {
+        filters?: Array<{
+            columnId: string;
+            operator: 'equals' | 'contains' | 'empty';
+            value?: string | number | boolean | Array<string> | null;
+        }>;
+        sort?: {
+            columnId: string;
+            direction: 'asc' | 'desc';
+        } | null;
+        visibleColumnIds?: Array<string>;
+        cursor?: string;
+        limit?: number;
+        archived?: boolean;
+        rowIds?: Array<string>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}/query';
+};
+
+export type PostDriveTablesByIdQueryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTablesByIdQueryError = PostDriveTablesByIdQueryErrors[keyof PostDriveTablesByIdQueryErrors];
+
+export type PostDriveTablesByIdQueryResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: Array<TableRow>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTablesByIdQueryResponse = PostDriveTablesByIdQueryResponses[keyof PostDriveTablesByIdQueryResponses];
+
+export type PostDriveTablesByIdRowsData = {
+    body?: {
+        key: string;
+        taskId?: string;
+        insert?: Array<{
+            id?: string;
+            values: {
+                [key: string]: string | number | boolean | Array<string> | null;
+            };
+            evidence?: {
+                [key: string]: Array<{
+                    url: string;
+                    note?: string;
+                }>;
+            };
+        }>;
+        patch?: Array<{
+            id: string;
+            version: number;
+            values?: {
+                [key: string]: string | number | boolean | Array<string> | null;
+            };
+            evidence?: {
+                [key: string]: Array<{
+                    url: string;
+                    note?: string;
+                }>;
+            };
+            archived?: boolean;
+        }>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}/rows';
+};
+
+export type PostDriveTablesByIdRowsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTablesByIdRowsError = PostDriveTablesByIdRowsErrors[keyof PostDriveTablesByIdRowsErrors];
+
+export type PostDriveTablesByIdRowsResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: TableBatchResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTablesByIdRowsResponse = PostDriveTablesByIdRowsResponses[keyof PostDriveTablesByIdRowsResponses];
+
+export type PostDriveTablesByIdViewsData = {
+    body?: {
+        key: string;
+        id?: string;
+        version?: number;
+        name: string;
+        definition: {
+            filters?: Array<{
+                columnId: string;
+                operator: 'equals' | 'contains' | 'empty';
+                value?: string | number | boolean | Array<string> | null;
+            }>;
+            sort?: {
+                columnId: string;
+                direction: 'asc' | 'desc';
+            } | null;
+            visibleColumnIds?: Array<string>;
+        };
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}/views';
+};
+
+export type PostDriveTablesByIdViewsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTablesByIdViewsError = PostDriveTablesByIdViewsErrors[keyof PostDriveTablesByIdViewsErrors];
+
+export type PostDriveTablesByIdViewsResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: TableView;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTablesByIdViewsResponse = PostDriveTablesByIdViewsResponses[keyof PostDriveTablesByIdViewsResponses];
+
+export type PostDriveTablesByIdUndoData = {
+    body?: {
+        key: string;
+        batchId: string;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}/undo';
+};
+
+export type PostDriveTablesByIdUndoErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTablesByIdUndoError = PostDriveTablesByIdUndoErrors[keyof PostDriveTablesByIdUndoErrors];
+
+export type PostDriveTablesByIdUndoResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: TableBatchResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTablesByIdUndoResponse = PostDriveTablesByIdUndoResponses[keyof PostDriveTablesByIdUndoResponses];
+
+export type GetDriveTablesByIdHistoryData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        rowId?: string;
+        columnId?: string;
+    };
+    url: '/drive/tables/{id}/history';
+};
+
+export type GetDriveTablesByIdHistoryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveTablesByIdHistoryError = GetDriveTablesByIdHistoryErrors[keyof GetDriveTablesByIdHistoryErrors];
+
+export type GetDriveTablesByIdHistoryResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: Array<TableChange>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveTablesByIdHistoryResponse = GetDriveTablesByIdHistoryResponses[keyof GetDriveTablesByIdHistoryResponses];
+
+export type PostDriveTablesByIdEnrichData = {
+    body?: {
+        key: string;
+        prompt: string;
+        rowIds: Array<string>;
+        columnIds: Array<string>;
+        assigneeId?: string;
+        assigneeSokoBotId?: string;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}/enrich';
+};
+
+export type PostDriveTablesByIdEnrichErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTablesByIdEnrichError = PostDriveTablesByIdEnrichErrors[keyof PostDriveTablesByIdEnrichErrors];
+
+export type PostDriveTablesByIdEnrichResponses = {
+    /**
+     * Enrichment task created
+     */
+    200: {
+        data: {
+            taskId: string;
+            tableId: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTablesByIdEnrichResponse = PostDriveTablesByIdEnrichResponses[keyof PostDriveTablesByIdEnrichResponses];
 
 export type GetDriveFilesData = {
     body?: never;

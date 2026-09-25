@@ -11079,6 +11079,447 @@ export const DeveloperTaskDetailSchema = {
     ]
 } as const;
 
+export const DataTableSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        title: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        createdBy: {
+            type: 'string'
+        },
+        version: {
+            type: 'integer'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        columns: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TableColumn'
+            }
+        },
+        views: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TableView'
+            }
+        }
+    },
+    required: [
+        'id',
+        'workspaceId',
+        'projectId',
+        'title',
+        'description',
+        'createdBy',
+        'version',
+        'archivedAt',
+        'createdAt',
+        'updatedAt',
+        'columns',
+        'views'
+    ]
+} as const;
+
+export const TableColumnSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        description: {
+            type: 'string',
+            maxLength: 2000,
+            default: ''
+        },
+        type: {
+            type: 'string',
+            enum: [
+                'text',
+                'long_text',
+                'number',
+                'date',
+                'checkbox',
+                'url',
+                'email',
+                'single_select',
+                'multiple_select'
+            ]
+        },
+        options: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 200
+            },
+            maxItems: 100,
+            default: []
+        },
+        tableId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        position: {
+            type: 'integer'
+        },
+        version: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'type',
+        'tableId',
+        'position',
+        'version'
+    ]
+} as const;
+
+export const TableViewSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        tableId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        version: {
+            type: 'integer'
+        },
+        definition: {
+            type: 'object',
+            properties: {
+                filters: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            columnId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            operator: {
+                                type: 'string',
+                                enum: [
+                                    'equals',
+                                    'contains',
+                                    'empty'
+                                ]
+                            },
+                            value: {
+                                anyOf: [
+                                    {
+                                        type: 'string',
+                                        maxLength: 20000
+                                    },
+                                    {
+                                        type: 'number'
+                                    },
+                                    {
+                                        type: 'boolean'
+                                    },
+                                    {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 200
+                                        },
+                                        maxItems: 100
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            }
+                        },
+                        required: [
+                            'columnId',
+                            'operator'
+                        ]
+                    },
+                    maxItems: 10,
+                    default: []
+                },
+                sort: {
+                    type: [
+                        'object',
+                        'null'
+                    ],
+                    properties: {
+                        columnId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        direction: {
+                            type: 'string',
+                            enum: [
+                                'asc',
+                                'desc'
+                            ]
+                        }
+                    },
+                    default: null,
+                    required: [
+                        'columnId',
+                        'direction'
+                    ]
+                },
+                visibleColumnIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    maxItems: 100,
+                    default: []
+                }
+            }
+        }
+    },
+    required: [
+        'id',
+        'tableId',
+        'name',
+        'version',
+        'definition'
+    ]
+} as const;
+
+export const TableRowSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        tableId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        values: {
+            type: 'object',
+            additionalProperties: {
+                anyOf: [
+                    {
+                        type: 'string',
+                        maxLength: 20000
+                    },
+                    {
+                        type: 'number'
+                    },
+                    {
+                        type: 'boolean'
+                    },
+                    {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 200
+                        },
+                        maxItems: 100
+                    },
+                    {
+                        type: 'null'
+                    }
+                ]
+            }
+        },
+        evidence: {
+            type: 'object',
+            additionalProperties: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: {
+                        url: {
+                            type: 'string',
+                            maxLength: 2000,
+                            format: 'uri'
+                        },
+                        note: {
+                            type: 'string',
+                            maxLength: 2000
+                        }
+                    },
+                    required: [
+                        'url'
+                    ]
+                },
+                maxItems: 20
+            }
+        },
+        version: {
+            type: 'integer'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'tableId',
+        'values',
+        'evidence',
+        'version',
+        'archivedAt',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const TableBatchResultSchema = {
+    type: 'object',
+    properties: {
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        rows: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TableRow'
+            }
+        }
+    },
+    required: [
+        'batchId',
+        'rows'
+    ]
+} as const;
+
+export const TableChangeSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        tableId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        actorId: {
+            type: 'string'
+        },
+        actorKind: {
+            type: 'string'
+        },
+        actorName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        rowId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        columnId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        before: {},
+        after: {},
+        evidence: {},
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'tableId',
+        'batchId',
+        'actorId',
+        'actorKind',
+        'taskId',
+        'rowId',
+        'columnId',
+        'createdAt'
+    ]
+} as const;
+
 export const DriveFileUploadSessionSchema = {
     type: 'object',
     properties: {
