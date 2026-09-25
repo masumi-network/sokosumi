@@ -15,14 +15,13 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   switchWorkspace: vi.fn(),
   isSwitching: { current: false },
-  pathname: { current: "/tasks" },
-  search: { current: "" },
 }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mocks.replace, push: vi.fn() }),
-  usePathname: () => mocks.pathname.current,
-  useSearchParams: () => new URLSearchParams(mocks.search.current),
+  // The real page, so a check against window.location sees the same one.
+  usePathname: () => window.location.pathname,
+  useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -64,6 +63,10 @@ import {
   WorkspaceMark,
 } from "./variant-combined-parts";
 
+function goTo(url: string) {
+  window.history.replaceState(null, "", url);
+}
+
 function member(id: string, name: string) {
   return { organization: { id, name } };
 }
@@ -99,8 +102,7 @@ afterEach(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.isSwitching.current = false;
-  mocks.pathname.current = "/tasks";
-  mocks.search.current = "";
+  goTo("/tasks");
   mocks.switchWorkspace.mockResolvedValue(undefined);
   mocks.load.mockResolvedValue({
     members: [member("org-1", "Acme"), member("org-2", "Globex")],
@@ -149,7 +151,7 @@ describe("useCombinedWorkspaces", () => {
   });
 
   it("swallows a failed switch and keeps the project scope", async () => {
-    mocks.search.current = "projectId=project-1";
+    goTo("/tasks?projectId=project-1");
     mocks.switchWorkspace.mockRejectedValue(new Error("switch failed"));
     const { result } = await renderLoaded();
 
@@ -162,7 +164,7 @@ describe("useCombinedWorkspaces", () => {
   });
 
   it("drops the project scope after a switch", async () => {
-    mocks.search.current = "projectId=project-1";
+    goTo("/tasks?projectId=project-1");
     const { result } = await renderLoaded();
 
     await act(() => result.current.select("org-2"));
@@ -172,7 +174,7 @@ describe("useCombinedWorkspaces", () => {
   });
 
   it("keeps a navigation the user made during the switch", async () => {
-    mocks.search.current = "projectId=project-1";
+    goTo("/tasks?projectId=project-1");
     let finish = () => {};
     mocks.switchWorkspace.mockReturnValue(
       new Promise<void>((resolve) => {
@@ -195,7 +197,7 @@ describe("useCombinedWorkspaces", () => {
   });
 
   it("drops the project scope when the switch ends after the content closed", async () => {
-    mocks.search.current = "projectId=project-1";
+    goTo("/tasks?projectId=project-1");
     let finish = () => {};
     mocks.switchWorkspace.mockReturnValue(
       new Promise<void>((resolve) => {
@@ -238,7 +240,7 @@ describe("useScopedWorkspaceSwitch", () => {
   }
 
   it("drops the project scope once a created workspace is active", async () => {
-    mocks.search.current = "projectId=project-1";
+    goTo("/tasks?projectId=project-1");
     const { result } = renderSwitch();
 
     await act(() => result.current(null));
@@ -247,8 +249,32 @@ describe("useScopedWorkspaceSwitch", () => {
     expect(mocks.replace).toHaveBeenCalledExactlyOnceWith("/tasks");
   });
 
+  it("drops the scope when the page's query is encoded another way", async () => {
+    // The browser keeps %20; the router's params write a +.
+    goTo("/tasks?projectId=project-1&q=launch%20plan");
+    const { result } = renderSwitch();
+
+    await act(() => result.current(null));
+
+    expect(mocks.replace).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a navigation made before the switch started", async () => {
+    goTo("/tasks?projectId=project-1");
+    const { result } = renderSwitch();
+    // Read at Continue; the create request runs before the switch does.
+    const switchLater = result.current;
+
+    // A sidebar link, followed while the create request runs.
+    window.history.pushState(null, "", "/agents");
+    await act(() => switchLater(null));
+
+    expect(mocks.switchWorkspace).toHaveBeenCalledExactlyOnceWith(null);
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
   it("rejects a failed switch, so the caller can say so, and keeps the scope", async () => {
-    mocks.search.current = "projectId=project-1";
+    goTo("/tasks?projectId=project-1");
     mocks.switchWorkspace.mockRejectedValue(new Error("switch failed"));
     const { result } = renderSwitch();
 
@@ -435,7 +461,7 @@ describe("useCombinedScope mark", () => {
   }
 
   beforeEach(() => {
-    mocks.search.current = "projectId=project-1";
+    goTo("/tasks?projectId=project-1");
   });
 
   it("pulses while the scoped project loads", () => {

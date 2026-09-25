@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Building2, Check, FolderKanban, Layers, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useId } from "react";
 import HeaderWorkspaceAvatar from "@/app/components/header/header-workspace-avatar";
@@ -80,12 +80,17 @@ export type WorkspaceSwitcher = ReturnType<typeof useWorkspaceSwitcher>;
 export function useScopedWorkspaceSwitch(switcher: WorkspaceSwitcher) {
   const router = useRouter();
   const { projectId, switchHref } = useProjectScope();
+  // The page this scope was read on. A create request can run long before the
+  // switch starts, so the page at the call is not enough.
+  const scopedAt = locationKey(
+    usePathname(),
+    useSearchParams()?.toString() ?? "",
+  );
 
   return async (workspaceId: string | null) => {
-    const startedAt = currentLocation();
     await switcher.handleSelectWorkspace(workspaceId);
-    // A navigation during the switch is a newer choice: keep it.
-    if (projectId && currentLocation() === startedAt) {
+    // A navigation since that page is a newer choice: keep it.
+    if (projectId && currentLocation() === scopedAt) {
       router.replace(switchHref(null));
     }
   };
@@ -155,8 +160,14 @@ export function useCombinedWorkspaces(switcher: WorkspaceSwitcher) {
   };
 }
 
+/** Path plus query, with the query in one encoding for comparison. */
+function locationKey(pathname: string, search: string): string {
+  const query = new URLSearchParams(search).toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
 function currentLocation(): string {
-  return window.location.pathname + window.location.search;
+  return locationKey(window.location.pathname, window.location.search);
 }
 
 export type CombinedWorkspaces = ReturnType<typeof useCombinedWorkspaces>;
