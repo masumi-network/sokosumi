@@ -1,5 +1,6 @@
 import { withSentryConfig } from "@sentry/nextjs/config";
 import { withRelatedProject } from "@vercel/related-projects";
+import { withEve } from "eve/next";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
@@ -126,49 +127,81 @@ const nextConfig: NextConfig = {
 
 const withNextIntl = createNextIntlPlugin();
 
-export default withSentryConfig(withNextIntl(nextConfig), {
-  // Disable telemetry to avoid sending data to Sentry
-  telemetry: process.env.NODE_ENV === "production",
-
-  // For all available options, see:
-  // https://www.npmjs.com/package/@sentry/webpack-plugin#options
-  org: "masumi",
-  project: process.env.SENTRY_PROJECT ?? "sokosumi",
-
-  // Pass the auth token
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-  // Upload a larger set of source maps for prettier stack traces (increases build time)
-  widenClientFileUpload: true,
-
-  // Only print logs for uploading source maps in CI
-  silent: !process.env.CI,
-
-  // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
-  // This can increase your server load as well as your hosting bill.
-  // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-side errors will fail.
-  tunnelRoute: true, // Generates a random route for each build (recommended)
-
-  // v11 adds each of these as its own Turbopack loader rule: component
-  // annotation over each .tsx/.jsx, build-time instrumentation over each
-  // server .js/.mjs/.cjs. With both on, production compiles on a standard
-  // 8 GB Vercel build machine ran out of memory (exit 137) or hung until
-  // canceled. Neither was measured alone, so one may be safe to turn back
-  // on; try them one at a time against an 8 GB build. Web makes no
-  // server-side calls into the libraries the instrumentation targets, and
-  // v10 never annotated Turbopack builds, so both off loses nothing we had.
-  reactComponentAnnotation: {
-    enabled: false,
-  },
-  buildTimeInstrumentation: false,
-
-  webpack: {
-    treeshake: {
-      // Automatically tree-shake Sentry logger statements to reduce bundle size
-      removeDebugLogging: true,
+/**
+ * The Project image studio agent, mounted on this origin at
+ * `/eve/image-studio/v1/*`.
+ *
+ * `agents/<name>/agent/` is eve's workspace layout, so both `withEve()` and the
+ * `eve` CLI discover the member without further configuration; the name is
+ * passed explicitly anyway so the mount path is visible here rather than
+ * implied by a directory listing.
+ *
+ * The agent runs as its own service. Locally `next dev` starts it and proxies
+ * to it; on Vercel it is a service inside this project's build output, not a
+ * second Vercel project. This is the one place where this change touches the
+ * primary app's build, and it is the part most worth a reviewer's attention.
+ */
+const withImageStudioAgent = (config: NextConfig) =>
+  withEve(config, {
+    agents: {
+      "image-studio": {
+        root: "./agents/image-studio",
+        // `--skip-sandbox-prewarm` because this agent has no sandbox tools:
+        // `defaultTools: false` removes bash, read_file and write_file, and no
+        // authored tool calls `ctx.getSandbox()`. Prewarming a template it
+        // will never open would otherwise make the build depend on a sandbox
+        // provider being available on the build machine.
+        buildCommand: "eve build --skip-sandbox-prewarm",
+      },
     },
+  });
 
-    // Automatically instrument Next.js middleware with error and performance monitoring.
-    // disable it on `dev mode` to reduce large middleware bundle size
-    autoInstrumentMiddleware: process.env.NODE_ENV === "production",
+export default withSentryConfig(
+  withImageStudioAgent(withNextIntl(nextConfig)),
+  {
+    // Disable telemetry to avoid sending data to Sentry
+    telemetry: process.env.NODE_ENV === "production",
+
+    // For all available options, see:
+    // https://www.npmjs.com/package/@sentry/webpack-plugin#options
+    org: "masumi",
+    project: process.env.SENTRY_PROJECT ?? "sokosumi",
+
+    // Pass the auth token
+    authToken: process.env.SENTRY_AUTH_TOKEN,
+    // Upload a larger set of source maps for prettier stack traces (increases build time)
+    widenClientFileUpload: true,
+
+    // Only print logs for uploading source maps in CI
+    silent: !process.env.CI,
+
+    // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
+    // This can increase your server load as well as your hosting bill.
+    // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-side errors will fail.
+    tunnelRoute: true, // Generates a random route for each build (recommended)
+
+    // v11 adds each of these as its own Turbopack loader rule: component
+    // annotation over each .tsx/.jsx, build-time instrumentation over each
+    // server .js/.mjs/.cjs. With both on, production compiles on a standard
+    // 8 GB Vercel build machine ran out of memory (exit 137) or hung until
+    // canceled. Neither was measured alone, so one may be safe to turn back
+    // on; try them one at a time against an 8 GB build. Web makes no
+    // server-side calls into the libraries the instrumentation targets, and
+    // v10 never annotated Turbopack builds, so both off loses nothing we had.
+    reactComponentAnnotation: {
+      enabled: false,
+    },
+    buildTimeInstrumentation: false,
+
+    webpack: {
+      treeshake: {
+        // Automatically tree-shake Sentry logger statements to reduce bundle size
+        removeDebugLogging: true,
+      },
+
+      // Automatically instrument Next.js middleware with error and performance monitoring.
+      // disable it on `dev mode` to reduce large middleware bundle size
+      autoInstrumentMiddleware: process.env.NODE_ENV === "production",
+    },
   },
-});
+);

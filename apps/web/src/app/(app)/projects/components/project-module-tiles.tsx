@@ -3,6 +3,7 @@ import {
   CalendarDays,
   FileText,
   FolderOpen,
+  ImagePlus,
   Mail,
   Megaphone,
   Newspaper,
@@ -25,6 +26,7 @@ interface ProjectModuleTilesLabels {
   content: ProjectModuleLabel;
   email: ProjectModuleLabel;
   fileBrowser: ProjectModuleLabel;
+  imageStudio: ProjectModuleLabel;
   paidAdvertising: ProjectModuleLabel;
   pr: ProjectModuleLabel;
   seo: ProjectModuleLabel;
@@ -49,6 +51,11 @@ const PROJECT_MODULES: ProjectModuleDefinition[] = [
     icon: FolderOpen,
     key: "fileBrowser",
     href: (projectId) => `/drive?view=tasks&projectId=${projectId}`,
+  },
+  {
+    icon: ImagePlus,
+    key: "imageStudio",
+    href: (projectId) => `/projects/${projectId}/studio`,
   },
   { icon: Search, key: "seo" },
   { icon: Share2, key: "socialMedia" },

@@ -125,8 +125,19 @@ const baseEnvSchema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((value) => value === "true"),
-  /** fal.ai key for Soko Bot avatar generation; the pool cannot top up without it. */
+  /**
+   * fal.ai key for Soko Bot avatar generation and the Project image studio.
+   * Neither feature can reach the provider without it; both degrade to a
+   * read-only view rather than failing a page render.
+   */
   FAL_KEY: z.string().min(1).optional(),
+  /**
+   * Shared secret the image-studio agent signs its grants with. The agent runs
+   * outside Core, so a grant is how it names the acting user; Core still
+   * re-checks that user's project access on every call. Without it the agent
+   * cannot reach Core at all, which is the safe default.
+   */
+  IMAGE_STUDIO_AGENT_SECRET: z.string().min(32).optional(),
   PROJECT_MEMORY_MODEL: z
     .string()
     .startsWith("mistral/")

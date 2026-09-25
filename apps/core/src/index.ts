@@ -20,8 +20,10 @@ import { initSentry } from "@/lib/sentry";
 import { maintenanceMiddleware } from "@/middleware/maintenance";
 import { sentryMiddleware } from "@/middleware/sentry";
 import authRouter from "@/routes/auth/index";
+import imageStudioAgentRouter from "@/routes/image-studio-agent/index";
 import syncRouter from "@/routes/sync/index";
 import apiV1 from "@/routes/v1/index";
+import falWebhooksRouter from "@/routes/webhooks/fal/image-jobs";
 import wellKnownRouter from "@/routes/well-known/index";
 
 validateEnv();
@@ -58,6 +60,12 @@ app.route("/", wellKnownRouter);
 app.route("/auth", authRouter);
 app.route("/v1", apiV1);
 app.route("/sync", syncRouter);
+// Signature-authenticated provider callback; deliberately outside /v1, which
+// is the session-authenticated surface.
+app.route("/webhooks", falWebhooksRouter);
+// Grant-authenticated agent surface. Each handler re-checks the named user's
+// current access to the named project before it does anything.
+app.route("/image-studio-agent", imageStudioAgentRouter);
 
 app.get(
   "/",

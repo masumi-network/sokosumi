@@ -25,6 +25,10 @@ const LABELS = {
     title: "File Browser",
     description: "Every file this project produced",
   },
+  imageStudio: {
+    title: "Image studio",
+    description: "Create and refine images with a studio assistant.",
+  },
 };
 
 const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
