@@ -38,7 +38,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-email": "6.11.0",
-    "use-intl": "4.14.6"
+    "use-intl": "4.14.7"
   },
   "devDependencies": {
     "@sokosumi/utils": "workspace:*",
