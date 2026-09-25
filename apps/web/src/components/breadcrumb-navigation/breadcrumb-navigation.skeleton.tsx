@@ -16,7 +16,7 @@ export default function BreadcrumbNavigationSkeleton({
 }: {
   className?: string;
 }) {
-  const ownsLandmark = useContext(BreadcrumbLandmarkContext);
+  const { ownsLandmark } = useContext(BreadcrumbLandmarkContext);
   const items = (
     <>
       <BreadcrumbItem>

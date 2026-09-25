@@ -49,16 +49,22 @@ vi.mock("./use-scope-variant", () => ({
 vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
   ProjectScopeMenu: () => null,
 }));
-vi.mock("@/app/components/project-scope/use-project-scope", () => ({
-  useProjectScopeSwitch: () => ({
-    projectId: mocks.projectId,
-    switchHref: (projectId: string | null) =>
-      projectId ? `/projects/${projectId}` : "/projects",
-    select: vi.fn(),
-    openCreate: vi.fn(),
-    createDialog: null,
-  }),
-}));
+vi.mock("@/app/components/project-scope/use-project-scope", async () => {
+  const { scopedHref, switchScopeHref } = await vi.importActual<
+    typeof import("@/app/components/project-scope/project-scope-href")
+  >("@/app/components/project-scope/project-scope-href");
+  return {
+    useProjectScopeSwitch: () => ({
+      projectId: mocks.projectId,
+      hrefFor: (href: string) => scopedHref(href, mocks.projectId),
+      switchHref: (projectId: string | null) =>
+        switchScopeHref(mocks.pathname, projectId),
+      select: vi.fn(),
+      openCreate: vi.fn(),
+      createDialog: null,
+    }),
+  };
+});
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   useSelectedScopeProject: () => null,
 }));
@@ -119,6 +125,18 @@ function signInToAcme() {
   };
 }
 
+const TASK_ID = "0b5c1c6e-6f9a-4e7b-9a53-1f0d2f3a4b5c";
+
+const CRUMB = "breadcrumb-item";
+const SEPARATOR = "breadcrumb-separator";
+
+/** The list's children in order: crumbs and the separators between them. */
+function trail(nav: HTMLElement) {
+  return Array.from(nav.querySelector("ol")?.children ?? [], (child) =>
+    child.getAttribute("data-slot"),
+  );
+}
+
 function renderCrumbs() {
   return render(<HeaderVariantCrumbs>{SERVER_CRUMBS}</HeaderVariantCrumbs>);
 }
@@ -145,20 +163,29 @@ describe("HeaderVariantCrumbs breadcrumb", () => {
     return screen.getByRole("navigation", { name: "breadcrumb" });
   }
 
-  it.each([["/"], ["/projects"]])(
-    "holds the workspace and scope, with no page crumb, on %s",
-    (pathname) => {
-      mocks.pathname = pathname;
-      renderCrumbs();
+  it("holds the workspace and scope, with no current page, on /", () => {
+    renderCrumbs();
 
-      const nav = breadcrumb();
-      expect(within(nav).getByText("Acme")).toBeInTheDocument();
-      expect(
-        within(nav).getByTestId("project-scope-trigger"),
-      ).not.toHaveAttribute("aria-current");
-      expect(within(nav).getAllByRole("listitem")).toHaveLength(2);
-    },
-  );
+    const nav = breadcrumb();
+    expect(within(nav).getByText("Acme")).toBeInTheDocument();
+    expect(
+      within(nav).getByTestId("project-scope-trigger"),
+    ).not.toHaveAttribute("aria-current");
+    expect(trail(nav)).toEqual([CRUMB, SEPARATOR, CRUMB]);
+  });
+
+  it("marks the scope as the current page on /projects", () => {
+    mocks.pathname = "/projects";
+    renderCrumbs();
+
+    const nav = breadcrumb();
+    expect(within(nav).getByText("Acme")).toBeInTheDocument();
+    expect(within(nav).getByTestId("project-scope-trigger")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(trail(nav)).toEqual([CRUMB, SEPARATOR, CRUMB]);
+  });
 
   it.each([["/projects/p1"], ["/projects/p1/unknown"]])(
     "marks the scope as the current page on %s",
@@ -175,7 +202,7 @@ describe("HeaderVariantCrumbs breadcrumb", () => {
         "aria-current",
         "page",
       );
-      expect(within(nav).getAllByRole("listitem")).toHaveLength(2);
+      expect(trail(nav)).toEqual([CRUMB, SEPARATOR, CRUMB]);
     },
   );
 
@@ -198,17 +225,17 @@ describe("HeaderVariantCrumbs breadcrumb", () => {
       "aria-current",
       "page",
     );
-    expect(within(nav).getAllByRole("listitem")).toHaveLength(3);
+    expect(trail(nav)).toEqual([CRUMB, SEPARATOR, CRUMB, SEPARATOR, CRUMB]);
   });
 
-  it("keeps a section crumb readable instead of a sliver", () => {
+  it("lets a section crumb give way first, but not to a sliver", () => {
     mocks.pathname = "/projects/p1/calendar";
     mocks.projectId = "p1";
     renderCrumbs();
 
     const page = screen.getByText("calendar");
     expect(page).toHaveAttribute("data-slot", "breadcrumb-page");
-    expect(page.closest("li")).toHaveClass("min-w-12");
+    expect(page.closest("li")).toHaveClass("min-w-12", "shrink-[100]");
   });
 
   it("folds the server crumbs into one breadcrumb on a workspace page", () => {
@@ -231,18 +258,58 @@ describe("HeaderVariantCrumbs breadcrumb", () => {
       "aria-current",
       "page",
     );
-    expect(within(nav).getAllByRole("listitem")).toHaveLength(3);
+    expect(trail(nav)).toEqual([CRUMB, SEPARATOR, CRUMB, SEPARATOR, CRUMB]);
   });
 
-  it("lets only the server's current crumb shrink, with an ellipsis and room", () => {
+  it("separates each server crumb once, with none after the last", () => {
+    mocks.pathname = `/tasks/${TASK_ID}/edit`;
+    mocks.projectId = "P1";
+    renderCrumbs();
+
+    expect(trail(breadcrumb())).toEqual([
+      CRUMB,
+      SEPARATOR,
+      CRUMB,
+      SEPARATOR,
+      CRUMB,
+      SEPARATOR,
+      CRUMB,
+    ]);
+  });
+
+  it("keeps the scope in the server crumbs' links", () => {
+    mocks.pathname = `/tasks/${TASK_ID}/edit`;
+    mocks.projectId = "P1";
+    renderCrumbs();
+
+    expect(
+      within(breadcrumb()).getByRole("link", { name: "Tasks" }),
+    ).toHaveAttribute("href", "/tasks?projectId=P1");
+  });
+
+  it("lets the server's current crumb give way first, then its middle crumbs", () => {
     mocks.pathname = "/agents";
     renderCrumbs();
 
     expect(screen.getByTestId("project-scope-header")).toHaveClass(
       "[&_ol]:min-w-0",
       "[&_li:last-child]:min-w-12",
+      "[&_li:last-child]:shrink-[100]",
       "[&_[data-slot=breadcrumb-page]]:truncate",
+      "[&_li:has(>[data-slot=breadcrumb-link])]:min-w-6",
+      "[&_[data-slot=breadcrumb-link]]:truncate",
     );
+  });
+
+  it("truncates only the server's middle crumbs, not the workspace or scope", () => {
+    mocks.pathname = `/tasks/${TASK_ID}/edit`;
+    mocks.projectId = "P1";
+    renderCrumbs();
+
+    const middle = breadcrumb().querySelectorAll(
+      "li:has(>[data-slot=breadcrumb-link])",
+    );
+    expect(Array.from(middle, (item) => item.textContent)).toEqual(["Tasks"]);
   });
 
   it("leaves the scope's own width alone when it ends the trail", () => {
@@ -278,6 +345,17 @@ describe("HeaderVariantCrumbs breadcrumb", () => {
       "page",
     );
     expect(screen.queryByTestId("project-scope-header")).toBeNull();
+  });
+
+  it("leaves the server crumbs' links alone for other variants", () => {
+    mocks.variant = "command";
+    mocks.pathname = `/tasks/${TASK_ID}/edit`;
+    mocks.projectId = "P1";
+    renderCrumbs();
+
+    expect(
+      within(breadcrumb()).getByRole("link", { name: "Tasks" }),
+    ).toHaveAttribute("href", "/tasks");
   });
 });
 

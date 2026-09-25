@@ -156,7 +156,8 @@ function WorkspaceCrumb({ href }: { href: string | null }) {
 
 /**
  * The crumb after the scope: a project section's name, the page's own server
- * crumbs, or none. On a project's own page the scope is the current page.
+ * crumbs, or none. On the project list and a project's own page, the scope is
+ * the current page.
  */
 type PageCrumb =
   | { kind: "section"; label: string }
@@ -169,7 +170,8 @@ function usePageCrumb(): PageCrumb {
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const tScope = useTranslations("App.ProjectScope");
 
-  if (pathname === "/" || pathname === "/projects") return null;
+  if (pathname === "/") return null;
+  if (pathname === "/projects") return { kind: "scope" };
   const projectSection = projectPageSection(pathname);
   if (projectSection === null) return { kind: "crumbs" };
 
@@ -184,14 +186,22 @@ function usePageCrumb(): PageCrumb {
 }
 
 /**
- * One line. The current page's crumb gives way first and ends in an
- * ellipsis; the crumbs before it keep their width.
+ * One line. The current page's crumb gives way first, down to a few
+ * characters and an ellipsis. Then the crumbs before it shrink in proportion,
+ * each down to its own floor.
  */
 const HEADER_BREADCRUMB_CLASS =
   "-m-1 flex min-w-0 items-center gap-1.5 overflow-hidden p-1 text-sm whitespace-nowrap sm:gap-2.5 [&_ol]:min-w-0 [&_ol]:flex-nowrap [&_[data-slot=breadcrumb-page]]:truncate";
 
-/** The server's current crumb keeps room for a few characters. */
-const SERVER_PAGE_CRUMB_CLASS = "[&_li:last-child]:min-w-12";
+/** Shrinks far ahead of the other crumbs, which keep the default of 1. */
+const PAGE_CRUMB_SHRINK_CLASS = "shrink-[100]";
+
+/**
+ * The server's current crumb gives way first. Its middle crumbs truncate
+ * too, so they cannot push the current crumb out of the clip.
+ */
+const SERVER_CRUMBS_CLASS =
+  "[&_li:last-child]:min-w-12 [&_li:last-child]:shrink-[100] [&_li:has(>[data-slot=breadcrumb-link])]:min-w-6 [&_[data-slot=breadcrumb-link]]:truncate";
 
 /** Desktop (sm+): `<workspace> › <project ▾> › <page>`, one breadcrumb. */
 function HeaderBreadcrumb({ crumbs }: { crumbs: ReactNode }) {
@@ -208,7 +218,7 @@ function HeaderBreadcrumb({ crumbs }: { crumbs: ReactNode }) {
     <Breadcrumb
       className={cn(
         HEADER_BREADCRUMB_CLASS,
-        hasServerCrumbs && SERVER_PAGE_CRUMB_CLASS,
+        hasServerCrumbs && SERVER_CRUMBS_CLASS,
       )}
       data-testid="project-scope-header"
     >
@@ -254,13 +264,16 @@ function HeaderBreadcrumb({ crumbs }: { crumbs: ReactNode }) {
           <BreadcrumbSeparator />
         ) : null}
         {pageCrumb?.kind === "section" ? (
-          <BreadcrumbItem className="min-w-12">
+          <BreadcrumbItem className={cn("min-w-12", PAGE_CRUMB_SHRINK_CLASS)}>
             <BreadcrumbPage>{pageCrumb.label}</BreadcrumbPage>
           </BreadcrumbItem>
         ) : null}
-        {/* The server crumbs drop their own landmark and join this list. */}
+        {/* The server crumbs drop their own landmark, join this list and
+            keep the scope in their links. */}
         {hasServerCrumbs ? (
-          <BreadcrumbLandmarkContext value={false}>
+          <BreadcrumbLandmarkContext
+            value={{ ownsLandmark: false, mapHref: scope.hrefFor }}
+          >
             {crumbs}
           </BreadcrumbLandmarkContext>
         ) : null}

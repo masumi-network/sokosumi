@@ -36,11 +36,19 @@ interface BreadcrumbNavigationClientProps {
   className?: string | undefined;
 }
 
-/**
- * False inside a parent breadcrumb: the crumbs render as bare items that join
- * its list, so one landmark holds the whole trail.
- */
-export const BreadcrumbLandmarkContext = createContext(true);
+interface BreadcrumbLandmark {
+  /**
+   * False inside a parent breadcrumb: the crumbs render as bare items that
+   * join its list, so one landmark holds the whole trail.
+   */
+  ownsLandmark: boolean;
+  /** Rewrites each crumb's link, as a parent that keeps a project scope does. */
+  mapHref?: (href: string) => string;
+}
+
+export const BreadcrumbLandmarkContext = createContext<BreadcrumbLandmark>({
+  ownsLandmark: true,
+});
 
 const CHAT_ROOM_BREADCRUMB_LABEL_KEY = "__chatChannelLabel";
 const CHAT_ROOM_BREADCRUMB_HREF_KEY = "__chatChannelHref";
@@ -53,7 +61,7 @@ export default function BreadcrumbNavigationClient({
 }: BreadcrumbNavigationClientProps) {
   const pathname = usePathname();
   const override = useBreadcrumbOverride();
-  const ownsLandmark = useContext(BreadcrumbLandmarkContext);
+  const { ownsLandmark, mapHref } = useContext(BreadcrumbLandmarkContext);
 
   const segments = resolveCurrentSegment(
     override?.pathname === pathname
@@ -73,7 +81,9 @@ export default function BreadcrumbNavigationClient({
           <BreadcrumbPage>{segment.label}</BreadcrumbPage>
         ) : (
           <BreadcrumbLink asChild>
-            <Link href={segment.href}>{segment.label}</Link>
+            <Link href={mapHref?.(segment.href) ?? segment.href}>
+              {segment.label}
+            </Link>
           </BreadcrumbLink>
         )}
       </BreadcrumbItem>

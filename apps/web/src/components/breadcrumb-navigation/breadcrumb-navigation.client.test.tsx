@@ -345,7 +345,7 @@ describe("BreadcrumbNavigationClient", () => {
     render(
       <nav aria-label="breadcrumb">
         <ol data-testid="parent-list">
-          <BreadcrumbLandmarkContext value={false}>
+          <BreadcrumbLandmarkContext value={{ ownsLandmark: false }}>
             <BreadcrumbNavigationClient
               organizations={organizations}
               breadcrumbMessages={breadcrumbMessages}
@@ -360,5 +360,41 @@ describe("BreadcrumbNavigationClient", () => {
     expect(list.querySelectorAll("ol")).toHaveLength(0);
     expect(list.querySelectorAll(":scope > li")).toHaveLength(3);
     expect(screen.getByText("Users")).toHaveAttribute("aria-current", "page");
+  });
+
+  it("keeps each crumb's own link by default", () => {
+    usePathnameMock.mockReturnValue("/admin/users");
+
+    render(
+      <BreadcrumbNavigationClient
+        organizations={organizations}
+        breadcrumbMessages={breadcrumbMessages}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Admin" })).toHaveAttribute(
+      "href",
+      "/admin",
+    );
+  });
+
+  it("lets a parent breadcrumb rewrite each crumb's link", () => {
+    usePathnameMock.mockReturnValue("/admin/users");
+
+    render(
+      <BreadcrumbLandmarkContext
+        value={{ ownsLandmark: false, mapHref: (href) => `${href}?scoped` }}
+      >
+        <BreadcrumbNavigationClient
+          organizations={organizations}
+          breadcrumbMessages={breadcrumbMessages}
+        />
+      </BreadcrumbLandmarkContext>,
+    );
+
+    expect(screen.getByRole("link", { name: "Admin" })).toHaveAttribute(
+      "href",
+      "/admin?scoped",
+    );
   });
 });
