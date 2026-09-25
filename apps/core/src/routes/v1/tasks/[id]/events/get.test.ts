@@ -137,6 +137,20 @@ describe("GET /tasks/{id}/events", () => {
     expect(taskEventFindManyMock).not.toHaveBeenCalled();
   });
 
+  it("returns 403 when task read is forbidden", async () => {
+    requireTaskReadForRouteVarsMock.mockRejectedValue(
+      new HTTPException(403, {
+        message: "You can only access tasks assigned to your coworker",
+      }),
+    );
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123/events");
+
+    expect(response.status).toBe(403);
+    expect(taskEventFindManyMock).not.toHaveBeenCalled();
+  });
+
   it("lists events ascending by createdAt then id with pagination meta", async () => {
     const older = makeEvent({
       id: "evt_a",
