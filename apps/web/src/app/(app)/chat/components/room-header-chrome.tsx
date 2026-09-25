@@ -107,7 +107,7 @@ function RoomParticipantStack({
       {remainingCount > 0 ? (
         <span
           className="bg-muted text-muted-foreground ring-border relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1"
-          style={{ zIndex: 0 }}
+          style={{ zIndex: visibleParticipants.length + 1 }}
           aria-hidden
         >
           +{remainingCount}
