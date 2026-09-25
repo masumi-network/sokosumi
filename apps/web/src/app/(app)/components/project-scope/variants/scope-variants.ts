@@ -22,10 +22,10 @@ export const SCOPE_VARIANT_STORAGE_KEY = "sokosumi.sok-1202.scope-variant";
 
 /** Where a variant can render. Each mount point in the app chrome is one. */
 export type ScopeSlotPlace =
-  | "sidebar-header"
   | "sidebar-top"
   | "header-center"
   | "header-mobile"
+  | "header-workspace"
   | "project-header";
 
 /** What a mount point knows that the client cannot: server-only gates. */

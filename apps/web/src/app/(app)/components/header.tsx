@@ -45,6 +45,7 @@ export default function Header({ className, session }: HeaderProps) {
         <ScopeStaleGuard />
 
         <HeaderTrailing>
+          <ScopeSlot place="header-workspace" />
           <HeaderVariantTrailing>
             <HeaderProfileSection session={session} />
           </HeaderVariantTrailing>

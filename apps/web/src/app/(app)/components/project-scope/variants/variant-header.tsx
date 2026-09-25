@@ -255,11 +255,28 @@ const NARROW_TRAILING_VARIANTS: ReadonlySet<ScopeVariantId> = new Set([
 const NARROW_TRAILING_CLASS =
   "contents max-sm:[&_[data-testid=header-workspace-chrome]_[data-slot=header-workspace-name]]:sr-only";
 
+/**
+ * From md up, combined's own header control switches workspaces, so today's
+ * switch and its loading placeholder give way. The tools after them stay.
+ */
+const COMBINED_TRAILING_CLASS =
+  "md:[&_[data-testid=header-workspace-chrome]]:hidden md:[&_[data-testid=header-workspace-chrome-skeleton]]:hidden";
+
 function TrailingGate({ children }: { children: ReactNode }) {
-  if (!NARROW_TRAILING_VARIANTS.has(useScopeVariant())) return children;
+  const variant = useScopeVariant();
+  if (!NARROW_TRAILING_VARIANTS.has(variant)) return children;
   // Below sm the scope control needs the room, or it paints over the
   // workspace name. The name stays for screen readers.
-  return <div className={NARROW_TRAILING_CLASS}>{children}</div>;
+  return (
+    <div
+      className={cn(
+        NARROW_TRAILING_CLASS,
+        variant === "combined" && COMBINED_TRAILING_CLASS,
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 /**

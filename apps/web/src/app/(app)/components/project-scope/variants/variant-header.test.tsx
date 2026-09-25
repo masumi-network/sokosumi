@@ -395,6 +395,29 @@ describe("HeaderVariantTrailing", () => {
     },
   );
 
+  it.each<[ScopeVariantId, boolean]>([
+    ["combined", true],
+    ["header", false],
+    ["command", false],
+    ["sidebar", false],
+    ["hub", false],
+  ])(
+    "hands the workspace switch to combined's own control from md up (%s: %s)",
+    (variant, handedOver) => {
+      mocks.variant = variant;
+      renderTrailing();
+
+      const className =
+        screen.getByTestId("trailing-child").parentElement?.className ?? "";
+      for (const target of [
+        "md:[&_[data-testid=header-workspace-chrome]]:hidden",
+        "md:[&_[data-testid=header-workspace-chrome-skeleton]]:hidden",
+      ]) {
+        expect(className.includes(target)).toBe(handedOver);
+      }
+    },
+  );
+
   it("targets the real workspace switch's name", () => {
     const sessionUser: SessionUser = {
       id: "user-1",

@@ -104,7 +104,6 @@ export default function Sidebar({
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
         <div className="flex h-full w-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
           <SidebarLogo />
-          <ScopeSlot place="sidebar-header" />
           <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
         </div>
       </SidebarHeader>
