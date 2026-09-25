@@ -7,8 +7,11 @@ import {
   administeredVendors,
   describeRegistrationAdminVendorRequirement,
   describeRegistrationWorkspaceRequirement,
+  isPreprodCoworkerRegistrationTarget,
   requireAdministeredVendorForRegistration,
   requireOrganizationWorkspacesForRegistration,
+  requirePreprodCoworkerRegistration,
+  requireSelectedOrganizationWorkspace,
 } from "../../src/cli/registration-authority.js";
 
 function vendor(partial: Partial<Vendor> & Pick<Vendor, "id">): Vendor {
@@ -52,6 +55,33 @@ test("empty organization workspaces block registration", () => {
   );
   assert.doesNotThrow(() =>
     requireOrganizationWorkspacesForRegistration([workspace("org-1")]),
+  );
+});
+
+test("registration selects only a listed Workspace", () => {
+  const workspaces = [workspace("org-1")];
+  assert.equal(
+    requireSelectedOrganizationWorkspace(workspaces, "org-1"),
+    workspaces[0],
+  );
+  assert.throws(
+    () => requireSelectedOrganizationWorkspace(workspaces, "org-2"),
+    /not in your organization memberships/,
+  );
+  assert.throws(
+    () => requireSelectedOrganizationWorkspace(workspaces, undefined),
+    /workspace id is required/,
+  );
+});
+
+test("Coworker registration is limited to Preprod", () => {
+  assert.equal(isPreprodCoworkerRegistrationTarget("preprod"), true);
+  assert.equal(isPreprodCoworkerRegistrationTarget("mainnet"), false);
+  assert.equal(isPreprodCoworkerRegistrationTarget("custom"), false);
+  assert.doesNotThrow(() => requirePreprodCoworkerRegistration("preprod"));
+  assert.throws(
+    () => requirePreprodCoworkerRegistration("mainnet"),
+    /Preprod only/,
   );
 });
 

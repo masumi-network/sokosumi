@@ -30,6 +30,7 @@ import { runTasksCommand } from "./commands/tasks.js";
 import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
 import { CLI_VERSION } from "./metadata.js";
+import { requirePreprodCoworkerRegistration } from "./registration-authority.js";
 
 type ValueOptionName =
   | "auth-url"
@@ -65,6 +66,7 @@ type ValueOptionName =
   | "input-file"
   | "max-credits"
   | "vendor-id"
+  | "workspace-id"
   | "slug";
 
 type CliOptionValue = string | string[];
@@ -145,6 +147,8 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "agents hire": "AGENT_ID",
   "coworkers list": "",
   "coworkers register": "[options]",
+  "coworkers provision": "[options]",
+  "coworkers connect": "COWORKER_ID [options]",
   "coworkers update": "COWORKER_ID [options]",
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
@@ -229,6 +233,18 @@ Global options:
 ${formatGlobalOptionHelp()
   .map((line) => `  ${line}`)
   .join("\n")}
+
+Developer setup on Preprod:
+  1. Create your Vendor: sokosumi --preprod vendors create --name NAME --slug SLUG
+  2. Give its ID and your final Coworker name to the organizer. Ask for the Coworker ID.
+  3. Connect: sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID
+  4. Create the runtime key: sokosumi --preprod coworkers api-key COWORKER_ID --json
+
+Organizer setup on Preprod (platform admin):
+  Create the shared Workspace and invite developers in Sokosumi Web.
+  Ask each developer for their Vendor ID and final Coworker name, then run:
+  sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks
+  Give the returned Coworker ID to that developer.
 `;
 }
 
@@ -262,6 +278,7 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "input-file",
   "max-credits",
   "vendor-id",
+  "workspace-id",
   "slug",
 ]);
 
@@ -387,6 +404,9 @@ export async function runCli(
     throw error;
   }
   const { positionals, options } = parsed;
+  const coworkerRegistration =
+    positionals[0] === "coworkers" &&
+    ["register", "provision", "connect"].includes(positionals[1]);
 
   if (options.help) {
     stdout.write(formatHelpText());
@@ -403,6 +423,7 @@ export async function runCli(
       environment: dependencies.env || process.env,
       loadFiles: dependencies.env === undefined,
       preprod: options.preprod,
+      preprodDefault: coworkerRegistration,
       apiUrl: options["api-url"],
       authUrl: options["auth-url"],
       clientId: options["client-id"],
@@ -448,6 +469,9 @@ export async function runCli(
     if (rest.length > 0) {
       throw new Error(`Unexpected argument: ${rest[0]}`);
     }
+    if (coworkerRegistration) {
+      requirePreprodCoworkerRegistration(config.target);
+    }
     if (CORE_COMMAND_SECTIONS.has(section)) {
       await requireAuthenticatedSession(session);
     }
@@ -477,12 +501,21 @@ export async function runCli(
     if (
       section === "coworkers" &&
       (command === undefined ||
-        ["list", "register", "update", "api-key", "me"].includes(command))
+        [
+          "list",
+          "register",
+          "provision",
+          "connect",
+          "update",
+          "api-key",
+          "me",
+        ].includes(command))
     ) {
       await runCoworkersCommand({
         client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
+        target: config.target,
         subcommand: command,
         positionalId,
         options,

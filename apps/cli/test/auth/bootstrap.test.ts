@@ -230,6 +230,42 @@ test("bootstrapCliSession infers preprod from a target-coded API key", () => {
   assert.equal(session.targetExplicit, false);
 });
 
+test("Coworker registration can default to Preprod without changing other commands", () => {
+  const registration = bootstrapCliSession({
+    environment: {},
+    loadFiles: false,
+    preprodDefault: true,
+    authManager: memoryAuthManager(),
+  });
+  const otherCommand = bootstrapCliSession({
+    environment: {},
+    loadFiles: false,
+    authManager: memoryAuthManager(),
+  });
+
+  assert.equal(registration.config.target, "preprod");
+  assert.equal(registration.targetExplicit, false);
+  assert.equal(otherCommand.config.target, "mainnet");
+});
+
+test("explicit network settings override the Coworker Preprod default", () => {
+  const apiUrl = bootstrapCliSession({
+    environment: { SOKOSUMI_API_URL: MAINNET_API_URL },
+    loadFiles: false,
+    preprodDefault: true,
+    authManager: memoryAuthManager(),
+  });
+  const apiKey = bootstrapCliSession({
+    environment: { SOKOSUMI_API_KEY: "soko_mainnet_secret" },
+    loadFiles: false,
+    preprodDefault: true,
+    authManager: memoryAuthManager(),
+  });
+
+  assert.equal(apiUrl.config.target, "mainnet");
+  assert.equal(apiKey.config.target, "mainnet");
+});
+
 test("bootstrapCliSession keeps an explicit API URL over API-key inference", () => {
   const session = bootstrapCliSession({
     environment: {
