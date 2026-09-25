@@ -107,7 +107,7 @@ describe("buildTaskActivityFeedItems", () => {
     ).toEqual(["c1", "s1", "c2"]);
   });
 
-  it("groups older comments when comment count > 5 and keeps non-comments", () => {
+  it("places Show older after leading events, before the newest comments", () => {
     const events = [
       event("c1", "2026-01-01T01:00:00.000Z", { comment: "1" }),
       event("c2", "2026-01-01T02:00:00.000Z", { comment: "2" }),
@@ -124,15 +124,13 @@ describe("buildTaskActivityFeedItems", () => {
       commentsExpanded: false,
     });
 
-    expect(items[0]).toMatchObject({
+    expect(
+      items.map((item) => (item.type === "event" ? item.event.id : item.type)),
+    ).toEqual(["s1", "comment-group", "c3", "c4", "c5", "c6", "c7"]);
+    expect(items[1]).toMatchObject({
       type: "comment-group",
       hiddenCount: 7 - TASK_ACTIVITY_VISIBLE_COMMENT_LIMIT,
     });
-    expect(
-      items
-        .filter((item) => item.type === "event")
-        .map((item) => item.event.id),
-    ).toEqual(["s1", "c3", "c4", "c5", "c6", "c7"]);
   });
 
   it("shows no group chrome when expanded", () => {
@@ -149,8 +147,9 @@ describe("buildTaskActivityFeedItems", () => {
     expect(items).toHaveLength(6);
   });
 
-  it("counts unloaded older comments in the group", () => {
+  it("counts unloaded older comments in the group after leading events", () => {
     const events = [
+      event("s1", "2026-01-01T05:00:00.000Z", { status: TaskStatus.READY }),
       event("c6", "2026-01-01T06:00:00.000Z", { comment: "6" }),
       event("c7", "2026-01-01T07:00:00.000Z", { comment: "7" }),
       event("c8", "2026-01-01T08:00:00.000Z", { comment: "8" }),
@@ -161,15 +160,13 @@ describe("buildTaskActivityFeedItems", () => {
       commentsExpanded: false,
     });
 
-    expect(items[0]).toMatchObject({
+    expect(
+      items.map((item) => (item.type === "event" ? item.event.id : item.type)),
+    ).toEqual(["s1", "comment-group", "c6", "c7", "c8"]);
+    expect(items[1]).toMatchObject({
       type: "comment-group",
       hiddenCount: 5,
     });
-    expect(
-      items
-        .filter((item) => item.type === "event")
-        .map((item) => item.event.id),
-    ).toEqual(["c6", "c7", "c8"]);
   });
 });
 

@@ -61,7 +61,8 @@ export type TaskActivityFeedItem =
 
 /**
  * Build the ascending feed. When `commentCount` > 5 and comments are collapsed,
- * older comments become one group; status/billing/auth events stay in place.
+ * older comments become one group immediately before the newest visible comments.
+ * Leading non-comment events stay above so the list reads first event → Show older → newest.
  */
 export function buildTaskActivityFeedItems(
   events: readonly TaskEvent[],
@@ -121,25 +122,24 @@ export function buildTaskActivityFeedItems(
     groupInserted = true;
   };
 
-  // Unloaded older comments sit before the loaded window.
-  if (unloadedOlderCommentCount > 0) {
-    insertGroup();
-  }
-
   for (const event of ordered) {
     if (hiddenSet.has(event.id)) {
-      insertGroup();
       continue;
+    }
+    // Insert the group immediately before the first visible comment so leading
+    // status/billing/auth events stay above Show older.
+    if (
+      isTaskActivityComment(event) &&
+      !groupInserted &&
+      (hiddenEventIds.length > 0 || unloadedOlderCommentCount > 0)
+    ) {
+      insertGroup();
     }
     items.push({ type: "event", event });
   }
 
   if (!groupInserted && totalHidden > 0) {
-    items.unshift({
-      type: "comment-group",
-      hiddenCount: totalHidden,
-      hiddenEventIds,
-    });
+    insertGroup();
   }
 
   return items;
