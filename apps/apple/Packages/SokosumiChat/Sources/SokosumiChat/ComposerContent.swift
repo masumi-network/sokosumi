@@ -4,7 +4,7 @@ import Foundation
 /// not Swift grapheme clusters. Limits apply after trimming.
 public struct ComposerContent: Equatable, Sendable {
   public static let maximumLength = 10000
-  public static let counterThreshold = 9500
+  private static let counterThreshold = 9500
   public let text: String
   public var count: Int {
     text.utf16.count

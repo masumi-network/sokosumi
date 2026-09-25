@@ -2,7 +2,7 @@ import CoreAPI
 import Foundation
 
 /// Web's `THREAD_REPLY_FACE_CAP`: faces on a reply bar. Core caps `threadRepliers` at the same.
-public let threadReplyFaceCap = 3
+private let threadReplyFaceCap = 3
 
 /// The bar under a thread parent in the room transcript (row 24h; web `ThreadReplyBar`, ADR 0037): who
 /// replied, how many replies or how many are new to this reader, and when the last one landed.
@@ -98,7 +98,7 @@ public func clearingThreadUnreadReplies(
 
 /// Web's `keepKnownThreadUnreadReplyCount`: only the message list computes the reader's count. A realtime
 /// event is broadcast to the whole room and leaves it out, so a fresher copy keeps the count already known.
-public func keepKnownThreadUnreadReplyCount(
+func keepKnownThreadUnreadReplyCount(
   known: Components.Schemas.ChatRoomMessage?,
   incoming: Components.Schemas.ChatRoomMessage
 ) -> Components.Schemas.ChatRoomMessage {
