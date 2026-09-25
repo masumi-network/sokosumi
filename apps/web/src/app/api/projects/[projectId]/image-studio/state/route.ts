@@ -14,7 +14,7 @@ import { imageStudioService } from "@/lib/services/image-studio.service";
  * back.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> },
 ) {
   const sessionRead = await readRouteSession();
@@ -29,8 +29,13 @@ export async function GET(
   }
 
   const { projectId } = await params;
+  const url = new URL(request.url);
   try {
-    const state = await imageStudioService.getState(projectId);
+    const state = await imageStudioService.getState(projectId, {
+      assetId: url.searchParams.get("assetId") ?? undefined,
+      before: url.searchParams.get("before") ?? undefined,
+      beforeId: url.searchParams.get("beforeId") ?? undefined,
+    });
     return NextResponse.json(state, {
       headers: { "cache-control": "no-store" },
     });

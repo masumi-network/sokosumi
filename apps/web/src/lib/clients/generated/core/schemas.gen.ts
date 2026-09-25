@@ -16339,11 +16339,24 @@ export const ProjectImageStudioStateSchema = {
         },
         nextCursor: {
             type: [
-                'string',
+                'object',
                 'null'
             ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
+            properties: {
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'createdAt',
+                'id'
+            ]
         }
     },
     required: [
@@ -16544,6 +16557,16 @@ export const ProjectImageJobSchema = {
         prompt: {
             type: 'string'
         },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        referenceAssetIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
         error: {
             type: [
                 'string',
@@ -16602,6 +16625,8 @@ export const ProjectImageJobSchema = {
         'status',
         'kind',
         'prompt',
+        'settings',
+        'referenceAssetIds',
         'error',
         'parentAssetId',
         'assetId',

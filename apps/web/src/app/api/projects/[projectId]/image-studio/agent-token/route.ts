@@ -30,9 +30,14 @@ export async function POST(
 ) {
   const secret = getEnvSecrets().IMAGE_STUDIO_AGENT_SECRET;
   if (!secret) {
-    // Not configured is not open. The studio chat renders an explanation.
+    // Not configured is not open. `code` is what lets the chat tell this apart
+    // from a momentary failure: this one will not fix itself, so the composer
+    // is replaced with an explanation rather than a retry.
     return NextResponse.json(
-      { error: "The image studio assistant is not configured." },
+      {
+        code: "not_configured",
+        error: "The image studio assistant is not configured.",
+      },
       { status: 503 },
     );
   }
@@ -41,11 +46,14 @@ export async function POST(
 
   const sessionRead = await readRouteSession();
   if (sessionRead.status === "signedOut") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { code: "unauthorized", error: "Unauthorized" },
+      { status: 401 },
+    );
   }
   if (sessionRead.status === "unavailable") {
     return NextResponse.json(
-      { error: "Unavailable" },
+      { code: "temporarily_unavailable", error: "Unavailable" },
       { status: 503, headers: { "Retry-After": "1" } },
     );
   }
@@ -56,14 +64,25 @@ export async function POST(
     // cannot see is a 404 here and no token is ever minted for it.
     const project = await projectService.getProjectById(projectId);
     if (!project) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json(
+        { code: "not_found", error: "Not found" },
+        { status: 404 },
+      );
     }
   } catch (error) {
     if (error instanceof CoreApiRequestError && error.status === 401) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { code: "unauthorized", error: "Unauthorized" },
+        { status: 401 },
+      );
     }
+    // Core was asked and could not answer. That is a bad minute, not a broken
+    // feature, so it is reported as temporary and carries a retry hint.
     console.error("Failed to mint image studio agent token", error);
-    return NextResponse.json({ error: "Unavailable" }, { status: 503 });
+    return NextResponse.json(
+      { code: "temporarily_unavailable", error: "Unavailable" },
+      { status: 503, headers: { "Retry-After": "1" } },
+    );
   }
 
   const expiresAt = Math.floor(Date.now() / 1000) + TTL_SECONDS;

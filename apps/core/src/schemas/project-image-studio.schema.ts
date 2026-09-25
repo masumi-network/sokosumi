@@ -119,6 +119,10 @@ export const imageStudioJobSchema = z
     status: z.enum(IMAGE_JOB_STATUSES),
     kind: z.enum(["GENERATE", "EDIT"]),
     prompt: z.string(),
+    /** What this job asked the provider for, so a retry can ask the same. */
+    settings: imageStudioSettingsSchema,
+    /** The versions it referenced, so a retry keeps every one of them. */
+    referenceAssetIds: z.array(z.string().uuid()),
     error: z.string().nullable(),
     parentAssetId: z.string().uuid().nullable(),
     assetId: z.string().uuid().nullable(),
@@ -188,6 +192,11 @@ export const imageStudioStateQuerySchema = z.object({
   assetId: z.string().uuid().optional(),
   /** `createdAt` of the oldest asset the caller already has, for older pages. */
   before: z.string().datetime().optional(),
+  /**
+   * `id` of that same asset. Paired with `before` so versions sharing a
+   * timestamp are not stepped over — which a timestamp-only cursor does.
+   */
+  beforeId: z.string().uuid().optional(),
 });
 
 export const imageStudioListSchema = z
@@ -196,10 +205,12 @@ export const imageStudioListSchema = z
     jobs: z.array(imageStudioJobSchema),
     sessions: z.array(imageStudioSessionSchema),
     /**
-     * Pass as `before` to fetch the next, older page. Null when the caller has
-     * reached the beginning.
+     * Pass back as `before` and `beforeId` to fetch the next, older page. Null
+     * when the caller has reached the beginning.
      */
-    nextCursor: dateTimeSchema.nullable(),
+    nextCursor: z
+      .object({ createdAt: dateTimeSchema, id: z.string().uuid() })
+      .nullable(),
   })
   .openapi("ProjectImageStudioState");
 

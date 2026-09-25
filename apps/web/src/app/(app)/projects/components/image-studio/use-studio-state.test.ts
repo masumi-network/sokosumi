@@ -38,12 +38,15 @@ function job(assetId: string | null, status: string) {
     status,
     kind: "GENERATE",
     prompt: "p",
+    settings: { aspectRatio: "1:1", resolution: "1K" },
+    referenceAssetIds: [],
     error: null,
     parentAssetId: null,
     assetId,
     createdAt: JOB_STARTED_AT,
     submittedAt: JOB_STARTED_AT,
     settledAt: null,
+    cancelRequestedAt: null,
     retryMayDuplicateCharge: false,
   } as unknown as StudioState["jobs"][number];
 }
@@ -172,5 +175,90 @@ describe("useStudioState", () => {
 
     // A code, not a sentence: the wording lives in the message catalogues.
     expect(result.current.error).toBe("session_expired");
+  });
+});
+
+describe("paging through older history", () => {
+  const CURSOR = {
+    createdAt: new Date(Date.now() - 500_000).toISOString(),
+    id: "a1",
+  };
+
+  function stateWithCursor(): StudioState {
+    return {
+      ...INITIAL,
+      nextCursor: CURSOR as unknown as StudioState["nextCursor"],
+    };
+  }
+
+  it("asks for the next page with both halves of the cursor", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        calls.push(url);
+        return new Response(
+          JSON.stringify({ ...INITIAL, assets: [], nextCursor: null }),
+          { status: 200 },
+        );
+      }),
+    );
+
+    const { result } = renderHook(() =>
+      useStudioState({
+        projectId: "project-1",
+        initialState: stateWithCursor(),
+        initialSelectedAssetId: null,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.loadOlder();
+    });
+
+    // A timestamp alone steps over versions that settled in the same
+    // millisecond, which a webhook racing a poll produces routinely.
+    expect(calls[0]).toContain("before=");
+    expect(calls[0]).toContain("beforeId=a1");
+  });
+
+  it("does not undo paging when a background refresh returns the newest page", async () => {
+    const older = {
+      ...INITIAL,
+      assets: [asset("a0", 0)],
+      nextCursor: null,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async (url: string) =>
+          new Response(
+            JSON.stringify(url.includes("before=") ? older : stateWithCursor()),
+            { status: 200 },
+          ),
+      ),
+    );
+
+    const { result } = renderHook(() =>
+      useStudioState({
+        projectId: "project-1",
+        initialState: stateWithCursor(),
+        initialSelectedAssetId: null,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.loadOlder();
+    });
+    expect(result.current.state.assets.map((a) => a.id)).toContain("a0");
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    // The older page is still there, and the refresh has not reset how far
+    // the reader had got.
+    expect(result.current.state.assets.map((a) => a.id)).toContain("a0");
+    expect(result.current.hasOlder).toBe(false);
   });
 });

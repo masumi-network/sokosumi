@@ -243,14 +243,18 @@ export function ImageStudio({
    * bought nothing at all when nothing was selected yet.
    */
   function handleRetryFailed(job: StudioJob) {
-    const parent = job.parentAssetId
-      ? (state.assets.find((asset) => asset.id === job.parentAssetId) ?? null)
-      : null;
+    // The job's own terms, not the selection's and not a default. Deriving
+    // settings from a loaded parent turned a failed 16:9 2K request into a
+    // square 1K one, and rebuilding the reference list from `parentAssetId`
+    // alone silently dropped every other reference it had.
     startGeneration({
       prompt: job.prompt,
       parentAssetId: job.parentAssetId,
-      referenceAssetIds: job.parentAssetId ? [job.parentAssetId] : [],
-      settings: settingsOf(parent),
+      referenceAssetIds: job.referenceAssetIds,
+      settings: {
+        aspectRatio: job.settings?.aspectRatio ?? "1:1",
+        resolution: job.settings?.resolution ?? "1K",
+      },
     });
   }
 

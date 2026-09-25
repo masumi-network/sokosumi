@@ -110,41 +110,20 @@ describe("authorizeAgentSession", () => {
     expect(sessionFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("claims a session nobody has bound yet", async () => {
+  it("refuses a session nobody has bound", async () => {
+    // Claiming an unknown id for whichever project asked first meant a
+    // conversation created before this code existed — or one whose binding
+    // failed — belonged to whoever guessed it. Ownership is established once,
+    // by the signed-in user, through `bindSession`.
     sessionFindUniqueMock.mockResolvedValue(null);
-    sessionCreateMock.mockResolvedValue(VIEW);
 
     await expect(
       authorizeAgentSession({
-        eveSessionId: "wrun_new",
-        projectId: "project-a",
-        userId: "user-a",
-      }),
-    ).resolves.toMatchObject({ eveSessionId: "wrun_abc" });
-    expect(sessionCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          projectId: "project-a",
-          eveSessionId: "wrun_new",
-        }),
-      }),
-    );
-  });
-
-  it("applies the same rule to the winner when two callers race to bind", async () => {
-    sessionFindUniqueMock
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ ...VIEW, projectId: "project-b" });
-    sessionCreateMock.mockRejectedValue(
-      Object.assign(new Error("unique"), { code: "P2002" }),
-    );
-
-    await expect(
-      authorizeAgentSession({
-        eveSessionId: "wrun_race",
+        eveSessionId: "wrun_unknown",
         projectId: "project-a",
         userId: "user-a",
       }),
     ).rejects.toMatchObject({ status: 404 });
+    expect(sessionCreateMock).not.toHaveBeenCalled();
   });
 });

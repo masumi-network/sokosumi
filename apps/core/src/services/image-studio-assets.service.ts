@@ -76,25 +76,49 @@ export async function listAssets(options: {
   workspaceId: string;
   userId: string;
   limit: number;
-  /** Return versions older than this timestamp instead of the newest page. */
-  before?: Date;
+  /** Return versions older than this cursor instead of the newest page. */
+  before?: { createdAt: Date; id: string };
   /** Always include this version, whatever its age. */
   pinnedAssetId?: string;
-}): Promise<{ assets: AssetView[]; nextCursor: Date | null }> {
+}): Promise<{
+  assets: AssetView[];
+  nextCursor: { createdAt: Date; id: string } | null;
+}> {
   await requireProjectAccess(options);
 
+  // Ordered by `(createdAt, id)`, not `createdAt` alone. Two versions settled
+  // in the same millisecond are not rare — a webhook and a poll finishing
+  // together produce exactly that — and a timestamp-only cursor with a strict
+  // `<` steps over every tie.
   const page = await prisma.projectImageAsset.findMany({
     where: {
       projectId: options.projectId,
-      ...(options.before ? { createdAt: { lt: options.before } } : {}),
+      ...(options.before
+        ? {
+            OR: [
+              { createdAt: { lt: options.before.createdAt } },
+              {
+                createdAt: options.before.createdAt,
+                id: { lt: options.before.id },
+              },
+            ],
+          }
+        : {}),
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: options.limit + 1,
     select: assetSelect,
   });
 
   const hasMore = page.length > options.limit;
   const assets = hasMore ? page.slice(0, options.limit) : page;
+
+  // Taken from the page itself, before anything is appended. Reading it after
+  // appending the pinned version made the next page start just past that
+  // version — skipping everything between it and the end of this page.
+  const last = assets.at(-1);
+  const nextCursor =
+    hasMore && last ? { createdAt: last.createdAt, id: last.id } : null;
 
   if (
     options.pinnedAssetId &&
@@ -104,15 +128,12 @@ export async function listAssets(options: {
       where: { id: options.pinnedAssetId, projectId: options.projectId },
       select: assetSelect,
     });
-    // Appended rather than sorted in: it is older than everything on the page
-    // by construction, and the client keys off ids, not position.
+    // Appended out of order on purpose: it is not part of this page, it is the
+    // version the caller is looking at. The client keys off ids.
     if (pinned) assets.push(pinned);
   }
 
-  return {
-    assets,
-    nextCursor: hasMore ? (assets.at(-1)?.createdAt ?? null) : null,
-  };
+  return { assets, nextCursor };
 }
 
 export async function getAsset(options: {
@@ -279,6 +300,10 @@ export interface JobView {
   status: ProjectImageJobStatus;
   kind: string;
   prompt: string;
+  /** The provider input this job asked for, so a retry can ask for the same. */
+  settings: unknown;
+  /** The versions this job referenced, so a retry keeps all of them. */
+  referenceAssetIds: string[];
   error: string | null;
   parentAssetId: string | null;
   assetId: string | null;
@@ -311,6 +336,8 @@ export async function getJob(options: {
       status: true,
       kind: true,
       prompt: true,
+      settings: true,
+      referenceAssetIds: true,
       error: true,
       parentAssetId: true,
       createdAt: true,
@@ -339,6 +366,8 @@ export async function listJobs(options: {
       status: true,
       kind: true,
       prompt: true,
+      settings: true,
+      referenceAssetIds: true,
       error: true,
       parentAssetId: true,
       createdAt: true,
@@ -356,6 +385,8 @@ function toJobView(job: {
   status: ProjectImageJobStatus;
   kind: string;
   prompt: string;
+  settings: unknown;
+  referenceAssetIds: string[];
   error: string | null;
   parentAssetId: string | null;
   createdAt: Date;
@@ -369,6 +400,8 @@ function toJobView(job: {
     status: job.status,
     kind: job.kind,
     prompt: job.prompt,
+    settings: job.settings,
+    referenceAssetIds: job.referenceAssetIds,
     error: job.error,
     parentAssetId: job.parentAssetId,
     assetId: job.asset?.id ?? null,

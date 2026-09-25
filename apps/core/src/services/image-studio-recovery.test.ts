@@ -134,7 +134,18 @@ beforeEach(() => {
   vi.clearAllMocks();
   getEnvMock.mockReturnValue({ FAL_KEY: "k", BLOB_READ_WRITE_TOKEN: "t" });
   jobUpdateManyMock.mockResolvedValue({ count: 1 });
-  jobUpdateMock.mockResolvedValue({ pollFailures: 1 });
+  // `noteUnreachable` reads these back to decide whether the grace period has
+  // run out, so the default stands for "sent a moment ago".
+  jobUpdateMock.mockResolvedValue({
+    pollFailures: 1,
+    submittedAt: new Date(),
+    createdAt: new Date(),
+  });
+  requireProjectAccessForUserMock.mockResolvedValue({
+    projectId: "project-1",
+    workspaceId: "workspace-1",
+    userId: "user-1",
+  });
 });
 
 describe("a reconcile that never reached the provider", () => {
@@ -157,23 +168,6 @@ describe("a reconcile that never reached the provider", () => {
     expect(jobUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ pollFailures: { increment: 1 } }),
-      }),
-    );
-  });
-
-  it("gives up only after a long run of them", async () => {
-    jobFindUniqueMock.mockResolvedValue(queuedJob());
-    fetchQueueStatusMock.mockResolvedValue({
-      kind: "unreachable",
-      message: "socket hang up",
-    });
-    jobUpdateMock.mockResolvedValue({ pollFailures: 12 });
-
-    await reconcileJob("job-1");
-
-    expect(jobUpdateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: "FAILED" }),
       }),
     );
   });
@@ -295,7 +289,11 @@ describe("a download that fails after the provider produced the image", () => {
       userId: "user-1",
     });
     downloadImageMock.mockRejectedValue(new Error("connection reset"));
-    jobUpdateMock.mockResolvedValue({ pollFailures: 1 });
+    jobUpdateMock.mockResolvedValue({
+      pollFailures: 1,
+      submittedAt: new Date(),
+      createdAt: new Date(),
+    });
 
     await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
 
@@ -313,10 +311,110 @@ describe("a download that fails after the provider produced the image", () => {
   });
 });
 
+describe("the unreachable grace period", () => {
+  it("is measured in elapsed time, not attempts", async () => {
+    // A count is not a duration. The browser polls every three seconds and
+    // several readers can poll at once, so a twelve-attempt budget could be
+    // spent inside a minute and discard a request already paid for.
+    jobFindUniqueMock.mockResolvedValue(queuedJob());
+    fetchQueueStatusMock.mockResolvedValue({
+      kind: "unreachable",
+      message: "socket hang up",
+    });
+    jobUpdateMock.mockResolvedValue({
+      pollFailures: 40,
+      submittedAt: new Date(Date.now() - 60_000),
+      createdAt: new Date(Date.now() - 60_000),
+    });
+
+    await reconcileJob("job-1");
+
+    const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
+    expect(written.some((data) => data.status === "FAILED")).toBe(false);
+    expect(written.some((data) => data.status === "SUBMISSION_UNCERTAIN")).toBe(
+      false,
+    );
+  });
+
+  it("gives up only after hours, and says the request may have been charged", async () => {
+    jobFindUniqueMock.mockResolvedValue(queuedJob());
+    fetchQueueStatusMock.mockResolvedValue({
+      kind: "unreachable",
+      message: "socket hang up",
+    });
+    jobUpdateMock.mockResolvedValue({
+      pollFailures: 3,
+      submittedAt: new Date(Date.now() - 7 * 60 * 60 * 1000),
+      createdAt: new Date(Date.now() - 7 * 60 * 60 * 1000),
+    });
+
+    await reconcileJob("job-1");
+
+    const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
+    // Never FAILED: FAILED advertises a free retry, and this request was sent.
+    expect(written.some((data) => data.status === "FAILED")).toBe(false);
+    expect(written.some((data) => data.status === "SUBMISSION_UNCERTAIN")).toBe(
+      true,
+    );
+  });
+});
+
+describe("an access check that cannot answer", () => {
+  it("does not discard a completed image", async () => {
+    jobFindUniqueMock.mockResolvedValue(queuedJob());
+    // A dropped connection, not a refusal.
+    requireProjectAccessForUserMock.mockRejectedValue(
+      Object.assign(new Error("P1001: cannot reach database"), {
+        code: "P1001",
+      }),
+    );
+    jobUpdateMock.mockResolvedValue({
+      pollFailures: 1,
+      submittedAt: new Date(),
+      createdAt: new Date(),
+    });
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
+    expect(written.some((data) => data.status === "ORPHANED")).toBe(false);
+    expect(downloadImageMock).not.toHaveBeenCalled();
+    // Left live so a later reconcile can finish it.
+    expect(jobUpdateMock).toHaveBeenCalled();
+  });
+});
+
+describe("a cancellation the provider has since forgotten", () => {
+  it("settles as cancelled on the ordinary path, not as a failure", async () => {
+    jobFindUniqueMock.mockResolvedValue(
+      queuedJob({ cancelRequestedAt: new Date() }),
+    );
+    fetchQueueStatusMock.mockResolvedValue({ kind: "not_found" });
+
+    await reconcileJob("job-1");
+
+    const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
+    expect(written.some((data) => data.status === "CANCELED")).toBe(true);
+    expect(written.some((data) => data.status === "FAILED")).toBe(false);
+  });
+});
+
 describe("a reservation whose process died before it claimed submission", () => {
   it("is finished rather than left holding the project's concurrency", async () => {
     const created = new Date(Date.now() - 120_000);
-    jobFindManyMock.mockResolvedValue([{ id: "job-9", createdAt: created }]);
+    jobFindManyMock.mockResolvedValue([
+      {
+        id: "job-9",
+        createdAt: created,
+        projectId: "project-1",
+        requestedByUserId: "user-1",
+      },
+    ]);
+    requireProjectAccessForUserMock.mockResolvedValue({
+      projectId: "project-1",
+      workspaceId: "workspace-1",
+      userId: "user-1",
+    });
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
     jobFindUniqueOrThrowMock.mockResolvedValue(
       queuedJob({ id: "job-9", status: "SUBMITTING", falRequestId: null }),
@@ -339,9 +437,74 @@ describe("a reservation whose process died before it claimed submission", () => 
     expect(result.submitted).toBe(1);
   });
 
+  it("does not send one whose requester has lost access", async () => {
+    // Recovery buys an image, so it needs the permission the original request
+    // needed — and it runs minutes later with no request context.
+    jobFindManyMock.mockResolvedValue([
+      {
+        id: "job-11",
+        createdAt: new Date(Date.now() - 120_000),
+        projectId: "project-1",
+        requestedByUserId: "removed-user",
+      },
+    ]);
+    requireProjectAccessForUserMock.mockRejectedValue(
+      Object.assign(new Error("not found"), { status: 404 }),
+    );
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    const result = await recoverUnclaimedReservations();
+
+    expect(submitToQueueMock).not.toHaveBeenCalled();
+    expect(result.denied).toBe(1);
+    expect(jobUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "ORPHANED" }),
+      }),
+    );
+  });
+
+  it("leaves one alone when the access check itself is unavailable", async () => {
+    jobFindManyMock.mockResolvedValue([
+      {
+        id: "job-12",
+        createdAt: new Date(Date.now() - 120_000),
+        projectId: "project-1",
+        requestedByUserId: "user-1",
+      },
+    ]);
+    requireProjectAccessForUserMock.mockRejectedValue(
+      new Error("connection pool timeout"),
+    );
+
+    const result = await recoverUnclaimedReservations();
+
+    // Neither sent nor discarded: not being able to ask is not a refusal.
+    expect(submitToQueueMock).not.toHaveBeenCalled();
+    expect(result.denied).toBe(0);
+    expect(result.abandoned).toBe(0);
+  });
+
+  it("only looks at the project it was asked about", async () => {
+    jobFindManyMock.mockResolvedValue([]);
+    await recoverUnclaimedReservations({ projectId: "project-1" });
+    expect(jobFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ projectId: "project-1" }),
+      }),
+    );
+  });
+
   it("releases one nobody is waiting for any more", async () => {
     const ancient = new Date(Date.now() - 60 * 60_000);
-    jobFindManyMock.mockResolvedValue([{ id: "job-10", createdAt: ancient }]);
+    jobFindManyMock.mockResolvedValue([
+      {
+        id: "job-10",
+        createdAt: ancient,
+        projectId: "project-1",
+        requestedByUserId: "user-1",
+      },
+    ]);
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
 
     const result = await recoverUnclaimedReservations();

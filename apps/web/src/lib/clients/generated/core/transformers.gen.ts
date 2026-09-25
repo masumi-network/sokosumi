@@ -2369,7 +2369,7 @@ const projectImageStudioStateSchemaResponseTransformer = (data: any) => {
     data.jobs = data.jobs.map((item: any) => projectImageJobSchemaResponseTransformer(item));
     data.sessions = data.sessions.map((item: any) => projectImageSessionSchemaResponseTransformer(item));
     if (data.nextCursor) {
-        data.nextCursor = new Date(data.nextCursor);
+        data.nextCursor.createdAt = new Date(data.nextCursor.createdAt);
     }
     return data;
 };

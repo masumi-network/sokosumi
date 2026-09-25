@@ -19,6 +19,11 @@ import { verifyGrant } from "../lib/grant";
  * a session is also authorized against that session's live binding in Core,
  * which re-reads the caller's current project membership as part of answering.
  *
+ * An unbound session is refused rather than claimed. The binding is created by
+ * the signed-in user through Core before the conversation carries anything, so
+ * a session whose id leaks — or one that predates this code — does not become
+ * whoever contacts it first.
+ *
  * `placeholderAuth()` and `localDev()` are both absent on purpose. This agent
  * is reachable from the browser and touches paid generation, so there is no
  * environment in which an unauthenticated caller should get through.

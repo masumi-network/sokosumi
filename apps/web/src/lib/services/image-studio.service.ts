@@ -19,11 +19,17 @@ import type {
 export const imageStudioService = {
   async getState(
     projectId: string,
-    query: { assetId?: string; before?: Date } = {},
+    query: { assetId?: string; before?: string; beforeId?: string } = {},
   ): Promise<ProjectImageStudioState> {
+    // The generated client types `before` as the transformed `Date`; on the
+    // wire it is the ISO string the caller already holds.
     const result = await coreClient.getProjectsByIdImageStudio(
       projectId,
-      query,
+      query as unknown as {
+        assetId?: string;
+        before?: Date;
+        beforeId?: string;
+      },
     );
     return result.data;
   },

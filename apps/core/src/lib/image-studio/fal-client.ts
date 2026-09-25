@@ -255,7 +255,12 @@ export async function fetchQueueStatus(options: {
     case "COMPLETED":
       return { kind: "completed" };
     default:
-      return { kind: "error", message: "fal returned an unknown status" };
+      // A status we do not recognise is not a verdict. Treating it as one
+      // turned a provider adding a queue state into discarded paid work.
+      return {
+        kind: "unreachable",
+        message: `fal returned an unrecognised status (${String(body?.status ?? "missing")})`,
+      };
   }
 }
 

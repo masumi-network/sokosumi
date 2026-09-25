@@ -24,6 +24,31 @@ import type { StudioAsset, StudioLabels } from "./types";
  * generation finishing elsewhere on the page re-renders the parent, and this
  * component keeps both its transcript and the half-typed message.
  */
+/** Failures that will not fix themselves, so the composer is replaced. */
+const PERMANENT_TOKEN_CODES = new Set([
+  "not_configured",
+  "unauthorized",
+  "not_found",
+]);
+
+/**
+ * Whether a failed token mint is worth retrying.
+ *
+ * Keyed on the code the mint route states, not on a status number or a
+ * `Retry-After` header. Keying off the header meant a 500, a 502, a 429 and
+ * the route's own "Core did not answer" all hid the chat until the page was
+ * reloaded. The status fallback exists only for a response with no body.
+ */
+export function classifyTokenFailure(
+  status: number,
+  code: string | undefined,
+): "unavailable" | "transient" {
+  const permanent = code
+    ? PERMANENT_TOKEN_CODES.has(code)
+    : status === 401 || status === 403 || status === 404;
+  return permanent ? "unavailable" : "transient";
+}
+
 export function StudioChat({
   labels,
   onActivity,
@@ -55,6 +80,8 @@ export function StudioChat({
   >(null);
   const [bindWarning, setBindWarning] = useState(false);
   const boundSessionRef = useRef<string | null>(resumeSessionId);
+  /** The message currently in flight, so a later failure can put it back. */
+  const lastSentRef = useRef<string | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
 
   // Read the current selection inside callbacks without making them depend on
@@ -86,12 +113,14 @@ export function StudioChat({
       throw error;
     }
     if (!response.ok) {
-      // A 503 with `Retry-After` is the mint route saying Core was briefly
-      // slow — not that the studio is unavailable. Treating every failure as
-      // permanent disabled the chat until the page was reloaded.
-      const retriable =
-        response.status === 503 && response.headers.has("retry-after");
-      setTokenError(retriable ? "transient" : "unavailable");
+      // Classified on what the route says, not on a header. Keying off
+      // `Retry-After` meant a 500, a 502, a 429 or a plain 503 all hid the
+      // chat until the page was reloaded — including the route's own
+      // "Core did not answer", which is the most ordinary failure there is.
+      const body = (await response.json().catch(() => null)) as {
+        code?: string;
+      } | null;
+      setTokenError(classifyTokenFailure(response.status, body?.code));
       throw new Error("studio token unavailable");
     }
     setTokenError(null);
@@ -131,6 +160,12 @@ export function StudioChat({
   const agent = useEveAgent({
     agent: "image-studio",
     auth: { bearer: fetchToken },
+    // Create the durable session as soon as the person starts composing, so
+    // it can be bound to this project before it carries anything. The agent
+    // refuses an unbound session, and ownership is established here — by a
+    // signed-in user through Core — rather than by whoever contacts the
+    // session first.
+    prewarm: draft.trim().length > 0,
     ...(resumeSessionId
       ? {
           initialSession: { sessionId: resumeSessionId, streamIndex: 0 },
@@ -157,11 +192,29 @@ export function StudioChat({
       if (!session || boundSessionRef.current === session.sessionId) return;
       void bindSession(session.sessionId);
     },
+    onError: () => {
+      const message = lastSentRef.current;
+      lastSentRef.current = null;
+      if (message) restoreFailedMessage(message);
+    },
     onFinish: () => onActivity(),
   });
 
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
   const isResuming = agent.status === "resuming";
+
+  // Read inside the submit handler without making it depend on the render.
+  const agentErrorRef = useRef<Error | null>(agent.error ?? null);
+  agentErrorRef.current = agent.error ?? null;
+
+  /**
+   * The agent refuses an unbound session, so a message may only be sent once
+   * this conversation is recorded against the project. Failing closed here is
+   * what keeps ownership with the signed-in user rather than with whoever
+   * reaches the session first.
+   */
+  const sessionId = agent.session?.sessionId ?? null;
+  const canSend = sessionId === null || boundSessionRef.current === sessionId;
 
   // Following a growing transcript is DOM synchronization.
   useEffect(() => {
@@ -178,18 +231,43 @@ export function StudioChat({
     }
   }
 
+  /**
+   * Put a failed message back, unless the person has moved on.
+   *
+   * The eve client catches transport and model errors internally and resolves
+   * its promise, so "await the send, then clear" cleared the composer for a
+   * message that never went anywhere. Clearing optimistically and restoring on
+   * failure is the arrangement that survives both that and a slow send: if
+   * something newer is in the box by the time the failure lands, the newer
+   * text wins and the failed message is dropped rather than overwriting it.
+   */
+  function restoreFailedMessage(message: string) {
+    setDraft((current) => {
+      if (current.trim().length > 0) return current;
+      try {
+        window.sessionStorage.setItem(draftKey, message);
+      } catch {
+        // Persistence is a convenience; the restored text is what matters.
+      }
+      return message;
+    });
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     const message = draft.trim();
-    if (message.length === 0 || isResuming) return;
+    if (message.length === 0 || isResuming || !canSend) return;
+
+    handleDraftChange("");
+    lastSentRef.current = message;
     try {
       await agent.send(message, isBusy ? { turnPolicy: "steer" } : undefined);
-      // Cleared only once the send was accepted. Clearing first meant a
-      // failed send — an expired session, no model credit — took the message
-      // with it and left nothing to retry.
-      handleDraftChange("");
+      // Resolving proves the client accepted it, not that it succeeded — so
+      // the outcome is read from the agent's own error state, below.
+      if (agentErrorRef.current !== null) restoreFailedMessage(message);
+      else lastSentRef.current = null;
     } catch {
-      // `agent.error` renders below; the draft is still in the composer.
+      restoreFailedMessage(message);
     }
   }
 

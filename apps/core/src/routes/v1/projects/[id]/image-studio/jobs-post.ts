@@ -75,6 +75,8 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         status: job.status,
         kind: job.kind,
         prompt: job.prompt,
+        settings: job.settings,
+        referenceAssetIds: job.referenceAssetIds,
         error: job.error,
         parentAssetId: job.parentAssetId,
         assetId: null,

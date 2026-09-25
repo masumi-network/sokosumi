@@ -7,6 +7,8 @@ import {
 } from "@sokosumi/database";
 import { put } from "@vercel/blob";
 
+import { HTTPException } from "hono/http-exception";
+
 import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl, getEnv } from "@/config/env";
 import {
@@ -123,6 +125,29 @@ function readSettings(value: Prisma.JsonValue): ImageJobSettings {
  * that `soko-bot-avatar.service.ts` uses for its generation cap.
  */
 async function reserveJob(input: CreateImageJobInput) {
+  try {
+    return await reserveJobTransaction(input);
+  } catch (error) {
+    // Two callers passed the existence check together and the index caught the
+    // loser. The answer the caller wants is the row that won — but the losing
+    // statement aborted its transaction, so it has to be read on a fresh one.
+    // Re-querying inside the aborted transaction raised P2039 (SQLSTATE 25P02)
+    // and turned a handled race into a 500.
+    if (!isUniqueViolation(error)) throw error;
+    const winner = await prisma.projectImageJob.findUnique({
+      where: {
+        projectId_idempotencyKey: {
+          projectId: input.projectId,
+          idempotencyKey: input.idempotencyKey,
+        },
+      },
+    });
+    if (!winner) throw error;
+    return { job: winner, created: false };
+  }
+}
+
+async function reserveJobTransaction(input: CreateImageJobInput) {
   return await serializableTransaction(async (tx) => {
     const existing = await tx.projectImageJob.findUnique({
       where: {
@@ -164,42 +189,26 @@ async function reserveJob(input: CreateImageJobInput) {
         ? ProjectImageJobKind.EDIT
         : ProjectImageJobKind.GENERATE;
 
-    try {
-      const job = await tx.projectImageJob.create({
-        data: {
-          projectId: input.projectId,
-          workspaceId: input.workspaceId,
-          sessionId: input.sessionId,
-          requestedByUserId: input.userId,
-          kind,
-          model: falModelForKind(kind),
-          prompt: input.prompt,
-          settings: { ...input.settings },
-          referenceAssetIds: input.referenceAssetIds,
-          parentAssetId: input.parentAssetId,
-          idempotencyKey: input.idempotencyKey,
-          status: ProjectImageJobStatus.PENDING,
-        },
-      });
-      return { job, created: true };
-    } catch (error) {
-      // Two callers passed the existence check together and the index caught
-      // the loser. That is the index doing its job, not an error worth
-      // surfacing: the answer the caller wants is the row that won.
-      // `serializableTransaction` retries serialization conflicts (P2034),
-      // not unique violations, so this has to be handled here.
-      if (!isUniqueViolation(error)) throw error;
-      const winner = await tx.projectImageJob.findUnique({
-        where: {
-          projectId_idempotencyKey: {
-            projectId: input.projectId,
-            idempotencyKey: input.idempotencyKey,
-          },
-        },
-      });
-      if (!winner) throw error;
-      return { job: winner, created: false };
-    }
+    // A unique violation here aborts this transaction. It is caught by the
+    // caller, on a fresh connection, because the aborted one cannot answer
+    // another query.
+    const job = await tx.projectImageJob.create({
+      data: {
+        projectId: input.projectId,
+        workspaceId: input.workspaceId,
+        sessionId: input.sessionId,
+        requestedByUserId: input.userId,
+        kind,
+        model: falModelForKind(kind),
+        prompt: input.prompt,
+        settings: { ...input.settings },
+        referenceAssetIds: input.referenceAssetIds,
+        parentAssetId: input.parentAssetId,
+        idempotencyKey: input.idempotencyKey,
+        status: ProjectImageJobStatus.PENDING,
+      },
+    });
+    return { job, created: true };
   }, "Another image request is being accepted for this project. Try again.");
 }
 
@@ -226,6 +235,32 @@ async function claimForSubmission(jobId: string): Promise<boolean> {
   });
   return claimed.count === 1;
 }
+
+/**
+ * Take the exclusive right to settle this job.
+ *
+ * Reuses `submitLeaseAt`: a job being settled is past submission, so the field
+ * is free, and one conditional UPDATE is all the mutual exclusion this needs.
+ * A settler that dies leaves the lease behind; the deadline is what lets the
+ * next one through.
+ */
+async function claimForSettlement(jobId: string): Promise<boolean> {
+  const deadline = new Date(Date.now() - SETTLE_LEASE_MS);
+  const claimed = await prisma.projectImageJob.updateMany({
+    where: {
+      id: jobId,
+      status: {
+        in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
+      },
+      OR: [{ submitLeaseAt: null }, { submitLeaseAt: { lt: deadline } }],
+    },
+    data: { submitLeaseAt: new Date() },
+  });
+  return claimed.count === 1;
+}
+
+/** Long enough for a download and an upload, short enough to retry. */
+const SETTLE_LEASE_MS = 180_000;
 
 /**
  * Turn the assets a refinement names into URLs fal can read.
@@ -460,7 +495,25 @@ export async function reconcileJob(jobId: string): Promise<void> {
       return;
     case "not_found":
       // fal answered, and the answer is that the request is gone. Nothing more
-      // is coming, so this one really is terminal.
+      // is coming, so this one really is terminal — but if somebody asked for
+      // it to stop, "gone" means the cancellation took, and calling that a
+      // failure misreports what happened.
+      if (job.cancelRequestedAt) {
+        await prisma.projectImageJob.updateMany({
+          where: {
+            id: job.id,
+            status: {
+              in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
+            },
+          },
+          data: {
+            status: ProjectImageJobStatus.CANCELED,
+            settledAt: new Date(),
+            error: "Cancelled before the provider produced an image.",
+          },
+        });
+        return;
+      }
       await failJob(job.id, "fal no longer has this request");
       return;
     case "error":
@@ -489,13 +542,22 @@ export async function reconcileJob(jobId: string): Promise<void> {
 }
 
 /**
- * How many consecutive unreachable reads before a job is given up on.
+ * How long the provider may stay unreachable for one request before we stop.
  *
- * With the cron at five minutes this is roughly an hour of the provider being
- * unreachable for one request while every other signal is silent.
+ * Measured against wall-clock time since submission, not a count of attempts.
+ * A count is not a duration: the browser polls every three seconds and several
+ * readers can poll at once, so a twelve-attempt budget could be spent in under
+ * a minute of one bad connection — and the job, already paid for, was gone.
  */
-const MAX_CONSECUTIVE_POLL_FAILURES = 12;
+const UNREACHABLE_GRACE_MS = 6 * 60 * 60 * 1000;
 
+/**
+ * Record a read that never reached the provider.
+ *
+ * Never settles the job on its own. It gives up only once the request has been
+ * outstanding for {@link UNREACHABLE_GRACE_MS}, and even then the job is marked
+ * as possibly charged, because we never got an answer either way.
+ */
 async function noteUnreachable(jobId: string, message: string): Promise<void> {
   const updated = await prisma.projectImageJob.update({
     where: { id: jobId },
@@ -503,17 +565,43 @@ async function noteUnreachable(jobId: string, message: string): Promise<void> {
       polledAt: new Date(),
       pollFailures: { increment: 1 },
       lastPollError: message.slice(0, 500),
+      // Whoever held the settle lease is done with it; the next reader should
+      // not have to wait out the deadline.
+      submitLeaseAt: null,
     },
-    select: { pollFailures: true },
+    select: { pollFailures: true, submittedAt: true, createdAt: true },
   });
-  if (updated.pollFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
-    await failJob(
-      jobId,
-      `The provider could not be reached for this request (${message.slice(0, 200)}).`,
-    );
-  }
+
+  const startedAt = updated.submittedAt ?? updated.createdAt;
+  if (Date.now() - startedAt.getTime() < UNREACHABLE_GRACE_MS) return;
+
+  await prisma.projectImageJob.updateMany({
+    where: {
+      id: jobId,
+      status: {
+        in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
+      },
+    },
+    data: {
+      // Not FAILED: this request was sent and may well have been billed, so
+      // offering a retry that looks free would be a lie. The uncertain status
+      // is what makes the UI say so.
+      status: ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
+      error: `The provider could not be reached for this request for ${Math.round(
+        UNREACHABLE_GRACE_MS / 3_600_000,
+      )} hours (${message.slice(0, 200)}).`,
+      settledAt: new Date(),
+    },
+  });
 }
 
+/**
+ * Settle a job on a definite answer from the provider.
+ *
+ * Only for verdicts: a runner error, a refused request, a request fal says it
+ * no longer has. Never for a read that did not arrive — that is
+ * {@link noteUnreachable}.
+ */
 async function failJob(jobId: string, message: string): Promise<void> {
   await prisma.projectImageJob.updateMany({
     where: {
@@ -526,6 +614,7 @@ async function failJob(jobId: string, message: string): Promise<void> {
       status: ProjectImageJobStatus.FAILED,
       error: message.slice(0, 500),
       settledAt: new Date(),
+      submitLeaseAt: null,
     },
   });
 }
@@ -552,6 +641,13 @@ export async function settleWithImage(
     return;
   }
 
+  // One settler does the paid work. A webhook, a page load and the cron can
+  // all arrive together, and the unique index on `jobId` deduplicates the
+  // *row* — but only after each of them has already downloaded the image and
+  // written it to storage. The lease moves that deduplication in front of the
+  // network, so the work happens once rather than being undone afterwards.
+  if (!(await claimForSettlement(job.id))) return;
+
   // Re-check the destination *and* the person who asked for this, at the
   // moment the image arrives.
   //
@@ -567,9 +663,21 @@ export async function settleWithImage(
       userId: job.requestedByUserId,
     });
     project = { id: access.projectId, workspaceId: access.workspaceId };
-  } catch {
-    // Either the project is gone or the requester no longer has access to it.
-    // In both cases the image is not downloaded and nothing is stored.
+  } catch (error) {
+    if (!isAccessDenied(error)) {
+      // We could not find out. That is not a refusal, and discarding a paid
+      // image because a connection blipped is the worse of the two mistakes.
+      // Leave the job live; a later reconcile or the cron will ask again.
+      await noteUnreachable(
+        job.id,
+        error instanceof Error
+          ? `access check unavailable: ${error.message}`
+          : "access check unavailable",
+      );
+      return;
+    }
+    // A real refusal: the project is gone, or the requester no longer has
+    // access to it. Nothing is downloaded and nothing is stored.
     await prisma.projectImageJob.updateMany({
       where: { id: job.id },
       data: {
@@ -613,7 +721,11 @@ export async function settleWithImage(
   const dimensions = readPngDimensions(downloaded.bytes);
 
   // Private, so the bytes are only reachable through the authorized streaming
-  // route. `addRandomSuffix` is defence in depth, not the access control.
+  // route, which checks access per request. The pathname is therefore a
+  // storage coordinate, not a secret, and it is deliberately deterministic:
+  // a random suffix meant that settlers racing the same job each wrote their
+  // own object, and the losers' objects were left behind with nothing
+  // referencing them. One job, one object, overwritten idempotently.
   const blob = await put(
     `projects/${job.projectId}/image-studio/${job.id}-${checksum.slice(0, 16)}`,
     downloaded.bytes as unknown as Buffer,
@@ -621,7 +733,8 @@ export async function settleWithImage(
       access: "private",
       contentType: downloaded.contentType,
       token: env.BLOB_READ_WRITE_TOKEN,
-      addRandomSuffix: true,
+      addRandomSuffix: false,
+      allowOverwrite: true,
       abortSignal: AbortSignal.timeout(60_000),
     },
   );
@@ -731,6 +844,7 @@ async function insertAsset(input: {
         status: ProjectImageJobStatus.SUCCEEDED,
         settledAt: new Date(),
         error: null,
+        submitLeaseAt: null,
       },
     });
   }, "Another image finished in this lineage at the same moment. Try again.");
@@ -759,7 +873,7 @@ export async function reconcileProjectJobs(projectId: string): Promise<void> {
   await sweepStalledSubmissions();
   // Deployments without a reachable webhook settle here, so this is also where
   // a reservation stranded by a crashed request gets picked back up.
-  await recoverUnclaimedReservations().catch((error) => {
+  await recoverUnclaimedReservations({ projectId }).catch((error) => {
     console.warn("[image-studio] reservation recovery failed", {
       error: error instanceof Error ? error.message : "unknown",
     });
@@ -960,21 +1074,29 @@ async function finaliseCancellations(limit: number): Promise<number> {
  * retry the same stuck row.
  */
 export async function recoverUnclaimedReservations(
-  now: Date = new Date(),
-): Promise<{ submitted: number; abandoned: number }> {
+  options: { projectId?: string; now?: Date } = {},
+): Promise<{ submitted: number; abandoned: number; denied: number }> {
+  const now = options.now ?? new Date();
   const stale = await prisma.projectImageJob.findMany({
     where: {
+      ...(options.projectId ? { projectId: options.projectId } : {}),
       status: ProjectImageJobStatus.PENDING,
       submitAttempts: 0,
       createdAt: { lt: new Date(now.getTime() - PENDING_RECOVERY_AFTER_MS) },
     },
     orderBy: { createdAt: "asc" },
     take: 20,
-    select: { id: true, createdAt: true },
+    select: {
+      id: true,
+      createdAt: true,
+      projectId: true,
+      requestedByUserId: true,
+    },
   });
 
   let submitted = 0;
   let abandoned = 0;
+  let denied = 0;
   for (const job of stale) {
     // Past this age the person who asked has long gone; releasing the slot is
     // kinder than buying an image nobody is waiting for.
@@ -995,6 +1117,50 @@ export async function recoverUnclaimedReservations(
       abandoned += released.count;
       continue;
     }
+
+    // Recovery buys an image, so it needs the same permission the original
+    // request needed — and it runs minutes later, with no request context, so
+    // it has to ask again. Without this, a reservation left behind by someone
+    // since removed from the organization was still sent to the provider and
+    // charged.
+    let permitted: boolean;
+    try {
+      await requireProjectAccessForUser({
+        projectId: job.projectId,
+        userId: job.requestedByUserId,
+      });
+      permitted = true;
+    } catch (error) {
+      if (!isAccessDenied(error)) {
+        // Could not ask. Leave the row alone and try on the next sweep;
+        // failing to check is not the same as being refused.
+        console.warn("[image-studio] recovery access check unavailable", {
+          jobId: job.id,
+          error: error instanceof Error ? error.message : "unknown",
+        });
+        continue;
+      }
+      permitted = false;
+    }
+
+    if (!permitted) {
+      const released = await prisma.projectImageJob.updateMany({
+        where: {
+          id: job.id,
+          status: ProjectImageJobStatus.PENDING,
+          submitAttempts: 0,
+        },
+        data: {
+          status: ProjectImageJobStatus.ORPHANED,
+          error:
+            "Not sent: the project or the requester's access to it is gone. Nothing was charged.",
+          settledAt: new Date(),
+        },
+      });
+      denied += released.count;
+      continue;
+    }
+
     if (!(await claimForSubmission(job.id))) continue;
     try {
       await sendClaimedJob(job.id);
@@ -1006,7 +1172,24 @@ export async function recoverUnclaimedReservations(
       });
     }
   }
-  return { submitted, abandoned };
+  return { submitted, abandoned, denied };
+}
+
+/**
+ * True when an access check answered "no", false when it could not answer.
+ *
+ * `requireProjectAccess*` refuses with a 404 HTTPException. Anything else —
+ * a dropped connection, a pool timeout — is the check being unavailable, and
+ * treating that as a refusal throws away work that was perfectly authorized.
+ */
+function isAccessDenied(error: unknown): boolean {
+  return (
+    error instanceof HTTPException ||
+    (typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      (error as { status?: unknown }).status === 404)
+  );
 }
 
 /** Old enough that its creator is not still waiting on the same request. */

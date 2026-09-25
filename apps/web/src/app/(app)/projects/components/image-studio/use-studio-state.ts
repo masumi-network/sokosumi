@@ -115,7 +115,15 @@ export function useStudioState(options: {
         }
       }
 
-      const merged = { ...next, assets: [...next.assets, ...keptOlder] };
+      // A refresh returns the newest page, whose cursor points just past it.
+      // Overwriting the cursor with that value threw away how far the person
+      // had already paged, so "load older" started again from the top.
+      const merged = {
+        ...next,
+        assets: [...next.assets, ...keptOlder],
+        nextCursor:
+          keptOlder.length > 0 ? previous.nextCursor : next.nextCursor,
+      };
       stateRef.current = merged;
       setState(merged);
 
@@ -180,10 +188,14 @@ export function useStudioState(options: {
     if (!cursor) return;
     setIsRefreshing(true);
     try {
+      // Both halves of the cursor: versions settled in the same millisecond
+      // are ordinary here, and a timestamp alone steps over every tie.
+      const query = new URLSearchParams({
+        before: new Date(cursor.createdAt as unknown as string).toISOString(),
+        beforeId: cursor.id,
+      });
       const response = await fetch(
-        `/api/projects/${projectId}/image-studio/state?before=${encodeURIComponent(
-          new Date(cursor as unknown as string).toISOString(),
-        )}`,
+        `/api/projects/${projectId}/image-studio/state?${query.toString()}`,
         { credentials: "same-origin", cache: "no-store" },
       );
       if (!response.ok) return;

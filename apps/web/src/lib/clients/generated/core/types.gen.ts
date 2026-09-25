@@ -4923,7 +4923,10 @@ export type ProjectImageStudioState = {
     assets: Array<ProjectImageAsset>;
     jobs: Array<ProjectImageJob>;
     sessions: Array<ProjectImageSession>;
-    nextCursor: Date | null;
+    nextCursor: {
+        createdAt: Date;
+        id: string;
+    } | null;
 };
 
 export type ProjectImageAsset = {
@@ -4963,6 +4966,8 @@ export type ProjectImageJob = {
     status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
     kind: 'GENERATE' | 'EDIT';
     prompt: string;
+    settings: ProjectImageSettings;
+    referenceAssetIds: Array<string>;
     error: string | null;
     parentAssetId: string | null;
     assetId: string | null;
@@ -34711,6 +34716,7 @@ export type GetProjectsByIdImageStudioData = {
     query?: {
         assetId?: string;
         before?: Date;
+        beforeId?: string;
     };
     url: '/projects/{id}/image-studio';
 };

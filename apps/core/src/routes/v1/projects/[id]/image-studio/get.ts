@@ -69,7 +69,11 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       listAssets({
         ...scope,
         limit: ASSET_PAGE,
-        ...(query.before ? { before: new Date(query.before) } : {}),
+        ...(query.before && query.beforeId
+          ? {
+              before: { createdAt: new Date(query.before), id: query.beforeId },
+            }
+          : {}),
         ...(query.assetId ? { pinnedAssetId: query.assetId } : {}),
       }),
       listJobs({ ...scope, limit: JOB_PAGE }),
