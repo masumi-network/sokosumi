@@ -44,7 +44,6 @@ function renderControl(
   return render(
     <TaskActivitySubscribeControl
       taskId="task-1"
-      ownerId="owner-1"
       viewerId="viewer-1"
       viewerName="Viewer"
       viewerImage={null}
@@ -153,49 +152,8 @@ describe("TaskActivitySubscribeControl", () => {
     expect(within(menu).getByText("Bea")).toBeInTheDocument();
     expect(within(menu).getByText("Cara")).toBeInTheDocument();
     expect(within(menu).getByText("Dee")).toBeInTheDocument();
-  });
-
-  it("lets the owner remove every row", async () => {
-    const user = userEvent.setup();
-    renderControl({
-      viewerId: "owner-1",
-      viewerName: "Owner",
-      participants: [participant("u1", "Ada"), participant("u2", "Bea")],
-    });
-    await user.click(screen.getByRole("button", { name: "participantsList" }));
     expect(
-      screen.getByRole("button", { name: "removeParticipant:Ada" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "removeParticipant:Bea" }),
-    ).toBeInTheDocument();
-  });
-
-  it("lets a non-owner participant remove only themselves", async () => {
-    const user = userEvent.setup();
-    renderControl({
-      participants: [
-        participant("viewer-1", "Viewer"),
-        participant("u2", "Bea"),
-      ],
-    });
-    await user.click(screen.getByRole("button", { name: "participantsList" }));
-    expect(
-      screen.getByRole("button", { name: "removeParticipant:Viewer" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "removeParticipant:Bea" }),
-    ).toBeNull();
-  });
-
-  it("offers no remove controls when the viewer is neither owner nor participant", async () => {
-    const user = userEvent.setup();
-    renderControl({
-      participants: [participant("u1", "Ada"), participant("u2", "Bea")],
-    });
-    await user.click(screen.getByRole("button", { name: "participantsList" }));
-    expect(
-      screen.queryByRole("button", { name: /^removeParticipant:/ }),
+      within(menu).queryByRole("button", { name: /^removeParticipant:/ }),
     ).toBeNull();
   });
 

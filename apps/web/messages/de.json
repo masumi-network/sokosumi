@@ -1835,7 +1835,6 @@
         "subscribe": "Abonnieren",
         "unsubscribe": "Abbestellen",
         "subscribeError": "Abonnieren fehlgeschlagen. Bitte erneut versuchen.",
-        "removeParticipant": "{name} entfernen",
         "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut."
       },
       "NewTask": {

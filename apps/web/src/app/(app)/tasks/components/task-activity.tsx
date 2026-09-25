@@ -107,8 +107,6 @@ interface TaskActivityProps {
   canComment?: boolean;
   /** Workspace members the composer offers for `@`; mentions add them as Task participants. */
   mentionableUsers?: readonly MentionableUser[];
-  /** Task owner id for participant remove auth in the Activities header. */
-  ownerId?: string;
   /** Task participants in join order. */
   participants?: TaskParticipant[];
 }
@@ -219,7 +217,6 @@ export function TaskActivitySection({
   viewerPlan = null,
   canComment = true,
   mentionableUsers = NO_MENTIONABLE_USERS,
-  ownerId = "",
   participants = NO_PARTICIPANTS,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
@@ -432,7 +429,6 @@ export function TaskActivitySection({
         <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
         <TaskActivitySubscribeControl
           taskId={taskId}
-          ownerId={ownerId}
           viewerId={currentUser?.id ?? null}
           viewerName={currentUser?.name ?? null}
           viewerImage={currentUser?.image ?? null}

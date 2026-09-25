@@ -795,7 +795,6 @@ async function TaskActivitySectionContent({
       collapseLabel={t("collapse")}
       viewerPlan={viewerPlan}
       mentionableUsers={mentionableUsers.map(({ id, name }) => ({ id, name }))}
-      ownerId={task.ownerId}
       participants={task.participants}
       canComment={canCommentOnTaskForViewer({
         taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,

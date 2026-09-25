@@ -1,13 +1,11 @@
 "use client";
 
-import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
 
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
-import { canRemoveTaskParticipant } from "@/app/tasks/utils/task-participant-remove";
 import { READ_RECEIPT_FACE_CAP } from "@/components/chat/read-receipt-faces";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +23,6 @@ import { cn } from "@/lib/utils";
 
 export interface TaskActivitySubscribeControlProps {
   taskId: string;
-  ownerId: string;
   viewerId: string | null;
   viewerName: string | null;
   viewerImage: string | null;
@@ -36,7 +33,6 @@ export interface TaskActivitySubscribeControlProps {
 
 export function TaskActivitySubscribeControl({
   taskId,
-  ownerId,
   viewerId,
   viewerName,
   viewerImage,
@@ -116,22 +112,6 @@ export function TaskActivitySubscribeControl({
     });
   }
 
-  function handleRemove(userId: string) {
-    startTransition(async () => {
-      applyParticipants(
-        visibleParticipants.filter(
-          (participant) => participant.user.id !== userId,
-        ),
-      );
-      const result = await removeTaskParticipant({ taskId, userId });
-      if (!result.ok) {
-        toast.error(t("removeParticipantError"));
-        return;
-      }
-      router.refresh();
-    });
-  }
-
   return (
     <div className="flex items-center gap-2">
       {showSubscribeLabel || showUnsubscribeLabel ? (
@@ -184,41 +164,20 @@ export function TaskActivitySubscribeControl({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
-            {visibleParticipants.map(({ user }) => {
-              const canRemove = canRemoveTaskParticipant({
-                viewerId,
-                ownerId,
-                participantUserId: user.id,
-                viewerIsParticipant,
-              });
-              return (
-                <DropdownMenuItem
-                  key={user.id}
-                  className="flex items-center gap-2"
-                  onSelect={(event) => event.preventDefault()}
-                >
-                  <AssigneeAvatar
-                    assignee={{ ...user, kind: "user" }}
-                    size="sm"
-                  />
-                  <span className="min-w-0 flex-1 truncate text-sm">
-                    {user.name}
-                  </span>
-                  {canRemove ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground size-6 shrink-0"
-                      aria-label={t("removeParticipant", { name: user.name })}
-                      onClick={() => handleRemove(user.id)}
-                    >
-                      <X className="size-3.5" aria-hidden />
-                    </Button>
-                  ) : null}
-                </DropdownMenuItem>
-              );
-            })}
+            {visibleParticipants.map(({ user }) => (
+              <DropdownMenuItem
+                key={user.id}
+                className="flex items-center gap-2"
+              >
+                <AssigneeAvatar
+                  assignee={{ ...user, kind: "user" }}
+                  size="sm"
+                />
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {user.name}
+                </span>
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
