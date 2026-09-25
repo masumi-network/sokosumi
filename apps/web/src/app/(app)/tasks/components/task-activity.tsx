@@ -284,7 +284,14 @@ export function TaskActivitySection({
   );
 
   useEffect(() => {
-    setLocalEvents(events);
+    // Merge so expanded older pages survive parent refresh (truncated feed).
+    // Drop optimistic rows — the refreshed prop carries the persisted event.
+    setLocalEvents((prev) =>
+      mergeTaskActivityEvents(
+        prev.filter((event) => !event.id.startsWith("optimistic:")),
+        events,
+      ),
+    );
   }, [events]);
 
   const abortActiveUploads = useCallback(() => {
