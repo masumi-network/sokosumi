@@ -151,6 +151,33 @@ function SwitcherTrigger({ label, className, ...props }: SwitcherTriggerProps) {
   );
 }
 
+interface Span {
+  left: number;
+  right: number;
+}
+
+/**
+ * How far the strip must scroll to show the tab whole: negative scrolls left,
+ * zero leaves it. A tab wider than the strip lines up with its start.
+ */
+export function revealDelta(tab: Span, strip: Span): number {
+  if (tab.left < strip.left) return tab.left - strip.left;
+  if (tab.right > strip.right) {
+    return Math.min(tab.right - strip.right, tab.left - strip.left);
+  }
+  return 0;
+}
+
+/** True while tabs sit past the strip's right edge. */
+export function hasOverflowEnd({
+  scrollLeft,
+  clientWidth,
+  scrollWidth,
+}: Pick<HTMLElement, "scrollLeft" | "clientWidth" | "scrollWidth">): boolean {
+  // A fractional width leaves part of a pixel at the true end.
+  return scrollLeft + clientWidth < scrollWidth - 1;
+}
+
 function HubSectionNav({
   projectId,
   calendarBeta,
@@ -162,14 +189,37 @@ function HubSectionNav({
   const pathname = usePathname();
   const sections = projectSections(projectId, calendarBeta);
   const listRef = useRef<HTMLUListElement>(null);
+  const [overflowEnd, setOverflowEnd] = useState(false);
 
   // The strip scrolls with its scrollbar hidden, and narrow screens or long
-  // labels push later tabs past the edge. Bring the current one into view.
+  // labels push later tabs past the edge. Bring the current one into view by
+  // scrolling the strip alone: scrollIntoView also scrolls the page, and the
+  // Edit modal's return to the overview would jump the reader to the tabs.
   useEffect(() => {
-    listRef.current
-      ?.querySelector<HTMLElement>('[aria-current="page"]')
-      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const list = listRef.current;
+    const tab = list?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!list || !tab) return;
+    const delta = revealDelta(
+      tab.getBoundingClientRect(),
+      list.getBoundingClientRect(),
+    );
+    if (delta !== 0) list.scrollTo({ left: list.scrollLeft + delta });
   }, [pathname]);
+
+  // With no scrollbar, a fade on the right edge is the only sign of more tabs.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const update = () => setOverflowEnd(hasOverflowEnd(list));
+    update();
+    list.addEventListener("scroll", update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(list);
+    return () => {
+      list.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, []);
 
   return (
     <nav
@@ -178,7 +228,8 @@ function HubSectionNav({
     >
       <ul
         ref={listRef}
-        className="relative flex gap-4 overflow-x-auto text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        data-overflow-end={overflowEnd || undefined}
+        className="relative flex gap-4 overflow-x-auto text-sm [scrollbar-width:none] data-overflow-end:[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] [&::-webkit-scrollbar]:hidden"
       >
         {sections.map((section) => {
           const active = pathname === section.href;

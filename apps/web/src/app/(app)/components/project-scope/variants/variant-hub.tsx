@@ -4,8 +4,15 @@ import { ChevronRight, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { isProjectScopedPath } from "@/app/components/project-scope/project-scope-href";
-import { useProjectScopeSwitch } from "@/app/components/project-scope/use-project-scope";
+import { useEffect, useRef } from "react";
+import {
+  detailPageOf,
+  isProjectScopedPath,
+} from "@/app/components/project-scope/project-scope-href";
+import {
+  returnFocusTo,
+  useProjectScopeSwitch,
+} from "@/app/components/project-scope/use-project-scope";
 import { useSelectedScopeProject } from "@/app/components/project-scope/use-scope-projects";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
@@ -14,16 +21,28 @@ import type { ScopeSlots } from "./scope-variants";
 import { HubProjectHeader } from "./variant-hub-project";
 
 /**
- * The project a scoped workspace page shows, or null. Project pages carry
- * their own switcher in the project header, so they never count here.
+ * The project a scoped workspace page, or a task or schedule in one, shows,
+ * or null. Project pages carry their own switcher in the project header, so
+ * they never count here.
  */
 function useScopedWorkspaceProject() {
   const pathname = usePathname();
   const scope = useProjectScopeSwitch();
-  const scopedProjectId = isProjectScopedPath(pathname)
-    ? scope.projectId
-    : null;
+  const scopedProjectId =
+    isProjectScopedPath(pathname) || detailPageOf(pathname)
+      ? scope.projectId
+      : null;
   const selectedProject = useSelectedScopeProject(scopedProjectId);
+  const clearedFrom = useRef<HTMLElement | null>(null);
+
+  // The clear control leaves with the scope, and focus would fall to the page
+  // body. Once the unscoped page commits, hand it to the header instead.
+  useEffect(() => {
+    const opener = clearedFrom.current;
+    if (scopedProjectId || !opener) return;
+    clearedFrom.current = null;
+    returnFocusTo(opener)(new Event("focus"));
+  }, [scopedProjectId]);
 
   if (!scopedProjectId) return null;
   return {
@@ -31,12 +50,19 @@ function useScopedWorkspaceProject() {
     href: `/projects/${encodeURIComponent(scopedProjectId)}`,
     name: selectedProject?.name ?? null,
     logo: selectedProject?.logo ?? null,
-    clear: () => scope.select(null),
+    clear: (opener: HTMLElement) => {
+      clearedFrom.current = opener;
+      scope.select(null);
+    },
   };
 }
 
 /** Leaves the project scope in place: the workspace version of this page. */
-function ClearScopeButton({ onClick }: { onClick: () => void }) {
+function ClearScopeButton({
+  onClear,
+}: {
+  onClear: (opener: HTMLElement) => void;
+}) {
   const t = useTranslations("App.ProjectScope");
   return (
     <Button
@@ -45,7 +71,7 @@ function ClearScopeButton({ onClick }: { onClick: () => void }) {
       size="sm"
       aria-label={t("workspaceView")}
       className="text-muted-foreground size-6 shrink-0 px-0 has-[>svg]:px-0"
-      onClick={onClick}
+      onClick={(event) => onClear(event.currentTarget)}
     >
       <X className="size-3.5" aria-hidden />
     </Button>
@@ -74,10 +100,10 @@ function HubHeaderCrumb() {
             />
           </span>
         ) : null}
-        <span className="sr-only">{t("label")}: </span>
+        {project.name ? <span className="sr-only">{t("label")}: </span> : null}
         <span className="max-w-40 truncate">{project.name ?? t("label")}</span>
       </Link>
-      <ClearScopeButton onClick={project.clear} />
+      <ClearScopeButton onClear={project.clear} />
       <ChevronRight
         className="text-muted-foreground size-4 shrink-0"
         aria-hidden
@@ -107,7 +133,7 @@ function HubHeaderMobileChip() {
           className="size-6"
         />
       </Link>
-      <ClearScopeButton onClick={project.clear} />
+      <ClearScopeButton onClear={project.clear} />
     </div>
   );
 }

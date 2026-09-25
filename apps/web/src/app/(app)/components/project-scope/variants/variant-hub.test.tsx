@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -41,25 +41,47 @@ vi.mock("@/app/projects/actions", () => ({
 vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
   InlineCreateProjectModal: () => null,
 }));
+// Like the real avatar: the fallback initial is text a link would read out.
 vi.mock("@/app/projects/components/project-avatar", () => ({
-  ProjectAvatar: () => <span aria-hidden />,
+  ProjectAvatar: ({ name }: { name: string }) => (
+    <span>{name.trim().charAt(0).toUpperCase()}</span>
+  ),
 }));
 
+import { ProjectScopeMarker } from "../project-scope-marker";
 import { hubSlots } from "./variant-hub";
 
 const PLACES = ["header-center", "header-mobile"] as const;
 
-function renderSlot(place: (typeof PLACES)[number]) {
+function renderSlot(place: (typeof PLACES)[number], container?: HTMLElement) {
   const Slot = hubSlots[place];
   if (!Slot) throw new Error(`No hub slot ${place}`);
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  // A fresh element each time, or React skips the rerender.
+  const view = () => (
     <QueryClientProvider client={client}>
       <Slot />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  const result = render(view(), container ? { container } : undefined);
+  return { ...result, rerender: () => result.rerender(view()) };
+}
+
+/** The slot inside the app header, after a control that stays put. */
+function renderInHeader(place: (typeof PLACES)[number]) {
+  const home = document.createElement("a");
+  home.href = "/";
+  home.textContent = "home";
+  const header = document.createElement("header");
+  header.append(home);
+  document.body.append(header);
+  const result = renderSlot(
+    place,
+    header.appendChild(document.createElement("div")),
+  );
+  return { ...result, home };
 }
 
 beforeEach(() => {
@@ -78,14 +100,65 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  document.body.innerHTML = "";
 });
 
 describe.each(PLACES)("hub %s", (place) => {
   it("names the scoped project on a scoped workspace page", async () => {
     renderSlot(place);
 
+    // The whole name: the avatar's initial "A" stays out of it.
     const link = await screen.findByRole("link", { name: "label: Acme" });
     expect(link.getAttribute("href")).toBe("/projects/p-1");
+  });
+
+  it("names the project a task detail page reports", async () => {
+    mocks.pathname = "/tasks/t-1";
+    mocks.search = "";
+    render(<ProjectScopeMarker projectId="p-1" />);
+    renderSlot(place);
+
+    const link = await screen.findByRole("link", { name: "label: Acme" });
+    expect(link.getAttribute("href")).toBe("/projects/p-1");
+  });
+
+  it("names the project once, as Project, while it has no name", async () => {
+    vi.mocked(fetch).mockImplementation(() =>
+      Promise.resolve(Response.json({ project: null })),
+    );
+    renderSlot(place);
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(await screen.findByRole("link", { name: "label" })).toHaveAttribute(
+      "href",
+      "/projects/p-1",
+    );
+  });
+
+  it("moves focus into the header once a clear lands", async () => {
+    const user = userEvent.setup();
+    const { rerender, home } = renderInHeader(place);
+
+    await user.click(screen.getByRole("button", { name: "workspaceView" }));
+    // Still scoped until the navigation commits.
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "workspaceView" }),
+    );
+
+    mocks.search = "";
+    rerender();
+
+    expect(screen.queryByRole("button", { name: "workspaceView" })).toBeNull();
+    expect(document.activeElement).toBe(home);
+  });
+
+  it("leaves focus alone when the scope ends without a clear", () => {
+    const { rerender } = renderInHeader(place);
+
+    mocks.search = "";
+    rerender();
+
+    expect(document.activeElement).toBe(document.body);
   });
 
   it("clears the scope in place", async () => {

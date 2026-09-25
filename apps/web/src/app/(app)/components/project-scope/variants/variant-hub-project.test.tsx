@@ -1,11 +1,18 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   pathname: "/projects/p-1",
+  search: "",
   push: vi.fn(),
   isMobile: false,
   load: vi.fn(),
@@ -14,7 +21,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mocks.pathname,
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(mocks.search),
   useRouter: () => ({ push: mocks.push }),
 }));
 vi.mock("next-intl", () => ({
@@ -50,7 +57,11 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
   ProjectAvatar: () => <span aria-hidden />,
 }));
 
-import { HubProjectHeader } from "./variant-hub-project";
+import {
+  HubProjectHeader,
+  hasOverflowEnd,
+  revealDelta,
+} from "./variant-hub-project";
 
 function renderHeader(calendarBeta?: boolean) {
   const client = new QueryClient({
@@ -77,6 +88,7 @@ function project(id: string, name: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.pathname = "/projects/p-1";
+  mocks.search = "";
   mocks.isMobile = false;
   mocks.loadPinned.mockResolvedValue([]);
   mocks.load.mockResolvedValue({
@@ -88,13 +100,67 @@ beforeEach(() => {
     "fetch",
     vi.fn(() => Promise.resolve(Response.json({ project: null }))),
   );
-  // happy-dom lays nothing out; the nav only has to ask.
-  HTMLElement.prototype.scrollIntoView = vi.fn();
+  // happy-dom lays nothing out: a 200px strip of 80px tabs, 100px apart.
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: HTMLElement) {
+      return stripLayout(this);
+    },
+  );
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
+
+const STRIP_WIDTH = 200;
+const TAB_PITCH = 100;
+const TAB_WIDTH = 80;
+
+function rect(left: number, width: number) {
+  return DOMRect.fromRect({ x: left, y: 0, width, height: 0 });
+}
+
+function stripLayout(element: HTMLElement): DOMRect {
+  const list = element.closest("ul");
+  if (!list) return rect(0, 0);
+  if (element === list) return rect(0, STRIP_WIDTH);
+  const item = element.closest("li");
+  const index = item ? Array.from(list.children).indexOf(item) : 0;
+  return rect(index * TAB_PITCH - list.scrollLeft, TAB_WIDTH);
+}
+
+/** Renders the header and lets the test move to another page. */
+function renderNav(calendarBeta = true) {
+  const client = new QueryClient();
+  // A fresh element each time, or React skips the rerender.
+  const view = () => (
+    <QueryClientProvider client={client}>
+      <HubProjectHeader calendarBeta={calendarBeta} />
+    </QueryClientProvider>
+  );
+  const { rerender } = render(view());
+  const nav = screen.getByRole("navigation", { name: "sections" });
+  const list = within(nav).getByRole("list");
+  return {
+    list,
+    navigate: (pathname: string, search = "") => {
+      mocks.pathname = pathname;
+      mocks.search = search;
+      rerender(view());
+    },
+  };
+}
+
+/** Every scroll that would move something other than the strip. */
+function spyOnPageScrolls() {
+  return [
+    vi.spyOn(window, "scrollTo"),
+    vi.spyOn(window, "scrollBy"),
+    vi.spyOn(window, "scroll"),
+    vi.spyOn(Element.prototype, "scrollIntoView"),
+  ];
+}
 
 describe("HubProjectHeader", () => {
   it("lists every section, Calendar and Social included, with Calendar beta", () => {
@@ -146,35 +212,105 @@ describe("HubProjectHeader", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("scrolls the current section into view, again on navigation", () => {
+  it("scrolls only the strip to the current section, again on navigation", () => {
+    const pageScrolls = spyOnPageScrolls();
     mocks.pathname = "/projects/p-1/social";
-    const client = new QueryClient();
-    // A fresh element each time, or React skips the rerender.
-    const view = () => (
-      <QueryClientProvider client={client}>
-        <HubProjectHeader calendarBeta />
-      </QueryClientProvider>
-    );
-    const { rerender } = render(view());
-    const scrollIntoView = vi.mocked(HTMLElement.prototype.scrollIntoView);
+    const { list, navigate } = renderNav();
 
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(scrollIntoView.mock.contexts[0]).toBe(
-      screen.getByRole("link", { name: "social" }),
+    // Social, the seventh tab, ends at 680: its end meets the strip's.
+    expect(list.scrollLeft).toBe(6 * TAB_PITCH + TAB_WIDTH - STRIP_WIDTH);
+
+    navigate("/projects/p-1/calendar");
+
+    // Calendar, the fourth, sits left of the view: its start meets the strip's.
+    expect(list.scrollLeft).toBe(3 * TAB_PITCH);
+    for (const spy of pageScrolls) expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("leaves the page where it was when the Edit modal closes", () => {
+    const pageScrolls = spyOnPageScrolls();
+    const stripScroll = vi.spyOn(Element.prototype, "scrollTo");
+    const { navigate } = renderNav();
+
+    navigate("/projects/p-1/edit");
+    navigate("/projects/p-1");
+
+    // Overview is in view, so nothing scrolls, the page least of all.
+    expect(stripScroll).not.toHaveBeenCalled();
+    for (const spy of pageScrolls) expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("leaves a strip the reader scrolled when only the search changes", () => {
+    mocks.pathname = "/projects/p-1/social";
+    const { list, navigate } = renderNav();
+    list.scrollLeft = 0;
+
+    navigate("/projects/p-1/social", "date=2026-09-25");
+
+    expect(list.scrollLeft).toBe(0);
+  });
+
+  it("fades the strip's end only while more tabs sit past it", () => {
+    let resize: () => void = () => {};
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: () => void) {
+          resize = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
     );
-    expect(scrollIntoView).toHaveBeenCalledWith({
-      block: "nearest",
-      inline: "nearest",
+    const { list } = renderNav();
+    Object.defineProperty(list, "scrollWidth", { value: 680 });
+    Object.defineProperty(list, "clientWidth", {
+      value: STRIP_WIDTH,
+      configurable: true,
     });
 
-    mocks.pathname = "/projects/p-1/calendar";
-    rerender(view());
+    fireEvent.scroll(list);
+    expect(list).toHaveAttribute("data-overflow-end");
 
-    expect(scrollIntoView).toHaveBeenCalledTimes(2);
-    expect(scrollIntoView.mock.contexts[1]).toBe(
-      screen.getByRole("link", { name: "calendar" }),
-    );
+    list.scrollLeft = 480;
+    fireEvent.scroll(list);
+    expect(list).not.toHaveAttribute("data-overflow-end");
+
+    list.scrollLeft = 0;
+    Object.defineProperty(list, "clientWidth", { value: 680 });
+    resize();
+    expect(list).not.toHaveAttribute("data-overflow-end");
   });
+});
+
+describe("revealDelta", () => {
+  const strip = { left: 0, right: 200 };
+
+  it.each([
+    ["in view", { left: 100, right: 180 }, 0],
+    ["past the end", { left: 300, right: 380 }, 180],
+    ["before the start", { left: -150, right: -70 }, -150],
+    ["wider than the strip", { left: 50, right: 350 }, 50],
+  ])("scrolls a tab %s by its gap", (_case, tab, delta) => {
+    expect(revealDelta(tab, strip)).toBe(delta);
+  });
+});
+
+describe("hasOverflowEnd", () => {
+  it.each([
+    [0, 200, 680, true],
+    [480, 200, 680, false],
+    // A fractional width stops short of the true end by under a pixel.
+    [479.5, 200, 680, false],
+    [0, 200, 200, false],
+  ])(
+    "at scrollLeft %d, %d wide of %d: %s",
+    (scrollLeft, clientWidth, scrollWidth, expected) => {
+      expect(hasOverflowEnd({ scrollLeft, clientWidth, scrollWidth })).toBe(
+        expected,
+      );
+    },
+  );
 });
 
 describe("HubProjectSwitcher", () => {
