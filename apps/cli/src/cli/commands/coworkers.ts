@@ -5,11 +5,16 @@ import {
   fetchCurrentCoworker,
   updateCoworker,
 } from "../../api/services/coworker-service.js";
+import { fetchOrganizationWorkspaces } from "../../api/services/organization-workspace-service.js";
+import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
+import {
+  requireAdministeredVendorForRegistration,
+  requireOrganizationWorkspacesForRegistration,
+} from "../registration-authority.js";
 import {
   applyListFilters,
   type CommandContext,
   type CommandOptions,
-  isJson,
   maskSecret,
   mergeChannels,
   normalizeCapabilities,
@@ -47,8 +52,11 @@ async function buildPayload(
   if (update && vendorId !== undefined)
     throw new Error("--vendor-id is only supported for `coworkers register`");
   if (!update) {
-    if (!vendorId)
-      throw new Error("vendor id is required for `coworkers register`");
+    if (!vendorId) {
+      throw new Error(
+        "vendor id is required for `coworkers register` (create one first with `sokosumi vendors create --name NAME --slug SLUG`)",
+      );
+    }
     payload.vendorId = vendorId;
   }
   const values: [string, string][] = [
@@ -68,7 +76,7 @@ async function buildPayload(
   }
   const priority = parseInteger(option(options, "priority"), "--priority");
   if (priority !== undefined) payload.priority = priority;
-  const rawCapabilities = option(options, "capability", "capabilities");
+  const rawCapabilities = option(options, "capability");
   if (rawCapabilities !== undefined)
     payload.capabilities = normalizeCapabilities(rawCapabilities);
   const mergedMetadata = mergeChannels(metadata, channels);
@@ -146,9 +154,7 @@ export async function runCoworkersCommand({
   const command = subcommand || "list";
   if (command === "list") {
     const limit = parsePositiveInteger(option(options, "limit"), "--limit");
-    const capabilities = normalizeCapabilities(
-      option(options, "capability", "capabilities"),
-    );
+    const capabilities = normalizeCapabilities(option(options, "capability"));
     const { coworkers } = await fetchCoworkers(
       client,
       { scope: optionString(options, "scope"), capabilities },
@@ -170,19 +176,23 @@ export async function runCoworkersCommand({
         ];
       },
     });
-    if (isJson({ json })) writeJson(stdout, { coworkers: filtered });
+    if (json) writeJson(stdout, { coworkers: filtered });
     else printCoworkerList(stdout, filtered);
     return;
   }
   if (command === "register") {
-    const payload = await buildPayload(options, false);
-    const { coworker } = await createCoworker(
+    const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
       client,
-      payload as Parameters<typeof createCoworker>[1],
       signal,
     );
+    requireOrganizationWorkspacesForRegistration(organizationWorkspaces);
+    const payload = await buildPayload(options, false);
+    const vendorId = String(payload.vendorId);
+    const { vendors } = await fetchVendorMemberships(client, signal);
+    requireAdministeredVendorForRegistration(vendors, vendorId);
+    const { coworker } = await createCoworker(client, payload, signal);
     let apiKey: unknown = null;
-    if (optionBoolean(options, "create-api-key", "with-api-key")) {
+    if (optionBoolean(options, "create-api-key")) {
       const result = await createCoworkerApiKey(
         client,
         String(record(coworker).id),
@@ -194,7 +204,7 @@ export async function runCoworkersCommand({
       );
       apiKey = result.apiKey;
     }
-    if (isJson({ json })) writeJson(stdout, { coworker, apiKey });
+    if (json) writeJson(stdout, { coworker, apiKey });
     else {
       const coworkerValue = record(coworker);
       writeText(stdout, [
@@ -219,17 +229,15 @@ export async function runCoworkersCommand({
     return;
   }
   if (command === "update") {
-    const id = positionalId || optionString(options, "id", "coworker-id");
+    const id = positionalId || optionString(options, "id");
     if (!id) throw new Error("coworker id is required for `coworkers update`");
     const { coworker } = await updateCoworker(
       client,
       id,
-      (await buildPayload(options, true)) as Parameters<
-        typeof updateCoworker
-      >[2],
+      await buildPayload(options, true),
       signal,
     );
-    if (isJson({ json })) writeJson(stdout, { coworker });
+    if (json) writeJson(stdout, { coworker });
     else
       printCoworker(
         stdout,
@@ -239,18 +247,18 @@ export async function runCoworkersCommand({
     return;
   }
   if (command === "api-key") {
-    const id = positionalId || optionString(options, "id", "coworker-id");
+    const id = positionalId || optionString(options, "id");
     if (!id) throw new Error("coworker id is required for `coworkers api-key`");
     const { apiKey } = await createCoworkerApiKey(
       client,
       id,
       {
-        name: optionString(options, "name", "api-key-name"),
-        expiresAt: optionString(options, "expires-at", "api-key-expires-at"),
+        name: optionString(options, "api-key-name"),
+        expiresAt: optionString(options, "api-key-expires-at"),
       },
       signal,
     );
-    if (isJson({ json })) writeJson(stdout, { coworkerId: id, apiKey });
+    if (json) writeJson(stdout, { coworkerId: id, apiKey });
     else
       writeText(stdout, [
         `Created API key for coworker ${id}`,
@@ -265,7 +273,7 @@ export async function runCoworkersCommand({
   }
   if (command === "me") {
     const { coworker } = await fetchCurrentCoworker(client, signal);
-    if (isJson({ json })) writeJson(stdout, { coworker });
+    if (json) writeJson(stdout, { coworker });
     else printCoworker(stdout, coworker);
     return;
   }

@@ -11,6 +11,8 @@ describe("ssrfSafeFetch (integration: address filtering)", () => {
     "http://169.254.169.254/latest/meta-data/", // cloud metadata endpoint
     "http://[::1]/",
   ])("refuses to connect to non-public target %s", async (url) => {
-    await expect(ssrfSafeFetch(url)).rejects.toThrow();
+    await expect(
+      ssrfSafeFetch(url, { maxResponseBytes: 1024 }),
+    ).rejects.toThrow();
   });
 });

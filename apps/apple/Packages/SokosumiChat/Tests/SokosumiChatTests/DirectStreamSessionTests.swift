@@ -25,7 +25,7 @@ struct DirectStreamSessionTests {
   """
 
   private func room() -> Components.Schemas.ChatRoom {
-    .init(id: testRoomId, name: "Coworker", kind: .direct, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
+    .init(id: testRoomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
           unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
           userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
   }
@@ -95,6 +95,54 @@ struct DirectStreamSessionTests {
     #expect(!session.isBusy)
     #expect(session.overlayMessages.isEmpty == refreshed)
     #expect(session.errorMessage == nil)
+  }
+
+  /// Row 09c: the live coworker row carries every reasoning beat as web's overlay does
+  /// (`uiMessageToTransientRoomMessage` → `reasoningStepsForMetadata`: each part trimmed, empty ones
+  /// dropped), so Thinking reads the whole trace through the join a persisted mention shell uses, and
+  /// the Thought disclosure once the answer streams holds the same text.
+  @Test(arguments: [false, true])
+  func theLiveRowCarriesTheWholeReasoningTrace(answered: Bool) async throws {
+    let reasoning = [
+      #"{"type":"start","messageId":"answer"}"#,
+      #"{"type":"reasoning-start","id":"r1"}"#,
+      #"{"type":"reasoning-delta","id":"r1","delta":"Reading the thread"}"#,
+      #"{"type":"reasoning-end","id":"r1"}"#,
+      #"{"type":"reasoning-start","id":"r2"}"#,
+      #"{"type":"reasoning-delta","id":"r2","delta":"  \n"}"#,
+      #"{"type":"reasoning-end","id":"r2"}"#,
+      #"{"type":"reasoning-start","id":"r3"}"#,
+      #"{"type":"reasoning-delta","id":"r3","delta":" Comparing the drafts"}"#,
+      #"{"type":"reasoning-delta","id":"r3","delta":"\n\nWeighing the options "}"#,
+      #"{"type":"reasoning-end","id":"r3"}"#
+    ]
+    let answer = [#"{"type":"text-start","id":"a"}"#, #"{"type":"text-delta","id":"a","delta":"Answer"}"#, #"{"type":"text-end","id":"a"}"#]
+    let events = reasoning + (answered ? answer : []) + [#"{"type":"finish"}"#, "[DONE]"]
+    let session = DirectStreamSession(now: { Date(timeIntervalSince1970: 1_788_868_800) }, makeId: { "turn-fixed" })
+    session.reset(room: room())
+    let client = try makeTestClient(TestTransport([(200, events.map { "data: \($0)\n\n" }.joined())]))
+    // A failed refresh keeps the overlay, so the finished row can be read.
+    session.resume(client: client, organizationSlug: nil, settled: { false }, failed: { Issue.record($0) })
+    await session.task?.value
+    let row = try #require(session.overlayMessages.last)
+    #expect(row.id == "stream:answer")
+    #expect(row.content == (answered ? "Answer" : ""))
+    let thought = CoworkerThought(message: row)
+    #expect(thought.text == "Reading the thread\n\nComparing the drafts\n\nWeighing the options")
+    #expect(thought.steps == ["Reading the thread", "Comparing the drafts", "Weighing the options"])
+  }
+
+  @Test func sendUsesInjectedTurnIdAndNow() async throws {
+    let now = Date(timeIntervalSince1970: 1_788_868_800)
+    let session = DirectStreamSession(now: { now }, makeId: { "turn-fixed" })
+    session.reset(room: room())
+    let client = try makeTestClient(TestTransport([(200, completedStream)]))
+    #expect(session.send("Hello", client: client, organizationSlug: nil, settled: { false }, failed: { Issue.record($0) }))
+    #expect(session.overlayMessages.map(\.id) == ["stream:turn-fixed"])
+    #expect(session.overlayMessages.first?.createdAt == now)
+    await session.task?.value
+    #expect(session.overlayMessages.map(\.id) == ["stream:turn-fixed", "stream:answer"])
+    #expect(session.overlayMessages.map(\.createdAt) == [now, now])
   }
 
   @Test func threadStreamRoutesBothOverlaysAndSharesRoomSendLock() async throws {

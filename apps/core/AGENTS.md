@@ -152,7 +152,7 @@ Environment variables are accessed via `process.env`, validated at startup with 
 
 - `PORT` — HTTP port (default `8787`; portless injects an ephemeral `4000–4999` port)
 - `WEB_APP_BASE_URL` — Browser origin. Default `http://localhost:3000`; `pnpm portless:dev` / `pnpm portless:core` set this to `pnpm portless:url web`
-- `BETTER_AUTH_SECRET` — Better Auth server secret (sessions, cookies, OAuth state). Independent of web `APP_SIGNING_SECRET`.
+- `BETTER_AUTH_SECRET` — Better Auth server secret (sessions, cookies, OAuth state) and the key for stored OAuth provider tokens. Do not replace it in place, or stored tokens become unreadable; rotate by setting `BETTER_AUTH_SECRETS` (`2:<new>,1:<old>`) and keeping this value. Independent of web `APP_SIGNING_SECRET`.
 - `BETTER_AUTH_URL` — Public base URL of this Core service; used as Better Auth `baseURL` except on Vercel Preview
 - `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL` — Optional; on Preview, `getBetterAuthPublicBaseUrl()` prefers `VERCEL_BRANCH_URL` over `VERCEL_URL`, and prefers a `*.sokosumi.com` candidate when only one of those is on the preview suffix (see `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`)
 
@@ -299,7 +299,7 @@ For internal async-ack sync routes (immediate `200` response + background execut
 | `pnpm portless:dev`               | Web + Core via portless (repo root; named `https://core.sokosumi.localhost`) |
 | `pnpm portless:core`              | Core only via portless (still injects Web's named URL) |
 | `pnpm core:build`                 | Build for production     |
-| `pnpm --filter @sokosumi/core vercel-build` | Vercel: build then `prisma migrate deploy` |
+| `pnpm --filter @sokosumi/core vercel-build` | Vercel: `prisma:generate`, build, then `prisma migrate deploy` |
 | `pnpm core:start`                 | Run production build     |
 | `pnpm --filter core lint`         | Lint core app            |
 | `pnpm --filter core write-openapi-snapshot-for-web` | Writes `apps/web/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for web `openapi-ts` |
@@ -597,7 +597,7 @@ const flattenedLinks = links.map(flattenLinkJobId);
 
 **Shared Packages**:
 
-- `@sokosumi/database` - Database layer with Prisma client, helpers, and (legacy) repositories
+- `@sokosumi/database` - Database layer with Prisma client, helpers, and (legacy) repositories. Consumed as TypeScript source and inlined by Core's `tsup` ([ADR 0035](../../docs/adr/0035-database-consumed-from-source.md)); it has no build, so Prisma's real types reach Core and JSON-column writes are checked. Writing `null` into a `Json?` column needs `Prisma.DbNull`.
 - `@sokosumi/masumi` - Masumi protocol utilities (hash, agent client, schemas)
 - `@sokosumi/soko-bot` - Soko Bot contracts (capabilities, persona, memory, tools). The loop is in-process in Core (`src/lib/soko-bot/`); there is no `apps/soko-bot` deployable.
 

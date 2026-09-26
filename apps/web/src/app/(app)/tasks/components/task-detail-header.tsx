@@ -1,3 +1,5 @@
+import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
+
 import { BackToTasksButton } from "./back-to-tasks-button";
 
 interface TaskDetailHeaderProps {
@@ -22,7 +24,7 @@ export function TaskDetailHeader({
       </div>
 
       <h1 className="text-xl leading-tight font-semibold tracking-tight">
-        {taskName}
+        {stripInlineMarkdown(taskName)}
       </h1>
       {parentLink}
     </div>

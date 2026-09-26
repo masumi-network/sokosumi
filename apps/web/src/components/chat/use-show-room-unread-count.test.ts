@@ -11,8 +11,8 @@ vi.mock("@/lib/auth/auth.client", () => ({
 
 import { useShowRoomUnreadCount } from "./use-show-room-unread-count";
 
-function sessionWith(showRoomUnreadCount: boolean | null | undefined) {
-  return { data: { user: { id: "user-1", showRoomUnreadCount } } };
+function sessionWith(hideRoomUnreadCount: boolean | null | undefined) {
+  return { data: { user: { id: "user-1", hideRoomUnreadCount } } };
 }
 
 describe("useShowRoomUnreadCount", () => {
@@ -20,34 +20,38 @@ describe("useShowRoomUnreadCount", () => {
     useSessionMock.mockReset();
   });
 
-  it("reads the reader's opt-in from the session", () => {
-    useSessionMock.mockReturnValue(sessionWith(true));
+  // On by default (ADR-0038): the count is shown unless the reader said no.
+  it("shows the count to a reader who never chose", () => {
+    useSessionMock.mockReturnValue(sessionWith(false));
 
     expect(renderHook(() => useShowRoomUnreadCount()).result.current).toBe(
       true,
     );
   });
 
-  it("is off when the reader has not opted in", () => {
-    useSessionMock.mockReturnValue(sessionWith(false));
+  it("hides the count from a reader who switched it off", () => {
+    useSessionMock.mockReturnValue(sessionWith(true));
 
     expect(renderHook(() => useShowRoomUnreadCount()).result.current).toBe(
       false,
     );
   });
 
-  // The sidebar renders before the session resolves. Reading a missing session
-  // as off is what stops a count flashing onto rows the reader never asked for.
-  it("is off while the session is still loading", () => {
-    useSessionMock.mockReturnValue({ data: null });
-
-    expect(renderHook(() => useShowRoomUnreadCount()).result.current).toBe(
-      false,
-    );
-  });
-
-  it("is off for a reader whose session predates the preference", () => {
+  // A session minted before the field existed carries no value for it. That
+  // reader never chose either, so they get the default.
+  it("shows the count for a session that predates the preference", () => {
     useSessionMock.mockReturnValue(sessionWith(undefined));
+
+    expect(renderHook(() => useShowRoomUnreadCount()).result.current).toBe(
+      true,
+    );
+  });
+
+  // The sidebar renders before the session resolves, and only the session
+  // knows whether this reader switched the count off. Waiting costs a reader
+  // who wants it a beat; guessing would flash it at one who does not.
+  it("shows nothing while the session is still loading", () => {
+    useSessionMock.mockReturnValue({ data: null });
 
     expect(renderHook(() => useShowRoomUnreadCount()).result.current).toBe(
       false,

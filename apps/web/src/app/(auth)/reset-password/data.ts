@@ -1,5 +1,5 @@
 import type { FormData } from "@/lib/form";
-import type { ResetPasswordFormSchemaType } from "@/lib/schemas";
+import type { ResetPasswordFormSchemaType } from "@/lib/schemas/auth";
 
 export const resetPasswordFormData: FormData<
   ResetPasswordFormSchemaType,

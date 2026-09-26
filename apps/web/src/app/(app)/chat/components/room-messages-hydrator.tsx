@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
-/** Initial room history page (matches `loadRoomMessages` result). */
+/** Initial room history page. */
 export interface RoomMessagePage {
   messages: ChatRoomMessage[];
   nextCursor: string | null;
@@ -41,8 +41,7 @@ export function RoomMessagesHydrator({
         onResolvedRef.current(page);
       },
       () => {
-        // Unexpected reject (loadRoomMessages maps CoreApiRequestError to
-        // failed:true; other throws still reject). Never leave parent pending.
+        // A rejected history promise must not leave the parent pending.
         if (cancelled) {
           return;
         }

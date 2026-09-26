@@ -5,6 +5,8 @@ import {
   getRedirectQueryString,
 } from "@/lib/auth/auth.utils";
 
+export const instant = false;
+
 interface LoginRedirectProps {
   searchParams: Promise<AuthRedirectSearchParams>;
 }

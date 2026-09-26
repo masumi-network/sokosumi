@@ -1,13 +1,16 @@
-import { Channel, type Prisma, TaskStatus } from "@sokosumi/database";
+import {
+  Channel,
+  NotificationKind,
+  type Prisma,
+  TaskStatus,
+} from "@sokosumi/database";
+import { waitUntil } from "@vercel/functions";
 
-function isPrismaRecordNotFoundError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "P2025"
-  );
-}
+import {
+  cancelNotificationEmails,
+  EMAILED_NOTIFICATION_COLUMNS,
+} from "@/helpers/notification-email-dispatch";
+import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 
 /**
  * Flip OUT_OF_CREDITS tasks to CREDITS_TOPPED_UP after a credit grant, scoped
@@ -66,5 +69,23 @@ export async function markOutOfCreditsTasksAsToppedUp(params: {
 
       throw error;
     }
+
+    // Keep the credit request and task status consistent within the grant.
+    const cleared = await params.tx.notification.updateManyAndReturn({
+      where: {
+        kind: NotificationKind.TASK,
+        referenceId: task.id,
+        messageKey: "Notifications.Task.outOfCredits",
+        isRead: false,
+      },
+      data: { isRead: true, readAt: new Date() },
+      select: EMAILED_NOTIFICATION_COLUMNS,
+    });
+
+    // The credits are back, so the email saying they ran out is taken back.
+    // Scheduled from inside the grant, so a grant that rolls back after this
+    // has cancelled one email for a row that stays; the follow-up sync
+    // reminds that reader a day later.
+    waitUntil(cancelNotificationEmails(cleared));
   }
 }

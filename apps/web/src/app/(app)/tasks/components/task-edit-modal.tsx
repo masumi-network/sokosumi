@@ -6,7 +6,10 @@ import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
-import type { TaskFormLabels } from "./task-form";
+import type {
+  TaskFormInitialDesignMdAttachment,
+  TaskFormLabels,
+} from "./task-form";
 import { TaskForm } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 
@@ -22,20 +25,13 @@ interface TaskEditModalProps {
     projectId?: string | null;
     status: TaskStatus;
     selectableStatuses: readonly TaskStatus[];
-    metadata?: string | null;
-    nextRunAt?: string | null;
+    runAt?: string | null;
   };
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   agentNameById: Map<string, string>;
   labels: TaskFormLabels;
-  /** Precondition for every schedule write made from this render. */
-  scheduleRevision: number;
-  /**
-   * Durable future exceptions a full-series edit would cancel, or `null` when
-   * the ledger could not be read.
-   */
-  futureExceptionCount: number | null;
+  initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
 }
 
 export function TaskEditModal({
@@ -46,8 +42,7 @@ export function TaskEditModal({
   projectOptions,
   agentNameById,
   labels,
-  scheduleRevision,
-  futureExceptionCount,
+  initialDesignMdAttachment = null,
 }: TaskEditModalProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -77,8 +72,7 @@ export function TaskEditModal({
         agentNameById={agentNameById}
         taskId={taskId}
         initialValues={initialValues}
-        scheduleRevision={scheduleRevision}
-        futureExceptionCount={futureExceptionCount}
+        initialDesignMdAttachment={initialDesignMdAttachment}
         onCancel={handleClose}
         onSubmittingChange={setIsDismissDisabled}
         onSuccess={handleClose}

@@ -1,5 +1,5 @@
 import type { InputEmailSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { Input } from "@/components/ui/input";
 
@@ -10,7 +10,7 @@ export function EmailInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.EMAIL, InputEmailSchemaType>) {
+}: JobInputComponentProps<typeof InputType.EMAIL, InputEmailSchemaType>) {
   const { data } = jobInputSchema;
 
   return (

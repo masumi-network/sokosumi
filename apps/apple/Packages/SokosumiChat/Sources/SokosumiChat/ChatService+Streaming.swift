@@ -2,6 +2,8 @@ import CoreAPI
 import Foundation
 import OpenAPIRuntime
 
+private typealias StreamPart = Operations.PostChatsRoomsIdStream.Input.Body.JsonPayload.Value1Payload.MessagesPayloadPayload.PartsPayloadPayload
+
 public extension ChatService {
   /// Starts a coworker turn using the same single user UIMessage as web.
   /// The returned body is consumed incrementally, never collected into memory.
@@ -11,6 +13,7 @@ public extension ChatService {
     organizationSlug: String?,
     messageId: String,
     text: String,
+    attachments: [ComposeAttachment] = [],
     parentMessageId: String? = nil,
     quoteMessageId: String? = nil
   ) async throws -> HTTPBody {
@@ -20,7 +23,7 @@ public extension ChatService {
       body: .json(.init(
         value1: .init(messages: [.init(
           role: .user,
-          parts: [.init(value2: .init(_type: .text, text: text))],
+          parts: streamParts(text: text, attachments: attachments),
           id: messageId
         )], id: roomId),
         value2: .init(parentMessageId: parentMessageId, roomId: roomId, quote: quoteMessageId.map { .init(messageId: $0) })
@@ -28,16 +31,26 @@ public extension ChatService {
     ))
     switch response {
     case let .ok(value): return try value.body.textEventStream
-    case let .badRequest(value): throw try ChatServiceError.unprocessable(statusCode: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)
-    case let .notFound(value): throw try ChatServiceError.unprocessable(statusCode: 404, message: value.body.json.message)
+    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
+    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
+    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
+    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
     case let .conflict(value): throw try ChatServiceError.unprocessable(statusCode: 409, message: value.body.json.message)
-    case let .unprocessableContent(value): throw try ChatServiceError.unprocessable(statusCode: 422, message: value.body.json.message)
-    case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
+    case let .unprocessableContent(value): throw try rejected(status: 422, message: value.body.json.message)
+    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
     case let .serviceUnavailable(value): throw try ChatServiceError.unprocessable(statusCode: 503, message: value.body.json.message)
     case let .undocumented(code, payload): throw await unprocessableError(statusCode: code, payload: payload)
     }
+  }
+
+  /// Text keeps the markdown links for the persisted message; file parts let the model read the files.
+  /// Drive picks have an empty media type and stay link-only, matching web.
+  private func streamParts(text: String, attachments: [ComposeAttachment]) -> [StreamPart] {
+    let files: [StreamPart] = attachments.compactMap { attachment in
+      guard !attachment.mediaType.isEmpty else { return nil }
+      return .init(value1: .init(_type: .file, url: attachment.url, mediaType: attachment.mediaType, filename: attachment.fileName))
+    }
+    return [.init(value2: .init(_type: .text, text: text))] + files
   }
 
   /// A 204 is an idle room, not a thinking or error state.
@@ -48,10 +61,10 @@ public extension ChatService {
     switch response {
     case let .ok(value): return try value.body.textEventStream
     case .noContent: return nil
-    case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)
-    case let .notFound(value): throw try ChatServiceError.unprocessable(statusCode: 404, message: value.body.json.message)
-    case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
+    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
+    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
+    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
+    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
     case let .undocumented(code, payload): throw await unprocessableError(statusCode: code, payload: payload)
     }
   }

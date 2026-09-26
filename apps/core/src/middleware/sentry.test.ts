@@ -310,7 +310,7 @@ describe("sentryMiddleware", () => {
     const spanConfig = startSpanMock.mock.calls[0][0];
     expect(spanConfig.name).toBe("GET UNMATCHED");
     expect(spanConfig.attributes["http.route"]).toBe("UNMATCHED");
-    expect(spanConfig.attributes["http.url"]).toBe("UNMATCHED");
+    expect(spanConfig.attributes["url.full"]).toBe("UNMATCHED");
     expect(
       JSON.stringify([startSpanMock.mock.calls, setContextMock.mock.calls]),
     ).not.toContain(rawPath);

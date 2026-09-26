@@ -16,7 +16,7 @@ export interface ClassicOutboundJob {
   mentionedCoworkerIds: string[];
   mentionedSokoBotIds: string[];
   mentionedUserIds: string[];
-  quote?: { messageId: string };
+  quote?: { messageId: string; roomId?: string };
   clientMessageId: string;
   parentMessageId?: string;
 }

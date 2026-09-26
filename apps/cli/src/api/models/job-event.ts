@@ -1,3 +1,5 @@
+import { asRecord } from "./parse-helpers.js";
+
 export interface JobEvent {
   id: string | null;
   jobId: string | null;
@@ -7,12 +9,6 @@ export interface JobEvent {
   createdAt: string | null;
   status: string | null;
   result: string | null;
-}
-
-function asRecord(input: unknown): Record<string, unknown> {
-  return input && typeof input === "object" && !Array.isArray(input)
-    ? (input as Record<string, unknown>)
-    : {};
 }
 
 export function parseJobEvent(input: unknown): JobEvent {

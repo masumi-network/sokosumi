@@ -14,11 +14,26 @@
       #expect(roomThreadsAccessibilityLabel(unreadCount: example.0) == example.1)
     }
 
+    @Test(arguments: [
+      RoomToolsInspectorDestination.search,
+      .pins,
+      .threads,
+      .members
+    ])
+    func inspectorPresentsDestinationUntilAReplyThreadOpens(destination: RoomToolsInspectorDestination) {
+      #expect(roomToolsInspectorPresented(destination: destination, threadParentId: nil))
+      #expect(!roomToolsInspectorPresented(destination: destination, threadParentId: "parent"))
+    }
+
+    @Test func inspectorStaysHiddenWithNoDestination() {
+      #expect(!roomToolsInspectorPresented(destination: nil, threadParentId: nil))
+    }
+
     @Test func inspectorHidesWhileAThreadIsOpenAndKeepsThreadsRequested() {
-      #expect(roomToolsInspectorPresented(showsPins: false, showsSearch: false, showsThreads: true, threadParentId: nil))
-      #expect(!roomToolsInspectorPresented(showsPins: false, showsSearch: false, showsThreads: true, threadParentId: "parent"))
-      #expect(!roomToolsClearsThreadsOnInspectorDismiss(threadParentId: "parent"))
-      #expect(roomToolsClearsThreadsOnInspectorDismiss(threadParentId: nil))
+      #expect(roomToolsInspectorDestinationAfterDismiss(.threads, threadParentId: "parent") == .threads)
+      #expect(roomToolsInspectorDestinationAfterDismiss(.threads, threadParentId: nil) == nil)
+      #expect(roomToolsInspectorDestinationAfterDismiss(.search, threadParentId: "parent") == nil)
+      #expect(roomToolsInspectorDestinationAfterDismiss(.members, threadParentId: nil) == nil)
     }
   }
 #endif

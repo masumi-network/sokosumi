@@ -8,14 +8,12 @@ import {
   TaskVisibility,
   VendorGrantStatus,
 } from "@sokosumi/database";
-import { hasActiveTaskSchedule } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   type CoworkerAuthenticationContext,
-  isCoworkerAuthContext,
   isSokoBotAuthContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
@@ -114,10 +112,7 @@ export async function requireMutableTaskOwnership(
 
 /**
  * Soft-archive access: task owner always; org OWNER/ADMIN for parked
- * (`GRANT_PENDING`). For active schedules, an org-workspace collaborator is
- * authorized only far enough for the route to return the required
- * `schedule_active` conflict instead of hiding the Task behind a 404.
- * Coworker actors are out (route uses owner user context).
+ * (`GRANT_PENDING`). Coworker actors are out (route uses owner user context).
  */
 export async function requireTaskArchiveAccess(
   vars: EnvVariables["Variables"],
@@ -153,43 +148,21 @@ export async function requireTaskArchiveAccess(
     throw notFound("Task not found");
   }
 
-  const isParked = task.status === TaskStatus.GRANT_PENDING;
-  const isScheduled = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
-
-  if (isParked) {
-    // Org OWNER/ADMIN may archive public parked Tasks; private remains
-    // owner-only (SOK-1046) — already handled by the owned lookup above.
-    if (task.visibility === TaskVisibility.PRIVATE) {
-      throw notFound("Task not found");
-    }
-    await resolveMemberOrganizationById({
-      id: organizationId,
-      userId: userContext.userId,
-      tx,
-      allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
-    });
-    return task;
-  }
-
-  if (!isScheduled) {
+  // Org OWNER/ADMIN may archive public parked Tasks; private remains
+  // owner-only (SOK-1046) — already handled by the owned lookup above.
+  if (
+    task.status !== TaskStatus.GRANT_PENDING ||
+    task.visibility === TaskVisibility.PRIVATE
+  ) {
     throw notFound("Task not found");
   }
-
-  // Match cancel authorization so a collaborator receives `schedule_active`;
-  // the archive route rejects the active series before writing anything.
-  const workspace = requireWorkspaceContext(vars.workspaceContext);
-  const workspaceTask = await requireTaskReadForWorkspace(
-    workspace,
-    taskId,
+  await resolveMemberOrganizationById({
+    id: organizationId,
+    userId: userContext.userId,
     tx,
-    userContext.userId,
-  );
-
-  if (workspace.organizationId !== null) {
-    return workspaceTask;
-  }
-
-  throw notFound("Task not found");
+    allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+  });
+  return task;
 }
 
 // -----------------------------------------------------------------------------
@@ -739,55 +712,6 @@ export async function requireTaskCollaboration(
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
 }
 
-/**
- * Schedule write access. Humans and Soko Bots follow
- * {@link requireTaskCollaboration}. Coworkers may also act as the task's
- * creator with user context (the legacy create-then-`PUT /schedule` flow,
- * including DRAFT, matching what `POST /tasks/scheduled` allows in one call)
- * or on a non-DRAFT task assigned to a same-vendor sibling. Bare coworker
- * keys exclude DRAFT before the creator check. Schedules are the only
- * mutation with this wider scope; status, jobs, and files stay assignee-only.
- */
-export async function requireTaskScheduleWriteAccess(
-  authContext: AuthenticationContext,
-  taskId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Task> {
-  if (!isCoworkerAuthContext(authContext)) {
-    return await requireTaskCollaboration(authContext, taskId, tx);
-  }
-
-  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
-  const found = await tx.task.findFirst({
-    where: {
-      id: taskId,
-      archivedAt: null,
-      ...(authContext.context
-        ? { ownerId: authContext.context.userId }
-        : { status: { not: TaskStatus.DRAFT } }),
-    },
-    include: { assignee: { select: { vendorId: true } } },
-  });
-  if (!found) {
-    throw notFound("Task not found");
-  }
-
-  const { assignee, ...task } = found;
-  const isAssignee = task.assigneeId === authContext.coworkerId;
-  const isCreator = task.creatorCoworkerId === authContext.coworkerId;
-  const isVendorSibling =
-    assignee?.vendorId === authContext.vendorId &&
-    task.status !== TaskStatus.DRAFT;
-  if (!isAssignee && !isCreator && !isVendorSibling) {
-    throw forbidden(
-      "You can only schedule tasks your coworker created, is assigned to, or that are assigned to its vendor siblings",
-    );
-  }
-
-  requireTaskNotParked(task);
-  return task;
-}
-
 export async function requireTaskCommentAccess(
   vars: EnvVariables["Variables"],
   taskId: string,
@@ -1033,30 +957,6 @@ export async function requireTaskReadForRouteVars(
   }
 
   return await requireCoworkerTaskRead(coworker, taskId, workspaceId, tx);
-}
-
-/**
- * Read access for a series' Schedule ledger: human owners keep the stricter
- * {@link requireTaskOwnership}, while agent actors (assigned coworker, vendor
- * sibling, or Soko Bot) use the Task read gate of `GET /tasks/{id}` — the
- * access they had before the human-only Calendar guard.
- */
-export async function requireTaskScheduleReadAccess(
-  vars: EnvVariables["Variables"],
-  taskId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Task> {
-  const { authContext } = vars;
-
-  if (isUserAuthContext(authContext)) {
-    return await requireTaskOwnership(
-      requireUserContext(authContext),
-      taskId,
-      tx,
-    );
-  }
-
-  return await requireTaskReadForRouteVars(vars, taskId, tx);
 }
 
 const taskWorkspaceMappingInclude = {

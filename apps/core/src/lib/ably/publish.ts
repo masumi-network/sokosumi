@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind } from "@sokosumi/database";
 import {
+  CALENDAR_ACCESS_REVOKED_EVENT_NAME,
+  CALENDAR_INVALIDATED_EVENT_NAME,
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
   CHAT_ROOMS_CHANGED_EVENT_NAME,
   type ChatMembershipRevokeReason,
@@ -8,9 +10,11 @@ import {
   type ChatRoomMessageEventType,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  makeWorkspaceCalendarChannelName,
   SokosumiJobStatus,
 } from "@sokosumi/utils";
 import type { ChatRoomMessage } from "@/schemas/chat-room.schema";
@@ -90,10 +94,58 @@ interface NotificationEventData {
 }
 
 interface PublishNotificationEventInput {
+  /** Reused across retries of one stored notification revision. */
+  messageId?: string;
   userId: string;
   notification: NotificationEventData;
   /** Also deliver as a closed-app OS banner (ADR-0022 channel-based push). */
   push?: boolean;
+}
+
+export interface CalendarInvalidationEventData {
+  id: string;
+  workspaceId: string;
+  projectId: string | null;
+  calendarRevision: number;
+  payload: unknown;
+}
+
+interface PublishCalendarInvalidationInput {
+  userIds: readonly string[];
+  workspaceId: string;
+  invalidation: CalendarInvalidationEventData;
+}
+
+/** Publish one committed outbox row to each current workspace reader. */
+export async function publishCalendarInvalidationToUsers({
+  userIds,
+  workspaceId,
+  invalidation,
+}: PublishCalendarInvalidationInput): Promise<void> {
+  const client = getRestClient();
+  await Promise.all(
+    [...new Set(userIds)].map((userId) =>
+      client.channels
+        .get(makeWorkspaceCalendarChannelName(workspaceId, userId))
+        .publish(CALENDAR_INVALIDATED_EVENT_NAME, invalidation),
+    ),
+  );
+}
+
+/** Signal access loss on a channel the user always owns. */
+export async function publishCalendarAccessRevoked(input: {
+  userId: string;
+  workspaceId: string;
+  organizationId: string;
+}): Promise<void> {
+  const client = getRestClient();
+  await client.channels
+    .get(makeUserCalendarControlChannelName(input.userId))
+    .publish(CALENDAR_ACCESS_REVOKED_EVENT_NAME, {
+      workspaceId: input.workspaceId,
+      organizationId: input.organizationId,
+      at: new Date().toISOString(),
+    });
 }
 
 /**
@@ -205,6 +257,7 @@ export async function publishJobStatusData({
 }
 
 export async function publishNotificationEvent({
+  messageId,
   userId,
   notification,
   push = false,
@@ -218,6 +271,7 @@ export async function publishNotificationEvent({
   );
   await channel.publish({
     name: "notification_created",
+    ...(messageId && { id: messageId }),
     data: notification,
     ...(push && {
       extras: { push: { data: toNotificationPushData(notification) } },

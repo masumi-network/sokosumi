@@ -5,18 +5,8 @@ import {
   invitationInclude,
 } from "../types/invitation.js";
 
-/**
- * Repository for managing invitation records in the database.
- * Provides methods for querying, accepting, and rejecting invitations.
- */
 export const invitationRepository = {
-  /**
-   * Retrieves a pending invitation by its ID, regardless of expiration.
-   *
-   * @param id - The invitation ID.
-   * @param tx - The Prisma transaction client to use.
-   * @returns Promise resolving to the invitation with relations, or null if not found.
-   */
+  /** Pending by id, regardless of expiration. */
   async getPendingInvitationById(
     id: string,
     tx: Prisma.TransactionClient,

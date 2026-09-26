@@ -54,9 +54,8 @@ vi.mock("./task-form", () => ({
   },
 }));
 
-const SCHEDULE = {
-  mode: "once" as const,
-  oneTimeLocalIso: "2030-01-02T09:00",
+const RUN_AT = {
+  localIso: "2030-01-02T09:00",
   timezone: "UTC",
 };
 
@@ -70,9 +69,7 @@ function CalendarSlotButton({
   return (
     <button
       type="button"
-      onClick={() =>
-        handleOpenWithDefaults({ ...defaults, schedule: SCHEDULE })
-      }
+      onClick={() => handleOpenWithDefaults({ ...defaults, runAt: RUN_AT })}
     >
       open
     </button>
@@ -82,6 +79,7 @@ function CalendarSlotButton({
 function getLatestTaskFormProps() {
   return taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
     agentNameById: Map<string, string>;
+    projectOptions?: { id: string; name: string }[];
   };
 }
 
@@ -113,6 +111,7 @@ describe("CreateTaskModal", () => {
     loadCreateTaskModalDataMock.mockResolvedValue({
       agentNameById: { "agent-1": "Agent One" },
       designMdAttachment: null,
+      projectOptions: [{ id: "project-1", name: "Sokosumi" }],
     });
   });
 
@@ -138,6 +137,15 @@ describe("CreateTaskModal", () => {
     await openFromCalendar({}, { initialProjectId: "project-1" });
 
     expect(getLatestProjectId()).toBe("project-1");
+  });
+
+  it("prefills the Run at from the clicked Calendar slot", async () => {
+    await openFromCalendar({ projectId: null });
+
+    const props = taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
+      initialValues: { runAt?: string | null };
+    };
+    expect(props.initialValues.runAt).toBe("2030-01-02T09:00:00.000Z");
   });
 
   it("keeps the Workspace default when a caller omits the project", async () => {
@@ -211,6 +219,20 @@ describe("CreateTaskModal", () => {
       ),
     );
     expect(loadCreateTaskModalDataMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("loads workspace projects when the caller omits projectOptions", async () => {
+    render(
+      <CreateTaskModalProvider initialOpen>
+        <CreateTaskModal coworkerOptions={[]} />
+      </CreateTaskModalProvider>,
+    );
+
+    await waitFor(() =>
+      expect(getLatestTaskFormProps().projectOptions).toEqual([
+        { id: "project-1", name: "Sokosumi" },
+      ]),
+    );
   });
 
   it("does not load create data when the caller owns it", async () => {

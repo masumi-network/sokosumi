@@ -26,7 +26,12 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 
 import { runSokoBotMentionDispatch } from "./chat-room-soko-bot-dispatch.service";
 
-function input() {
+function input(
+  message: { content: string; metadata: unknown } = {
+    content: "Please answer",
+    metadata: null,
+  },
+) {
   return {
     mentionId: "mention-a",
     mention: {
@@ -34,7 +39,7 @@ function input() {
         id: "source-a",
         roomId: "room-a",
         parentMessageId: null,
-        content: "Please answer",
+        ...message,
         senderUser: { id: "user-a", name: "Ada" },
         createdAt: new Date(),
         room: {
@@ -77,6 +82,25 @@ describe("Soko Bot mention dispatch", () => {
           mentionId: "mention-a",
           responseMessageId: "response-a",
         }),
+      }),
+    );
+  });
+  it("hands the bot the quoted message when the body is empty", async () => {
+    await runSokoBotMentionDispatch(
+      input({
+        content: "",
+        metadata: {
+          quote: {
+            messageId: "quoted-a",
+            authorName: "Alice",
+            snippet: "Launch risk is the vendor.",
+          },
+        },
+      }),
+    );
+    expect(startTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "> Alice: Launch risk is the vendor.",
       }),
     );
   });

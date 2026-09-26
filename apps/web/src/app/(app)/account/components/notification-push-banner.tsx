@@ -1,6 +1,11 @@
 "use client";
 
-import { AlertTriangle, type LucideIcon, Smartphone } from "lucide-react";
+import {
+  AlertTriangle,
+  type LucideIcon,
+  Share,
+  Smartphone,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
@@ -11,6 +16,7 @@ import type { PushBlock } from "./notification-delivery";
 /** What is wrong, in a line the reader can act on or dismiss in their head. */
 const TITLE_KEY: Record<PushBlock, string> = {
   unsupported: "pushBannerUnsupportedTitle",
+  installable: "pushBannerInstallableTitle",
   denied: "pushBannerDeniedTitle",
   unsubscribed: "pushBannerUnsubscribedTitle",
 };
@@ -26,8 +32,25 @@ const TITLE_KEY: Record<PushBlock, string> = {
  */
 const BODY_KEY: Record<PushBlock, string> = {
   unsupported: "pushBannerUnsupportedBody",
+  installable: "pushBannerInstallableBody",
   denied: "pushBannerDeniedBody",
   unsubscribed: "pushBannerUnsubscribedBody",
+};
+
+/**
+ * The mark over the words.
+ *
+ * Three of them are something gone wrong and take the warning's. The iPhone
+ * is not: its words are instructions, and its mark is the button the reader
+ * is being sent to tap. The tint stays a warning's on all four, because a
+ * push the rows asked for is not arriving on any of them, and that is what
+ * this page's warning tint means.
+ */
+const ICON: Record<PushBlock, LucideIcon> = {
+  unsupported: AlertTriangle,
+  installable: Share,
+  denied: AlertTriangle,
+  unsubscribed: AlertTriangle,
 };
 
 /** The press a notice offers, where it has one to offer. */
@@ -95,11 +118,22 @@ function BrowserNotice({
       <div className="flex flex-col gap-3 @xl:flex-row @xl:items-center">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           {/* The tint and the mark carry the warning; the words do not.
-              `--semantic-warning` is a 40% yellow, about 2.3:1 on its own
-              quinary tint in light mode, which is under what a paragraph
-              needs, and the warning half has a reason to explain under its
-              title. The account notices colour their text with it and get
-              away with one short line. */}
+
+              The reason recorded here used to be contrast: that
+              `--semantic-warning` was a 40% yellow measuring about 2.3:1 on
+              its own quinary tint, under what a paragraph needs. That stopped
+              being true when the ramp was corrected. It measured 4.84:1 before
+              the hue rotation and measures 5.85:1 now in light, 9.15:1 in
+              dark, so a paragraph in it would clear its floor.
+
+              The colour that does not clear it here is the muted grey; see
+              the note on the body paragraph below.
+
+              What holds instead is that the tint and the mark already say
+              "warning", so colouring the words as well spends one channel
+              three times, and this half has a reason to explain under its
+              title rather than the single short line the account notices get
+              away with. */}
           <Icon
             className={cn(
               "mt-0.5 size-4 shrink-0",
@@ -118,6 +152,22 @@ function BrowserNotice({
               {t(titleKey)}
             </p>
             {bodyKey ? (
+              // A known contrast miss, left alone deliberately.
+              //
+              // On the warning tint --muted-foreground measures 4.31:1, under
+              // the 4.5:1 SC 1.4.3 asks of text this size. It measured 4.37:1
+              // before the hue rotation in this change, so the miss predates
+              // the branch and the branch took 0.06 off it.
+              //
+              // Painting the warning half in the default foreground was tried
+              // and reverted. It measures 17.25:1, but the title above is the
+              // same size and the same colour and differs only by font-medium,
+              // so the two paragraphs read as one block and the reader loses
+              // the line that says what is wrong. Closing 0.19 of contrast is
+              // not worth the hierarchy.
+              //
+              // Whatever fixes this properly changes a colour, so it belongs
+              // in a change about colour rather than in this one.
               <p className="text-muted-foreground text-sm leading-5">
                 {t(bodyKey)}
               </p>
@@ -180,10 +230,11 @@ function BrowserNotice({
  * row under it. The cells stay exactly as the reader set them: they write the
  * account rather than this browser, so what is missing is this browser alone.
  *
- * Only one of the three can be fixed from here. A refusal has to be taken back
- * in the browser's own settings, since a site that has been refused cannot ask
- * again, and a browser without the feature has nothing to offer. Those two
- * explain themselves and take no press.
+ * Only one of the four takes a press. A refusal has to be taken back in the
+ * browser's own settings, since a site that has been refused cannot ask again;
+ * a browser without the feature has nothing to offer; and no API can put this
+ * app on a Home Screen, so the iPhone case names the taps and leaves them to
+ * the reader. Those three explain themselves and take no press.
  */
 export function PushBanner({
   block,
@@ -198,7 +249,7 @@ export function PushBanner({
   return (
     <BrowserNotice
       warning={true}
-      icon={AlertTriangle}
+      icon={ICON[block]}
       titleKey={TITLE_KEY[block]}
       bodyKey={BODY_KEY[block]}
       action={

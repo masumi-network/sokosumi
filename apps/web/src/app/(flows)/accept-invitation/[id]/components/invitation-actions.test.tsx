@@ -42,7 +42,7 @@ vi.mock("@/lib/activate-organization-workspace", () => ({
     activateOrganizationWorkspaceMock(...args),
 }));
 
-vi.mock("@/lib/actions/workspace-gate", () => ({
+vi.mock("@/lib/actions/workspace-gate/action", () => ({
   clearPendingOrganizationJoinCookieAction: (...args: unknown[]) =>
     clearPendingOrganizationJoinCookieActionMock(...args),
 }));

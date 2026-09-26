@@ -96,8 +96,12 @@ vi.mock("@/middleware/workspace", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", async () => ({
   default: {
+    member: {
+      findUnique: (await import("@/test-fixtures/organization-membership"))
+        .stubMemberFindUnique,
+    },
     job: {
       findFirst: jobFindFirstMock,
     },

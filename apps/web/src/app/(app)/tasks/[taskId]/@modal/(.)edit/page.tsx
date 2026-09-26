@@ -5,15 +5,18 @@ import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
-import { taskFormAssigneeId } from "@/app/tasks/utils/coworker-options";
+import {
+  taskFormAssigneeId,
+  withCurrentTaskAssigneeOption,
+} from "@/app/tasks/utils/coworker-options";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
-import { readTaskScheduleSeriesPrecondition } from "@/app/tasks/utils/task-schedule-precondition";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
 import type { Project } from "@/lib/clients/generated/core";
-import { agentService } from "@/lib/services";
+import { agentService } from "@/lib/services/agent.service";
+import { designMdService } from "@/lib/services/design-md.service";
 import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
@@ -64,29 +67,32 @@ export default async function TaskEditModalPage({
     );
   }
 
-  const [coworkerOptions, agents, projectsPage] = await Promise.all([
-    listTaskAssigneeOptions(targetOrganizationId),
-    agentService.getAvailableAgentsWithCreditsPrice(),
-    projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
-  ]);
+  const [coworkerOptions, agents, projectsPage, initialDesignMdAttachment] =
+    await Promise.all([
+      listTaskAssigneeOptions(targetOrganizationId),
+      agentService.getAvailableAgentsWithCreditsPrice(),
+      projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
+      session?.user?.id
+        ? designMdService.resolveEffectiveDesignMd()
+        : Promise.resolve(null),
+    ]);
   const projectOptions = await buildProjectOptions(
     projectsPage.projects,
     taskResult.projectId ?? null,
   );
   const agentNameById = buildAgentNameById(agents);
 
-  const [tEdit, tStatus, schedulePrecondition] = await Promise.all([
+  const [tEdit, tStatus, tTasks] = await Promise.all([
     getTranslations("App.Tasks.EditTask"),
     getTranslations("App.Tasks.Filters.statusOptions"),
-    readTaskScheduleSeriesPrecondition(taskResult),
+    getTranslations("App.Tasks"),
   ]);
 
   return (
     <TaskEditModal
       taskId={taskId}
       title={tEdit("title")}
-      scheduleRevision={schedulePrecondition.scheduleRevision}
-      futureExceptionCount={schedulePrecondition.futureExceptionCount}
+      initialDesignMdAttachment={initialDesignMdAttachment}
       labels={{
         details: tEdit("details"),
         detailsDescription: tEdit("detailsDescription"),
@@ -100,8 +106,10 @@ export default async function TaskEditModalPage({
         projectCreate: tEdit("projectCreate"),
         projectCreateNamed: tEdit.raw("projectCreateNamed") as string,
         coworker: tEdit("coworker"),
-        coworkerDescription: tEdit("coworkerDescription"),
         unassigned: tEdit("unassigned"),
+        unavailableAssignee: tEdit("unavailableAssignee"),
+        changeCoworker: tEdit("changeCoworker"),
+        noCoworkerMatches: tEdit("noCoworkerMatches"),
         status: tEdit("status"),
         statusDescription: tEdit("statusDescription"),
         statusDraft: tEdit("statusDraft"),
@@ -125,11 +133,18 @@ export default async function TaskEditModalPage({
         ),
         removeAttachment: tEdit("removeAttachment"),
         submit: tEdit("save"),
-        openSchedule: tEdit("openSchedule"),
+        openRunAt: tEdit("openRunAt"),
         cancel: tEdit("cancel"),
         ctrl: tEdit("ctrl"),
       }}
-      coworkerOptions={coworkerOptions}
+      coworkerOptions={withCurrentTaskAssigneeOption(
+        coworkerOptions,
+        taskResult.assignee,
+        {
+          fallbackName: tTasks("sokoBot"),
+          vendorName: tTasks("sokoBots"),
+        },
+      )}
       projectOptions={projectOptions}
       agentNameById={agentNameById}
       initialValues={{
@@ -141,8 +156,7 @@ export default async function TaskEditModalPage({
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,
         selectableStatuses: taskResult.selectableStatuses,
-        metadata: taskResult.metadata,
-        nextRunAt: taskResult.nextRunAt?.toISOString() ?? null,
+        runAt: taskResult.runAt?.toISOString() ?? null,
       }}
     />
   );

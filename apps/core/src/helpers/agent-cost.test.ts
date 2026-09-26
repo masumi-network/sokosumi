@@ -75,7 +75,7 @@ describe("calculateCentsFromMasumiAmountStrings", () => {
 
   it("rejects a MISSPELLED CAIP-19 unit — the fence covers the namespace", () => {
     // The exclusion fence must be broader than the canonical key pattern: a
-    // leading-zero chain id fails `isCaip19AssetKey`, but if it fell through
+    // leading-zero chain id fails that pattern, but if it fell through
     // to the smallest-unit lookup a whole-token-priced row in the same
     // spelling would be a 10^decimals mischarge. Anything in the eip155:
     // namespace is refused here, well-formed or not.

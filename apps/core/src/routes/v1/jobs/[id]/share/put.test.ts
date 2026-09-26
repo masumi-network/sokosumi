@@ -7,8 +7,8 @@ import mountPutJobShareById from "./put";
 
 const {
   authContextState,
-  prismaTransactionMock,
-  upsertForJobMock,
+  taskFindUniqueMock,
+  publicShareUpsertMock,
   requireJobShareCollaborationMock,
 } = vi.hoisted(() => ({
   authContextState: {
@@ -24,8 +24,8 @@ const {
       role: string;
     } | null,
   },
-  prismaTransactionMock: vi.fn(),
-  upsertForJobMock: vi.fn(),
+  taskFindUniqueMock: vi.fn(),
+  publicShareUpsertMock: vi.fn(),
   requireJobShareCollaborationMock: vi.fn(),
 }));
 
@@ -94,15 +94,18 @@ vi.mock("@/middleware/auth", () => ({
     authContext.actor === "coworker",
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  publicShareRepository: {
-    upsertForJob: (...args: unknown[]) => upsertForJobMock(...args),
-  },
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", async () => ({
   default: {
-    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    member: {
+      findUnique: (await import("@/test-fixtures/organization-membership"))
+        .stubMemberFindUnique,
+    },
+    task: {
+      findUnique: (...args: unknown[]) => taskFindUniqueMock(...args),
+    },
+    publicShare: {
+      upsert: (...args: unknown[]) => publicShareUpsertMock(...args),
+    },
   },
 }));
 
@@ -121,15 +124,12 @@ describe("PUT /jobs/{id}/share", () => {
       organizationId: "org_123",
       role: "user",
     };
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) => await callback({}),
-    );
     requireJobShareCollaborationMock.mockResolvedValue({
       id: "job_123",
       userId: "user_123",
       taskId: null,
     });
-    upsertForJobMock.mockResolvedValue({
+    publicShareUpsertMock.mockResolvedValue({
       id: "share_123",
       jobId: "job_123",
       token: "public-share-token",
@@ -145,13 +145,7 @@ describe("PUT /jobs/{id}/share", () => {
       userId: "user_123",
       taskId: "tsk_123",
     });
-    const findUniqueMock = vi.fn().mockResolvedValue({ visibility: "PUBLIC" });
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) =>
-        await callback({
-          task: { findUnique: findUniqueMock },
-        }),
-    );
+    taskFindUniqueMock.mockResolvedValue({ visibility: "PUBLIC" });
     const app = createApp();
 
     const response = await app.request("http://localhost/job_123/share", {
@@ -165,14 +159,15 @@ describe("PUT /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(findUniqueMock).toHaveBeenCalledWith({
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "tsk_123" },
       select: { visibility: true },
     });
-    expect(upsertForJobMock).toHaveBeenCalledWith(
-      "job_123",
-      true,
-      expect.any(Object),
+    expect(publicShareUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { jobId: "job_123" },
+        update: { allowSearchIndexing: true },
+      }),
     );
   });
 
@@ -182,14 +177,7 @@ describe("PUT /jobs/{id}/share", () => {
       userId: "user_123",
       taskId: "tsk_123",
     });
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) =>
-        await callback({
-          task: {
-            findUnique: vi.fn().mockResolvedValue({ visibility: "PRIVATE" }),
-          },
-        }),
-    );
+    taskFindUniqueMock.mockResolvedValue({ visibility: "PRIVATE" });
     const app = createApp();
 
     const response = await app.request("http://localhost/job_123/share", {
@@ -203,7 +191,7 @@ describe("PUT /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(upsertForJobMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 
   it("creates a share for an owned job", async () => {
@@ -221,10 +209,11 @@ describe("PUT /jobs/{id}/share", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(upsertForJobMock).toHaveBeenCalledWith(
-      "job_123",
-      true,
-      expect.any(Object),
+    expect(publicShareUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { jobId: "job_123" },
+        update: { allowSearchIndexing: true },
+      }),
     );
     expect(body.data).toMatchObject({
       id: "share_123",
@@ -249,7 +238,7 @@ describe("PUT /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(401);
-    expect(upsertForJobMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 
   it("creates a share for another member's job in the same workspace", async () => {
@@ -271,10 +260,11 @@ describe("PUT /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(upsertForJobMock).toHaveBeenCalledWith(
-      "job_123",
-      true,
-      expect.any(Object),
+    expect(publicShareUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { jobId: "job_123" },
+        update: { allowSearchIndexing: true },
+      }),
     );
   });
 
@@ -295,7 +285,7 @@ describe("PUT /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(upsertForJobMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the job is not reachable (no existence leak)", async () => {
@@ -315,6 +305,6 @@ describe("PUT /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(upsertForJobMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 });

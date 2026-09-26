@@ -98,6 +98,21 @@ describe("resolveTaskName", () => {
     );
   });
 
+  it("falls back when generation throws trailing bytes", async () => {
+    generateTaskNameMock.mockRejectedValue(new Error("479 trailing bytes"));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      expect(await resolveTaskName({ description: "First line\nsecond" })).toBe(
+        "First line",
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("cleans a heading first line when generation is missing", async () => {
     generateTaskNameMock.mockResolvedValue(null);
     expect(
@@ -150,6 +165,16 @@ describe("resolveTaskName", () => {
 
   it("rejects Unable to generated text and uses fallback", async () => {
     generateTaskNameMock.mockResolvedValue("Unable to summarize this brief");
+    expect(
+      await resolveTaskName({ description: "Write the pricing one-pager" }),
+    ).toBe("Write the pricing one-pager");
+  });
+
+  it.each([
+    "I can't name this without more detail",
+    "I’m sorry, the description is empty",
+  ])("rejects the refusal %j and uses fallback", async (refusal) => {
+    generateTaskNameMock.mockResolvedValue(refusal);
     expect(
       await resolveTaskName({ description: "Write the pricing one-pager" }),
     ).toBe("Write the pricing one-pager");

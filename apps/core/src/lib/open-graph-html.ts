@@ -126,6 +126,37 @@ export function parseOpenGraphFields(html: string): OpenGraphFields {
   };
 }
 
+/**
+ * Tweet body from an X oEmbed `html` blockquote: the first `<p>` with
+ * `<br>` as line breaks, other tags stripped, entities decoded. No I/O.
+ */
+export function tweetTextFromOembedHtml(html: string): string | null {
+  const paragraph = html.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i)?.[1];
+  if (paragraph === undefined) {
+    return null;
+  }
+  const text = decodeEntities(
+    stripTags(paragraph.replace(/<br\s*\/?>/gi, "\n")),
+  ).trim();
+  return text.length > 0 ? text : null;
+}
+
+/** Drop everything from a `<` to the next `>`; a `<` inside a tag stays in it. */
+function stripTags(html: string): string {
+  let out = "";
+  let inTag = false;
+  for (const char of html) {
+    if (char === "<") {
+      inTag = true;
+    } else if (char === ">") {
+      inTag = false;
+    } else if (!inTag) {
+      out += char;
+    }
+  }
+  return out;
+}
+
 function resolveHttpUrl(candidate: string, baseUrl: string): string | null {
   try {
     const resolved = new URL(candidate, baseUrl);

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronRight, Loader2, Wrench } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import type { OrbState } from "thinking-orbs";
@@ -137,49 +137,6 @@ export function TurnProgress({
           </span>
         ) : null}
       </div>
-    </div>
-  );
-}
-
-/** Collapsible list of the tool steps a finished turn went through. */
-export function CompletedSteps({ steps }: { steps: ProgressChip[] }) {
-  const t = useTranslations("App.SokoBot.Chat");
-  const toolLabel = useToolLabel();
-  const [open, setOpen] = useState(false);
-  if (steps.length === 0) return null;
-  return (
-    <div className="pr-10">
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        className="text-muted-foreground hover:text-foreground focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded text-xs font-medium transition-colors outline-none focus-visible:ring-2"
-      >
-        <Wrench aria-hidden className="size-3" />
-        {t("toolSteps", { count: steps.length })}
-        <ChevronRight
-          aria-hidden
-          className={cn("size-3 transition-transform", open && "rotate-90")}
-        />
-      </button>
-      {open ? (
-        <div className="border-border mt-1.5 flex flex-col gap-1.5 border-l pl-3">
-          {steps.map((step) => (
-            <div
-              key={step.id}
-              className="text-muted-foreground flex items-start gap-1.5 text-xs"
-            >
-              <Check
-                aria-hidden
-                className="text-primary mt-0.5 size-3 shrink-0"
-              />
-              <span className="text-foreground font-medium">
-                {toolLabel(step.toolName)}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

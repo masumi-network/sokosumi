@@ -11,10 +11,10 @@ export function ConnectionsPageSkeleton(): React.ReactElement {
         <div className="space-y-6">
           <div
             data-testid="connections-loading-social"
-            className="flex flex-col divide-y rounded-xl border p-2"
+            className="flex flex-col divide-y rounded-xl border py-2"
           >
             {Array.from({ length: 2 }, (_, index) => (
-              <div key={index} className="flex items-center gap-2 px-2 py-4">
+              <div key={index} className="flex items-center gap-2 px-4 py-4">
                 <Skeleton className="size-6 shrink-0 rounded-full" />
                 <Skeleton className="h-4 flex-1 max-w-40" />
                 <Skeleton className="size-9 shrink-0 rounded-md" />

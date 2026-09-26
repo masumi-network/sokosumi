@@ -73,10 +73,12 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/organization-seat.service", () => ({
   organizationSeatService: {
     getSeatSummary: (...args: unknown[]) => getSeatSummaryMock(...args),
   },
+}));
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getActiveOrganization: (...args: unknown[]) =>
       getActiveOrganizationMock(...args),

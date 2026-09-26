@@ -10,6 +10,12 @@ export type OrganizationSummaryFields = {
   slug: string;
 };
 
+export type ProjectSummaryFields = {
+  id: string;
+  name: string;
+  logo: string | null;
+};
+
 export type CoworkerSummaryFields = {
   id: string;
   name: string;
@@ -62,6 +68,28 @@ export function organizationSummaryFromLoadedRelation(
     id: organization.id,
     name: organization.name,
     slug: organization.slug,
+  };
+}
+
+export function projectSummaryFromLoadedRelation(
+  context: string,
+  projectId: string | null,
+  project: ProjectSummaryFields | null,
+): ProjectSummaryFields | null {
+  if (projectId == null) {
+    return null;
+  }
+
+  if (project == null) {
+    throw new Error(
+      `${context}: project relation must be loaded for API mapping (projectId=${projectId}).`,
+    );
+  }
+
+  return {
+    id: project.id,
+    name: project.name,
+    logo: project.logo,
   };
 }
 

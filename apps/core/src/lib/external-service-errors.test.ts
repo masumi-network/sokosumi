@@ -8,6 +8,7 @@ import {
   isTransientUpstreamHttpError,
   shouldSuppressSentryForExternalError,
 } from "@/lib/external-service-errors";
+import { REDACTED_SECRET } from "@/lib/secret-redaction";
 
 const { captureExceptionMock, setExtrasMock, withScopeMock } = vi.hoisted(
   () => {
@@ -25,6 +26,14 @@ vi.mock("@sentry/node", () => ({
     captureExceptionMock(error, hint),
   withScope: (callback: (scope: unknown) => void) => withScopeMock(callback),
 }));
+
+/**
+ * Set before any test body runs, because `getEnvSecrets` scans `process.env`
+ * once and caches the result. A variable assigned inside a test would arrive
+ * after the first suppressed-error log had already populated that cache.
+ */
+const ENV_SECRET = "sok1011-test-secret-value";
+process.env.SOK_1011_TEST_API_KEY = ENV_SECRET;
 
 describe("isTransientFetchError", () => {
   it("treats fetch timeouts as transient", () => {
@@ -295,6 +304,44 @@ describe("captureExternalServiceError", () => {
     expect(captureExceptionMock).toHaveBeenCalledWith(error, {
       tags: { context: "reset_password_email" },
     });
+  });
+
+  it("masks an env secret echoed back inside the error message", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    // A gateway answering for an upstream can echo the request headers into
+    // its error body. Sentry has `beforeSend`; stdout has only this.
+    const error = new Error(`socket hang up (token: ${ENV_SECRET})`);
+
+    try {
+      captureExternalServiceError(error, { label: "job-final-status" });
+
+      expect(warnSpy).toHaveBeenCalledOnce();
+      const payload = warnSpy.mock.calls[0]?.[1] as { error: string };
+      expect(payload.error).not.toContain(ENV_SECRET);
+      expect(payload.error).toContain(REDACTED_SECRET);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("masks an env secret carried in extra", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      captureExternalServiceError(new Error("socket hang up"), {
+        label: "job-final-status",
+        extra: { upstreamMessage: `401 for key ${ENV_SECRET}` },
+      });
+
+      expect(warnSpy).toHaveBeenCalledOnce();
+      const payload = warnSpy.mock.calls[0]?.[1] as {
+        upstreamMessage: string;
+      };
+      expect(payload.upstreamMessage).not.toContain(ENV_SECRET);
+      expect(payload.upstreamMessage).toContain(REDACTED_SECRET);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("uses top-level extra for suppressed log context", () => {

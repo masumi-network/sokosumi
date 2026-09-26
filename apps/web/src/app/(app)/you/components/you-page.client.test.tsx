@@ -56,7 +56,6 @@ function renderYouPage(
   return render(
     <YouPageClient
       sessionUser={sessionUser}
-      calendarMenuEnabled={false}
       planName="Pro"
       totalCredits={15_750}
       extraCredits={15_750}
@@ -123,25 +122,27 @@ describe("YouPageClient", () => {
     expect(pushMock).toHaveBeenCalledWith("/billing?tab=credits");
   });
 
-  it("groups Schedules and Files in the first nav section", () => {
-    renderYouPage({ calendarMenuEnabled: true });
+  it("groups Calendar and Files in the first nav section", () => {
+    renderYouPage();
 
-    const schedules = screen.getByTestId("you-schedules");
+    const calendar = screen.getByTestId("you-calendar");
     const files = screen.getByTestId("you-files");
 
-    expect(schedules).toHaveAttribute("href", "/calendar");
+    expect(calendar).toHaveAttribute("href", "/calendar");
     expect(files).toHaveAttribute("href", "/drive");
     expect(
-      schedules.compareDocumentPosition(files) &
+      calendar.compareDocumentPosition(files) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 
-  it("hides Schedules when calendar menu is disabled", () => {
-    renderYouPage({ calendarMenuEnabled: false });
+  it("lists Schedules", () => {
+    renderYouPage();
 
-    expect(screen.queryByTestId("you-schedules")).toBeNull();
-    expect(screen.getByTestId("you-files")).toHaveAttribute("href", "/drive");
+    expect(screen.getByTestId("you-schedules")).toHaveAttribute(
+      "href",
+      "/schedules",
+    );
   });
 
   it("shows Admin alone before account links when admin is enabled", () => {

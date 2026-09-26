@@ -61,6 +61,7 @@ vi.mock("@/helpers/chat-room-message-realtime.js", () => ({
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishChatMembershipRevoked: (...args: unknown[]) =>
     publishChatMembershipRevokedMock(...args),
 }));

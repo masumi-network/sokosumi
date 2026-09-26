@@ -35,7 +35,8 @@ const CREATE_PROJECT_VALUE = "__create_project__";
 interface TasksProjectSwitcherProps {
   projectOptions: ProjectFilterOption[];
   selectedProjectId: string | null;
-  onProjectCreated: (project: ProjectFilterOption) => void;
+  /** Lets a view list the new project before the server refresh brings it. */
+  onProjectCreated?: (project: ProjectFilterOption) => void;
 }
 
 export function TasksProjectSwitcher({
@@ -95,7 +96,7 @@ export function TasksProjectSwitcher({
     name: string;
     project?: Project;
   }) {
-    onProjectCreated({
+    onProjectCreated?.({
       id: result.projectId,
       name: result.project?.name ?? result.name,
       logo: result.project?.logo ?? null,
@@ -136,7 +137,7 @@ export function TasksProjectSwitcher({
               <Folder className="size-4 shrink-0" aria-hidden />
             )}
             <span
-              className="min-w-0 flex-1 truncate"
+              className="hidden min-w-0 flex-1 truncate md:block"
               title={selectedProject?.name ?? t("allProjects")}
             >
               {selectedProject?.name ?? t("allProjects")}

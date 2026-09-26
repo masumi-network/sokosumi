@@ -7,7 +7,10 @@ import Foundation
 @MainActor
 public final class ConversationSidebar: ObservableObject {
   public enum Section: String, CaseIterable, Sendable {
-    case channels, external, directs
+    case pinned, channels, external, archived, directs
+
+    /// Web opens every section except Archived.
+    static let initiallyCollapsed: Set<Section> = [.archived]
   }
 
   public enum Action: Sendable {
@@ -31,22 +34,96 @@ public final class ConversationSidebar: ObservableObject {
 
   @Published private var pendingActions: [String: PendingAction] = [:]
   @Published public private(set) var actionError: String?
-  @Published public var rooms: [Components.Schemas.ChatRoom] = []
+  @Published public var rooms: [Components.Schemas.ChatRoom] = [] {
+    didSet { endPinnedReorderModeIfUnavailable() }
+  }
+
+  /// The reader asked to reorder Pinned. Ends with the change that makes reordering unavailable, so it
+  /// cannot come back by itself the next time a second room is pinned.
+  @Published public private(set) var pinnedReorderMode = false
   @Published public var selectedRoomId: String?
+  /// The chat-level Threads view stands in the detail column in place of the selected room (row 24f1, web
+  /// `/chat/threads`). The selected room stays selected behind it, off screen, and is read again on return.
+  @Published public var showsThreadsView = false
   @Published public var isLoading = false
   @Published public private(set) var errorMessage: String?
-  @Published public private(set) var collapsedSections: Set<Section> = []
+  @Published public private(set) var collapsedSections = Section.initiallyCollapsed
+  /// The Unreads filter (row 24f2, web's `useChatUnreadsFilter`): remembered per install, never flipped by itself.
+  @Published public private(set) var unreadsFilterOn: Bool
+  /// The filter's pass so far; empty while it is off and after a workspace change (web remounts its list).
+  @Published public private(set) var unreadsFilterPass = UnreadsFilterPass()
+  /// Mark all as read is running; its control waits for it.
+  @Published public private(set) var isMarkingAllUnreadRead = false
   public let readAttention = RoomReadAttention()
   private let savedRoom: SavedRoomSelection
+  private let unreadsFilterPreference: UnreadsFilterPreference
+  private var markAllRequest = 0
   private var generation = 0
   private var refreshInFlight = false
+  private var reorderRequest = 0
+  /// Sort keys of the newest reorder Core has not answered yet; a list read meanwhile keeps them.
+  private var pendingPinnedOrder: [String: Date] = [:]
 
-  public init(savedRoom: SavedRoomSelection = SavedRoomSelection()) {
+  public init(savedRoom: SavedRoomSelection = SavedRoomSelection(), unreadsFilter: UnreadsFilterPreference = .transient) {
     self.savedRoom = savedRoom
+    unreadsFilterPreference = unreadsFilter
+    unreadsFilterOn = unreadsFilter.isOn
   }
 
   public var partitioned: PartitionedSidebarRooms {
     partitionRoomsForSidebar(readAttention.applying(to: rooms))
+  }
+
+  /// Web's toggle: switching off ends the pass, so switching on again starts a new one.
+  public func setUnreadsFilter(_ isOn: Bool) {
+    unreadsFilterOn = isOn
+    unreadsFilterPreference.isOn = isOn
+    if !isOn {
+      unreadsFilterPass = UnreadsFilterPass()
+    }
+    endPinnedReorderModeIfUnavailable()
+  }
+
+  /// What the filter lists, or nil while it is off. `activeRoomId` is the room on screen (web's highlight).
+  public func unreadsFilter(activeRoomId: String?, hasPendingInvitation: Bool) -> UnreadsFilterList? {
+    guard unreadsFilterOn else { return nil }
+    return unreadsFilterList(
+      rooms: readAttention.applying(to: rooms), pass: unreadsFilterPass, activeRoomId: activeRoomId, hasPendingInvitation: hasPendingInvitation
+    )
+  }
+
+  /// Keeps the pass the last list was drawn from (web's `setFilterPass` during render), so a room read after it
+  /// arrived keeps its place. Views hop here; a pass drawn before the filter went off is dropped.
+  public func keepUnreadsFilterPass(_ pass: UnreadsFilterPass) {
+    guard unreadsFilterOn, pass != unreadsFilterPass else { return }
+    unreadsFilterPass = pass
+  }
+
+  /// Web's Mark all as read: every room's reads as `roomUnreadReads` says. A failure says "Could not mark
+  /// everything as read." once every read has settled. Returns whether it ran.
+  @discardableResult
+  public func markAllUnreadRead(client: Client, organizationSlug: String?) async throws -> Bool {
+    let current = readAttention.applying(to: rooms)
+    let targets = unreadsMarkAllTargets(current)
+    guard !isMarkingAllUnreadRead, !targets.isEmpty else { return false }
+    markAllRequest += 1
+    let request = markAllRequest
+    isMarkingAllUnreadRead = true
+    actionError = nil
+    defer {
+      if request == markAllRequest {
+        isMarkingAllUnreadRead = false
+      }
+    }
+    do {
+      try await readAttention.markAllUnreadRead(targets, rooms: current, client: client, organizationSlug: organizationSlug)
+    } catch {
+      // Another workspace owns the sidebar now.
+      guard request == markAllRequest, !Task.isCancelled else { return true }
+      actionError = "Could not mark everything as read."
+      throw error
+    }
+    return true
   }
 
   public func setExpanded(_ expanded: Bool, section: Section) {
@@ -55,6 +132,23 @@ public final class ConversationSidebar: ObservableObject {
     } else {
       collapsedSections.insert(section)
     }
+    endPinnedReorderModeIfUnavailable()
+  }
+
+  /// Web's `canReorderPinned`: the section is open and holds at least two rooms, and the Unreads filter, whose
+  /// Pinned group is fixed, is off.
+  public var canReorderPinned: Bool {
+    !unreadsFilterOn && !collapsedSections.contains(.pinned) && rooms.count { $0.starredAt != nil } > 1
+  }
+
+  public func setPinnedReorderMode(_ enabled: Bool) {
+    pinnedReorderMode = enabled && canReorderPinned
+  }
+
+  private func endPinnedReorderModeIfUnavailable() {
+    if pinnedReorderMode, !canReorderPinned {
+      pinnedReorderMode = false
+    }
   }
 
   public func reset() {
@@ -62,12 +156,13 @@ public final class ConversationSidebar: ObservableObject {
     readAttention.reset()
     rooms = []
     selectedRoomId = nil
-    collapsedSections = []
+    showsThreadsView = false
+    collapsedSections = Section.initiallyCollapsed
   }
 
   /// Workspace reset rolls back optimistic pin/mute so a stale HTTP
   /// completion cannot commit on a later workspace.
-  public func invalidateRequests() {
+  private func invalidateRequests() {
     for (id, pending) in pendingActions {
       patchDate(roomId: id, action: pending.action, date: pending.previousDate)
     }
@@ -85,6 +180,13 @@ public final class ConversationSidebar: ObservableObject {
 
   /// Successful workspace switch: drop tokens so completions cannot patch the new list.
   public func dropPendingActions() {
+    reorderRequest += 1
+    pendingPinnedOrder = [:]
+    pinnedReorderMode = false
+    // Web keys its list by workspace, so a pass ends with it; the filter itself is the reader's.
+    unreadsFilterPass = UnreadsFilterPass()
+    markAllRequest += 1
+    isMarkingAllUnreadRead = false
     pendingActions = [:]
     actionError = nil
   }
@@ -107,7 +209,7 @@ public final class ConversationSidebar: ObservableObject {
     let saved = savedRoom.load(userId: userId, organizationId: organizationId)
       .flatMap { id in rooms.contains { $0.id == id } ? id : nil }
     let sections = partitioned
-    return current ?? saved ?? (sections.channels + sections.external + sections.directMessages).first?.id
+    return current ?? saved ?? (sections.pinned + sections.channels + sections.external + sections.directMessages).first?.id
   }
 
   /// Refresh commits a complete list. Failed or stale pages never replace
@@ -134,6 +236,10 @@ public final class ConversationSidebar: ObservableObject {
         var room = room
         if let pending = pendingActions[room.id], let field = pending.action.dateField {
           room[keyPath: field] = pending.optimisticDate
+        }
+        // A room unpinned meanwhile stays unpinned.
+        if room.starredAt != nil, let starredAt = pendingPinnedOrder[room.id] {
+          room.starredAt = starredAt
         }
         return room
       }
@@ -164,11 +270,14 @@ public final class ConversationSidebar: ObservableObject {
     }
   }
 
-  public func perform(_ action: Action, roomId: String, client: Client, organizationSlug: String?) async throws {
+  public func perform(
+    _ action: Action, roomId: String, client: Client, organizationSlug: String?,
+    now: Date = Date(), makeId: () -> UUID = UUID.init
+  ) async throws {
     guard canPerform(action, roomId: roomId), let room = rooms.first(where: { $0.id == roomId }) else { return }
-    let token = UUID()
+    let token = makeId()
     let previousDate = action.dateField.flatMap { room[keyPath: $0] }
-    let optimisticDate: Date? = action == .pin || action == .mute ? Date() : nil
+    let optimisticDate: Date? = action == .pin || action == .mute ? now : nil
     pendingActions[roomId] = PendingAction(token: token, action: action, previousDate: previousDate, optimisticDate: optimisticDate)
     actionError = nil
     patchDate(roomId: roomId, action: action, date: optimisticDate)
@@ -193,6 +302,52 @@ public final class ConversationSidebar: ObservableObject {
       }
       throw error
     }
+  }
+
+  /// Web's `handleReorderPinned`: the order shows at once, the latest reorder wins, and a failure of the
+  /// latest one throws so the coordinator reloads the list, because an earlier overlapping reorder may
+  /// have landed and no local snapshot is safe to put back.
+  public func reorderPinned(
+    _ roomIds: [String], client: Client, organizationSlug: String?, now: Date = Date()
+  ) async throws {
+    reorderRequest += 1
+    let request = reorderRequest
+    // Local sort keys, one millisecond apart and all in the past like Core's, so a room pinned right
+    // after still lands at the end.
+    let base = now.addingTimeInterval(-Double(roomIds.count) / 1000)
+    pendingPinnedOrder = Dictionary(
+      roomIds.enumerated().map { ($1, base.addingTimeInterval(Double($0) / 1000)) }, uniquingKeysWith: { first, _ in first }
+    )
+    actionError = nil
+    // A list read already in flight predates this order.
+    invalidateListResponse()
+    applyPinnedOrder(pendingPinnedOrder)
+    do {
+      let order = try await ChatService().reorderPinnedRooms(client: client, roomIds: roomIds, organizationSlug: organizationSlug)
+      // A newer reorder, or another workspace, owns the list now.
+      guard request == reorderRequest else { return }
+      pendingPinnedOrder = [:]
+      // A list requested before Core answered may still carry the old order.
+      invalidateListResponse()
+      applyPinnedOrder(Dictionary(order.map { ($0.roomId, $0.starredAt) }, uniquingKeysWith: { first, _ in first }))
+    } catch {
+      guard request == reorderRequest else { return }
+      pendingPinnedOrder = [:]
+      guard !Task.isCancelled else { return }
+      actionError = friendlyMessage(for: error)
+      throw error
+    }
+  }
+
+  /// Pin and unpin own their room's `starredAt` while they run.
+  private func applyPinnedOrder(_ starredAtByRoomId: [String: Date]) {
+    var next = rooms
+    for index in next.indices where next[index].starredAt != nil && pendingActions[next[index].id] == nil {
+      if let starredAt = starredAtByRoomId[next[index].id] {
+        next[index].starredAt = starredAt
+      }
+    }
+    rooms = next
   }
 
   private func performRequest(

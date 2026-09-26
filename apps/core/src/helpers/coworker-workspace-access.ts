@@ -6,11 +6,12 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-
+import {
+  CORE_API_ERROR_KINDS,
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+} from "@sokosumi/utils";
 import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import { badRequest, notFound } from "@/helpers/error";
-import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/helpers/notification-feed";
 import {
   createNotification,
   deletePendingCoworkerAccessNotifications,
@@ -587,6 +588,7 @@ export async function notifyWorkspaceApproversOfPendingCoworkerAccess(
         referenceId: params.accessId,
         eventId: params.accessId,
         messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+        workspaceId: params.workspaceId,
         messageParams: {
           coworkerName: coworker?.name ?? params.coworkerId,
           coworkerSlug: coworker?.slug ?? null,

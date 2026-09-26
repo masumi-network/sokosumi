@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 /** Sync shell only — no cookies/`connection()` (Instant Nav). */
 export default function DriveLoading() {
   return (
-    <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+    <div className={cn("w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <DriveListSkeleton />
     </div>
   );

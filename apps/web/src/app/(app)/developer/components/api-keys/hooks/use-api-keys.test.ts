@@ -147,8 +147,8 @@ describe("useApiKeys", () => {
     });
 
     expect(createResult).toEqual({
-      success: true,
-      data: {
+      ok: true,
+      value: {
         key: "fresh-secret",
       },
     });

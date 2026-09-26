@@ -19,7 +19,8 @@ import {
   getShortAgentAuthorName,
 } from "@/lib/helpers/agent";
 import type { AgentRatingStats } from "@/lib/types/core-dto";
-import { cn, generateGradientBorder } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { generateGradientBorder } from "@/lib/utils/gradient";
 import { getCategoryColor } from "@/lib/utils/theme";
 
 import { AgentDetailLink } from "./agent-detail-link";
@@ -33,9 +34,9 @@ const agentCardVariants = cva(
   {
     variants: {
       size: {
-        xs: "hover:bg-card-background w-64 flex-row items-center gap-2.5 transition-colors",
-        sm: "hover:bg-card-background w-80 flex-row items-center gap-4 transition-colors",
-        md: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-start gap-6 md:hover:bg-card-background md:w-80 md:gap-2 md:transition-colors",
+        xs: "hover:bg-card-background-hover w-64 flex-row items-center gap-2.5 transition-colors",
+        sm: "hover:bg-card-background-hover w-80 flex-row items-center gap-4 transition-colors",
+        md: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-start gap-6 md:hover:bg-card-background-hover md:w-80 md:gap-2 md:transition-colors",
         lg: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-start gap-6 md:flex-row md:gap-2",
       },
     },
@@ -184,7 +185,10 @@ function AgentCard({
   const borderStyle =
     isClient && gradientBorder
       ? {
-          border: "0.2px solid transparent",
+          // Whole pixels. 0.2px is a fifth of a device pixel even on a 2x
+          // display, so the browser rounds it to nothing or to a hairline
+          // depending on position. 1px is what it was already trying to be.
+          border: "1px solid transparent",
           borderRadius: "0.65rem",
           backgroundImage: `linear-gradient(var(--card-background), var(--card-background)), ${gradientBorder}`,
           backgroundOrigin: "border-box",

@@ -1,12 +1,16 @@
 # ADR 0002: TUI-first CLI slice boundaries
 
-- Status: Accepted
+- Status: Sequencing superseded on 2026-09-18 by ADR 0004; separate-change boundaries retained
 - Date: 2026-09-15
 
 [VERIFIED] Linear SOK-1069 is the next implementation issue under SOK-909. Its scope excludes Coworker onboarding, Core API/data-contract changes, runtime adapters, and chat. SOK-966, SOK-967, and SOK-950 remain later CLI/Core work.
 
 [DECISION, user-approved 2026-09-15] Finish SOK-1069/T27 before adding workspace connection, runtime adapter, Agent-developer, or Agent-to-Coworker promotion behavior. Later work must land as separate small vertical PRs.
 Later workspace connection, runtime adapter, Agent-developer, and Agent-to-Coworker designs remain open and are not decided here.
+
+## Correction on 2026-09-18
+
+[REPORTED: user decision] TUI changes are paused. Completing T27 is no longer a prerequisite for Coworker integration. The earlier sequencing decision above is retained as history, not current execution guidance. [ADR 0004](0004-coworker-capabilities-and-graduation.md) records optional capabilities, runtime lifetimes, and paid graduation. TUI and Core changes still require separate reviewable implementation slices.
 
 ## Consequences
 

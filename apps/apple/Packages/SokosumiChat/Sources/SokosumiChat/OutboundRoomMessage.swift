@@ -3,7 +3,7 @@ import Foundation
 import OpenAPIRuntime
 
 /// Local-only row id: `pending:{clientTurnId}`. Never a server message id.
-public let outboundLocalIdPrefix = "pending:"
+let outboundLocalIdPrefix = "pending:"
 
 /// Sender-local outbound delivery status on a pending shell (ADR 0004).
 public enum OutboundDeliveryStatus: String, Equatable, Sendable {
@@ -51,7 +51,7 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
   }
 }
 
-public func outboundLocalMessageId(_ clientTurnId: String) -> String {
+func outboundLocalMessageId(_ clientTurnId: String) -> String {
   outboundLocalIdPrefix + clientTurnId
 }
 
@@ -59,11 +59,33 @@ public func isOutboundLocalMessage(_ message: Components.Schemas.ChatRoomMessage
   message.id.hasPrefix(outboundLocalIdPrefix)
 }
 
+/// Stored replies in a thread column. A pending shell or stream overlay is not one: Core 404s a mute
+/// read until a reply is stored, and swapping the shell for that row does not change the displayed count.
+public func liveThreadReplyCount(_ messages: [Components.Schemas.ChatRoomMessage]) -> Int {
+  messages.count(where: { message in
+    message.parentMessageId != nil && !isOutboundLocalMessage(message) && !message.id.hasPrefix("stream:")
+  })
+}
+
+/// A persisted row stays in a transcript only with a visible body, a quote, as a
+/// room status row, or as a coworker mention shell. Core blanks all of these on delete,
+/// so a deleted message leaves the room transcript and thread replies, and so
+/// does a bodiless Soko Bot shell. State keeps the row; only display drops it,
+/// so realtime patches and reply counts keep addressing it. A thread root is
+/// not filtered and keeps its "This message was deleted" tombstone.
+public func shouldKeepPersistedMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+  isRoomStatusMessage(message)
+    || !message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    || message.quote != nil
+    || CoworkerMentionShell(message: message) != nil
+}
+
+/// Persisted rows the transcript shows (`shouldKeepPersistedMessage`), then the local outbound shells.
 public func displayedTranscript(
   messages: [Components.Schemas.ChatRoomMessage],
   shells: [OutboundShell]
 ) -> [Components.Schemas.ChatRoomMessage] {
-  messages + shells.map(chatRoomMessage(from:))
+  messages.filter(shouldKeepPersistedMessage) + shells.map(chatRoomMessage(from:))
 }
 
 public func chatRoomMessage(from shell: OutboundShell) -> Components.Schemas.ChatRoomMessage {
@@ -112,7 +134,7 @@ public func confirmOutbound(
   return (next, remaining)
 }
 
-public func failOutbound(
+func failOutbound(
   shells: [OutboundShell],
   clientTurnId: String,
   errorMessage: String?
@@ -126,7 +148,7 @@ public func failOutbound(
   }
 }
 
-public func markOutboundPending(
+func markOutboundPending(
   shells: [OutboundShell],
   clientTurnId: String
 ) -> [OutboundShell] {

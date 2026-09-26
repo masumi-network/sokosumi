@@ -7,7 +7,6 @@ import {
   TaskStatus,
   TaskX402PaymentStatus,
 } from "@sokosumi/database";
-import type { createPrismaClient } from "@sokosumi/database/client";
 import { ACTIVE_SUBSCRIPTION_STATUSES } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 import {
@@ -16,14 +15,13 @@ import {
 } from "@sokosumi/database/types/job";
 import { APIError } from "better-auth/api";
 
-import { SWEEPABLE_X402_STATUSES } from "@/helpers/user-deletion-tasks";
+import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
 import { isLastWorkspace } from "@/helpers/workspace-access";
-
-type PrismaClient = ReturnType<typeof createPrismaClient>;
 
 export const USER_DELETION_BLOCKER_CODES = [
   "RUNNING_SUBSCRIPTION",
   "USER_OWNS_ORGANIZATION",
+  "USER_IS_LAST_VENDOR_ADMIN",
   "IN_FLIGHT_JOB",
   "UNSETTLED_ON_CHAIN_JOB",
   "IN_FLIGHT_TASK",
@@ -69,10 +67,12 @@ export interface OrganizationDeletionEvaluation {
 const RUNNING_SUBSCRIPTION_MESSAGE =
   "Cancel your running subscription and wait until the paid period ends before deleting.";
 
-const USER_DELETION_MESSAGES: Record<UserDeletionBlocker, string> = {
+export const USER_DELETION_MESSAGES: Record<UserDeletionBlocker, string> = {
   RUNNING_SUBSCRIPTION: RUNNING_SUBSCRIPTION_MESSAGE,
   USER_OWNS_ORGANIZATION:
     "Transfer ownership or delete every organization you own before deleting your account.",
+  USER_IS_LAST_VENDOR_ADMIN:
+    "Promote another Vendor member to admin, or archive the Vendor's coworkers, before deleting your account.",
   IN_FLIGHT_JOB:
     "Wait for in-flight jobs to finish before deleting your account.",
   UNSETTLED_ON_CHAIN_JOB:
@@ -151,9 +151,33 @@ function inFlightTaskWhere(
   };
 }
 
+/**
+ * Memberships that make the user the only admin of a Vendor that still needs
+ * one: another member who could be promoted, or a coworker that is not
+ * archived. A sole admin of a Vendor with neither may delete their account;
+ * the Vendor stays behind admin-less for platform admins to manage.
+ */
+export function lastVendorAdminBlockerWhere(
+  userId: string,
+): Prisma.VendorMemberWhereInput {
+  return {
+    userId,
+    role: "admin",
+    vendor: {
+      vendorMembers: {
+        none: { userId: { not: userId }, role: "admin" },
+      },
+      OR: [
+        { vendorMembers: { some: { userId: { not: userId } } } },
+        { coworkers: { some: { archivedAt: null } } },
+      ],
+    },
+  };
+}
+
 async function hasRunningPaidSubscription(
   referenceId: string,
-  prisma: PrismaClient,
+  prisma: Prisma.TransactionClient,
 ): Promise<boolean> {
   const subscription = await prisma.subscription.findFirst({
     where: {
@@ -172,13 +196,14 @@ async function hasRunningPaidSubscription(
  */
 export async function evaluateUserDeletion(
   userId: string,
-  prisma: PrismaClient,
+  prisma: Prisma.TransactionClient,
 ): Promise<UserDeletionEvaluation> {
   const blockers: UserDeletionBlocker[] = [];
   const idSelect = { id: true } as const;
   const [
     runningSubscription,
     ownerMembership,
+    lastVendorAdminMembership,
     inFlightJob,
     unsettledOnChainJob,
     inFlightTask,
@@ -188,6 +213,10 @@ export async function evaluateUserDeletion(
     hasRunningPaidSubscription(userId, prisma),
     prisma.member.findFirst({
       where: { userId, role: MemberRole.OWNER },
+      select: { id: true },
+    }),
+    prisma.vendorMember.findFirst({
+      where: lastVendorAdminBlockerWhere(userId),
       select: { id: true },
     }),
     prisma.job.findFirst({
@@ -225,6 +254,9 @@ export async function evaluateUserDeletion(
   }
   if (ownerMembership) {
     blockers.push("USER_OWNS_ORGANIZATION");
+  }
+  if (lastVendorAdminMembership) {
+    blockers.push("USER_IS_LAST_VENDOR_ADMIN");
   }
   if (inFlightJob) {
     blockers.push("IN_FLIGHT_JOB");
@@ -342,47 +374,43 @@ export async function evaluateUserDeletion(
 export async function evaluateOrganizationDeletion(
   organizationId: string,
   actorUserId: string,
-  prisma: PrismaClient,
+  prisma: Prisma.TransactionClient,
 ): Promise<OrganizationDeletionEvaluation> {
   const blockers: OrganizationDeletionBlocker[] = [];
   const idSelect = { id: true } as const;
-  const [
-    runningSubscription,
-    activeEnterpriseContract,
-    members,
-    lastWorkspace,
-    inFlightJob,
-    unsettledOnChainJob,
-    inFlightTask,
-  ] = await Promise.all([
-    hasRunningPaidSubscription(organizationId, prisma),
-    prisma.enterpriseContract.findFirst({
-      where: {
-        organizationId,
-        status: EnterpriseContractStatus.active,
-        activatedAt: { not: null },
-      },
-      select: { id: true },
-    }),
-    memberRepository.getMembersByOrganizationId(organizationId, prisma),
-    isLastWorkspace(
-      actorUserId,
-      { type: "organization", organizationId },
-      prisma,
-    ),
-    prisma.job.findFirst({
-      where: inFlightJobWhere({ organizationId }),
-      select: idSelect,
-    }),
-    prisma.job.findFirst({
-      where: unsettledOnChainJobWhere({ organizationId }),
-      select: idSelect,
-    }),
-    prisma.task.findFirst({
-      where: inFlightTaskWhere({ organizationId }),
-      select: idSelect,
-    }),
-  ]);
+  const runningSubscription = await hasRunningPaidSubscription(
+    organizationId,
+    prisma,
+  );
+  const activeEnterpriseContract = await prisma.enterpriseContract.findFirst({
+    where: {
+      organizationId,
+      status: EnterpriseContractStatus.active,
+      activatedAt: { not: null },
+    },
+    select: { id: true },
+  });
+  const members = await memberRepository.getMembersByOrganizationId(
+    organizationId,
+    prisma,
+  );
+  const lastWorkspace = await isLastWorkspace(
+    actorUserId,
+    { type: "organization", organizationId },
+    prisma,
+  );
+  const inFlightJob = await prisma.job.findFirst({
+    where: inFlightJobWhere({ organizationId }),
+    select: idSelect,
+  });
+  const unsettledOnChainJob = await prisma.job.findFirst({
+    where: unsettledOnChainJobWhere({ organizationId }),
+    select: idSelect,
+  });
+  const inFlightTask = await prisma.task.findFirst({
+    where: inFlightTaskWhere({ organizationId }),
+    select: idSelect,
+  });
 
   if (runningSubscription) {
     blockers.push("RUNNING_SUBSCRIPTION");

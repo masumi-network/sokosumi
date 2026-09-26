@@ -6,13 +6,13 @@ import {
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
-
 import { APP_MAIN_MOBILE_PT_CLASS } from "@/app/components/app-shell-safe-area";
 import { TaskFiles } from "@/app/tasks/components/task-files";
 import {
   getTaskStatusBorderColorClass,
   getTaskStatusDotColorClass,
   TaskStatusBadge,
+  TaskStatusInline,
 } from "@/app/tasks/components/task-status-badge";
 import {
   TASK_DETAIL_GRID_CLASS,
@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
+import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
 
@@ -142,7 +143,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
               />
             </div>
             <h1 className="max-w-3xl text-3xl font-light tracking-tight md:text-4xl">
-              {task.name}
+              {stripInlineMarkdown(task.name)}
             </h1>
             {publicDescription ? (
               <ExpandableMarkdown
@@ -360,7 +361,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                               </span>
                               {event.status ? (
                                 <>
-                                  <TaskStatusBadge
+                                  <TaskStatusInline
                                     status={event.status}
                                     label={statusLabels[event.status]}
                                   />

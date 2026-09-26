@@ -1,16 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import {
-  CreateTaskModal,
-  useCreateTaskModal,
-} from "@/app/tasks/components/create-task-modal";
-import type { TaskFormCreateHandler } from "@/app/tasks/components/task-form";
+import { CreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import { createScheduledTask, createTask } from "@/lib/actions/task/action";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
-import { selectionToApiBody } from "@/lib/utils/task-schedule";
 
 interface CalendarCreateTaskModalProps {
   coworkerOptions: CoworkerOption[];
@@ -18,67 +10,20 @@ interface CalendarCreateTaskModalProps {
   lockProjectSelection?: boolean;
 }
 
-export function CalendarCreateTaskModal(props: CalendarCreateTaskModalProps) {
-  const { formInstanceKey } = useCreateTaskModal();
-
-  return <CalendarCreateTaskModalInstance key={formInstanceKey} {...props} />;
-}
-
-function CalendarCreateTaskModalInstance({
+/**
+ * A Calendar slot opens the ordinary create form with the slot's time as its
+ * Run at; the Task is created like any other (ADR 0041).
+ */
+export function CalendarCreateTaskModal({
   coworkerOptions,
   projectOptions,
   lockProjectSelection = false,
 }: CalendarCreateTaskModalProps) {
-  const [operationId, setOperationId] = useState(() => crypto.randomUUID());
-
-  const handleCreateTask = useCallback<TaskFormCreateHandler>(
-    async (input) => {
-      if (
-        input.status === TaskStatus.DRAFT ||
-        !input.schedule ||
-        input.schedule.mode === "none"
-      ) {
-        return createTask(input);
-      }
-
-      if (
-        (!input.assigneeId && !input.assigneeUserId) ||
-        input.assigneeSokoBotId
-      ) {
-        throw new Error("An assignee is required to schedule a Calendar task");
-      }
-
-      if (!selectionToApiBody(input.schedule)) {
-        throw new Error("Invalid schedule");
-      }
-
-      const result = await createScheduledTask({
-        operationId,
-        source: input.projectId
-          ? { type: "project", projectId: input.projectId }
-          : { type: "workspace" },
-        description: input.description,
-        assigneeId: input.assigneeId,
-        ...(input.assigneeUserId
-          ? { assigneeUserId: input.assigneeUserId }
-          : {}),
-        context: input.context,
-        schedule: input.schedule,
-      });
-      if (result.ok) {
-        setOperationId(crypto.randomUUID());
-      }
-      return result;
-    },
-    [operationId],
-  );
-
   return (
     <CreateTaskModal
       coworkerOptions={coworkerOptions}
       projectOptions={projectOptions}
       lockProjectSelection={lockProjectSelection}
-      onCreateTask={handleCreateTask}
     />
   );
 }

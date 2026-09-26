@@ -3,7 +3,7 @@
 import { Check, Copy, Globe, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import useIsClient from "@/hooks/use-is-client";
 import {
   CoreApiRequestError,
   coreClient,
@@ -40,30 +41,9 @@ export function TaskShareModal({
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
-  const isClient = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
+  const isClient = useIsClient();
 
   const [taskShare, setTaskShare] = useState<TaskShare | null>(share);
-
-  const ignoreStaleShareAfterDeleteRef = useRef(false);
-
-  useEffect(() => {
-    setTaskShare((prev) => {
-      if (prev?.token && !share?.token) {
-        return prev;
-      }
-      if (ignoreStaleShareAfterDeleteRef.current && share?.token) {
-        return prev;
-      }
-      if (share === null) {
-        ignoreStaleShareAfterDeleteRef.current = false;
-      }
-      return share;
-    });
-  }, [share]);
 
   const link =
     isClient && taskShare?.token
@@ -162,7 +142,6 @@ export function TaskShareModal({
     setIsLoading(true);
     try {
       await coreClient.deleteTaskShare(taskId);
-      ignoreStaleShareAfterDeleteRef.current = true;
       syncTaskShare(null);
       toast.success(t("Success.share"));
     } catch (error) {

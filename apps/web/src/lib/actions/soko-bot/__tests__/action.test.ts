@@ -49,7 +49,7 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
   sokoBotService: serviceMock,
 }));
 
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,

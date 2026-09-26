@@ -6,7 +6,8 @@ import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   type DeveloperTaskListPage,
   developerTaskService,

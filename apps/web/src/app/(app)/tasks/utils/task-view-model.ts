@@ -1,3 +1,4 @@
+import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
 import type {
   TaskAssigneeView,
   TaskWithCoworker,
@@ -11,7 +12,10 @@ import type {
 } from "@/lib/clients/generated/core/types.gen";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 import { parseMentions } from "@/lib/utils/mention-parser";
-import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
+import {
+  stripInlineMarkdown,
+  stripMarkdownToText,
+} from "@/lib/utils/strip-markdown";
 
 function getCommentsCount(events: TaskEvent[]): number {
   return events.filter((event) => Boolean(event.comment)).length;
@@ -153,26 +157,42 @@ export function mapTaskToTaskWithCoworker(
   const agents = agentIds
     .map((id) => agentsById.get(id))
     .filter((agent): agent is CoreAgentDto => Boolean(agent));
-  const descriptionPlain = stripMarkdownToText(
-    replaceMentionsWithAgentNames(task.description, agentsById),
-  )?.slice(0, 200);
+  const namedDescription = replaceMentionsWithAgentNames(
+    task.description,
+    agentsById,
+  );
+  const strippedDescription =
+    namedDescription === null
+      ? null
+      : stripMarkdownToText(
+          removeTaskContextAttachmentLinks(namedDescription),
+        )?.slice(0, 200);
+  // Context-only descriptions strip to "". Treat that as absent so cards do
+  // not render blank space and lists do not skip the "—" fallback.
+  const descriptionPlain = strippedDescription || null;
   const createdAt = task.createdAt.toISOString();
   const updatedAt = task.updatedAt.toISOString();
-  const nextRunAt = task.nextRunAt?.toISOString() ?? null;
+  const runAt = task.runAt?.toISOString() ?? null;
 
   return {
     id: task.id,
-    name: task.name,
+    name: stripInlineMarkdown(task.name),
     status: task.status,
     visibility: task.visibility,
     ownerId: task.ownerId,
     owner: task.owner,
+    project: task.project ?? null,
     createdAt,
     updatedAt,
-    nextRunAt,
-    metadata: task.metadata ?? null,
+    runAt,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,
+    participants: task.participants.map(({ user }) => ({
+      id: user.id,
+      name: user.name,
+      image: user.image,
+      kind: "user",
+    })),
     share: "share" in task ? (task.share ?? null) : null,
     agents,
     commentsCount:
@@ -180,6 +200,7 @@ export function mapTaskToTaskWithCoworker(
         ? task.commentsCount
         : getCommentsCount(task.events),
     columnId: getColumnId(task.status),
+    tags: task.tags,
     description: task.description ?? null,
     descriptionPlain,
     events: "events" in task ? task.events : [],

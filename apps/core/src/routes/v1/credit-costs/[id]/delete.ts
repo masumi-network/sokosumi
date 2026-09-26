@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -10,15 +11,6 @@ import {
   creditCostSchema,
   mapCreditCostForApi,
 } from "@/schemas/credit-cost.schema";
-
-function isPrismaRecordNotFoundError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code: string }).code === "P2025"
-  );
-}
 
 const paramsSchema = z.object({
   id: z.string().openapi({

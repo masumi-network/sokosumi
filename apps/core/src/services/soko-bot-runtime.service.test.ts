@@ -331,6 +331,7 @@ vi.mock("@/helpers/task-notifications", () => ({
   notifyTaskStatusEvent: notifyTaskStatusEventMock,
 }));
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishTaskEventData: publishTaskEventDataMock,
 }));
 vi.mock("@/helpers/chat-direct-message-notifications", () => ({
@@ -342,7 +343,17 @@ vi.mock("@/helpers/chat-direct-message-notifications", () => ({
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publishChatRoomMessageRealtimeByIdMock,
 }));
-vi.mock("@/helpers/task-link", () => ({
+const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
+  vi.hoisted(() => ({
+    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  }));
+vi.mock("@/helpers/chat-human-mentions", () => ({
+  persistChatHumanMentions: persistChatHumanMentionsMock,
+  emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
+}));
+vi.mock("@/helpers/task-link", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/task-link")>()),
   mapTaskLinkRelationToWriteData: vi.fn(),
 }));
 vi.mock("@sokosumi/masumi", () => ({
@@ -1170,12 +1181,8 @@ describe("SokoBotRuntimeService authorization", () => {
         archivedAt: null,
         ...buildSokoBotAudienceTaskVisibilityWhere(SCOPE.userId, askedByKind),
       };
-      const visiblePeerWhere = {
-        toTask: { is: visiblePeerTask },
-      };
-      const visibleFromPeerWhere = {
-        fromTask: { is: visiblePeerTask },
-      };
+      const visiblePeerWhere = { toTask: { is: visiblePeerTask } };
+      const visibleFromPeerWhere = { fromTask: { is: visiblePeerTask } };
       taskFindFirstMock.mockImplementation(
         async (args: {
           select?: {
@@ -2829,6 +2836,52 @@ describe("SokoBotRuntimeService chat reading", () => {
     expect(where.archivedAt).toBeNull();
   });
 
+  it("lists a named group by its Group name", async () => {
+    chatRoomFindManyMock.mockResolvedValue([
+      {
+        id: "room_1",
+        name: "Ada, Ben",
+        groupName: "Launch crew",
+        kind: "direct",
+        updatedAt: new Date("2026-09-23T10:00:00.000Z"),
+        _count: { messages: 3 },
+      },
+      {
+        id: "room_2",
+        name: "Ada, Cara",
+        groupName: null,
+        kind: "direct",
+        updatedAt: new Date("2026-09-23T09:00:00.000Z"),
+        _count: { messages: 1 },
+      },
+    ]);
+
+    const result = await new SokoBotRuntimeService()["listChats"]({
+      turn: SCOPE_TURN,
+    } as never);
+
+    expect(result.rooms.map((room) => room.name)).toEqual([
+      "Launch crew",
+      "Ada, Cara",
+    ]);
+  });
+
+  it("names a read group by its Group name", async () => {
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_1",
+      name: "Ada, Ben",
+      groupName: "Launch crew",
+    });
+    chatMessageFindManyMock.mockResolvedValue([]);
+
+    const result = await new SokoBotRuntimeService()["readChat"](
+      { turn: SCOPE_TURN } as never,
+      { roomId: "room_1" },
+    );
+
+    expect(result.name).toBe("Launch crew");
+  });
+
   it("refuses to read a room the bot does not belong to", async () => {
     // The model supplies the room id, so membership is re-checked per call.
     chatRoomFindFirstMock.mockResolvedValue(null);
@@ -3094,6 +3147,17 @@ describe("post_chat chain depth", () => {
     );
     // Only the audience-checked outbox may activate and dispatch this mention.
     expect(dispatchChatRoomMentionMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves human mentions hidden until audience-checked activation", async () => {
+    const authorized = armPostChat(0);
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_1",
+      roomId: "room_1",
+      content: "@user_owner the date is confirmed",
+    });
+    expect(persistChatHumanMentionsMock).not.toHaveBeenCalled();
+    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
   });
 
   it("stops summoning once the chain reaches its ceiling", async () => {

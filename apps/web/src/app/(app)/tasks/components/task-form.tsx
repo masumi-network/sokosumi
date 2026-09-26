@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  CORE_API_ERROR_KINDS,
   formatTaskAttachmentMarkdown,
   isAgentOnlyTaskStatus,
+  taskContextSelectionResolvesAnything,
 } from "@sokosumi/utils";
 import {
   ArrowLeft,
@@ -11,7 +11,8 @@ import {
   Command,
   CornerDownLeft,
   Loader2,
-  TriangleAlert,
+  Lock,
+  Paperclip,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -34,38 +35,25 @@ import {
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
+import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
-import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
-import { formatTaskScheduleSelectionLabel } from "@/components/schedules/format";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   FileUpload,
   FileUploadDropzone,
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
@@ -76,38 +64,31 @@ import {
 import { useSession } from "@/lib/auth/auth.client";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { Project } from "@/lib/clients/generated/core/types.gen";
-import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
-import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
-import { getScheduleIcon } from "@/lib/utils/schedule-icon";
 import {
   extractTaskAttachmentUrls,
   removeTaskAttachmentLinks,
 } from "@/lib/utils/task-attachments";
-import {
-  getTaskScheduleOperationId,
-  hasTaskScheduleChanged,
-  metadataToSelection,
-} from "@/lib/utils/task-schedule";
-import { taskScheduleSeriesFeedbackKey } from "@/lib/utils/task-schedule-feedback";
 import {
   canSelectQueuedTaskStatus,
   TASK_STATUS_DISPLAY_ORDER,
 } from "@/lib/utils/task-status-order";
 import { AgentSpotlight } from "./agent-spotlight";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
+import { TaskAssigneePicker } from "./task-assignee-picker";
 import {
   getDefaultTaskContextSelection,
+  getTaskContextSelectionFromDescription,
   TaskContextAttachmentsField,
   type TaskContextAttachmentsSelection,
 } from "./task-context-attachments";
 import { TaskCreatedCelebration } from "./task-created-celebration";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
-import { TaskScheduleModal } from "./task-schedule-modal";
+import { TaskRunAtModal } from "./task-run-at-modal";
 import { TaskStatusPicker } from "./task-status-picker";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
@@ -127,8 +108,10 @@ export interface TaskFormLabels {
   projectPlaceholder?: string;
   projectRequired?: string;
   coworker: string;
-  coworkerDescription: string;
-  unassigned?: string;
+  unassigned: string;
+  unavailableAssignee: string;
+  changeCoworker: string;
+  noCoworkerMatches: string;
   defaultBadge?: string;
   modelLabel?: string;
   hostingLabel?: string;
@@ -153,11 +136,11 @@ export interface TaskFormLabels {
   uploadFileError?: string;
   uploadingFile: string;
   uploadingFiles: string;
-  removeAttachment?: string;
+  removeAttachment: string;
   submit: string;
   createTask?: string;
   scheduleTask?: string;
-  openSchedule: string;
+  openRunAt: string;
   cancel: string;
   ctrl: string;
   taskCreated?: string;
@@ -180,15 +163,11 @@ interface TaskFormInitialValues {
   status?: TaskStatus;
   /** Statuses Core lets this viewer move the Task to; edit mode only (ADR 0029). */
   selectableStatuses?: readonly TaskStatus[];
-  metadata?: string | null;
-  nextRunAt?: string | null;
-  schedule?: TaskScheduleSelection;
+  /** The Task's Run at as an ISO string; set only while it is Queued. */
+  runAt?: string | null;
 }
 
 export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
-
-/** Sentinel for the edit assignee select's Unassigned item (Radix needs non-empty values). */
-const UNASSIGNED_SELECT_VALUE = "__unassigned__";
 
 const CREATE_STATUS_OPTIONS = [
   TaskStatus.DRAFT,
@@ -203,32 +182,15 @@ function isAgentAssigneeFields(fields: {
   return fields.assigneeId !== null || fields.assigneeSokoBotId !== null;
 }
 
-function resolveStatusForAssigneeAndSchedule(options: {
+/** A Run at queues the Task (agents only); otherwise agents start Ready. */
+function resolveStatusForAssigneeAndRunAt(options: {
   isAgent: boolean;
-  hasSchedule: boolean;
+  hasRunAt: boolean;
 }): TaskStatus {
-  if (options.hasSchedule) {
-    return options.isAgent ? TaskStatus.QUEUED : TaskStatus.READY;
+  if (options.isAgent) {
+    return options.hasRunAt ? TaskStatus.QUEUED : TaskStatus.READY;
   }
-  return options.isAgent ? TaskStatus.READY : TaskStatus.DRAFT;
-}
-
-function resolveCelebrationStatus(options: {
-  desiredStatus: TaskStatus;
-  isAgent: boolean;
-  hasSchedule: boolean;
-}): "DRAFT" | "QUEUED" | "READY" {
-  if (options.desiredStatus === TaskStatus.DRAFT) {
-    return "DRAFT";
-  }
-  // Honor an explicit Queued create when the action succeeded (Core accepted).
-  if (options.desiredStatus === TaskStatus.QUEUED) {
-    return "QUEUED";
-  }
-  if (options.hasSchedule) {
-    return options.isAgent ? "QUEUED" : "READY";
-  }
-  return "READY";
+  return TaskStatus.DRAFT;
 }
 
 function getTaskFormStatusLabel(
@@ -248,6 +210,7 @@ function getTaskFormStatusLabel(
 }
 
 export interface TaskFormCreateInput {
+  name?: string;
   description: string;
   assigneeId: string | null;
   assigneeSokoBotId: string | null;
@@ -255,7 +218,8 @@ export interface TaskFormCreateInput {
   projectId?: string | null;
   context: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
-  schedule?: TaskScheduleSelection;
+  /** ISO time the Task starts at; set only with status Queued. */
+  runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
 }
 
@@ -270,18 +234,6 @@ interface TaskFormProps {
   agentNameById?: Map<string, string>;
   taskId?: string;
   initialValues?: TaskFormInitialValues;
-  /**
-   * Schedule revision observed when this edit surface was rendered. It is the
-   * precondition for every write while the Task has a live series.
-   */
-  scheduleRevision?: number;
-  /**
-   * Durable future exceptions a full-series edit would cancel, read with
-   * {@link scheduleRevision}. Above zero the save asks to confirm the discard;
-   * `null` means the ledger could not be read, and a full-series edit is
-   * refused rather than sent without that warning.
-   */
-  futureExceptionCount?: number | null;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   projectOptions?: ProjectFilterOption[];
   lockProjectSelection?: boolean;
@@ -304,8 +256,6 @@ export function TaskForm({
   agentNameById = EMPTY_AGENT_NAME_MAP,
   taskId,
   initialValues,
-  scheduleRevision,
-  futureExceptionCount: observedFutureExceptionCount = 0,
   initialDesignMdAttachment,
   projectOptions,
   lockProjectSelection = false,
@@ -322,26 +272,12 @@ export function TaskForm({
   const router = useRouter();
   const { data: session } = useSession();
   const canCreatePrivateTask = Boolean(session?.session.activeOrganizationId);
-  const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
-  const tSchedule = useTranslations("App.Tasks.Schedule");
-  const tSeries = useTranslations("App.Tasks.Schedule.series");
+  const tRunAt = useTranslations("App.Tasks.RunAt");
   const formatter = useFormatter();
-  // The Task already had a schedule when this form opened, so every schedule
-  // write below is a change to a live series rather than arming a new one.
-  const hadSchedule = Boolean(
-    initialValues?.metadata ||
-      (initialValues?.nextRunAt && initialValues.nextRunAt.length > 0),
-  );
-  // A live series owns the Task's status and Calendar source: Core rejects
-  // status changes with `schedule_active` (except Ready → Queued, which is
-  // how a scheduled Task is normalized), and moving the source is SOK-887.
-  const hasActiveSeries = mode === "edit" && hadSchedule;
-  const hasProjectSelection = projectOptions !== undefined && !hasActiveSeries;
+  const hasProjectSelection = projectOptions !== undefined;
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
-  const initialDescription = initialValues?.description ?? "";
-  const [description, setDescription] = useState(initialDescription);
   const [isPrivate, setIsPrivate] = useState(false);
   // `undefined` means the caller made no choice yet (Calendar slot creation on
   // an unfiltered Workspace Calendar); `null` is an explicit "no project".
@@ -349,25 +285,41 @@ export function TaskForm({
     initialValues && "projectId" in initialValues
       ? initialValues.projectId
       : defaultProjectId;
+  const initialProject = initialProjectId
+    ? projectOptions?.find((project) => project.id === initialProjectId)
+    : undefined;
+  const initialContext =
+    mode === "edit"
+      ? getTaskContextSelectionFromDescription(
+          initialValues?.description ?? "",
+          {
+            project: initialProject,
+            defaultBrandUrl: initialDesignMdAttachment?.url ?? null,
+            userId: session?.user.id ?? null,
+          },
+        )
+      : null;
   const [projectId, setProjectId] = useState<string | null | undefined>(
     initialProjectId,
   );
   const [isProjectMissing, setIsProjectMissing] = useState(false);
   const projectSelectRef = useRef<HTMLButtonElement>(null);
   const projectErrorId = useId();
+  const privateDescriptionId = useId();
   useLayoutEffect(() => {
     if (isProjectMissing) {
       projectSelectRef.current?.focus();
     }
   }, [isProjectMissing]);
   const [contextSelection, setContextSelection] =
-    useState<TaskContextAttachmentsSelection>(() =>
-      getDefaultTaskContextSelection(
-        initialProjectId
-          ? projectOptions?.find((project) => project.id === initialProjectId)
-          : undefined,
-      ),
+    useState<TaskContextAttachmentsSelection>(
+      () =>
+        initialContext?.selection ??
+        getDefaultTaskContextSelection(initialProject),
     );
+  const initialDescription =
+    initialContext?.body ?? initialValues?.description ?? "";
+  const [description, setDescription] = useState(initialDescription);
   const [inlineCreatedProjects, setInlineCreatedProjects] = useState<
     ProjectFilterOption[]
   >([]);
@@ -384,29 +336,23 @@ export function TaskForm({
     useState(false);
   const [createProjectQuery, setCreateProjectQuery] = useState("");
   const defaultAssigneeId = useMemo(() => {
-    // Empty string counts as absent: edit pages pass "" for unset tasks.
-    const hasInitialAssignee =
+    const fromTask =
       initialValues?.assigneeId ||
       initialValues?.assigneeSokoBotId ||
       initialValues?.assigneeUserId ||
-      null;
-    // In edit mode an explicitly unassigned task must stay unassigned:
-    // falling through to the create default would silently assign it on save.
-    if (mode === "edit" && hasInitialAssignee === null) {
-      return "";
+      "";
+    if (mode === "edit") {
+      return fromTask;
     }
-    // Default to Elena on first open. Match by slug or name (case-insensitive)
-    // so it works across environments (dev seed + mainnet) where the slug may
-    // differ; fall back to the highest-priority coworker.
+    if (fromTask) {
+      return fromTask;
+    }
     const elenaCoworker = coworkerOptions.find(
       (option) =>
         option.slug.trim().toLowerCase() === "elena" ||
         option.name.trim().toLowerCase() === "elena",
     );
-
-    return (
-      hasInitialAssignee ?? elenaCoworker?.id ?? coworkerOptions[0]?.id ?? ""
-    );
+    return elenaCoworker?.id ?? coworkerOptions[0]?.id ?? "";
   }, [
     mode,
     coworkerOptions,
@@ -428,45 +374,54 @@ export function TaskForm({
     mode === "edit" && initialValues?.status !== undefined,
   );
   const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
-  const [scheduleSelection, setScheduleSelection] =
-    useState<TaskScheduleSelection>(
-      () =>
-        initialValues?.schedule ??
-        metadataToSelection(initialValues?.metadata, getDefaultTimezone()),
-    );
+  const initialRunAt = initialValues?.runAt ?? null;
+  // Only an agent can hold a Run at (Queued is agent-only), so a Calendar
+  // prefill for a person is dropped rather than sent and refused by Core.
+  const [runAt, setRunAt] = useState<string | null>(() =>
+    isAgentAssigneeFields(
+      resolveTaskAssigneeFields(
+        defaultAssigneeId,
+        coworkerOptions,
+        knownSokoBotId,
+        initialValues?.assigneeUserId,
+      ),
+    )
+      ? initialRunAt
+      : null,
+  );
   const [status, setStatus] = useState<TaskStatus>(() => {
     if (mode === "edit" && initialValues?.status !== undefined) {
       return initialValues.status;
     }
-    const initialSchedule =
-      initialValues?.schedule ??
-      metadataToSelection(initialValues?.metadata, getDefaultTimezone());
     const fields = resolveTaskAssigneeFields(
       defaultAssigneeId,
       coworkerOptions,
       knownSokoBotId,
       initialValues?.assigneeUserId,
     );
-    return resolveStatusForAssigneeAndSchedule({
+    return resolveStatusForAssigneeAndRunAt({
       isAgent: isAgentAssigneeFields(fields),
-      hasSchedule: initialSchedule.mode !== "none",
+      hasRunAt: initialRunAt !== null,
     });
   });
 
   useLayoutEffect(() => {
     if (coworkerTouchedRef.current) return;
     setAssigneeId(defaultAssigneeId);
-    if (!statusTouchedRef.current) {
-      const fields = resolveTaskAssigneeFields(
+    const isAgent = isAgentAssigneeFields(
+      resolveTaskAssigneeFields(
         defaultAssigneeId,
         coworkerOptions,
         knownSokoBotId,
         initialValues?.assigneeUserId,
-      );
+      ),
+    );
+    if (!isAgent) setRunAt(null);
+    if (!statusTouchedRef.current) {
       setStatus(
-        resolveStatusForAssigneeAndSchedule({
-          isAgent: isAgentAssigneeFields(fields),
-          hasSchedule: scheduleSelection.mode !== "none",
+        resolveStatusForAssigneeAndRunAt({
+          isAgent,
+          hasRunAt: isAgent && runAt !== null,
         }),
       );
     }
@@ -475,27 +430,10 @@ export function TaskForm({
     coworkerOptions,
     knownSokoBotId,
     initialValues?.assigneeUserId,
-    scheduleSelection.mode,
+    runAt,
   ]);
 
-  const originalScheduleSelection = useRef(scheduleSelection);
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [seriesError, setSeriesError] = useState<string | null>(null);
-  // A revision conflict proves the observed count describes a series that has
-  // since moved on, so from then on this mount treats it as unknown.
-  const [isSeriesCountStale, setIsSeriesCountStale] = useState(false);
-  const futureExceptionCount = isSeriesCountStale
-    ? null
-    : observedFutureExceptionCount;
-  const [pendingSeriesConfirmation, setPendingSeriesConfirmation] = useState<{
-    change: "discard" | "remove";
-    overrideStatus?: TaskStatus;
-  } | null>(null);
-  // One UUID per distinct submitted schedule, so a retry of the same save
-  // replays on Core while a re-edited rule becomes a new operation.
-  const seriesOperation = useRef<{ key: string; operationId: string } | null>(
-    null,
-  );
+  const [isRunAtModalOpen, setIsRunAtModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdTask, setCreatedTask] = useState<{
     id: string;
@@ -546,29 +484,25 @@ export function TaskForm({
         fields.assigneeUserId === null;
       const assigneeKindChanged = previousIsAgent !== isAgent || isUnassigned;
 
-      let nextSchedule = scheduleSelection;
-      if (isUnassigned && scheduleSelection.mode !== "none") {
-        nextSchedule = {
-          mode: "none",
-          timezone: scheduleSelection.timezone,
-        };
-        setScheduleSelection(nextSchedule);
+      // Queued is agent-only, so a person or no one cannot keep a Run at.
+      const keptRunAt = isAgent ? runAt : null;
+      if (keptRunAt !== runAt) {
+        setRunAt(null);
       }
 
-      const nextHasSchedule = nextSchedule.mode !== "none";
       const shouldResolveStatus =
         !statusTouchedRef.current ||
         assigneeKindChanged ||
         (status === TaskStatus.QUEUED &&
           !canSelectQueuedTaskStatus({
             isAgent,
-            hasSchedule: nextHasSchedule,
+            hasRunAt: keptRunAt !== null,
           }));
       if (shouldResolveStatus) {
         setStatus(
-          resolveStatusForAssigneeAndSchedule({
+          resolveStatusForAssigneeAndRunAt({
             isAgent,
-            hasSchedule: nextHasSchedule,
+            hasRunAt: keptRunAt !== null,
           }),
         );
       }
@@ -578,7 +512,7 @@ export function TaskForm({
       coworkerOptions,
       knownSokoBotId,
       initialValues?.assigneeUserId,
-      scheduleSelection,
+      runAt,
       status,
     ],
   );
@@ -586,6 +520,10 @@ export function TaskForm({
   const handleStatusSelect = useCallback((value: TaskStatus) => {
     statusTouchedRef.current = true;
     setStatus(value);
+    // A Run at only exists on a Queued Task; leaving Queued drops it.
+    if (value !== TaskStatus.QUEUED) {
+      setRunAt(null);
+    }
   }, []);
 
   const handleCreateProject = useCallback((searchQuery: string) => {
@@ -655,40 +593,27 @@ export function TaskForm({
     [localProjectOptions, projectId],
   );
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
-  const hasSchedule = scheduleSelection.mode !== "none";
-  const ScheduleFooterIcon = hasSchedule
-    ? getScheduleIcon(
-        scheduleSelection.mode === "recurring" ? "recurring" : "once",
-      )
+  const hasRunAt = runAt !== null;
+  const runAtLabel = runAt
+    ? tRunAt("footer", {
+        datetime: formatter.dateTime(new Date(runAt), "dateTime"),
+      })
     : null;
-  const scheduleLabel = useMemo(
-    () =>
-      formatTaskScheduleSelectionLabel(
-        scheduleSelection,
-        (key, values) =>
-          tSchedule(
-            key as
-              | "option.oneTime"
-              | "option.custom"
-              | "option.dailyWithTime"
-              | "option.weeklyWithWeekdayTime"
-              | "option.monthlyWithDayTime"
-              | "option.dailyEveryNWithTime"
-              | "option.weeklyListWithTime"
-              | "option.monthlyEveryNWithDayTime"
-              | "footer.oneTimeAt",
-            values as Record<string, string | number | Date>,
-          ),
-        formatter,
-      ),
-    [formatter, scheduleSelection, tSchedule],
-  );
   useEffect(() => {
     onSubmittingChange?.(isSubmittingAny || isUploadingAttachments);
   }, [isSubmittingAny, isUploadingAttachments, onSubmittingChange]);
+  const hasSaveableDescription =
+    Boolean(description.trim()) ||
+    (mode === "edit" &&
+      taskContextSelectionResolvesAnything(contextSelection, {
+        projectDesignMdUrl: selectedProject?.designMd?.url ?? null,
+        workspaceDesignMdUrl: initialDesignMdAttachment?.url ?? null,
+        projectBriefingUrl: selectedProject?.briefingUrl ?? null,
+        projectContextMdUrl: selectedProject?.contextMd?.url ?? null,
+      }));
   const isSaveDisabled =
     createdTask !== null ||
-    !description.trim() ||
+    !hasSaveableDescription ||
     (isNameRequired && !name.trim()) ||
     isSubmittingAny ||
     isUploadingAttachments;
@@ -709,7 +634,10 @@ export function TaskForm({
   const useComposeLayout = mode === "create" && showTaskStep;
   const useModalFieldFill = showTaskStep;
   const canUseSubmitShortcut =
-    showTaskStep && !isSaveDisabled && !isCreateProjectModalOpen;
+    showTaskStep &&
+    !isSaveDisabled &&
+    !isCreateProjectModalOpen &&
+    !isRunAtModalOpen;
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
   const statusPickerLabels = useMemo(
     () =>
@@ -722,254 +650,168 @@ export function TaskForm({
     [labels],
   );
 
-  /**
-   * What a save would do to a live series. Replacing the rule always retires
-   * its future exceptions, and setting no schedule removes the series outright
-   * — both are destructive enough to confirm before they leave the browser.
-   * With an unreadable count the replacement cannot say what it would destroy,
-   * so it is refused; removal states its own consequence and still proceeds.
-   */
-  const pendingSeriesChange = useMemo(() => {
+  const handleSave = useCallback(async () => {
+    if (isSaveDisabled || (useWizard && step === 1)) return;
     if (
-      !hasActiveSeries ||
-      !hasTaskScheduleChanged(
-        originalScheduleSelection.current,
-        scheduleSelection,
-        true,
-      )
+      shouldShowProjectSelect &&
+      projectId === undefined &&
+      labels.projectRequired
     ) {
-      return null;
+      setIsProjectMissing(true);
+      return;
     }
-
-    if (scheduleSelection.mode === "none") return "remove" as const;
-    if (futureExceptionCount === null) return "unknown" as const;
-    return futureExceptionCount > 0 ? ("discard" as const) : null;
-  }, [futureExceptionCount, hasActiveSeries, scheduleSelection]);
-
-  const handleSave = useCallback(
-    async (overrideStatus?: TaskStatus, confirmedSeriesChange = false) => {
-      if (isSaveDisabled || (useWizard && step === 1)) return;
-      if (pendingSeriesChange === "unknown") {
-        setSeriesError(tSeries("unknownCount"));
-        return;
-      }
-      if (pendingSeriesChange && !confirmedSeriesChange) {
-        setSeriesError(null);
-        setPendingSeriesConfirmation({
-          change: pendingSeriesChange,
-          overrideStatus,
-        });
-        return;
-      }
+    // Edit sends the Run at only when it changed. A time that passed while
+    // the form sat open would be refused by Core, so say so before sending.
+    const sendsRunAt =
+      runAt !== null && (mode === "create" || runAt !== initialRunAt);
+    if (sendsRunAt && new Date(runAt) <= new Date()) {
+      toast.error(tRunAt("notInFuture"));
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const trimmedDescription = description.trim();
+      const trimmedName = name.trim();
+      const context: TaskContextSelectionInput = {
+        brand: {
+          enabled: contextSelection.brand.enabled,
+          source: contextSelection.brand.source,
+          custom: contextSelection.brand.custom
+            ? { url: contextSelection.brand.custom.url }
+            : null,
+        },
+        briefingEnabled: contextSelection.briefingEnabled,
+        contextMdEnabled: contextSelection.contextMdEnabled,
+      };
+      const assigneeFields = resolveTaskAssigneeFields(
+        assigneeId,
+        coworkerOptions,
+        knownSokoBotId,
+        initialValues?.assigneeUserId,
+      );
       if (
-        shouldShowProjectSelect &&
-        projectId === undefined &&
-        labels.projectRequired
+        mode === "create" &&
+        (status === TaskStatus.DRAFT ||
+          status === TaskStatus.READY ||
+          status === TaskStatus.QUEUED)
       ) {
-        setIsProjectMissing(true);
-        return;
-      }
-      setIsSubmitting(true);
-      try {
-        const trimmedDescription = description.trim();
-        const desiredStatus = overrideStatus ?? status;
-        if (
-          mode === "create" &&
-          (desiredStatus === TaskStatus.DRAFT ||
-            desiredStatus === TaskStatus.READY ||
-            desiredStatus === TaskStatus.QUEUED)
-        ) {
-          const createTaskHandler = onCreateTask ?? createTask;
-          const assigneeFields = resolveTaskAssigneeFields(
-            assigneeId,
-            coworkerOptions,
-            knownSokoBotId,
-            initialValues?.assigneeUserId,
+        const createTaskHandler = onCreateTask ?? createTask;
+        const createPrivateUnassigned =
+          canCreatePrivateTask &&
+          isPrivate &&
+          !isOtherHumanAssignee(
+            assigneeFields.assigneeUserId,
+            session?.user.id,
           );
-          const createPrivateUnassigned =
-            canCreatePrivateTask &&
-            isPrivate &&
-            !isOtherHumanAssignee(
-              assigneeFields.assigneeUserId,
-              session?.user.id,
-            );
-          const result = await createTaskHandler({
-            description: trimmedDescription,
-            ...assigneeFields,
-            ...(createPrivateUnassigned
-              ? {
-                  visibility: "PRIVATE" as const,
-                  assigneeUserId: null,
-                }
-              : {}),
-            context: {
-              brand: {
-                enabled: contextSelection.brand.enabled,
-                source: contextSelection.brand.source,
-                custom: contextSelection.brand.custom
-                  ? { url: contextSelection.brand.custom.url }
-                  : null,
-              },
-              briefingEnabled: contextSelection.briefingEnabled,
-              contextMdEnabled: contextSelection.contextMdEnabled,
-            },
-            ...(hasProjectSelection ? { projectId } : {}),
-            status: desiredStatus as Extract<
-              TaskStatus,
-              "DRAFT" | "READY" | "QUEUED"
-            >,
-            schedule: scheduleSelection,
-          });
-          if (!result.ok) {
-            const feedbackKey = taskScheduleSeriesFeedbackKey(
-              result.error.kind,
-            );
-            if (!feedbackKey) {
-              showCalendarClientUpgradeModal();
-              return;
-            }
-            // Keep the form and its operation identity so the user can reload,
-            // reopen, and retry the same edit rather than starting a new one.
-            setSeriesError(tSeries(feedbackKey));
-            return;
-          }
-          setSeriesError(null);
-          const createdTask = result.value;
-          // Confirm success in place and let the user choose when to navigate;
-          // the redirect target is prefetched so it lands fast.
-          const createdStatus = resolveCelebrationStatus({
-            desiredStatus,
-            isAgent: isAgentAssigneeFields(assigneeFields),
-            hasSchedule: scheduleSelection.mode !== "none",
-          });
-          router.prefetch(`/tasks/${createdTask.taskId}`);
-          setCreatedTask({
-            id: createdTask.taskId,
-            name: createdTask.name.trim() || labels.untitledTask,
-            status: createdStatus,
-            statusLabel:
-              createdStatus === "QUEUED"
-                ? labels.statusQueued
-                : createdStatus === "DRAFT"
-                  ? labels.statusDraft
-                  : labels.statusReady,
-            scheduleLabel:
-              scheduleSelection.mode !== "none" &&
-              desiredStatus !== TaskStatus.DRAFT
-                ? (scheduleLabel ?? undefined)
-                : undefined,
-          });
-          onCreated?.(createdTask.taskId);
-          return;
-        }
-
-        if (!taskId) {
-          throw new Error("Task ID is required");
-        }
-
-        const trimmedName = name.trim();
-        const result = await updateTask({
-          taskId,
-          name: trimmedName,
+        const result = await createTaskHandler({
+          ...(trimmedName ? { name: trimmedName } : {}),
           description: trimmedDescription,
-          ...resolveTaskAssigneeFields(
-            assigneeId,
-            coworkerOptions,
-            knownSokoBotId,
-            initialValues?.assigneeUserId,
-          ),
-          ...(hasProjectSelection ? { projectId } : {}),
-          currentStatus: originalStatus,
-          desiredStatus,
-          schedule: scheduleSelection,
-          hadSchedule,
-          ...(hasActiveSeries
+          ...assigneeFields,
+          ...(createPrivateUnassigned
             ? {
-                expectedScheduleRevision: scheduleRevision,
-                scheduleOperationId: getTaskScheduleOperationId(
-                  scheduleSelection,
-                  seriesOperation,
-                ),
+                visibility: "PRIVATE" as const,
+                assigneeUserId: null,
               }
             : {}),
-          originalSchedule: originalScheduleSelection.current,
+          context,
+          ...(hasProjectSelection ? { projectId } : {}),
+          status,
+          ...(runAt ? { runAt } : {}),
         });
         if (!result.ok) {
-          if (
-            result.error.kind ===
-            CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT
-          ) {
-            // The series moved on, so the count read with the old revision no
-            // longer describes it. Nothing here may reuse it as "zero".
-            setIsSeriesCountStale(true);
-          }
-          const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
-          if (!feedbackKey) {
-            showCalendarClientUpgradeModal();
-            return;
-          }
-          setSeriesError(tSeries(feedbackKey));
+          toast.error(labels.saveError);
           return;
         }
-        setSeriesError(null);
-        if (onSuccess) {
-          onSuccess(taskId);
-          return;
-        }
-        router.push(`/tasks/${taskId}`);
-      } catch (error) {
-        console.error("Failed to save task", error);
-        toast.error(
-          error instanceof Error && error.message === "Invalid schedule"
-            ? tSchedule("errors.futureDateTime")
-            : labels.saveError,
-        );
-      } finally {
-        setIsSubmitting(false);
+        const createdTask = result.value;
+        // Confirm success in place and let the user choose when to navigate;
+        // the redirect target is prefetched so it lands fast.
+        router.prefetch(`/tasks/${createdTask.taskId}`);
+        setCreatedTask({
+          id: createdTask.taskId,
+          name: createdTask.name.trim() || labels.untitledTask,
+          status,
+          statusLabel:
+            status === TaskStatus.QUEUED
+              ? labels.statusQueued
+              : status === TaskStatus.DRAFT
+                ? labels.statusDraft
+                : labels.statusReady,
+          scheduleLabel: runAtLabel ?? undefined,
+        });
+        onCreated?.(createdTask.taskId);
+        return;
       }
-    },
-    [
-      description,
-      isSaveDisabled,
-      mode,
-      step,
-      useWizard,
-      name,
-      assigneeId,
-      coworkerOptions,
-      knownSokoBotId,
-      initialValues?.assigneeUserId,
-      projectId,
-      hasProjectSelection,
-      shouldShowProjectSelect,
-      originalStatus,
-      router,
-      status,
-      taskId,
-      onSuccess,
-      onCreated,
-      onCreateTask,
-      showCalendarClientUpgradeModal,
-      scheduleSelection,
-      scheduleLabel,
-      hadSchedule,
-      contextSelection,
-      canCreatePrivateTask,
-      isPrivate,
-      session?.user.id,
-      labels.projectRequired,
-      labels.statusDraft,
-      labels.statusQueued,
-      labels.statusReady,
-      labels.saveError,
-      labels.untitledTask,
-      tSchedule,
-      hasActiveSeries,
-      scheduleRevision,
-      pendingSeriesChange,
-      tSeries,
-    ],
-  );
+
+      if (!taskId) {
+        throw new Error("Task ID is required");
+      }
+
+      const result = await updateTask({
+        taskId,
+        name: trimmedName,
+        description: trimmedDescription,
+        ...assigneeFields,
+        ...(hasProjectSelection ? { projectId } : {}),
+        context,
+        desiredStatus: status,
+        ...(runAt !== initialRunAt &&
+        (runAt !== null ||
+          status === TaskStatus.DRAFT ||
+          !isAgentAssigneeFields(assigneeFields))
+          ? { runAt }
+          : {}),
+      });
+      if (!result.ok) {
+        toast.error(labels.saveError);
+        return;
+      }
+      if (onSuccess) {
+        onSuccess(taskId);
+        return;
+      }
+      router.push(`/tasks/${taskId}`);
+    } catch (error) {
+      console.error("Failed to save task", error);
+      toast.error(labels.saveError);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    description,
+    isSaveDisabled,
+    mode,
+    step,
+    useWizard,
+    name,
+    assigneeId,
+    coworkerOptions,
+    knownSokoBotId,
+    initialValues?.assigneeUserId,
+    projectId,
+    hasProjectSelection,
+    shouldShowProjectSelect,
+    originalStatus,
+    router,
+    status,
+    taskId,
+    onSuccess,
+    onCreated,
+    onCreateTask,
+    runAt,
+    initialRunAt,
+    runAtLabel,
+    contextSelection,
+    canCreatePrivateTask,
+    isPrivate,
+    session?.user.id,
+    labels.projectRequired,
+    labels.statusDraft,
+    labels.statusQueued,
+    labels.statusReady,
+    labels.saveError,
+    labels.untitledTask,
+    tRunAt,
+  ]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -1061,11 +903,11 @@ export function TaskForm({
     selectedAssigneeFields.assigneeSokoBotId !== null;
   const isQueuedSelectable = canSelectQueuedTaskStatus({
     isAgent: isAgentAssignee,
-    hasSchedule,
+    hasRunAt,
   });
   // Edit mode offers what Core marked selectable for the saved Task plus the
   // saved status itself, so an unsaved pick can be undone before saving. A
-  // schedule staged in this form makes Queued pickable before Core knows.
+  // Run at staged in this form makes Queued pickable before Core knows.
   const statusOptions = useMemo<readonly TaskStatus[]>(
     () =>
       mode === "create"
@@ -1082,8 +924,6 @@ export function TaskForm({
       isQueuedSelectable,
     ],
   );
-  const isSchedulableAssignee =
-    isAgentAssignee || selectedAssigneeFields.assigneeUserId !== null;
   const showPrivateControl =
     mode === "create" &&
     canCreatePrivateTask &&
@@ -1092,18 +932,21 @@ export function TaskForm({
       selectedAssigneeFields.assigneeUserId,
       session?.user.id,
     );
-  // Queued work must stay agent-assigned: Core rejects reassignment away
-  // from an agent while QUEUED, so the edit picker locks non-agent options.
-  const isAssigneeLockedToAgent = originalStatus === TaskStatus.QUEUED;
-  const memberAssigneeOptions = coworkerOptions.filter(
-    (option) => option.kind === "user",
+  // Core requires an agent while a Task has a Run at. Restore human choices
+  // when the Run at is cleared, including while editing a queued Task.
+  const availableAssigneeOptions = useMemo(
+    () =>
+      runAt === null
+        ? coworkerOptions
+        : coworkerOptions.filter((option) => option.kind !== "user"),
+    [coworkerOptions, runAt],
   );
-  const agentAssigneeOptions = coworkerOptions.filter(
-    (option) => option.kind !== "user",
-  );
+  const isAssigneeLockedToAgent = runAt !== null;
+  const showEditAssigneePicker = mode === "edit";
   const showModalCoworkerHeader =
-    selectedOption !== undefined && (useComposeLayout || mode === "edit");
-  const taskFieldsBorder = showModalCoworkerHeader ? "border-t" : "";
+    useComposeLayout && selectedOption !== undefined;
+  const taskFieldsBorder =
+    showModalCoworkerHeader || showEditAssigneePicker ? "border-t" : "";
   const cardLabels = useMemo(
     () => ({
       defaultBadge: labels.defaultBadge ?? "Default",
@@ -1126,52 +969,23 @@ export function TaskForm({
     router.push("/tasks");
   };
 
-  function handleClearSchedule() {
-    setScheduleSelection({
-      mode: "none",
-      timezone: scheduleSelection.timezone,
-    });
-    if (status === TaskStatus.QUEUED) {
-      const fields = resolveTaskAssigneeFields(
-        assigneeId,
-        coworkerOptions,
-        knownSokoBotId,
-        initialValues?.assigneeUserId,
-      );
-      setStatus(
-        resolveStatusForAssigneeAndSchedule({
-          isAgent: isAgentAssigneeFields(fields),
-          hasSchedule: false,
-        }),
-      );
-    }
+  function handleRunAtApply(value: string) {
+    setRunAt(value);
+    setStatus(TaskStatus.QUEUED);
   }
 
-  function handleScheduleApply(selection: TaskScheduleSelection) {
-    setScheduleSelection(selection);
-    const fields = resolveTaskAssigneeFields(
-      assigneeId,
-      coworkerOptions,
-      knownSokoBotId,
-      initialValues?.assigneeUserId,
+  function handleRunAtClear() {
+    setRunAt(null);
+    // Removing the time on a saved Task must not start it: like Core's
+    // PATCH, it goes back to Draft. A new Task takes the usual default.
+    setStatus(
+      mode === "edit"
+        ? TaskStatus.DRAFT
+        : resolveStatusForAssigneeAndRunAt({
+            isAgent: isAgentAssignee,
+            hasRunAt: false,
+          }),
     );
-    const isAgent = isAgentAssigneeFields(fields);
-    const nextHasSchedule = selection.mode !== "none";
-    const shouldResolveStatus =
-      !statusTouchedRef.current ||
-      (status === TaskStatus.QUEUED &&
-        !canSelectQueuedTaskStatus({
-          isAgent,
-          hasSchedule: nextHasSchedule,
-        }));
-    if (shouldResolveStatus) {
-      setStatus(
-        resolveStatusForAssigneeAndSchedule({
-          isAgent,
-          hasSchedule: nextHasSchedule,
-        }),
-      );
-    }
   }
 
   const handleGoToTask = () => {
@@ -1207,9 +1021,9 @@ export function TaskForm({
       <section className="flex min-h-0 flex-1 flex-col">
         <div className="[&::-webkit-scrollbar-thumb]:bg-tertiary flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
           {useWizard && step === 1 ? (
-            <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8">
+            <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8 md:py-0">
               <AgentSpotlight
-                options={coworkerOptions}
+                options={availableAssigneeOptions}
                 selectedId={assigneeId}
                 onSelect={handleCoworkerSelect}
                 onPickOffer={(offer) => {
@@ -1258,7 +1072,26 @@ export function TaskForm({
             </TaskFormModalHeaderStart>
           ) : null}
 
-          {showModalCoworkerHeader ? (
+          {showEditAssigneePicker ? (
+            <div className="px-6 py-4 md:px-8">
+              <TaskAssigneePicker
+                value={assigneeId}
+                options={availableAssigneeOptions}
+                labels={{
+                  ariaLabel: labels.coworker,
+                  unassigned: labels.unassigned,
+                  unavailableAssignee: labels.unavailableAssignee,
+                  searchPlaceholder: labels.changeCoworker,
+                  noResults: labels.noCoworkerMatches,
+                  agentsGroupLabel: labels.coworker,
+                }}
+                onSelect={handleCoworkerSelect}
+                isOptionDisabled={(option) =>
+                  isAssigneeLockedToAgent && option === "unassigned"
+                }
+              />
+            </div>
+          ) : showModalCoworkerHeader ? (
             <div className="flex items-center gap-3 px-6 py-4 md:px-8">
               {selectedOption.kind === "sokoBot" &&
               !selectedOption.image &&
@@ -1310,122 +1143,27 @@ export function TaskForm({
               )}
             >
               {useComposeLayout && selectedOption ? (
-                <div className="space-y-1">
-                  <h3 className="text-lg font-semibold">
-                    {taskStepTitle.replace("{name}", selectedOption.name)}
-                  </h3>
-                  <p className="text-muted-foreground text-sm">
-                    {labels.detailsDescription}
-                  </p>
-                </div>
+                <h3 className="text-lg font-semibold">
+                  {taskStepTitle.replace("{name}", selectedOption.name)}
+                </h3>
               ) : null}
               {mode === "edit" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="task-name">{labels.name}</Label>
-                  <Input
-                    id="task-name"
-                    placeholder={labels.namePlaceholder}
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                </div>
-              ) : null}
-
-              {mode === "edit" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="task-assignee">{labels.coworker}</Label>
-                  <Select
-                    value={assigneeId || UNASSIGNED_SELECT_VALUE}
-                    onValueChange={(value) =>
-                      handleCoworkerSelect(
-                        value === UNASSIGNED_SELECT_VALUE ? "" : value,
-                      )
-                    }
-                  >
-                    <SelectTrigger id="task-assignee" className="w-full">
-                      <SelectValue
-                        placeholder={labels.unassigned ?? "Unassigned"}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem
-                        value={UNASSIGNED_SELECT_VALUE}
-                        disabled={isAssigneeLockedToAgent}
-                      >
-                        {labels.unassigned ?? "Unassigned"}
-                      </SelectItem>
-                      {memberAssigneeOptions.length > 0 ? (
-                        <SelectGroup>
-                          <SelectLabel>
-                            {memberAssigneeOptions[0]?.vendor.name}
-                          </SelectLabel>
-                          {memberAssigneeOptions.map((option) => (
-                            <SelectItem
-                              key={option.id}
-                              value={option.id}
-                              disabled={isAssigneeLockedToAgent}
-                            >
-                              {option.name}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      ) : null}
-                      <SelectGroup>
-                        <SelectLabel>{labels.coworker}</SelectLabel>
-                        {agentAssigneeOptions.map((option) => (
-                          <SelectItem key={option.id} value={option.id}>
-                            {option.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  {labels.coworkerDescription ? (
-                    <p className="text-muted-foreground text-xs">
-                      {labels.coworkerDescription}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {shouldShowProjectSelect ? (
-                <div className="space-y-2">
-                  <Label>{labels.projectLabel}</Label>
-                  <TaskProjectSelect
-                    ref={projectSelectRef}
-                    projectOptions={localProjectOptions}
-                    value={projectId}
-                    onChange={handleProjectChange}
-                    projectLabel={labels.projectLabel}
-                    noneLabel={labels.projectNone}
-                    placeholder={labels.projectPlaceholder}
-                    searchPlaceholder={labels.projectSearchPlaceholder}
-                    emptyResults={labels.projectEmptyResults}
-                    projectCreate={labels.projectCreate}
-                    projectCreateNamed={labels.projectCreateNamed}
-                    onCreateProject={handleCreateProject}
-                    invalid={isProjectMissing}
-                    describedBy={
-                      isProjectMissing && labels.projectRequired
-                        ? projectErrorId
-                        : undefined
-                    }
-                  />
-                  {isProjectMissing && labels.projectRequired ? (
-                    <p id={projectErrorId} className="text-destructive text-xs">
-                      {labels.projectRequired}
-                    </p>
-                  ) : null}
-                </div>
+                <input
+                  id="task-name"
+                  type="text"
+                  aria-label={labels.name}
+                  placeholder={labels.namePlaceholder}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  className="w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight outline-none shadow-none placeholder:text-muted-foreground"
+                />
               ) : null}
 
               <div
                 className={cn(
-                  "space-y-2",
                   useModalFieldFill && "flex min-h-0 flex-1 flex-col",
                 )}
               >
-                <Label htmlFor="task-description">{labels.details}</Label>
                 <FileUpload
                   className={cn(useModalFieldFill && "min-h-0 flex-1")}
                   value={pendingUploadFiles}
@@ -1445,6 +1183,8 @@ export function TaskForm({
                     <MarkdownEditor
                       ref={markdownEditorRef}
                       id="task-description"
+                      variant="document"
+                      ariaLabel={labels.details}
                       placeholder={labels.descriptionPlaceholder}
                       className={cn(
                         "w-full",
@@ -1458,11 +1198,6 @@ export function TaskForm({
                       onSubmitShortcut={() => {
                         void handleSave();
                       }}
-                      onAttachClick={() =>
-                        attachmentTriggerRef.current?.click()
-                      }
-                      attachLabel={labels.uploadFile}
-                      isAttachmentUploading={isUploadingAttachments}
                       mentions={mentionOptions}
                     />
                     <FileUploadTrigger asChild>
@@ -1477,107 +1212,125 @@ export function TaskForm({
                     </FileUploadTrigger>
                   </FileUploadDropzone>
                 </FileUpload>
-                {mode === "create" ? (
-                  <TaskContextAttachmentsField
-                    defaultBrand={initialDesignMdAttachment ?? null}
-                    project={selectedProject}
-                    selection={contextSelection}
-                    onSelectionChange={setContextSelection}
-                  />
-                ) : null}
-                {showPrivateControl ? (
-                  <div className="flex items-start gap-2">
-                    <Checkbox
-                      id="task-private"
-                      checked={isPrivate}
-                      onCheckedChange={(checked) =>
-                        setIsPrivate(checked === true)
-                      }
-                    />
-                    <div className="grid gap-1">
-                      <Label
-                        htmlFor="task-private"
-                        className="cursor-pointer font-normal"
-                      >
-                        {labels.privateLabel}
-                      </Label>
-                      {labels.privateDescription ? (
-                        <p className="text-muted-foreground text-sm">
-                          {labels.privateDescription}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : null}
                 {attachmentUrls.length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-2">
                     {attachmentUrls.map((url) => (
                       <FileChipMiniPreviewWithMetadata
                         key={url}
                         url={url}
+                        sizeClass="size-16"
                         onRemove={() => handleRemoveAttachment(url)}
-                        removeLabel={labels.removeAttachment ?? labels.cancel}
+                        removeLabel={labels.removeAttachment}
                       />
                     ))}
                   </div>
                 ) : null}
               </div>
+
+              {shouldShowProjectSelect || showPrivateControl ? (
+                <div className="space-y-1">
+                  <div
+                    data-testid="task-compose-meta-row"
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    {shouldShowProjectSelect ? (
+                      <TaskProjectSelect
+                        ref={projectSelectRef}
+                        variant="chip"
+                        projectOptions={localProjectOptions}
+                        value={projectId}
+                        onChange={handleProjectChange}
+                        projectLabel={labels.projectLabel}
+                        noneLabel={labels.projectNone}
+                        placeholder={labels.projectPlaceholder}
+                        searchPlaceholder={labels.projectSearchPlaceholder}
+                        emptyResults={labels.projectEmptyResults}
+                        projectCreate={labels.projectCreate}
+                        projectCreateNamed={labels.projectCreateNamed}
+                        onCreateProject={handleCreateProject}
+                        invalid={isProjectMissing}
+                        describedBy={
+                          isProjectMissing && labels.projectRequired
+                            ? projectErrorId
+                            : undefined
+                        }
+                      />
+                    ) : null}
+                    {showPrivateControl ? (
+                      <>
+                        {labels.privateDescription ? (
+                          <span id={privateDescriptionId} className="sr-only">
+                            {labels.privateDescription}
+                          </span>
+                        ) : null}
+                        <HoverCard openDelay={150}>
+                          <HoverCardTrigger asChild>
+                            <button
+                              type="button"
+                              id="task-private"
+                              aria-label={labels.privateLabel}
+                              aria-pressed={isPrivate}
+                              aria-describedby={
+                                labels.privateDescription
+                                  ? privateDescriptionId
+                                  : undefined
+                              }
+                              className={cn(
+                                "focus-visible:ring-ring inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2",
+                                isPrivate
+                                  ? "bg-secondary text-secondary-foreground border-transparent"
+                                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                              )}
+                              onClick={() =>
+                                setIsPrivate((current) => !current)
+                              }
+                            >
+                              <Lock className="size-3.5 shrink-0" aria-hidden />
+                              {labels.privateLabel}
+                            </button>
+                          </HoverCardTrigger>
+                          {labels.privateDescription ? (
+                            <HoverCardContent
+                              side="top"
+                              align="start"
+                              className="w-72 text-sm"
+                            >
+                              <p className="text-muted-foreground">
+                                {labels.privateDescription}
+                              </p>
+                            </HoverCardContent>
+                          ) : null}
+                        </HoverCard>
+                      </>
+                    ) : null}
+                  </div>
+                  {shouldShowProjectSelect &&
+                  isProjectMissing &&
+                  labels.projectRequired ? (
+                    <p id={projectErrorId} className="text-destructive text-xs">
+                      {labels.projectRequired}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <TaskContextAttachmentsField
+                layout="inline"
+                defaultBrand={initialDesignMdAttachment ?? null}
+                project={selectedProject}
+                selection={contextSelection}
+                onSelectionChange={setContextSelection}
+              />
             </div>
           ) : null}
         </div>
 
-        {showTaskStep ? (
-          <TaskScheduleModal
-            open={isScheduleModalOpen}
-            onOpenChange={setIsScheduleModalOpen}
-            initialSelection={scheduleSelection}
-            onApply={handleScheduleApply}
-            onClearSchedule={handleClearSchedule}
+        {showTaskStep && isRunAtModalOpen ? (
+          <TaskRunAtModal
+            runAt={runAt}
+            onApply={handleRunAtApply}
+            onClear={handleRunAtClear}
+            onClose={() => setIsRunAtModalOpen(false)}
           />
-        ) : null}
-
-        {pendingSeriesConfirmation ? (
-          <AlertDialog
-            open
-            onOpenChange={(open) => !open && setPendingSeriesConfirmation(null)}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {pendingSeriesConfirmation.change === "remove"
-                    ? tSeries("removeTitle")
-                    : tSeries("discardTitle", {
-                        count: futureExceptionCount ?? 0,
-                      })}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {pendingSeriesConfirmation.change === "remove"
-                    ? tSeries("removeDescription")
-                    : tSeries("discardDescription", {
-                        count: futureExceptionCount ?? 0,
-                      })}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>
-                  {pendingSeriesConfirmation.change === "remove"
-                    ? tSeries("removeCancel")
-                    : tSeries("discardCancel")}
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => {
-                    const { overrideStatus } = pendingSeriesConfirmation;
-                    setPendingSeriesConfirmation(null);
-                    void handleSave(overrideStatus, true);
-                  }}
-                >
-                  {pendingSeriesConfirmation.change === "remove"
-                    ? tSeries("removeConfirm")
-                    : tSeries("discardConfirm")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         ) : null}
 
         {showTaskStep && shouldShowProjectSelect ? (
@@ -1591,19 +1344,35 @@ export function TaskForm({
 
         {showTaskStep ? (
           <div className="flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
-            <div className="flex min-w-0 items-center gap-2">
-              {seriesError ? (
-                <p
-                  role="alert"
-                  className="text-destructive flex min-w-0 items-start gap-2 text-sm"
+            <div className="flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto">
+              <AttachmentSubmenu
+                onUploadClick={() => attachmentTriggerRef.current?.click()}
+                onDriveClick={() =>
+                  markdownEditorRef.current?.openDrivePicker()
+                }
+                disabled={
+                  createdTask !== null ||
+                  isSubmittingAny ||
+                  isUploadingAttachments
+                }
+              >
+                <button
+                  type="button"
+                  aria-label={labels.uploadFile}
+                  disabled={
+                    createdTask !== null ||
+                    isSubmittingAny ||
+                    isUploadingAttachments
+                  }
+                  className="focus-visible:ring-ring text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex size-7 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
                 >
-                  <TriangleAlert
-                    className="mt-0.5 size-4 shrink-0"
-                    aria-hidden
-                  />
-                  <span>{seriesError}</span>
-                </p>
-              ) : null}
+                  {isUploadingAttachments ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Paperclip className="size-3.5" aria-hidden />
+                  )}
+                </button>
+              </AttachmentSubmenu>
               <TaskStatusPicker
                 value={status}
                 options={statusOptions}
@@ -1620,25 +1389,36 @@ export function TaskForm({
                 }
                 align="start"
               />
-              {hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
+              {runAtLabel ? (
                 <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
-                  <ScheduleFooterIcon className="size-4 shrink-0" aria-hidden />
-                  <span className="truncate">{scheduleLabel}</span>
+                  <CalendarClock className="size-4 shrink-0" aria-hidden />
+                  <span className="truncate">{runAtLabel}</span>
                 </div>
               ) : null}
             </div>
             <div className="flex items-center gap-3 sm:ml-auto">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                disabled={createdTask !== null || !isSchedulableAssignee}
-                aria-label={labels.openSchedule}
-                aria-pressed={hasSchedule}
-                onClick={() => setIsScheduleModalOpen(true)}
-              >
-                <CalendarClock className="size-4" aria-hidden />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={createdTask !== null}
+                    aria-disabled={!isAgentAssignee}
+                    aria-label={labels.openRunAt}
+                    aria-pressed={hasRunAt}
+                    className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:bg-background aria-disabled:hover:text-foreground"
+                    onClick={() => {
+                      if (isAgentAssignee) setIsRunAtModalOpen(true);
+                    }}
+                  >
+                    <CalendarClock className="size-4" aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={6} className="max-w-64">
+                  {isAgentAssignee ? labels.openRunAt : tRunAt("requiresAgent")}
+                </TooltipContent>
+              </Tooltip>
               <Button
                 type="button"
                 className="min-w-28 items-center justify-between gap-1"
@@ -1650,7 +1430,7 @@ export function TaskForm({
                     <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
                   ) : null}
                   {mode === "create"
-                    ? hasSchedule
+                    ? hasRunAt
                       ? (labels.scheduleTask ??
                         labels.createTask ??
                         labels.submit)

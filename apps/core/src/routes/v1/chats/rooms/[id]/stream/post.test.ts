@@ -40,6 +40,7 @@ const {
   convertToModelMessagesMock,
   validateUIMessagesMock,
   getSokosumiProviderMock,
+  sokosumiProviderCallMock,
   persistUserMessageToChatRoomMock,
   persistAssistantToChatRoomMock,
   isUiStreamResumptionConfiguredMock,
@@ -76,6 +77,7 @@ const {
   convertToModelMessagesMock: vi.fn(),
   validateUIMessagesMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
+  sokosumiProviderCallMock: vi.fn(),
   persistUserMessageToChatRoomMock: vi.fn(),
   persistAssistantToChatRoomMock: vi.fn(),
   isUiStreamResumptionConfiguredMock: vi.fn(),
@@ -208,6 +210,10 @@ const USER_ID = "user_123";
 const COWORKER_ID = "coworker_1";
 const PARENT_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440099";
 const QUOTE_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440004";
+const OWNED_ROOM_FILE_URL =
+  "https://abc.public.blob.vercel-storage.com/users/user_123/chats/550e8400-e29b-41d4-a716-446655440000/a.png";
+const OTHER_ROOM_FILE_URL =
+  "https://abc.public.blob.vercel-storage.com/users/user_123/chats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/a.png";
 
 const quoteSnapshot = {
   messageId: QUOTE_MESSAGE_ID,
@@ -316,29 +322,14 @@ async function postStream(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  prismaTransactionMock.mockImplementation(async (callback) =>
-    callback({
-      chatRoom: {
-        findFirst: roomFindFirstMock,
-      },
-      chatRoomMessage: {
-        findFirst: chatRoomMessageFindFirstMock,
-      },
-      organization: {
-        findUnique: organizationFindUniqueMock,
-      },
-      member: {
-        findUnique: memberFindUniqueMock,
-      },
-    }),
-  );
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   convertToModelMessagesMock.mockResolvedValue([]);
   validateUIMessagesMock.mockImplementation(
     async ({ messages }: { messages: unknown[] }) => messages,
   );
-  getSokosumiProviderMock.mockReturnValue(() => ({}));
+  sokosumiProviderCallMock.mockReturnValue({});
+  getSokosumiProviderMock.mockReturnValue(sokosumiProviderCallMock);
   workspaceFindUniqueMock.mockResolvedValue({ id: "ws_org_1" });
   requireCoworkerChatCapabilityInWorkspaceMock.mockResolvedValue({
     id: COWORKER_ID,
@@ -414,6 +405,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
     });
 
     expect(response.status).toBe(404);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(streamTextMock).not.toHaveBeenCalled();
     expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
   });
@@ -512,6 +504,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
     );
 
     expect(streamTextMock).toHaveBeenCalledOnce();
+    expect(sokosumiProviderCallMock).toHaveBeenCalledWith(null);
     const streamArgs = streamTextMock.mock.calls[0]![0] as {
       providerOptions: {
         sokosumi: {
@@ -531,6 +524,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(ensureThreadProviderConversationMock).not.toHaveBeenCalled();
     expect(buildRoomStreamThreadModelMessagesMock).not.toHaveBeenCalled();
     expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("persists thread replies under parentMessageId with thread-scoped conversation", async () => {
@@ -571,6 +565,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
         roomId: ROOM_ID,
         parentMessageId: PARENT_MESSAGE_ID,
         lastUserMessageText: "Thread reply",
+        lastUserFileParts: [],
       }),
     );
     expect(createCoworkerConversationMock).not.toHaveBeenCalled();
@@ -597,6 +592,90 @@ describe("POST /chats/rooms/{id}/stream", () => {
         parentMessageId: PARENT_MESSAGE_ID,
       }),
     );
+  });
+
+  it("forwards owned last-user file parts on thread turns", async () => {
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    chatRoomMessageFindFirstMock.mockResolvedValue({
+      id: PARENT_MESSAGE_ID,
+      parentMessageId: null,
+    });
+
+    const response = await postStream({
+      messages: [
+        {
+          role: "user",
+          parts: [
+            { type: "text", text: "Look" },
+            {
+              type: "file",
+              url: OWNED_ROOM_FILE_URL,
+              mediaType: "image/png",
+              filename: "a.png",
+            },
+          ],
+        },
+      ],
+      parentMessageId: PARENT_MESSAGE_ID,
+    });
+
+    expect(response.status).toBe(200);
+    expect(buildRoomStreamThreadModelMessagesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastUserMessageText: "Look",
+        lastUserFileParts: [
+          {
+            type: "file",
+            url: OWNED_ROOM_FILE_URL,
+            mediaType: "image/png",
+            filename: "a.png",
+          },
+        ],
+      }),
+    );
+  });
+
+  it("returns 400 when a file part is not this user's upload in this room", async () => {
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+
+    const otherRoom = await postStream({
+      messages: [
+        {
+          role: "user",
+          parts: [
+            { type: "text", text: "Look" },
+            {
+              type: "file",
+              url: OTHER_ROOM_FILE_URL,
+              mediaType: "image/png",
+              filename: "a.png",
+            },
+          ],
+        },
+      ],
+    });
+    const arbitraryHost = await postStream({
+      messages: [
+        {
+          role: "user",
+          parts: [
+            { type: "text", text: "Look" },
+            {
+              type: "file",
+              url: "https://example.com/a.png",
+              mediaType: "image/png",
+              filename: "a.png",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(otherRoom.status).toBe(400);
+    expect(arbitraryHost.status).toBe(400);
+    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
+    expect(buildRoomStreamThreadModelMessagesMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when parentMessageId is not in the room", async () => {

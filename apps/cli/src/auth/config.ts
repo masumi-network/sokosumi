@@ -16,7 +16,6 @@ export const MAINNET_API_URL = "https://api.sokosumi.com";
 export const PREPROD_API_URL = "https://api.preprod.sokosumi.com";
 export const MAINNET_OAUTH_CLIENT_ID = "GxmewjdHVAaqUEglxWdyCqVFvnTASycj";
 export const PREPROD_OAUTH_CLIENT_ID = "lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR";
-export const DEFAULT_OAUTH_CLIENT_ID = "sokosumi_cli";
 
 const BUILT_IN_OAUTH_CLIENT_ID_BY_TARGET: Readonly<
   Record<Exclude<CliTarget, "custom">, string>
@@ -25,19 +24,20 @@ const BUILT_IN_OAUTH_CLIENT_ID_BY_TARGET: Readonly<
   preprod: PREPROD_OAUTH_CLIENT_ID,
 };
 
-function builtInOAuthClientIdForTarget(target: CliTarget): string {
-  return target === "custom"
-    ? DEFAULT_OAUTH_CLIENT_ID
-    : BUILT_IN_OAUTH_CLIENT_ID_BY_TARGET[target];
-}
-
 export const USER_API_KEY_PREFIX_BY_TARGET: Readonly<
   Record<Exclude<CliTarget, "custom">, string>
 > = {
   mainnet: "soko_mainnet_",
   preprod: "soko_preprod_",
 };
+export const COWORKER_API_KEY_PREFIX = "coworker_";
 export const WEB_API_KEY_ROUTE = "/connections";
+
+export function rejectCoworkerApiKey(apiKey: string): void {
+  if (apiKey.startsWith(COWORKER_API_KEY_PREFIX)) {
+    throw new Error("Coworker API keys are not supported by the CLI");
+  }
+}
 
 function trimUrl(value: string): string {
   return value.trim().replace(/\/+$/g, "");
@@ -110,10 +110,6 @@ export function sanitizeApiUrl(apiUrl: string): string {
   }
 }
 
-function canonicalApiUrl(apiUrl: string): string {
-  return sanitizeApiUrl(apiUrl);
-}
-
 export function resolveTargetFromApiUrl(apiUrl: string): CliTarget {
   const normalized = trimUrl(apiUrl);
   if (normalized === MAINNET_API_URL) return "mainnet";
@@ -123,7 +119,7 @@ export function resolveTargetFromApiUrl(apiUrl: string): CliTarget {
 
 export function resolveTargetScope(target: CliTarget, apiUrl: string): string {
   if (target !== "custom") return target;
-  return `custom-${Buffer.from(canonicalApiUrl(apiUrl), "utf8").toString("hex")}`;
+  return `custom-${Buffer.from(sanitizeApiUrl(apiUrl), "utf8").toString("hex")}`;
 }
 
 export function targetFromUserApiKey(
@@ -140,8 +136,32 @@ export function targetFromUserApiKey(
   return null;
 }
 
-export function userApiKeyPrefixForTarget(target: CliTarget): string | null {
-  return target === "custom" ? null : USER_API_KEY_PREFIX_BY_TARGET[target];
+export function assertApiKeyTarget(
+  apiKey: string,
+  config: CliTargetConfig,
+  targetExplicit: boolean,
+): void {
+  if (/\s/.test(apiKey)) {
+    throw new Error("API key must not contain whitespace");
+  }
+  rejectCoworkerApiKey(apiKey);
+  const detectedTarget = targetFromUserApiKey(apiKey);
+  if (!detectedTarget && !targetExplicit) {
+    throw new Error(
+      "Legacy API keys need an explicit target. Use --preprod or --api-url.",
+    );
+  }
+  if (
+    detectedTarget &&
+    ((config.target === "custom" && targetExplicit) ||
+      (config.target !== "custom" && detectedTarget !== config.target))
+  ) {
+    throw new Error(
+      config.target === "custom" && targetExplicit
+        ? `API key belongs to ${detectedTarget}, but the explicit target is ${config.target}.`
+        : `API key belongs to ${detectedTarget}, but the selected target is ${config.target}`,
+    );
+  }
 }
 
 function resolveAuthBaseUrl(
@@ -186,7 +206,7 @@ export function resolveCliConfig({
     clientId ||
       targetClientIdEnv ||
       env.SOKOSUMI_OAUTH_CLIENT_ID ||
-      builtInOAuthClientIdForTarget(target),
+      (target === "custom" ? "" : BUILT_IN_OAUTH_CLIENT_ID_BY_TARGET[target]),
   ).trim();
   const resolvedAuthBaseUrl = resolveAuthBaseUrl(
     target,

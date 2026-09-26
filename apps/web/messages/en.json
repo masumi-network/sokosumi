@@ -101,9 +101,6 @@
         }
       },
       "AgentDetail": {
-        "Header": {
-          "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
-        },
         "Stats": {
           "executedJobs": "Executed Jobs",
           "averageExecutionTime": "Average Execution Time",
@@ -314,7 +311,9 @@
       "docs": "Documentation",
       "drive": "Files",
       "soko-bots": "Soko Bots",
-      "calendar": "Schedules"
+      "calendar": "Calendar",
+      "schedules": "Schedules",
+      "threads": "Threads"
     },
     "Jobs": {
       "StatusBadge": {
@@ -790,8 +789,18 @@
       "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 unread notification and account notice} other {# unread notifications and account notice}}",
       "title": "Notifications",
       "pageTitle": "Notifications",
+      "pageDescription": "Updates from your tasks, agents and workspace.",
       "emptyState": "No notifications yet",
+      "emptyStateDescription": "Nothing has arrived yet. Task results and workspace requests show up here as they happen.",
+      "emptyUnreadState": "You're all caught up",
+      "emptyUnreadStateDescription": "Nothing here is unread. Everything you have read stays in All.",
+      "emptyNeedsYouState": "Nothing is waiting on you",
+      "emptyNeedsYouStateDescription": "Nothing is waiting for your answer. Requests that need you appear here.",
+      "emptyMentionsState": "Nobody has mentioned you",
+      "emptyMentionsStateDescription": "When someone mentions you in a chat, it shows up here.",
       "viewAll": "View all notifications",
+      "showAll": "Show all",
+      "showOlder": "Show older notifications",
       "justNow": "Just now",
       "loading": "Loading...",
       "markAllRead": "Mark all read",
@@ -807,16 +816,27 @@
       "retry": "Try again",
       "accept": "Accept",
       "view": "View",
+      "filterAll": "All",
+      "filterUnread": "Unread",
+      "filterNeedsYou": "Needs you",
+      "filterMentions": "Mentions",
+      "filterLabel": "Notification view",
       "browserNotificationTitle": "Sokosumi",
       "browserPermissionTitle": "Get alerts when Sokosumi is closed",
       "browserPermissionDescription": "In your account settings, turn Push on for the updates you want, and get them while Sokosumi is closed.",
       "browserPermissionOpenSettings": "Open notification settings",
       "browserPermissionInAppTitle": "Get alerts when you're in another tab",
-      "browserPermissionInAppDescription": "Allow browser notifications for jobs, tasks, billing, system, and chat updates while Sokosumi is open but not focused.",
+      "browserPermissionInAppDescription": "Allow browser notifications for tasks, billing, system, and chat updates while Sokosumi is open but not focused.",
       "browserPermissionEnable": "Enable browser notifications",
       "browserPermissionRequesting": "Waiting for permission…",
       "browserPermissionDeniedTitle": "Browser notifications are blocked",
       "browserPermissionDeniedDescription": "Notifications for this site are blocked in your browser. Open your browser’s notification settings for Sokosumi to allow them.",
+      "browserPermissionInstallTitle": "Add Sokosumi to your Home Screen",
+      "browserPermissionInstallDescription": "On iPhone and iPad, alerts only arrive in the installed app. Tap the Share button, then Add to Home Screen.",
+      "pushQuietTitle": "Push notifications stopped in this browser",
+      "pushQuietDescription": "This browser lost its push subscription, so updates do not arrive here. Your other devices may still get them.",
+      "pushQuietRestore": "Turn push back on",
+      "pushQuietRestoring": "Turning push back on…",
       "vendorGrantAcceptSuccess": "Vendor access approved",
       "vendorGrantAcceptError": "Failed to approve vendor access",
       "coworkerAccessAcceptSuccess": "Coworker early access approved",
@@ -838,7 +858,11 @@
       "zoomReset": "Reset zoom",
       "more": "More options",
       "openInNewTab": "Open in new tab",
-      "copyImage": "Copy image"
+      "copyImage": "Copy image",
+      "previous": "Previous image",
+      "next": "Next image",
+      "position": "{current} / {total}",
+      "stepAnnouncement": "Image {current} of {total}, {name}"
     },
     "DocumentViewer": {
       "title": "Document",
@@ -950,6 +974,25 @@
         "REJECTED": "Rejected. Nothing was created.",
         "EXPIRED": "Expired without a decision. Ask your Soko Bot again if still needed."
       }
+    },
+    "Mermaid": {
+      "title": "Mermaid flowchart",
+      "copy": "Copy source",
+      "enlarge": "Enlarge",
+      "inspect": "Scroll to inspect the diagram. Use zoom controls to adjust its size.",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "close": "Close",
+      "alt": "Flowchart. The complete text is available under Diagram source.",
+      "source": "Diagram source",
+      "waiting": "Waiting for the diagram to finish…",
+      "loading": "Preparing diagram…",
+      "unsupported": "This diagram uses unsupported syntax or features. View or copy its source below.",
+      "tooLarge": "This diagram exceeds the rendering limit. View or copy its source below.",
+      "tooMany": "Only eight diagrams can render in one message section. View or copy this source below.",
+      "failed": "This diagram could not be rendered. Check its syntax in the source below.",
+      "copied": "Source copied.",
+      "copyFailed": "Could not copy. Select the diagram source below and copy it manually."
     }
   },
   "Join": {
@@ -1142,7 +1185,6 @@
         "Form": {
           "submit": "Login",
           "lastUsed": "Last used",
-          "success": "Login successful",
           "error": "Invalid email or password",
           "Fields": {
             "Email": {
@@ -1189,7 +1231,6 @@
         },
         "Form": {
           "submit": "Register",
-          "success": "Register successful",
           "error": "Register failed",
           "Fields": {
             "Email": {
@@ -1263,7 +1304,7 @@
         "description": "Enter your new password below",
         "Form": {
           "submit": "Reset password",
-          "success": "Password reset successfully",
+          "success": "Password reset. You have been signed out on all devices.",
           "error": "Password reset failed",
           "Fields": {
             "Password": {
@@ -1313,7 +1354,7 @@
         "statusOptions": {
           "archived": "Archived",
           "DRAFT": "Draft",
-          "QUEUED": "Queued",
+          "QUEUED": "Scheduled",
           "READY": "Ready",
           "GRANT_PENDING": "Grant pending",
           "INPUT_REQUIRED": "Input required",
@@ -1428,13 +1469,17 @@
         "waitForResponses": "Please wait for other responses to finish (max 3 at a time).",
         "imageAttachment": "An image attachment",
         "fileLabel": "File",
-        "modelAlt": "Model",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "User avatar",
         "downloadGeneratedImage": "Download generated image",
         "expandPrompt": "Show full message",
         "collapsePrompt": "Show less",
         "authorize": "Authorize",
+        "typing": {
+          "one": "{name} is typing…",
+          "two": "{first} and {second} are typing…",
+          "many": "Several people are typing…"
+        },
         "reasoning": {
           "processing": "Processing...",
           "thinking": "Thinking...",
@@ -1524,11 +1569,8 @@
         "approvePartialError": "Approved {approved} of {total} vendors. Some approvals failed — refresh and try again."
       },
       "Actions": {
-        "add": "New Task",
-        "addTask": "New Task",
         "loading": "Loading...",
-        "loadMore": "Load More",
-        "showGuide": "Show guide"
+        "loadMore": "Load More"
       },
       "createTaskFab": "Create task",
       "personalAssistant": "Personal assistant",
@@ -1538,8 +1580,7 @@
         "updateStatus": "Failed to update task status",
         "loadMore": "Failed to load more tasks",
         "loadCreateTask": "Failed to load create task form",
-        "loadJobs": "Failed to load jobs",
-        "scheduleActive": "This task runs on a schedule. Change or remove its schedule before moving it."
+        "loadJobs": "Failed to load jobs"
       },
       "Card": {
         "comments": "Comments",
@@ -1570,7 +1611,7 @@
         "statusLabel": "Status",
         "statusOptions": {
           "DRAFT": "Draft",
-          "QUEUED": "Queued",
+          "QUEUED": "Scheduled",
           "READY": "Ready",
           "GRANT_PENDING": "Grant pending",
           "INPUT_REQUIRED": "Input required",
@@ -1631,6 +1672,7 @@
         "created": "Created",
         "updated": "Updated",
         "description": "Description",
+        "context": "Context",
         "linkedTasksTitle": "Linked tasks",
         "linkedTasksEmpty": "No linked tasks yet.",
         "jobs": "Jobs",
@@ -1742,9 +1784,7 @@
             "parent": "Parent task",
             "subtask": "Sub-task",
             "duplicate": "Duplicate",
-            "addSubtask": "Add sub-task",
-            "scheduleRun": "Scheduled run",
-            "scheduleSeries": "Schedule"
+            "addSubtask": "Add sub-task"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Start working",
@@ -1752,7 +1792,9 @@
           "waitExternal": "Wait on external",
           "resumeRunning": "Resume running",
           "resumeReady": "Back to Ready",
-          "markComplete": "Mark complete"
+          "markComplete": "Mark complete",
+          "repeat": "Repeat",
+          "repeatError": "Couldn't open the schedule form. Try again."
         },
         "ShareModal": {
           "title": "Share task",
@@ -1786,7 +1828,6 @@
           "switchError": "Failed to switch workspace. Please try again."
         },
         "clonedFrom": "Cloned from {name}",
-        "schedule": "Schedule",
         "VendorGrantApproval": {
           "title": "Vendor access approval required",
           "description": "A coworker created this task but does not have permission to create tasks in this workspace yet. Approve vendor access to activate it.",
@@ -1804,47 +1845,15 @@
           "description": "This task is blocked until a workspace owner or admin approves vendor access.",
           "descriptionWithCoworker": "{coworkerName} created this task. It is blocked until a workspace owner or admin approves vendor access."
         },
-        "ScheduleSeries": {
-          "title": "Schedule",
-          "calendar": "Calendar",
-          "repeats": "Repeats",
-          "timezone": "Time zone",
-          "nextRun": "Next run",
-          "removed": "This schedule was removed. Past runs are kept below.",
-          "tabsLabel": "Schedule runs",
-          "upcomingTab": "Upcoming",
-          "historyTab": "History",
-          "upcomingListLabel": "Upcoming runs",
-          "historyListLabel": "Past runs",
-          "upcomingEmpty": "No upcoming runs. New runs appear here as the schedule projects them.",
-          "upcomingEmptyRemoved": "No upcoming runs — this schedule was removed.",
-          "historyEmpty": "No past runs. Released, canceled, and missed runs appear here.",
-          "loadMore": "Load more",
-          "loading": "Loading",
-          "loadMoreError": "Unable to load more runs. Check your connection and try again.",
-          "occurrencesError": "Runs could not be loaded. Refresh the page to try again.",
-          "movedFrom": "Moved from {original}",
-          "statePlanned": "Planned",
-          "stateSkipped": "Skipped",
-          "stateCanceled": "Canceled",
-          "stateReleased": "Released",
-          "stateMissed": "Missed",
-          "archivedRun": "Archived",
-          "move": "Move",
-          "skip": "Skip",
-          "restore": "Restore",
-          "mutationError": "Unable to change this run. Please try again.",
-          "moveSource": "Move calendar",
-          "moveSourceTitle": "Move this schedule?",
-          "moveSourceLabel": "Destination calendar",
-          "moveSourceDescription": "Choose the calendar this schedule should release into. Moving it cancels {count, plural, =0 {no changed upcoming runs} one {# changed upcoming run} other {# changed upcoming runs}}. Past and released runs stay where they are.",
-          "moveSourceCancel": "Keep current calendar",
-          "moveSourceConfirm": "Move schedule",
-          "moveSourceSuccess": "Schedule moved to its new calendar.",
-          "moveSourceError": "Unable to move this schedule. Refresh the task and try again."
-        },
         "files": "Files",
-        "assignee": "Assignee"
+        "assignee": "Assignee",
+        "schedule": "Schedule",
+        "privateSchedule": "Private schedule",
+        "participantsList": "Task participants",
+        "subscribe": "Subscribe",
+        "unsubscribe": "Unsubscribe",
+        "subscribeError": "Couldn’t subscribe. Try again.",
+        "removeParticipantError": "Couldn’t remove participant. Try again."
       },
       "NewTask": {
         "ContextAttachments": {
@@ -1876,7 +1885,10 @@
         "projectCreate": "Create project...",
         "projectCreateNamed": "Create \"{name}\"",
         "coworker": "Coworker",
-        "coworkerDescription": "Choose a Coworker LLM that will manage this task for you",
+        "unassigned": "Unassigned",
+        "unavailableAssignee": "Unavailable assignee",
+        "changeCoworker": "Change coworker…",
+        "noCoworkerMatches": "No coworker matches",
         "defaultBadge": "Default",
         "modelLabel": "Model",
         "hostingLabel": "Hosted in",
@@ -1891,7 +1903,7 @@
         "status": "Status",
         "statusDescription": "Choose the initial status for this task",
         "statusDraft": "Draft",
-        "statusQueued": "Queued",
+        "statusQueued": "Scheduled",
         "statusReady": "Ready",
         "changeStatus": "Change status…",
         "noStatusMatches": "No status matches",
@@ -1905,7 +1917,7 @@
         "removeAttachment": "Remove attachment",
         "createTask": "Create Task",
         "scheduleTask": "Schedule Task",
-        "openSchedule": "Set schedule",
+        "openRunAt": "Set start time",
         "cancel": "Cancel",
         "ctrl": "Ctrl",
         "taskCreated": "Task created",
@@ -1930,13 +1942,14 @@
         "projectCreate": "Create project...",
         "projectCreateNamed": "Create \"{name}\"",
         "coworker": "Coworker",
-        "coworkerDescription": "Choose a Coworker LLM that will manage this task for you",
         "status": "Status",
         "statusDescription": "Choose the status for this task",
         "statusDraft": "Draft",
         "statusReady": "Ready",
         "changeStatus": "Change status…",
         "noStatusMatches": "No status matches",
+        "changeCoworker": "Change coworker…",
+        "noCoworkerMatches": "No coworker matches",
         "untitledTask": "Untitled task",
         "saveError": "Failed to save task",
         "back": "Back",
@@ -1946,52 +1959,14 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remove attachment",
         "save": "Save",
-        "openSchedule": "Set schedule",
+        "openRunAt": "Set start time",
         "cancel": "Cancel",
         "ctrl": "Ctrl",
-        "unassigned": "Unassigned"
+        "unassigned": "Unassigned",
+        "unavailableAssignee": "Unavailable assignee"
       },
       "Schedule": {
-        "title": "Schedule",
-        "description": "Plan a one-time or recurring run.",
-        "clearSchedule": "Remove schedule",
-        "series": {
-          "discardTitle": "Discard {count, plural, one {# changed run} other {# changed runs}}?",
-          "discardDescription": "Saving a new rule for the whole series cancels {count, plural, one {the upcoming run you moved or skipped} other {the # upcoming runs you moved or skipped}}. Runs that already happened are kept.",
-          "discardCancel": "Keep current schedule",
-          "discardConfirm": "Save and discard",
-          "removeTitle": "Remove this schedule?",
-          "removeDescription": "This task will stop running on a schedule. Runs that already happened are kept, and upcoming runs are canceled.",
-          "removeCancel": "Keep the schedule",
-          "removeConfirm": "Remove schedule",
-          "revisionConflict": "This schedule changed somewhere else. Reload the task, reopen the schedule, and apply your change again.",
-          "quarantined": "This schedule is paused for repair and cannot be changed. Contact support to restore it.",
-          "operationConflict": "This save was already sent with different details. Reopen the schedule and try again.",
-          "activeSeries": "This task runs on a schedule. Change or remove its schedule first.",
-          "unknownCount": "We could not check which upcoming runs a new rule would cancel. Reload the page, reopen the schedule, and try again.",
-          "occurrenceLocked": "This occurrence can no longer be changed.",
-          "occurrenceTargetInvalid": "That time is not a valid target."
-        },
-        "occurrenceMove": {
-          "title": "Move occurrence",
-          "description": "Choose a new time for this run.",
-          "label": "New time",
-          "confirm": "Move occurrence",
-          "cancel": "Cancel",
-          "invalid": "Choose a valid date and time.",
-          "error": "Unable to move this occurrence. Please try again."
-        },
-        "occurrenceRestore": {
-          "title": "Restore occurrence",
-          "description": "Restore this run at its original time, or choose another future time.",
-          "label": "Restored time",
-          "confirm": "Restore occurrence",
-          "cancel": "Cancel",
-          "invalid": "Choose a valid date and time.",
-          "error": "Unable to restore this occurrence. Please try again."
-        },
         "option": {
-          "oneTime": "One-time",
           "daily": "Daily",
           "dailyWithTime": "Daily ({time})",
           "dailyEveryNWithTime": "Every {n} days ({time})",
@@ -2003,7 +1978,7 @@
           "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
           "custom": "Custom cron"
         },
-        "pickDateTime": "Run once at",
+        "firstRun": "First run",
         "timeOfDay": "Time of day",
         "repeatEvery": "Repeat every",
         "repeatOn": "Repeat on",
@@ -2025,16 +2000,6 @@
         },
         "save": "Save",
         "cancel": "Cancel",
-        "footer": {
-          "oneTimeAt": "Once on {datetime}"
-        },
-        "card": {
-          "overdue": "Overdue",
-          "dueInMinutes": "Due in {minutes, plural, one {# minute} other {# minutes}}",
-          "dueInHours": "Due in {hours, plural, one {# hour} other {# hours}}",
-          "tomorrowAt": "Tomorrow at {time}",
-          "nextRunAt": "Next run: {datetime}"
-        },
         "errors": {
           "required": "This field is required.",
           "futureDateTime": "Select a future date and time.",
@@ -2045,16 +2010,131 @@
           "invalidCron": "Enter a valid cron expression for the selected timezone."
         }
       },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "elenaAvatarAlt": "Elena avatar"
+      "RunAt": {
+        "title": "Start time",
+        "description": "The task waits until this time, then moves to Ready.",
+        "label": "Start at",
+        "apply": "Apply",
+        "clear": "Clear",
+        "cancel": "Cancel",
+        "notInFuture": "Choose a time in the future.",
+        "requiresAgent": "Scheduled tasks require an agent. Choose one to set a start time.",
+        "footer": "Starts {datetime}",
+        "badge": {
+          "overdue": "Starting soon",
+          "inMinutes": "Starts in {minutes, plural, one {# minute} other {# minutes}}",
+          "inHours": "Starts in {hours, plural, one {# hour} other {# hours}}",
+          "tomorrowAt": "Starts tomorrow at {time}",
+          "at": "Starts {datetime}"
+        }
+      },
+      "Schedules": {
+        "stateFilter": "Schedule state",
+        "filterAll": "All",
+        "state": {
+          "ACTIVE": "Active",
+          "PAUSED": "Paused",
+          "ENDED": "Ended"
+        },
+        "newSchedule": "New schedule",
+        "empty": "No schedules here yet. A schedule creates a new task every time it runs.",
+        "loadMore": "Load more",
+        "loadingMore": "Loading…",
+        "loadMoreError": "Couldn't load more schedules.",
+        "nextRun": "Next run {datetime}",
+        "noNextRun": "No upcoming run",
+        "unassigned": "Unassigned",
+        "unavailableAssignee": "Unavailable assignee",
+        "workspace": "Workspace",
+        "Dialog": {
+          "createTitle": "New schedule",
+          "editTitle": "Edit schedule",
+          "createDescription": "Each run creates a new task from these details.",
+          "futureOnlyNotice": "Changes apply to future runs only. Tasks already created stay as they are.",
+          "name": "Name",
+          "description": "Description",
+          "assignee": "Assignee",
+          "create": "Create schedule",
+          "save": "Save changes",
+          "created": "Schedule created",
+          "saved": "Schedule saved",
+          "errors": {
+            "stale": "This schedule changed somewhere else. Reload the page and try again.",
+            "saveFailed": "Couldn't save the schedule."
+          }
+        },
+        "Actions": {
+          "edit": "Edit",
+          "pause": "Pause",
+          "resume": "Resume",
+          "end": "End",
+          "delete": "Delete",
+          "paused": "Schedule paused",
+          "resumed": "Schedule resumed",
+          "ended": "Schedule ended",
+          "deleted": "Schedule deleted",
+          "failed": "Couldn't update the schedule. Try again.",
+          "confirmEndTitle": "End this schedule?",
+          "confirmEndDescription": "It stops creating tasks for good, and its skipped or moved runs are dropped. Tasks it already created stay.",
+          "confirmDeleteTitle": "Delete this schedule?",
+          "confirmDeleteDescription": "The schedule and its upcoming runs are removed. Tasks it already created stay, no longer linked to it.",
+          "confirmEnd": "End schedule",
+          "confirmDelete": "Delete schedule",
+          "cancel": "Cancel"
+        },
+        "Detail": {
+          "back": "Schedules",
+          "upcomingRuns": "Upcoming runs",
+          "noUpcomingRuns": "No runs planned yet.",
+          "noUpcomingRunsInactive": "No runs are planned while the schedule is paused or ended.",
+          "runSkipped": "Skipped",
+          "runMoved": "Moved",
+          "createdTasks": "Tasks created",
+          "noCreatedTasks": "No tasks created yet.",
+          "properties": "Properties",
+          "state": "State",
+          "rule": "Repeats",
+          "timezone": "Time zone",
+          "nextRun": "Next run",
+          "ends": "Ends",
+          "assignee": "Assignee",
+          "project": "Project",
+          "noProject": "No project",
+          "released": "Runs so far",
+          "endsOn": "On {date}",
+          "endsAfter": "After {count, plural, one {# run} other {# runs}}",
+          "endsNever": "Never"
+        },
+        "Page": {
+          "title": "Schedules",
+          "description": "Every schedule in your workspace. Each run creates a new task."
+        }
+      },
+      "Tags": {
+        "label": "Tags",
+        "empty": "No tags yet",
+        "edit": "Edit tags",
+        "hint": "Choose up to five tags. Saved choices stay; removed suggestions will not return.",
+        "showAll": "Show all {count} tags",
+        "save": "Save tags",
+        "saving": "Saving…",
+        "error": "Unable to save tags. Try again.",
+        "manual": "Chosen by you",
+        "automatic": "Automatically suggested",
+        "noProject": "No project",
+        "openProject": "Open project: {name}",
+        "vocabulary": {
+          "research": "Research",
+          "strategy": "Strategy",
+          "writing": "Writing",
+          "design": "Design",
+          "analysis": "Analysis",
+          "development": "Development",
+          "marketing": "Marketing",
+          "social": "Social media",
+          "seo": "SEO",
+          "operations": "Operations"
+        }
       }
     },
     "Projects": {
@@ -2068,6 +2148,17 @@
       "list": {
         "loadMore": "Load more",
         "loading": "Loading projects...",
+        "filter": {
+          "placeholder": "Filter projects",
+          "clear": "Clear filter",
+          "noMatches": "No projects match \"{query}\"."
+        },
+        "sortedBy": "Sorted by recent activity",
+        "lastActivity": "Last activity",
+        "created": "Created",
+        "pin": "Pin project",
+        "unpin": "Unpin project",
+        "pinError": "Could not change the Pin. Try again.",
         "stats": {
           "tasks": "Tasks",
           "jobs": "Jobs",
@@ -2174,6 +2265,125 @@
         "save": "Save",
         "cancel": "Cancel"
       },
+      "ProjectSocialAccounts": {
+        "title": "Social accounts",
+        "description": "Connect X accounts that this project can use for future publishing.",
+        "account": "X account",
+        "connect": "Connect X account",
+        "reconnect": "Reconnect",
+        "replace": "Replace",
+        "disconnect": "Disconnect",
+        "connecting": "Connecting…",
+        "disconnecting": "Disconnecting…",
+        "unknownHandle": "Unknown X account",
+        "status": {
+          "active": "Connected",
+          "pending": "Connection pending",
+          "reauthorization_required": "Reconnection required",
+          "disconnected": "Disconnected"
+        },
+        "replaceDialog": {
+          "title": "Replace this X account?",
+          "description": "The current account will be disconnected before you connect a replacement.",
+          "confirm": "Replace account"
+        },
+        "disconnectDialog": {
+          "title": "Disconnect this X account?",
+          "description": "This project will no longer be authorized to use this account.",
+          "confirm": "Disconnect account"
+        },
+        "cancel": "Cancel",
+        "success": {
+          "connected": "X account connected.",
+          "disconnected": "X account disconnected."
+        },
+        "warning": {
+          "providerRevocationFailed": "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings."
+        },
+        "errors": {
+          "inFlight": "Another X account action is already in progress.",
+          "popupBlocked": "Your browser blocked the X authorization window. Allow popups and try again.",
+          "timeout": "X authorization took too long. Try again.",
+          "providerCallback": "X authorization did not complete. Return to the Project's Social page and try again.",
+          "legacyCallback": "This OAuth callback cannot verify your X account. Update the Composio callback setup and try again.",
+          "verifier": "We could not verify your X account. Start the connection again.",
+          "intent": "This connection request expired or is no longer valid. Start again.",
+          "duplicate": "That X account is already connected to this project. Choose a different account.",
+          "reconnectMismatch": "Reconnect the same X account that is already linked to this project.",
+          "finalize": "We could not finish connecting this X account. Try again.",
+          "disconnect": "We could not disconnect this X account. Try again."
+        }
+      },
+      "SocialPosts": {
+        "loadMore": "Load more",
+        "loading": "Loading…",
+        "title": "Social posts",
+        "description": "Draft text posts for X and schedule them from this Project.",
+        "newPost": "New post",
+        "moreActions": "Post actions",
+        "noAccount": "No account",
+        "sections": {
+          "upcoming": "Upcoming",
+          "drafts": "Drafts",
+          "history": "History"
+        },
+        "empty": {
+          "upcoming": "No scheduled posts yet.",
+          "drafts": "No drafts yet.",
+          "history": "No published, failed, or canceled posts yet."
+        },
+        "status": {
+          "DRAFT": "Draft",
+          "SCHEDULED": "Scheduled",
+          "PUBLISHING": "Publishing",
+          "PUBLISHED": "Published",
+          "FAILED": "Failed",
+          "MISSED": "Missed",
+          "CANCELED": "Canceled"
+        },
+        "creator": {
+          "user": "User",
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot"
+        },
+        "composer": {
+          "newTitle": "New post",
+          "editTitle": "Edit post",
+          "scheduleTitle": "Schedule post",
+          "rescheduleTitle": "Reschedule post",
+          "description": "Write the text, pick the account, and choose when it goes out.",
+          "text": "Text",
+          "textPlaceholder": "What do you want to post?",
+          "characters": "{count} / {limit}",
+          "account": "Account",
+          "noAccount": "Choose an account",
+          "unknownHandle": "Unknown X account",
+          "scheduledAt": "Scheduled time",
+          "scheduledAtTooSoon": "Choose a time at least one minute from now.",
+          "saveDraft": "Save draft",
+          "save": "Save",
+          "schedule": "Schedule",
+          "reschedule": "Reschedule",
+          "cancel": "Cancel post",
+          "edit": "Edit",
+          "close": "Close"
+        },
+        "cancelDialog": {
+          "title": "Cancel this post?",
+          "description": "The post will not be published. You can schedule it again later.",
+          "confirm": "Cancel post"
+        },
+        "toasts": {
+          "created": "Draft saved.",
+          "scheduled": "Post scheduled.",
+          "updated": "Post updated.",
+          "canceled": "Post canceled.",
+          "conflict": "This post was changed elsewhere. Reloading the latest version.",
+          "failed": "Something went wrong. Try again.",
+          "unauthenticated": "Please sign in to continue.",
+          "unauthenticatedAction": "Sign in"
+        }
+      },
       "Detail": {
         "back": "Back to projects",
         "header": {
@@ -2199,7 +2409,8 @@
           "removed": "Brand context removed",
           "removeDialog": {
             "title": "Remove brand context?",
-            "description": "This removes the project's DESIGN.md file."
+            "description": "This removes the project's DESIGN.md file.",
+            "cancel": "Cancel"
           },
           "upload": "Upload",
           "moreActions": "Brand actions"
@@ -2283,32 +2494,132 @@
           "fileBrowser": {
             "title": "File Browser",
             "description": "Every file this project produced"
+          },
+          "imageStudio": {
+            "title": "Image studio",
+            "description": "Create and refine images with a studio assistant."
           }
         },
         "actions": {
           "moreActions": "More actions",
           "viewDetails": "View details",
           "edit": "Edit",
-          "delete": "Delete",
+          "close": "Close project",
           "remove": "Remove",
           "confirmRemoveJob": "Remove this job from the project?"
         },
-        "deleteDialog": {
-          "title": "Delete project",
-          "description": "This will delete the project. Linked tasks and jobs will remain available outside the project.",
-          "confirm": "Delete",
-          "cancel": "Cancel"
+        "close": {
+          "dialog": {
+            "title": "Close project?",
+            "description": "Work scheduled before the close cutoff will finish. Work at or after the cutoff will be canceled, and the project cannot be reopened.",
+            "reasonLabel": "Reason (optional)",
+            "reasonPlaceholder": "Why is this project closing?",
+            "confirm": "Close project",
+            "cancel": "Keep project open",
+            "success": "Project close started",
+            "error": "Unable to close the project. Review its latest state and try again."
+          },
+          "status": {
+            "CLOSING": {
+              "title": "Project is closing",
+              "description": "{count, plural, =0 {No owed occurrences remain} one {# owed occurrence remains} other {# owed occurrences remain}} before the {cutoff} cutoff. Work at or after the cutoff is being canceled."
+            },
+            "CLOSE_FAILED": {
+              "title": "Project close needs attention",
+              "descriptionWithCancel": "Scheduled work is paused at the {cutoff} cutoff. Retry the close, or cancel only the blocked owed work.",
+              "descriptionRetryOnly": "Scheduled work is paused at the {cutoff} cutoff. Retry the close to continue."
+            },
+            "CLOSED": {
+              "title": "Project closed",
+              "description": "Closed {completedAt}. Calendar history is retained."
+            }
+          },
+          "recovery": {
+            "retryAction": "Retry close",
+            "cancelOwedAction": "Cancel owed work",
+            "reasonLabel": "Reason",
+            "reasonPlaceholder": "Explain why this recovery action is needed",
+            "reasonRequired": "Enter a reason for this recovery action.",
+            "keepFailed": "Keep close paused",
+            "success": "Project close resumed",
+            "error": "Unable to resume the project close. Review its latest state and try again.",
+            "retry": {
+              "title": "Retry project close?",
+              "description": "The close worker will retry the blocked scheduled work from the same cutoff."
+            },
+            "cancelOwed": {
+              "title": "Cancel owed work?",
+              "description": "Only the blocked work owed before the cutoff will be canceled. This cannot be undone."
+            }
+          }
         },
         "errors": {
           "create": "Failed to create project",
           "update": "Failed to update project",
-          "delete": "Failed to delete project",
           "addJob": "Failed to add job",
           "removeJob": "Failed to remove job",
           "addTask": "Failed to add task",
           "loadMore": "Failed to load more projects",
           "contextMd": "Couldn't load project memory",
           "brand": "Couldn't update project brand context"
+        },
+        "imageStudio": {
+          "back": "Back to project",
+          "updated": "Updated",
+          "title": "Image studio",
+          "subtitle": "Describe what you need, look at what comes back, and approve the versions you want to keep.",
+          "emptyTitle": "No images yet",
+          "emptyBody": "Describe the image you need in the chat. You will get a version back to look at, refine, and approve.",
+          "example1": "A calm product shot on a light neutral background",
+          "example2": "A wide banner image for a spring campaign",
+          "example3": "An abstract background in the project's brand colours",
+          "promptPlaceholder": "Describe the image…",
+          "generate": "Generate",
+          "refine": "Refine",
+          "regenerate": "New variation",
+          "variations": "Variations",
+          "download": "Download",
+          "compare": "Compare",
+          "compareOff": "Stop comparing",
+          "approve": "Approve",
+          "reject": "Reject",
+          "undecided": "Undecided",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "clearReview": "Clear decision",
+          "feedbackPlaceholder": "Optional note for this version",
+          "history": "Versions",
+          "version": "Version",
+          "generating": "Generating",
+          "queued": "Queued at the provider",
+          "failed": "That generation failed",
+          "uncertainTitle": "We could not confirm this request",
+          "uncertainBody": "The provider never answered, so we do not know whether it received the request. It may already have been charged. Check again before deciding, and only submit a new request if you accept that it may be charged a second time.",
+          "checkAgain": "Check again",
+          "submitAnyway": "Submit a new request anyway",
+          "tryAgain": "Try again",
+          "cancel": "Cancel",
+          "cancelRequested": "Cancellation requested. The provider may already have finished.",
+          "chatTitle": "Studio assistant",
+          "chatUnavailable": "The studio assistant is not available right now. You can still review and download the versions below.",
+          "send": "Send",
+          "noApproved": "No approved versions yet.",
+          "clearFilter": "Show all",
+          "filterAll": "All",
+          "filterApproved": "Approved",
+          "elapsed": "Elapsed",
+          "lineage": "Lineage",
+          "from": "Prompt",
+          "you": "You",
+          "studio": "Studio",
+          "thinking": "Working…",
+          "assistantError": "The assistant could not finish that",
+          "assistantErrorHint": "Your message is still in the box. Try sending it again, or rephrase it.",
+          "loadOlder": "Load older versions",
+          "errorSessionExpired": "Your session expired. Reload to continue.",
+          "errorRefreshFailed": "Could not refresh. Retrying.",
+          "errorLoadOlderFailed": "Could not load older versions.",
+          "retryConnection": "Try connecting again"
         }
       }
     },
@@ -2344,6 +2655,10 @@
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
           "projects": "Projects",
+          "allProjects": "All projects",
+          "projectsPanel": "Your projects",
+          "pinnedProjects": "Pinned",
+          "recentProjects": "Recent projects",
           "history": "History",
           "drive": "Files",
           "admin": "Admin",
@@ -2351,13 +2666,16 @@
           "back": "Back",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Schedules"
+          "calendar": "Calendar",
+          "schedules": "Schedules",
+          "projectsLoading": "Loading projects…",
+          "projectsError": "Could not load projects.",
+          "retryProjects": "Retry"
         },
         "ChatLists": {
           "title": "Recent Chats",
           "noChats": "No chats yet",
           "untitledChat": "Untitled Chat",
-          "modelAlt": "Model",
           "coworkerAlt": "Coworker"
         },
         "SeatRequired": {
@@ -4005,6 +4323,8 @@
         "currentPassword": "Current password",
         "newPassword": "New password",
         "confirmPassword": "Confirm new password",
+        "revokeOtherSessionsLabel": "Sign out of other devices",
+        "revokeOtherSessionsHelp": "Ends every other session. The device you are using now stays signed in.",
         "submit": "Update password",
         "success": "Password updated successfully",
         "error": "Failed to update password"
@@ -4096,8 +4416,6 @@
       "Notifications": {
         "title": "Notifications",
         "description": "Choose what Sokosumi tells you about, and where it reaches you",
-        "jobStatusEmailsEnabledSuccess": "Job notification emails enabled",
-        "jobStatusEmailsDisabledSuccess": "Job notification emails disabled",
         "marketingEmailsTitle": "Marketing emails",
         "marketingEmailsDescription": "Get an email when Sokosumi has new features, updates, and promotions.",
         "marketingEmailOnlyHint": "Sokosumi sends this by email only.",
@@ -4114,6 +4432,9 @@
         "pushBannerDeniedBody": "Sokosumi cannot ask again. Allow notifications for this site in your browser settings. Your other devices may still get them.",
         "pushBannerUnsupportedTitle": "This browser cannot show push notifications",
         "pushBannerUnsupportedBody": "Push notifications do not arrive here, whatever the rows below say. Your other devices may still get them.",
+        "pushBannerInstallableTitle": "Add Sokosumi to your Home Screen to get push notifications",
+        "pushBannerInstallableBody": "On iPhone and iPad, push notifications only arrive in the installed app. Tap the Share button, then Add to Home Screen, and open Sokosumi from there. Your other devices may still get them.",
+        "pushInstallableHint": "Add Sokosumi to your Home Screen to get these on this device.",
         "deviceBannerTitle": "Push notifications are on in this browser. Your other devices are unaffected.",
         "deviceBannerAction": "Turn off",
         "deviceDisabledSuccess": "Push notifications off in this browser",
@@ -4128,14 +4449,6 @@
         "kindsDescription": "Set a whole group at once, or open it and choose for each notification.",
         "kindsLoading": "Loading your notification settings.",
         "kindsLoadError": "Your notification settings did not load. Reload the page to try again.",
-        "groupJob": "Jobs",
-        "groupJobDescription": "Jobs waiting on you, and the rest.",
-        "kindJobAttention": "Jobs waiting on you",
-        "kindJobAttentionHint": "A job needs your input, or its payment failed.",
-        "kindJobCompleted": "Completed jobs",
-        "kindJobCompletedHint": "A job finished the work you asked for.",
-        "kindJobUpdate": "Other job updates",
-        "kindJobUpdateHint": "Anything else a job reports, like failing or a refund. Nothing for you to do.",
         "groupTask": "Tasks",
         "groupTaskDescription": "Tasks waiting on you, and the rest.",
         "kindTaskAttention": "Tasks waiting on you",
@@ -4144,6 +4457,8 @@
         "kindTaskCompletedHint": "A task finished the work you asked for.",
         "kindTaskUpdate": "Other task updates",
         "kindTaskUpdateHint": "Anything else a task reports, like failing or being canceled. Nothing for you to do.",
+        "kindProjectUpdate": "Project updates",
+        "kindProjectUpdateHint": "A project finishes closing or needs another close attempt.",
         "kindChatRoomMessage": "Every message in your rooms",
         "kindChatRoomMessageHint": "Anyone posts in a room you are in. Off unless you turn it on.",
         "kindChatMention": "Mentions",
@@ -4158,14 +4473,20 @@
         "presetEssential": "Essential",
         "presetAppOnly": "In app",
         "presetOff": "Off",
-        "presetJobMostHint": "Jobs waiting on you and completed jobs arrive in the app and as a push. Other job updates arrive in the app only.",
-        "presetJobEssentialHint": "Only jobs waiting on you arrive as a push. Completed jobs and other updates arrive in the app only.",
-        "presetJobAppOnlyHint": "Every job notification arrives in the app. None of them arrive as a push.",
-        "presetJobOffHint": "No job notification arrives, in the app or as a push. Job status emails have their own switch.",
         "presetTaskMostHint": "Tasks waiting on you and completed tasks arrive in the app and as a push. Other task updates arrive in the app only.",
         "presetTaskEssentialHint": "Only tasks waiting on you arrive as a push. Completed tasks and other updates arrive in the app only.",
         "presetTaskAppOnlyHint": "Every task notification arrives in the app. None of them arrive as a push.",
         "presetTaskOffHint": "No task notification arrives, in the app or as a push. Open the group to turn a single one back on.",
+        "groupBilling": "Billing",
+        "groupBillingDescription": "Credits running low, payments, and top-ups.",
+        "kindBillingAttention": "Billing waiting on you",
+        "kindBillingAttentionHint": "Your credits are running low, or a payment did not go through. Work stops if nothing changes.",
+        "kindBillingUpdate": "Other billing updates",
+        "kindBillingUpdateHint": "A top-up landed, or your subscription is set to end. Nothing for you to do.",
+        "presetBillingMostHint": "Billing waiting on you and other billing updates arrive in the app and as a push.",
+        "presetBillingEssentialHint": "Only billing waiting on you arrives as a push. Other billing updates arrive in the app only.",
+        "presetBillingAppOnlyHint": "Every billing notification arrives in the app. None of them arrive as a push.",
+        "presetBillingOffHint": "No billing notification arrives, in the app or as a push. Open the group to turn a single one back on.",
         "presetChatMostHint": "Every message in your rooms arrives in the app. Mentions and direct messages arrive as a push as well.",
         "presetChatEssentialHint": "Mentions and direct messages arrive as a push. Every message in your rooms is off.",
         "presetChatAppOnlyHint": "Mentions and direct messages arrive in the app. Every message in your rooms is off, and nothing arrives as a push.",
@@ -4177,28 +4498,28 @@
         "presetAriaLabel": "What you get from {group}",
         "presetMenuCustomLabel": "{group} · set one by one",
         "channelInApp": "In app",
-        "channelInAppHint": "Inside Sokosumi, not on your device.",
+        "channelInAppHint": "Shows up in your Sokosumi notifications.",
         "channelPush": "Push",
-        "channelPushHint": "On your device, even when Sokosumi is closed.",
+        "channelPushHint": "A banner from your device, even when Sokosumi is closed.",
+        "channelEmailExternalLabel": "Email, always on for {kind}",
+        "channelEmailExternalHint": "Stripe sends these receipts and cancellations. There is nothing to set here.",
         "channelEmail": "Email",
-        "channelEmailHint": "One switch behind every job email: an email when a job completes, resolves, or waits on your input.",
+        "channelEmailHint": "Sent to your inbox. Only notifications you haven't read get an email.",
         "channelsKindLabel": "Notification",
         "channelsLegendLabel": "What the columns mean",
-        "channelEmailFallbackHint": "An email when a job completes, resolves, or waits on your input.",
         "channelsAnnounce": "{kind}: {channels}",
         "channelsNone": "none",
         "channelCellLabel": "{channel} for {kind}",
         "channelUnavailableLabel": "{channel}, not used for {kind}",
-        "channelEmailLabel": "Job status emails",
-        "channelEmailSoonLabel": "Email, not sent for {kind} yet",
-        "channelEmailSoonHint": "Sokosumi does not send an email for this notification yet.",
         "deliveryAriaLabel": "Delivery for {kind}",
-        "newsDeliveryAriaLabel": "Delivery for marketing emails"
+        "newsDeliveryAriaLabel": "Delivery for marketing emails",
+        "kindFollowUp": "Reminders",
+        "kindFollowUpHint": "One reminder a day later when you have not opened something that is waiting for you."
       },
       "ChatDisplay": {
         "title": "Chat display",
         "roomUnreadCountTitle": "Show unread message counts",
-        "roomUnreadCountDescription": "Muted chats and the chat you have open stay quiet. Your notifications do not change.",
+        "roomUnreadCountDescription": "Shown on every chat with unread messages. Muted chats stay quiet, and your notifications do not change.",
         "loading": "Saving preference...",
         "error": "Could not save that change. Check your connection and try again.",
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
@@ -4247,6 +4568,7 @@
           "runningSubscription": "Cancel your running subscription and wait until the paid period ends.",
           "billingLink": "Go to billing",
           "userOwnsOrganization": "Transfer ownership or delete every organization you own before deleting your account.",
+          "userIsLastVendorAdmin": "Promote another Vendor member to admin, or archive the Vendor's coworkers, before deleting your account.",
           "inFlightJob": "Wait for in-flight jobs to finish before deleting your account.",
           "unsettledOnChainJob": "Wait for on-chain job purchases to settle before deleting your account.",
           "inFlightTask": "Wait for in-flight tasks to finish before deleting your account.",
@@ -5226,6 +5548,7 @@
         "markUnread": "Mark as unread",
         "pin": "Pin",
         "unpin": "Unpin",
+        "reorderHandle": "Reorder {name}. Drag, or press the up and down arrow keys.",
         "mute": "Mute",
         "unmute": "Unmute",
         "roomMenu": "Chat actions for {name}",
@@ -5247,6 +5570,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} more participants",
       "directMessages": "Direct Messages",
+      "pinned": "Pinned",
+      "reorderPinned": "Reorder pinned chats",
+      "reorderPinnedDone": "Done reordering",
       "loading": "Loading...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Message is too long ({count}/{max}). Shorten it to send.",
@@ -5319,7 +5645,8 @@
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Group direct messages are humans only.",
         "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1.",
-        "personalAssistantDirectOneToOneOnly": "Personal assistant direct messages are 1:1."
+        "personalAssistantDirectOneToOneOnly": "Personal assistant direct messages are 1:1.",
+        "openFailed": "Could not open the conversation. Try again."
       },
       "RoomSearch": {
         "open": "Search in this chat",
@@ -5368,6 +5695,36 @@
         "afk": "Away",
         "offline": "Offline"
       },
+      "ThreadRows": {
+        "label": "Unread threads in {name}",
+        "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}",
+        "moreThreads": "{count, plural, one {# more unread thread} other {# more unread threads}}",
+        "mentions": "{count, plural, one {# mention} other {# mentions}}",
+        "untitled": "Thread"
+      },
+      "UnreadNav": {
+        "label": "Unread",
+        "threads": "Threads",
+        "allUnreads": "Unreads",
+        "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
+        "unreadThreadsCapped": "More than {max} unread threads",
+        "mentions": "{count, plural, one {# mention} other {# mentions}}",
+        "filterOn": "Showing unread only",
+        "markAllRead": "Mark all as read",
+        "markAllReadError": "Could not mark everything as read.",
+        "caughtUp": "All caught up",
+        "allThreads": "All threads",
+        "justRead": "Read just now"
+      },
+      "ThreadsView": {
+        "title": "Threads",
+        "listLabel": "Unread threads",
+        "empty": "You're all caught up",
+        "emptyDescription": "New replies in threads you're part of show up here.",
+        "loadMore": "Show more",
+        "loadError": "Could not load unread threads.",
+        "retry": "Try again"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5376,7 +5733,11 @@
         "loading": "Loading replies",
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
-        "replyCount": "{count, plural, one {# reply} other {# replies}}"
+        "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "newReplyCount": "{count, plural, one {# new reply} other {# new replies}}",
+        "mute": "Mute thread",
+        "unmute": "Unmute thread",
+        "muted": "Muted"
       },
       "loadOlder": "Load older messages",
       "loadingOlder": "Loading older messages…",
@@ -5443,9 +5804,16 @@
         "editedAt": "Edited {when}"
       },
       "Copy": {
-        "action": "Copy",
+        "action": "Copy text",
+        "link": "Copy link",
         "success": "Copied to clipboard",
-        "error": "Failed to copy"
+        "error": "Failed to copy",
+        "linkSuccess": "Link copied",
+        "linkError": "Failed to copy link",
+        "sendToSelf": "Send to yourself",
+        "sendToSelfSuccess": "Sent to yourself",
+        "sendToSelfError": "Failed to send to yourself",
+        "sendToSelfOpen": "Open"
       },
       "MentionAll": {
         "label": "Everyone"
@@ -5505,12 +5873,20 @@
       "RoomRoster": {
         "open": "Members",
         "title": "Members",
+        "humansTitle": "People",
+        "agentsTitle": "Coworkers",
         "close": "Close members",
         "empty": "No members to show.",
         "message": "Message {name}",
         "copy": "Copy {value}",
         "copySuccess": "Copied to clipboard",
         "copyError": "Could not copy."
+      },
+      "SeenBy": {
+        "summary": "{count, plural, one {Seen by # person} other {Seen by # people}}",
+        "readersTitle": "Read by",
+        "readAt": "Last read {time}",
+        "notRead": "Not read yet"
       },
       "UnreadThreads": {
         "open": "Threads",
@@ -5522,22 +5898,37 @@
         "error": "Could not load threads. Try again.",
         "markAllReadError": "Could not mark unread threads as read. Try again.",
         "loadOlder": "Load older threads",
+        "groupUnread": "Unread",
+        "groupEarlier": "Earlier",
+        "groupUnreadEmpty": "All caught up",
         "startedBy": "Started by {name}",
-        "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}",
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
-        "unreadThreadsCapped": "More than {max} unread threads"
+        "unreadThreadsCapped": "More than {max} unread threads",
+        "newReplies": "{count, plural, one {# new} other {# new}}"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
-        "unreadMessagesCapped": "More than {max} unread messages"
+        "unreadMessagesCapped": "More than {max} unread messages",
+        "railUnread": "Unread"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
-        "mentionsCapped": "More than {max} mentions"
+        "mentionsCapped": "More than {max} mentions",
+        "railMention": "Mentions you"
       },
       "MembershipStatus": {
         "joined": "{name} joined",
         "left": "{name} left"
+      },
+      "GroupName": {
+        "rename": "Rename",
+        "dialogTitle": "Name this group",
+        "dialogDescription": "Everyone in the group sees this name instead of the member list. Leave it empty to show the members again.",
+        "label": "Group name",
+        "save": "Save",
+        "saveFailed": "Could not name the group.",
+        "named": "{name} named the group {groupName}",
+        "cleared": "{name} removed the group name"
       },
       "External": {
         "title": "External",
@@ -5664,10 +6055,13 @@
             "footer": "Back to chat"
           }
         }
+      },
+      "SelfDirect": {
+        "messageYourself": "Message yourself",
+        "you": "You",
+        "description": "Send yourself notes and to-dos. Only you can see them.",
+        "exclusive": "Self-chat cannot include other recipients."
       }
-    },
-    "WorkspaceAccess": {
-      "checking": "Checking workspace access"
     },
     "Drive": {
       "breadcrumb": "Files",
@@ -5709,7 +6103,7 @@
       "moreActions": "More actions",
       "uploadFab": "Upload file",
       "folder": "Folder",
-      "createFolder": "Create folder",
+      "createFolder": "New",
       "folderName": "Folder name",
       "createFolderDialogTitle": "Create new folder",
       "createFolderDialogDescription": "Enter a name for the new folder",
@@ -5909,8 +6303,6 @@
       "Chat": {
         "defaultName": "Soko Bot",
         "avatarAlt": "Soko Bot",
-        "legacyDivider": "{count, plural, one {# earlier message imported from your previous assistant} other {# earlier messages imported from your previous assistant}}",
-        "toolSteps": "{count, plural, one {# step} other {# steps}}",
         "answeredIn": "{seconds}s",
         "copy": "Copy",
         "copied": "Copied",
@@ -6181,7 +6573,7 @@
     },
     "Calendar": {
       "Metadata": {
-        "title": "Schedules",
+        "title": "Calendar",
         "description": "Browse scheduled task releases in your workspace."
       },
       "previous": "Previous period",
@@ -6195,44 +6587,35 @@
         "label": "Source",
         "all": "All sources",
         "WORKSPACE": "Workspace",
-        "PROJECT": "Project",
-        "LEGACY_UNKNOWN": "Legacy source"
+        "PROJECT": "Project"
       },
       "event": {
         "accessibleName": "{task}, {source}",
-        "accessibleNameSkipped": "{task}, {source}, skipped",
-        "editSchedule": "Edit schedule",
-        "moveOccurrence": "Move occurrence",
-        "skipOccurrence": "Skip occurrence",
-        "restoreOccurrence": "Restore occurrence",
-        "mutationError": "Unable to change this occurrence. Please try again.",
-        "openTask": "Open task"
+        "moveNotAllowed": "Only upcoming runs of your own active schedules can be moved.",
+        "moveRun": "Move run",
+        "skipRun": "Skip run",
+        "restoreRun": "Restore run",
+        "openSchedule": "Open schedule",
+        "runStale": "This schedule changed somewhere else. The calendar is reloading; try again.",
+        "runInvalidTime": "Choose a time in the future, within the next 90 days.",
+        "runError": "Couldn't change this run. Try again."
+      },
+      "runMove": {
+        "title": "Move run",
+        "description": "Choose a new time for this run of {name}. The schedule stays as it is.",
+        "label": "New time",
+        "confirm": "Move run",
+        "cancel": "Cancel",
+        "invalid": "Choose a valid date and time."
       },
       "create": {
-        "title": "Schedule a task"
-      },
-      "edit": {
-        "title": "Edit schedule",
-        "description": "Change the schedule for {name}.",
-        "loadError": "Unable to load this task. Please try again.",
-        "saveError": "Unable to save this schedule. Please try again.",
-        "clearError": "Unable to remove this schedule. Please try again.",
-        "clearPending": "Removing schedule…",
-        "clearTitle": "Remove schedule?",
-        "clearDescription": "This task will no longer run on a schedule.",
-        "clearCancel": "Cancel",
-        "clearConfirm": "Remove schedule"
-      },
-      "accuracy": {
-        "inferred": "Inferred source",
-        "unknown": "Unknown source",
-        "approximate": "Approximate time"
+        "fab": "Schedule a task"
       },
       "status": {
         "label": "Task status",
         "all": "All statuses",
         "DRAFT": "Draft",
-        "QUEUED": "Queued",
+        "QUEUED": "Scheduled",
         "READY": "Ready",
         "GRANT_PENDING": "Grant pending",
         "INPUT_REQUIRED": "Input required",
@@ -6256,6 +6639,9 @@
       "empty": {
         "title": "No scheduled releases match these filters."
       },
+      "schedules": {
+        "link": "Schedules"
+      },
       "pagination": {
         "error": "Unable to load more events."
       },
@@ -6263,6 +6649,11 @@
         "title": "Unable to load the calendar",
         "description": "Please try again in a moment.",
         "retry": "Try again"
+      },
+      "agenda": {
+        "upcoming": "Coming up next",
+        "loading": "Loading…",
+        "loadMore": "Load more"
       }
     },
     "You": {
@@ -6410,7 +6801,9 @@
         "Date": {
           "min": "{name} must be at least {value}",
           "max": "{name} must be at most {value}",
-          "format": "{name} must be a {value}"
+          "format": "{name} must be a {value}",
+          "pickDate": "Pick a date",
+          "pickDateTime": "Pick date & time"
         },
         "Password": {
           "show": "Show password",
@@ -6433,7 +6826,8 @@
         "paymentFailed": "Payment failed for {jobName}",
         "inputRequired": "{agentName} needs your input for {jobName}",
         "refundResolved": "{jobName} was refunded",
-        "disputeResolved": "Dispute resolved for {jobName}"
+        "disputeResolved": "Dispute resolved for {jobName}",
+        "followUp": "{jobName} is still waiting for you"
       },
       "Task": {
         "inputRequired": "{coworkerName} needs your input for {taskName}",
@@ -6445,7 +6839,24 @@
         "canceled": "{taskName} was canceled",
         "scheduleRepaired": "The schedule for {taskName} was repaired",
         "scheduleRemovedByOperator": "The schedule for {taskName} was removed after review",
-        "assigned": "You were assigned {taskName}"
+        "scheduleUpdatedByMember": "A teammate updated the schedule for {taskName}",
+        "scheduleRemovedByMember": "A teammate removed the schedule for {taskName}",
+        "scheduleSourceChangedByMember": "A teammate moved {taskName} to another calendar source",
+        "scheduleOccurrenceChangedByMember": "A teammate changed an occurrence of {taskName}",
+        "assigned": "You were assigned {taskName}",
+        "participantAdded": "You were added to {taskName} as a participant",
+        "followUp": "{taskName} is still waiting for you"
+      },
+      "Billing": {
+        "lowBalance": "Your credits are running low: {credits} left",
+        "paymentFailed": "A subscription payment failed",
+        "creditsAdded": "{credits} credits were added to your balance",
+        "subscriptionEnding": "Your subscription ends when the current period does",
+        "followUp": "Your billing still needs your attention"
+      },
+      "Project": {
+        "closed": "{projectName} is now closed",
+        "closeFailed": "{projectName} could not finish closing"
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",
@@ -6458,7 +6869,10 @@
         "roomMessagesGroup": "{count} messages in group {roomName}",
         "roomMessageTitle": "{authorName} in channel {roomName}",
         "roomMessageGroupTitle": "{authorName} in group {roomName}",
-        "mentionAll": "Everyone"
+        "mentionAll": "Everyone",
+        "mentionedFollowUp": "{authorName} is still waiting for you in {roomName}",
+        "mentionedDirectFollowUp": "{authorName} is still waiting for your reply",
+        "directMessageFollowUp": "{authorName} is still waiting for your reply"
       }
     }
   },

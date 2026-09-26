@@ -86,14 +86,12 @@ export function mapAccountCreditsChrome(
 interface SidebarProps {
   accountFooter: ReactNode;
   chatList: ReactNode;
-  calendarMenuEnabled: boolean;
   sokoBotMenuEnabled: boolean;
 }
 
 export default function Sidebar({
   accountFooter,
   chatList,
-  calendarMenuEnabled,
   sokoBotMenuEnabled,
 }: SidebarProps) {
   return (
@@ -113,17 +111,27 @@ export default function Sidebar({
         <div className="flex w-full flex-col gap-0">
           <PersonalAssistantNav enabled={sokoBotMenuEnabled} />
           {sokoBotMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
-          <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
+          <MenuItems />
           <SidebarSeparator />
           {chatList}
         </div>
       </SidebarContent>
-      <SidebarFooter className="mt-auto shrink-0 px-0">
+      {/*
+        The hairline is the twin of SidebarHeader's `border-b`: without it the
+        scroll region runs straight into the account chip, and at the scroll
+        position where a DM row lands flush against it the chip reads as one
+        more room. It marks the footer as chrome in both states — expanded and
+        on the collapsed rail.
+      */}
+      <SidebarFooter className="border-sidebar-border mt-auto shrink-0 border-t px-0">
         <AnnouncementCards />
         {/* No bottom padding of its own: `SidebarFooter` already contributes
             8px there, matching the 8px this adds on the sides. The inset only
             grows on phones, where the home indicator sits in that 8px. */}
-        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+        {/* No `justify-center` on the rail: the chip carries the same `ml-1`
+            every Sidebar row does, so its face lands on the sidebar's 28px
+            leading axis rather than on the rail's own half-pixel centre. */}
+        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex">
           {accountFooter}
         </div>
       </SidebarFooter>

@@ -18,7 +18,6 @@ export interface CoreHttpClient {
   get<T>(pathname: string, signal?: AbortSignal): Promise<T>;
   post<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
   patch<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
-  delete<T>(pathname: string, signal?: AbortSignal): Promise<T>;
 }
 
 function formatBody(body: unknown): string {
@@ -111,7 +110,5 @@ export function createCoreHttpClient({
       request<T>("POST", pathname, body, signal),
     patch: <T>(pathname: string, body: unknown, signal?: AbortSignal) =>
       request<T>("PATCH", pathname, body, signal),
-    delete: <T>(pathname: string, signal?: AbortSignal) =>
-      request<T>("DELETE", pathname, undefined, signal),
   };
 }

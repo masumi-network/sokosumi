@@ -25,7 +25,7 @@ struct SignInTests {
     )
 
     #expect(await session.isSignedIn)
-    let saved = try #require(await store.saved)
+    let saved = try #require(store.saved)
     #expect(saved.accessToken == "access-1")
     #expect(saved.refreshToken == "refresh-1")
     let request = try #require(transport.lastRequest)
@@ -137,7 +137,7 @@ struct SignInTests {
 
     #expect(await session.signOut() == false)
     #expect(await session.isSignedIn)
-    #expect(await store.saved?.accessToken == "access-1")
+    #expect(store.saved?.accessToken == "access-1")
   }
 
   @Test func signOutClearsStoredTokens() async throws {
@@ -156,6 +156,6 @@ struct SignInTests {
 
     await session.signOut()
     #expect(await !session.isSignedIn)
-    #expect(await store.saved == nil)
+    #expect(store.saved == nil)
   }
 }

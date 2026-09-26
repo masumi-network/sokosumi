@@ -1,6 +1,7 @@
 import { MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { answerRoomUnreadReads } from "@/test-fixtures/chat-room-unread";
 
 import mountGetChatRooms from "./get";
 
@@ -107,6 +108,7 @@ function guestRoomRow() {
     slug: "external-client",
     kind: "channel",
     directKey: null,
+    groupName: null,
     topic: null,
     discoverability: "external",
     createdByUserId: "user_host",
@@ -134,6 +136,7 @@ function guestRoomRow() {
     ],
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
   };
 }
 
@@ -145,6 +148,7 @@ function personalDirectRow() {
     slug: "bob",
     kind: "direct",
     directKey: `${USER_ID}:${PEER_USER_ID}`,
+    groupName: null,
     topic: null,
     discoverability: null,
     createdByUserId: USER_ID,
@@ -188,7 +192,15 @@ function personalDirectRow() {
     ],
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
   };
+}
+
+function mockUnreadCounts(
+  rows: Array<Record<string, unknown>>,
+  threads: Array<Record<string, unknown>> = [],
+) {
+  answerRoomUnreadReads(queryRawUnsafeMock, rows, threads);
 }
 
 beforeEach(() => {
@@ -215,7 +227,7 @@ describe("GET /chats/rooms", () => {
     messageGroupByMock.mockResolvedValue([
       { roomId: room.id, _max: { createdAt: room.createdAt } },
     ]);
-    queryRawUnsafeMock.mockResolvedValue([{ roomId: room.id, unreadCount: 1 }]);
+    mockUnreadCounts([{ roomId: room.id, source: "channel", unreadCount: 1 }]);
 
     const response = await createApp(ORG_ID).request("/");
     expect(response.status).toBe(200);
@@ -223,6 +235,208 @@ describe("GET /chats/rooms", () => {
     expect(body.data[0]).toMatchObject({
       updatedAt: room.updatedAt.toISOString(),
       unreadCount: 1,
+    });
+  });
+
+  it("lists a room's unread threads for the sidebar, in the order read", async () => {
+    const room = guestRoomRow();
+    roomFindManyMock.mockResolvedValue([room]);
+    roomCountMock.mockResolvedValue(1);
+    mockUnreadCounts(
+      [{ roomId: room.id, source: "thread", unreadCount: 3 }],
+      [
+        {
+          roomId: room.id,
+          lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
+          parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
+          firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
+          parentContent: "Vendor-wide rollout",
+          unreadReplyCount: 2,
+          unreadThreadCount: 2,
+        },
+        {
+          roomId: room.id,
+          lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
+          parentMessageId: "550e8400-e29b-41d4-a716-446655440b02",
+          firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c02",
+          parentContent: "Into Linear",
+          unreadReplyCount: 1,
+          unreadThreadCount: 2,
+        },
+      ],
+    );
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0]).toMatchObject({
+      threadUnreadCount: 3,
+      unreadThreadCount: 2,
+      unreadThreads: [
+        {
+          parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
+          firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
+          parentContent: "Vendor-wide rollout",
+          unreadReplyCount: 2,
+        },
+        {
+          parentMessageId: "550e8400-e29b-41d4-a716-446655440b02",
+          firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c02",
+          parentContent: "Into Linear",
+          unreadReplyCount: 1,
+        },
+      ],
+    });
+  });
+
+  // A Thread that names the reader is marked as such on its own row, so the
+  // reader can tell which of a room's unread Threads the room's badge is for.
+  it("reports how many unread replies in a thread mention the viewer", async () => {
+    const room = guestRoomRow();
+    roomFindManyMock.mockResolvedValue([room]);
+    roomCountMock.mockResolvedValue(1);
+    const preview = (n: number, unreadMentionCount: number) => ({
+      roomId: room.id,
+      lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
+      parentMessageId: `550e8400-e29b-41d4-a716-446655440b0${n}`,
+      firstUnreadReplyId: `550e8400-e29b-41d4-a716-446655440c0${n}`,
+      parentContent: `Thread ${n}`,
+      unreadReplyCount: 3,
+      unreadMentionCount,
+      unreadThreadCount: 2,
+    });
+    mockUnreadCounts(
+      [{ roomId: room.id, source: "thread", unreadCount: 6 }],
+      [preview(1, 1), preview(2, 0)],
+    );
+
+    const response = await createApp(ORG_ID).request("/");
+
+    const body = await response.json();
+    expect(
+      body.data[0].unreadThreads.map(
+        (thread: { unreadReplyCount: number; unreadMentionCount: number }) => [
+          thread.unreadReplyCount,
+          thread.unreadMentionCount,
+        ],
+      ),
+    ).toEqual([
+      [3, 1],
+      [3, 0],
+    ]);
+  });
+
+  // The cap hides rows, never the truth: the overflow row states the rest.
+  it("reports the true number of unread threads beside a capped list", async () => {
+    const room = guestRoomRow();
+    roomFindManyMock.mockResolvedValue([room]);
+    roomCountMock.mockResolvedValue(1);
+    const preview = (n: number) => ({
+      roomId: room.id,
+      lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
+      parentMessageId: `550e8400-e29b-41d4-a716-446655440b0${n}`,
+      firstUnreadReplyId: `550e8400-e29b-41d4-a716-446655440c0${n}`,
+      parentContent: `Thread ${n}`,
+      unreadReplyCount: 1,
+      unreadThreadCount: 7,
+    });
+    mockUnreadCounts(
+      [{ roomId: room.id, source: "thread", unreadCount: 9 }],
+      [preview(1), preview(2), preview(3)],
+    );
+
+    const response = await createApp(ORG_ID).request("/");
+
+    const body = await response.json();
+    expect(body.data[0].unreadThreads).toHaveLength(3);
+    expect(body.data[0].unreadThreadCount).toBe(7);
+  });
+
+  // The sidebar polls this route. Most polls find no Thread unread, and then
+  // the second scan of the room's replies has nothing to find.
+  it("skips the unread threads read when no room has Thread unread", async () => {
+    const room = guestRoomRow();
+    roomFindManyMock.mockResolvedValue([room]);
+    roomCountMock.mockResolvedValue(1);
+    mockUnreadCounts([{ roomId: room.id, source: "channel", unreadCount: 2 }]);
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
+  });
+
+  it("lists no threads for a room with no Thread unread", async () => {
+    const room = guestRoomRow();
+    roomFindManyMock.mockResolvedValue([room]);
+    roomCountMock.mockResolvedValue(1);
+    mockUnreadCounts(
+      [{ roomId: room.id, source: "channel", unreadCount: 2 }],
+      [],
+    );
+
+    const response = await createApp(ORG_ID).request("/");
+
+    const body = await response.json();
+    expect(body.data[0]).toMatchObject({
+      unreadThreads: [],
+      unreadThreadCount: 0,
+    });
+  });
+
+  it("keeps each room's halves apart when several rooms are unread", async () => {
+    const busy = guestRoomRow();
+    const threadOnly = {
+      ...guestRoomRow(),
+      id: "550e8400-e29b-41d4-a716-4466554400aa",
+      slug: "thread-only",
+    };
+    roomFindManyMock.mockResolvedValue([busy, threadOnly]);
+    roomCountMock.mockResolvedValue(2);
+    // Rows arrive interleaved, as GROUP BY makes no ordering promise.
+    mockUnreadCounts([
+      { roomId: busy.id, source: "thread", unreadCount: 3 },
+      { roomId: threadOnly.id, source: "thread", unreadCount: 1 },
+      { roomId: busy.id, source: "channel", unreadCount: 2 },
+    ]);
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const byId = new Map(
+      body.data.map((room: { id: string }) => [room.id, room]),
+    );
+    expect(byId.get(busy.id)).toMatchObject({
+      channelUnreadCount: 2,
+      threadUnreadCount: 3,
+      unreadCount: 5,
+    });
+    expect(byId.get(threadOnly.id)).toMatchObject({
+      channelUnreadCount: 0,
+      threadUnreadCount: 1,
+      unreadCount: 1,
+    });
+  });
+
+  it("reports Room unread and Thread unread separately for each room", async () => {
+    const room = guestRoomRow();
+    roomFindManyMock.mockResolvedValue([room]);
+    roomCountMock.mockResolvedValue(1);
+    mockUnreadCounts([
+      { roomId: room.id, source: "channel", unreadCount: 2 },
+      { roomId: room.id, source: "thread", unreadCount: 3 },
+    ]);
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0]).toMatchObject({
+      channelUnreadCount: 2,
+      threadUnreadCount: 3,
+      unreadCount: 5,
     });
   });
 
@@ -382,6 +596,28 @@ describe("GET /chats/rooms", () => {
         userId: { in: [PEER_USER_ID] },
       },
       select: { userId: true },
+    });
+  });
+
+  it("lists a group Direct with its Group name", async () => {
+    roomFindManyMock.mockResolvedValue([
+      {
+        ...personalDirectRow(),
+        directKey: `direct:v2:user:${PEER_USER_ID}:user:${USER_ID}:user:user_cara`,
+        groupName: "Launch crew",
+      },
+    ]);
+    roomCountMock.mockResolvedValue(1);
+    memberFindManyMock.mockResolvedValue([]);
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0]).toMatchObject({
+      id: PERSONAL_DIRECT_ID,
+      groupName: "Launch crew",
+      isGroupDirect: true,
     });
   });
 

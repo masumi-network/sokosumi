@@ -15,7 +15,7 @@ export const USER_PREFERENCES_SELECT = {
   marketingOptIn: true,
   notificationsOptIn: true,
   pushOptIn: true,
-  showRoomUnreadCount: true,
+  hideRoomUnreadCount: true,
   notificationPreferences: {
     select: { category: true, channel: true, enabled: true },
   },
@@ -25,7 +25,7 @@ interface UserPreferencesRow {
   marketingOptIn: boolean;
   notificationsOptIn: boolean;
   pushOptIn: boolean;
-  showRoomUnreadCount: boolean;
+  hideRoomUnreadCount: boolean;
   notificationPreferences: StoredNotificationPreference[];
 }
 
@@ -40,7 +40,10 @@ export function toUserPreferencesResponse(user: UserPreferencesRow) {
     marketingOptIn: user.marketingOptIn,
     notificationsOptIn: user.notificationsOptIn,
     pushOptIn: user.pushOptIn,
-    showRoomUnreadCount: user.showRoomUnreadCount,
+    // Stored as "hide" and answered as "show" (ADR-0038). The column's false
+    // is what starts every reader on the count, with no backfill. The wire
+    // field keeps its name, so no client, the Apple app included, has to move.
+    showRoomUnreadCount: !user.hideRoomUnreadCount,
     notificationPreferences: resolveNotificationMatrix(
       user.notificationPreferences,
     ),

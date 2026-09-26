@@ -8,7 +8,7 @@ interface FetchRequest {
   options?: RequestInit;
 }
 
-test("TestV25 successful OAuth callback clears the browser URL", async () => {
+test("successful OAuth callback clears the browser URL", async () => {
   let callbackResponsePromise: Promise<Response> | undefined;
   const fetchImpl: typeof fetch = async () => {
     return new Response(

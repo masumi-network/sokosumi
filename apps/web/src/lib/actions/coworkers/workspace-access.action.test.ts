@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 const createForCoworkerMock = vi.fn();

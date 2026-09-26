@@ -28,10 +28,11 @@ export interface SsrfSafeFetchInit {
   body?: string;
   signal?: AbortSignal;
   /**
-   * When set, reject with {@link SsrfError} if `Content-Length` exceeds this
-   * or if the streamed body grows past it (closes chunked oversize DoS).
+   * Reject with {@link SsrfError} if `Content-Length` exceeds this or if the
+   * streamed body grows past it (closes chunked oversize DoS). Required so a
+   * caller cannot buffer a remote body without bound by omission.
    */
-  maxResponseBytes?: number;
+  maxResponseBytes: number;
 }
 
 /**
@@ -105,7 +106,7 @@ function guardedRequest(url: URL, init: SsrfSafeFetchInit): Promise<Response> {
       },
       (message) => {
         const declaredLength = message.headers["content-length"];
-        if (maxBytes !== undefined && declaredLength !== undefined) {
+        if (declaredLength !== undefined) {
           const length = Number(declaredLength);
           if (Number.isFinite(length) && length > maxBytes) {
             message.destroy();
@@ -127,7 +128,7 @@ function guardedRequest(url: URL, init: SsrfSafeFetchInit): Promise<Response> {
             return;
           }
           received += chunk.byteLength;
-          if (maxBytes !== undefined && received > maxBytes) {
+          if (received > maxBytes) {
             rejectedForSize = true;
             message.destroy();
             reject(
@@ -187,8 +188,13 @@ function guardedRequest(url: URL, init: SsrfSafeFetchInit): Promise<Response> {
  */
 export async function ssrfSafeFetch(
   rawUrl: string | URL,
-  init: SsrfSafeFetchInit = {},
+  init: SsrfSafeFetchInit,
 ): Promise<Response> {
+  const maxResponseBytes = init?.maxResponseBytes;
+  if (!Number.isFinite(maxResponseBytes) || maxResponseBytes <= 0) {
+    throw new SsrfError("maxResponseBytes must be a positive finite number");
+  }
+
   const method = (init.method ?? "GET").toUpperCase();
   const followRedirects = method === "GET" || method === "HEAD";
 

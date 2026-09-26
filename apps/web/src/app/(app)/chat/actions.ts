@@ -27,14 +27,19 @@ import type {
   ChatRoomThread,
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
+  ChatRoomThreadUnreadReplyCount,
   Coworker,
   DiscoverableChatRoom,
   Member,
 } from "@/lib/clients/generated/core";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { chatRoomService, userService } from "@/lib/services";
+import {
+  type ChatUnreadRoomRead,
+  chatRoomService,
+} from "@/lib/services/chat-room.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { userService } from "@/lib/services/user.service";
 
 /** Chat action wire shape — ActionResultDto (neverthrow at boundary). */
 export type RoomActionResult<T> = ActionResultDto<T, ActionError>;
@@ -78,6 +83,8 @@ interface UpdateRoomInput {
   memberUserIds?: string[];
   coworkerIds?: string[];
   sokoBotIds?: string[];
+  /** Group Directs only; Core rejects it anywhere else. Blank clears it. */
+  groupName?: string;
 }
 
 interface CreateDirectRoomInput {
@@ -97,6 +104,8 @@ export interface ChatComposeSokoBot {
 
 export interface ChatComposeRoster {
   currentUserId: string;
+  currentUserName: string;
+  currentUserImage: string | null;
   organizationName: string;
   hasOrganization: boolean;
   canCreateExternal: boolean;
@@ -144,8 +153,12 @@ export async function loadChatComposeRosterAction(): Promise<
     return roomFail("Sign in required.");
   }
 
+  const self = {
+    currentUserId: session.user.id,
+    currentUserName: session.user.name,
+    currentUserImage: session.user.image ?? null,
+  };
   try {
-    const currentUserId = session.user.id;
     const [activeOrganization, coworkers, bot, t] = await Promise.all([
       userService.getActiveOrganization(),
       coworkerService.listCoworkers("chat"),
@@ -165,7 +178,7 @@ export async function loadChatComposeRosterAction(): Promise<
 
     if (!activeOrganization) {
       return roomOk({
-        currentUserId,
+        ...self,
         organizationName: "",
         hasOrganization: false,
         canCreateExternal: false,
@@ -182,7 +195,7 @@ export async function loadChatComposeRosterAction(): Promise<
     ]);
 
     return roomOk({
-      currentUserId,
+      ...self,
       organizationName: activeOrganization.name,
       hasOrganization: true,
       canCreateExternal: Boolean(
@@ -193,8 +206,18 @@ export async function loadChatComposeRosterAction(): Promise<
       sokoBots,
       membersLoadFailed: membersPage.failed,
     });
-  } catch (error) {
-    return roomCatch(error, "Could not load chat recipients.");
+  } catch {
+    // Session identity stays usable for self-chat when recipient services fail.
+    return roomOk({
+      ...self,
+      organizationName: "",
+      hasOrganization: Boolean(session.session.activeOrganizationId),
+      canCreateExternal: false,
+      members: [],
+      coworkers: [],
+      sokoBots: [],
+      membersLoadFailed: true,
+    });
   }
 }
 
@@ -386,6 +409,9 @@ export async function updateRoomAction(
     }),
     ...(input.sokoBotIds !== undefined && {
       sokoBotIds: cleanIds(input.sokoBotIds),
+    }),
+    ...(input.groupName !== undefined && {
+      groupName: cleanString(input.groupName),
     }),
   };
 
@@ -715,8 +741,11 @@ export async function sendRoomMessageAction(
     mentionedUserIds?: string[];
     mentionedSokoBotIds?: string[];
     parentMessageId?: string;
-    /** Same-room quote target; does not set parentMessageId. */
-    quote?: { messageId: string };
+    /**
+     * Quote target; `roomId` names the source room when it is not this room.
+     * Does not set parentMessageId.
+     */
+    quote?: { messageId: string; roomId?: string };
     /**
      * Opaque client turn id. Retries of the same send reuse this so Core
      * creates at most one row (unique on roomId + clientMessageId).
@@ -725,7 +754,8 @@ export async function sendRoomMessageAction(
   },
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanContent = cleanString(content);
-  if (!cleanContent) {
+  // A quote can be the whole message.
+  if (!cleanContent && !options?.quote?.messageId) {
     return roomFail("Message is required.");
   }
 
@@ -739,7 +769,10 @@ export async function sendRoomMessageAction(
         parentMessageId: options.parentMessageId,
       }),
       ...(options?.quote?.messageId && {
-        quote: { messageId: options.quote.messageId },
+        quote: {
+          messageId: options.quote.messageId,
+          ...(options.quote.roomId && { roomId: options.quote.roomId }),
+        },
       }),
       ...(options?.clientMessageId && {
         clientMessageId: options.clientMessageId,
@@ -830,14 +863,14 @@ export async function listThreadsAction(
   }
 }
 
-export async function countUnreadThreadsAction(
+export async function listUnreadThreadReplyCountsAction(
   roomId: string,
-): Promise<RoomActionResult<number>> {
+): Promise<RoomActionResult<ChatRoomThreadUnreadReplyCount[]>> {
   try {
-    const count = await chatRoomService.countUnreadThreads(roomId);
-    return roomOk(count);
+    const threads = await chatRoomService.listUnreadThreadReplyCounts(roomId);
+    return roomOk(threads);
   } catch (error) {
-    return roomCatch(error, "Could not count unread threads.");
+    return roomCatch(error, "Could not load unread threads.");
   }
 }
 
@@ -853,6 +886,27 @@ export async function markThreadReadAction(
   }
 }
 
+/** Mute or unmute one thread for the signed-in user (SOK-1087). */
+export async function setThreadMutedAction(
+  roomId: string,
+  parentMessageId: string,
+  muted: boolean,
+): Promise<RoomActionResult<ChatRoomThread>> {
+  try {
+    const thread = await chatRoomService.setThreadMuted(
+      roomId,
+      parentMessageId,
+      muted,
+    );
+    return roomOk(thread);
+  } catch (error) {
+    return roomCatch(
+      error,
+      muted ? "Could not mute this thread." : "Could not unmute this thread.",
+    );
+  }
+}
+
 export async function markAllUnreadThreadsReadAction(
   roomId: string,
 ): Promise<RoomActionResult<ChatRoomThreadsMarkAll>> {
@@ -861,6 +915,18 @@ export async function markAllUnreadThreadsReadAction(
     return roomOk(result);
   } catch (error) {
     return roomCatch(error, "Could not mark unread threads as read.");
+  }
+}
+
+/** All unreads' Mark all as read (SOK-1159). */
+export async function markAllChatUnreadReadAction(
+  rooms: readonly ChatUnreadRoomRead[],
+): Promise<RoomActionResult<null>> {
+  try {
+    await chatRoomService.markAllUnreadRead(rooms);
+    return roomOk(null);
+  } catch (error) {
+    return roomCatch(error, "Could not mark everything as read.");
   }
 }
 
@@ -907,6 +973,29 @@ export async function pinRoomMessageAction(
     return roomOk(result);
   } catch (error) {
     return roomCatch(error, t("pinError"));
+  }
+}
+
+/** Send to yourself: quote a room message into the caller's Self Direct. */
+export async function sendRoomMessageToSelfAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomMessage>> {
+  const t = await getTranslations("App.Channels.Copy");
+  const cleanRoomId = cleanString(roomId);
+  const cleanMessageId = cleanString(messageId);
+  if (!cleanRoomId || !cleanMessageId) {
+    return roomFail(t("sendToSelfError"));
+  }
+
+  try {
+    const message = await chatRoomService.sendMessageToSelf(
+      cleanRoomId,
+      cleanMessageId,
+    );
+    return roomOk(message);
+  } catch (error) {
+    return roomCatch(error, t("sendToSelfError"));
   }
 }
 
@@ -959,10 +1048,11 @@ export async function unpinRoomMessageAction(
   }
 }
 
-export async function toggleMessageReactionAction(
+export async function setMessageReactionAction(
   roomId: string,
   messageId: string,
   emoji: string,
+  reacted: boolean,
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanEmoji = cleanString(emoji);
   if (!cleanEmoji) {
@@ -970,10 +1060,11 @@ export async function toggleMessageReactionAction(
   }
 
   try {
-    const message = await chatRoomService.toggleReaction(
+    const message = await chatRoomService.setReaction(
       roomId,
       messageId,
       cleanEmoji,
+      reacted,
     );
     // No revalidatePath: the updated message is returned and merged client
     // side, so a full RSC re-render of /chat would only duplicate work.

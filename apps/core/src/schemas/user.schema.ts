@@ -154,7 +154,7 @@ export const notificationPreferenceSchema = z
     }),
     channel: z.enum(NOTIFICATION_CHANNELS).openapi({
       description:
-        "Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)",
+        "Where it is delivered: in the app, as an OS banner (which also needs pushOptIn), or by email (offered only on the categories that mail)",
       example: "OS_BANNER",
     }),
     enabled: z.boolean().openapi({
@@ -170,7 +170,9 @@ export const userPreferencesResponseSchema = z.object({
     example: true,
   }),
   notificationsOptIn: z.boolean().openapi({
-    description: "Whether the user wants to receive job status notifications",
+    description:
+      "Deprecated compatibility field for existing v1 clients. Does not control notification delivery",
+    deprecated: true,
     example: true,
   }),
   pushOptIn: z.boolean().openapi({
@@ -180,8 +182,8 @@ export const userPreferencesResponseSchema = z.object({
   }),
   showRoomUnreadCount: z.boolean().openapi({
     description:
-      "Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery",
-    example: false,
+      "Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery",
+    example: true,
   }),
   notificationPreferences: z.array(notificationPreferenceSchema).openapi({
     description:

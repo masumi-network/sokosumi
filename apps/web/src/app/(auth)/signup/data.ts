@@ -1,5 +1,5 @@
 import type { FormData } from "@/lib/form";
-import type { SignUpFormSchemaType } from "@/lib/schemas";
+import type { SignUpFormSchemaType } from "@/lib/schemas/auth";
 
 export const signUpFormData: FormData<
   SignUpFormSchemaType,

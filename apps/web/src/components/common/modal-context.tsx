@@ -5,8 +5,7 @@ import { createContext, type ReactNode, useContext, useState } from "react";
 import type {
   BetterAuthClientError,
   BetterAuthClientResult,
-} from "@/lib/actions";
-
+} from "@/lib/actions/errors/better-auth";
 export interface ModalContextType<TItem, TAction> {
   open: boolean;
   setOpen: (open: boolean) => void;

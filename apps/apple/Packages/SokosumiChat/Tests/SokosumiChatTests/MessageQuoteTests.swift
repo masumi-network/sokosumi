@@ -45,16 +45,48 @@ struct MessageQuoteTests {
     #expect(retry.parentMessageId == nil)
   }
 
+  @Test func sentToSelfQuoteLinksToItsSourceRoomOnly() throws {
+    let base = try #require(URL(string: "https://app.sokosumi.com"))
+    let saved = Components.Schemas.ChatRoomMessageQuote(messageId: "source", authorName: "Ada", snippet: "Keep", roomId: "other-room")
+    #expect(quoteSourceURL(saved, inRoom: testRoomId, webBaseURL: base)?.absoluteString
+      == "https://app.sokosumi.com/chat/rooms/other-room?message=source")
+    #expect(quoteSourceURL(saved, inRoom: "other-room", webBaseURL: base) == nil)
+    let sameRoom = Components.Schemas.ChatRoomMessageQuote(messageId: "source", authorName: "Ada", snippet: "Keep")
+    #expect(quoteSourceURL(sameRoom, inRoom: testRoomId, webBaseURL: base) == nil)
+  }
+
+  @Test func sendToSelfPostsTheSourceMessage() async throws {
+    let transport = TestTransport([(201, testCreatedMessageBody(id: testRoomId, content: "", clientMessageId: "turn"))])
+    let saved = try await ChatService().sendMessageToSelf(client: makeTestClient(transport), roomId: testRoomId,
+                                                          messageId: "source", organizationSlug: "team")
+    #expect(saved.id == testRoomId)
+    #expect(transport.requests[0].request.path?.hasSuffix("/\(testRoomId)/messages/source/send-to-self") == true)
+    #expect(testOrgSlugHeader(transport.requests[0].request) == "team")
+  }
+
   @Test(arguments: [false, true])
   func classicRequestSendsOnlyQuoteID(thread: Bool) async throws {
     let transport = TestTransport([(201, testCreatedMessageBody(id: testRoomId, content: "answer", clientMessageId: "turn"))])
     _ = try await ChatService().createMessage(client: makeTestClient(transport), roomId: testRoomId, content: "answer",
                                               clientMessageId: "turn", parentMessageId: thread ? testRoomId : nil,
-                                              quoteMessageId: "source", organizationSlug: "team")
+                                              quote: .init(messageId: "source", authorName: "Ada", snippet: "Keep"),
+                                              organizationSlug: "team")
     let body = try testRequestJSON(#require(transport.bodies.first))
     #expect(body["quote"] as? [String: String] == ["messageId": "source"])
     #expect(body["parentMessageId"] as? String == (thread ? testRoomId : nil))
     #expect(testOrgSlugHeader(transport.requests[0].request) == "team")
+  }
+
+  @Test func classicRequestSendsTheSourceRoomOfACrossRoomQuote() async throws {
+    let transport = TestTransport([(201, testCreatedMessageBody(id: testRoomId, content: "", clientMessageId: "turn"))])
+    _ = try await ChatService().createMessage(client: makeTestClient(transport), roomId: testRoomId, content: "",
+                                              clientMessageId: "turn",
+                                              quote: .init(messageId: "source", authorName: "Ada", snippet: "Keep", roomId: "other-room"),
+                                              organizationSlug: nil)
+    let body = try testRequestJSON(#require(transport.bodies.first))
+    #expect(body["quote"] as? [String: String] == ["messageId": "source", "roomId": "other-room"])
+    // A quote can be the whole message.
+    #expect((body["content"] as? String)?.isEmpty == true)
   }
 
   @Test(arguments: [false, true])

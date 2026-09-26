@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installJobsPanesRow } from "@/app/agents/[agentId]/jobs/components/__tests__/jobs-panes-harness";
 import { JobDetailsModal } from "@/app/agents/[agentId]/jobs/components/job-details-modal";
+import { JOBS_TWO_PANE_MIN_WIDTH } from "@/app/agents/[agentId]/jobs/components/use-jobs-two-pane-fit";
 
 const replaceMock = vi.fn();
 
@@ -23,20 +25,18 @@ vi.mock("@/components/jobs/job-details/job-details", () => ({
   default: () => <div data-testid="job-details">Job Details</div>,
 }));
 
-function mockMatchMedia(matches: boolean) {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
+const ONE_PANE = JOBS_TWO_PANE_MIN_WIDTH - 1;
+const TWO_PANES = JOBS_TWO_PANE_MIN_WIDTH;
+
+let panes: ReturnType<typeof installJobsPanesRow> | null = null;
+
+/** The modal stands in for the right pane, so it shows only when that pane cannot. */
+function renderWithPanesWidth(width: number) {
+  panes = installJobsPanesRow(width);
+
+  return render(
+    <JobDetailsModal agentId="agent-1" job={{} as never} readOnly={false} />,
+  );
 }
 
 describe("JobDetailsModal", () => {
@@ -44,32 +44,36 @@ describe("JobDetailsModal", () => {
     replaceMock.mockClear();
   });
 
-  it("renders modal content on viewports below lg", async () => {
-    mockMatchMedia(true);
+  afterEach(() => {
+    panes?.cleanup();
+    panes = null;
+  });
 
-    render(
-      <JobDetailsModal agentId="agent-1" job={{} as never} readOnly={false} />,
-    );
+  it("renders modal content when the panes row fits one pane", async () => {
+    renderWithPanesWidth(ONE_PANE);
 
     expect(await screen.findByTestId("job-details")).toBeInTheDocument();
   });
 
-  it("does not render modal content on lg and above", () => {
-    mockMatchMedia(false);
+  it("does not render modal content when the right pane fits", async () => {
+    renderWithPanesWidth(TWO_PANES);
 
-    render(
-      <JobDetailsModal agentId="agent-1" job={{} as never} readOnly={false} />,
-    );
+    await waitFor(() => {
+      expect(screen.queryByTestId("job-details")).not.toBeInTheDocument();
+    });
+  });
 
-    expect(screen.queryByTestId("job-details")).not.toBeInTheDocument();
+  it("renders modal content when a wide window still leaves one pane", async () => {
+    // 1024px window minus an expanded 224px sidebar and the row gutters.
+    renderWithPanesWidth(1024 - 224 - 32);
+
+    expect(await screen.findByTestId("job-details")).toBeInTheDocument();
   });
 
   it("closes modal and routes back to jobs root", async () => {
-    mockMatchMedia(true);
+    renderWithPanesWidth(ONE_PANE);
 
-    render(
-      <JobDetailsModal agentId="agent-1" job={{} as never} readOnly={false} />,
-    );
+    await screen.findByTestId("job-details");
 
     fireEvent.click(screen.getByRole("button", { name: /back/i }));
 
@@ -79,11 +83,7 @@ describe("JobDetailsModal", () => {
   });
 
   it("closes modal on swipe right", async () => {
-    mockMatchMedia(true);
-
-    render(
-      <JobDetailsModal agentId="agent-1" job={{} as never} readOnly={false} />,
-    );
+    renderWithPanesWidth(ONE_PANE);
 
     const modalSurface = await screen.findByTestId("job-details-modal-surface");
 

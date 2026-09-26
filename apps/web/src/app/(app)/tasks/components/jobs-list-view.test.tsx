@@ -128,8 +128,13 @@ describe("JobsListView", () => {
 
     expect(screen.getByText("Freshly done")).toBeInTheDocument();
 
-    expect(screen.getAllByRole("link", { name: /Freshly done/i })).toHaveLength(
-      1,
+    const recentLink = screen.getByRole("link", { name: /Freshly done/i });
+    expect(recentLink.className.split(/\s+/)).toContain(
+      "hover:bg-card-background-hover",
+    );
+    expect(recentLink.className.split(/\s+/)).not.toContain("-mx-2");
+    expect(recentLink.parentElement?.className.split(/\s+/)).not.toContain(
+      "px-2",
     );
     expect(screen.getByText("Older complete")).toBeInTheDocument();
     expect(screen.getByText("Needs input")).toBeInTheDocument();

@@ -144,8 +144,11 @@ const { default: mountGetChatRoomMessage } = await import(
 const { default: mountDeleteChatRoomMessage } = await import(
   "./[id]/messages/[messageId]/delete"
 );
-const { default: mountPostChatRoomMessageReaction } = await import(
-  "./[id]/messages/[messageId]/reactions/post"
+const { default: mountPutChatRoomMessageReaction } = await import(
+  "./[id]/messages/[messageId]/reactions/[emoji]/put"
+);
+const { default: mountDeleteChatRoomMessageReaction } = await import(
+  "./[id]/messages/[messageId]/reactions/[emoji]/delete"
 );
 const { default: mountRetryChatRoomMention } = await import(
   "./[id]/messages/[messageId]/mentions/[mentionId]/retry/post"
@@ -196,7 +199,8 @@ function createApp(authContext: AuthVariables["authContext"]) {
   mountGetChatRoomMessage(typed);
   mountPostChatRoomMessage(typed);
   mountDeleteChatRoomMessage(typed);
-  mountPostChatRoomMessageReaction(typed);
+  mountPutChatRoomMessageReaction(typed);
+  mountDeleteChatRoomMessageReaction(typed);
   mountRemoveChatRoomMessageUnfurl(typed);
   mountRetryChatRoomMention(typed);
   mountRoomStream(typed);
@@ -272,12 +276,17 @@ const userOnlyCases: AuthRequestCase[] = [
     }),
   },
   {
-    label: "POST /{id}/messages/{messageId}/reactions",
+    label: "PUT /{id}/messages/{messageId}/reactions/{emoji}",
     request: () => ({
-      method: "POST",
-      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions`,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ emoji: "👍" }),
+      method: "PUT",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions/${encodeURIComponent("👍")}`,
+    }),
+  },
+  {
+    label: "DELETE /{id}/messages/{messageId}/reactions/{emoji}",
+    request: () => ({
+      method: "DELETE",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions/${encodeURIComponent("👍")}`,
     }),
   },
   {
@@ -377,6 +386,8 @@ describe("chat room user auth guards", () => {
               _count: { replies: 0 },
             }),
           },
+          // The human mention rows are written in the same transaction.
+          chatRoomUserMember: { findMany: vi.fn().mockResolvedValue([]) },
         }),
     );
 
@@ -401,6 +412,7 @@ describe("chat room user auth guards", () => {
       slug: "general",
       kind: "channel",
       directKey: null,
+      groupName: null,
       topic: null,
       createdByUserId: USER_ID,
       createdAt: new Date("2025-01-01T00:00:00.000Z"),
@@ -419,6 +431,7 @@ describe("chat room user auth guards", () => {
       ],
       coworkerMembers: [],
       sokoBotMembers: [],
+      readStates: [],
     });
     organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
@@ -471,12 +484,17 @@ const membershipScopedCases: AuthRequestCase[] = [
     }),
   },
   {
-    label: "POST /{id}/messages/{messageId}/reactions",
+    label: "PUT /{id}/messages/{messageId}/reactions/{emoji}",
     request: () => ({
-      method: "POST",
-      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions`,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ emoji: "👍" }),
+      method: "PUT",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions/${encodeURIComponent("👍")}`,
+    }),
+  },
+  {
+    label: "DELETE /{id}/messages/{messageId}/reactions/{emoji}",
+    request: () => ({
+      method: "DELETE",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions/${encodeURIComponent("👍")}`,
     }),
   },
   {
@@ -516,22 +534,25 @@ const membershipScopedCases: AuthRequestCase[] = [
   },
 ];
 
-// Room-scoped membership GETs that must not open interactive txs.
-// List GET / is not room-scoped (no single-room 404 path) — covered in get.test.ts.
+// Room-scoped membership checks that must not open interactive txs.
+// Stream POST runs write-access on the default client; the later write tx
+// only runs after membership succeeds. List GET / is not room-scoped (no
+// single-room 404 path) — covered in get.test.ts.
 const membershipCasesWithoutInteractiveTx = new Set([
   "GET /{id}",
   "GET /{id}/messages",
   "GET /{id}/messages/{messageId}",
   "GET /{id}/stream/messages",
   "GET /{id}/stream/active",
+  "POST /{id}/stream",
 ]);
 
 describe("chat room membership isolation", () => {
   it.each(membershipScopedCases)(
     "$label returns 404 when caller is not a room member",
     async ({ label, request }) => {
-      // Read GETs no longer open interactive txs — membership miss is on the
-      // default client. Write paths still go through $transaction.
+      // Membership miss is on the default client for read GETs and stream
+      // POST access. Other write paths still go through $transaction.
       roomFindFirstMock.mockResolvedValue(null);
       prismaTransactionMock.mockImplementation(
         async (callback: (tx: unknown) => Promise<unknown>) =>

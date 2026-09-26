@@ -2,11 +2,15 @@ import { MemberRole, type Prisma } from "@sokosumi/database";
 import {
   buildRoomQuoteSnippetParts,
   CHANNEL_SLUG_MAX_LENGTH,
+  canQuoteIntoRoom,
   channelNameFromSlug,
   formatParticipantNameList,
   getFirstName,
+  isSelfJoinableChannelDiscoverability,
+  MAX_LISTED_CHAT_REACTION_REACTORS,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
+import { HTTPException } from "hono/http-exception";
 
 import {
   buildCoworkerNonEmptyBaseUrlWhere,
@@ -26,13 +30,15 @@ import {
   type ChatRoom,
   type ChatRoomMessageQuote,
   chatRoomSchema,
-  MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@/schemas/chat-room.schema";
 
 import {
   assertChatRoomContentMessage,
+  readGroupNameChangeFromMetadata,
   readMembershipFromMetadata,
 } from "./membership-status";
+// Type only: `room-unread` imports this module at runtime.
+import type { ChatRoomUnreadThreads } from "./room-unread";
 
 export const chatRoomUserSelect = {
   id: true,
@@ -74,6 +80,42 @@ export function sokoBotCaption(bot: { user: { name: string } | null }): string {
 
 type ChatRoomPresence = "online" | "afk" | "offline";
 
+/**
+ * The active rooms one sidebar shows, as a `ChatRoom` filter: the active
+ * organization's rooms, or with no active organization the Personal ones,
+ * plus what shows in every sidebar (guest rooms, matched channels, Personal
+ * human Directs). The caller adds the membership check. One definition, so
+ * the list and whatever writes to "the rooms in this sidebar" cannot drift.
+ */
+export function membershipVisibleActiveRoomWhere(
+  userId: string,
+  organizationId: string | null | undefined,
+) {
+  const guestRoom = {
+    userMembers: { some: { userId, access: "guest" as const } },
+  };
+  const matched = {
+    organizationId: null,
+    kind: "channel" as const,
+    discoverability: "matched" as const,
+  };
+  return {
+    archivedAt: null,
+    OR: organizationId
+      ? [
+          { organizationId },
+          guestRoom,
+          {
+            organizationId: null,
+            kind: "direct" as const,
+            coworkerMembers: { none: {} },
+          },
+          matched,
+        ]
+      : [{ organizationId: null, kind: "direct" as const }, guestRoom, matched],
+  };
+}
+
 export const chatRoomInclude = {
   userMembers: {
     include: {
@@ -93,7 +135,25 @@ export const chatRoomInclude = {
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
+  /**
+   * Room read receipts. Loaded on every room-returning route, including the
+   * paginated list that does not render them: one include, one mapper, one
+   * test, and Prisma fetches it in the same query as the roster. `markedUnread`
+   * is deliberately not read here — a reader's private reminder does not rewind
+   * their Room last-read, so it must not rewind what others see.
+   */
+  readStates: { select: { userId: true, lastReadAt: true } },
 } as const satisfies Prisma.ChatRoomInclude;
+
+/** Faces on a thread parent's reply bar. */
+const MAX_THREAD_REPLIERS = 3;
+/**
+ * Newest replies scanned for distinct repliers. An approximation: in a thread
+ * longer than this, someone whose only replies are older than the scan is
+ * left out, and the order is by first reply within the scan. Threads are
+ * short; an exact `DISTINCT ON` is the upgrade.
+ */
+const THREAD_REPLIER_SCAN = 12;
 
 export const chatRoomMessageInclude = {
   senderUser: { select: chatRoomUserSelect },
@@ -121,13 +181,17 @@ export const chatRoomMessageInclude = {
   pins: { select: { pinnedAt: true } },
   // Soft-deleted replies stay in the DB (tombstones) but must not inflate
   // threadReplyCount / threadLastReplyAt — same rule as getChatRoomThreadAggregates.
+  // The newest few feed threadLastReplyAt and threadRepliers.
   replies: {
     where: { deletedAt: null },
     select: {
       createdAt: true,
+      senderUser: { select: chatRoomUserSelect },
+      senderCoworker: { select: chatRoomCoworkerSelect },
+      senderSokoBot: { select: chatRoomSokoBotSelect },
     },
     orderBy: { createdAt: "desc" },
-    take: 1,
+    take: THREAD_REPLIER_SCAN,
   },
   _count: {
     select: {
@@ -136,7 +200,7 @@ export const chatRoomMessageInclude = {
   },
 } as const satisfies Prisma.ChatRoomMessageInclude;
 
-type ChatRoomWithMembers = Prisma.ChatRoomGetPayload<{
+export type ChatRoomWithMembers = Prisma.ChatRoomGetPayload<{
   include: typeof chatRoomInclude;
 }>;
 
@@ -160,7 +224,14 @@ function resolveUserPresence(
 }
 
 export interface MapChatRoomAttentionOptions {
+  /** The sum: `channelUnreadCount + threadUnreadCount`. */
   unreadCount?: number;
+  /** Room unread: top-level messages after Room last-read (ADR-0037). */
+  channelUnreadCount?: number;
+  /** Thread unread: gated replies after each Thread's Look (ADR-0037). */
+  threadUnreadCount?: number;
+  /** The room's unread Threads for the sidebar, capped, with the true count. */
+  unreadThreads?: ChatRoomUnreadThreads;
   unreadMentionCount?: number;
   starredAt?: Date | null;
   pinnedMessageCount?: number;
@@ -198,6 +269,16 @@ export function mapChatRoom(
 ) {
   const {
     unreadCount = 0,
+    threadUnreadCount = 0,
+    // A caller that states only the sum gets it as Room unread. Bold follows
+    // this half, so the other default, zero, would quietly stop a row bolding
+    // while its total said otherwise.
+    channelUnreadCount = Math.max(0, unreadCount - threadUnreadCount),
+    unreadThreads = {
+      threads: [],
+      unreadThreadCount: 0,
+      unreadThreadMentionCount: 0,
+    },
     unreadMentionCount = 0,
     starredAt = null,
     pinnedMessageCount = 0,
@@ -208,6 +289,15 @@ export function mapChatRoom(
     peerInActiveOrganization = false,
   } = attention;
 
+  const myAccess = resolveMyAccess(room, currentUserId, myAccessOverride);
+  // Read times do not cross the organization boundary: a guest viewer on an
+  // External channel sees no Room read receipts at all, their own included.
+  const lastReadByUserId = new Map<string, Date>(
+    myAccess === "guest"
+      ? []
+      : room.readStates.map((state) => [state.userId, state.lastReadAt]),
+  );
+
   return {
     id: room.id,
     organizationId: room.organizationId,
@@ -216,6 +306,9 @@ export function mapChatRoom(
     slug: room.slug,
     kind: room.kind as "channel" | "direct",
     directKey: room.directKey,
+    isSelfDirect: isSelfDirectRoom(room),
+    isGroupDirect: isGroupDirectRoom(room),
+    groupName: room.groupName,
     topic: room.topic,
     discoverability: mapChatRoomDiscoverability(
       room.kind,
@@ -225,13 +318,20 @@ export function mapChatRoom(
     createdAt: room.createdAt,
     updatedAt: room.updatedAt,
     unreadCount,
+    channelUnreadCount,
+    threadUnreadCount,
+    unreadThreadCount: unreadThreads.unreadThreadCount,
+    unreadThreadMentionCount: unreadThreads.unreadThreadMentionCount,
+    unreadThreads: unreadThreads.threads,
     unreadMentionCount,
     starredAt,
     pinnedMessageCount,
     mutedAt,
     markedUnread,
     peerInActiveOrganization,
-    myAccess: resolveMyAccess(room, currentUserId, myAccessOverride),
+    myAccess,
+    // Driven by the roster, not by the read-state table: a member who left
+    // keeps their row but vanishes from the receipts with no cleanup.
     userMembers: room.userMembers.map((member) => ({
       id: member.user.id,
       name: member.user.name,
@@ -240,6 +340,7 @@ export function mapChatRoom(
       presence: resolveUserPresence(member.user, currentUserId),
       access:
         member.access === "guest" ? ("guest" as const) : ("member" as const),
+      lastReadAt: lastReadByUserId.get(member.userId) ?? null,
     })),
     coworkerMembers: room.coworkerMembers.map(({ coworker }) => ({
       id: coworker.id,
@@ -449,8 +550,12 @@ export async function mapChatRoomWithSidebarFlags(
   tx: Prisma.TransactionClient | typeof prisma,
   attention: {
     unreadCount?: number;
+    channelUnreadCount?: number;
+    threadUnreadCount?: number;
+    unreadThreads?: ChatRoomUnreadThreads;
     unreadMentionCount?: number;
     activeOrganizationId?: string | null;
+    organizationName?: string | null;
   } = {},
 ) {
   const flagsByRoom = await getChatRoomSidebarFlags([room.id], userId, tx);
@@ -468,63 +573,118 @@ export async function mapChatRoomWithSidebarFlags(
 
   return mapChatRoom(room, userId, {
     unreadCount: attention.unreadCount ?? 0,
+    channelUnreadCount: attention.channelUnreadCount,
+    threadUnreadCount: attention.threadUnreadCount,
+    unreadThreads: attention.unreadThreads,
     unreadMentionCount: attention.unreadMentionCount ?? 0,
     starredAt: flags?.starredAt ?? null,
     pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
     mutedAt: flags?.mutedAt ?? null,
     markedUnread: flags?.markedUnread ?? false,
+    organizationName: attention.organizationName ?? null,
     peerInActiveOrganization,
   });
+}
+
+type ChatRoomMessageSenderRow = Pick<
+  ChatRoomMessageWithSender,
+  "senderUser" | "senderCoworker" | "senderSokoBot"
+>;
+
+function mapChatRoomMessageSender(
+  row: ChatRoomMessageSenderRow,
+  currentUserId?: string,
+) {
+  if (row.senderUser) {
+    return {
+      type: "user" as const,
+      user: {
+        id: row.senderUser.id,
+        name: row.senderUser.name,
+        email: row.senderUser.email,
+        image: row.senderUser.image ?? null,
+        presence: resolveUserPresence(row.senderUser, currentUserId),
+      },
+    };
+  }
+
+  if (row.senderCoworker) {
+    return {
+      type: "coworker" as const,
+      coworker: {
+        id: row.senderCoworker.id,
+        name: row.senderCoworker.name,
+        slug: row.senderCoworker.slug,
+        caption: row.senderCoworker.caption ?? null,
+        image: row.senderCoworker.image ?? null,
+        presence: "online" as const,
+      },
+    };
+  }
+
+  if (row.senderSokoBot) {
+    return {
+      type: "sokoBot" as const,
+      sokoBot: {
+        id: row.senderSokoBot.id,
+        name: sokoBotDisplayName(row.senderSokoBot),
+        caption: sokoBotCaption(row.senderSokoBot),
+        image: row.senderSokoBot.avatarImageUrl ?? null,
+        avatarSeed: sokoBotAvatarSeedFor(row.senderSokoBot),
+        presence: "online" as const,
+      },
+    };
+  }
+
+  return { type: "unknown" as const };
+}
+
+/**
+ * Distinct senders of `replies` in the order they first replied, capped.
+ * `replies` arrives newest first (it also feeds threadLastReplyAt), so walk
+ * it backwards.
+ */
+function mapThreadRepliers(
+  replies: ChatRoomMessageSenderRow[],
+  currentUserId?: string,
+) {
+  const seen = new Set<string>();
+  const repliers: Array<ReturnType<typeof mapChatRoomMessageSender>> = [];
+  for (const reply of replies.toReversed()) {
+    const replier = mapChatRoomMessageSender(reply, currentUserId);
+    const key =
+      replier.type === "user"
+        ? `user:${replier.user.id}`
+        : replier.type === "coworker"
+          ? `coworker:${replier.coworker.id}`
+          : replier.type === "sokoBot"
+            ? `sokoBot:${replier.sokoBot.id}`
+            : null;
+    if (!key || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    repliers.push(replier);
+    if (repliers.length === MAX_THREAD_REPLIERS) {
+      break;
+    }
+  }
+  return repliers;
 }
 
 export function mapChatRoomMessage(
   message: ChatRoomMessageWithSender,
   currentUserId?: string,
+  /**
+   * The viewer's unread replies under this parent. Passed in rather than
+   * derived: it depends on the viewer's Look baseline and Participant status,
+   * which the Prisma include cannot express. Left out of the payload when the
+   * caller did not compute it, so a client can tell "none unread" from "not
+   * known here" and keep the count it already has.
+   */
+  threadUnreadReplyCount?: number,
 ) {
-  const sender = (() => {
-    if (message.senderUser) {
-      return {
-        type: "user" as const,
-        user: {
-          id: message.senderUser.id,
-          name: message.senderUser.name,
-          email: message.senderUser.email,
-          image: message.senderUser.image ?? null,
-          presence: resolveUserPresence(message.senderUser, currentUserId),
-        },
-      };
-    }
-
-    if (message.senderCoworker) {
-      return {
-        type: "coworker" as const,
-        coworker: {
-          id: message.senderCoworker.id,
-          name: message.senderCoworker.name,
-          slug: message.senderCoworker.slug,
-          caption: message.senderCoworker.caption ?? null,
-          image: message.senderCoworker.image ?? null,
-          presence: "online" as const,
-        },
-      };
-    }
-
-    if (message.senderSokoBot) {
-      return {
-        type: "sokoBot" as const,
-        sokoBot: {
-          id: message.senderSokoBot.id,
-          name: sokoBotDisplayName(message.senderSokoBot),
-          caption: sokoBotCaption(message.senderSokoBot),
-          image: message.senderSokoBot.avatarImageUrl ?? null,
-          avatarSeed: sokoBotAvatarSeedFor(message.senderSokoBot),
-          presence: "online" as const,
-        },
-      };
-    }
-
-    return { type: "unknown" as const };
-  })();
+  const sender = mapChatRoomMessageSender(message, currentUserId);
 
   const reactionCounts = new Map<
     string,
@@ -583,10 +743,15 @@ export function mapChatRoomMessage(
           reactors: reaction.reactors,
         })),
     threadReplyCount: message._count.replies,
+    ...(threadUnreadReplyCount === undefined ? {} : { threadUnreadReplyCount }),
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
+    threadRepliers: mapThreadRepliers(message.replies, currentUserId),
     metadata: isDeleted ? null : publicChatRoomMessageMetadata(metadata),
     quote: isDeleted ? null : readQuoteFromMetadata(metadata),
     membership: isDeleted ? null : readMembershipFromMetadata(metadata),
+    groupNameChange: isDeleted
+      ? null
+      : readGroupNameChangeFromMetadata(metadata),
     unfurls: isDeleted ? null : readUnfurlsFromMetadata(metadata),
   };
 }
@@ -594,10 +759,12 @@ export function mapChatRoomMessage(
 export function mergeChatRoomMessageMetadata(
   existing: unknown,
   quote: ChatRoomMessageQuote | null,
-): Record<string, unknown> | null {
-  const base =
+): Prisma.InputJsonObject | null {
+  // A value read back from a Json column may hold nulls, which is exactly what
+  // `InputJsonObject` permits — so widen rather than assert them away.
+  const base: Record<string, Prisma.InputJsonValue | null> =
     existing && typeof existing === "object" && !Array.isArray(existing)
-      ? { ...(existing as Record<string, unknown>) }
+      ? { ...(existing as Record<string, Prisma.InputJsonValue | null>) }
       : {};
 
   if (quote) {
@@ -635,10 +802,14 @@ function readQuoteAttachmentFromMetadata(
   };
 }
 
-function readQuoteFromMetadata(
-  metadata: Record<string, unknown> | null,
+/** Soft-parses `metadata.quote` from a stored message's metadata JSON. */
+export function readQuoteFromMetadata(
+  metadata: unknown,
 ): ChatRoomMessageQuote | null {
-  const raw = metadata?.quote;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+  const raw = (metadata as Record<string, unknown>).quote;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return null;
   }
@@ -656,6 +827,48 @@ function readQuoteFromMetadata(
     authorName: candidate.authorName,
     snippet: candidate.snippet,
     ...(attachment !== undefined ? { attachment } : {}),
+    ...(typeof candidate.roomId === "string"
+      ? { roomId: candidate.roomId }
+      : {}),
+  };
+}
+
+/** One answer for every quote refusal, so it never reveals what exists. */
+export function quotedMessageNotFound() {
+  return badRequest("Quoted message not found");
+}
+
+export const roomQuoteSourceSelect = {
+  id: true,
+  content: true,
+  metadata: true,
+  senderUser: { select: { name: true } },
+  senderCoworker: { select: { name: true } },
+  senderSokoBot: {
+    select: { name: true, user: { select: { name: true } } },
+  },
+} satisfies Prisma.ChatRoomMessageSelect;
+
+/** Durable quote snapshot of a content message read with `roomQuoteSourceSelect`. */
+export function buildRoomQuoteSnapshot(
+  quoted: Prisma.ChatRoomMessageGetPayload<{
+    select: typeof roomQuoteSourceSelect;
+  }>,
+): ChatRoomMessageQuote {
+  assertChatRoomContentMessage(quoted.metadata);
+
+  const { snippet, attachment } = buildRoomQuoteSnippetParts(quoted.content);
+
+  return {
+    messageId: quoted.id,
+    authorName:
+      quoted.senderUser?.name ??
+      quoted.senderCoworker?.name ??
+      (quoted.senderSokoBot
+        ? sokoBotDisplayName(quoted.senderSokoBot)
+        : "Someone"),
+    snippet,
+    attachment,
   };
 }
 
@@ -672,44 +885,106 @@ export async function resolveRoomQuoteSnapshot(
   if (!quoteMessageId) {
     return null;
   }
+  return await loadRoomQuoteSnapshot(tx, roomId, quoteMessageId);
+}
 
+async function loadRoomQuoteSnapshot(
+  tx: Prisma.TransactionClient,
+  roomId: string,
+  quoteMessageId: string,
+): Promise<ChatRoomMessageQuote> {
   const quoted = await tx.chatRoomMessage.findFirst({
     where: {
       id: quoteMessageId,
       roomId,
       deletedAt: null,
     },
-    select: {
-      id: true,
-      content: true,
-      metadata: true,
-      senderUser: { select: { name: true } },
-      senderCoworker: { select: { name: true } },
-      senderSokoBot: {
-        select: { name: true, user: { select: { name: true } } },
-      },
-    },
+    select: roomQuoteSourceSelect,
   });
 
   if (!quoted) {
-    throw badRequest("Quoted message not found");
+    throw quotedMessageNotFound();
   }
 
-  assertChatRoomContentMessage(quoted.metadata);
+  return buildRoomQuoteSnapshot(quoted);
+}
 
-  const { snippet, attachment } = buildRoomQuoteSnippetParts(quoted.content);
+/**
+ * Resolve a quote of a message in another room. Allowed only when the sender
+ * reads the source room and every human reader of the target room can too
+ * (`canQuoteIntoRoom`): as a member, or as a member of the organization of a
+ * public or external source Channel, which they can join on their own. The
+ * snippet never reaches someone who cannot follow the Message link. Every
+ * refusal is the same 400, so the response does not reveal whether a room or
+ * message exists.
+ */
+export async function resolveCrossRoomQuoteSnapshot(
+  tx: Prisma.TransactionClient,
+  options: {
+    sourceRoomId: string;
+    quoteMessageId: string;
+    senderUserId: string;
+    targetMemberUserIds: readonly string[];
+  },
+): Promise<ChatRoomMessageQuote> {
+  const { sourceRoomId, quoteMessageId, senderUserId, targetMemberUserIds } =
+    options;
 
-  return {
-    messageId: quoted.id,
-    authorName:
-      quoted.senderUser?.name ??
-      quoted.senderCoworker?.name ??
-      (quoted.senderSokoBot
-        ? sokoBotDisplayName(quoted.senderSokoBot)
-        : "Someone"),
-    snippet,
-    attachment,
-  };
+  let sourceRoom: Awaited<ReturnType<typeof requireChatRoomUserMembership>>;
+  try {
+    sourceRoom = await requireChatRoomUserMembership(
+      sourceRoomId,
+      senderUserId,
+      tx,
+    );
+  } catch (error) {
+    if (error instanceof HTTPException) {
+      throw quotedMessageNotFound();
+    }
+    throw error;
+  }
+
+  const sourceMembers = await tx.chatRoomUserMember.findMany({
+    where: { roomId: sourceRoomId },
+    select: { userId: true },
+  });
+  const sourceReaderUserIds = sourceMembers.map((member) => member.userId);
+  const joiners = targetMemberUserIds.filter(
+    (userId) => !sourceReaderUserIds.includes(userId),
+  );
+  if (
+    joiners.length > 0 &&
+    sourceRoom.kind === "channel" &&
+    sourceRoom.organizationId &&
+    isSelfJoinableChannelDiscoverability(sourceRoom.discoverability)
+  ) {
+    const organizationMembers = await tx.member.findMany({
+      where: {
+        organizationId: sourceRoom.organizationId,
+        userId: { in: joiners },
+      },
+      select: { userId: true },
+    });
+    sourceReaderUserIds.push(
+      ...organizationMembers.map((member) => member.userId),
+    );
+  }
+  if (!canQuoteIntoRoom(targetMemberUserIds, sourceReaderUserIds)) {
+    throw quotedMessageNotFound();
+  }
+
+  try {
+    return {
+      ...(await loadRoomQuoteSnapshot(tx, sourceRoomId, quoteMessageId)),
+      roomId: sourceRoomId,
+    };
+  } catch (error) {
+    // A membership status message refuses with its own wording.
+    if (error instanceof HTTPException) {
+      throw quotedMessageNotFound();
+    }
+    throw error;
+  }
 }
 
 export function normalizeUniqueStrings(values: readonly string[]): string[] {
@@ -798,6 +1073,49 @@ export function resolveChannelName(
   return channelNameFromSlug(slug);
 }
 
+function buildSelfDirectRoomKey(userId: string): string {
+  return `direct:self:${userId}`;
+}
+
+/** A room with a canonical self key and its owner as the sole member, not any room with one member left. */
+export function isSelfDirectRoom(room: ChatRoomWithMembers): boolean {
+  return (
+    room.kind === "direct" &&
+    room.organizationId === null &&
+    room.userMembers.length === 1 &&
+    room.coworkerMembers.length === 0 &&
+    room.sokoBotMembers.length === 0 &&
+    room.directKey === buildSelfDirectRoomKey(room.userMembers[0]!.user.id)
+  );
+}
+
+const DIRECT_PARTICIPANT_KEY_PREFIX = "direct:v2:";
+
+/**
+ * A Direct started for three or more humans, read from its participant key
+ * rather than its live roster: a group that shrank through Organization exit
+ * keeps its key, so it stays a group Direct and keeps its Group name.
+ */
+export function isGroupDirectRoom(room: {
+  kind: string;
+  directKey: string | null;
+}): boolean {
+  if (
+    room.kind !== "direct" ||
+    !room.directKey?.startsWith(DIRECT_PARTICIPANT_KEY_PREFIX)
+  ) {
+    return false;
+  }
+  // `type:id` pairs; ids are UUIDs, so ":" only ever separates.
+  const parts = room.directKey
+    .slice(DIRECT_PARTICIPANT_KEY_PREFIX.length)
+    .split(":");
+  const humanCount = parts.filter(
+    (part, index) => index % 2 === 0 && part === "user",
+  ).length;
+  return humanCount >= 3;
+}
+
 export function buildDirectRoomKey(userIdA: string, userIdB: string): string {
   return [userIdA, userIdB].sort().join(":");
 }
@@ -831,7 +1149,9 @@ export function buildDirectParticipantRoomKey(params: {
     coworkerIds.length === 0 &&
     sokoBotIds.length === 0
   ) {
-    return buildDirectRoomKey(params.currentUserId, memberUserIds[0]);
+    return memberUserIds[0] === params.currentUserId
+      ? buildSelfDirectRoomKey(params.currentUserId)
+      : buildDirectRoomKey(params.currentUserId, memberUserIds[0]);
   }
 
   if (
@@ -858,7 +1178,7 @@ export function buildDirectParticipantRoomKey(params: {
     ...sokoBotIds.map((sokoBotId) => `sokoBot:${sokoBotId}`),
   ].sort();
 
-  return `direct:v2:${participantKeys.join(":")}`;
+  return `${DIRECT_PARTICIPANT_KEY_PREFIX}${participantKeys.join(":")}`;
 }
 
 export function buildDirectRoomName(names: readonly string[]): string {
@@ -889,16 +1209,6 @@ export function canManageChatRoomLifecycle(options: {
   role: string;
 }): boolean {
   return isOrganizationOwnerOrAdmin(options.role);
-}
-
-/**
- * Permanent delete removes the room and cascaded children for everyone.
- * Same elevation as archive/restore — organization owner/admin only.
- */
-export function canPermanentlyDeleteChatRoom(options: {
-  role: string;
-}): boolean {
-  return canManageChatRoomLifecycle(options);
 }
 
 export function chatRoomPatchTouchesSettings(body: {
@@ -976,7 +1286,7 @@ export function isJoinableChannelDiscoverability(
   discoverability: string | null,
   elevated: boolean,
 ): boolean {
-  if (discoverability === "public" || discoverability === "external") {
+  if (isSelfJoinableChannelDiscoverability(discoverability)) {
     return true;
   }
   return elevated && discoverability === "private";
@@ -1072,6 +1382,7 @@ export async function requireArchivedChatRoomUserAccess(
 const chatRoomWriteSelect = {
   id: true,
   name: true,
+  groupName: true,
   organizationId: true,
   slug: true,
   kind: true,
@@ -1184,6 +1495,7 @@ export async function requireChatRoomUserMembership(
   id: string;
   organizationId: string | null;
   kind: "channel" | "direct";
+  discoverability: string | null;
 }> {
   const room = await tx.chatRoom.findFirst({
     where: {
@@ -1197,6 +1509,7 @@ export async function requireChatRoomUserMembership(
       id: true,
       organizationId: true,
       kind: true,
+      discoverability: true,
       userMembers: {
         where: { userId },
         select: { access: true },
@@ -1220,6 +1533,7 @@ export async function requireChatRoomUserMembership(
     id: room.id,
     organizationId: room.organizationId,
     kind: room.kind === "direct" ? "direct" : "channel",
+    discoverability: room.discoverability,
   };
 }
 
@@ -1651,6 +1965,11 @@ export function resolveMentionedUserIds(params: {
   explicitUserIds?: readonly string[];
   roomUsers: Array<{ id: string; name: string }>;
   excludeUserId?: string | null;
+  /**
+   * Chat expands `@all` to every candidate. Task comments must not.
+   * Defaults to true so existing chat callers stay unchanged.
+   */
+  expandAll?: boolean;
 }): string[] {
   const excluded = params.excludeUserId ?? null;
   const roomUserIds = new Set(
@@ -1662,7 +1981,10 @@ export function resolveMentionedUserIds(params: {
     ),
   );
 
-  if (contentIncludesRoomAllMention(params.content)) {
+  if (
+    params.expandAll !== false &&
+    contentIncludesRoomAllMention(params.content)
+  ) {
     for (const userId of roomUserIds) {
       mentionedIds.add(userId);
     }
@@ -1786,7 +2108,21 @@ function parseDirectCreateShape(params: {
   const sokoBotIds = normalizeUniqueStrings(params.sokoBotIds);
 
   if (memberUserIds.includes(params.currentUserId)) {
-    throw badRequest("Choose another organization member");
+    if (
+      params.memberUserIds.length === 1 &&
+      coworkerIds.length === 0 &&
+      sokoBotIds.length === 0
+    ) {
+      return {
+        kind: "self-direct",
+        memberUserIds: [params.currentUserId],
+        coworkerIds: [],
+        sokoBotIds: [],
+      };
+    }
+    throw badRequest(
+      "Choose yourself alone or other direct message recipients.",
+    );
   }
 
   const targetKinds = [
@@ -1849,13 +2185,20 @@ function parseDirectCreateShape(params: {
  * they share an External channel. Multi-human groups stay org-scoped.
  */
 /**
- * Valid direct create targets: human-direct (≥1 humans, no coworkers or
+ * Self Direct has only the current user and is always personal.
+ * Other valid direct create targets: human-direct (≥1 humans, no coworkers or
  * sokoBots), coworker-1to1 (exactly one coworker, no humans or
  * sokoBots), or sokoBot-1to1 (exactly one personal assistant, no
  * humans or coworkers). Mix / multi-coworker / multi-sokoBot / empty
  * are invalid.
  */
 type DirectCreateShape =
+  | {
+      kind: "self-direct";
+      memberUserIds: [string];
+      coworkerIds: [];
+      sokoBotIds: [];
+    }
   | {
       kind: "human-direct";
       memberUserIds: string[];
@@ -1916,6 +2259,29 @@ export async function createOrGetDirectRoom(params: {
 
   try {
     const create = async (tx: Prisma.TransactionClient) => {
+      if (shape.kind === "self-direct") {
+        const directKey = buildDirectParticipantRoomKey({
+          currentUserId,
+          ...shape,
+        });
+        directKeyRef.current = directKey;
+        createOrganizationIdRef.current = null;
+        const existing = await findOrRestoreDirectByKey(tx, {
+          organizationId: null,
+          directKey,
+        });
+        if (existing) {
+          return { room: existing, created: false };
+        }
+        return createDirectRoomRecord({
+          tx,
+          currentUserId,
+          organizationId: null,
+          directKey,
+          ...shape,
+        });
+      }
+
       if (activeOrganizationId) {
         if (shape.kind === "human-direct") {
           await resolveMemberOrganizationById({
@@ -2102,7 +2468,7 @@ export async function createOrGetDirectRoom(params: {
     // directKey race: another request won the create — return that room.
     if (isDirectKeyUniqueConstraintError(error) && directKeyRef.current) {
       const existing =
-        shape.kind === "coworker-1to1" || shape.kind === "sokoBot-1to1"
+        shape.kind !== "human-direct"
           ? await findOrRestoreDirectByKey(prisma, {
               organizationId: createOrganizationIdRef.current,
               directKey: directKeyRef.current,
@@ -2201,6 +2567,10 @@ async function createDirectRoomRecord(params: {
       return bot ? sokoBotDisplayName(bot) : sokoBotId;
     }),
   ]);
+  const userMembers = normalizeUniqueStrings([
+    currentUserId,
+    ...memberUserIds,
+  ]).map((userId) => ({ userId }));
   const room = await tx.chatRoom.create({
     data: {
       organizationId,
@@ -2210,16 +2580,10 @@ async function createDirectRoomRecord(params: {
       kind: "direct",
       directKey,
       userMembers: {
-        create: [
-          { userId: currentUserId },
-          ...memberUserIds.map((userId) => ({ userId })),
-        ],
+        create: userMembers,
       },
       readStates: {
-        create: [
-          { userId: currentUserId },
-          ...memberUserIds.map((userId) => ({ userId })),
-        ],
+        create: userMembers,
       },
       coworkerMembers: {
         create: coworkerIds.map((coworkerId) => ({ coworkerId })),

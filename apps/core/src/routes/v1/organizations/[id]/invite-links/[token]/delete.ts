@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
-import { organizationInviteLinkRepository } from "@sokosumi/database/repositories";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -53,10 +52,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
     });
 
-    const link = await organizationInviteLinkRepository.getInviteLinkByToken(
-      token,
-      prisma,
-    );
+    const link = await prisma.organizationInviteLink.findUnique({
+      where: { token },
+    });
     // Scope the token to the path org so an admin of org A can't revoke a
     // link belonging to org B by guessing its token.
     if (!link || link.organizationId !== organization.id) {
@@ -64,11 +62,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (!link.revokedAt) {
-      await organizationInviteLinkRepository.revokeInviteLink(
-        link.id,
-        new Date(),
-        prisma,
-      );
+      await prisma.organizationInviteLink.update({
+        where: { id: link.id },
+        data: { revokedAt: new Date() },
+      });
     }
 
     return ok(c, responseSchema.parse({ ok: true }));

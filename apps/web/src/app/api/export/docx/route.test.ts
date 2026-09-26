@@ -1,5 +1,10 @@
 import { err, ok } from "neverthrow";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  DOCX_QUEUE_WAIT_TIMEOUT_MS,
+  withDocxExportLock,
+} from "@/lib/utils/docx-export-lock";
 
 const { getSessionResultMock, withDocxExportFetchGuardMock } = vi.hoisted(
   () => ({
@@ -40,9 +45,75 @@ vi.mock("@/lib/utils/dom-context", () => ({
 import { POST } from "./route";
 
 describe("POST /api/export/docx", () => {
+  afterEach(() => vi.useRealTimers());
+
   beforeEach(() => {
     getSessionResultMock.mockReset();
     withDocxExportFetchGuardMock.mockReset();
+  });
+
+  it("returns 503 when the queue wait expires and never converts later", async () => {
+    vi.useFakeTimers();
+    let release!: () => void;
+    const active = withDocxExportLock(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    mockSession({ user: { id: "user-1" } });
+    try {
+      const responsePromise = POST(
+        new Request("http://localhost/api/export/docx", {
+          method: "POST",
+          body: JSON.stringify({ markdown: "# queued" }),
+        }) as never,
+      );
+      await vi.advanceTimersByTimeAsync(DOCX_QUEUE_WAIT_TIMEOUT_MS);
+      const response = await responsePromise;
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        error: "Export queue wait expired",
+      });
+    } finally {
+      release();
+      await active;
+    }
+    await withDocxExportLock(async () => {});
+    expect(withDocxExportFetchGuardMock).not.toHaveBeenCalled();
+  });
+
+  it("passes request cancellation to the queue", async () => {
+    mockSession({ user: { id: "user-1" } });
+    const response = await POST(
+      new Request("http://localhost/api/export/docx", {
+        method: "POST",
+        body: JSON.stringify({ markdown: "# canceled" }),
+        signal: AbortSignal.abort(),
+      }) as never,
+    );
+    expect(response.status).toBe(503);
+    expect(withDocxExportFetchGuardMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps normal success and conversion failure responses", async () => {
+    mockSession({ user: { id: "user-1" } });
+    const request = () =>
+      new Request("http://localhost/api/export/docx", {
+        method: "POST",
+        body: JSON.stringify({ markdown: "# ready" }),
+      }) as never;
+    withDocxExportFetchGuardMock.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    expect((await POST(request())).status).toBe(200);
+    withDocxExportFetchGuardMock.mockRejectedValue(
+      new Error("conversion failed"),
+    );
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect((await POST(request())).status).toBe(500);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("returns 401 when unauthenticated and never starts DOCX generation", async () => {

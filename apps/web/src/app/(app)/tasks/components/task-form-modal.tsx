@@ -41,6 +41,15 @@ export function TaskFormModalHeaderStart({
   return null;
 }
 
+export function isTaskFormPortalEventTarget(
+  target: EventTarget | null,
+): boolean {
+  return (
+    target instanceof Element &&
+    target.closest("[data-task-form-portal]") !== null
+  );
+}
+
 interface TaskFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -80,7 +89,24 @@ export function TaskFormModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-svw max-w-6xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[92vw] [&>button]:hidden">
+      <DialogContent
+        className="w-svw max-w-6xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[92vw] [&>button]:hidden"
+        onPointerDownOutside={(event) => {
+          if (isTaskFormPortalEventTarget(event.detail.originalEvent.target)) {
+            event.preventDefault();
+          }
+        }}
+        onFocusOutside={(event) => {
+          if (isTaskFormPortalEventTarget(event.detail.originalEvent.target)) {
+            event.preventDefault();
+          }
+        }}
+        onInteractOutside={(event) => {
+          if (isTaskFormPortalEventTarget(event.detail.originalEvent.target)) {
+            event.preventDefault();
+          }
+        }}
+      >
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
         <TaskFormModalHeaderContext value={headerContextValue}>

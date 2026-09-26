@@ -12,7 +12,7 @@ import {
   useCallback,
   useState,
 } from "react";
-import type { DesignMdProfileValue } from "@/components/design-md";
+import type { DesignMdProfileValue } from "@/components/design-md/types";
 import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 interface OrganizationMetadataContextValue {

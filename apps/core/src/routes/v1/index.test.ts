@@ -20,6 +20,7 @@ vi.mock("./admin/impersonation/index.js", () => ({ default: new Hono() }));
 vi.mock("./agents/index.js", () => ({ default: new Hono() }));
 vi.mock("./categories/index.js", () => ({ default: new Hono() }));
 vi.mock("./chats/index.js", () => ({ default: new Hono() }));
+vi.mock("./composio/index.js", () => ({ default: new Hono() }));
 vi.mock("./checkout/index.js", () => ({ default: new Hono() }));
 vi.mock("./coupons/index.js", () => ({ default: new Hono() }));
 vi.mock("./coworkers/index.js", () => ({ default: new Hono() }));
@@ -28,6 +29,9 @@ vi.mock("./developer/index.js", () => ({ default: new Hono() }));
 vi.mock("./drive/index.js", () => ({ default: new Hono() }));
 vi.mock("./enterprise/index.js", () => ({ default: new Hono() }));
 vi.mock("./history/index.js", () => ({ default: new Hono() }));
+// Stands in like its neighbours: the real router reaches the shared validation
+// hook, and through it the auth middleware graph this suite does not build.
+vi.mock("./image-studio-agent/index.js", () => ({ default: new Hono() }));
 vi.mock("./invitations/index.js", () => ({ default: new Hono() }));
 vi.mock("./jobs/index.js", () => ({ default: new Hono() }));
 vi.mock("./notifications/index.js", () => ({ default: new Hono() }));

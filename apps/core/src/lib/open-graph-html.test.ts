@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { parseOpenGraphFields, toUnfurlCard } from "@/lib/open-graph-html";
+import {
+  parseOpenGraphFields,
+  toUnfurlCard,
+  tweetTextFromOembedHtml,
+} from "@/lib/open-graph-html";
 
 describe("parseOpenGraphFields", () => {
   it("reads og meta tags", () => {
@@ -217,5 +221,37 @@ describe("toUnfurlCard", () => {
         "https://final.example/b",
       )?.siteName,
     ).toBe("final.example");
+  });
+});
+
+describe("tweetTextFromOembedHtml", () => {
+  it("keeps the first paragraph as text with <br> as line breaks", () => {
+    expect(
+      tweetTextFromOembedHtml(
+        '<blockquote class="twitter-tweet"><p lang="en" dir="ltr">Hello <a href="https://x.com/a">@a</a><br><br>Second line</p>&mdash; A (@a) <a href="https://x.com/a/status/1">Sep 16, 2026</a></blockquote>',
+      ),
+    ).toBe("Hello @a\n\nSecond line");
+  });
+
+  it("decodes entities after stripping tags, so encoded markup stays text", () => {
+    expect(
+      tweetTextFromOembedHtml(
+        "<p>Tom &amp; Jerry say &lt;b&gt;hi&lt;/b&gt; &#39;now&#39;</p>",
+      ),
+    ).toBe("Tom & Jerry say <b>hi</b> 'now'");
+  });
+
+  it("never leaves an angle bracket behind, even from broken nesting", () => {
+    const text = tweetTextFromOembedHtml("<p>a <<b>i</b>> c</p>");
+    expect(text).toBe("a i c");
+    expect(text).not.toMatch(/[<>]/);
+  });
+
+  it("returns null without a paragraph or with an empty one", () => {
+    expect(
+      tweetTextFromOembedHtml("<blockquote>no paragraph</blockquote>"),
+    ).toBeNull();
+    expect(tweetTextFromOembedHtml("<p>   </p>")).toBeNull();
+    expect(tweetTextFromOembedHtml('<p><a href="x"></a></p>')).toBeNull();
   });
 });

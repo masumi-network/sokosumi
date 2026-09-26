@@ -55,7 +55,7 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
     lazyAblyProviderMock(props),
 }));
 
-vi.mock("@/queries", () => ({
+vi.mock("@/queries/jobs", () => ({
   getJobQueryKey: (...args: unknown[]) => getJobQueryKeyMock(...args),
   getJobQueryOptions: (...args: unknown[]) => getJobQueryOptionsMock(...args),
 }));

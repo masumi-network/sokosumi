@@ -1,0 +1,69 @@
+name: CodeQL
+permissions:
+  contents: read
+
+# Replaces CodeQL default setup, which analyzed every PR push — docs- and
+# Apple-only ones included — and never cancelled a superseded run.
+#
+# PRs run only when they touch JS/TS source, the lockfile, or this workflow.
+# Every push to main runs, so each PR has an analyzed base to diff its alerts
+# against; the weekly run picks up new queries, as default setup did. Swift is
+# not analyzed (default setup never did; it needs a macOS build). The
+# `actions` language lives in codeql-actions.yml so a JS-only PR does not pay
+# for it.
+#
+# No ruleset requires a CodeQL check, so a PR this filter skips has nothing
+# to wait on. Default setup must stay off (Settings → Code security → CodeQL):
+# uploads from this workflow are rejected while it is enabled.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "**/*.ts"
+      - "**/*.tsx"
+      - "**/*.mts"
+      - "**/*.cts"
+      - "**/*.js"
+      - "**/*.jsx"
+      - "**/*.mjs"
+      - "**/*.cjs"
+      - "**/*.html"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/codeql.yml"
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  # A new push to the same PR cancels the running analysis of the old commit.
+  # Runs on main are never cancelled, so every main commit keeps its analysis.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Same language, build mode, and category default setup used, so
+      # existing alerts carry over instead of closing and reopening.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          build-mode: none
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:javascript-typescript

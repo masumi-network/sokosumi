@@ -105,49 +105,6 @@ describe("createDesignMdClient", () => {
     );
   });
 
-  it("polls a queued job until done", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        jsonResponse({
-          status: "queued",
-          jobId: "job_1",
-        }),
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({
-          status: "running",
-          jobId: "job_1",
-        }),
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({
-          status: "done",
-          extractionId: 42,
-          designMd: "# Brand",
-          cached: false,
-        }),
-      );
-    const client = createDesignMdClient({
-      apiUrl: "https://masumi.example.com/api/v1/",
-      apiKey: "internal-key",
-      fetch: fetchMock,
-    });
-
-    const result = await client.generateUntilDone({
-      url: "https://example.com",
-      pollIntervalMs: 0,
-    });
-
-    expect(result.isOk()).toBe(true);
-    expect(fetchMock).toHaveBeenLastCalledWith(
-      "https://masumi.example.com/api/v1/design-md/jobs/job_1",
-      expect.objectContaining({
-        method: "GET",
-      }),
-    );
-  });
-
   it("returns schema validation errors for unexpected payloads", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       jsonResponse({

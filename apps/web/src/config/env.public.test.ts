@@ -6,30 +6,49 @@ afterEach(() => {
 });
 
 describe("Turnstile public configuration", () => {
-  it.each(["production", "preview"])(
-    "requires the public key on Vercel %s",
-    async (environment) => {
+  it.each([
+    ["development", "development"],
+    ["production", "development"],
+    ["production", "preview"],
+    ["production", "production"],
+  ])(
+    "leaves the site key optional (NODE_ENV %s, Vercel %s)",
+    async (nodeEnv, vercelEnv) => {
       vi.resetModules();
-      vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", environment);
+      vi.stubEnv("NODE_ENV", nodeEnv);
+      vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", vercelEnv);
       vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", undefined);
-      const error = vi.spyOn(console, "error").mockImplementation(() => {});
-      vi.spyOn(process, "exit").mockImplementation(() => {
-        throw new Error("invalid configuration");
-      });
       const { getEnvPublicConfig } = await import("./env.public");
-      expect(() => getEnvPublicConfig()).toThrow("invalid configuration");
-      expect(JSON.stringify(error.mock.calls)).toContain(
-        "NEXT_PUBLIC_TURNSTILE_SITE_KEY is required",
-      );
+      expect(
+        getEnvPublicConfig().NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+      ).toBeUndefined();
     },
   );
 
-  it("supports local development without loading a widget", async () => {
+  it("preserves a configured site key", async () => {
     vi.resetModules();
-    vi.stubEnv("NODE_ENV", "development");
-    vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", "development");
-    vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", undefined);
+    vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "test-site-key");
     const { getEnvPublicConfig } = await import("./env.public");
-    expect(getEnvPublicConfig().NEXT_PUBLIC_TURNSTILE_SITE_KEY).toBeUndefined();
+    expect(getEnvPublicConfig().NEXT_PUBLIC_TURNSTILE_SITE_KEY).toBe(
+      "test-site-key",
+    );
+  });
+});
+
+describe("Sentry public configuration", () => {
+  it("leaves the DSN optional", async () => {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", undefined);
+    const { getEnvPublicConfig } = await import("./env.public");
+    expect(getEnvPublicConfig().NEXT_PUBLIC_SENTRY_DSN).toBeUndefined();
+  });
+
+  it("preserves a configured DSN", async () => {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", "https://example.ingest.sentry.io/1");
+    const { getEnvPublicConfig } = await import("./env.public");
+    expect(getEnvPublicConfig().NEXT_PUBLIC_SENTRY_DSN).toBe(
+      "https://example.ingest.sentry.io/1",
+    );
   });
 });

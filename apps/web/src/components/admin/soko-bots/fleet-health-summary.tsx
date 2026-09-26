@@ -22,7 +22,7 @@ export async function FleetHealthSummary({
     {
       key: "running",
       value: active.filter((item) => item.status === "RUNNING").length,
-      tone: "text-semantic-info",
+      tone: "text-status-working",
     },
     {
       key: "paused",

@@ -1,56 +1,61 @@
 "use client";
 
 import { getBrowserNotificationPermission } from "@/lib/utils/browser-notification";
-import {
-  hasWebPushSubscription,
-  isPushSupported,
-} from "@/lib/utils/notification-service-worker";
+import { isPushSupported } from "@/lib/utils/notification-service-worker";
 
+import {
+  hasPushPreference,
+  rememberPushPreference,
+  wantsPushHere,
+} from "./push-preference.client";
+
+import { recordPushRepairOutcome } from "./push-repair-outcome.client";
 import { getPushTeardownVersion } from "./push-work-queue.client";
 import {
   hasAblyPushRegistration,
   hasUnfinishedPushTeardown,
 } from "./release-push-device.client";
 
-/**
- * Re-subscribe a browser that was set up for push and lost its subscription.
- *
- * A Web Push subscription dies on its own: the push service can expire an
- * endpoint, and a browser can drop it with its site data. Nothing brought it
- * back. Until this ran, every
- * activation sat behind a click on the account page, so a reader whose browser
- * went quiet had to find that page and press the cell again to be reachable,
- * and nothing told them they had to. SOK-876 names this gap.
- *
- * Three conditions, and all of them are read from this browser, so an app open
- * costs no request:
- *
- * Ably still holds a registration for this browser. That is what makes this a
- * repair rather than an opt-in: a browser that never turned push on has no
- * registration, and this leaves it alone. A reader who turned push off has
- * none either, and neither has a browser that signed out. Signing out forgets
- * the registration whatever Ably answered; turning push off forgets it once
- * the browser subscription is gone. Turning push off also waits for a repair
- * already running and then undoes it, so a reader who says no has the last
- * word.
- *
- * One repair per browser is all this can promise. The activation clears
- * Ably's own state halfway through its round, so a repair that fails after
- * that point leaves no registration to read, and this never runs on that
- * browser again. The account page still turns push on.
- *
- * The notification permission is already granted. Subscribing cannot succeed
- * without it, and asking for it is the reader's decision to make on a page
- * they went to, never a prompt on app open.
- *
- * This browser holds no subscription. A browser that has one is already being
- * delivered to and must not be activated again.
- *
- * Never throws and never reports to the reader. This runs on app open with
- * nothing asked for, so the honest outcome of a failure is the state the
- * reader was already in: quiet, and repairable from the account page.
- */
+/** Reconcile remembered consent with the browser and Ably after each wake. */
 export async function healPushSubscription(userId: string): Promise<boolean> {
+  // Read before the repair, and carried past it. `activatePush` clears Ably's
+  // stored state halfway through its round, so a repair that fails after that
+  // point leaves no registration behind: read again afterwards, the browser
+  // this ran for would look like one that never turned push on, and the
+  // notice meant for exactly that reader would never appear.
+  const teardownVersion = getPushTeardownVersion();
+  const hadRegistration = hasAblyPushRegistration();
+
+  let deliveryHealthy: boolean | undefined;
+  try {
+    deliveryHealthy = await runHeal(userId, hadRegistration);
+    return deliveryHealthy === true;
+  } finally {
+    // Whichever way the repair went, this is the moment the answer is worth
+    // reading: a browser still quiet here is one the reader has to be told
+    // about, and nothing else in the app knows the repair has settled.
+    //
+    // Caught here as well, because this sits in a `finally`: a throw from the
+    // browser read, the storage write, or any listener would replace the
+    // repair's own answer with a rejection, and the only caller runs this as
+    // `void healPushSubscription(userId)`. The repair still happened; failing
+    // to write down what it left is not a reason to lose that.
+    try {
+      await recordPushRepairOutcome({
+        hadRegistration: hadRegistration || wantsPushHere(userId),
+        teardownVersion,
+        deliveryHealthy,
+      });
+    } catch (error) {
+      console.error("Failed to record the push repair outcome", error);
+    }
+  }
+}
+
+async function runHeal(
+  userId: string,
+  hadRegistration: boolean,
+): Promise<boolean | undefined> {
   try {
     // Read first of all, before anything this function waits on. Every wait
     // below is a window a sign-out can land in, and the reads around them say
@@ -60,12 +65,13 @@ export async function healPushSubscription(userId: string): Promise<boolean> {
     if (
       !isPushSupported() ||
       getBrowserNotificationPermission() !== "granted" ||
-      !hasAblyPushRegistration() ||
       hasUnfinishedPushTeardown() ||
-      (await hasWebPushSubscription())
+      (hasPushPreference() ? !wantsPushHere(userId) : !hadRegistration)
     ) {
       return false;
     }
+
+    rememberPushPreference(userId);
 
     // Loaded here rather than above, so a reader with nothing to repair never
     // pays for the Ably SDK. Same boundary the account page keeps.
@@ -90,6 +96,6 @@ export async function healPushSubscription(userId: string): Promise<boolean> {
   } catch (error) {
     console.error("Failed to restore the push subscription", error);
 
-    return false;
+    return undefined;
   }
 }

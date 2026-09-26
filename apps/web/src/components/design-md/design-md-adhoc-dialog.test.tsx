@@ -19,7 +19,7 @@ vi.mock("sonner", () => ({
 const startDesignMdGenerationMock = vi.fn();
 const pollDesignMdGenerationMock = vi.fn();
 const finalizeDesignMdGenerationMock = vi.fn();
-vi.mock("@/lib/actions/design-md", () => ({
+vi.mock("@/lib/actions/design-md/action", () => ({
   startDesignMdGeneration: (...args: unknown[]) =>
     startDesignMdGenerationMock(...args),
   pollDesignMdGeneration: (...args: unknown[]) =>

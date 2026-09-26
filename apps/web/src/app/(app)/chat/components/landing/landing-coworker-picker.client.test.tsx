@@ -27,15 +27,13 @@ vi.mock("./use-open-coworker-room", () => ({
   }),
 }));
 
-import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 
 import { LandingCoworkerPicker } from "./landing-coworker-picker.client";
 
 function renderSeated(ui: ReactElement) {
   return render(
-    <OrganizationSeatProvider hasAssignedSeat={true}>
-      {ui}
-    </OrganizationSeatProvider>,
+    <OrganizationSeatContext value={true}>{ui}</OrganizationSeatContext>,
   );
 }
 
@@ -331,12 +329,12 @@ describe("LandingCoworkerPicker", () => {
 
   it("keeps Start chat when the viewer has no assigned seat", () => {
     render(
-      <OrganizationSeatProvider hasAssignedSeat={false}>
+      <OrganizationSeatContext value={false}>
         <LandingCoworkerPicker
           coworkers={coworkers}
           initialSelectedId="elena"
         />
-      </OrganizationSeatProvider>,
+      </OrganizationSeatContext>,
     );
 
     expect(

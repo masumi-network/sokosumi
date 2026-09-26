@@ -1,4 +1,4 @@
-import { AgentsSkeleton } from "@/components/agents";
+import { AgentsSkeleton } from "@/components/agents/agents";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AgentsLoading() {

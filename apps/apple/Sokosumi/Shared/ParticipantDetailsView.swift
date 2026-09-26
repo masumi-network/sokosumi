@@ -11,13 +11,19 @@ struct ParticipantDetailsView: View {
   @State private var errorMessage: String?
 
   var body: some View {
+    let presence = workspaces.presence(for: profile)
     VStack(alignment: .leading, spacing: 12) {
       HStack(alignment: .top, spacing: 12) {
         ParticipantAvatar(imageURL: profile.image, name: profile.name, size: 48)
+          .presenceBadge(presence, size: 12)
         VStack(alignment: .leading, spacing: 4) {
           Text(profile.name).font(.headline)
           Text(kindLabel(profile.recipient)).font(.caption).foregroundStyle(.secondary)
-          Text(presenceLabel(profile.presence)).font(.caption).foregroundStyle(.secondary)
+          // Web's hover card writes availability out for humans only; AI members
+          // are pinned online and the mark already says so.
+          if case .human = profile.recipient {
+            Text(presenceLabel(presence)).font(.caption).fontWeight(.medium)
+          }
           if let detail = profile.detail, !detail.isEmpty {
             Text(detail).font(.callout).textSelection(.enabled)
           }
@@ -49,14 +55,6 @@ struct ParticipantDetailsView: View {
     case .human: "Person"
     case .coworker: "Coworker"
     case .sokoBot: "Personal assistant"
-    }
-  }
-
-  private func presenceLabel(_ presence: String) -> String {
-    switch presence {
-    case "online": "Online"
-    case "afk": "Away"
-    default: "Offline"
     }
   }
 }

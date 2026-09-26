@@ -1,0 +1,525 @@
+{
+  "date": "2026-09-21",
+  "source_commit": "85524b023fc44ee13ce92d848e25c5cc23b08487",
+  "host": {
+    "cpu": "Apple M4 Pro",
+    "memory_gib": 24,
+    "macOS": "27.0 (26A428)",
+    "xcode": "27.0 (27A266a)"
+  },
+  "build": {
+    "configuration": "Release",
+    "optimization": "-O",
+    "architecture": "arm64",
+    "ENABLE_CODE_COVERAGE": "NO",
+    "CLANG_ENABLE_CODE_COVERAGE": "NO",
+    "test_package_products_added": false
+  },
+  "runs": {
+    "ui_matrix": "21 cases, real RoomTimelineView; no activity token in this initial run. Scheduled step/callback intervals are not used as FPS or causal timing evidence.",
+    "prepare": "21 cases in a fresh process, no hosted views, scoped userInitiatedAllowingIdleSystemSleep activity; seven samples per mode.",
+    "lookup": "Fresh process, ordinary messages, 21 batches of 100 calls; existing method versus failed-shell-first guard in the harness only.",
+    "geometry": "One tall rectangle; scoped activity token; three within-round observer/no-observer comparisons. Scheduler/window-state delays remain and affect both variants."
+  },
+  "trace": {
+    "trace": "/tmp/soko-m6/native-time.trace",
+    "xctrace_version": "27.0 (27A266a)",
+    "run": 1,
+    "runs_available": [
+      1
+    ],
+    "template": "Time Profiler",
+    "duration_s": 16.093252,
+    "start_date": "2026-09-21T12:25:49.659+02:00",
+    "end_date": "2026-09-21T12:26:05.752+02:00",
+    "schemas_available": [
+      "OSSignpostIntervals",
+      "PointsOfInterestEvents",
+      "StateReportingIntervals",
+      "device-thermal-state-intervals",
+      "dyld-library-load",
+      "hang-risks",
+      "kdebug",
+      "kdebug-strings",
+      "life-cycle-period",
+      "os-log",
+      "os-signpost",
+      "os-signpost-arg",
+      "potential-hangs",
+      "process-info",
+      "runloop-events",
+      "thread-info",
+      "tick",
+      "time-profile",
+      "time-sample"
+    ],
+    "lanes": [
+      {
+        "lane": "time-profiler",
+        "available": true,
+        "schema_used": "time-profile",
+        "metrics": {
+          "total_samples": 4297,
+          "total_weight_ns": 4297000000,
+          "total_weight_ms": 4297.0,
+          "window_start_ns": 4000540333,
+          "window_end_ns": 8986541000,
+          "processes": [
+            "Sokosumi"
+          ]
+        },
+        "top_offenders": [
+          {
+            "symbol": "<deduplicated_symbol>",
+            "weight_ns": 305000000,
+            "weight_ms": 305.0,
+            "samples": 305,
+            "percent": 7.1,
+            "thread": "main"
+          },
+          {
+            "symbol": "swift_release",
+            "weight_ns": 177000000,
+            "weight_ms": 177.0,
+            "samples": 177,
+            "percent": 4.12,
+            "thread": "main"
+          },
+          {
+            "symbol": "AG::Graph::UpdateStack::update()",
+            "weight_ns": 159000000,
+            "weight_ms": 159.0,
+            "samples": 159,
+            "percent": 3.7,
+            "thread": "main"
+          },
+          {
+            "symbol": "swift_retain",
+            "weight_ns": 142000000,
+            "weight_ms": 142.0,
+            "samples": 142,
+            "percent": 3.3,
+            "thread": "main"
+          },
+          {
+            "symbol": "AG::Graph::propagate_dirty(AG::AttributeID)",
+            "weight_ns": 139000000,
+            "weight_ms": 139.0,
+            "samples": 139,
+            "percent": 3.23,
+            "thread": "main"
+          },
+          {
+            "symbol": "_platform_memmove",
+            "weight_ns": 138000000,
+            "weight_ms": 138.0,
+            "samples": 138,
+            "percent": 3.21,
+            "thread": "main"
+          },
+          {
+            "symbol": "objc_msgSend",
+            "weight_ns": 86000000,
+            "weight_ms": 86.0,
+            "samples": 86,
+            "percent": 2.0,
+            "thread": "main"
+          },
+          {
+            "symbol": "swift::MetadataCacheKey::operator==(swift::MetadataCacheKey const&) const",
+            "weight_ns": 82000000,
+            "weight_ms": 82.0,
+            "samples": 82,
+            "percent": 1.91,
+            "thread": "main"
+          },
+          {
+            "symbol": "swift_bridgeObjectRetain",
+            "weight_ns": 76000000,
+            "weight_ms": 76.0,
+            "samples": 76,
+            "percent": 1.77,
+            "thread": "main"
+          },
+          {
+            "symbol": "initializeWithCopy for Components.Schemas.ChatRoomMessage",
+            "weight_ns": 75000000,
+            "weight_ms": 75.0,
+            "samples": 75,
+            "percent": 1.75,
+            "thread": "main"
+          }
+        ],
+        "notes": []
+      },
+      {
+        "lane": "hangs",
+        "available": true,
+        "schema_used": "potential-hangs",
+        "metrics": {
+          "count": 0,
+          "total_duration_ms": 0,
+          "worst_duration_ms": 0,
+          "severity_buckets": {
+            "lt_250ms": 0,
+            "250ms_1s": 0,
+            "gt_1s": 0
+          }
+        },
+        "top_offenders": [],
+        "notes": []
+      },
+      {
+        "lane": "hitches",
+        "available": false,
+        "notes": [
+          "Animation hitches not present in trace."
+        ]
+      },
+      {
+        "lane": "swiftui",
+        "available": false,
+        "notes": [
+          "SwiftUI lane not in trace (Xcode 26+ SwiftUI template required)."
+        ]
+      },
+      {
+        "lane": "swiftui-causes",
+        "available": false,
+        "notes": [
+          "SwiftUI causes data not present (requires SwiftUI template on a real device)."
+        ]
+      }
+    ],
+    "correlations": [],
+    "window_ms": {
+      "start": 4000.0,
+      "end": 9000.0
+    }
+  },
+  "trace_scope": {
+    "start_ms": 4000,
+    "end_ms": 9000,
+    "main_samples": 4256,
+    "main_weight_ms": 4256.0,
+    "main_running_coverage_pct": 85.12,
+    "max_stack_frames": 128,
+    "selected_inclusive": [
+      {
+        "symbol": "RoomTimelineView.mentionRetryAction(for:)",
+        "ms": 411.0,
+        "percent_main_weight": 9.66
+      },
+      {
+        "symbol": "RoomTimelineView.preparedMessages.getter",
+        "ms": 339.0,
+        "percent_main_weight": 7.97
+      },
+      {
+        "symbol": "MessageRowView.body.getter",
+        "ms": 248.0,
+        "percent_main_weight": 5.83
+      },
+      {
+        "symbol": "NSHostingView.layout()",
+        "ms": 3449.0,
+        "percent_main_weight": 81.04
+      },
+      {
+        "symbol": "initializeWithCopy for Components.Schemas.ChatRoomMessage",
+        "ms": 380.0,
+        "percent_main_weight": 8.93
+      }
+    ],
+    "phase_evidence": {
+      "capture_start": "2026-09-21T12:25:49.659+02:00",
+      "early_begin": "2026-09-21T12:25:52.730096+02:00",
+      "early_end": "2026-09-21T12:25:58.791708+02:00"
+    }
+  },
+  "swiftui_capture_failure": {
+    "template": "SwiftUI",
+    "time_limit_s": 25,
+    "size_gib_approx": 1.4,
+    "export_error": "Document Missing Template Error",
+    "disposition": "Did not finalize after more than five minutes; interrupted and terminated. Export still failed after termination. Excluded from all findings."
+  },
+  "lookup": [
+    {
+      "allowed": 0,
+      "count": 50,
+      "mix": "plain",
+      "mode": "existing",
+      "per_call_ms": {
+        "max": 0.005144166643731296,
+        "n": 21,
+        "p50": 0.0040120833000401035,
+        "p95": 0.0040550000267103314,
+        "total": 0.08524041659256909
+      },
+      "phase": "lookup"
+    },
+    {
+      "allowed": 0,
+      "count": 50,
+      "mix": "plain",
+      "mode": "reject-ordinary-first",
+      "per_call_ms": {
+        "max": 0.0001479166530771181,
+        "n": 21,
+        "p50": 8.291666745208204e-05,
+        "p95": 8.333336154464632e-05,
+        "total": 0.0018054166139336303
+      },
+      "phase": "lookup"
+    },
+    {
+      "allowed": 0,
+      "count": 500,
+      "mix": "plain",
+      "mode": "existing",
+      "per_call_ms": {
+        "max": 0.03520458332786802,
+        "n": 21,
+        "p50": 0.03216041666746605,
+        "p95": 0.03514625001116656,
+        "total": 0.6850116666464601
+      },
+      "phase": "lookup"
+    },
+    {
+      "allowed": 0,
+      "count": 500,
+      "mix": "plain",
+      "mode": "reject-ordinary-first",
+      "per_call_ms": {
+        "max": 0.00010916664905380458,
+        "n": 21,
+        "p50": 8.666669600643218e-05,
+        "p95": 0.00010916664905380458,
+        "total": 0.0019108333071926609
+      },
+      "phase": "lookup"
+    },
+    {
+      "allowed": 0,
+      "count": 2000,
+      "mix": "plain",
+      "mode": "existing",
+      "per_call_ms": {
+        "max": 0.1651766667055199,
+        "n": 21,
+        "p50": 0.12691458330664318,
+        "p95": 0.14881000002787914,
+        "total": 2.7176408331433777
+      },
+      "phase": "lookup"
+    },
+    {
+      "allowed": 0,
+      "count": 2000,
+      "mix": "plain",
+      "mode": "reject-ordinary-first",
+      "per_call_ms": {
+        "max": 0.00010166666470468044,
+        "n": 21,
+        "p50": 8.249997335951775e-05,
+        "p95": 8.291666745208204e-05,
+        "total": 0.0017479166126577184
+      },
+      "phase": "lookup"
+    }
+  ],
+  "geometry": [
+    {
+      "action_total_ms": 0,
+      "actions": 0,
+      "end_y": 14400,
+      "event_ms": {
+        "max": 1.5126250000321306,
+        "p50": 0.11391666339477524,
+        "p95": 0.22683333372697234,
+        "total": 30.828083305095788
+      },
+      "mode": "none",
+      "round": 0,
+      "step_ms": {
+        "max": 20.15620833117282,
+        "p50": 17.263124995224643,
+        "p95": 17.520375004096422,
+        "total": 4128.904208329914
+      },
+      "ticks": 240,
+      "transforms": 0
+    },
+    {
+      "action_total_ms": 0.0437916096416302,
+      "actions": 240,
+      "end_y": 14400,
+      "event_ms": {
+        "max": 0.9745833376655355,
+        "p50": 0.13787500211037695,
+        "p95": 0.23608333140145987,
+        "total": 35.1649583899416
+      },
+      "mode": "observed",
+      "round": 0,
+      "step_ms": {
+        "max": 39.81400000338908,
+        "p50": 17.306624999037012,
+        "p95": 17.621541672269814,
+        "total": 4153.920291675604
+      },
+      "ticks": 240,
+      "transforms": 240
+    },
+    {
+      "action_total_ms": 0.04891659045824781,
+      "actions": 240,
+      "end_y": 14400,
+      "event_ms": {
+        "max": 1.2466666667023674,
+        "p50": 0.12475000403355807,
+        "p95": 0.25329166965093464,
+        "total": 35.715000063646585
+      },
+      "mode": "dynamic",
+      "round": 0,
+      "step_ms": {
+        "max": 19.20504166628234,
+        "p50": 17.265291666262783,
+        "p95": 17.50375000119675,
+        "total": 4115.119041729486
+      },
+      "ticks": 240,
+      "transforms": 240
+    },
+    {
+      "action_total_ms": 0.049666676204651594,
+      "actions": 240,
+      "end_y": 14400,
+      "event_ms": {
+        "max": 1.1453333354438655,
+        "p50": 0.1318333379458636,
+        "p95": 0.2771666695480235,
+        "total": 37.31150002568029
+      },
+      "mode": "dynamic",
+      "round": 1,
+      "step_ms": {
+        "max": 18.982958332344424,
+        "p50": 17.281125001318287,
+        "p95": 17.707958329992834,
+        "total": 4126.072083323379
+      },
+      "ticks": 240,
+      "transforms": 240
+    },
+    {
+      "action_total_ms": 0.03958333400078118,
+      "actions": 240,
+      "end_y": 14400,
+      "event_ms": {
+        "max": 0.5445416609290987,
+        "p50": 0.14095833466853946,
+        "p95": 0.26879166398430243,
+        "total": 37.14708329789573
+      },
+      "mode": "observed",
+      "round": 1,
+      "step_ms": {
+        "max": 19.026750000193715,
+        "p50": 17.3158333345782,
+        "p95": 17.617041667108424,
+        "total": 4129.408999942825
+      },
+      "ticks": 240,
+      "transforms": 240
+    },
+    {
+      "action_total_ms": 0,
+      "actions": 0,
+      "end_y": 14400,
+      "event_ms": {
+        "max": 1.0733750023064204,
+        "p50": 0.14391667355084792,
+        "p95": 0.2774166641756892,
+        "total": 39.95979170576902
+      },
+      "mode": "none",
+      "round": 1,
+      "step_ms": {
+        "max": 21.632916665112134,
+        "p50": 17.319166669039987,
+        "p95": 17.843458335846663,
+        "total": 4144.436500071606
+      },
+      "ticks": 240,
+      "transforms": 0
+    },
+    {
+      "action_total_ms": 0,
+      "actions": 0,
+      "end_y": 14400,
+      "event_ms": {
+        "max": 1.55629166692961,
+        "p50": 0.16487499669892713,
+        "p95": 0.3586250022635795,
+        "total": 48.46949991770089
+      },
+      "mode": "none",
+      "round": 2,
+      "step_ms": {
+        "max": 83.40316666726721,
+        "p50": 70.90987499395851,
+        "p95": 80.09483333444223,
+        "total": 12868.279791582609
+      },
+      "ticks": 240,
+      "transforms": 0
+    },
+    {
+      "action_total_ms": 0.22599991643801332,
+      "actions": 240,
+      "end_y": 14400,
+      "event_ms": {
+        "max": 5.6253333314089105,
+        "p50": 0.1435416634194553,
+        "p95": 0.30645833612652496,
+        "total": 44.78737499448471
+      },
+      "mode": "observed",
+      "round": 2,
+      "step_ms": {
+        "max": 119.16620833653724,
+        "p50": 70.87804166803835,
+        "p95": 79.95479166856967,
+        "total": 13486.936583321949
+      },
+      "ticks": 240,
+      "transforms": 240
+    },
+    {
+      "action_total_ms": 0.04562501999316737,
+      "actions": 240,
+      "end_y": 14400,
+      "event_ms": {
+        "max": 2.108624998072628,
+        "p50": 0.1456666723242961,
+        "p95": 0.3202083316864446,
+        "total": 44.95574995235074
+      },
+      "mode": "dynamic",
+      "round": 2,
+      "step_ms": {
+        "max": 82.71383333340054,
+        "p50": 74.95899999776157,
+        "p95": 80.15850000083447,
+        "total": 15132.75175000308
+      },
+      "ticks": 240,
+      "transforms": 240
+    }
+  ],
+  "results_sha256": "9f5ee5ac8e1d6659734f737ad8cb641e6a0e2381305f704e034cef77ee40ec19"
+}

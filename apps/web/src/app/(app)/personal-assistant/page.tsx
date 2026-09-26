@@ -43,6 +43,8 @@ async function loadState(): Promise<StateLoad> {
   }
 }
 
+export const instant = false;
+
 interface SokoBotPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }

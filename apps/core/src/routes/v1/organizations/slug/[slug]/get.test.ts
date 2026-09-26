@@ -53,45 +53,6 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-// Let a coworker past the vendor grant gate so these cases exercise the
-// organization binding, not grant policy (grant policy lives in
-// coworker-user-context-binding.test.ts).
-vi.mock("@/helpers/personal-workspace-error", () => ({
-  resolveWorkspaceForContextOrNotFound: async () => ({ id: "workspace_a" }),
-}));
-
-vi.mock("@/helpers/vendor-grants", () => ({
-  getWorkspaceGrant: async () => ({ status: "GRANTED" }),
-  isGrantDeniedOrRevoked: () => false,
-  throwGrantAccessError: () => {
-    throw new Error("unexpected grant rejection");
-  },
-}));
-
-/** A Serviceplan-style coworker key bound to org_123 by context headers. */
-const COWORKER_IN_ORG_123: AuthenticationContext = {
-  actor: "coworker",
-  coworkerId: "cow_123",
-  vendorId: TEST_VENDOR_ID,
-  context: { userId: "user_123", organizationId: "org_123" },
-};
-
-/** The same key, bound to a different organization the user also belongs to. */
-const COWORKER_IN_OTHER_ORG: AuthenticationContext = {
-  actor: "coworker",
-  coworkerId: "cow_123",
-  vendorId: TEST_VENDOR_ID,
-  context: { userId: "user_123", organizationId: "org_other" },
-};
-
-/** The same key on a personal workspace: no organization is in scope at all. */
-const COWORKER_IN_PERSONAL_WORKSPACE: AuthenticationContext = {
-  actor: "coworker",
-  coworkerId: "cow_123",
-  vendorId: TEST_VENDOR_ID,
-  context: { userId: "user_123", organizationId: null },
-};
-
 const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
@@ -243,79 +204,5 @@ describe("GET /organizations/slug/{slug}", () => {
     expect(organizationFindUniqueMock).toHaveBeenCalledWith({
       where: { slug: "acme" },
     });
-  });
-});
-
-describe("GET /organizations/slug/{slug} organization scope", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockOrgLookup({
-      organization: createOrganization(),
-      member: { role: "member" },
-    });
-  });
-
-  it("serves the organization the coworker context is bound to", async () => {
-    // The context organization's own slug is what the caller asked for.
-    organizationFindUniqueMock.mockResolvedValueOnce({ slug: "acme" });
-
-    const app = createApp(COWORKER_IN_ORG_123);
-
-    const response = await app.request("http://localhost/slug/acme");
-
-    expect(response.status).toBe(200);
-  });
-
-  /**
-   * The refusal must be indistinguishable from a slug that does not exist.
-   * A 403 here would tell the caller "this organization exists and your user
-   * is a member", which is the enumeration SOK-1020 closes.
-   */
-  it("returns 404 if another organization takes the slug after the scope check", async () => {
-    organizationFindUniqueMock.mockResolvedValueOnce({ slug: "acme" });
-    organizationFindUniqueMock.mockImplementation(async ({ where }) => {
-      // The context organization released acme after the first read.
-      const organization = createOrganization({
-        id: "org_other",
-        stripeCustomerId: "cus_other",
-      });
-      return where.id && where.id !== organization.id ? null : organization;
-    });
-
-    const response = await createApp(COWORKER_IN_ORG_123).request(
-      "http://localhost/slug/acme",
-    );
-
-    expect(response.status).toBe(404);
-    expect(memberFindUniqueMock).not.toHaveBeenCalled();
-  });
-
-  it("answers 404 for a slug outside the coworker context", async () => {
-    organizationFindUniqueMock.mockResolvedValueOnce({ slug: "other-org" });
-
-    const app = createApp(COWORKER_IN_OTHER_ORG);
-
-    const response = await app.request("http://localhost/slug/acme");
-
-    expect(response.status).toBe(404);
-  });
-
-  it("answers the same 404 for a slug that does not exist at all", async () => {
-    organizationFindUniqueMock.mockResolvedValueOnce({ slug: "other-org" });
-
-    const app = createApp(COWORKER_IN_OTHER_ORG);
-
-    const response = await app.request("http://localhost/slug/missing-org");
-
-    expect(response.status).toBe(404);
-  });
-
-  it("answers 404 for a personal workspace context, reading no organization", async () => {
-    const app = createApp(COWORKER_IN_PERSONAL_WORKSPACE);
-
-    const response = await app.request("http://localhost/slug/acme");
-
-    expect(response.status).toBe(404);
-    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
   });
 });

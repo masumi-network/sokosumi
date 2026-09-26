@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
+import { waitUntil } from "@vercel/functions";
 
 import {
   deleteChatRoomMessageMetadataKeys,
@@ -8,6 +9,7 @@ import {
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import {
   applyRemovedUnfurlToMetadata,
+  asMetadataRecord,
   REMOVED_UNFURL_URLS_METADATA_KEY,
   readRemovedUnfurlUrlsFromMetadata,
   readUnfurlsFromMetadata,
@@ -15,6 +17,7 @@ import {
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { deleteChatRoomUnfurlSnapshotsIfOwned } from "@/lib/chat-unfurl-snapshot";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -88,6 +91,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
 
     let shouldPublish = false;
+    let removedImageUrl: string | null = null;
     const message = await prisma.$transaction(async (tx) => {
       await requireChatRoomUserWriteAccess(id, userContext.userId, tx);
 
@@ -125,6 +129,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (found.deletedAt != null) {
         throw forbidden("Deleted messages cannot be updated");
       }
+
+      removedImageUrl =
+        readUnfurlsFromMetadata(asMetadataRecord(found.metadata))?.find(
+          (card) => card.url === body.url,
+        )?.imageUrl ?? null;
 
       const applied = applyRemovedUnfurlToMetadata(found.metadata, body.url);
       if (applied.status === "not_found") {
@@ -169,6 +178,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     if (shouldPublish) {
+      // The snapshot belongs to the removed card only (ADR 0030). Off the
+      // response path, and not gated on the realtime publish succeeding.
+      waitUntil(
+        deleteChatRoomUnfurlSnapshotsIfOwned([removedImageUrl], id, messageId),
+      );
       await publishChatRoomMessageRealtime(message, "unfurl");
     }
 

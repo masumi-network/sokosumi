@@ -1,5 +1,4 @@
 import { createRoute } from "@hono/zod-openapi";
-import { memberRepository } from "@sokosumi/database/repositories";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -55,11 +54,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Project not found");
       }
     } else {
-      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-        userId,
-        organizationId!,
-        prisma,
-      );
+      const member = await prisma.member.findUnique({
+        where: {
+          userId_organizationId: {
+            userId,
+            organizationId: organizationId!,
+          },
+        },
+        select: { id: true },
+      });
       if (!member) {
         throw notFound("Organization not found");
       }

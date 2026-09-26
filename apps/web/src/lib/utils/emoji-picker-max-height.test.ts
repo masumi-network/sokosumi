@@ -5,7 +5,6 @@ import {
   EMOJI_PICKER_MAX_HEIGHT_CAP_PX,
   estimateEmojiPickerChromePx,
   estimateEmojiPickerMinGridPx,
-  estimateEmojiPickerMinTotalPx,
   resolveEmojiPickerMaxHeightPx,
 } from "./emoji-picker-max-height";
 
@@ -13,8 +12,9 @@ const root16 = 16;
 const root20 = DYNAMIC_TYPE_MAX_ROOT_PX; // 1.25× Dynamic Type cap
 const chrome16 = estimateEmojiPickerChromePx(root16);
 const minGrid16 = estimateEmojiPickerMinGridPx(root16);
-const minTotal16 = estimateEmojiPickerMinTotalPx(root16);
-const minTotal20 = estimateEmojiPickerMinTotalPx(root20);
+const minTotal16 = chrome16 + minGrid16;
+const minTotal20 =
+  estimateEmojiPickerChromePx(root20) + estimateEmojiPickerMinGridPx(root20);
 
 describe("emoji picker rem-scaled chrome/grid estimates", () => {
   it("matches default-root chrome+grid (5.5rem + 2px + 7.5rem)", () => {

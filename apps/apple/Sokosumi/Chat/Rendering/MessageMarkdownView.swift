@@ -68,9 +68,25 @@ private struct MessageMarkdownContent: View {
       if let count = jumboEmojiCount(source) {
         Text(source.trimmingCharacters(in: .whitespacesAndNewlines)).font(.system(size: emojiSize(count)))
       } else if let document = preparedDocument ?? document {
-        ExpandableMessageBody(source: source, clampHeight: !document.containsAttachments) {
-          MarkdownBlocksView(blocks: document.blocks)
+        ExpandableMessageBody(source: source, clampHeight: document.clampsLongBody) {
+          VStack(alignment: .leading, spacing: 8) {
+            ForEach(document.segments) { segment in
+              if segment.files.isEmpty {
+                MarkdownBlocksView(blocks: segment.blocks)
+              } else if segment.usesLargeImage, let file = segment.files.first {
+                MessageAttachmentView(attachment: file.attachment).id(file.attachment.url)
+              } else {
+                WrappingRow(alignment: .top, constrainsWidth: true) {
+                  ForEach(segment.files) { file in
+                    MessageAttachmentView(attachment: file.attachment, compact: true).id(file.attachment.url)
+                  }
+                }
+                .padding(.bottom, segment.files.last?.attachment.kind == .file ? 8 : 0)
+              }
+            }
+          }
         }
+        .messageImageGallery(document.imageGallery)
       } else {
         ProgressView()
           .controlSize(.small)
@@ -137,11 +153,10 @@ private struct MarkdownBlockView: View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
           ForEach(block.children) { row in
             GridRow {
-              ForEach(columns.indices, id: \.self) { index in
-                let cell = row.children.first { $0.kind == .tableCell(columnIndex: index) }
-                attachmentContent(cell?.text ?? AttributedString())
+              ForEach(row.children) { cell in
+                attachmentContent(cell.text)
                   .fontWeight(row.kind == .tableHeaderRow ? .semibold : .regular)
-                  .gridColumnAlignment(tableAlignment(columns[index].alignment))
+                  .gridColumnAlignment(tableAlignment(columnAlignment(for: cell, in: columns)))
               }
             }
           }
@@ -217,6 +232,18 @@ private struct MarkdownBlockView: View {
     case 5: .subheadline
     default: .footnote
     }
+  }
+
+  private func columnAlignment(
+    for cell: MessageMarkdownBlock,
+    in columns: [PresentationIntent.TableColumn]
+  ) -> PresentationIntent.TableColumn.Alignment {
+    guard case let .tableCell(columnIndex) = cell.kind,
+          columns.indices.contains(columnIndex)
+    else {
+      return .left
+    }
+    return columns[columnIndex].alignment
   }
 
   private func tableAlignment(_ alignment: PresentationIntent.TableColumn.Alignment) -> HorizontalAlignment {

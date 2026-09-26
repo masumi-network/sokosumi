@@ -2,6 +2,10 @@ import {
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
 } from "./chat-notification-message-keys.js";
+import {
+  CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+} from "./notification-follow-up-message-keys.js";
 
 /**
  * Notification kinds that still create rows + realtime events (browser OS
@@ -23,36 +27,19 @@ function isBrowserOnlyNotificationKind(
 }
 
 /**
- * The chat keys the notification center keeps, despite their kind.
+ * Chat keys the notification center keeps despite kind `CHAT`.
  *
- * A mention is addressed to the reader by name, so it belongs where the reader
- * looks for what is waiting on them. The sidebar badge says which room it was
- * in; it cannot say who wrote it or what they said, and it is gone the moment
- * the room is read. A room message is here because the reader asked to be told
- * about every message, and the center is the only surface that keeps what it
- * was told.
- *
- * A direct message stays off the list. Every message in a direct room is
- * addressed to the reader, so keeping them would make the center a second copy
- * of the room.
- *
- * Whether either actually arrives is still the reader's own setting: the row
- * carries the in-app answer its category resolved to, and the feed reads that.
+ * Mentions and opted-in room messages belong in the feed. Direct messages stay
+ * out (the room already is that list). Both chat follow-ups stay in: a
+ * reminder arrives once, a day after the room went quiet.
  */
 export const CHAT_FEED_MESSAGE_KEYS: readonly string[] = [
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
 ];
 
-/**
- * Whether a stored notification stays out of the in-app notification center.
- *
- * The kind answers it for every row but the chat keys listed above.
- *
- * A direct message stays browser-only. Every message in a direct room is
- * addressed to the reader, so keeping them would make the center a second copy
- * of the room rather than a list of what is waiting.
- */
 export function isBrowserOnlyNotification(
   kind: string,
   messageKey: string,
@@ -61,4 +48,47 @@ export function isBrowserOnlyNotification(
     isBrowserOnlyNotificationKind(kind) &&
     !CHAT_FEED_MESSAGE_KEYS.includes(messageKey)
   );
+}
+
+/** Task paused for the reader's input. */
+export const TASK_INPUT_REQUIRED_MESSAGE_KEY =
+  "Notifications.Task.inputRequired";
+
+/** Job paused for the reader's input. */
+export const JOB_INPUT_REQUIRED_MESSAGE_KEY = "Notifications.Job.inputRequired";
+
+/** Workspace vendor-grant request awaiting a decision. */
+export const VENDOR_GRANT_PENDING_MESSAGE_KEY =
+  "notifications.vendorGrant.pending";
+
+/** Coworker workspace early-access request awaiting a decision. */
+export const COWORKER_ACCESS_PENDING_MESSAGE_KEY =
+  "notifications.coworkerAccess.pending";
+
+/**
+ * Keys the Needs you view can hold. The key says the row asked; whether it is
+ * still asking is Core's to decide from the record.
+ */
+export const NEEDS_ACTION_MESSAGE_KEYS: readonly string[] = [
+  TASK_INPUT_REQUIRED_MESSAGE_KEY,
+  JOB_INPUT_REQUIRED_MESSAGE_KEY,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+];
+
+export function isNeedsActionNotification(messageKey: string): boolean {
+  return NEEDS_ACTION_MESSAGE_KEYS.includes(messageKey);
+}
+
+/**
+ * Keys the Mentions view holds: rows where someone named the reader. A direct
+ * message is not a mention, so neither it nor its reminder is here.
+ */
+export const MENTION_MESSAGE_KEYS: readonly string[] = [
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+];
+
+export function isMentionNotification(messageKey: string): boolean {
+  return MENTION_MESSAGE_KEYS.includes(messageKey);
 }

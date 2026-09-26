@@ -28,7 +28,8 @@ vi.mock("@/lib/utils/browser-notification", () => ({
     getBrowserNotificationPermissionMock(),
 }));
 
-vi.mock("./release-push-device.client", () => ({
+vi.mock("./release-push-device.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./release-push-device.client")>()),
   hasAblyPushRegistration: () => hasAblyPushRegistrationMock(),
   hasUnfinishedPushTeardown: () => hasUnfinishedPushTeardownMock(),
 }));
@@ -57,6 +58,7 @@ function repairable() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   repairable();
   activatePushMock.mockResolvedValue(true);
 });
@@ -82,13 +84,6 @@ describe("healPushSubscription", () => {
    * went to, never a prompt on app open. */
   it("never asks for a permission the reader has not granted", async () => {
     getBrowserNotificationPermissionMock.mockReturnValue("default");
-
-    await expect(healPushSubscription(USER_ID)).resolves.toBe(false);
-    expect(activatePushMock).not.toHaveBeenCalled();
-  });
-
-  it("leaves a browser that is still subscribed alone", async () => {
-    hasWebPushSubscriptionMock.mockResolvedValue(true);
 
     await expect(healPushSubscription(USER_ID)).resolves.toBe(false);
     expect(activatePushMock).not.toHaveBeenCalled();
@@ -184,4 +179,43 @@ describe("healPushSubscription after an interrupted teardown", () => {
 it("returns false when teardown cancels activation", async () => {
   activatePushMock.mockResolvedValueOnce(false);
   await expect(healPushSubscription(USER_ID)).resolves.toBe(false);
+});
+
+/**
+ * The repair's own answer must survive writing it down. Recording sits in a
+ * `finally`, so a throw from the browser read, the storage write, or a
+ * listener would replace the boolean with a rejection, and the only caller
+ * runs this as `void healPushSubscription(userId)`.
+ */
+it("keeps its answer when recording the outcome throws", async () => {
+  repairable();
+  const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  hasWebPushSubscriptionMock.mockRejectedValue(new Error("storage is blocked"));
+
+  await expect(healPushSubscription(USER_ID)).resolves.toBe(true);
+
+  expect(consoleError).toHaveBeenCalled();
+  consoleError.mockRestore();
+});
+
+// SOK-1120: repair eligibility survives loss of SDK credentials.
+it("retries a failed repair after its registration token was removed", async () => {
+  localStorage.setItem(
+    "sokosumi.push.preference",
+    JSON.stringify({ userId: USER_ID, suspended: false }),
+  );
+  hasAblyPushRegistrationMock.mockReturnValue(false);
+  await healPushSubscription(USER_ID);
+  expect(activatePushMock).toHaveBeenCalledWith(USER_ID, {
+    readerInitiated: false,
+  });
+});
+
+// SOK-1120: a browser endpoint does not prove remote delivery health.
+it("reconciles Ably even when a browser subscription exists", async () => {
+  hasWebPushSubscriptionMock.mockResolvedValue(true);
+  await healPushSubscription(USER_ID);
+  expect(activatePushMock).toHaveBeenCalledWith(USER_ID, {
+    readerInitiated: false,
+  });
 });

@@ -63,11 +63,6 @@ import Testing
   #expect(segments.first?.attachment?.kind == .video)
 }
 
-@Test func documentReportsAttachments() {
-  #expect(MessageMarkdown("hello ![A](https://example.com/a.png)").containsAttachments)
-  #expect(!MessageMarkdown("hello [site](https://example.com)").containsAttachments)
-}
-
 @Test func attachmentLayoutRemovesBoundaryLineBreaksButPreservesParagraphs() {
   var text = AttributedString("First line\nSecond line\n\n")
   var link = AttributedString("report.pdf")

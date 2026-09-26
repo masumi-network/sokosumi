@@ -6,7 +6,9 @@ import { ContractDetail } from "@/components/admin/enterprise-contracts/contract
 import { ContractLoadError } from "@/components/admin/enterprise-contracts/contract-load-error";
 import { Button } from "@/components/ui/button";
 import { getEnterpriseContractAction } from "@/lib/actions/enterprise-contract/action";
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+
+export const instant = false;
 
 export const metadata: Metadata = {
   title: "Enterprise contract",

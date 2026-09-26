@@ -16,17 +16,20 @@ private struct NavigationGuard {
 }
 
 public extension WorkspaceState {
-  /// Navigate within the current workspace. Membership-visible rooms remain the authority.
+  /// Navigate to a `ChatLink.room` within the current workspace. Membership-visible rooms remain the authority;
+  /// invitation and guest-join links are presented by the app instead.
   @discardableResult
-  func openChatLink(_ link: ChatLink, auth: AuthState) async throws -> MessageNavigationResult {
-    guard rooms.contains(where: { $0.id == link.roomId }) else { return .unavailable }
-    selectRoom(link.roomId, auth: auth)
+  func openRoomLink(roomId: String, messageId: String?, auth: AuthState) async throws -> MessageNavigationResult {
+    guard rooms.contains(where: { $0.id == roomId }) else { return .unavailable }
+    // A link, a notification or a Threads row shows its room in place of the Threads view (row 24f1).
+    sidebar.showsThreadsView = false
+    selectRoom(roomId, auth: auth)
     let request = UUID()
     messageNavigationRequest = request
     let generation = timeline.generation
     await transcriptLoadTask?.value
-    guard isCurrent(NavigationGuard(request: request, generation: generation)), transcriptRoomId == link.roomId else { return .superseded }
-    guard let messageId = link.messageId else { thread.close()
+    guard isCurrent(NavigationGuard(request: request, generation: generation)), transcriptRoomId == roomId else { return .superseded }
+    guard let messageId else { thread.close()
       return .opened
     }
     return try await openMessage(messageId, auth: auth)
@@ -46,7 +49,8 @@ public extension WorkspaceState {
       let message = try await navigationMessage(messageId, roomId: roomId, client: client, organizationSlug: slug)
       guard isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
       if let message {
-        guard message.roomId == roomId else { return .unavailable }
+        // A row the transcript drops (a deleted message) can never be landed on.
+        guard message.roomId == roomId, shouldKeepPersistedMessage(message) else { return .unavailable }
         if message.parentMessageId != nil {
           return try await navigateReply(message, request: request, auth: auth)
         }
@@ -117,6 +121,10 @@ public extension WorkspaceState {
         return stopped
       }
       guard isCurrent(navigation, threadGeneration: threadGeneration) else { return .superseded }
+      // A search hit keeps its old body; the loaded row says whether the thread still shows it.
+      if let loaded = thread.timeline.messages.first(where: { $0.id == hit.id }), !shouldKeepPersistedMessage(loaded) {
+        return .unavailable
+      }
       thread.requestJump(to: hit.id)
       return thread.jumpTarget?.messageId == hit.id ? .opened : .unavailable
     } catch {

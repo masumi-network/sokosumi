@@ -59,13 +59,6 @@ export function getSokoBotVersion(
   return fallback;
 }
 
-export function isSokoBotVersionId(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    SOKO_BOT_VERSIONS.some((version) => version.id === value)
-  );
-}
-
 /** Base prompt followed by every included skill. */
 export function composeSystemPrompt(
   version: SokoBotVersion,

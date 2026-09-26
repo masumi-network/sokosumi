@@ -49,14 +49,14 @@ export function SocialAccounts({ accounts }: SocialAccountsProps) {
   };
 
   return (
-    <div className="flex flex-col divide-y rounded-xl border p-2">
+    <div className="flex flex-col divide-y rounded-xl border py-2">
       {SOCIAL_PROVIDERS.map((provider) => {
         const account = socialAccounts.find(
           (account) => account.providerId === provider,
         );
 
         return (
-          <div key={provider} className="flex items-center gap-2 px-2 py-4">
+          <div key={provider} className="flex items-center gap-2 px-4 py-4">
             {SOCIAL_PROVIDER_ICONS[provider]}
             <p className="flex-1">
               {account ? t("connected") : t("notConnected")}

@@ -10,11 +10,25 @@ Build `apps/apple` as an Apple-native SwiftUI client for the chat experience in 
 
 Target macOS 26 now and iOS 17+ later. Reuse the existing architecture and conventions. Keep models, networking, view models, and persistence in platform-agnostic, UI-free packages with iOS 17-compatible APIs. Shared packages also target macOS 26; do not lower their Mac baseline. Use newer Mac-only APIs exclusively in guarded Mac views. Prefer SwiftUI; isolate unavoidable AppKit adapters. Follow macOS conventions for NavigationSplitView, Commands and keyboard shortcuts, Settings, and multiple windows.
 
-Deliver one complete vertical slice per PR, with feature tests, a clean Xcode build, passing tests, and behavior verified against web. Update `PARITY.md` with evidence and the PR link. Wait for human merge before starting the next slice; handle review feedback first. The detailed iteration and stop/ask rules live in `PARITY.md`.
+Deliver one complete vertical slice per PR, with feature tests, a clean Xcode build, passing tests, and behavior verified against web. Update `PARITY.md` with evidence and the PR link. Wait for human merge before starting the next slice; handle review feedback first. The detailed iteration rules live in `PARITY.md`; the per-row steps, subagent brief and stop/ask conditions live in the `apple-parity-next` skill.
 
 Never modify `apps/web` as part of this goal. Shared API contract or dependency changes require a separate PR and explicit approval. Stop and ask when web behavior is ambiguous or a required API is absent.
 
 An agent in any tool can resume by reading `AGENTS.md`, this file, and `PARITY.md`, then verifying the recorded branch and PR against GitHub. Chat history, Codex goal state, and timers are not required sources of truth and do not transfer automatically. Do not start a second worker on the same slice without coordinating ownership.
+
+## Iteration loop
+
+This is the agent-facing goal. `PARITY.md` is the authoritative scope, order, status and verification record; [`AGENTS.md`](./AGENTS.md) holds conventions and commands. Read all three before every slice.
+
+Each iteration is one fresh session, started with `/apple-parity-next` ([skill](../../.agents/skills/apple-parity-next/SKILL.md)), which carries the steps below and the subagent brief:
+
+1. Fetch `main`. Verify PARITY's recorded PR on GitHub. If it is open, babysit it: fix CI, address review with a technical reply, never re-request review. Resolve conflicts by merging `main`, never by rebasing or force-pushing. If it was closed unmerged, stop and ask.
+2. Once merged, branch from the current `main` and take the next Todo row in dependency order. Audit the linked web sources and the running web UI first; current web behavior beats stale requirements. Explicit user preferences override web: no welcome screen, keep the toolbar New chat, and native Mac affordances over copied web markup (clickable controls stay, as with the edit composer's compact ✕/✓).
+3. Implement one vertical slice: portable model/networking in the packages, native SwiftUI in the app, tests at the transport/state boundary, light/dark render fixtures inspected. Reuse the existing architecture; no second parallel path.
+4. Done means: the five package suites, app tests (`-enableCodeCoverage NO`), strict SwiftLint/SwiftFormat, the iOS 17 Workspace build and the macOS build all pass; PARITY is updated with evidence and the PR link; one draft PR whose title is the commit subject. State unverified interactions honestly.
+5. Close task-owned test hosts. Keep disk usage in check.
+
+Constraints: never touch `apps/web`. No Core contract, dependency or pinned-tool changes without a separate approved PR. Selecting an existing Core operation into the Apple OpenAPI snapshot via `scripts/update-core-api.py` is allowed; never hand-edit generated files. Do not file Linear issues. Stop and ask when web is ambiguous or an API is missing. Stop when PARITY has no Todo rows.
 
 ## Name
 
@@ -66,7 +80,7 @@ The iOS target links the same packages and ships its own SwiftUI. It does not fo
 
 ## Exclusions and earlier tracer limits
 
-- Windows or Linux native apps. Those stay `apps/web`.
+- Windows or Linux implementation in this Apple tree. Future native clients (WinUI 3 / C# and GTK 4 + Libadwaita / Rust, Flatpak) require a separate ADR and directory. Keep SwiftUI here; extract shared business logic only when the second client starts, with no Rust core or UniFFI now.
 - Kotlin Multiplatform, Compose Multiplatform, Electron, Tauri, Mac Catalyst.
 - Replacing Core or `apps/web`.
 - Coworker streaming, Soko Bot chat, attachments, mentions, and in-app notification behavior were deferred from the original tracer. They are now tracked as later slices in `PARITY.md`, not excluded from the ongoing chat goal. Closed-app push still requires separate scope/contract approval under ADR 0022 / 0023.

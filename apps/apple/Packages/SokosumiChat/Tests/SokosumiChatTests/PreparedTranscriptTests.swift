@@ -23,6 +23,16 @@ struct PreparedTranscriptTests {
     #expect(text.runs.compactMap(\.link).map(\.absoluteString) == ["https://other.example/chat"])
   }
 
+  @Test func overlayingDropsSnapshotRowsMissingFromLiveAndPrefersLivePayload() {
+    let prepared = PreparedTranscript(
+      input: input([message("keep", "Old"), message("gone", "Delete me")]),
+      documents: [:]
+    )
+    let live = [message("keep", "New")]
+    #expect(prepared.overlaying(live).map(\.id) == ["keep"])
+    #expect(prepared.overlaying(live).first?.content == "New")
+  }
+
   @Test func cancelledPreparationCannotPublish() async {
     let task = Task {
       withUnsafeCurrentTask { $0?.cancel() }

@@ -29,10 +29,20 @@ describe("ProjectsPageSkeleton", () => {
 
     const createSlot = screen.getByTestId("projects-loading-create");
     expect(createSlot.className).toContain("hidden");
-    expect(createSlot.className).toContain("md:flex");
-    expect(createSlot.querySelector('[data-slot="skeleton"]')).toBeTruthy();
+    expect(createSlot.className).toContain("md:inline-flex");
     // No accessible button with English (or any) create label.
-    expect(createSlot.querySelector("button")).toBeNull();
+    expect(createSlot.tagName).not.toBe("BUTTON");
+  });
+
+  it("reserves the create control inside the list header row", () => {
+    render(<ProjectsPageSkeleton />);
+
+    const header = screen.getByTestId("projects-loading-browse")
+      .firstElementChild as HTMLElement;
+
+    expect(header).toContainElement(
+      screen.getByTestId("projects-loading-create"),
+    );
   });
 });
 
@@ -40,9 +50,14 @@ describe("ProjectsLoadingView", () => {
   it("hides header create below md and pads for the mobile FAB", () => {
     const { container } = render(<ProjectsLoadingView />);
 
-    const headerRow = screen.getByTestId("projects-loading-create");
-    expect(headerRow.className).toContain("hidden");
-    expect(headerRow.className).toContain("md:flex");
+    const create = screen.getByTestId("projects-loading-create");
+    expect(create.className).toContain("hidden");
+    expect(create.className).toContain("md:inline-flex");
+    // The list card is the first thing in the shell: no row above it whose
+    // only job was holding the create button.
+    expect(container.firstElementChild?.firstElementChild).toBe(
+      screen.getByTestId("projects-loading-browse"),
+    );
     expect(container.firstElementChild?.className).toContain(
       "pb-[calc(3.5rem+1rem)]",
     );
@@ -61,7 +76,18 @@ describe("ProjectsLoadingView", () => {
     expect(browse.className).toContain("rounded-none");
     expect(browse.className).toContain("md:rounded-xl");
 
-    const divide = browse.firstElementChild;
+    // Header row first, then the divided rows. The header has to reserve the
+    // live one's height (px-4 py-2.5 around an h-8 input) or the Instant swap
+    // drops every row by ~53px when the real filter appears.
+    const header = browse.firstElementChild;
+    expect(header?.className).toContain("border-b");
+    expect(header?.className).toContain("px-4");
+    expect(header?.className).toContain("py-2.5");
+    expect(
+      header?.querySelector('[data-slot="skeleton"]')?.className,
+    ).toContain("h-8");
+
+    const divide = browse.lastElementChild;
     for (const token of PROJECTS_BROWSE_DIVIDE_CLASS.split(/\s+/)) {
       expect(divide?.className).toContain(token);
     }
@@ -79,7 +105,8 @@ describe("ProjectsLoadingView", () => {
       expect(row?.className).not.toContain("border-border");
       expect(row?.className).not.toContain("bg-overlay");
       expect(row?.className.split(/\s+/)).not.toContain("border");
-      // Avatar + name + briefing + two count pills; no overflow actions column.
+      // Avatar + name + briefing + one count pill + activity stamp; no
+      // overflow actions column.
       expect(item.querySelectorAll('[data-slot="skeleton"]').length).toBe(5);
       for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {
         expect(item.className).toContain(token);

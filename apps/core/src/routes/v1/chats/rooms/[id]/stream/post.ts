@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
+import { isOwnedUserChatRoomFileUrl } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
@@ -79,7 +80,10 @@ import { ensureCoworkerProviderConversationForRoom } from "./coworker-provider-c
  * Deferred to follow-up (parity with legacy conversation stream):
  * - Image generation / OpenRouter paths
  * - Web search
- * - Stream path attachments / multimodal uploads
+ *
+ * Attachments arrive as `file` parts on the last user message (public Blob
+ * URLs) and reach the model as image/file input; the persisted room message
+ * keeps the markdown links from the text part.
  */
 
 const paramsSchema = z.object({
@@ -103,6 +107,28 @@ async function validateUiMessagesOrBadRequest(
         ? error.message
         : "Invalid chat messages for AI SDK.",
     );
+  }
+}
+
+/** File parts are fetched by the coworker model. Only this user's uploads in this room. */
+function requireOwnedRoomStreamFileParts(
+  messages: UIMessage[],
+  userId: string,
+  roomId: string,
+): void {
+  for (const message of messages) {
+    for (const part of message.parts) {
+      if (part.type !== "file") {
+        continue;
+      }
+      const url =
+        "url" in part && typeof part.url === "string" ? part.url : null;
+      if (!url || !isOwnedUserChatRoomFileUrl(url, userId, roomId)) {
+        throw badRequest(
+          "File parts must be chat uploads owned by you in this room.",
+        );
+      }
+    }
   }
 }
 
@@ -150,7 +176,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: roomId } = c.req.valid("param");
     const {
       messages,
-      model,
       parentMessageId: requestedParentMessageId,
       quote: requestedQuote,
     } = c.req.valid("json");
@@ -159,8 +184,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unprocessableEntity(AI_SDK_CHAT_MESSAGES_REQUIREMENT);
     }
 
-    const room = await prisma.$transaction(async (tx) =>
-      requireChatRoomUserWriteAccess(roomId, userContext.userId, tx),
+    const room = await requireChatRoomUserWriteAccess(
+      roomId,
+      userContext.userId,
+      prisma,
     );
 
     // Match web `isCoworkerOnlyDirectRoom` and message-POST skip-mention:
@@ -178,24 +205,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const { parentMessageId, userMessageMetadata } = await prisma.$transaction(
-      async (tx) => {
-        const parentMessageId = await resolveThreadParentMessageId(
-          tx,
-          room.id,
-          requestedParentMessageId,
-        );
-        const quote = await resolveRoomQuoteSnapshot(
-          tx,
-          room.id,
-          requestedQuote?.messageId,
-        );
-        return {
-          parentMessageId,
-          userMessageMetadata: mergeChatRoomMessageMetadata(null, quote),
-        };
-      },
+    const parentMessageId = await resolveThreadParentMessageId(
+      prisma,
+      room.id,
+      requestedParentMessageId,
     );
+    const quote = await resolveRoomQuoteSnapshot(
+      prisma,
+      room.id,
+      requestedQuote?.messageId,
+    );
+    const userMessageMetadata = mergeChatRoomMessageMetadata(null, quote);
 
     const roomCoworker = room.coworkerMembers[0]!.coworker;
     const workspaceId = await resolveWorkspaceIdForChatRoom({
@@ -214,6 +234,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const uiMessages = mapChatRequestToUiMessages(messages);
     await validateUiMessagesOrBadRequest(uiMessages);
+    requireOwnedRoomStreamFileParts(uiMessages, userContext.userId, room.id);
 
     const lastMessage = messages[messages.length - 1]!;
     const lastUserMessageText =
@@ -230,6 +251,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             return extractMessageText(lastMessage as Record<string, unknown>);
           })()
         : "";
+
+    const lastUserFileParts =
+      (lastMessage.role === "user" || lastMessage.role === "system") &&
+      "parts" in lastMessage &&
+      Array.isArray(lastMessage.parts)
+        ? lastMessage.parts.filter(
+            (part): part is Extract<typeof part, { type: "file" }> =>
+              part.type === "file",
+          )
+        : [];
 
     if (
       (lastMessage.role === "user" || lastMessage.role === "system") &&
@@ -409,6 +440,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           roomName: room.name,
           senderName: sender?.name?.trim() || "A teammate",
           lastUserMessageText,
+          lastUserFileParts,
         });
         modelMessages = threadBuilt.modelMessages;
         originalUiMessages = threadBuilt.uiMessages;
@@ -478,7 +510,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
 
       const result = streamText({
-        model: getSokosumiProvider()(model ?? null),
+        model: getSokosumiProvider()(null),
         messages: modelMessages,
         allowSystemInMessages: true,
         maxRetries: 0,

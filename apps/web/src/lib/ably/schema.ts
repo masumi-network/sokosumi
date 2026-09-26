@@ -5,6 +5,8 @@ import {
   SokosumiJobStatus,
 } from "@/lib/clients/generated/core";
 
+import { TYPING_STATES } from "./room-typing-model";
+
 export const jobStatusDataSchema = z.object({
   jobId: z.string().min(1),
   jobStatus: z.enum(SokosumiJobStatus),
@@ -84,9 +86,13 @@ const chatRoomMessageFullEventMessageSchema = z
     reactions: z.array(z.unknown()),
     threadReplyCount: z.number().int().min(0),
     threadLastReplyAt: z.string().nullable(),
+    threadRepliers: z.array(z.unknown()).optional(),
     metadata: z.record(z.string(), z.unknown()).nullable(),
     quote: z.unknown().nullable(),
     membership: z.unknown().nullable(),
+    // Optional: Web and Core deploy apart, and an event from a Core without
+    // Group names must still parse.
+    groupNameChange: z.unknown().nullable().optional(),
     unfurls: z.array(chatRoomMessageUnfurlEventSchema).max(3).nullable(),
   })
   .passthrough();
@@ -184,6 +190,29 @@ export const chatRoomPinnedMessageEventDataSchema = z.object({
 export type ChatRoomPinnedMessageEventData = z.infer<
   typeof chatRoomPinnedMessageEventDataSchema
 >;
+
+/** Room read receipt: one member's Room last-read moved. Keyed by room+user. */
+export const chatRoomReadEventDataSchema = z.object({
+  roomId: z.string().min(1),
+  userId: z.string().min(1),
+  lastReadAt: z.iso.datetime(),
+});
+
+export type ChatRoomReadEventData = z.infer<typeof chatRoomReadEventDataSchema>;
+
+/**
+ * Ably `chat_typing` body (ADR-0033). Carries no display name: the reader
+ * already holds the room roster, and a name on the wire would go stale the
+ * moment somebody renames themselves.
+ *
+ * `parentMessageId` is always null today. It ships now so Thread-scoped Typing
+ * is an additive change rather than a wire break.
+ */
+export const chatTypingEventDataSchema = z.object({
+  userId: z.string().min(1),
+  state: z.enum(TYPING_STATES),
+  parentMessageId: z.string().nullable(),
+});
 
 export function isChatRoomMessageIdEnvelope(
   event: ChatRoomMessageEventData,

@@ -56,8 +56,8 @@ export function RotateOAuthClientDialog({
     setIsSubmitting(true);
     try {
       const result = await rotateSecret({ clientId: client.client_id });
-      if (result.success && result.data?.clientSecret) {
-        setRotatedSecret(result.data.clientSecret);
+      if (result.ok && result.value.clientSecret) {
+        setRotatedSecret(result.value.clientSecret);
         onSuccess?.();
         onOpenChange(false);
       }

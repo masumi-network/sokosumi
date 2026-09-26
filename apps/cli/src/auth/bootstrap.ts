@@ -1,8 +1,23 @@
-import type { AuthEnvironment } from "./auth-manager.js";
-import type { CliTargetConfig } from "./config.js";
-import { targetFromUserApiKey } from "./config.js";
+import { loadCliEnvironment } from "../config/loader.js";
+import {
+  type AuthEnvironment,
+  type AuthManager,
+  getAuthManager,
+} from "./auth-manager.js";
+import {
+  assertApiKeyTarget,
+  type CliTargetConfig,
+  MAINNET_API_URL,
+  PREPROD_API_URL,
+  resolveCliConfig,
+  resolveTargetScope,
+  targetFromUserApiKey,
+} from "./config.js";
 
 export type BootRoute = "boot" | "auth" | "signed-in";
+
+export const AUTHENTICATION_REQUIRED_MESSAGE =
+  "Authentication required. Run `sokosumi auth login` first.";
 
 export interface InitialAuthState {
   authenticated: boolean;
@@ -26,6 +41,30 @@ export interface AuthBootstrapManager {
   getCredentials(): { expiresAt?: string | null } | null;
 }
 
+export type AuthManagerFactory = (options: {
+  targetScope: string;
+  clientId: string;
+  environment: AuthEnvironment;
+}) => AuthManager;
+
+export interface CliSession {
+  env: AuthEnvironment;
+  config: CliTargetConfig;
+  targetExplicit: boolean;
+  authManager: AuthManager;
+}
+
+export interface BootstrapCliSessionOptions {
+  environment?: AuthEnvironment;
+  loadFiles?: boolean;
+  preprod?: boolean;
+  apiUrl?: string;
+  authUrl?: string;
+  clientId?: string;
+  authManager?: AuthManager;
+  authManagerFactory?: AuthManagerFactory;
+}
+
 export function selectBootRoute({
   authResolved,
   hasAuth,
@@ -37,36 +76,95 @@ export function selectBootRoute({
   return hasAuth ? "signed-in" : "auth";
 }
 
-const COWORKER_API_KEY_PREFIX = "coworker_";
+function applyGlobalEnv(
+  env: AuthEnvironment,
+  options: Pick<BootstrapCliSessionOptions, "preprod" | "apiUrl">,
+): AuthEnvironment {
+  const next: Record<string, string | undefined> = { ...env };
+  if (options.preprod) next.SOKOSUMI_API_URL = PREPROD_API_URL;
+  if (options.apiUrl) next.SOKOSUMI_API_URL = options.apiUrl;
+  return next;
+}
 
-function assertApiKeyTarget(
-  apiKey: string,
-  config: CliTargetConfig,
-  targetExplicit: boolean,
-): void {
-  if (/\s/.test(apiKey)) {
-    throw new Error("API key must not contain whitespace");
-  }
-  if (apiKey.startsWith(COWORKER_API_KEY_PREFIX)) {
-    throw new Error("Coworker API keys are not supported by the CLI");
-  }
-  const detectedTarget = targetFromUserApiKey(apiKey);
-  if (!detectedTarget && !targetExplicit) {
-    throw new Error(
-      "Legacy API keys need an explicit target. Use --preprod or --api-url.",
-    );
-  }
-  if (
-    detectedTarget &&
-    ((config.target === "custom" && targetExplicit) ||
-      (config.target !== "custom" && detectedTarget !== config.target))
-  ) {
-    throw new Error(
-      config.target === "custom" && targetExplicit
-        ? `API key belongs to ${detectedTarget}, but the explicit target is ${config.target}.`
-        : `API key belongs to ${detectedTarget}, but the selected target is ${config.target}`,
-    );
-  }
+function resolveSessionConfig(
+  env: AuthEnvironment,
+  options: Pick<
+    BootstrapCliSessionOptions,
+    "preprod" | "apiUrl" | "authUrl" | "clientId"
+  >,
+): CliTargetConfig {
+  const detectedApiKeyTarget = targetFromUserApiKey(
+    String(env.SOKOSUMI_API_KEY || ""),
+  );
+  const apiUrl =
+    options.apiUrl ||
+    (options.preprod
+      ? PREPROD_API_URL
+      : env.SOKOSUMI_API_URL ||
+        (detectedApiKeyTarget === "preprod"
+          ? PREPROD_API_URL
+          : MAINNET_API_URL));
+  return resolveCliConfig({
+    env,
+    apiUrl,
+    authBaseUrl: options.authUrl,
+    clientId: options.clientId,
+    preprod: options.preprod,
+  });
+}
+
+export function createSessionAuthManager({
+  config,
+  environment,
+  authManager,
+  authManagerFactory = getAuthManager,
+}: {
+  config: CliTargetConfig;
+  environment: AuthEnvironment;
+  authManager?: AuthManager;
+  authManagerFactory?: AuthManagerFactory;
+}): AuthManager {
+  return (
+    authManager ||
+    authManagerFactory({
+      targetScope: resolveTargetScope(config.target, config.apiUrl),
+      clientId: config.clientId,
+      environment,
+    })
+  );
+}
+
+export function bootstrapCliSession({
+  environment = process.env,
+  loadFiles = true,
+  preprod,
+  apiUrl,
+  authUrl,
+  clientId,
+  authManager,
+  authManagerFactory,
+}: BootstrapCliSessionOptions = {}): CliSession {
+  const env = applyGlobalEnv(loadCliEnvironment({ environment, loadFiles }), {
+    preprod,
+    apiUrl,
+  });
+  const config = resolveSessionConfig(env, {
+    preprod,
+    apiUrl,
+    authUrl,
+    clientId,
+  });
+  return {
+    env,
+    config,
+    targetExplicit: Boolean(preprod || apiUrl || env.SOKOSUMI_API_URL),
+    authManager: createSessionAuthManager({
+      config,
+      environment: env,
+      authManager,
+      authManagerFactory,
+    }),
+  };
 }
 
 export async function resolveInitialAuth({
@@ -112,4 +210,22 @@ export async function resolveInitialAuth({
     authMethod: token ? authMethod : null,
     expiresAt,
   };
+}
+
+export async function requireAuthenticatedSession(session: {
+  authManager: AuthBootstrapManager;
+  config: CliTargetConfig;
+  env: AuthEnvironment;
+  targetExplicit: boolean;
+}): Promise<InitialAuthState> {
+  const auth = await resolveInitialAuth({
+    authManager: session.authManager,
+    config: session.config,
+    environment: session.env,
+    targetExplicit: session.targetExplicit,
+  });
+  if (!auth.authenticated) {
+    throw new Error(AUTHENTICATION_REQUIRED_MESSAGE);
+  }
+  return auth;
 }

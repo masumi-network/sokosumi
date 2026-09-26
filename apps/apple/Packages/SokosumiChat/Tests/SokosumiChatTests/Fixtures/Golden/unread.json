@@ -1,0 +1,18 @@
+[
+  {
+    "name": "read preserves residual thread unread",
+    "status": 200,
+    "initial": 4,
+    "response": 2,
+    "expected": 2,
+    "failed": false
+  },
+  {
+    "name": "failed read restores unread",
+    "status": 503,
+    "initial": 4,
+    "response": 0,
+    "expected": 4,
+    "failed": true
+  }
+]

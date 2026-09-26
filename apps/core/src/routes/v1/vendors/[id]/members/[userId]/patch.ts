@@ -1,15 +1,13 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapVendorMember } from "@/helpers/vendor";
 import {
-  assertCanRemoveOrDemoteVendorAdmin,
+  assertCanChangeVendorMembership,
   requireVendorAdminMembership,
-  resolveUserIdFromUserIdOrEmail,
 } from "@/helpers/vendor-membership";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
@@ -25,7 +23,7 @@ const params = z.object({
   }),
   userId: z.string().openapi({
     param: { name: "userId", in: "path" },
-    description: "Member user ID or email address",
+    description: "Member user ID",
     example: "user_123",
   }),
 });
@@ -35,7 +33,7 @@ const route = createRoute({
   path: "/{id}/members/{userId}",
   operationId: "patchVendorMemberRole",
   description:
-    "Change a vendor member role between admin and developer (vendor admin only). Path accepts user ID or email. Cannot demote the last admin.",
+    "Change a vendor member role between admin and developer by user ID (vendor admin only). Cannot demote the last admin.",
   tags: ["Vendors"],
   request: {
     params,
@@ -64,56 +62,44 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { id, userId: userIdOrEmail } = c.req.valid("param");
+    const { id, userId } = c.req.valid("param");
     const body = c.req.valid("json");
     const userAuth = requireUserAuthContext(c.var.authContext);
 
     await requireVendorAdminMembership(userAuth.userId, id);
 
-    const targetUserId = await resolveUserIdFromUserIdOrEmail(userIdOrEmail);
+    // Serializable so the role read, the last-admin check, and the update
+    // commit as one unit (SOK-1024).
+    const member = await serializableTransaction(async (tx) => {
+      await assertCanChangeVendorMembership(id, userId, body.role, tx);
 
-    const existing = await prisma.vendorMember.findUnique({
-      where: {
-        vendorId_userId: {
-          vendorId: id,
-          userId: targetUserId,
-        },
-      },
-      select: { role: true },
-    });
-    if (!existing) {
-      throw notFound("Vendor member not found");
-    }
-
-    if (existing.role === "admin" && body.role !== "admin") {
-      await assertCanRemoveOrDemoteVendorAdmin(id, targetUserId);
-    }
-
-    const member = await prisma.vendorMember.update({
-      where: {
-        vendorId_userId: {
-          vendorId: id,
-          userId: targetUserId,
-        },
-      },
-      data: {
-        role: body.role,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
+      return tx.vendorMember.update({
+        where: {
+          vendorId_userId: {
+            vendorId: id,
+            userId,
           },
         },
-      },
-    });
+        data: {
+          role: body.role,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
+          },
+        },
+      });
+    }, "Vendor membership changed concurrently; retry the request");
 
     return ok(c, mapVendorMember(member));
   });

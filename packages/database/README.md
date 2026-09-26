@@ -41,7 +41,6 @@ packages/database/
 ├── prisma/
 │   ├── schema.prisma          # Database schema
 │   └── migrations/            # Migration history
-├── dist/                      # Compiled output (gitignored)
 └── package.json
 ```
 
@@ -68,15 +67,13 @@ import { createPrismaClient } from "@sokosumi/database/client";
 const prisma = createPrismaClient(process.env.DATABASE_URL);
 ```
 
+The factory also accepts a caller-owned `pg.Pool` and optional `onPoolError` /
+`onConnectionError` callbacks. Supplied pools retain their configuration and are
+not closed by `prisma.$disconnect()`; their owner must close them when needed.
+Core's singleton constructs its pool with TCP keepalive, attaches Vercel's idle
+connection cleanup, and reports adapter errors to Sentry.
+
 In Core, import the app singleton instead of calling the factory again:
-
-```typescript
-// apps/core/src/lib/db/prisma.ts
-import { createPrismaClient } from "@sokosumi/database/client";
-
-const prisma = createPrismaClient(process.env.DATABASE_URL!);
-export default prisma;
-```
 
 ```typescript
 // Core routes / services
@@ -165,7 +162,7 @@ Job include/payload types (`JobWithEvents`, `jobWithEvents`, …) are also re-ex
 ### Client Export (`@sokosumi/database/client`)
 
 - **Purpose**: Factory function to create Prisma client instances
-- **Includes**: `createPrismaClient(databaseUrl: string)`
+- **Includes**: `createPrismaClient(poolOrUrl: string | Pool, options?: PrismaClientPoolOptions)`
 - **Use in**: Core (`apps/core/src/lib/db/prisma.ts`) and server-side tests/scripts (`server-only`)
 
 ### Repositories Export (`@sokosumi/database/repositories`)
@@ -187,12 +184,13 @@ Job include/payload types (`JobWithEvents`, `jobWithEvents`, …) are also re-ex
 
 ### Building
 
-```bash
-# Build TypeScript to JavaScript
-pnpm run build
+This package has no build. Core consumes its TypeScript source directly and
+bundles it — see [ADR 0035](../../docs/adr/0035-database-consumed-from-source.md).
+There is no `dist`, so nothing can go stale and there is nothing to clean.
 
-# Clean build artifacts
-pnpm run clean
+```bash
+# Check types
+pnpm run typecheck
 ```
 
 ### Database Operations
@@ -280,27 +278,14 @@ export const userRepository = {
 
 ## Troubleshooting
 
-### Build Issues
+### Type Errors Here
 
-If the build fails or the `dist` folder isn't created:
+There is no build step and no `dist`, so a type error in this package is a real
+type error — do not go looking for a missing or stale rebuild.
 
 ```bash
-# Clean build cache and dist folder
-pnpm run clean
-pnpm run build
+pnpm run typecheck
 ```
-
-**Common cause**: Corrupted incremental build cache (`tsconfig.tsbuildinfo`). The `clean` script removes this automatically.
-
-### No Output Files Generated
-
-If `pnpm run build` succeeds but creates no files:
-
-1. The incremental build cache may be corrupted
-2. Delete `tsconfig.tsbuildinfo` and `dist/`
-3. Run `pnpm run build` again
-
-This is automatically handled by the `clean` script.
 
 ### Prisma Client Not Found
 
@@ -310,15 +295,14 @@ Generate the Prisma client with turbo (`build` / `typecheck` / `test` depend on 
 pnpm run prisma:generate
 ```
 
-Core Vercel runs the same `prisma:generate` script from `vercel-build` before `tsc` and `tsup`.
+Core Vercel runs the same `prisma:generate` script from `vercel-build` before `tsup`.
 
 ### Type Errors
 
 If you see type errors after schema changes:
 
 1. Regenerate Prisma client: `pnpm run prisma:generate`
-2. Rebuild the package: `pnpm run build`
-3. Restart your TypeScript server
+2. Restart your TypeScript server
 
 ### Import Errors
 

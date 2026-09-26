@@ -8,6 +8,7 @@ import {
   HardDrive,
   LifeBuoy,
   LogOut,
+  Repeat,
   Scale,
   ShieldCheck,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import type {
   AccountSummaryCreditProps,
 } from "@/app/components/sidebar/components/account-summary-types";
 import { CreditsCycleOverview } from "@/app/components/sidebar/components/credits-cycle-overview.client";
+import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import {
   YOU_DEVELOPER_PATH,
   YOU_HELP_PATH,
@@ -42,13 +44,11 @@ const CALENDAR_HREF = "/calendar";
 
 export interface YouPageClientProps extends AccountSummaryCreditProps {
   sessionUser: SessionUser;
-  calendarMenuEnabled: boolean;
   adminSettingsChrome: AccountAdminSettingsChrome;
 }
 
 export function YouPageClient({
   sessionUser,
-  calendarMenuEnabled,
   planName,
   extraCredits,
   creditUsage,
@@ -158,14 +158,18 @@ export function YouPageClient({
 
         <nav aria-label={tYou("title")} className="space-y-6">
           <MobileStackedMenuGroup>
-            {calendarMenuEnabled ? (
-              <MobileStackedMenuLink
-                href={CALENDAR_HREF}
-                icon={<Calendar className="size-4 shrink-0" aria-hidden />}
-                label={tMenu("calendar")}
-                testId="you-schedules"
-              />
-            ) : null}
+            <MobileStackedMenuLink
+              href={TASK_SCHEDULES_PATH}
+              icon={<Repeat className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("schedules")}
+              testId="you-schedules"
+            />
+            <MobileStackedMenuLink
+              href={CALENDAR_HREF}
+              icon={<Calendar className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("calendar")}
+              testId="you-calendar"
+            />
             <MobileStackedMenuLink
               href={DRIVE_HREF}
               icon={<HardDrive className="size-4 shrink-0" aria-hidden />}

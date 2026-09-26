@@ -1,7 +1,6 @@
 import type { JobSummary } from "@/lib/clients/generated/core";
 
-import { getDateGroupKey } from "@/lib/utils";
-
+import { getDateGroupKey } from "@/lib/utils/datetime";
 export interface JobsByDayGroup {
   key: string;
   jobs: JobSummary[];

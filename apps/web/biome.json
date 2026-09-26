@@ -7,7 +7,6 @@
       "**",
       "!src/components/ui/**",
       "!src/lib/clients/generated/**",
-      "!public/js/**/*.js",
       "!public/**/*.svg",
       "!next-env.d.ts"
     ]

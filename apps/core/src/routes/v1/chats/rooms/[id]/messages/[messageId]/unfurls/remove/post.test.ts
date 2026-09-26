@@ -45,6 +45,20 @@ vi.mock("@/helpers/chat-room-message-metadata-patch", () => ({
     deleteMetadataKeysMock(...args),
 }));
 
+const { deleteSnapshotsMock } = vi.hoisted(() => ({
+  deleteSnapshotsMock: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/chat-unfurl-snapshot", () => ({
+  deleteChatRoomUnfurlSnapshotsIfOwned: deleteSnapshotsMock,
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    void promise;
+  },
+}));
+
 const { publishChatRoomMessageRealtimeMock } = vi.hoisted(() => ({
   publishChatRoomMessageRealtimeMock: vi.fn().mockResolvedValue(undefined),
 }));
@@ -208,6 +222,13 @@ describe("POST /chats/rooms/:id/messages/:messageId/unfurls/remove", () => {
     expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledWith(
       expect.objectContaining({ id: MESSAGE_ID }),
       "unfurl",
+    );
+    // The removed card's snapshot goes with it (ADR 0030); ownership is
+    // checked inside the helper, so the source URL is passed as-is.
+    expect(deleteSnapshotsMock).toHaveBeenCalledWith(
+      [ablyCard.imageUrl],
+      ROOM_ID,
+      MESSAGE_ID,
     );
   });
 

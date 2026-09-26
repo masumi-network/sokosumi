@@ -4,10 +4,7 @@ import {
   resolveCliConfig,
   resolveTargetScope,
 } from "../auth/config.js";
-
-interface TextOutput {
-  write(value: string): unknown;
-}
+import type { CommandOutput } from "./commands/command-helpers.js";
 
 interface AuthLogoutManager {
   logout(): void;
@@ -26,7 +23,7 @@ export async function runAuthLogout({
   env?: AuthEnvironment;
   config?: CliTargetConfig;
   authManager?: AuthLogoutManager;
-  stdout?: TextOutput;
+  stdout?: CommandOutput;
   json?: boolean;
 } = {}): Promise<AuthLogoutResult> {
   const resolvedConfig = config || resolveCliConfig({ env });

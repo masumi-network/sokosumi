@@ -7,8 +7,7 @@ import { toast } from "sonner";
 
 import type { ManageableDesignMdOwner } from "@/components/design-md/types";
 import { DESIGN_MD_TRANSLATION_NAMESPACE } from "@/components/design-md/types";
-import { saveDesignMdUpload } from "@/lib/actions/design-md";
-
+import { saveDesignMdUpload } from "@/lib/actions/design-md/action";
 import {
   FullPageMarkdownEditor,
   type FullPageMarkdownEditorLabels,

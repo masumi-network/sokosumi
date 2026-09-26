@@ -30,9 +30,12 @@ export function hydrateChatRoomMessageFromRealtime(
     reactions: message.reactions as ChatRoomMessage["reactions"],
     threadReplyCount: message.threadReplyCount,
     threadLastReplyAt: toNullableDate(message.threadLastReplyAt),
+    threadRepliers: message.threadRepliers as ChatRoomMessage["threadRepliers"],
     metadata: message.metadata,
     quote: message.quote as ChatRoomMessage["quote"],
     membership: message.membership as ChatRoomMessage["membership"],
+    groupNameChange: (message.groupNameChange ??
+      null) as ChatRoomMessage["groupNameChange"],
     unfurls: message.unfurls as ChatRoomMessage["unfurls"],
   };
 }

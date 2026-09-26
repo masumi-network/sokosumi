@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-const { publish, invalidate } = vi.hoisted(() => ({
+const { publish, invalidate, humanNotify } = vi.hoisted(() => ({
+  humanNotify: vi.fn(),
   publish: vi.fn(),
   invalidate: vi.fn(),
 }));
@@ -12,6 +13,9 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
 }));
 vi.mock("@/helpers/chat-room-message-created-effects", () => ({
   invalidateChatRoomMessageReaders: invalidate,
+}));
+vi.mock("@/helpers/chat-mention-notifications", () => ({
+  emitChatMentionNotifications: humanNotify,
 }));
 vi.mock("@/helpers/chat-direct-message-notifications", () => ({
   emitChatDirectMessageNotifications: vi.fn(),
@@ -25,7 +29,9 @@ vi.mock("@/lib/db/prisma", async () => {
   if (
     url.hostname !== "127.0.0.1" ||
     url.port !== "55439" ||
-    url.pathname !== "/soko_reliability_verified"
+    !["/soko_reliability_verified", "/soko_reliability_integrated"].includes(
+      url.pathname,
+    )
   ) {
     throw new Error(
       "Only the disposable local reliability database is allowed",
@@ -186,7 +192,7 @@ describe.skipIf(!databaseUrl)(
       }
     });
 
-    async function newEffect() {
+    async function newEffect(content = "Committed tool message") {
       const delivery = await newDelivery();
       const message = await db.chatRoomMessage.create({
         data: {
@@ -217,7 +223,7 @@ describe.skipIf(!databaseUrl)(
           purpose: "CHAT_MESSAGE",
           payload: {
             messageId: message.id,
-            content: "Committed tool message",
+            content,
             roomId,
             userIds: [userId],
             coworkerIds: [],
@@ -251,11 +257,51 @@ describe.skipIf(!databaseUrl)(
       expect(await db.chatRoomMessage.count({ where: { roomId } })).toBe(count);
     });
 
+    it("activates human mentions with content and retries their durable handoff", async () => {
+      const { deliverSokoBotEffect } = await import(
+        "./soko-bot-effect-outbox.service"
+      );
+      const effect = await newEffect(`@${userId} please check`);
+      expect(
+        await db.chatRoomUserMention.count({
+          where: { messageId: effect.messageId },
+        }),
+      ).toBe(0);
+      humanNotify.mockRejectedValueOnce(
+        new Error("notification queue unavailable"),
+      );
+      expect(await deliverSokoBotEffect(effect.id)).toBe(false);
+      expect(
+        await db.chatRoomUserMention.findMany({
+          where: { messageId: effect.messageId },
+        }),
+      ).toEqual([
+        expect.objectContaining({ userId, messageId: effect.messageId }),
+      ]);
+      await db.sokoBotEffectOutbox.update({
+        where: { id: effect.id },
+        data: { nextAttemptAt: new Date(0) },
+      });
+      expect(await deliverSokoBotEffect(effect.id)).toBe(true);
+      expect(
+        await db.chatRoomUserMention.count({
+          where: { messageId: effect.messageId },
+        }),
+      ).toBe(1);
+      expect(humanNotify).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          messageId: effect.messageId,
+          mentionedUserIds: [userId],
+          throwOnError: true,
+        }),
+      );
+    });
+
     it("keeps queued content unreadable and cancels staged mentions when a new reader joins", async () => {
       const { deliverSokoBotEffect } = await import(
         "./soko-bot-effect-outbox.service"
       );
-      const effect = await newEffect();
+      const effect = await newEffect(`@${userId} private handoff`);
       const mention = await db.chatRoomMention.create({
         data: {
           messageId: effect.messageId,
@@ -310,6 +356,11 @@ describe.skipIf(!databaseUrl)(
           status: "failed",
           error: "Soko Bot delivery suppressed: AUDIENCE_CHANGED",
         });
+        expect(
+          await db.chatRoomUserMention.count({
+            where: { messageId: effect.messageId },
+          }),
+        ).toBe(0);
         expect(publish.mock.calls.length).toBe(publications);
       } finally {
         await db.user.delete({ where: { id: newcomer.id } });

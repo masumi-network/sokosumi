@@ -14,15 +14,15 @@ import { StatusBadge, type StatusTone } from "./status-badge";
 
 const BOT_STATUS_TONE: Record<SokoBotStatus, StatusTone> = {
   IDLE: "neutral",
-  RUNNING: "info",
+  RUNNING: "working",
   PAUSED: "warning",
   ERROR: "danger",
 };
 
 const TURN_STATUS_TONE: Record<SokoBotTurnStatus, StatusTone> = {
   QUEUED: "neutral",
-  STARTING: "info",
-  RUNNING: "info",
+  STARTING: "working",
+  RUNNING: "working",
   CANCEL_REQUESTED: "warning",
   COMPLETED: "success",
   CANCELLED: "neutral",
@@ -35,18 +35,24 @@ const LIVE_TURN_STATUSES = new Set<SokoBotTurnStatus>([
   "CANCEL_REQUESTED",
 ]);
 
+/**
+ * A route is what the turn decided to do, not whether anything is running.
+ * `MANAGE_WORK` read `working` after the info role was folded away, which made
+ * a category label claim work was in flight. It is a sibling of
+ * `DELEGATE_TASK` and `HIRE_AGENT`, so it takes their tone.
+ */
 const ROUTE_TONE: Record<NonNullable<SokoBotTurnRoute>, StatusTone> = {
   DIRECT_RESPONSE: "neutral",
   CLARIFY: "warning",
   DELEGATE_TASK: "accent",
   HIRE_AGENT: "accent",
-  MANAGE_WORK: "info",
+  MANAGE_WORK: "accent",
   MIXED: "warning",
 };
 
 const DECISION_TONE: Record<SokoBotPendingDecision["status"], StatusTone> = {
   PENDING: "warning",
-  PROCESSING: "info",
+  PROCESSING: "working",
   ACCEPTED: "success",
   REJECTED: "neutral",
   EXPIRED: "neutral",
@@ -54,15 +60,15 @@ const DECISION_TONE: Record<SokoBotPendingDecision["status"], StatusTone> = {
 
 const RUN_TONE: Record<SokoBotScheduleRun["status"], StatusTone> = {
   PENDING: "neutral",
-  CLAIMED: "info",
-  RUNNING: "info",
+  CLAIMED: "working",
+  RUNNING: "working",
   COMPLETED: "success",
   FAILED: "danger",
   DEAD_LETTER: "danger",
 };
 
 const TOOL_TONE: Record<SokoBotToolCall["status"], StatusTone> = {
-  PENDING: "info",
+  PENDING: "working",
   COMPLETED: "success",
   FAILED: "danger",
 };

@@ -1,5 +1,6 @@
 import type { useTranslations } from "next-intl";
 
+import type { ActionResultDto } from "@/lib/actions/action-result";
 import type { authClient } from "@/lib/auth/auth.client";
 
 export type OAuthClientRecord = NonNullable<
@@ -35,16 +36,15 @@ export interface CreateOAuthClientRequest {
   isPublic?: boolean;
 }
 
-export interface CreateOAuthClientResult {
-  success: boolean;
-  data?: {
-    clientId: string;
-    clientSecret: string | null;
-  };
-  error?: {
-    message: string;
-  };
+export interface OAuthClientCredentials {
+  clientId: string;
+  clientSecret: string | null;
 }
+
+export type OAuthClientSecretResult = ActionResultDto<
+  OAuthClientCredentials,
+  { message: string }
+>;
 
 interface UpdateOAuthClientBase {
   clientId: string;
@@ -75,28 +75,17 @@ export interface RotateOAuthClientRequest {
   clientId: string;
 }
 
-export interface RotateOAuthClientResult {
-  success: boolean;
-  data?: {
-    clientId: string;
-    clientSecret: string | null;
-  };
-  error?: {
-    message: string;
-  };
-}
-
 export interface UseOAuthClientsReturn {
   clients: OAuthClientRecord[];
   isInitialLoading: boolean;
   error: string | null;
   refresh: (isInitial?: boolean) => Promise<void>;
-  create: (data: CreateOAuthClientRequest) => Promise<CreateOAuthClientResult>;
+  create: (data: CreateOAuthClientRequest) => Promise<OAuthClientSecretResult>;
   update: (data: UpdateOAuthClientRequest) => Promise<boolean>;
   delete: (data: DeleteOAuthClientRequest) => Promise<boolean>;
   rotateSecret: (
     data: RotateOAuthClientRequest,
-  ) => Promise<RotateOAuthClientResult>;
+  ) => Promise<OAuthClientSecretResult>;
 }
 
 export interface OAuthClientsHeaderProps {
@@ -116,10 +105,10 @@ export interface OAuthClientsListProps {
 export interface CreateOAuthClientDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: (result: CreateOAuthClientResult) => void;
+  onSuccess?: (result: OAuthClientSecretResult) => void;
   createClient: (
     data: CreateOAuthClientRequest,
-  ) => Promise<CreateOAuthClientResult>;
+  ) => Promise<OAuthClientSecretResult>;
 }
 
 export interface EditOAuthClientDialogProps {
@@ -145,7 +134,7 @@ export interface RotateOAuthClientDialogProps {
   onSuccess?: () => void;
   rotateSecret: (
     data: RotateOAuthClientRequest,
-  ) => Promise<RotateOAuthClientResult>;
+  ) => Promise<OAuthClientSecretResult>;
 }
 
 export type TranslationFunction = ReturnType<typeof useTranslations>;

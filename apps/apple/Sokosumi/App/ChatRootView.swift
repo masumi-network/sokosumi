@@ -9,6 +9,7 @@ struct ChatRootView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
   @State private var linkError: String?
   @State private var linkTask: Task<Void, Never>?
+  @State private var inviteLink: InviteLinkPresentation?
   @State private var windowID = UUID()
   @Environment(\.scenePhase) private var scenePhase
 
@@ -23,20 +24,19 @@ struct ChatRootView: View {
     }
     .environment(\.openURL, OpenURLAction { url in
       guard let link = ChatLink(url: url, webBaseURL: CoreSettings.webBaseURL) else { return .systemAction }
-      linkTask?.cancel()
-      linkTask = Task { @MainActor in
-        do {
-          if try await workspaces.openChatLink(link, auth: auth) == .unavailable, !Task.isCancelled {
-            linkError = "This message or conversation is no longer available in this workspace."
-          }
-        } catch {
-          if !Task.isCancelled {
-            linkError = friendlyMessage(for: error)
-          }
-        }
+      switch link {
+      case let .room(roomId, messageId):
+        openRoomLink(roomId: roomId, messageId: messageId)
+      case let .invitation(id):
+        inviteLink = .init(context: workspaces.compositionContext, destination: .invitation(id: id))
+      case let .guestJoin(token):
+        inviteLink = .init(context: workspaces.compositionContext, destination: .guestJoin(token: token))
       }
       return .handled
     })
+    .modifier(InviteLinkSheet(presentation: $inviteLink))
+    .modifier(PresenceLifecycleModifier())
+    .modifier(ChatNotificationLifecycleModifier())
     .alert("Couldn’t open chat link", isPresented: Binding(get: { linkError != nil }, set: {
       if !$0 {
         linkError = nil
@@ -65,7 +65,7 @@ struct ChatRootView: View {
       get: { workspaces.readAttention.errorMessage != nil },
       set: {
         if !$0 {
-          workspaces.readAttention.clearError()
+          Task { @MainActor in workspaces.readAttention.clearError() }
         }
       }
     )) {
@@ -132,8 +132,21 @@ struct ChatRootView: View {
       NavigationSplitView {
         ConversationSidebarView()
       } detail: {
-        if let selectedRoomId = workspaces.selectedRoomId,
-           let selectedRoom = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
+        if workspaces.sidebar.showsThreadsView {
+          NavigationStack {
+            CrossRoomThreadsView(
+              threads: workspaces.crossRoomThreads,
+              rooms: workspaces.rooms,
+              roomsLive: workspaces.roomsLive,
+              currentUserId: workspaces.currentUserId,
+              scope: workspaces.selectionId,
+              load: { await workspaces.updateCrossRoomThreads($0, auth: auth) },
+              open: { openRoomLink(roomId: $0, messageId: $1) }
+            )
+            .navigationTitle("Threads")
+          }
+        } else if let selectedRoomId = workspaces.selectedRoomId,
+                  let selectedRoom = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
           NavigationStack {
             RoomTimelineView(roomId: selectedRoomId)
               .navigationTitle(roomDisplayName(selectedRoom, currentUserId: workspaces.currentUserId))
@@ -149,11 +162,9 @@ struct ChatRootView: View {
               }
           }
           .task(id: workspaces.streamingThreadToOpen?.id) {
-            await Task { @MainActor in
-              if let parent = workspaces.streamingThreadToOpen {
-                workspaces.openThread(parent, auth: auth)
-              }
-            }.value
+            if let parent = workspaces.streamingThreadToOpen {
+              workspaces.openThread(parent, auth: auth)
+            }
           }
         } else {
           Text("Pick a room to read it.")
@@ -166,6 +177,23 @@ struct ChatRootView: View {
     if let signOutError = auth.signOutError {
       Text(signOutError)
         .foregroundStyle(.red)
+    }
+  }
+
+  /// An in-app chat link or a Threads row: open the room, and the message or reply in it; the newest request
+  /// wins, and a target that is gone says so.
+  private func openRoomLink(roomId: String, messageId: String?) {
+    linkTask?.cancel()
+    linkTask = Task { @MainActor in
+      do {
+        if try await workspaces.openRoomLink(roomId: roomId, messageId: messageId, auth: auth) == .unavailable, !Task.isCancelled {
+          linkError = "This message or conversation is no longer available in this workspace."
+        }
+      } catch {
+        if !Task.isCancelled {
+          linkError = friendlyMessage(for: error)
+        }
+      }
     }
   }
 

@@ -64,18 +64,6 @@ function shouldContinueSync(options: ImportPendingResultBlobsOptions): boolean {
   return hasTimeRemaining(options.deadlineMs);
 }
 
-function validateResponseSize(response: Response): void {
-  const contentLength = response.headers.get("content-length");
-  if (contentLength) {
-    const size = Number.parseInt(contentLength, 10);
-    if (size > MAX_IMPORT_SIZE_BYTES) {
-      throw new Error(
-        `Response size ${size} exceeds maximum ${MAX_IMPORT_SIZE_BYTES} bytes`,
-      );
-    }
-  }
-}
-
 function createImportAbortSignal(
   options: ImportPendingResultBlobsOptions,
 ): AbortSignal {
@@ -139,13 +127,12 @@ async function importBlob(
     // primitive.
     const response = await ssrfSafeFetch(blob.sourceUrl, {
       signal: abortSignal,
+      maxResponseBytes: MAX_IMPORT_SIZE_BYTES,
     });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch blob source: ${response.status}`);
     }
-
-    validateResponseSize(response);
 
     const contentType = response.headers.get("content-type");
     const suggestedName =
@@ -157,11 +144,6 @@ async function importBlob(
       "file";
 
     const arrayBuffer = await response.arrayBuffer();
-    if (arrayBuffer.byteLength > MAX_IMPORT_SIZE_BYTES) {
-      throw new Error(
-        `Response body ${arrayBuffer.byteLength} exceeds maximum ${MAX_IMPORT_SIZE_BYTES} bytes`,
-      );
-    }
     const sourceFile = new File([arrayBuffer], suggestedName, {
       type: contentType ?? "application/octet-stream",
     });
@@ -236,13 +218,12 @@ async function importTaskFile(
     // SSRF guard: validate the source URL against private addresses
     const response = await ssrfSafeFetch(taskFile.sourceUrl, {
       signal: abortSignal,
+      maxResponseBytes: MAX_IMPORT_SIZE_BYTES,
     });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch task file source: ${response.status}`);
     }
-
-    validateResponseSize(response);
 
     const contentType = response.headers.get("content-type");
     const suggestedName =
@@ -254,11 +235,6 @@ async function importTaskFile(
       "file";
 
     const arrayBuffer = await response.arrayBuffer();
-    if (arrayBuffer.byteLength > MAX_IMPORT_SIZE_BYTES) {
-      throw new Error(
-        `Response body ${arrayBuffer.byteLength} exceeds maximum ${MAX_IMPORT_SIZE_BYTES} bytes`,
-      );
-    }
     const sourceFile = new File([arrayBuffer], suggestedName, {
       type: contentType ?? "application/octet-stream",
     });

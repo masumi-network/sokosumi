@@ -32,12 +32,7 @@ vi.mock("@/helpers/agent", () => ({
 
 vi.mock("@/helpers/agent-rating", () => ({
   upsertUserAgentReview: upsertUserAgentReviewMock,
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  jobRepository: {
-    doesUserHaveFinishedJobWithAgent: doesUserHaveFinishedJobWithAgentMock,
-  },
+  doesUserHaveFinishedJobWithAgent: doesUserHaveFinishedJobWithAgentMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({

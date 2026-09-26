@@ -28,7 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { changeEmail } from "@/lib/auth/auth.client";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
-import { type EmailFormType, emailFormSchema } from "@/lib/schemas";
+import { type EmailFormType, emailFormSchema } from "@/lib/schemas/account";
 
 export function EmailForm() {
   const t = useTranslations("App.Account.Email");

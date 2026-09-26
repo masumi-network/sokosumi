@@ -16,7 +16,6 @@ import {
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
-import { CircleHelp, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -74,14 +73,21 @@ import {
 } from "@/app/tasks/utils/tasks-tab";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 
 import {
   jobStatusDataSchema,
   type TaskEventData,
   taskEventDataSchema,
-} from "@/lib/ably";
+} from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import {
   AgentJobStatus,
@@ -98,10 +104,7 @@ import {
   type TasksViewMode,
 } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
-import {
-  type TaskMutationErrorKind,
-  taskScheduleSeriesFeedbackKey,
-} from "@/lib/utils/task-schedule-feedback";
+import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import {
   CreateTaskModal,
   CreateTaskModalProvider,
@@ -124,8 +127,6 @@ import {
   TaskReopenToReadyDialog,
   type TaskReopenToReadyDialogLabels,
 } from "./task-reopen-to-ready-dialog";
-import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
-import { TasksEmptyStateOverlay } from "./tasks-empty-state-overlay";
 import { TasksProjectSwitcher } from "./tasks-project-switcher";
 import { TasksViewFilters } from "./tasks-view-filters";
 import { ViewModeSwitch } from "./view-mode-switch";
@@ -137,21 +138,6 @@ interface PendingBoardReopen {
   previousStatus: TaskStatus;
   desiredStatus: TaskStatus;
   moveVersion: number;
-}
-
-function HeaderAddButton({ label }: { label: string }) {
-  const { handleOpen } = useCreateTaskModal();
-  return (
-    <Button
-      size="sm"
-      onClick={handleOpen}
-      className="hidden gap-1.5 md:inline-flex"
-      data-tasks-add-task-header-anchor
-    >
-      <Plus className="size-4" aria-hidden />
-      <span className="hidden sm:inline">{label}</span>
-    </Button>
-  );
 }
 
 function TasksMobileCreateFabSlot() {
@@ -196,7 +182,6 @@ const hydrationStore = (() => {
   return { subscribe, getSnapshot, getServerSnapshot };
 })();
 
-const TASKS_GUIDE_COMPLETED_STORAGE_KEY = "sokosumi.tasks.guideCompleted";
 interface TasksRealtimeListenerProps {
   userId: string;
   onEvent: (data: TaskEventData) => void;
@@ -294,8 +279,6 @@ interface TasksViewProps {
       statusOptions: Record<TaskStatus, string>;
     };
     columns: Record<KanbanColumnId, string>;
-    add: string;
-    addTask: string;
     jobs: {
       filterButton: string;
       agentLabel: string;
@@ -320,24 +303,11 @@ interface TasksViewProps {
     loadMore: string;
     loading: string;
     dragError: string;
-    scheduleActiveError: string;
     loadMoreError: string;
     loadJobsError: string;
     reopenToReady: TaskReopenToReadyDialogLabels & {
       commentRequired: string;
     };
-    emptyState: {
-      title: string;
-      description: string;
-      getStartedTitle: string;
-      getStartedDescription: string;
-      getStartedButton: string;
-      next: string;
-      back: string;
-      addTaskHint: string;
-      elenaAvatarAlt: string;
-    };
-    showGuideAriaLabel: string;
   };
 }
 
@@ -366,28 +336,17 @@ export function TasksView({
   const pathname = usePathname();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const searchParams = useSearchParams();
-  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const tTasks = useTranslations("App.Tasks");
   /**
-   * The board already restored the card by the time this runs. Every stable
-   * series kind gets its own recovery — the refused move is named in the
-   * board's own words — and only a stale client gets the reload modal.
+   * The board already restored the card by the time this runs. A refused move
+   * gets the status error; only a stale client gets the reload modal.
    */
   const reportDragRejection = (kind: TaskMutationErrorKind) => {
     if (kind === CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE) {
       toast.error(tTasks("Errors.updateStatus"));
       return;
     }
-    const feedbackKey = taskScheduleSeriesFeedbackKey(kind);
-    if (!feedbackKey) {
-      showCalendarClientUpgradeModal();
-      return;
-    }
-    toast.error(
-      feedbackKey === "activeSeries"
-        ? labels.scheduleActiveError
-        : tSeries(feedbackKey),
-    );
+    showCalendarClientUpgradeModal();
   };
   const [createdProjects, setCreatedProjects] = useState<ProjectFilterOption[]>(
     [],
@@ -426,8 +385,6 @@ export function TasksView({
     setPrevTabFromUrl(tabFromUrl);
     setActiveTab(tabFromUrl);
   }
-  const [guideCompleted, setGuideCompleted] = useState<boolean | null>(null);
-  const [forceShowGuide, setForceShowGuide] = useState(false);
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
   const [jobsItems, setJobsItems] = useState<TasksViewJob[]>([]);
   const [jobsCursor, setJobsCursor] = useState<string | null>(null);
@@ -501,17 +458,6 @@ export function TasksView({
     () => router.refresh(),
     TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
   );
-
-  useEffect(() => {
-    try {
-      setGuideCompleted(
-        window.localStorage.getItem(TASKS_GUIDE_COMPLETED_STORAGE_KEY) ===
-          "true",
-      );
-    } catch {
-      // Ignore storage errors.
-    }
-  }, []);
 
   const serverTasksFiltersResetKey = useMemo(
     () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
@@ -1189,13 +1135,6 @@ export function TasksView({
     () => Array.from(new Set(jobsItems.map((job) => job.agentId))),
     [jobsItems],
   );
-  const shouldShowEmptyStateOverlay =
-    shouldShowTasksEmptyStateOverlay({
-      activeTab,
-      taskCount: items.length,
-      viewMode,
-      guideCompleted: guideCompleted === true,
-    }) || forceShowGuide;
   const activeDragTask = useMemo(
     () =>
       activeDragTaskId
@@ -1261,20 +1200,6 @@ export function TasksView({
     listCursor,
   ]);
 
-  const handleGuideComplete = useCallback(() => {
-    setGuideCompleted(true);
-    setForceShowGuide(false);
-    try {
-      window.localStorage.setItem(TASKS_GUIDE_COMPLETED_STORAGE_KEY, "true");
-    } catch {
-      // Ignore storage errors.
-    }
-  }, []);
-
-  const handleGuideDismiss = useCallback(() => {
-    setForceShowGuide(false);
-  }, []);
-
   const tabsContent = (
     <Tabs
       value={activeTab}
@@ -1295,16 +1220,16 @@ export function TasksView({
     >
       <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <TabsList className="bg-card-background flex items-center gap-1 self-start rounded-lg p-1">
+          <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-fit")}>
             <TabsTrigger
               value="tasks"
-              className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
             >
               {labels.tabs.tasks}
             </TabsTrigger>
             <TabsTrigger
               value="jobs"
-              className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
             >
               {labels.tabs.jobs}
             </TabsTrigger>
@@ -1312,18 +1237,6 @@ export function TasksView({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {activeTab === "tasks" ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              aria-label={labels.showGuideAriaLabel}
-              onClick={() => setForceShowGuide(true)}
-            >
-              <CircleHelp className="size-4" aria-hidden />
-            </Button>
-          ) : null}
           <TasksProjectSwitcher
             projectOptions={resolvedProjectOptions}
             selectedProjectId={selectedProjectId}
@@ -1368,9 +1281,6 @@ export function TasksView({
               }}
             />
           ) : null}
-          {activeTab === "tasks" && canCreateTask ? (
-            <HeaderAddButton label={labels.add} />
-          ) : null}
         </div>
       </div>
 
@@ -1414,7 +1324,6 @@ export function TasksView({
                     }
                     labels={{
                       columns: labels.columns,
-                      addTask: labels.addTask,
                       emptyColumn: labels.listPlaceholder,
                     }}
                   />
@@ -1465,7 +1374,6 @@ export function TasksView({
                 statusLabels={labels.filters.statusOptions}
                 labels={{
                   columns: labels.columns,
-                  addTask: labels.addTask,
                   emptyColumn: labels.listPlaceholder,
                 }}
                 isDragEnabled={false}
@@ -1539,13 +1447,6 @@ export function TasksView({
       {tabsContent}
       {activeTab === "tasks" && canCreateTask ? (
         <TasksMobileCreateFabSlot />
-      ) : null}
-      {shouldShowEmptyStateOverlay ? (
-        <TasksEmptyStateOverlay
-          labels={labels.emptyState}
-          onComplete={handleGuideComplete}
-          onDismiss={handleGuideDismiss}
-        />
       ) : null}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}

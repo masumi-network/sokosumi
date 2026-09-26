@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 export interface UserProfileAvatarProps {
   name: string;
   image?: string | null;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
   showTooltip?: boolean;
   className?: string;
 }
@@ -27,7 +27,8 @@ export function UserProfileAvatar({
   className,
 }: UserProfileAvatarProps) {
   const resolvedImage = image ? resolveIpfsOrHttpUrl(image) : null;
-  const sizeClass = size === "sm" ? "size-5" : "size-6";
+  const sizeClass =
+    size === "sm" ? "size-5" : size === "md" ? "size-6" : "size-8";
   const userName = name.trim();
 
   const avatarContent = (

@@ -1,25 +1,72 @@
 import CoreAPI
 import Foundation
 
-/// Sidebar sections mirroring web's `partitionRoomsForSidebar`.
+/// Sidebar sections. A pinned room lists under Pinned only.
 public struct PartitionedSidebarRooms: Sendable {
+  public var pinned: [Components.Schemas.ChatRoom]
   public var channels: [Components.Schemas.ChatRoom]
   public var directMessages: [Components.Schemas.ChatRoom]
   public var external: [Components.Schemas.ChatRoom]
 }
 
-/// Attention chrome mirroring web's `resolveRoomAttention`: muted rooms
-/// and the active room suppress chrome — the active transcript has
-/// resolved and marks read via `RoomReadAttention` (ADR 0026). Bold
-/// covers any unread, including leftover thread unread (ADR 0013).
+/// Attention chrome: muted rooms suppress it. Opening a room does not read
+/// it — last-read moves when history resolves on screen (ADR 0026) — so the
+/// selected row stays bold, badged and counted until the room is read, marked
+/// read or muted. Bold follows Room unread (the channel half of `unreadCount`),
+/// the badge and a hand-set unread mark; thread replies alone do not bold a row
+/// (ADR 0037), but a mention inside a thread does, through `unreadMentionCount`.
+/// A row draws one number: the mention badge where the reader was named,
+/// otherwise `unreadTextCount`, the reader's Room unread count (ADR 0038).
 public struct RoomAttention: Equatable, Sendable {
   public var bold: Bool
+  /// What was addressed to the reader: mentions, and every message in a Direct of two. Drives bold and
+  /// closed-section attention.
   public var badgeCount: Int
+  /// What the row draws as its mention badge: `badgeCount` where the badge counts mentions, zero in a
+  /// Direct of two, which is written to rather than named.
+  public var mentionCount: Int
+  public var unreadTextCount: Int
 
-  public init(bold: Bool, badgeCount: Int) {
+  /// `mentionCount` defaults to `badgeCount`, which is what every room but a Direct of two draws.
+  public init(bold: Bool, badgeCount: Int, mentionCount: Int? = nil, unreadTextCount: Int = 0) {
     self.bold = bold
     self.badgeCount = badgeCount
+    self.mentionCount = mentionCount ?? badgeCount
+    self.unreadTextCount = unreadTextCount
   }
+
+  /// What the mention badge prints (web `MentionCountPill`, capped like every Apple chat count, 26b):
+  /// nothing at zero or below, otherwise the count through the shared `roomCountLabel` cap.
+  public var badgeLabel: String? {
+    mentionCount > 0 ? roomCountLabel(mentionCount) : nil
+  }
+
+  /// Spoken form of the mention badge (web `MentionAnnouncement`, `RoomMentions.mentions*`).
+  public var badgeAccessibilityLabel: String? {
+    guard mentionCount > 0 else {
+      return nil
+    }
+    if mentionCount > roomCountCap {
+      return "More than \(roomCountCap) mentions"
+    }
+    return mentionCount == 1 ? "1 mention" : "\(mentionCount) mentions"
+  }
+}
+
+/// Web `ROOM_COUNT_CAP`: a very loud room cannot reflow its row.
+let roomCountCap = 99
+
+/// Web `roomCountLabel`: the count, capped as "99+".
+public func roomCountLabel(_ count: Int) -> String {
+  count > roomCountCap ? "\(roomCountCap)+" : String(count)
+}
+
+/// Spoken form of the Room unread count (web `RoomUnread.unreadMessages*`).
+public func roomUnreadAccessibilityLabel(_ count: Int) -> String {
+  if count > roomCountCap {
+    return "More than \(roomCountCap) unread messages"
+  }
+  return count == 1 ? "1 unread message" : "\(count) unread messages"
 }
 
 /// One face in a Direct sidebar stack. Mirrors web's `DirectRoomAvatarStack`
@@ -28,11 +75,17 @@ public struct DirectRoomAvatarParticipant: Equatable, Sendable, Identifiable {
   public var id: String
   public var name: String
   public var imageURL: String?
+  /// Coworkers and Soko Bots stay always-online (ADR 0003 v1).
+  public var isAI: Bool
+  /// Core's snapshot; humans overlay live org presence on top.
+  public var presence: Components.Schemas.ChatRoomPresence
 
-  public init(id: String, name: String, imageURL: String?) {
+  public init(id: String, name: String, imageURL: String?, isAI: Bool = false, presence: Components.Schemas.ChatRoomPresence = .offline) {
     self.id = id
     self.name = name
     self.imageURL = imageURL
+    self.isAI = isAI
+    self.presence = presence
   }
 }
 
@@ -59,18 +112,19 @@ private func directRoomOtherParticipants(
       DirectRoomAvatarParticipant(
         id: $0.id,
         name: $0.name.isEmpty ? $0.email : $0.name,
-        imageURL: $0.image
+        imageURL: $0.image,
+        presence: $0.presence
       )
     }
     .sorted(by: compareParticipants)
   let coworkers = room.coworkerMembers
     .map {
-      DirectRoomAvatarParticipant(id: $0.id, name: $0.name, imageURL: $0.image)
+      DirectRoomAvatarParticipant(id: $0.id, name: $0.name, imageURL: $0.image, isAI: true, presence: $0.presence)
     }
     .sorted(by: compareParticipants)
   let bots = room.sokoBotMembers
     .map {
-      DirectRoomAvatarParticipant(id: $0.id, name: $0.name, imageURL: $0.image)
+      DirectRoomAvatarParticipant(id: $0.id, name: $0.name, imageURL: $0.image, isAI: true, presence: $0.presence)
     }
     .sorted(by: compareParticipants)
   return humans + coworkers + bots
@@ -84,8 +138,9 @@ private func compareParticipants(
 }
 
 /// Sidebar display name mirroring web's `getRoomDisplayName`: channels and
-/// external rooms use the stored name; Directs list the participants with
-/// yourself excluded (humans by name-or-email, then coworkers, then bots).
+/// external rooms use the stored name; a named group Direct shows its Group
+/// name (ADR-0040); other Directs list the participants with yourself
+/// excluded (humans by name-or-email, then coworkers, then bots).
 /// A self-only Direct falls back to the stored name — which is why several
 /// distinct self-note rooms can all read as your own name.
 public func roomDisplayName(
@@ -93,6 +148,9 @@ public func roomDisplayName(
   currentUserId: String
 ) -> String {
   guard room.kind == .direct else { return room.name }
+  if let groupName = room.groupName, !groupName.isEmpty {
+    return groupName
+  }
   let names = directRoomOtherParticipants(room, currentUserId: currentUserId).map(\.name)
   if names.isEmpty {
     let target = room.userMembers.first { $0.id != currentUserId }
@@ -116,58 +174,148 @@ private func compareNameThenId(_ lhs: (String, String), _ rhs: (String, String))
   return lhs.1 < rhs.1
 }
 
+/// Web's `resolveRoomAttention`. `channelUnreadCount` is Room unread, the half of `unreadCount` a read
+/// clears (ADR 0037); `nil` for a summary that predates the split, which falls back to the total.
+/// `badgeCountsMentions` is `false` in a Direct of two (`roomBadgeCountsMentions`).
 public func resolveRoomAttention(
   unreadCount: Int,
+  channelUnreadCount: Int? = nil,
   unreadMentionCount: Int,
   markedUnread: Bool = false,
   isMuted: Bool = false,
-  isActive: Bool = false
+  showUnreadCount: Bool = false,
+  badgeCountsMentions: Bool = true
 ) -> RoomAttention {
-  if isMuted || isActive {
+  // Muted suppression stays one early return, so no field can drift from it.
+  if isMuted {
     return .init(bold: false, badgeCount: 0)
   }
-  return .init(bold: unreadCount > 0 || markedUnread, badgeCount: unreadMentionCount)
+  let channelUnread = max(0, channelUnreadCount ?? unreadCount)
+  let mentionCount = badgeCountsMentions ? unreadMentionCount : 0
+  return .init(
+    // A mention reply counts toward the Thread half, so without the badge term the split would drop the
+    // loudest thing a Thread can hold.
+    bold: channelUnread > 0 || unreadMentionCount > 0 || markedUnread,
+    badgeCount: unreadMentionCount,
+    mentionCount: mentionCount,
+    unreadTextCount: showUnreadCount && mentionCount <= 0 ? channelUnread : 0
+  )
 }
 
-/// Split the unified room list for the sidebar, mirroring web:
-/// external/matched channels and guest-access rooms live only under
-/// External (guest access is checked before kind, so even a guest Direct
-/// reads as External); remaining Directs list under Direct messages.
-public func partitionRoomsForSidebar(
+/// A room row's attention from its summary: the same resolver with the room's own fields.
+public func resolveRoomAttention(_ room: Components.Schemas.ChatRoom, showUnreadCount: Bool = false) -> RoomAttention {
+  resolveRoomAttention(
+    unreadCount: room.unreadCount,
+    channelUnreadCount: room.channelUnreadCount,
+    unreadMentionCount: room.unreadMentionCount,
+    markedUnread: room.markedUnread,
+    isMuted: room.mutedAt != nil,
+    showUnreadCount: showUnreadCount,
+    badgeCountsMentions: roomBadgeCountsMentions(room)
+  )
+}
+
+/// Web's `roomBadgeCountsMentions`: Core writes a notification for every message only in a Direct of two
+/// humans or fewer, so there the badge counts messages; everywhere else, a group Direct included, mentions.
+public func roomBadgeCountsMentions(_ room: Components.Schemas.ChatRoom) -> Bool {
+  !(room.kind == .direct && room.userMembers.count <= 2)
+}
+
+/// Web's `roomAttentionAfterRead`: the room the moment the reader reads it, before Core answers. A read
+/// empties Room unread, the badge and a hand-set mark; it does not Look the room's Threads, so the Thread
+/// half stays and is all that is left of the total (ADR 0037).
+public func roomAttentionAfterRead(_ room: Components.Schemas.ChatRoom) -> Components.Schemas.ChatRoom {
+  var room = room
+  let threadUnread = room.threadUnreadCount ?? 0
+  room.unreadCount = threadUnread
+  room.channelUnreadCount = 0
+  room.threadUnreadCount = threadUnread
+  room.unreadMentionCount = 0
+  room.markedUnread = false
+  return room
+}
+
+/// Web's `SectionAttention`: what a closed section heading says for the rooms
+/// under it.
+public enum SectionAttention: Equatable, Sendable {
+  case unread, mention
+}
+
+/// Web's `resolveSectionAttention`: a section's attention is its loudest
+/// room's, by the same rules a row follows. Mention wins; a pending invitation
+/// is addressed to the reader, so it counts as a mention.
+public func resolveSectionAttention(
+  _ rooms: [Components.Schemas.ChatRoom],
+  hasPendingInvitation: Bool = false
+) -> SectionAttention? {
+  var unread = false
+  for room in rooms {
+    let attention = resolveRoomAttention(room)
+    if attention.badgeCount > 0 {
+      return .mention
+    }
+    unread = unread || attention.bold
+  }
+  if hasPendingInvitation {
+    return .mention
+  }
+  return unread ? .unread : nil
+}
+
+/// Where a room lists when it is not pinned; a pinned row keeps this kind's leading mark.
+public enum SidebarRoomKind: Sendable {
+  case channel, external, direct
+}
+
+/// External/matched channels and guest-access rooms read as External (guest
+/// access is checked before kind, so even a guest Direct does); remaining
+/// Directs are Direct messages.
+public func sidebarRoomKind(_ room: Components.Schemas.ChatRoom) -> SidebarRoomKind {
+  if room.kind == .channel,
+     let discoverability = room.discoverability,
+     discoverability == .external || discoverability == .matched {
+    return .external
+  }
+  // Guests are always on external rooms (DB invariant); safety net.
+  if room.myAccess == .guest {
+    return .external
+  }
+  return room.kind == .channel ? .channel : .direct
+}
+
+/// Split the unified room list for the sidebar: a pinned room of any kind
+/// lists under Pinned only, in the reader's own order, and leaves the
+/// section it would otherwise sit in (`sidebarRoomKind`).
+func partitionRoomsForSidebar(
   _ rooms: [Components.Schemas.ChatRoom]
 ) -> PartitionedSidebarRooms {
+  var pinned: [Components.Schemas.ChatRoom] = []
   var channels: [Components.Schemas.ChatRoom] = []
   var directMessages: [Components.Schemas.ChatRoom] = []
   var external: [Components.Schemas.ChatRoom] = []
   for room in rooms {
-    if room.kind == .channel,
-       let discoverability = room.discoverability,
-       discoverability == .external || discoverability == .matched {
-      external.append(room)
+    if room.starredAt != nil {
+      pinned.append(room)
       continue
     }
-    // Guests are always on external rooms (DB invariant); safety net.
-    if room.myAccess == .guest {
-      external.append(room)
-      continue
-    }
-    switch room.kind {
-    case .channel:
-      channels.append(room)
-    case .direct:
-      directMessages.append(room)
+    switch sidebarRoomKind(room) {
+    case .channel: channels.append(room)
+    case .external: external.append(room)
+    case .direct: directMessages.append(room)
     }
   }
+  pinned.sort(by: comparePinnedRooms)
   channels.sort(by: compareRoomsByRecentActivity)
   directMessages.sort(by: compareRoomsByRecentActivity)
   external.sort(by: compareRoomsByRecentActivity)
-  return .init(channels: channels, directMessages: directMessages, external: external)
+  return .init(pinned: pinned, channels: channels, directMessages: directMessages, external: external)
 }
 
-/// Web's `compareChatRoomsByRecentActivity`: unmuted before muted; pinned
-/// (starred) before unpinned; public before private; oldest-starred first
-/// among pins; newest activity; stable id tie-break.
-public func compareRoomsByRecentActivity(
+/// Web's `compareChatRoomsByRecentActivity`: unmuted before muted; public
+/// before private; newest activity; stable id tie-break. Pinned rooms never
+/// reach this: the sidebar lists them in their own section, ordered by
+/// `comparePinnedRooms`.
+private func compareRoomsByRecentActivity(
   _ lhs: Components.Schemas.ChatRoom,
   _ rhs: Components.Schemas.ChatRoom
 ) -> Bool {
@@ -175,23 +323,38 @@ public func compareRoomsByRecentActivity(
   if byMuted != 0 {
     return byMuted < 0
   }
-  let lhsPinned = lhs.starredAt != nil
-  let rhsPinned = rhs.starredAt != nil
-  if lhsPinned != rhsPinned {
-    return lhsPinned
-  }
   let byDiscoverability = discoverabilityRank(lhs.discoverability) - discoverabilityRank(rhs.discoverability)
   if byDiscoverability != 0 {
     return byDiscoverability < 0
-  }
-  if lhsPinned, let lhsStarred = lhs.starredAt, let rhsStarred = rhs.starredAt,
-     lhsStarred != rhsStarred {
-    return lhsStarred < rhsStarred
   }
   if lhs.updatedAt != rhs.updatedAt {
     return lhs.updatedAt > rhs.updatedAt
   }
   return lhs.id < rhs.id
+}
+
+/// Web's `comparePinnedChatRooms`, the reader's own order: oldest `starredAt`
+/// first, which a reorder rewrites (Core `PUT /chats/rooms/starred`). Activity
+/// never moves a pinned room.
+private func comparePinnedRooms(
+  _ lhs: Components.Schemas.ChatRoom,
+  _ rhs: Components.Schemas.ChatRoom
+) -> Bool {
+  let lhsStarred = lhs.starredAt ?? .distantPast
+  let rhsStarred = rhs.starredAt ?? .distantPast
+  if lhsStarred != rhsStarred {
+    return lhsStarred < rhsStarred
+  }
+  return lhs.id < rhs.id
+}
+
+/// Keyboard reorder: `ids` with `id` moved one slot up (`-1`) or down (`1`).
+/// Unchanged past either end of the list or for an unknown id.
+public func movingPinnedRoom(_ id: String, by offset: Int, in ids: [String]) -> [String] {
+  guard let from = ids.firstIndex(of: id), ids.indices.contains(from + offset) else { return ids }
+  var next = ids
+  next.swapAt(from, from + offset)
+  return next
 }
 
 private func mutedRank(_ value: Date?) -> Int {

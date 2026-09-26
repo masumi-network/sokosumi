@@ -8,9 +8,14 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type { ChatRoom } from "@/lib/clients/generated/core";
-import { type ChatRoomsPage, chatRoomService } from "@/lib/services";
-
+import type {
+  ChatRoom,
+  StarredChatRoomOrder,
+} from "@/lib/clients/generated/core";
+import {
+  type ChatRoomsPage,
+  chatRoomService,
+} from "@/lib/services/chat-room.service";
 /** Org sidebar / chat list wire shape — ActionResultDto (neverthrow at boundary). */
 export type OrganizationChatListActionResult<T> = ActionResultDto<
   T,
@@ -52,17 +57,6 @@ export async function listOrganizationChatRoomsAction(): Promise<
     return listOk(page);
   } catch {
     return listCatch("Could not load chat rooms.");
-  }
-}
-
-export async function listOrganizationArchivedChatRoomsAction(): Promise<
-  OrganizationChatListActionResult<ChatRoomsPage>
-> {
-  try {
-    const page = await chatRoomService.listArchivedRooms();
-    return listOk(page);
-  } catch {
-    return listCatch("Could not load archived chat rooms.");
   }
 }
 
@@ -113,6 +107,17 @@ export async function unpinOrganizationChatRoomAction(
     return roomOk(room);
   } catch {
     return listCatch("Could not unpin room.");
+  }
+}
+
+export async function reorderPinnedOrganizationChatRoomsAction(
+  roomIds: string[],
+): Promise<OrganizationChatListActionResult<StarredChatRoomOrder[]>> {
+  try {
+    const order = await chatRoomService.reorderPinnedRooms(roomIds);
+    return toActionResult(ok(order));
+  } catch {
+    return listCatch("Could not reorder pinned rooms.");
   }
 }
 

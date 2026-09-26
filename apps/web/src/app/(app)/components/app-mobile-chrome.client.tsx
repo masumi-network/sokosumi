@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 
 import { ChatMobileBottomNav } from "@/app/chat/components/chat-mobile-bottom-nav";
@@ -50,7 +51,14 @@ function AppMobileBottomChrome(): React.ReactElement | null {
 
   const { showUnreadDot, unreadRoomCount } = useChatTabUnreadPresence();
   const { data: session } = useSession();
-  useChatUnreadDocumentTitle(unreadRoomCount);
+  const t = useTranslations("App");
+  // Streamed route metadata can temporarily expose the app's default title.
+  // Chat has one section title, so keep it through room-to-room navigation.
+  const chatTitle =
+    pathname === "/chat" || pathname.startsWith("/chat/")
+      ? t("Metadata.Title.template").replace("%s", t("Channels.Metadata.title"))
+      : undefined;
+  useChatUnreadDocumentTitle(unreadRoomCount, chatTitle);
 
   return (
     <>

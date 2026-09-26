@@ -6,7 +6,10 @@ import {
   MessageCircle,
 } from "lucide-react";
 
-import { classifyChatChromeSurface } from "@/app/chat/utils/chat-route-base";
+import {
+  CHAT_THREADS_PATH,
+  classifyChatChromeSurface,
+} from "@/app/chat/utils/chat-route-base";
 
 type SearchParamsLike =
   | URLSearchParams
@@ -18,7 +21,7 @@ type SearchParamsLike =
  * Floating Apple tab bar sits at
  * `bottom-[max(0.75rem,env(safe-area-inset-bottom))]` with inner `h-16`.
  * Docked bar is `h-16` + `pb-[env(safe-area-inset-bottom)]`.
- * Clearance / offsets below must stay as full static Tailwind class strings.
+ * Clearance below must stay as full static Tailwind class strings.
  */
 
 /**
@@ -37,20 +40,6 @@ export function chatMobileTabBarClearance(isApple: boolean): string {
   return isApple
     ? CHAT_MOBILE_TAB_BAR_CLEARANCE_APPLE
     : CHAT_MOBILE_TAB_BAR_CLEARANCE;
-}
-
-/** Fixed composer bottom offset so chrome sits above the docked tab bar on mobile. */
-export const CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET =
-  "bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0" as const;
-
-/** Composer offset above the floating Apple tab bar. */
-export const CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET_APPLE =
-  "bottom-[calc(4rem+max(0.75rem,env(safe-area-inset-bottom)))] md:bottom-0" as const;
-
-export function chatMobileTabBarBottomOffset(isApple: boolean): string {
-  return isApple
-    ? CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET_APPLE
-    : CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET;
 }
 
 /**
@@ -148,6 +137,8 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
       classifyChatChromeSurface(pathname, searchParams) === "home" ||
       pathname === "/agents" ||
       pathname === "/drive" ||
+      pathname === "/calendar" ||
+      pathname === "/schedules" ||
       pathname === "/notifications" ||
       pathname === "/history",
   },
@@ -165,8 +156,11 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     href: "/chat",
     labelKey: "chats",
     icon: MessageCircle,
+    // Threads sits above the room list in this tab, so the tab stays lit
+    // while the reader is in it.
     isActive: (pathname, searchParams) =>
-      classifyChatChromeSurface(pathname, searchParams) === "chats",
+      classifyChatChromeSurface(pathname, searchParams) === "chats" ||
+      pathname === CHAT_THREADS_PATH,
   },
   {
     id: "projects",

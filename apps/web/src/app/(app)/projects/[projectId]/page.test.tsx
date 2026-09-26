@@ -1,21 +1,19 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  hasCurrentUserCalendarBetaAccessMock,
-  projectServiceMock,
-  notFoundMock,
-} = vi.hoisted(() => ({
-  hasCurrentUserCalendarBetaAccessMock: vi.fn(),
-  projectServiceMock: {
-    getProjectById: vi.fn(),
-    getProjectsStats: vi.fn(),
-    getProjectNeedsAttention: vi.fn(),
-  },
-  notFoundMock: vi.fn(() => {
-    throw new Error("NOT_FOUND");
-  }),
-}));
+const { hasCurrentUserSocialBetaAccessMock, projectServiceMock, notFoundMock } =
+  vi.hoisted(() => ({
+    hasCurrentUserSocialBetaAccessMock: vi.fn(),
+    projectServiceMock: {
+      getProjectCloseStatus: vi.fn(),
+      getProjectById: vi.fn(),
+      getProjectsStats: vi.fn(),
+      getProjectNeedsAttention: vi.fn(),
+    },
+    notFoundMock: vi.fn(() => {
+      throw new Error("NOT_FOUND");
+    }),
+  }));
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
@@ -30,9 +28,8 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
+vi.mock("@/lib/social-beta-access.server", () => ({
+  hasCurrentUserSocialBetaAccess: () => hasCurrentUserSocialBetaAccessMock(),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -41,6 +38,18 @@ vi.mock("@/lib/services/project.service", () => ({
 
 vi.mock("@/app/projects/components/project-detail-actions", () => ({
   ProjectDetailActions: () => <div>Project actions</div>,
+}));
+
+// Stubbed like its sibling above: it reads the reader's Pin list through
+// react-query, and this file is about the page, not about Pin state.
+vi.mock("@/app/projects/components/project-detail-pin-button", () => ({
+  ProjectDetailPinButton: () => <div>Pin project</div>,
+}));
+
+vi.mock("@/app/projects/components/project-close-status", () => ({
+  ProjectCloseStatusCard: ({ status }: { status: { state: string } }) => (
+    <div data-testid="project-close-status">{status.state}</div>
+  ),
 }));
 
 vi.mock("@/app/projects/components/project-memory-row", () => ({
@@ -79,6 +88,9 @@ function buildProject() {
     contextMd: null,
     contextMdUpdating: false,
     latestUpdate: null,
+    projectRevision: 3,
+    closingAt: null,
+    closedAt: null,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
     updatedAt: new Date("2026-05-27T10:00:00.000Z"),
   };
@@ -87,7 +99,7 @@ function buildProject() {
 describe("ProjectDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
+    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(true);
   });
 
   it("calls notFound without loading needs-attention when the project is missing", async () => {
@@ -127,6 +139,7 @@ describe("ProjectDetailPage", () => {
     expect(projectServiceMock.getProjectNeedsAttention).toHaveBeenCalledWith(
       "project-1",
     );
+    expect(projectServiceMock.getProjectCloseStatus).not.toHaveBeenCalled();
     expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
     expect(notFoundMock).not.toHaveBeenCalled();
 
@@ -235,7 +248,7 @@ describe("ProjectDetailPage", () => {
     expect(workspaceSection?.className).not.toContain("md:px-0");
     expect(needsAttentionColumn?.contains(workspaceSection!)).toBe(true);
     expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
-      6,
+      5,
     );
     const fileBrowserLink = screen.getByRole("link", {
       name: /App\.Projects\.Detail\.modules\.fileBrowser\.title/i,
@@ -244,11 +257,48 @@ describe("ProjectDetailPage", () => {
       "href",
       `/drive?view=tasks&projectId=${project.id}`,
     );
+    expect(
+      screen.getByRole("link", {
+        name: /App\.Projects\.Detail\.modules\.socialMedia\.title/i,
+      }),
+    ).toHaveAttribute("href", `/projects/${project.id}/social`);
   });
 
-  it("hides the Calendar card for non-beta sessions", async () => {
+  it("loads and renders close status only after closing starts", async () => {
+    const project = {
+      ...buildProject(),
+      closingAt: new Date("2026-09-14T10:00:00.000Z"),
+    };
+    const closeStatus = {
+      id: "close-1",
+      projectId: "project-1",
+      state: "CLOSING",
+    };
+    projectServiceMock.getProjectById.mockResolvedValue(project);
+    projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
+      taskCount: 0,
+      jobCount: 0,
+      items: [],
+    });
+    projectServiceMock.getProjectCloseStatus.mockResolvedValue(closeStatus);
+
+    const { default: ProjectDetailPage } = await import("./page");
+    const html = await ProjectDetailPage({
+      params: Promise.resolve({ projectId: "project-1" }),
+    });
+
+    expect(projectServiceMock.getProjectCloseStatus).toHaveBeenCalledWith(
+      "project-1",
+    );
+    render(html);
+    expect(screen.getByTestId("project-close-status")).toHaveTextContent(
+      "CLOSING",
+    );
+  });
+
+  it("keeps the Calendar card but hides Social outside the beta", async () => {
     const project = buildProject();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
+    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
     projectServiceMock.getProjectById.mockResolvedValue(project);
     projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
       taskCount: 0,
@@ -264,8 +314,13 @@ describe("ProjectDetailPage", () => {
     render(html);
 
     expect(
-      screen.queryByRole("link", {
+      screen.getByRole("link", {
         name: "App.Projects.Detail.modules.calendar.title",
+      }),
+    ).toHaveAttribute("href", "/projects/project-1/calendar");
+    expect(
+      screen.queryByRole("link", {
+        name: /App\.Projects\.Detail\.modules\.socialMedia\.title/i,
       }),
     ).not.toBeInTheDocument();
   });

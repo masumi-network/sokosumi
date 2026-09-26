@@ -26,7 +26,7 @@ function createAuthManager() {
   };
 }
 
-test("TestV55 auth status sanitizes API URLs in JSON and text output", async () => {
+test("auth status sanitizes API URLs in JSON and text output", async () => {
   for (const json of [true, false]) {
     const output: string[] = [];
     const authManager = createAuthManager();

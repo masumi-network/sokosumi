@@ -63,6 +63,9 @@ vi.mock("@/helpers/agent-cost", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    agent: {
+      findFirst: agentFindFirstMock,
+    },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -177,16 +180,18 @@ describe("GET /agents/{id}", () => {
         },
       ],
     });
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        agent: {
-          findFirst: agentFindFirstMock,
-        },
-      });
-    });
+    // Batch form: Prisma resolves the array of operations together. The route
+    // relies on that for a shared pricing snapshot, so the mock must mirror
+    // it rather than handing back a callback result.
+    prismaTransactionMock.mockImplementation(async (operations: unknown) =>
+      Array.isArray(operations) ? await Promise.all(operations) : operations,
+    );
   });
 
-  it("returns parsed category styles in the detail response", async () => {
+  it("reads the agent in one snapshot without an interactive transaction", async () => {
+    // Nested pricing rows must share one snapshot. The BATCH form does that
+    // without holding a pool connection across application code. Metrics stay
+    // on the default client — they are not part of the pricing snapshot.
     const app = createApp();
     const response = await app.request("http://localhost/agent_123");
     const body = await response.json();
@@ -210,5 +215,16 @@ describe("GET /agents/{id}", () => {
         url: "https://example.com/output.png",
       },
     ]);
+    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Array), {
+      isolationLevel: "RepeatableRead",
+    });
+    expect(calculateAverageExecutionTimeMock).toHaveBeenCalledWith(
+      "agent_123",
+      expect.objectContaining({ $transaction: prismaTransactionMock }),
+    );
+    expect(calculateAgentRatingMock).toHaveBeenCalledWith(
+      "agent_123",
+      expect.objectContaining({ $transaction: prismaTransactionMock }),
+    );
   });
 });

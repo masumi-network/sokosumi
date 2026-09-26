@@ -24,6 +24,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/sync/image-jobs",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/sync/agents-summary",
       "schedule": "*/5 * * * *"
     },
@@ -48,6 +52,14 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/sync/notification-publishes",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/notification-follow-ups",
+      "schedule": "15 * * * *"
+    },
+    {
       "path": "/sync/jobs",
       "schedule": "* * * * *"
     },
@@ -57,6 +69,14 @@
     },
     {
       "path": "/sync/task-schedules",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/project-closes",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/calendar-invalidations",
       "schedule": "* * * * *"
     },
     {
@@ -82,6 +102,10 @@
     {
       "path": "/sync/soko-bot-avatars",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/sync/task-tags",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

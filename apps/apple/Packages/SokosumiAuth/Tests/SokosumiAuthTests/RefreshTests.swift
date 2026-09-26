@@ -75,7 +75,7 @@ struct RefreshTests {
     #expect(token == "access-2")
     #expect(await session.generation == generation)
     #expect(await session.isSignedIn)
-    #expect(await store.saved?.refreshToken == "refresh-2")
+    #expect(store.saved?.refreshToken == "refresh-2")
     let request = try #require(transport.lastRequest)
     let fields = Dictionary(uniqueKeysWithValues: request.fields.map { ($0.name, $0.value) })
     #expect(fields["grant_type"] == "refresh_token")
@@ -103,7 +103,7 @@ struct RefreshTests {
     }
     // A blip is not a revocation: tokens stay, caller retries later.
     #expect(await session.isSignedIn)
-    #expect(await store.saved?.refreshToken == "refresh-1")
+    #expect(store.saved?.refreshToken == "refresh-1")
   }
 
   @Test func nonGrantRejectionKeepsSession() async throws {
@@ -131,7 +131,7 @@ struct RefreshTests {
         try await session.validAccessToken()
       }
       #expect(await session.isSignedIn)
-      #expect(await store.saved?.refreshToken == "refresh-1")
+      #expect(store.saved?.refreshToken == "refresh-1")
     }
   }
 
@@ -159,7 +159,7 @@ struct RefreshTests {
       try await session.validAccessToken()
     }
     #expect(await !session.isSignedIn)
-    #expect(await store.saved == nil)
+    #expect(store.saved == nil)
   }
 
   @Test func expiredWithoutRefreshTokenReturnsToSignIn() async throws {

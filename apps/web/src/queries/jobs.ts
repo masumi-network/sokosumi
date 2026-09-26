@@ -1,6 +1,6 @@
 import type { Session } from "@sokosumi/utils";
 import { queryOptions } from "@tanstack/react-query";
-import { getJob } from "@/lib/actions/job";
+import { getJob } from "@/lib/actions/job/get-job.action";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 
 export const getJobQueryKey = (jobId: string) => ["jobs", jobId];

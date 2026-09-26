@@ -48,7 +48,7 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | -------- | ------- |
 | `DATABASE_URL` | Postgres connection string (Neon pooled URL at runtime on Vercel) |
 | `DATABASE_URL_UNPOOLED` | Injected by the Vercel Neon integration. Non-pooler URL used by `prisma migrate deploy` during the Core build. Not required for local Postgres |
-| `BETTER_AUTH_SECRET` | Better Auth server secret (sessions, cookies, OAuth state). Independent of web `APP_SIGNING_SECRET` |
+| `BETTER_AUTH_SECRET` | Better Auth server secret (sessions, cookies, OAuth state) and the key for stored OAuth provider tokens. Do not replace it in place, or stored tokens become unreadable; rotate by setting `BETTER_AUTH_SECRETS` (`2:<new>,1:<old>`) and keeping this value. Independent of web `APP_SIGNING_SECRET` |
 | `BETTER_AUTH_URL` | Public base URL of **this** Core deployment (e.g. `http://localhost:8787`). Used as Better Auth `baseURL` when not on Vercel Preview |
 | `BETTER_AUTH_COOKIE_DOMAIN` | Optional shared cookie domain for Better Auth cross-subdomain cookies. Leave unset on localhost; set it explicitly in deployed environments that need shared auth cookies |
 | `RESEND_API_KEY` | Resend API key for transactional email |
@@ -69,9 +69,11 @@ Production and Preview. Both values come from the same Cloudflare Turnstile
 widget. Use Managed mode and allow `sokosumi.com` (which also covers its
 subdomains, including `*.preview.sokosumi.com`). Keep pre-clearance disabled.
 
-Core's secret is optional: omitting it disables server-side verification in any
-environment. Web requires its site key in deployed environments. Deploy Web and
-Core together after configuring the keys. With its secret set, Core enforces
+Both keys are optional in every environment: omitting Core's secret disables
+server-side verification, and omitting Web's site key skips the widget. Core
+logs a warning when its secret is missing in a deployed environment. Configure
+both keys or neither: a secret without a site key rejects every protected
+request. Deploy Web and Core together after configuring the keys. With its secret set, Core enforces
 verification on signup, email sign-in, email address changes, password reset
 requests, verification resends, and magic-link requests, before their email
 callbacks. Existing database rate limits still
@@ -114,6 +116,10 @@ SENTRY_ENVIRONMENT=   # development | staging | production
 
 # Maintenance (HTTP 503 on all routes; read at startup)
 MAINTENANCE_MODE=false
+
+# Temporary. Vendor ids (comma separated) whose coworkers keep the old per-Task
+# schedule API. Empty: nobody.
+LEGACY_TASK_SCHEDULE_VENDOR_IDS=
 ```
 
 Maintenance mode is read at startup, so changing `MAINTENANCE_MODE` requires a restart/redeploy.
@@ -302,8 +308,8 @@ Core’s [`vercel.json`](./vercel.json) sets:
 - `installCommand` to `pnpm install --frozen-lockfile --filter @sokosumi/core...` so only Core and its workspace deps (including `@sokosumi/database`) are installed — not the web app or unrelated packages
 - `buildCommand` to `pnpm vercel-build`, which:
 
-1. Runs `@sokosumi/database` `prisma:generate` then `@sokosumi/database` `build` (`tsc`)
-2. Runs `pnpm run build` (`tsup`; other workspace packages emit `dist` via their `prepare` scripts during install)
+1. Runs `@sokosumi/database` `prisma:generate`
+2. Runs `pnpm run build` (`tsup`, which inlines `@sokosumi/database` from source — see [ADR 0035](../../docs/adr/0035-database-consumed-from-source.md); other workspace packages emit `dist` via their `prepare` scripts during install)
 3. On success, runs `prisma migrate deploy` using `DATABASE_URL_UNPOOLED` (from the Vercel Neon integration) or `DATABASE_URL`
 4. On migrate failure, the build exits non-zero and Vercel does not activate the new deployment
 

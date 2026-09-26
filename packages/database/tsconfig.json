@@ -8,14 +8,10 @@
     "skipLibCheck": true,
     "strict": true,
     "strictNullChecks": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
+    "noEmit": true,
     "incremental": false,
     "preserveSymlinks": true
   },
   "include": ["src/**/*", "**/*.test.ts"],
-  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
+  "exclude": ["node_modules", "**/*.spec.ts"]
 }

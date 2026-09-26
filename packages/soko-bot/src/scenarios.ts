@@ -486,11 +486,17 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
   },
 ];
 
-export interface ScenarioCheck {
+/**
+ * Persisted verbatim into `SokoBotLabRun.checks` (a Json column), so this is an
+ * object type alias rather than an interface: only an alias carries the
+ * implicit index signature that makes it checkable against Prisma's JSON input
+ * types (ADR 0035).
+ */
+export type ScenarioCheck = {
   label: string;
   pass: boolean;
   actual: string;
-}
+};
 
 export interface ScenarioResult {
   checks: ScenarioCheck[];

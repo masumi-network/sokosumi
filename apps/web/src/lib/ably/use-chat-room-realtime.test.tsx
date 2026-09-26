@@ -78,6 +78,13 @@ function controlSubscribeHandler() {
   return call?.[1] as ((message: { data: unknown }) => void) | undefined;
 }
 
+/**
+ * Event names one room channel carries: chat_room_message,
+ * chat_room_pinned_message and chat_room_read. One subscribe per name, so
+ * "attached once" is this many calls rather than one.
+ */
+const ROOM_CHANNEL_SUBSCRIPTIONS = 3;
+
 describe("useChatRoomRealtime", () => {
   beforeEach(() => {
     authorizeMock.mockReset();
@@ -111,6 +118,10 @@ describe("useChatRoomRealtime", () => {
       expect(
         channelFor("chat_rooms:room_room-a").subscribe,
       ).toHaveBeenCalledWith("chat_room_pinned_message", expect.any(Function));
+      // Seen by rides the same room channel under its own event name.
+      expect(
+        channelFor("chat_rooms:room_room-a").subscribe,
+      ).toHaveBeenCalledWith("chat_room_read", expect.any(Function));
     });
   });
 
@@ -289,10 +300,10 @@ describe("useChatRoomRealtime", () => {
     await waitFor(() => {
       expect(
         channelFor("chat_rooms:room_room-a").subscribe,
-      ).toHaveBeenCalledTimes(2);
+      ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
       expect(
         channelFor("chat_rooms:room_room-b").subscribe,
-      ).toHaveBeenCalledTimes(2);
+      ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
     });
 
     authorizeMock.mockClear();
@@ -312,13 +323,13 @@ describe("useChatRoomRealtime", () => {
       expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-c");
       expect(
         channelFor("chat_rooms:room_room-c").subscribe,
-      ).toHaveBeenCalledTimes(2);
+      ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
     });
 
     // stable a — no second subscribe
     expect(
       channelFor("chat_rooms:room_room-a").subscribe,
-    ).toHaveBeenCalledTimes(2);
+    ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
     expect(
       channelFor("chat_rooms:room_room-a").unsubscribe,
     ).not.toHaveBeenCalled();
@@ -463,7 +474,7 @@ describe("useChatRoomRealtime", () => {
     // room-a stays attached; no re-subscribe
     expect(
       channelFor("chat_rooms:room_room-a").subscribe,
-    ).toHaveBeenCalledTimes(2);
+    ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
     expect(
       channelFor("chat_rooms:room_room-a").unsubscribe,
     ).not.toHaveBeenCalled();

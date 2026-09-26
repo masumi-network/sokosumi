@@ -11,7 +11,6 @@ import mountRevokeUserCoworkerAccess from "./coworker-access/[accessId]/revoke/p
 import mountGetUserCoworkerAccess from "./coworker-access/get.js";
 import mountGetUserCredits from "./credits/get.js";
 import mountGetUserDeletion from "./deletion/get.js";
-import mountGetUserDesignMd from "./design-md/get.js";
 import mountPutUserDesignMd from "./design-md/put.js";
 import mountGetUserFiles from "./files/get.js";
 import mountPostUserFiles from "./files/post.js";
@@ -48,7 +47,6 @@ app.use("*", agentUserRouteAllowlistMiddleware);
 
 mountGetUserCredits(app);
 mountGetUserDeletion(app);
-mountGetUserDesignMd(app);
 mountPutUserDesignMd(app);
 mountGetUserMembers(app);
 mountGetUserOrganizations(app);

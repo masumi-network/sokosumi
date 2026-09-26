@@ -123,7 +123,7 @@ export function JobsListView({
   const hasAnyJobs = sortedJobs.length > 0;
 
   const listContent = (
-    <div className="bg-card-background border-border -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+    <div className="bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
       {hasAnyJobs ? (
         <div className="divide-border divide-y">
           <section className="flex flex-col gap-1">
@@ -134,7 +134,7 @@ export function JobsListView({
                 statusColorClass={RECENT_SECTION_COLOR_CLASS}
               />
             </div>
-            <div className="divide-border flex flex-col divide-y px-2">
+            <div className="divide-border flex flex-col divide-y">
               {recentJobs.length > 0 ? (
                 recentJobs.map((job) => (
                   <JobListItem
@@ -164,7 +164,7 @@ export function JobsListView({
                     statusColorClass={COLUMN_STATUS_COLORS[columnId]}
                   />
                 </div>
-                <div className="divide-border flex flex-col divide-y px-2">
+                <div className="divide-border flex flex-col divide-y">
                   {columnJobs.length > 0 ? (
                     columnJobs.map((job) => (
                       <JobListItem

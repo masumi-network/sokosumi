@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { publicShareRepository } from "@sokosumi/database/repositories";
 
 import { requireJobShareCollaboration } from "@/helpers/access-control.job-share.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -44,10 +43,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    await prisma.$transaction(async (tx) => {
-      await requireJobShareCollaboration(c.var, id, tx);
+    await requireJobShareCollaboration(c.var, id, prisma);
 
-      await publicShareRepository.deleteByJobId(id, tx);
+    await prisma.publicShare.deleteMany({
+      where: { jobId: id },
     });
 
     return ok(c, deleteJobShareResponseSchema.parse({}));

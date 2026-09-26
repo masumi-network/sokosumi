@@ -9,17 +9,13 @@ import { toast } from "sonner";
 import { AuthForm } from "@/auth/components/form/auth-form";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { resetPasswordFormData } from "@/auth/reset-password/data";
-import { resetPassword } from "@/lib/auth/auth.client";
+import { resetPasswordWithToken } from "@/lib/actions/auth/action";
 import {
   type ResetPasswordFormSchemaType,
   resetPasswordFormSchema,
-} from "@/lib/schemas";
+} from "@/lib/schemas/auth";
 
-interface ResetPasswordFormProps {
-  token: string;
-}
-
-export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
+export default function ResetPasswordForm() {
   const t = useTranslations("Auth.Pages.ResetPassword.Form");
   const router = useRouter();
 
@@ -30,17 +26,13 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
     defaultValues: {
       password: "",
       confirmPassword: "",
-      token: token,
     },
   });
 
   async function handleSubmit(values: ResetPasswordFormSchemaType) {
-    const resetPasswordResult = await resetPassword({
-      newPassword: values.password,
-      token: values.token,
-    });
+    const resetPasswordResult = await resetPasswordWithToken(values);
 
-    if (resetPasswordResult.error) {
+    if (!resetPasswordResult.ok) {
       toast.error(t("error"));
       return;
     }

@@ -5,7 +5,7 @@ import { getJobQueryOptions } from "@/queries/jobs";
 
 const getJobMock = vi.fn();
 
-vi.mock("@/lib/actions/job", () => ({
+vi.mock("@/lib/actions/job/get-job.action", () => ({
   getJob: (...args: unknown[]) => getJobMock(...args),
 }));
 

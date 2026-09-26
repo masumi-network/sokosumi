@@ -3,13 +3,16 @@
 import * as React from "react";
 import { Slot as SlotPrimitive } from "radix-ui";
 import { VariantProps, cva } from "class-variance-authority";
-import { PanelLeftIcon } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  SIDEBAR_BOOT_STOP_GLOBAL,
+  SIDEBAR_COMPACT_MEDIA_QUERY,
+  parseSidebarStateCookieHeader,
+  serializeSidebarStateCookie,
+} from "@/lib/ui-preferences/sidebar-state";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -18,16 +21,19 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  SIDEBAR_COLLAPSE_TRANSITION,
+  SIDEBAR_RAIL_SQUARE_CLASS,
+  SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_RAIL_PAD_CLASS,
+} from "@/components/ui/sidebar-classes";
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state";
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "14rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3.5rem";
@@ -44,6 +50,31 @@ type SidebarContextProps = {
 };
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
+
+/**
+ * Whether the window is too narrow to spend 14rem on the sidebar.
+ *
+ * `useLayoutEffect`, not `useEffect`: the boot script has already collapsed the
+ * streamed markup, and React must agree before paint or the sidebar expands for
+ * a frame on the way past.
+ */
+function useIsSidebarCompact() {
+  const [isCompact, setIsCompact] = React.useState(false);
+
+  // Effect is necessary: subscribes to an external system (media query).
+  React.useLayoutEffect(() => {
+    // Same string the boot script evaluates, so the pre-paint pass and React
+    // cannot land on opposite sides of the breakpoint.
+    const mql = window.matchMedia(SIDEBAR_COMPACT_MEDIA_QUERY);
+    const onChange = () => setIsCompact(mql.matches);
+
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  return isCompact;
+}
 
 function useSidebar() {
   const context = React.useContext(SidebarContext);
@@ -73,13 +104,25 @@ function SidebarProvider({
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
   // SSR / hydration always start from `defaultOpen` so the sync Instant Nav
-  // shell does not need `cookies()`. Restore the persisted preference in
-  // `useLayoutEffect` before paint to avoid an open/closed flash.
+  // shell does not need `cookies()`. The boot script (`SidebarBootScript`)
+  // applies the persisted preference to the streamed markup before paint; this
+  // `useLayoutEffect` hands the same value to React once it hydrates.
   const [_open, _setOpen] = React.useState(defaultOpen);
-  const open = openProp ?? _open;
+  // Opening the sidebar on a narrow window is a look at it, not a change of
+  // preference: it lasts until the window grows again and never reaches the
+  // cookie, so a laptop is not left collapsed by a detour through a small one.
+  const [compactOpen, setCompactOpen] = React.useState(false);
+  const isCompact = useIsSidebarCompact();
+  const open = openProp ?? (isCompact ? compactOpen : _open);
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === "function" ? value(open) : value;
+
+      if (isCompact && !setOpenProp) {
+        setCompactOpen(openState);
+        return;
+      }
+
       if (setOpenProp) {
         setOpenProp(openState);
       } else {
@@ -87,28 +130,35 @@ function SidebarProvider({
       }
 
       // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+      document.cookie = serializeSidebarStateCookie(openState);
     },
-    [setOpenProp, open],
+    [setOpenProp, open, isCompact],
   );
 
+  // Effect is necessary: the next narrow window starts from the rail again.
+  React.useEffect(() => {
+    if (!isCompact) {
+      setCompactOpen(false);
+    }
+  }, [isCompact]);
+
   React.useLayoutEffect(() => {
+    // React now owns the sidebar attributes, so retire the boot observer —
+    // including when `open` is controlled and there is no cookie to read.
+    (
+      window as typeof window & {
+        [SIDEBAR_BOOT_STOP_GLOBAL]?: () => void;
+      }
+    )[SIDEBAR_BOOT_STOP_GLOBAL]?.();
+
     if (openProp !== undefined) {
       return;
     }
 
-    const raw = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith(`${SIDEBAR_COOKIE_NAME}=`))
-      ?.slice(SIDEBAR_COOKIE_NAME.length + 1);
+    const persisted = parseSidebarStateCookieHeader(document.cookie);
 
-    if (raw === "true") {
-      _setOpen(true);
-      return;
-    }
-
-    if (raw === "false") {
-      _setOpen(false);
+    if (persisted !== null) {
+      _setOpen(persisted);
     }
   }, [openProp]);
 
@@ -137,7 +187,8 @@ function SidebarProvider({
   }, [toggleSidebar]);
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
-  // Desktop sidebar state is strictly controlled by `open`.
+  // Desktop sidebar state is strictly controlled by `open`, which already
+  // folds in the compact-window default.
   const state = open ? "expanded" : "collapsed";
 
   const contextValue = React.useMemo<SidebarContextProps>(
@@ -238,15 +289,23 @@ function Sidebar({
         className="group peer text-sidebar-foreground hidden md:block"
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
+        // Read by the boot script, which cannot recover the mode from
+        // `data-collapsible` while the sidebar is still expanded.
+        data-collapsible-mode={collapsible}
         data-variant={variant}
         data-side={side}
         data-slot="sidebar"
+        // The boot script may already have collapsed this markup.
+        suppressHydrationWarning
       >
         {/* This is what handles the sidebar gap on desktop */}
         <div
           data-slot="sidebar-gap"
           className={cn(
-            "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
+            // The panel's width is the collapse animation. A reader who asks
+            // for less motion gets the end state on the next frame instead —
+            // the geometry is identical either way, only the travel goes.
+            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_COLLAPSE_TRANSITION}`,
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"
@@ -257,7 +316,7 @@ function Sidebar({
         <div
           data-slot="sidebar-container"
           className={cn(
-            "fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width] duration-200 ease-linear md:flex",
+            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width] ${SIDEBAR_COLLAPSE_TRANSITION} md:flex`,
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -279,85 +338,6 @@ function Sidebar({
         </div>
       </div>
     </Sheet>
-  );
-}
-
-function SidebarTrigger({
-  className,
-  onClick,
-  ...props
-}: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar();
-
-  return (
-    <Button
-      data-sidebar="trigger"
-      data-slot="sidebar-trigger"
-      variant="ghost"
-      size="icon"
-      className={cn("size-7", className)}
-      onClick={(event) => {
-        onClick?.(event);
-        toggleSidebar();
-      }}
-      {...props}
-    >
-      <PanelLeftIcon />
-      <span className="sr-only">Toggle Sidebar</span>
-    </Button>
-  );
-}
-
-function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
-  const { toggleSidebar } = useSidebar();
-
-  return (
-    <button
-      data-sidebar="rail"
-      data-slot="sidebar-rail"
-      aria-label="Toggle Sidebar"
-      tabIndex={-1}
-      onClick={toggleSidebar}
-      title="Toggle Sidebar"
-      className={cn(
-        "hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] sm:flex",
-        "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",
-        "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
-        "hover:group-data-[collapsible=offcanvas]:bg-sidebar group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full",
-        "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
-        "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
-  return (
-    <main
-      data-slot="sidebar-inset"
-      className={cn(
-        "bg-background relative flex w-full flex-1 flex-col",
-        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-function SidebarInput({
-  className,
-  ...props
-}: React.ComponentProps<typeof Input>) {
-  return (
-    <Input
-      data-slot="sidebar-input"
-      data-sidebar="input"
-      className={cn("bg-background h-8 w-full shadow-none", className)}
-      {...props}
-    />
   );
 }
 
@@ -403,7 +383,9 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:overflow-hidden",
+        // The icon rail scrolls too (channels/DMs sit below the fold); it only
+        // hides the scrollbar so the 3.5rem rail keeps its full width for icons.
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:[-ms-overflow-style:none] group-data-[collapsible=icon]:[scrollbar-width:none] group-data-[collapsible=icon]:[&::-webkit-scrollbar]:hidden",
         className,
       )}
       {...props}
@@ -417,50 +399,6 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="sidebar-group"
       data-sidebar="group"
       className={cn("relative flex w-full min-w-0 flex-col p-2", className)}
-      {...props}
-    />
-  );
-}
-
-function SidebarGroupLabel({
-  className,
-  asChild = false,
-  ...props
-}: React.ComponentProps<"div"> & { asChild?: boolean }) {
-  const Comp = asChild ? SlotPrimitive.Slot : "div";
-
-  return (
-    <Comp
-      data-slot="sidebar-group-label"
-      data-sidebar="group-label"
-      className={cn(
-        "text-sidebar-foreground ring-sidebar-ring flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium outline-hidden transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
-        "group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-function SidebarGroupAction({
-  className,
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> & { asChild?: boolean }) {
-  const Comp = asChild ? SlotPrimitive.Slot : "button";
-
-  return (
-    <Comp
-      data-slot="sidebar-group-action"
-      data-sidebar="group-action"
-      className={cn(
-        "text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground absolute top-3.5 right-3 flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-hidden transition-transform focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
-        // Increases the hit area of the button on mobile.
-        "after:absolute after:-inset-2 md:after:hidden",
-        "group-data-[collapsible=icon]:hidden",
-        className,
-      )}
       {...props}
     />
   );
@@ -491,6 +429,42 @@ function SidebarMenu({ className, ...props }: React.ComponentProps<"ul">) {
   );
 }
 
+/**
+ * The collapsed rail's selection mark (Rail selection bar, CONTEXT.md).
+ *
+ * Collapsed to icons every rail item is the same 32px box, and the neutral
+ * fill was carrying rest, hover and selection all at once: `--muted`,
+ * `--accent` and `--sidebar-accent` are one value in dark, so a Channel
+ * tile's own plate, the hover wash and the active wash all landed on 15% and
+ * only the box grew. `sidebarMenuButtonVariants` now hands the fill to hover
+ * alone — as a ring, which reads over a filled tile without repainting it —
+ * and selection comes here instead. A press deepens that ring rather than
+ * flashing the fill, so the one colour this rail stopped reading never
+ * appears on it at all.
+ *
+ * How it looks is this component's; *when* it shows is each list's own call,
+ * because only the list knows what "open" means for its rows.
+ *
+ * A 20px bar on the rail's right edge, pointing at the panel the item opened.
+ * The right edge because Chat's attention pill owns the left one, so a room
+ * can be unread and open at once without the two marks arguing; every other
+ * rail item inherits that split for free.
+ *
+ * Decorative: `aria-current="page"` on the item already states it, so a second
+ * announcement would only repeat the row. `-right-2` lands it flush on the
+ * rail's edge, which holds for any item whose `SidebarMenuItem` is inset by
+ * its group's `p-2` — the one geometry every rail group uses.
+ */
+function SidebarRailSelectionBar() {
+  return (
+    <span
+      data-slot="sidebar-rail-selection"
+      aria-hidden="true"
+      className="bg-primary-solid absolute top-1/2 -right-2 z-10 hidden h-5 w-1 -translate-y-1/2 rounded-l-full group-data-[collapsible=icon]:block"
+    />
+  );
+}
+
 function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
   return (
     <li
@@ -502,8 +476,51 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
   );
 }
 
+/**
+ * The leading slot of a **Sidebar row** (CONTEXT.md).
+ *
+ * A 24px box whose left edge is fixed, so whatever it holds starts on the
+ * sidebar's leading axis 28px from its left edge, in both states: expanded
+ * the button's `px-2` puts it there, and on the rail the 32px square's own
+ * `ml-1` lands its centred content on the same line. Every mark a row can
+ * carry fits inside it with room to spare — a 16px nav or Channel kind glyph,
+ * a 20px avatar or Channel tile — so none of them has to know the axis, and
+ * the label after it starts on one column at 48px. The box stays 24px though
+ * nothing fills it: it is the column the label is measured from, and marks
+ * are free to change size inside it without moving the names.
+ *
+ * `min-w-6` rather than a hard `size-6`, because one mark says something a
+ * single face cannot: a group Direct's stack of up to three faces. It grows
+ * the box to the right, off the same left edge, so the first face still sits
+ * on the axis and only that row's name starts later. A hard box clipped
+ * nothing — the stack simply ran out of it and over the name beside it.
+ *
+ * It lives here rather than in each list because each list building its own
+ * box by hand is exactly how a room's mark drifted 2px off the nav icons'
+ * line and the account face 4px off both.
+ */
+function SidebarRowSlot({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="sidebar-row-slot"
+      className={cn(
+        "inline-flex h-6 min-w-6 shrink-0 items-center justify-center",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/**
+ * A pressable **Sidebar row** (CONTEXT.md): the row shape from
+ * `sidebar-classes.ts`, plus the rail square and the rest state, hover, focus
+ * and selection that go with being pressable. On the rail it drops its `px`
+ * and keeps its height, which is already the square's 32px at `md` — and the
+ * rail exists only at `md`.
+ */
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2  min-h-10 text-left text-base outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-3! group-data-[collapsible=icon]:min-w-10! md:text-sm [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  `peer/menu-button ${SIDEBAR_ROW_CLASS} ${SIDEBAR_RAIL_SQUARE_CLASS} ${SIDEBAR_ROW_RAIL_PAD_CLASS} overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring transition-[width,padding,margin] ${SIDEBAR_COLLAPSE_TRANSITION} hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate`,
   {
     variants: {
       variant: {
@@ -515,15 +532,9 @@ const sidebarMenuButtonVariants = cva(
         outline:
           "bg-background ring-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:ring-sidebar-accent ring-1",
       },
-      size: {
-        default: "h-8 text-base md:text-sm",
-        sm: "h-7 text-xs",
-        lg: "h-12 text-base md:text-sm group-data-[collapsible=icon]:p-0!",
-      },
     },
     defaultVariants: {
       variant: "default",
-      size: "default",
     },
   },
 );
@@ -532,7 +543,6 @@ function SidebarMenuButton({
   asChild = false,
   isActive = false,
   variant = "default",
-  size = "default",
   tooltip,
   className,
   ...props
@@ -548,9 +558,8 @@ function SidebarMenuButton({
     <Comp
       data-slot="sidebar-menu-button"
       data-sidebar="menu-button"
-      data-size={size}
       data-active={isActive}
-      className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+      className={cn(sidebarMenuButtonVariants({ variant }), className)}
       {...props}
     />
   );
@@ -575,98 +584,6 @@ function SidebarMenuButton({
         {...tooltip}
       />
     </Tooltip>
-  );
-}
-
-function SidebarMenuAction({
-  className,
-  asChild = false,
-  showOnHover = false,
-  ...props
-}: React.ComponentProps<"button"> & {
-  asChild?: boolean;
-  showOnHover?: boolean;
-}) {
-  const Comp = asChild ? SlotPrimitive.Slot : "button";
-
-  return (
-    <Comp
-      data-slot="sidebar-menu-action"
-      data-sidebar="menu-action"
-      className={cn(
-        "text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer-hover/menu-button:text-sidebar-accent-foreground absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-hidden transition-transform focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
-        // Increases the hit area of the button on mobile.
-        "after:absolute after:-inset-2 md:after:hidden",
-        "peer-data-[size=sm]/menu-button:top-1",
-        "peer-data-[size=default]/menu-button:top-1.5",
-        "peer-data-[size=lg]/menu-button:top-2.5",
-        "group-data-[collapsible=icon]:hidden",
-        showOnHover &&
-          "peer-data-[active=true]/menu-button:text-sidebar-accent-foreground group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 md:opacity-0",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-function SidebarMenuBadge({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="sidebar-menu-badge"
-      data-sidebar="menu-badge"
-      className={cn(
-        "text-sidebar-foreground pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium tabular-nums select-none",
-        "peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[active=true]/menu-button:text-sidebar-accent-foreground",
-        "peer-data-[size=sm]/menu-button:top-1",
-        "peer-data-[size=default]/menu-button:top-1.5",
-        "peer-data-[size=lg]/menu-button:top-2.5",
-        "group-data-[collapsible=icon]:hidden",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-function SidebarMenuSkeleton({
-  className,
-  showIcon = false,
-  ...props
-}: React.ComponentProps<"div"> & {
-  showIcon?: boolean;
-}) {
-  // Random width between 50 to 90%.
-  const width = React.useMemo(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`;
-  }, []);
-
-  return (
-    <div
-      data-slot="sidebar-menu-skeleton"
-      data-sidebar="menu-skeleton"
-      className={cn("flex h-8 items-center gap-2 rounded-md px-2", className)}
-      {...props}
-    >
-      {showIcon && (
-        <Skeleton
-          className="size-4 rounded-md"
-          data-sidebar="menu-skeleton-icon"
-        />
-      )}
-      <Skeleton
-        className="h-4 max-w-(--skeleton-width) flex-1"
-        data-sidebar="menu-skeleton-text"
-        style={
-          {
-            "--skeleton-width": width,
-          } as React.CSSProperties
-        }
-      />
-    </div>
   );
 }
 
@@ -736,24 +653,17 @@ export {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupAction,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
-  SidebarInput,
-  SidebarInset,
   SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSkeleton,
   SidebarMenuSub,
-  SidebarMenuSubButton,
   SidebarMenuSubItem,
+  SidebarMenuSubButton,
+  SidebarRailSelectionBar,
+  SidebarRowSlot,
   SidebarProvider,
-  SidebarRail,
   SidebarSeparator,
-  SidebarTrigger,
   useSidebar,
 };

@@ -13,6 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useSidebar } from "@/components/ui/sidebar";
+import { SIDEBAR_RAIL_SQUARE_CLASS } from "@/components/ui/sidebar-classes";
 import {
   Tooltip,
   TooltipContent,
@@ -108,12 +109,26 @@ function SidebarAccountChipDesktop({
         summary,
       })}
       className={cn(
-        "group/chip hover:bg-sidebar-accent focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent flex cursor-pointer items-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
-        isCollapsed ? "size-8 justify-center" : "w-full gap-2.5 p-2",
+        // `pl-1` rather than `p-2`: footer chrome it may be, but its face
+        // still sits on the 28px leading axis every row's mark uses, so it
+        // shrinks in place when the sidebar collapses instead of sliding 4px.
+        "group/chip focus-visible:ring-sidebar-ring hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 pl-1 transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
+        // The rail square every item stands on, so the chip's face lands on
+        // the same axis a row's mark does. Its own `h-8!` because the chip is
+        // 48px expanded, and `p-0!` because a 24px face has no room for the
+        // expanded chip's 8px of padding inside a 32px square.
+        SIDEBAR_RAIL_SQUARE_CLASS,
+        // Rail language matches `sidebarMenuButtonVariants`: rings on
+        // transparent, not a fill. Classes live on the element (not behind
+        // JS `isCollapsed`) so the boot-collapsed group and the Suspense
+        // swap keep size-6 + rings without a 32px square flash.
+        "group-data-[collapsible=icon]:ring-sidebar-ring group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:data-[state=open]:bg-transparent group-data-[collapsible=icon]:data-[state=open]:ring-2 group-data-[collapsible=icon]:data-[state=open]:hover:ring-2",
       )}
     >
       <span className="relative shrink-0">
-        <Avatar className="size-8">
+        {/* Square vs the rooms' circles. Size tracks the fallback via the
+            collapsible group, so credits streaming in do not 32↔24 the face. */}
+        <Avatar className="size-8 rounded-md group-data-[collapsible=icon]:size-6">
           <AvatarImage
             src={
               sessionUser.image ??
@@ -124,20 +139,25 @@ function SidebarAccountChipDesktop({
             }
             alt=""
           />
-          <AvatarFallback className="bg-muted text-muted-foreground text-[0.6875rem] font-medium">
+          {/* Fallback defaults to `rounded-full`; without this its fill stays
+              a circle inside the square clip. */}
+          <AvatarFallback className="bg-muted text-muted-foreground rounded-md text-[0.6875rem] font-medium">
             {getInitials(displayName)}
           </AvatarFallback>
         </Avatar>
+        {/* `size-2` on the rail, where the face is 24px and sits in a column
+            of DM faces that are also 24px carrying a `size-2` mark. Expanded
+            the face is 32px, which is what the default 10px mark is drawn for. */}
         <PresenceDot
           presence={presence}
           ground="sidebar"
-          className="absolute -right-0.5 -bottom-0.5"
+          className="absolute -right-0.5 -bottom-0.5 group-data-[collapsible=icon]:size-2"
           title={presenceLabel}
         />
       </span>
       {isCollapsed ? null : (
         <>
-          <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+          <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 group-data-[collapsible=icon]:hidden">
             <span className="w-full truncate text-left text-sm leading-tight font-medium">
               {displayName}
             </span>
@@ -156,7 +176,7 @@ function SidebarAccountChipDesktop({
             </span>
           </span>
           <ChevronDown
-            className="text-muted-foreground size-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]/chip:rotate-180"
+            className="text-muted-foreground size-3.5 shrink-0 transition-transform duration-200 motion-reduce:transition-none group-data-[state=open]/chip:rotate-180 group-data-[collapsible=icon]:hidden"
             aria-hidden
           />
         </>
@@ -199,7 +219,10 @@ function SidebarAccountChipDesktop({
   }
 
   return (
-    <div className="flex w-full justify-center">
+    // No `justify-center`: the chip's own `ml-1` puts its face on the
+    // sidebar's 28px leading axis, and centring it here would split the 3px
+    // left over and land the face 1.5px right of every row's mark.
+    <div className="flex w-full">
       <Tooltip open={isOpen ? false : undefined}>
         <Popover open={isOpen} onOpenChange={handleOpenChange}>
           <TooltipTrigger asChild>

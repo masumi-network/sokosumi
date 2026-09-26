@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
-import { applyReplySoftDeleteToParentIfUnchanged } from "./parent-thread-preview";
+import {
+  applyReplySoftDeleteToParentIfUnchanged,
+  applyReplyToParentThreadPreview,
+} from "./parent-thread-preview";
 
 function parentMessage(
   overrides: Partial<ChatRoomMessage> = {},
@@ -33,10 +36,120 @@ function parentMessage(
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     ...overrides,
   };
 }
+
+function userSender(id: string): ChatRoomMessage["sender"] {
+  return {
+    type: "user",
+    user: {
+      id,
+      name: id,
+      email: `${id}@example.com`,
+      image: null,
+      presence: "offline",
+    },
+  };
+}
+
+function replierIds(message: ChatRoomMessage): string[] {
+  return (message.threadRepliers ?? []).map((replier) =>
+    replier.type === "user" ? replier.user.id : replier.type,
+  );
+}
+
+describe("applyReplyToParentThreadPreview", () => {
+  it("adds the first replier and bumps the count and age", () => {
+    const parent = parentMessage({ threadReplyCount: 0, threadRepliers: [] });
+    const reply = parentMessage({
+      id: "reply-1",
+      parentMessageId: "parent-1",
+      sender: userSender("user-2"),
+      createdAt: new Date("2026-08-01T03:00:00.000Z"),
+      threadReplyCount: 0,
+      threadLastReplyAt: null,
+    });
+
+    const next = applyReplyToParentThreadPreview(parent, reply);
+
+    expect(next.threadReplyCount).toBe(1);
+    expect(next.threadLastReplyAt).toEqual(reply.createdAt);
+    expect(replierIds(next)).toEqual(["user-2"]);
+  });
+
+  it("appends a new replier after the ones who joined earlier", () => {
+    const parent = parentMessage({
+      threadReplyCount: 1,
+      threadRepliers: [userSender("user-2")],
+    });
+    const reply = parentMessage({
+      id: "reply-2",
+      sender: userSender("user-3"),
+      createdAt: new Date("2026-08-01T04:00:00.000Z"),
+    });
+
+    const next = applyReplyToParentThreadPreview(parent, reply);
+
+    expect(replierIds(next)).toEqual(["user-2", "user-3"]);
+  });
+
+  it("keeps a repeat replier in place without a second face", () => {
+    const parent = parentMessage({
+      threadReplyCount: 2,
+      threadRepliers: [userSender("user-2"), userSender("user-3")],
+    });
+    const reply = parentMessage({
+      id: "reply-2",
+      sender: userSender("user-3"),
+      createdAt: new Date("2026-08-01T04:00:00.000Z"),
+    });
+
+    const next = applyReplyToParentThreadPreview(parent, reply);
+
+    expect(next.threadReplyCount).toBe(3);
+    expect(replierIds(next)).toEqual(["user-2", "user-3"]);
+  });
+
+  it("keeps the first three repliers when a fourth joins", () => {
+    const parent = parentMessage({
+      threadRepliers: [
+        userSender("user-a"),
+        userSender("user-b"),
+        userSender("user-c"),
+      ],
+    });
+    const reply = parentMessage({
+      id: "reply-3",
+      sender: userSender("user-d"),
+      createdAt: new Date("2026-08-01T05:00:00.000Z"),
+    });
+
+    const next = applyReplyToParentThreadPreview(parent, reply);
+
+    expect(replierIds(next)).toEqual(["user-a", "user-b", "user-c"]);
+  });
+
+  it("does not add a face for an unknown sender", () => {
+    const parent = parentMessage({
+      threadReplyCount: 1,
+      threadRepliers: [userSender("user-2")],
+    });
+    const reply = parentMessage({
+      id: "reply-4",
+      sender: { type: "unknown" },
+      createdAt: new Date("2026-08-01T06:00:00.000Z"),
+    });
+
+    const next = applyReplyToParentThreadPreview(parent, reply);
+
+    expect(next.threadReplyCount).toBe(2);
+    expect(next.threadLastReplyAt).toEqual(reply.createdAt);
+    expect(replierIds(next)).toEqual(["user-2"]);
+  });
+});
 
 describe("applyReplySoftDeleteToParentIfUnchanged", () => {
   it("decrements when parent still has the pre-delete count", () => {

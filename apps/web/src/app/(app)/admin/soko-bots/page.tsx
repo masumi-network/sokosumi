@@ -11,6 +11,8 @@ import { SokoBotVersionMigration } from "@/components/admin/soko-bots/soko-bot-v
 import { Button } from "@/components/ui/button";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Soko Bots",
   description: "Soko Bot fleet health and operator controls",

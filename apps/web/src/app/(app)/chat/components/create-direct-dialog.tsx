@@ -48,15 +48,28 @@ export function CreateDirectDialog() {
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
 
-  const targets = useMemo(
-    () =>
-      buildDirectDraftTargets(
+  const targets = useMemo<DirectDraftTarget[]>(
+    () => [
+      ...(roster.currentUserId
+        ? [
+            {
+              key: `self:${roster.currentUserId}`,
+              id: roster.currentUserId,
+              name: t("SelfDirect.messageYourself"),
+              detail: `${t("SelfDirect.you")} · ${roster.currentUserName}`,
+              image: roster.currentUserImage,
+              kind: "self" as const,
+            },
+          ]
+        : []),
+      ...buildDirectDraftTargets(
         roster.members,
         roster.coworkers,
         roster.sokoBots,
         roster.currentUserId,
       ),
-    [roster.coworkers, roster.currentUserId, roster.members, roster.sokoBots],
+    ],
+    [roster, t],
   );
   const selectedTargets = useMemo(() => {
     const byKey = new Map(targets.map((target) => [target.key, target]));
@@ -70,7 +83,7 @@ export function CreateDirectDialog() {
     [recipientQuery, selectedKeySet, targets],
   );
   const selectedMemberUserIds = selectedTargets
-    .filter((target) => target.kind === "human")
+    .filter((target) => target.kind === "human" || target.kind === "self")
     .map((target) => target.id);
   const selectedCoworkerIds = selectedTargets
     .filter((target) => target.kind === "coworker")
@@ -78,19 +91,30 @@ export function CreateDirectDialog() {
   const selectedSokoBotIds = selectedTargets
     .filter((target) => target.kind === "sokoBot")
     .map((target) => target.id);
+  const hasSelectedSelf = selectedTargets.some(
+    (target) => target.kind === "self",
+  );
   const hasSelectedHumans = selectedMemberUserIds.length > 0;
   const hasSelectedCoworker = selectedCoworkerIds.length > 0;
   const hasSelectedSokoBot = selectedSokoBotIds.length > 0;
   const hasSelectedAi = hasSelectedCoworker || hasSelectedSokoBot;
-  const crossKindDisabledReason = hasSelectedHumans
-    ? t("Draft.groupDirectHumansOnly")
-    : hasSelectedCoworker
-      ? t("Draft.coworkerDirectOneToOneOnly")
-      : hasSelectedSokoBot
-        ? t("Draft.personalAssistantDirectOneToOneOnly")
-        : undefined;
+  const crossKindDisabledReason = hasSelectedSelf
+    ? t("SelfDirect.exclusive")
+    : hasSelectedHumans
+      ? t("Draft.groupDirectHumansOnly")
+      : hasSelectedCoworker
+        ? t("Draft.coworkerDirectOneToOneOnly")
+        : hasSelectedSokoBot
+          ? t("Draft.personalAssistantDirectOneToOneOnly")
+          : undefined;
 
   function isTargetDisabled(target: DirectDraftTarget): boolean {
+    if (
+      hasSelectedSelf ||
+      (target.kind === "self" && selectedTargets.length > 0)
+    ) {
+      return true;
+    }
     if (hasSelectedHumans && target.kind !== "human") {
       return true;
     }
@@ -117,7 +141,7 @@ export function CreateDirectDialog() {
     if (isTargetDisabled(target)) {
       return;
     }
-    if (target.kind === "coworker" || target.kind === "sokoBot") {
+    if (target.kind !== "human") {
       setSelectedKeys([target.key]);
     } else {
       setSelectedKeys((current) =>
@@ -159,33 +183,37 @@ export function CreateDirectDialog() {
     }
     inFlightRef.current = true;
     startTransition(async () => {
-      const result =
-        selectedCoworkerIds.length === 1
-          ? await ensureCoworkerDirectRoomAction(selectedCoworkerIds[0])
-          : selectedSokoBotIds.length === 1
-            ? await ensureSokoBotDirectRoomAction(selectedSokoBotIds[0])
-            : await createDirectRoomAction({
-                memberUserIds: selectedMemberUserIds,
-              });
-      if (!result.ok) {
-        toast.error(result.error.message ?? t("Draft.chooseRecipientError"));
+      try {
+        const result =
+          selectedCoworkerIds.length === 1
+            ? await ensureCoworkerDirectRoomAction(selectedCoworkerIds[0])
+            : selectedSokoBotIds.length === 1
+              ? await ensureSokoBotDirectRoomAction(selectedSokoBotIds[0])
+              : await createDirectRoomAction({
+                  memberUserIds: selectedMemberUserIds,
+                });
+        if (!result.ok) {
+          toast.error(result.error.message ?? t("Draft.chooseRecipientError"));
+          return;
+        }
+        if (!result.value) {
+          toast.error(t("Draft.chooseRecipientError"));
+          return;
+        }
+        notifyOrganizationChatRoomsChanged(result.value);
+        setOpen(false);
+        resetDialog();
+        window.location.assign(`/chat/rooms/${result.value.id}`);
+      } catch {
+        toast.error(t("Draft.openFailed"));
+      } finally {
         inFlightRef.current = false;
-        return;
       }
-      if (!result.value) {
-        toast.error(t("Draft.chooseRecipientError"));
-        inFlightRef.current = false;
-        return;
-      }
-      notifyOrganizationChatRoomsChanged(result.value);
-      setOpen(false);
-      resetDialog();
-      window.location.assign(`/chat/rooms/${result.value.id}`);
     });
   }
 
   const extraHumanDisabledReason =
-    hasSelectedHumans && !roster.hasOrganization
+    hasSelectedHumans && !hasSelectedSelf && !roster.hasOrganization
       ? t("Draft.organizationRequiredForGroup")
       : crossKindDisabledReason;
 
@@ -264,7 +292,7 @@ export function CreateDirectDialog() {
             placeholder={
               selectedTargets.length === 0
                 ? t("Draft.searchPlaceholder")
-                : hasSelectedHumans
+                : hasSelectedHumans && !hasSelectedSelf
                   ? t("Draft.searchPlaceholderMore")
                   : t("Draft.searchPlaceholderReplace")
             }

@@ -1,4 +1,4 @@
-import type { DesignMdProfileValue } from "@/components/design-md";
+import type { DesignMdProfileValue } from "@/components/design-md/types";
 
 interface DesignMdMetadataFields {
   designMdExtractionId: null | string;

@@ -17,6 +17,9 @@ vi.mock("next-intl", () => ({
   useTimeZone: () => "UTC",
   useLocale: () => "en",
   useTranslations: () => (key: string) => key,
+  useFormatter: () => ({
+    number: (value: number) => value.toLocaleString("en-US"),
+  }),
 }));
 
 vi.mock("@/components/agents/agent-icon", () => ({
@@ -144,7 +147,11 @@ describe("HistoryListItem", () => {
       />,
     );
 
-    expect(screen.getByRole("link")).toHaveAttribute("href", "/tasks/task-1");
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute("href", "/tasks/task-1");
+    expect(link.className.split(/\s+/)).toContain(
+      "hover:bg-card-background-hover",
+    );
   });
 
   it("renders archived task rows without a link", () => {
@@ -292,5 +299,32 @@ describe("HistoryListItem", () => {
     expect(getHistoryRowSubtitle(taskWithoutDescription, labels)).toBe(
       "No description",
     );
+  });
+
+  it("groups credit counts through the locale number formatter", () => {
+    const item: HistoryItem = {
+      kind: "task",
+      id: "task-1",
+      title: "Review onboarding",
+      description: null,
+      status: TaskStatus.READY,
+      updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+      archivedAt: null,
+      credits: 1500,
+      projectId: null,
+      coworkerId: null,
+      sokoBotId: null,
+      owner: null,
+    };
+
+    render(
+      <HistoryListItem
+        item={item}
+        labels={labels}
+        activeOrganizationId={null}
+      />,
+    );
+
+    expect(screen.getByText("1,500 credits")).toBeInTheDocument();
   });
 });

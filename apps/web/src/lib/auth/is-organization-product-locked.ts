@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
-import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
+import { organizationSeatService } from "@/lib/services/organization-seat.service";
 
 export async function isOrganizationProductLocked(): Promise<boolean> {
   const session = await getSessionOrRedirect();
@@ -10,5 +10,5 @@ export async function isOrganizationProductLocked(): Promise<boolean> {
     return false;
   }
 
-  return !(await hasAssignedOrganizationSeat(organizationId));
+  return !(await organizationSeatService.hasAssignedSeat(organizationId));
 }

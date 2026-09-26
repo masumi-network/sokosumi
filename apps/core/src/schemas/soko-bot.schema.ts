@@ -1073,6 +1073,8 @@ export const sokoBotDeletionResultSchema = z
       chatMessages: z.number().int().nonnegative(),
       /** Files it uploaded onto Tasks; they outlive the assistant. */
       uploadedTaskFiles: z.number().int().nonnegative(),
+      /** Task Schedules it created; the creator FK restricts a hard delete. */
+      taskSchedules: z.number().int().nonnegative(),
     }),
   })
   .openapi("SokoBotDeletionResult");

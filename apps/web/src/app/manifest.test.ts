@@ -10,5 +10,7 @@ describe("web app manifest", () => {
     expect(result.start_url).toBe("/");
     expect(result.start_url).not.toMatch(/^https?:\/\//);
     expect(result.display).toBe("standalone");
+    expect(result.name).toBe("Sokosumi");
+    expect(result.short_name).toBe("Sokosumi");
   });
 });

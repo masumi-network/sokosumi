@@ -87,7 +87,7 @@ test("joins URL segments and sends JSON with the requested method", async () => 
   assert.equal(requestInit?.body, JSON.stringify({ name: "Updated" }));
 });
 
-test("TestV47 recursively redacts credential-shaped error fields", async () => {
+test("recursively redacts credential-shaped error fields", async () => {
   const credential = "very-secret-token";
   const nestedAccessToken = "nested-access-token";
   const nestedRefreshToken = "nested-refresh-token";
@@ -162,7 +162,7 @@ test("reports invalid JSON responses explicitly", async () => {
   );
 });
 
-test("TestV47 createApiError redacts credential-shaped keys across casing and nesting", () => {
+test("createApiError redacts credential-shaped keys across casing and nesting", () => {
   const error = createApiError(401, {
     authorization: "body-value-01",
     accessToken: "body-value-02",
@@ -219,7 +219,7 @@ test("TestV47 createApiError redacts credential-shaped keys across casing and ne
     ],
   });
 });
-test("TestV47 redacts dotted and spaced credential separators", () => {
+test("redacts dotted and spaced credential separators", () => {
   const dottedSecret = "dotted-api-key";
   const spacedSecret = "spaced-refresh-token";
   const error = createApiError(401, {

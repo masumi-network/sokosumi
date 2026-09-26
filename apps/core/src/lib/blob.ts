@@ -13,9 +13,12 @@ import {
   buildUserUploadPathname,
   buildUserUploadPrefix,
   buildVendorLogoPathname,
+  isOwnedCoworkerChatRoomFileUrl,
   isOwnedCoworkerImageUrl,
   isOwnedOrganizationLogoUrl,
+  isOwnedSokoBotChatRoomFileUrl,
   isOwnedTaskFileUrl,
+  isOwnedUserChatRoomFileUrl,
   isOwnedVendorLogoUrl,
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
 } from "@sokosumi/utils";
@@ -187,16 +190,18 @@ export async function createTaskFileUploadSession(
   });
 }
 
+export type ChatRoomFileOwner =
+  | { kind: "user"; userId: string }
+  | { kind: "coworker"; coworkerId: string }
+  | { kind: "sokoBot"; sokoBotId: string };
+
 /**
  * Room chat-file direct upload grant (presigned PUT). Same shape as user-file
  * mint. No onUploadCompleted webhook. Callers put the public URL into message
  * markdown. No ChatFile row.
  */
 export async function createChatRoomFileUploadSession(
-  owner:
-    | { kind: "user"; userId: string }
-    | { kind: "coworker"; coworkerId: string }
-    | { kind: "sokoBot"; sokoBotId: string },
+  owner: ChatRoomFileOwner,
   roomId: string,
   file: {
     filename: string;
@@ -622,5 +627,60 @@ export async function deleteTaskFileIfOwned(
         url,
       },
     });
+  }
+}
+
+function isOwnedChatRoomFileUrl(
+  url: string,
+  owner: ChatRoomFileOwner,
+  roomId: string,
+): boolean {
+  switch (owner.kind) {
+    case "user":
+      return isOwnedUserChatRoomFileUrl(url, owner.userId, roomId);
+    case "coworker":
+      return isOwnedCoworkerChatRoomFileUrl(url, owner.coworkerId, roomId);
+    case "sokoBot":
+      return isOwnedSokoBotChatRoomFileUrl(url, owner.sokoBotId, roomId);
+    default: {
+      const _exhaustive: never = owner;
+      return _exhaustive;
+    }
+  }
+}
+
+/**
+ * Best-effort delete of room chat-file blobs when the URL is under this
+ * sender's `…/chats/{roomId}/` prefix. Drive files and other senders are
+ * ignored.
+ */
+export async function deleteChatRoomFilesIfOwned(
+  urls: ReadonlyArray<string | null | undefined>,
+  owner: ChatRoomFileOwner,
+  roomId: string,
+): Promise<void> {
+  const env = getEnv();
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    return;
+  }
+
+  for (const url of urls) {
+    if (!url || !isOwnedChatRoomFileUrl(url, owner, roomId)) {
+      continue;
+    }
+    try {
+      await del(url, { token: env.BLOB_READ_WRITE_TOKEN });
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: {
+          function: "deleteChatRoomFilesIfOwned",
+        },
+        extra: {
+          owner,
+          roomId,
+          url,
+        },
+      });
+    }
   }
 }

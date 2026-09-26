@@ -8,7 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
-import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
+import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 import { signOutWithPushRelease } from "@/lib/auth/sign-out.client";

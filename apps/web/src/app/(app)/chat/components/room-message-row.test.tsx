@@ -1,6 +1,7 @@
 import { CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE } from "@sokosumi/utils";
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -22,6 +23,12 @@ import type {
 } from "@/lib/clients/generated/core";
 import { ChatMessageRow } from "./room-message-row";
 
+const { routerPushMock } = vi.hoisted(() => ({ routerPushMock: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: routerPushMock }),
+}));
+
 vi.mock("next-intl", () => ({
   useFormatter: () => ({
     dateTime: (value: Date | string) => `dt:${new Date(value).toISOString()}`,
@@ -38,6 +45,9 @@ vi.mock("next-intl", () => ({
       }
       if (key === "jump" && values) {
         return `Jump to message from ${values.author}`;
+      }
+      if (key === "position" && values) {
+        return `${values.current} / ${values.total}`;
       }
       if (key === "MentionAll.label") {
         return "Everyone";
@@ -98,19 +108,23 @@ vi.mock("@/components/ui/file-chip-mini-preview", () => ({
     fileName,
     sizeClass,
     variant,
+    onOpenImage,
   }: {
     fileName: string;
     url: string;
     sizeClass?: string;
     variant?: "thumb" | "large";
+    onOpenImage: () => void;
   }) => (
-    <span
+    <button
+      type="button"
       data-testid="chip"
       data-variant={variant ?? "thumb"}
       data-size-class={sizeClass ?? ""}
+      onClick={onOpenImage}
     >
       {fileName}
-    </span>
+    </button>
   ),
 }));
 
@@ -150,6 +164,7 @@ function userMessage(
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: {
       type: "user",
@@ -199,6 +214,7 @@ function renderRow({
   onRetryMention,
   onRemoveOutbound,
   onJumpToQuotedMessage,
+  onSendToSelf,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -208,14 +224,12 @@ function renderRow({
   isSavingEdit = false,
   coworkersById = new Map(),
   usersById,
-  reserveHoverActionGutter,
   isPinned,
 }: {
   message?: ChatRoomMessage;
   isPinned?: boolean;
   isContinuation?: boolean;
   isFirstOfDay?: boolean;
-  reserveHoverActionGutter?: boolean;
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   showPinButton?: boolean;
@@ -227,6 +241,7 @@ function renderRow({
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   onJumpToQuotedMessage?: (messageId: string) => void;
+  onSendToSelf?: (message: ChatRoomMessage) => void;
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
@@ -255,6 +270,7 @@ function renderRow({
       onRetryMention={onRetryMention}
       onRemoveOutbound={onRemoveOutbound}
       onJumpToQuotedMessage={onJumpToQuotedMessage}
+      onSendToSelf={onSendToSelf}
       showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
       editDraft={editDraft}
@@ -264,7 +280,6 @@ function renderRow({
       isSavingEdit={isSavingEdit}
       isContinuation={isContinuation}
       isFirstOfDay={isFirstOfDay}
-      reserveHoverActionGutter={reserveHoverActionGutter}
       isPinned={isPinned}
     />,
   );
@@ -505,7 +520,7 @@ describe("ChatMessageRow", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("shows Copy in the message actions sheet", async () => {
+  it("shows Copy text and Copy link in the message actions sheet", async () => {
     const user = userEvent.setup();
     renderRow({
       message: userMessage({ content: "Selectable chat body" }),
@@ -514,9 +529,15 @@ describe("ChatMessageRow", () => {
 
     await user.click(screen.getByRole("button", { name: "Actions.more" }));
 
+    const sheet = screen.getByRole("dialog");
     expect(
-      within(screen.getByRole("dialog")).getByRole("button", {
+      within(sheet).getByRole("button", {
         name: "Copy.action",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(sheet).getByRole("button", {
+        name: "Copy.link",
       }),
     ).toBeInTheDocument();
   });
@@ -546,7 +567,32 @@ describe("ChatMessageRow", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("hides Copy when the message has no copyable content", async () => {
+  it("copies a message link from the sheet", async () => {
+    copyMock.mockClear();
+    const user = userEvent.setup();
+    renderRow({
+      message: userMessage({ content: "**bold** body" }),
+      onQuote: vi.fn(),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Copy.link",
+      }),
+    );
+
+    expect(copyMock).toHaveBeenCalledWith(
+      `${window.location.origin}/chat/rooms/room-1?message=message-1`,
+      expect.objectContaining({
+        copySuccessMessage: "Copy.linkSuccess",
+        copyErrorMessage: "Copy.linkError",
+      }),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("hides Copy text when the message has no copyable content", async () => {
     const user = userEvent.setup();
     renderRow({
       message: userMessage({ content: "   " }),
@@ -555,14 +601,20 @@ describe("ChatMessageRow", () => {
 
     await user.click(screen.getByRole("button", { name: "Actions.more" }));
 
+    const sheet = screen.getByRole("dialog");
     expect(
-      within(screen.getByRole("dialog")).queryByRole("button", {
+      within(sheet).queryByRole("button", {
         name: "Copy.action",
       }),
     ).not.toBeInTheDocument();
+    expect(
+      within(sheet).getByRole("button", {
+        name: "Copy.link",
+      }),
+    ).toBeInTheDocument();
   });
 
-  it("hides Copy on a still-streaming overlay message", async () => {
+  it("hides Copy text and Copy link on a still-streaming overlay message", async () => {
     const user = userEvent.setup();
     renderRow({
       message: coworkerMessage({
@@ -574,9 +626,77 @@ describe("ChatMessageRow", () => {
 
     await user.click(screen.getByRole("button", { name: "Actions.more" }));
 
+    const sheet = screen.getByRole("dialog");
+    expect(
+      within(sheet).queryByRole("button", {
+        name: "Copy.action",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(sheet).queryByRole("button", {
+        name: "Copy.link",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("sends a message to yourself from the sheet", async () => {
+    const user = userEvent.setup();
+    const onSendToSelf = vi.fn();
+    const message = userMessage({ content: "Keep this" });
+    renderRow({ message, onSendToSelf });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Copy.sendToSelf",
+      }),
+    );
+
+    expect(onSendToSelf).toHaveBeenCalledExactlyOnceWith(message);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("sends a message to yourself from the hover overflow", async () => {
+    const user = userEvent.setup();
+    const onSendToSelf = vi.fn();
+    const message = userMessage({ content: "Keep this too" });
+    renderRow({ message, onSendToSelf });
+    await user.hover(screen.getByRole("article"));
+
+    await user.click(
+      within(hoverPill() as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Copy.sendToSelf" }),
+    );
+
+    expect(onSendToSelf).toHaveBeenCalledExactlyOnceWith(message);
+  });
+
+  it("hides Send to yourself without a handler and on a streaming overlay", async () => {
+    const user = userEvent.setup();
+    renderRow({ message: userMessage({ content: "In my Self Direct" }) });
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
     expect(
       within(screen.getByRole("dialog")).queryByRole("button", {
-        name: "Copy.action",
+        name: "Copy.sendToSelf",
+      }),
+    ).not.toBeInTheDocument();
+    cleanup();
+
+    renderRow({
+      message: coworkerMessage({
+        id: "stream:turn-1",
+        content: "Still streaming",
+      }),
+      onSendToSelf: vi.fn(),
+    });
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", {
+        name: "Copy.sendToSelf",
       }),
     ).not.toBeInTheDocument();
   });
@@ -608,7 +728,32 @@ describe("ChatMessageRow", () => {
     expect(onPin).toHaveBeenCalledTimes(1);
   });
 
-  it("shows Copy on the hover action pill", async () => {
+  it("shows Copy link on hover overflow when the body is empty", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      message: userMessage({ content: "   " }),
+      onQuote: vi.fn(),
+    });
+    await user.hover(screen.getByRole("article"));
+
+    const hoverActions = document.querySelector(
+      '[data-message-actions="hover"]',
+    );
+    expect(hoverActions).toBeTruthy();
+    await user.click(
+      within(hoverActions as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Copy.action" }),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("menuitem", { name: "Copy.link" }),
+    ).toBeInTheDocument();
+  });
+
+  it("copies a message link from the hover overflow and hides Copy text", async () => {
     const user = userEvent.setup();
     copyMock.mockClear();
     renderRow({
@@ -626,14 +771,17 @@ describe("ChatMessageRow", () => {
         name: "Actions.overflow",
       }),
     );
+    expect(
+      screen.queryByRole("menuitem", { name: "Copy.action" }),
+    ).not.toBeInTheDocument();
     await user.click(
-      await screen.findByRole("menuitem", { name: "Copy.action" }),
+      await screen.findByRole("menuitem", { name: "Copy.link" }),
     );
     expect(copyMock).toHaveBeenCalledWith(
-      "Hover copy body",
+      `${window.location.origin}/chat/rooms/room-1?message=message-1`,
       expect.objectContaining({
-        copySuccessMessage: "Copy.success",
-        copyErrorMessage: "Copy.error",
+        copySuccessMessage: "Copy.linkSuccess",
+        copyErrorMessage: "Copy.linkError",
       }),
     );
   });
@@ -873,38 +1021,18 @@ describe("ChatMessageRow", () => {
     }
   });
 
-  it("reserves hover-only right gutter on article", () => {
+  /**
+   * The text runs the full width and the opaque pill draws over it, as
+   * Slack's does. The row used to give up 16rem forever so that one hovered
+   * row had somewhere to put eight buttons.
+   */
+  it("reserves no gutter for the hover pill", () => {
     renderRow();
 
-    const article = screen.getByRole("article");
-    expect(article.className).toContain("[@media(hover:hover)]:pr-64");
-    expect(article.className.split(/\s+/)).not.toContain("pr-64");
-  });
-
-  it("widens the gutter when the pill carries the soko bot chain badge", () => {
-    renderRow({
-      message: userMessage({
-        metadata: {
-          soko_bot_chain: {
-            depth: 2,
-            max_depth: 4,
-            room_messages_this_hour: 3,
-            room_messages_per_hour: 20,
-          },
-        },
-      }),
-    });
-
-    const article = screen.getByRole("article");
-    expect(article.className).toContain("[@media(hover:hover)]:pr-72");
-    expect(article.className).not.toContain("pr-64");
-  });
-
-  it("skips the hover action gutter so a narrow thread can use full width", () => {
-    renderRow({ reserveHoverActionGutter: false });
-
-    const article = screen.getByRole("article");
-    expect(article.className).not.toContain("pr-64");
+    const tokens = screen.getByRole("article").className.split(/\s+/);
+    expect(tokens).not.toContain("[@media(hover:hover)]:pr-64");
+    expect(tokens).not.toContain("[@media(hover:hover)]:pr-72");
+    expect(tokens).toContain("px-2");
   });
 
   it("gives the hover pill the pointer only while it shows", async () => {
@@ -923,6 +1051,27 @@ describe("ChatMessageRow", () => {
     expect(pillClasses).toContain("focus-within:pointer-events-auto");
   });
 
+  /**
+   * A row with a name-and-time header has an empty right half on that line
+   * for the pill to park in, hiding nothing. A continuation has no header, so
+   * it lifts clear onto the line above instead of covering its own first one.
+   */
+  it("parks the hover pill on the header line", async () => {
+    const user = userEvent.setup();
+    renderRow();
+    await user.hover(screen.getByRole("article"));
+
+    expect(hoverPill()?.className.split(/\s+/)).toContain("-translate-y-1/4");
+  });
+
+  it("lifts the hover pill clear of a row that has no header", async () => {
+    const user = userEvent.setup();
+    renderRow({ isContinuation: true });
+    await user.hover(screen.getByRole("article"));
+
+    expect(hoverPill()?.className.split(/\s+/)).toContain("-translate-y-3/4");
+  });
+
   it("keeps the hover pill inert while its More menu is open", async () => {
     const user = userEvent.setup();
     renderRow();
@@ -931,7 +1080,7 @@ describe("ChatMessageRow", () => {
     await user.click(
       within(pill).getByRole("button", { name: "Actions.overflow" }),
     );
-    await screen.findByRole("menuitem", { name: "Copy.action" });
+    await screen.findByRole("menuitem", { name: "Copy.link" });
 
     const pillClasses = pill.className.split(/\s+/);
     expect(pillClasses).toContain("[@media(hover:hover)]:pointer-events-none");
@@ -968,6 +1117,32 @@ describe("ChatMessageRow", () => {
     expect(onJumpToQuotedMessage).toHaveBeenCalledExactlyOnceWith(
       "quoted-original",
     );
+  });
+
+  it("opens the Message link for a quote from another room without an empty body", async () => {
+    const user = userEvent.setup();
+    const onJumpToQuotedMessage = vi.fn();
+    renderRow({
+      message: userMessage({
+        content: "",
+        quote: {
+          messageId: "source-message",
+          roomId: "source-room",
+          authorName: "Bob",
+          snippet: "Saved for later",
+        },
+      }),
+      onJumpToQuotedMessage,
+    });
+
+    expect(screen.queryByTestId("room-message-body")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Jump to message from Bob" }),
+    );
+    expect(routerPushMock).toHaveBeenCalledExactlyOnceWith(
+      "/chat/rooms/source-room?message=source-message",
+    );
+    expect(onJumpToQuotedMessage).not.toHaveBeenCalled();
   });
 
   it("shows quote image attachment as inert thumbnail, not a link", () => {
@@ -1131,6 +1306,93 @@ describe("ChatMessageRow", () => {
     const chip = screen.getByTestId("chip");
     expect(chip).toHaveAttribute("data-variant", "thumb");
     expect(chip).toHaveAttribute("data-size-class", "size-16");
+  });
+
+  describe("message image gallery", () => {
+    function openedImageName(): string | null {
+      return (
+        screen
+          .getByTestId("image-viewer-stage")
+          .querySelector("img[data-zoom]")
+          ?.getAttribute("alt") ?? null
+      );
+    }
+
+    it("steps through the message's images across rows, skipping other files", async () => {
+      const user = userEvent.setup();
+      renderRow({
+        message: userMessage({
+          content: [
+            "Three photos from yesterday",
+            "[stage.jpg](https://cdn.example/stage.jpg) [panel.jpg](https://cdn.example/panel.jpg) [agenda.pdf](https://cdn.example/agenda.pdf)",
+            "",
+            "And the room:",
+            "[crowd.jpg](https://cdn.example/crowd.jpg)",
+          ].join("\n"),
+        }),
+      });
+
+      await user.click(screen.getByRole("button", { name: "panel.jpg" }));
+
+      expect(openedImageName()).toBe("panel.jpg");
+      expect(screen.getByTestId("image-viewer-toolbar")).toHaveTextContent(
+        "2 / 3",
+      );
+
+      await user.keyboard("{ArrowRight}");
+      expect(openedImageName()).toBe("crowd.jpg");
+    });
+
+    it("closes when an edit removes the open image and stays closed when it returns", async () => {
+      const user = userEvent.setup();
+      const withImages = userMessage({
+        content:
+          "[stage.jpg](https://cdn.example/stage.jpg) [panel.jpg](https://cdn.example/panel.jpg)",
+      });
+      const row = (message: ChatRoomMessage) => (
+        <ChatMessageRow
+          message={message}
+          coworkersById={new Map()}
+          coworkersBySlug={new Map()}
+          onToggleReaction={vi.fn()}
+        />
+      );
+      const { rerender } = render(row(withImages));
+
+      await user.click(screen.getByRole("button", { name: "panel.jpg" }));
+      expect(openedImageName()).toBe("panel.jpg");
+
+      rerender(
+        row({
+          ...withImages,
+          content: "[stage.jpg](https://cdn.example/stage.jpg)",
+        }),
+      );
+      expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
+
+      rerender(row(withImages));
+      expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
+    });
+
+    it("counts an image linked twice once", async () => {
+      const user = userEvent.setup();
+      renderRow({
+        message: userMessage({
+          content: [
+            "[stage.jpg](https://cdn.example/stage.jpg) [panel.jpg](https://cdn.example/panel.jpg)",
+            "",
+            "again:",
+            "[stage.jpg](https://cdn.example/stage.jpg)",
+          ].join("\n"),
+        }),
+      });
+
+      await user.click(screen.getAllByRole("button", { name: "stage.jpg" })[1]);
+
+      expect(screen.getByTestId("image-viewer-toolbar")).toHaveTextContent(
+        "1 / 2",
+      );
+    });
   });
 
   it("does not line-clamp bodies that include a large solo image attachment", () => {
@@ -1823,56 +2085,60 @@ describe("ChatMessageRow", () => {
   });
 
   it("does not cancel on blur when draft is dirty", async () => {
-    const user = userEvent.setup();
-    const onCancelEdit = vi.fn();
+    vi.useFakeTimers();
+    try {
+      const onCancelEdit = vi.fn();
 
-    renderRow({
-      message: userMessage({ content: "Original" }),
-      currentUserId: "user-1",
-      onStartEdit: vi.fn(),
-      isEditing: true,
-      editDraft: "Original fixed",
-      onEditDraftChange: vi.fn(),
-      onCancelEdit,
-      onSaveEdit: vi.fn(),
-    });
-
-    const editor = screen.getByRole("textbox");
-    editor.focus();
-    await user.tab();
-    await act(async () => {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 200);
+      renderRow({
+        message: userMessage({ content: "Original" }),
+        currentUserId: "user-1",
+        onStartEdit: vi.fn(),
+        isEditing: true,
+        editDraft: "Original fixed",
+        onEditDraftChange: vi.fn(),
+        onCancelEdit,
+        onSaveEdit: vi.fn(),
       });
-    });
-    expect(onCancelEdit).not.toHaveBeenCalled();
+
+      const editor = screen.getByRole("textbox");
+      editor.focus();
+      await act(async () => {
+        fireEvent.blur(editor);
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(onCancelEdit).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not cancel on blur when live DOM is dirty but draft prop is stale", async () => {
-    const user = userEvent.setup();
-    const onCancelEdit = vi.fn();
+    vi.useFakeTimers();
+    try {
+      const onCancelEdit = vi.fn();
 
-    renderRow({
-      message: userMessage({ content: "Original" }),
-      currentUserId: "user-1",
-      onStartEdit: vi.fn(),
-      isEditing: true,
-      editDraft: "Original",
-      onEditDraftChange: vi.fn(),
-      onCancelEdit,
-      onSaveEdit: vi.fn(),
-    });
-
-    const editor = screen.getByRole("textbox");
-    editor.focus();
-    editor.textContent = "Original fixed live";
-    await user.tab();
-    await act(async () => {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 200);
+      renderRow({
+        message: userMessage({ content: "Original" }),
+        currentUserId: "user-1",
+        onStartEdit: vi.fn(),
+        isEditing: true,
+        editDraft: "Original",
+        onEditDraftChange: vi.fn(),
+        onCancelEdit,
+        onSaveEdit: vi.fn(),
       });
-    });
-    expect(onCancelEdit).not.toHaveBeenCalled();
+
+      const editor = screen.getByRole("textbox");
+      editor.focus();
+      editor.textContent = "Original fixed live";
+      await act(async () => {
+        fireEvent.blur(editor);
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(onCancelEdit).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("cancels on Enter when draft is empty", async () => {
@@ -2161,7 +2427,9 @@ describe("ChatMessageRow", () => {
     );
   });
 
-  it("hides the unfurl card when the preview image fails and there is no description", () => {
+  it("keeps a title-only card when the preview image fails and there is no description", () => {
+    // Some image hosts (X) answer 403 to browsers that carry their login
+    // cookie; the link is still worth a labelled card.
     renderRow({
       message: userMessage({
         content: "https://youtube.com/watch?v=1",
@@ -2181,7 +2449,11 @@ describe("ChatMessageRow", () => {
       screen.getByRole("img", { name: "Preview image for Watch" }),
     );
 
-    expect(screen.queryByTestId("room-message-unfurl")).not.toBeInTheDocument();
+    const card = screen.getByTestId("room-message-unfurl");
+    expect(card).toHaveAttribute("href", "https://youtube.com/watch?v=1");
+    expect(card).toHaveTextContent("YouTube");
+    expect(card).toHaveTextContent("Watch");
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 
   it("shows a replacement thumbnail after a later scrape when the first image failed", () => {
@@ -2212,7 +2484,10 @@ describe("ChatMessageRow", () => {
     fireEvent.error(
       screen.getByRole("img", { name: "Preview image for Watch" }),
     );
-    expect(screen.queryByTestId("room-message-unfurl")).not.toBeInTheDocument();
+    expect(screen.getByTestId("room-message-unfurl")).toHaveTextContent(
+      "Watch",
+    );
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
 
     rerender(
       <ChatMessageRow

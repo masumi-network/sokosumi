@@ -5,7 +5,7 @@ import SokosumiChat
 
 public extension WorkspaceState {
   func canAttachFiles(roomId: String) -> Bool {
-    transcriptRoomId == roomId && !transcriptLoading && directStream.roomId != roomId
+    transcriptRoomId == roomId && !transcriptLoading
   }
 
   func driveItems(folder: String, query: String, roomId: String, auth: AuthState) async throws -> [Components.Schemas.DriveItem] {

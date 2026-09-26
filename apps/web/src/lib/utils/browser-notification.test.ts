@@ -8,11 +8,10 @@ import {
 } from "@/lib/utils/browser-notification";
 
 describe("shouldShowBrowserNotification", () => {
-  it("shows when granted, unread, and document unfocused (including visible-but-unfocused)", () => {
+  it("shows when granted and unread", () => {
     expect(
       shouldShowBrowserNotification({
         permission: "granted",
-        isDocumentFocused: false,
         isRead: false,
       }),
     ).toBe(true);
@@ -22,31 +21,21 @@ describe("shouldShowBrowserNotification", () => {
     expect(
       shouldShowBrowserNotification({
         permission: "default",
-        isDocumentFocused: false,
         isRead: false,
       }),
     ).toBe(false);
     expect(
       shouldShowBrowserNotification({
         permission: "denied",
-        isDocumentFocused: false,
         isRead: false,
       }),
     ).toBe(false);
   });
 
-  it("hides when the document is focused or the notification is read", () => {
+  it("hides when the notification is read", () => {
     expect(
       shouldShowBrowserNotification({
         permission: "granted",
-        isDocumentFocused: true,
-        isRead: false,
-      }),
-    ).toBe(false);
-    expect(
-      shouldShowBrowserNotification({
-        permission: "granted",
-        isDocumentFocused: false,
         isRead: true,
       }),
     ).toBe(false);
@@ -56,7 +45,6 @@ describe("shouldShowBrowserNotification", () => {
     expect(
       shouldShowBrowserNotification({
         permission: "unsupported",
-        isDocumentFocused: false,
         isRead: false,
       }),
     ).toBe(false);

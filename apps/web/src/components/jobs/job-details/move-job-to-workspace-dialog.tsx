@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { buildWorkspaceMoveTargets } from "@/app/tasks/components/workspace-move-targets";
-import { OrganizationLogo } from "@/components/organizations";
+import { OrganizationLogo } from "@/components/organizations/organization-logo";
 import {
   AlertDialog,
   AlertDialogCancel,

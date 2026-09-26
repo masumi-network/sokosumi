@@ -1,6 +1,6 @@
 # ADR 0026: Room unread chrome follows history resolved
 
-- Status: Accepted
+- Status: Accepted. Its rejection of "numeric unread on the row" is superseded in two steps: [ADR-0027](./0027-room-unread-count-is-a-reader-opt-in.md) allowed the number as a reader opt-in, and [ADR-0038](./0038-room-unread-count-is-on-by-default.md) shows it unless the reader switches it off. The known limitation recorded below still applies to that number.
 - Date: 2026-08-27
 
 **Room last-read** advances when that room’s main transcript **history has resolved on screen** (messages loaded, or the room is confirmed empty)—for every membership-visible room. Unread chrome (list bold, mention badge, Chats tab presence, document title) must match **post-read truth on first paint**, including after mobile back-navigation remounts the list. The client treats the room as locally read at that moment; a failed write restores unread. A failed history load does not advance last-read. Manual mark-as-unread clears when history resolves.

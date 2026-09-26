@@ -28,7 +28,12 @@ vi.mock("@/components/chat/use-show-room-unread-count", () => ({
   useShowRoomUnreadCount: () => true,
 }));
 
-vi.mock("@/components/ui/sidebar", () => ({
+// The real module under the overrides, so `SidebarRowSlot` — the shared
+// leading slot every row sits its mark in — is the one the app ships.
+vi.mock("@/components/ui/sidebar", async () => ({
+  ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
+    "@/components/ui/sidebar",
+  )),
   SidebarMenuButton: ({
     children,
     asChild,
@@ -37,6 +42,8 @@ vi.mock("@/components/ui/sidebar", () => ({
     asChild?: boolean;
   }) =>
     asChild === true && isValidElement(children) ? children : <>{children}</>,
+  // The row asks whether the rail is collapsed, to offer its thread flyout.
+  useSidebar: () => ({ state: "expanded", isMobile: false }),
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
@@ -95,13 +102,32 @@ describe("ChatRoomSidebarRow against the English catalog", () => {
     expect(screen.getByText("7 unread messages")).toBeInTheDocument();
   });
 
-  it("announces both numbers past the shared cap", () => {
-    renderRow(makeRoom({ unreadCount: 1234, unreadMentionCount: 1234 }));
+  // The collapsed rail's pill is announced through two keys of its own.
+  it("names the rail pill's two states from the catalog", () => {
+    const { unmount } = renderRow(makeRoom({ unreadMentionCount: 1 }));
+    expect(screen.getByText("Mentions you")).toBeInTheDocument();
+    unmount();
+
+    renderRow(makeRoom({ unreadCount: 1 }));
+    expect(screen.getByText("Unread")).toBeInTheDocument();
+  });
+
+  // A row shows one number, so each cap is announced on its own row.
+  it("announces a message count past the cap", () => {
+    renderRow(makeRoom({ unreadCount: 1234 }));
 
     expect(
       screen.getByText("More than 99 unread messages"),
     ).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-slot="room-unread-count"]'),
+    ).toHaveTextContent("99+");
+  });
+
+  it("announces a mention count past the cap", () => {
+    renderRow(makeRoom({ unreadCount: 1234, unreadMentionCount: 1234 }));
+
     expect(screen.getByText("More than 99 mentions")).toBeInTheDocument();
-    expect(screen.getByText("· 99+")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByText("More than 99 unread messages")).toBeNull();
   });
 });

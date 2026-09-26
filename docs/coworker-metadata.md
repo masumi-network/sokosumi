@@ -190,14 +190,18 @@ and the default tab.
 | `text` | rendered **Markdown** | `text` |
 | `html` | **sandboxed iframe** (scripts run) | `url` or `text` |
 
-### Always use the canonical `type` value
+### Prefer the canonical `type` value
 
-The `type` MUST be one of these exact values:
+The schema stores one of these kinds:
 
 > `pdf` · `image` · `slides` · `doc` · `sheet` · `text` · `html`
 
-**Do NOT use file extensions** (`docx`, `pptx`, `xlsx`, `png`, …) as the `type`.
-Map your file to the canonical kind instead:
+Prefer those names in authored metadata. Core also **accepts common file
+extensions and normalizes** them (`docx`→`doc`, `pptx`→`slides`,
+`xlsx`/`xls`/`csv`→`sheet`, `png`/`jpg`→`image`, `md`→`text`, `htm`→`html`).
+Unknown strings still fail validation.
+
+Map your file to the canonical kind (or use a listed alias):
 
 | Your file | Use `type` |
 | --- | --- |
@@ -208,12 +212,6 @@ Map your file to the canonical kind instead:
 | PDF | `pdf` |
 | Markdown / plain text | `text` |
 | Web page / interactive HTML | `html` |
-
-> ⚠️ Extensions like `docx`/`xlsx`/`pptx` are accepted **only as a fallback on the
-> latest deployment** (normalized to `doc`/`sheet`/`slides`). On an older
-> deployment they are **rejected**, and an invalid `type` **breaks the entire
-> coworker list** (the page won't load). The canonical names are always correct,
-> so use them. Any value outside the canonical list (e.g. `zip`) is rejected.
 
 ### `url` vs `text`
 
@@ -314,7 +312,7 @@ hosts are fine).
 The second offer has three outputs → the preview shows three tabs
 ("Landing Page Brief", "Consumer Research", "SEO Intelligence"), with the brief
 shown first. Note the canonical types: a Word file is `doc` and a spreadsheet is
-`sheet` — never `docx`/`xlsx`.
+`sheet`. Core also accepts `docx`/`xlsx` and normalizes them.
 
 ### An interactive HTML output
 
@@ -351,26 +349,9 @@ shown first. Note the canonical types: a Word file is `doc` and a spreadsheet is
 - **`channels` is required** (it can be `{}`, but the key must exist).
 - Per offer, only **`title` + `prompt`** are required.
 - **Invalid data breaks the whole coworker list**, not just one card — most
-  commonly an unsupported `type`. Use only the canonical type values.
-- **Use canonical types, never file extensions** — `doc` not `docx`, `slides`
-  not `pptx`, `sheet` not `xlsx`.
+  commonly an unsupported `type`. Prefer the canonical type values.
+- **Prefer canonical types** — `doc` not `docx` in examples; Core still
+  normalizes those extensions (`docx`→`doc`, `pptx`→`slides`, `xlsx`→`sheet`).
 - **Hosted files must be public** and (for `html`) embeddable in an iframe.
 - **`email`/`whatsapp` are plain strings** — not Markdown links.
 - `outputs` has no "folder" concept — list each file as its own entry.
-
-### Deployment / compatibility (read this)
-
-Not every type is live everywhere yet. Pick by where you're editing:
-
-| Type | Availability |
-| --- | --- |
-| `pdf`, `image`, `slides`, `doc`, `text` | **Safe everywhere** |
-| `html` | Needs a recent deployment |
-| `sheet` | Newest — needs the latest deployment |
-| extension aliases (`docx`, `xlsx`, `pptx`, …) | Latest only — **avoid; use canonical types** |
-
-Using a type the target environment doesn't have yet is rejected and **breaks the
-whole page**. On the **current mainnet** the safe set is
-`pdf · image · slides · doc · text · html`. If unsure, confirm the environment is
-up to date (or use `pdf`, which works everywhere) before using `sheet`. Never use
-extension aliases.

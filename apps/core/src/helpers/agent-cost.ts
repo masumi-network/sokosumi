@@ -20,7 +20,7 @@ import { unprocessableEntity } from "./error";
  * unit reaching these readers would be charged 10^decimals× wrong. Each
  * entry point fences that out explicitly.
  *
- * The fence is `isEvmNamespacedUnit`, NOT `isCaip19AssetKey`: this is an
+ * The fence is `isEvmNamespacedUnit`, not a canonical-key matcher: this is an
  * exclusion, so it must catch the whole `eip155:` namespace including
  * misspellings (a leading-zero chain id fails the canonical pattern but
  * would still be a 10^decimals mischarge if priced here). See the fence's

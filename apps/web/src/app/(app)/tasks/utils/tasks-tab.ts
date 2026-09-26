@@ -8,7 +8,7 @@ export function parseTasksTab(
 ): TasksTabValue {
   const value =
     typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : undefined;
-  return value === "jobs" ? "jobs" : DEFAULT_TASKS_TAB;
+  return TASKS_TAB_VALUES.find((tab) => tab === value) ?? DEFAULT_TASKS_TAB;
 }
 
 export function applyTasksTabSearchParam(

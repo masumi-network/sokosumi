@@ -11,14 +11,13 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
-  getChatRoomPinnedMessageCounts,
-  getChatRoomSidebarFlags,
-  mapChatRoom,
+  mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
 } from "../../helpers";
 import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  roomUnreadFields,
 } from "../../room-unread";
 
 const paramsSchema = z.object({
@@ -55,41 +54,38 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const room = await prisma.$transaction(async (tx) => {
-      const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
+    const room = await requireChatRoomUserAccess(
+      id,
+      userContext.userId,
+      prisma,
+    );
 
-      await tx.chatRoomUserMember.update({
-        where: {
-          roomId_userId: {
-            roomId: room.id,
-            userId: userContext.userId,
-          },
+    await prisma.chatRoomUserMember.update({
+      where: {
+        roomId_userId: {
+          roomId: room.id,
+          userId: userContext.userId,
         },
-        data: { starredAt: null },
-      });
-
-      return room;
+      },
+      data: { starredAt: null },
     });
 
-    const [unreadCounts, unreadMentionCounts, sidebarFlags, pinnedCounts] =
-      await Promise.all([
-        getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
-        getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
-        getChatRoomSidebarFlags([room.id], userContext.userId, prisma),
-        getChatRoomPinnedMessageCounts([room.id], prisma),
-      ]);
-    const flags = sidebarFlags.get(room.id);
+    const [unreadCounts, unreadMentionCounts] = await Promise.all([
+      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
+      getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
+    ]);
 
     return ok(
       c,
       chatRoomSchema.parse(
-        mapChatRoom(room, userContext.userId, {
-          unreadCount: unreadCounts.get(room.id) ?? 0,
+        await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
+          ...(await roomUnreadFields(
+            unreadCounts.get(room.id),
+            room.id,
+            userContext.userId,
+            prisma,
+          )),
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-          starredAt: null,
-          pinnedMessageCount: pinnedCounts.get(room.id) ?? 0,
-          mutedAt: flags?.mutedAt ?? null,
-          markedUnread: flags?.markedUnread ?? false,
         }),
       ),
     );

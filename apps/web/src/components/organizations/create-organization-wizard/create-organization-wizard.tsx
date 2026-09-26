@@ -4,6 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   buildOrganizationMetadataWithUrl,
   normalizeWebsiteUrl,
+  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
 } from "@sokosumi/utils";
 import {
   ArrowLeft,
@@ -39,8 +41,8 @@ import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-swi
 import {
   DESIGN_MD_TRANSLATION_NAMESPACE,
   type DesignMdOwner,
-  useDesignMdGeneration,
-} from "@/components/design-md";
+} from "@/components/design-md/types";
+import { useDesignMdGeneration } from "@/components/design-md/use-design-md-generation";
 import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,16 +68,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  createOrganizationInviteLink,
   generateOrganizationSlug,
   inviteOrganizationMembersBulk,
-  resolveOrganizationSiteIcon,
-} from "@/lib/actions";
+} from "@/lib/actions/organization/action";
+import { createOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
+import { resolveOrganizationSiteIcon } from "@/lib/actions/organization/site-icon-action";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   ORGANIZATION_LOGO_ACCEPT,
-  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
-  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
   ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
 } from "@/lib/constants/organization-logo";
 import { cn } from "@/lib/utils";

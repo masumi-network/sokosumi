@@ -8,6 +8,8 @@ import { VendorLoadError } from "@/components/admin/vendors/vendor-load-error";
 import { Button } from "@/components/ui/button";
 import { adminVendorService } from "@/lib/services/admin-vendor.service";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Edit vendor",
   description: "Edit vendor name and logos",

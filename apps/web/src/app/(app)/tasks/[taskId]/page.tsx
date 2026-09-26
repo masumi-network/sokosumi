@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { TaskDetailView } from "@/app/tasks/components/task-detail-view";
 import { TaskWorkspaceSwitchDialog } from "@/app/tasks/components/task-workspace-switch-dialog";
+import { MarkNotificationsRead } from "@/components/notifications/mark-notifications-read.client";
 import { getSession } from "@/lib/auth/auth.server";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
@@ -29,7 +30,15 @@ export default async function TaskDetailPage({
   }
 
   if (task) {
-    return <TaskDetailView task={task} />;
+    return (
+      <>
+        <TaskDetailView task={task} />
+        {/* Opening the task is reading what its notifications were about.
+            Not on the admin or developer views: those inspect someone else's
+            task rather than act on it. */}
+        <MarkNotificationsRead kind="TASK" referenceId={task.id} />
+      </>
+    );
   }
 
   const taskWorkspace = await taskService.getTaskWorkspace(taskId);

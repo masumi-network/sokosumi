@@ -1,28 +1,32 @@
 # Sokosumi Apple Clients Agent Guidelines
 
-> **Purpose**: This document provides app-specific guidelines for AI agents working on the native macOS/iOS clients. For comprehensive monorepo guidelines, see the [root AGENTS.md](../../AGENTS.md). Before Apple work, read [`VISION.md`](./VISION.md) for the ongoing goal and [`PARITY.md`](./PARITY.md) for the authorized scope, iteration rules, current PR, and verification record. Verify the handoff against GitHub before continuing.
+> **Purpose**: This document provides app-specific guidelines for AI agents working on the native macOS/iOS clients. For comprehensive monorepo guidelines, see the [root AGENTS.md](../../AGENTS.md). Before Apple work, read [`VISION.md`](./VISION.md) for the ongoing goal and [`PARITY.md`](./PARITY.md) for the authorized scope, iteration rules, current PR, and verification record. Verify the handoff against GitHub before continuing. The next parity row runs in its own session, started with `/apple-parity-next`.
 
 ## App-Specific Architecture
 
-**Stack**: One Xcode project (`Sokosumi.xcodeproj`, product `Sokosumi`), macOS target first, shared Swift packages under `Packages/` (first: `CoreAPI`, generated via Swift OpenAPI Generator). No iOS target yet; packages must stay free of AppKit/SwiftUI so iOS can link them later. No `package.json`. Xcode is outside turbo and Biome. Swift tooling (SwiftLint, SwiftFormat) installs via Mint with exact pins in `Mintfile`, not Homebrew directly.
+**Stack**: One Xcode workspace (`Sokosumi.xcworkspace`) holding `Sokosumi.xcodeproj` (product `Sokosumi`) and the five local packages as root packages, so the `Sokosumi` scheme runs the app tests and every package suite in one command. Build and test through the workspace, not the project — `-project` cannot reach the package test targets. macOS target first, shared Swift packages under `Packages/` (first: `CoreAPI`, generated via Swift OpenAPI Generator). No iOS target yet; packages must stay free of AppKit/SwiftUI so their domain behavior remains extractable for future native clients. No `package.json`. Xcode is outside turbo and Biome. Swift tooling (SwiftLint, SwiftFormat) installs via Mint with exact pins in `Mintfile`, not Homebrew directly.
 
-**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and Keychain persistence), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar/RoomTimeline, avatar loading, scoped room/draft persistence, rooms/chat flows), `Packages/SokosumiRealtime/` (portable Ably connection, token source, room subscriptions), `Packages/SokosumiWorkspace/` (portable cross-package coordinator and integration tests), `SokosumiTests/` (app-target tests).
+**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and the TokenStore port), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar/RoomTimeline, avatar loading, scoped room/draft persistence, rooms/chat flows), `Packages/SokosumiRealtime/` (Ably transport adapter, domain event delivery, room subscriptions and org presence), `Packages/SokosumiWorkspace/` (portable cross-package coordinator and integration tests), `SokosumiTests/` (app-target tests).
 
 ## Source navigation
 
 The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-synchronized groups. Add Swift files to the owning folder; do not add parallel virtual groups or manual build-file entries.
 
-- `App/`: app scenes, `ChatRootView` and endpoint configuration.
-- `Authentication/`: sign-in presentation, app OAuth configuration and system-browser adapter.
+- `App/`: app scenes, `ChatRootView`, endpoint configuration and the Mac presence activity monitor.
+- `Authentication/`: sign-in presentation, app OAuth configuration, system-browser adapter and Keychain adapter for `TokenStore`.
 - `Packages/SokosumiWorkspace/`: shared workspace, room and realtime coordination; thread orchestration is in `WorkspaceState+Threads.swift`.
 - `Chat/Sidebar/`: conversation sections, workspace/account menus and room labels.
 - `Chat/Timeline/`: room scrolling, message rows and timeline status rows.
 - `Chat/Threads/`: reply-thread presentation.
 - `Chat/Pins/`: pinned-message inspector and preview cards; pin state and networking stay in the shared packages.
+- `Chat/Search/`: Room Find toolbar, shared inspector presentation and search result rows.
+- `Chat/Details/`: room details/roster inspector, channel settings sheet, lifecycle confirmations and the host-side guest access section; guest state and networking stay in the shared packages.
+- `Chat/Invitations/`: channel invitation and guest join-link sheets; invitation state and networking stay in the shared packages.
 - `Chat/Composer/`: draft-owning rich composer, Drive picker (`DriveFilePickerView`) and isolated native text input.
-- `Chat/Rendering/`: Markdown, code, expansion, coworker thought, and attachment chips/previews (`MessageAttachmentView`, `DocumentAttachmentPreview`, `NativeOfficePreview`).
-- `Shared/`: reusable participant avatar, `ParticipantProfileButton` and `ParticipantDetailsView`. Avatar networking remains in `SokosumiChat`.
-- `Settings/`: Settings scene content.
+- `Chat/Rendering/`: Markdown, code, expansion, coworker thought, and attachment chips/previews (`MessageAttachmentView`, `MessageImageViewer`, `DocumentAttachmentPreview`, `NativeOfficePreview`).
+- `Shared/`: reusable participant avatar, `PresenceDot`, `ParticipantProfileButton` and `ParticipantDetailsView`. Avatar networking and presence state remain in `SokosumiChat`.
+- `Settings/`: Settings scene content and the `timeFormat` environment value; preference state and networking stay in the shared packages.
+- `Notifications/`: `UNUserNotificationCenter` adapter (`ChatNotificationCenter`) and its lifecycle modifier for local chat banners while the app runs. The banner rules, preferences and navigation stay in the shared packages; no push registration.
 
 `SokosumiTests/` mirrors the relevant feature folders. Shared packages keep their existing platform-agnostic ownership. Name files after their main type; use role-specific names rather than generic `ContentView` or helper buckets. Extract independent views without changing their state identity or widening private orchestration state just to shorten a file.
 
@@ -37,12 +41,25 @@ Read [README.md](README.md#architecture-and-navigation) for the dependency map a
 - Package code must never import the app target or UI frameworks. Parsing produces portable models; SwiftUI rendering consumes them.
 - For structural changes, run the same app/affected-package tests before and after. Verify the diff for changed defaults, state lifetime, async ordering, access control and generated/project configuration.
 
+## Portable domain / future clients
+
+- Packages own the domain, not only preparation for iOS. Public domain models must not mention Keychain, `UNUserNotificationCenter`, `ASWebAuthenticationSession`, `NSWorkspace`, or `ably-cocoa` types.
+- Token persistence uses the `TokenStore` port. Keychain belongs in the app target or an Apple adapter, never in domain types. Auth package tests use in-memory stores.
+- `SokosumiRealtime` translates transport deliveries into domain events (`ResolvedRealtimeDelivery`); `SokosumiChat` applies message, thread and presence rules. Chat/Workspace public domain APIs must not expose SDK connection objects or Ably types. Keep the transport-neutral `RealtimeConnection` factory at the composition boundary only.
+- Every new domain rule needs a UI-free test: given state + event → new state. Golden fixtures live in `SokosumiChatTests/Fixtures/Golden`; use fixed time and IDs. A slice changing domain behavior is incomplete if it only adds app/UI tests.
+- Do not grow `WorkspaceState` into a god object. New behavior belongs in Chat/Auth/Realtime first; Workspace composes their lifecycles.
+- Inject a `Clock` or time provider and ID generation into domain code. No hidden `Date()` or UUID generation inside reducers.
+- Local persistence schemas are versioned contracts with one migration site per schema. Do not add ad-hoc `UserDefaults` access in views.
+- Core OpenAPI remains the only DTO source. Do not hand-copy “almost Core” structs.
+- Keep `#if os(macOS)` out of packages except a documented, tiny compatibility shim.
+- Keep the SwiftUI Apple client. Do not add UniFFI, a Rust core, `apps/windows`, or `apps/linux` for this work. Starting a second native client requires a separate ADR and directory; shared-core extraction waits until that client is committed.
+
 ## App-Specific Conventions
 
 - **Talk to Core only.** Bearer OAuth token, `X-Organization-Slug` for org workspaces, omitted for personal. No Prisma, no Postgres, no `@sokosumi/database` from Swift.
 - **Packages stay UI-free.** No `import SwiftUI`/`AppKit` under `Packages/`; Mac chrome lives in `Sokosumi/`.
 - **Style**: human-review baseline is the Kodeco Swift style guide; machine truth is `.swiftformat` + `.swiftlint.yml` (CI-enforced). See the [Swift style rule](../../.cursor/rules/swift-style.mdc) for the baseline and the deliberate deviations.
-- **UI/UX parity**: before changing chat UI, inspect the corresponding web source and running interaction or supplied recording. Preserve action availability, loading/error states, spacing hierarchy, focus and hover behavior while using native controls. Inspect edge clipping, rounded-corner transitions, text truncation, icon alignment, and padding while scrolling and resizing, including avatars and reactions near the composer. Verify the rendered Apple result; passing builds alone do not prove visual correctness. Record any unverified interaction explicitly.
+- **UI/UX parity**: current web behavior takes precedence over stale requirements; update `PARITY.md` to match and proceed without a scope question for that discrepancy. Preserve explicit native-control preferences and the authorized chat boundary. Before changing chat UI, inspect the corresponding web source and running interaction or supplied recording. Preserve action availability, loading/error states, spacing hierarchy, focus and hover behavior while using native controls. Inspect edge clipping, rounded-corner transitions, text truncation, icon alignment, and padding while scrolling and resizing, including avatars and reactions near the composer. Verify the rendered Apple result; passing builds alone do not prove visual correctness. Record any unverified interaction explicitly.
 - **SwiftUI work**: load the app-scoped `swiftui-expert-skill` (`apps/apple/.agents/skills/`) when writing, reviewing, or refactoring SwiftUI. Never install it at the repo root. Hop `@Published` writes off the current view update (Gotchas).
 
 ## App-Specific Commands
@@ -59,36 +76,54 @@ Run from `apps/apple/` (always via `mint run` so the pinned versions execute):
 mint run swiftformat .                  # format the tree
 mint run swiftformat --lint .           # check formatting without writing (CI runs this)
 mint run swiftlint lint --strict        # lint (CI runs this)
-xcodebuild -project Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug \
+xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug \
   -destination 'platform=macOS,arch=arm64' \
   -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build
-swift test --package-path Packages/SokosumiChat   # per-package tests
-swift test --package-path Packages/SokosumiAuth
-swift test --package-path Packages/CoreAPI
-swift test --package-path Packages/SokosumiRealtime
-swift test --package-path Packages/SokosumiWorkspace
+xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- \
+  -enableCodeCoverage NO                # app tests + all five package suites
+swift test --package-path Packages/SokosumiChat   # fast single-package rerun
 ```
 
-No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides with `DEVELOPMENT_TEAM=` / `CODE_SIGN_IDENTITY=-` (ad-hoc). Keep those flags when adding CI steps.
+CI holds no Apple certificates for the gate job, so `Xcode test` overrides with `DEVELOPMENT_TEAM=` / `CODE_SIGN_IDENTITY=-` (ad-hoc). Keep those flags when adding steps to that job. **`Publish macOS DMG` is the exception and must stay one:** it archives with `DEVELOPMENT_TEAM=$TEAM_ID`, `CODE_SIGN_STYLE=Manual` and `CODE_SIGN_IDENTITY="Developer ID Application"`, because a downloadable build has to be genuinely signed. Do not paste the ad-hoc flags into it.
 
 ## App-Specific Testing
 
-- Swift package tests run via `swift test --package-path Packages/<name>`; app-target tests via `xcodebuild test -only-testing:SokosumiTests`.
+- The `Sokosumi` workspace scheme runs all six suites: `SokosumiTests` plus `CoreAPITests`, `SokosumiAuthTests`, `SokosumiChatTests`, `SokosumiRealtimeTests` and `SokosumiWorkspaceTests`. Narrow a run with `-only-testing:<target>`, or use `swift test --package-path Packages/<name>` for a fast single-package rerun. A new package must be added to both `Sokosumi.xcworkspace/contents.xcworkspacedata` and the scheme's `Testables`, or its tests run nowhere.
+- **Ask Xcode before building.** `XcodeListTargets` / `XcodeListSchemes` (Xcode MCP) or `xcodebuild -workspace Sokosumi.xcworkspace -list` say which targets and schemes exist in seconds; `GetTestList` returns every test with file paths and costs roughly 15k tokens, so reach for it only to pick a specific test to run. A `TestableReference` Xcode does not recognise is dropped **silently** — `xcodebuild` exits 0 having run fewer suites — so confirm a new test target in `XcodeListTargets` rather than trusting a green run.
+- **Reuse the shared derived data.** A fresh `-derivedDataPath` costs about 3 GB. Use one only where a clean graph is the point (counting `dynamic-product` targets, see Gotchas) and delete it afterwards; several left behind fill the disk and later runs die with `No space left on device`.
+- Coverage stays off (`-enableCodeCoverage NO`): ably-cocoa's `AblyDeltaCodec` C target cannot link the profile runtime (SOK-976).
 - Fake Core HTTP at the OpenAPI `ClientTransport` boundary. Do not test SwiftUI layout, Keychain, or `ASWebAuthenticationSession` as the required suite.
-- Apple CI (`.github/workflows/apple.yml`) runs build + tests in parallel on `xcode-27` for PRs touching `apps/apple/**` (or manual dispatch), including drafts. Lint/format is a separate job with that same PR/dispatch gate, plus path-filtered pushes to `main` so the Mint binary cache is saved on the default branch.
+- Tests run in **GitHub Actions**, in one `xcodebuild test` on the `Sokosumi` **workspace** scheme, which covers the app tests and all five package suites. Do not add per-package jobs — the workspace scheme already runs them, and a package scheme on its own does not build the app host.
+- `.github/workflows/apple.yml` runs two Apple gates on `xcode-27`: `Xcode test` (the workspace scheme) and `Swift lint and format` (SwiftLint + SwiftFormat via Mint). Both run in parallel and are **required status checks** on `main`, so do not delete or rename either without updating the `Default Branch` ruleset in the same change. Both run for PRs touching `apps/apple/**`, for manual dispatch, and on path-filtered pushes to `main` (which save the Mint binary cache; PRs only restore it). Pull requests compile Debug only.
+- `Publish macOS DMG` is the Release compile, and the only job that reads the Developer ID certificate and notary key. Keep those secrets on `publish`: it runs after merge or by manual dispatch. A same-repo pull request receives repository secrets, and `xcodebuild` runs contributor-controlled build scripts and SwiftPM plugins.
+- `Publish macOS DMG` runs on **main pushes only**, after `Xcode test` is green (not `Swift lint and format` — style cannot make a binary broken, so a working notarized download is not withheld over indentation). It archives with the Developer ID certificate, exports via [`ExportOptions.plist`](ExportOptions.plist), builds a styled disk image with `dmgbuild` (layout in [`dmg-settings.py`](dmg-settings.py)), notarizes it with `notarytool --wait`, staples the ticket, and replaces the single `apple-latest` prerelease. The download URL is therefore permanent:
+  `https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg`
+  It is **not** a required status check — it never runs on a pull request, so it would never report there.
+- **To test a change to `Publish macOS DMG`, run the workflow manually** (Actions → Apple → Run workflow) on your branch. A `workflow_dispatch` run does everything including notarization, uploads the image as a run artifact, and skips the release step, so it cannot rewrite the `apple-latest` link people already have. Every run uploads the artifact, so a specific build is retrievable from the Actions tab; GitHub re-zips artifacts on download, so unzip once to reach the `.dmg`.
+- **Signing is mandatory, not decoration.** The app is `ENABLE_APP_SANDBOX = YES` and `ENABLE_HARDENED_RUNTIME = YES`, so an ad-hoc-signed build that a user downloads is quarantined and Gatekeeper refuses it outright. Notarization is what makes the disk image open on a machine that did not build it. The five secrets this needs are set by [`scripts/setup-release-signing.sh`](scripts/setup-release-signing.sh); do not hand-roll them.
+- **Two distribution channels, one owner each. Do not blur them.**
+  - **Direct download** (the `apple-latest` disk image) is built by `Publish macOS DMG` in GitHub Actions, signed with Developer ID and notarized. This is the link anyone can click.
+  - **App Store and TestFlight** are built by **Xcode Cloud**, which holds the distribution certificates and uploads to App Store Connect. `ci_scripts/ci_post_clone.sh` exists for those builds.
+
+  Neither is a fallback for the other: Developer ID and App Store are different certificates and different review paths, and Actions cannot upload to App Store Connect the way Xcode Cloud does. Do not add an App Store leg to Actions, and do not add a Developer ID DMG to Xcode Cloud.
+- **Xcode Cloud does not run on pull requests, and cannot be a required status check.** A start condition filtered to `apps/apple/**` reports nothing at all on a change it excludes, so a required context would hang every non-Apple PR forever. See [docs/xcode-cloud-required-check.md](docs/xcode-cloud-required-check.md).
 
 ## App-Specific Gotchas
 
 - **Do not hand-edit generated files.** `CoreAPI` derived sources come from Core's `openapi.json` via the OpenAPIGenerator plugin. Regenerate; never patch the output.
 - **Bumping tool versions is deliberate.** `Mintfile` pins `swiftlint`/`swiftformat` exactly. To upgrade: bump the pin, run `mint bootstrap`, run both checks, commit the pin together with any tree/config fallout. Never float the pin to chase a single new rule.
 - **Xcode template code ships 4-space indent.** Run `swiftformat .` on new files from templates.
+- **`SokosumiTests` declares no package products.** It is hosted in the app (`TEST_HOST` / `BUNDLE_LOADER`), and the app already links every package, so tests `import` those modules and bind to the app's copy. Adding a package product to the test target (Frameworks phase or `packageProductDependencies`) makes Xcode rebuild all ~75 package products as dynamic frameworks, and with code coverage on their C sources fail to link (`Undefined symbol: ___llvm_profile_runtime`). CI passes `-enableCodeCoverage NO` and would not notice; an Xcode Cloud release build or a local run with coverage on would. Check with `xcodebuild … -enableCodeCoverage YES build-for-testing` in a fresh derived-data path. A package only the tests need goes on the app target too, or into a package test target.
+- **`Bundle.module` is per target.** Giving a package's test target `resources:` generates a `Bundle.module` for that target which shadows the library's through `@testable import`, so tests reading library resources look in the test bundle and fail. `SokosumiChat` names its own bundle explicitly as `ChatResources.bundle` at every call site; do the same in any package whose tests gain resources. Reading a fixture from the source tree instead is caught by the `source_relative_fixture` lint rule.
 - **Hop `@Published` writes off the current view update.** `List(selection:)` setters, `onScrollGeometryChange` / preference callbacks, `onAppear`, and `onChange` schedule `Task { @MainActor in … }` before calling `WorkspaceState` / `AuthState`. Button and Menu actions publish in place. The models stay synchronous so tests call them directly. Lint and `xcodebuild test` do not catch this; a debug run's Issue navigator (purple SwiftUI) or `/usr/bin/log show --last 5m --info --predicate 'subsystem == "com.apple.runtime-issues" AND process == "Sokosumi"'` does. A burst of the same fault in one millisecond is this pattern.
 
 ### Interactive signing
 
 Stop each agent-launched app after its interactive check and before launching another variant. After tests, verify no test-host app remains running; close only instances launched by this task. Do not leave multiple test builds open.
 
-For interactive launches use the configured Apple Development identity and team `Y3ZJFLUYRB`, with a separate derived-data directory such as `/tmp/sokosumi-interactive-signing`. Pass `DEVELOPMENT_TEAM=Y3ZJFLUYRB CODE_SIGN_IDENTITY='Apple Development'` to Xcode. Keep ad-hoc builds for CI/tests separate from interactive launches so rebuilding does not repeatedly change the identity used to access the saved Keychain session.
+For interactive launches use the configured Apple Development identity and team `GVWN7HXYJB`, with a separate derived-data directory such as `/tmp/sokosumi-interactive-signing`. Pass `DEVELOPMENT_TEAM=GVWN7HXYJB CODE_SIGN_IDENTITY='Apple Development'` to Xcode. Keep ad-hoc builds for CI/tests separate from interactive launches so rebuilding does not repeatedly change the identity used to access the saved Keychain session.
 
 ### OAuth and Core setup
 

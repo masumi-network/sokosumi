@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getUserByIdMock = vi.fn();
+const updatePreferredOrganizationIdMock = vi.fn();
 const getMemberByUserIdAndOrganizationIdMock = vi.fn();
 const getMembersOrganizationIdsByUserIdMock = vi.fn();
 const findPersonalWorkspaceMock = vi.fn();
+const workspaceFindUniqueMock = vi.fn();
+const transactionMock = vi.fn();
 
 vi.mock("@sokosumi/database/repositories", () => ({
   userRepository: {
     getUserById: (...args: unknown[]) => getUserByIdMock(...args),
+    updatePreferredOrganizationId: (...args: unknown[]) =>
+      updatePreferredOrganizationIdMock(...args),
   },
   memberRepository: {
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
@@ -22,10 +27,18 @@ vi.mock("@sokosumi/database/repositories", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { kind: "prisma" },
+  default: {
+    $transaction: (...args: unknown[]) => transactionMock(...args),
+    workspace: {
+      findUnique: (...args: unknown[]) => workspaceFindUniqueMock(...args),
+    },
+  },
 }));
 
-import { resolveActiveOrganizationIdForSession } from "./preferred-organization.service";
+import {
+  resolveActiveOrganizationIdForSession,
+  setPreferredOrganizationId,
+} from "./preferred-organization.service";
 
 describe("resolveActiveOrganizationIdForSession", () => {
   beforeEach(() => {
@@ -104,5 +117,74 @@ describe("resolveActiveOrganizationIdForSession", () => {
     await expect(
       resolveActiveOrganizationIdForSession("user_1"),
     ).resolves.toBeNull();
+  });
+});
+
+describe("setPreferredOrganizationId", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    transactionMock.mockImplementation(async (callback) => {
+      return await callback("tx");
+    });
+  });
+
+  it("clears the preferred organization without a membership check", async () => {
+    workspaceFindUniqueMock.mockResolvedValue({ id: "ws_personal" });
+    updatePreferredOrganizationIdMock.mockResolvedValue(undefined);
+
+    await setPreferredOrganizationId("user_1", null);
+
+    expect(updatePreferredOrganizationIdMock).toHaveBeenCalledWith(
+      "user_1",
+      null,
+      expect.anything(),
+    );
+    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  it("throws 404 when switching to personal without a personal workspace", async () => {
+    workspaceFindUniqueMock.mockResolvedValue(null);
+
+    await expect(
+      setPreferredOrganizationId("user_1", null),
+    ).rejects.toMatchObject({
+      status: 404,
+      cause: { kind: "personal_workspace_missing" },
+    });
+    expect(updatePreferredOrganizationIdMock).not.toHaveBeenCalled();
+  });
+
+  it("throws 403 with a membership kind when the user is not a member", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+
+    await expect(
+      setPreferredOrganizationId("user_1", "org_1"),
+    ).rejects.toMatchObject({
+      status: 403,
+      cause: { kind: "organization_membership_required" },
+    });
+    expect(updatePreferredOrganizationIdMock).not.toHaveBeenCalled();
+  });
+
+  it("persists the preferred organization inside the membership transaction", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      id: "member_1",
+      role: "member",
+    });
+    updatePreferredOrganizationIdMock.mockResolvedValue(undefined);
+
+    await setPreferredOrganizationId("user_1", "org_1");
+
+    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
+      "user_1",
+      "org_1",
+      "tx",
+    );
+    expect(updatePreferredOrganizationIdMock).toHaveBeenCalledWith(
+      "user_1",
+      "org_1",
+      "tx",
+    );
   });
 });

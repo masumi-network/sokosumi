@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/node";
 import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
+import { dateTimeSchema } from "@/helpers/datetime";
 import { errorResponseSchema } from "@/helpers/error";
 import {
   jsonContent,
@@ -11,7 +12,7 @@ import {
 } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { created } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
+import { mapTask, parseFutureRunAt } from "@/helpers/task";
 import {
   refineAssigneeXorConflict,
   resolveAssigneeIdFromRequest,
@@ -84,6 +85,11 @@ export const createTaskRequestSchema = z
       .optional()
       .default(TaskStatus.DRAFT)
       .openapi({ example: TaskStatus.READY }),
+    runAt: dateTimeSchema.nullish().openapi({
+      description:
+        "Start the Task at this future time instead of now. Puts the Task in QUEUED (status is ignored); requires a Coworker or Soko Bot assignee.",
+      example: "2026-06-24T09:00:00.000Z",
+    }),
     channel: taskEventChannelField.optional(),
     origin: taskEventDeprecatedOriginField.optional(),
     context: createTaskContextSchema.optional().openapi({
@@ -179,6 +185,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       workspaceContext.organizationId,
     );
+    const runAt = body.runAt ? parseFutureRunAt(body.runAt) : null;
 
     const resolvedName = await resolveTaskName({
       name: body.name,
@@ -226,7 +233,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           assigneeId: body.assigneeId,
           assigneeSokoBotId: body.assigneeSokoBotId,
           assigneeUserId: body.assigneeUserId,
-          status: body.status,
+          status: runAt ? TaskStatus.QUEUED : body.status,
+          runAt,
           channel: body.channel,
           visibility: body.visibility,
         },

@@ -49,7 +49,7 @@ function extractMaxSizeFromMessage(message: string): number | null {
   return maxSize ?? null;
 }
 
-function toUserFileUploadError(error: unknown): UserFileUploadError {
+export function toUserFileUploadError(error: unknown): UserFileUploadError {
   if (error instanceof UserFileUploadError) {
     return error;
   }
@@ -356,5 +356,177 @@ export async function uploadInputDataFiles(
 
     inputData[key] =
       uploadedFiles.length === 1 ? uploadedFiles[0] : uploadedFiles;
+  }
+}
+
+export type OwnedLogoKind = "organization" | "vendor";
+
+export interface UploadOwnedLogoDirectParams {
+  kind: OwnedLogoKind;
+  ownerId: string;
+  file: File;
+  options?: UploadUserFileDirectOptions;
+  toError?: (error: unknown) => UserFileUploadError;
+}
+
+const OWNED_LOGO_KIND_LABEL: Record<OwnedLogoKind, string> = {
+  organization: "Organization",
+  vendor: "Vendor",
+};
+
+interface OwnedLogoSessionBody {
+  filename: string;
+  contentType: string;
+  size: number;
+  maxSizeBytes?: number;
+}
+
+async function mintOwnedLogoSession(
+  kind: OwnedLogoKind,
+  ownerId: string,
+  sessionBody: OwnedLogoSessionBody,
+) {
+  switch (kind) {
+    case "organization":
+      return coreClient.createOrganizationLogoUploadSession(
+        ownerId,
+        sessionBody,
+      );
+    case "vendor":
+      return coreClient.createVendorLogoUploadSession(ownerId, sessionBody);
+    default: {
+      const exhaustive: never = kind;
+      throw new UserFileUploadError(
+        "unknown",
+        `Unhandled owned logo kind: ${exhaustive}`,
+      );
+    }
+  }
+}
+
+async function deleteOwnedLogo(
+  kind: OwnedLogoKind,
+  ownerId: string,
+  url: string,
+) {
+  switch (kind) {
+    case "organization":
+      return coreClient.cleanupOrganizationLogo(ownerId, { url });
+    case "vendor":
+      return coreClient.cleanupVendorLogo(ownerId, { url });
+    default: {
+      const exhaustive: never = kind;
+      throw new UserFileUploadError(
+        "unknown",
+        `Unhandled owned logo kind: ${exhaustive}`,
+      );
+    }
+  }
+}
+
+/**
+ * Mint an owner-scoped logo upload session and PUT the file via the presigned URL.
+ * Requires a non-empty ownerId — never mint under the user prefix.
+ */
+export async function uploadOwnedLogoDirect({
+  kind,
+  ownerId,
+  file,
+  options = {},
+  toError = toUserFileUploadError,
+}: UploadOwnedLogoDirectParams): Promise<BlobFile> {
+  if (!ownerId.trim()) {
+    throw new UserFileUploadError(
+      "invalid",
+      `${OWNED_LOGO_KIND_LABEL[kind]} id is required to upload a logo.`,
+    );
+  }
+
+  if (!(file instanceof File) || file.size <= 0) {
+    throw new UserFileUploadError("invalid", "File is required.");
+  }
+
+  const contentType = resolveUserUploadContentType(file.name, file.type);
+  if (!contentType) {
+    throw new UserFileUploadError(
+      "unsupported_type",
+      "File type could not be determined. Use a supported format or a file name with a known extension.",
+    );
+  }
+
+  if (
+    options.allowedContentTypes &&
+    !options.allowedContentTypes.includes(contentType)
+  ) {
+    throw new UserFileUploadError(
+      "unsupported_type",
+      "File type is not accepted.",
+    );
+  }
+
+  if (options.maxSizeBytes !== undefined && file.size > options.maxSizeBytes) {
+    throw new UserFileUploadError(
+      "too_large",
+      `File is too large. Maximum size is ${formatBytes(options.maxSizeBytes)}.`,
+    );
+  }
+
+  try {
+    const sessionBody: OwnedLogoSessionBody = {
+      filename: file.name,
+      contentType,
+      size: file.size,
+    };
+    if (options.maxSizeBytes !== undefined) {
+      sessionBody.maxSizeBytes = options.maxSizeBytes;
+    }
+
+    const uploadSession = await mintOwnedLogoSession(
+      kind,
+      ownerId,
+      sessionBody,
+    );
+    const session = uploadSession.data;
+
+    if (!session.uploadUrl) {
+      throw new UserFileUploadError(
+        "unknown",
+        "Upload session missing uploadUrl.",
+      );
+    }
+
+    return await uploadViaPresignedUrl(
+      file,
+      contentType,
+      {
+        uploadUrl: session.uploadUrl,
+        pathname: session.pathname,
+        headers: session.headers,
+      },
+      options,
+    );
+  } catch (error) {
+    throw toError(error);
+  }
+}
+
+/**
+ * Best-effort delete of a prior owner-scoped logo blob. Soft-fails on any error.
+ */
+export async function cleanupOwnedLogoBestEffort(
+  kind: OwnedLogoKind,
+  ownerId: string,
+  previousLogoUrl: string | null | undefined,
+): Promise<void> {
+  const trimmedOwnerId = ownerId.trim();
+  const trimmedUrl = previousLogoUrl?.trim();
+  if (!trimmedOwnerId || !trimmedUrl) {
+    return;
+  }
+
+  try {
+    await deleteOwnedLogo(kind, trimmedOwnerId, trimmedUrl);
+  } catch (error) {
+    console.error(`Failed to cleanup previous ${kind} logo`, error);
   }
 }

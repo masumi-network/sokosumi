@@ -58,6 +58,7 @@ import { z } from "zod";
 import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { createAgentJobForUser } from "@/helpers/job";
+import { jsonInput } from "@/helpers/prisma-json";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
@@ -329,10 +330,6 @@ async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
     }
     throw error;
   }
-}
-
-function jsonInput(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 function truncateUtf8(value: string, maxBytes: number): string {
@@ -806,6 +803,7 @@ export class SokoBotRuntimeService {
       select: {
         id: true,
         name: true,
+        groupName: true,
         kind: true,
         updatedAt: true,
         _count: { select: { messages: true } },
@@ -814,7 +812,7 @@ export class SokoBotRuntimeService {
     return {
       rooms: rooms.map((room) => ({
         roomId: room.id,
-        name: room.name,
+        name: room.groupName ?? room.name,
         kind: room.kind,
         messages: room._count.messages,
         lastActivityAt: room.updatedAt.toISOString(),
@@ -871,6 +869,7 @@ export class SokoBotRuntimeService {
       select: {
         id: true,
         name: true,
+        groupName: true,
         kind: true,
         organizationId: true,
         sokoBotMembers: {
@@ -892,7 +891,7 @@ export class SokoBotRuntimeService {
     const bot = room.sokoBotMembers?.[0]?.sokoBot;
     return {
       id: room.id,
-      name: room.name,
+      name: room.groupName ?? room.name,
       kind: room.kind,
       sokoBotId,
       organizationId: room.organizationId ?? null,

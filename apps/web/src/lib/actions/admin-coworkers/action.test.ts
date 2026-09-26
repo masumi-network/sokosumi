@@ -61,7 +61,9 @@ describe("admin coworker actions", () => {
 
   it("returns UNAUTHORIZED when a signed-in non-admin invokes update action", async () => {
     const { updateAdminCoworkerDisplayAction } = await import("./action");
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     const result = await updateAdminCoworkerDisplayAction({
       session: memberSession,
@@ -147,7 +149,9 @@ describe("admin coworker actions", () => {
 
   it("rejects names shorter than three characters", async () => {
     const { updateAdminCoworkerDisplayAction } = await import("./action");
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     const result = await updateAdminCoworkerDisplayAction({
       session: adminSession,
@@ -169,7 +173,9 @@ describe("admin coworker actions", () => {
 
   it("rejects captions longer than 255 characters", async () => {
     const { updateAdminCoworkerDisplayAction } = await import("./action");
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     const result = await updateAdminCoworkerDisplayAction({
       session: adminSession,
@@ -192,7 +198,9 @@ describe("admin coworker actions", () => {
 
   it("returns UNAUTHORIZED when non-admin grants early access", async () => {
     const { grantAdminCoworkerEarlyAccessAction } = await import("./action");
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     const result = await grantAdminCoworkerEarlyAccessAction({
       session: memberSession,
@@ -264,7 +272,9 @@ describe("admin coworker actions", () => {
 
   it("rejects missing target id for early access grant", async () => {
     const { grantAdminCoworkerEarlyAccessAction } = await import("./action");
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     const result = await grantAdminCoworkerEarlyAccessAction({
       session: adminSession,

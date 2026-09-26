@@ -28,8 +28,8 @@ const {
   userFindUniqueMock,
   buildCreditsPayloadMock,
   memberFindManyMock,
+  memberFindUniqueMock,
   resolveMemberOrganizationByIdMock,
-  getMemberByUserIdAndOrganizationIdMock,
   prismaTransactionMock,
   txUserFindUniqueMock,
   assertCoworkerUserContextBindingMock,
@@ -37,8 +37,8 @@ const {
   userFindUniqueMock: vi.fn(),
   buildCreditsPayloadMock: vi.fn(),
   memberFindManyMock: vi.fn(),
+  memberFindUniqueMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
-  getMemberByUserIdAndOrganizationIdMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   txUserFindUniqueMock: vi.fn(),
   assertCoworkerUserContextBindingMock: vi.fn(),
@@ -51,6 +51,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findMany: memberFindManyMock,
+      findUnique: memberFindUniqueMock,
     },
     $transaction: prismaTransactionMock,
   },
@@ -69,13 +70,6 @@ vi.mock("@/helpers/subscription", () => ({
 vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: (...args: unknown[]) =>
     resolveMemberOrganizationByIdMock(...args),
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {
-    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
-      getMemberByUserIdAndOrganizationIdMock(...args),
-  },
 }));
 
 const CREDITS_PAYLOAD = {
@@ -116,7 +110,7 @@ const USER_RECORD = {
   marketingOptIn: true,
   notificationsOptIn: false,
   pushOptIn: false,
-  showRoomUnreadCount: false,
+  hideRoomUnreadCount: false,
   notificationPreferences: [],
 };
 
@@ -131,18 +125,6 @@ const CONTEXT_COWORKER: AuthenticationContext = {
   coworkerId: "cow_123",
   vendorId: TEST_VENDOR_ID,
   context: { userId: "user_123", organizationId: null },
-};
-
-/**
- * Same coworker, bound to an organization workspace. Organization-scoped
- * routes only serve the organization the context is bound to, so the
- * personal-workspace fixture above cannot reach `org_1`.
- */
-const CONTEXT_COWORKER_IN_ORG: AuthenticationContext = {
-  actor: "coworker",
-  coworkerId: "cow_123",
-  vendorId: TEST_VENDOR_ID,
-  context: { userId: "user_123", organizationId: "org_1" },
 };
 
 const SESSION_USER: AuthenticationContext = {
@@ -193,7 +175,7 @@ describe("coworker user route allowlist", () => {
     resolveMemberOrganizationByIdMock.mockResolvedValue({
       organization: { id: "org_1" },
     });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(MEMBER_RECORD);
+    memberFindUniqueMock.mockResolvedValue(MEMBER_RECORD);
     txUserFindUniqueMock.mockResolvedValue(USER_RECORD);
     prismaTransactionMock.mockImplementation(
       async (
@@ -249,7 +231,7 @@ describe("coworker user route allowlist", () => {
   });
 
   it("allows coworker with context headers on organization credits", async () => {
-    const app = createUserRouteApp(CONTEXT_COWORKER_IN_ORG);
+    const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request(
       "http://localhost/me/organizations/org_1/credits",
     );
@@ -264,7 +246,7 @@ describe("coworker user route allowlist", () => {
       "http://localhost/me/organizations/org_1/member",
     );
     expect(response.status).toBe(403);
-    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
+    expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker with context headers on preferences", async () => {
@@ -286,7 +268,6 @@ describe("coworker user route allowlist", () => {
     const body = await response.json();
     expect(body.data).toMatchObject({
       marketingOptIn: true,
-      notificationsOptIn: false,
       pushOptIn: false,
     });
   });

@@ -13,8 +13,14 @@ import {
   isOtherHumanAssignee,
   resolveTaskAssigneeFields,
   taskFormAssigneeId,
+  withCurrentTaskAssigneeOption,
   withOwnerSokoBotOption,
 } from "./coworker-options";
+
+const OWNER_SOKO_BOT_COPY = {
+  fallbackName: "Soko Bot",
+  vendorName: "Soko Bots",
+};
 
 function baseCoworker(overrides: Partial<Coworker> = {}): Coworker {
   return {
@@ -92,11 +98,6 @@ describe("findCoworkerIdBySlug", () => {
     expect(findCoworkerIdBySlug(options, "   ")).toBeNull();
   });
 });
-
-const OWNER_SOKO_BOT_COPY = {
-  fallbackName: "Soko Bot",
-  vendorName: "Soko Bots",
-};
 
 function baseBot(overrides: Partial<SokoBot> = {}): SokoBot {
   return {
@@ -298,6 +299,79 @@ describe("owner soko bot option", () => {
     ).toMatchObject({
       name: "Soko Bot",
       vendor: { name: "Soko Bots" },
+    });
+  });
+});
+
+describe("withCurrentTaskAssigneeOption", () => {
+  it("prepends a saved coworker that is missing from live options", () => {
+    const options = withCurrentTaskAssigneeOption(
+      getCoworkerOptions([baseCoworker()]),
+      {
+        type: "coworker",
+        id: "cow_gone",
+        coworker: {
+          id: "cow_gone",
+          name: "Former Coworker",
+          slug: "former",
+          image: null,
+        },
+      },
+      OWNER_SOKO_BOT_COPY,
+    );
+
+    expect(options[0]).toMatchObject({
+      id: "cow_gone",
+      name: "Former Coworker",
+      kind: "coworker",
+    });
+    expect(resolveTaskAssigneeFields("cow_gone", options)).toEqual({
+      assigneeId: "cow_gone",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+    });
+  });
+
+  it("does not duplicate an assignee already in the list", () => {
+    const live = getCoworkerOptions([baseCoworker()]);
+    expect(
+      withCurrentTaskAssigneeOption(
+        live,
+        {
+          type: "coworker",
+          id: "cow_1",
+          coworker: {
+            id: "cow_1",
+            name: "Ops Agent",
+            slug: "ops-agent",
+            image: null,
+          },
+        },
+        OWNER_SOKO_BOT_COPY,
+      ),
+    ).toEqual(live);
+  });
+
+  it("keeps a saved user assignee with the user kind", () => {
+    const options = withCurrentTaskAssigneeOption(
+      [],
+      {
+        type: "user",
+        id: "user_gone",
+        user: { id: "user_gone", name: "Former Member", image: null },
+      },
+      OWNER_SOKO_BOT_COPY,
+    );
+
+    expect(options[0]).toMatchObject({
+      id: "user_gone",
+      kind: "user",
+      name: "Former Member",
+    });
+    expect(resolveTaskAssigneeFields("user_gone", options)).toEqual({
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: "user_gone",
     });
   });
 });

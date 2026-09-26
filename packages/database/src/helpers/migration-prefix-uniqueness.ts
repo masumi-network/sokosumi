@@ -45,7 +45,7 @@ export interface DuplicateMigrationPrefixViolation {
   reason: "unallowed" | "allowlist-mismatch";
 }
 
-const PREFIX = /^(\d{14})/;
+export const MIGRATION_PREFIX = /^(\d{14})_/;
 
 export function findDuplicateMigrationPrefixViolations(
   folderNames: readonly string[],
@@ -55,7 +55,7 @@ export function findDuplicateMigrationPrefixViolations(
 ): DuplicateMigrationPrefixViolation[] {
   const byPrefix = new Map<string, string[]>();
   for (const name of folderNames) {
-    const prefix = PREFIX.exec(name)?.[1];
+    const prefix = MIGRATION_PREFIX.exec(name)?.[1];
     if (!prefix) {
       continue;
     }

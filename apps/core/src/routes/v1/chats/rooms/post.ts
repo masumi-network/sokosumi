@@ -47,7 +47,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/",
     description:
-      'Create a chat room. `kind: "channel"` requires an active organization and a user session. `kind: "direct"` creates or returns a direct room (1:1 or multi-human group). Human 1:1 is an Org Direct when both people are Members of the active organization; otherwise a Personal Direct when they share an External channel roster. Multi-human groups still require an active organization. Coworker API keys may create-or-get an org-scoped coworker 1:1 with `{ kind: "direct", memberUserIds: [targetUserId] }` when the coworker is usable in that workspace; they cannot create channels, human Directs, groups, or personal coworker 1:1s. User-started coworker DMs may be personal (`organizationId` null) with no active org.',
+      'Create a chat room. `kind: "channel"` requires an active organization and a user session. `kind: "direct"` creates or returns a direct room (self, 1:1 or multi-human group). Exactly the caller’s user ID and no AI targets opens one private Self Direct across workspaces, without requiring a personal workspace. Human 1:1 is an Org Direct when both people are Members of the active organization; otherwise a Personal Direct when they share an External channel roster. Multi-human groups still require an active organization. Coworker API keys may create-or-get an org-scoped coworker 1:1 with `{ kind: "direct", memberUserIds: [targetUserId] }` when the coworker is usable in that workspace; they cannot create channels, human Directs, groups, or personal coworker 1:1s. User-started coworker DMs may be personal (`organizationId` null) with no active org.',
     tags: ["Chat Rooms"],
     request: {
       body: {

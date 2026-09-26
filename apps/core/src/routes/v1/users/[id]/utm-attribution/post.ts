@@ -1,7 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { utmAttributionRepository } from "@sokosumi/database/repositories";
 
-import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -63,15 +61,30 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
     const body = c.req.valid("json");
 
-    const attribution = await utmAttributionRepository.createUTMAttribution(
-      resolvedUserId,
-      body,
-      prisma,
-    );
+    const attributionData = {
+      utmSource: body.utm_source,
+      utmMedium: body.utm_medium,
+      utmCampaign: body.utm_campaign,
+      utmTerm: body.utm_term,
+      utmContent: body.utm_content,
+      referrer: body.referrer,
+      landingPage: body.landingPage,
+      capturedAt: new Date(body.capturedAt),
+      convertedAt: new Date(),
+    };
 
-    if (!attribution) {
-      throw internalServerError("Failed to record UTM attribution");
-    }
+    const attribution = await prisma.uTMAttribution.upsert({
+      where: { userId: resolvedUserId },
+      create: {
+        user: {
+          connect: {
+            id: resolvedUserId,
+          },
+        },
+        ...attributionData,
+      },
+      update: attributionData,
+    });
 
     return ok(
       c,

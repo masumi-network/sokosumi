@@ -1,45 +1,134 @@
 "use client";
 
 import { Calendar, MessageSquare } from "lucide-react";
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
-import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
+import type {
+  TaskAssigneeView,
+  TaskWithCoworker,
+} from "@/app/tasks/types/task-board";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
+import type { ProjectSummary } from "@/lib/clients/generated/core/types.gen";
+import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
+const MAX_CLUSTER_FACES = 3;
+
 interface TaskMetaDetailsProps {
-  owner: TaskWithCoworker["owner"];
+  project: TaskWithCoworker["project"];
   assignee: TaskWithCoworker["assignee"];
+  participants: TaskWithCoworker["participants"];
   commentsCount: TaskWithCoworker["commentsCount"];
   createdAt: TaskWithCoworker["createdAt"];
   variant?: "card" | "list";
 }
 
-export function TaskMetaDetails({
-  owner,
+function TaskProjectMark({ project }: { project: ProjectSummary }) {
+  const label = project.name.trim() || "—";
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex shrink-0" role="img" aria-label={label}>
+          <ProjectAvatar
+            name={project.name}
+            logo={project.logo}
+            className="size-5 rounded-lg"
+          />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" sideOffset={6}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * The assignee leads, then participants in join order. A human assignee who
+ * was also mentioned is one face. Owner is never added here.
+ */
+function collectTaskActors(
+  assignee: TaskWithCoworker["assignee"],
+  participants: TaskWithCoworker["participants"],
+): TaskAssigneeView[] {
+  const seen = new Set<string>();
+  const actors: TaskAssigneeView[] = [];
+  for (const actor of [assignee, ...participants]) {
+    if (!actor) continue;
+    const key = `${actor.kind}:${actor.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    actors.push(actor);
+  }
+  return actors;
+}
+
+function TaskActorCluster({
   assignee,
+  participants,
+}: Pick<TaskMetaDetailsProps, "assignee" | "participants">) {
+  const actors = collectTaskActors(assignee, participants);
+  const faces = actors.slice(0, MAX_CLUSTER_FACES);
+  const remainder = actors.length - faces.length;
+  const names =
+    actors.map((actor) => actor.name?.trim() || "—").join(", ") || "—";
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className="inline-flex shrink-0 items-center"
+          role="img"
+          aria-label={names}
+        >
+          {faces.length === 0 ? <AssigneeAvatar assignee={null} /> : null}
+          {faces.map((actor, index) => (
+            <span
+              key={`${actor.kind}:${actor.id}`}
+              data-testid="task-actor-face"
+              className={cn(
+                "ring-background relative inline-flex rounded-full ring-2",
+                index > 0 && "-ml-1.5",
+              )}
+              style={{ zIndex: faces.length - index }}
+            >
+              <AssigneeAvatar assignee={actor} />
+            </span>
+          ))}
+          {remainder > 0 ? (
+            <span className="bg-muted text-muted-foreground ring-background relative -ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[0.625rem] font-medium tabular-nums ring-2">
+              +{remainder}
+            </span>
+          ) : null}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" sideOffset={6}>
+        {names}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+export function TaskMetaDetails({
+  project,
+  assignee,
+  participants,
   commentsCount,
   createdAt,
   variant = "card",
 }: TaskMetaDetailsProps) {
   const { formatShortDate } = useLocalizedDateTime();
-  const ownerName = owner.name.trim() || "—";
-  const assigneeName = assignee?.name?.trim() || "—";
-  const participantNames = assignee?.name?.trim()
-    ? `${assigneeName}, ${ownerName}`
-    : ownerName;
 
   if (variant === "list") {
     return (
       <>
-        <div className="text-muted-foreground xs:w-auto flex w-24 items-center gap-1.5 truncate text-xs">
-          <AssigneeAvatar assignee={assignee} />
-          <span className="truncate">{assignee?.name ?? "—"}</span>
-        </div>
+        {project ? <TaskProjectMark project={project} /> : null}
+        <TaskActorCluster assignee={assignee} participants={participants} />
         <div className="text-muted-foreground flex items-center gap-1 text-xs">
           <MessageSquare className="size-3.5" aria-hidden />
           <span>{commentsCount}</span>
@@ -56,33 +145,9 @@ export function TaskMetaDetails({
 
   return (
     <div className="border-border flex items-center justify-between gap-2 border-t pt-2">
-      <div
-        className="flex items-center -space-x-1"
-        aria-label={participantNames}
-        role="img"
-      >
-        {assignee ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="z-10 inline-flex">
-                <AssigneeAvatar assignee={assignee} />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={6}>
-              {assigneeName}
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="z-20 inline-flex">
-              <UserProfileAvatar name={owner.name} image={owner.image} />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={6}>
-            {ownerName}
-          </TooltipContent>
-        </Tooltip>
+      <div className="flex items-center gap-1.5">
+        {project ? <TaskProjectMark project={project} /> : null}
+        <TaskActorCluster assignee={assignee} participants={participants} />
       </div>
       <div className="text-muted-foreground flex items-center gap-2">
         {commentsCount > 0 && (

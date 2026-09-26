@@ -17,6 +17,7 @@ import {
   MENTION_CLASSNAME,
   UNKNOWN_MENTION_CLASSNAME,
 } from "@/components/ui/mention-textarea-utils";
+import { readComposerCodeText } from "@/lib/utils/composer-code-text";
 import {
   getBacktickFence,
   isBlockMarkdownElement,
@@ -367,11 +368,6 @@ export function markdownToHtml(
   return sanitizeComposerHtml(restored);
 }
 
-function getCodeContent(codeContainer: HTMLElement): string {
-  const text = codeContainer.innerText ?? codeContainer.textContent ?? "";
-  return text.replace(/\r/g, "");
-}
-
 function getCodeLanguage(codeElement: HTMLElement): string {
   const dataLanguage = codeElement.dataset.language?.trim() ?? "";
   if (dataLanguage) return dataLanguage;
@@ -502,7 +498,7 @@ export function htmlToMarkdown(element: HTMLElement): string {
 
       if (tag === "pre") {
         const codeElement = htmlElement.querySelector("code");
-        const content = getCodeContent(codeElement ?? htmlElement);
+        const content = readComposerCodeText(htmlElement);
         const language = codeElement ? getCodeLanguage(codeElement) : undefined;
         return serializeFencedCode(content, language);
       }

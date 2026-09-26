@@ -16,7 +16,7 @@ private func actionRoomJSON(
   let pin = pinned ? "\"\(testTimestamp)\"" : "null"
   let mute = muted ? "\"\(testTimestamp)\"" : "null"
   return """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":4,"unreadMentionCount":1,"starredAt":\(pin),"pinnedMessageCount":0,"mutedAt":\(mute),"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":4,"unreadMentionCount":1,"starredAt":\(pin),"pinnedMessageCount":0,"mutedAt":\(mute),"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
 }
 
@@ -101,6 +101,45 @@ struct ConversationActionsTests {
     #expect(transport.requests.allSatisfy { testOrgSlugHeader($0.request) == organizationSlug })
     #expect(state.rooms[0].starredAt == nil)
     #expect(state.rooms[0].mutedAt == nil)
+  }
+
+  /// Web's open room: selecting it is not a read (ADR 0026), so the row resolves to the same
+  /// bold, badge and count as before the selection, and Mark unread stays off. Row 24g1 corrects
+  /// row 05a: leftover Thread unread no longer keeps the open row bold (ADR 0037).
+  @Test func openRoomKeepsItsAttention() async throws {
+    let state = try await sidebar()
+    func attention(showUnreadCount: Bool = true) -> RoomAttention {
+      resolveRoomAttention(state.rooms[0], showUnreadCount: showUnreadCount)
+    }
+    // One number per row (SOK-1147): the badge stands alone.
+    let closed = attention()
+    #expect(closed == .init(bold: true, badgeCount: 1))
+    state.selectedRoomId = testRoomId
+    #expect(attention() == closed)
+    #expect(attention(showUnreadCount: false) == closed)
+    #expect(!state.canPerform(.markUnread, roomId: testRoomId))
+    // Four new messages and nothing addressed to the reader: bold and the count.
+    state.rooms[0].unreadMentionCount = 0
+    #expect(attention() == .init(bold: true, badgeCount: 0, unreadTextCount: 4))
+    // Was "bold and · 1" on one leftover Participant thread reply (ADR 0013). A read that leaves one
+    // behind now leaves the row quiet: the reply is Thread unread, which the Thread shows.
+    state.rooms[0] = roomAttentionAfterRead(state.rooms[0])
+    state.rooms[0].unreadCount = 1
+    state.rooms[0].threadUnreadCount = 1
+    #expect(attention() == .init(bold: false, badgeCount: 0))
+    // Genuinely read, then marked unread elsewhere: quiet, then bold without a number.
+    state.rooms[0].unreadCount = 0
+    #expect(attention() == .init(bold: false, badgeCount: 0))
+    state.rooms[0].markedUnread = true
+    #expect(attention() == .init(bold: true, badgeCount: 0))
+    // Muting the open room silences it, and Mark unread stays off for muted rooms.
+    state.rooms[0].unreadCount = 250
+    state.rooms[0].unreadMentionCount = 250
+    #expect(attention().badgeLabel == "99+")
+    state.rooms[0].mutedAt = Date(timeIntervalSince1970: 0)
+    #expect(attention() == .init(bold: false, badgeCount: 0))
+    state.selectedRoomId = nil
+    #expect(!state.canPerform(.markUnread, roomId: testRoomId))
   }
 
   @Test func availabilityMatchesWeb() async throws {
@@ -229,10 +268,12 @@ struct ConversationActionsTests {
     let pinClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: pinTransport)
     let pinTask = Task { try await pinned.perform(.pin, roomId: peerRoomId, client: pinClient, organizationSlug: nil) }
     await pinTransport.waitForRequest()
-    #expect(pinned.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
+    #expect(pinned.partitioned.pinned.map(\.id) == [peerRoomId])
+    #expect(pinned.partitioned.channels.map(\.id) == [testRoomId])
     await pinTransport.release()
     try await pinTask.value
-    #expect(pinned.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
+    #expect(pinned.partitioned.pinned.map(\.id) == [peerRoomId])
+    #expect(pinned.partitioned.channels.map(\.id) == [testRoomId])
 
     let muted = try await twoRoomSidebar()
     let muteTransport = PausedSidebarTransport(response: actionBody(muted: true))
@@ -243,6 +284,23 @@ struct ConversationActionsTests {
     await muteTransport.release()
     try await muteTask.value
     #expect(muted.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
+  }
+
+  @Test func optimisticPinUsesInjectedNow() async throws {
+    let state = try await sidebar()
+    let now = Date(timeIntervalSince1970: 1_788_868_800)
+    let token = try #require(UUID(uuidString: "550e8400-e29b-41d4-a716-446655440999"))
+    let transport = PausedSidebarTransport()
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let task = Task {
+      try await state.perform(
+        .pin, roomId: testRoomId, client: client, organizationSlug: nil, now: now, makeId: { token }
+      )
+    }
+    await transport.waitForRequest()
+    #expect(state.rooms[0].starredAt == now)
+    await transport.release()
+    try await task.value
   }
 
   @Test func actionSettlementDoesNotEndWorkspaceSwitchLoading() async throws {

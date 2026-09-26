@@ -6,6 +6,7 @@ import {
   type OAuthCredentials,
 } from "../auth/auth-manager.js";
 import {
+  assertApiKeyTarget,
   type CliTargetConfig,
   resolveCliConfig,
   resolveTargetScope,
@@ -13,10 +14,7 @@ import {
   targetFromUserApiKey,
 } from "../auth/config.js";
 import { type BrowserLoginOptions, loginWithBrowser } from "../auth/oauth.js";
-
-interface TextOutput {
-  write(value: string): unknown;
-}
+import type { CommandOutput } from "./commands/command-helpers.js";
 
 export interface AuthLoginResult {
   authenticated: true;
@@ -52,12 +50,12 @@ export interface AuthLoginOptions {
   readStdin?: () => string;
   loginFn?: (options: BrowserLoginOptions) => Promise<OAuthCredentials>;
   authManager?: AuthLoginManager;
-  stdout?: TextOutput;
+  stdout?: CommandOutput;
   signal?: AbortSignal;
 }
 
 function writeResult(
-  stdout: TextOutput,
+  stdout: CommandOutput,
   result: AuthLoginResult,
   json: boolean,
 ): void {
@@ -75,38 +73,6 @@ function readApiKeyFromStdin(readStdin: () => string): string {
   const apiKey = readStdin().trim();
   if (!apiKey) throw new Error("API key stdin input was empty");
   return apiKey;
-}
-
-const COWORKER_API_KEY_PREFIX = "coworker_";
-
-function validateApiKeyTarget(
-  apiKey: string,
-  config: CliTargetConfig,
-  targetExplicit: boolean,
-): void {
-  if (/\s/.test(apiKey)) {
-    throw new Error("API key must not contain whitespace");
-  }
-  if (apiKey.startsWith(COWORKER_API_KEY_PREFIX)) {
-    throw new Error("Coworker API keys are not supported by the CLI");
-  }
-  const detectedTarget = targetFromUserApiKey(apiKey);
-  if (!detectedTarget && !targetExplicit) {
-    throw new Error(
-      "Legacy API keys need an explicit target. Use --preprod or --api-url.",
-    );
-  }
-  if (
-    detectedTarget &&
-    ((config.target === "custom" && targetExplicit) ||
-      (config.target !== "custom" && detectedTarget !== config.target))
-  ) {
-    throw new Error(
-      config.target === "custom" && targetExplicit
-        ? `API key belongs to ${detectedTarget}, but the explicit target is ${config.target}.`
-        : `API key belongs to ${detectedTarget}, but the selected target is ${config.target}`,
-    );
-  }
 }
 
 function defaultReadStdin(): string {
@@ -174,7 +140,7 @@ export async function runAuthLogin({
 
   if (providedApiKey?.trim()) {
     const normalizedApiKey = providedApiKey.trim();
-    validateApiKeyTarget(normalizedApiKey, resolvedConfig, targetExplicit);
+    assertApiKeyTarget(normalizedApiKey, resolvedConfig, targetExplicit);
     if (!manager.saveApiKey) {
       throw new Error("API-key credential storage is unavailable");
     }

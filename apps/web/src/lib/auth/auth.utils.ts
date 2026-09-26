@@ -70,10 +70,12 @@ export function createAuthSessionGetter<TSession>(
 }
 
 /**
- * No sign-in in this app replaces the document. The ones that navigate use
- * `router.replace`, and re-authentication does not navigate at all, so a client
+ * Some sign-ins keep the document. `/auth/callback/*` leaves with
+ * `router.replace` and re-authentication does not navigate at all, so a client
  * the Ably singleton retired for a lost session stays in `globalThis` and
  * leaves the newly signed-in user with dead realtime until a manual reload.
+ * Credential and passkey now replace the document, where this is a harmless
+ * no-op — it runs before the unload.
  *
  * Call this from every path that ends with a new session: `waitForAuthSession`
  * covers the ones that then redirect, and the re-authentication dialog calls it
@@ -288,34 +290,6 @@ export function buildAuthCallbackUrl(
   }
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   return `${origin}${path}?${params.toString()}`;
-}
-
-interface AuthOAuthRedirectPayload {
-  redirect?: boolean;
-  url?: string;
-  data?: {
-    redirect?: boolean;
-    url?: string;
-  };
-}
-
-export function getAuthOAuthRedirect(payload: unknown): {
-  redirect: boolean;
-  redirectUrl?: string;
-} {
-  if (!payload || typeof payload !== "object") {
-    return { redirect: false };
-  }
-
-  const candidate = payload as AuthOAuthRedirectPayload;
-  const redirect = candidate.redirect ?? candidate.data?.redirect;
-  const redirectUrl = candidate.url ?? candidate.data?.url;
-
-  if (redirect && redirectUrl) {
-    return { redirect: true, redirectUrl };
-  }
-
-  return { redirect: false };
 }
 
 export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {

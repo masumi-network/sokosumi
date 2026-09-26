@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  persistHumanMentions: vi.fn(),
+  emitHumanMentions: vi.fn(),
+  humanMentions: vi.fn(),
   claim: vi.fn(),
   find: vi.fn(),
   findOwned: vi.fn(),
@@ -15,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   publish: vi.fn(),
   invalidate: vi.fn(),
   persistChat: vi.fn(),
+  storedContent: vi.fn(),
   nudge: vi.fn(),
   messageFind: vi.fn(),
   transaction: vi.fn(),
@@ -23,8 +27,16 @@ const mocks = vi.hoisted(() => ({
   effects: vi.fn(),
   deliverEffect: vi.fn(),
 }));
+vi.mock("@/helpers/chat-human-mentions", () => ({
+  persistChatHumanMentions: mocks.persistHumanMentions,
+  emitChatHumanMentionNotifications: mocks.emitHumanMentions,
+}));
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: vi.fn(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    chatRoomUserMention: { findMany: mocks.humanMentions },
     sokoBotDelivery: {
       updateMany: mocks.claim,
       findUniqueOrThrow: mocks.find,
@@ -39,7 +51,11 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBot: { findFirst: mocks.bot },
     workspace: { findFirst: mocks.workspace },
     chatRoom: { findFirst: mocks.room, update: mocks.roomUpdate },
-    chatRoomMessage: { upsert: mocks.message, findFirst: mocks.messageFind },
+    chatRoomMessage: {
+      upsert: mocks.message,
+      findFirst: mocks.messageFind,
+      findUniqueOrThrow: mocks.storedContent,
+    },
     sokoBotNudge: { updateMany: mocks.nudge },
   },
 }));
@@ -106,6 +122,8 @@ function delivery(overrides = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.humanMentions.mockResolvedValue([]);
+  mocks.storedContent.mockResolvedValue({ content: "Saved result" });
   mocks.transaction.mockImplementation(async (callback) => callback(prisma));
   mocks.claim.mockResolvedValue({ count: 1 });
   mocks.find.mockResolvedValue(delivery());
@@ -302,6 +320,8 @@ describe("durable delivery", () => {
   it("revoked workspace membership suppresses even with the chat roster intact", async () => {
     mocks.workspace.mockResolvedValue(null);
     await deliverSokoBotDelivery("delivery");
+    expect(mocks.persistHumanMentions).not.toHaveBeenCalled();
+    expect(mocks.emitHumanMentions).not.toHaveBeenCalled();
     expect(mocks.message).not.toHaveBeenCalled();
     expect(mocks.publish).not.toHaveBeenCalled();
     expect(mocks.update).toHaveBeenCalledWith(

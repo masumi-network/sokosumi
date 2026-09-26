@@ -5,7 +5,14 @@ import type { Coworker } from "@/app/chat/utils/types";
 import { canUseNextImageSrc } from "@/config/next-image";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
-import type { StripCoworker } from "./coworker-strip.client";
+/** Face shown in the landing coworker strip. Shared across RSC and client. */
+export interface StripCoworker {
+  id: string;
+  imageUrl: null | string;
+  name: string;
+  /** Specialty shown under the name. Null when unset. */
+  title: null | string;
+}
 
 /** Given name for the landing greeting. Null → nameless greeting. */
 export function resolveLandingGreetingName(

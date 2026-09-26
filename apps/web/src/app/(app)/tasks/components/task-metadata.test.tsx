@@ -20,8 +20,13 @@ vi.mock("@/components/modals/global-modals-context", () => ({
   }),
 }));
 
-vi.mock("@/components/task-schedule-display", () => ({
-  TaskScheduleDisplay: () => <span>Daily (1:47 PM)</span>,
+vi.mock("@/lib/actions/task/action", () => ({
+  setTaskStatusFromDrag: vi.fn(),
+}));
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    values?.name ? `${key}:${values.name}` : key,
 }));
 
 vi.mock("@/components/aurora-orb", () => ({
@@ -59,11 +64,11 @@ const baseLabels = {
   organization: "Organization",
   personalWorkspace: "Personal",
   project: "Project",
+  schedule: "Schedule",
   coworker: "Coworker",
   credits: "Credits",
   created: "Created",
   updated: "Updated",
-  schedule: "Schedule",
   personalAssistantFallback: "Personal assistant",
   formatSokoBotRole: ({ owner }: { owner: string }) =>
     `${owner}'s personal assistant`,
@@ -121,8 +126,6 @@ function createTask(
     organization: null,
     assignee,
     credits: overrides.credits ?? 0,
-    metadata: null,
-    nextRunAt: null,
   };
 }
 
@@ -141,6 +144,7 @@ function renderTaskMetadata(
       project={null}
       createdAtLabel="Jul 16, 10:28 AM"
       updatedAtLabel="Jul 16, 10:29 AM"
+      creditsDisplay={String(task.credits)}
       labels={baseLabels}
       statusFieldLabels={baseStatusFieldLabels}
       {...rest}
@@ -191,6 +195,15 @@ describe("TaskMetadata", () => {
     expect(screen.getByText("Coworker")).toBeInTheDocument();
     expect(screen.getByText("Credits")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
+  });
+
+  it("renders the locale-formatted credits display string", () => {
+    renderTaskMetadata({
+      task: createTask({ credits: 1500 }),
+      creditsDisplay: "1,500",
+    });
+
+    expect(screen.getByText("1,500")).toBeInTheDocument();
   });
 
   it("hides credits row when total is zero", () => {
@@ -429,5 +442,16 @@ describe("TaskMetadata", () => {
       "data-current",
       "true",
     );
+  });
+});
+
+describe("TaskMetadata participants", () => {
+  it("keeps owner and assignee rows and drops the Participants row", () => {
+    renderTaskMetadata({ task: createTask() });
+
+    expect(screen.getByText("Owner")).toBeInTheDocument();
+    expect(screen.getByText("Coworker")).toBeInTheDocument();
+    expect(screen.getByText("Hepha")).toBeInTheDocument();
+    expect(screen.queryByText("Participants")).toBeNull();
   });
 });

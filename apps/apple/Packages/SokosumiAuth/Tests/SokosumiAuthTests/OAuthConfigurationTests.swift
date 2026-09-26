@@ -1,5 +1,5 @@
 import Foundation
-import SokosumiAuth
+@testable import SokosumiAuth
 import Testing
 
 struct OAuthConfigurationTests {

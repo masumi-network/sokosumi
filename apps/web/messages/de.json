@@ -101,9 +101,6 @@
         }
       },
       "AgentDetail": {
-        "Header": {
-          "pricing": "{credits, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
-        },
         "Stats": {
           "executedJobs": "Ausgeführte Jobs",
           "averageExecutionTime": "Durchschnittliche Ausführungszeit",
@@ -298,7 +295,9 @@
       "docs": "Dokumentation",
       "drive": "Dateien",
       "soko-bots": "Soko Bots",
-      "calendar": "Zeitpläne"
+      "calendar": "Kalender",
+      "schedules": "Zeitpläne",
+      "threads": "Threads"
     },
     "Jobs": {
       "StatusBadge": {
@@ -774,8 +773,18 @@
       "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 ungelesene Benachrichtigung und Kontohinweis} other {# ungelesene Benachrichtigungen und Kontohinweis}}",
       "title": "Benachrichtigungen",
       "pageTitle": "Benachrichtigungen",
+      "pageDescription": "Updates zu deinen Aufgaben, Agenten und deinem Workspace.",
       "emptyState": "Noch keine Benachrichtigungen",
+      "emptyStateDescription": "Bisher ist nichts angekommen. Aufgabenergebnisse und Workspace-Anfragen erscheinen hier, sobald sie eintreffen.",
+      "emptyUnreadState": "Du hast alles gelesen",
+      "emptyUnreadStateDescription": "Hier ist nichts ungelesen. Alles Gelesene bleibt unter Alle.",
+      "emptyNeedsYouState": "Nichts wartet auf dich",
+      "emptyNeedsYouStateDescription": "Nichts wartet auf deine Antwort. Anfragen, die dich brauchen, erscheinen hier.",
+      "emptyMentionsState": "Niemand hat dich erwähnt",
+      "emptyMentionsStateDescription": "Wenn dich jemand in einem Chat erwähnt, erscheint es hier.",
       "viewAll": "Alle Benachrichtigungen anzeigen",
+      "showAll": "Alle anzeigen",
+      "showOlder": "Ältere Benachrichtigungen anzeigen",
       "justNow": "Gerade eben",
       "loading": "Lädt...",
       "markAllRead": "Alle als gelesen markieren",
@@ -791,16 +800,27 @@
       "retry": "Erneut versuchen",
       "accept": "Akzeptieren",
       "view": "Ansehen",
+      "filterAll": "Alle",
+      "filterUnread": "Ungelesen",
+      "filterNeedsYou": "Wartet auf dich",
+      "filterMentions": "Erwähnungen",
+      "filterLabel": "Benachrichtigungsansicht",
       "browserNotificationTitle": "Sokosumi",
       "browserPermissionTitle": "Erhalte Meldungen, wenn Sokosumi geschlossen ist",
       "browserPermissionDescription": "Schalte in deinen Kontoeinstellungen Push für die gewünschten Updates ein. Dann bekommst du sie auch, wenn Sokosumi geschlossen ist.",
       "browserPermissionOpenSettings": "Benachrichtigungseinstellungen öffnen",
       "browserPermissionInAppTitle": "Benachrichtigungen erhalten, wenn du in einem anderen Tab bist",
-      "browserPermissionInAppDescription": "Erlaube Browser-Benachrichtigungen für Jobs, Tasks, Abrechnung, System und Chat, während Sokosumi geöffnet, aber nicht fokussiert ist.",
+      "browserPermissionInAppDescription": "Erlaube Browser-Benachrichtigungen für Tasks, Abrechnung, System und Chat, während Sokosumi geöffnet, aber nicht fokussiert ist.",
       "browserPermissionEnable": "Browser-Benachrichtigungen aktivieren",
       "browserPermissionRequesting": "Warte auf Berechtigung…",
       "browserPermissionDeniedTitle": "Browser-Benachrichtigungen sind blockiert",
       "browserPermissionDeniedDescription": "Benachrichtigungen für diese Website sind in deinem Browser blockiert. Öffne die Browser-Benachrichtigungseinstellungen für Sokosumi, um sie zuzulassen.",
+      "browserPermissionInstallTitle": "Füge Sokosumi zum Home-Bildschirm hinzu",
+      "browserPermissionInstallDescription": "Auf iPhone und iPad kommen Benachrichtigungen nur in der installierten App an. Tippe auf „Teilen“, dann auf „Zum Home-Bildschirm“.",
+      "pushQuietTitle": "Push-Benachrichtigungen kommen in diesem Browser nicht mehr an",
+      "pushQuietDescription": "Dieser Browser hat sein Push-Abonnement verloren, daher kommen hier keine Updates an. Deine anderen Geräte erhalten sie möglicherweise weiterhin.",
+      "pushQuietRestore": "Push wieder einschalten",
+      "pushQuietRestoring": "Push wird wieder eingeschaltet…",
       "vendorGrantAcceptSuccess": "Vendor-Zugriff genehmigt",
       "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden",
       "coworkerAccessAcceptSuccess": "Coworker-Early-Access genehmigt",
@@ -830,7 +850,11 @@
       "zoomReset": "Zoom zurücksetzen",
       "more": "Weitere Optionen",
       "openInNewTab": "In neuem Tab öffnen",
-      "copyImage": "Bild kopieren"
+      "copyImage": "Bild kopieren",
+      "previous": "Vorheriges Bild",
+      "next": "Nächstes Bild",
+      "position": "{current} / {total}",
+      "stepAnnouncement": "Bild {current} von {total}, {name}"
     },
     "DocumentViewer": {
       "title": "Dokument",
@@ -950,6 +974,25 @@
         "REJECTED": "Abgelehnt. Es wurde nichts erstellt.",
         "EXPIRED": "Ohne Entscheidung abgelaufen. Frage deinen Soko Bot bei Bedarf erneut."
       }
+    },
+    "Mermaid": {
+      "title": "Mermaid-Flussdiagramm",
+      "copy": "Quelltext kopieren",
+      "enlarge": "Vergrößern",
+      "inspect": "Scrolle, um das Diagramm zu erkunden. Passe die Größe mit den Zoom-Steuerelementen an.",
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern",
+      "close": "Schließen",
+      "alt": "Flussdiagramm. Der vollständige Text steht unter Diagramm-Quelltext.",
+      "source": "Diagramm-Quelltext",
+      "waiting": "Das Diagramm wird noch empfangen…",
+      "loading": "Diagramm wird vorbereitet…",
+      "unsupported": "Dieses Diagramm verwendet nicht unterstützte Syntax oder Funktionen. Unten kannst du den Quelltext ansehen oder kopieren.",
+      "tooLarge": "Dieses Diagramm überschreitet das Darstellungslimit. Unten kannst du den Quelltext ansehen oder kopieren.",
+      "tooMany": "Pro Nachrichtenabschnitt können nur acht Diagramme dargestellt werden. Unten kannst du diesen Quelltext ansehen oder kopieren.",
+      "failed": "Dieses Diagramm konnte nicht dargestellt werden. Prüfe die Syntax im Quelltext unten.",
+      "copied": "Quelltext kopiert.",
+      "copyFailed": "Kopieren fehlgeschlagen. Wähle den Diagramm-Quelltext unten aus und kopiere ihn manuell."
     }
   },
   "Join": {
@@ -1142,7 +1185,6 @@
         "Form": {
           "submit": "Anmelden",
           "lastUsed": "Zuletzt verwendet",
-          "success": "Anmeldung erfolgreich",
           "error": "Ungültige E-Mail-Adresse oder falsches Passwort",
           "Fields": {
             "Email": {
@@ -1189,7 +1231,6 @@
         },
         "Form": {
           "submit": "Registrieren",
-          "success": "Registrierung erfolgreich",
           "error": "Registrierung fehlgeschlagen",
           "Fields": {
             "Email": {
@@ -1263,7 +1304,7 @@
         "description": "Gib dein neues Passwort ein",
         "Form": {
           "submit": "Passwort zurücksetzen",
-          "success": "Passwort erfolgreich zurückgesetzt",
+          "success": "Passwort zurückgesetzt. Du wurdest auf allen Geräten abgemeldet.",
           "error": "Passwort-Reset fehlgeschlagen",
           "Fields": {
             "Password": {
@@ -1313,7 +1354,7 @@
         "statusOptions": {
           "archived": "Archiviert",
           "DRAFT": "Entwurf",
-          "QUEUED": "In Warteschlange",
+          "QUEUED": "Geplant",
           "READY": "Bereit",
           "GRANT_PENDING": "Freigabe ausstehend",
           "INPUT_REQUIRED": "Eingabe erforderlich",
@@ -1420,12 +1461,16 @@
         "waitForResponses": "Bitte warte, bis die anderen Antworten abgeschlossen sind (max. 3 gleichzeitig).",
         "imageAttachment": "Ein Bild-Anhang",
         "fileLabel": "Datei",
-        "modelAlt": "Modell",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "Nutzer-Avatar",
         "downloadGeneratedImage": "Generiertes Bild herunterladen",
         "expandPrompt": "Vollständige Nachricht anzeigen",
         "collapsePrompt": "Weniger anzeigen",
+        "typing": {
+          "one": "{name} schreibt gerade …",
+          "two": "{first} und {second} schreiben gerade …",
+          "many": "Mehrere Personen schreiben gerade …"
+        },
         "reasoning": {
           "processing": "Wird verarbeitet...",
           "thinking": "Denkt nach...",
@@ -1524,11 +1569,8 @@
         "approvePartialError": "{approved} von {total} Vendors genehmigt. Einige Freigaben sind fehlgeschlagen — bitte aktualisieren und erneut versuchen."
       },
       "Actions": {
-        "add": "Neue Aufgabe",
-        "addTask": "Neue Aufgabe",
         "loading": "Wird geladen...",
-        "loadMore": "Mehr laden",
-        "showGuide": "Show guide"
+        "loadMore": "Mehr laden"
       },
       "createTaskFab": "Aufgabe erstellen",
       "personalAssistant": "Persönlicher Assistent",
@@ -1538,8 +1580,7 @@
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
         "loadMore": "Weitere Aufgaben konnten nicht geladen werden",
         "loadCreateTask": "Formular zum Erstellen einer Aufgabe konnte nicht geladen werden",
-        "loadJobs": "Jobs konnten nicht geladen werden",
-        "scheduleActive": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne den Zeitplan, bevor du sie verschiebst."
+        "loadJobs": "Jobs konnten nicht geladen werden"
       },
       "Card": {
         "comments": "Kommentare",
@@ -1570,7 +1611,7 @@
         "statusLabel": "Status",
         "statusOptions": {
           "DRAFT": "Entwurf",
-          "QUEUED": "In Warteschlange",
+          "QUEUED": "Geplant",
           "READY": "Bereit",
           "GRANT_PENDING": "Freigabe ausstehend",
           "INPUT_REQUIRED": "Eingabe erforderlich",
@@ -1630,6 +1671,7 @@
         "created": "Erstellt",
         "updated": "Aktualisiert",
         "description": "Beschreibung",
+        "context": "Kontext",
         "linkedTasksTitle": "Verknüpfte Aufgaben",
         "linkedTasksEmpty": "Noch keine verknüpften Aufgaben.",
         "jobs": "Jobs",
@@ -1741,9 +1783,7 @@
             "parent": "Übergeordnete Aufgabe",
             "subtask": "Unteraufgabe",
             "duplicate": "Duplikat",
-            "addSubtask": "Unteraufgabe hinzufügen",
-            "scheduleRun": "Geplanter Lauf",
-            "scheduleSeries": "Zeitplan"
+            "addSubtask": "Unteraufgabe hinzufügen"
           },
           "personalWorkspace": "Persönlich",
           "startWorking": "Arbeit beginnen",
@@ -1751,7 +1791,9 @@
           "waitExternal": "Auf Externes warten",
           "resumeRunning": "Fortsetzen",
           "resumeReady": "Zurück zu Bereit",
-          "markComplete": "Als erledigt markieren"
+          "markComplete": "Als erledigt markieren",
+          "repeat": "Wiederholen",
+          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut."
         },
         "ShareModal": {
           "title": "Share task",
@@ -1785,7 +1827,6 @@
           "switchError": "Arbeitsbereich konnte nicht gewechselt werden. Bitte versuche es erneut."
         },
         "clonedFrom": "Geklont von {name}",
-        "schedule": "Zeitplan",
         "pendingApproval": "Freigabe ausstehend",
         "VendorGrantApproval": {
           "title": "Freigabe des Vendor-Zugriffs erforderlich",
@@ -1804,47 +1845,15 @@
           "description": "Diese Aufgabe ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt.",
           "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt. Sie ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt."
         },
-        "ScheduleSeries": {
-          "title": "Zeitplan",
-          "calendar": "Kalender",
-          "repeats": "Wiederholung",
-          "timezone": "Zeitzone",
-          "nextRun": "Nächster Lauf",
-          "removed": "Dieser Zeitplan wurde entfernt. Vergangene Läufe bleiben unten erhalten.",
-          "tabsLabel": "Zeitplanläufe",
-          "upcomingTab": "Anstehend",
-          "historyTab": "Verlauf",
-          "upcomingListLabel": "Anstehende Läufe",
-          "historyListLabel": "Vergangene Läufe",
-          "upcomingEmpty": "Keine anstehenden Läufe. Neue Läufe erscheinen hier, sobald der Zeitplan sie einplant.",
-          "upcomingEmptyRemoved": "Keine anstehenden Läufe – dieser Zeitplan wurde entfernt.",
-          "historyEmpty": "Keine vergangenen Läufe. Gestartete, abgebrochene und verpasste Läufe erscheinen hier.",
-          "loadMore": "Mehr laden",
-          "loading": "Wird geladen",
-          "loadMoreError": "Weitere Läufe konnten nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.",
-          "occurrencesError": "Läufe konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
-          "movedFrom": "Verschoben von {original}",
-          "statePlanned": "Geplant",
-          "stateSkipped": "Übersprungen",
-          "stateCanceled": "Abgebrochen",
-          "stateReleased": "Gestartet",
-          "stateMissed": "Verpasst",
-          "archivedRun": "Archiviert",
-          "move": "Verschieben",
-          "skip": "Überspringen",
-          "restore": "Wiederherstellen",
-          "mutationError": "Dieser Lauf konnte nicht geändert werden. Bitte versuche es erneut.",
-          "moveSource": "Kalender wechseln",
-          "moveSourceTitle": "Diesen Zeitplan verschieben?",
-          "moveSourceLabel": "Zielkalender",
-          "moveSourceDescription": "Wähle den Kalender, in dem dieser Zeitplan neue Läufe erstellt. Beim Verschieben werden {count, plural, =0 {keine geänderten anstehenden Läufe} one {# geänderter anstehender Lauf} other {# geänderte anstehende Läufe}} abgebrochen. Vergangene und bereits gestartete Läufe bleiben unverändert.",
-          "moveSourceCancel": "Aktuellen Kalender behalten",
-          "moveSourceConfirm": "Zeitplan verschieben",
-          "moveSourceSuccess": "Der Zeitplan wurde in den neuen Kalender verschoben.",
-          "moveSourceError": "Dieser Zeitplan konnte nicht verschoben werden. Lade die Aufgabe neu und versuche es erneut."
-        },
         "files": "Dateien",
-        "assignee": "Zuständig"
+        "assignee": "Zuständig",
+        "schedule": "Zeitplan",
+        "privateSchedule": "Privater Zeitplan",
+        "participantsList": "Task-Teilnehmer",
+        "subscribe": "Abonnieren",
+        "unsubscribe": "Abbestellen",
+        "subscribeError": "Abonnieren fehlgeschlagen. Bitte erneut versuchen.",
+        "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut."
       },
       "NewTask": {
         "ContextAttachments": {
@@ -1876,11 +1885,14 @@
         "projectCreate": "Projekt erstellen...",
         "projectCreateNamed": "Erstelle \"{name}\"",
         "coworker": "Coworker",
-        "coworkerDescription": "Wähle einen KI-Coworker, der diesen Task für dich übernimmt",
+        "unassigned": "Nicht zugewiesen",
+        "unavailableAssignee": "Zuweisung nicht verfügbar",
+        "changeCoworker": "Coworker ändern…",
+        "noCoworkerMatches": "Kein Coworker passt",
         "status": "Status",
         "statusDescription": "Wähle den Anfangsstatus für diesen Task",
         "statusDraft": "Entwurf",
-        "statusQueued": "In Warteschlange",
+        "statusQueued": "Geplant",
         "statusReady": "Bereit",
         "changeStatus": "Status ändern…",
         "noStatusMatches": "Kein Status passt",
@@ -1894,7 +1906,7 @@
         "removeAttachment": "Anhang entfernen",
         "createTask": "Task erstellen",
         "scheduleTask": "Task planen",
-        "openSchedule": "Zeitplan festlegen",
+        "openRunAt": "Startzeit festlegen",
         "cancel": "Abbrechen",
         "ctrl": "Strg",
         "defaultBadge": "Standard",
@@ -1930,13 +1942,14 @@
         "projectCreate": "Projekt erstellen...",
         "projectCreateNamed": "Erstelle \"{name}\"",
         "coworker": "Coworker",
-        "coworkerDescription": "Wähle einen KI-Coworker, der diesen Task für dich übernimmt",
         "status": "Status",
         "statusDescription": "Wähle den Status für diesen Task",
         "statusDraft": "Entwurf",
         "statusReady": "Bereit",
         "changeStatus": "Status ändern…",
         "noStatusMatches": "Kein Status passt",
+        "changeCoworker": "Coworker ändern…",
+        "noCoworkerMatches": "Kein Coworker passt",
         "untitledTask": "Unbenannte Aufgabe",
         "saveError": "Die Aufgabe konnte nicht gespeichert werden",
         "back": "Zurück",
@@ -1946,115 +1959,182 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Anhang entfernen",
         "save": "Speichern",
-        "openSchedule": "Zeitplan festlegen",
+        "openRunAt": "Startzeit festlegen",
         "cancel": "Abbrechen",
         "ctrl": "Strg",
-        "unassigned": "Nicht zugewiesen"
+        "unassigned": "Nicht zugewiesen",
+        "unavailableAssignee": "Zuweisung nicht verfügbar"
       },
       "Schedule": {
-        "title": "Zeitplan",
-        "description": "Einmalige oder wiederkehrende Ausführung planen.",
-        "clearSchedule": "Zeitplan entfernen",
-        "series": {
-          "discardTitle": "{count, plural, one {# geänderten Lauf} other {# geänderte Läufe}} verwerfen?",
-          "discardDescription": "Wenn du eine neue Regel für die gesamte Serie speicherst, {count, plural, one {wird der verschobene oder übersprungene bevorstehende Lauf abgebrochen} other {werden die # verschobenen oder übersprungenen bevorstehenden Läufe abgebrochen}}. Bereits erfolgte Läufe bleiben erhalten.",
-          "discardCancel": "Aktuellen Zeitplan behalten",
-          "discardConfirm": "Speichern und verwerfen",
-          "removeTitle": "Diesen Zeitplan entfernen?",
-          "removeDescription": "Diese Aufgabe läuft dann nicht mehr nach einem Zeitplan. Bereits erfolgte Läufe bleiben erhalten, bevorstehende Läufe werden abgebrochen.",
-          "removeCancel": "Zeitplan behalten",
-          "removeConfirm": "Zeitplan entfernen",
-          "revisionConflict": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Aufgabe neu, öffne den Zeitplan erneut und wende deine Änderung noch einmal an.",
-          "quarantined": "Dieser Zeitplan ist zur Reparatur pausiert und kann nicht geändert werden. Wende dich an den Support, um ihn wiederherzustellen.",
-          "operationConflict": "Diese Speicherung wurde bereits mit anderen Angaben gesendet. Öffne den Zeitplan erneut und versuche es noch einmal.",
-          "activeSeries": "Diese Aufgabe läuft nach einem Zeitplan. Ändere oder entferne zuerst ihren Zeitplan.",
-          "unknownCount": "Wir konnten nicht prüfen, welche bevorstehenden Läufe eine neue Regel abbrechen würde. Lade die Seite neu, öffne den Zeitplan erneut und versuche es noch einmal.",
-          "occurrenceLocked": "Dieses Vorkommen kann nicht mehr geändert werden.",
-          "occurrenceTargetInvalid": "Dieser Zeitpunkt ist kein gültiges Ziel."
-        },
-        "occurrenceMove": {
-          "title": "Vorkommen verschieben",
-          "description": "Wähle eine neue Zeit für diesen Lauf.",
-          "label": "Neue Zeit",
-          "confirm": "Vorkommen verschieben",
-          "cancel": "Abbrechen",
-          "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
-          "error": "Dieses Vorkommen konnte nicht verschoben werden. Bitte versuche es erneut."
-        },
-        "occurrenceRestore": {
-          "title": "Vorkommen wiederherstellen",
-          "description": "Stelle diesen Lauf zur ursprünglichen Zeit wieder her oder wähle eine andere zukünftige Zeit.",
-          "label": "Wiederhergestellte Zeit",
-          "confirm": "Vorkommen wiederherstellen",
-          "cancel": "Abbrechen",
-          "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
-          "error": "Dieses Vorkommen konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
-        },
         "option": {
-          "oneTime": "One-time",
-          "daily": "Daily",
-          "dailyWithTime": "Daily ({time})",
-          "dailyEveryNWithTime": "Every {n} days ({time})",
-          "weekly": "Weekly",
-          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
-          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
-          "monthly": "Monthly",
-          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
-          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
-          "custom": "Custom cron"
+          "daily": "Täglich",
+          "dailyWithTime": "Täglich ({time})",
+          "dailyEveryNWithTime": "Alle {n} Tage ({time})",
+          "weekly": "Wöchentlich",
+          "weeklyWithWeekdayTime": "Wöchentlich ({weekday}, {time})",
+          "weeklyListWithTime": "Wöchentlich ({weekdays}, {time})",
+          "monthly": "Monatlich",
+          "monthlyWithDayTime": "Monatlich (am {day}., {time})",
+          "monthlyEveryNWithDayTime": "Alle {n} Monate (am {day}., {time})",
+          "custom": "Benutzerdefinierter Cron"
         },
-        "pickDateTime": "Run once at",
-        "timeOfDay": "Time of day",
-        "repeatEvery": "Repeat every",
-        "repeatOn": "Repeat on",
-        "ends": "Ends",
-        "never": "Never",
-        "on": "On date",
-        "after": "After",
-        "occurrences": "occurrences",
-        "pickDate": "Pick a date",
-        "preview": "Preview",
-        "noPreview": "No upcoming runs",
+        "firstRun": "Erster Lauf",
+        "timeOfDay": "Uhrzeit",
+        "repeatEvery": "Wiederholen alle",
+        "repeatOn": "Wiederholen am",
+        "ends": "Endet",
+        "never": "Nie",
+        "on": "Am Datum",
+        "after": "Nach",
+        "occurrences": "Läufen",
+        "pickDate": "Datum auswählen",
+        "preview": "Vorschau",
+        "noPreview": "Keine anstehenden Läufe",
         "timezone": "Zeitzone",
         "customCron": "Benutzerdefinierter Cron-Ausdruck",
-        "customCronValid": "Valid cron expression",
+        "customCronValid": "Gültiger Cron-Ausdruck",
         "unit": {
-          "day": "day",
-          "week": "week",
-          "month": "month"
+          "day": "Tag(e)",
+          "week": "Woche(n)",
+          "month": "Monat(e)"
         },
-        "save": "Save",
-        "cancel": "Cancel",
-        "footer": {
-          "oneTimeAt": "Einmal am {datetime}"
-        },
-        "card": {
-          "overdue": "Überfällig",
-          "dueInMinutes": "Fällig in {minutes, plural, one {# Minute} other {# Minuten}}",
-          "dueInHours": "Fällig in {hours, plural, one {# Stunde} other {# Stunden}}",
-          "tomorrowAt": "Morgen um {time}",
-          "nextRunAt": "Nächste Ausführung: {datetime}"
-        },
+        "save": "Speichern",
+        "cancel": "Abbrechen",
         "errors": {
-          "required": "This field is required.",
-          "futureDateTime": "Select a future date and time.",
-          "invalidTime": "Enter a valid time (HH:MM).",
-          "positiveInteger": "Enter a positive integer.",
-          "selectAtLeastOneWeekday": "Select at least one weekday.",
-          "endDateInPast": "End date cannot be in the past.",
-          "invalidCron": "Enter a valid cron expression for the selected timezone."
+          "required": "Dieses Feld ist erforderlich.",
+          "futureDateTime": "Wähle ein Datum und eine Uhrzeit in der Zukunft.",
+          "invalidTime": "Gib eine gültige Uhrzeit ein (HH:MM).",
+          "positiveInteger": "Gib eine positive ganze Zahl ein.",
+          "selectAtLeastOneWeekday": "Wähle mindestens einen Wochentag.",
+          "endDateInPast": "Das Enddatum darf nicht in der Vergangenheit liegen.",
+          "invalidCron": "Gib einen gültigen Cron-Ausdruck für die ausgewählte Zeitzone ein."
         }
       },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "elenaAvatarAlt": "Elena avatar"
+      "RunAt": {
+        "title": "Startzeit",
+        "description": "Der Task wartet bis zu diesem Zeitpunkt und wechselt dann zu Bereit.",
+        "label": "Starten am",
+        "apply": "Übernehmen",
+        "clear": "Entfernen",
+        "cancel": "Abbrechen",
+        "notInFuture": "Wähle einen Zeitpunkt in der Zukunft.",
+        "requiresAgent": "Für geplante Tasks ist ein Agent erforderlich. Wähle einen aus, um eine Startzeit festzulegen.",
+        "footer": "Startet {datetime}",
+        "badge": {
+          "overdue": "Startet gleich",
+          "inMinutes": "Startet in {minutes, plural, one {# Minute} other {# Minuten}}",
+          "inHours": "Startet in {hours, plural, one {# Stunde} other {# Stunden}}",
+          "tomorrowAt": "Startet morgen um {time}",
+          "at": "Startet {datetime}"
+        }
+      },
+      "Schedules": {
+        "stateFilter": "Status des Zeitplans",
+        "filterAll": "Alle",
+        "state": {
+          "ACTIVE": "Aktiv",
+          "PAUSED": "Pausiert",
+          "ENDED": "Beendet"
+        },
+        "newSchedule": "Neuer Zeitplan",
+        "empty": "Hier gibt es noch keine Zeitpläne. Ein Zeitplan erstellt bei jedem Lauf einen neuen Task.",
+        "loadMore": "Mehr laden",
+        "loadingMore": "Wird geladen…",
+        "loadMoreError": "Weitere Zeitpläne ließen sich nicht laden.",
+        "nextRun": "Nächster Lauf {datetime}",
+        "noNextRun": "Kein anstehender Lauf",
+        "unassigned": "Nicht zugewiesen",
+        "unavailableAssignee": "Nicht verfügbare Zuständigkeit",
+        "workspace": "Workspace",
+        "Dialog": {
+          "createTitle": "Neuer Zeitplan",
+          "editTitle": "Zeitplan bearbeiten",
+          "createDescription": "Jeder Lauf erstellt aus diesen Angaben einen neuen Task.",
+          "futureOnlyNotice": "Änderungen gelten nur für künftige Läufe. Bereits erstellte Tasks bleiben unverändert.",
+          "name": "Name",
+          "description": "Beschreibung",
+          "assignee": "Zuständig",
+          "create": "Zeitplan erstellen",
+          "save": "Änderungen speichern",
+          "created": "Zeitplan erstellt",
+          "saved": "Zeitplan gespeichert",
+          "errors": {
+            "stale": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Seite neu und versuche es erneut.",
+            "saveFailed": "Der Zeitplan ließ sich nicht speichern."
+          }
+        },
+        "Actions": {
+          "edit": "Bearbeiten",
+          "pause": "Pausieren",
+          "resume": "Fortsetzen",
+          "end": "Beenden",
+          "delete": "Löschen",
+          "paused": "Zeitplan pausiert",
+          "resumed": "Zeitplan fortgesetzt",
+          "ended": "Zeitplan beendet",
+          "deleted": "Zeitplan gelöscht",
+          "failed": "Der Zeitplan ließ sich nicht ändern. Versuche es erneut.",
+          "confirmEndTitle": "Diesen Zeitplan beenden?",
+          "confirmEndDescription": "Er erstellt endgültig keine Tasks mehr, und seine übersprungenen oder verschobenen Läufe entfallen. Bereits erstellte Tasks bleiben.",
+          "confirmDeleteTitle": "Diesen Zeitplan löschen?",
+          "confirmDeleteDescription": "Der Zeitplan und seine anstehenden Läufe werden entfernt. Bereits erstellte Tasks bleiben, ohne Verknüpfung zum Zeitplan.",
+          "confirmEnd": "Zeitplan beenden",
+          "confirmDelete": "Zeitplan löschen",
+          "cancel": "Abbrechen"
+        },
+        "Detail": {
+          "back": "Zeitpläne",
+          "upcomingRuns": "Anstehende Läufe",
+          "noUpcomingRuns": "Noch keine Läufe geplant.",
+          "noUpcomingRunsInactive": "Solange der Zeitplan pausiert oder beendet ist, sind keine Läufe geplant.",
+          "runSkipped": "Übersprungen",
+          "runMoved": "Verschoben",
+          "createdTasks": "Erstellte Tasks",
+          "noCreatedTasks": "Noch keine Tasks erstellt.",
+          "properties": "Eigenschaften",
+          "state": "Status",
+          "rule": "Wiederholung",
+          "timezone": "Zeitzone",
+          "nextRun": "Nächster Lauf",
+          "ends": "Endet",
+          "assignee": "Zuständig",
+          "project": "Projekt",
+          "noProject": "Kein Projekt",
+          "released": "Bisherige Läufe",
+          "endsOn": "Am {date}",
+          "endsAfter": "Nach {count, plural, one {# Lauf} other {# Läufen}}",
+          "endsNever": "Nie"
+        },
+        "Page": {
+          "title": "Zeitpläne",
+          "description": "Alle Zeitpläne in deinem Workspace. Jeder Lauf erstellt einen neuen Task."
+        }
+      },
+      "Tags": {
+        "label": "Tags",
+        "empty": "Noch keine Tags",
+        "edit": "Tags bearbeiten",
+        "hint": "Wähle bis zu fünf Tags. Gespeicherte Auswahl bleibt; entfernte Vorschläge erscheinen nicht erneut.",
+        "showAll": "Alle {count} Tags anzeigen",
+        "save": "Tags speichern",
+        "saving": "Speichern…",
+        "error": "Tags konnten nicht gespeichert werden. Versuche es erneut.",
+        "manual": "Von dir ausgewählt",
+        "automatic": "Automatisch vorgeschlagen",
+        "noProject": "Kein Projekt",
+        "openProject": "Projekt öffnen: {name}",
+        "vocabulary": {
+          "research": "Recherche",
+          "strategy": "Strategie",
+          "writing": "Text",
+          "design": "Design",
+          "analysis": "Analyse",
+          "development": "Entwicklung",
+          "marketing": "Marketing",
+          "social": "Social Media",
+          "seo": "SEO",
+          "operations": "Betrieb"
+        }
       }
     },
     "Projects": {
@@ -2068,6 +2148,17 @@
       "list": {
         "loadMore": "Mehr laden",
         "loading": "Projekte werden geladen...",
+        "filter": {
+          "placeholder": "Projekte filtern",
+          "clear": "Filter zurücksetzen",
+          "noMatches": "Keine Projekte passen zu „{query}“."
+        },
+        "sortedBy": "Nach letzter Aktivität sortiert",
+        "lastActivity": "Letzte Aktivität",
+        "created": "Erstellt",
+        "pin": "Projekt anheften",
+        "unpin": "Anheften aufheben",
+        "pinError": "Anheften konnte nicht geändert werden. Bitte erneut versuchen.",
         "stats": {
           "tasks": "Tasks",
           "jobs": "Jobs",
@@ -2174,6 +2265,125 @@
         "save": "Speichern",
         "cancel": "Abbrechen"
       },
+      "ProjectSocialAccounts": {
+        "title": "Social-Media-Konten",
+        "description": "Verbinde X-Konten, die dieses Projekt künftig zum Veröffentlichen verwenden kann.",
+        "account": "X-Konto",
+        "connect": "X-Konto verbinden",
+        "reconnect": "Erneut verbinden",
+        "replace": "Ersetzen",
+        "disconnect": "Trennen",
+        "connecting": "Wird verbunden…",
+        "disconnecting": "Wird getrennt…",
+        "unknownHandle": "Unbekanntes X-Konto",
+        "status": {
+          "active": "Verbunden",
+          "pending": "Verbindung ausstehend",
+          "reauthorization_required": "Erneute Autorisierung erforderlich",
+          "disconnected": "Getrennt"
+        },
+        "replaceDialog": {
+          "title": "Dieses X-Konto ersetzen?",
+          "description": "Das aktuelle Konto wird getrennt, bevor du ein Ersatzkonto verbindest.",
+          "confirm": "Konto ersetzen"
+        },
+        "disconnectDialog": {
+          "title": "Dieses X-Konto trennen?",
+          "description": "Dieses Projekt ist dann nicht mehr berechtigt, dieses Konto zu verwenden.",
+          "confirm": "Konto trennen"
+        },
+        "cancel": "Abbrechen",
+        "success": {
+          "connected": "X-Konto verbunden.",
+          "disconnected": "X-Konto getrennt."
+        },
+        "warning": {
+          "providerRevocationFailed": "Dieses Konto ist von diesem Projekt getrennt, aber X könnte diese App weiterhin autorisieren. Widerrufe die App in deinen X-Einstellungen."
+        },
+        "errors": {
+          "inFlight": "Eine andere X-Konto-Aktion wird bereits ausgeführt.",
+          "popupBlocked": "Dein Browser hat das X-Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
+          "timeout": "Die X-Autorisierung hat zu lange gedauert. Versuche es erneut.",
+          "providerCallback": "Die X-Autorisierung wurde nicht abgeschlossen. Kehre zur Social-Seite des Projekts zurück und versuche es erneut.",
+          "legacyCallback": "Dieser OAuth-Rückruf kann dein X-Konto nicht verifizieren. Aktualisiere die Composio-Rückrufkonfiguration und versuche es erneut.",
+          "verifier": "Dein X-Konto konnte nicht verifiziert werden. Starte die Verbindung erneut.",
+          "intent": "Diese Verbindungsanfrage ist abgelaufen oder nicht mehr gültig. Starte erneut.",
+          "duplicate": "Dieses X-Konto ist bereits mit diesem Projekt verbunden. Wähle ein anderes Konto.",
+          "reconnectMismatch": "Verbinde erneut dasselbe X-Konto, das bereits mit diesem Projekt verknüpft ist.",
+          "finalize": "Das Verbinden dieses X-Kontos konnte nicht abgeschlossen werden. Versuche es erneut.",
+          "disconnect": "Dieses X-Konto konnte nicht getrennt werden. Versuche es erneut."
+        }
+      },
+      "SocialPosts": {
+        "loadMore": "Mehr laden",
+        "loading": "Wird geladen…",
+        "title": "Social-Media-Beiträge",
+        "description": "Entwirf Textbeiträge für X und plane sie aus diesem Projekt heraus.",
+        "newPost": "Neuer Beitrag",
+        "moreActions": "Beitragsaktionen",
+        "noAccount": "Kein Konto",
+        "sections": {
+          "upcoming": "Anstehend",
+          "drafts": "Entwürfe",
+          "history": "Verlauf"
+        },
+        "empty": {
+          "upcoming": "Noch keine geplanten Beiträge.",
+          "drafts": "Noch keine Entwürfe.",
+          "history": "Noch keine veröffentlichten, fehlgeschlagenen oder abgebrochenen Beiträge."
+        },
+        "status": {
+          "DRAFT": "Entwurf",
+          "SCHEDULED": "Geplant",
+          "PUBLISHING": "Wird veröffentlicht",
+          "PUBLISHED": "Veröffentlicht",
+          "FAILED": "Fehlgeschlagen",
+          "MISSED": "Verpasst",
+          "CANCELED": "Abgebrochen"
+        },
+        "creator": {
+          "user": "Nutzer",
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot"
+        },
+        "composer": {
+          "newTitle": "Neuer Beitrag",
+          "editTitle": "Beitrag bearbeiten",
+          "scheduleTitle": "Beitrag planen",
+          "rescheduleTitle": "Beitrag neu planen",
+          "description": "Schreibe den Text, wähle das Konto und lege fest, wann er erscheint.",
+          "text": "Text",
+          "textPlaceholder": "Was möchtest du posten?",
+          "characters": "{count} / {limit}",
+          "account": "Konto",
+          "noAccount": "Konto auswählen",
+          "unknownHandle": "Unbekanntes X-Konto",
+          "scheduledAt": "Geplanter Zeitpunkt",
+          "scheduledAtTooSoon": "Wähle einen Zeitpunkt, der mindestens eine Minute in der Zukunft liegt.",
+          "saveDraft": "Entwurf speichern",
+          "save": "Speichern",
+          "schedule": "Planen",
+          "reschedule": "Neu planen",
+          "cancel": "Beitrag abbrechen",
+          "edit": "Bearbeiten",
+          "close": "Schließen"
+        },
+        "cancelDialog": {
+          "title": "Diesen Beitrag abbrechen?",
+          "description": "Der Beitrag wird nicht veröffentlicht. Du kannst ihn später erneut planen.",
+          "confirm": "Beitrag abbrechen"
+        },
+        "toasts": {
+          "created": "Entwurf gespeichert.",
+          "scheduled": "Beitrag geplant.",
+          "updated": "Beitrag aktualisiert.",
+          "canceled": "Beitrag abgebrochen.",
+          "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
+          "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
+          "unauthenticated": "Melde dich an, um fortzufahren.",
+          "unauthenticatedAction": "Anmelden"
+        }
+      },
       "Detail": {
         "back": "Zurück zu Projekten",
         "header": {
@@ -2199,7 +2409,8 @@
           "removed": "Markenkontext entfernt",
           "removeDialog": {
             "title": "Markenkontext entfernen?",
-            "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt."
+            "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt.",
+            "cancel": "Abbrechen"
           },
           "upload": "Hochladen",
           "moreActions": "Brand-Aktionen"
@@ -2283,32 +2494,132 @@
           "fileBrowser": {
             "title": "Dateibrowser",
             "description": "Alle Dateien aus diesem Projekt"
+          },
+          "imageStudio": {
+            "title": "Bildstudio",
+            "description": "Bilder mit einem Studio-Assistenten erstellen und verfeinern."
           }
         },
         "actions": {
           "moreActions": "Weitere Aktionen",
           "viewDetails": "Details anzeigen",
           "edit": "Bearbeiten",
-          "delete": "Löschen",
+          "close": "Projekt schließen",
           "remove": "Entfernen",
           "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?"
         },
-        "deleteDialog": {
-          "title": "Projekt löschen",
-          "description": "Dieses Projekt wird gelöscht. Verknüpfte Tasks und Jobs bleiben außerhalb des Projekts verfügbar.",
-          "confirm": "Löschen",
-          "cancel": "Abbrechen"
+        "close": {
+          "dialog": {
+            "title": "Projekt schließen?",
+            "description": "Arbeit, die vor dem Schließungszeitpunkt geplant ist, wird abgeschlossen. Arbeit ab diesem Zeitpunkt wird abgebrochen und das Projekt kann nicht erneut geöffnet werden.",
+            "reasonLabel": "Grund (optional)",
+            "reasonPlaceholder": "Warum wird dieses Projekt geschlossen?",
+            "confirm": "Projekt schließen",
+            "cancel": "Projekt geöffnet lassen",
+            "success": "Projektschließung gestartet",
+            "error": "Das Projekt konnte nicht geschlossen werden. Prüfe den aktuellen Status und versuche es erneut."
+          },
+          "status": {
+            "CLOSING": {
+              "title": "Projekt wird geschlossen",
+              "description": "{count, plural, =0 {Keine ausstehenden Ausführungen verbleiben} one {# ausstehende Ausführung verbleibt} other {# ausstehende Ausführungen verbleiben}} vor dem Schließungszeitpunkt {cutoff}. Arbeit ab diesem Zeitpunkt wird abgebrochen."
+            },
+            "CLOSE_FAILED": {
+              "title": "Projektschließung erfordert Aufmerksamkeit",
+              "descriptionWithCancel": "Geplante Arbeit ist am Schließungszeitpunkt {cutoff} pausiert. Wiederhole die Schließung oder brich nur die blockierte ausstehende Arbeit ab.",
+              "descriptionRetryOnly": "Geplante Arbeit ist am Schließungszeitpunkt {cutoff} pausiert. Wiederhole die Schließung, um fortzufahren."
+            },
+            "CLOSED": {
+              "title": "Projekt geschlossen",
+              "description": "Geschlossen am {completedAt}. Der Kalenderverlauf bleibt erhalten."
+            }
+          },
+          "recovery": {
+            "retryAction": "Schließung wiederholen",
+            "cancelOwedAction": "Ausstehende Arbeit abbrechen",
+            "reasonLabel": "Grund",
+            "reasonPlaceholder": "Begründe, warum diese Wiederherstellungsaktion nötig ist",
+            "reasonRequired": "Gib einen Grund für diese Wiederherstellungsaktion ein.",
+            "keepFailed": "Schließung pausiert lassen",
+            "success": "Projektschließung fortgesetzt",
+            "error": "Die Projektschließung konnte nicht fortgesetzt werden. Prüfe den aktuellen Status und versuche es erneut.",
+            "retry": {
+              "title": "Projektschließung wiederholen?",
+              "description": "Der Schließungsprozess versucht die blockierte geplante Arbeit ab demselben Schließungszeitpunkt erneut."
+            },
+            "cancelOwed": {
+              "title": "Ausstehende Arbeit abbrechen?",
+              "description": "Nur die blockierte, vor dem Schließungszeitpunkt fällige Arbeit wird abgebrochen. Dies kann nicht rückgängig gemacht werden."
+            }
+          }
         },
         "errors": {
           "create": "Projekt konnte nicht erstellt werden",
           "update": "Projekt konnte nicht aktualisiert werden",
-          "delete": "Projekt konnte nicht gelöscht werden",
           "addJob": "Job konnte nicht hinzugefügt werden",
           "removeJob": "Job konnte nicht entfernt werden",
           "addTask": "Task konnte nicht hinzugefügt werden",
           "loadMore": "Weitere Projekte konnten nicht geladen werden",
           "contextMd": "Projektgedächtnis konnte nicht geladen werden",
           "brand": "Projekt-Markenkontext konnte nicht aktualisiert werden"
+        },
+        "imageStudio": {
+          "back": "Zurück zum Projekt",
+          "updated": "Aktualisiert",
+          "title": "Bildstudio",
+          "subtitle": "Beschreibe, was du brauchst, sieh dir das Ergebnis an und gib die Versionen frei, die du behalten möchtest.",
+          "emptyTitle": "Noch keine Bilder",
+          "emptyBody": "Beschreibe im Chat das gewünschte Bild. Du erhältst eine Version, die du ansehen, verfeinern und freigeben kannst.",
+          "example1": "Eine ruhige Produktaufnahme auf hellem, neutralem Hintergrund",
+          "example2": "Ein breites Bannerbild für eine Frühjahrskampagne",
+          "example3": "Ein abstrakter Hintergrund in den Markenfarben des Projekts",
+          "promptPlaceholder": "Beschreibe das Bild…",
+          "generate": "Erzeugen",
+          "refine": "Verfeinern",
+          "regenerate": "Neue Variante",
+          "variations": "Varianten",
+          "download": "Herunterladen",
+          "compare": "Vergleichen",
+          "compareOff": "Vergleich beenden",
+          "approve": "Freigeben",
+          "reject": "Ablehnen",
+          "undecided": "Offen",
+          "approved": "Freigegeben",
+          "rejected": "Abgelehnt",
+          "clearReview": "Entscheidung zurücksetzen",
+          "feedbackPlaceholder": "Optionale Notiz zu dieser Version",
+          "history": "Versionen",
+          "version": "Version",
+          "generating": "Wird erzeugt",
+          "queued": "Beim Anbieter in der Warteschlange",
+          "failed": "Diese Erzeugung ist fehlgeschlagen",
+          "uncertainTitle": "Diese Anfrage konnte nicht bestätigt werden",
+          "uncertainBody": "Der Anbieter hat nicht geantwortet, daher wissen wir nicht, ob die Anfrage angekommen ist. Sie wurde möglicherweise bereits berechnet. Prüfe zuerst erneut und sende nur dann eine neue Anfrage, wenn du eine zweite Berechnung in Kauf nimmst.",
+          "checkAgain": "Erneut prüfen",
+          "submitAnyway": "Trotzdem neue Anfrage senden",
+          "tryAgain": "Erneut versuchen",
+          "cancel": "Abbrechen",
+          "cancelRequested": "Abbruch angefordert. Der Anbieter ist möglicherweise bereits fertig.",
+          "chatTitle": "Studio-Assistent",
+          "chatUnavailable": "Der Studio-Assistent ist derzeit nicht verfügbar. Du kannst die Versionen unten weiterhin prüfen und herunterladen.",
+          "send": "Senden",
+          "noApproved": "Noch keine freigegebenen Versionen.",
+          "clearFilter": "Alle anzeigen",
+          "filterAll": "Alle",
+          "filterApproved": "Freigegeben",
+          "elapsed": "Vergangen",
+          "lineage": "Verlauf",
+          "from": "Prompt",
+          "you": "Du",
+          "studio": "Studio",
+          "thinking": "Arbeitet…",
+          "assistantError": "Der Assistent konnte das nicht abschließen",
+          "assistantErrorHint": "Deine Nachricht steht noch im Feld. Sende sie erneut oder formuliere sie um.",
+          "loadOlder": "Ältere Versionen laden",
+          "errorSessionExpired": "Deine Sitzung ist abgelaufen. Lade neu, um fortzufahren.",
+          "errorRefreshFailed": "Aktualisierung fehlgeschlagen. Neuer Versuch.",
+          "errorLoadOlderFailed": "Ältere Versionen konnten nicht geladen werden.",
+          "retryConnection": "Erneut verbinden"
         }
       }
     },
@@ -2344,6 +2655,10 @@
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
           "projects": "Projekte",
+          "allProjects": "Alle Projekte",
+          "projectsPanel": "Deine Projekte",
+          "pinnedProjects": "Angeheftet",
+          "recentProjects": "Zuletzt verwendete Projekte",
           "history": "Verlauf",
           "drive": "Dateien",
           "admin": "Administration",
@@ -2351,13 +2666,16 @@
           "back": "Zurück",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Zeitpläne"
+          "calendar": "Kalender",
+          "schedules": "Zeitpläne",
+          "projectsLoading": "Projekte werden geladen…",
+          "projectsError": "Projekte konnten nicht geladen werden.",
+          "retryProjects": "Erneut versuchen"
         },
         "ChatLists": {
           "title": "Letzte Chats",
           "noChats": "Noch keine Chats",
           "untitledChat": "Unbenannter Chat",
-          "modelAlt": "Modell",
           "coworkerAlt": "Mitarbeiter"
         },
         "SeatRequired": {
@@ -3969,6 +4287,8 @@
         "currentPassword": "Aktuelles Passwort",
         "newPassword": "Neues Passwort",
         "confirmPassword": "Neues Passwort bestätigen",
+        "revokeOtherSessionsLabel": "Von anderen Geräten abmelden",
+        "revokeOtherSessionsHelp": "Beendet alle anderen Sitzungen. Dieses Gerät bleibt angemeldet.",
         "submit": "Passwort aktualisieren",
         "success": "Passwort erfolgreich aktualisiert",
         "error": "Passwort konnte nicht aktualisiert werden"
@@ -4060,8 +4380,6 @@
       "Notifications": {
         "title": "Benachrichtigungen",
         "description": "Wähle, worüber Sokosumi dich informiert und wo es dich erreicht",
-        "jobStatusEmailsEnabledSuccess": "Job-Benachrichtigungen per E-Mail aktiviert",
-        "jobStatusEmailsDisabledSuccess": "Job-Benachrichtigungen per E-Mail deaktiviert",
         "marketingEmailsTitle": "Marketing-E-Mails",
         "marketingEmailsDescription": "Erhalte eine E-Mail, wenn Sokosumi neue Features, Updates und Aktionen hat.",
         "marketingEmailOnlyHint": "Sokosumi sendet dafür nur E-Mails.",
@@ -4078,6 +4396,9 @@
         "pushBannerDeniedBody": "Sokosumi kann nicht erneut fragen. Erlaube Benachrichtigungen für diese Website in den Browser-Einstellungen. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
         "pushBannerUnsupportedTitle": "Dieser Browser kann keine Push-Benachrichtigungen anzeigen",
         "pushBannerUnsupportedBody": "Push-Benachrichtigungen kommen hier nicht an, egal was die Zeilen unten sagen. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
+        "pushBannerInstallableTitle": "Füge Sokosumi zum Home-Bildschirm hinzu, um Push-Benachrichtigungen zu bekommen",
+        "pushBannerInstallableBody": "Auf iPhone und iPad kommen Push-Benachrichtigungen nur in der installierten App an. Tippe auf „Teilen“, dann auf „Zum Home-Bildschirm“, und öffne Sokosumi von dort. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
+        "pushInstallableHint": "Füge Sokosumi zum Home-Bildschirm hinzu, um diese auf diesem Gerät zu bekommen.",
         "deviceBannerTitle": "Push-Benachrichtigungen sind in diesem Browser aktiviert. Deine anderen Geräte sind davon nicht betroffen.",
         "deviceBannerAction": "Deaktivieren",
         "deviceDisabledSuccess": "Push-Benachrichtigungen in diesem Browser aus",
@@ -4092,14 +4413,6 @@
         "kindsDescription": "Stelle eine ganze Gruppe auf einmal ein, oder öffne sie und wähle für jede Benachrichtigung.",
         "kindsLoading": "Deine Benachrichtigungseinstellungen werden geladen.",
         "kindsLoadError": "Deine Benachrichtigungseinstellungen wurden nicht geladen. Lade die Seite neu, um es erneut zu versuchen.",
-        "groupJob": "Jobs",
-        "groupJobDescription": "Jobs, die auf dich warten, und der Rest.",
-        "kindJobAttention": "Jobs, die auf dich warten",
-        "kindJobAttentionHint": "Ein Job braucht deine Eingabe, oder seine Zahlung ist gescheitert.",
-        "kindJobCompleted": "Abgeschlossene Jobs",
-        "kindJobCompletedHint": "Ein Job hat die Arbeit erledigt, um die du gebeten hast.",
-        "kindJobUpdate": "Andere Job-Updates",
-        "kindJobUpdateHint": "Alles andere, was ein Job meldet, zum Beispiel gescheitert oder erstattet. Für dich gibt es nichts zu tun.",
         "groupTask": "Aufgaben",
         "groupTaskDescription": "Aufgaben, die auf dich warten, und der Rest.",
         "kindTaskAttention": "Aufgaben, die auf dich warten",
@@ -4108,6 +4421,8 @@
         "kindTaskCompletedHint": "Eine Aufgabe hat die Arbeit erledigt, um die du gebeten hast.",
         "kindTaskUpdate": "Andere Aufgaben-Updates",
         "kindTaskUpdateHint": "Alles andere, was eine Aufgabe meldet, zum Beispiel fehlgeschlagen oder abgebrochen. Für dich gibt es nichts zu tun.",
+        "kindProjectUpdate": "Projekt-Updates",
+        "kindProjectUpdateHint": "Ein Projekt wurde geschlossen oder benötigt einen weiteren Schließversuch.",
         "kindChatRoomMessage": "Jede Nachricht in deinen Räumen",
         "kindChatRoomMessageHint": "Jeder Beitrag in einem Raum, in dem du bist. Standardmäßig aus.",
         "kindChatMention": "Erwähnungen",
@@ -4122,14 +4437,20 @@
         "presetEssential": "Wichtig",
         "presetAppOnly": "In der App",
         "presetOff": "Aus",
-        "presetJobMostHint": "Jobs, die auf dich warten, und abgeschlossene Jobs kommen in der App und als Push an. Andere Job-Updates kommen nur in der App an.",
-        "presetJobEssentialHint": "Nur Jobs, die auf dich warten, kommen als Push an. Abgeschlossene Jobs und andere Updates kommen nur in der App an.",
-        "presetJobAppOnlyHint": "Jede Job-Benachrichtigung kommt in der App an. Keine davon kommt als Push an.",
-        "presetJobOffHint": "Keine Job-Benachrichtigung kommt an, weder in der App noch als Push. E-Mails zum Job-Status haben einen eigenen Schalter.",
         "presetTaskMostHint": "Aufgaben, die auf dich warten, und abgeschlossene Aufgaben kommen in der App und als Push an. Andere Aufgaben-Updates kommen nur in der App an.",
         "presetTaskEssentialHint": "Nur Aufgaben, die auf dich warten, kommen als Push an. Abgeschlossene Aufgaben und andere Updates kommen nur in der App an.",
         "presetTaskAppOnlyHint": "Jede Aufgaben-Benachrichtigung kommt in der App an. Keine davon kommt als Push an.",
         "presetTaskOffHint": "Keine Aufgaben-Benachrichtigung kommt an, weder in der App noch als Push. Öffne die Gruppe, um eine einzelne wieder einzuschalten.",
+        "groupBilling": "Abrechnung",
+        "groupBillingDescription": "Knappe Credits, Zahlungen und Aufladungen.",
+        "kindBillingAttention": "Abrechnung, die auf dich wartet",
+        "kindBillingAttentionHint": "Deine Credits werden knapp, oder eine Zahlung ist fehlgeschlagen. Die Arbeit stoppt, wenn sich nichts ändert.",
+        "kindBillingUpdate": "Andere Abrechnungs-Updates",
+        "kindBillingUpdateHint": "Eine Aufladung ist angekommen, oder dein Abo endet zum Ende der Laufzeit. Für dich gibt es nichts zu tun.",
+        "presetBillingMostHint": "Abrechnung, die auf dich wartet, und andere Abrechnungs-Updates kommen in der App und als Push an.",
+        "presetBillingEssentialHint": "Nur Abrechnung, die auf dich wartet, kommt als Push an. Andere Abrechnungs-Updates kommen nur in der App an.",
+        "presetBillingAppOnlyHint": "Jede Abrechnungs-Benachrichtigung kommt in der App an. Keine davon kommt als Push an.",
+        "presetBillingOffHint": "Keine Abrechnungs-Benachrichtigung kommt an, weder in der App noch als Push. Öffne die Gruppe, um eine einzelne wieder einzuschalten.",
         "presetChatMostHint": "Jede Nachricht in deinen Räumen kommt in der App an. Erwähnungen und Direktnachrichten kommen zusätzlich als Push an.",
         "presetChatEssentialHint": "Erwähnungen und Direktnachrichten kommen als Push an. Jede Nachricht in deinen Räumen ist aus.",
         "presetChatAppOnlyHint": "Erwähnungen und Direktnachrichten kommen in der App an. Jede Nachricht in deinen Räumen ist aus, und nichts kommt als Push an.",
@@ -4141,28 +4462,28 @@
         "presetAriaLabel": "Was du von {group} bekommst",
         "presetMenuCustomLabel": "{group} · einzeln gesetzt",
         "channelInApp": "In der App",
-        "channelInAppHint": "In Sokosumi, nicht auf deinem Gerät.",
+        "channelInAppHint": "Erscheint in deinen Sokosumi-Benachrichtigungen.",
         "channelPush": "Push",
-        "channelPushHint": "Auf deinem Gerät, auch wenn Sokosumi geschlossen ist.",
+        "channelPushHint": "Ein Banner von deinem Gerät, auch wenn Sokosumi geschlossen ist.",
+        "channelEmailExternalLabel": "E-Mail, immer an für {kind}",
+        "channelEmailExternalHint": "Stripe sendet diese Belege und Kündigungen. Hier gibt es nichts einzustellen.",
         "channelEmail": "E-Mail",
-        "channelEmailHint": "Ein Schalter hinter jeder Job-E-Mail: eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet.",
+        "channelEmailHint": "Geht an deinen Posteingang. Nur ungelesene Benachrichtigungen bekommen eine E-Mail.",
         "channelsKindLabel": "Benachrichtigung",
         "channelsLegendLabel": "Was die Spalten bedeuten",
-        "channelEmailFallbackHint": "Eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet.",
         "channelsAnnounce": "{kind}: {channels}",
         "channelsNone": "keine",
         "channelCellLabel": "{channel} für {kind}",
         "channelUnavailableLabel": "{channel}, nicht für {kind}",
-        "channelEmailLabel": "E-Mails zum Job-Status",
-        "channelEmailSoonLabel": "E-Mail, noch nicht für {kind}",
-        "channelEmailSoonHint": "Sokosumi sendet für diese Benachrichtigung noch keine E-Mail.",
         "deliveryAriaLabel": "Zustellung für {kind}",
-        "newsDeliveryAriaLabel": "Zustellung für Marketing-E-Mails"
+        "newsDeliveryAriaLabel": "Zustellung für Marketing-E-Mails",
+        "kindFollowUp": "Erinnerungen",
+        "kindFollowUpHint": "Eine Erinnerung einen Tag später, wenn du etwas nicht geöffnet hast, das auf dich wartet."
       },
       "ChatDisplay": {
         "title": "Chat-Anzeige",
         "roomUnreadCountTitle": "Anzahl ungelesener Nachrichten anzeigen",
-        "roomUnreadCountDescription": "Stummgeschaltete Chats und der geöffnete Chat bleiben ruhig. An deinen Benachrichtigungen ändert sich nichts.",
+        "roomUnreadCountDescription": "Wird bei jedem Chat mit ungelesenen Nachrichten angezeigt. Stummgeschaltete Chats bleiben ruhig, und an deinen Benachrichtigungen ändert sich nichts.",
         "loading": "Einstellung wird gespeichert...",
         "error": "Die Änderung konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
         "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
@@ -4211,6 +4532,7 @@
           "runningSubscription": "Kündige dein laufendes Abo und warte, bis der bezahlte Zeitraum endet.",
           "billingLink": "Zur Abrechnung",
           "userOwnsOrganization": "Übertrage die Owner-Rolle oder lösche jede Organisation, die du besitzt, bevor du deinen Account löschst.",
+          "userIsLastVendorAdmin": "Ernenne ein anderes Vendor-Mitglied zum Admin oder archiviere die Coworker des Vendors, bevor du dein Konto löschst.",
           "inFlightJob": "Warte, bis laufende Jobs abgeschlossen sind, bevor du deinen Account löschst.",
           "unsettledOnChainJob": "Warte, bis On-Chain-Jobkäufe abgeschlossen sind, bevor du deinen Account löschst.",
           "inFlightTask": "Warte, bis laufende Tasks abgeschlossen sind, bevor du deinen Account löschst.",
@@ -5226,6 +5548,7 @@
         "markUnread": "Als ungelesen markieren",
         "pin": "Anheften",
         "unpin": "Lösen",
+        "reorderHandle": "{name} verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
         "mute": "Stummschalten",
         "unmute": "Stummschaltung aufheben",
         "roomMenu": "Chat-Aktionen für {name}",
@@ -5247,6 +5570,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "directMessages": "Direct Messages",
+      "pinned": "Angeheftet",
+      "reorderPinned": "Angeheftete Chats sortieren",
+      "reorderPinnedDone": "Sortieren beenden",
       "loading": "Wird geladen...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Die Nachricht ist zu lang ({count}/{max}). Kürze sie, um sie zu senden.",
@@ -5319,7 +5645,8 @@
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Gruppendirektnachrichten sind nur für Menschen.",
         "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1.",
-        "personalAssistantDirectOneToOneOnly": "Direktnachrichten mit persönlichen Assistenten sind nur 1:1."
+        "personalAssistantDirectOneToOneOnly": "Direktnachrichten mit persönlichen Assistenten sind nur 1:1.",
+        "openFailed": "Der Chat konnte nicht geöffnet werden. Versuche es erneut."
       },
       "RoomSearch": {
         "open": "In diesem Chat suchen",
@@ -5368,6 +5695,36 @@
         "afk": "Away",
         "offline": "Offline"
       },
+      "ThreadRows": {
+        "label": "Ungelesene Threads in {name}",
+        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}",
+        "moreThreads": "{count, plural, one {# weiterer ungelesener Thread} other {# weitere ungelesene Threads}}",
+        "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
+        "untitled": "Thread"
+      },
+      "UnreadNav": {
+        "label": "Ungelesen",
+        "threads": "Threads",
+        "allUnreads": "Ungelesene",
+        "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
+        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
+        "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
+        "filterOn": "Nur ungelesene werden angezeigt",
+        "markAllRead": "Alle als gelesen markieren",
+        "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
+        "caughtUp": "Alles gelesen",
+        "allThreads": "Alle Threads",
+        "justRead": "Gerade gelesen"
+      },
+      "ThreadsView": {
+        "title": "Threads",
+        "listLabel": "Ungelesene Threads",
+        "empty": "Du hast alles gelesen",
+        "emptyDescription": "Neue Antworten in Threads, an denen du beteiligt bist, erscheinen hier.",
+        "loadMore": "Mehr anzeigen",
+        "loadError": "Ungelesene Threads konnten nicht geladen werden.",
+        "retry": "Erneut versuchen"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5376,7 +5733,11 @@
         "loading": "Loading replies",
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
-        "replyCount": "{count, plural, one {# reply} other {# replies}}"
+        "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "newReplyCount": "{count, plural, one {# neue Antwort} other {# neue Antworten}}",
+        "mute": "Thread stummschalten",
+        "unmute": "Stummschaltung aufheben",
+        "muted": "Stummgeschaltet"
       },
       "loadOlder": "Ältere Nachrichten laden",
       "loadingOlder": "Ältere Nachrichten werden geladen…",
@@ -5445,9 +5806,16 @@
         "personalAssistants": "Persönliche Assistenten"
       },
       "Copy": {
-        "action": "Kopieren",
+        "action": "Text kopieren",
+        "link": "Link kopieren",
         "success": "In Zwischenablage kopiert",
-        "error": "Kopieren fehlgeschlagen"
+        "error": "Kopieren fehlgeschlagen",
+        "linkSuccess": "Link kopiert",
+        "linkError": "Link konnte nicht kopiert werden",
+        "sendToSelf": "An dich selbst senden",
+        "sendToSelfSuccess": "An dich selbst gesendet",
+        "sendToSelfError": "Senden an dich selbst fehlgeschlagen",
+        "sendToSelfOpen": "Öffnen"
       },
       "Edit": {
         "action": "Bearbeiten",
@@ -5505,12 +5873,20 @@
       "RoomRoster": {
         "open": "Mitglieder",
         "title": "Mitglieder",
+        "humansTitle": "Personen",
+        "agentsTitle": "Coworker",
         "close": "Mitglieder schließen",
         "empty": "Keine Mitglieder vorhanden.",
         "message": "Nachricht an {name}",
         "copy": "{value} kopieren",
         "copySuccess": "In die Zwischenablage kopiert",
         "copyError": "Kopieren fehlgeschlagen."
+      },
+      "SeenBy": {
+        "summary": "{count, plural, one {Von # Person gelesen} other {Von # Personen gelesen}}",
+        "readersTitle": "Gelesen von",
+        "readAt": "Zuletzt gelesen {time}",
+        "notRead": "Noch nicht gelesen"
       },
       "UnreadThreads": {
         "open": "Threads",
@@ -5522,22 +5898,37 @@
         "error": "Threads konnten nicht geladen werden. Bitte erneut versuchen.",
         "markAllReadError": "Ungelesene Threads konnten nicht als gelesen markiert werden. Bitte erneut versuchen.",
         "loadOlder": "Ältere Threads laden",
+        "groupUnread": "Ungelesen",
+        "groupEarlier": "Früher",
+        "groupUnreadEmpty": "Alles gelesen",
         "startedBy": "Gestartet von {name}",
-        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}",
         "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
-        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads"
+        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
+        "newReplies": "{count, plural, one {# neue} other {# neue}}"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
-        "unreadMessagesCapped": "Mehr als {max} ungelesene Nachrichten"
+        "unreadMessagesCapped": "Mehr als {max} ungelesene Nachrichten",
+        "railUnread": "Ungelesen"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
-        "mentionsCapped": "Mehr als {max} Erwähnungen"
+        "mentionsCapped": "Mehr als {max} Erwähnungen",
+        "railMention": "Erwähnt dich"
       },
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
         "left": "{name} hat den Channel verlassen"
+      },
+      "GroupName": {
+        "rename": "Umbenennen",
+        "dialogTitle": "Gruppe benennen",
+        "dialogDescription": "Alle in der Gruppe sehen diesen Namen statt der Mitgliederliste. Lass das Feld leer, um wieder die Mitglieder anzuzeigen.",
+        "label": "Gruppenname",
+        "save": "Speichern",
+        "saveFailed": "Die Gruppe konnte nicht benannt werden.",
+        "named": "{name} hat die Gruppe {groupName} genannt",
+        "cleared": "{name} hat den Gruppennamen entfernt"
       },
       "External": {
         "title": "Extern",
@@ -5664,10 +6055,13 @@
           "notFound": "Dieser Einladungslink ist ungültig.",
           "back": "Zurück zum Chat"
         }
+      },
+      "SelfDirect": {
+        "messageYourself": "Dir selbst schreiben",
+        "you": "Du",
+        "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
+        "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
       }
-    },
-    "WorkspaceAccess": {
-      "checking": "Workspace-Zugriff wird geprüft"
     },
     "Drive": {
       "breadcrumb": "Dateien",
@@ -5709,7 +6103,7 @@
       "moreActions": "Weitere Aktionen",
       "uploadFab": "Datei hochladen",
       "folder": "Ordner",
-      "createFolder": "Ordner erstellen",
+      "createFolder": "Neu",
       "folderName": "Ordnername",
       "createFolderDialogTitle": "Neuen Ordner erstellen",
       "createFolderDialogDescription": "Gib einen Namen für den neuen Ordner ein",
@@ -5909,8 +6303,6 @@
       "Chat": {
         "defaultName": "Soko Bot",
         "avatarAlt": "Soko Bot",
-        "legacyDivider": "{count, plural, one {# frühere Nachricht aus deinem vorherigen Assistenten importiert} other {# frühere Nachrichten aus deinem vorherigen Assistenten importiert}}",
-        "toolSteps": "{count, plural, one {# Schritt} other {# Schritte}}",
         "answeredIn": "{seconds}s",
         "copy": "Kopieren",
         "copied": "Kopiert",
@@ -6181,7 +6573,7 @@
     },
     "Calendar": {
       "Metadata": {
-        "title": "Zeitpläne",
+        "title": "Kalender",
         "description": "Geplante Aufgabenfreigaben im Workspace durchsuchen."
       },
       "previous": "Vorheriger Zeitraum",
@@ -6195,44 +6587,35 @@
         "label": "Quelle",
         "all": "Alle Quellen",
         "WORKSPACE": "Workspace",
-        "PROJECT": "Projekt",
-        "LEGACY_UNKNOWN": "Legacy-Quelle"
+        "PROJECT": "Projekt"
       },
       "event": {
         "accessibleName": "{task}, {source}",
-        "accessibleNameSkipped": "{task}, {source}, übersprungen",
-        "editSchedule": "Zeitplan bearbeiten",
-        "moveOccurrence": "Vorkommen verschieben",
-        "skipOccurrence": "Vorkommen überspringen",
-        "restoreOccurrence": "Vorkommen wiederherstellen",
-        "mutationError": "Dieses Vorkommen konnte nicht geändert werden. Bitte versuche es erneut.",
-        "openTask": "Task öffnen"
+        "moveNotAllowed": "Nur anstehende Läufe deiner eigenen aktiven Zeitpläne lassen sich verschieben.",
+        "moveRun": "Lauf verschieben",
+        "skipRun": "Lauf überspringen",
+        "restoreRun": "Lauf wiederherstellen",
+        "openSchedule": "Zeitplan öffnen",
+        "runStale": "Dieser Zeitplan wurde an anderer Stelle geändert. Der Kalender lädt neu; versuche es erneut.",
+        "runInvalidTime": "Wähle eine Zeit in der Zukunft, innerhalb der nächsten 90 Tage.",
+        "runError": "Dieser Lauf konnte nicht geändert werden. Versuche es erneut."
+      },
+      "runMove": {
+        "title": "Lauf verschieben",
+        "description": "Wähle eine neue Zeit für diesen Lauf von {name}. Der Zeitplan bleibt, wie er ist.",
+        "label": "Neue Zeit",
+        "confirm": "Lauf verschieben",
+        "cancel": "Abbrechen",
+        "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit."
       },
       "create": {
-        "title": "Task planen"
-      },
-      "edit": {
-        "title": "Zeitplan bearbeiten",
-        "description": "Aendere den Zeitplan fuer {name}.",
-        "loadError": "Dieser Task konnte nicht geladen werden. Bitte versuche es erneut.",
-        "saveError": "Dieser Zeitplan konnte nicht gespeichert werden. Bitte versuche es erneut.",
-        "clearError": "Dieser Zeitplan konnte nicht entfernt werden. Bitte versuche es erneut.",
-        "clearPending": "Zeitplan wird entfernt…",
-        "clearTitle": "Zeitplan entfernen?",
-        "clearDescription": "Dieser Task wird nicht mehr nach einem Zeitplan ausgeführt.",
-        "clearCancel": "Abbrechen",
-        "clearConfirm": "Zeitplan entfernen"
-      },
-      "accuracy": {
-        "inferred": "Abgeleitete Quelle",
-        "unknown": "Unbekannte Quelle",
-        "approximate": "Ungefähre Zeit"
+        "fab": "Task planen"
       },
       "status": {
         "label": "Aufgabenstatus",
         "all": "Alle Status",
         "DRAFT": "Entwurf",
-        "QUEUED": "In Warteschlange",
+        "QUEUED": "Geplant",
         "READY": "Bereit",
         "GRANT_PENDING": "Freigabe ausstehend",
         "INPUT_REQUIRED": "Eingabe erforderlich",
@@ -6256,6 +6639,9 @@
       "empty": {
         "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
       },
+      "schedules": {
+        "link": "Zeitpläne"
+      },
       "pagination": {
         "error": "Weitere Ereignisse konnten nicht geladen werden."
       },
@@ -6263,6 +6649,11 @@
         "title": "Kalender konnte nicht geladen werden",
         "description": "Bitte versuche es gleich noch einmal.",
         "retry": "Erneut versuchen"
+      },
+      "agenda": {
+        "upcoming": "Als Nächstes",
+        "loading": "Wird geladen…",
+        "loadMore": "Mehr laden"
       }
     },
     "You": {
@@ -6410,7 +6801,9 @@
         "Date": {
           "min": "{name} muss mindestens {value} betragen",
           "max": "{name} darf maximal {value} betragen",
-          "format": "{name} muss ein/eine {value} sein"
+          "format": "{name} muss ein/eine {value} sein",
+          "pickDate": "Datum auswählen",
+          "pickDateTime": "Datum und Uhrzeit auswählen"
         },
         "Password": {
           "show": "Passwort anzeigen",
@@ -6433,7 +6826,8 @@
         "paymentFailed": "Zahlung für {jobName} fehlgeschlagen",
         "inputRequired": "{agentName} benötigt deinen Input für {jobName}",
         "refundResolved": "{jobName} wurde erstattet",
-        "disputeResolved": "Einspruch für {jobName} gelöst"
+        "disputeResolved": "Einspruch für {jobName} gelöst",
+        "followUp": "{jobName} wartet weiterhin auf dich"
       },
       "Task": {
         "inputRequired": "{coworkerName} benötigt deinen Input für {taskName}",
@@ -6445,7 +6839,24 @@
         "canceled": "{taskName} wurde abgebrochen",
         "scheduleRepaired": "Der Zeitplan für {taskName} wurde repariert",
         "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
-        "assigned": "Dir wurde {taskName} zugewiesen"
+        "scheduleUpdatedByMember": "Ein Teammitglied hat den Zeitplan für {taskName} aktualisiert",
+        "scheduleRemovedByMember": "Ein Teammitglied hat den Zeitplan für {taskName} entfernt",
+        "scheduleSourceChangedByMember": "Ein Teammitglied hat {taskName} in eine andere Kalenderquelle verschoben",
+        "scheduleOccurrenceChangedByMember": "Ein Teammitglied hat einen Termin von {taskName} geändert",
+        "assigned": "Dir wurde {taskName} zugewiesen",
+        "participantAdded": "Du wurdest als Teilnehmer zu {taskName} hinzugefügt",
+        "followUp": "{taskName} wartet weiterhin auf dich"
+      },
+      "Billing": {
+        "lowBalance": "Deine Credits werden knapp: noch {credits}",
+        "paymentFailed": "Eine Abo-Zahlung ist fehlgeschlagen",
+        "creditsAdded": "{credits} Credits wurden deinem Guthaben hinzugefügt",
+        "subscriptionEnding": "Dein Abo endet mit der aktuellen Laufzeit",
+        "followUp": "Deine Abrechnung braucht weiterhin deine Aufmerksamkeit"
+      },
+      "Project": {
+        "closed": "{projectName} ist jetzt geschlossen",
+        "closeFailed": "{projectName} konnte nicht vollständig geschlossen werden"
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
@@ -6458,7 +6869,10 @@
         "roomMessagesGroup": "{count} Nachrichten in der Gruppe {roomName}",
         "roomMessageTitle": "{authorName} im Kanal {roomName}",
         "roomMessageGroupTitle": "{authorName} in der Gruppe {roomName}",
-        "mentionAll": "Alle"
+        "mentionAll": "Alle",
+        "mentionedFollowUp": "{authorName} wartet weiterhin auf dich in {roomName}",
+        "mentionedDirectFollowUp": "{authorName} wartet weiterhin auf deine Antwort",
+        "directMessageFollowUp": "{authorName} wartet weiterhin auf deine Antwort"
       }
     }
   },

@@ -29,6 +29,10 @@ import {
   readRouteSession,
 } from "@/lib/auth/route-session";
 import {
+  DocxExportQueueError,
+  withDocxExportLock,
+} from "@/lib/utils/docx-export-lock";
+import {
   MAX_MARKDOWN_BYTES,
   withDocxExportFetchGuard,
 } from "@/lib/utils/docx-export-ssrf";
@@ -172,100 +176,109 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Set up DOM context for server-side HTML processing (inject if needed)
-  const cleanup = await setupDomContext();
+  // The conversion below owns process globals (`fetch`, `window`, `document`),
+  // so only one export may run at a time per instance.
+  return withDocxExportLock(async () => {
+    // Set up DOM context for server-side HTML processing
+    const cleanup = await setupDomContext();
 
-  try {
-    // Check if markdown contains HTML content
-    const hasHtml = hasHtmlContent(markdown);
-    const logoBuffer = dataUrlToBuffer(parsed.value.logoPng);
-    const kanjiLogoBuffer = dataUrlToBuffer(parsed.value.kanjiLogoPng);
-    const mdast = unified()
-      .use(remarkParse)
-      .use(remarkGfm)
-      .use(remarkFrontmatter)
-      .use(remarkMath)
-      .parse(markdown);
+    try {
+      // Check if markdown contains HTML content
+      const hasHtml = hasHtmlContent(markdown);
+      const logoBuffer = dataUrlToBuffer(parsed.value.logoPng);
+      const kanjiLogoBuffer = dataUrlToBuffer(parsed.value.kanjiLogoPng);
+      const mdast = unified()
+        .use(remarkParse)
+        .use(remarkGfm)
+        .use(remarkFrontmatter)
+        .use(remarkMath)
+        .parse(markdown);
 
-    const headerElements: Paragraph[] = [];
-    headerElements.push(...createHeaderElements(logoBuffer, kanjiLogoBuffer));
+      const headerElements: Paragraph[] = [];
+      headerElements.push(...createHeaderElements(logoBuffer, kanjiLogoBuffer));
 
-    const footerLeft = new Paragraph({
-      alignment: AlignmentType.LEFT,
-      children: [
-        new TextRun({
-          text: appAuthorUrl,
-          bold: true,
-          font: defaultFont,
-        }),
-      ],
-    });
-    const footerRight = new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      children: [new TextRun({ children: [PageNumber.CURRENT] })],
-    });
+      const footerLeft = new Paragraph({
+        alignment: AlignmentType.LEFT,
+        children: [
+          new TextRun({
+            text: appAuthorUrl,
+            bold: true,
+            font: defaultFont,
+          }),
+        ],
+      });
+      const footerRight = new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        children: [new TextRun({ children: [PageNumber.CURRENT] })],
+      });
 
-    // @m2d/image uses global fetch for remote markdown images — wrap so
-    // private/link-local/metadata targets are blocked at connect time.
-    const blob = await withDocxExportFetchGuard(() =>
-      toDocx(
-        mdast,
-        {
-          title: docTitle,
-          author: docAuthor,
-          styles: defaultStyles,
-        } as unknown as Record<string, unknown>,
-        {
-          plugins: [
-            tablePlugin(),
-            imagePlugin(),
-            listPlugin(),
-            mathPlugin(),
-            ...(hasHtml ? [htmlPlugin()] : []),
-          ] as IPlugin<EmptyNode>[],
-          headers: { default: new Header({ children: headerElements }) },
-          footers: {
-            default: new Footer({ children: [footerLeft, footerRight] }),
-          },
-        },
-      ),
-    );
-
-    const fileName =
-      sanitizeFileName(parsed.value.fileName ?? "output") + ".docx";
-    const body =
-      blob instanceof Blob
-        ? blob
-        : new Blob(
-            [
-              ((blob as Uint8Array).buffer as ArrayBuffer).slice(
-                (blob as Uint8Array).byteOffset,
-                (blob as Uint8Array).byteOffset +
-                  (blob as Uint8Array).byteLength,
-              ),
-            ],
-            {
-              type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      // @m2d/image uses global fetch for remote markdown images — wrap so
+      // private/link-local/metadata targets are blocked at connect time.
+      const blob = await withDocxExportFetchGuard(() =>
+        toDocx(
+          mdast,
+          {
+            title: docTitle,
+            author: docAuthor,
+            styles: defaultStyles,
+          } as unknown as Record<string, unknown>,
+          {
+            plugins: [
+              tablePlugin(),
+              imagePlugin(),
+              listPlugin(),
+              mathPlugin(),
+              ...(hasHtml ? [htmlPlugin()] : []),
+            ] as IPlugin<EmptyNode>[],
+            headers: { default: new Header({ children: headerElements }) },
+            footers: {
+              default: new Footer({ children: [footerLeft, footerRight] }),
             },
-          );
+          },
+        ),
+      );
 
-    return new Response(body, {
-      status: 200,
-      headers: {
-        "content-type":
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "content-disposition": `attachment; filename="${fileName}"`,
-        "cache-control": "no-store",
-      },
-    });
-  } catch (error) {
-    console.error("DOCX generation error", error);
-    return NextResponse.json(
-      { error: "Failed to generate DOCX" },
-      { status: 500 },
-    );
-  } finally {
-    // Clean up DOM context
-    cleanup();
-  }
+      const fileName =
+        sanitizeFileName(parsed.value.fileName ?? "output") + ".docx";
+      const body =
+        blob instanceof Blob
+          ? blob
+          : new Blob(
+              [
+                ((blob as Uint8Array).buffer as ArrayBuffer).slice(
+                  (blob as Uint8Array).byteOffset,
+                  (blob as Uint8Array).byteOffset +
+                    (blob as Uint8Array).byteLength,
+                ),
+              ],
+              {
+                type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              },
+            );
+
+      return new Response(body, {
+        status: 200,
+        headers: {
+          "content-type":
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "content-disposition": `attachment; filename="${fileName}"`,
+          "cache-control": "no-store",
+        },
+      });
+    } catch (error) {
+      console.error("DOCX generation error", error);
+      return NextResponse.json(
+        { error: "Failed to generate DOCX" },
+        { status: 500 },
+      );
+    } finally {
+      // Clean up DOM context
+      cleanup();
+    }
+  }, request.signal).catch((error: unknown) => {
+    if (error instanceof DocxExportQueueError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
+    throw error;
+  });
 }

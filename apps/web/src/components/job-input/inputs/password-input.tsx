@@ -1,7 +1,7 @@
 "use client";
 
 import type { InputPasswordSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";
@@ -15,7 +15,7 @@ export function PasswordInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.PASSWORD, InputPasswordSchemaType>) {
+}: JobInputComponentProps<typeof InputType.PASSWORD, InputPasswordSchemaType>) {
   const t = useTranslations("Library.JobInput.Form.Password");
   const [isVisible, setIsVisible] = React.useState(false);
   const handleToggleVisibility = () => setIsVisible((v) => !v);

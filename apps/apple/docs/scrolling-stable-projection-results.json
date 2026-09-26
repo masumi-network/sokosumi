@@ -1,0 +1,1423 @@
+{
+  "baseline": "ccc120c80f86e3a02f48fb4665df6fddd8719167",
+  "date": "2026-09-21",
+  "environment": {
+    "hardware": "Apple M4 Pro, 24 GiB",
+    "os": "macOS 27.0 (26A428)",
+    "xcode": "27.0 (27A266a)",
+    "architecture": "arm64",
+    "configuration": "Release (-O), ENABLE_CODE_COVERAGE=NO, CLANG_ENABLE_CODE_COVERAGE=NO",
+    "window_points": [
+      900,
+      700
+    ]
+  },
+  "method": {
+    "counter": "overlay_builds increments inside the actual PreparedTranscript.overlaying dictionary construction; reset after the transcript settles and at every measured phase.",
+    "body_counter": "view_bodies counts the scroll-state owner: original room/thread views before, private content views after. Not the new outer data view.",
+    "fixtures": "Real room/thread views, coordinator, composer and message renderer; synthetic fixed IDs/times; no account. Mixed cycles plain/markdown/code/images/unfurls/reactions. Thread count includes parent.",
+    "matrix": "One run per cell, before then after: room/thread x 50/500/2000 x plain/mixed. One process per pane. 30 wheel ticks x 60 points; 1.5-second settle. No concurrent builds or benchmarks.",
+    "long": "After-only 2000/plain room and thread: early 120 ticks, traversal to top, late 120 ticks, idle 60 ticks, then real coordinator reaction with delayed mock HTTP.",
+    "updates": "One 50/plain case per pane and revision. Observes projected arrays and MessageRowView message/document inputs. Failed send observes outbox state, not rendered failure indicator. Scope replacement is room generation or thread parent, not cross-account acceptance.",
+    "builds": "Separate source copies, identical Probe.swift and setup probes. Each Release binary copied out of shared DerivedData before building next variant. Re-extracting inlined harness reproduces after instrumented files byte for byte.",
+    "limits": [
+      "No new Instruments trace, presented-frame FPS, hitch or end-to-end scrolling speedup measurement.",
+      "Actual workspace publications and preparation completion still rebuild projection; only unchanged-data scroll-driven work is eliminated.",
+      "The removed preparedMessages getter has no after timing samples; counter, not that missing timer, proves elimination.",
+      "Thread offset deltas include lazy document-height estimates; not equal-distance or latency comparisons.",
+      "Each process logged sandbox_extension_issue_file_to_process failed: Operation not permitted and completed.",
+      "Existing scroll geometry warning and live M6 acceptance gates remain open."
+    ]
+  },
+  "regression": {
+    "baseline": "--stable-projection fails for every one of the 12 cells",
+    "after": "--stable-projection passes for all 12 cells and both long sweeps",
+    "jump_clear": "New package test observed four failed expectations before no-op guard; final workspace suite covers green.",
+    "updates": "--updates passes all 12 checks per pane on both revisions"
+  },
+  "before_matrix": [
+    {
+      "view": "room",
+      "count": 50,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 7.867791675380431,
+          "parsed": 50,
+          "visited": 50
+        },
+        {
+          "ms": 0.02166666672565043,
+          "parsed": 0,
+          "visited": 50
+        }
+      ],
+      "document_height": 3643,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-48": 1,
+        "fixture-49": 1
+      }
+    },
+    {
+      "view": "room",
+      "count": 50,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 29,
+      "overlay_builds": 29,
+      "prepare": [],
+      "start_y": 3061,
+      "end_y": 1261,
+      "document_height": 3678,
+      "retry_source_collections": 0,
+      "room_input_calls": 29,
+      "bottom_sentinel_body_counts": {
+        "fixture-48": 7,
+        "fixture-49": 7
+      },
+      "row_bodies": 399
+    },
+    {
+      "view": "room",
+      "count": 50,
+      "mix": "mixed",
+      "phase": "load",
+      "view_bodies": 4,
+      "overlay_builds": 3,
+      "prepare": [
+        {
+          "ms": 7.669708342291415,
+          "parsed": 50,
+          "visited": 50
+        },
+        {
+          "ms": 0.018624996300786734,
+          "parsed": 0,
+          "visited": 50
+        }
+      ],
+      "document_height": 9162,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-48": 3,
+        "fixture-49": 3
+      }
+    },
+    {
+      "view": "room",
+      "count": 50,
+      "mix": "mixed",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 10,
+      "overlay_builds": 10,
+      "prepare": [],
+      "start_y": 8580,
+      "end_y": 6780,
+      "document_height": 9318,
+      "retry_source_collections": 0,
+      "room_input_calls": 10,
+      "bottom_sentinel_body_counts": {
+        "fixture-48": 4,
+        "fixture-49": 4
+      },
+      "row_bodies": 59
+    },
+    {
+      "view": "room",
+      "count": 500,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 4,
+      "overlay_builds": 3,
+      "prepare": [
+        {
+          "ms": 57.96116666169837,
+          "parsed": 500,
+          "visited": 500
+        },
+        {
+          "ms": 0.12033333769068122,
+          "parsed": 0,
+          "visited": 500
+        }
+      ],
+      "document_height": 35369,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-498": 3,
+        "fixture-499": 3
+      }
+    },
+    {
+      "view": "room",
+      "count": 500,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 29,
+      "overlay_builds": 29,
+      "prepare": [],
+      "start_y": 34786.5,
+      "end_y": 32986.5,
+      "document_height": 35413,
+      "retry_source_collections": 0,
+      "room_input_calls": 29,
+      "bottom_sentinel_body_counts": {
+        "fixture-498": 9,
+        "fixture-499": 7
+      },
+      "row_bodies": 395
+    },
+    {
+      "view": "room",
+      "count": 500,
+      "mix": "mixed",
+      "phase": "load",
+      "view_bodies": 4,
+      "overlay_builds": 3,
+      "prepare": [
+        {
+          "ms": 62.447999996948056,
+          "parsed": 500,
+          "visited": 500
+        },
+        {
+          "ms": 0.12195833551231772,
+          "parsed": 0,
+          "visited": 500
+        }
+      ],
+      "document_height": 89861,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-498": 3,
+        "fixture-499": 3
+      }
+    },
+    {
+      "view": "room",
+      "count": 500,
+      "mix": "mixed",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 10,
+      "overlay_builds": 10,
+      "prepare": [],
+      "start_y": 89278.5,
+      "end_y": 87478.5,
+      "document_height": 89984,
+      "retry_source_collections": 0,
+      "room_input_calls": 10,
+      "bottom_sentinel_body_counts": {
+        "fixture-498": 5,
+        "fixture-499": 4
+      },
+      "row_bodies": 58
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 4,
+      "overlay_builds": 3,
+      "prepare": [
+        {
+          "ms": 221.26462501182687,
+          "parsed": 2000,
+          "visited": 2000
+        },
+        {
+          "ms": 0.48479167162440717,
+          "parsed": 0,
+          "visited": 2000
+        }
+      ],
+      "document_height": 141226,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 3,
+        "fixture-1999": 3
+      }
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 29,
+      "overlay_builds": 29,
+      "prepare": [],
+      "start_y": 140644,
+      "end_y": 138844,
+      "document_height": 141268,
+      "retry_source_collections": 0,
+      "room_input_calls": 29,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 9,
+        "fixture-1999": 7
+      },
+      "row_bodies": 397
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "mixed",
+      "phase": "load",
+      "view_bodies": 4,
+      "overlay_builds": 3,
+      "prepare": [
+        {
+          "ms": 235.93170833191834,
+          "parsed": 2000,
+          "visited": 2000
+        },
+        {
+          "ms": 0.4564166738418862,
+          "parsed": 0,
+          "visited": 2000
+        }
+      ],
+      "document_height": 358847,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 3,
+        "fixture-1999": 3
+      }
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "mixed",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 10,
+      "overlay_builds": 10,
+      "prepare": [],
+      "start_y": 358264.5,
+      "end_y": 356464.5,
+      "document_height": 359076,
+      "retry_source_collections": 0,
+      "room_input_calls": 10,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 5,
+        "fixture-1999": 4
+      },
+      "row_bodies": 57
+    },
+    {
+      "view": "thread",
+      "count": 50,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 9.301625002990477,
+          "parsed": 50,
+          "visited": 50
+        }
+      ],
+      "document_height": 2825,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-49": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 50,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 25,
+      "overlay_builds": 25,
+      "prepare": [],
+      "start_y": 2275,
+      "end_y": 475,
+      "document_height": 2854,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-49": 9
+      },
+      "row_bodies": 333
+    },
+    {
+      "view": "thread",
+      "count": 50,
+      "mix": "mixed",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 11.272458330495283,
+          "parsed": 50,
+          "visited": 50
+        }
+      ],
+      "document_height": 11736,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-49": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 50,
+      "mix": "mixed",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 13,
+      "overlay_builds": 13,
+      "prepare": [],
+      "start_y": 11186,
+      "end_y": 4725,
+      "document_height": 6943,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-49": 6
+      },
+      "row_bodies": 65
+    },
+    {
+      "view": "thread",
+      "count": 500,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 64.5315833389759,
+          "parsed": 500,
+          "visited": 500
+        }
+      ],
+      "document_height": 22371,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-499": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 500,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 26,
+      "overlay_builds": 26,
+      "prepare": [],
+      "start_y": 21821,
+      "end_y": 20021,
+      "document_height": 22409,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-499": 8
+      },
+      "row_bodies": 340
+    },
+    {
+      "view": "thread",
+      "count": 500,
+      "mix": "mixed",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 68.38812500063796,
+          "parsed": 500,
+          "visited": 500
+        }
+      ],
+      "document_height": 117194,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-499": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 500,
+      "mix": "mixed",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 16,
+      "overlay_builds": 16,
+      "prepare": [],
+      "start_y": 116644,
+      "end_y": 76144,
+      "document_height": 78590,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-499": 11
+      },
+      "row_bodies": 209
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 225.7779166684486,
+          "parsed": 2000,
+          "visited": 2000
+        }
+      ],
+      "document_height": 87621,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 26,
+      "overlay_builds": 26,
+      "prepare": [],
+      "start_y": 87071,
+      "end_y": 85271,
+      "document_height": 87659,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 8
+      },
+      "row_bodies": 334
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "mixed",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 238.49295833497308,
+          "parsed": 2000,
+          "visited": 2000
+        }
+      ],
+      "document_height": 465269,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "mixed",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 13,
+      "overlay_builds": 13,
+      "prepare": [],
+      "start_y": 464719,
+      "end_y": 265980,
+      "document_height": 268160,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 7
+      },
+      "row_bodies": 65
+    }
+  ],
+  "after_matrix": [
+    {
+      "view": "room",
+      "count": 50,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 7.110208345693536,
+          "parsed": 50,
+          "visited": 50
+        }
+      ],
+      "document_height": 3643,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-48": 1,
+        "fixture-49": 1
+      }
+    },
+    {
+      "view": "room",
+      "count": 50,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 28,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 3061,
+      "end_y": 1261,
+      "document_height": 3674,
+      "retry_source_collections": 0,
+      "room_input_calls": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-48": 8,
+        "fixture-49": 8
+      },
+      "row_bodies": 403
+    },
+    {
+      "view": "room",
+      "count": 50,
+      "mix": "mixed",
+      "phase": "load",
+      "view_bodies": 4,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 7.452541671227664,
+          "parsed": 50,
+          "visited": 50
+        }
+      ],
+      "document_height": 9162,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-48": 3,
+        "fixture-49": 3
+      }
+    },
+    {
+      "view": "room",
+      "count": 50,
+      "mix": "mixed",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 10,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 8580,
+      "end_y": 6780,
+      "document_height": 9308,
+      "retry_source_collections": 0,
+      "room_input_calls": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-48": 5,
+        "fixture-49": 4
+      },
+      "row_bodies": 59
+    },
+    {
+      "view": "room",
+      "count": 500,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 4,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 54.0002083289437,
+          "parsed": 500,
+          "visited": 500
+        }
+      ],
+      "document_height": 35355,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-498": 2,
+        "fixture-499": 2
+      }
+    },
+    {
+      "view": "room",
+      "count": 500,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 29,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 34773,
+      "end_y": 32973,
+      "document_height": 35400,
+      "retry_source_collections": 0,
+      "room_input_calls": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-498": 9,
+        "fixture-499": 7
+      },
+      "row_bodies": 397
+    },
+    {
+      "view": "room",
+      "count": 500,
+      "mix": "mixed",
+      "phase": "load",
+      "view_bodies": 4,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 63.82462500187103,
+          "parsed": 500,
+          "visited": 500
+        }
+      ],
+      "document_height": 89861,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-498": 3,
+        "fixture-499": 3
+      }
+    },
+    {
+      "view": "room",
+      "count": 500,
+      "mix": "mixed",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 12,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 89278.5,
+      "end_y": 87478.5,
+      "document_height": 90176,
+      "retry_source_collections": 0,
+      "room_input_calls": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-498": 4,
+        "fixture-499": 4
+      },
+      "row_bodies": 63
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 4,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 220.83966666832566,
+          "parsed": 2000,
+          "visited": 2000
+        }
+      ],
+      "document_height": 141226,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 3,
+        "fixture-1999": 3
+      }
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 29,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 140644,
+      "end_y": 138844,
+      "document_height": 141268,
+      "retry_source_collections": 0,
+      "room_input_calls": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 9,
+        "fixture-1999": 8
+      },
+      "row_bodies": 402
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "mixed",
+      "phase": "load",
+      "view_bodies": 4,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 234.7109999973327,
+          "parsed": 2000,
+          "visited": 2000
+        }
+      ],
+      "document_height": 328513,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 2,
+        "fixture-1999": 2
+      }
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "mixed",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 10,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 327931,
+      "end_y": 326131,
+      "document_height": 328530,
+      "retry_source_collections": 0,
+      "room_input_calls": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 6,
+        "fixture-1999": 5
+      },
+      "row_bodies": 61
+    },
+    {
+      "view": "thread",
+      "count": 50,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 7.979291665833443,
+          "parsed": 50,
+          "visited": 50
+        }
+      ],
+      "document_height": 2825,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-49": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 50,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 25,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 2275,
+      "end_y": 475,
+      "document_height": 2852,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-49": 8
+      },
+      "row_bodies": 324
+    },
+    {
+      "view": "thread",
+      "count": 50,
+      "mix": "mixed",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 11.745249998057261,
+          "parsed": 50,
+          "visited": 50
+        }
+      ],
+      "document_height": 11736,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-49": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 50,
+      "mix": "mixed",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 12,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 11186,
+      "end_y": 5056,
+      "document_height": 7263,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-49": 6
+      },
+      "row_bodies": 64
+    },
+    {
+      "view": "thread",
+      "count": 500,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 67.36283333157189,
+          "parsed": 500,
+          "visited": 500
+        }
+      ],
+      "document_height": 22371,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-499": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 500,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 26,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 21821,
+      "end_y": 20021,
+      "document_height": 22407,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-499": 8
+      },
+      "row_bodies": 338
+    },
+    {
+      "view": "thread",
+      "count": 500,
+      "mix": "mixed",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 69.72387499990873,
+          "parsed": 500,
+          "visited": 500
+        }
+      ],
+      "document_height": 117194,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-499": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 500,
+      "mix": "mixed",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 15,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 116644,
+      "end_y": 72709,
+      "document_height": 74952,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-499": 11
+      },
+      "row_bodies": 190
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 218.94887500093319,
+          "parsed": 2000,
+          "visited": 2000
+        }
+      ],
+      "document_height": 87621,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 26,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 87071,
+      "end_y": 85271,
+      "document_height": 87657,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 8
+      },
+      "row_bodies": 336
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "mixed",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 233.46899999887682,
+          "parsed": 2000,
+          "visited": 2000
+        }
+      ],
+      "document_height": 465269,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "mixed",
+      "phase": "early",
+      "ticks": 30,
+      "view_bodies": 12,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 464719,
+      "end_y": 265980,
+      "document_height": 268160,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 6
+      },
+      "row_bodies": 62
+    }
+  ],
+  "after_long_sweeps": [
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 4,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 218.11729166074656,
+          "parsed": 2000,
+          "visited": 2000
+        }
+      ],
+      "document_height": 141226,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 3,
+        "fixture-1999": 3
+      }
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 120,
+      "view_bodies": 105,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 140644,
+      "end_y": 133444,
+      "document_height": 141262,
+      "retry_source_collections": 0,
+      "room_input_calls": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 10,
+        "fixture-1999": 8
+      },
+      "row_bodies": 1502
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "traverse",
+      "ticks": 332,
+      "view_bodies": 332,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 133444,
+      "end_y": 0,
+      "document_height": 140073,
+      "retry_source_collections": 0,
+      "room_input_calls": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 0,
+        "fixture-1999": 0
+      },
+      "row_bodies": 9491
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "late",
+      "ticks": 120,
+      "view_bodies": 101,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 0,
+      "end_y": 0,
+      "document_height": 140152,
+      "retry_source_collections": 0,
+      "room_input_calls": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 0,
+        "fixture-1999": 0
+      },
+      "row_bodies": 1445
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "idle",
+      "ticks": 60,
+      "view_bodies": 0,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 0,
+      "end_y": 0,
+      "document_height": 140167,
+      "retry_source_collections": 0,
+      "room_input_calls": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1998": 0,
+        "fixture-1999": 0
+      },
+      "row_bodies": 0
+    },
+    {
+      "view": "room",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "reaction",
+      "view_bodies": 3,
+      "overlay_builds": 3,
+      "prepare": [
+        {
+          "ms": 0.5782916559837759,
+          "parsed": 0,
+          "visited": 2000
+        }
+      ],
+      "retry_source_collections": 0
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "load",
+      "view_bodies": 2,
+      "overlay_builds": 1,
+      "prepare": [
+        {
+          "ms": 219.01954166241921,
+          "parsed": 2000,
+          "visited": 2000
+        }
+      ],
+      "document_height": 87621,
+      "retry_source_collections": 0,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 1
+      }
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "early",
+      "ticks": 120,
+      "view_bodies": 95,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 87071,
+      "end_y": 79871,
+      "document_height": 87652,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 8
+      },
+      "row_bodies": 1280
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "traverse",
+      "ticks": 372,
+      "view_bodies": 373,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 79871,
+      "end_y": 0,
+      "document_height": 155993,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 0
+      },
+      "row_bodies": 9726
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "late",
+      "ticks": 120,
+      "view_bodies": 93,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 0,
+      "end_y": 0,
+      "document_height": 155385,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 0
+      },
+      "row_bodies": 1237
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "idle",
+      "ticks": 60,
+      "view_bodies": 0,
+      "overlay_builds": 0,
+      "prepare": [],
+      "start_y": 0,
+      "end_y": 0,
+      "document_height": 155354,
+      "retry_source_collections": 0,
+      "room_input_calls": null,
+      "bottom_sentinel_body_counts": {
+        "fixture-1999": 0
+      },
+      "row_bodies": 0
+    },
+    {
+      "view": "thread",
+      "count": 2000,
+      "mix": "plain",
+      "phase": "reaction",
+      "view_bodies": 3,
+      "overlay_builds": 3,
+      "prepare": [
+        {
+          "ms": 0.7458333275280893,
+          "parsed": 0,
+          "visited": 2000
+        }
+      ],
+      "retry_source_collections": 0
+    }
+  ],
+  "before_live_updates": [
+    {
+      "view": "room",
+      "count": 50,
+      "mix": "plain",
+      "phase": "updates",
+      "view_bodies": 19,
+      "overlay_builds": 17,
+      "retry_source_collections": 0,
+      "passed": [
+        "initial row",
+        "edit and prepared markdown",
+        "optimistic reaction before response",
+        "confirmed reaction",
+        "optimistic reaction removal",
+        "reaction rollback",
+        "arrival",
+        "removal",
+        "pending send",
+        "failed send",
+        "outbox removal",
+        "scope replacement"
+      ]
+    },
+    {
+      "view": "thread",
+      "count": 50,
+      "mix": "plain",
+      "phase": "updates",
+      "view_bodies": 19,
+      "overlay_builds": 17,
+      "retry_source_collections": 0,
+      "passed": [
+        "initial row",
+        "edit and prepared markdown",
+        "optimistic reaction before response",
+        "confirmed reaction",
+        "optimistic reaction removal",
+        "reaction rollback",
+        "arrival",
+        "removal",
+        "pending send",
+        "failed send",
+        "outbox removal",
+        "scope replacement"
+      ]
+    }
+  ],
+  "after_live_updates": [
+    {
+      "view": "room",
+      "count": 50,
+      "mix": "plain",
+      "phase": "updates",
+      "view_bodies": 19,
+      "overlay_builds": 17,
+      "retry_source_collections": 0,
+      "passed": [
+        "initial row",
+        "edit and prepared markdown",
+        "optimistic reaction before response",
+        "confirmed reaction",
+        "optimistic reaction removal",
+        "reaction rollback",
+        "arrival",
+        "removal",
+        "pending send",
+        "failed send",
+        "outbox removal",
+        "scope replacement"
+      ]
+    },
+    {
+      "view": "thread",
+      "count": 50,
+      "mix": "plain",
+      "phase": "updates",
+      "view_bodies": 19,
+      "overlay_builds": 17,
+      "retry_source_collections": 0,
+      "passed": [
+        "initial row",
+        "edit and prepared markdown",
+        "optimistic reaction before response",
+        "confirmed reaction",
+        "optimistic reaction removal",
+        "reaction rollback",
+        "arrival",
+        "removal",
+        "pending send",
+        "failed send",
+        "outbox removal",
+        "scope replacement"
+      ]
+    }
+  ],
+  "sha256": {
+    "product_after": {
+      "Sokosumi/Chat/Timeline/RoomTimelineView.swift": "8d9a031315b1a4fa62cc2ef3f94316f7826b5856f8bb1e31bdbc98514f8b968d",
+      "Sokosumi/Chat/Threads/ReplyThreadView.swift": "96e70589c4235ab9b69368c3c040df5963b281bdbcdfdc9e4272cd98bf188628",
+      "Packages/SokosumiChat/Sources/SokosumiChat/ThreadSession.swift": "470136253718bed1d4b0848558629e6517f834d36a7c3b43d490fcbd91b6569c",
+      "Packages/SokosumiChat/Tests/SokosumiChatTests/ThreadSessionTests.swift": "6a0472e84be55fa38ff0875a3c30d715a464be62e04800a16ec19ae2f9944f2d",
+      "Sokosumi.xcodeproj/project.pbxproj": "d814aafff894d094646026b3519180a80401f9864b583d0ba6f53c63ae14802e"
+    },
+    "harness_files": {
+      "setup.py": "605f605983e087dfa4296d6be1b7465ddb3e1ca8d167f8bff8469c9f231491e7",
+      "Probe.swift": "c81355bfdd422ebfb9f8a76da7c92da57b71895444c873b1294568bb3036eec1",
+      "summarize.py": "86937d39638142afb76eeefa0da84e53e31531da91b1642e2685972e9bfe1f35",
+      "Geometry.swift": "824bd85922f427d348ae81fcf59186ea3694cd595abbf139fbcb21266ad8dcd2",
+      "trace_stacks.py": "7b3f72e71daab07eebe6544863fde63475498ea44fb189d94bb037c837a7b1cf"
+    },
+    "instrumented_after": {
+      "Sokosumi/App/SokosumiApp.swift": "c81355bfdd422ebfb9f8a76da7c92da57b71895444c873b1294568bb3036eec1",
+      "Sokosumi/App/ScrollMediaProtocol.swift": "72de7625764e6ac95ce6e0712e6305948a8d6462b847e1daa483dd2aed0ba5dd",
+      "Sokosumi/Chat/Timeline/RoomTimelineView.swift": "5e564f4dedba86945c8a46d939c886bb7912a7b4db3f119b20eff62eb53506f2",
+      "Sokosumi/Chat/Threads/ReplyThreadView.swift": "a8b0b05eec5d2634ea985eb5d182664a149c7bf8432aebb2047e9ad253b2597c",
+      "Sokosumi/Chat/Timeline/MessageRowView.swift": "1dbfcd9227eaacbde0c942f26a8b9e9a73661d35f3489a280f55cca34625c279",
+      "Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift": "055d229f2416f1b20f5c33a052774fce19cce84d2efe6f895fac5a77da823674",
+      "Packages/SokosumiChat/Sources/SokosumiChat/ThreadSession.swift": "470136253718bed1d4b0848558629e6517f834d36a7c3b43d490fcbd91b6569c",
+      "Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift": "5598b16d4125e461dc63d97f0d60ed42f6a272b0f432b6e81edc0ba409d24a80",
+      "Sokosumi.xcodeproj/project.pbxproj": "d814aafff894d094646026b3519180a80401f9864b583d0ba6f53c63ae14802e"
+    },
+    "instrumented_before": {
+      "Sokosumi/App/SokosumiApp.swift": "c81355bfdd422ebfb9f8a76da7c92da57b71895444c873b1294568bb3036eec1",
+      "Sokosumi/App/ScrollMediaProtocol.swift": "72de7625764e6ac95ce6e0712e6305948a8d6462b847e1daa483dd2aed0ba5dd",
+      "Sokosumi/Chat/Timeline/RoomTimelineView.swift": "4bb7082e8939e86bf20f8e1768d2d2d3048922f390a59d6d19e9b832930da545",
+      "Sokosumi/Chat/Threads/ReplyThreadView.swift": "2e3aebb72cc86d288d0d287dcdbb03a297b2ed0c438df11fec9fbc669590ce55",
+      "Sokosumi/Chat/Timeline/MessageRowView.swift": "1dbfcd9227eaacbde0c942f26a8b9e9a73661d35f3489a280f55cca34625c279",
+      "Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift": "055d229f2416f1b20f5c33a052774fce19cce84d2efe6f895fac5a77da823674",
+      "Packages/SokosumiChat/Sources/SokosumiChat/ThreadSession.swift": "070080dfadbb32b27f091e43c8c476053faf83827993d3f671f4f97c32d54f92",
+      "Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift": "5598b16d4125e461dc63d97f0d60ed42f6a272b0f432b6e81edc0ba409d24a80",
+      "Sokosumi.xcodeproj/project.pbxproj": "d814aafff894d094646026b3519180a80401f9864b583d0ba6f53c63ae14802e"
+    }
+  },
+  "verification": {
+    "before_workspace_tests": {
+      "result": "Passed",
+      "passedTests": 892,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "totalTestCount": 892,
+      "parameterized_executions": 1182
+    },
+    "after_workspace_tests": {
+      "result": "Passed",
+      "passedTests": 893,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "totalTestCount": 893,
+      "parameterized_executions": 1183
+    },
+    "ios17_workspace_build": "Passed (xcodebuild, SokosumiWorkspace, generic iOS, IPHONEOS_DEPLOYMENT_TARGET=17.0)",
+    "strict_uncached_swiftlint": "Passed: 0 violations, 382 files",
+    "pinned_uncached_swiftformat": "Passed: 0/382 files require formatting",
+    "project_package_linkage": "unchanged",
+    "web_changes": "none",
+    "release_harness_builds": "Before and after passed; copied binaries used for measurement",
+    "jump_images": "All four light/dark room/thread captures inspected: requested message 2 highlighted, composer and Jump to latest present; existing OCR checks passed",
+    "task_owned_harness_processes": "Exited"
+  }
+}

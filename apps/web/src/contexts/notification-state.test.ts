@@ -32,7 +32,12 @@ describe("notificationReducer", () => {
     });
 
     const afterRealtime = notificationReducer(
-      { notifications: [], unreadCount: 0 },
+      {
+        notifications: [],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "realtime", notification: chatNotification, created: true },
     );
 
@@ -53,13 +58,21 @@ describe("notificationReducer", () => {
     });
 
     const afterFetch = notificationReducer(
-      { notifications: [staleChat], unreadCount: 1 },
+      {
+        notifications: [staleChat],
+        unreadCount: 1,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       {
         type: "fetch_success",
         realtimeIds: new Set(["notification-realtime"]),
         fetched: [job],
         hasMore: false,
         serverUnreadCount: 1,
+        serverNeedsActionCount: 0,
+        serverMentionsCount: 0,
+        view: "all",
       },
     );
 
@@ -82,7 +95,12 @@ describe("notificationReducer", () => {
     });
 
     const afterMarkRead = notificationReducer(
-      { notifications: [job], unreadCount: 1 },
+      {
+        notifications: [job],
+        unreadCount: 1,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       {
         type: "mark_read_success",
         id: chatRead.id,
@@ -99,7 +117,12 @@ describe("notificationReducer", () => {
     const read = createNotification({ id: "n2", isRead: true });
 
     const afterRemove = notificationReducer(
-      { notifications: [unread, read], unreadCount: 1 },
+      {
+        notifications: [unread, read],
+        unreadCount: 1,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "remove", id: "n1" },
     );
 
@@ -112,12 +135,59 @@ describe("notificationReducer", () => {
     const read = createNotification({ id: "n2", isRead: true });
 
     const afterRemove = notificationReducer(
-      { notifications: [unread, read], unreadCount: 1 },
+      {
+        notifications: [unread, read],
+        unreadCount: 1,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "remove", id: "n2" },
     );
 
     expect(afterRemove.notifications.map((n) => n.id)).toEqual(["n1"]);
     expect(afterRemove.unreadCount).toBe(1);
+  });
+
+  it("drops the Needs you count when a waiting row is removed", () => {
+    const waiting = createNotification({
+      id: "n-grant",
+      kind: "SYSTEM",
+      messageKey: "notifications.vendorGrant.pending",
+      isRead: true,
+    });
+    const news = createNotification({ id: "n-news", isRead: true });
+
+    const afterRemove = notificationReducer(
+      {
+        notifications: [waiting, news],
+        unreadCount: 0,
+        needsActionCount: 1,
+        mentionsCount: 0,
+      },
+      { type: "remove", id: "n-grant" },
+    );
+
+    expect(afterRemove.notifications.map((n) => n.id)).toEqual(["n-news"]);
+    expect(afterRemove.needsActionCount).toBe(0);
+    expect(afterRemove.unreadCount).toBe(0);
+  });
+
+  it("leaves the Needs you count when a row that never asked is removed", () => {
+    const news = createNotification({ id: "n-news", isRead: false });
+
+    const afterRemove = notificationReducer(
+      {
+        notifications: [news],
+        unreadCount: 1,
+        needsActionCount: 2,
+        mentionsCount: 0,
+      },
+      { type: "remove", id: "n-news" },
+    );
+
+    expect(afterRemove.notifications).toEqual([]);
+    expect(afterRemove.unreadCount).toBe(0);
+    expect(afterRemove.needsActionCount).toBe(2);
   });
 
   it("applies fetch and realtime updates atomically without losing unread count", () => {
@@ -130,7 +200,12 @@ describe("notificationReducer", () => {
     });
 
     const afterRealtime = notificationReducer(
-      { notifications: [], unreadCount: 0 },
+      {
+        notifications: [],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "realtime", notification: realtimeNotification, created: true },
     );
 
@@ -140,6 +215,9 @@ describe("notificationReducer", () => {
       fetched: [fetchedNotification],
       hasMore: false,
       serverUnreadCount: 0,
+      serverNeedsActionCount: 0,
+      serverMentionsCount: 0,
+      view: "all",
     });
 
     expect(
@@ -158,7 +236,12 @@ describe("notificationReducer", () => {
     const counted = createNotification({ id: "notification-counted" });
 
     const after = notificationReducer(
-      { notifications: [], unreadCount: 12 },
+      {
+        notifications: [],
+        unreadCount: 12,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "realtime", notification: counted, created: false },
     );
 
@@ -172,7 +255,12 @@ describe("notificationReducer", () => {
     const written = createNotification({ id: "notification-written" });
 
     const after = notificationReducer(
-      { notifications: [], unreadCount: 12 },
+      {
+        notifications: [],
+        unreadCount: 12,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "realtime", notification: written, created: true },
     );
 
@@ -196,7 +284,12 @@ describe("notificationReducer", () => {
     });
 
     const loaded = notificationReducer(
-      { notifications: [newer, older], unreadCount: 2 },
+      {
+        notifications: [newer, older],
+        unreadCount: 2,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       {
         type: "realtime",
         notification: {
@@ -222,7 +315,12 @@ describe("notificationReducer", () => {
     const unread = createNotification({ id: "notification-read-later" });
 
     const loaded = notificationReducer(
-      { notifications: [], unreadCount: 0 },
+      {
+        notifications: [],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "realtime", notification: unread, created: true },
     );
 
@@ -242,7 +340,12 @@ describe("notificationReducer", () => {
       isRead: true,
       readAt: new Date("2026-01-01T11:00:00.000Z"),
     });
-    const state = { notifications: [visible], unreadCount: 2 };
+    const state = {
+      notifications: [visible],
+      unreadCount: 2,
+      needsActionCount: 0,
+      mentionsCount: 0,
+    };
 
     const after = notificationReducer(state, {
       type: "realtime",
@@ -259,7 +362,12 @@ describe("notificationReducer", () => {
     });
 
     const afterRealtime = notificationReducer(
-      { notifications: [], unreadCount: 0 },
+      {
+        notifications: [],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "realtime", notification: realtimeNotification, created: true },
     );
 
@@ -269,6 +377,9 @@ describe("notificationReducer", () => {
       fetched: [],
       hasMore: false,
       serverUnreadCount: 1,
+      serverNeedsActionCount: 0,
+      serverMentionsCount: 0,
+      view: "all",
     });
 
     expect(afterFetch.unreadCount).toBe(1);
@@ -278,7 +389,12 @@ describe("notificationReducer", () => {
     const unread = createNotification({ id: "notification-unread" });
 
     const afterOptimistic = notificationReducer(
-      { notifications: [unread], unreadCount: 1 },
+      {
+        notifications: [unread],
+        unreadCount: 1,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "mark_read_optimistic", id: unread.id },
     );
 
@@ -313,7 +429,12 @@ describe("notificationReducer", () => {
     });
 
     const after = notificationReducer(
-      { notifications: [browserOnly], unreadCount: 0 },
+      {
+        notifications: [browserOnly],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       {
         type: "mark_unread_success",
         id: browserOnly.id,
@@ -333,7 +454,12 @@ describe("notificationReducer", () => {
     });
 
     const afterOptimistic = notificationReducer(
-      { notifications: [read], unreadCount: 0 },
+      {
+        notifications: [read],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "mark_unread_optimistic", id: read.id },
     );
 
@@ -358,13 +484,45 @@ describe("notificationReducer", () => {
     expect(afterSuccess.unreadCount).toBe(1);
   });
 
+  /**
+   * Switching views restarts the list: rows loaded under one view speak for
+   * ranges the other never asked for, so none carry over. The badge counts
+   * the whole feed whatever the view, so it stays.
+   */
+  it("clears the rows but keeps the badge when the list restarts", () => {
+    const unread = createNotification({ id: "unread", isRead: false });
+    const read = createNotification({
+      id: "read",
+      isRead: true,
+      readAt: new Date("2026-06-18T09:30:00.000Z"),
+    });
+
+    const state = notificationReducer(
+      {
+        notifications: [unread, read],
+        unreadCount: 1,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
+      { type: "reset_list" },
+    );
+
+    expect(state.notifications).toEqual([]);
+    expect(state.unreadCount).toBe(1);
+  });
+
   it("is a no-op when optimistically marking an already-read notification", () => {
     const readNotification = createNotification({
       id: "notification-read",
       isRead: true,
       readAt: new Date("2026-06-18T09:30:00.000Z"),
     });
-    const state = { notifications: [readNotification], unreadCount: 0 };
+    const state = {
+      notifications: [readNotification],
+      unreadCount: 0,
+      needsActionCount: 0,
+      mentionsCount: 0,
+    };
 
     const next = notificationReducer(state, {
       type: "mark_read_optimistic",
@@ -376,13 +534,21 @@ describe("notificationReducer", () => {
   it("keeps an unread realtime change when the fetched row is stale", () => {
     const current = createNotification();
     const state = notificationReducer(
-      { notifications: [current], unreadCount: 1 },
+      {
+        notifications: [current],
+        unreadCount: 1,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       {
         type: "fetch_success",
         realtimeIds: new Set([current.id]),
         fetched: [{ ...current, isRead: true }],
         hasMore: false,
         serverUnreadCount: 0,
+        serverNeedsActionCount: 0,
+        serverMentionsCount: 0,
+        view: "all",
       },
     );
     expect(state.notifications[0]?.isRead).toBe(false);
@@ -392,13 +558,21 @@ describe("notificationReducer", () => {
   it("keeps the live badge when count already includes a realtime read", () => {
     const current = createNotification({ isRead: true });
     const state = notificationReducer(
-      { notifications: [current], unreadCount: 10 },
+      {
+        notifications: [current],
+        unreadCount: 10,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       {
         type: "fetch_success",
         realtimeIds: new Set([current.id]),
         fetched: [{ ...current, isRead: false }],
         hasMore: false,
         serverUnreadCount: 10,
+        serverNeedsActionCount: 0,
+        serverMentionsCount: 0,
+        view: "all",
       },
     );
     expect(state.notifications[0]?.isRead).toBe(true);
@@ -422,19 +596,77 @@ describe("notificationReducer", () => {
     });
 
     const state = notificationReducer(
-      { notifications: [newest, older], unreadCount: 0 },
+      {
+        notifications: [newest, older],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       {
         type: "fetch_success",
         realtimeIds: new Set<string>(),
         fetched: [newest],
         hasMore: true,
         serverUnreadCount: 0,
+        serverNeedsActionCount: 0,
+        serverMentionsCount: 0,
+        view: "all",
       },
     );
 
     expect(state.notifications.map((one) => one.id)).toEqual([
       "newest",
       "older",
+    ]);
+  });
+
+  /**
+   * A refresh in the Unread view prunes what the reader has handled: rows the
+   * list still holds below the fetched page stay only while still unread, so
+   * a read from another tab converges the next time the list refreshes.
+   */
+  it("keeps below-page rows on an Unread refresh only while still unread", () => {
+    const newest = createNotification({
+      id: "newest",
+      createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      isRead: false,
+      readAt: null,
+    });
+    const waiting = createNotification({
+      id: "waiting",
+      createdAt: new Date("2026-06-17T09:00:00.000Z"),
+      isRead: false,
+      readAt: null,
+    });
+    const handledElsewhere = createNotification({
+      id: "handled-elsewhere",
+      createdAt: new Date("2026-06-16T09:00:00.000Z"),
+      isRead: true,
+      readAt: new Date("2026-06-16T10:00:00.000Z"),
+    });
+
+    const state = notificationReducer(
+      {
+        notifications: [newest, waiting, handledElsewhere],
+        unreadCount: 2,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
+      {
+        type: "fetch_success",
+        realtimeIds: new Set<string>(),
+        fetched: [newest],
+        hasMore: true,
+        serverUnreadCount: 2,
+        serverNeedsActionCount: 0,
+        serverMentionsCount: 0,
+        view: "unread",
+      },
+    );
+
+    expect(state.notifications.map((one) => one.id)).toEqual([
+      "newest",
+      "waiting",
     ]);
   });
 
@@ -456,13 +688,21 @@ describe("notificationReducer", () => {
     });
 
     const state = notificationReducer(
-      { notifications: [newest, resolved, oldest], unreadCount: 0 },
+      {
+        notifications: [newest, resolved, oldest],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       {
         type: "fetch_success",
         realtimeIds: new Set<string>(),
         fetched: [newest, oldest],
         hasMore: true,
         serverUnreadCount: 0,
+        serverNeedsActionCount: 0,
+        serverMentionsCount: 0,
+        view: "all",
       },
     );
 
@@ -481,13 +721,21 @@ describe("notificationReducer", () => {
     });
 
     const state = notificationReducer(
-      { notifications: [newest, stale], unreadCount: 0 },
+      {
+        notifications: [newest, stale],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       {
         type: "fetch_success",
         realtimeIds: new Set<string>(),
         fetched: [newest],
         hasMore: false,
         serverUnreadCount: 0,
+        serverNeedsActionCount: 0,
+        serverMentionsCount: 0,
+        view: "all",
       },
     );
 
@@ -504,13 +752,21 @@ describe("notificationReducer", () => {
     );
 
     const state = notificationReducer(
-      { notifications: [], unreadCount: 0 },
+      {
+        notifications: [],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       {
         type: "fetch_success",
         realtimeIds: new Set<string>(),
         fetched: rows,
         hasMore: false,
         serverUnreadCount: 0,
+        serverNeedsActionCount: 0,
+        serverMentionsCount: 0,
+        view: "all",
       },
     );
 
@@ -530,7 +786,12 @@ describe("notificationReducer", () => {
     });
 
     const state = notificationReducer(
-      { notifications: [loaded], unreadCount: 3 },
+      {
+        notifications: [loaded],
+        unreadCount: 3,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "load_older_success", fetched: [older] },
     );
 
@@ -547,7 +808,12 @@ describe("notificationReducer", () => {
     const held = createNotification({ id: "held", isRead: true });
 
     const state = notificationReducer(
-      { notifications: [held], unreadCount: 0 },
+      {
+        notifications: [held],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       {
         type: "load_older_success",
         fetched: [{ ...held, isRead: false, readAt: null }],
@@ -566,7 +832,12 @@ describe("notificationReducer", () => {
     });
 
     const state = notificationReducer(
-      { notifications: [], unreadCount: 0 },
+      {
+        notifications: [],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "load_older_success", fetched: [directMessage] },
     );
 
@@ -593,7 +864,12 @@ describe("notificationReducer", () => {
     });
 
     const state = notificationReducer(
-      { notifications: [loaded], unreadCount: 0 },
+      {
+        notifications: [loaded],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "realtime", notification: farBack, created: false },
     );
 
@@ -619,7 +895,12 @@ describe("notificationReducer", () => {
     });
 
     const state = notificationReducer(
-      { notifications: [newest, oldest], unreadCount: 0 },
+      {
+        notifications: [newest, oldest],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       { type: "realtime", notification: room, created: false },
     );
 
@@ -648,16 +929,184 @@ describe("notificationReducer", () => {
     });
 
     const state = notificationReducer(
-      { notifications: [loaded], unreadCount: 0 },
+      {
+        notifications: [loaded],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
       {
         type: "fetch_success",
         realtimeIds: new Set<string>(),
         fetched: [arrived],
         hasMore: true,
         serverUnreadCount: 0,
+        serverNeedsActionCount: 0,
+        serverMentionsCount: 0,
+        view: "all",
       },
     );
 
     expect(state.notifications.map((one) => one.id)).toEqual(["arrived"]);
+  });
+});
+
+describe("notificationReducer mentions count", () => {
+  function createMention(
+    overrides: Partial<NotificationItem> = {},
+  ): NotificationItem {
+    return createNotification({
+      id: "notification-mention",
+      kind: "CHAT",
+      referenceId: "room-1",
+      messageKey: "Notifications.Chat.mentioned",
+      ...overrides,
+    });
+  }
+
+  it("takes Core's number on a fetch", () => {
+    const afterFetch = notificationReducer(
+      {
+        notifications: [],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
+      {
+        type: "fetch_success",
+        realtimeIds: new Set(),
+        fetched: [],
+        hasMore: false,
+        serverUnreadCount: 4,
+        serverNeedsActionCount: 0,
+        serverMentionsCount: 3,
+        view: "mentions",
+      },
+    );
+
+    expect(afterFetch.mentionsCount).toBe(3);
+  });
+
+  it("drops when the reader opens an unread mention", () => {
+    const mention = createMention();
+
+    const afterRead = notificationReducer(
+      {
+        notifications: [mention],
+        unreadCount: 1,
+        needsActionCount: 0,
+        mentionsCount: 1,
+      },
+      { type: "mark_read_optimistic", id: mention.id },
+    );
+
+    expect(afterRead.mentionsCount).toBe(0);
+  });
+
+  it("stays when the reader opens a row that is not a mention", () => {
+    const job = createNotification();
+
+    const afterRead = notificationReducer(
+      {
+        notifications: [job],
+        unreadCount: 1,
+        needsActionCount: 0,
+        mentionsCount: 2,
+      },
+      { type: "mark_read_optimistic", id: job.id },
+    );
+
+    expect(afterRead.mentionsCount).toBe(2);
+  });
+
+  it("comes back when a mention is marked unread", () => {
+    const mention = createMention({ isRead: true, readAt: new Date() });
+
+    const afterUnread = notificationReducer(
+      {
+        notifications: [mention],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
+      { type: "mark_unread_optimistic", id: mention.id },
+    );
+
+    expect(afterUnread.mentionsCount).toBe(1);
+  });
+
+  it("rises when a new mention arrives", () => {
+    const afterRealtime = notificationReducer(
+      {
+        notifications: [],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 0,
+      },
+      { type: "realtime", notification: createMention(), created: true },
+    );
+
+    expect(afterRealtime.mentionsCount).toBe(1);
+  });
+
+  it("drops when a held mention comes back read from elsewhere", () => {
+    const mention = createMention();
+
+    const afterRealtime = notificationReducer(
+      {
+        notifications: [mention],
+        unreadCount: 1,
+        needsActionCount: 0,
+        mentionsCount: 1,
+      },
+      {
+        type: "realtime",
+        notification: { ...mention, isRead: true, readAt: new Date() },
+        created: false,
+      },
+    );
+
+    expect(afterRealtime.mentionsCount).toBe(0);
+  });
+
+  it("clears on mark all read", () => {
+    const afterAll = notificationReducer(
+      {
+        notifications: [createMention()],
+        unreadCount: 5,
+        needsActionCount: 0,
+        mentionsCount: 3,
+      },
+      { type: "mark_all_read" },
+    );
+
+    expect(afterAll.mentionsCount).toBe(0);
+  });
+});
+
+describe("notificationReducer mentions count reconciliation", () => {
+  it("takes Core's number when only a row that is not a mention changed during the fetch", () => {
+    const job = createNotification({ isRead: true, readAt: new Date() });
+
+    const afterFetch = notificationReducer(
+      {
+        notifications: [job],
+        unreadCount: 0,
+        needsActionCount: 0,
+        mentionsCount: 2,
+      },
+      {
+        type: "fetch_success",
+        realtimeIds: new Set([job.id]),
+        fetched: [{ ...job, isRead: false, readAt: null }],
+        hasMore: false,
+        serverUnreadCount: 1,
+        serverNeedsActionCount: 0,
+        serverMentionsCount: 0,
+        view: "all",
+      },
+    );
+
+    expect(afterFetch.mentionsCount).toBe(0);
   });
 });

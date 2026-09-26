@@ -1,9 +1,11 @@
 import prisma from "@/lib/db/prisma";
+import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 
 import {
   buildRoomMentionPrompt,
   loadRoomContextMessages,
+  roomMessagePromptText,
 } from "./chat-room-mention-context";
 import {
   claimMentionForDispatch,
@@ -36,6 +38,7 @@ export async function runSokoBotMentionDispatch(params: {
       roomId: string;
       parentMessageId: string | null;
       content: string;
+      metadata: unknown;
       senderUser: { id: string; name: string | null } | null;
       createdAt: Date;
       room: {
@@ -156,13 +159,17 @@ export async function runSokoBotMentionDispatch(params: {
   // failed somewhere the reader could not see.
   let message: string;
   try {
+    const said = roomMessagePromptText(
+      mention.message.content,
+      readQuoteFromMetadata(mention.message.metadata),
+    );
     message =
       mention.message.room.kind === "direct"
-        ? mention.message.content
+        ? said
         : buildRoomMentionPrompt({
             roomName: mention.message.room.name ?? "chat",
             senderName: mention.message.senderUser?.name ?? "A teammate",
-            content: mention.message.content,
+            content: said,
             isThreadReply: threadRootId != null,
             contextMessages: await loadRoomContextMessages({
               roomId: mention.message.roomId,

@@ -5,10 +5,6 @@ import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 const sentrySetTagMock = vi.fn();
 const sentrySetContextMock = vi.fn();
 
-vi.mock("@/lib/actions", () => ({
-  CommonErrorCode,
-}));
-
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
@@ -77,7 +73,7 @@ vi.mock("@/lib/clients/core.client", () => ({
     toCoreApiActionErrorMock(...args),
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/job.service", () => ({
   jobService: {
     moveJobToWorkspace: vi.fn(),
     provideJobInput: vi.fn(),

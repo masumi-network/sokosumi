@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import DefaultLoading from "@/components/default-loading";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/auth.server";
-import { agentService } from "@/lib/services";
+import { agentService } from "@/lib/services/agent.service";
 import {
   createUnavailableCoreAgent,
   getAgentRatingStats,
@@ -88,23 +88,43 @@ async function JobLayoutInner({
       }}
     >
       <div className="flex w-full flex-col">
-        <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start">
-          <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100dvh-4rem)] lg:w-72 lg:flex-none">
-            <JobsList
-              key={agentId}
-              jobs={agentJobsPage.jobs}
-              jobsNextCursor={agentJobsPage.nextCursor}
-              userId={session.user.id}
-              agentId={agentId}
-            />
-          </div>
+        {/*
+         * Whether two panes fit is a content-width question, not a viewport
+         * one: the sidebar takes 14rem (expanded) or 3.5rem (rail) out of the
+         * window before this row sees any of it, so a `lg:` media query turned
+         * the panes on at a width the panes did not have.
+         *
+         * The outer box is the named query container; the inner flex queries
+         * it. An element cannot query its own containment context, so
+         * `@4xl/jobs-panes:flex-row` on the `@container` node would never
+         * match. `useJobsTwoPaneFit` measures the same outer box.
+         *
+         * Containment starts at md because `container-type` implies
+         * `contain: layout`, which would make the `md:hidden` fixed jobs header
+         * position against this row instead of the viewport. Nothing inside
+         * these panes may be `fixed` at md and up.
+         */}
+        <div data-jobs-panes className="w-full md:@container/jobs-panes">
+          <div className="flex w-full flex-col gap-4 @4xl/jobs-panes:flex-row @4xl/jobs-panes:items-start">
+            <div className="w-full px-4 @4xl/jobs-panes:sticky @4xl/jobs-panes:top-16 @4xl/jobs-panes:h-[calc(100dvh-4rem)] @4xl/jobs-panes:w-72 @4xl/jobs-panes:flex-none">
+              <JobsList
+                key={agentId}
+                jobs={agentJobsPage.jobs}
+                jobsNextCursor={agentJobsPage.nextCursor}
+                userId={session.user.id}
+                agentId={agentId}
+              />
+            </div>
 
-          <div className="h-full min-h-0 min-w-0 flex-1 lg:hidden">
-            <div className="mx-auto h-full min-h-0 w-full px-4">{children}</div>
-          </div>
+            <div className="h-full min-h-0 min-w-0 flex-1 @4xl/jobs-panes:hidden">
+              <div className="mx-auto h-full min-h-0 w-full px-4">
+                {children}
+              </div>
+            </div>
 
-          <div className="hidden h-full min-h-0 min-w-0 flex-1 lg:block">
-            <div className="mx-auto h-full min-h-0 w-full px-4">{right}</div>
+            <div className="hidden h-full min-h-0 min-w-0 flex-1 @4xl/jobs-panes:block">
+              <div className="mx-auto h-full min-h-0 w-full px-4">{right}</div>
+            </div>
           </div>
         </div>
         {modal}

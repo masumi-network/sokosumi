@@ -1,13 +1,13 @@
 "use client";
 
 import type * as Ably from "ably";
-import { useChannel } from "ably/react";
+import { useAbly, useChannel } from "ably/react";
 import { useCallback } from "react";
 
 import {
   type NotificationEventData,
   notificationEventDataSchema,
-} from "@/lib/ably";
+} from "@/lib/ably/schema";
 import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
 
 const NOTIFICATION_CREATED_EVENT_NAME = "notification_created";
@@ -23,6 +23,7 @@ export function useNotificationRealtime({
   onNotification,
   onError,
 }: UseNotificationRealtimeOptions) {
+  const client = useAbly();
   const handleMessage = useCallback(
     (message: Ably.Message) => {
       const parsedResult = notificationEventDataSchema.safeParse(message.data);
@@ -52,6 +53,7 @@ export function useNotificationRealtime({
      * A detached channel means the app shows nothing for the notification,
      * however much of the app is on screen.
      */
-    isReceivingNotifications: () => channel.state === "attached",
+    isReceivingNotifications: () =>
+      client.connection.state === "connected" && channel.state === "attached",
   };
 }

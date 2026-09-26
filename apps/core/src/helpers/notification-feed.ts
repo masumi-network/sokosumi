@@ -2,11 +2,20 @@ import {
   CoworkerWorkspaceAccessStatus,
   NotificationKind,
   type Prisma,
+  TaskStatus,
   VendorGrantStatus,
 } from "@sokosumi/database";
+import { computeJobStatus } from "@sokosumi/database/helpers";
+import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  JOB_INPUT_REQUIRED_MESSAGE_KEY,
+  NEEDS_ACTION_MESSAGE_KEYS,
+  SokosumiJobStatus,
+  TASK_INPUT_REQUIRED_MESSAGE_KEY,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
@@ -14,14 +23,6 @@ import prisma from "@/lib/db/prisma";
 const BROWSER_ONLY_KIND_FILTER = [
   ...BROWSER_ONLY_NOTIFICATION_KINDS,
 ] as NotificationKind[];
-
-/** Message key for workspace vendor-grant request notifications. */
-export const VENDOR_GRANT_PENDING_MESSAGE_KEY =
-  "notifications.vendorGrant.pending";
-
-/** Message key for coworker workspace early-access request notifications. */
-export const COWORKER_ACCESS_PENDING_MESSAGE_KEY =
-  "notifications.coworkerAccess.pending";
 
 /**
  * The rows a browser-only kind still sends to the feed.
@@ -228,4 +229,138 @@ export function mergeAccessNotificationExclusions(
     return nonEmpty[0]!;
   }
   return { AND: nonEmpty };
+}
+
+/**
+ * The feed clause for one reader, with the access requests that have been
+ * answered already taken out. The list and the counts both start from here,
+ * so neither can apply one exclusion and forget the other. `requestedKinds`
+ * narrows as it does in `notificationFeedWhere`.
+ */
+export async function resolvedNotificationFeedWhere(
+  userId: string,
+  requestedKinds?: readonly NotificationKind[],
+): Promise<Prisma.NotificationWhereInput> {
+  const [staleVendorGrantReferenceIds, staleCoworkerAccessReferenceIds] =
+    await Promise.all([
+      findStaleVendorGrantNotificationReferenceIds(userId),
+      findStaleCoworkerAccessNotificationReferenceIds(userId),
+    ]);
+
+  return {
+    userId,
+    ...notificationFeedWhere(requestedKinds),
+    ...mergeAccessNotificationExclusions(
+      excludeResolvedVendorGrantNotificationsWhere(
+        staleVendorGrantReferenceIds,
+      ),
+      excludeResolvedCoworkerAccessNotificationsWhere(
+        staleCoworkerAccessReferenceIds,
+      ),
+    ),
+  };
+}
+
+interface NeedsActionCandidate {
+  id: string;
+  messageKey: string;
+  referenceId: string;
+}
+
+/** One waiting record is one row: the key it asked with, and what it asked about. */
+function recordKey(messageKey: string, referenceId: string): string {
+  return `${messageKey}:${referenceId}`;
+}
+
+/**
+ * Ids of the reader's notifications whose request is still open: the Needs
+ * you view, decided from the record each row points at rather than from the
+ * row, because a row is written once and never learns that its request was
+ * answered. One id per waiting record, the newest, so a task that asked
+ * twice is one row and one count.
+ *
+ * Returns ids rather than a where clause because a job's status is computed
+ * from its events, not stored, so the answer cannot be a join. The list and
+ * the counts route both read from here, which is what keeps the tab's number
+ * equal to the rows under it.
+ */
+export async function findNeedsActionNotificationIds(
+  userId: string,
+): Promise<string[]> {
+  const asked: NeedsActionCandidate[] = await prisma.notification.findMany({
+    where: { userId, messageKey: { in: [...NEEDS_ACTION_MESSAGE_KEYS] } },
+    select: { id: true, messageKey: true, referenceId: true },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+
+  const newestPerRecord = new Map<string, NeedsActionCandidate>();
+  for (const candidate of asked) {
+    if (candidate.referenceId.length === 0) continue;
+    const key = recordKey(candidate.messageKey, candidate.referenceId);
+    if (!newestPerRecord.has(key)) newestPerRecord.set(key, candidate);
+  }
+  const newest = [...newestPerRecord.values()];
+  const referenceIdsFor = (messageKey: string): string[] =>
+    newest
+      .filter((candidate) => candidate.messageKey === messageKey)
+      .map((candidate) => candidate.referenceId);
+
+  const taskIds = referenceIdsFor(TASK_INPUT_REQUIRED_MESSAGE_KEY);
+  const jobIds = referenceIdsFor(JOB_INPUT_REQUIRED_MESSAGE_KEY);
+  const grantIds = referenceIdsFor(VENDOR_GRANT_PENDING_MESSAGE_KEY);
+  const accessIds = referenceIdsFor(COWORKER_ACCESS_PENDING_MESSAGE_KEY);
+
+  const [waitingTasks, jobs, pendingGrants, pendingAccesses] =
+    await Promise.all([
+      taskIds.length === 0
+        ? []
+        : prisma.task.findMany({
+            where: { id: { in: taskIds }, status: TaskStatus.INPUT_REQUIRED },
+            select: { id: true },
+          }),
+      jobIds.length === 0
+        ? []
+        : prisma.job.findMany({
+            where: { id: { in: jobIds } },
+            select: { id: true, ...jobForStatusComputeSelect },
+          }),
+      grantIds.length === 0
+        ? []
+        : prisma.vendorGrant.findMany({
+            where: { id: { in: grantIds }, status: VendorGrantStatus.PENDING },
+            select: { id: true },
+          }),
+      accessIds.length === 0
+        ? []
+        : prisma.coworkerWorkspaceAccess.findMany({
+            where: {
+              id: { in: accessIds },
+              status: CoworkerWorkspaceAccessStatus.PENDING,
+            },
+            select: { id: true },
+          }),
+    ]);
+
+  const waiting = new Set<string>([
+    ...waitingTasks.map((task) =>
+      recordKey(TASK_INPUT_REQUIRED_MESSAGE_KEY, task.id),
+    ),
+    ...jobs
+      .filter(
+        (job) => computeJobStatus(job) === SokosumiJobStatus.INPUT_REQUIRED,
+      )
+      .map((job) => recordKey(JOB_INPUT_REQUIRED_MESSAGE_KEY, job.id)),
+    ...pendingGrants.map((grant) =>
+      recordKey(VENDOR_GRANT_PENDING_MESSAGE_KEY, grant.id),
+    ),
+    ...pendingAccesses.map((access) =>
+      recordKey(COWORKER_ACCESS_PENDING_MESSAGE_KEY, access.id),
+    ),
+  ]);
+
+  return newest
+    .filter((candidate) =>
+      waiting.has(recordKey(candidate.messageKey, candidate.referenceId)),
+    )
+    .map((candidate) => candidate.id);
 }

@@ -199,8 +199,16 @@ vi.mock("@/app/drive/components/drive-tasks-filters", () => ({
 }));
 
 vi.mock("@/components/ui/image-viewer", () => ({
-  ImageViewer: ({ open, alt }: { open: boolean; alt: string }) =>
-    open ? <div role="dialog" aria-label={alt} /> : null,
+  ImageViewer: ({
+    images,
+    activeSrc,
+  }: {
+    images: { src: string; alt: string }[];
+    activeSrc: string | null;
+  }) => {
+    const active = images.find((image) => image.src === activeSrc);
+    return active ? <div role="dialog" aria-label={active.alt} /> : null;
+  },
 }));
 
 vi.mock("@/components/ui/document-viewer", () => ({
@@ -552,16 +560,12 @@ describe("DrivePage tasks mobile toolbar", () => {
       expect(fetchDriveTasksPageMock).toHaveBeenCalled();
     });
 
-    const mobileSearchInput = screen
-      .getAllByPlaceholderText("tasksSearchPlaceholder")
-      .find((input) => input.closest(".md\\:hidden"));
-
-    expect(mobileSearchInput).toBeDefined();
-
-    const mobileToolbar = mobileSearchInput?.closest(".md\\:hidden");
-    expect(mobileToolbar).not.toBeNull();
+    const mobileToolbar = screen.getByTestId("tasks-mobile-toolbar");
     expect(
-      within(mobileToolbar as HTMLElement).getByTestId("tasks-mobile-actions"),
+      within(mobileToolbar).getByPlaceholderText("tasksSearchPlaceholder"),
+    ).toBeVisible();
+    expect(
+      within(mobileToolbar).getByTestId("tasks-mobile-actions"),
     ).toBeVisible();
   });
 
@@ -904,7 +908,7 @@ describe("DrivePage files view mode", () => {
 
     const viewSwitch = screen.getByTestId("files-view-mode-switch");
     expect(viewSwitch.className).toContain("hidden");
-    expect(viewSwitch.className).toContain("md:flex");
+    expect(viewSwitch.className).toContain("@2xl:flex");
   });
 
   it("hides task/project path under the filename in grid", async () => {
@@ -1030,7 +1034,7 @@ describe("DrivePage files view mode", () => {
     });
 
     expect(screen.getByTestId("files-mobile-actions")).toBeVisible();
-    // Desktop create-folder control remains available (md+ toolbar).
+    // Desktop create-folder control remains in the header for wide containers.
     expect(
       screen.getAllByRole("button", { name: "createFolder" }).length,
     ).toBeGreaterThan(0);
@@ -1045,6 +1049,48 @@ describe("DrivePage files view mode", () => {
     expect(
       screen.getByRole("dialog", { name: "createFolderDialogTitle" }),
     ).toBeVisible();
+  });
+
+  it("puts desktop tabs and browse actions on one header row", async () => {
+    searchParams = new URLSearchParams("view=browse");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    const header = screen.getByTestId("files-desktop-header");
+    expect(header.className).toContain("flex-col");
+    expect(header.className).toContain("@xl:flex-row");
+    expect(
+      within(header).getByRole("tab", { name: "recentsTab" }),
+    ).toBeVisible();
+    expect(
+      within(header).getByRole("button", { name: "createFolder" }),
+    ).toBeVisible();
+    expect(
+      within(header).getByPlaceholderText("searchPlaceholder"),
+    ).toBeVisible();
+  });
+
+  it("keeps mobile create-folder path outside the desktop header row", async () => {
+    useIsMobileMock.mockReturnValue(true);
+    searchParams = new URLSearchParams("view=browse");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    const header = screen.getByTestId("files-desktop-header");
+    expect(screen.getByTestId("files-mobile-actions")).toBeVisible();
+    expect(
+      within(header).queryByTestId("files-mobile-actions"),
+    ).not.toBeInTheDocument();
   });
 });
 

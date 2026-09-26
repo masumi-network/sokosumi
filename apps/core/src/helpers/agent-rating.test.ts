@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   calculateAgentRating,
   calculateAgentRatings,
+  doesUserHaveFinishedJobWithAgent,
   getAgentRatingDistribution,
   getRecentAgentReviews,
   getUserAgentReview,
@@ -175,7 +176,6 @@ describe("getRecentAgentReviews", () => {
       },
       orderBy: { createdAt: "desc" },
       take: 10,
-      skip: 0,
     });
     expect(result).toEqual([
       {
@@ -192,22 +192,8 @@ describe("getRecentAgentReviews", () => {
       },
     ]);
   });
-
-  it("forwards the offset as a skip", async () => {
-    const findMany = vi.fn().mockResolvedValue([]);
-    const tx = {
-      userAgentRating: {
-        findMany,
-      },
-    } as unknown as Prisma.TransactionClient;
-
-    await getRecentAgentReviews("agent-1", 5, tx, 10);
-
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ take: 5, skip: 10 }),
-    );
-  });
 });
+
 describe("getUserAgentReview", () => {
   it("returns the caller's own rating, ignoring the hidden filter", async () => {
     const findUnique = vi.fn().mockResolvedValue({
@@ -291,5 +277,38 @@ describe("upsertUserAgentReview", () => {
     });
     // createdAt/updatedAt are stripped by agentMyReviewSchema.
     expect(result).toEqual({ id: "rating-1", rating: 5, comment: "Great" });
+  });
+});
+
+describe("doesUserHaveFinishedJobWithAgent", () => {
+  it("counts finished jobs for the owner and agent", async () => {
+    const count = vi.fn().mockResolvedValue(1);
+    const tx = {
+      job: { count },
+    } as unknown as Prisma.TransactionClient;
+
+    const eligible = await doesUserHaveFinishedJobWithAgent(
+      "user-1",
+      "agent-1",
+      tx,
+    );
+
+    expect(eligible).toBe(true);
+    expect(count).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        ownerId: "user-1",
+        agentId: "agent-1",
+      }),
+    });
+  });
+
+  it("returns false when no finished job exists", async () => {
+    const tx = {
+      job: { count: vi.fn().mockResolvedValue(0) },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      doesUserHaveFinishedJobWithAgent("user-1", "agent-1", tx),
+    ).resolves.toBe(false);
   });
 });

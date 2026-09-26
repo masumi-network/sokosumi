@@ -4,6 +4,7 @@ import {
   createOrganizationLogoUploadSession,
   createUserFileUploadSession,
   createVendorLogoUploadSession,
+  deleteChatRoomFilesIfOwned,
   deleteCoworkerImageIfOwned,
   deleteOrganizationLogoIfOwned,
   deleteTaskFileIfOwned,
@@ -728,6 +729,74 @@ describe("deleteTaskFileIfOwned", () => {
 
     await expect(
       deleteTaskFileIfOwned(url, "tsk_123"),
+    ).resolves.toBeUndefined();
+    expect(captureExceptionMock).toHaveBeenCalled();
+  });
+});
+
+describe("deleteChatRoomFilesIfOwned", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("deletes owned chat-file URLs for the sender prefix", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    delMock.mockResolvedValue(undefined);
+
+    const owned =
+      "https://abc.public.blob.vercel-storage.com/users/user_1/chats/room_1/file-xyz.pdf";
+    const drive =
+      "https://abc.public.blob.vercel-storage.com/users/user_1/docs/notes.pdf";
+    const otherUser =
+      "https://abc.public.blob.vercel-storage.com/users/other/chats/room_1/file.pdf";
+
+    await deleteChatRoomFilesIfOwned(
+      [owned, drive, otherUser, null],
+      { kind: "user", userId: "user_1" },
+      "room_1",
+    );
+
+    expect(delMock).toHaveBeenCalledTimes(1);
+    expect(delMock).toHaveBeenCalledWith(owned, { token: "rw_token" });
+  });
+
+  it("deletes coworker and soko-bot chat-file prefixes", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    delMock.mockResolvedValue(undefined);
+
+    const coworkerOwned =
+      "https://abc.public.blob.vercel-storage.com/coworkers/cow_1/chats/room_1/a.txt";
+    const sokoBotOwned =
+      "https://abc.public.blob.vercel-storage.com/soko-bots/bot_1/chats/room_1/b.txt";
+
+    await deleteChatRoomFilesIfOwned(
+      [coworkerOwned],
+      { kind: "coworker", coworkerId: "cow_1" },
+      "room_1",
+    );
+    await deleteChatRoomFilesIfOwned(
+      [sokoBotOwned],
+      { kind: "sokoBot", sokoBotId: "bot_1" },
+      "room_1",
+    );
+
+    expect(delMock).toHaveBeenCalledWith(coworkerOwned, { token: "rw_token" });
+    expect(delMock).toHaveBeenCalledWith(sokoBotOwned, { token: "rw_token" });
+  });
+
+  it("captures delete failures without throwing", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    delMock.mockRejectedValue(new Error("blob delete failed"));
+
+    const url =
+      "https://abc.public.blob.vercel-storage.com/users/user_1/chats/room_1/file-xyz.pdf";
+
+    await expect(
+      deleteChatRoomFilesIfOwned(
+        [url],
+        { kind: "user", userId: "user_1" },
+        "room_1",
+      ),
     ).resolves.toBeUndefined();
     expect(captureExceptionMock).toHaveBeenCalled();
   });

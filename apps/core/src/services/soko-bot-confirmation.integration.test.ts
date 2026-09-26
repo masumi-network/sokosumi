@@ -9,7 +9,9 @@ vi.mock("@/lib/db/prisma", async () => {
   if (
     url.hostname !== "127.0.0.1" ||
     url.port !== "55439" ||
-    url.pathname !== "/soko_reliability_verified"
+    !["/soko_reliability_verified", "/soko_reliability_integrated"].includes(
+      url.pathname,
+    )
   )
     throw new Error(
       "Only the disposable local reliability database is allowed",

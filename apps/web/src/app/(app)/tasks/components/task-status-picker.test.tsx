@@ -1,8 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { STATUS_ROLE_STYLES } from "@/components/ui/status-marker";
+import { getToneStyle } from "@/components/ui/status-marker";
 import { TaskStatus } from "@/lib/clients/generated/core";
+import { getTaskStatusMarker } from "./task-status-badge";
 
 import { TaskStatusPicker } from "./task-status-picker";
 
@@ -77,17 +78,57 @@ describe("TaskStatusPicker", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("uses the surface tone for an unfilled Failed menu marker", async () => {
+  /**
+   * A menu row paints no fill, so the glyph reads with the word and takes the
+   * same colour. `FAILED` is the status where that matters: its badge paints a
+   * solid red fill and labels itself near-white, so a glyph taking the badge's
+   * own mark colour would be near-white on a near-white popover.
+   *
+   * `labelOnSurface` rather than `onSurface` because cmdk paints the selected
+   * row --accent, and the solid red measures 2.53:1 there in dark.
+   */
+  it("draws the Failed menu glyph in the readable label colour", async () => {
     const user = userEvent.setup();
     renderPicker({ options: [TaskStatus.FAILED] });
 
     await user.click(screen.getByRole("combobox", { name: "Status" }));
 
-    const marker = screen
-      .getByRole("option", { name: /Failed/ })
-      .querySelector("svg");
-    expect(marker).toHaveClass(STATUS_ROLE_STYLES.failure.onSurface);
-    expect(marker).not.toHaveClass(STATUS_ROLE_STYLES.failure.marker);
+    const row = screen.getByRole("option", { name: /Failed/ });
+    const style = getToneStyle(getTaskStatusMarker(TaskStatus.FAILED).tone);
+    expect(row.querySelector("svg")).toHaveClass(style.labelOnSurface);
+    expect(style.labelOnSurface).not.toBe(style.mark);
+    expect(style.labelOnSurface).not.toBe(style.onSurface);
+  });
+
+  /**
+   * The regression this test exists for: the menu briefly drew a dot instead
+   * of the glyph. Five statuses share the `blocked` hue, so the marker column
+   * became five identical dots and the word was the only thing left telling
+   * them apart, which is the single-channel failure SC 1.4.1 is about.
+   */
+  it("gives every same-hue option its own glyph", async () => {
+    const user = userEvent.setup();
+    const blocked = [
+      TaskStatus.GRANT_PENDING,
+      TaskStatus.INPUT_REQUIRED,
+      TaskStatus.APPROVAL_REQUIRED,
+      TaskStatus.AUTHENTICATION_REQUIRED,
+      TaskStatus.OUT_OF_CREDITS,
+    ];
+    renderPicker({ options: blocked });
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+
+    const paths = screen.getAllByRole("option").map((row) => {
+      const svg = row.querySelector("svg");
+      expect(svg, `${row.textContent} has no glyph`).not.toBeNull();
+      return svg?.innerHTML ?? "";
+    });
+
+    // The picker always keeps the current value in the list, so there is one
+    // row more than the five asked for. Every row still needs its own glyph.
+    expect(paths.length).toBeGreaterThanOrEqual(blocked.length);
+    expect(new Set(paths).size).toBe(paths.length);
   });
 
   it("picks an option with its number key while the list is open", async () => {
@@ -181,7 +222,7 @@ describe("TaskStatusPicker", () => {
  * assertion below would hold with the swap deleted.
  */
 describe("TaskStatusPicker pending spinner", () => {
-  const ROLE = STATUS_ROLE_STYLES.success;
+  const ROLE = getToneStyle(getTaskStatusMarker(TaskStatus.COMPLETED).tone);
 
   /** The glyph is the only element inside the pill that carries a role colour. */
   function glyphOfTrigger(): SVGElement {
@@ -197,7 +238,7 @@ describe("TaskStatusPicker pending spinner", () => {
 
     const glyph = glyphOfTrigger();
 
-    expect(glyph).toHaveClass(ROLE.marker);
+    expect(glyph).toHaveClass(ROLE.mark);
     expect(glyph).not.toHaveClass("animate-spin");
   });
 
@@ -215,7 +256,7 @@ describe("TaskStatusPicker pending spinner", () => {
       "size-3.5",
       "shrink-0",
       "animate-spin",
-      ROLE.marker,
+      ROLE.mark,
     );
     expect(spinner).toHaveAttribute("stroke-width", "2.25");
   });

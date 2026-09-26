@@ -13,7 +13,7 @@ interface StoredCredentials {
   refreshToken: string;
 }
 
-test("TestV28 custom target vault entries stay isolated across similar host names", () => {
+test("custom target vault entries stay isolated across similar host names", () => {
   const entries = new Map<string, string>();
   const entryFactory = (serviceName: string, accountName: string) => {
     const key = `${serviceName}\0${accountName}`;
@@ -64,7 +64,7 @@ test("TestV28 custom target vault entries stay isolated across similar host name
     target: "custom",
   });
 });
-test("TestV29 custom target vault entries stay isolated in case-insensitive vaults", () => {
+test("custom target vault entries stay isolated in case-insensitive vaults", () => {
   const entries = new Map<string, string>();
   const entryFactory = (serviceName: string, accountName: string) => {
     const key = `${serviceName}\0${accountName}`.toLowerCase();
@@ -117,7 +117,7 @@ test("TestV29 custom target vault entries stay isolated in case-insensitive vaul
   });
 });
 
-test("TestV61 custom target scopes omit standalone key credentials", () => {
+test("custom target scopes omit standalone key credentials", () => {
   const credentialUrl =
     "https://user:password@host/api?API_KEY=secret&key=key-value&access_key=access-value&Authorization=bearer-token&private-key=private-value&auth-key=auth-value&signature=signature-value&JWT=jwt-value&region=west#fragment";
   const distinctUrl =
@@ -271,7 +271,7 @@ test("fails closed when Linux Secret Service cannot connect over D-Bus", () => {
   assert.throws(() => store.write({ authToken: "secret" }), /credential vault/);
 });
 
-test("TestV65: keeps Linux Secret Service available when lookup returns status 1 with empty stderr", () => {
+test("keeps Linux Secret Service available when lookup returns status 1 with empty stderr", () => {
   const execFileSync = (): never => {
     const error = new Error("") as Error & {
       status: number;

@@ -91,7 +91,18 @@ function isPrismaUniqueViolationOnField(
     return false;
   }
 
-  const target = (error as { meta?: { target?: unknown } }).meta?.target;
+  const { meta } = error as {
+    meta?: {
+      target?: unknown;
+      driverAdapterError?: {
+        cause?: { constraint?: { fields?: unknown; index?: unknown } };
+      };
+    };
+  };
+  // Prisma's pg adapter reports partial unique indexes through the constraint,
+  // without meta.target (for example chat_room_personal_directKey_key).
+  const constraint = meta?.driverAdapterError?.cause?.constraint;
+  const target = meta?.target ?? constraint?.fields ?? constraint?.index;
   if (Array.isArray(target)) {
     return target.includes(field);
   }
@@ -108,6 +119,21 @@ function isPrismaUniqueViolationOnField(
  */
 export function isSlugUniqueConstraintError(error: unknown): boolean {
   return isPrismaUniqueViolationOnField(error, "slug");
+}
+
+/**
+ * Self-service vendor cap. One non-null createdByUserId per user.
+ */
+export function isCreatedByUserUniqueConstraintError(error: unknown): boolean {
+  return isPrismaUniqueViolationOnField(error, "createdByUserId");
+}
+
+/**
+ * Returns true if the error is a Prisma unique constraint violation (P2002)
+ * on an idempotency ledger's `operationId` (with its workspace).
+ */
+export function isOperationIdUniqueConstraintError(error: unknown): boolean {
+  return isPrismaUniqueViolationOnField(error, "operationId");
 }
 
 /**

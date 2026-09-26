@@ -46,7 +46,7 @@ import {
   calculateCentsFromMasumiAmountStrings,
   getAgentCost,
 } from "@/helpers/agent-cost";
-import { incrementAgentJobCount } from "@/helpers/agent-job-count";
+import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { registerJobPurchase } from "@/helpers/job-purchase-registration";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import prisma from "@/lib/db/prisma";
@@ -61,7 +61,6 @@ import {
   buildCoworkerJobParentTaskWhere,
   buildHumanParentTaskVisibilityWhere,
 } from "./task-visibility";
-import { getCents } from "./user";
 
 export interface JobContext {
   userContext: UserContext;
@@ -81,7 +80,11 @@ async function validateCreditBalance(
     return;
   }
 
-  const centsBalance = await getCents(userId, organizationId, tx);
+  const centsBalance = await creditBucketRepository.getBalance(
+    userId,
+    organizationId,
+    tx,
+  );
 
   if (centsBalance < costCents) {
     throw badRequest("Insufficient balance");
@@ -193,7 +196,10 @@ async function createPaidJob(
       ...jobListSummaryInclude,
     },
   });
-  await incrementAgentJobCount(input.agentId, tx);
+  await tx.agent.update({
+    where: { id: input.agentId },
+    data: { jobCount: { increment: 1 } },
+  });
   return job;
 }
 
@@ -263,7 +269,10 @@ async function createFreeJob(
       ...jobListSummaryInclude,
     },
   });
-  await incrementAgentJobCount(input.agentId, tx);
+  await tx.agent.update({
+    where: { id: input.agentId },
+    data: { jobCount: { increment: 1 } },
+  });
   return job;
 }
 
@@ -882,6 +891,17 @@ export async function createAgentJobForUser(
     await input.afterLocalJobCreate?.(createdJob, tx);
     return createdJob;
   }, "Job creation conflicted with a concurrent request. Please retry.");
+
+  // Right after the commit, because the check publishes over realtime and a
+  // job that rolled back must not warn about the credits it did not take, and
+  // before purchase registration, whose failure must not skip the check for a
+  // charge that landed.
+  if (cost.cents > 0n) {
+    await notifyLowBalanceAfterCharge({
+      userId: owner.ownerId,
+      organizationId: owner.organizationId,
+    });
+  }
 
   if (
     agent.pricing.pricingType === PricingType.FIXED &&

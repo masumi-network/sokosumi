@@ -11,6 +11,8 @@ import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import { adminCoworkerService } from "@/lib/services/admin-coworker.service";
 import { coworkerAccessService } from "@/lib/services/coworker-access.service";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Edit coworker",
   description: "Edit coworker platform controls and display metadata",

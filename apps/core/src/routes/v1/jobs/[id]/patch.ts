@@ -53,18 +53,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { name } = c.req.valid("json");
 
-    const job = await prisma.$transaction(async (tx) => {
-      await requireJobCollaboration(c.var.authContext, id, tx);
+    await requireJobCollaboration(c.var.authContext, id, prisma);
 
-      const job = await tx.job.update({
-        where: { id },
-        data: { name },
-        include: jobInclude,
-      });
-
-      return serializeJobDetails(mapJobWithStatus(job));
+    const job = await prisma.job.update({
+      where: { id },
+      data: { name },
+      include: jobInclude,
     });
 
-    return ok(c, jobSchema.parse(job));
+    return ok(c, jobSchema.parse(serializeJobDetails(mapJobWithStatus(job))));
   });
 }

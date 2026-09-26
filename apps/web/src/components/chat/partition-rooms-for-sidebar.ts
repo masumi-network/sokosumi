@@ -1,8 +1,12 @@
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
-import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
+import {
+  compareChatRoomsByRecentActivity,
+  comparePinnedChatRooms,
+} from "./chat-room-activity-sort";
 
 export interface PartitionedSidebarRooms {
+  pinned: ChatRoom[];
   namedChannels: ChatRoom[];
   directMessages: ChatRoom[];
   externalJoined: ChatRoom[];
@@ -14,6 +18,9 @@ const PEER_SIDEBAR_DISCOVERABILITY = new Set<string>(["external", "matched"]);
 /**
  * Split the unified room list for the chat sidebar.
  *
+ * A pinned room of any kind lists under Pinned only, in the reader's own
+ * order, and leaves the section it would otherwise sit in.
+ *
  * External and matched channels (`discoverability === "external" | "matched"`)
  * — host members, guests, and matched roster members — live only under
  * External, never under Channels, so they read as a peer section next to
@@ -23,11 +30,17 @@ const PEER_SIDEBAR_DISCOVERABILITY = new Set<string>(["external", "matched"]);
 export function partitionRoomsForSidebar(
   rooms: ChatRoom[],
 ): PartitionedSidebarRooms {
+  const pinned: ChatRoom[] = [];
   const namedChannels: ChatRoom[] = [];
   const directMessages: ChatRoom[] = [];
   const externalJoined: ChatRoom[] = [];
 
   for (const room of rooms) {
+    if (room.starredAt != null) {
+      pinned.push(room);
+      continue;
+    }
+
     if (
       room.kind === "channel" &&
       room.discoverability != null &&
@@ -53,10 +66,11 @@ export function partitionRoomsForSidebar(
     }
   }
 
-  // Unmuted → pinned → public → private → muted; activity within bucket.
+  pinned.sort(comparePinnedChatRooms);
+  // Unmuted → public → private → muted; activity within bucket.
   namedChannels.sort(compareChatRoomsByRecentActivity);
   directMessages.sort(compareChatRoomsByRecentActivity);
   externalJoined.sort(compareChatRoomsByRecentActivity);
 
-  return { namedChannels, directMessages, externalJoined };
+  return { pinned, namedChannels, directMessages, externalJoined };
 }

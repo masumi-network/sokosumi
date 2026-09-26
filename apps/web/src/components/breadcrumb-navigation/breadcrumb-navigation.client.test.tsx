@@ -37,7 +37,7 @@ const breadcrumbMessages = {
   users: "Users",
   agents: "Agents",
   account: "Account",
-  calendar: "Schedules",
+  calendar: "Calendar",
   editor: "Editor",
   chat: "Chat",
 };
@@ -141,7 +141,7 @@ describe("BreadcrumbNavigationClient", () => {
       />,
     );
 
-    expect(screen.getByText("Schedules")).toBeInTheDocument();
+    expect(screen.getByText("Calendar")).toBeInTheDocument();
   });
 
   it("shows selected chat room under Chat breadcrumbs", () => {

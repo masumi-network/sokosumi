@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import {
   CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+  MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -14,6 +15,21 @@ import { dateTimeSchema } from "@/helpers/datetime";
 const MAX_ROOM_MEMBERS = 500;
 const MAX_ROOM_COWORKERS = 50;
 const MAX_ROOM_SOKO_BOTS = 50;
+
+/**
+ * How many unread Threads a room lists for the sidebar before the overflow
+ * row takes over. Three, because past that the channel list stops being a
+ * list of channels (ADR-0037).
+ */
+export const CHAT_ROOM_UNREAD_THREAD_CAP = 3;
+
+/**
+ * How much of a parent message the list carries. A label shows far less, but
+ * it is built from this after mention tokens and links are rewritten, and a
+ * message that opens with a few of those is mostly markup: a short cut would
+ * end inside a token and put a raw id on the row.
+ */
+export const CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS = 1000;
 
 export const chatRoomPresenceSchema = z
   .enum(["online", "afk", "offline"])
@@ -87,6 +103,16 @@ export const chatRoomUserParticipantSchema = z
         'Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).',
       example: "member",
     }),
+    /**
+     * Room read receipt: this member's Room last-read. Null when they have
+     * never opened the room, and null for everyone when the viewer is a
+     * guest — read times do not cross the organization boundary. Absent on a
+     * message sender, which is the same shape but not a roster entry.
+     */
+    lastReadAt: dateTimeSchema.nullable().optional().openapi({
+      description:
+        "Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer's room access is `guest`. Absent on message senders.",
+    }),
   })
   .openapi("ChatRoomUserParticipant");
 
@@ -123,6 +149,27 @@ export const chatRoomSokoBotParticipantSchema = z
   })
   .openapi("ChatRoomSokoBotParticipant");
 
+/**
+ * One unread Thread as a list row carries it: where opening it lands, what
+ * to label it with and how much is unread. Left unnamed in OpenAPI so the
+ * room's `unreadThreads` stays the inline shape clients already hold.
+ */
+const chatRoomUnreadThreadSchema = z.object({
+  parentMessageId: z.string().uuid(),
+  firstUnreadReplyId: z.string().uuid().openapi({
+    description:
+      "The oldest reply still unread in this Thread: where opening it lands.",
+  }),
+  parentContent: z.string().openapi({
+    description: `The parent message's raw content, cut to ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS} characters. May hold mention tokens and may be empty; the client builds the label.`,
+  }),
+  unreadReplyCount: z.number().int().min(1),
+  unreadMentionCount: z.number().int().min(0).default(0).openapi({
+    description:
+      "How many of this Thread's unread replies name the viewer. Counted from the replies, so a Look clears it; the room's unreadMentionCount is counted from notifications, which Room last-read clears.",
+  }),
+});
+
 export const chatRoomSchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -146,9 +193,24 @@ export const chatRoomSchema = z
       example: "launch-room",
     }),
     kind: z.enum(["channel", "direct"]).openapi({ example: "channel" }),
+    isSelfDirect: z.boolean().openapi({
+      description:
+        "Whether this is the owner's private, sole-human Personal Direct for notes.",
+      example: false,
+    }),
     directKey: z.string().nullable().openapi({
       description: "Deterministic key for direct rooms; null for normal rooms.",
       example: "user_123:user_456",
+    }),
+    isGroupDirect: z.boolean().openapi({
+      description:
+        "Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.",
+      example: false,
+    }),
+    groupName: z.string().nullable().openapi({
+      description:
+        "Group name shared by every member of a group Direct, shown in place of the member list. Null when unnamed, and always null for Channels and other Directs.",
+      example: "Launch crew",
     }),
     topic: z.string().nullable().openapi({ example: "Weekly launch planning" }),
     // Inline nullable enum — do not use chatRoomDiscoverabilitySchema.nullable()
@@ -166,9 +228,36 @@ export const chatRoomSchema = z
     updatedAt: dateTimeSchema,
     unreadCount: z.number().int().min(0).openapi({
       description:
-        "Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.",
+        "Total unread from others: channelUnreadCount + threadUnreadCount. Prefer the two halves; this stays the sum for existing clients. Soft-deleted excluded. ADR-0013, ADR-0037.",
+      example: 5,
+    }),
+    channelUnreadCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Room unread: non-self top-level messages after room lastReadAt. Excludes Thread replies. Drives sidebar bold. ADR-0037.",
       example: 2,
     }),
+    threadUnreadCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Thread unread: non-self replies in Threads the viewer Participates in, after the per-Thread Look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.",
+      example: 3,
+    }),
+    unreadThreadCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.",
+      example: 4,
+    }),
+    unreadThreadMentionCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Unread Thread replies naming the viewer, across every unread Thread in this room, including those past the `unreadThreads` cap. Counted from the replies, so a Look clears it. SOK-1159.",
+      example: 1,
+    }),
+    unreadThreads: z
+      .array(chatRoomUnreadThreadSchema)
+      .max(CHAT_ROOM_UNREAD_THREAD_CAP)
+      .default([])
+      .openapi({
+        description: `Up to ${CHAT_ROOM_UNREAD_THREAD_CAP} unread Threads in this room, newest unread reply first, for the sidebar's inset rows. Same eligibility as threadUnreadCount. \`unreadThreadCount\` is the true number; this list is capped. ADR-0037.`,
+      }),
     unreadMentionCount: z.number().int().min(0).openapi({
       description:
         "Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.",
@@ -176,7 +265,7 @@ export const chatRoomSchema = z
     }),
     starredAt: dateTimeSchema.nullable().openapi({
       description:
-        "When the current user starred this room. Null when not starred.",
+        "Set while the current user has this room starred; null when not. A sort key, not the time of starring: starred rooms list oldest first, and `PUT /chats/rooms/starred` rewrites it.",
       example: "2026-08-02T12:00:00.000Z",
     }),
     pinnedMessageCount: z.number().int().min(0).default(0).openapi({
@@ -222,6 +311,33 @@ export const chatRoomPinnedMessageMutationSchema = z
     }),
   })
   .openapi("ChatRoomPinnedMessageMutation");
+
+/** Far above any real starred list; bounds the one-row-per-id transaction. */
+const MAX_STARRED_ROOMS = 500;
+
+export const reorderStarredChatRoomsRequestSchema = z
+  .object({
+    roomIds: z
+      .array(z.string().uuid())
+      .max(MAX_STARRED_ROOMS)
+      .openapi({
+        description:
+          "Starred room ids in the wanted order. Ids the caller has not starred in the active workspace are ignored; membership-visible starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.",
+        example: ["550e8400-e29b-41d4-a716-446655440000"],
+      }),
+  })
+  .openapi("ReorderStarredChatRoomsRequest");
+
+export const starredChatRoomOrderSchema = z
+  .object({
+    roomId: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    starredAt: dateTimeSchema.openapi({
+      description: "Sort key: starred rooms list oldest `starredAt` first.",
+    }),
+  })
+  .openapi("StarredChatRoomOrder");
 
 const roomMemberUserIdsSchema = z
   .array(z.string().min(1))
@@ -357,6 +473,11 @@ export const updateChatRoomRequestSchema = z
           "Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.",
         example: ["01960001-0001-7001-8001-000000000099"],
       }),
+    groupName: z.string().trim().max(80).nullable().optional().openapi({
+      description:
+        "Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.",
+      example: "Launch crew",
+    }),
   })
   .openapi("UpdateChatRoomRequest");
 
@@ -410,9 +531,6 @@ export const chatRoomMessageSenderSchema = z
   ])
   .openapi("ChatRoomMessageSender");
 
-/** Cap on named reactors returned per emoji; `count` may still exceed this. */
-export const MAX_LISTED_CHAT_REACTION_REACTORS = 20;
-
 export const chatRoomMessageReactorSchema = z
   .object({
     id: z.string().openapi({ example: "user_123" }),
@@ -455,6 +573,11 @@ export const chatRoomMessageQuoteSchema = z
       example: "Can you summarize this launch risk?",
     }),
     attachment: chatRoomMessageQuoteAttachmentSchema.nullable().optional(),
+    roomId: z.string().uuid().optional().openapi({
+      description:
+        "Source room of a message quoted from another room. Absent when the quoted message is in the same room.",
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
   })
   .openapi("ChatRoomMessageQuote");
 
@@ -477,6 +600,18 @@ export const chatRoomMessageMembershipSubjectSchema = z
     }),
   ])
   .openapi("ChatRoomMessageMembershipSubject");
+
+/** Durable Group name change under metadata.groupNameChange, promoted on the DTO. */
+export const chatRoomMessageGroupNameChangeSchema = z
+  .object({
+    action: z.enum(["named", "cleared"]),
+    name: z.string().nullable().openapi({
+      description: "The new Group name; null when it was cleared.",
+      example: "Launch crew",
+    }),
+    actor: z.object({ id: z.string(), name: z.string() }),
+  })
+  .openapi("ChatRoomMessageGroupNameChange");
 
 /** Durable channel join/leave snapshot under metadata.membership, promoted on the DTO. */
 export const chatRoomMessageMembershipSchema = z
@@ -528,10 +663,24 @@ export const chatRoomMessageSchema = z
     mentions: z.array(chatRoomMessageMentionSchema),
     reactions: z.array(chatRoomMessageReactionSchema),
     threadReplyCount: z.number().int().min(0),
+    threadUnreadReplyCount: z.number().int().min(0).optional().openapi({
+      description:
+        "Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.",
+      example: 2,
+    }),
     threadLastReplyAt: dateTimeSchema.nullable(),
+    threadRepliers: z
+      .array(chatRoomMessageSenderSchema)
+      .max(3)
+      .optional()
+      .openapi({
+        description:
+          "Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.",
+      }),
     metadata: z.record(z.string(), z.any()).nullable(),
     quote: chatRoomMessageQuoteSchema.nullable(),
     membership: chatRoomMessageMembershipSchema.nullable(),
+    groupNameChange: chatRoomMessageGroupNameChangeSchema.nullable(),
     unfurls: z.array(chatRoomMessageUnfurlSchema).max(3).nullable().openapi({
       description:
         "Link preview cards scraped from message URLs (absent while pending).",
@@ -560,11 +709,12 @@ export const createChatRoomMessageRequestSchema = z
     content: z
       .string()
       .trim()
-      .min(1)
       .max(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH, {
         error: CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
       })
       .openapi({
+        description:
+          "Message body. May be empty only when `quote` is set: a quote can be the whole message.",
         example: "@coworker:elena Can you summarize this launch risk?",
       }),
     mentionedCoworkerIds: z
@@ -597,17 +747,26 @@ export const createChatRoomMessageRequestSchema = z
         messageId: z.string().uuid().openapi({
           example: "550e8400-e29b-41d4-a716-446655440000",
         }),
+        roomId: z.string().uuid().optional().openapi({
+          description:
+            "Room the quoted message is in, when it is not this room. User senders only. Allowed when the sender can read that room and every user member of this room is also a member of it; anything else is a 400.",
+          example: "550e8400-e29b-41d4-a716-446655440001",
+        }),
       })
       .optional()
       .openapi({
         description:
-          "Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.",
+          "Quote another message. Snapshot is stored in metadata.quote; does not set parentMessageId.",
       }),
     clientMessageId: z.string().trim().min(1).max(128).optional().openapi({
       description:
         "Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).",
       example: "019fbee7-676b-771f-ab7a-998f25f1f16b",
     }),
+  })
+  .refine((body) => body.content.length > 0 || body.quote !== undefined, {
+    path: ["content"],
+    error: "Message is required.",
   })
   .openapi("CreateChatRoomMessageRequest");
 
@@ -625,12 +784,6 @@ export const updateChatRoomMessageRequestSchema = z
       }),
   })
   .openapi("UpdateChatRoomMessageRequest");
-
-export const reactToChatRoomMessageRequestSchema = z
-  .object({
-    emoji: z.string().trim().min(1).max(24).openapi({ example: "👍" }),
-  })
-  .openapi("ReactToChatRoomMessageRequest");
 
 /**
  * Archiving and leaving both make the room unreachable for the caller, so
@@ -684,7 +837,7 @@ export const chatRoomThreadSchema = z
     }),
     unreadReplyCount: z.number().int().min(0).openapi({
       description:
-        "Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention). Zero for lurkers, including never-looked lurkers.",
+        "Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention) and has not muted this thread. Replies that name the viewer count even in a muted thread. Zero for lurkers, including never-looked lurkers.",
       example: 2,
     }),
     lastUnreadReplyAt: dateTimeSchema.nullable().openapi({
@@ -696,6 +849,11 @@ export const chatRoomThreadSchema = z
       description:
         "True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.",
       example: true,
+    }),
+    mutedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When the viewer muted this thread, or null when they have not. A muted thread stops counting toward room unread and stops writing CHAT notifications for them; replies that name them still do. Mute does not change whether they Participate.",
+      example: "2026-07-02T12:00:00.000Z",
     }),
   })
   .openapi("ChatRoomThread");
@@ -720,13 +878,63 @@ export const chatRoomThreadsMarkAllSchema = z
   })
   .openapi("ChatRoomThreadsMarkAll");
 
-/** Cheap unread-thread count. Same Participant-gated set as `unread=true`. */
+/**
+ * An unread Thread in any of the reader's rooms, for the Threads view
+ * (SOK-1159). The room's own unread Thread row, plus the room it is in.
+ */
+export const chatUnreadThreadSchema = chatRoomUnreadThreadSchema
+  .extend({
+    roomId: z.string().uuid().openapi({
+      description: "The room the Thread is in.",
+    }),
+    lastUnreadAt: dateTimeSchema.openapi({
+      description:
+        "When the newest unread reply in this Thread came (a responded coworker mention's answer time where later). The list ranks by it.",
+    }),
+  })
+  .openapi("ChatUnreadThread");
+
+/**
+ * A Thread the reader is part of with nothing unread, for the Threads view's
+ * Earlier group (SOK-1159).
+ */
+export const chatEarlierThreadSchema = z
+  .object({
+    roomId: z.string().uuid(),
+    parentMessageId: z.string().uuid(),
+    parentContent: z.string().openapi({
+      description: `The parent message's raw content, cut to ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS} characters. May hold mention tokens and may be empty; the client builds the label.`,
+    }),
+    replyCount: z.number().int().min(1),
+    lastReplyAt: dateTimeSchema,
+    lastReplyId: z.string().uuid().openapi({
+      description: "The Thread's newest reply: where opening it lands.",
+    }),
+  })
+  .openapi("ChatEarlierThread");
+
+/** One unread Thread's reply count, without the parent message. */
+export const chatRoomThreadUnreadReplyCountSchema = z
+  .object({
+    parentMessageId: z.string().uuid(),
+    unreadReplyCount: z.number().int().min(1),
+  })
+  .openapi("ChatRoomThreadUnreadReplyCount");
+
+/**
+ * Unread threads in a room with each one's reply count. Same
+ * Participant-gated set as `unread=true`, without hydrating parents.
+ */
 export const chatRoomThreadsUnreadCountSchema = z
   .object({
     count: z.number().int().min(0).openapi({
       description:
-        "Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Does not hydrate thread items.",
+        "Number of unread threads (`unreadReplyCount >= 1`, Participant-gated dual-baseline). Equals `threads.length`.",
       example: 4,
+    }),
+    threads: z.array(chatRoomThreadUnreadReplyCountSchema).openapi({
+      description:
+        "Every unread thread in the room with its `unreadReplyCount`. A thread absent from the list has no unread replies for the viewer.",
     }),
   })
   .openapi("ChatRoomThreadsUnreadCount");
@@ -746,6 +954,7 @@ export type ChatRoomThreadReadState = z.infer<
 export type ChatRoomThreadsMarkAll = z.infer<
   typeof chatRoomThreadsMarkAllSchema
 >;
+export type ChatUnreadThread = z.infer<typeof chatUnreadThreadSchema>;
 export type ChatRoomThreadsUnreadCount = z.infer<
   typeof chatRoomThreadsUnreadCountSchema
 >;

@@ -7,33 +7,52 @@ import SwiftUI
 #if os(macOS)
   struct ReplyThreadView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
-    @EnvironmentObject private var auth: AuthState
     @State private var preparedTranscript: PreparedTranscript?
-
-    private var preparationScope: [String] {
-      [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? "", String(workspaces.thread.timeline.generation)]
-    }
+    /// Publish the page controls with prepared replies, including empty final pages.
+    @State private var preparedHasMore = false
 
     private var preparationInput: PreparedTranscript.Input {
       let room = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
-      return .init(scope: preparationScope,
-                   messages: (workspaces.thread.parent.map { [$0] } ?? []) + workspaces.displayedThreadReplies,
+      return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? "", String(workspaces.thread.timeline.generation)],
+                   messages: (workspaces.displayedThreadParent.map { [$0] } ?? []) + workspaces.displayedThreadReplies,
                    mentions: room.map(MessageMentions.init), channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
     }
 
-    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
-      guard preparedTranscript?.input.scope == preparationScope else { return [] }
-      return preparedTranscript?.input.messages ?? []
+    var body: some View {
+      let input = preparationInput
+      let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
+      ReplyThreadContent(messages: prepared?.overlaying(input.messages) ?? [], preparedTranscript: prepared,
+                         preparationScope: input.scope, preparedHasMore: preparedHasMore)
+        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: workspaces.transcriptRoomId ?? "", parentMessageId: workspaces.thread.parent?.id))
+        .id([workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? ""])
+        .onChange(of: workspaces.thread.timeline.hasMore) { _, hasMore in
+          if preparedTranscript?.input == input {
+            preparedHasMore = hasMore
+          }
+        }
+        .task(id: input) {
+          let hasMore = workspaces.thread.timeline.hasMore
+          guard let prepared = try? await PreparedTranscript.prepare(input, reusing: preparedTranscript), !Task.isCancelled else { return }
+          preparedTranscript = prepared
+          preparedHasMore = hasMore
+        }
     }
+  }
 
-    private var readyJump: ThreadSession.JumpTarget? {
+  private struct ReplyThreadContent: View {
+    @EnvironmentObject private var workspaces: WorkspaceState
+    @EnvironmentObject private var auth: AuthState
+    let messages: [Components.Schemas.ChatRoomMessage]
+    let preparedTranscript: PreparedTranscript?
+    let preparationScope: [String]
+    let preparedHasMore: Bool
+
+    private func readyJump(in messages: [Components.Schemas.ChatRoomMessage]) -> ThreadSession.JumpTarget? {
       guard let target = workspaces.thread.jumpTarget,
-            preparedMessages.contains(where: { $0.id == target.messageId }) else { return nil }
+            messages.contains(where: { $0.id == target.messageId }) else { return nil }
       return target
     }
 
-    // Update the header controls together with prepared replies, including empty final pages.
-    @State private var preparedHasMore = false
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var olderBoundaryVisible = false
     @State private var visibleMessageID: String?
@@ -48,14 +67,32 @@ import SwiftUI
       return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
     }
 
-    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
+    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
       guard canReactToMessage(message) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
+    }
+
+    private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
+      guard workspaces.canSendToSelf(message) else { return nil }
+      return { try await workspaces.sendMessageToSelf(message, auth: auth) }
     }
 
     private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
       return { try await workspaces.deleteMessage(message, auth: auth) }
+    }
+
+    private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
+      guard workspaces.canRetryMention(message) else { return nil }
+      return { try await workspaces.retryMention(message, auth: auth) }
+    }
+
+    private func quoteAction(for message: Components.Schemas.ChatRoomMessage) -> (() -> Void)? {
+      guard canQuoteMessage(message) else { return nil }
+      return {
+        pendingQuote = messageQuote(from: message)
+        quoteFocusRequest = UUID().uuidString
+      }
     }
 
     var body: some View {
@@ -74,37 +111,25 @@ import SwiftUI
           userIsScrolling = false
           pendingBottomAlignment = false
         }
-        .onChange(of: workspaces.thread.timeline.hasMore) { _, hasMore in
-          if preparedTranscript?.input == preparationInput {
-            preparedHasMore = hasMore
-          }
-        }
-        .task(id: preparationInput) {
-          let hasMore = workspaces.thread.timeline.hasMore
-          guard let prepared = try? await PreparedTranscript.prepare(preparationInput, reusing: preparedTranscript), !Task.isCancelled else { return }
-          preparedTranscript = prepared
-          preparedHasMore = hasMore
-        }
     }
 
     @ViewBuilder private var content: some View {
-      if let parent = preparedMessages.first {
+      if let parent = messages.first {
+        let jumpTarget = readyJump(in: messages)
         let currentRoom = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
         let channels = workspaces.composerChannels
         ScrollViewReader { proxy in
           ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
               MessageRowView(channels: channels, room: currentRoom, preparedDocument: preparedTranscript?.documents[parent.id], message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                             onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
-                               quoteFocusRequest = UUID().uuidString
-                             } : nil,
+                             onQuote: quoteAction(for: parent),
                              onEdit: canModifyOwnMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
                              onDelete: deletionAction(for: parent),
                              onRemoveUnfurl: unfurlAction(for: parent),
                              onToggleReaction: reactionAction(for: parent),
-                             pendingReactionEmoji: workspaces.pendingReactionEmoji(for: parent.id),
                              editing: workspaces.messageEditing,
-                             onQuoteJump: jumpToQuote)
+                             onQuoteJump: jumpToQuote,
+                             onSendToSelf: sendToSelfAction(for: parent))
                 .id(parent.id)
               Divider()
               HStack {
@@ -128,7 +153,7 @@ import SwiftUI
               }
               .font(.caption)
               .frame(minHeight: 24)
-              replies(channels: channels, room: currentRoom)
+              replies(messages: Array(messages.dropFirst()), channels: channels, room: currentRoom)
               Color.clear.frame(height: 17).id("thread-bottom")
             }
             .scrollTargetLayout()
@@ -138,8 +163,8 @@ import SwiftUI
           .scrollPosition(id: $visibleMessageID, anchor: .bottom)
           .defaultScrollAnchor(.bottom, for: .initialOffset)
           .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
-          .task(id: readyJump) {
-            guard let target = readyJump else { return }
+          .task(id: jumpTarget) {
+            guard let target = jumpTarget else { return }
             scrollIntent.readOlder()
             pendingBottomAlignment = false
             proxy.scrollTo(target.messageId, anchor: .center)
@@ -170,7 +195,7 @@ import SwiftUI
               }
             }
           }
-          .onChange(of: preparedMessages.last?.id) { _, _ in
+          .onChange(of: messages.last?.id) { _, _ in
             if scrollIntent.followsLatest {
               proxy.scrollTo("thread-bottom", anchor: .bottom)
             }
@@ -195,7 +220,26 @@ import SwiftUI
                            onAccepted: { scrollIntent.followLatest() })
             .id(parent.id)
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+          if let failure = workspaces.thread.mute?.failure {
+            ThreadMuteFailureRow(message: failure.message) { workspaces.thread.dismissMuteFailure() }
+          }
+        }
         .navigationTitle("Thread")
+        .toolbar {
+          if let mute = workspaces.thread.mute, let isMuted = mute.isMuted {
+            ToolbarItem {
+              ThreadMuteToggle(isMuted: isMuted, isPending: mute.isPending) {
+                Task { await workspaces.toggleThreadMute(auth: auth) }
+              }
+            }
+          }
+        }
+        // Stored replies only. A pending shell reads too early (404) and the stored row that replaces it
+        // does not change the displayed count, so the bell would never appear.
+        .task(id: [parent.id, String(liveThreadReplyCount(messages))]) {
+          await workspaces.readThreadMuteIfNeeded(auth: auth)
+        }
         .onChange(of: parent.id) { _, _ in pendingQuote = nil
           jumpError = nil
         }
@@ -231,7 +275,7 @@ import SwiftUI
       }
     }
 
-    @ViewBuilder private func replies(channels: [ComposerChannel], room: Components.Schemas.ChatRoom?) -> some View {
+    @ViewBuilder private func replies(messages: [Components.Schemas.ChatRoomMessage], channels: [ComposerChannel], room: Components.Schemas.ChatRoom?) -> some View {
       let timeline = workspaces.thread.timeline
       if timeline.isLoading {
         ProgressView("Loading replies…")
@@ -244,7 +288,6 @@ import SwiftUI
            let error = workspaces.directStream.errorMessage {
           Text(error).foregroundStyle(.secondary)
         }
-        let messages = Array(preparedMessages.dropFirst())
         if messages.isEmpty, timeline.errorMessage == nil {
           Text("No replies yet.").foregroundStyle(.secondary)
         }
@@ -263,41 +306,36 @@ import SwiftUI
         let previous = index > 0 && !hasGap ? messages[index - 1] : nil
         let streaming = message.id.hasPrefix("stream:") && isCoworkerMessage(message)
         let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
-        let reasoning = thinking ? (workspaces.directStream.latestThought ?? workspaces.directStream.reasoning) : workspaces.directStream.reasoning
         let outbox = workspaces.thread.outbox
         let shell = outbox.shells.first { $0.id == message.id }
         VStack(alignment: .leading, spacing: 0) {
           if hasGap {
-            Button("Load messages in this gap") {
+            // Web's thread panel has no gap row (a reply jump is Apple's), so this stays a
+            // tap; the row and its failure follow the room's gap row.
+            PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.thread.timeline.boundaryLoads.status(of: message.id)) {
               workspaces.loadThreadPage(.boundary(message.id), auth: auth)
             }
-            .buttonStyle(.link)
-            .disabled(workspaces.thread.timeline.isRefreshing)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
           }
           if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
             DaySeparatorRow(label: label)
           }
-          if let status = membershipStatusText(message) {
-            MembershipStatusRow(text: status)
+          if let status = roomStatusText(message) {
+            RoomStatusRow(text: status)
           } else {
             MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.documents[message.id], message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                            outbound: shell, sentAt: outbox.sentAt[message.id],
                            onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
                            onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
-                           onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
-                             quoteFocusRequest = UUID().uuidString
-                           } : nil,
+                           onRetryMention: mentionRetryAction(for: message),
+                           onQuote: quoteAction(for: message),
                            onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
                            isHighlighted: workspaces.thread.jumpTarget?.messageId == message.id,
                            onDelete: deletionAction(for: message),
                            onRemoveUnfurl: unfurlAction(for: message),
                            onToggleReaction: reactionAction(for: message),
-                           pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
                            editing: workspaces.messageEditing,
-                           onQuoteJump: jumpToQuote,
-                           streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
+                           onQuoteJump: jumpToQuote, onSendToSelf: sendToSelfAction(for: message),
+                           streamThinking: thinking)
           }
         }
         .id(message.id)

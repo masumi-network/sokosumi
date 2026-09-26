@@ -2,6 +2,12 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { NotificationKind } from "@sokosumi/database";
 import { waitUntil } from "@vercel/functions";
 
+import { publishChatRoomReadRealtime } from "@/helpers/chat-room-read-realtime";
+import {
+  cancelNotificationEmails,
+  EMAILED_NOTIFICATION_COLUMNS,
+  type EmailedNotificationRow,
+} from "@/helpers/notification-email-dispatch";
 import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -14,11 +20,10 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
-  getChatRoomPinnedMessageCounts,
-  mapChatRoom,
+  mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
 } from "../../helpers";
-import { getChatRoomUnreadCounts } from "../../room-unread";
+import { getChatRoomUnreadCounts, roomUnreadFields } from "../../room-unread";
 
 const paramsSchema = z.object({
   id: z
@@ -55,95 +60,99 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const readAt = new Date();
-    let clearedIds: string[] = [];
+    let clearedRows: EmailedNotificationRow[] = [];
 
-    const { room, starredAt, mutedAt } = await prisma.$transaction(
-      async (tx) => {
-        const room = await requireChatRoomUserAccess(
-          id,
-          userContext.userId,
-          tx,
-        );
+    const room = await prisma.$transaction(async (tx) => {
+      const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
 
-        await tx.chatRoomReadState.upsert({
-          where: {
-            roomId_userId: {
-              roomId: room.id,
-              userId: userContext.userId,
-            },
-          },
-          update: { lastReadAt: readAt, markedUnreadAt: null },
-          create: {
+      await tx.chatRoomReadState.upsert({
+        where: {
+          roomId_userId: {
             roomId: room.id,
             userId: userContext.userId,
-            lastReadAt: readAt,
-            markedUnreadAt: null,
           },
-        });
+        },
+        update: { lastReadAt: readAt, markedUnreadAt: null },
+        create: {
+          roomId: room.id,
+          userId: userContext.userId,
+          lastReadAt: readAt,
+          markedUnreadAt: null,
+        },
+      });
 
-        // Read before the write, because after it there is nothing left to
-        // name. The reader's open tabs are told about each one below: a room
-        // message stands in the notification center now, and a badge that
-        // only ever heard about rows being written would keep counting rows
-        // this room no longer has.
-        clearedIds = (
-          await tx.notification.findMany({
-            where: {
-              userId: userContext.userId,
-              kind: NotificationKind.CHAT,
-              referenceId: room.id,
-              isRead: false,
-            },
-            select: { id: true },
-          })
-        ).map((notification) => notification.id);
+      // Written and read back in one statement, so the rows named below are
+      // exactly the ones this write cleared: an email handed over between a
+      // read and a separate write would be on no row this route saw. The
+      // reader's open tabs are told about each one: a room message stands
+      // in the notification center now, and a badge that only ever heard
+      // about rows being written would keep counting rows this room no
+      // longer has.
+      clearedRows = await tx.notification.updateManyAndReturn({
+        where: {
+          userId: userContext.userId,
+          kind: NotificationKind.CHAT,
+          referenceId: room.id,
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+          readAt,
+        },
+        select: EMAILED_NOTIFICATION_COLUMNS,
+      });
 
-        await tx.notification.updateMany({
-          where: { id: { in: clearedIds } },
-          data: {
-            isRead: true,
-            readAt,
-          },
-        });
+      return room;
+    });
 
-        const membership = await tx.chatRoomUserMember.findUnique({
-          where: {
-            roomId_userId: {
-              roomId: room.id,
-              userId: userContext.userId,
-            },
-          },
-          select: { starredAt: true, mutedAt: true },
-        });
-
-        return {
-          room,
-          starredAt: membership?.starredAt ?? null,
-          mutedAt: membership?.mutedAt ?? null,
-        };
-      },
+    waitUntil(publishClearedNotifications(clearedRows.map((row) => row.id)));
+    // The reader is in the room, so the email about it is no longer needed.
+    waitUntil(cancelNotificationEmails(clearedRows));
+    // Seen by: the room hears about this reader within a moment, so the other
+    // side is not left waiting on a poll. Best effort — the publisher swallows
+    // its own failures and the next room payload carries the same mark.
+    //
+    // Silent on a room with a guest on it. Read times do not cross the
+    // organization boundary, and the mapper's guest rule only covers the
+    // payload: Ably capabilities are per channel, never per subscriber, so
+    // every member of the room channel sees whatever is published on it and a
+    // guest holds `subscribe` like anyone else. Host members there fall back to
+    // the mark their next room payload carries, which is the same degradation
+    // as a dropped connection.
+    const roomHasGuest = room.userMembers.some(
+      (member) => member.access === "guest",
     );
-
-    waitUntil(publishClearedNotifications(clearedIds));
+    if (!roomHasGuest) {
+      waitUntil(
+        publishChatRoomReadRealtime({
+          roomId: room.id,
+          userId: userContext.userId,
+          lastReadAt: readAt,
+        }),
+      );
+    }
 
     // Top-level unreads are cleared by lastReadAt; thread replies still use
     // look baseline. Return the real dual-baseline count so the sidebar does
-    // not optimistically hide unlooked threads.
-    const [unreadCounts, pinnedCounts] = await Promise.all([
-      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
-      getChatRoomPinnedMessageCounts([room.id], prisma),
-    ]);
+    // not optimistically hide unlooked threads. Mention badges are cleared
+    // with the CHAT notifications above.
+    const unreadCounts = await getChatRoomUnreadCounts(
+      [room.id],
+      userContext.userId,
+      prisma,
+    );
 
     return ok(
       c,
       chatRoomSchema.parse(
-        mapChatRoom(room, userContext.userId, {
-          unreadCount: unreadCounts.get(room.id) ?? 0,
+        await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
+          ...(await roomUnreadFields(
+            unreadCounts.get(room.id),
+            room.id,
+            userContext.userId,
+            prisma,
+          )),
           unreadMentionCount: 0,
-          starredAt,
-          pinnedMessageCount: pinnedCounts.get(room.id) ?? 0,
-          mutedAt,
-          markedUnread: false,
         }),
       ),
     );

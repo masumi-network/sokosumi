@@ -5,10 +5,15 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
+  NEON_API_KEY_VARIABLE,
+  projectIdVariable,
+} from "./preview-db-reset.mjs";
+import {
   createGitDeployment,
   deployTargets,
   GITHUB_PR_FILES_LIMIT,
   hasPreviewRelevantChanges,
+  isOpenedPreviewEventName,
   isPreviewRelevantPath,
   isTruncatedFileList,
   isWritePermission,
@@ -21,6 +26,7 @@ import {
   runPreviewDeployComment,
   runPreviewDeployOpened,
   runPreviewFromGithubEvent,
+  settlePreviewDeployments,
   summarizeCliDeployResult,
   usageMessage,
   VERCEL_PROJECTS,
@@ -34,6 +40,20 @@ const GIT_DEPLOYMENT_ENABLED = {
 };
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
+
+function jobBlock(yaml, jobId) {
+  const match = yaml.match(
+    new RegExp(`(?:^|\\n)  ${jobId}:\\n([\\s\\S]*?)(?=\\n  [a-zA-Z]|$)`),
+  );
+  assert.ok(match, `missing job ${jobId}`);
+  return match[0];
+}
+
+function checkoutStep(jobYaml, jobId) {
+  const afterName = jobYaml.split(/- name: Checkout repository\n/)[1];
+  assert.ok(afterName, `${jobId} missing Checkout repository step`);
+  return afterName.split(/\n      - name:/)[0];
+}
 
 describe("parseDeployComment", () => {
   it("ignores comments that are not a leading /deploy command", () => {
@@ -60,6 +80,11 @@ describe("parseDeployComment", () => {
       kind: "usage",
     });
     assert.deepEqual(parseDeployComment("/deploy staging"), { kind: "usage" });
+    // The plain /deploy job never deploys a `--reset-db` comment without the
+    // reset.
+    assert.deepEqual(parseDeployComment("/deploy all --reset-db"), {
+      kind: "usage",
+    });
     assert.deepEqual(parseDeployComment("/deploy all mainnet"), {
       kind: "usage",
     });
@@ -567,6 +592,81 @@ describe("pollDeploymentUntilSettled", () => {
   });
 });
 
+describe("settlePreviewDeployments", () => {
+  // A job that ends early releases the per-PR queue while a Core build it
+  // started can still migrate, and a queued reset could then restore the
+  // branch under it.
+  function deferred() {
+    let resolve;
+    const promise = new Promise((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  }
+
+  async function settledBefore(promise, release) {
+    let done = false;
+    const watched = promise.then(
+      () => {
+        done = true;
+      },
+      () => {
+        done = true;
+      },
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    const early = done;
+    release();
+    await watched;
+    return early;
+  }
+
+  it("waits for every poll before it reports a failed one", async () => {
+    const core = deferred();
+    const run = settlePreviewDeployments({
+      networks: ["mainnet"],
+      git: {},
+      createDeployment: async ({ target }) => ({
+        id: target.app,
+        readyState: "BUILDING",
+      }),
+      pollDeployment: async (deployment) => {
+        if (deployment.id === "web") {
+          throw new Error("fetch failed");
+        }
+        await core.promise;
+        return { ...deployment, readyState: "READY" };
+      },
+    });
+    assert.equal(await settledBefore(run, core.resolve), false);
+    await assert.rejects(run, /fetch failed/);
+  });
+
+  it("polls the created deployments, then reports the first failure", async () => {
+    const core = deferred();
+    const polled = [];
+    const run = settlePreviewDeployments({
+      networks: ["mainnet"],
+      git: {},
+      createDeployment: async ({ target }) => {
+        if (target.app === "web") {
+          throw new Error("Vercel 500");
+        }
+        return { id: target.app, readyState: "BUILDING" };
+      },
+      pollDeployment: async (deployment) => {
+        polled.push(deployment.id);
+        await core.promise;
+        throw new Error("poll failed");
+      },
+    });
+    assert.equal(await settledBefore(run, core.resolve), false);
+    // web comes first in the target order, so its create error wins.
+    await assert.rejects(run, /Vercel 500/);
+    assert.deepEqual(polled, ["core"]);
+  });
+});
+
 describe("runPreviewDeployOpened", () => {
   function sameRepoPullRequest(overrides = {}) {
     return {
@@ -688,36 +788,13 @@ describe("runPreviewDeployOpened", () => {
 });
 
 describe("runPreviewFromGithubEvent", () => {
-  it("routes pull_request opened events to the opened deploy", async () => {
-    const created = [];
-    const result = await runPreviewFromGithubEvent({
-      eventName: "pull_request",
-      event: {
-        action: "opened",
-        pull_request: {
-          user: { type: "User", login: "alice" },
-          head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
-          base: { repo: { id: 99 } },
-        },
-        repository: { id: 99 },
-      },
-      createDeployment: async (input) => {
-        created.push(input);
-        return { id: `dpl_${input.target.name}`, readyState: "READY" };
-      },
-      pollDeployment: async (deployment) => deployment,
-    });
-    assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 4);
-  });
-
-  it("ignores pull_request events that are not opened", async () => {
-    const created = [];
-    for (const action of ["synchronize", "ready_for_review", "reopened"]) {
+  it("routes pull_request and pull_request_target opened events to the opened deploy", async () => {
+    for (const eventName of ["pull_request", "pull_request_target"]) {
+      const created = [];
       const result = await runPreviewFromGithubEvent({
-        eventName: "pull_request",
+        eventName,
         event: {
-          action,
+          action: "opened",
           pull_request: {
             user: { type: "User", login: "alice" },
             head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
@@ -727,10 +804,37 @@ describe("runPreviewFromGithubEvent", () => {
         },
         createDeployment: async (input) => {
           created.push(input);
-          return { id: "dpl", readyState: "READY" };
+          return { id: `dpl_${input.target.name}`, readyState: "READY" };
         },
+        pollDeployment: async (deployment) => deployment,
       });
-      assert.equal(result.kind, "ignore", action);
+      assert.equal(result.kind, "deploy", eventName);
+      assert.equal(created.length, 4, eventName);
+    }
+  });
+
+  it("ignores pull_request events that are not opened", async () => {
+    const created = [];
+    for (const eventName of ["pull_request", "pull_request_target"]) {
+      for (const action of ["synchronize", "ready_for_review", "reopened"]) {
+        const result = await runPreviewFromGithubEvent({
+          eventName,
+          event: {
+            action,
+            pull_request: {
+              user: { type: "User", login: "alice" },
+              head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
+              base: { repo: { id: 99 } },
+            },
+            repository: { id: 99 },
+          },
+          createDeployment: async (input) => {
+            created.push(input);
+            return { id: "dpl", readyState: "READY" };
+          },
+        });
+        assert.equal(result.kind, "ignore", `${eventName}:${action}`);
+      }
     }
     assert.deepEqual(created, []);
   });
@@ -896,13 +1000,14 @@ describe("preview change gating", () => {
     }
   });
 
-  it("keeps the pull_request paths filter in sync with the prefixes", async () => {
+  it("keeps the pull_request_target paths filter in sync with the prefixes", async () => {
     const workflow = await readFile(
       path.join(repoRoot, ".github/workflows/preview-deploy.yml"),
       "utf8",
     );
     const triggerSection = workflow.split(/^jobs:/m)[0];
-    assert.match(triggerSection, /pull_request:\s*\n/);
+    assert.match(triggerSection, /pull_request_target:\s*\n/);
+    assert.doesNotMatch(triggerSection, /^\s+pull_request:\s*$/m);
     assert.match(triggerSection, /paths:\s*\n/);
     for (const prefix of PREVIEW_RELEVANT_PREFIXES) {
       assert.ok(
@@ -910,7 +1015,7 @@ describe("preview change gating", () => {
         `workflow paths filter is missing ${prefix}**`,
       );
     }
-    const commentSection = triggerSection.split(/pull_request:/)[0];
+    const commentSection = triggerSection.split(/pull_request_target:/)[0];
     assert.match(commentSection, /issue_comment:/);
     assert.doesNotMatch(commentSection, /paths:/);
   });
@@ -1165,12 +1270,13 @@ describe("git preview policy", () => {
     );
     assert.match(workflow, /issue_comment:/);
     assert.match(workflow, /types:\s*\[created\]/);
-    assert.match(workflow, /pull_request:/);
+    assert.match(workflow, /pull_request_target:/);
+    assert.doesNotMatch(workflow, /^\s+pull_request:\s*$/m);
     assert.match(workflow, /types:\s*\[opened\]/);
     assert.doesNotMatch(workflow, /ready_for_review/);
     assert.doesNotMatch(workflow, /synchronize/);
     assert.match(workflow, /github\.event_name == 'issue_comment'/);
-    assert.match(workflow, /github\.event_name == 'pull_request'/);
+    assert.match(workflow, /github\.event_name == 'pull_request_target'/);
     assert.match(
       workflow,
       /github\.event\.pull_request\.user\.type\s*!=\s*'Bot'/,
@@ -1181,30 +1287,120 @@ describe("git preview policy", () => {
     );
     assert.match(workflow, /node scripts\/ci\/vercel-deploy\.mjs preview/);
     assert.match(workflow, /persist-credentials:\s*false/);
-    assert.match(
-      workflow,
-      /ref:\s*\$\{\{\s*github\.event\.pull_request\.base\.sha\s*\}\}/,
-    );
+    assert.doesNotMatch(workflow, /pull_request\.base\.sha/);
+    assert.doesNotMatch(workflow, /pull_request\.head\.sha/);
+    assert.doesNotMatch(workflow, /pull_request\.head\.ref/);
+    for (const jobId of ["comment", "opened", "reset-db"]) {
+      const checkout = checkoutStep(jobBlock(workflow, jobId), jobId);
+      assert.match(
+        checkout,
+        /ref:\s*\$\{\{\s*github\.event\.repository\.default_branch\s*\}\}/,
+        `${jobId} checkout must pin github.event.repository.default_branch`,
+      );
+      assert.doesNotMatch(checkout, /pull_request\.base\.sha/);
+      assert.doesNotMatch(checkout, /pull_request\.head\.sha/);
+      assert.doesNotMatch(checkout, /pull_request\.head\.ref/);
+    }
     assert.match(workflow, /secrets\.VERCEL_TOKEN/);
     assert.match(workflow, /vars\.VERCEL_TEAM_ID/);
     assert.match(workflow, /secrets\.GITHUB_TOKEN/);
     assert.match(workflow, /issues:\s*write/);
     assert.match(workflow, /pull-requests:\s*write/);
-    const openedJob = workflow.split(/opened:\s*\n/)[1];
-    assert.ok(openedJob);
+    const openedJob = jobBlock(workflow, "opened");
     assert.doesNotMatch(openedJob, /GITHUB_TOKEN/);
     assert.doesNotMatch(openedJob, /issues:\s*write/);
     assert.doesNotMatch(openedJob, /pull-requests:\s*write/);
-    assert.doesNotMatch(
-      openedJob,
-      /ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha/,
-    );
     assert.match(
       workflow,
       /contains\(github\.event\.comment\.body, '\/deploy'\)/,
     );
     assert.doesNotMatch(workflow, /lower\(/);
     assert.match(workflow, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
+  });
+
+  it("gives the Neon key only to the comment-gated reset-db job", async () => {
+    const workflow = await readFile(
+      path.join(repoRoot, ".github/workflows/preview-deploy.yml"),
+      "utf8",
+    );
+    const resetJob = jobBlock(workflow, "reset-db");
+    assert.match(resetJob, /github\.event_name == 'issue_comment'/);
+    assert.match(resetJob, /github\.event\.issue\.pull_request/);
+    assert.match(resetJob, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
+    // `/deploy --reset-db` needs the key too, so it runs here and the
+    // `comment` job skips it. Without the skip, that job would also post a
+    // usage reply.
+    const takesDeployReset =
+      "(startsWith(github.event.comment.body, '/deploy') && contains(github.event.comment.body, '--reset-db'))";
+    assert.ok(
+      resetJob.includes(
+        `      (startsWith(github.event.comment.body, '/reset-db') || ${takesDeployReset})\n`,
+      ),
+    );
+    assert.ok(
+      jobBlock(workflow, "comment").includes(
+        `      contains(github.event.comment.body, '/deploy') &&\n      !${takesDeployReset}\n`,
+      ),
+    );
+    // Like `/deploy`, the reset lets the script's write-access check decide.
+    // author_association can report a private organization member as
+    // CONTRIBUTOR, which would skip the job with no reply.
+    assert.doesNotMatch(workflow, /github\.event\.comment\.author_association/);
+    assert.match(resetJob, /^    environment: preview-database$/m);
+    assert.match(
+      checkoutStep(resetJob, "reset-db"),
+      /^\s+persist-credentials: false$/m,
+    );
+    // Lower, the job can end during the script's longest wait, and then no
+    // reply posts.
+    assert.match(resetJob, /^    timeout-minutes: 40$/m);
+    // A reset and a Core build for one PR never overlap, and a newer job waits
+    // instead of cancelling a waiting one.
+    for (const jobId of ["comment", "opened", "reset-db"]) {
+      assert.match(
+        jobBlock(workflow, jobId),
+        /^ {4}concurrency:\n {6}group: \$\{\{ github\.workflow \}\}-\$\{\{ github\.event\.issue\.number \|\| github\.event\.pull_request\.number \}\}\n {6}cancel-in-progress: false\n {6}queue: max$/m,
+        `${jobId} must share the per-PR queue`,
+      );
+    }
+    // The job passes each name the script reads, from the right store.
+    const env = [
+      ["GITHUB_TOKEN", "secrets.GITHUB_TOKEN"],
+      ["VERCEL_TOKEN", "secrets.VERCEL_TOKEN"],
+      ["VERCEL_ORG_ID", "vars.VERCEL_TEAM_ID"],
+      [NEON_API_KEY_VARIABLE, `secrets.${NEON_API_KEY_VARIABLE}`],
+      ...["mainnet", "preprod"].map((network) => [
+        projectIdVariable(network),
+        `vars.${projectIdVariable(network)}`,
+      ]),
+    ];
+    for (const [name, value] of env) {
+      assert.match(
+        resetJob,
+        new RegExp(
+          `^ {10}${name}: \\$\\{\\{ ${value.replace(".", "\\.")} \\}\\}$`,
+          "m",
+        ),
+      );
+    }
+    assert.match(resetJob, /node scripts\/ci\/preview-db-reset\.mjs/);
+    for (const jobId of ["comment", "opened"]) {
+      assert.doesNotMatch(jobBlock(workflow, jobId), /NEON_/);
+    }
+    // NEON_API_KEY reaches every project in the Neon organization. Only the
+    // reset job, which runs the default branch's code, may read it.
+    assert.equal(workflow.match(/secrets\.NEON_API_KEY\b/g)?.length, 1);
+    assert.match(resetJob, /secrets\.NEON_API_KEY\b/);
+    assert.match(
+      resetJob,
+      /^ {10}ref: \$\{\{ github\.event\.repository\.default_branch \}\}$/m,
+    );
+  });
+
+  it("treats pull_request_target as an opened-preview event name", () => {
+    assert.equal(isOpenedPreviewEventName("pull_request_target"), true);
+    assert.equal(isOpenedPreviewEventName("pull_request"), true);
+    assert.equal(isOpenedPreviewEventName("issue_comment"), false);
   });
 
   it("does not deploy production from GitHub Actions", () => {

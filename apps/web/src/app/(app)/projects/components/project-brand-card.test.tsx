@@ -31,7 +31,7 @@ const MESSAGES: Record<string, string> = {
   "brandCard.removeDialog.title": "Remove brand context?",
   "brandCard.removeDialog.description":
     "This removes the project's DESIGN.md file.",
-  "deleteDialog.cancel": "Cancel",
+  "brandCard.removeDialog.cancel": "Cancel",
   "errors.brand": "Couldn't update project brand context",
 };
 
@@ -51,8 +51,7 @@ vi.mock("@/lib/actions/project/action", () => ({
   removeProjectDesignMd: vi.fn(),
 }));
 
-vi.mock("@/components/design-md", () => ({
-  DESIGN_MD_TRANSLATION_NAMESPACE: "App.DesignMd",
+vi.mock("@/components/design-md/design-md-upload-trigger", () => ({
   DesignMdUploadTrigger: ({
     onSaved,
     onUploadingChange,
@@ -82,6 +81,8 @@ vi.mock("@/components/design-md", () => ({
       </button>
     </>
   ),
+}));
+vi.mock("@/components/design-md/use-design-md-generation", () => ({
   useDesignMdGeneration: () => ({
     errorMessage: null,
     generate: generateMock,
@@ -176,6 +177,9 @@ describe("ProjectBrandCard", () => {
     );
     await user.click(screen.getByRole("menuitem", { name: /Remove/ }));
     const dialog = screen.getByRole("alertdialog");
+    expect(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    ).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Remove" }));
 
     await waitFor(() => {

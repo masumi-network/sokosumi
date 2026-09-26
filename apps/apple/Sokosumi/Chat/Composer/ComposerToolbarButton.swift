@@ -14,8 +14,8 @@ struct ComposerToolbarButton: View {
       Image(systemName: symbol)
         .font(.body)
         .imageScale(.medium)
+        .schemeStableSymbolGlyph(selected || hovered ? .primary : .secondary)
         .frame(width: buttonSize, height: buttonSize)
-        .foregroundStyle(selected || hovered ? .primary : .secondary)
         .background(background, in: .rect(cornerRadius: 5))
         .contentShape(.rect)
     }

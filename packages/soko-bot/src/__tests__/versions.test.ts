@@ -5,7 +5,6 @@ import {
   composeSystemPrompt,
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
-  isSokoBotVersionId,
   SOKO_BOT_VERSIONS,
 } from "../versions/index.js";
 
@@ -14,7 +13,11 @@ describe("versions", () => {
     expect(new Set(SOKO_BOT_VERSIONS.map((v) => v.id)).size).toBe(
       SOKO_BOT_VERSIONS.length,
     );
-    expect(isSokoBotVersionId(DEFAULT_SOKO_BOT_VERSION_ID)).toBe(true);
+    expect(
+      SOKO_BOT_VERSIONS.some(
+        (version) => version.id === DEFAULT_SOKO_BOT_VERSION_ID,
+      ),
+    ).toBe(true);
     for (const version of SOKO_BOT_VERSIONS) {
       expect(() => composeSystemPrompt(version)).not.toThrow();
     }

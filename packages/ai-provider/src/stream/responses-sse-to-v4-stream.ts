@@ -11,6 +11,7 @@ import {
 } from "@sokosumi/utils";
 
 import { extractTextFromCompletedOutput } from "../completed-output-text.js";
+import { isRecord } from "../is-record.js";
 
 const SSE_DATA_PREFIX = "data: ";
 const SSE_DONE_MARKER = "[DONE]";
@@ -60,10 +61,6 @@ type SseChunk = {
 };
 
 type ReactEnvelopeState = "idle" | "inEnvelope" | "afterEnvelope";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function isPreviewableImageUrl(imageUrl: string): boolean {
   if (DATA_IMAGE_URL_REGEX.test(imageUrl)) {
@@ -288,7 +285,7 @@ export function createResponsesSseToV4Stream(
 
         if (reactEnvelopeState === "idle" && !startsLikeEnvelope) {
           emitTextDelta(delta);
-          // Align with {@link extractReactEnvelope}: only a *leading* envelope is
+          // Align with {@link parseReactEnvelopeBuffer}: only a *leading* envelope is
           // stripped on persist. After non-candidate text was emitted, later `{`
           // chunks must pass through so streaming matches post-reload content.
           reactEnvelopeState = "afterEnvelope";

@@ -40,7 +40,7 @@ export default async function SokoBotsPage() {
   const me = team?.members.find((member) => member.isYou) ?? null;
 
   return (
-    <div className="w-full space-y-10 px-4 py-4 lg:px-6">
+    <div className="w-full space-y-10 py-4">
       <SokoBotsHero me={me} avatars={avatars} />
       {team ? (
         <section className="space-y-4">
@@ -63,7 +63,7 @@ export default async function SokoBotsPage() {
             </p>
             {/* Breaks out of the page padding: the rule reads as a divider
                 across the view, not a line floating inside the content. */}
-            <hr className="border-border -mx-4 lg:-mx-6" />
+            <hr className="border-border -mx-4" />
           </div>
           <TeamChart team={team} />
         </section>

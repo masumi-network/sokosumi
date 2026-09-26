@@ -1,7 +1,7 @@
 import type { Session } from "@sokosumi/utils";
 import { Suspense } from "react";
 import { getPrivateCachedChatListChrome } from "@/app/components/private-sidebar-cache";
-import { userService } from "@/lib/services";
+import { userService } from "@/lib/services/user.service";
 import HeaderProfileSectionClient from "./header-profile-section.client";
 import { HeaderTrailingTools } from "./header-trailing-tools";
 

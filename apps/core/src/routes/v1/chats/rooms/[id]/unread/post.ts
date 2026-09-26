@@ -11,13 +11,13 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
-  getChatRoomPinnedMessageCounts,
-  mapChatRoom,
+  mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
 } from "../../helpers";
 import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  roomUnreadFields,
 } from "../../room-unread";
 
 const paramsSchema = z.object({
@@ -56,68 +56,46 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const markedUnreadAt = new Date();
 
-    const { room, starredAt, mutedAt } = await prisma.$transaction(
-      async (tx) => {
-        const room = await requireChatRoomUserAccess(
-          id,
-          userContext.userId,
-          tx,
-        );
+    const room = await requireChatRoomUserAccess(
+      id,
+      userContext.userId,
+      prisma,
+    );
 
-        // Keep existing lastReadAt when present; on create use now so we do not
-        // invent a rewind that would flood unreadCount from room history.
-        await tx.chatRoomReadState.upsert({
-          where: {
-            roomId_userId: {
-              roomId: room.id,
-              userId: userContext.userId,
-            },
-          },
-          update: { markedUnreadAt },
-          create: {
-            roomId: room.id,
-            userId: userContext.userId,
-            lastReadAt: markedUnreadAt,
-            markedUnreadAt,
-          },
-        });
-
-        const membership = await tx.chatRoomUserMember.findUnique({
-          where: {
-            roomId_userId: {
-              roomId: room.id,
-              userId: userContext.userId,
-            },
-          },
-          select: { starredAt: true, mutedAt: true },
-        });
-
-        return {
-          room,
-          starredAt: membership?.starredAt ?? null,
-          mutedAt: membership?.mutedAt ?? null,
-        };
+    // Keep existing lastReadAt when present; on create use now so we do not
+    // invent a rewind that would flood unreadCount from room history.
+    await prisma.chatRoomReadState.upsert({
+      where: {
+        roomId_userId: {
+          roomId: room.id,
+          userId: userContext.userId,
+        },
       },
-    );
+      update: { markedUnreadAt },
+      create: {
+        roomId: room.id,
+        userId: userContext.userId,
+        lastReadAt: markedUnreadAt,
+        markedUnreadAt,
+      },
+    });
 
-    const [unreadCounts, unreadMentionCounts, pinnedCounts] = await Promise.all(
-      [
-        getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
-        getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
-        getChatRoomPinnedMessageCounts([room.id], prisma),
-      ],
-    );
+    const [unreadCounts, unreadMentionCounts] = await Promise.all([
+      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
+      getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
+    ]);
 
     return ok(
       c,
       chatRoomSchema.parse(
-        mapChatRoom(room, userContext.userId, {
-          unreadCount: unreadCounts.get(room.id) ?? 0,
+        await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
+          ...(await roomUnreadFields(
+            unreadCounts.get(room.id),
+            room.id,
+            userContext.userId,
+            prisma,
+          )),
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-          starredAt,
-          pinnedMessageCount: pinnedCounts.get(room.id) ?? 0,
-          mutedAt,
-          markedUnread: true,
         }),
       ),
     );

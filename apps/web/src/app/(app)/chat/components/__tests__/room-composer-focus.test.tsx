@@ -10,7 +10,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   RoomComposer,
-  type RoomComposerHandle,
+  type RoomComposerEditHandle,
 } from "@/app/chat/components/room-composer";
 
 const editorFocus = vi.hoisted(() => vi.fn());
@@ -96,12 +96,18 @@ vi.mock("@/components/chat/composer-add-link-dialog", () => ({
   ComposerAddLinkDialog: () => null,
 }));
 
-describe("RoomComposerHandle.focus", () => {
+// DriveFilePicker calls useSession; the real session atom's unmount timer
+// can fire after happy-dom tears down `window`.
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null }),
+}));
+
+describe("RoomComposerEditHandle.focus", () => {
   it("exposes focus and calling it focuses the editor", async () => {
     editorFocus.mockClear();
 
     function Harness() {
-      const composerRef = useRef<RoomComposerHandle | null>(null);
+      const composerRef = useRef<RoomComposerEditHandle | null>(null);
       const [value, setValue] = useState("");
       return (
         <>
@@ -138,7 +144,7 @@ describe("RoomComposerHandle.focus", () => {
 
   it("still exposes attachFiles on the handle", async () => {
     function Probe() {
-      const composerRef = useRef<RoomComposerHandle | null>(null);
+      const composerRef = useRef<RoomComposerEditHandle | null>(null);
       const [value, setValue] = useState("");
       const [ready, setReady] = useState(false);
       return (

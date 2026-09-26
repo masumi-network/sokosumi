@@ -1,8 +1,8 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { createNestedOpenAPIHono } from "@/lib/hono";
 
 import mountCreateAdminFreeCreditGrant from "./post.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = createNestedOpenAPIHono();
 
 mountCreateAdminFreeCreditGrant(app);
 

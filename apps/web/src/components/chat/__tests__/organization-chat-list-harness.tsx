@@ -1,22 +1,51 @@
 import { render } from "@testing-library/react";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { vi } from "vitest";
 import type {
   ChatRoom,
   ChatRoomInvitation,
 } from "@/lib/clients/generated/core";
+import {
+  CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+  serializeChatUnreadsFilterCookie,
+} from "@/lib/ui-preferences/chat-unreads-filter";
 
 import { OrganizationChatList } from "../organization-chat-list.client";
 
-const { acceptInvitationMock, listRoomsMock, listPendingMock } = vi.hoisted(
-  () => ({
-    acceptInvitationMock: vi.fn(),
-    listRoomsMock: vi.fn(),
-    listPendingMock: vi.fn(),
-  }),
-);
+/** The route the list reads, so a test can open a room. Reset per test.
+ *  Selection is the optimistic highlight, which moves before the route. */
+const { harnessPathname, harnessSelection } = vi.hoisted(() => ({
+  harnessPathname: { current: "/chat" },
+  harnessSelection: { current: null as string | null },
+}));
 
-export { acceptInvitationMock, listPendingMock, listRoomsMock };
+const {
+  acceptInvitationMock,
+  listRoomsMock,
+  listArchivedMock,
+  listPendingMock,
+  reorderPinnedMock,
+} = vi.hoisted(() => ({
+  acceptInvitationMock: vi.fn(),
+  listRoomsMock: vi.fn(),
+  listArchivedMock: vi.fn(),
+  listPendingMock: vi.fn(),
+  reorderPinnedMock: vi.fn(),
+}));
+
+export {
+  acceptInvitationMock,
+  harnessPathname,
+  harnessSelection,
+  listArchivedMock,
+  listPendingMock,
+  listRoomsMock,
+  reorderPinnedMock,
+};
+
+vi.mock("@/app/chat/components/room-cache-provider", () => ({
+  useRoomSelection: () => harnessSelection.current,
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -24,7 +53,7 @@ vi.mock("next/navigation", () => ({
     replace: vi.fn(),
     refresh: vi.fn(),
   }),
-  usePathname: () => "/chat",
+  usePathname: () => harnessPathname.current,
 }));
 
 vi.mock("next/link", () => ({
@@ -76,7 +105,64 @@ vi.mock("@/app/chat/components/room-helpers", () => ({
 }));
 
 vi.mock("../chat-room-sidebar-row", () => ({
-  ChatRoomSidebarRow: ({ label }: { label: string }) => <span>{label}</span>,
+  ChatRoomSidebarRow: ({
+    label,
+    reorderHandle,
+    itemProps,
+  }: {
+    label: string;
+    reorderHandle?: ReactNode;
+    itemProps?: ComponentProps<"li">;
+  }) => (
+    <li {...itemProps} data-testid="room-row">
+      <span>{label}</span>
+      {reorderHandle}
+    </li>
+  ),
+  RailAttentionPill: () => null,
+}));
+
+// A marker, not the rows: what they count belongs to
+// `chat-unread-nav-rows.test.tsx`. The list decides where they stand and
+// what the All unreads filter does to the sections, so the marker keeps the
+// toggle.
+vi.mock("../chat-unread-nav-rows", () => ({
+  ChatUnreadNavRows: ({
+    unreadOnly,
+    onUnreadOnlyChange,
+  }: {
+    unreadOnly: boolean;
+    onUnreadOnlyChange: (unreadOnly: boolean) => void;
+  }) => (
+    <li data-testid="chat-unread-nav-rows">
+      <button
+        type="button"
+        aria-pressed={unreadOnly}
+        onClick={() => onUnreadOnlyChange(!unreadOnly)}
+      >
+        All unreads
+      </button>
+    </li>
+  ),
+}));
+
+vi.mock("../pending-invitation-rail-button", () => ({
+  PendingInvitationRailButton: ({
+    roomName,
+    label,
+    acceptButtonId,
+  }: {
+    roomName: string;
+    label: string;
+    acceptButtonId: string;
+  }) => (
+    <span
+      data-testid="rail-invitation"
+      data-room-name={roomName}
+      data-label={label}
+      data-accept-button-id={acceptButtonId}
+    />
+  ),
 }));
 
 vi.mock("../direct-room-avatar-stack", () => ({
@@ -87,10 +173,9 @@ vi.mock("../organization-chat-list.actions", () => ({
   listOrganizationChatRoomsAction: (
     ...args: Parameters<typeof listRoomsMock>
   ) => listRoomsMock(...args),
-  listOrganizationArchivedChatRoomsAction: vi.fn(async () => ({
-    ok: true,
-    value: { rooms: [], nextCursor: null },
-  })),
+  reorderPinnedOrganizationChatRoomsAction: (
+    ...args: Parameters<typeof reorderPinnedMock>
+  ) => reorderPinnedMock(...args),
 }));
 
 vi.mock("../fetch-sidebar-room-collection", () => ({
@@ -100,7 +185,10 @@ vi.mock("../fetch-sidebar-room-collection", () => ({
         ? await listRoomsMock()
         : collection === "invitations"
           ? await listPendingMock()
-          : { ok: true, value: { rooms: [], nextCursor: null } };
+          : ((await listArchivedMock()) ?? {
+              ok: true,
+              value: { rooms: [], nextCursor: null },
+            });
     return result.ok ? result.value : null;
   },
 }));
@@ -109,17 +197,37 @@ vi.mock("@/components/ui/sheet", () => ({
   SheetClose: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/components/ui/sidebar", () => ({
+// The real module under the overrides, so `SidebarRowSlot` — the shared
+// leading slot every row sits its mark in — is the one the app ships.
+vi.mock("@/components/ui/sidebar", async () => ({
+  ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
+    "@/components/ui/sidebar",
+  )),
+  // The section header's rail square, as a bare marker: its children repeat
+  // the title the expanded heading already renders, which would double every
+  // `getByText`. `chat-sidebar-section-header.test.tsx` covers the square.
+  SidebarMenuButton: ({ tooltip }: { tooltip?: string }) => (
+    <span data-testid="section-rail-button" data-tooltip={tooltip} />
+  ),
   SidebarGroup: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
   SidebarGroupContent: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
-  SidebarMenu: ({ children }: { children: ReactNode }) => <ul>{children}</ul>,
+  // Props through, so a section's own marker (`data-slot`) reaches the DOM.
+  SidebarMenu: ({
+    children,
+    ...props
+  }: { children: ReactNode } & ComponentProps<"ul">) => (
+    <ul {...props}>{children}</ul>
+  ),
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
+  // The list reads it to expand the sidebar from Archived's rail square;
+  // there is no provider around these renders.
+  useSidebar: () => ({ setOpen: vi.fn() }),
 }));
 
 vi.mock("@/components/ui/alert-dialog", () => ({
@@ -174,6 +282,7 @@ export const emptyRooms: ChatRoom[] = [];
 
 export interface OrganizationChatListHarnessOptions {
   rooms?: ChatRoom[];
+  archivedRooms?: ChatRoom[];
   pendingInvitations?: ChatRoomInvitation[];
   organizationId?: string | null;
   paintOnly?: boolean;
@@ -194,6 +303,9 @@ export function makeRoom(
     organizationName: "Acme",
     name: overrides.id,
     slug: overrides.kind === "channel" ? overrides.id : null,
+    isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: overrides.kind === "channel" ? "public" : null,
@@ -231,10 +343,19 @@ export function makeInvitation(
 }
 
 export function resetOrganizationChatListMocks() {
+  // The Unreads filter is remembered in a cookie; one test's choice must not
+  // open the next test's list.
+  document.cookie = serializeChatUnreadsFilterCookie(false);
+  document.documentElement.removeAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE);
+  harnessPathname.current = "/chat";
+  harnessSelection.current = null;
   acceptInvitationMock.mockReset();
   listRoomsMock.mockReset();
+  listArchivedMock.mockReset();
   listPendingMock.mockReset();
+  reorderPinnedMock.mockReset();
   listRoomsMock.mockResolvedValue(emptyListResult());
+  listArchivedMock.mockResolvedValue(emptyListResult());
   listPendingMock.mockResolvedValue({ ok: true, value: [] });
   acceptInvitationMock.mockResolvedValue({
     ok: true,
@@ -244,6 +365,7 @@ export function resetOrganizationChatListMocks() {
 
 export function createOrganizationChatList({
   rooms = emptyRooms,
+  archivedRooms = emptyRooms,
   pendingInvitations,
   organizationId = "org-1",
   paintOnly = false,
@@ -251,7 +373,7 @@ export function createOrganizationChatList({
   return (
     <OrganizationChatList
       rooms={rooms}
-      archivedRooms={emptyRooms}
+      archivedRooms={archivedRooms}
       {...(pendingInvitations === undefined ? {} : { pendingInvitations })}
       currentUserId="user-1"
       organizationId={organizationId}

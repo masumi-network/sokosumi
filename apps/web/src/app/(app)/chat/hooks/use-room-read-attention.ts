@@ -8,6 +8,7 @@ import {
   sameRoomReadAttention,
 } from "@/app/chat/utils/room-read-attention";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
+import { roomAttentionAfterRead } from "@/components/chat/room-attention";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionChange,
@@ -29,7 +30,7 @@ interface RoomReadAttentionOptions {
    * returns to a tab with a thread open, so the header count has to hear about
    * it here rather than at the call sites that ask for a thread.
    */
-  onThreadLooked?: () => void;
+  onThreadLooked?: (parentMessageId: string) => void;
 }
 
 function dispatchRoomRead(roomId: string, room: ChatRoom): void {
@@ -68,9 +69,7 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
       const pendingRoom = optimistic
         ? {
             ...previousRoom,
-            unreadCount: 0,
-            unreadMentionCount: 0,
-            markedUnread: false,
+            ...roomAttentionAfterRead(previousRoom),
           }
         : previousRoom;
       const token = beginRoomAttentionChange(pendingRoom, current.room);
@@ -111,7 +110,7 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
       try {
         const result = await markThreadReadAction(roomId, parentMessageId);
         if (result.ok) {
-          snapshotRef.current.onThreadLooked?.();
+          snapshotRef.current.onThreadLooked?.(parentMessageId);
         }
         return result.ok;
       } catch {

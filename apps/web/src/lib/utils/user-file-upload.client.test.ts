@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createMyFileUploadSessionMock = vi.fn();
+const createOrganizationLogoUploadSessionMock = vi.fn();
 
 vi.mock("@/lib/clients/core.browser.client", async () => {
   const actual = await vi.importActual<
@@ -12,6 +13,8 @@ vi.mock("@/lib/clients/core.browser.client", async () => {
     coreClient: {
       createMyFileUploadSession: (...args: unknown[]) =>
         createMyFileUploadSessionMock(...args),
+      createOrganizationLogoUploadSession: (...args: unknown[]) =>
+        createOrganizationLogoUploadSessionMock(...args),
     },
   };
 });
@@ -21,6 +24,7 @@ import {
   getUserFileUploadErrorMessage,
   UserFileUploadError,
   uploadInputDataFiles,
+  uploadOwnedLogoDirect,
   uploadUserFileDirect,
 } from "@/lib/utils/user-file-upload.client";
 
@@ -377,5 +381,24 @@ describe("user-file-upload.client", () => {
     const error = new Error("Aborted");
     error.name = "AbortError";
     expect(getUserFileUploadErrorMessage(error)).toBe("Upload canceled.");
+  });
+
+  it("uses the owned-logo error mapper when mint fails", async () => {
+    const file = new File(["logo"], "logo.png", { type: "image/png" });
+    createOrganizationLogoUploadSessionMock.mockRejectedValue(
+      new CoreApiRequestError("boom", { status: 500 }),
+    );
+
+    await expect(
+      uploadOwnedLogoDirect({
+        kind: "organization",
+        ownerId: "org_123",
+        file,
+        toError: () => new UserFileUploadError("unknown", "mapped-by-caller"),
+      }),
+    ).rejects.toMatchObject({
+      code: "unknown",
+      message: "mapped-by-caller",
+    });
   });
 });

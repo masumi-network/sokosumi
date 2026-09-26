@@ -93,7 +93,6 @@ function state(overrides: Partial<SokoBotChatState> = {}): SokoBotChatState {
       memory: null,
       lastActivityAt: null,
       schedules: [],
-      legacyMessages: [],
       pendingDecisions: [],
     },
     turns: [],

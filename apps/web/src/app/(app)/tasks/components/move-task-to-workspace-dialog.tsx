@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { OrganizationLogo } from "@/components/organizations";
+import { OrganizationLogo } from "@/components/organizations/organization-logo";
 import {
   AlertDialog,
   AlertDialogCancel,

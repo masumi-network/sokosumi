@@ -23,7 +23,12 @@ const sidebarState = {
   state: "expanded",
 };
 
-vi.mock("@/components/ui/sidebar", () => ({
+// The real module under the override, so the chip's rail-square geometry is
+// the one the app ships rather than a constant this file invented.
+vi.mock("@/components/ui/sidebar", async () => ({
+  ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
+    "@/components/ui/sidebar",
+  )),
   useSidebar: () => ({ ...sidebarState }),
 }));
 
@@ -421,6 +426,23 @@ describe("SidebarAccountChip", () => {
     expect(screen.getByText("Patrick Tobler")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "logout" })).toBeInTheDocument();
     expect(screen.queryByText(/collapsedSummary/)).not.toBeInTheDocument();
+  });
+
+  it("keeps rail size and hover on the collapsible group so the face does not morph", () => {
+    renderChip();
+
+    const trigger = screen.getByRole("button", { name: /openSummary/ });
+    expect(trigger.className).toContain("hover:bg-sidebar-accent");
+    expect(trigger.className).toContain(
+      "group-data-[collapsible=icon]:hover:ring-1",
+    );
+    expect(trigger.className).toContain(
+      "group-data-[collapsible=icon]:data-[state=open]:ring-2",
+    );
+
+    const avatar = trigger.querySelector("[data-slot=avatar]");
+    expect(avatar?.className).toContain("rounded-md");
+    expect(avatar?.className).toContain("group-data-[collapsible=icon]:size-6");
   });
 
   it("shows additional credits in the overview without the old extra-credits row", () => {

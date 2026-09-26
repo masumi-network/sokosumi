@@ -10,7 +10,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import type { JobInputsFormSchemaType } from "@/lib/job-input";
+import type { JobInputsFormSchemaType } from "@/lib/job-input/form";
 
 import { InputField } from "./inputs/input-field";
 import { isOptional } from "./util";

@@ -1,15 +1,24 @@
 export {
+  CALENDAR_ACCESS_REVOKED_EVENT_NAME,
+  CALENDAR_INVALIDATED_EVENT_NAME,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeChatTypingChannelName,
   makeOrgPresenceChannelName,
+  makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  makeWorkspaceCalendarChannelName,
   type NotificationChannelEnvironment,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
 } from "./ably-channel.js";
-export { AUTH_CAPTCHA_ACTION, AUTH_CAPTCHA_HEADER } from "./auth-captcha.js";
+export {
+  AUTH_CAPTCHA_ACTION,
+  AUTH_CAPTCHA_HEADER,
+  TURNSTILE_ALWAYS_PASS_SECRET,
+} from "./auth-captcha.js";
 export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
@@ -28,7 +37,12 @@ export type {
   SessionRecord,
   SessionUser,
 } from "./better-auth-types.js";
-export { CALENDAR_BETA_ORGANIZATION_SLUG } from "./calendar-beta.js";
+export {
+  BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+  BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
+} from "./billing-notification-message-keys.js";
 export {
   CALENDAR_CLIENT_VERSION,
   CALENDAR_CLIENT_VERSION_HEADER,
@@ -73,6 +87,7 @@ export {
   type ChatPresenceState,
   isValidAblyClientInstanceId,
   type PresenceConnectionInput,
+  parseUserIdFromAblyPresenceClientId,
 } from "./chat-presence.js";
 export { CHAT_PRESENCE_ONLINE_WINDOW_MS } from "./chat-presence-windows.js";
 export {
@@ -80,6 +95,9 @@ export {
   buildSokoBotChatRoomFilePathname,
   buildUserChatRoomFilePathname,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
+  isOwnedCoworkerChatRoomFileUrl,
+  isOwnedSokoBotChatRoomFileUrl,
+  isOwnedUserChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
 export {
   CHAT_ROOM_MESSAGE_CONTENT_COUNT_VISIBLE_AT,
@@ -93,19 +111,28 @@ export {
   type ChatRoomPinnedMessageAction,
 } from "./chat-room-pinned-message-event.js";
 export {
+  canQuoteIntoRoom,
+  isSelfJoinableChannelDiscoverability,
+} from "./chat-room-quote-audience.js";
+export {
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
 } from "./chat-room-quote-snippet.js";
+export { MAX_LISTED_CHAT_REACTION_REACTORS } from "./chat-room-reactions.js";
+export { CHAT_ROOM_READ_EVENT_NAME } from "./chat-room-read-event.js";
+export {
+  buildChatRoomUnfurlSnapshotPathname,
+  CHAT_ROOM_UNFURL_SNAPSHOT_MAX_SIZE_BYTES,
+  isChatRoomUnfurlSnapshotAllowedContentType,
+  isOwnedChatRoomUnfurlSnapshotUrl,
+} from "./chat-room-unfurl-snapshot.js";
 export {
   CHAT_ROOM_COLLECTIONS,
   CHAT_ROOMS_CHANGED_EVENT_NAME,
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
-export {
-  CORE_API_ERROR_KINDS,
-  type CoreApiErrorKind,
-} from "./core-api-error-kind.js";
+export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
   COWORKER_IMAGE_ALLOWED_MIME_TYPES,
@@ -134,7 +161,6 @@ export {
   buildAdHocDesignMdPrefix,
   buildOrganizationDesignMdPathname,
   buildProjectDesignMdPathname,
-  buildProjectDesignMdPrefix,
   buildUserDesignMdPathname,
 } from "./design-md-path.js";
 export { isDesignMdBlobUrl } from "./design-md-url.js";
@@ -214,11 +240,29 @@ export { isNmkrEmail } from "./nmkr-email.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   isBrowserOnlyNotification,
+  isMentionNotification,
+  isNeedsActionNotification,
+  JOB_INPUT_REQUIRED_MESSAGE_KEY,
+  MENTION_MESSAGE_KEYS,
+  NEEDS_ACTION_MESSAGE_KEYS,
+  TASK_INPUT_REQUIRED_MESSAGE_KEY,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "./notification-feed-kinds.js";
+export {
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_MENTION_DIRECT_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+  isFollowUpMessageKey,
+  JOB_FOLLOW_UP_MESSAGE_KEY,
+  TASK_FOLLOW_UP_MESSAGE_KEY,
+} from "./notification-follow-up-message-keys.js";
 export {
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
+  NOTIFICATION_EMAIL_CATEGORIES,
   type NotificationCategory,
   type NotificationChannel,
   notificationDefault,
@@ -271,13 +315,17 @@ export {
 export {
   buildProjectBriefingPathname,
   buildProjectContextMdPathname,
-  buildProjectFilesRootPrefix,
 } from "./project-files-path.js";
 export {
   buildProjectLogoContentHashPathname,
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
+export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
+export {
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
+  SOCIAL_POST_TEXT_LIMITS,
+} from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
 export {
@@ -296,7 +344,11 @@ export {
 export {
   PROJECT_BRIEFING_ATTACHMENT_LABEL,
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,
+  parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
+  type TaskContextSelectionSnapshot,
+  taskContextSelectionAttachesAnything,
+  taskContextSelectionResolvesAnything,
 } from "./task-context-attachment.js";
 export { isTaskEditableStatus } from "./task-editable.js";
 export {
@@ -307,14 +359,6 @@ export {
   resolveTaskFileContentType,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
-export {
-  hasActiveTaskSchedule,
-  hasReachedTaskScheduleReleaseTarget,
-  parseTaskScheduleMetadata,
-  type TaskScheduleMetadata,
-  type TaskScheduleMetadataV1,
-  type TaskScheduleMetadataV2,
-} from "./task-schedule.js";
 export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,

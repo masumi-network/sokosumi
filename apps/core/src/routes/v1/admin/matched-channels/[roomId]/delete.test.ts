@@ -53,6 +53,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishChatMembershipRevokedToUsers: (...args: unknown[]) =>
     publishChatMembershipRevokedToUsersMock(...args),
 }));

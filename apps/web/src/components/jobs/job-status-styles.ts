@@ -5,92 +5,90 @@ import {
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 /**
- * The job scale in the same seven roles the task badge uses, so a job and a
- * task that mean the same thing look the same. Colour says what the reader
- * must do; the glyph says which status it is. See `status-marker.tsx`.
+ * The job scale on the same three rules as the task scale, so a job and a
+ * task at the same stage look the same. Hue is the board column, weight is
+ * the status inside it, a fault leaves its column. See `status-marker.tsx`.
  *
- * The two `*_RESOLVED` states stay neutral on purpose: the case is closed, and
- * neither outcome is the one the user was hoping for.
+ * `jobs-list-view.tsx` owns the column grouping this follows.
  */
 const JOB_STATUS_MARKERS: Record<SokosumiJobStatus, StatusMarkerSpec> = {
-  // Placed by what the reader must do and whether anything is wrong, the same
-  // two questions the task badge answers.
-
-  // The payment is settling and then the coworker holds the job. The reader
-  // is not blocked in either, so neither is amber. They are one stage seen
-  // twice, and to the reader it is one stage, so they share a role and a
-  // glyph on purpose. The labels are what tell them apart. This is the one
-  // deliberate pair that shares a role AND a glyph, and status-marker.test.tsx
-  // names it. Other pairs share a glyph across two roles, which the colour
-  // separates.
+  // todo: the payment settles, then the coworker holds the job. Neither is
+  // running yet. They used to share a glyph as well as a hue, which left the
+  // labels as the only thing telling them apart; the glyphs now differ and
+  // the weight separates them.
   [SokosumiJobStatus.PAYMENT_PENDING]: {
-    role: "working",
+    tone: { hue: "staged", weight: "outline" },
     icon: MARKER_ICONS.hiring,
   },
-  [SokosumiJobStatus.STARTED]: { role: "working", icon: MARKER_ICONS.hiring },
+  [SokosumiJobStatus.STARTED]: {
+    tone: { hue: "staged", weight: "filled" },
+    icon: MARKER_ICONS.ready,
+  },
 
-  // The only state where work is happening.
+  // in-progress: the only state where work is happening.
   [SokosumiJobStatus.PROCESSING]: {
-    role: "working",
+    tone: { hue: "active", weight: "filled" },
     icon: MARKER_ICONS.running,
     spin: true,
+  },
+  // The refund is proceeding normally and needs nothing from the reader, who
+  // already knows the job failed. A red tint would charge them twice for one
+  // event, so it stays in its column rather than taking the fault override.
+  [SokosumiJobStatus.REFUND_PENDING]: {
+    tone: { hue: "active", weight: "outline" },
+    icon: MARKER_ICONS.refund,
+  },
+
+  // Both of these sit under in-progress and both are faults, so rule 3 pulls
+  // them out of that column's hue. "Result Missing" is an accusation, not a
+  // wait: the seller is past its deadline and the next move is a refund.
+  [SokosumiJobStatus.RESULT_PENDING]: {
+    tone: { hue: "fault", weight: "filled" },
+    icon: MARKER_ICONS.resultMissing,
+  },
+  // Contested money with an arbiter deciding. The outline says it is not
+  // settled; the resolved row below says nothing about who won, so neither
+  // badge implies it.
+  [SokosumiJobStatus.DISPUTE_PENDING]: {
+    tone: { hue: "fault", weight: "outline" },
+    icon: MARKER_ICONS.dispute,
   },
 
   // The one badge that should pull the eye: nothing moves until the reader
   // answers.
   [SokosumiJobStatus.INPUT_REQUIRED]: {
-    role: "action",
+    tone: { hue: "blocked", weight: "filled" },
     icon: MARKER_ICONS.input,
   },
 
-  // "Result Missing" is an accusation, not a wait: the seller is past its
-  // deadline and the reader's next move is usually a refund.
-  [SokosumiJobStatus.RESULT_PENDING]: {
-    role: "problem",
-    icon: MARKER_ICONS.resultMissing,
+  [SokosumiJobStatus.COMPLETED]: {
+    tone: { hue: "resolved", weight: "filled" },
+    icon: MARKER_ICONS.completed,
   },
-
   // Both are terminal: this job produced nothing and the only way forward is
   // to hire again. A tint would imply it may still resolve.
-  [SokosumiJobStatus.FAILED]: { role: "failure", icon: MARKER_ICONS.failed },
+  [SokosumiJobStatus.FAILED]: {
+    tone: { hue: "fault", weight: "solid" },
+    icon: MARKER_ICONS.failed,
+  },
   [SokosumiJobStatus.PAYMENT_FAILED]: {
-    role: "failure",
+    tone: { hue: "fault", weight: "solid" },
     icon: MARKER_ICONS.hiringFailed,
   },
-
-  // The refund is proceeding normally and needs nothing from the reader, who
-  // already knows the job failed. A red tint would charge them twice for one
-  // event.
-  [SokosumiJobStatus.REFUND_PENDING]: {
-    role: "external",
-    icon: MARKER_ICONS.refund,
-  },
   // Money back, no work. Not green: green sits beside Completed and would
-  // claim a result that never arrived.
+  // claim a result that never arrived. The case is closed, so it is dormant.
   [SokosumiJobStatus.REFUND_RESOLVED]: {
-    role: "inert",
+    tone: { hue: "dormant", weight: "outline" },
     icon: MARKER_ICONS.refund,
-  },
-
-  // Contested money with an arbiter deciding. The resolved label does not say
-  // who won, so the badge must not imply it either.
-  [SokosumiJobStatus.DISPUTE_PENDING]: {
-    role: "problem",
-    icon: MARKER_ICONS.dispute,
   },
   [SokosumiJobStatus.DISPUTE_RESOLVED]: {
-    role: "inert",
+    tone: { hue: "dormant", weight: "outline" },
     icon: MARKER_ICONS.dispute,
-  },
-
-  [SokosumiJobStatus.COMPLETED]: {
-    role: "success",
-    icon: MARKER_ICONS.completed,
   },
 };
 
 const DEFAULT_JOB_MARKER: StatusMarkerSpec = {
-  role: "inert",
+  tone: { hue: "dormant", weight: "outline" },
   icon: MARKER_ICONS.queued,
 };
 

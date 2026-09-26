@@ -1,6 +1,7 @@
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_BROWSE_HEADER_ROW_CLASS,
   PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
@@ -28,14 +29,6 @@ export function ProjectsLoadingView() {
       data-testid="projects-loading"
       className={cn("flex flex-col gap-5", LIST_MOBILE_CREATE_FAB_CLEARANCE)}
     >
-      <div
-        data-testid="projects-loading-create"
-        className="hidden justify-end md:flex"
-      >
-        {/* Matches sm Button footprint without English (or other locale) text. */}
-        <Skeleton className="h-8 w-[7.25rem] rounded-md" />
-      </div>
-
       {/* min-h matches empty/browse so Instant / empty swap does not thrash CLS. */}
       <div
         data-testid="projects-loading-browse"
@@ -44,6 +37,21 @@ export function ProjectsLoadingView() {
           PROJECTS_LIST_CARD_MIN_H_CLASS,
         )}
       >
+        {/* Shares the live header row class so the Instant swap does not drop
+            the rows by its height. Skeletons only: no copy, so no locale
+            flash. Each child mirrors one live control's footprint and
+            breakpoint band. */}
+        <div className={PROJECTS_BROWSE_HEADER_ROW_CLASS}>
+          <Skeleton className="h-8 w-full rounded-lg" />
+          <Skeleton className="inline-block h-3 w-32 shrink-0 md:hidden lg:inline-block" />
+          {/* Matches sm Button footprint without English (or other locale)
+              text. Desktop only, like the live create control. */}
+          <Skeleton
+            data-testid="projects-loading-create"
+            className="hidden h-8 w-[7.25rem] shrink-0 rounded-md md:inline-flex"
+          />
+        </div>
+
         <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
           {Array.from({ length: 4 }, (_, index) => (
             <ProjectListItemSkeleton key={index} />
@@ -61,7 +69,7 @@ export function ProjectsLoadingView() {
 function ProjectListItemSkeleton() {
   return (
     <article className={PROJECTS_LIST_ROW_LAYOUT_CLASS}>
-      <div className="flex min-w-0 flex-row items-center gap-4 rounded-none px-2 py-3 md:rounded-lg">
+      <div className="flex min-w-0 flex-row items-center gap-4 rounded-none px-4 py-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <Skeleton className="size-8 shrink-0 rounded-lg" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -70,9 +78,11 @@ function ProjectListItemSkeleton() {
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        {/* One pill, not two: the jobs pill is dropped at zero, so most rows
+            carry a single count plus the activity stamp. */}
+        <div className="flex shrink-0 items-center gap-2">
           <Skeleton className="h-5 w-10 rounded-full" />
-          <Skeleton className="h-5 w-10 rounded-full" />
+          <Skeleton className="h-4 w-16" />
         </div>
       </div>
     </article>

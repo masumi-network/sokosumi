@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
+  NOTIFICATION_EMAIL_CATEGORIES,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -43,7 +44,8 @@ const PREFERENCES = {
   marketingOptIn: true,
   notificationsOptIn: false,
   pushOptIn: false,
-  showRoomUnreadCount: false,
+  // Stored as "hide", so a reader who never chose is shown the count.
+  hideRoomUnreadCount: false,
   notificationPreferences: [] as {
     category: string;
     channel: string;
@@ -54,9 +56,8 @@ const PREFERENCES = {
 /** The flags a client reads, without the matrix the response resolves. */
 const PREFERENCE_FLAGS = {
   marketingOptIn: PREFERENCES.marketingOptIn,
-  notificationsOptIn: PREFERENCES.notificationsOptIn,
   pushOptIn: PREFERENCES.pushOptIn,
-  showRoomUnreadCount: PREFERENCES.showRoomUnreadCount,
+  showRoomUnreadCount: true,
 };
 
 const SESSION_USER: AuthenticationContext = {
@@ -133,6 +134,47 @@ describe("user preferences routes", () => {
     );
   });
 
+  it.each([false, true])(
+    "keeps the legacy response field for native clients when stored as %s",
+    async (notificationsOptIn) => {
+      const preferences = { ...PREFERENCES, notificationsOptIn };
+      userFindUniqueMock.mockResolvedValue(preferences);
+      userUpdateMock.mockResolvedValue(preferences);
+      txUserFindUniqueMock.mockResolvedValue(preferences);
+      const app = createPreferencesApp(SESSION_USER);
+
+      const requests = [
+        "http://localhost/me/preferences",
+        patchRequest("/me/preferences", { pushOptIn: true }),
+        patchRequest("/me/preferences", {
+          notificationPreferences: [
+            { category: "TASK_ATTENTION", channel: "IN_APP", enabled: false },
+          ],
+        }),
+      ];
+      for (const request of requests) {
+        const response = await app.request(request);
+        expect(response.status).toBe(200);
+        const body = await response.json();
+        expect(body.data.notificationsOptIn).toBe(notificationsOptIn);
+      }
+    },
+  );
+
+  it("does not write the retired flag from a PATCH body", async () => {
+    userUpdateMock.mockResolvedValue(PREFERENCES);
+    const app = createPreferencesApp(SESSION_USER);
+    const response = await app.request(
+      patchRequest("/me/preferences", {
+        pushOptIn: true,
+        notificationsOptIn: true,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(userUpdateMock.mock.calls[0]?.[0].data).toEqual({ pushOptIn: true });
+  });
+
   it("returns pushOptIn on GET", async () => {
     const app = createPreferencesApp(SESSION_USER);
     const response = await app.request("http://localhost/me/preferences");
@@ -150,7 +192,7 @@ describe("user preferences routes", () => {
         marketingOptIn: true,
         notificationsOptIn: true,
         pushOptIn: true,
-        showRoomUnreadCount: true,
+        hideRoomUnreadCount: true,
         notificationPreferences: {
           select: { category: true, channel: true, enabled: true },
         },
@@ -177,7 +219,7 @@ describe("user preferences routes", () => {
         marketingOptIn: true,
         notificationsOptIn: true,
         pushOptIn: true,
-        showRoomUnreadCount: true,
+        hideRoomUnreadCount: true,
         notificationPreferences: {
           select: { category: true, channel: true, enabled: true },
         },
@@ -193,35 +235,86 @@ describe("user preferences routes", () => {
 
     const data = userUpdateMock.mock.calls[0]?.[0].data;
     expect(data).not.toHaveProperty("marketingOptIn");
-    expect(data).not.toHaveProperty("notificationsOptIn");
   });
 
-  it("writes showRoomUnreadCount on PATCH and returns the stored value", async () => {
+  // The wire field is unchanged, so every client keeps working, the Apple app
+  // included. What changed is the column behind it: it stores "hide", so a
+  // reader who never chose is shown the count (ADR-0038).
+  it("shows the count to a reader who never chose", async () => {
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request("http://localhost/me/preferences");
+
+    const body = await response.json();
+    expect(body.data.showRoomUnreadCount).toBe(true);
+  });
+
+  it("reports the count as off for a reader who switched it off", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      ...PREFERENCES,
+      hideRoomUnreadCount: true,
+    });
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request("http://localhost/me/preferences");
+
+    const body = await response.json();
+    expect(body.data.showRoomUnreadCount).toBe(false);
+  });
+
+  it("stores switching the count off as hide, and answers with it off", async () => {
     userUpdateMock.mockResolvedValue({
       ...PREFERENCES,
-      showRoomUnreadCount: true,
+      hideRoomUnreadCount: true,
     });
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request(
+      patchRequest("/me/preferences", { showRoomUnreadCount: false }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.showRoomUnreadCount).toBe(false);
+    expect(userUpdateMock.mock.calls[0]?.[0].data).toEqual({
+      hideRoomUnreadCount: true,
+    });
+  });
+
+  it("stores switching the count back on as not hidden", async () => {
+    userUpdateMock.mockResolvedValue(PREFERENCES);
     const app = createPreferencesApp(SESSION_USER);
 
     const response = await app.request(
       patchRequest("/me/preferences", { showRoomUnreadCount: true }),
     );
 
-    expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.showRoomUnreadCount).toBe(true);
     expect(userUpdateMock.mock.calls[0]?.[0].data).toEqual({
-      showRoomUnreadCount: true,
+      hideRoomUnreadCount: false,
     });
   });
 
-  // The count is a display preference. A reader who turns it on must not have
+  // The old column stays in the table so a rollback finds each reader's old
+  // value. Writing it would make that value a lie.
+  it("never writes the superseded column", async () => {
+    userUpdateMock.mockResolvedValue(PREFERENCES);
+    const app = createPreferencesApp(SESSION_USER);
+
+    await app.request(
+      patchRequest("/me/preferences", { showRoomUnreadCount: true }),
+    );
+
+    expect(userUpdateMock.mock.calls[0]?.[0].data).not.toHaveProperty(
+      "showRoomUnreadCount",
+    );
+  });
+
+  // The count is a display preference. A reader who changes it must not have
   // changed a single thing about what Sokosumi sends them.
   it("touches no delivery preference when only showRoomUnreadCount is sent", async () => {
-    userUpdateMock.mockResolvedValue({
-      ...PREFERENCES,
-      showRoomUnreadCount: true,
-    });
+    userUpdateMock.mockResolvedValue(PREFERENCES);
     const app = createPreferencesApp(SESSION_USER);
 
     await app.request(
@@ -230,25 +323,8 @@ describe("user preferences routes", () => {
 
     const data = userUpdateMock.mock.calls[0]?.[0].data;
     expect(data).not.toHaveProperty("marketingOptIn");
-    expect(data).not.toHaveProperty("notificationsOptIn");
     expect(data).not.toHaveProperty("pushOptIn");
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("accepts showRoomUnreadCount as the only field a write names", async () => {
-    userUpdateMock.mockResolvedValue({
-      ...PREFERENCES,
-      showRoomUnreadCount: false,
-    });
-    const app = createPreferencesApp(SESSION_USER);
-
-    const response = await app.request(
-      patchRequest("/me/preferences", { showRoomUnreadCount: false }),
-    );
-
-    // The route refuses a body that names nothing; the new field has to count
-    // as something, or turning the setting off would 400.
-    expect(response.status).toBe(200);
   });
 
   it("returns every matrix cell on GET, with the reader's choices applied", async () => {
@@ -267,8 +343,12 @@ describe("user preferences routes", () => {
     const body = await response.json();
     // Every cell, not just the stored rows: the client renders the matrix it is
     // given rather than filling in the defaults itself.
+    // Two channels on every category, and an email cell only on the categories
+    // that mail. A count of every channel on every category would pass while
+    // the matrix offered email on rows Core never mails (SOK-916).
     expect(body.data.notificationPreferences).toHaveLength(
-      NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length,
+      NOTIFICATION_CATEGORIES.length * (NOTIFICATION_CHANNELS.length - 1) +
+        NOTIFICATION_EMAIL_CATEGORIES.length,
     );
     expect(body.data.notificationPreferences).toContainEqual({
       category: "CHAT_MENTION",
@@ -280,6 +360,19 @@ describe("user preferences routes", () => {
       channel: "IN_APP",
       enabled: false,
     });
+    // The one email cell, on by default and stored by nobody yet.
+    expect(body.data.notificationPreferences).toContainEqual({
+      category: "FOLLOW_UP",
+      channel: "EMAIL",
+      enabled: true,
+    });
+    // And no email cell where Core mails nothing, or the settings page would
+    // draw a switch that changes nothing.
+    expect(
+      body.data.notificationPreferences.filter(
+        (cell: { channel: string }) => cell.channel === "EMAIL",
+      ),
+    ).toHaveLength(NOTIFICATION_EMAIL_CATEGORIES.length);
   });
 
   it("writes one matrix cell on PATCH without touching the account flags", async () => {
@@ -288,7 +381,7 @@ describe("user preferences routes", () => {
     const response = await app.request(
       patchRequest("/me/preferences", {
         notificationPreferences: [
-          { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: false },
+          { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: false },
         ],
       }),
     );
@@ -298,13 +391,13 @@ describe("user preferences routes", () => {
       where: {
         userId_category_channel: {
           userId: "user_123",
-          category: "JOB_ATTENTION",
+          category: "TASK_ATTENTION",
           channel: "OS_BANNER",
         },
       },
       create: {
         userId: "user_123",
-        category: "JOB_ATTENTION",
+        category: "TASK_ATTENTION",
         channel: "OS_BANNER",
         enabled: false,
       },
@@ -344,7 +437,7 @@ describe("user preferences routes", () => {
               NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length + 1,
           },
           () => ({
-            category: "JOB_ATTENTION",
+            category: "TASK_ATTENTION",
             channel: "IN_APP",
             enabled: false,
           }),

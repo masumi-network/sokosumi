@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { APP_VIEWPORT_BASE } from "@/lib/app-viewport";
-
 import { ChatRouteErrorBoundary } from "./components/chat-route-error-boundary.client";
+import { PersistentRoomView } from "./components/persistent-room-view";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Channels.Metadata");
@@ -31,5 +31,9 @@ export default function ChatLayout({
 }) {
   // Bottom nav lives in AppMobileChrome (app frame). Page boundary only here
   // so Instant Navigations can still validate if page chrome throws.
-  return <ChatRouteErrorBoundary>{children}</ChatRouteErrorBoundary>;
+  return (
+    <ChatRouteErrorBoundary>
+      <PersistentRoomView>{children}</PersistentRoomView>
+    </ChatRouteErrorBoundary>
+  );
 }

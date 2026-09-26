@@ -6,29 +6,24 @@
 - Technical story: follow-up phase to the Masumi payment-node V2 migration
   (PR #3440), which cut the sockets this rail plugs into.
 
-> **Ratified 2026-08-11** via the x402/EVM wayfinder map
-> (`docs/wayfinder/x402-evm/`). The refund-policy blocker below is resolved,
-> and the payment-record model is settled as a sibling of PR 1's
-> `TaskX402Payment`. The node behaviors the pinned spec did not guarantee are
-> now **confirmed** against masumi-payment-service `main` and folded into
-> the body below; nothing external gates the PR 2 build. The only node-side
-> work still outstanding is the future settlement-observation surface, called
-> out as explicitly-future below.
+PR 1 (`TaskX402Payment`) is on main. PR 2 (`Job.paymentRail` /
+`JobX402Payment`) is not. Remaining implementer spec:
+[`PR2-SPEC.md`](../wayfinder/x402-evm/PR2-SPEC.md). Nothing external gates
+that build except the future settlement-observation surface (explicitly
+future; does not gate the initial ship).
 
-> **Amended 2026-08-28 by masumi ADR 0016.** The payment node removed
-> `GET /x402/budgets` and the `x402.budget` rail check. The x402 spend cap now
-> lives on the calling API key as per-unit usage credits
-> (`eip155:<chainId>:<asset>`, gated by `usageLimited`), and wallet access is
-> an `ApiKeyX402WalletScope` grant rather than a budget row. Decision 6
-> (buy-side readiness gating) is restated below; the node-surface list in
-> Context and the error-contract wording in Decision 4 are corrected in place.
-> Every other decision here stands. Superseded sentences are named where they
-> stood rather than deleted.
+## Spent
 
-> **Amended 2026-09-13 by ADR 0024.** Web `/agents` is no longer Coworkers-only:
-> Agent catalog browse is restored. App Hire stays off (SOK-805 remainder /
-> ADR 0006). Decision 8's Web `/agents` sentences are restated below; pay stays
-> coworker + assigned task. Every other decision here stands.
+- **Wayfinder MAP / PR1-SPEC** (archived 2026-09-17). Unique PR 1 facts live
+  in Decision 3, Decision 8, and the refund policy. Do not restore those
+  files as the implementer surface.
+- **Masumi ADR 0016** (2026-08-28). The node removed `GET /x402/budgets` and
+  the `x402.budget` rail check. The spend cap is key usage credits
+  (`eip155:<chainId>:<asset>`, gated by `usageLimited`); wallet access is an
+  `ApiKeyX402WalletScope` grant. Decision 6 is the restated live gate.
+- **ADR 0024** (2026-09-13). Web `/agents` is a browse catalog again. App
+  Hire stays off (SOK-805 remainder / ADR 0006). Pay stays coworker +
+  assigned task.
 
 ## Context
 
@@ -126,20 +121,22 @@ A dedicated model records the payment leg of an x402 job:
   Soko enum is `PENDING | VERIFIED | FAILED | REFUNDED` — `PENDING` is the
   pre-sign row (the node's `PaymentRequired`), and `REFUNDED` is Soko's
   compensating-refund state (admin goodwill lever or the future
-  `EXPIRED_UNUSED` reconciler), not a node status — matching the
-  `TaskX402Payment` specified in PR1-SPEC §4 (not on `main` until the
-  implementation PRs land). See also PR2-SPEC §2.
+  `EXPIRED_UNUSED` reconciler), not a node status — matching shipped
+  `TaskX402Payment` in `packages/database/prisma/schema.prisma`. See also
+  PR2-SPEC §2.
 
-`JobX402Payment` (job-scoped, **PR 2**) and `TaskX402Payment` (task-scoped,
-**PR 1** — the Bazaar coworker surface) are **two sibling tables, not one
-shared row**. Both record an x402 payment leg with the same core columns
-(`amount` is a digit `String` plus node-published `decimals`), but they hang
-off different parents and carry different lifecycles (a job flow vs a
-terminal coworker payment), exactly the JobPurchase-vs-escrow separation this
-ADR already argues for. Shared behavior — amount→credits conversion, the
-`/x402/pay` call, the verify-against-listed-source check, the CAIP-19 credit
-keys — factors into a helper, not a table with a nullable parent. Neither
-table is on `main` until those implementation PRs merge.
+`JobX402Payment` (job-scoped, **PR 2**, not on `main`) and `TaskX402Payment`
+(task-scoped, **PR 1** — the Bazaar coworker surface, **on `main`**) are
+**two sibling tables, not one shared row**. Both record an x402 payment leg
+with the same core columns (`amount` is a digit `String` plus node-published
+`decimals` at charge time), but they hang off different parents and carry
+different lifecycles (a job flow vs a terminal coworker payment), exactly the
+JobPurchase-vs-escrow separation this ADR already argues for. Shared
+behavior — amount→credits conversion, the `/x402/pay` call, the
+verify-against-listed-source check, the CAIP-19 credit keys — factors into a
+helper, not a table with a nullable parent. `TaskX402Payment` and
+`TaskX402PaymentAction` shipped; `Job.paymentRail` / `JobX402Payment` still
+await PR 2.
 
 ### 4. Job flow
 
@@ -190,12 +187,8 @@ default-token balance. The environment-global `x402.purchasing_wallet` rail
 check remains a coarse diagnostic, not a listing or pre-charge gate. The cache
 follows Cardano V2's last-known-value pattern.
 
-**Amended 2026-08-28 (masumi ADR 0016).** The two sentences this decision used
-to carry are superseded: "The Soko API key needs a positive budget tied to a
-purchasing wallet" and "A confirmed admin key with no binding budget can
-instead use exactly one Purchasing wallet". Both described a per-wallet budget
-row that the node no longer has, and the `x402.budget` rail check named beside
-them is gone too. What replaces them:
+**Live gate (masumi ADR 0016).** The spend cap is on the key, not a
+per-wallet budget row. The `x402.budget` rail check is gone. What stands:
 
 - The cap is on the KEY, not the wallet. `usageLimited` off means uncapped.
   On, the key needs remaining credit for unit `eip155:<chainId>:<asset>`,
@@ -209,7 +202,7 @@ them is gone too. What replaces them:
   one owner scope to both `GET /x402/wallets` and `POST /x402/pay`, so a
   wallet the listing returns is a wallet the key is scoped to. The permission
   TIER differs though: the listing is read-authenticated and the charge is
-  pay-authenticated (`packages/payment-core/src/auth.ts`), and read is
+  pay-authenticated (masumi payment-node `payment-core/src/auth.ts`), and read is
   satisfied by `canRead` alone. So readiness still asks the key for
   `canPay === true || canAdmin === true` before it lists anything, and a
   read-only key composes zero pairs instead of a full set whose every charge
@@ -219,8 +212,7 @@ them is gone too. What replaces them:
   and records the most-funded, tie-broken on wallet id so the cached set stays
   stable across syncs.
 
-Two corrections to how the proposed draft described this (both verified
-2026-08-11):
+Readiness composition (verified 2026-08-11):
 
 - The Cardano V2 pattern is **not** TTL'd. It serves the last recorded value
   and fails closed only in the never-recorded cold state
@@ -268,11 +260,39 @@ x402 agents are agents. They share the public Cardano catalog:
   scheme `exact`.
 - Web `/agents` restored Agent catalog browse (ADR-0024). App Hire stays
   off (SOK-805 remainder). x402 pay stays coworker + assigned task, not app
-  Hire. (Superseded: this bullet used to say the page is Coworkers-only and
-  does not advertise x402 or classic hire agents.)
+  Hire.
 
 A dedicated coworker-only `/v1/agents/x402` was sketched and dropped
 during implementation. This ADR records the shipped contract.
+
+**PR 1 (shipped).** Canonical model: Prisma `TaskX402Payment` +
+`TaskX402PaymentAction`. Standing constraint: **no EVM keys in Soko** —
+`evmWalletId` is never caller-supplied; the payment node (`POST /x402/pay`)
+signs. Coworker loop: public `GET /v1/agents?kind=x402` → call the agent
+outside Soko → `POST /v1/tasks/{taskId}/x402-payments` (coworker + assigned
+task; sub-tasks are `Task` rows linked by `TaskLink` `PARENT`) → replay the
+returned header outside Soko. No job row.
+
+Listing and pay share the same catalog predicate. Fail-closed is
+**per-agent**. Scheme `exact` only. Node-published decimals. Every advertised
+asset needs a `CreditCost` row. Network in the per-env allowlist. Locally
+trusted exact-EVM EIP-712 domain. `DYNAMIC` entries may list as non-payable
+previews; pay requires `maxCredits` for Dynamic, compared in **credits** after
+conversion. Fixed demand must be ≤ advertised native amount; Free rejects a
+positive demand.
+
+Charge then sign. Debit and `PENDING` in one transaction; bounded sign lease
+(`processingAt`, `signAttemptCount`, `signRiskExpiresAt`) because the node
+has no idempotency. Persist `VERIFIED` and `xPaymentHeader` before returning
+the header. Soko's sole dedupe is `@@unique([taskId, idempotencyKey])` bound
+to a SHA-256 demand fingerprint. Documented node refusal on the fresh first
+attempt refunds and marks `FAILED`. Same-key `PENDING` replay may re-sign
+under the lease with **no second debit** and must not auto-refund.
+`FAILED` / `REFUNDED` consume the key (`409`). There is no `Task.maxCredits`;
+the debit draws the task org's ordinary credit balance, ceiled to
+`MIN_CHARGEABLE_CREDITS`. Admin goodwill refund is `VERIFIED → REFUNDED` via
+append-only FK-free `TaskX402PaymentAction`. Per-agent aggregation
+(`@@index([agentId, status])`) feeds whitelist-disable.
 
 ## Credit-refund policy (resolved 2026-08-11)
 
@@ -313,9 +333,10 @@ on a single job:
   header exists on the row (or was returned to the coworker), the debit
   stands: garbage results, unused replay, and crash-after-delivery are
   admin / future `EXPIRED_UNUSED`, not a sync refund. Persist `VERIFIED`
-  **before** returning the header. An **admin refund / resolve lever** plus
+  **before** returning the header. Charge-then-sign and idempotency live in
+  Decision 8 (PR 1 shipped). An **admin refund / resolve lever** plus
   **per-agent refund/failure aggregation** feeds a **whitelist-disable**
-  for bleeding endpoints. Full state machine: PR1-SPEC §3.
+  for bleeding endpoints.
 - **Absorbed loss is bounded operationally**, not by refund policy: the
   per-agent aggregation + whitelist-disable is the control that stops a
   bad agent from bleeding credits, on both rails.
@@ -337,8 +358,7 @@ on a single job:
 - **Dedicated coworker-only `GET /v1/agents/x402`.** Rejected: callers see
   one agent catalog. A `kind` discriminator on `GET /v1/agents` is enough.
   Pay stays a separate coworker+task route. Web `/agents` is a browse
-  catalog again (ADR-0024); app Hire stays off. (Superseded: "Web `/agents`
-  is not a catalog.")
+  catalog again (ADR-0024); app Hire stays off.
 
 ## Consequences
 
@@ -359,7 +379,8 @@ on a single job:
   — nothing external gates the build. Engineering can proceed to the PR 2 spec
   and implementation; the only remaining node-side work is the future
   settlement-observation surface, which does not gate the initial ship.
-- PR 1 (the Bazaar coworker surface, `docs/wayfinder/x402-evm/PR1-SPEC.md`)
-  ships first and independently — it shares the CAIP-19 credit keys, the
-  `/x402/pay` delegation, and the refund policy with this rail, but no job
-  pipeline. PR 2 builds on the discriminator and sibling model here.
+- PR 1 (the Bazaar coworker surface) shipped independently as
+  `TaskX402Payment`. It shares the CAIP-19 credit keys, the `/x402/pay`
+  delegation, and the refund policy with this rail, but no job pipeline.
+  Remaining implementer spec:
+  [`PR2-SPEC.md`](../wayfinder/x402-evm/PR2-SPEC.md).

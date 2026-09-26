@@ -11,15 +11,18 @@ import {
   Check,
   Copy,
   Ellipsis,
+  Link2,
   MessageCircle,
   Pencil,
   Pin,
   PinOff,
   Quote,
+  Send,
   Trash2,
   X,
 } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 import {
   memo,
   type MouseEvent as ReactMouseEvent,
@@ -28,6 +31,7 @@ import {
   type RefObject,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -65,6 +69,7 @@ import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
 import { resolveQuickReactions } from "@/app/chat/utils/quick-reactions";
 import {
   type RoomMessageFilesSegment,
+  type RoomMessageSegment,
   segmentRoomMessageContent,
 } from "@/app/chat/utils/room-message-segments";
 import { AuroraOrb } from "@/components/aurora-orb";
@@ -94,6 +99,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileChipMiniPreviewFrame } from "@/components/ui/file-chip-mini-preview";
 import { FileTypeIcon } from "@/components/ui/file-icon";
+import {
+  ImageViewer,
+  type ImageViewerImage,
+} from "@/components/ui/image-viewer";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import {
   Sheet,
@@ -128,6 +137,7 @@ import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { getEmojiShortcodeName } from "@/lib/utils/emoji-shortcodes";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { participantDirectKey } from "./open-direct-with-participant";
@@ -138,17 +148,19 @@ import {
   formatRoomComposerTooLongFailure,
   isRoomComposerContentCountVisible,
   isRoomComposerContentOverLimit,
+  type MessageSenderProfile,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
+  senderProfile,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
+import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
-  hasSokoBotChainBadge,
-  SokoBotChainBadge,
-} from "./soko-bot-chain-badge";
-import { SokoBotMessageFooter } from "./soko-bot-message-footer";
+  hasSokoBotMessageFooter,
+  SokoBotMessageFooter,
+} from "./soko-bot-message-footer";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
@@ -156,6 +168,29 @@ type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
 /** Collapsed preview height for primary message bodies (taller than quotes). */
 const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
+
+/**
+ * Keeps the last line of a body clear of the Seen by faces in the row's
+ * bottom-right corner. Inline, so it shortens that one line instead of
+ * every line — a phone body column is ~310px, and reserving on the column
+ * cost a quarter of it on the newest message in the room.
+ *
+ * Rem, not px: the faces and the touch inset scale with Dynamic Type.
+ * Three plus the `+N` is 3.25rem, and below md the target reaches another
+ * 0.875rem left (4.125rem, 66px at the default root).
+ */
+const SEEN_BY_INLINE_RESERVE_CLASS =
+  "inline-block h-1 w-[4.125rem] align-baseline";
+
+function SeenByInlineReserve() {
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="seen-by-inline-reserve"
+      className={SEEN_BY_INLINE_RESERVE_CLASS}
+    />
+  );
+}
 
 interface MessageEditedLabelProps {
   editedAt: Date | string;
@@ -241,6 +276,34 @@ function isLargeSoloImageFilesSegment(
   return classifyFilePreview(soloLink.url, soloLink.fileName).isImage;
 }
 
+/**
+ * The Message image gallery: every image link across the body's attachment
+ * rows, in body order. A file linked twice is one image.
+ */
+function messageImageGallery(
+  segments: readonly RoomMessageSegment[],
+): ImageViewerImage[] {
+  const imagesBySrc = new Map<string, ImageViewerImage>();
+  for (const segment of segments) {
+    if (segment.kind !== "files") {
+      continue;
+    }
+    for (const link of segment.links) {
+      if (
+        !imagesBySrc.has(link.url) &&
+        classifyFilePreview(link.url, link.fileName).isImage
+      ) {
+        imagesBySrc.set(link.url, {
+          src: link.url,
+          alt: link.fileName,
+          downloadFilename: link.fileName,
+        });
+      }
+    }
+  }
+  return [...imagesBySrc.values()];
+}
+
 function hasLargeSoloImageAttachment(content: string): boolean {
   return segmentRoomMessageContent(content).some(
     (segment) =>
@@ -309,6 +372,7 @@ function formatWhoReactedLabel(
 
 function MessageQuoteBlock({
   messageId,
+  roomId,
   quote,
   coworkersById,
   coworkersBySlug,
@@ -324,6 +388,7 @@ function MessageQuoteBlock({
   onJumpToQuotedMessage,
 }: {
   messageId: string;
+  roomId: string;
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -339,6 +404,7 @@ function MessageQuoteBlock({
   onJumpToQuotedMessage?: (messageId: string) => void;
 }) {
   const t = useTranslations("App.Channels.Quote");
+  const router = useRouter();
   const { expanded, toggleExpanded, overflows, contentRef } =
     useClampedOverflow({
       cacheKey: `quote:${messageId}`,
@@ -354,6 +420,12 @@ function MessageQuoteBlock({
         className="hover:bg-senary focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
         aria-label={t("jump", { author: quote.authorName })}
         onClick={() => {
+          // Sent to yourself from another room: this transcript does not hold
+          // the original, so follow its Message link instead of scrolling.
+          if (quote.roomId && quote.roomId !== roomId) {
+            router.push(chatRoomMessageHref(quote.roomId, quote.messageId));
+            return;
+          }
           onJumpToQuotedMessage?.(quote.messageId);
         }}
       >
@@ -460,11 +532,10 @@ function MessageUnfurlCard({
   const siteLabel = unfurl.siteName?.trim() || null;
   const description = unfurl.description?.trim() || null;
   const imageUrl = unfurl.imageUrl?.trim() || null;
+  // A failed image drops to text only; the server already filters
+  // title-only cards, and a link whose host blocks hotlinks (X with a
+  // login cookie) still deserves its labelled card.
   const showImage = Boolean(imageUrl) && !imageFailed;
-
-  if (!description && !showImage) {
-    return null;
-  }
 
   return (
     <div className="group/unfurl relative mt-1.5 inline-block w-fit max-w-[min(100%,25rem)]">
@@ -552,6 +623,7 @@ function MessageUnfurlList({
 
 function ChannelMarkdownSegment({
   content,
+  enableMermaid,
   coworkersById,
   coworkersBySlug,
   sokoBotsById,
@@ -565,6 +637,7 @@ function ChannelMarkdownSegment({
   openingDirectParticipantKey,
 }: {
   content: string;
+  enableMermaid: boolean;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
@@ -579,6 +652,7 @@ function ChannelMarkdownSegment({
 }) {
   return (
     <RoomMessageMarkdown
+      enableMermaid={enableMermaid}
       content={content}
       markdownClassName={ROOM_MESSAGE_MARKDOWN_CLASSNAME}
       coworkersById={coworkersById}
@@ -598,6 +672,7 @@ function ChannelMarkdownSegment({
 
 export function ChannelMessageText({
   content,
+  enableMermaid = true,
   coworkersById,
   coworkersBySlug,
   sokoBotsById,
@@ -611,6 +686,7 @@ export function ChannelMessageText({
   openingDirectParticipantKey,
 }: {
   content: string;
+  enableMermaid?: boolean;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
@@ -623,12 +699,23 @@ export function ChannelMessageText({
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
 }) {
+  const [openImageSrc, setOpenImageSrc] = useState<string | null>(null);
   const segments = segmentRoomMessageContent(content);
+  const galleryImages = messageImageGallery(segments);
+  // The open image left the message (edited out or deleted): forget it, so an
+  // edit that brings the file back does not reopen the viewer by itself.
+  if (
+    openImageSrc !== null &&
+    !galleryImages.some((image) => image.src === openImageSrc)
+  ) {
+    setOpenImageSrc(null);
+  }
 
   if (segments.length === 1 && segments[0].kind === "text") {
     return (
       <ChannelMarkdownSegment
         content={segments[0].content}
+        enableMermaid={enableMermaid}
         coworkersById={coworkersById}
         coworkersBySlug={coworkersBySlug}
         sokoBotsById={sokoBotsById}
@@ -653,6 +740,7 @@ export function ChannelMessageText({
               <ChannelMarkdownSegment
                 key={`text-${i}-${segment.start}`}
                 content={segment.content}
+                enableMermaid={enableMermaid}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
                 sokoBotsById={sokoBotsById}
@@ -683,6 +771,9 @@ export function ChannelMessageText({
                     fileName={link.fileName}
                     variant={useLargeImage ? "large" : "thumb"}
                     sizeClass={useLargeImage ? undefined : "size-16"}
+                    onOpenImage={() => {
+                      setOpenImageSrc(link.url);
+                    }}
                   />
                 ))}
               </div>
@@ -694,6 +785,13 @@ export function ChannelMessageText({
           }
         }
       })}
+      {galleryImages.length > 0 ? (
+        <ImageViewer
+          images={galleryImages}
+          activeSrc={openImageSrc}
+          onActiveSrcChange={setOpenImageSrc}
+        />
+      ) : null}
     </>
   );
 }
@@ -761,7 +859,12 @@ function ChannelMessageBody({
         className={cn(
           "min-w-0 max-w-full",
           expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
-          trailing ? "[&_.prose]:contents [&_p:last-of-type]:inline" : null,
+          // Last p is inline so the reserve shares its last line. Inline
+          // boxes drop vertical margin, which would swallow [&_p+p]:mt-3
+          // (the blank line). The previous block p keeps that gap.
+          trailing
+            ? "[&_.prose]:contents [&_p:last-of-type]:inline [&_p:has(+_p:last-of-type)]:mb-3"
+            : null,
         )}
       >
         <ChannelMessageText
@@ -882,6 +985,8 @@ function MessageActionControls({
   onQuote,
   onPin,
   onCopy,
+  onCopyLink,
+  onSendToSelf,
   onEdit,
   onDelete,
   showThreadButton,
@@ -889,6 +994,7 @@ function MessageActionControls({
   showPinButton,
   isPinned,
   showCopyButton,
+  showCopyLinkButton,
   showEditButton,
   showDeleteButton,
   collapseSecondary = false,
@@ -902,6 +1008,9 @@ function MessageActionControls({
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
+  onCopyLink?: () => void;
+  /** Absent when the message cannot be sent to the Self Direct. */
+  onSendToSelf?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -909,6 +1018,7 @@ function MessageActionControls({
   showPinButton: boolean;
   isPinned: boolean;
   showCopyButton: boolean;
+  showCopyLinkButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
   collapseSecondary?: boolean;
@@ -917,9 +1027,16 @@ function MessageActionControls({
 }) {
   const t = useTranslations("App.Channels");
   const showPin = Boolean(showPinButton && onPin);
+  const showCopyLink = Boolean(showCopyLinkButton && onCopyLink);
   const showCopy = Boolean(showCopyButton && onCopy);
   const showDelete = Boolean(showDeleteButton && onDelete);
-  const showMore = collapseSecondary && (showPin || showCopy || showDelete);
+  const showMore =
+    collapseSecondary &&
+    (showPin ||
+      showCopyLink ||
+      Boolean(onSendToSelf) ||
+      showCopy ||
+      showDelete);
   const reactedEmojis = readerReactedEmojis(message);
 
   return (
@@ -1100,6 +1217,28 @@ function MessageActionControls({
                 {isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
               </DropdownMenuItem>
             ) : null}
+            {showCopyLink ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onCopyLink?.();
+                  onAfterAction?.();
+                }}
+              >
+                <Link2 className="size-4" aria-hidden />
+                {t("Copy.link")}
+              </DropdownMenuItem>
+            ) : null}
+            {onSendToSelf ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onSendToSelf();
+                  onAfterAction?.();
+                }}
+              >
+                <Send className="size-4" aria-hidden />
+                {t("Copy.sendToSelf")}
+              </DropdownMenuItem>
+            ) : null}
             {showCopy ? (
               <DropdownMenuItem
                 onSelect={() => {
@@ -1130,10 +1269,37 @@ function MessageActionControls({
   );
 }
 
-// Centred on the row's top edge, as in Slack and the Apple client: the same
-// spot at every row height, instead of hanging below a one-line row.
+// On the row's top edge, as in Slack and the Apple client: the same spot at
+// every row height, instead of hanging below a one-line row.
+//
+// How far above that edge depends on what the row starts with, because the
+// text now runs the full width and the pill covers whatever it sits on.
+//
+// A row with a name-and-time header has an empty lane waiting for it. The
+// header is short and left-aligned, so its right half holds nothing, and the
+// pill parked there hides no words at all — it only has to clear the first
+// line of the body, which a quarter of its height does.
+//
+// A continuation has no header to sit on, so it lifts three quarters clear
+// and covers the tail of the line above instead — one you have finished
+// reading, rather than the first line of the message you are pointing at. The
+// quarter left behind is what keeps it attached to its own row.
 const MESSAGE_ACTIONS_PILL_CLASS =
-  "border-border bg-background absolute top-0 right-2 -translate-y-1/2 items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
+  "border-border bg-background absolute top-0 right-2 items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
+
+/** Where the pill rides, by what the row leads with. See the class above. */
+function messageActionsPillLiftClass(isContinuation: boolean): string {
+  return isContinuation ? "-translate-y-3/4" : "-translate-y-1/4";
+}
+
+// Debounce the reveal: scrolling drags a stationary pointer across row after
+// row, and an instant pill flashes at each one. The delay only applies while
+// the row is hovered, so leaving clears it with no delay and the pill goes
+// straight out. pointer-events rides the same transition (discrete, so it
+// flips mid-fade) — an invisible pill covering the row above must not take
+// clicks during the wait.
+const MESSAGE_ACTIONS_PILL_REVEAL_DELAY_CLASS =
+  "[@media(hover:hover)]:group-hover:delay-200";
 
 function MessageActions({
   message,
@@ -1142,6 +1308,8 @@ function MessageActions({
   onQuote,
   onPin,
   onCopy,
+  onCopyLink,
+  onSendToSelf,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1149,8 +1317,10 @@ function MessageActions({
   showPinButton,
   isPinned,
   showCopyButton,
+  showCopyLinkButton,
   showEditButton,
   showDeleteButton,
+  isContinuation,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
@@ -1158,6 +1328,9 @@ function MessageActions({
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
+  onCopyLink?: () => void;
+  /** Absent when the message cannot be sent to the Self Direct. */
+  onSendToSelf?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1165,8 +1338,11 @@ function MessageActions({
   showPinButton: boolean;
   isPinned: boolean;
   showCopyButton: boolean;
+  showCopyLinkButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
+  /** No header on the row, so the pill has no empty lane to park in. */
+  isContinuation: boolean;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const frequentlyUsedEmojis = useFrequentlyUsedEmojis();
@@ -1189,7 +1365,9 @@ function MessageActions({
       data-message-actions="hover"
       className={cn(
         MESSAGE_ACTIONS_PILL_CLASS,
-        "hidden transition-opacity focus-within:opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+        messageActionsPillLiftClass(isContinuation),
+        "hidden transition-[opacity,pointer-events] transition-discrete focus-within:opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+        MESSAGE_ACTIONS_PILL_REVEAL_DELAY_CLASS,
         // The upper half covers the row above, and an opacity-0 pill still
         // takes clicks, so it takes the pointer only on row hover or focus.
         // Not while More is open: Radix makes the page inert, and an explicit
@@ -1212,6 +1390,8 @@ function MessageActions({
         onQuote={onQuote}
         onPin={onPin}
         onCopy={onCopy}
+        onCopyLink={onCopyLink}
+        onSendToSelf={onSendToSelf}
         onEdit={onEdit}
         onDelete={onDelete}
         showThreadButton={showThreadButton}
@@ -1219,6 +1399,7 @@ function MessageActions({
         showPinButton={showPinButton}
         isPinned={isPinned}
         showCopyButton={showCopyButton}
+        showCopyLinkButton={showCopyLinkButton}
         showEditButton={showEditButton}
         showDeleteButton={showDeleteButton}
         collapseSecondary
@@ -1362,6 +1543,8 @@ function TouchMessageActionsSheet({
   onQuote,
   onPin,
   onCopy,
+  onCopyLink,
+  onSendToSelf,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1369,6 +1552,7 @@ function TouchMessageActionsSheet({
   showPinButton,
   isPinned,
   showCopyButton,
+  showCopyLinkButton,
   showEditButton,
   showDeleteButton,
 }: {
@@ -1380,6 +1564,9 @@ function TouchMessageActionsSheet({
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
+  onCopyLink?: () => void;
+  /** Absent when the message cannot be sent to the Self Direct. */
+  onSendToSelf?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1387,6 +1574,7 @@ function TouchMessageActionsSheet({
   showPinButton: boolean;
   isPinned: boolean;
   showCopyButton: boolean;
+  showCopyLinkButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
 }) {
@@ -1546,6 +1734,32 @@ function TouchMessageActionsSheet({
                 <Pin className="size-4 shrink-0" aria-hidden />
               )}
               {isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
+            </Button>
+          ) : null}
+          {showCopyLinkButton && onCopyLink ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(onCopyLink);
+              }}
+            >
+              <Link2 className="size-4 shrink-0" aria-hidden />
+              {t("Copy.link")}
+            </Button>
+          ) : null}
+          {onSendToSelf ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(onSendToSelf);
+              }}
+            >
+              <Send className="size-4 shrink-0" aria-hidden />
+              {t("Copy.sendToSelf")}
             </Button>
           ) : null}
           {showCopyButton && onCopy ? (
@@ -2037,6 +2251,142 @@ function OutboundFailedActions({
   );
 }
 
+/** A sender's face: the Soko Bot orb when it has no photo, else the avatar. */
+function SenderFace({
+  sender,
+  orbSize,
+  className,
+  fallbackClassName,
+  monogram = false,
+}: {
+  sender: MessageSenderProfile;
+  /** Rendered pixels for the orb: twice the CSS size, for dense screens. */
+  orbSize: number;
+  className: string;
+  fallbackClassName: string;
+  /** One initial instead of two, for faces too small to fit both. */
+  monogram?: boolean;
+}) {
+  if (sender.kind === "sokoBot" && sender.avatarSeed && !sender.image) {
+    return (
+      <AuroraOrb
+        seed={sender.avatarSeed}
+        size={orbSize}
+        alt=""
+        className={cn("ring-border ring-1", className)}
+      />
+    );
+  }
+  return (
+    <Avatar className={className}>
+      <AvatarImage src={sender.image ?? undefined} alt="" />
+      <AvatarFallback className={fallbackClassName}>
+        {getInitials(sender.name).slice(0, monogram ? 1 : 2)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+/**
+ * The bar under a thread parent: who replied, how many replies (or how many
+ * are new to this reader), and how long ago the last one landed. Its name is
+ * the count alone; the age is its description and the faces are decoration.
+ */
+function ThreadReplyBar({
+  message,
+  onOpenThread,
+}: {
+  message: ChatRoomMessage;
+  onOpenThread: (message: ChatRoomMessage) => void;
+}) {
+  const t = useTranslations("App.Channels");
+  const format = useFormatter();
+  // Ticks, so a memoised row does not read "4m ago" for an hour.
+  const now = useNow({ updateInterval: 60_000 });
+  const ageId = useId();
+  // Absent on realtime payloads, which are not addressed to one viewer.
+  const unreadReplyCount = message.threadUnreadReplyCount ?? 0;
+  // Who replied, in the order they joined; the parent author only if they
+  // replied, since the row already shows them. Absent on messages the client
+  // built itself and on cached transcripts.
+  const faces = message.threadRepliers ?? [];
+  const countLabel =
+    unreadReplyCount > 0
+      ? t("Thread.newReplyCount", { count: unreadReplyCount })
+      : t("Thread.replyCount", { count: message.threadReplyCount });
+
+  return (
+    <button
+      type="button"
+      data-slot="thread-reply-bar"
+      data-unread={unreadReplyCount > 0 ? "true" : undefined}
+      aria-label={countLabel}
+      aria-describedby={message.threadLastReplyAt ? ageId : undefined}
+      className={cn(
+        "text-primary hover:text-primary-hover -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+        // Unread reads as a bar, not a badge: the tint plus an inset left
+        // rule gives the count an edge to sit against without adding a
+        // second mark to a row that already carries reactions. The rule
+        // has no colour of its own, so it follows the text, hover too.
+        // `-quaternary` and `-variant` are the sidebar mention pill's pair:
+        // the `-quinary` tint sat 6% above the dark background and read as
+        // a faint outline round cramped text, not as a bar.
+        // `mx-0`: the plain state's `-mx-1` only lines bare text up with the
+        // message; on a painted bar it pushes the rule and the rounded edge
+        // into the content column's `overflow-x-clip`, which cuts them off.
+        unreadReplyCount > 0 &&
+          "bg-primary-quaternary text-primary-variant mx-0 rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
+      )}
+      onClick={() => onOpenThread(message)}
+    >
+      {faces.length > 0 ? (
+        <span aria-hidden className="flex -space-x-1">
+          {faces.map((face, index) => {
+            const profile = senderProfile(face);
+            return (
+              <span
+                key={
+                  profile.kind === "unknown"
+                    ? `unknown-${index}`
+                    : `${profile.kind}:${profile.id}`
+                }
+                data-testid="thread-replier-face"
+                className="relative inline-flex size-4 shrink-0"
+                style={{ zIndex: faces.length - index }}
+              >
+                <SenderFace
+                  sender={profile}
+                  orbSize={32}
+                  // A hairline in the page colour keeps overlapping faces
+                  // apart; any thicker reads as a halo on the tinted bar.
+                  className="ring-background size-4 ring-1"
+                  // Grey like the read-receipt faces, not the bar's link blue.
+                  fallbackClassName="bg-muted text-muted-foreground text-[0.5rem]"
+                  monogram
+                />
+              </span>
+            );
+          })}
+        </span>
+      ) : null}
+      <span>{countLabel}</span>
+      {message.threadLastReplyAt ? (
+        <>
+          <span aria-hidden className="text-muted-foreground font-normal">
+            ·
+          </span>
+          <span id={ageId} className="text-muted-foreground font-normal">
+            {format.relativeTime(message.threadLastReplyAt, {
+              now,
+              style: "narrow",
+            })}
+          </span>
+        </>
+      ) : null}
+    </button>
+  );
+}
+
 function MessageMetaFooter({
   message,
   onToggleReaction,
@@ -2092,13 +2442,7 @@ function MessageMetaFooter({
         </div>
       ) : null}
       {showThreadButton && message.threadReplyCount > 0 && onOpenThread ? (
-        <button
-          type="button"
-          className="text-primary hover:text-primary-hover -mx-1 mt-1 min-h-9 px-1 text-xs font-medium sm:mt-1 sm:min-h-0"
-          onClick={() => onOpenThread(message)}
-        >
-          {t("Thread.replyCount", { count: message.threadReplyCount })}
-        </button>
+        <ThreadReplyBar message={message} onOpenThread={onOpenThread} />
       ) : null}
     </>
   );
@@ -2128,6 +2472,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRetryMention,
   onRemoveOutbound,
   onJumpToQuotedMessage,
+  onSendToSelf,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -2143,7 +2488,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isPinned = false,
   isContinuation = false,
   isFirstOfDay = false,
-  reserveHoverActionGutter = true,
+  seenBy,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -2169,6 +2514,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   /** Quote tap: scroll the room transcript to the quoted message. */
   onJumpToQuotedMessage?: (messageId: string) => void;
+  /** Send to yourself. The room omits it inside the Self Direct. */
+  onSendToSelf?: (message: ChatRoomMessage) => void;
   /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
@@ -2189,10 +2536,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   /** First message of a calendar day after a day separator; omit top margin because separator already provides rhythm. */
   isFirstOfDay?: boolean;
   /**
-   * Reserve right padding for the hover action pill. Off in the narrow
-   * thread panel so the body can use the full column.
+   * Seen by faces, pinned to the bottom-right of the message column. Newest
+   * message only.
    */
-  reserveHoverActionGutter?: boolean;
+  seenBy?: ReactNode;
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
@@ -2272,6 +2619,28 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const showEdited = !isDeleted && editedAt != null;
   const showPinned = !isDeleted && isPinned;
   const quote = message.quote;
+  // Faces sit in the row's bottom-right corner. Anything actually rendered
+  // after the text — reactions, a thread link, an unfurl, the Soko Bot
+  // footer, a failed send — already clears it, so those rows reserve
+  // nothing. Unfurls and the footer are omitted once the message is deleted.
+  const hasReactionRow =
+    !isDeleted && !isOutboundLocal && message.reactions.length > 0;
+  const hasThreadLink =
+    showThreadButton &&
+    !isOutboundLocal &&
+    message.threadReplyCount > 0 &&
+    onOpenThread != null;
+  const hasUnfurlRow = !isDeleted && (message.unfurls ?? []).length > 0;
+  const hasSokoBotFooter =
+    !isDeleted && hasSokoBotMessageFooter(message.metadata);
+  const bodyEndsTheRow =
+    seenBy != null &&
+    !isEditing &&
+    !hasReactionRow &&
+    !hasThreadLink &&
+    !hasUnfurlRow &&
+    !hasSokoBotFooter &&
+    outboundStatus !== "failed";
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // Neither overlay is mounted until first opened. A closed Radix dialog
@@ -2298,19 +2667,35 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const longPress = useLongPress(openSheet);
   const showActions =
     !isThinking && !isDeleted && !isEditing && !isOutboundLocal;
-  const canCopy =
+  const isDurableRoomMessage =
     !isDeleted &&
     !isThinking &&
     !isEditing &&
     !isOutboundLocal &&
-    !isStreamOverlay &&
-    message.content.trim().length > 0;
+    !isStreamOverlay;
+  const canCopy = isDurableRoomMessage && message.content.trim().length > 0;
+  const canCopyLink = isDurableRoomMessage;
+  const canSendToSelf = isDurableRoomMessage && onSendToSelf != null;
 
   function handleCopy() {
     void copyTextWithToast(message.content, {
       copySuccessMessage: tChannels("Copy.success"),
       copyErrorMessage: tChannels("Copy.error"),
     });
+  }
+
+  function handleCopyLink() {
+    void copyTextWithToast(
+      `${window.location.origin}${chatRoomMessageHref(message.roomId, message.id)}`,
+      {
+        copySuccessMessage: tChannels("Copy.linkSuccess"),
+        copyErrorMessage: tChannels("Copy.linkError"),
+      },
+    );
+  }
+
+  function handleSendToSelf() {
+    onSendToSelf?.(message);
   }
 
   function requestDelete(_message: ChatRoomMessage) {
@@ -2324,8 +2709,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     setDeleteDialogOpen(false);
   }
 
-  // The parent drops a repeat click while the first toggle is in flight, so
-  // a use counts once per emoji until the message's reactions change.
+  // A use counts once per emoji until the message's confirmed reactions
+  // change. Taps while a request is out flip a Pending reaction whose "off"
+  // state is the confirmed row itself, so on/off/on records the emoji once.
   const recordedUsesRef = useRef<{
     reactions: ChatRoomMessage["reactions"];
     emojis: Set<string>;
@@ -2359,12 +2745,13 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // the content (`isolate` scopes their z-index -1 to the row). Nothing
         // paints outside the row, so the scroller cannot clip it. The styling
         // itself lives in globals.css, keyed on data-search-landed.
-        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-card-background",
-        // Sized to the widest pill: eight buttons, or the chain badge plus seven.
-        reserveHoverActionGutter &&
-          (hasSokoBotChainBadge(message.metadata)
-            ? "[@media(hover:hover)]:pr-72"
-            : "[@media(hover:hover)]:pr-64"),
+        // pr-2, not a pill-sized gutter: the text runs the full width and the
+        // action pill draws over it, as Slack's does. The pill is opaque and
+        // only shows on the row under the pointer, so what it covers is the
+        // end of one line of a message you are already looking at — cheaper
+        // than 16rem that every row gives up forever so that one hovered row
+        // has somewhere to put eight buttons.
+        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md px-2 transition-colors hover:bg-card-background",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"
@@ -2417,21 +2804,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             data-testid="message-sender-avatar"
             className="relative inline-flex size-8 shrink-0"
           >
-            {sender.kind === "sokoBot" && sender.avatarSeed && !sender.image ? (
-              <AuroraOrb
-                seed={sender.avatarSeed}
-                size={64}
-                alt=""
-                className="ring-border size-8 ring-1"
-              />
-            ) : (
-              <Avatar className="size-8">
-                <AvatarImage src={sender.image ?? undefined} alt="" />
-                <AvatarFallback className="text-xs">
-                  {getInitials(sender.name)}
-                </AvatarFallback>
-              </Avatar>
-            )}
+            <SenderFace
+              sender={sender}
+              orbSize={64}
+              className="size-8"
+              fallbackClassName="text-xs"
+            />
             {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>
         </ChatParticipantHoverCard>
@@ -2440,6 +2818,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         className={cn(
           "min-w-0 max-w-full flex-1 overflow-x-clip",
           isContinuation ? "space-y-1" : "space-y-1.5",
+          // No reserve here: padding on the column shortens every line to
+          // protect the one that can collide. The reserve is inline, on the
+          // last line only — see SEEN_BY_INLINE_RESERVE_CLASS.
         )}
       >
         {isContinuation ? (
@@ -2484,12 +2865,14 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           {isDeleted ? (
             <p className="text-muted-foreground italic">
               {tChannels("Message.deleted")}
+              {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
             </p>
           ) : (
             <>
               {quote ? (
                 <MessageQuoteBlock
                   messageId={message.id}
+                  roomId={message.roomId}
                   quote={quote}
                   coworkersById={coworkersById}
                   coworkersBySlug={coworkersBySlug}
@@ -2563,29 +2946,45 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       />
                     </div>
                   ) : null}
-                  <ChannelMessageBody
-                    messageId={message.id}
-                    content={message.content}
-                    coworkersById={coworkersById}
-                    coworkersBySlug={coworkersBySlug}
-                    sokoBotsById={sokoBotsById}
-                    sokoBotsBySlug={sokoBotsBySlug}
-                    usersById={usersById}
-                    usersBySlug={usersBySlug}
-                    channelLinks={channelLinks}
-                    currentUserId={currentUserId}
-                    canOpenHumanDirect={canOpenHumanDirect}
-                    onOpenDirectMessage={onOpenDirectMessage}
-                    openingDirectParticipantKey={openingDirectParticipantKey}
-                    trailing={
-                      isContinuation && showEdited && editedAt != null ? (
-                        <MessageEditedLabel
-                          editedAt={editedAt}
-                          className="ms-1.5 inline-flex h-6 items-center"
-                        />
-                      ) : null
-                    }
-                  />
+                  {/* Send to yourself posts only a quote, so there is no body.
+                      The card still ends the row, so the reserve follows it. */}
+                  {quote && !message.content.trim() ? (
+                    bodyEndsTheRow ? (
+                      <SeenByInlineReserve />
+                    ) : null
+                  ) : (
+                    <ChannelMessageBody
+                      messageId={message.id}
+                      content={message.content}
+                      coworkersById={coworkersById}
+                      coworkersBySlug={coworkersBySlug}
+                      sokoBotsById={sokoBotsById}
+                      sokoBotsBySlug={sokoBotsBySlug}
+                      usersById={usersById}
+                      usersBySlug={usersBySlug}
+                      channelLinks={channelLinks}
+                      currentUserId={currentUserId}
+                      canOpenHumanDirect={canOpenHumanDirect}
+                      onOpenDirectMessage={onOpenDirectMessage}
+                      openingDirectParticipantKey={openingDirectParticipantKey}
+                      trailing={
+                        (isContinuation && showEdited && editedAt != null) ||
+                        bodyEndsTheRow ? (
+                          <>
+                            {isContinuation &&
+                            showEdited &&
+                            editedAt != null ? (
+                              <MessageEditedLabel
+                                editedAt={editedAt}
+                                className="ms-1.5 inline-flex h-6 items-center"
+                              />
+                            ) : null}
+                            {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
+                          </>
+                        ) : null
+                      }
+                    />
+                  )}
                   <MessageUnfurlList
                     unfurls={message.unfurls}
                     canRemove={canRemoveUnfurl}
@@ -2618,6 +3017,14 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           />
         ) : null}
       </div>
+      {/* Out of the text flow, in the row's bottom-right corner. Costs the
+          row no height at all, which is the whole reason it is here rather
+          than trailing the last line.
+          `end-2` is the action pill's own edge, so the two share a vertical
+          line and the faces land in the same corner on every row. */}
+      {seenBy ? (
+        <div className="absolute end-2 bottom-1 z-10">{seenBy}</div>
+      ) : null}
       {showActions ? (
         <>
           {/* Always mounted, and ahead of the pill in DOM order: on a row
@@ -2640,15 +3047,19 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onQuote={onQuote}
               onPin={onPin}
               onCopy={handleCopy}
+              onCopyLink={handleCopyLink}
+              onSendToSelf={canSendToSelf ? handleSendToSelf : undefined}
               onEdit={onStartEdit}
               onDelete={requestDelete}
               showThreadButton={showThreadButton}
               showQuoteButton={canQuote}
               showPinButton={canPin}
               isPinned={isPinned}
-              showCopyButton={canCopy}
+              showCopyButton={false}
+              showCopyLinkButton={canCopyLink}
               showEditButton={canEdit}
               showDeleteButton={canDelete}
+              isContinuation={isContinuation}
             />
           ) : null}
           {sheetMounted ? (
@@ -2661,6 +3072,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onQuote={onQuote}
               onPin={onPin}
               onCopy={handleCopy}
+              onCopyLink={handleCopyLink}
+              onSendToSelf={canSendToSelf ? handleSendToSelf : undefined}
               onEdit={onStartEdit}
               onDelete={requestDelete}
               showThreadButton={showThreadButton}
@@ -2668,6 +3081,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               showPinButton={canPin}
               isPinned={isPinned}
               showCopyButton={canCopy}
+              showCopyLinkButton={canCopyLink}
               showEditButton={canEdit}
               showDeleteButton={canDelete}
             />

@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { jobRepository } from "@sokosumi/database/repositories";
 
 import { requireAvailableAgentOrThrow } from "@/helpers/agent";
+import { doesUserHaveFinishedJobWithAgent } from "@/helpers/agent-rating";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -48,7 +48,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     await requireAvailableAgentOrThrow(id, prisma);
 
-    const eligible = await jobRepository.doesUserHaveFinishedJobWithAgent(
+    const eligible = await doesUserHaveFinishedJobWithAgent(
       userContext.userId,
       id,
       prisma,

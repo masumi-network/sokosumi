@@ -7,7 +7,7 @@ import {
   finalizeDesignMdGeneration,
   pollDesignMdGeneration,
   startDesignMdGeneration,
-} from "@/lib/actions/design-md";
+} from "@/lib/actions/design-md/action";
 import type { PersistedDesignMd } from "@/lib/services/design-md.service";
 
 import type { DesignMdOwner } from "./types";

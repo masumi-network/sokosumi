@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { NotificationKind } from "@sokosumi/database";
 import { waitUntil } from "@vercel/functions";
 
 import { markNotificationsRead } from "@/helpers/notification-read";
@@ -18,8 +19,23 @@ import { requireOwnerUserContext } from "@/middleware/auth";
  */
 const MAX_NOTIFICATION_IDS = 25;
 
-const requestSchema = z
-  .object({
+/**
+ * The kinds whose own page is allowed to clear its notifications.
+ *
+ * Chat is absent on purpose. Opening a room already clears its rows, and does
+ * more besides: it moves the membership's `lastReadAt` and republishes what it
+ * cleared so the sidebar badge and other tabs agree. A second path doing half
+ * of that would leave the room's surfaces disagreeing about the same rows.
+ */
+const READABLE_BY_REFERENCE_KINDS = [
+  NotificationKind.TASK,
+  NotificationKind.JOB,
+] as const;
+
+// Strict, so a body carrying both `ids` and a reference is refused rather than
+// read as whichever variant happens to match first.
+const byIdsSchema = z
+  .strictObject({
     ids: z
       .array(z.string())
       .min(1)
@@ -29,6 +45,24 @@ const requestSchema = z
         example: ["cm123456789abcdefghij"],
       }),
   })
+  .openapi("MarkNotificationsReadByIdsRequest");
+
+const byReferenceSchema = z
+  .strictObject({
+    kind: z.enum(READABLE_BY_REFERENCE_KINDS).openapi({
+      description: "Kind of the notifications to mark read.",
+      example: "TASK",
+    }),
+    referenceId: z.string().min(1).openapi({
+      description:
+        "The task or job the notifications point at. Required and non-empty, so this can never read a kind in bulk.",
+      example: "cm123456789abcdefghij",
+    }),
+  })
+  .openapi("MarkNotificationsReadByReferenceRequest");
+
+const requestSchema = z
+  .union([byIdsSchema, byReferenceSchema])
   .openapi("MarkNotificationsReadRequest");
 
 const responseSchema = z
@@ -45,12 +79,12 @@ const route = withOrganizationSlugHeaderParameter(
     method: "patch",
     path: "/read",
     description:
-      "Mark the named in-app notification-center items as read for the interactive session user. Scoped by the feed rule and by the reader's own rows, so an id the feed would never show, and an id belonging to someone else, are both ignored rather than refused. A mention read here is read everywhere, including the room's sidebar badge, which counts the same rows.",
+      "Mark in-app notification-center items as read for the interactive session user, either the named ids or every unread row about one task or job. Scoped by the feed rule and by the reader's own rows, so an id the feed would never show, and an id belonging to someone else, are both ignored rather than refused. A mention read here is read everywhere, including the room's sidebar badge, which counts the same rows. The task and job pages send a reference, so that visiting the thing a notification is about counts as reading it; chat is not accepted there, because a room clears its own rows through the room-read route.",
     tags: ["Notifications"],
     request: {
       body: {
         content: { "application/json": { schema: requestSchema } },
-        description: "Notification IDs to mark as read",
+        description: "Notification IDs, or one task or job, to mark as read",
       },
     },
     responses: {
@@ -71,16 +105,35 @@ const route = withOrganizationSlugHeaderParameter(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireOwnerUserContext(c.var.authContext);
-    const { ids } = c.req.valid("json");
+    const body = c.req.valid("json");
 
-    const { count, clearedRoomIds } = await markNotificationsRead(
-      userContext.userId,
-      { id: { in: ids } },
-    );
+    if ("ids" in body) {
+      const { count, clearedRoomIds } = await markNotificationsRead(
+        userContext.userId,
+        { id: { in: body.ids } },
+      );
 
-    // Scheduled rather than awaited, for the same reason the single-row route
-    // schedules it: a failed publish must not cost the reader the read.
-    waitUntil(publishClearedNotifications(clearedRoomIds));
+      // Scheduled rather than awaited, for the same reason the single-row
+      // route schedules it: a failed publish must not cost the reader the
+      // read.
+      waitUntil(publishClearedNotifications(clearedRoomIds));
+
+      return ok(c, responseSchema.parse({ count }));
+    }
+
+    // The reference is all this variant adds to the shared write. The reader's
+    // own id, the unread state and the feed rule come from there, so no access
+    // check on the task or the job is needed or wanted: the only rows this can
+    // reach are ones already written for the caller.
+    //
+    // Nothing is republished, and `clearedRoomIds` is empty by construction:
+    // it carries chat rows, and chat is not a kind this variant accepts. A
+    // cleared-row event exists for the banner a room message stands for; a
+    // task or job row has no such banner.
+    const { count } = await markNotificationsRead(userContext.userId, {
+      kind: body.kind,
+      referenceId: body.referenceId,
+    });
 
     return ok(c, responseSchema.parse({ count }));
   });

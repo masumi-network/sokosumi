@@ -1,6 +1,6 @@
 import type { Account } from "@sokosumi/utils";
 import type { ReactNode } from "react";
-import type { DesignMdProfileValue } from "@/components/design-md";
+import type { DesignMdProfileValue } from "@/components/design-md/types";
 import type { TimeFormatPreference } from "@/i18n/time-format";
 import { AccountProvider } from "@/lib/auth/types";
 import type {

@@ -1,16 +1,18 @@
 "use client";
 
-import { hasActiveTaskSchedule } from "@sokosumi/utils";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import { TaskScheduleDisplay } from "@/components/task-schedule-display";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
 import { TaskPrivateIndicator } from "./task-private-indicator";
+import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusBadge } from "./task-status-badge";
+import { TaskTags } from "./task-tags";
 
 interface TaskCardProps {
   task: TaskWithCoworker;
@@ -25,78 +27,76 @@ export function TaskCard({
   compact = false,
   statusLabels,
 }: TaskCardProps) {
+  const t = useTranslations("App.Tasks.Tags");
   const handleProps = dragHandleProps
-    ? {
-        ...dragHandleProps.attributes,
-        ...dragHandleProps.listeners,
-      }
+    ? { ...dragHandleProps.attributes, ...dragHandleProps.listeners }
     : null;
-
   return (
     <div
       className={cn(
         "group",
         dragHandleProps && "cursor-grab",
-        dragHandleProps?.isDragging && "scale-[1.02] opacity-60",
+        dragHandleProps?.isDragging && "opacity-60",
       )}
       {...handleProps}
     >
-      <TaskDetailLink href={`/tasks/${task.id}`} className="block">
-        <article
-          className={cn(
-            "bg-background rounded-lg p-3 transition-all duration-200",
-            "border-border border",
-            "hover:border-primary hover:shadow-sm",
-            "active:scale-[0.99]",
-            dragHandleProps?.isDragging &&
-              "border-primary-tertiary ring-ring-halo shadow-lg ring-2",
-          )}
-        >
-          <div className="space-y-2.5">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <TaskStatusBadge
-                  status={task.status}
-                  label={statusLabels?.[task.status]}
-                  className="w-fit rounded-sm"
-                />
-                <TaskPrivateIndicator visibility={task.visibility} />
-              </div>
-              <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
-                {task.name}
-              </h3>
-            </div>
-
-            {!compact && (task.descriptionPlain || task.description) ? (
-              <div className="space-y-1.5">
-                <p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed break-all">
-                  {task.descriptionPlain ?? task.description}
-                </p>
-              </div>
-            ) : null}
-
-            {task.status === TaskStatus.QUEUED &&
-            hasActiveTaskSchedule(
-              task.metadata,
-              task.nextRunAt ? new Date(task.nextRunAt) : null,
-            ) ? (
-              <TaskScheduleDisplay
-                variant="card"
-                metadata={task.metadata}
-                nextRunAt={task.nextRunAt ? new Date(task.nextRunAt) : null}
-              />
-            ) : null}
-
-            <TaskMetaDetails
-              owner={task.owner}
-              assignee={task.assignee}
-              commentsCount={task.commentsCount}
-              createdAt={task.createdAt}
-              variant="card"
+      <article
+        className={cn(
+          "bg-background border-border relative isolate space-y-2.5 rounded-lg border p-3 transition-[border-color,box-shadow] hover:border-primary hover:shadow-sm",
+          dragHandleProps?.isDragging &&
+            "border-primary-tertiary ring-ring-halo shadow-lg ring-2",
+        )}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TaskStatusBadge
+            status={task.status}
+            label={statusLabels?.[task.status]}
+            className="w-fit rounded-sm"
+          />
+          <TaskPrivateIndicator visibility={task.visibility} />
+        </div>
+        <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
+          <TaskDetailLink
+            href={`/tasks/${task.id}`}
+            className="after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-ring"
+          >
+            {task.name}
+          </TaskDetailLink>
+        </h3>
+        <TaskTags tags={task.tags} compact={compact} />
+        {task.project ? (
+          <Link
+            href={`/projects/${task.project.id}`}
+            title={task.project.name}
+            aria-label={t("openProject", { name: task.project.name })}
+            className="text-muted-foreground hover:text-foreground focus-visible:outline-ring relative z-10 flex min-h-8 min-w-0 items-center gap-2 rounded-sm text-xs hover:underline focus-visible:outline-2"
+            onPointerDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+          >
+            <ProjectAvatar
+              name={task.project.name}
+              logo={task.project.logo}
+              className="size-5 shrink-0 rounded-sm"
             />
-          </div>
-        </article>
-      </TaskDetailLink>
+            <span className="line-clamp-2 break-words">
+              {task.project.name}
+            </span>
+          </Link>
+        ) : (
+          <p className="text-muted-foreground text-xs">{t("noProject")}</p>
+        )}
+        {task.runAt ? (
+          <TaskRunAtBadge runAt={task.runAt} className="flex" />
+        ) : null}
+        <TaskMetaDetails
+          project={null}
+          assignee={task.assignee}
+          participants={task.participants}
+          commentsCount={task.commentsCount}
+          createdAt={task.createdAt}
+          variant="card"
+        />
+      </article>
     </div>
   );
 }

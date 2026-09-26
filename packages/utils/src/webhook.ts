@@ -5,9 +5,7 @@ export const DEFAULT_WEBHOOK_TIMEOUT_MS = 10_000;
 export const MAX_REPORTED_WEBHOOK_BODY_LENGTH = 500;
 
 export interface PostWebhookOptions {
-  /** Value sent as the `User-Agent` request header. */
   userAgent: string;
-  /** Abort the request after this many milliseconds. Defaults to 10s. */
   timeoutMs?: number;
 }
 

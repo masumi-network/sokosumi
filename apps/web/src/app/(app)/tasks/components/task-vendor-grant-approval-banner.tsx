@@ -6,12 +6,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { VendorGrantApprovalActions } from "@/components/vendor-grants/vendor-grant-approval-actions";
 import {
   approveMyVendorGrant,
-  denyMyVendorGrant,
-} from "@/lib/actions/account/vendor-grant-action";
-import {
   approveOrganizationVendorGrant,
+  denyMyVendorGrant,
   denyOrganizationVendorGrant,
-} from "@/lib/actions/organization/vendor-grant-action";
+} from "@/lib/actions/workspace-approval-action";
 
 interface TaskVendorGrantApprovalBannerProps {
   grantId: string;

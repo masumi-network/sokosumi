@@ -268,7 +268,7 @@ function VendorDashboard({
       </div>
 
       {/* Header rule — flush above the grid */}
-      <div aria-hidden className="border-border -mx-6 border-t" />
+      <div aria-hidden className="border-border -mx-4 border-t" />
 
       {/* Master–detail. The detail column's left border is the divider; both
           columns pad to the bottom so it reaches the closing rule below. */}
@@ -420,7 +420,7 @@ function VendorDashboard({
       </div>
       {/* Closing rule — flush below the grid; connects the vertical divider
             and separates this company from the next. */}
-      <div aria-hidden className="border-border -mx-6 border-t" />
+      <div aria-hidden className="border-border -mx-4 border-t" />
     </div>
   );
 }
@@ -558,7 +558,7 @@ function CoworkerGallerySectionInner({
   return (
     <section className="space-y-12 md:space-y-16">
       {/* Hero search — full-bleed header band, same surface as the page below */}
-      <div className="border-border -mx-6 -mt-4 border-b px-6 py-12 md:py-16">
+      <div className="border-border -mx-4 -mt-4 border-b px-4 py-12 md:py-16">
         <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">
           {socialAvatars.length > 0 ? (
             <div className="flex items-center gap-2.5">
@@ -581,7 +581,7 @@ function CoworkerGallerySectionInner({
             {t("heroHeadline")}
           </h2>
           {/* Brand gradient ring + soft glow; intensifies on focus. */}
-          <div className="from-primary-tertiary to-chart-1-quinary focus-within:from-primary focus-within:to-chart-1 shadow-primary-quaternary focus-within:shadow-primary-tertiary relative w-full max-w-xl rounded-full bg-gradient-to-r p-[1.5px] shadow-lg transition-all duration-300 focus-within:shadow-xl">
+          <div className="from-primary-tertiary to-chart-1-quinary focus-within:from-primary focus-within:to-chart-1 shadow-primary-quaternary focus-within:shadow-primary-tertiary relative w-full max-w-xl rounded-full bg-gradient-to-r p-0.5 shadow-lg transition-all duration-300 focus-within:shadow-xl">
             <div className="relative rounded-full">
               <Search
                 aria-hidden

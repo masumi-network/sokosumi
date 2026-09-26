@@ -1,9 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { requireTaskArchiveAccess } from "@/helpers/access-control";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
+import { markTaskArchivedRead } from "@/helpers/task-notifications";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -22,7 +24,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}",
   description:
-    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Active Calendar schedule series fail with 409 (kind: schedule_active), including for organization workspace collaborators; released schedule runs are independent tasks and are never archived with their template.",
+    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. A Task created by a Task Schedule archives like any other Task.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -43,20 +45,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
 
-    const task = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const currentTask = await requireTaskArchiveAccess(c.var, id, tx);
 
       await archiveTaskRecord(tx, currentTask);
 
-      return tx.task.findFirstOrThrow({
-        where: { id },
-        include: buildTaskIncludeForViewer(
-          authContext,
-          currentTask.workspaceId,
-        ),
-      });
+      return {
+        task: await tx.task.findFirstOrThrow({
+          where: { id },
+          include: buildTaskIncludeForViewer(
+            authContext,
+            currentTask.workspaceId,
+          ),
+        }),
+        workspaceId: currentTask.workspaceId,
+      };
     });
+    await deliverCalendarInvalidationsNow(result.workspaceId);
 
-    return ok(c, taskSchema.parse(mapTask(task, authContext)));
+    // An archived task can no longer be opened, so every row still asking
+    // somebody to act on it stops being a question. Without this the
+    // follow-up sync reminds them a day later about a task nobody can act on
+    // (SOK-916). Archive is allowed from four non-terminal statuses, so those
+    // rows can still be outstanding here.
+    await markTaskArchivedRead(result.task);
+
+    return ok(c, taskSchema.parse(mapTask(result.task, authContext)));
   });
 }

@@ -21,8 +21,7 @@ const {
   queryRawMock,
   prismaTransactionMock,
   createInviteLinkMock,
-  countLiveInviteLinksByRoomIdMock,
-  countRecentCreatesByUserMock,
+  countInviteLinksMock,
   getWebAppBaseUrlMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -31,24 +30,13 @@ const {
   queryRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   createInviteLinkMock: vi.fn(),
-  countLiveInviteLinksByRoomIdMock: vi.fn(),
-  countRecentCreatesByUserMock: vi.fn(),
+  countInviteLinksMock: vi.fn(),
   getWebAppBaseUrlMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
-  },
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  chatRoomGuestInviteLinkRepository: {
-    createInviteLink: (...args: unknown[]) => createInviteLinkMock(...args),
-    countLiveInviteLinksByRoomId: (...args: unknown[]) =>
-      countLiveInviteLinksByRoomIdMock(...args),
-    countRecentCreatesByUser: (...args: unknown[]) =>
-      countRecentCreatesByUserMock(...args),
   },
 }));
 
@@ -71,6 +59,10 @@ const tx = {
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
   $queryRaw: queryRawMock,
+  chatRoomGuestInviteLink: {
+    count: countInviteLinksMock,
+    create: createInviteLinkMock,
+  },
 };
 
 function createApp(
@@ -137,25 +129,26 @@ describe("POST /chats/rooms/{id}/invite-links", () => {
       userId: MEMBER_ID,
       organizationId: ORG_ID,
     });
-    countLiveInviteLinksByRoomIdMock.mockResolvedValue(0);
-    countRecentCreatesByUserMock.mockResolvedValue(0);
+    countInviteLinksMock.mockResolvedValue(0);
     getWebAppBaseUrlMock.mockReturnValue("https://app.example.com");
     createInviteLinkMock.mockImplementation(
-      async (data: {
-        token: string;
-        roomId: string;
-        createdByUserId: string;
-        expiresAt: Date;
-        maxUses: number | null;
+      async (args: {
+        data: {
+          token: string;
+          room: { connect: { id: string } };
+          createdBy: { connect: { id: string } };
+          expiresAt: Date | null;
+          maxUses: number | null;
+        };
       }) => ({
         id: LINK_ID,
-        token: data.token,
-        roomId: data.roomId,
-        createdByUserId: data.createdByUserId,
+        token: args.data.token,
+        roomId: args.data.room.connect.id,
+        createdByUserId: args.data.createdBy.connect.id,
         createdAt: new Date("2026-08-01T00:00:00.000Z"),
-        expiresAt: data.expiresAt,
+        expiresAt: args.data.expiresAt,
         revokedAt: null,
-        maxUses: data.maxUses,
+        maxUses: args.data.maxUses,
         useCount: 0,
       }),
     );
@@ -176,14 +169,13 @@ describe("POST /chats/rooms/{id}/invite-links", () => {
     expect(body.data.url).toMatch(/^https:\/\/app\.example\.com\/chat\/join\//);
     expect(body.data.maxUses).toBe(5);
     expect(body.data.useCount).toBe(0);
-    expect(createInviteLinkMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        roomId: ROOM_ID,
-        createdByUserId: MEMBER_ID,
+    expect(createInviteLinkMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        room: { connect: { id: ROOM_ID } },
+        createdBy: { connect: { id: MEMBER_ID } },
         maxUses: 5,
       }),
-      tx,
-    );
+    });
   });
 
   it("forbids guests from minting invite links", async () => {
@@ -211,7 +203,7 @@ describe("POST /chats/rooms/{id}/invite-links", () => {
 
   it("rejects when the active link cap is reached", async () => {
     roomFindFirstMock.mockResolvedValue(externalRoom());
-    countLiveInviteLinksByRoomIdMock.mockResolvedValue(10);
+    countInviteLinksMock.mockResolvedValueOnce(10);
 
     const app = createApp();
     const response = await app.request(`/${ROOM_ID}/invite-links`, {
@@ -227,7 +219,7 @@ describe("POST /chats/rooms/{id}/invite-links", () => {
 
   it("rejects when the hourly create cap is reached", async () => {
     roomFindFirstMock.mockResolvedValue(externalRoom());
-    countRecentCreatesByUserMock.mockResolvedValue(10);
+    countInviteLinksMock.mockResolvedValueOnce(0).mockResolvedValueOnce(10);
 
     const app = createApp();
     const response = await app.request(`/${ROOM_ID}/invite-links`, {
@@ -254,13 +246,12 @@ describe("POST /chats/rooms/{id}/invite-links", () => {
 
     expect(response.status).toBe(201);
     expect(body.data.maxUses).toBe(10);
-    expect(createInviteLinkMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        roomId: ROOM_ID,
+    expect(createInviteLinkMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        room: { connect: { id: ROOM_ID } },
         expiresAt: null,
         maxUses: 10,
       }),
-      tx,
-    );
+    });
   });
 });

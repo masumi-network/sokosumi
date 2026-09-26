@@ -129,11 +129,19 @@ describe("enterprise contracts routes OpenAPI contract", () => {
 
     expect(activate?.responses).toHaveProperty("401");
     expect(activate?.responses).toHaveProperty("403");
-    expect(
-      activate?.responses?.["409"]?.content?.["application/json"]?.schema,
-    ).toEqual({
+    // The 409 carries two kinds since SOK-1007: the activation blocker and a
+    // serializable-transaction conflict from the seat auto-assignment.
+    const conflictSchema = activate?.responses?.["409"]?.content?.[
+      "application/json"
+    ]?.schema as { anyOf?: OpenApiSchemaObject[] } | undefined;
+
+    expect(conflictSchema?.anyOf?.[0]).toEqual({
       $ref: "#/components/schemas/EnterpriseContractActivationConflictResponse",
     });
+    expect(conflictSchema?.anyOf?.[1]?.properties).toHaveProperty("kind");
+    expect(activate?.responses?.["409"]?.description).toContain(
+      "concurrency_conflict",
+    );
   });
 
   it("documents kind on enterprise activation conflict schema", () => {

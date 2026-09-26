@@ -23,8 +23,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { MemberRole } from "@/lib/clients/generated/core";
-import { organizationSeatService, userService } from "@/lib/services";
 import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
+import { organizationSeatService } from "@/lib/services/organization-seat.service";
+import { userService } from "@/lib/services/user.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 const PLAN_ORDER = [

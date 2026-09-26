@@ -9,6 +9,33 @@ import SwiftUI
   /// day separator pills, membership status rows, and a native composer.
   struct RoomTimelineView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
+    @State private var preparedTranscript: PreparedTranscript?
+    let roomId: String
+
+    private var preparationInput: PreparedTranscript.Input {
+      let room = workspaces.rooms.first { $0.id == roomId }
+      return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.timeline.generation)],
+                   messages: workspaces.displayedTranscript, mentions: room.map(MessageMentions.init),
+                   channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
+    }
+
+    var body: some View {
+      let input = preparationInput
+      let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
+      // Keep scroll state below this boundary so scrolling does not rebuild the projection.
+      RoomTranscriptContent(roomId: roomId, messages: prepared?.overlaying(input.messages) ?? [],
+                            hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared)
+        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: roomId))
+        .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
+        .task(id: input) {
+          guard let prepared = try? await PreparedTranscript.prepare(input, reusing: preparedTranscript), !Task.isCancelled else { return }
+          preparedTranscript = prepared
+        }
+    }
+  }
+
+  private struct RoomTranscriptContent: View {
+    @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
     /// Eager first layout can report near-top before the bottom anchor
     /// lands. Require a trip away from the top before auto-loading.
@@ -24,24 +51,10 @@ import SwiftUI
     @State private var scrollPosition = ScrollPosition(idType: String.self)
     @State private var quoteFocusRequest: String?
 
-    @State private var preparedTranscript: PreparedTranscript?
-
-    private var preparationScope: [String] {
-      [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.timeline.generation)]
-    }
-
-    private var preparationInput: PreparedTranscript.Input {
-      .init(scope: preparationScope,
-            messages: workspaces.displayedTranscript, mentions: room.map(MessageMentions.init),
-            channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
-    }
-
-    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
-      guard preparedTranscript?.input.scope == preparationScope else { return [] }
-      return preparedTranscript?.input.messages ?? []
-    }
-
     let roomId: String
+    let messages: [Components.Schemas.ChatRoomMessage]
+    let hasLiveMessages: Bool
+    let preparedTranscript: PreparedTranscript?
 
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
@@ -52,9 +65,14 @@ import SwiftUI
       return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
     }
 
-    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
+    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
       guard canReactToMessage(message) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
+    }
+
+    private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
+      guard workspaces.canSendToSelf(message) else { return nil }
+      return { try await workspaces.sendMessageToSelf(message, auth: auth) }
     }
 
     private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
@@ -62,12 +80,13 @@ import SwiftUI
       return { try await workspaces.deleteMessage(message, auth: auth) }
     }
 
+    private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
+      guard workspaces.canRetryMention(message) else { return nil }
+      return { try await workspaces.retryMention(message, auth: auth) }
+    }
+
     var body: some View {
       transcriptBody
-        .task(id: preparationInput) {
-          guard let prepared = try? await PreparedTranscript.prepare(preparationInput, reusing: preparedTranscript), !Task.isCancelled else { return }
-          preparedTranscript = prepared
-        }
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
           ChatComposerView(
@@ -120,10 +139,10 @@ import SwiftUI
 
     @ViewBuilder
     private var transcriptBody: some View {
-      if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {
+      if workspaces.transcriptRoomId != roomId || (workspaces.transcriptLoading && !hasLiveMessages) {
         ProgressView("Loading messages…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else if workspaces.displayedTranscript.isEmpty {
+      } else if !hasLiveMessages {
         if let error = workspaces.transcriptError {
           transcriptError(error, retryOlder: false)
         } else {
@@ -134,14 +153,15 @@ import SwiftUI
           )
           .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-      } else if preparedMessages.isEmpty {
+      } else if messages.isEmpty {
         ProgressView("Loading messages…").frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
-        messageList
+        messageList(messages: messages)
       }
     }
 
-    private var messageList: some View {
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
+    private func messageList(messages: [Components.Schemas.ChatRoomMessage]) -> some View {
       // Realize nearby rows only: laying out every rich message makes each
       // scroll event expensive. Keep each message unary and anchored by ID.
       let transcriptRoom = room
@@ -150,21 +170,13 @@ import SwiftUI
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
             if workspaces.transcriptHasMore {
-              Button("Load older messages") {
+              PageBoundaryRow(copy: .transcript(isGap: false), status: workspaces.timeline.oldestBoundaryStatus) {
                 scrollIntent.readOlder()
                 workspaces.loadOlderMessages(auth: auth)
               }
-              .disabled(workspaces.transcriptLoadingOlder || workspaces.transcriptRefreshing)
-              .buttonStyle(.link)
-              .frame(maxWidth: .infinity)
-              .padding(.vertical, 8)
             }
-            if workspaces.transcriptLoadingOlder {
-              ProgressView()
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
-            }
-            if let error = workspaces.transcriptError {
+            // An older page's failure is on its row; the banner is for the latest page.
+            if let error = workspaces.transcriptError, workspaces.timeline.failedPage != .older {
               inlineError(error)
                 .padding(.horizontal, 12)
             }
@@ -173,7 +185,6 @@ import SwiftUI
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
             }
-            let messages = preparedMessages
             let gaps = workspaces.timeline.historyGapMessageIds
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
               let previous = index > 0 ? messages[index - 1] : nil
@@ -182,23 +193,22 @@ import SwiftUI
               // lazy path reserve blank slots. One container per message id.
               VStack(alignment: .leading, spacing: 0) {
                 if hasGap {
-                  Button("Load missing messages") {
-                    Task {
-                      do {
-                        try await workspaces.loadHistoryGap(before: message.id, auth: auth)
-                      } catch { jumpError = friendlyMessage(for: error) }
+                  // Web's `useLoadWhenVisible`: the row loads itself once it scrolls into
+                  // view; a failure stays on it with Try again, never in the jump alert.
+                  PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.timeline.boundaryLoads.status(of: message.id)) {
+                    workspaces.loadHistoryGap(before: message.id, auth: auth)
+                  }
+                  .onScrollVisibilityChange(threshold: 0.01) { visible in
+                    Task { @MainActor in
+                      workspaces.setHistoryGapVisible(before: message.id, visible, auth: auth)
                     }
                   }
-                  .buttonStyle(.link)
-                  .disabled(workspaces.transcriptRefreshing || workspaces.transcriptLoadingOlder)
-                  .frame(maxWidth: .infinity)
-                  .padding(.vertical, 8)
                 }
                 if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
                   DaySeparatorRow(label: label)
                 }
-                if let status = membershipStatusText(message) {
-                  MembershipStatusRow(text: status)
+                if let status = roomStatusText(message) {
+                  RoomStatusRow(text: status)
                     .padding(.horizontal, 12)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
@@ -213,7 +223,10 @@ import SwiftUI
                                  onRemove: outbound.map { shell in
                                    { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                                  },
-                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") ? { workspaces.openThread(message, auth: auth) } : nil,
+                                 onRetryMention: mentionRetryAction(for: message),
+                                 // Web hides the thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`).
+                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") && CoworkerMentionShell(message: message) == nil
+                                   ? { workspaces.openThread(message, auth: auth) } : nil,
                                  onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
@@ -225,7 +238,6 @@ import SwiftUI
                                  onDelete: deletionAction(for: message),
                                  onRemoveUnfurl: unfurlAction(for: message),
                                  onToggleReaction: reactionAction(for: message),
-                                 pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
                                  editing: workspaces.messageEditing,
                                  onQuoteJump: { id in Task {
                                    do {
@@ -234,8 +246,8 @@ import SwiftUI
                                      }
                                    } catch { jumpError = friendlyMessage(for: error) }
                                  } },
+                                 onSendToSelf: sendToSelfAction(for: message),
                                  horizontalInset: 12,
-                                 streamReasoning: streamReasoning(for: message),
                                  streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)
                 }
               }
@@ -266,7 +278,7 @@ import SwiftUI
         }
         .scrollPosition($scrollPosition)
         .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
-        .onChange(of: preparedMessages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
+        .onChange(of: messages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
             quoteTarget = nil
@@ -288,7 +300,7 @@ import SwiftUI
             highlightedId = nil
           }
         }
-        .onChange(of: preparedMessages.last?.id) { _, _ in
+        .onChange(of: messages.last?.id) { _, _ in
           if scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)
           }
@@ -400,12 +412,7 @@ import SwiftUI
     /// is illegal inside the scroll view.
     private func inlineError(_ error: String) -> some View {
       errorBanner(error) {
-        if workspaces.timeline.failedPage == .older {
-          scrollIntent.readOlder()
-          workspaces.loadOlderMessages(auth: auth)
-        } else {
-          workspaces.refreshTranscript(auth: auth)
-        }
+        workspaces.refreshTranscript(auth: auth)
       }
       .frame(maxWidth: .infinity)
     }
@@ -420,14 +427,6 @@ import SwiftUI
 
     private func isLiveCoworkerOverlay(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
       message.id.hasPrefix("stream:") && isCoworkerMessage(message)
-    }
-
-    private func streamReasoning(for message: Components.Schemas.ChatRoomMessage) -> String? {
-      guard isLiveCoworkerOverlay(message) else { return nil }
-      if ComposerContent(message.content).text.isEmpty, workspaces.directStream.isBusy {
-        return workspaces.directStream.latestThought ?? workspaces.directStream.reasoning
-      }
-      return workspaces.directStream.reasoning
     }
   }
 

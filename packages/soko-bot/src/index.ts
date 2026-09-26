@@ -49,6 +49,7 @@ export type {
   RuntimeEventStreamInput,
   RuntimeHealth,
   RuntimeInspectInput,
+  RuntimeJsonValue,
   RuntimeResetInput,
   RuntimeTurnInput,
   RuntimeTurnRef,

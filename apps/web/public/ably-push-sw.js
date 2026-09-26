@@ -2,8 +2,7 @@
  * Sokosumi web push service worker (SOK-875).
  *
  * Ably subscribes this worker with `userVisibleOnly: true`, so every push
- * event MUST end in `showNotification`, apart from the focused-window
- * exception in `canSkipDisplay`. Skipping one anywhere else makes the browser
+ * event MUST end in `showNotification`. Skipping a banner can make the browser
  * post its own "This site has been updated in the background" banner instead.
  *
  * Core sends no display strings (ADR-0023). This worker renders them from the
@@ -13,16 +12,9 @@
  * written, so it never passes through the TypeScript build. Its copies of app
  * constants are guarded by tests instead of by the compiler.
  *
- * That constraint is also why two decisions exist twice. `buildTarget` here
- * builds the same shape as `toNotificationTarget` in
- * `lib/utils/notification-service-worker.ts`. `canSkipDisplay` here decides
- * the focused-page suppression that `shouldShowBrowserNotification` in
- * `lib/utils/browser-notification.ts` decides for the page, from different
- * inputs and in the opposite direction: the worker sees neither `isRead` nor
- * the permission, and reads focus from `clients.matchAll` rather than from the
- * document. The spec wants one pure function both paths call; SOK-876 owns
- * that renderer, and it takes these two pairs and the imported catalog with
- * it.
+ * `buildTarget` mirrors `toNotificationTarget` in
+ * `lib/utils/notification-service-worker.ts`, because this worker cannot import
+ * application TypeScript. Pushes always display, including while a tab is focused.
  */
 
 /**
@@ -46,6 +38,7 @@ self.addEventListener("install", () => {
  * relative path would have to be resolved against that.
  */
 importScripts("/ably-push-messages.js");
+importScripts("/ably-push-renewal.js");
 
 const FALLBACK_LOCALE = "en";
 
@@ -91,8 +84,22 @@ const CHAT_ROOM_MESSAGES_KEY = "Notifications.Chat.roomMessages";
 const CHAT_ROOM_MESSAGE_GROUP_KEY = "Notifications.Chat.roomMessageGroup";
 const CHAT_ROOM_MESSAGES_GROUP_KEY = "Notifications.Chat.roomMessagesGroup";
 
+/** Mirrors the chat follow-up keys in @sokosumi/utils. */
+const CHAT_MENTION_FOLLOW_UP_KEY = "Notifications.Chat.mentionedFollowUp";
+const CHAT_MENTION_DIRECT_FOLLOW_UP_KEY =
+  "Notifications.Chat.mentionedDirectFollowUp";
+
 /** Mirrors countedMessageKey in lib/utils/notification-message. */
 function countedMessageKey(messageKey, params, count) {
+  // Asked first, and never counted. A follow-up stands for one notification
+  // however many messages that notification had already taken, so "3 messages"
+  // would say a day-old count rather than what is waiting.
+  if (messageKey === CHAT_MENTION_FOLLOW_UP_KEY) {
+    return params.isDirect === true
+      ? CHAT_MENTION_DIRECT_FOLLOW_UP_KEY
+      : messageKey;
+  }
+
   const group = params.isGroup === true;
   const pair = messageKey === CHAT_MENTION_KEY && params.isDirect === true;
 
@@ -366,7 +373,7 @@ async function buildBanner(pushData) {
 /** Mirrors SHOWS_NOTIFICATIONS_QUERY in the app. */
 const SHOWS_NOTIFICATIONS_QUERY = "sokosumi:shows-notifications";
 
-/** How long a focused page has to claim it shows notifications itself. */
+/** How long an open page has to answer the click-routing query. */
 const SHOWS_NOTIFICATIONS_TIMEOUT_MS = 200;
 
 /** Nothing replied inside the timeout: this page has no listener mounted. */
@@ -375,7 +382,7 @@ const NO_ANSWER = "no-answer";
 /**
  * Ask one page whether it shows notifications in the app itself.
  *
- * Three outcomes, not two, because the two callers ask for different reasons.
+ * The reply identifies pages that can route banner clicks.
  * `true` and `false` both come from a page that mounts the notification
  * listener; `NO_ANSWER` means nothing there answers at all, so the page is a
  * share link or the sign-in page.
@@ -408,49 +415,40 @@ function askShowsNotifications(client) {
 }
 
 /**
- * Whether this push may render nothing.
- *
- * Chromium documents a focused-window exception: a handler does not have to
- * show a notification while the reader already has the site open and focused
- * (ADR-0023). WebKit grants no exception and revokes the subscription when a
- * push displays nothing, so every other engine always displays.
- *
- * "Open and focused" means a page that shows the notification itself, so this
- * asks the focused pages rather than assuming any same-origin tab counts.
- *
- * `userAgentData` is missing outside Chromium (MDN: "not Baseline … does not
- * work in some of the most widely-used browsers"), so its absence is read as
- * "no exception". That is the safe direction: a surplus banner costs less than
- * a revoked subscription.
+ * Grouped chat arrivals share a row ID. Message identity separates a new
+ * arrival from the same arrival delivered by both push and realtime.
+ * Missing identity or failed lookups prefer an extra alert over silence.
+ * Mirrors shouldRenotify in lib/utils/notification-service-worker.ts.
  */
-async function canSkipDisplay() {
-  if (!self.navigator.userAgentData) {
+async function shouldRenotify(tag, incoming) {
+  if (!incoming) {
     return false;
   }
 
-  const windows = await self.clients.matchAll({
-    type: "window",
-    includeUncontrolled: true,
-  });
-  const focused = windows.filter(
-    (client) => client.focused && client.visibilityState === "visible",
-  );
+  try {
+    const banners = await self.registration.getNotifications({ tag });
+    if (banners.length === 0) {
+      return false;
+    }
 
-  if (focused.length === 0) {
-    return false;
+    return !banners.some((banner) => {
+      if (!banner.data || banner.data.id !== incoming.id) return false;
+      if (incoming.kind !== "CHAT") return true;
+      const previousMessageId = banner.data.metadata?.messageId;
+      const incomingMessageId = incoming.metadata?.messageId;
+      return (
+        typeof previousMessageId === "string" &&
+        previousMessageId.length > 0 &&
+        previousMessageId === incomingMessageId
+      );
+    });
+  } catch (error) {
+    console.error("Failed to read the displayed notifications", error);
+    return true;
   }
-
-  // Only a page that says yes renders this notification itself. A page that
-  // says no, and a page with no listener at all, both need the banner.
-  const answers = await Promise.all(focused.map(askShowsNotifications));
-  return answers.some((answer) => answer === true);
 }
 
 async function showPushNotification(data) {
-  if (await canSkipDisplay()) {
-    return;
-  }
-
   const pushData = readPushData(data);
 
   const target = buildTarget(pushData);
@@ -464,12 +462,18 @@ async function showPushNotification(data) {
   }
 
   const banner = await buildBanner(pushData);
+  const tag = target ? groupTag(target) : GENERIC_TAG;
 
   await self.registration.showNotification(banner.title, {
     body: banner.body,
-    tag: target ? groupTag(target) : GENERIC_TAG,
+    tag,
     icon: ICON_PATH,
     data: target,
+    // Left off entirely rather than sent as false: false is the default, and
+    // a browser that does not know the option reads no flag either way.
+    ...((await shouldRenotify(tag, target)) && {
+      renotify: true,
+    }),
   });
 }
 
@@ -485,9 +489,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     showPushNotification(event.data).catch((error) => {
       // The fallback carries no body and no target, so the reader gets a bare
-      // title they cannot click through to anything. The two ways to land
-      // here, a rejected `showNotification` and a rejected `clients.matchAll`
-      // inside the skip check, leave no other trace.
+      // title they cannot click through to anything. Report the rendering
+      // failure that caused the fallback.
       console.error("Could not render a push notification", error);
       return showFallbackNotification().catch(() => {
         // Nothing left to try. The browser posts its own banner instead.

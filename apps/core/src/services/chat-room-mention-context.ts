@@ -1,4 +1,5 @@
 import prisma from "@/lib/db/prisma";
+import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 
 /** How many prior messages the coworker sees as conversation context. */
 const ROOM_CONTEXT_MESSAGE_LIMIT = 10;
@@ -24,6 +25,21 @@ function formatContextLine(message: RoomContextMessage): string {
       ? `${message.senderName} (AI coworker)`
       : message.senderName;
   return `- ${senderLabel}: ${truncated}`;
+}
+
+/**
+ * What a message says to an AI reader: the quoted message, when there is one,
+ * above the sender's own words. A quote can be the whole message.
+ */
+export function roomMessagePromptText(
+  content: string,
+  quote: { authorName: string; snippet: string } | null,
+): string {
+  if (!quote) {
+    return content;
+  }
+  const quoted = `> ${quote.authorName}: ${quote.snippet.replace(/\s+/g, " ").trim()}`;
+  return content.trim().length === 0 ? quoted : `${quoted}\n\n${content}`;
 }
 
 /**
@@ -78,6 +94,7 @@ export async function loadRoomContextMessages(params: {
     take: ROOM_CONTEXT_MESSAGE_LIMIT,
     select: {
       content: true,
+      metadata: true,
       senderUser: { select: { name: true } },
       senderCoworker: { select: { name: true } },
       senderSokoBot: { select: { name: true } },
@@ -91,6 +108,9 @@ export async function loadRoomContextMessages(params: {
       "Unknown sender",
     isCoworker: row.senderCoworker != null,
     isSokoBot: row.senderSokoBot != null,
-    content: row.content,
+    content: roomMessagePromptText(
+      row.content,
+      readQuoteFromMetadata(row.metadata),
+    ),
   }));
 }

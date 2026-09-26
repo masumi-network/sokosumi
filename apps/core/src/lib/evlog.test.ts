@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const waitUntilMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@vercel/functions", () => ({
+vi.mock("@vercel/functions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/functions")>()),
   waitUntil: (promise: Promise<unknown>) => waitUntilMock(promise),
 }));
 

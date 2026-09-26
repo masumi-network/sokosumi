@@ -4,10 +4,7 @@ import { fetchCoworkers } from "../../api/services/coworker-service.js";
 import { fetchJobs } from "../../api/services/job-service.js";
 import { type CliTargetConfig, sanitizeApiUrl } from "../../auth/config.js";
 import { redactErrorMessage } from "../../error-redaction.js";
-
-interface TextOutput {
-  write(value: string): unknown;
-}
+import type { CommandOutput } from "./command-helpers.js";
 
 export const CLI_COMMANDS = [
   "discover",
@@ -21,6 +18,9 @@ export const CLI_COMMANDS = [
   "coworkers update",
   "coworkers api-key",
   "coworkers me",
+  "vendors me",
+  "vendors create",
+  "workspaces list",
   "tasks list",
   "tasks create",
   "tasks get",
@@ -35,13 +35,9 @@ export const CLI_COMMANDS = [
 export interface DiscoverCommandOptions {
   client?: CoreHttpClient;
   config: CliTargetConfig;
-  stdout: TextOutput;
+  stdout: CommandOutput;
   json?: boolean;
   signal?: AbortSignal;
-}
-
-function errorMessage(reason: unknown): string {
-  return redactErrorMessage(reason);
 }
 
 export async function runDiscoverCommand({
@@ -84,19 +80,19 @@ export async function runDiscoverCommand({
     if (agentsResult.status === "rejected") {
       errors.push({
         resource: "agents",
-        message: errorMessage(agentsResult.reason),
+        message: redactErrorMessage(agentsResult.reason),
       });
     }
     if (coworkersResult.status === "rejected") {
       errors.push({
         resource: "coworkers",
-        message: errorMessage(coworkersResult.reason),
+        message: redactErrorMessage(coworkersResult.reason),
       });
     }
     if (jobsResult.status === "rejected") {
       errors.push({
         resource: "jobs",
-        message: errorMessage(jobsResult.reason),
+        message: redactErrorMessage(jobsResult.reason),
       });
     }
     if (errors.length > 0) result.errors = errors;

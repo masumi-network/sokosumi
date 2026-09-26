@@ -181,7 +181,7 @@ export function AgentSpotlightSkeleton() {
       </div>
 
       {/* Rail (desktop) */}
-      <div className="hidden md:flex md:w-52 md:shrink-0 md:flex-col md:gap-4 md:py-1 md:pr-3">
+      <div className="hidden md:flex md:w-52 md:shrink-0 md:flex-col md:gap-4 md:py-4 md:pr-3">
         {[3, 2].map((count, group) => (
           <div key={group} className="space-y-1">
             <Skeleton className="mx-2 my-1 h-3 w-16" />
@@ -192,8 +192,12 @@ export function AgentSpotlightSkeleton() {
         ))}
       </div>
 
-      {/* Detail */}
-      <div className="border-border min-w-0 flex-1 space-y-5 overflow-hidden pt-4 md:border-l md:pt-1 md:pl-6">
+      {/* Detail. md:border-l is the divider between the rail and the detail. It can
+          only run the full height of the panel if no ancestor holds the
+          vertical padding: the body drops its py-3 at md and the two columns
+          take it here instead, so the rule reaches the header hairline above
+          and the panel edge below. */}
+      <div className="border-border min-w-0 flex-1 space-y-5 overflow-hidden pt-4 md:border-l md:py-4 md:pl-6">
         <div className="flex items-start gap-4">
           <Skeleton className="size-16 shrink-0 rounded-full" />
           <div className="min-w-0 flex-1 space-y-2 pt-1">
@@ -302,7 +306,7 @@ export function AgentSpotlight({
       {/* Rail (desktop) — coworker selector grouped by company */}
       <div
         className={cn(
-          "hidden md:flex md:w-52 md:shrink-0 md:flex-col md:gap-4 md:overflow-y-auto md:py-1 md:pr-3",
+          "hidden md:flex md:w-52 md:shrink-0 md:flex-col md:gap-4 md:overflow-y-auto md:py-4 md:pr-3",
           SCROLLBAR,
         )}
       >
@@ -328,7 +332,9 @@ export function AgentSpotlight({
       <div
         key={current.id}
         className={cn(
-          "border-border animate-in fade-in-0 min-w-0 flex-1 space-y-5 overflow-y-auto pt-4 md:border-l md:pt-1 md:pl-6",
+          // See AgentSpotlightSkeleton: the divider spans the panel only while
+          // the vertical padding sits on this column, not on the modal body.
+          "border-border animate-in fade-in-0 min-w-0 flex-1 space-y-5 overflow-y-auto pt-4 md:border-l md:py-4 md:pl-6",
           SCROLLBAR,
         )}
       >

@@ -11,15 +11,13 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
-  getChatRoomPinnedMessageCounts,
-  getChatRoomSidebarFlags,
-  mapChatRoom,
+  mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
-  resolvePeerInActiveOrganization,
 } from "../helpers";
 import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  roomUnreadFields,
 } from "../room-unread";
 
 const paramsSchema = z.object({
@@ -56,54 +54,37 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    // Avoid interactive transaction on this read-only path — pool contention
-    // under parallel room-page loads caused P2028 "Unable to start a
-    // transaction in the given time" (SOKOSUMI-Q9). Access check + unread
-    // count do not need a shared snapshot.
     const room = await requireChatRoomUserAccess(
       id,
       userContext.userId,
       prisma,
     );
-    const [
-      unreadCounts,
-      unreadMentionCounts,
-      sidebarFlags,
-      pinnedMessageCounts,
-      organization,
-      peerInActiveOrganization,
-    ] = await Promise.all([
-      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
-      getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
-      getChatRoomSidebarFlags([room.id], userContext.userId, prisma),
-      getChatRoomPinnedMessageCounts([room.id], prisma),
-      room.organizationId
-        ? prisma.organization.findUnique({
-            where: { id: room.organizationId },
-            select: { name: true },
-          })
-        : Promise.resolve(null),
-      resolvePeerInActiveOrganization(
-        room,
-        userContext.userId,
-        userContext.organizationId,
-        prisma,
-      ),
-    ]);
-    const flags = sidebarFlags.get(room.id);
+    const [unreadCounts, unreadMentionCounts, organization] = await Promise.all(
+      [
+        getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
+        getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
+        room.organizationId
+          ? prisma.organization.findUnique({
+              where: { id: room.organizationId },
+              select: { name: true },
+            })
+          : Promise.resolve(null),
+      ],
+    );
 
     return ok(
       c,
       chatRoomSchema.parse(
-        mapChatRoom(room, userContext.userId, {
-          unreadCount: unreadCounts.get(room.id) ?? 0,
+        await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
+          ...(await roomUnreadFields(
+            unreadCounts.get(room.id),
+            room.id,
+            userContext.userId,
+            prisma,
+          )),
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-          starredAt: flags?.starredAt ?? null,
-          pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
-          mutedAt: flags?.mutedAt ?? null,
-          markedUnread: flags?.markedUnread ?? false,
+          activeOrganizationId: userContext.organizationId,
           organizationName: organization?.name ?? null,
-          peerInActiveOrganization,
         }),
       ),
     );

@@ -23,9 +23,12 @@ import {
   isCardanoV2SourceReady,
 } from "@/helpers/agent";
 import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
+import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
   conflict,
   errorResponseWithExtensionsSchema,
+  internalServerError,
   unprocessableEntity,
 } from "@/helpers/error";
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
@@ -35,7 +38,7 @@ import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
   mapTaskEvent,
-  validateQueuedRequiresSchedule,
+  validateQueuedRequiresRunAt,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "@/helpers/task";
@@ -44,13 +47,17 @@ import {
   applyGuardedTaskStatusUpdate,
   chargeTaskCreditsOrMarkOutOfCredits,
 } from "@/helpers/task-event-charge";
-import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
-import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
-import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
+import {
+  notifyTaskParticipantsAdded,
+  notifyTaskStatusEvent,
+} from "@/helpers/task-notifications";
+import { addTaskParticipantsFromComment } from "@/helpers/task-participants";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { getEnvSecrets, redactDeep } from "@/lib/secret-redaction";
+import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
@@ -219,7 +226,7 @@ async function mapCreatedTaskEventForResponse(
     include: taskEventApiInclude,
   });
   if (!row) {
-    throw new Error(`Task event not found after create: ${eventId}`);
+    throw internalServerError(`Task event not found after create: ${eventId}`);
   }
   return mapTaskEvent(row);
 }
@@ -253,7 +260,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       409: jsonErrorResponse("Conflict"),
       422: {
         description:
-          "Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_schedule (Queued requested without an active schedule; no pause event in `data`).",
+          "Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_run_at (Queued requested on a Task without a Run at; no pause event in `data`).",
         content: {
           "application/json": {
             schema: errorResponseWithExtensionsSchema({
@@ -333,18 +340,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (status !== undefined) {
-        // A live series owns the Task's lifecycle. The one generic transition it
-        // still accepts is READY → QUEUED: that keeps the series releasable and
-        // is how a scheduled Task is normalized (SOK-1033). Cancel, archive, and
-        // every other status move must go through the schedule endpoints.
-        if (
-          !(task.status === TaskStatus.READY && status === TaskStatus.QUEUED)
-        ) {
-          assertTaskScheduleInactive(
-            task,
-            "Remove or replace the schedule before changing this Task's status",
-          );
-        }
         validateStatusTransition(task.status, status);
         validateTaskAssigneeAssignment({
           status,
@@ -352,11 +347,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           assigneeSokoBotId: task.assigneeSokoBotId,
           assigneeUserId: task.assigneeUserId,
         });
-        validateQueuedRequiresSchedule({
-          status,
-          metadata: task.metadata,
-          nextRunAt: task.nextRunAt,
-        });
+        validateQueuedRequiresRunAt({ status, runAt: task.runAt });
 
         // A person may only set what the status picker offered (ADR 0029).
         if (
@@ -427,7 +418,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       let taskPaymentClaimId: string | null = null;
       if (chargedMasumiPayment && masumiPayment !== undefined) {
         if (!transactionId) {
-          throw new Error("Charged Masumi task payment has no transaction");
+          throw internalServerError(
+            "Charged Masumi task payment has no transaction",
+          );
         }
         taskPaymentClaimId = await createTaskPaymentClaim({
           network: getEnv().NETWORK,
@@ -478,13 +471,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           expectedStatus: task.status,
           eventStatus,
         });
-
-        if (
-          task.status === TaskStatus.QUEUED &&
-          eventStatus !== TaskStatus.QUEUED
-        ) {
-          await removeTaskSchedulePlannedOccurrences(tx, taskId);
-        }
       }
 
       const payment =
@@ -493,21 +479,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           : null;
 
       // Enqueue PENDING task-output files from comment (in-transaction for durability)
+      let addedParticipantUserIds: string[] = [];
       if (comment) {
         await sourceImportService.enqueueTaskOutputsFromMarkdown(
           taskId,
           comment,
           tx,
         );
+        addedParticipantUserIds = await addTaskParticipantsFromComment(tx, {
+          taskId,
+          workspaceId: task.workspaceId,
+          comment,
+          visibility: task.visibility,
+          ownerId: task.ownerId,
+          excludeUserId: actorData.userId,
+          mentionedUserIds: body.mentionedUserIds,
+        });
       }
 
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
+        addedParticipantUserIds,
         userId: task.ownerId,
+        organizationId: task.organizationId,
+        workspaceId: task.workspaceId,
         projectId: task.projectId,
         masumiPayment: payment,
         taskPaymentClaimId,
         pausedForInsufficientBalance,
+        charged: transactionId !== null,
       };
     }, "Task changed by a concurrent request. Please retry.").catch((error) => {
       if (
@@ -522,11 +522,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
     const {
       event,
+      addedParticipantUserIds,
       userId,
+      organizationId,
+      workspaceId,
       projectId,
       masumiPayment,
       taskPaymentClaimId,
       pausedForInsufficientBalance,
+      charged,
     } = transactionResult;
 
     if (event.status === TaskStatus.COMPLETED && projectId) {
@@ -548,7 +552,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (event.status) {
-      waitUntil(notifyTaskStatusEvent(taskId, event.id, event.status));
+      await deliverCalendarInvalidationsNow(workspaceId);
+    }
+
+    if (event.status || addedParticipantUserIds.length > 0) {
+      waitUntil(
+        (async () => {
+          if (addedParticipantUserIds.length > 0) {
+            await notifyTaskParticipantsAdded(
+              taskId,
+              event.id,
+              addedParticipantUserIds,
+            );
+          }
+          if (event.status) {
+            await notifyTaskStatusEvent(
+              taskId,
+              event.id,
+              event.status,
+              event.userId,
+            );
+          }
+        })(),
+      );
+    }
+
+    if (charged) {
+      waitUntil(notifyLowBalanceAfterCharge({ userId, organizationId }));
     }
 
     // Unreachable by construction (a charged payment always writes its claim
@@ -630,12 +660,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             return;
           }
           if (result.status === "retry_scheduled") {
-            console.warn("[tasks] masumi task payment: retry scheduled", {
-              taskId,
-              taskEventId,
-              claimId: taskPaymentClaimId,
-              reason: result.reason,
-            });
+            // The processor returns the full reason. Redact it before applying
+            // the stdout cap; the database cap does not protect this log.
+            console.warn(
+              "[tasks] masumi task payment: retry scheduled",
+              redactDeep(
+                {
+                  taskId,
+                  taskEventId,
+                  claimId: taskPaymentClaimId,
+                  reason: formatUpstreamErrorForLog(result.reason),
+                },
+                getEnvSecrets(),
+              ),
+            );
           }
         } catch (error) {
           // Durable PENDING claim remains recoverable by cron. Never refund an

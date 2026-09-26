@@ -17,12 +17,14 @@ import { TasksView } from "./tasks-view";
 
 const {
   dndContextPropsSpy,
+  openCreateTaskMock,
   pushMock,
   refreshMock,
   replaceMock,
   showCalendarClientUpgradeModalMock,
 } = vi.hoisted(() => ({
   dndContextPropsSpy: vi.fn(),
+  openCreateTaskMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
   replaceMock: vi.fn(),
@@ -113,49 +115,54 @@ vi.mock("./create-task-modal", () => ({
     <div>{children}</div>
   ),
   useCreateTaskModal: () => ({
-    handleOpen: vi.fn(),
+    handleOpen: openCreateTaskMock,
     handleOpenWithDefaults: vi.fn(),
   }),
 }));
 
 vi.mock("./jobs-list-view", () => ({ JobsListView: () => null }));
 vi.mock("./jobs-view-filters", () => ({ JobsViewFilters: () => null }));
-vi.mock("./tasks-view-filters", () => ({ TasksViewFilters: () => null }));
+vi.mock("./tasks-view-filters", () => ({
+  TasksViewFilters: () => <button type="button">Filters</button>,
+}));
 vi.mock("./tasks-project-switcher", () => ({
-  TasksProjectSwitcher: () => null,
+  TasksProjectSwitcher: () => <button type="button">Project</button>,
 }));
 vi.mock("./task-list-view", () => ({ TaskListView: () => null }));
 vi.mock("./task-list-item", () => ({ TaskListItem: () => null }));
 vi.mock("./task-card", () => ({ TaskCard: () => null }));
 vi.mock("./view-mode-switch", () => ({ ViewModeSwitch: () => null }));
-vi.mock("./tasks-empty-state-overlay", () => ({
-  TasksEmptyStateOverlay: () => null,
-}));
 vi.mock("@/app/components/list-mobile-create-fab", () => ({
-  ListMobileCreateFab: () => null,
+  ListMobileCreateFab: ({
+    ariaLabel,
+    onOpen,
+  }: {
+    ariaLabel: string;
+    onOpen: () => void;
+  }) => <button type="button" aria-label={ariaLabel} onClick={onOpen} />,
 }));
 
-const SCHEDULED_TASK: TaskWithCoworker = {
+const TASK: TaskWithCoworker = {
   id: "task-1",
   name: "Weekly report",
   status: TaskStatus.DRAFT,
   visibility: "PUBLIC",
   ownerId: "user-1",
   owner: { id: "user-1", name: "Ada", email: "ada@example.com" },
+  project: null,
   createdAt: "2026-06-01T08:00:00.000Z",
   updatedAt: "2026-06-01T08:00:00.000Z",
   jobsCount: 0,
   commentsCount: 0,
+  participants: [],
   columnId: "backlog",
   events: [],
   agents: [],
   assignee: { id: "coworker-1", name: "Soko", kind: "coworker" },
-  metadata: JSON.stringify({ version: 2, mode: "recurring" }),
-  nextRunAt: "2026-06-25T09:00:00.000Z",
 } as TaskWithCoworker;
 
-const CANCELED_SCHEDULED_TASK: TaskWithCoworker = {
-  ...SCHEDULED_TASK,
+const CANCELED_TASK: TaskWithCoworker = {
+  ...TASK,
   status: TaskStatus.CANCELED,
   columnId: "done",
 };
@@ -183,8 +190,6 @@ const labels = {
     "input-required": "Input required",
     done: "Done",
   } as Record<KanbanColumnId, string>,
-  add: "Add",
-  addTask: "Add task",
   jobs: {
     filterButton: "Filter",
     agentLabel: "Agent",
@@ -209,7 +214,6 @@ const labels = {
   loadMore: "Load more",
   loading: "Loading",
   dragError: "Could not update the task",
-  scheduleActiveError: "This task runs on a schedule",
   loadMoreError: "Could not load more",
   loadJobsError: "Could not load jobs",
   reopenToReady: {
@@ -221,18 +225,6 @@ const labels = {
     cancel: "Cancel",
     commentRequired: "A comment is required",
   },
-  emptyState: {
-    title: "No tasks yet",
-    description: "Create one",
-    getStartedTitle: "Get started",
-    getStartedDescription: "Add your first task",
-    getStartedButton: "Add task",
-    next: "Next",
-    back: "Back",
-    addTaskHint: "Add a task",
-    elenaAvatarAlt: "Elena",
-  },
-  showGuideAriaLabel: "Show guide",
 } satisfies ComponentProps<typeof TasksView>["labels"];
 
 const EMPTY_FILTERS: TasksFilters = {
@@ -252,7 +244,7 @@ const EMPTY_JOBS_FILTERS: JobsListFilters = {
   projectId: null,
 };
 
-function renderBoard(tasks: TaskWithCoworker[] = [SCHEDULED_TASK]) {
+function renderBoard(tasks: TaskWithCoworker[] = [TASK]) {
   return render(
     <TasksView
       tasks={tasks}
@@ -317,39 +309,23 @@ describe("TasksView board drag", () => {
     vi.clearAllMocks();
   });
 
-  it("restores a scheduled task rejected with schedule_active and says why", async () => {
+  it("restores a task rejected with status_not_selectable and says why", async () => {
     vi.mocked(setTaskStatusFromDrag).mockResolvedValue({
       ok: false,
-      error: { kind: "schedule_active" },
+      error: { kind: "status_not_selectable" },
     });
     renderBoard();
 
     await dropOnTodo("task-1", "backlog");
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(labels.scheduleActiveError),
+      expect(toast.error).toHaveBeenCalledWith("Errors.updateStatus"),
     );
     expect(boardCard("task-1")).toHaveAttribute("data-column", "backlog");
     expect(boardCard("task-1")).toHaveAttribute(
       "data-status",
       TaskStatus.DRAFT,
     );
-    expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
-  });
-
-  it("gives a quarantined series its own copy rather than the upgrade modal", async () => {
-    vi.mocked(setTaskStatusFromDrag).mockResolvedValue({
-      ok: false,
-      error: { kind: "schedule_quarantined" },
-    });
-    renderBoard();
-
-    await dropOnTodo("task-1", "backlog");
-
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("quarantined"),
-    );
-    expect(boardCard("task-1")).toHaveAttribute("data-column", "backlog");
     expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
   });
 
@@ -373,9 +349,9 @@ describe("TasksView board drag", () => {
     const user = userEvent.setup();
     vi.mocked(setTaskStatusFromDrag).mockResolvedValue({
       ok: false,
-      error: { kind: "schedule_active" },
+      error: { kind: "status_not_selectable" },
     });
-    renderBoard([CANCELED_SCHEDULED_TASK]);
+    renderBoard([CANCELED_TASK]);
 
     await dropOnTodo("task-1", "done");
     // The reopen branch owns its own rollback and clears the dialog state
@@ -389,7 +365,7 @@ describe("TasksView board drag", () => {
     );
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(labels.scheduleActiveError),
+      expect(toast.error).toHaveBeenCalledWith("Errors.updateStatus"),
     );
     expect(boardCard("task-1")).toHaveAttribute("data-column", "done");
     expect(boardCard("task-1")).toHaveAttribute(
@@ -398,4 +374,41 @@ describe("TasksView board drag", () => {
     );
     expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
   });
+});
+
+describe("TasksView without the task-board guide", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+  });
+
+  it.each([null, "false", "true"])(
+    "keeps an empty board usable when old guide storage is %s",
+    async (storedValue) => {
+      const key = "sokosumi.tasks.guideCompleted";
+      if (storedValue !== null) window.localStorage.setItem(key, storedValue);
+      const user = userEvent.setup();
+      const { container, unmount } = renderBoard([]);
+
+      expect(
+        screen.queryByRole("button", { name: "Show guide" }),
+      ).not.toBeInTheDocument();
+      expect(
+        container.querySelector(
+          "[data-tasks-empty-state-overlay], [data-tasks-empty-state-overlay-mobile]",
+        ),
+      ).toBeNull();
+      expect(screen.getByRole("tab", { name: "Tasks" })).toHaveAttribute(
+        "data-state",
+        "active",
+      );
+      expect(screen.getByRole("tab", { name: "Jobs" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Project" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Filters" })).toBeEnabled();
+      await user.click(screen.getByRole("button", { name: "createTaskFab" }));
+      expect(openCreateTaskMock).toHaveBeenCalledOnce();
+      expect(window.localStorage.getItem(key)).toBe(storedValue);
+      unmount();
+    },
+  );
 });

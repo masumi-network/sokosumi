@@ -8,10 +8,13 @@ import SwiftUI
 struct SokosumiApp: App {
   @StateObject private var auth = AuthState()
   @StateObject private var workspaces: WorkspaceState
+  /// Device-local clock preference; every window's timestamps read it from the environment.
+  @AppStorage(TimeFormatPreference.defaultsKey) private var timeFormat: TimeFormatPreference = .auto
 
   init() {
     let cooldown = ChatReadCooldown()
-    let workspaces = WorkspaceState(clientProvider: { $0.coreClient(cooldown: cooldown) })
+    // The Unreads filter is remembered per install (row 24f2); tests and previews leave it transient.
+    let workspaces = WorkspaceState(clientProvider: { $0.coreClient(cooldown: cooldown) }, unreadsFilter: .standard)
     // Live room updates over Ably (SOK-976). The state drives the socket;
     // without this factory it stays HTTP-only.
     workspaces.realtimeConnectionFactory = { AblyRealtimeConnection() }
@@ -23,6 +26,7 @@ struct SokosumiApp: App {
       ChatRootView()
         .environmentObject(auth)
         .environmentObject(workspaces)
+        .environment(\.timeFormat, timeFormat)
     }
     Settings {
       SettingsView()

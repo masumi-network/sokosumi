@@ -4,7 +4,6 @@ import SwiftUI
 #if os(macOS)
   struct MessageReactionsView: View {
     let reactions: [Components.Schemas.ChatRoomMessageReaction]
-    var pendingEmoji: Set<String> = []
     var toggle: ((String) -> Void)?
 
     var body: some View {
@@ -22,7 +21,7 @@ import SwiftUI
             .contentShape(.capsule)
           }
           .buttonStyle(.plain)
-          .disabled(toggle == nil || pendingEmoji.contains(reaction.emoji))
+          .disabled(toggle == nil)
           .help(participants(reaction))
           .accessibilityLabel("\(reaction.emoji), ^[\(reaction.count) reaction](inflect: true)")
           .accessibilityValue(reaction.reactedByCurrentUser ? "You reacted" : "You have not reacted")

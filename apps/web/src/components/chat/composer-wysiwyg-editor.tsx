@@ -68,6 +68,7 @@ import {
   toggleComposerBlockquote,
   tryExitComposerBlockquoteOnEmptyLine,
 } from "@/lib/utils/composer-wysiwyg-blockquote";
+import { toggleComposerCodeBlock } from "@/lib/utils/composer-wysiwyg-code-block";
 import { toggleComposerInlineCode } from "@/lib/utils/composer-wysiwyg-code-format";
 import {
   replaceComposerTextRange,
@@ -98,6 +99,8 @@ export interface ComposerWysiwygEditorHandle {
   focus: () => void;
   focusAtEnd: () => void;
   insertText: (text: string) => void;
+  /** Remove the last occurrence of `text`; false when it is not in the editor. */
+  removeLastText: (text: string) => boolean;
   openMentions: () => void;
   applyFormat: (command: ComposerFormatCommand) => void;
   insertLink: (text: string, url: string) => void;
@@ -824,6 +827,24 @@ export function ComposerWysiwygEditor<TData = unknown>({
     [handleInput],
   );
 
+  const removeLastText = useCallback(
+    (text: string) => {
+      const editor = editorRef.current;
+      if (!editor || text.length === 0) return false;
+      const start = serializeEditorText(editor).lastIndexOf(text);
+      if (
+        start < 0 ||
+        !replaceComposerTextRange(editor, start, start + text.length, "")
+      ) {
+        return false;
+      }
+      savedCaretOffsetRef.current = getCaretOffset(editor);
+      handleInput();
+      return true;
+    },
+    [handleInput],
+  );
+
   const insertHtml = useCallback(
     (html: string) => {
       editorRef.current?.focus();
@@ -891,12 +912,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
           return;
         }
         case "codeBlock": {
-          const text = window.getSelection()?.toString() ?? "";
-          const escapedText = text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-          insertHtml(`<pre><code>${escapedText}</code></pre>`);
+          if (!editorRef.current) return;
+          editorRef.current.focus();
+          toggleComposerCodeBlock(editorRef.current);
+          handleInput();
+          requestAnimationFrame(() => {
+            publishActiveFormats();
+          });
           return;
         }
         case "quote": {
@@ -921,7 +943,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         }
       }
     },
-    [execCommand, handleInput, insertHtml, publishActiveFormats],
+    [execCommand, handleInput, publishActiveFormats],
   );
 
   const openMentions = useCallback(() => {
@@ -1380,6 +1402,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         selection.addRange(range);
       },
       insertText,
+      removeLastText,
       openMentions,
       applyFormat,
       insertLink,
@@ -1393,6 +1416,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       insertLink,
       insertText,
       openMentions,
+      removeLastText,
       tryFlushTrailingEmoticon,
     ],
   );

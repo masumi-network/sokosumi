@@ -15,10 +15,12 @@ vi.mock("better-auth/api", () => ({
 
 const {
   getOrganizationSeatSummaryMock,
+  getOrganizationCallerSeatMock,
   assignOrganizationSeatMock,
   unassignOrganizationSeatMock,
 } = vi.hoisted(() => ({
   getOrganizationSeatSummaryMock: vi.fn(),
+  getOrganizationCallerSeatMock: vi.fn(),
   assignOrganizationSeatMock: vi.fn(),
   unassignOrganizationSeatMock: vi.fn(),
 }));
@@ -40,6 +42,8 @@ vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     assignOrganizationSeat: (...args: unknown[]) =>
       assignOrganizationSeatMock(...args),
+    getOrganizationCallerSeat: (...args: unknown[]) =>
+      getOrganizationCallerSeatMock(...args),
     getOrganizationSeatSummary: (...args: unknown[]) =>
       getOrganizationSeatSummaryMock(...args),
     unassignOrganizationSeat: (...args: unknown[]) =>
@@ -251,6 +255,44 @@ describe("organizationSeatService", () => {
     });
   });
 
+  it("maps the concurrency_conflict kind to CONFLICT", async () => {
+    assignOrganizationSeatMock.mockRejectedValue(
+      coreError(
+        409,
+        "Seat assignment lost a concurrent update. Try again.",
+        "concurrency_conflict",
+      ),
+    );
+
+    const { organizationSeatService } = await import(
+      "./organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.assignSeat("user-1", "org-1", "member-1"),
+    ).rejects.toMatchObject({
+      status: "CONFLICT",
+      message: "Another seat change was in progress. Try again.",
+    });
+  });
+
+  it("maps a 409 without a kind to CONFLICT", async () => {
+    assignOrganizationSeatMock.mockRejectedValue(
+      coreError(409, "Seat assignment lost a concurrent update. Try again."),
+    );
+
+    const { organizationSeatService } = await import(
+      "./organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.assignSeat("user-1", "org-1", "member-1"),
+    ).rejects.toMatchObject({
+      status: "CONFLICT",
+      message: "Another seat change was in progress. Try again.",
+    });
+  });
+
   it("maps a missing member to NOT_FOUND", async () => {
     assignOrganizationSeatMock.mockRejectedValue(
       coreError(404, "Member not found"),
@@ -340,5 +382,31 @@ describe("organizationSeatService", () => {
       message:
         "Only organization owners and admins can manage seat assignments",
     });
+  });
+
+  it("treats a personal workspace as seated", async () => {
+    const { organizationSeatService } = await import(
+      "./organization-seat.service"
+    );
+
+    await expect(organizationSeatService.hasAssignedSeat(null)).resolves.toBe(
+      true,
+    );
+    expect(getOrganizationCallerSeatMock).not.toHaveBeenCalled();
+  });
+
+  it("returns whether Core treats the caller as seated", async () => {
+    getOrganizationCallerSeatMock.mockResolvedValue({
+      data: { assigned: false },
+    });
+
+    const { organizationSeatService } = await import(
+      "./organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.hasAssignedSeat("org-1"),
+    ).resolves.toBe(false);
+    expect(getOrganizationCallerSeatMock).toHaveBeenCalledWith("org-1");
   });
 });

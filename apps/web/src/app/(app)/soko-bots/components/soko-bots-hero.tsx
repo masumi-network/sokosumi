@@ -18,7 +18,7 @@ function AvatarStack({
   avatars,
   seeds,
 }: {
-  avatars: SokoBotAvatar[];
+  avatars: Pick<SokoBotAvatar, "id" | "imageUrl">[];
   seeds: string[];
 }) {
   const hasFaces = avatars.length > 0 || seeds.length > 0;
@@ -60,9 +60,18 @@ export async function SokoBotsHero({
   const t = await getTranslations("App.SokoBots");
   const bot = me?.bot ?? null;
 
-  // Your own bot leads the stack when you have one; mascots fill the rest.
-  const seeds = bot && me ? [bot.avatarSeed ?? defaultOrbSeed(me.userId)] : [];
-  const faces = avatars.slice(0, bot ? 4 : 5);
+  // Keep the owner's saved mascot; only legacy bots need a seeded orb.
+  const seeds =
+    bot && me && !bot.avatarImageUrl
+      ? [bot.avatarSeed ?? defaultOrbSeed(me.userId)]
+      : [];
+  const faces: Pick<SokoBotAvatar, "id" | "imageUrl">[] = avatars.slice(
+    0,
+    bot ? 4 : 5,
+  );
+  if (bot?.avatarImageUrl) {
+    faces.push({ id: bot.id, imageUrl: bot.avatarImageUrl });
+  }
 
   return (
     <section className="bg-card-background relative overflow-hidden rounded-xl border">
@@ -76,10 +85,7 @@ export async function SokoBotsHero({
           </p>
         </div>
 
-        <AvatarStack
-          avatars={bot ? faces : avatars.slice(0, 5)}
-          seeds={seeds}
-        />
+        <AvatarStack avatars={faces} seeds={seeds} />
 
         {bot && me ? (
           <div className="flex flex-wrap items-center gap-2">

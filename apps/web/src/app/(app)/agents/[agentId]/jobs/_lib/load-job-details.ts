@@ -5,9 +5,10 @@ import { cache } from "react";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Job } from "@/lib/clients/generated/core";
-import { userService } from "@/lib/services";
 import { projectService } from "@/lib/services/project.service";
-import { getJobQueryKey, getQueryClient } from "@/queries";
+import { userService } from "@/lib/services/user.service";
+import { getQueryClient } from "@/queries/get-query-client";
+import { getJobQueryKey } from "@/queries/jobs";
 
 interface LoadJobDetailsParams {
   agentId: string;

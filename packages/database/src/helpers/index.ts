@@ -13,13 +13,15 @@ export {
   validateEnterprisePeriodCount,
   validateMinEnterpriseCreditsPerMonth,
 } from "./enterprise-contract.js";
+export {
+  EnterpriseContractActivationError,
+  EnterpriseContractLifecycleError,
+  EnterpriseContractNotFoundError,
+} from "./enterprise-contract-errors.js";
 export type { PaidSubscriptionBlocker } from "./enterprise-contract-exclusivity.js";
 export {
   activateEnterpriseContract,
   cancelEnterpriseContract,
-  EnterpriseContractActivationError,
-  EnterpriseContractLifecycleError,
-  EnterpriseContractNotFoundError,
 } from "./enterprise-contract-lifecycle.js";
 export { runEnterpriseContractSchedulerPass } from "./enterprise-contract-scheduler.js";
 export {

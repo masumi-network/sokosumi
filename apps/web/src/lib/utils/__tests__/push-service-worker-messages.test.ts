@@ -8,7 +8,10 @@ import {
   SUPPORTED_LOCALES,
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-import { PUSH_WORKER_MESSAGES_PATH } from "@/config/push-worker-assets";
+import {
+  PUSH_WORKER_MESSAGES_PATH,
+  PUSH_WORKER_RENEWAL_PATH,
+} from "@/config/push-worker-assets";
 import {
   NOTIFICATION_CLICK_MESSAGE,
   NOTIFICATION_ICON_PATH,
@@ -210,6 +213,7 @@ describe("ably-push-sw message map", () => {
    */
   it("imports the catalog the app serves and caches", () => {
     expect(IMPORTED_PATH).toBe(PUSH_WORKER_MESSAGES_PATH);
+    expect(source).toContain(`importScripts("${PUSH_WORKER_RENEWAL_PATH}");`);
   });
 
   it("asks the question the app answers", () => {

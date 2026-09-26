@@ -8,8 +8,7 @@ import {
 } from "../generated/prisma/client.js";
 import {
   buildCreditBucketScopeSql,
-  buildCreditBucketScopeWhere,
-  buildEnterprisePoolScopeWhere,
+  buildEnterprisePoolScopeSql,
   type CreditBucketScopeContext,
   hasAssignedOrganizationSeat,
   resolveCreditBucketScopeContext,
@@ -44,31 +43,6 @@ function organizationContext(
     organizationId: "org-1",
     poolAccess,
   };
-}
-
-function hasLeftoverMemberStartsWith(
-  where: Prisma.CreditBucketWhereInput,
-): boolean {
-  return (where.OR ?? []).some((branch) => {
-    const referenceId = branch.referenceId;
-    return (
-      typeof referenceId === "object" &&
-      referenceId !== null &&
-      "startsWith" in referenceId &&
-      String(referenceId.startsWith).startsWith("member:")
-    );
-  });
-}
-
-function findNotInBranch(where: Prisma.CreditBucketWhereInput) {
-  return (where.OR ?? []).find((branch) => {
-    const referenceType = branch.referenceType;
-    return (
-      referenceType !== null &&
-      typeof referenceType === "object" &&
-      "notIn" in referenceType
-    );
-  });
 }
 
 function sqlFragmentText(sql: Prisma.Sql): string {
@@ -150,7 +124,7 @@ describe("resolveCreditBucketScopeContext", () => {
       organizationId: "org-1",
       poolAccess: "enterprise",
     });
-    assert.ok(buildEnterprisePoolScopeWhere(context));
+    assert.ok(buildEnterprisePoolScopeSql(context));
   });
 
   it("allows shared pool for unassigned members on a free organization", async () => {
@@ -358,112 +332,6 @@ describe("hasAssignedOrganizationSeat", () => {
     assert.equal(
       await hasAssignedOrganizationSeat("user-1", "org-1", {} as never),
       false,
-    );
-  });
-});
-
-describe("buildCreditBucketScopeWhere", () => {
-  it("keeps personal scope as userId plus null organizationId", () => {
-    const where = buildCreditBucketScopeWhere({
-      workspace: "personal",
-      userId: "user-1",
-    });
-
-    assert.deepEqual(where, {
-      userId: "user-1",
-      organizationId: null,
-    });
-  });
-
-  it("matches nothing for unseated org spend without leftover member: branch", () => {
-    const where = buildCreditBucketScopeWhere(organizationContext("none"));
-
-    assert.equal(where.OR, undefined);
-    assert.equal(hasLeftoverMemberStartsWith(where), false);
-    assert.equal(JSON.stringify(where).includes("member:user-1:"), false);
-    assert.deepEqual(where, {
-      organizationId: "org-1",
-      id: { equals: "" },
-    });
-  });
-
-  it("includes org-owned subscription period buckets when shared access is allowed", () => {
-    const where = buildCreditBucketScopeWhere(organizationContext("shared"));
-
-    assert.equal(hasLeftoverMemberStartsWith(where), false);
-    assert.ok(
-      (where.OR ?? []).some(
-        (branch) =>
-          branch.referenceType ===
-            CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD &&
-          branch.userId === null,
-      ),
-    );
-  });
-
-  it("does not match leftover member: remaining from unseated or seated shared scope", () => {
-    const unseated = buildCreditBucketScopeWhere(organizationContext("none"));
-    const seated = buildCreditBucketScopeWhere(organizationContext("shared"));
-
-    assert.equal(hasLeftoverMemberStartsWith(unseated), false);
-    assert.equal(hasLeftoverMemberStartsWith(seated), false);
-    assert.equal(
-      (seated.OR ?? []).some(
-        (branch) =>
-          branch.referenceType ===
-            CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD &&
-          typeof branch.userId === "string",
-      ),
-      false,
-    );
-    const notInBranch = findNotInBranch(seated);
-    assert.ok(notInBranch);
-    const notIn = (
-      notInBranch.referenceType as {
-        notIn: CreditBucketReferenceType[];
-      }
-    ).notIn;
-    assert.ok(
-      notIn.includes(CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD),
-    );
-  });
-
-  it("keeps REFUND in the notIn shared branch with no userId filter", () => {
-    const where = buildCreditBucketScopeWhere(organizationContext("shared"));
-    const notInBranch = findNotInBranch(where);
-
-    assert.ok(notInBranch);
-    const notIn = (
-      notInBranch.referenceType as {
-        notIn: CreditBucketReferenceType[];
-      }
-    ).notIn;
-    assert.ok(
-      notIn.includes(CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD),
-    );
-    assert.ok(notIn.includes(CreditBucketReferenceType.ENTERPRISE_PERIOD));
-    assert.ok(notIn.includes(CreditBucketReferenceType.ENTERPRISE_TOP_UP));
-    assert.equal(notIn.includes(CreditBucketReferenceType.REFUND), false);
-    assert.equal("userId" in notInBranch, false);
-  });
-
-  it("includes enterprise pool branch only when assigned and consumable", () => {
-    const where = buildCreditBucketScopeWhere(
-      organizationContext("enterprise"),
-    );
-
-    const referenceTypes = (where.OR ?? []).map(
-      (branch) => branch.referenceType,
-    );
-    assert.ok(
-      referenceTypes.some(
-        (value) =>
-          value &&
-          typeof value === "object" &&
-          "in" in value &&
-          Array.isArray(value.in) &&
-          value.in.includes(CreditBucketReferenceType.ENTERPRISE_PERIOD),
-      ),
     );
   });
 });

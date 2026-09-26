@@ -60,6 +60,16 @@ vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
+  vi.hoisted(() => ({
+    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  }));
+vi.mock("@/helpers/chat-human-mentions", () => ({
+  persistChatHumanMentions: persistChatHumanMentionsMock,
+  emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
+}));
+
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
@@ -131,6 +141,12 @@ describe("persistSokoBotChatTurn", () => {
       data: { content: "The answer is ready.", metadata: expect.any(Object) },
     });
     expect(messageUpdate.mock.calls[0][0].data).not.toHaveProperty("createdAt");
+  });
+
+  it("leaves human mention activation and notification to audience-checked delivery", async () => {
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    expect(persistChatHumanMentionsMock).not.toHaveBeenCalled();
+    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
   });
 
   it("does not invalidate a completed turn with an empty answer", async () => {

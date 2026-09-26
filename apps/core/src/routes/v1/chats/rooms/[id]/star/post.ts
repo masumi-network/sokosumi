@@ -12,14 +12,13 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
-  getChatRoomPinnedMessageCounts,
-  getChatRoomSidebarFlags,
-  mapChatRoom,
+  mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
 } from "../../helpers";
 import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  roomUnreadFields,
 } from "../../room-unread";
 
 const paramsSchema = z.object({
@@ -59,57 +58,52 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const starredAt = new Date();
 
-    const room = await prisma.$transaction(async (tx) => {
-      const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
+    const room = await requireChatRoomUserAccess(
+      id,
+      userContext.userId,
+      prisma,
+    );
 
-      const updated = await tx.chatRoomUserMember.updateMany({
-        where: {
-          roomId: room.id,
-          userId: userContext.userId,
-          mutedAt: null,
-        },
-        data: { starredAt },
-      });
-      if (updated.count === 0) {
-        const membership = await tx.chatRoomUserMember.findUnique({
-          where: {
-            roomId_userId: {
-              roomId: room.id,
-              userId: userContext.userId,
-            },
-          },
-          select: { mutedAt: true },
-        });
-        if (membership?.mutedAt != null) {
-          throw unprocessableEntity(
-            "Cannot star a muted room. Unmute it first.",
-          );
-        }
-        throw notFound("Room not found");
-      }
-
-      return room;
+    const updated = await prisma.chatRoomUserMember.updateMany({
+      where: {
+        roomId: room.id,
+        userId: userContext.userId,
+        mutedAt: null,
+      },
+      data: { starredAt },
     });
+    if (updated.count === 0) {
+      const membership = await prisma.chatRoomUserMember.findUnique({
+        where: {
+          roomId_userId: {
+            roomId: room.id,
+            userId: userContext.userId,
+          },
+        },
+        select: { mutedAt: true },
+      });
+      if (membership?.mutedAt != null) {
+        throw unprocessableEntity("Cannot star a muted room. Unmute it first.");
+      }
+      throw notFound("Room not found");
+    }
 
-    const [unreadCounts, unreadMentionCounts, sidebarFlags, pinnedCounts] =
-      await Promise.all([
-        getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
-        getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
-        getChatRoomSidebarFlags([room.id], userContext.userId, prisma),
-        getChatRoomPinnedMessageCounts([room.id], prisma),
-      ]);
-    const flags = sidebarFlags.get(room.id);
+    const [unreadCounts, unreadMentionCounts] = await Promise.all([
+      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
+      getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
+    ]);
 
     return ok(
       c,
       chatRoomSchema.parse(
-        mapChatRoom(room, userContext.userId, {
-          unreadCount: unreadCounts.get(room.id) ?? 0,
+        await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
+          ...(await roomUnreadFields(
+            unreadCounts.get(room.id),
+            room.id,
+            userContext.userId,
+            prisma,
+          )),
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-          starredAt: flags?.starredAt ?? starredAt,
-          pinnedMessageCount: pinnedCounts.get(room.id) ?? 0,
-          mutedAt: flags?.mutedAt ?? null,
-          markedUnread: flags?.markedUnread ?? false,
         }),
       ),
     );

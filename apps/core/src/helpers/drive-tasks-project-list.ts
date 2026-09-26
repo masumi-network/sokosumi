@@ -1,11 +1,11 @@
-import {
-  TaskFileOrigin,
-  TaskFileStatus,
-  TaskStatus,
-  TaskVisibility,
-} from "@sokosumi/database";
+import { TaskFileOrigin, TaskFileStatus, TaskStatus } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 
+import {
+  buildCoworkerTaskAccessSql,
+  buildHumanTaskVisibilitySql,
+  type CoworkerTaskAccessSqlParams,
+} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import type { DriveListSort } from "@/schemas/drive-list-sort.schema";
 
@@ -13,12 +13,6 @@ export interface DriveProjectTaskRow {
   id: string;
   name: string;
   latestFileUpdatedAt: Date;
-}
-
-interface CoworkerTaskAccessSqlParams {
-  coworkerId: string;
-  vendorId: string;
-  hasWorkspaceGrant: boolean;
 }
 
 export type FetchProjectTasksPageResult =
@@ -31,66 +25,6 @@ export type FetchProjectTasksPageResult =
       ok: false;
       reason: "invalid_cursor";
     };
-
-function buildCoworkerVendorFamilySql(
-  coworkerId: string,
-  vendorId: string,
-): PrismaRaw.Sql {
-  return PrismaRaw.sql`
-    (
-      t."assigneeId" = ${coworkerId}
-      OR (
-        t."assigneeId" IS DISTINCT FROM ${coworkerId}
-        AND EXISTS (
-          SELECT 1
-          FROM coworker c
-          WHERE c.id = t."assigneeId"
-            AND c."vendorId" = ${vendorId}::uuid
-        )
-      )
-    )
-  `;
-}
-
-function buildCoworkerTaskAccessSql(
-  params: CoworkerTaskAccessSqlParams,
-): PrismaRaw.Sql {
-  const vendorFamily = buildCoworkerVendorFamilySql(
-    params.coworkerId,
-    params.vendorId,
-  );
-
-  if (params.hasWorkspaceGrant) {
-    // GRANTED opens public non-draft Tasks, but private stays on vendor family.
-    return PrismaRaw.sql`
-      AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"
-      AND (
-        t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
-        OR (
-          t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
-          AND ${vendorFamily}
-        )
-      )
-    `;
-  }
-
-  return PrismaRaw.sql`
-    AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"
-    AND ${vendorFamily}
-  `;
-}
-
-function buildHumanTaskVisibilitySql(userId: string): PrismaRaw.Sql {
-  return PrismaRaw.sql`
-    AND (
-      t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
-      OR (
-        t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
-        AND t."ownerId" = ${userId}
-      )
-    )
-  `;
-}
 
 function buildProjectTaskFilters(params: {
   workspaceId: string;

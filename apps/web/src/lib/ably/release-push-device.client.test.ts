@@ -1,16 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import {
+  hasPushPreference,
+  rememberPushPreference,
+  resumePushPreferenceForSession,
+  wantsPushHere,
+} from "./push-preference.client";
 import {
   getPushTeardownVersion,
   queuePushWork,
 } from "./push-work-queue.client";
 import {
   dropBrowserPushSubscriptionOnAccountDeletion,
+  hasAblyPushDeviceId,
   hasUnfinishedPushTeardown,
   notePushTeardownStarted,
   releasePushDeviceOnSignOut,
 } from "./release-push-device.client";
 
+const revokeRenewalMock = vi.fn();
+vi.mock("./push-renewal.client", () => ({
+  revokePushRenewal: () => revokeRenewalMock(),
+}));
+beforeEach(() => revokeRenewalMock.mockReset().mockResolvedValue(undefined));
 const deactivatePushMock = vi.fn();
 const dropBrowserPushSubscriptionMock = vi.fn();
 const hasWebPushSubscriptionMock = vi.fn();
@@ -58,6 +69,9 @@ describe("releasePushDeviceOnSignOut", () => {
     );
     const release = releasePushDeviceOnSignOut("user_1");
     const markedBeforeRead = hasUnfinishedPushTeardown();
+    await vi.waitFor(() =>
+      expect(hasWebPushSubscriptionMock).toHaveBeenCalled(),
+    );
     finishRead(false);
     await release;
     expect(markedBeforeRead).toBe(true);
@@ -73,10 +87,65 @@ describe("releasePushDeviceOnSignOut", () => {
     expect(hasUnfinishedPushTeardown()).toBe(true);
   });
 
+  it("preserves consent across logout only for a newer session of the same reader", async () => {
+    resumePushPreferenceForSession("user_1", "old", 100);
+    rememberPushPreference("user_1");
+    await releasePushDeviceOnSignOut("user_1");
+    expect(hasPushPreference()).toBe(true);
+    expect(wantsPushHere("user_1")).toBe(false);
+    expect(resumePushPreferenceForSession("other", "new", 200)).toBe(false);
+    expect(resumePushPreferenceForSession("user_1", "old", 100)).toBe(false);
+    expect(resumePushPreferenceForSession("user_1", "new", 200)).toBe(true);
+  });
+
+  it("revokes worker authority before checking for an existing subscription", async () => {
+    let finish = () => {};
+    revokeRenewalMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const work = releasePushDeviceOnSignOut("user_1");
+    expect(revokeRenewalMock).toHaveBeenCalledTimes(1);
+    expect(hasWebPushSubscriptionMock).not.toHaveBeenCalled();
+    finish();
+    await work;
+    expect(deactivatePushMock).toHaveBeenCalled();
+  });
+
   it("drops the registration this browser holds", async () => {
     await releasePushDeviceOnSignOut("user_1");
 
-    expect(deactivatePushMock).toHaveBeenCalledWith("user_1");
+    expect(deactivatePushMock).toHaveBeenCalledWith("user_1", {
+      preservePreference: true,
+    });
+  });
+
+  /**
+   * `deactivatePush` forgets the preference first and clears the registration
+   * at the end of its asynchronous work. A sign-out inside that window reads
+   * a registration with no preference: the same shape a reader from before
+   * preferences existed leaves behind, and the one case where it is a lie.
+   */
+  it("does not restore consent a teardown already withdrew", async () => {
+    localStorage.setItem("ably.push.deviceIdentityToken", "token");
+    notePushTeardownStarted();
+
+    await releasePushDeviceOnSignOut("user_1");
+
+    expect(hasPushPreference()).toBe(false);
+  });
+
+  /**
+   * The reader this fallback is for: a registration with no preference and no
+   * teardown under way is the only trace of the consent they gave.
+   */
+  it("restores consent for a registration no teardown is clearing", async () => {
+    localStorage.setItem("ably.push.deviceIdentityToken", "token");
+
+    await releasePushDeviceOnSignOut("user_1");
+
+    expect(hasPushPreference()).toBe(true);
   });
 
   /**
@@ -110,7 +179,9 @@ describe("releasePushDeviceOnSignOut", () => {
 
     await releasePushDeviceOnSignOut("user_1");
 
-    expect(deactivatePushMock).toHaveBeenCalledWith("user_1");
+    expect(deactivatePushMock).toHaveBeenCalledWith("user_1", {
+      preservePreference: true,
+    });
 
     // Left running, the queue would report work pending for every test after
     // this one, and the read above would never be reached again.
@@ -138,7 +209,9 @@ describe("releasePushDeviceOnSignOut", () => {
 
     await releasePushDeviceOnSignOut("user_1");
 
-    expect(deactivatePushMock).toHaveBeenCalledWith("user_1");
+    expect(deactivatePushMock).toHaveBeenCalledWith("user_1", {
+      preservePreference: true,
+    });
   });
 
   /**
@@ -448,5 +521,53 @@ describe("notePushTeardownStarted", () => {
     notePushTeardownStarted();
 
     expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
+  });
+});
+
+it("forgets durable consent when the account is deleted", async () => {
+  rememberPushPreference("user_1");
+  await dropBrowserPushSubscriptionOnAccountDeletion();
+  expect(hasPushPreference()).toBe(false);
+  expect(revokeRenewalMock).toHaveBeenCalledTimes(1);
+});
+
+describe("hasAblyPushDeviceId", () => {
+  // The describes above spy on storage. Theirs are restored on their way out,
+  // so this restores nothing today; it is here because these cases read
+  // storage and would answer through such a spy if one ever outlived its own.
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  /**
+   * The SDK wraps what it stores, so the value is an envelope rather than the
+   * id. Only its presence is read, which is what makes the wrapping harmless.
+   */
+  it("reads an id whatever the stored value looks like", () => {
+    vi.spyOn(localStorage, "getItem").mockReturnValue(
+      JSON.stringify({ value: "01K000000000000000000000" }),
+    );
+
+    expect(hasAblyPushDeviceId()).toBe(true);
+  });
+
+  /**
+   * A browser that blocks site data throws on the read. Answering "there is a
+   * device here" would make every activation replace one, and the name that
+   * would settle it cannot be written on such a browser either, so it would
+   * replace on every run for as long as the reader used it.
+   */
+  it("reports no device where the browser blocks site data", () => {
+    vi.spyOn(localStorage, "getItem").mockImplementation(() => {
+      throw new Error("SecurityError");
+    });
+
+    expect(hasAblyPushDeviceId()).toBe(false);
   });
 });

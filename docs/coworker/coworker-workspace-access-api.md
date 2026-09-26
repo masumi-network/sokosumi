@@ -236,7 +236,7 @@ Optional `capability` query still filters (`tasks`, `chat`, …).
 ```text
 POST /v1/coworkers/{id}/workspace-access/revoke
   body: { workspaceId }
-  auth: platform admin only
+  auth: platform admin, or vendor admin for this coworker
 ```
 
 Force-sets `GRANTED` → `REVOKED` for that pair (ops undo of a pilot grant without workspace owner).

@@ -1,7 +1,9 @@
+import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
-
-import { isPersistedMentionThoughtShell } from "./coworker-thought";
-
+import {
+  isFailedMentionThoughtShell,
+  isPersistedMentionThoughtShell,
+} from "./coworker-thought";
 import {
   confirmOutboundMessage,
   filterResolvedOutbound,
@@ -26,6 +28,54 @@ export function applyFullChatRoomMessageEvent(
     return existing.filter((row) => row.id !== event.message.id);
   }
   return mergeRoomMessages(existing, [event.message]);
+}
+
+/**
+ * Carry the viewer's unread reply count onto a fresher copy of a message that
+ * does not state one.
+ *
+ * Only the message list computes the count. Realtime events are broadcast to
+ * the whole room, and an edit, reaction or pin answers with the message alone,
+ * so their payloads leave it out. Without this, any of them landing on a
+ * thread parent would untint its reply bar.
+ */
+export function keepKnownThreadUnreadReplyCount(
+  known: ChatRoomMessage | undefined,
+  incoming: ChatRoomMessage,
+): ChatRoomMessage {
+  if (
+    incoming.threadUnreadReplyCount != null ||
+    known?.threadUnreadReplyCount == null
+  ) {
+    return incoming;
+  }
+  return {
+    ...incoming,
+    threadUnreadReplyCount: known.threadUnreadReplyCount,
+  };
+}
+
+/**
+ * Set each loaded parent's unread reply count from the reader's unread Thread
+ * map. A parent absent from the map has no unread replies.
+ *
+ * Returns `messages` itself when no count moved, so an unchanged read does not
+ * re-render the transcript.
+ */
+export function applyThreadUnreadReplyCounts(
+  messages: ChatRoomMessage[],
+  replyCounts: ReadonlyMap<string, number>,
+): ChatRoomMessage[] {
+  let changed = false;
+  const next = messages.map((message) => {
+    const unread = replyCounts.get(message.id) ?? 0;
+    if ((message.threadUnreadReplyCount ?? 0) === unread) {
+      return message;
+    }
+    changed = true;
+    return { ...message, threadUnreadReplyCount: unread };
+  });
+  return changed ? next : messages;
 }
 
 /**
@@ -77,10 +127,14 @@ export function mergeRoomMessages(
   for (const message of confirmed) {
     byId.set(message.id, message);
   }
-  for (const message of remainingIncoming) {
-    if (isOutboundLocalMessage(message)) {
+  for (const incoming of remainingIncoming) {
+    if (isOutboundLocalMessage(incoming)) {
       continue;
     }
+    const message = keepKnownThreadUnreadReplyCount(
+      byId.get(incoming.id),
+      incoming,
+    );
     // Memoized rows key on object identity; a refresh page re-sends every
     // message, so keep the existing object when nothing in it changed.
     const existingById = byId.get(message.id);
@@ -142,23 +196,32 @@ function hasVisibleMessageBody(message: ChatRoomMessage): boolean {
   return message.content.trim().length > 0;
 }
 
-/** Channel join/leave rows must stay even if content is empty. */
-function isMembershipStatusMessage(message: ChatRoomMessage): boolean {
-  return message.membership != null;
+/** A quote sent to yourself is the whole message: the body is empty by design. */
+function isSavedQuoteMessage(message: ChatRoomMessage): boolean {
+  return message.quote != null;
 }
 
-function isStreamingCoworkerPlaceholder(message: ChatRoomMessage): boolean {
+/**
+ * Empty coworker shells for a mention stay while the Thought streams and after
+ * it fails: Core keeps the failed bubble so "Failed to reply" and Retry can
+ * live on it (`failMentionThoughtPlaceholder`).
+ */
+function isMentionCoworkerShell(message: ChatRoomMessage): boolean {
   if (message.sender.type !== "coworker") {
     return false;
   }
-  return isPersistedMentionThoughtShell(message.metadata);
+  return (
+    isPersistedMentionThoughtShell(message.metadata) ||
+    isFailedMentionThoughtShell(message.metadata)
+  );
 }
 
 function shouldKeepPersistedMessage(message: ChatRoomMessage): boolean {
   return (
-    isMembershipStatusMessage(message) ||
+    isRoomStatusMessage(message) ||
     hasVisibleMessageBody(message) ||
-    isStreamingCoworkerPlaceholder(message)
+    isSavedQuoteMessage(message) ||
+    isMentionCoworkerShell(message)
   );
 }
 

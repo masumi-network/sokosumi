@@ -4,11 +4,13 @@ import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
+import { nullableJsonInput } from "@/helpers/prisma-json";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
+
 import { normalizeCoworkerMetadata } from "./metadata";
 import { createCoworkerRequestSchema } from "./schema";
 
@@ -128,7 +130,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             capabilities: body.capabilities,
             image: null,
             priority: body.priority ?? 0,
-            metadata: metadata ?? null,
+            metadata: nullableJsonInput(metadata),
             isWhitelisted: false,
           },
           include: coworkerInclude,

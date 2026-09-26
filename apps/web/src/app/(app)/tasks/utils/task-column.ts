@@ -31,14 +31,6 @@ export function getColumnId(status: TaskStatus): KanbanColumnId {
   return STATUS_TO_COLUMN_ID.get(status) ?? "todo";
 }
 
-/** Core list statuses to fetch for a column (may be broader than column membership). */
-export function getColumnQueryStatuses(
-  columnId: KanbanColumnId,
-  statusFilter: TaskStatus | null,
-): TaskStatus[] {
-  return getColumnListQueryOptions(columnId, statusFilter).statuses;
-}
-
 export interface ColumnListQueryOptions {
   statuses: TaskStatus[];
 }

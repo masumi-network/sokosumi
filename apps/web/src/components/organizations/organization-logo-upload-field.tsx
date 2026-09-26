@@ -1,15 +1,13 @@
 "use client";
 
+import { ORGANIZATION_LOGO_MAX_SIZE_BYTES } from "@sokosumi/utils";
 import { Building2, CloudUpload, Loader2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FileUpload, FileUploadTrigger } from "@/components/ui/file-upload";
-import {
-  ORGANIZATION_LOGO_ACCEPT,
-  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-} from "@/lib/constants/organization-logo";
+import { ORGANIZATION_LOGO_ACCEPT } from "@/lib/constants/organization-logo";
 import { cn } from "@/lib/utils";
 
 export interface OrganizationLogoUploadLabels {

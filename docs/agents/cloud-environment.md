@@ -1,0 +1,51 @@
+# Cloud environment
+
+Required when the matching trigger in [AGENTS.md](../../AGENTS.md) applies.
+Commands and backticked paths are relative to the repository root unless stated otherwise.
+
+## Cursor Cloud specific instructions
+
+These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. The update script runs Corepack-backed `pnpm install` (`scripts/cloud-agent-db/ensure-pnpm.sh`) then provisions an ephemeral Neon agent database when secrets are present. Node, tooling, and non-DB `.env` values may still come from the VM snapshot.
+
+Neon provision, teardown, `with-db.mjs`, and auth fixtures live in [`cloud-agent-database.md`](./cloud-agent-database.md). This page covers Node 24 on `PATH` and the local Postgres fallback.
+
+### Runtime versions
+
+- **Node 24 is the required runtime** (root `.nvmrc` = `lts/krypton`; apps and packages pin `"engines": { "node": "24.x" }` — root `package.json` has no `engines` field). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` report Node 24 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
+- **pnpm via Corepack:** Environment `install`/`start` call `scripts/cloud-agent-db/ensure-pnpm.sh`, which `corepack prepare`s the pin in root `package.json` `packageManager` and deletes `~/.local/share/pnpm/.tools/pnpm`. A leftover pnpm 12 standalone placeholder there is not a valid shell script and fails builds with `Syntax error: ")" unexpected`. Read `packageManager` for the version — do not remember a `pnpm -v` number here. Do **not** re-add a `devEngines.packageManager` block: npm reads it on every `npm`/`npx` invocation in the tree and emits `EBADDEVENGINES` warnings (with `onFail: "error"` it refuses to run at all, breaking `npx` at the repo root and from `apps/apple`). `packageManager` alone is what Corepack — locally and on Vercel — actually uses.
+
+### Database (local PostgreSQL fallback)
+
+When Neon secrets are absent, provision skips and local Postgres remains the fallback (snapshot-oriented).
+
+- Local cluster is **PostgreSQL 16** (apt). It is **not started on boot** — start it with `sudo pg_ctlcluster 16 main start` (check with `pg_lsclusters`). DB `core`, role `sokosumi` / password `sokosumi`, on `localhost:5432`.
+- **Gotcha — ambient `DATABASE_URL`:** if the platform still injects a stale Neon URL (`...neon.tech...`, auth fails), `dotenv` does **not** override it. Prefer `with-db.mjs` when a provisioned agent branch exists; otherwise use a login shell (provision injects bashrc) or prefix commands with the local URL. If you see `Authentication failed against the database server` or an unexpected `neon.tech` host without a provisioned agent branch, unset/override `DATABASE_URL`.
+- Schema is already applied on the snapshot DB. After pulling schema changes without a Neon agent branch, run `pnpm prisma:generate` then `pnpm prisma:migrate:deploy`. To inspect local: `PGPASSWORD=sokosumi psql -h localhost -U sokosumi -d core`.
+
+### `.env` files (gitignored, snapshot-persisted)
+
+`apps/core/.env` and `apps/web/.env` were created from `.env.example` with local fixes so the apps boot past their Zod env validation. Non-obvious edits: DB host `sokosumi`→`localhost` (overwritten by agent DB provision when Neon secrets are present); `RESEND_FROM_EMAIL` defaults to `noreply@sokosumi.com`; invalid `AGENT_HIRED_WEBHOOK` placeholder removed; `BETTER_AUTH_COOKIE_DOMAIN` disabled so session cookies work on `localhost`. Web `APP_SIGNING_SECRET` is independent of Core `BETTER_AUTH_SECRET`.
+
+## Claude Code cloud sessions
+
+Claude Code cloud sessions (claude.ai/code, Desktop **Cloud**) run on an Ubuntu 24.04 VM with Node 20/21/22 and `/opt/node22/bin` on `PATH`. The repo `SessionStart` hook in `.claude/settings.json` runs `ensure-pnpm.sh install` and `ensure-pnpm.sh prisma:generate` only when `CLAUDE_CODE_REMOTE=true`, so local sessions skip it. Both commands write to `/tmp/sokosumi-claude-session-install.log`; `SessionStart` stdout is session context, so the log stays off the prompt.
+
+Node 24 and a prewarmed pnpm store come from the environment's setup script (claude.ai → environment settings), which is not in the repo. Keep **Trusted** network access, set `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`, and use:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+V=$(curl -fsSL https://nodejs.org/dist/index.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).find(r=>r.version.startsWith("v24.")).version))')
+curl -fsSL "https://nodejs.org/dist/$V/node-$V-linux-x64.tar.xz" | tar -xJ -C /opt
+[ -L /opt/node22 ] || mv /opt/node22 /opt/node22-orig
+ln -sfn "/opt/node-$V-linux-x64" /opt/node22
+corepack enable
+cd /home/user/sokosumi
+corepack install
+timeout 200 corepack pnpm fetch || true
+```
+
+The repo is already cloned at `/home/user/sokosumi` while the script runs, and the environment cache keeps the Corepack pnpm and the store `pnpm fetch` fills, so the hook's `pnpm install` only links (about 5 s). The cache rebuilds when the script changes or after about 7 days.
+
+Lint, typecheck, and tests need no database or secrets. PostgreSQL 16 is installed but stopped; run `service postgresql start` when a task needs it. Do not put secrets in the environment variables field: everyone using the environment can read them.

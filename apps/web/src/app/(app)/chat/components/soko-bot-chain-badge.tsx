@@ -38,11 +38,6 @@ function readChainMetadata(metadata: unknown): SokoBotChainInfo | null {
   return { depth, maxDepth, roomMessagesThisHour, roomMessagesPerHour };
 }
 
-/** Whether the hover pill carries the chain badge, which makes it wider. */
-export function hasSokoBotChainBadge(metadata: unknown): boolean {
-  return readChainMetadata(metadata) !== null;
-}
-
 /**
  * Shown on hover beside a message an assistant wrote to another assistant.
  * Two bots talking is the one exchange with nobody in it to notice it running

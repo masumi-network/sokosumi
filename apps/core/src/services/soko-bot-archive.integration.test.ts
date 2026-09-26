@@ -11,7 +11,9 @@ vi.mock("@/lib/db/prisma", async () => {
   if (
     url.hostname !== "127.0.0.1" ||
     url.port !== "55439" ||
-    url.pathname !== "/soko_reliability_verified"
+    !["/soko_reliability_verified", "/soko_reliability_integrated"].includes(
+      url.pathname,
+    )
   ) {
     throw new Error(
       "Only the disposable local reliability database is allowed",
@@ -510,16 +512,73 @@ describe.skipIf(!databaseUrl)(
       },
     );
 
-    it("refuses active scheduled drafts", async () => {
+    it.each(["DRAFT", "QUEUED"] as const)(
+      "refuses a future Run at on a %s task without canceling it",
+      async (status) => {
+        const task = await fixture();
+        const runAt = new Date(Date.now() + 3600000);
+        const current = await db.task.update({
+          where: { id: task.id },
+          data: { runAt, status },
+        });
+        await expect(archive(current)).rejects.toThrow(
+          "Remove the future Run at",
+        );
+        expect(
+          await db.task.findUnique({ where: { id: task.id } }),
+        ).toMatchObject({
+          archivedAt: null,
+          runAt,
+          status,
+        });
+        expect(await db.taskEvent.count({ where: { taskId: task.id } })).toBe(
+          0,
+        );
+      },
+    );
+
+    it("archives a generated task without changing its active recurring parent", async () => {
       const task = await fixture();
+      const schedule = await db.taskSchedule.create({
+        data: {
+          workspaceId,
+          ownerId: userId,
+          creatorUserId: userId,
+          name: "Synthetic recurring parent",
+          expr: "0 9 * * *",
+          timezone: "Europe/Berlin",
+          anchorAt: new Date(),
+          ruleEffectiveFrom: new Date(),
+          epochId: randomUUID(),
+          nextRunAt: new Date(Date.now() + 3600000),
+          releasedCount: 1,
+        },
+      });
       const current = await db.task.update({
         where: { id: task.id },
-        data: { nextRunAt: new Date(Date.now() + 3600000) },
+        data: { scheduleId: schedule.id, status: "READY" },
       });
-      await expect(archive(current)).rejects.toThrow("Remove the schedule");
+      await archive(current);
       expect(
         await db.task.findUnique({ where: { id: task.id } }),
-      ).toMatchObject({ archivedAt: null });
+      ).toMatchObject({
+        archivedAt: expect.any(Date),
+        scheduleId: schedule.id,
+        status: "READY",
+      });
+      expect(
+        await db.taskSchedule.findUnique({ where: { id: schedule.id } }),
+      ).toEqual(schedule);
+      expect(
+        await db.taskEvent.count({
+          where: { taskId: task.id, comment: "Task archived" },
+        }),
+      ).toBe(1);
+      expect(
+        await db.sokoBotToolCall.count({
+          where: { turnId, disposition: "APPLIED" },
+        }),
+      ).toBe(1);
     });
 
     it("stale revision cannot archive a task after the owner's edit", async () => {

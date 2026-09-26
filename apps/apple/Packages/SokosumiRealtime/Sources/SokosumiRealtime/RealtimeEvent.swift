@@ -13,6 +13,10 @@ public enum ResolvedRealtimeDelivery: Sendable {
   case roomHealth(roomId: String, healthy: Bool, continuityLost: Bool)
   case connectionHealth(healthy: Bool)
   case revoked(roomId: String)
+  /// Full member set of one organization's presence channel (ADR 0003).
+  case presenceRoster(organizationId: String, members: [ChatPresenceMember])
+  /// A chat-kind row on the user notifications channel.
+  case notification(ChatNotificationEvent)
   case ignored
 
   /// Shared Ably payloads do not carry a meaningful viewer reaction flag.
@@ -44,91 +48,14 @@ private func personalize(
   }
 }
 
-/// Sendable copy of Core's Ably TokenRequest fields. The auth callback maps
-/// these into `ARTTokenRequest.fromJson`, so this package never touches
-/// transport errors or the OpenAPI client.
-public struct AblyTokenFields: Equatable, Sendable {
-  public var keyName: String
-  public var capability: String
-  public var clientId: String?
-  public var timestampMillis: Int
-  public var nonce: String
-  public var mac: String
-  public var ttlMillis: Int?
-
-  public init(
-    keyName: String,
-    capability: String,
-    clientId: String? = nil,
-    timestampMillis: Int,
-    nonce: String,
-    mac: String,
-    ttlMillis: Int? = nil
-  ) {
-    self.keyName = keyName
-    self.capability = capability
-    self.clientId = clientId
-    self.timestampMillis = timestampMillis
-    self.nonce = nonce
-    self.mac = mac
-    self.ttlMillis = ttlMillis
-  }
-
-  public init(_ token: Components.Schemas.AblyTokenRequest) {
-    keyName = token.keyName
-    capability = token.capability
-    clientId = token.clientId
-    timestampMillis = token.timestamp
-    nonce = token.nonce
-    mac = token.mac
-    ttlMillis = token.ttl
-  }
-
-  /// Ably-standard JSON (timestamps and ttl in milliseconds) for
-  /// `ARTTokenRequest.fromJson`.
-  public var jsonString: String? {
-    var dict: [String: Any] = [
-      "keyName": keyName,
-      "capability": capability,
-      "timestamp": timestampMillis,
-      "nonce": nonce,
-      "mac": mac
-    ]
-    if let clientId {
-      dict["clientId"] = clientId
-    }
-    if let ttlMillis {
-      dict["ttl"] = ttlMillis
-    }
-    guard let data = try? JSONSerialization.data(withJSONObject: dict),
-          let string = String(data: data, encoding: .utf8)
-    else {
-      return nil
-    }
-    return string
-  }
-}
-
-/// Sort one Ably delivery into its meaning. Room payloads decode through the
-/// same `ChatRoomMessage` shape history renders; anything unparseable, for
-/// another room, or for presence/push (out of tracer scope) is ignored —
-/// the transcript only moves on proof, never on hope.
-public func resolveRealtimeDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery {
-  if eventName == chatRoomPinnedMessageEventName {
-    guard let roomId = parseChatRoomId(fromChannelName: channel),
-          let pin = decodeRealtimeValue(data, as: PinEvent.self),
-          pin.roomId == roomId, !pin.messageId.isEmpty, pin.pinnedMessageCount >= 0 else { return .ignored }
-    return .pin(roomId: roomId, messageId: pin.messageId, isPinned: pin.action == .pin, count: pin.pinnedMessageCount)
-  }
-  if eventName == chatMembershipRevokedEventName {
-    guard channel.hasPrefix("chat_control:user_"),
-          let dict = data as? [String: Any],
-          let roomId = dict["roomId"] as? String,
-          !roomId.isEmpty
-    else {
-      return .ignored
-    }
-    return .revoked(roomId: roomId)
+/// Sort one Ably message delivery into its meaning. Room payloads decode
+/// through the same `ChatRoomMessage` shape history renders; anything
+/// unparseable, for another room, or for push (out of scope) is ignored —
+/// the transcript only moves on proof, never on hope. Presence arrives
+/// through `OrgPresenceChannel`, not as messages.
+func resolveRealtimeDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery {
+  if let named = resolveNamedDelivery(channel: channel, event: eventName, data: data) {
+    return named
   }
   guard eventName == chatRoomMessageEventName,
         let roomId = parseChatRoomId(fromChannelName: channel),
@@ -156,6 +83,31 @@ public func resolveRealtimeDelivery(channel: String, event eventName: String, da
     roomId: roomId,
     parentMessageId: dict["parentMessageId"] as? String
   ))
+}
+
+/// Pins, notifications and membership revokes: events identified by name alone. Nil for every other event.
+private func resolveNamedDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery? {
+  if eventName == chatRoomPinnedMessageEventName {
+    guard let roomId = parseChatRoomId(fromChannelName: channel),
+          let pin = decodeRealtimeValue(data, as: PinEvent.self),
+          pin.roomId == roomId, !pin.messageId.isEmpty, pin.pinnedMessageCount >= 0 else { return .ignored }
+    return .pin(roomId: roomId, messageId: pin.messageId, isPinned: pin.action == .pin, count: pin.pinnedMessageCount)
+  }
+  if eventName == notificationCreatedEventName {
+    guard channel.hasPrefix("notifications:"), let notification = ChatNotificationEvent(payload: data) else { return .ignored }
+    return .notification(notification)
+  }
+  if eventName == chatMembershipRevokedEventName {
+    guard channel.hasPrefix("chat_control:user_"),
+          let dict = data as? [String: Any],
+          let roomId = dict["roomId"] as? String,
+          !roomId.isEmpty
+    else {
+      return .ignored
+    }
+    return .revoked(roomId: roomId)
+  }
+  return nil
 }
 
 private struct PinEvent: Decodable {

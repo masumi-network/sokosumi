@@ -146,4 +146,77 @@ describe("GET /coworkers/{id}", () => {
       include: coworkerInclude,
     });
   });
+
+  it("scopes owned reads to active membership-accessible coworkers", async () => {
+    coworkerFindFirstMock.mockResolvedValue({
+      id: "cow_123",
+      createdAt: new Date("2026-02-25T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-25T10:00:00.000Z"),
+      archivedAt: null,
+      isWhitelisted: true,
+      priority: 10,
+      capabilities: ["chat"],
+      slug: "ops-agent",
+      name: "Ops Agent",
+      baseURL: null,
+      vendor: testVendor,
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/cow_123?scope=owned");
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "cow_123",
+        archivedAt: null,
+        OR: [
+          {
+            vendor: {
+              vendorMembers: {
+                some: {
+                  userId: "user_123",
+                  role: "admin",
+                },
+              },
+            },
+          },
+          {
+            assignments: {
+              some: {
+                userId: "user_123",
+              },
+            },
+          },
+        ],
+      },
+      include: coworkerInclude,
+    });
+  });
+
+  it("returns 404 when owned coworker is missing", async () => {
+    coworkerFindFirstMock.mockResolvedValue(null);
+    const app = createApp();
+
+    const response = await app.request(
+      "http://localhost/cow_other?scope=owned",
+    );
+    expect(response.status).toBe(404);
+  });
+
+  it("rejects coworker actors for scope=owned with 403", async () => {
+    const app = createApp(coworkerAuth);
+    const response = await app.request("http://localhost/cow_123?scope=owned");
+
+    expect(response.status).toBe(403);
+    expect(coworkerFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid scope values with 422", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/cow_123?scope=all");
+
+    expect(response.status).toBe(422);
+    expect(coworkerFindFirstMock).not.toHaveBeenCalled();
+  });
 });

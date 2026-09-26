@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/node";
 
+import { getEnvSecrets, redactDeep } from "./secret-redaction.js";
+
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -150,10 +152,16 @@ export function logSuppressedExternalError(
   extra?: Record<string, unknown>,
 ): void {
   const level = isSchemaDriftPrismaError(error) ? "error" : "warn";
-  const payload = {
-    error: getErrorMessage(error),
-    ...extra,
-  };
+  // Same last line of defence Sentry's `beforeSend` applies, for the other
+  // sink. Error text assembled from a far side's response body can carry our
+  // own credential back to us, and `extra` routinely holds that text.
+  const payload = redactDeep(
+    {
+      error: getErrorMessage(error),
+      ...extra,
+    },
+    getEnvSecrets(),
+  );
 
   if (level === "error") {
     console.error(`[${label}] suppressed external failure`, payload);

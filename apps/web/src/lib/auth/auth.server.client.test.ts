@@ -235,6 +235,67 @@ describe("setPasswordViaCore", () => {
   });
 });
 
+describe("resetPasswordViaCore", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it("POSTs the password and server-held token to Core auth", async () => {
+    const fetchCoreAuthMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: true }), {
+        status: 200,
+      }),
+    );
+
+    vi.doMock("./auth.server.client", () => ({
+      fetchCoreAuth: (...args: unknown[]) => fetchCoreAuthMock(...args),
+      getCoreAuthBaseUrl: () => "https://core.example.com/auth",
+    }));
+
+    const { resetPasswordViaCore } = await import("./core-auth-http.server");
+    await resetPasswordViaCore("new-password-123", "reset_token_1");
+
+    expect(fetchCoreAuthMock).toHaveBeenCalledWith(
+      "https://core.example.com/auth/reset-password",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newPassword: "new-password-123",
+          token: "reset_token_1",
+        }),
+      },
+    );
+  });
+
+  it("throws the Core error response", async () => {
+    const fetchCoreAuthMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: "INVALID_TOKEN",
+          message: "reset token is invalid",
+        }),
+        { status: 400 },
+      ),
+    );
+
+    vi.doMock("./auth.server.client", () => ({
+      fetchCoreAuth: (...args: unknown[]) => fetchCoreAuthMock(...args),
+      getCoreAuthBaseUrl: () => "https://core.example.com/auth",
+    }));
+
+    const { resetPasswordViaCore } = await import("./core-auth-http.server");
+
+    await expect(
+      resetPasswordViaCore("new-password-123", "reset_token_1"),
+    ).rejects.toMatchObject({
+      message: "reset token is invalid",
+      code: "INVALID_TOKEN",
+    });
+  });
+});
+
 describe("inviteOrganizationMemberViaCore", () => {
   beforeEach(() => {
     vi.resetModules();

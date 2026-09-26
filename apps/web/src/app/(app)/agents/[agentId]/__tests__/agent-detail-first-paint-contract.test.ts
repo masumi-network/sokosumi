@@ -100,6 +100,12 @@ describe("agent detail first-paint contract (SOK-781)", () => {
       readWebSrc("components/agents/agent-detail/header.tsx"),
     );
     const jobsHeader = stripComments(readAgentId("jobs/components/header.tsx"));
+    const viewTracker = stripComments(
+      readWebSrc(
+        "components/agents/agent-detail/agent-detail-view-tracker.tsx",
+      ),
+    );
+    const gtmEvents = stripComments(readWebSrc("lib/gtm-events/index.ts"));
 
     expect(page).not.toMatch(/getAgentCredits|formatCreditsForDisplay/);
     expect(detailHeader).not.toMatch(
@@ -108,6 +114,8 @@ describe("agent detail first-paint contract (SOK-781)", () => {
     expect(jobsHeader).not.toMatch(
       /getAgentCredits|formatCreditsForDisplay|t\("price"/,
     );
+    expect(viewTracker).not.toMatch(/getAgentCredits|agent_price/);
+    expect(gtmEvents).not.toMatch(/agent_price/);
   });
 
   it("route-level loading shell exists and stays sync", () => {

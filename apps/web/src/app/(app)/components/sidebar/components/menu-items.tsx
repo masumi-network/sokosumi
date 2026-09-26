@@ -8,6 +8,7 @@ import {
   History,
   ListTodo,
   Plus,
+  Repeat,
   Search,
 } from "lucide-react";
 import Link from "next/link";
@@ -16,6 +17,7 @@ import { useTranslations } from "next-intl";
 import { type ComponentType, Fragment, type SVGProps } from "react";
 import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
+import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -23,30 +25,31 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRailSelectionBar,
+  SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  SIDEBAR_ROW_FIXED_LABEL_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
+
+import { ProjectsMenuItem } from "./projects-menu-item";
 
 interface MenuItemConfig {
   key: string;
   href?: string;
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
-  hasIndicator?: boolean;
-  badge?: string;
-  unreadCount?: number;
   onClick?: () => void;
   shortcutLabel?: string;
   ariaKeyshortcuts?: string;
   separatorAfter?: boolean;
 }
 
-interface MenuItemsProps {
-  calendarMenuEnabled: boolean;
-}
-
-export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
+export default function MenuItems() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   // Soft read: Instant Nav shell may mount before HistorySearchDialogProvider.
@@ -115,16 +118,18 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
       label: t("taskManager"),
       Icon: ListTodo,
     },
-    ...(calendarMenuEnabled
-      ? [
-          {
-            key: "calendar",
-            href: "/calendar",
-            label: t("calendar"),
-            Icon: CalendarDays,
-          },
-        ]
-      : []),
+    {
+      key: "schedules",
+      href: TASK_SCHEDULES_PATH,
+      label: t("schedules"),
+      Icon: Repeat,
+    },
+    {
+      key: "calendar",
+      href: "/calendar",
+      label: t("calendar"),
+      Icon: CalendarDays,
+    },
     // Desktop only: mobile keeps Files on the You page account surface.
     ...(!isMobile
       ? [
@@ -146,7 +151,12 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
 
   return (
     <>
-      <SidebarGroup className="w-full p-0">
+      {/* `px-2` here rather than on the item, so a nav row's
+          `SidebarMenuItem` is the same box a Chat row's is and the rail
+          selection bar's `-right-2` lands on the rail's edge in both. The
+          separator spans the rail rather than the row, so it takes that
+          padding back with `-mx-2`. */}
+      <SidebarGroup className="w-full px-2 py-0">
         <SidebarGroupContent>
           <SidebarMenu className="gap-0 py-2">
             {items.map(
@@ -155,64 +165,76 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                 href,
                 label,
                 Icon,
-                hasIndicator,
-                badge,
-                unreadCount,
                 onClick,
                 shortcutLabel,
                 ariaKeyshortcuts,
                 separatorAfter,
               }) => {
+                if (key === "projects") {
+                  return <ProjectsMenuItem key={key} />;
+                }
                 const isActive = href ? isPathActive(href) : false;
-                const showUnread = (unreadCount ?? 0) > 0;
-                const unreadDisplay =
-                  (unreadCount ?? 0) > 99 ? "99+" : String(unreadCount ?? 0);
+                // The pill wears the rail square's 4px inset and 4px padding
+                // at every width, so collapsing only narrows it: its edge
+                // and the + inside it stay where they are.
+                const newTaskClassName =
+                  key === "new-task"
+                    ? "ml-1 w-[calc(100%-0.5rem)] pl-1 bg-secondary text-secondary-foreground hover:bg-secondary-hover hover:text-secondary-foreground active:bg-secondary-hover active:text-secondary-foreground data-[state=open]:hover:bg-secondary-hover data-[state=open]:hover:text-secondary-foreground group-data-[collapsible=icon]:hover:bg-secondary-hover group-data-[collapsible=icon]:active:bg-secondary-hover"
+                    : undefined;
+
+                // Collapsed rail hides the label, so every item needs the hint.
+                const tooltip = shortcutLabel
+                  ? {
+                      children: (
+                        <span className="flex items-center gap-2">
+                          <span>{label}</span>
+                          <span className="text-muted-foreground text-xs tracking-widest">
+                            {shortcutLabel}
+                          </span>
+                        </span>
+                      ),
+                    }
+                  : label;
 
                 const content = (
                   <>
-                    <Icon className="size-4" aria-hidden />
-                    <span className="flex-1 truncate">{label}</span>
-                    {badge ? (
-                      <span
-                        className={cn(
-                          "border-border text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[0.625rem] font-medium uppercase tracking-wide leading-4",
-                          isActive &&
-                            "border-sidebar-accent-foreground text-sidebar-accent-foreground",
-                        )}
-                      >
-                        {badge}
-                      </span>
-                    ) : null}
-                    {showUnread ? (
-                      <span
-                        aria-label={`${unreadDisplay} unread`}
-                        className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-4 tabular-nums"
-                      >
-                        {unreadDisplay}
-                      </span>
-                    ) : hasIndicator ? (
-                      <span
-                        aria-hidden
-                        className="bg-primary-iris size-2 shrink-0 rounded-full"
-                      />
-                    ) : null}
+                    <SidebarRowSlot>
+                      <Icon className="size-4" aria-hidden />
+                    </SidebarRowSlot>
+                    <span
+                      className={cn(
+                        SIDEBAR_ROW_LABEL_CLASS,
+                        SIDEBAR_ROW_FIXED_LABEL_CLASS,
+                      )}
+                    >
+                      {label}
+                    </span>
                   </>
                 );
 
                 return (
                   <Fragment key={key}>
-                    <SidebarMenuItem className="px-2">
+                    <SidebarMenuItem>
                       {href ? (
-                        <SidebarMenuButton asChild isActive={isActive}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          data-sidebar-new-task={
+                            key === "new-task" ? "" : undefined
+                          }
+                          className={newTaskClassName}
+                          tooltip={tooltip}
+                        >
                           <SheetClose asChild>
                             <Link
                               href={href}
                               aria-current={isActive ? "page" : undefined}
                               className={cn(
-                                "flex min-h-auto w-full items-center gap-2 px-3",
-                                isActive
-                                  ? "text-sidebar-accent-foreground"
-                                  : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                                key === "new-task"
+                                  ? newTaskClassName
+                                  : isActive
+                                    ? "text-sidebar-accent-foreground"
+                                    : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                               )}
                             >
                               {content}
@@ -223,25 +245,14 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                         <SidebarMenuButton
                           type="button"
                           onClick={onClick}
-                          aria-keyshortcuts={ariaKeyshortcuts}
-                          tooltip={
-                            shortcutLabel
-                              ? {
-                                  children: (
-                                    <span className="flex items-center gap-2">
-                                      <span>{label}</span>
-                                      <span className="text-muted-foreground text-xs tracking-widest">
-                                        {shortcutLabel}
-                                      </span>
-                                    </span>
-                                  ),
-                                }
-                              : undefined
+                          data-sidebar-new-task={
+                            key === "new-task" ? "" : undefined
                           }
+                          aria-keyshortcuts={ariaKeyshortcuts}
+                          tooltip={tooltip}
                           className={cn(
-                            "flex min-h-auto w-full items-center gap-2 px-3",
-                            "text-tertiary-foreground dark:text-muted-foreground",
-                            "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                            newTaskClassName ??
+                              "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                           )}
                         >
                           {content}
@@ -255,12 +266,13 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                           ) : null}
                         </SidebarMenuButton>
                       )}
+                      {/* Collapsed, the rail's fill belongs to hover alone, so
+                          the open destination is marked on the rail's edge the
+                          same way an open Chat room is. */}
+                      {isActive ? <SidebarRailSelectionBar /> : null}
                     </SidebarMenuItem>
                     {separatorAfter ? (
-                      <SidebarMenuItem
-                        aria-hidden
-                        className="py-2 group-data-[collapsible=icon]:hidden"
-                      >
+                      <SidebarMenuItem aria-hidden className="-mx-2 py-2">
                         <div className="bg-sidebar-border h-px w-full" />
                       </SidebarMenuItem>
                     ) : null}

@@ -1,16 +1,17 @@
 import { createRoute } from "@hono/zod-openapi";
+import { memberRepository } from "@sokosumi/database/repositories";
 
-import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { adminOrganizationMemberIdParamSchema } from "@/schemas/admin.schema";
 import { organizationSeatUnassignmentSchema } from "@/schemas/organization-seat.schema";
 import {
   mapSeatRepositoryError,
-  unassignOrganizationMemberSeat,
+  SEAT_RELEASE_CONFLICT_MESSAGE,
 } from "@/services/organization-seat.service";
 
 const route = createRoute({
@@ -30,6 +31,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
   },
 });
 
@@ -37,15 +39,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { slug, memberId } = c.req.valid("param");
 
-    const organization = await getAdminOrganizationBySlug(slug, prisma);
+    const organization = await prisma.organization.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
     if (!organization) {
       throw notFound("Organization not found");
     }
 
     try {
-      const result = await prisma.$transaction(async (tx) =>
-        unassignOrganizationMemberSeat(organization.id, memberId, tx),
-      );
+      // Serializable to match the assignment routes (SOK-1007), for the same
+      // reason as the organization-scoped release route.
+      const result = await serializableTransaction(async (tx) => {
+        const member = await memberRepository.unassignSeat(
+          memberId,
+          organization.id,
+          tx,
+        );
+
+        return {
+          memberId: member.id,
+        };
+      }, SEAT_RELEASE_CONFLICT_MESSAGE);
 
       return ok(c, organizationSeatUnassignmentSchema.parse(result));
     } catch (error) {

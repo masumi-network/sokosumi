@@ -15,32 +15,21 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { userFindUniqueMock, resolveActiveSubscriptionByReferenceIdMock } =
-  vi.hoisted(() => ({
-    userFindUniqueMock: vi.fn(),
-    resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
-  }));
+const { userFindUniqueMock, subscriptionFindFirstMock } = vi.hoisted(() => ({
+  userFindUniqueMock: vi.fn(),
+  subscriptionFindFirstMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     user: {
       findUnique: userFindUniqueMock,
     },
+    subscription: {
+      findFirst: subscriptionFindFirstMock,
+    },
   },
 }));
-
-vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/repositories")>();
-  return {
-    ...actual,
-    subscriptionRepository: {
-      ...actual.subscriptionRepository,
-      resolveActiveSubscriptionByReferenceId:
-        resolveActiveSubscriptionByReferenceIdMock,
-    },
-  };
-});
 
 const { default: mountGetUserSubscription } = await import("./get");
 
@@ -78,12 +67,12 @@ describe("GET /users/{id}/subscription", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+    expect(subscriptionFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("returns the active personal subscription for `me`", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    subscriptionFindFirstMock.mockResolvedValue({
       id: "sub_1",
       plan: "starter",
       status: "active",
@@ -110,15 +99,16 @@ describe("GET /users/{id}/subscription", () => {
         seats: 1,
       },
     });
-    expect(resolveActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
-      "user_123",
-      expect.anything(),
+    expect(subscriptionFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ referenceId: "user_123" }),
+      }),
     );
   });
 
   it("returns null when the user has no active subscription", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    subscriptionFindFirstMock.mockResolvedValue(null);
 
     const response = await createApp().request(
       "http://localhost/user_123/subscription",

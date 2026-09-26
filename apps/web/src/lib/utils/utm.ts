@@ -12,4 +12,3 @@ export const utmDataSchema = z.object({
 });
 
 export const UTM_COOKIE_NAME = "sokosumi_utm";
-export const UTM_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds

@@ -53,34 +53,20 @@ export const jobForStatusComputeSelect = {
   },
 } as const;
 
-export type JobForStatusCompute = Prisma.JobGetPayload<{
-  select: typeof jobForStatusComputeSelect;
-}>;
-
-export type JobEventForStatusCompute = JobForStatusCompute["events"][number];
-
 export const jobWithPurchase = {
   purchase: true,
 } as const;
-
-export type JobWithPurchase = Prisma.JobGetPayload<{
-  include: typeof jobWithPurchase;
-}>;
 
 export const jobWithTransaction = {
   transaction: true,
 } as const;
 
-export type JobWithTransaction = Prisma.JobGetPayload<{
-  include: typeof jobWithTransaction;
-}>;
-
-export const jobSummaryOwnerOrganizationInclude = {
+const jobSummaryOwnerOrganizationInclude = {
   owner: { select: { id: true, name: true, image: true } },
   organization: { select: { id: true, name: true, slug: true } },
 } as const;
 
-export const jobSummaryInclude = {
+const jobSummaryInclude = {
   ...workspaceRelationInclude,
   ...jobWithEvents,
   ...jobWithTransaction,
@@ -93,7 +79,7 @@ export type JobWithSummaryRelations = Prisma.JobGetPayload<{
 }>;
 
 /** Lean events for list/summary: status + timestamps + result, no blobs/links/full input. */
-export const jobListEventsSelect = {
+const jobListEventsSelect = {
   events: {
     orderBy: {
       createdAt: "desc",
@@ -123,18 +109,11 @@ export type JobWithListSummaryRelations = Prisma.JobGetPayload<{
   include: typeof jobListSummaryInclude;
 }>;
 
-export type JobEventForListSummary =
-  JobWithListSummaryRelations["events"][number];
-
-export const jobWithRefundedTransaction = {
+const jobWithRefundedTransaction = {
   refundedTransaction: true,
 } as const;
 
-export type JobWithRefundedTransaction = Prisma.JobGetPayload<{
-  include: typeof jobWithRefundedTransaction;
-}>;
-
-export const jobWithAgent = {
+const jobWithAgent = {
   agent: {
     include: {
       metadataOverride: true,
@@ -142,33 +121,17 @@ export const jobWithAgent = {
   },
 } as const;
 
-export type JobWithAgent = Prisma.JobGetPayload<{
-  include: typeof jobWithAgent;
-}>;
-
-export const jobWithOwner = {
+const jobWithOwner = {
   owner: true,
 } as const;
 
-export type JobWithOwner = Prisma.JobGetPayload<{
-  include: typeof jobWithOwner;
-}>;
-
-export const jobWithOrganization = {
+const jobWithOrganization = {
   organization: true,
 } as const;
-
-export type JobWithOrganization = Prisma.JobGetPayload<{
-  include: typeof jobWithOrganization;
-}>;
 
 export const jobWithShare = {
   share: true,
 } as const;
-
-export type JobWithShare = Prisma.JobGetPayload<{
-  include: typeof jobWithShare;
-}>;
 
 export const jobInclude = {
   ...jobSummaryInclude,
@@ -179,11 +142,11 @@ export const jobInclude = {
   ...jobWithShare,
 } as const;
 
-export type JobWithRelations = Prisma.JobGetPayload<{
+type JobWithRelations = Prisma.JobGetPayload<{
   include: typeof jobInclude;
 }>;
 
-export type JobEventWithRelations = Prisma.JobEventGetPayload<{
+type JobEventWithRelations = Prisma.JobEventGetPayload<{
   include: {
     input: true;
     blobs: true;
@@ -241,9 +204,9 @@ type BasePaidJob = {
   identifierFromPurchaser: string;
 };
 
-export type FreeJobWithStatus = Override<BaseJobWithStatus, BaseFreeJob>;
+type FreeJobWithStatus = Override<BaseJobWithStatus, BaseFreeJob>;
 
-export type PaidJobWithStatus = Override<BaseJobWithStatus, BasePaidJob>;
+type PaidJobWithStatus = Override<BaseJobWithStatus, BasePaidJob>;
 
 export const finalizedOnChainJobStatuses: OnChainJobStatus[] = [
   OnChainJobStatus.DISPUTED_WITHDRAWN,

@@ -6,8 +6,10 @@ import {
   ProjectBrandProvider,
 } from "@/app/projects/components/project-brand-card";
 import { ProjectBriefing } from "@/app/projects/components/project-briefing";
+import { ProjectCloseStatusCard } from "@/app/projects/components/project-close-status";
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
+import { ProjectDetailPinButton } from "@/app/projects/components/project-detail-pin-button";
 import { ProjectLatestUpdate } from "@/app/projects/components/project-latest-update";
 import { ProjectMemoryRow } from "@/app/projects/components/project-memory-row";
 import { ProjectModuleTiles } from "@/app/projects/components/project-module-tiles";
@@ -17,16 +19,16 @@ import {
   PROJECTS_DETAIL_WORKSPACE_CLASS,
 } from "@/app/projects/constants";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
-import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { projectService } from "@/lib/services/project.service";
+import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 export default async function ProjectDetailPage({
   params,
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const [calendarBetaEnabled, { projectId }] = await Promise.all([
-    hasCurrentUserCalendarBetaAccess(),
+  const [socialBetaEnabled, { projectId }] = await Promise.all([
+    hasCurrentUserSocialBetaAccess(),
     params,
   ]);
   const project = await projectService.getProjectById(projectId);
@@ -35,15 +37,27 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [attention, t, tHistory, tListStats, tTaskFilters, formatter] =
-    await Promise.all([
-      projectService.getProjectNeedsAttention(project.id),
-      getTranslations("App.Projects.Detail"),
-      getTranslations("App.History.Row"),
-      getTranslations("App.Projects.list.stats"),
-      getTranslations("App.Tasks.Filters"),
-      getFormatter(),
-    ]);
+  const [
+    attention,
+    closeStatus,
+    t,
+    tHistory,
+    tList,
+    tListStats,
+    tTaskFilters,
+    formatter,
+  ] = await Promise.all([
+    projectService.getProjectNeedsAttention(project.id),
+    project.closingAt || project.closedAt
+      ? projectService.getProjectCloseStatus(project.id)
+      : Promise.resolve(null),
+    getTranslations("App.Projects.Detail"),
+    getTranslations("App.History.Row"),
+    getTranslations("App.Projects.list"),
+    getTranslations("App.Projects.list.stats"),
+    getTranslations("App.Tasks.Filters"),
+    getFormatter(),
+  ]);
 
   const taskStatusLabels = buildTaskStatusLabels((key) =>
     tTaskFilters(`statusOptions.${key}`),
@@ -75,23 +89,45 @@ export default async function ProjectDetailPage({
                 },
               ]}
               actions={
-                <ProjectDetailActions
-                  projectId={project.id}
-                  labels={{
-                    moreActions: t("actions.moreActions"),
-                    edit: t("actions.edit"),
-                    delete: t("actions.delete"),
-                    deleteDialog: {
-                      title: t("deleteDialog.title"),
-                      description: t("deleteDialog.description"),
-                      confirm: t("deleteDialog.confirm"),
-                      cancel: t("deleteDialog.cancel"),
-                      error: t("errors.delete"),
-                    },
-                  }}
-                />
+                <div className="flex items-center gap-1">
+                  <ProjectDetailPinButton
+                    projectId={project.id}
+                    isClosed={Boolean(project.closingAt || project.closedAt)}
+                    labels={{
+                      pin: tList("pin"),
+                      unpin: tList("unpin"),
+                      error: tList("pinError"),
+                    }}
+                  />
+                  <ProjectDetailActions
+                    projectId={project.id}
+                    projectRevision={project.projectRevision}
+                    isClosingOrClosed={Boolean(
+                      project.closingAt || project.closedAt,
+                    )}
+                    labels={{
+                      moreActions: t("actions.moreActions"),
+                      edit: t("actions.edit"),
+                      close: t("actions.close"),
+                      closeDialog: {
+                        title: t("close.dialog.title"),
+                        description: t("close.dialog.description"),
+                        reasonLabel: t("close.dialog.reasonLabel"),
+                        reasonPlaceholder: t("close.dialog.reasonPlaceholder"),
+                        confirm: t("close.dialog.confirm"),
+                        cancel: t("close.dialog.cancel"),
+                        success: t("close.dialog.success"),
+                        error: t("close.dialog.error"),
+                      },
+                    }}
+                  />
+                </div>
               }
             />
+
+            {closeStatus ? (
+              <ProjectCloseStatusCard status={closeStatus} />
+            ) : null}
 
             {project.latestUpdate ? (
               <ProjectLatestUpdate
@@ -157,9 +193,10 @@ export default async function ProjectDetailPage({
                 {t("modules.title")}
               </h2>
               <ProjectModuleTiles
-                calendarHref={
-                  calendarBetaEnabled
-                    ? `/projects/${project.id}/calendar`
+                calendarHref={`/projects/${project.id}/calendar`}
+                socialHref={
+                  socialBetaEnabled
+                    ? `/projects/${project.id}/social`
                     : undefined
                 }
                 projectId={project.id}
@@ -169,6 +206,10 @@ export default async function ProjectDetailPage({
                     description: t("modules.calendar.description"),
                   },
                   comingSoon: t("modules.comingSoon"),
+                  imageStudio: {
+                    title: t("modules.imageStudio.title"),
+                    description: t("modules.imageStudio.description"),
+                  },
                   seo: {
                     title: t("modules.seo.title"),
                     description: t("modules.seo.description"),

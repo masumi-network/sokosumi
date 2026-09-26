@@ -1,41 +1,18 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { CalendarSourceType } from "@sokosumi/database";
-import { HTTPException } from "hono/http-exception";
-import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { type AuthenticationContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { workspaceCalendarSourceSchema } from "@/schemas/workspace-calendar.schema";
-import { requireScheduledTaskCreator } from "@/services/task-schedule-create.service";
-
-async function isScheduledTaskCreationAllowed(
-  authContext: AuthenticationContext,
-  organizationId: string | null,
-): Promise<boolean> {
-  try {
-    const creator = await requireScheduledTaskCreator(authContext);
-    await requireAssignedOrganizationSeat(
-      creator.userContext.userId,
-      organizationId,
-    );
-    return true;
-  } catch (error) {
-    if (error instanceof HTTPException && error.status === 403) {
-      return false;
-    }
-    throw error;
-  }
-}
+import { canCreateTaskSchedules } from "@/services/task-schedule.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -59,15 +36,12 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-    const userContext = await requireAuthorizedUserContext(c.var.authContext);
-    await requireCalendarBetaAccess(userContext.userId, prisma);
+    // Still an authorization check, even though nothing reads the context.
+    await requireAuthorizedUserContext(c.var.authContext);
     const workspaceId = workspaceContext.workspaceId;
-    const isSchedulable = await isScheduledTaskCreationAllowed(
-      c.var.authContext,
-      workspaceContext.organizationId,
-    );
+    const isSchedulable = await canCreateTaskSchedules(c.var);
 
-    const [workspace, projects, legacyOccurrence] = await Promise.all([
+    const [workspace, projects] = await Promise.all([
       prisma.workspace.findUnique({
         where: { id: workspaceId },
         select: {
@@ -85,13 +59,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           closingAt: true,
           closedAt: true,
         },
-      }),
-      prisma.taskScheduleOccurrence.findFirst({
-        where: {
-          sourceWorkspaceId: workspaceId,
-          sourceType: CalendarSourceType.LEGACY_UNKNOWN,
-        },
-        select: { id: true },
       }),
     ]);
     if (!workspace) {
@@ -130,23 +97,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }),
       ),
     ];
-
-    if (legacyOccurrence) {
-      sources.push(
-        workspaceCalendarSourceSchema.parse({
-          sourceId: getCalendarSourceId({
-            sourceWorkspaceId: workspaceId,
-            sourceType: CalendarSourceType.LEGACY_UNKNOWN,
-            sourceProjectId: null,
-          }),
-          sourceType: CalendarSourceType.LEGACY_UNKNOWN,
-          displayName: "Legacy source",
-          logoUrl: null,
-          paletteToken: "amber",
-          isSchedulable: false,
-        }),
-      );
-    }
 
     return ok(c, sources);
   });

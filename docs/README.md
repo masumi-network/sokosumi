@@ -11,18 +11,19 @@ This directory contains documentation for the Sokosumi monorepo.
 
 ## Agent tooling
 
-- [`agents/issue-tracker.md`](./agents/issue-tracker.md)
-- [`agents/triage-labels.md`](./agents/triage-labels.md)
-- [`agents/domain.md`](./agents/domain.md)
-- [`agents/cloud-agent-database.md`](./agents/cloud-agent-database.md)
+Root [`AGENTS.md`](../AGENTS.md) is the loading table and trigger list. Task-specific files live in [`agents/`](./agents/). Do not restate that list here.
 
 ## Soko Bot
 
 - [`soko-bot/`](./soko-bot/) — in-process Core runtime (deployment and operations)
 
+## Project image studio
+
+- [`image-studio/deployment.md`](./image-studio/deployment.md) — which project carries which key, branch-scoped preview setup, and deploy side effects
+
 ## Wayfinder
 
-- [`wayfinder/`](./wayfinder/) — reached x402/EVM spec map (`MAP.md`, `PR1-SPEC.md`, `PR2-SPEC.md`)
+- [`wayfinder/x402-evm/PR2-SPEC.md`](./wayfinder/x402-evm/PR2-SPEC.md) — remaining x402/EVM implementer spec (`Job.paymentRail` / `JobX402Payment`); substrate [`adr/0001-x402-evm-payment-rail.md`](./adr/0001-x402-evm-payment-rail.md)
 
 ## Architecture decisions
 

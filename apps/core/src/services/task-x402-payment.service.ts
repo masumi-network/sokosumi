@@ -1,9 +1,5 @@
 import * as Sentry from "@sentry/node";
-import {
-  PricingType,
-  TaskStatus,
-  TaskX402PaymentStatus,
-} from "@sokosumi/database";
+import { PricingType, TaskX402PaymentStatus } from "@sokosumi/database";
 import { isX402PaymentIdentifierAdvertised } from "@sokosumi/masumi/schemas";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
@@ -12,6 +8,7 @@ import { paymentClient } from "@/clients/masumi-payment.client";
 import { getEnv } from "@/config/env";
 import { requireTaskCollaboration } from "@/helpers/access-control";
 import { getCreditCostsOrThrow } from "@/helpers/agent";
+import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import {
   badGateway,
   badRequest,
@@ -28,7 +25,6 @@ import {
   chargeTaskCreditsOrMarkOutOfCredits,
 } from "@/helpers/task-event-charge";
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
-import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { buildX402AgentPricingListing } from "@/helpers/x402-agent-listing";
 import { verifyX402DemandAgainstAgentSources } from "@/helpers/x402-payment-verify";
 import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
@@ -213,7 +209,7 @@ async function runX402ChargePhase(
     requirementSources: normalization.requirementSources,
   };
 
-  return await serializableTransaction(
+  const outcome = await serializableTransaction(
     async (tx): Promise<ChargePhaseOutcome> => {
       const task = await requireTaskCollaboration(authContext, taskId, tx);
 
@@ -371,9 +367,6 @@ async function runX402ChargePhase(
           expectedStatus: task.status,
           eventStatus: charge.eventStatus,
         });
-        if (task.status === TaskStatus.QUEUED) {
-          await removeTaskSchedulePlannedOccurrences(tx, taskId);
-        }
         return {
           kind: "out_of_credits",
           attemptedCredits: convertCentsToCredits(cents),
@@ -468,6 +461,18 @@ async function runX402ChargePhase(
     }
     throw error;
   });
+
+  if (outcome.kind === "sign" && outcome.chargedNow) {
+    // After the commit: the wallet the charge came out of is the task's.
+    waitUntil(
+      notifyLowBalanceAfterCharge({
+        userId: task.ownerId,
+        organizationId: task.organizationId,
+      }),
+    );
+  }
+
+  return outcome;
 }
 
 function schedulePostCommitFanout(

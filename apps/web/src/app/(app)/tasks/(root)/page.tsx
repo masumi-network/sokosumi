@@ -10,16 +10,13 @@ import {
   KANBAN_COLUMNS,
   type KanbanColumnId,
 } from "@/app/tasks/types/task-board";
-import {
-  findCoworkerIdBySlug,
-  getCoworkerOptions,
-  withOwnerSokoBotOption,
-} from "@/app/tasks/utils/coworker-options";
+import { findCoworkerIdBySlug } from "@/app/tasks/utils/coworker-options";
 import {
   parseJobsListFilters,
   sanitizeJobAgentIdForPersistedFilter,
 } from "@/app/tasks/utils/jobs-filters";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
+import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
   firstQueryString,
@@ -33,11 +30,10 @@ import { parseTasksTab } from "@/app/tasks/utils/tasks-tab";
 import { getSession } from "@/lib/auth/auth.server";
 import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 import { coworkerService } from "@/lib/services/coworker.service";
-import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
+import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
-import type { CoworkerOption } from "@/lib/types/coworker";
 import {
   parseTasksDensity,
   TASKS_DENSITY_COOKIE_NAME,
@@ -136,6 +132,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
   const [taskCoworkers, projectsPage, ownerBot] = await loadTasksPageData();
   const memberOptions =
     await listTaskAssigneeMemberOptions(activeOrganizationId);
+  // Core decides schedule eligibility; start that request before loading the board.
+  const coworkerOptionsPromise = listTaskAssigneeOptions(
+    activeOrganizationId,
+    memberOptions,
+  );
   const filters = parseTasksFilters(
     {
       scope,
@@ -298,12 +299,9 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           ]),
         ) as Record<KanbanColumnId, string | null>);
 
-  const coworkerOptions: CoworkerOption[] = withOwnerSokoBotOption(
-    [...memberOptions, ...getCoworkerOptions(taskCoworkers)],
-    ownerBot,
-    { fallbackName: t("sokoBot"), vendorName: t("sokoBots") },
-  );
-  const canCreateTask = await hasAssignedOrganizationSeat(activeOrganizationId);
+  const coworkerOptions = await coworkerOptionsPromise;
+  const canCreateTask =
+    await organizationSeatService.hasAssignedSeat(activeOrganizationId);
   const initialCreateTaskOpen = create === "true";
   const resolvedAssigneeSlug = assigneeSlugParam ?? legacyCoworkerSlugParam;
   const initialAssigneeId =
@@ -324,7 +322,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
   };
 
   return (
-    <div className="w-full px-2">
+    <div className="w-full">
       <Suspense fallback={null}>
         <TasksPendingVendorGrantBannerSlot
           activeOrganizationId={activeOrganizationId}
@@ -401,10 +399,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
             },
           },
           columns: columnLabels,
-          add: t("Actions.add"),
-          addTask: t("Actions.addTask"),
           dragError: t("Errors.updateStatus"),
-          scheduleActiveError: t("Errors.scheduleActive"),
           loadMoreError: t("Errors.loadMore"),
           loadJobsError: t("Errors.loadJobs"),
           reopenToReady: {
@@ -450,18 +445,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
             untitled: t("Jobs.untitled"),
             unknownAgent: t("Jobs.unknownAgent"),
           },
-          emptyState: {
-            title: t("EmptyState.title"),
-            description: t("EmptyState.description"),
-            getStartedTitle: t("EmptyState.getStartedTitle"),
-            getStartedDescription: t("EmptyState.getStartedDescription"),
-            getStartedButton: t("EmptyState.getStartedButton"),
-            next: t("EmptyState.next"),
-            back: t("EmptyState.back"),
-            addTaskHint: t("EmptyState.addTaskHint"),
-            elenaAvatarAlt: t("EmptyState.elenaAvatarAlt"),
-          },
-          showGuideAriaLabel: t("Actions.showGuide"),
           loadMore: t("Actions.loadMore"),
           loading: t("Actions.loading"),
         }}

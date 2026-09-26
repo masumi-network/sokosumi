@@ -1,0 +1,69 @@
+---
+description: "Values written to Prisma Json columns carry Prisma's input types, produced at the helper rather than cast at the call site"
+alwaysApply: false
+---
+
+## Prisma JSON columns
+
+A value destined for a Prisma `Json` column is typed with Prisma's own input
+types, and it acquires that type where it is **produced**:
+
+```typescript
+import { Prisma } from "@sokosumi/database";
+
+export function mergeMessageMetadata(
+  existing: unknown,
+  quote: Quote | null,
+): Prisma.InputJsonObject | null {
+  // …
+}
+```
+
+Use `Prisma.InputJsonObject` for an object, `Prisma.InputJsonValue` when a
+scalar or array is also valid, and the `Prisma.DbNull` / `Prisma.JsonNull`
+sentinels to distinguish a SQL `NULL` from a JSON `null`.
+
+`Record<string, unknown>` is **not** assignable to `InputJsonValue`. A helper
+that returns one forces every caller to deal with it, and the usual way a
+caller "deals with it" is a cast that throws the checking away.
+
+### Fix at the producer
+
+When a JSON assignment fails to typecheck, change the function or DTO that
+produces the value. Leave the Prisma call alone.
+
+A cast at the call site — `as Prisma.InputJsonObject`, `as any`, or a
+double cast — silences one error and keeps the mismatch. It also violates the
+repo's TypeScript conventions, which rule out `as unknown as X` and `as any`.
+
+### Declare persisted shapes as type aliases, not interfaces
+
+A shape written verbatim into a `Json` column must be an object **type alias**:
+
+```typescript
+// ✅ assignable to Prisma.InputJsonValue
+export type PersistedPart = { type: "text"; text: string };
+
+// ❌ an interface is not
+export interface PersistedPart { type: "text"; text: string }
+```
+
+Only a type alias carries TypeScript's implicit index signature, which is what
+lets the compiler check the shape against `InputJsonValue`; an interface fails
+that check no matter how JSON-shaped its fields are. This is the one documented
+exception to the repo's "prefer interfaces over types" convention, so do not
+"fix" such an alias back to an interface — it breaks Core's typecheck.
+
+### Why a wrong shape cascades
+
+Prisma computes a call's result type from its arguments. When `data` fails to
+typecheck, inference for the whole call collapses and the `include` payload
+degrades to the base model, so relations vanish:
+
+```
+Property 'senderUser' does not exist … Did you mean 'senderUserId'?
+```
+
+That error is a **symptom**. Its cause is an assignability failure higher up
+in the same call, usually on a JSON field. Fix the root and its dependents
+disappear together.

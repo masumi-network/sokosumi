@@ -72,6 +72,12 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/notifications")).toBe("home");
   });
 
+  // The Threads view lives in the Chats tab on the phone (SOK-1159), so the
+  // tab stays lit while the reader is in it.
+  it("keeps the Chats tab on the Threads view", () => {
+    expect(resolveChatMobileActiveTabId("/chat/threads")).toBe("chats");
+  });
+
   it("returns null on rooms and nested routes", () => {
     expect(
       resolveChatMobileActiveTabId(
@@ -91,6 +97,8 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/agents")).toBe("home");
     expect(resolveChatMobileActiveTabId("/agents/a1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/drive")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/calendar")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/schedules")).toBe("home");
     expect(resolveChatMobileActiveTabId("/notifications/n1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/projects/p1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/account")).toBeNull();

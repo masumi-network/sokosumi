@@ -1,5 +1,5 @@
 import type { InputBooleanSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { Switch } from "@/components/ui/switch";
 
@@ -9,7 +9,7 @@ export function BooleanInput({
   id,
   field,
   controlProps,
-}: JobInputComponentProps<InputType.BOOLEAN, InputBooleanSchemaType>) {
+}: JobInputComponentProps<typeof InputType.BOOLEAN, InputBooleanSchemaType>) {
   return (
     <Switch
       id={id}

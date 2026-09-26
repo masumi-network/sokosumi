@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { getOSFromUserAgent, type OS } from "@/lib/utils";
+import { getOSFromUserAgent, type OS } from "@/lib/utils/user-agent";
 
 interface OSInfo {
   os: OS;

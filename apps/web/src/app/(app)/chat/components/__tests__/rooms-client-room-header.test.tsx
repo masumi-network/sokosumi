@@ -1,45 +1,20 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import "./rooms-client-harness";
+import { act, screen, waitFor } from "@testing-library/react";
 
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type {
-  ChatRoom,
-  ChatRoomMessage,
-  Organization,
-} from "@/lib/clients/generated/core";
+import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
+import { TestQueryProvider } from "@/test/query-provider";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
-
-const {
-  mockIsMobileMedia,
-  mockHeaderRoomSlotHost,
-  mockSearchParams,
+import {
   mockPathname,
   mockReplace,
-} = vi.hoisted(() => ({
-  mockIsMobileMedia: vi.fn((): boolean | undefined => false),
-  mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
-  mockSearchParams: vi.fn(() => new URLSearchParams()),
-  mockPathname: vi.fn(() => "/chat/rooms/room-channel"),
-  mockReplace: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: mockReplace,
-    refresh: vi.fn(),
-  }),
-  usePathname: () => mockPathname(),
-  useSearchParams: () => mockSearchParams(),
-}));
-
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => "en",
-}));
+  mockSearchParams,
+  organization,
+  renderRoomsClient,
+} from "./rooms-client-harness";
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
   RoomSearchPanel: () => (
@@ -62,93 +37,6 @@ vi.mock("@/app/chat/components/unread-threads-panel", () => ({
       onClick={onToggle}
     />
   ),
-}));
-
-vi.mock("@/app/chat/components/day-separator", () => ({
-  default: () => null,
-}));
-
-vi.mock("@/hooks/use-is-apple-platform", () => ({
-  default: () => false,
-}));
-
-vi.mock("@/hooks/use-mobile", () => ({
-  useIsMobileMedia: () => mockIsMobileMedia(),
-}));
-
-vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
-  useHeaderRoomSlotHost: () => mockHeaderRoomSlotHost(),
-}));
-
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  useRegisterBreadcrumbOverride: () => undefined,
-}));
-
-vi.mock("@/contexts/lazy-ably-provider", () => ({
-  default: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
-  useChatRoomRealtime: () => undefined,
-}));
-
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
-  useSelectedRoomChannelHealth: () => undefined,
-}));
-
-vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
-  useClientLocalCalendarReady: () => true,
-}));
-
-vi.mock(
-  "@/app/chat/components/transcript-viewport",
-  () => import("./transcript-viewport-stub"),
-);
-
-vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
-  readStoredStreamParentMessageId: () => null,
-  useCoworkerDirectRoomStream: () => ({
-    streamOverlayMessages: [],
-    isStreaming: false,
-    activeStreamParentMessageId: null,
-    sendStreamMessage: vi.fn(),
-    consumePendingStreamMessage: vi.fn(),
-  }),
-}));
-
-vi.mock("@/components/chat/use-show-room-unread-count", () => ({
-  useShowRoomUnreadCount: () => false,
-}));
-
-vi.mock("@/app/chat/actions", () => ({
-  countUnreadThreadsAction: vi.fn(async () => ({
-    ok: true as const,
-    value: 0,
-  })),
-  deleteRoomMessageAction: vi.fn(),
-  editRoomMessageAction: vi.fn(),
-  listRoomMessagesAction: vi.fn(),
-  listPinnedMessagesAction: vi.fn(async () => ({
-    ok: true as const,
-    value: { items: [], nextCursor: null, total: 0 },
-  })),
-  listThreadMessagesAction: vi.fn(),
-  markThreadReadAction: vi.fn(),
-  retryRoomMentionAction: vi.fn(),
-  sendRoomMessageAction: vi.fn(),
-  toggleMessageReactionAction: vi.fn(),
-}));
-
-vi.mock("@/components/chat/organization-chat-list.actions", () => ({
-  markOrganizationChatRoomReadAction: vi.fn(async (roomId: string) => ({
-    ok: true as const,
-    value: {
-      id: roomId,
-      unreadCount: 0,
-      unreadMentionCount: 0,
-      markedUnread: false,
-    },
-  })),
 }));
 
 vi.mock("../room-file-drop-zone", () => ({
@@ -207,21 +95,6 @@ vi.mock("../edit-channel-dialog", () => ({
   ),
 }));
 
-vi.mock("@/components/chat/channel-discoverability-icon", () => ({
-  ChannelDiscoverabilityIcon: () => (
-    <span data-testid="channel-discoverability-icon" />
-  ),
-}));
-
-vi.mock("@/components/chat/live-member-presence-dot", () => ({
-  LiveMemberPresenceDot: () => null,
-  LiveMemberPresenceText: () => null,
-}));
-
-vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
-}));
-
 function participant(
   id: string,
   name: string,
@@ -243,6 +116,9 @@ function channelRoom(): ChatRoom {
     name: "general",
     slug: "general",
     kind: "channel",
+    isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: "public",
@@ -289,12 +165,6 @@ function groupDirectRoom(): ChatRoom {
   };
 }
 
-const organization = {
-  id: "org-1",
-  name: "Acme",
-  slug: "acme",
-} as Organization;
-
 function roomClientProps(room: ChatRoom) {
   return {
     activeOrganization: organization,
@@ -311,21 +181,29 @@ function roomClientProps(room: ChatRoom) {
 }
 
 function renderRoom(room: ChatRoom) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
+  return renderRoomsClient(roomClientProps(room), {
+    wrapper: TestQueryProvider,
   });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <RoomsClient {...roomClientProps(room)} />
-    </QueryClientProvider>,
-  );
 }
 
 describe("RoomsClient edit channel deep link", () => {
+  it("labels Self Direct You and shows its private-notes empty state", () => {
+    renderRoom({
+      ...humanDirectRoom(),
+      isSelfDirect: true,
+      isGroupDirect: false,
+      groupName: null,
+      userMembers: [participant("user-1", "Ada")],
+      organizationId: null,
+    });
+    expect(screen.getByTestId("room-open-title")).toHaveTextContent(
+      "SelfDirect.you",
+    );
+    expect(screen.getByTestId("dm-sidebar-avatar-user-1")).toBeInTheDocument();
+    expect(screen.getByText("SelfDirect.description")).toBeInTheDocument();
+    expect(screen.queryByTestId("room-roster-trigger")).toBeNull();
+  });
+
   // Put the implementations back, not one fixed return: a stable
   // `searchParams` identity would quietly stop effects keyed on it from
   // re-running in the describes below.

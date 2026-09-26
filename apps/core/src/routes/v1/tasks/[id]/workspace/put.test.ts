@@ -18,6 +18,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  deliverCalendarInvalidationsNowMock,
   jobFindFirstMock,
   jobUpdateManyMock,
   mapTaskMock,
@@ -25,7 +26,6 @@ const {
   requireMutableTaskOwnershipMock,
   requireTaskAssignableCoworkerMock,
   requireTaskAssignableSokoBotMock,
-  refreshTaskSchedulePlannedOccurrencesMock,
   resolveWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
   taskFindFirstMock,
@@ -34,6 +34,7 @@ const {
   taskUpdateMock,
   workspaceFindUniqueOrThrowMock,
 } = vi.hoisted(() => ({
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
   jobUpdateManyMock: vi.fn(),
   mapTaskMock: vi.fn(),
@@ -41,7 +42,6 @@ const {
   requireMutableTaskOwnershipMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
   requireTaskAssignableSokoBotMock: vi.fn(),
-  refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
@@ -49,6 +49,10 @@ const {
   taskFindUniqueOrThrowMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   workspaceFindUniqueOrThrowMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -63,11 +67,6 @@ vi.mock("@/helpers/organization", () => ({
 
 vi.mock("@/helpers/task", () => ({
   mapTask: mapTaskMock,
-}));
-
-vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
-  refreshTaskSchedulePlannedOccurrences:
-    refreshTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -106,8 +105,7 @@ interface TaskRecord {
   description: string | null;
   status: TaskStatus;
   visibility: TaskVisibility;
-  metadata: string | null;
-  nextRunAt: Date | null;
+  runAt: Date | null;
 }
 
 interface TransactionMock {
@@ -143,8 +141,7 @@ function createTaskRecord(overrides: Partial<TaskRecord> = {}): TaskRecord {
     description: "Current description",
     status: TaskStatus.READY,
     visibility: TaskVisibility.PUBLIC,
-    metadata: null,
-    nextRunAt: null,
+    runAt: null,
     ...overrides,
   };
 }
@@ -163,6 +160,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     ownerId: "user_123",
     organizationId,
     projectId: null,
+    project: null,
     owner: { id: "user_123", name: "Task owner", image: null },
     userId: "user_123",
     user: { id: "user_123", name: "Task owner", image: null },
@@ -205,8 +203,6 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     description: "Current description",
     status: TaskStatus.READY,
     visibility: TaskVisibility.PUBLIC,
-    metadata: null,
-    nextRunAt: null,
     credits: 0,
     grantResumeStatus: null,
     pendingVendorGrantId: null,
@@ -224,7 +220,10 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     share: null,
     links: [],
     files: [],
+    runAt: null,
+    scheduleId: null,
     selectableStatuses: [],
+    participants: [],
     ...restOverrides,
   };
 }
@@ -330,7 +329,6 @@ describe("PUT /tasks/{id}/workspace", () => {
     jobFindFirstMock.mockResolvedValue(null);
     jobUpdateManyMock.mockResolvedValue({ count: 0 });
     requireTaskAssignableCoworkerMock.mockResolvedValue(undefined);
-    refreshTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
     taskFindUniqueOrThrowMock.mockResolvedValue(createTaskRecord());
     taskLinkFindFirstMock.mockResolvedValue(null);
     taskUpdateMock.mockResolvedValue(createTaskRecord());
@@ -401,6 +399,14 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenNthCalledWith(
+      1,
+      "11111111-1111-7111-8111-111111111111",
+    );
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenNthCalledWith(
+      2,
+      "11111111-1111-4111-8111-111111111111",
+    );
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith({
       id: "org_target",
       userId: "user_123",
@@ -426,14 +432,6 @@ describe("PUT /tasks/{id}/workspace", () => {
       "cow_123",
       "11111111-1111-4111-8111-111111111111",
       expect.any(Object),
-    );
-    expect(refreshTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        id: "tsk_123",
-        workspaceId: "11111111-1111-4111-8111-111111111111",
-        projectId: null,
-      }),
     );
     expect(taskFindUniqueOrThrowMock).toHaveBeenCalledWith({
       where: { id: "tsk_123" },
@@ -935,23 +933,11 @@ describe("PUT /tasks/{id}/workspace", () => {
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects moving a Task whose schedule series is still active", async () => {
+  it("moves a Queued Task with a Run at like any other Task", async () => {
     taskFindFirstMock.mockResolvedValue(
       createTaskRecord({
         status: TaskStatus.QUEUED,
-        metadata: JSON.stringify({
-          version: 2,
-          epochId: "11111111-1111-4111-8111-111111111111",
-          mode: "recurring",
-          createdAt: "2026-09-01T09:00:00.000Z",
-          ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
-          timezone: "UTC",
-          expr: "0 9 * * *",
-          endsMode: "never",
-          anchorAt: "2026-09-01T09:00:00.000Z",
-          epochReleaseCount: 0,
-        }),
-        nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
+        runAt: new Date("2026-09-10T09:00:00.000Z"),
       }),
     );
 
@@ -966,10 +952,14 @@ describe("PUT /tasks/{id}/workspace", () => {
       }),
     });
 
-    expect(response.status).toBe(409);
-    expect((await response.json()).kind).toBe("schedule_active");
-    expect(taskUpdateMock).not.toHaveBeenCalled();
-    expect(jobUpdateManyMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith({
+      where: { id: "tsk_123" },
+      data: {
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        projectId: null,
+      },
+    });
   });
 
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {

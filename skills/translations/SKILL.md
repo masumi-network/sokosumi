@@ -1,29 +1,29 @@
 ---
 name: translations
-description: Use when deleting or modifying code that uses useTranslations() or getTranslations(), when adding/removing/renaming keys in messages/en.json, or when working with messages/*.json locale files.
+description: Use when deleting or modifying code that uses useTranslations() or getTranslations(), when adding/removing/renaming keys in apps/web/messages/en.json, or when working with apps/web/messages/*.json locale files.
 ---
 
 # Translation Cleanup (next-intl)
 
 ## Overview
 
-When code that uses translations is deleted or modified, check for and remove unused translation keys from `messages/en.json`. When keys in `messages/en.json` change, synchronize every supported locale file. Prevents orphaned keys and keeps locale catalogs in parity.
+When code that uses translations is deleted or modified, check for and remove unused translation keys from `apps/web/messages/en.json`. When keys in `apps/web/messages/en.json` change, synchronize every supported locale file. Prevents orphaned keys and keeps locale catalogs in parity.
 
 ## Supported locales
 
-`en` (source of truth), `de`, `es` — `apps/web/messages/{en,de,es}.json`.
+`en` (source of truth), `de`, `es` — `SUPPORTED_LOCALES` in `packages/utils/src/locale.ts`. Catalogs: `apps/web/messages/{en,de,es}.json`. Request loader: `apps/web/src/i18n/request.ts` (`createNextIntlPlugin()` in `apps/web/next.config.ts` defaults to that file).
 
 Parity: `pnpm --filter web messages:parity` (write: `messages:parity:write`). Wired into web `test`.
 
 ## Client message bags
 
-Layouts nest `ClientMessageBoundary` so clients get a picked subset (`pickMessages` + `message-namespaces.ts`), not the full catalog. Server `getTranslations` still uses the full request catalog.
+Layouts nest `ClientMessageBoundary` so clients get a picked subset (`pickMessages` + `apps/web/src/i18n/message-namespaces.ts`), not the full catalog. Server `getTranslations` still uses the full request catalog.
 
 Bags: `GLOBAL`, `AUTH`, `APP` (no SokoBot/Admin), nested `SOKO_BOT`/`ADMIN` (`APP_SHELL` + feature), `SHARE`. Add new client namespaces to the owning bag when needed.
 
 ## Translation Usage Patterns
 
-Client components: `useTranslations()`. Server components / metadata: `getTranslations()` from `next-intl/server`. Both resolve the same key paths in `messages/en.json`.
+Client components: `useTranslations()`. Server components / metadata: `getTranslations()` from `next-intl/server`. Both resolve the same key paths in `apps/web/messages/en.json`.
 
 ```typescript
 const t = useTranslations("CookieConsent");
@@ -43,9 +43,9 @@ return <h1>{t("ShareButton.share")}</h1>; // → Components.ShareButton.share
 
 ## Cleanup When Code is Deleted
 
-1. **Identify deleted usage**: From deleted code, find `useTranslations(` / `getTranslations(` and all `t('key')` / `t('nested.key')` and map to full keys in `messages/en.json`.
+1. **Identify deleted usage**: From deleted code, find `useTranslations(` / `getTranslations(` and all `t('key')` / `t('nested.key')` and map to full keys in `apps/web/messages/en.json`.
 2. **Check if keys are still used**: Search the codebase for each key (full path, and namespace + key, e.g. `ShareButton.share` with `Components`).
-3. **Remove unused keys**: Remove from `messages/en.json`, then remove empty parent objects. Preserve JSON structure.
+3. **Remove unused keys**: Remove from `apps/web/messages/en.json`, then remove empty parent objects. Preserve JSON structure.
 
 ### Key search patterns
 
@@ -57,10 +57,10 @@ return <h1>{t("ShareButton.share")}</h1>; // → Components.ShareButton.share
 
 After deleting a component that used `CookieConsent.title`:
 
-1. Search for `CookieConsent.title` and `t("title")` next to a `CookieConsent` namespace. If no matches, remove the key from `messages/en.json`.
+1. Search for `CookieConsent.title` and `t("title")` next to a `CookieConsent` namespace. If no matches, remove the key from `apps/web/messages/en.json`.
 2. If the whole `CookieConsent` object is unused, remove it; remove empty parent objects as needed.
 
-## When `messages/en.json` Keys Change
+## When `apps/web/messages/en.json` Keys Change
 
 `apps/web/messages/en.json` is source of truth. Any key add/remove/rename must be applied to every supported locale.
 
@@ -105,7 +105,7 @@ For `@sokosumi/email` locales, use `packages/email/AGENTS.md` instead of this we
 
 - Remove keys without verifying they are unused.
 - Remove parent objects that still have used children.
-- Add keys only in `messages/en.json` and leave other locale files missing them.
+- Add keys only in `apps/web/messages/en.json` and leave other locale files missing them.
 - Rename/move keys in `en.json` without applying the same path change to all locales.
 - Leave English placeholder text in non-English locale files as the final merged state.
 

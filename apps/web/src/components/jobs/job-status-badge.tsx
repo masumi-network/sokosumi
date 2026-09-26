@@ -3,10 +3,7 @@
 import { useTranslations } from "next-intl";
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
 import { getJobStatusMarker } from "@/components/jobs/job-status-styles";
-import {
-  STATUS_ROLE_STYLES,
-  StatusMarker,
-} from "@/components/ui/status-marker";
+import { getToneStyle, StatusMarker } from "@/components/ui/status-marker";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +28,7 @@ export function JobStatusBadge({
   const t = useTranslations("Components.Jobs.StatusBadge");
   const label = t(getJobStatusBadgeLabelKey(status));
   const marker = getJobStatusMarker(status);
+  const style = getToneStyle(marker.tone);
 
   // The compact variant drops the label, not the glyph: a bare colour dot was
   // the whole problem, since two statuses could share a hue.
@@ -53,10 +51,7 @@ export function JobStatusBadge({
         aria-label={label}
         className={cn("inline-flex shrink-0", className)}
       >
-        <StatusMarker
-          spec={marker}
-          tone={tone ?? STATUS_ROLE_STYLES[marker.role].onSurface}
-        />
+        <StatusMarker spec={marker} tone={tone ?? style.onSurface} />
       </span>
     );
   }
@@ -64,9 +59,9 @@ export function JobStatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium",
-        STATUS_ROLE_STYLES[marker.role].bg,
-        STATUS_ROLE_STYLES[marker.role].text,
+        "inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium",
+        style.box,
+        style.label,
         className,
       )}
     >

@@ -16,6 +16,11 @@ vi.mock("@/helpers/chat-direct-message-notifications", () => ({
 }));
 vi.mock("@vercel/functions", () => ({ waitUntil }));
 
+const { emitMentions } = vi.hoisted(() => ({ emitMentions: vi.fn() }));
+vi.mock("@/helpers/chat-human-mentions", () => ({
+  emitChatHumanMentionNotifications: emitMentions,
+}));
+
 vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
 }));
@@ -41,7 +46,12 @@ beforeEach(() => {
 
 describe("scheduleSokoBotChatMessageEffects", () => {
   it("passes the message body to the emitter and retains its background work", async () => {
-    await scheduleSokoBotChatMessageEffects(room, "message_1", "Meet at five");
+    await scheduleSokoBotChatMessageEffects(
+      room,
+      "message_1",
+      "Meet at five",
+      [],
+    );
 
     expect(findMany).toHaveBeenCalledWith({
       where: { roomId: room.id },
@@ -64,11 +74,41 @@ describe("scheduleSokoBotChatMessageEffects", () => {
     expect(waitUntil).toHaveBeenCalledWith(emit.mock.results[0]?.value);
   });
 
+  it("sends a named member the mention and the other member the direct row", async () => {
+    findMany.mockResolvedValue([{ userId: "user_1" }, { userId: "user_2" }]);
+    emitMentions.mockResolvedValue(undefined);
+
+    await scheduleSokoBotChatMessageEffects(room, "message_1", "@user_1 go", [
+      "user_1",
+    ]);
+
+    expect(emitMentions).toHaveBeenCalledWith({
+      messageId: "message_1",
+      mentionedUserIds: ["user_1"],
+    });
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({ recipientUserIds: ["user_2"] }),
+    );
+    expect(waitUntil).toHaveBeenCalledWith(emitMentions.mock.results[0]?.value);
+  });
+
+  it("sends no direct row when every human in the room was named", async () => {
+    emitMentions.mockResolvedValue(undefined);
+
+    await scheduleSokoBotChatMessageEffects(room, "message_1", "@user_1 go", [
+      "user_1",
+    ]);
+
+    expect(emitMentions).toHaveBeenCalledOnce();
+    expect(emit).not.toHaveBeenCalled();
+  });
+
   it("invalidates channel members without changing notification delivery", async () => {
     await scheduleSokoBotChatMessageEffects(
       { ...room, kind: "channel" },
       "message_1",
       "Hello",
+      [],
     );
 
     expect(findMany).toHaveBeenCalledOnce();
@@ -84,7 +124,7 @@ describe("scheduleSokoBotChatMessageEffects", () => {
   it("does not schedule rooms rejected by the shared eligibility rule", async () => {
     shouldEmit.mockReturnValue(false);
 
-    await scheduleSokoBotChatMessageEffects(room, "message_1", "Hello");
+    await scheduleSokoBotChatMessageEffects(room, "message_1", "Hello", []);
 
     expect(emit).not.toHaveBeenCalled();
     expect(waitUntil).not.toHaveBeenCalled();
@@ -95,8 +135,24 @@ describe("scheduleSokoBotChatMessageEffects", () => {
     findMany.mockRejectedValue(error);
 
     await expect(
-      scheduleSokoBotChatMessageEffects(room, "message_1", "Hello"),
+      scheduleSokoBotChatMessageEffects(room, "message_1", "Hello", []),
     ).resolves.toBeUndefined();
     expect(waitUntil).not.toHaveBeenCalled();
+  });
+
+  it("still tells the member it named when member lookup fails", async () => {
+    findMany.mockRejectedValue(new Error("Member lookup failed"));
+    emitMentions.mockResolvedValue(undefined);
+
+    await scheduleSokoBotChatMessageEffects(room, "message_1", "@user_1 go", [
+      "user_1",
+    ]);
+
+    expect(emitMentions).toHaveBeenCalledWith({
+      messageId: "message_1",
+      mentionedUserIds: ["user_1"],
+    });
+    expect(waitUntil).toHaveBeenCalledWith(emitMentions.mock.results[0]?.value);
+    expect(emit).not.toHaveBeenCalled();
   });
 });

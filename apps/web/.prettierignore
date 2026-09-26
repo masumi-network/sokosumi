@@ -1,9 +1,0 @@
-**/dist/**
-**/build/**
-**/coverage/**
-
-# Ignore generated code
-src/lib/clients/generated/**
-
-# Ignore UI components
-src/components/ui/**

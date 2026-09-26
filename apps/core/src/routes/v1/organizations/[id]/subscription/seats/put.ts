@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 import { MemberRole } from "@sokosumi/database";
 import {
   assertOrganizationSubscriptionChangeAllowed,
@@ -16,12 +17,14 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import {
   organizationSubscriptionSeatsSchema,
   updateOrganizationSubscriptionSeatsSchema,
 } from "@/schemas/subscription.schema";
+import { SEAT_CHANGE_CONFLICT_MESSAGE } from "@/services/organization-seat.service";
 
 const params = z.object({
   id: z.string().openapi({
@@ -69,16 +72,10 @@ const route = createRoute({
       "Forbidden - You must be an organization owner or admin",
     ),
     404: jsonErrorResponse("Not Found - Organization not found"),
+    409: jsonErrorResponse("Conflict"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
-
-interface SeatUpdateTarget {
-  currentSeats: number;
-  organizationId: string;
-  stripeSubscriptionId: string | null;
-  subscriptionId: string;
-}
 
 /**
  * Pushes the new quantity to the first Stripe subscription item, invoicing
@@ -106,12 +103,17 @@ async function increaseStripeSubscriptionSeats(
   );
 }
 
+/**
+ * Serializable so the purchased-seat write and the overflow unassign commit
+ * as one unit (SOK-1007): a concurrent seat assignment cannot read the old
+ * capacity, pass its check and land after the reduction.
+ */
 async function persistPurchasedSeatsAndUnassignOverflow(params: {
   subscriptionId: string;
   organizationId: string;
   seats: number;
 }): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+  await serializableTransaction(async (tx) => {
     await tx.subscription.update({
       where: { id: params.subscriptionId },
       data: { seats: params.seats },
@@ -121,7 +123,7 @@ async function persistPurchasedSeatsAndUnassignOverflow(params: {
       params.seats,
       tx,
     );
-  });
+  }, SEAT_CHANGE_CONFLICT_MESSAGE);
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -130,104 +132,107 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { seats } = c.req.valid("json");
 
-    // Authorization and write-guards run in one read-only transaction; the
-    // Stripe call and the local seat write happen afterwards, mirroring the
-    // previous sequential flow (Stripe update first, then the local write).
-    const target = await prisma.$transaction(
-      async (tx): Promise<SeatUpdateTarget> => {
-        const { organization } = await resolveMemberOrganizationById({
-          id,
-          userId: userContext.userId,
-          tx,
-          allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+    const { organization } = await resolveMemberOrganizationById({
+      id,
+      userId: userContext.userId,
+      tx: prisma,
+      allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+    });
+
+    try {
+      await assertOrganizationSubscriptionChangeAllowed(
+        organization.id,
+        prisma,
+      );
+    } catch (error) {
+      if (error instanceof OrganizationSubscriptionExclusivityError) {
+        throw badRequest(error.message, {
+          kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_CHANGE_NOT_ALLOWED,
         });
+      }
+      throw error;
+    }
 
-        try {
-          await assertOrganizationSubscriptionChangeAllowed(
-            organization.id,
-            tx,
-          );
-        } catch (error) {
-          if (error instanceof OrganizationSubscriptionExclusivityError) {
-            throw badRequest(error.message, {
-              kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_CHANGE_NOT_ALLOWED,
-            });
-          }
-          throw error;
-        }
+    const subscription =
+      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+        organization.id,
+        prisma,
+      );
+    if (!subscription) {
+      throw badRequest(
+        "An active organization subscription is required before updating seats.",
+        { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE },
+      );
+    }
 
-        const subscription =
-          await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-            organization.id,
-            tx,
-          );
-        if (!subscription) {
-          throw badRequest(
-            "An active organization subscription is required before updating seats.",
-            { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE },
-          );
-        }
+    try {
+      ensurePurchasedSeatsSufficient(seats);
+    } catch (error) {
+      throw badRequest(
+        error instanceof Error
+          ? error.message
+          : "Purchased seats must be an integer of at least 1",
+      );
+    }
 
-        try {
-          ensurePurchasedSeatsSufficient(seats);
-        } catch (error) {
-          throw badRequest(
-            error instanceof Error
-              ? error.message
-              : "Purchased seats must be an integer of at least 1",
-          );
-        }
+    const currentSeats = resolvePurchasedSeats(subscription.seats);
 
-        return {
-          currentSeats: resolvePurchasedSeats(subscription.seats),
-          organizationId: organization.id,
-          stripeSubscriptionId: subscription.stripeSubscriptionId,
-          subscriptionId: subscription.id,
-        };
-      },
+    if (!subscription.stripeSubscriptionId) {
+      return ok(
+        c,
+        organizationSubscriptionSeatsSchema.parse({
+          seats: currentSeats,
+        }),
+      );
+    }
+
+    if (currentSeats === seats) {
+      return ok(
+        c,
+        organizationSubscriptionSeatsSchema.parse({
+          seats: currentSeats,
+        }),
+      );
+    }
+
+    await increaseStripeSubscriptionSeats(
+      subscription.stripeSubscriptionId,
+      seats,
     );
-
-    if (!target.stripeSubscriptionId) {
-      return ok(
-        c,
-        organizationSubscriptionSeatsSchema.parse({
-          seats: target.currentSeats,
-        }),
-      );
-    }
-
-    if (target.currentSeats === seats) {
-      return ok(
-        c,
-        organizationSubscriptionSeatsSchema.parse({
-          seats: target.currentSeats,
-        }),
-      );
-    }
-
-    await increaseStripeSubscriptionSeats(target.stripeSubscriptionId, seats);
 
     try {
       await persistPurchasedSeatsAndUnassignOverflow({
-        subscriptionId: target.subscriptionId,
-        organizationId: target.organizationId,
+        subscriptionId: subscription.id,
+        organizationId: organization.id,
         seats,
       });
     } catch (error) {
       try {
         await persistPurchasedSeatsAndUnassignOverflow({
-          subscriptionId: target.subscriptionId,
-          organizationId: target.organizationId,
+          subscriptionId: subscription.id,
+          organizationId: organization.id,
           seats,
         });
       } catch {
-        await prisma.$transaction(async (tx) => {
-          await unassignSeatsOverPurchasedCapacity(
-            target.organizationId,
-            seats,
-            tx,
-          );
-        });
+        // Last-resort cleanup after both persist attempts failed. Stripe
+        // already bills the new seat count, so the overflow has to go even
+        // though the seat write did not land. Its own failure is reported and
+        // then dropped: the caller needs the error that explains the failed
+        // persist, not whatever the cleanup hit on top of it.
+        try {
+          await serializableTransaction(async (tx) => {
+            await unassignSeatsOverPurchasedCapacity(
+              organization.id,
+              seats,
+              tx,
+            );
+          }, SEAT_CHANGE_CONFLICT_MESSAGE);
+        } catch (cleanupError) {
+          Sentry.captureException(cleanupError, {
+            tags: { context: "organization_seat_reduction_cleanup" },
+            extra: { organizationId: organization.id, seats },
+          });
+        }
         throw error;
       }
     }

@@ -132,13 +132,36 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
           taskId: payload.taskId,
           task: { workspaceId: turn.workspaceId },
         },
-        include: { task: { select: { ownerId: true } } },
+        include: {
+          task: {
+            select: {
+              id: true,
+              ownerId: true,
+              assigneeUserId: true,
+              archivedAt: true,
+            },
+          },
+        },
       });
       if (!event) return suppress("EVENT_UNAVAILABLE");
       const { publishTaskEventData } = await import("@/lib/ably/publish");
       const { notifyTaskStatusEvent } = await import(
         "@/helpers/task-notifications"
       );
+      if (!(await renewLease())) return false;
+      const { deliverCalendarInvalidationsNow } = await import(
+        "@/helpers/calendar-invalidation"
+      );
+      await deliverCalendarInvalidationsNow(turn.workspaceId);
+      if (
+        effect.receipt.capability === "archive_task" &&
+        event.task.archivedAt
+      ) {
+        const { markTaskArchivedRead } = await import(
+          "@/helpers/task-notifications"
+        );
+        await markTaskArchivedRead(event.task);
+      }
       if (!(await renewLease())) return false;
       await publishTaskEventData({
         userId: event.task.ownerId,
@@ -147,10 +170,18 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
       });
       if (!(await renewLease())) return false;
       if (event.status)
-        await notifyTaskStatusEvent(event.taskId, event.id, event.status, {
-          throwOnError: true,
-        });
+        await notifyTaskStatusEvent(
+          event.taskId,
+          event.id,
+          event.status,
+          event.userId ?? null,
+          {
+            throwOnError: true,
+          },
+        );
     } else if (effect.purpose === "CHAT_MESSAGE") {
+      const { emitChatHumanMentionNotifications, persistChatHumanMentions } =
+        await import("@/helpers/chat-human-mentions");
       const payload = chatPayload.parse(effect.payload);
       const prepared = await serializableTransaction(async (tx) => {
         const fence = await tx.sokoBotEffectOutbox.updateMany({
@@ -229,6 +260,11 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
             where: { id: message.id },
             data: { content: payload.content, deletedAt: null },
           });
+          await persistChatHumanMentions(tx, {
+            messageId: message.id,
+            roomId: room.id,
+            content: payload.content,
+          });
           await tx.chatRoomMention.updateMany({
             where: { messageId: message.id, status: "staged" },
             data: { status: "pending" },
@@ -271,6 +307,11 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
         throwOnError: true,
       });
       if (!(await renewLease())) return false;
+      const humanMentions = await prisma.chatRoomUserMention.findMany({
+        where: { messageId: message.id },
+        select: { userId: true },
+      });
+      const mentionedUserIds = humanMentions.map((mention) => mention.userId);
       if (
         shouldEmitChatDirectMessageNotifications({
           kind: room.kind,
@@ -285,10 +326,18 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
           content: message.content,
           authorUserId: null,
           authorName: message.senderSokoBot.name ?? "Assistant",
-          recipientUserIds: payload.userIds,
+          recipientUserIds: payload.userIds.filter(
+            (userId) => !mentionedUserIds.includes(userId),
+          ),
           throwOnError: true,
         });
       }
+      if (!(await renewLease())) return false;
+      await emitChatHumanMentionNotifications({
+        messageId: message.id,
+        mentionedUserIds,
+        throwOnError: true,
+      });
       const mentions = await prisma.chatRoomMention.findMany({
         where: { messageId: message.id, status: "pending" },
         select: { id: true },

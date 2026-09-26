@@ -6,8 +6,10 @@ import { getTranslations } from "next-intl/server";
 import { InvoiceDetail } from "@/components/admin/invoices/invoice-detail";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { getAdminInvoiceAction } from "@/lib/actions/invoice-admin/action";
+
+export const instant = false;
 
 export const metadata: Metadata = {
   title: "Invoice",

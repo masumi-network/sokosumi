@@ -70,6 +70,7 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
 export async function fetchBackgroundJson(
   url: string,
   timeoutMs: number,
+  onStatus?: (status: number) => void,
 ): Promise<unknown> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -94,6 +95,8 @@ export async function fetchBackgroundJson(
           redirect: "error",
           signal: attemptController.signal,
         });
+
+        onStatus?.(response.status);
 
         // A throttle is an answer with a schedule, not a stall: arm the
         // shared backoff clock and resolve null with no in-window retry

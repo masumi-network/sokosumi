@@ -1,16 +1,22 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { buildNamedChatMessagePreview } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
 
+import {
+  hasCalendarWorkspaceAccess,
+  lockCalendarWorkspaceMembership,
+} from "@/helpers/calendar-membership-fence";
 import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
 import { loadChatMentionNames } from "@/helpers/chat-mention-names";
+import { resendRoomMessageEmail } from "@/helpers/notification-email-dispatch";
+import {
+  notificationPublishFields,
+  scheduleNotificationPublish,
+} from "@/helpers/notification-publish-queue";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import type { CreateNotificationInput } from "@/helpers/notifications";
-import {
-  createNotification,
-  publishNotificationRow,
-  resolveDelivery,
-} from "@/helpers/notifications";
+import { createNotification, resolveDelivery } from "@/helpers/notifications";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
@@ -53,6 +59,30 @@ export interface FanOutChatNotificationsParams {
    * reader is told the name their own screen uses instead.
    */
   nameRoomPerReader?: boolean;
+  /**
+   * The Thread this message replies in, so readers who muted that Thread are
+   * left out. Omitted for a top-level message, and omitted by the mention
+   * fan-out: being named breaks through a muted Thread, because muting
+   * silences the chatter and being addressed by name is not chatter.
+   */
+  parentMessageId?: string | null;
+}
+
+/** Readers who muted the Thread this message replies in. */
+async function loadThreadMutedUserIds(
+  parentMessageId: string,
+  userIds: readonly string[],
+): Promise<ReadonlySet<string>> {
+  const muted = await prisma.chatRoomThreadReadState.findMany({
+    where: {
+      parentMessageId,
+      userId: { in: [...userIds] },
+      mutedAt: { not: null },
+    },
+    select: { userId: true },
+  });
+
+  return new Set(muted.map((state) => state.userId));
 }
 
 /** How many messages a row is already standing for. */
@@ -119,24 +149,28 @@ const COUNT_ATTEMPTS = 3;
  * counts onto the newer of them, so the reader sees one row too many rather
  * than a lost message.
  */
-async function countOntoUnreadRow(input: CreateNotificationInput) {
+async function countOntoUnreadRow(
+  input: CreateNotificationInput,
+  client: Prisma.TransactionClient,
+) {
   const delivery = await resolveDelivery(input);
 
   // Do not add a banner-only message to a row that remains visible in the
   // notification center. A separate hidden row preserves the current choice.
   if (!delivery.inApp) {
-    await createNotification(input);
+    await createNotification(input, client);
     return;
   }
 
   for (let attempt = 0; attempt < COUNT_ATTEMPTS; attempt += 1) {
-    const unread = await prisma.notification.findFirst({
+    const unread = await client.notification.findFirst({
       where: {
         userId: input.userId,
         kind: input.kind,
         referenceId: input.referenceId,
         messageKey: input.messageKey,
         isRead: false,
+        ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
         // A silenced row is not one the reader is reading, so not one this
         // message may join.
         inApp: true,
@@ -147,7 +181,7 @@ async function countOntoUnreadRow(input: CreateNotificationInput) {
     });
 
     if (!unread) {
-      await createNotification(input);
+      await createNotification(input, client);
       return;
     }
 
@@ -160,10 +194,11 @@ async function countOntoUnreadRow(input: CreateNotificationInput) {
     // Named rather than blind: the row must still hold the count this attempt
     // read, and must still be unread. Either having moved means another
     // message got here first.
-    const written = await prisma.notification.updateMany({
+    const written = await client.notification.updateMany({
       where: {
         id: unread.id,
         messageParams: unread.messageParams,
+        publishId: unread.publishId,
         isRead: false,
       },
       data: {
@@ -176,6 +211,7 @@ async function countOntoUnreadRow(input: CreateNotificationInput) {
             ? null
             : JSON.stringify(input.metadata),
         createdAt: new Date(),
+        ...notificationPublishFields(delivery, unread.publishCreated === true),
       },
     });
 
@@ -183,23 +219,67 @@ async function countOntoUnreadRow(input: CreateNotificationInput) {
       continue;
     }
 
+    // The row now stands for one more message than the email waiting on it
+    // said, so that email is sent again with the new tally. Scheduled rather
+    // than awaited, like the first send: the reader has been answered, and a
+    // resend that fails must not cost them the message (SOK-1142).
+    waitUntil(resendRoomMessageEmail(unread.id));
+
     if (!delivery.inApp && !delivery.osBanner) {
       return;
     }
 
-    const notification = await prisma.notification.findUnique({
-      where: { id: unread.id },
-    });
-
-    if (notification) {
-      await publishNotificationRow(notification, delivery, false);
-    }
+    scheduleNotificationPublish(unread.id);
 
     return;
   }
 
   // Every attempt lost the write. A row of its own says more than silence.
-  await createNotification(input);
+  await createNotification(input, client);
+}
+
+async function deliverToCurrentRoomMember(
+  roomId: string,
+  organizationId: string | null,
+  input: CreateNotificationInput,
+  countPerRoom: boolean,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    if (organizationId && input.workspaceId) {
+      await lockCalendarWorkspaceMembership(tx, input.workspaceId);
+      if (
+        !(await hasCalendarWorkspaceAccess(tx, input.workspaceId, input.userId))
+      ) {
+        return;
+      }
+    }
+
+    const memberships = await tx.$queryRaw<
+      Array<{ access: string; mutedAt: Date | null }>
+    >`
+      SELECT access, "mutedAt"
+      FROM "chat_room_user_member"
+      WHERE "roomId" = ${roomId}::UUID
+        AND "userId" = ${input.userId}
+      FOR UPDATE
+    `;
+    const membership = memberships[0];
+    if (!membership || membership.mutedAt !== null) {
+      return;
+    }
+
+    if (organizationId && membership.access === "member") {
+      if (!input.workspaceId) {
+        return;
+      }
+    }
+
+    if (countPerRoom) {
+      await countOntoUnreadRow(input, tx);
+    } else {
+      await createNotification(input, tx);
+    }
+  });
 }
 
 /**
@@ -294,19 +374,23 @@ export async function fanOutChatNotifications(
     return;
   }
 
-  const mutedMemberships = await prisma.chatRoomUserMember.findMany({
+  const currentMemberships = await prisma.chatRoomUserMember.findMany({
     where: {
       roomId: params.roomId,
       userId: { in: recipientUserIds },
-      mutedAt: { not: null },
     },
-    select: { userId: true },
+    select: { access: true, mutedAt: true, userId: true },
   });
-  const mutedUserIds = new Set(
-    mutedMemberships.map((membership) => membership.userId),
+  const membershipsByUserId = new Map(
+    currentMemberships.map((membership) => [membership.userId, membership]),
   );
+  const threadMutedUserIds = params.parentMessageId
+    ? await loadThreadMutedUserIds(params.parentMessageId, recipientUserIds)
+    : new Set<string>();
   const notifyUserIds = recipientUserIds.filter(
-    (userId) => !mutedUserIds.has(userId),
+    (userId) =>
+      membershipsByUserId.get(userId)?.mutedAt === null &&
+      !threadMutedUserIds.has(userId),
   );
 
   if (notifyUserIds.length === 0) {
@@ -314,12 +398,25 @@ export async function fanOutChatNotifications(
   }
 
   let workspaceId: string | null = null;
+  let hostOrganizationMemberIds = new Set<string>();
   if (params.organizationId) {
-    const workspace = await prisma.workspace.findUnique({
-      where: { organizationId: params.organizationId },
-      select: { id: true },
-    });
+    const [workspace, hostOrganizationMembers] = await Promise.all([
+      prisma.workspace.findUnique({
+        where: { organizationId: params.organizationId },
+        select: { id: true },
+      }),
+      prisma.member.findMany({
+        where: {
+          organizationId: params.organizationId,
+          userId: { in: notifyUserIds },
+        },
+        select: { userId: true },
+      }),
+    ]);
     workspaceId = workspace?.id ?? null;
+    hostOrganizationMemberIds = new Set(
+      hostOrganizationMembers.map((member) => member.userId),
+    );
   }
 
   // This runs after the response, so a reader can delete the message before
@@ -372,6 +469,11 @@ export async function fanOutChatNotifications(
       referenceId: params.roomId,
       eventId: params.messageId,
       messageKey: params.messageKey,
+      ...(workspaceId &&
+      membershipsByUserId.get(userId)?.access === "member" &&
+      hostOrganizationMemberIds.has(userId)
+        ? { workspaceId }
+        : {}),
       messageParams: {
         authorName: params.authorName,
         roomName: roomNamesByReader?.get(userId) ?? params.roomName,
@@ -390,13 +492,19 @@ export async function fanOutChatNotifications(
 
     try {
       if (params.countPerRoom) {
-        await countOntoUnreadRow(input);
+        await deliverToCurrentRoomMember(
+          params.roomId,
+          params.organizationId,
+          input,
+          true,
+        );
       } else {
-        if (params.throwOnError) {
-          await createNotification(input, prisma, { throwOnError: true });
-        } else {
-          await createNotification(input);
-        }
+        await deliverToCurrentRoomMember(
+          params.roomId,
+          params.organizationId,
+          input,
+          false,
+        );
       }
     } catch (error) {
       if (params.throwOnError) throw error;

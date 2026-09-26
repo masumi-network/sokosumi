@@ -5,10 +5,12 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
+  applyTurnstileTestKeys,
   bootstrapLocalEnv,
   DEFAULT_BETTER_AUTH_SECRET,
   isPlaceholderValue,
   parsePrimaryWorktreePath,
+  readEnvValue,
   resolvePrimaryEnvRoot,
   sanitizeEnvContents,
   shouldReusePrimaryEnv,
@@ -341,5 +343,92 @@ describe("bootstrapLocalEnv primary reuse", () => {
 
     assert.equal(paths.reusedFrom, null);
     assert.match(core, /^BETTER_AUTH_SECRET="worktree-own-secret"$/m);
+  });
+});
+
+describe("applyTurnstileTestKeys", () => {
+  it("enables the commented site key in the web file", () => {
+    const out = applyTurnstileTestKeys(
+      "# Optional Cloudflare Turnstile public site key.\n# NEXT_PUBLIC_TURNSTILE_SITE_KEY=\n",
+    );
+
+    assert.match(
+      out,
+      /^NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA$/m,
+    );
+  });
+
+  it("enables the commented secret in the core file", () => {
+    const out = applyTurnstileTestKeys("# TURNSTILE_SECRET_KEY=\n");
+
+    assert.match(
+      out,
+      /^TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA$/m,
+    );
+  });
+
+  it("keeps a key that is already set", () => {
+    // Someone pointed this checkout at a real Turnstile widget on purpose.
+    const out = applyTurnstileTestKeys(
+      "NEXT_PUBLIC_TURNSTILE_SITE_KEY=0x4AAAAAAAreal\n",
+    );
+
+    assert.match(out, /^NEXT_PUBLIC_TURNSTILE_SITE_KEY=0x4AAAAAAAreal$/m);
+    assert.doesNotMatch(out, /1x00000000000000000000AA/);
+  });
+
+  it("gives each file only the key it reads", () => {
+    // The web example names TURNSTILE_SECRET_KEY in prose ("pair it with ...").
+    // That must not turn into an assignment web never reads.
+    const out = applyTurnstileTestKeys(
+      "# Pair it with the matching TURNSTILE_SECRET_KEY in apps/core/.env.\n# NEXT_PUBLIC_TURNSTILE_SITE_KEY=\n",
+    );
+
+    assert.doesNotMatch(out, /^TURNSTILE_SECRET_KEY=/m);
+  });
+
+  it("puts the note on its own line, not after the value", () => {
+    // A trailing "KEY=value # note" is not stripped by every dotenv parser.
+    const out = applyTurnstileTestKeys("# TURNSTILE_SECRET_KEY=\n");
+
+    assert.match(out, /^TURNSTILE_SECRET_KEY=\S+$/m);
+  });
+});
+
+describe("sanitizeEnvContents turnstile", () => {
+  it("runs the turnstile pass over a sanitized file", () => {
+    const out = sanitizeEnvContents(
+      "APP_SIGNING_SECRET=<app-signing-secret>\n# TURNSTILE_SECRET_KEY=\n",
+    );
+
+    assert.match(out, /^APP_SIGNING_SECRET="dummy-app-signing-secret"$/m);
+    assert.match(
+      out,
+      /^TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA$/m,
+    );
+  });
+
+  it("enables only the key each committed example reads", async () => {
+    const root = path.join(import.meta.dirname, "..", "..");
+    const web = sanitizeEnvContents(
+      await readFile(path.join(root, "apps", "web", ".env.example"), "utf8"),
+    );
+    const core = sanitizeEnvContents(
+      await readFile(path.join(root, "apps", "core", ".env.example"), "utf8"),
+    );
+
+    assert.equal(
+      readEnvValue(web, "NEXT_PUBLIC_TURNSTILE_SITE_KEY"),
+      "1x00000000000000000000AA",
+    );
+    assert.equal(readEnvValue(web, "TURNSTILE_SECRET_KEY"), undefined);
+    assert.equal(
+      readEnvValue(core, "TURNSTILE_SECRET_KEY"),
+      "1x0000000000000000000000000000000AA",
+    );
+    assert.equal(
+      readEnvValue(core, "NEXT_PUBLIC_TURNSTILE_SITE_KEY"),
+      undefined,
+    );
   });
 });

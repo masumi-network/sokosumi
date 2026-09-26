@@ -7,7 +7,8 @@ import {
   toActionResult,
 } from "@/lib/actions/action-result";
 
-import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import {
   type AuthenticatedRequest,

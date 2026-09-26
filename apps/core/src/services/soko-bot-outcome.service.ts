@@ -104,7 +104,7 @@ interface ReceiptEvidence {
   committedAt: Date | null;
 }
 
-interface TaskOutcomeEvidence {
+interface TaskOutcomeEvidence extends Prisma.InputJsonObject {
   taskId: string;
   status: string;
   revision: string;

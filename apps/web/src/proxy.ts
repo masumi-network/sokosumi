@@ -4,12 +4,14 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { applyDocumentSecurityHeaders } from "@/config/document-security-headers";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { PUSH_WORKER_MESSAGES_PATH } from "@/config/push-worker-assets";
+import {
+  PUSH_WORKER_MESSAGES_PATH,
+  PUSH_WORKER_RENEWAL_PATH,
+} from "@/config/push-worker-assets";
 import {
   applyPendingOrganizationJoinCookie,
   joinTokenFromJoinPath,
 } from "@/lib/pending-organization-join-cookie";
-import { RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME } from "@/lib/retired-onboarding-storage";
 
 const EXCLUDED_PATHS = [
   "/auth/",
@@ -44,25 +46,9 @@ const EXCLUDED_PATHS = [
   // push worker at all. `proxy.test.ts` reads this path out of the worker's
   // `importScripts` call, so a move fails there rather than silently here.
   PUSH_WORKER_MESSAGES_PATH,
+  PUSH_WORKER_RENEWAL_PATH,
   "/maintenance",
 ];
-
-function expireRetiredOnboardingGateCookie(
-  request: NextRequest,
-  response: NextResponse,
-): NextResponse {
-  if (request.cookies.has(RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME)) {
-    response.cookies.set({
-      name: RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME,
-      value: "",
-      path: "/",
-      maxAge: 0,
-      sameSite: "lax",
-      secure: request.nextUrl.protocol === "https:",
-    });
-  }
-  return response;
-}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -77,7 +63,6 @@ export async function proxy(request: NextRequest) {
     vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
   });
 
-  // Check maintenance mode - redirect to /maintenance if enabled
   const isMaintenanceMode = env.MAINTENANCE_MODE;
   if (isMaintenanceMode) {
     if (pathname.startsWith("/api")) {
@@ -89,14 +74,14 @@ export async function proxy(request: NextRequest) {
         maintenanceApiResponse,
         securityHeaderOptions,
       );
-      return expireRetiredOnboardingGateCookie(request, maintenanceApiResponse);
+      return maintenanceApiResponse;
     }
     if (pathname !== "/maintenance") {
       const maintenanceRedirect = NextResponse.redirect(
         new URL("/maintenance", request.url),
       );
       applyDocumentSecurityHeaders(maintenanceRedirect, securityHeaderOptions);
-      return expireRetiredOnboardingGateCookie(request, maintenanceRedirect);
+      return maintenanceRedirect;
     }
   }
 
@@ -115,7 +100,7 @@ export async function proxy(request: NextRequest) {
         new URL(`/signin?returnUrl=${returnUrl}`, request.url),
       );
       applyDocumentSecurityHeaders(redirectResponse, securityHeaderOptions);
-      return expireRetiredOnboardingGateCookie(request, redirectResponse);
+      return redirectResponse;
     }
   }
 
@@ -137,10 +122,9 @@ export async function proxy(request: NextRequest) {
 
   // Skip session check for excluded paths (but still set headers above)
   if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
-    return expireRetiredOnboardingGateCookie(request, response);
+    return response;
   }
 
-  // Check session for protected routes
   const sessionCookie = getSessionCookie(request, {
     cookiePrefix: betterAuthCookiePrefix,
   });
@@ -151,13 +135,13 @@ export async function proxy(request: NextRequest) {
       new URL(`/signin?returnUrl=${returnUrl}`, request.url),
     );
     applyDocumentSecurityHeaders(signInRedirect, securityHeaderOptions);
-    return expireRetiredOnboardingGateCookie(request, signInRedirect);
+    return signInRedirect;
   }
 
   // Workspace gate (not ready → /setup) is enforced server-side in
   // AuthenticatedAppFrame via Core workspace access.
 
-  return expireRetiredOnboardingGateCookie(request, response);
+  return response;
 }
 
 export const config = {

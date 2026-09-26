@@ -64,7 +64,9 @@ describe("core.browser.client", () => {
     const { CoreApiRequestError, toCoreApiActionError } = await import(
       "./core.browser.client"
     );
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     expect(
       toCoreApiActionError(

@@ -22,7 +22,7 @@ vi.mock("@/lib/services/admin-task.service", () => ({
   },
 }));
 
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { AdminAccessRequiredError } from "@/lib/auth/errors";
 
 import { listAdminTasksAction } from "./action";

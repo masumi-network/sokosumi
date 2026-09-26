@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  persistHumanMentions: vi.fn(),
+  emitHumanMentions: vi.fn(),
+  humanMentions: vi.fn(),
   update: vi.fn(),
   find: vi.fn(),
   workspace: vi.fn(),
@@ -12,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   invalidate: vi.fn(),
   taskPublish: vi.fn(),
   taskNotify: vi.fn(),
+  archiveRead: vi.fn(),
+  calendar: vi.fn(),
   mentions: vi.fn(),
   dispatch: vi.fn(),
   messageUpdate: vi.fn(),
@@ -19,8 +24,16 @@ const mocks = vi.hoisted(() => ({
   roomUpdate: vi.fn(),
   transaction: vi.fn(),
 }));
+vi.mock("@/helpers/chat-human-mentions", () => ({
+  persistChatHumanMentions: mocks.persistHumanMentions,
+  emitChatHumanMentionNotifications: mocks.emitHumanMentions,
+}));
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: mocks.calendar,
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    chatRoomUserMention: { findMany: mocks.humanMentions },
     sokoBotEffectOutbox: {
       updateMany: mocks.update,
       findUniqueOrThrow: mocks.find,
@@ -58,6 +71,7 @@ vi.mock("@/lib/ably/publish", () => ({
 }));
 vi.mock("@/helpers/task-notifications", () => ({
   notifyTaskStatusEvent: mocks.taskNotify,
+  markTaskArchivedRead: mocks.archiveRead,
 }));
 vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
   dispatchChatRoomMention: mocks.dispatch,
@@ -107,6 +121,7 @@ function message(overrides = {}) {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.humanMentions.mockResolvedValue([]);
   mocks.transaction.mockImplementation(async (callback) => callback(prisma));
   mocks.update.mockResolvedValue({ count: 1 });
   mocks.find.mockResolvedValue(effect());
@@ -126,6 +141,30 @@ describe("committed effect outbox", () => {
     );
     expect(mocks.update.mock.calls.at(-1)?.[0].data.status).toBe("PUBLISHED");
   });
+  it("notifies mentioned owner once and sends direct notification only to unmentioned reader", async () => {
+    const record = effect();
+    mocks.find.mockResolvedValue({
+      ...record,
+      payload: { ...record.payload, userIds: ["owner", "reader"] },
+    });
+    const current = message();
+    current.room.userMembers.push({ userId: "reader" });
+    mocks.message.mockResolvedValue(current);
+    mocks.humanMentions.mockResolvedValue([{ userId: "owner" }]);
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(mocks.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientUserIds: ["reader"],
+        throwOnError: true,
+      }),
+    );
+    expect(mocks.emitHumanMentions).toHaveBeenCalledWith({
+      messageId: "message",
+      mentionedUserIds: ["owner"],
+      throwOnError: true,
+    });
+  });
+
   it("does not publish after losing its lease during authority checks", async () => {
     mocks.update
       .mockResolvedValueOnce({ count: 1 })
@@ -151,11 +190,13 @@ describe("committed effect outbox", () => {
     mocks.message.mockResolvedValue(current);
     expect(await deliverSokoBotEffect("effect")).toBe(false);
     expect(mocks.notify).not.toHaveBeenCalled();
+    expect(mocks.persistHumanMentions).not.toHaveBeenCalled();
+    expect(mocks.emitHumanMentions).not.toHaveBeenCalled();
     expect(mocks.update.mock.calls.at(-1)?.[0].data.reason).toBe(
       "AUDIENCE_CHANGED",
     );
   });
-  it.each(["publish", "notify", "invalidate"] as const)(
+  it.each(["publish", "notify", "invalidate", "emitHumanMentions"] as const)(
     "retains obligation when %s fails and retries same message",
     async (key) => {
       mocks[key].mockRejectedValueOnce(new Error("offline"));
@@ -184,6 +225,33 @@ describe("committed effect outbox", () => {
       "private provider response",
     );
   });
+  it("hands an archived task's reader cleanup and calendar effects to main helpers", async () => {
+    const record = effect({
+      purpose: "TASK_EVENT",
+      payload: { taskId: "task", eventId: "event" },
+    });
+    mocks.find.mockResolvedValue({
+      ...record,
+      receipt: { ...record.receipt, capability: "archive_task" },
+    });
+    const task = {
+      id: "task",
+      ownerId: "owner",
+      assigneeUserId: null,
+      archivedAt: new Date(),
+    };
+    mocks.event.mockResolvedValue({
+      id: "event",
+      taskId: "task",
+      status: null,
+      task,
+    });
+    expect(await deliverSokoBotEffect("effect")).toBe(true);
+    expect(mocks.calendar).toHaveBeenCalledWith("workspace");
+    expect(mocks.archiveRead).toHaveBeenCalledWith(task);
+    expect(mocks.taskNotify).not.toHaveBeenCalled();
+  });
+
   it("retries task notification failures using the same committed event", async () => {
     mocks.find.mockResolvedValue(
       effect({
@@ -204,6 +272,7 @@ describe("committed effect outbox", () => {
       "task",
       "event",
       "COMPLETED",
+      null,
       { throwOnError: true },
     );
   });

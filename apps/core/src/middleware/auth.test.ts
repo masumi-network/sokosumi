@@ -18,7 +18,6 @@ const {
   getSessionMock,
   coworkerApiKeyFindUniqueMock,
   workspaceFindFirstMock,
-  prismaTransactionMock,
   oauthAccessTokenFindUniqueMock,
   oauthConsentFindFirstMock,
   userFindUniqueMock,
@@ -27,7 +26,6 @@ const {
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
   oauthAccessTokenFindUniqueMock: vi.fn(),
   oauthConsentFindFirstMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
@@ -53,7 +51,12 @@ vi.mock("@/lib/db/prisma", () => ({
     user: {
       findUnique: userFindUniqueMock,
     },
-    $transaction: prismaTransactionMock,
+    oauthAccessToken: {
+      findUnique: oauthAccessTokenFindUniqueMock,
+    },
+    oauthConsent: {
+      findFirst: oauthConsentFindFirstMock,
+    },
   },
 }));
 
@@ -88,17 +91,6 @@ describe("authMiddleware", () => {
       role: "user",
       banned: false,
       banExpires: null,
-    });
-
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        oauthAccessToken: {
-          findUnique: oauthAccessTokenFindUniqueMock,
-        },
-        oauthConsent: {
-          findFirst: oauthConsentFindFirstMock,
-        },
-      });
     });
   });
 
@@ -488,7 +480,6 @@ describe("authMiddleware", () => {
     expect(response.status).toBe(401);
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("authenticates Better Auth API key as user and ignores deprecated metadata", async () => {
@@ -549,7 +540,6 @@ describe("authMiddleware", () => {
     expect(response.status).toBe(401);
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("returns 401 for a Better Auth API key whose owner is banned", async () => {
@@ -656,7 +646,6 @@ describe("authMiddleware", () => {
       authenticationMethod: "oauth",
     });
     expect(getSessionMock).not.toHaveBeenCalled();
-    expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
     expect(oauthAccessTokenFindUniqueMock).toHaveBeenCalledWith({
       where: {
         token: expect.any(String),
@@ -993,7 +982,7 @@ describe("authMiddleware", () => {
       authenticationMethod: "session",
     });
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("carries the impersonation marker from an impersonated session", async () => {

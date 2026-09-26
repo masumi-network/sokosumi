@@ -25,7 +25,7 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/lib/actions", () => ({
+vi.mock("@/lib/actions/errors/error-codes/common", () => ({
   CommonErrorCode: {
     UNAUTHENTICATED: "UNAUTHENTICATED",
     BAD_INPUT: "BAD_INPUT",

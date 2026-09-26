@@ -8,6 +8,7 @@ import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CARDANO_V2_RAIL_READINESS_KEY } from "@/helpers/agent";
+import { REDACTED_SECRET } from "@/lib/secret-redaction";
 
 import { READINESS_BUDGET } from "./agent-sync.readiness.js";
 
@@ -302,6 +303,14 @@ const V2_AGENT_ROOT = `67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b$
 function createV2AgentIdentifier(version: number): string {
   return `${V2_AGENT_ROOT}${version.toString(16).padStart(6, "0")}`;
 }
+
+/**
+ * Assigned at module scope, because `getEnvSecrets` scans `process.env` once
+ * and caches the result. A variable set inside a test body would arrive after
+ * the first redacted log had already populated that cache.
+ */
+const ENV_SECRET = "sok1011-registry-secret-value";
+process.env.SOK_1011_REGISTRY_API_KEY = ENV_SECRET;
 
 describe("agentSyncService.syncRegistryAgents", () => {
   beforeEach(() => {
@@ -850,6 +859,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
         where: { id: "agent-v1-existing" },
         data: expect.objectContaining({
           summary: null,
+          summaryDeclinedAt: null,
           tags: { set: [{ name: "tag-a" }, { name: "tag-b" }] },
         }),
       }),
@@ -929,6 +939,32 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentCreateMock).not.toHaveBeenCalled();
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("masks an env secret echoed in the registry diff error", async () => {
+    const agentSyncService = await getAgentSyncService();
+    // The registry client caps this string; its content is still the far
+    // side's. A proxy that echoes request headers puts the API key in it.
+    getAgentsDiffMock.mockResolvedValue(
+      err(`502 upstream rejected token=${ENV_SECRET}`),
+    );
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await agentSyncService.syncRegistryAgents(
+        AGENTS_SYNC_METADATA_KEY,
+        createSyncExecutionOptions(),
+      );
+
+      const logged = errorSpy.mock.calls.find(
+        (call) => call[0] === "[sync/agents] Error in diff sync operation:",
+      );
+      expect(logged).toBeDefined();
+      expect(String(logged?.[1])).not.toContain(ENV_SECRET);
+      expect(String(logged?.[1])).toContain(REDACTED_SECRET);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("stops downstream writes when cancellation is requested mid-run", async () => {
@@ -2965,7 +3001,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
       },
     ]);
     openrouterGenerateAgentSummaryMock
-      .mockResolvedValueOnce("Summary one")
+      .mockResolvedValueOnce({ kind: "summary", text: "Summary one" })
       .mockResolvedValueOnce(null);
 
     await agentSyncService.syncAgentSummaries(options);
@@ -2975,6 +3011,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
         status: AgentStatus.ONLINE,
         isShown: true,
         summary: null,
+        summaryDeclinedAt: null,
         OR: [
           { description: { not: null } },
           { metadataOverride: { description: { not: null } } },
@@ -3008,6 +3045,30 @@ describe("agentSyncService.syncAgentSummaries", () => {
       data: {
         summary: "Summary one",
       },
+    });
+  });
+
+  it("records a declined summary so the agent leaves the candidate set", async () => {
+    const agentSyncService = await getAgentSyncService();
+    const updatedAt = new Date("2026-09-01T00:00:00.000Z");
+    agentFindManyMock.mockResolvedValue([
+      {
+        id: "agent-1",
+        description: "test",
+        metadataOverride: null,
+        updatedAt,
+      },
+    ]);
+    openrouterGenerateAgentSummaryMock.mockResolvedValue({ kind: "declined" });
+
+    await agentSyncService.syncAgentSummaries({
+      abortSignal: new AbortController().signal,
+      shouldContinue: () => true,
+    });
+
+    expect(agentUpdateMock).toHaveBeenCalledWith({
+      where: { id: "agent-1" },
+      data: { summaryDeclinedAt: expect.any(Date), updatedAt },
     });
   });
 
@@ -3045,7 +3106,10 @@ describe("agentSyncService.syncAgentSummaries", () => {
         metadataOverride: null,
       },
     ]);
-    openrouterGenerateAgentSummaryMock.mockResolvedValue("Summary one");
+    openrouterGenerateAgentSummaryMock.mockResolvedValue({
+      kind: "summary",
+      text: "Summary one",
+    });
 
     let continueChecks = 0;
     const shouldContinue = vi.fn(() => {
@@ -3097,7 +3161,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
     ]);
     openrouterGenerateAgentSummaryMock
       .mockRejectedValueOnce(new Error("OpenRouter down"))
-      .mockResolvedValueOnce("Summary two");
+      .mockResolvedValueOnce({ kind: "summary", text: "Summary two" });
 
     await agentSyncService.syncAgentSummaries(options);
 

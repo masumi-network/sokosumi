@@ -1,12 +1,11 @@
 import type { Hono } from "hono";
 
-import { taskScheduleReconciliationService } from "@/services/task-schedule-reconciliation.service";
-import { taskScheduleValidationService } from "@/services/task-schedule-validation.service";
-import { taskSchedulesSyncService } from "@/services/task-schedules-sync";
+import { calendarInvalidationOutboxService } from "@/services/calendar-invalidation-outbox.service";
+import { taskScheduleReleaseService } from "@/services/task-schedule-runs.service";
 
 import { handleSyncRequest } from "../handler.js";
 
-export const TASK_SCHEDULES_SYNC_LOCK_KEY = "task-schedules-sync";
+const TASK_SCHEDULES_SYNC_LOCK_KEY = "task-schedules-sync";
 
 export default function mount(app: Hono) {
   app.get("/task-schedules", async (c) => {
@@ -14,27 +13,31 @@ export default function mount(app: Hono) {
       c,
       TASK_SCHEDULES_SYNC_LOCK_KEY,
       async (context) => {
-        const result = await taskSchedulesSyncService.syncDueSchedules({
+        const executionOptions = {
           abortSignal: context.abortSignal,
           deadlineMs: context.deadlineMs,
           shouldContinue: context.shouldContinue,
-        });
+        };
+        const scheduleRelease =
+          await taskScheduleReleaseService.releaseDueSchedules(
+            executionOptions,
+          );
 
-        const validation = context.shouldContinue()
-          ? await taskScheduleValidationService.validateActiveSchedules({
-              shouldContinue: context.shouldContinue,
-            })
+        const runAtRelease = context.shouldContinue()
+          ? await taskScheduleReleaseService.releaseDueRunAts(executionOptions)
           : null;
-        const reconciliation = context.shouldContinue()
-          ? await taskScheduleReconciliationService.reconcileScheduleHistory({
+
+        const invalidations = context.shouldContinue()
+          ? await calendarInvalidationOutboxService.syncInvalidations({
+              newestFirst: true,
               shouldContinue: context.shouldContinue,
             })
           : null;
 
         console.info("[sync/task-schedules] Completed sync", {
-          ...result,
-          validation,
-          reconciliation,
+          scheduleRelease,
+          runAtRelease,
+          invalidations,
         });
       },
     );

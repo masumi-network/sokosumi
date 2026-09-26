@@ -1,4 +1,12 @@
-import { act, cleanup, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,7 +14,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HeaderNotificationBell } from "@/app/components/header/header-notification-bell.client";
 import { NotificationsPageContent } from "@/app/notifications/page-content";
 import { NotificationProvider } from "@/contexts/notification-provider";
-import type { NotificationEventData } from "@/lib/ably";
+import { NOTIFICATION_VIEW_STORAGE_KEY } from "@/contexts/notification-view-storage";
+import type { NotificationEventData } from "@/lib/ably/schema";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 
 /**
@@ -20,7 +29,7 @@ import type { NotificationItem } from "@/lib/clients/generated/core";
  */
 
 const getNotificationsMock = vi.fn();
-const getNotificationsUnreadCountMock = vi.fn();
+const getNotificationsCountsMock = vi.fn();
 const patchNotificationReadMock = vi.fn();
 const patchNotificationUnreadMock = vi.fn();
 const patchNotificationsReadAllMock = vi.fn();
@@ -32,8 +41,8 @@ let deliverRealtime: (event: NotificationEventData) => void = () => {};
 vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
   notificationsBrowserClient: {
     getNotifications: (...args: unknown[]) => getNotificationsMock(...args),
-    getNotificationsUnreadCount: (...args: unknown[]) =>
-      getNotificationsUnreadCountMock(...args),
+    getNotificationsCounts: (...args: unknown[]) =>
+      getNotificationsCountsMock(...args),
     patchNotificationRead: (...args: unknown[]) =>
       patchNotificationReadMock(...args),
     patchNotificationUnread: (...args: unknown[]) =>
@@ -76,15 +85,28 @@ vi.mock("@/contexts/account-notice-provider", () => ({
 vi.mock("@/app/components/account-notice-row", () => ({
   AccountNoticeRow: () => <p>account notice</p>,
 }));
+// A marker rather than null: the primer's own states belong to its own
+// test, but where the frame puts it is this file's business, and a null
+// mock cannot be found to be in the wrong place.
 vi.mock("@/app/components/notification-browser-permission-primer", () => ({
-  NotificationBrowserPermissionPrimer: () => null,
+  NotificationBrowserPermissionPrimer: () => (
+    <div data-testid="notification-permission-primer" />
+  ),
 }));
 vi.mock("@/lib/utils/notification-message", () => ({
-  useNotificationMessage: () => (key: string) => key,
+  // The key, unless the row carries a label: rows that share a real key
+  // (every task that asked for input) still need telling apart on screen.
+  useNotificationMessage:
+    () => (key: string, params?: Record<string, unknown>) =>
+      typeof params?.label === "string" ? params.label : key,
 }));
 vi.mock("@/lib/utils/notification-time", () => ({
   useNotificationTimeFormatter: () => () => "today",
 }));
+vi.mock("@/lib/ably/use-notification-front-presence", () => ({
+  useNotificationFrontPresence: () => undefined,
+}));
+
 vi.mock("@/lib/ably/use-notification-realtime", () => ({
   useNotificationRealtime: ({
     onNotification,
@@ -201,9 +223,11 @@ async function renderPanel() {
     </NotificationProvider>,
   );
   await settle();
-  await userEvent
-    .setup()
-    .click(screen.getByRole("button", { name: /^notifications$|unreadBadge/ }));
+  await userEvent.setup().click(
+    screen.getByRole("button", {
+      name: /^notifications$|unreadBadge|accountNoticeIndicator/,
+    }),
+  );
   await settle();
 }
 
@@ -215,9 +239,10 @@ const FRAMES = [
 beforeEach(() => {
   vi.stubGlobal("IntersectionObserver", StubIntersectionObserver);
   observers.clear();
+  window.localStorage.clear();
   for (const mock of [
     getNotificationsMock,
-    getNotificationsUnreadCountMock,
+    getNotificationsCountsMock,
     patchNotificationReadMock,
     patchNotificationUnreadMock,
     patchNotificationsReadAllMock,
@@ -229,13 +254,17 @@ beforeEach(() => {
   }
   isMobileMock.mockReturnValue(false);
   accountNoticeMock.mockReturnValue({ notice: null });
-  getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+  getNotificationsCountsMock.mockResolvedValue({
+    data: { unread: 0, needsAction: 0, mentions: 0 },
+  });
   getNotificationsMock.mockResolvedValue(page([]));
 });
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("Notification Center, both frames", () => {
@@ -315,7 +344,9 @@ describe("Notification Center, both frames", () => {
     async (_, mount) => {
       const unread = row("mine", { isRead: false, readAt: null });
       getNotificationsMock.mockResolvedValue(page([unread]));
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 0, mentions: 0 },
+      });
       patchNotificationReadMock.mockResolvedValue({
         data: { ...unread, isRead: true, readAt: new Date() },
       });
@@ -349,7 +380,9 @@ describe("Notification Center, both frames", () => {
       getNotificationsMock.mockResolvedValue(
         page([row("mine", { isRead: false, readAt: null })]),
       );
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 0, mentions: 0 },
+      });
       patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 1 } });
 
       await mount();
@@ -370,13 +403,15 @@ describe("Notification Center, both frames", () => {
     getNotificationsMock.mockResolvedValue(
       page([row("mine", { isRead: false, readAt: null })]),
     );
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0, mentions: 0 },
+    });
     patchNotificationReadMock.mockResolvedValue({
       data: row("mine", { isRead: true }),
     });
 
     await renderPage();
-    const actions = screen.getByTestId("notifications-page-actions");
+    const actions = screen.getByTestId("notifications-page-header");
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "markRead: mine" }));
@@ -385,7 +420,7 @@ describe("Notification Center, both frames", () => {
     // The button goes, its row stays: a row that left with it would pull the
     // whole list up under the reader's pointer.
     expect(screen.queryByRole("button", { name: "markAllRead" })).toBeNull();
-    expect(screen.getByTestId("notifications-page-actions")).toBe(actions);
+    expect(screen.getByTestId("notifications-page-header")).toBe(actions);
   });
 
   it("puts a row back and says so when marking it read fails", async () => {
@@ -395,7 +430,9 @@ describe("Notification Center, both frames", () => {
     getNotificationsMock.mockResolvedValue(
       page([row("mine", { isRead: false, readAt: null })]),
     );
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0, mentions: 0 },
+    });
 
     await renderPage();
     getNotificationsMock.mockRejectedValue(new Error("offline"));
@@ -556,13 +593,14 @@ describe("Notification Center, both frames", () => {
     expect(screen.getByText("emptyState")).toBeTruthy();
   });
 
-  it("leaves the empty state out under an account notice", async () => {
+  // The notice lives on Needs you, so All says what it holds without it.
+  it("says All is empty under an account notice", async () => {
     accountNoticeMock.mockReturnValue({ notice: { tone: "warning" } });
 
     await renderPage();
 
-    expect(screen.getByText("account notice")).toBeTruthy();
-    expect(screen.queryByText("emptyState")).toBeNull();
+    expect(screen.queryByText("account notice")).toBeNull();
+    expect(screen.getByText("emptyState")).toBeTruthy();
   });
 
   it("offers a retry when the first page will not load", async () => {
@@ -602,15 +640,21 @@ describe("Notification Center, both frames", () => {
       .closest("[data-slot='popover-content']");
     expect(document.activeElement).toBe(panel);
 
-    // The rows stay one Tab away.
-    await userEvent.setup().tab();
+    // The header's own controls come first in tab order; the rows stay right
+    // behind them.
+    const user = userEvent.setup();
+    await user.tab();
+    expect(document.activeElement?.textContent).toContain("filterAll");
+    await user.tab();
     expect(document.activeElement?.textContent).toContain("first");
   });
 
   it("does not leave focus on a row's read control after a click", async () => {
     const unread = row("mine", { isRead: false, readAt: null });
     getNotificationsMock.mockResolvedValue(page([unread]));
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0, mentions: 0 },
+    });
     patchNotificationReadMock.mockResolvedValue({
       data: { ...unread, isRead: true, readAt: new Date() },
     });
@@ -631,7 +675,9 @@ describe("Notification Center, both frames", () => {
   it("keeps a row's read control reachable and focused from the keyboard", async () => {
     const unread = row("mine", { isRead: false, readAt: null });
     getNotificationsMock.mockResolvedValue(page([unread]));
-    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0, mentions: 0 },
+    });
     patchNotificationReadMock.mockResolvedValue({
       data: { ...unread, isRead: true, readAt: new Date() },
     });
@@ -663,5 +709,1303 @@ describe("Notification Center, both frames", () => {
     const bell = screen.getByRole("link", { name: "notifications" });
     expect(bell.getAttribute("href")).toBe("/notifications");
     expect(screen.queryByRole("button", { name: "notifications" })).toBeNull();
+  });
+});
+
+describe("Notification Center view filter", () => {
+  it("keeps the choice the panel made when the page shows the same list", async () => {
+    const waiting = row("waiting", { isRead: false, readAt: null });
+    const handled = row("handled", { isRead: true });
+    getNotificationsMock.mockResolvedValue(page([waiting, handled]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0, mentions: 0 },
+    });
+
+    render(
+      <NotificationProvider userId="user-1">
+        <HeaderNotificationBell />
+        <NotificationsPageContent />
+      </NotificationProvider>,
+    );
+    await settle();
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: /^notifications$|unreadBadge/ }),
+    );
+    await settle();
+
+    const panel = document.querySelector("[data-slot='popover-content']");
+    expect(panel).not.toBeNull();
+    const callsBefore = getNotificationsMock.mock.calls.length;
+
+    getNotificationsMock.mockResolvedValue(page([waiting]));
+    await user.click(
+      within(panel as HTMLElement).getByRole("tab", { name: /^filterUnread/ }),
+    );
+    await settle();
+
+    // One shared list: the switch refetches once, and both frames narrow.
+    expect(getNotificationsMock.mock.calls.length).toBe(callsBefore + 1);
+    expect(getNotificationsMock).toHaveBeenLastCalledWith({
+      limit: 20,
+      isRead: "false",
+    });
+    expect(screen.getAllByText("waiting")).toHaveLength(2);
+    expect(screen.queryByText("handled")).toBeNull();
+    for (const option of screen.getAllByRole("tab", {
+      name: /^filterUnread/,
+    })) {
+      expect(option.getAttribute("aria-selected")).toBe("true");
+    }
+  });
+
+  it.each(FRAMES)(
+    "switches between all and unread in the %s",
+    async (_, mount) => {
+      const waiting = row("waiting", {
+        isRead: false,
+        readAt: null,
+        createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      });
+      const handled = row("handled", {
+        isRead: true,
+        createdAt: new Date("2026-06-17T09:00:00.000Z"),
+      });
+      getNotificationsMock.mockResolvedValue(page([waiting, handled]));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 0, mentions: 0 },
+      });
+
+      await mount();
+      const user = userEvent.setup();
+
+      // The default view is all notifications.
+      expect(
+        screen
+          .getByRole("tab", { name: "filterAll" })
+          .getAttribute("aria-selected"),
+      ).toBe("true");
+      expect(screen.getByText("waiting")).toBeTruthy();
+      expect(screen.getByText("handled")).toBeTruthy();
+
+      getNotificationsMock.mockResolvedValue(page([waiting]));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({
+        limit: 20,
+        isRead: "false",
+      });
+      expect(screen.getByText("waiting")).toBeTruthy();
+      expect(screen.queryByText("handled")).toBeNull();
+
+      getNotificationsMock.mockResolvedValue(page([waiting, handled]));
+      await user.click(screen.getByRole("tab", { name: "filterAll" }));
+      await settle();
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({ limit: 20 });
+      expect(screen.getByText("waiting")).toBeTruthy();
+      expect(screen.getByText("handled")).toBeTruthy();
+    },
+  );
+
+  it.each(FRAMES)(
+    "loads older unread rows with the unread query in the %s",
+    async (_, mount) => {
+      const first = row("first", {
+        isRead: false,
+        readAt: null,
+        createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      });
+      getNotificationsMock.mockResolvedValue(page([first], "first"));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 2, needsAction: 0, mentions: 0 },
+      });
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([first], "first"));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      getNotificationsMock.mockResolvedValue(
+        page([
+          row("older", {
+            isRead: false,
+            readAt: null,
+            createdAt: new Date("2026-06-16T09:00:00.000Z"),
+          }),
+        ]),
+      );
+      await act(async () => {
+        intersect(screen.getByTestId("notification-older-boundary"));
+        await Promise.resolve();
+      });
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({
+        limit: 20,
+        cursor: "first",
+        isRead: "false",
+      });
+      expect(screen.getByText("older")).toBeTruthy();
+    },
+  );
+
+  it.each(FRAMES)(
+    "keeps a read row under the pointer and drops it once the pointer leaves in the %s",
+    async (_, mount) => {
+      const unread = row("mine", { isRead: false, readAt: null });
+      getNotificationsMock.mockResolvedValue(page([unread]));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 0, mentions: 0 },
+      });
+      patchNotificationReadMock.mockResolvedValue({
+        data: { ...unread, isRead: true, readAt: new Date() },
+      });
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([unread]));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      // The click leaves the pointer on the row, so the row stays, with its
+      // way back on the same spot and nothing sliding under the cursor.
+      await user.click(screen.getByRole("button", { name: "markRead: mine" }));
+      await settle();
+      expect(screen.getByText("mine")).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "markUnread: mine" }),
+      ).toBeTruthy();
+
+      // Moving off the row is what lets it go.
+      await user.unhover(screen.getByText("mine"));
+      await waitFor(() => {
+        expect(screen.queryByText("mine")).toBeNull();
+      });
+      expect(screen.getByText("emptyUnreadState")).toBeTruthy();
+      // The row was already counted as read; hiding it must not restore the badge.
+      expect(screen.queryByRole("button", { name: "markAllRead" })).toBeNull();
+    },
+  );
+
+  it.each(FRAMES)(
+    "keeps paging in Unread after loaded rows leave while more remain in the %s",
+    async (_, mount) => {
+      const first = row("first", { isRead: false, readAt: null });
+      getNotificationsMock.mockResolvedValue(page([first], "first"));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 2, needsAction: 0, mentions: 0 },
+      });
+      patchNotificationReadMock.mockResolvedValue({
+        data: { ...first, isRead: true, readAt: new Date() },
+      });
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([first], "first"));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      await user.click(screen.getByRole("button", { name: "markRead: first" }));
+      await settle();
+      await user.unhover(screen.getByText("first"));
+      await waitFor(() => {
+        expect(screen.queryByText("first")).toBeNull();
+      });
+
+      expect(screen.queryByText("emptyUnreadState")).toBeNull();
+      expect(screen.getByTestId("notification-older-boundary")).toBeTruthy();
+
+      getNotificationsMock.mockResolvedValue(
+        page([
+          row("older", {
+            isRead: false,
+            readAt: null,
+            createdAt: new Date("2026-06-16T09:00:00.000Z"),
+          }),
+        ]),
+      );
+      await act(async () => {
+        intersect(screen.getByTestId("notification-older-boundary"));
+        await Promise.resolve();
+      });
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({
+        limit: 20,
+        cursor: "first",
+        isRead: "false",
+      });
+      expect(screen.getByText("older")).toBeTruthy();
+    },
+  );
+
+  it.each(FRAMES)(
+    "keeps a row the reader puts back before leaving it in the %s",
+    async (_, mount) => {
+      const unread = row("mine", { isRead: false, readAt: null });
+      getNotificationsMock.mockResolvedValue(page([unread]));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 0, mentions: 0 },
+      });
+      patchNotificationReadMock.mockResolvedValue({
+        data: { ...unread, isRead: true, readAt: new Date() },
+      });
+      patchNotificationUnreadMock.mockResolvedValue({ data: unread });
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([unread]));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      await user.click(screen.getByRole("button", { name: "markRead: mine" }));
+      await settle();
+      await user.click(
+        screen.getByRole("button", { name: "markUnread: mine" }),
+      );
+      await settle();
+
+      const notificationRow = screen
+        .getByText("mine")
+        .closest("[data-slot='notification-row']");
+      if (!notificationRow) {
+        throw new Error("expected the notification row");
+      }
+      // userEvent hangs once timers are fake. pointerout is what React
+      // turns into onPointerLeave, and it has to run now so the fold
+      // timer is the one this advance fires.
+      vi.useFakeTimers({
+        toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+      });
+      try {
+        fireEvent.pointerOut(notificationRow, {
+          relatedTarget: document.body,
+          pointerType: "mouse",
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(300);
+        });
+        expect(screen.getByText("mine")).toBeTruthy();
+        expect(
+          screen.getByRole("button", { name: "markRead: mine" }),
+        ).toBeTruthy();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("folds a read row right after a tap, with no pointer left to hold it", async () => {
+    const unread = row("mine", { isRead: false, readAt: null });
+    getNotificationsMock.mockResolvedValue(page([unread]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0, mentions: 0 },
+    });
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...unread, isRead: true, readAt: new Date() },
+    });
+
+    await renderPage();
+    const user = userEvent.setup();
+
+    getNotificationsMock.mockResolvedValue(page([unread]));
+    await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+    await settle();
+
+    await user.pointer({
+      keys: "[TouchA]",
+      target: screen.getByRole("button", { name: "markRead: mine" }),
+    });
+    await waitFor(() => {
+      expect(screen.queryByText("mine")).toBeNull();
+    });
+  });
+
+  // The heading names the page whether or not there is anything to list.
+  // Mark all read is the part that has nothing to act on, so it is the part
+  // that goes.
+  it("keeps the page heading on an empty Unread page, without its button", async () => {
+    getNotificationsMock.mockResolvedValue(page([]));
+
+    await renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+    await settle();
+
+    expect(screen.getByText("emptyUnreadState")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "pageTitle" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "markAllRead" })).toBeNull();
+  });
+
+  it("drops a read row once a keyboard reader tabs off it", async () => {
+    const unread = row("mine", { isRead: false, readAt: null });
+    getNotificationsMock.mockResolvedValue(page([unread]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0, mentions: 0 },
+    });
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...unread, isRead: true, readAt: new Date() },
+    });
+
+    await renderPage();
+    const user = userEvent.setup();
+
+    getNotificationsMock.mockResolvedValue(page([unread]));
+    await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+    await settle();
+    await user.unhover(screen.getByRole("tab", { name: /^filterUnread/ }));
+
+    const toggle = screen.getByRole("button", { name: "markRead: mine" });
+    toggle.focus();
+    await user.keyboard("{Enter}");
+    await settle();
+    // Focus is still on the row's control, so the row waits.
+    expect(screen.getByText("mine")).toBeTruthy();
+
+    await user.tab();
+    await waitFor(() => {
+      expect(screen.queryByText("mine")).toBeNull();
+    });
+  });
+
+  it.each(FRAMES)(
+    "marks all read in the Unread view and empties the list at once in the %s",
+    async (_, mount) => {
+      const first = row("first", { isRead: false, readAt: null });
+      const second = row("second", { isRead: false, readAt: null });
+      getNotificationsMock.mockResolvedValue(page([first, second]));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 2, needsAction: 0, mentions: 0 },
+      });
+      patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 2 } });
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([first, second]));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      // The pointer is on the header button, not on a row, so every row
+      // leaves and the narrowed list says so with its own message.
+      await user.click(screen.getByRole("button", { name: "markAllRead" }));
+      await waitFor(() => {
+        expect(screen.queryByText("first")).toBeNull();
+        expect(screen.queryByText("second")).toBeNull();
+      });
+      expect(screen.getByText("emptyUnreadState")).toBeTruthy();
+      expect(screen.queryByText("emptyState")).toBeNull();
+    },
+  );
+
+  it.each(FRAMES)(
+    "does not load the next unread page after mark all read in the %s",
+    async (_, mount) => {
+      const first = row("first", { isRead: false, readAt: null });
+      const second = row("second", { isRead: false, readAt: null });
+      getNotificationsMock.mockResolvedValue(page([first, second], "second"));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 4, needsAction: 0, mentions: 0 },
+      });
+      patchNotificationsReadAllMock.mockImplementation(
+        () => new Promise(() => {}),
+      );
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([first, second], "second"));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      const callsBeforeMarkAll = getNotificationsMock.mock.calls.length;
+      await user.click(screen.getByRole("button", { name: "markAllRead" }));
+      await waitFor(() => {
+        expect(screen.queryByText("first")).toBeNull();
+        expect(screen.queryByText("second")).toBeNull();
+      });
+
+      expect(screen.getByText("emptyUnreadState")).toBeTruthy();
+      expect(screen.queryByTestId("notification-older-boundary")).toBeNull();
+      expect(getNotificationsMock.mock.calls.length).toBe(callsBeforeMarkAll);
+      expect(getNotificationsMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({ cursor: "second" }),
+      );
+    },
+  );
+
+  it.each(FRAMES)(
+    "puts a row back when mark-read fails after it left the Unread view in the %s",
+    async (_, mount) => {
+      const first = row("first", { isRead: false, readAt: null });
+      const second = row("second", {
+        isRead: false,
+        readAt: null,
+        createdAt: new Date("2026-06-17T09:00:00.000Z"),
+      });
+      getNotificationsMock.mockResolvedValue(page([first, second]));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 2, needsAction: 0, mentions: 0 },
+      });
+
+      let rejectRead!: (error: Error) => void;
+      patchNotificationReadMock.mockImplementation(
+        () =>
+          new Promise((_, reject) => {
+            rejectRead = reject;
+          }),
+      );
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([first, second]));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      await user.click(screen.getByRole("button", { name: "markRead: first" }));
+      await settle();
+      await user.unhover(screen.getByText("first"));
+      await waitFor(() => {
+        expect(screen.queryByText("first")).toBeNull();
+      });
+      expect(screen.getByText("second")).toBeTruthy();
+
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      getNotificationsMock.mockRejectedValue(new Error("offline"));
+      await act(async () => {
+        rejectRead(new Error("offline"));
+        await Promise.resolve();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("first")).toBeTruthy();
+      });
+      expect(screen.getByText("second")).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "markRead: first" }),
+      ).toBeTruthy();
+      consoleError.mockRestore();
+    },
+  );
+
+  it.each(FRAMES)(
+    "puts a notification that arrives in the Unread view at the top in the %s",
+    async (_, mount) => {
+      const waiting = row("waiting", {
+        isRead: false,
+        readAt: null,
+        createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      });
+      getNotificationsMock.mockResolvedValue(page([waiting]));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 0, mentions: 0 },
+      });
+
+      await mount();
+
+      getNotificationsMock.mockResolvedValue(page([waiting]));
+      await userEvent
+        .setup()
+        .click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      await act(async () => {
+        deliverRealtime({
+          ...row("arrived", {
+            isRead: false,
+            readAt: null,
+            createdAt: new Date("2026-06-18T10:00:00.000Z"),
+          }),
+          readAt: null,
+          createdAt: "2026-06-18T10:00:00.000Z",
+          inApp: true,
+          osBanner: false,
+          created: true,
+        } as NotificationEventData);
+      });
+
+      const messages = screen
+        .getAllByText(/^arrived$|^waiting$/)
+        .map((element) => element.textContent);
+      expect(messages).toEqual(["arrived", "waiting"]);
+    },
+  );
+
+  it.each(FRAMES)(
+    "tells an empty Unread view from an empty All view in the %s",
+    async (_, mount) => {
+      getNotificationsMock.mockResolvedValue(
+        page([row("mine", { isRead: true })]),
+      );
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([]));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+      expect(screen.getByText("emptyUnreadState")).toBeTruthy();
+      expect(screen.queryByText("emptyState")).toBeNull();
+
+      getNotificationsMock.mockResolvedValue(page([]));
+      await user.click(screen.getByRole("tab", { name: "filterAll" }));
+      await settle();
+      expect(screen.getByText("emptyState")).toBeTruthy();
+      expect(screen.queryByText("emptyUnreadState")).toBeNull();
+    },
+  );
+
+  it.each(FRAMES)(
+    "hands focus to the view strip when Show all empties the %s",
+    async (_, mount) => {
+      getNotificationsMock.mockResolvedValue(
+        page([row("mine", { isRead: true })]),
+      );
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([]));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      getNotificationsMock.mockResolvedValue(
+        page([row("mine", { isRead: true })]),
+      );
+      // The button leaves with the empty state it sits in. Without a new
+      // home for focus it falls to <body>, and a keyboard reader loses
+      // their place in the list they just asked to see.
+      await user.click(screen.getByRole("button", { name: "showAll" }));
+      await settle();
+
+      await waitFor(() => {
+        expect(document.activeElement).toBe(
+          screen.getByRole("tab", { name: "filterAll" }),
+        );
+      });
+    },
+  );
+
+  // The page names itself before it says anything else. A notice or a push
+  // primer above the heading pushed the title down the screen, so the first
+  // thing a reader met was an aside about a setting.
+  it("puts the page heading above every notice on it", async () => {
+    accountNoticeMock.mockReturnValue({ notice: { tone: "warning" } });
+    getNotificationsMock.mockResolvedValue(
+      page([row("mine", { isRead: true })]),
+    );
+
+    await renderPage();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: "filterNeedsYou 1" }));
+    await settle();
+
+    const header = screen.getByTestId("notifications-page-header");
+    const notice = screen.getByText("account notice");
+
+    expect(header.parentElement?.firstElementChild).toBe(header);
+    expect(
+      header.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it.each(FRAMES)(
+    "offers a retry that keeps the unread query in the %s",
+    async (_, mount) => {
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      getNotificationsMock.mockResolvedValue(
+        page([row("mine", { isRead: true })]),
+      );
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockRejectedValue(new Error("offline"));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      expect(screen.getByText("fetchError")).toBeTruthy();
+
+      const waiting = row("waiting", { isRead: false, readAt: null });
+      getNotificationsMock.mockResolvedValue(page([waiting]));
+      await user.click(screen.getByRole("button", { name: "retry" }));
+      await settle();
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({
+        limit: 20,
+        isRead: "false",
+      });
+      expect(screen.getByText("waiting")).toBeTruthy();
+      consoleError.mockRestore();
+    },
+  );
+
+  it("counts the whole feed on the bell whatever the view", async () => {
+    const waiting = row("waiting", { isRead: false, readAt: null });
+    const handled = row("handled", { isRead: true });
+    getNotificationsMock.mockResolvedValue(page([waiting, handled]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 5, needsAction: 0, mentions: 0 },
+    });
+
+    await renderPanel();
+    const user = userEvent.setup();
+    const badge = () =>
+      screen.getByTestId("notification-unread-badge").textContent;
+    expect(badge()).toBe("5");
+
+    getNotificationsMock.mockResolvedValue(page([waiting]));
+    await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+    await settle();
+    expect(badge()).toBe("5");
+
+    getNotificationsMock.mockResolvedValue(page([waiting, handled]));
+    await user.click(screen.getByRole("tab", { name: "filterAll" }));
+    await settle();
+    expect(badge()).toBe("5");
+  });
+
+  it("switches views from the keyboard", async () => {
+    getNotificationsMock.mockResolvedValue(
+      page([row("mine", { isRead: true })]),
+    );
+
+    await renderPage();
+    const user = userEvent.setup();
+
+    expect(screen.getByRole("tablist", { name: "filterLabel" })).toBeTruthy();
+    const all = screen.getByRole("tab", { name: "filterAll" });
+    for (let step = 0; step < 5 && document.activeElement !== all; step++) {
+      await user.tab();
+    }
+    expect(document.activeElement).toBe(all);
+
+    const waiting = row("waiting", { isRead: false, readAt: null });
+    getNotificationsMock.mockResolvedValue(page([waiting]));
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(
+      screen.getByRole("tab", { name: /^filterUnread/ }),
+    );
+    await user.keyboard("{Enter}");
+    await settle();
+
+    expect(getNotificationsMock).toHaveBeenLastCalledWith({
+      limit: 20,
+      isRead: "false",
+    });
+    expect(screen.getByText("waiting")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("tab", { name: /^filterUnread/ })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+
+  it("shows the loading rows while the narrowed page is fetched", async () => {
+    getNotificationsMock.mockResolvedValue(
+      page([row("mine", { isRead: true })]),
+    );
+
+    await renderPage();
+
+    const narrowed = Promise.withResolvers<unknown>();
+    getNotificationsMock.mockReturnValueOnce(narrowed.promise);
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: /^filterUnread/ }));
+
+    expect(screen.getByTestId("notifications-loading-list")).toBeTruthy();
+    expect(screen.queryByText("mine")).toBeNull();
+
+    await act(async () => {
+      narrowed.resolve(page([row("waiting", { isRead: false, readAt: null })]));
+      await Promise.resolve();
+    });
+    await settle();
+
+    expect(screen.getByText("waiting")).toBeTruthy();
+  });
+});
+
+/**
+ * The Needs you view (SOK-1097). Its rows are requests still open on the
+ * record they point at, which Core decides; here the list is whatever Core
+ * returns for the flag, and the view's own promises are what get checked:
+ * reading never removes a row, a row that never asked stays out, and the
+ * count on the tab is Core's.
+ */
+describe("Notification Center Needs you view", () => {
+  const TASK_ASK_KEY = "Notifications.Task.inputRequired";
+
+  function asked(id: string, overrides: Partial<NotificationItem> = {}) {
+    return row(id, {
+      kind: "TASK",
+      messageKey: TASK_ASK_KEY,
+      messageParams: { label: id },
+      referenceId: `task-${id}`,
+      isRead: false,
+      readAt: null,
+      ...overrides,
+    });
+  }
+
+  function arrives(
+    notification: NotificationItem,
+    created = true,
+  ): NotificationEventData {
+    return {
+      ...notification,
+      readAt: null,
+      createdAt: notification.createdAt.toISOString(),
+      inApp: true,
+      osBanner: false,
+      created,
+    } as NotificationEventData;
+  }
+
+  it.each(FRAMES)(
+    "lists what still waits on the reader, counted on its tab, in the %s",
+    async (_, mount) => {
+      const waiting = asked("waiting", {
+        createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      });
+      const done = row("done", {
+        createdAt: new Date("2026-06-17T09:00:00.000Z"),
+      });
+      getNotificationsMock.mockResolvedValue(page([waiting, done]));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 1, mentions: 0 },
+      });
+
+      await mount();
+      const user = userEvent.setup();
+
+      // Four views, one choice, and the count sits on the tab itself.
+      const tabs = screen
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent?.replace(/\d+$/, ""));
+      expect(tabs).toEqual([
+        "filterAll",
+        "filterUnread",
+        "filterNeedsYou",
+        "filterMentions",
+      ]);
+      const needsYou = screen.getByRole("tab", { name: "filterNeedsYou 1" });
+      expect(needsYou.getAttribute("aria-selected")).toBe("false");
+
+      getNotificationsMock.mockResolvedValue(page([waiting]));
+      await user.click(needsYou);
+      await settle();
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({
+        limit: 20,
+        needsAction: "true",
+      });
+      expect(needsYou.getAttribute("aria-selected")).toBe("true");
+      expect(screen.getByText("waiting")).toBeTruthy();
+      expect(screen.queryByText("done")).toBeNull();
+      // Looking is not a write.
+      expect(patchNotificationReadMock).not.toHaveBeenCalled();
+      expect(patchNotificationsReadAllMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(FRAMES)(
+    "keeps the account notice and the push primer on Needs you, counted on its tab, in the %s",
+    async (_, mount) => {
+      accountNoticeMock.mockReturnValue({ notice: { tone: "warning" } });
+      getNotificationsMock.mockResolvedValue(page([row("done")]));
+
+      await mount();
+
+      expect(screen.queryByText("account notice")).toBeNull();
+      expect(screen.queryByTestId("notification-permission-primer")).toBeNull();
+
+      getNotificationsMock.mockResolvedValue(page([]));
+      await userEvent
+        .setup()
+        .click(screen.getByRole("tab", { name: "filterNeedsYou 1" }));
+      await settle();
+
+      expect(screen.getByText("account notice")).toBeTruthy();
+      expect(screen.getByTestId("notification-permission-primer")).toBeTruthy();
+      expect(screen.queryByText("emptyNeedsYouState")).toBeNull();
+    },
+  );
+
+  it("shows no count on the tab when nothing is waiting", async () => {
+    await renderPage();
+
+    expect(screen.getByRole("tab", { name: "filterNeedsYou" })).toBeTruthy();
+  });
+
+  it("does not say nothing is waiting while the tab still has a count", async () => {
+    getNotificationsMock.mockResolvedValue(page([]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 2, mentions: 0 },
+    });
+
+    await renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "filterNeedsYou 2" }));
+    await settle();
+
+    expect(screen.queryByText("emptyNeedsYouState")).toBeNull();
+    expect(screen.getByRole("tab", { name: "filterNeedsYou 2" })).toBeTruthy();
+  });
+
+  it("keeps a read row until the request is answered, then lets it go", async () => {
+    const waiting = asked("waiting");
+    getNotificationsMock.mockResolvedValue(page([waiting]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 1, mentions: 0 },
+    });
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...waiting, isRead: true, readAt: new Date() },
+    });
+    patchNotificationUnreadMock.mockResolvedValue({ data: waiting });
+
+    await renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: /^filterNeedsYou/ }));
+    await settle();
+
+    await user.click(screen.getByRole("button", { name: "markRead: waiting" }));
+    await settle();
+
+    // Read, and still here: the task is still asking.
+    expect(screen.getByText("waiting")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "markUnread: waiting" }),
+    ).toBeTruthy();
+
+    // And back to unread moves it just as little.
+    await user.click(
+      screen.getByRole("button", { name: "markUnread: waiting" }),
+    );
+    await settle();
+    expect(screen.getByText("waiting")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "markRead: waiting" }),
+    ).toBeTruthy();
+
+    // The next read of the view is what Core says now: answered, gone.
+    getNotificationsMock.mockResolvedValue(page([]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 0, mentions: 0 },
+    });
+    await user.click(screen.getByRole("tab", { name: "filterAll" }));
+    await settle();
+    await user.click(screen.getByRole("tab", { name: /^filterNeedsYou/ }));
+    await settle();
+
+    expect(screen.queryByText("waiting")).toBeNull();
+    expect(screen.getByText("emptyNeedsYouState")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "filterNeedsYou" })).toBeTruthy();
+  });
+
+  it("admits an arriving request and refreshes its count, and keeps other rows out", async () => {
+    getNotificationsMock.mockResolvedValue(page([asked("waiting")]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 1, mentions: 0 },
+    });
+
+    // The panel, so the bell is there to show the arrival counted anyway.
+    await renderPanel();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: /^filterNeedsYou/ }));
+    await settle();
+    const countCallsBefore = getNotificationsCountsMock.mock.calls.length;
+
+    await act(async () => {
+      deliverRealtime(
+        arrives(
+          row("finished", {
+            isRead: false,
+            readAt: null,
+            createdAt: new Date("2026-06-18T10:00:00.000Z"),
+          }),
+        ),
+      );
+    });
+    await settle();
+
+    // A completion is news, but not a request: it goes to the bell, not here.
+    expect(screen.queryByText("finished")).toBeNull();
+    expect(screen.getByTestId("notification-unread-badge").textContent).toBe(
+      "2",
+    );
+
+    const another = asked("another", {
+      createdAt: new Date("2026-06-18T11:00:00.000Z"),
+    });
+    getNotificationsMock.mockResolvedValue(page([another, asked("waiting")]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 3, needsAction: 2, mentions: 0 },
+    });
+    await act(async () => {
+      deliverRealtime(arrives(another));
+    });
+    await settle();
+
+    expect(screen.getByText("another")).toBeTruthy();
+    expect(getNotificationsCountsMock.mock.calls.length).toBeGreaterThan(
+      countCallsBefore,
+    );
+    expect(screen.getByRole("tab", { name: "filterNeedsYou 2" })).toBeTruthy();
+  });
+
+  it("keeps the choice the panel made when the page shows the same list", async () => {
+    const waiting = asked("waiting");
+    getNotificationsMock.mockResolvedValue(page([waiting, row("done")]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 1, mentions: 0 },
+    });
+
+    render(
+      <NotificationProvider userId="user-1">
+        <HeaderNotificationBell />
+        <NotificationsPageContent />
+      </NotificationProvider>,
+    );
+    await settle();
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: /^notifications$|unreadBadge/ }),
+    );
+    await settle();
+    const panel = document.querySelector("[data-slot='popover-content']");
+    expect(panel).not.toBeNull();
+
+    getNotificationsMock.mockResolvedValue(page([waiting]));
+    await user.click(
+      within(panel as HTMLElement).getByRole("tab", {
+        name: /^filterNeedsYou/,
+      }),
+    );
+    await settle();
+
+    expect(screen.getAllByText("waiting")).toHaveLength(2);
+    expect(screen.queryByText("done")).toBeNull();
+    for (const option of screen.getAllByRole("tab", {
+      name: /^filterNeedsYou/,
+    })) {
+      expect(option.getAttribute("aria-selected")).toBe("true");
+    }
+  });
+});
+
+describe("Notification Center Mentions view", () => {
+  function mention(id: string, overrides: Partial<NotificationItem> = {}) {
+    return row(id, {
+      kind: "CHAT",
+      messageKey: "Notifications.Chat.mentioned",
+      messageParams: { label: id },
+      referenceId: `room-${id}`,
+      isRead: false,
+      readAt: null,
+      ...overrides,
+    });
+  }
+
+  it.each(FRAMES)(
+    "lists where someone named the reader, counted on its tab, in the %s",
+    async (_, mount) => {
+      const named = mention("named", {
+        createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      });
+      const done = row("done", {
+        createdAt: new Date("2026-06-17T09:00:00.000Z"),
+      });
+      getNotificationsMock.mockResolvedValue(page([named, done]));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 2, needsAction: 0, mentions: 1 },
+      });
+
+      await mount();
+      const user = userEvent.setup();
+
+      const mentions = screen.getByRole("tab", { name: "filterMentions 1" });
+      expect(mentions.getAttribute("aria-selected")).toBe("false");
+
+      getNotificationsMock.mockResolvedValue(page([named]));
+      await user.click(mentions);
+      await settle();
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({
+        limit: 20,
+        mentions: "true",
+      });
+      expect(mentions.getAttribute("aria-selected")).toBe("true");
+      expect(screen.getByText("named")).toBeTruthy();
+      expect(screen.queryByText("done")).toBeNull();
+      expect(patchNotificationReadMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("takes a mention off its tab's count once it is read, and keeps the row", async () => {
+    const named = mention("named");
+    getNotificationsMock.mockResolvedValue(page([named]));
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0, mentions: 1 },
+    });
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...named, isRead: true, readAt: new Date() },
+    });
+
+    await renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "filterMentions 1" }));
+    await settle();
+
+    await user.click(screen.getByRole("button", { name: "markRead: named" }));
+    await settle();
+
+    expect(screen.getByRole("tab", { name: "filterMentions" })).toBeTruthy();
+    expect(screen.getByText("named")).toBeTruthy();
+  });
+
+  it("says nobody has mentioned the reader when nobody has", async () => {
+    await renderPage();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: "filterMentions" }));
+    await settle();
+
+    expect(screen.getByText("emptyMentionsState")).toBeTruthy();
+  });
+});
+
+/**
+ * The remembered view (SOK-1108). The view strip is a lens the reader picks,
+ * and the Notification Center keeps that pick per browser. What is checked
+ * here is what a reader meets: which tab reads as selected, and which query
+ * the *first* Core call carried. That first call is the point: a restore that
+ * lands after the list has already been fetched costs a second round trip and
+ * flashes All on the way.
+ */
+describe("Notification Center remembered view", () => {
+  const TASK_ASK_KEY = "Notifications.Task.inputRequired";
+
+  function stored(view: string) {
+    window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, view);
+  }
+
+  /** A row the Needs you view keeps: one that asked the reader something. */
+  function asking(id: string, createdAt?: Date) {
+    return row(id, {
+      kind: "TASK",
+      messageKey: TASK_ASK_KEY,
+      messageParams: { label: id },
+      isRead: false,
+      readAt: null,
+      ...(createdAt === undefined ? {} : { createdAt }),
+    });
+  }
+
+  it.each(FRAMES)(
+    "opens on the remembered Needs you view in the %s",
+    async (_, mount) => {
+      stored("needs-action");
+      getNotificationsMock.mockResolvedValue(page([asking("waiting")]));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 1, mentions: 0 },
+      });
+
+      await mount();
+
+      // The first call, not the eventual one: no All page was ever asked for.
+      expect(getNotificationsMock).toHaveBeenCalledTimes(1);
+      expect(getNotificationsMock).toHaveBeenCalledWith({
+        limit: 20,
+        needsAction: "true",
+      });
+      // The count is Core's, and it is the count of the whole view, so a
+      // restored view shows the same number a switched-to one would.
+      for (const tab of screen.getAllByRole("tab", {
+        name: "filterNeedsYou 1",
+      })) {
+        expect(tab.getAttribute("aria-selected")).toBe("true");
+      }
+      expect(screen.getAllByText("waiting").length).toBeGreaterThan(0);
+      // A remembered lens is still a lens.
+      expect(patchNotificationReadMock).not.toHaveBeenCalled();
+      expect(patchNotificationsReadAllMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("opens on the remembered Unread view", async () => {
+    stored("unread");
+
+    await renderPage();
+
+    expect(getNotificationsMock).toHaveBeenCalledTimes(1);
+    expect(getNotificationsMock).toHaveBeenCalledWith({
+      limit: 20,
+      isRead: "false",
+    });
+    expect(
+      screen
+        .getByRole("tab", { name: /^filterUnread/ })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+
+  it("opens on All when nothing is stored", async () => {
+    await renderPage();
+
+    expect(getNotificationsMock).toHaveBeenCalledWith({ limit: 20 });
+    expect(
+      screen
+        .getByRole("tab", { name: "filterAll" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+
+  it("falls back to All on a value it does not recognise, and drops it", async () => {
+    stored("needsAction");
+
+    await renderPage();
+
+    expect(getNotificationsMock).toHaveBeenCalledWith({ limit: 20 });
+    expect(
+      screen
+        .getByRole("tab", { name: "filterAll" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(
+      window.localStorage.getItem(NOTIFICATION_VIEW_STORAGE_KEY),
+    ).toBeNull();
+  });
+
+  it.each(FRAMES)("remembers a switch made in the %s", async (_, mount) => {
+    await mount();
+    const user = userEvent.setup();
+
+    await user.click(
+      screen.getAllByRole("tab", { name: /^filterNeedsYou/ })[0] as HTMLElement,
+    );
+    await settle();
+
+    expect(window.localStorage.getItem(NOTIFICATION_VIEW_STORAGE_KEY)).toBe(
+      "needs-action",
+    );
+
+    await user.click(
+      screen.getAllByRole("tab", { name: /^filterUnread/ })[0] as HTMLElement,
+    );
+    await settle();
+
+    // The last switch wins.
+    expect(window.localStorage.getItem(NOTIFICATION_VIEW_STORAGE_KEY)).toBe(
+      "unread",
+    );
+  });
+
+  it("reads back the view a previous mount stored", async () => {
+    await renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+    await settle();
+
+    cleanup();
+    getNotificationsMock.mockClear();
+
+    await renderPage();
+
+    expect(getNotificationsMock).toHaveBeenCalledTimes(1);
+    expect(getNotificationsMock).toHaveBeenCalledWith({
+      limit: 20,
+      isRead: "false",
+    });
+  });
+  it("pages older rows under the remembered view", async () => {
+    stored("needs-action");
+    getNotificationsMock.mockResolvedValue(
+      page(
+        [
+          asking("newest", new Date("2026-06-18T09:00:00.000Z")),
+          asking("oldest-loaded", new Date("2026-06-17T09:00:00.000Z")),
+        ],
+        "oldest-loaded",
+      ),
+    );
+    // The boundary only arms while the view's own count says Core has more.
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 2, needsAction: 2, mentions: 0 },
+    });
+
+    await renderPage();
+
+    getNotificationsMock.mockResolvedValue(
+      page([asking("older", new Date("2026-06-16T09:00:00.000Z"))]),
+    );
+    await act(async () => {
+      intersect(screen.getByTestId("notification-older-boundary"));
+      await Promise.resolve();
+    });
+
+    // The older page asks under the remembered view, not under All.
+    expect(getNotificationsMock).toHaveBeenLastCalledWith({
+      limit: 20,
+      cursor: "oldest-loaded",
+      needsAction: "true",
+    });
+    expect(screen.getByText("older")).toBeTruthy();
+  });
+
+  it("shows the remembered view in both frames at once", async () => {
+    stored("needs-action");
+    getNotificationsMock.mockResolvedValue(page([asking("waiting")]));
+
+    render(
+      <NotificationProvider userId="user-1">
+        <HeaderNotificationBell />
+        <NotificationsPageContent />
+      </NotificationProvider>,
+    );
+    await settle();
+    await userEvent
+      .setup()
+      .click(
+        screen.getByRole("button", { name: /^notifications$|unreadBadge/ }),
+      );
+    await settle();
+
+    const tabs = screen.getAllByRole("tab", { name: /^filterNeedsYou/ });
+    expect(tabs.length).toBe(2);
+    for (const tab of tabs) {
+      expect(tab.getAttribute("aria-selected")).toBe("true");
+    }
+    expect(getNotificationsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens on All when localStorage throws", async () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    getNotificationsMock.mockResolvedValue(page([row("only")]));
+
+    await renderPage();
+
+    expect(getNotificationsMock).toHaveBeenCalledWith({ limit: 20 });
+    expect(screen.getByText("only")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("tab", { name: "filterAll" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
   });
 });

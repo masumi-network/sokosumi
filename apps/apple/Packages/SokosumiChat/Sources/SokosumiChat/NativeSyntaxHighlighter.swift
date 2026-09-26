@@ -258,7 +258,7 @@ public enum NativeSyntaxHighlighter {
       source += "\n[(variable_name) (variable_value)] @variable"
     }
     if let (resourceName, subdirectory) = language.bundledQueryResource {
-      guard let url = Bundle.module.url(forResource: resourceName, withExtension: "scm", subdirectory: subdirectory) else {
+      guard let url = ChatResources.bundle.url(forResource: resourceName, withExtension: "scm", subdirectory: subdirectory) else {
         throw CocoaError(.fileNoSuchFile)
       }
       try source += "\n" + String(contentsOf: url, encoding: .utf8)

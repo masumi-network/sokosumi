@@ -11,21 +11,10 @@ const COWORKERS_PATH = "/v1/coworkers";
 
 export interface FetchCoworkersOptions {
   scope?: string;
-  capability?: string | readonly string[];
   capabilities?: string | readonly string[];
 }
 
-export interface CoworkerMutationData {
-  name?: string;
-  vendorId?: string;
-  caption?: string | null;
-  url?: string | null;
-  baseURL?: string | null;
-  description?: string | null;
-  capabilities?: readonly string[];
-  priority?: number;
-  metadata?: Record<string, unknown> | null;
-}
+export type CoworkerMutationData = Record<string, unknown>;
 
 export interface CoworkerApiKeyData {
   name?: string | null;
@@ -35,7 +24,7 @@ export interface CoworkerApiKeyData {
 function pathWithQuery(options: FetchCoworkersOptions = {}): string {
   const params = new URLSearchParams();
   if (options.scope) params.set("scope", options.scope.trim());
-  const capabilities = options.capabilities ?? options.capability;
+  const capabilities = options.capabilities;
   const values = Array.isArray(capabilities)
     ? capabilities
     : capabilities
@@ -68,21 +57,6 @@ export async function fetchCoworkers(
   return { response, coworkers: response.data.map(parseCoworker) };
 }
 
-export async function fetchCoworker(
-  client: CoreHttpClient,
-  coworkerId: string,
-  signal?: AbortSignal,
-): Promise<{ response: ApiResponse<unknown>; coworker: Coworker }> {
-  requireId(coworkerId, "coworkerId");
-  const response = parseApiResponse(
-    await client.get<unknown>(
-      `${COWORKERS_PATH}/${encodeURIComponent(coworkerId)}`,
-      signal,
-    ),
-  );
-  return { response, coworker: parseCoworker(response.data) };
-}
-
 export async function fetchCurrentCoworker(
   client: CoreHttpClient,
   signal?: AbortSignal,
@@ -106,7 +80,8 @@ export async function createCoworker(
   data: CoworkerMutationData = {},
   signal?: AbortSignal,
 ): Promise<{ response: ApiResponse<unknown>; coworker: Coworker }> {
-  if (!data.name?.trim()) throw new Error("name is required");
+  if (typeof data.name !== "string" || !data.name.trim())
+    throw new Error("name is required");
   const response = parseApiResponse(
     await client.post<unknown>(COWORKERS_PATH, mutationPayload(data), signal),
   );

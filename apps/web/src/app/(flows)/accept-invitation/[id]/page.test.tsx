@@ -8,7 +8,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/organization.service", () => ({
   organizationService: {
     getPendingInvitation: (...args: unknown[]) =>
       getPendingInvitationMock(...args),

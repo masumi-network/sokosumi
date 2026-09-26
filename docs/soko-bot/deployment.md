@@ -40,6 +40,12 @@ them.
 
 ## Move the avatar pool prefix
 
+**Status:** Prisma rewrite `20260904170000_rewrite_soko_bot_avatar_blob_urls`
+is in-tree and runs on Core deploy. New puts use `soko-bots/avatars/`. The
+copy/delete-legacy steps below are leftover Blob cleanup if objects still
+exist under `soko-bot-avatars/` — not a first-run step on every deploy.
+Confirm DB URLs and the Blob listing before deleting.
+
 The mascot pool in Vercel Blob is `soko-bots/avatars/{key}-{hash12}.png`.
 Older objects used `soko-bot-avatars/`. Chat files stay under
 `soko-bots/{uuid}/chats/`.
@@ -47,8 +53,8 @@ Older objects used `soko-bot-avatars/`. Chat files stay under
 `GET /v1/soko-bots/avatars` is the picker HTTP API. It is not the Blob folder.
 The cron that tops up the pool stays at `/sync/soko-bot-avatars`.
 
-Copy the objects, deploy Core so new puts and the SQL rewrite land, then delete
-the old prefix.
+If Blob still has objects under `soko-bot-avatars/`, copy them, then delete
+the old prefix after DB URLs are clean:
 
 1. Dry-run, then copy:
 
@@ -57,9 +63,9 @@ the old prefix.
    pnpm --filter @sokosumi/core soko-bot:copy-avatars -- --copy
    ```
 
-2. Deploy Core. The deploy runs Prisma migrations, which rewrite
-   `soko_bot_avatar.imageUrl` and `soko_bot.avatarImageUrl`. `sourceUrl` is
-   unchanged.
+2. If any stored URLs still use the old prefix, Core deploy rewrites them
+   (idempotent migration `20260904170000_rewrite_soko_bot_avatar_blob_urls`).
+   `sourceUrl` stays the fal origin.
 
 3. After every Core instance writes the new prefix, confirm that
    `soko_bot_avatar.imageUrl` and `soko_bot.avatarImageUrl` contain no

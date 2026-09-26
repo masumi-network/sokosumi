@@ -1,8 +1,10 @@
 "use client";
 
-import type { DesignMdProfileValue } from "@/components/design-md";
-import { DesignMdProfileSection } from "@/components/design-md";
-import type { ManageableDesignMdOwner } from "@/components/design-md/types";
+import { DesignMdProfileSection } from "@/components/design-md/design-md-profile-section";
+import type {
+  DesignMdProfileValue,
+  ManageableDesignMdOwner,
+} from "@/components/design-md/types";
 
 import { useOrganizationMetadata } from "./organization-metadata-context";
 

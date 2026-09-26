@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
-
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -160,6 +159,8 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
   });
   if (claimed.count !== 1) return false;
   try {
+    const { emitChatHumanMentionNotifications, persistChatHumanMentions } =
+      await import("@/helpers/chat-human-mentions");
     const persisted = await serializableTransaction(async (tx) => {
       // Lock and fence before writes. A reclaimed worker cannot commit a message.
       const owned = await tx.sokoBotDelivery.updateMany({
@@ -232,6 +233,17 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
           data: { updatedAt: new Date() },
         });
       }
+      if (delivery.reason !== "SILENT") {
+        const content = await tx.chatRoomMessage.findUniqueOrThrow({
+          where: { id: messageId },
+          select: { content: true },
+        });
+        await persistChatHumanMentions(tx, {
+          messageId,
+          roomId: delivery.roomId,
+          content: content.content,
+        });
+      }
       return tx.sokoBotDelivery.update({
         where: { id },
         data: { status: "PERSISTED", messageId },
@@ -278,6 +290,17 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
       roomId: persisted.roomId,
       throwOnError: true,
     });
+    if (persisted.reason !== "SILENT") {
+      const mentions = await prisma.chatRoomUserMention.findMany({
+        where: { messageId: persisted.messageId },
+        select: { userId: true },
+      });
+      await emitChatHumanMentionNotifications({
+        messageId: persisted.messageId,
+        mentionedUserIds: mentions.map((mention) => mention.userId),
+        throwOnError: true,
+      });
+    }
     const published = await serializableTransaction(async (tx) => {
       const changed = await tx.sokoBotDelivery.updateMany({
         where: {

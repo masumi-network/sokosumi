@@ -8,7 +8,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 
-import { taskEventDataSchema } from "@/lib/ably";
+import { taskEventDataSchema } from "@/lib/ably/schema";
 
 interface TaskStatusRealtimeListenerProps {
   userId: string;

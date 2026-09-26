@@ -1,14 +1,17 @@
 import { createRoute } from "@hono/zod-openapi";
+import type { Prisma } from "@sokosumi/database";
 
 import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { buildAccessibleCoworkersWhere } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
-import { paramsSchema } from "./schema";
+import { getCoworkerByIdQuerySchema, paramsSchema } from "./schema";
 
 const route = createRoute({
   method: "get",
@@ -17,6 +20,7 @@ const route = createRoute({
   tags: ["Coworkers"],
   request: {
     params: paramsSchema,
+    query: getCoworkerByIdQuerySchema,
   },
   responses: {
     200: jsonSuccessResponse(coworkerSchema, "Retrieve coworker", {
@@ -59,18 +63,30 @@ const route = createRoute({
       },
     }),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
+    const { scope } = c.req.valid("query");
+    const { authContext } = c.var;
+
+    let where: Prisma.CoworkerWhereInput = { id };
+    if (scope === "owned") {
+      const userAuthContext = requireUserAuthContext(authContext);
+      where = {
+        id,
+        archivedAt: null,
+        ...buildAccessibleCoworkersWhere(userAuthContext.userId),
+      };
+    }
 
     const coworker = await prisma.coworker.findFirst({
-      where: {
-        id,
-      },
+      where,
       include: coworkerInclude,
     });
 

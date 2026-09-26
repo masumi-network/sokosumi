@@ -29,6 +29,9 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
+	<!-- Exempt encryption only: HTTPS/TLS, Keychain, CryptoKit SHA-256 for PKCE. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>SokosumiOAuthClientID</key>
 	<string>JVvhoybTQDXHeLbSiMnojZLdgOOIrFvo</string>
 	<key>SokosumiCoreBaseURL</key>

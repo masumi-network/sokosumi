@@ -8,6 +8,11 @@ import type {
 } from "@/lib/clients/generated/core";
 
 const fullCalendarMock = vi.hoisted(() => vi.fn());
+const toastInfoMock = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: { info: toastInfoMock, error: vi.fn() },
+}));
 
 vi.mock("@fullcalendar/react", () => ({
   default: (props: FullCalendarProps) => {
@@ -52,13 +57,14 @@ const WEEK_SOURCE: WorkspaceCalendarSource = {
 };
 
 const WEEK_ITEM: WorkspaceCalendarItem = {
-  id: "occurrence-1",
-  taskId: "task-1",
-  canEditSchedule: true,
-  canMutateOccurrence: true,
+  id: "run-1",
+  kind: "RUN",
+  scheduleId: "schedule-1",
   scheduleRevision: 3,
+  canChangeRun: true,
+  taskId: null,
   taskName: "Prepare release notes",
-  taskStatus: "QUEUED",
+  taskStatus: null,
   taskAssigneeId: null,
   taskOwnerId: "user-1",
   scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
@@ -68,8 +74,6 @@ const WEEK_ITEM: WorkspaceCalendarItem = {
   sourceWorkspaceId: "workspace-1",
   sourceType: "WORKSPACE",
   sourceProjectId: null,
-  sourceAccuracy: "EXACT",
-  timeAccuracy: "EXACT",
 };
 
 describe("WorkspaceCalendar week layout", () => {
@@ -204,7 +208,63 @@ describe("WorkspaceCalendar week layout", () => {
     fireEvent.click(card);
 
     expect(
-      screen.getByRole("menuitem", { name: "event.openTask" }),
+      screen.getByRole("menuitem", { name: "event.openSchedule" }),
     ).toBeInTheDocument();
+  });
+
+  // FullCalendar ignores a drag on a card the caller cannot move, which
+  // used to leave the browser selecting text. The card is unselectable and
+  // a mouse drag on a Run the caller cannot change explains which ones move.
+  it("explains a mouse drag on a Run the caller cannot change", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={[
+            {
+              ...WEEK_ITEM,
+              canChangeRun: false,
+            },
+          ]}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    const props = fullCalendarMock.mock.lastCall?.[0] as
+      | FullCalendarProps
+      | undefined;
+    render(
+      <>
+        {props?.eventContent?.({
+          event: {
+            id: WEEK_ITEM.id,
+            title: WEEK_ITEM.taskName,
+            start: WEEK_ITEM.scheduledAt,
+          },
+        })}
+      </>,
+    );
+
+    const card = screen.getByTestId("calendar-event");
+    expect(card).toHaveClass("select-none");
+
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 3,
+      clientY: 0,
+    });
+    expect(toastInfoMock).not.toHaveBeenCalled();
+
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 20,
+      clientY: 0,
+    });
+    expect(toastInfoMock).toHaveBeenCalledWith("event.moveNotAllowed");
   });
 });

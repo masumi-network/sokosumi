@@ -3,7 +3,8 @@ import { useFormatter, useTranslations } from "next-intl";
 import { StarRating } from "@/components/agents/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AgentRatingStats } from "@/lib/types/core-dto";
-import { cn, formatDuration } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatDuration } from "@/lib/utils/duration";
 
 function AgentDetailStats({
   executedJobsCount,

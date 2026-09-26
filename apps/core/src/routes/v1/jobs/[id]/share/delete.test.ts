@@ -7,8 +7,7 @@ import mountDeleteJobShareById from "./delete";
 
 const {
   authContextState,
-  prismaTransactionMock,
-  deleteByJobIdMock,
+  publicShareDeleteManyMock,
   requireJobShareCollaborationMock,
 } = vi.hoisted(() => ({
   authContextState: {
@@ -24,8 +23,7 @@ const {
       role: string;
     } | null,
   },
-  prismaTransactionMock: vi.fn(),
-  deleteByJobIdMock: vi.fn(),
+  publicShareDeleteManyMock: vi.fn(),
   requireJobShareCollaborationMock: vi.fn(),
 }));
 
@@ -94,15 +92,15 @@ vi.mock("@/middleware/auth", () => ({
     authContext.actor === "coworker",
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  publicShareRepository: {
-    deleteByJobId: (...args: unknown[]) => deleteByJobIdMock(...args),
-  },
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", async () => ({
   default: {
-    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    member: {
+      findUnique: (await import("@/test-fixtures/organization-membership"))
+        .stubMemberFindUnique,
+    },
+    publicShare: {
+      deleteMany: (...args: unknown[]) => publicShareDeleteManyMock(...args),
+    },
   },
 }));
 
@@ -121,15 +119,12 @@ describe("DELETE /jobs/{id}/share", () => {
       organizationId: "org_123",
       role: "user",
     };
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) => await callback({}),
-    );
     requireJobShareCollaborationMock.mockResolvedValue({
       id: "job_123",
       userId: "user_123",
       taskId: null,
     });
-    deleteByJobIdMock.mockResolvedValue({ count: 1 });
+    publicShareDeleteManyMock.mockResolvedValue({ count: 1 });
   });
 
   it("deletes the share for an owned job", async () => {
@@ -141,10 +136,9 @@ describe("DELETE /jobs/{id}/share", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(deleteByJobIdMock).toHaveBeenCalledWith(
-      "job_123",
-      expect.any(Object),
-    );
+    expect(publicShareDeleteManyMock).toHaveBeenCalledWith({
+      where: { jobId: "job_123" },
+    });
     expect(body.data).toEqual({});
   });
 
@@ -157,7 +151,7 @@ describe("DELETE /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(401);
-    expect(deleteByJobIdMock).not.toHaveBeenCalled();
+    expect(publicShareDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("revokes the share on another member's job in the same workspace", async () => {
@@ -173,10 +167,9 @@ describe("DELETE /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(deleteByJobIdMock).toHaveBeenCalledWith(
-      "job_123",
-      expect.any(Object),
-    );
+    expect(publicShareDeleteManyMock).toHaveBeenCalledWith({
+      where: { jobId: "job_123" },
+    });
   });
 
   it("propagates a 403 from the access check", async () => {
@@ -190,7 +183,7 @@ describe("DELETE /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(deleteByJobIdMock).not.toHaveBeenCalled();
+    expect(publicShareDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the job is not reachable (no existence leak)", async () => {
@@ -204,6 +197,6 @@ describe("DELETE /jobs/{id}/share", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(deleteByJobIdMock).not.toHaveBeenCalled();
+    expect(publicShareDeleteManyMock).not.toHaveBeenCalled();
   });
 });

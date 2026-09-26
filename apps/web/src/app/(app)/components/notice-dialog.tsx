@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { acknowledgeNoticeAction } from "@/lib/actions/notice";
+import { acknowledgeNoticeAction } from "@/lib/actions/notice/action";
 import type { Notice } from "@/lib/clients/generated/core";
 import { NoticeKind } from "@/lib/clients/generated/core";
 import { isVideoUrl } from "@/lib/utils/file-preview";

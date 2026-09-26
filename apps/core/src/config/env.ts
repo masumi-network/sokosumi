@@ -1,5 +1,8 @@
 import { z } from "@hono/zod-openapi";
-import { resolveBetterAuthPublicBaseUrl } from "@sokosumi/utils";
+import {
+  resolveBetterAuthPublicBaseUrl,
+  TURNSTILE_ALWAYS_PASS_SECRET,
+} from "@sokosumi/utils";
 import { withRelatedProject } from "@vercel/related-projects";
 import { v4 as uuidv4 } from "uuid";
 
@@ -21,6 +24,16 @@ const baseEnvSchema = z.object({
 
   // Database
   DATABASE_URL: z.url(),
+
+  // Jev remains disabled until EU inference and required retention are supported.
+  TASK_TAG_CLASSIFICATION_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+
+  // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
+  REDIS_URL: z.string().optional(),
+  KV_URL: z.string().optional(),
 
   WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
 
@@ -70,6 +83,15 @@ const baseEnvSchema = z.object({
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.email().default("noreply@sokosumi.com"),
 
+  /**
+   * Credits under which a wallet is told it is running low (SOK-932).
+   *
+   * The same number web draws its low-credit label at
+   * (`NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD`), so the feed and the sidebar
+   * agree about what low means. Zero switches the notification off.
+   */
+  LOW_CREDITS_THRESHOLD: z.coerce.number().min(0).default(100),
+
   // Sentry
   SENTRY_DSN: z.url().optional(),
   SENTRY_ENVIRONMENT: z
@@ -109,8 +131,19 @@ const baseEnvSchema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((value) => value === "true"),
-  /** fal.ai key for Soko Bot avatar generation; the pool cannot top up without it. */
+  /**
+   * fal.ai key for Soko Bot avatar generation and the Project image studio.
+   * Neither feature can reach the provider without it; both degrade to a
+   * read-only view rather than failing a page render.
+   */
   FAL_KEY: z.string().min(1).optional(),
+  /**
+   * Shared secret the image-studio agent signs its grants with. The agent runs
+   * outside Core, so a grant is how it names the acting user; Core still
+   * re-checks that user's project access on every call. Without it the agent
+   * cannot reach Core at all, which is the safe default.
+   */
+  IMAGE_STUDIO_AGENT_SECRET: z.string().min(32).optional(),
   PROJECT_MEMORY_MODEL: z
     .string()
     .startsWith("mistral/")
@@ -137,6 +170,7 @@ const baseEnvSchema = z.object({
   /** Composio brokers OAuth for Soko Bot integrations (Gmail, Outlook, …). */
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
+  COMPOSIO_X_AUTH_CONFIG_ID: z.string().min(1).optional(),
   SOKO_BOT_RUNTIME_ADAPTER: z
     .enum(["in-memory", "in-process"])
     .default("in-process"),
@@ -193,6 +227,23 @@ const baseEnvSchema = z.object({
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
+   * Read-write token for the image studio's **own, private-access** Blob
+   * store. Deliberately separate from `BLOB_READ_WRITE_TOKEN`.
+   *
+   * `BLOB_READ_WRITE_TOKEN` names the shared store that project files,
+   * DESIGN.md, avatars and user uploads write to, and that store is created
+   * with `access: "public"` — every object in it is retrievable by anyone who
+   * has its URL, with no credential. Generated images are project assets and
+   * must not be in it. Vercel fixes public-or-private per *store*, not per
+   * object, so the only way to store them privately is a second store created
+   * with `--access private`, which is what this token addresses.
+   *
+   * Absent, the studio refuses to generate rather than falling back to the
+   * shared public store: see `requireStudioBlobToken` in
+   * `services/image-studio-jobs.service.ts`.
+   */
+  IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
    * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
    * for presigned client uploads. Required for task-file auto-registration.
    * @see https://vercel.com/docs/vercel-blob/vercel-signed-urls
@@ -244,6 +295,32 @@ function isDeployedEnvironment(value: z.infer<typeof baseEnvSchema>): boolean {
     value.VERCEL_ENV === "production" ||
     value.VERCEL_ENV === "preview"
   );
+}
+
+/**
+ * A deployed environment serving real users, as opposed to a preview.
+ *
+ * Previews are throwaway and are the one deployment where Cloudflare's test
+ * keys are a reasonable choice — they let an agent drive the sign-in form
+ * without answering a human check. Production has no such excuse.
+ *
+ * On Vercel, `NODE_ENV` is "production" for every deployment, previews
+ * included, so it cannot tell the two apart and `VERCEL_ENV` is the only
+ * honest signal. Reading both with `||` made every preview a production one,
+ * which killed the very case the paragraph above describes: a preview holding
+ * the always-passes secret exited at boot, so every route answered
+ * FUNCTION_INVOCATION_FAILED instead of warning.
+ *
+ * Off Vercel there is no `VERCEL_ENV`, and `NODE_ENV` is the only signal
+ * there is.
+ */
+function isProductionEnvironment(
+  value: z.infer<typeof baseEnvSchema>,
+): boolean {
+  if (value.VERCEL_ENV) {
+    return value.VERCEL_ENV === "production";
+  }
+  return value.NODE_ENV === "production";
 }
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
@@ -343,6 +420,31 @@ export function validateEnv(): EnvConfig {
     console.warn(
       "TURNSTILE_SECRET_KEY is unset in a deployed environment; Turnstile captcha verification is disabled and auth email endpoints are unprotected from spam",
     );
+  }
+
+  // Worse than unset, and quieter about it: siteverify succeeds for ANY token,
+  // forged ones included, so the endpoints look protected while they are not.
+  // Every local checkout now carries this secret, which is exactly how it ends
+  // up pasted into a deployment.
+  //
+  // Production refuses to boot rather than warn. An unset secret is honestly
+  // off and its warning is proportionate; this one serves a captcha that
+  // passes everything, and a warning in a build log is not read by anyone.
+  // Previews keep the warning: a test key is a defensible choice there, since
+  // it lets an agent drive sign-in without answering a human check.
+  if (result.data.TURNSTILE_SECRET_KEY === TURNSTILE_ALWAYS_PASS_SECRET) {
+    if (isProductionEnvironment(result.data)) {
+      console.error(
+        "❌ TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret. In production this accepts every captcha token, including forged ones, while the auth endpoints appear protected. Set a real secret from the Turnstile dashboard.",
+      );
+      process.exit(1);
+    }
+
+    if (isDeployedEnvironment(result.data)) {
+      console.warn(
+        "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret in a preview environment; captcha verification accepts every token, including forged ones. Intended only for driving sign-in without a human check.",
+      );
+    }
   }
 
   return result.data;

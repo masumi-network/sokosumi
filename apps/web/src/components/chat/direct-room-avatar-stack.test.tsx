@@ -52,6 +52,9 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     name: "dm",
     slug: "dm",
     kind: "direct",
+    isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: "key",
     topic: null,
     discoverability: "private",
@@ -72,6 +75,23 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
 }
 
 describe("DirectRoomAvatarStack", () => {
+  it("shows the owner's avatar without presence for Self Direct", () => {
+    render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          isSelfDirect: true,
+          isGroupDirect: false,
+          groupName: null,
+          userMembers: [makeUser("me", "Me")],
+        })}
+        currentUserId="me"
+      />,
+    );
+    expect(screen.getByTestId("dm-sidebar-avatar-me")).toBeInTheDocument();
+    expect(screen.queryByText("Online")).toBeNull();
+    expect(screen.queryByText("Offline")).toBeNull();
+  });
+
   it("states availability on a 1:1 row and stays silent on a group row", () => {
     const { unmount } = render(
       <DirectRoomAvatarStack room={makeDirectRoom()} currentUserId="me" />,
@@ -147,7 +167,7 @@ describe("DirectRoomAvatarStack", () => {
     expect(face.querySelector("[title]")?.getAttribute("title")).toBe("Online");
   });
 
-  it("fits empty and 1:1 DM leadings in a min-w-5 / h-5 box matching channel icons", () => {
+  it("draws one 20px face in every state, so the row's mark never resizes", () => {
     const { container: emptyContainer, unmount } = render(
       <DirectRoomAvatarStack
         room={makeDirectRoom({ userMembers: [makeUser("me", "Me")] })}
@@ -155,21 +175,96 @@ describe("DirectRoomAvatarStack", () => {
       />,
     );
 
-    const emptyRoot = emptyContainer.firstElementChild;
-    expect(emptyRoot?.className).toContain("size-5");
-    expect(emptyRoot?.className).toContain("shrink-0");
+    // An empty direct's mark is a face like any other, and the row's own
+    // `SidebarRowSlot` is the box around it — nothing here sizes with state.
+    const emptyTokens =
+      emptyContainer.firstElementChild?.className.split(" ") ?? [];
+    expect(emptyTokens).toContain("size-5");
+    expect(emptyTokens).toContain("shrink-0");
+    expect(emptyContainer.firstElementChild?.className).not.toContain(
+      "group-data-[collapsible=icon]:",
+    );
     unmount();
 
     const { container } = render(
       <DirectRoomAvatarStack room={makeDirectRoom()} currentUserId="me" />,
     );
 
-    // min-w-5 / h-5 matches channel icon column; multi stacks may grow wider.
-    const stackRoot = container.firstElementChild;
-    expect(stackRoot?.className).toContain("min-w-5");
-    expect(stackRoot?.className).toContain("h-5");
-    expect(stackRoot?.className).toContain("shrink-0");
-    expect(stackRoot?.className).toContain("items-center");
+    const face = container.querySelector('[data-slot="avatar"]');
+    expect(face?.className.split(" ")).toContain("size-5");
+    expect(face?.className).not.toContain("group-data-[collapsible=icon]:");
+  });
+
+  it("stacks up to three faces and keeps only the first on the rail", () => {
+    render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [
+            makeUser("me", "Me"),
+            makeUser("alice", "Alice"),
+            makeUser("bob", "Bob"),
+          ],
+        })}
+        currentUserId="me"
+      />,
+    );
+
+    // One face cannot say "several people are in here" — it reads as a direct
+    // with whoever that is. The stack grows the row's slot to the right off a
+    // fixed left edge, so the first face stays on the 28px axis and only this
+    // row's name starts later.
+    const first = screen.getByTestId("dm-sidebar-avatar-alice");
+    const second = screen.getByTestId("dm-sidebar-avatar-bob");
+    expect(first.className.split(/\s+/)).not.toContain("-ml-1.5");
+    expect(second.className.split(/\s+/)).toContain("-ml-1.5");
+    // The first face on top, so its presence dot is not buried under the
+    // one beside it.
+    expect(Number(first.style.zIndex)).toBeGreaterThan(
+      Number(second.style.zIndex),
+    );
+
+    // A 32px rail square cannot hold three of them, and the row's tooltip
+    // already names everyone.
+    expect(first.className).not.toContain("group-data-[collapsible=icon]:");
+    expect(second.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
+  });
+
+  it("pads a stack so its first face lands where a lone face does", () => {
+    // The slot centres a mark narrower than itself, so a lone 20px face sits
+    // 2px in while a stack — wider than the slot — starts flush at its edge.
+    // Without the padding a group row's first face would sit 2px left of
+    // every 1:1 face under it, and those are the same shape in one column.
+    const { container: single, unmount } = render(
+      <DirectRoomAvatarStack room={makeDirectRoom()} currentUserId="me" />,
+    );
+    expect(single.firstElementChild?.className.split(/\s+/)).not.toContain(
+      "pl-0.5",
+    );
+    unmount();
+
+    const { container: stacked } = render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [
+            makeUser("me", "Me"),
+            makeUser("alice", "Alice"),
+            makeUser("bob", "Bob"),
+          ],
+        })}
+        currentUserId="me"
+      />,
+    );
+    expect(stacked.firstElementChild?.className.split(/\s+/)).toContain(
+      "pl-0.5",
+    );
+    // Extra faces are `display: none` on the rail, so the stack is one 20px
+    // face again. Leaving the pad would centre a 22px mark and sit 1px off
+    // every 1:1 face in that column.
+    expect(stacked.firstElementChild?.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:pl-0",
+    );
   });
 
   it("renders a fallback mark when the DM has no other participants", () => {

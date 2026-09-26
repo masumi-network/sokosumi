@@ -11,35 +11,20 @@ const ORGANIZATIONS_SUBDIR = "organizations";
  */
 export const DRIVE_FOLDER_MARKER_BASENAME = "__drive_folder__";
 
-/**
- * Build Drive file prefix for a user.
- * Example: `drive/users/{userId}/`
- */
 export function buildUserDriveFilePrefix(userId: string): string {
   return `${DRIVE_DIR}/${USERS_SUBDIR}/${userId}/`;
 }
 
-/**
- * Build Drive file prefix for an organization.
- * Example: `drive/organizations/{orgId}/`
- */
 export function buildOrganizationDriveFilePrefix(
   organizationId: string,
 ): string {
   return `${DRIVE_DIR}/${ORGANIZATIONS_SUBDIR}/${organizationId}/`;
 }
 
-/**
- * Sanitize drive file name (reuse user upload sanitization).
- */
 export function sanitizeDriveFileName(fileName: string): string {
   return sanitizeUserUploadFilename(fileName);
 }
 
-/**
- * Build user Drive file pathname.
- * Example: `drive/users/{userId}/report.pdf`
- */
 export function buildUserDriveFilePathname(
   userId: string,
   fileName: string,
@@ -47,10 +32,6 @@ export function buildUserDriveFilePathname(
   return `${buildUserDriveFilePrefix(userId)}${sanitizeDriveFileName(fileName)}`;
 }
 
-/**
- * Build organization Drive file pathname.
- * Example: `drive/organizations/{orgId}/report.pdf`
- */
 export function buildOrganizationDriveFilePathname(
   organizationId: string,
   fileName: string,
@@ -58,14 +39,9 @@ export function buildOrganizationDriveFilePathname(
   return `${buildOrganizationDriveFilePrefix(organizationId)}${sanitizeDriveFileName(fileName)}`;
 }
 
-/**
- * Max stored display name length for drive files (server-enforced).
- */
+/** Server-enforced max stored display name length. */
 export const DRIVE_FILE_MAX_NAME_LENGTH = 255;
 
-/**
- * Clamp drive file display name to max length.
- */
 export function clampDriveFileName(name: string): string {
   if (name.length <= DRIVE_FILE_MAX_NAME_LENGTH) {
     return name;
@@ -73,17 +49,10 @@ export function clampDriveFileName(name: string): string {
   return name.slice(0, DRIVE_FILE_MAX_NAME_LENGTH);
 }
 
-/**
- * Sanitize a folder name segment (no slashes, no leading/trailing dots).
- */
 export function sanitizeDriveFolderName(name: string): string {
   return sanitizeUserUploadFilename(name);
 }
 
-/**
- * Normalize a folder path (trim, remove leading/trailing slashes, collapse multiple slashes).
- * Example: "//folder1//folder2//" → "folder1/folder2"
- */
 export function normalizeDriveFolderPath(path: string): string {
   return path
     .trim()
@@ -92,13 +61,10 @@ export function normalizeDriveFolderPath(path: string): string {
     .join("/");
 }
 
-/**
- * Validate a normalized folder path. Rejects "." and ".." segments.
- * Returns null on success, or an error message on failure.
- */
+/** Rejects "." and ".." segments. Empty path (root) is valid. */
 export function validateDriveFolderPath(normalizedPath: string): string | null {
   if (!normalizedPath) {
-    return null; // Empty path is valid for root
+    return null;
   }
 
   const segments = normalizedPath.split("/");
@@ -111,10 +77,6 @@ export function validateDriveFolderPath(normalizedPath: string): string | null {
   return null;
 }
 
-/**
- * Build user Drive folder prefix (with trailing slash).
- * Example: `drive/users/{userId}/folder1/folder2/`
- */
 export function buildUserDriveFolderPrefix(
   userId: string,
   folderPath: string,
@@ -126,10 +88,6 @@ export function buildUserDriveFolderPrefix(
   return `${buildUserDriveFilePrefix(userId)}${normalized}/`;
 }
 
-/**
- * Build organization Drive folder prefix (with trailing slash).
- * Example: `drive/organizations/{orgId}/folder1/folder2/`
- */
 export function buildOrganizationDriveFolderPrefix(
   organizationId: string,
   folderPath: string,
@@ -141,10 +99,6 @@ export function buildOrganizationDriveFolderPrefix(
   return `${buildOrganizationDriveFilePrefix(organizationId)}${normalized}/`;
 }
 
-/**
- * Build user Drive file pathname with optional folder path.
- * Example: `drive/users/{userId}/folder1/report.pdf`
- */
 export function buildUserDriveFilePathnameWithFolder(
   userId: string,
   folderPath: string,
@@ -154,10 +108,6 @@ export function buildUserDriveFilePathnameWithFolder(
   return `${folderPrefix}${sanitizeDriveFileName(fileName)}`;
 }
 
-/**
- * Build organization Drive file pathname with optional folder path.
- * Example: `drive/organizations/{orgId}/folder1/report.pdf`
- */
 export function buildOrganizationDriveFilePathnameWithFolder(
   organizationId: string,
   folderPath: string,
@@ -170,10 +120,6 @@ export function buildOrganizationDriveFilePathnameWithFolder(
   return `${folderPrefix}${sanitizeDriveFileName(fileName)}`;
 }
 
-/**
- * Build folder marker pathname for a user folder.
- * Example: `drive/users/{userId}/folder1/__drive_folder__`
- */
 export function buildUserDriveFolderMarkerPathname(
   userId: string,
   folderPath: string,
@@ -182,10 +128,6 @@ export function buildUserDriveFolderMarkerPathname(
   return `${folderPrefix}${DRIVE_FOLDER_MARKER_BASENAME}`;
 }
 
-/**
- * Build folder marker pathname for an organization folder.
- * Example: `drive/organizations/{orgId}/folder1/__drive_folder__`
- */
 export function buildOrganizationDriveFolderMarkerPathname(
   organizationId: string,
   folderPath: string,
@@ -197,16 +139,10 @@ export function buildOrganizationDriveFolderMarkerPathname(
   return `${folderPrefix}${DRIVE_FOLDER_MARKER_BASENAME}`;
 }
 
-/**
- * Check if a pathname is a Drive folder marker.
- */
 export function isDriveFolderMarker(pathname: string): boolean {
   return pathname.endsWith(`/${DRIVE_FOLDER_MARKER_BASENAME}`);
 }
 
-/**
- * Check if a filename conflicts with the reserved folder marker basename.
- */
 export function isDriveFolderMarkerName(name: string): boolean {
   return name === DRIVE_FOLDER_MARKER_BASENAME;
 }

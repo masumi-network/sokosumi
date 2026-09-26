@@ -1,14 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { type Prisma } from "@sokosumi/database";
+import { MENTION_MESSAGE_KEYS } from "@sokosumi/utils";
 
 import { badRequest } from "@/helpers/error";
 import {
-  excludeResolvedCoworkerAccessNotificationsWhere,
-  excludeResolvedVendorGrantNotificationsWhere,
-  findStaleCoworkerAccessNotificationReferenceIds,
-  findStaleVendorGrantNotificationReferenceIds,
-  mergeAccessNotificationExclusions,
-  notificationFeedWhere,
+  findNeedsActionNotificationIds,
+  resolvedNotificationFeedWhere,
 } from "@/helpers/notification-feed";
 import { mapNotificationToItem } from "@/helpers/notification-item";
 import {
@@ -62,10 +58,34 @@ const isReadQuerySchema = z
     example: "false",
   });
 
+const needsActionQuerySchema = z
+  .enum(["true", "false"])
+  .optional()
+  .transform((val) => (val === undefined ? undefined : val === "true"))
+  .openapi({
+    param: { name: "needsAction", in: "query" },
+    description:
+      "When true, only rows whose request is still waiting on the reader: a task or job paused on input, a pending vendor grant or coworker access request. The newest row per request. Reading a row does not remove it; answering the request does.",
+    example: "true",
+  });
+
+const mentionsQuerySchema = z
+  .enum(["true", "false"])
+  .optional()
+  .transform((val) => (val === undefined ? undefined : val === "true"))
+  .openapi({
+    param: { name: "mentions", in: "query" },
+    description:
+      "When true, only rows where someone named the reader: chat mentions and their reminders. Direct messages are not mentions.",
+    example: "true",
+  });
+
 const query = z
   .object({
     kind: notificationKindsQuerySchema,
     isRead: isReadQuerySchema,
+    needsAction: needsActionQuerySchema,
+    mentions: mentionsQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);
 
@@ -88,13 +108,13 @@ const route = withOrganizationSlugHeaderParameter(
             {
               id: "cm123456789abcdefghij",
               userId: "cm123456789abcdefghij",
-              kind: "JOB",
+              kind: "TASK",
               referenceId: "cm123456789abcdefghij",
               eventId: "cm123456789abcdefghij",
-              messageKey: "Notifications.Job.completed",
+              messageKey: "Notifications.Task.completed",
               messageParams: {
-                agentName: "Research Agent",
-                jobName: "Market Analysis",
+                coworkerName: "Ada",
+                taskName: "Market Analysis",
               },
               metadata: { agentId: "agent_123", projectId: "proj_456" },
               isRead: false,
@@ -127,27 +147,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    const [staleVendorGrantReferenceIds, staleCoworkerAccessReferenceIds] =
-      await Promise.all([
-        findStaleVendorGrantNotificationReferenceIds(userContext.userId),
-        findStaleCoworkerAccessNotificationReferenceIds(userContext.userId),
-      ]);
-
-    const where: Prisma.NotificationWhereInput = {
-      userId: userContext.userId,
-      ...notificationFeedWhere(queryParams.kind),
-      ...mergeAccessNotificationExclusions(
-        excludeResolvedVendorGrantNotificationsWhere(
-          staleVendorGrantReferenceIds,
-        ),
-        excludeResolvedCoworkerAccessNotificationsWhere(
-          staleCoworkerAccessReferenceIds,
-        ),
-      ),
-    };
+    const [where, needsActionIds] = await Promise.all([
+      resolvedNotificationFeedWhere(userContext.userId, queryParams.kind),
+      queryParams.needsAction
+        ? findNeedsActionNotificationIds(userContext.userId)
+        : undefined,
+    ]);
 
     if (queryParams.isRead !== undefined) {
       where.isRead = queryParams.isRead;
+    }
+
+    if (needsActionIds !== undefined) {
+      where.id = { in: needsActionIds };
+    }
+
+    if (queryParams.mentions) {
+      where.messageKey = { in: [...MENTION_MESSAGE_KEYS] };
     }
 
     const takePlusOne = take + 1;

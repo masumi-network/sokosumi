@@ -55,7 +55,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { status } = c.req.valid("query");
     const now = new Date();
 
-    // Read-only GET: no interactive transaction (pool / P2028 — apps/core AGENTS.md).
     const user = await prisma.user.findUnique({
       where: { id: userContext.userId },
       select: { email: true },

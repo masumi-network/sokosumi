@@ -292,7 +292,9 @@ describe("core.client", () => {
       mapCoreApiStatusToCommonErrorCode,
       toCoreApiActionError,
     } = await import("./core.client");
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     expect(mapCoreApiStatusToCommonErrorCode(401)).toBe(
       CommonErrorCode.UNAUTHORIZED,
@@ -306,11 +308,15 @@ describe("core.client", () => {
 
     expect(
       toCoreApiActionError(
-        new CoreApiRequestError("Conversation missing", { status: 404 }),
+        new CoreApiRequestError("Social post changed", {
+          kind: "social_post_revision_conflict",
+          status: 409,
+        }),
       ),
     ).toEqual({
-      code: CommonErrorCode.NOT_FOUND,
-      message: "Conversation missing",
+      code: CommonErrorCode.BAD_INPUT,
+      kind: "social_post_revision_conflict",
+      message: "Social post changed",
     });
 
     expect(
@@ -735,8 +741,7 @@ describe("core.client", () => {
               name: "Review onboarding",
               description: null,
               status: "READY",
-              metadata: null,
-              nextRunAt: null,
+              runAt: null,
               jobsCount: 2,
               commentsCount: 4,
               workspace: {
@@ -808,8 +813,7 @@ describe("core.client", () => {
             description: null,
             status: "DRAFT",
             credits: 0,
-            metadata: null,
-            nextRunAt: "2026-06-25T09:00:00.000Z",
+            runAt: "2026-06-25T09:00:00.000Z",
             events: [],
             jobs: [],
             share: null,
@@ -843,9 +847,7 @@ describe("core.client", () => {
     expect(response.data.createdAt).toEqual(
       new Date("2026-03-26T10:00:00.000Z"),
     );
-    expect(response.data.nextRunAt).toEqual(
-      new Date("2026-06-25T09:00:00.000Z"),
-    );
+    expect(response.data.runAt).toEqual(new Date("2026-06-25T09:00:00.000Z"));
     expect(response.meta?.timestamp).toEqual(
       new Date("2026-03-26T10:00:00.000Z"),
     );

@@ -42,7 +42,7 @@ export function optionBoolean(
   return value === true || value === "true";
 }
 
-export function asArray(value: CommandOption): string[] {
+function asArray(value: CommandOption): string[] {
   if (value === undefined || typeof value === "boolean") return [];
   return (Array.isArray(value) ? value : [value]).map(String);
 }
@@ -80,21 +80,9 @@ export function parseInteger(
   return parsed;
 }
 
-const TASK_STATUSES = [
-  "DRAFT",
-  "READY",
-  "RUNNING",
-  "COMPLETED",
-  "CANCELED",
-  "CANCELLED",
-  "FAILED",
-  "INPUT_REQUIRED",
-  "OUT_OF_CREDITS",
-] as const;
-
 export function validateStatus(
   value: CommandOption,
-  allowed: readonly string[] = TASK_STATUSES,
+  allowed: readonly string[],
 ): string | undefined {
   const text =
     value === undefined || typeof value === "boolean"
@@ -256,10 +244,6 @@ export function truncate(value: unknown, max = 100): string {
 export function maskSecret(value: unknown): string {
   const token = typeof value === "string" ? value : "";
   return token ? `${token.slice(0, 8)}..${token.slice(-4)}` : "(none)";
-}
-
-export function isJson(context: Pick<CommandContext, "json">): boolean {
-  return context.json === true;
 }
 
 export function record(value: unknown): Record<string, unknown> {

@@ -12,8 +12,7 @@ vi.mock("@/lib/actions/project/action", () => ({
   updateProject: vi.fn(),
 }));
 
-vi.mock("@/components/design-md", () => ({
-  DESIGN_MD_TRANSLATION_NAMESPACE: "App.DesignMd",
+vi.mock("@/components/design-md/use-design-md-generation", () => ({
   useDesignMdGeneration: () => ({
     generate: vi.fn(),
     isRunning: false,

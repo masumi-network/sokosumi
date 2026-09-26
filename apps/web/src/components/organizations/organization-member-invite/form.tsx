@@ -15,7 +15,7 @@ import {
   type InviteFormSchemaType,
   inviteFormData,
   inviteFormSchema,
-} from "@/lib/schemas";
+} from "@/lib/schemas/invitation";
 
 import { FormFields } from "./form-fields";
 

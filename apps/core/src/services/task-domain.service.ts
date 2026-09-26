@@ -3,7 +3,6 @@ import {
   type GrantResumeStatus,
   type Prisma,
   type Task,
-  type TaskScheduleEventKind,
   TaskStatus,
   TaskVisibility,
   VendorGrantStatus,
@@ -15,7 +14,6 @@ import {
   hasAssigneeValue,
   isAgentOnlyTaskStatus,
   isTaskEditableStatus,
-  type TaskScheduleMetadata,
 } from "@sokosumi/utils";
 
 import {
@@ -32,8 +30,6 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
-import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
-import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import {
   isGrantDeniedOrRevoked,
   parseGrantResumeStatus,
@@ -74,18 +70,11 @@ export interface CreateTaskDomainInput {
     | typeof TaskStatus.DRAFT
     | typeof TaskStatus.QUEUED
     | typeof TaskStatus.READY;
+  /** Set together with QUEUED: the one time the Task moves to Ready. */
+  runAt?: Date | null;
   channel?: Channel;
   /** Server-reserved effect identity, committed with this operation. */
   effectEventId?: string;
-  schedule?: {
-    metadata: TaskScheduleMetadata;
-    nextRunAt: Date;
-    event: {
-      scheduleKind: TaskScheduleEventKind;
-      scheduleOperationId: string;
-      schedulePayload: Prisma.InputJsonObject;
-    };
-  };
 }
 
 export interface UpdateTaskDomainInput {
@@ -185,7 +174,7 @@ function taskAssigner(actor: TaskDomainActor): TaskAssigner {
   }
 }
 
-async function requireTaskReferences(
+export async function requireTaskReferences(
   input: {
     projectId?: string | null;
     assigneeId?: string | null;
@@ -226,7 +215,7 @@ async function requireTaskReferences(
   }
 }
 
-function creatorFields(actor: TaskDomainActor) {
+export function creatorFields(actor: TaskDomainActor) {
   switch (actor.kind) {
     case "user":
       return {
@@ -367,15 +356,13 @@ export async function createTaskForActor(
       visibility,
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
       pendingVendorGrantId: pendingGrant?.pendingVendorGrantId ?? null,
-      metadata: input.schedule ? JSON.stringify(input.schedule.metadata) : null,
-      nextRunAt: input.schedule?.nextRunAt ?? null,
+      runAt: input.runAt ?? null,
       events: {
         create: {
           id: input.effectEventId,
           status,
           comment: null,
           channel: input.channel ?? Channel.SOKOSUMI,
-          ...input.schedule?.event,
           ...eventActorFields(input.actor),
         },
       },
@@ -447,10 +434,17 @@ export async function archiveTaskRecord(
 ): Promise<void> {
   if (!canArchiveTaskStatus(task.status))
     throw unprocessableEntity(getTaskCannotArchiveMessage(task.status));
-  assertTaskScheduleInactive(
-    task,
-    "Remove the schedule before archiving this Task",
-  );
+  // A generated Task is independent of its recurring parent (ADR 0041).
+  // The bot must not cancel a future one-off run as a side effect of archive.
+  if (
+    options.actor?.kind === "soko_bot" &&
+    task.runAt &&
+    task.runAt > new Date()
+  ) {
+    throw unprocessableEntity(
+      "Remove the future Run at before archiving this Task",
+    );
+  }
   if (
     options.expectedUpdatedAt &&
     task.updatedAt.getTime() !== options.expectedUpdatedAt.getTime()
@@ -477,7 +471,6 @@ export async function archiveTaskRecord(
       },
     });
   }
-  await removeTaskSchedulePlannedOccurrences(tx, task.id);
 }
 
 /**

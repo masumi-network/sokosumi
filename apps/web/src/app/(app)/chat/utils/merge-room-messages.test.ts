@@ -4,6 +4,7 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
   applyFullChatRoomMessageEvent,
+  applyThreadUnreadReplyCounts,
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "./merge-room-messages";
@@ -38,6 +39,7 @@ function message(id: string, createdAt: string, content = id): ChatRoomMessage {
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     deletedAt: null,
   };
@@ -80,6 +82,48 @@ describe("applyFullChatRoomMessageEvent", () => {
     expect(next.map((row) => row.id)).toEqual(["m1"]);
   });
 
+  it("keeps the viewer's unread reply count when a broadcast event replaces the parent", () => {
+    const parent = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "hello"),
+      threadReplyCount: 5,
+      threadUnreadReplyCount: 2,
+    };
+    // The realtime payload is addressed to the whole room, so it carries no
+    // per-viewer count.
+    const { threadUnreadReplyCount: _, ...edited } = {
+      ...parent,
+      content: "hello, edited",
+    };
+
+    const next = applyFullChatRoomMessageEvent([parent], {
+      eventType: "update",
+      message: edited,
+    });
+
+    expect(next).toEqual([
+      expect.objectContaining({
+        id: "m1",
+        content: "hello, edited",
+        threadUnreadReplyCount: 2,
+      }),
+    ]);
+  });
+
+  it("takes a fresh unread reply count over the known one", () => {
+    const parent = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "hello"),
+      threadReplyCount: 5,
+      threadUnreadReplyCount: 2,
+    };
+
+    const next = mergeRoomMessages(
+      [parent],
+      [{ ...parent, threadUnreadReplyCount: 0 }],
+    );
+
+    expect(next[0].threadUnreadReplyCount).toBe(0);
+  });
+
   it("merges a user tombstone so deleted chrome stays", () => {
     const chat = message("m1", "2026-07-01T10:00:00.000Z", "hello");
     const tombstone = {
@@ -95,6 +139,42 @@ describe("applyFullChatRoomMessageEvent", () => {
 
     expect(next).toHaveLength(1);
     expect(next[0]?.deletedAt).not.toBeNull();
+  });
+});
+
+describe("applyThreadUnreadReplyCounts", () => {
+  function parent(id: string, threadUnreadReplyCount?: number) {
+    return {
+      ...message(id, "2026-07-01T10:00:00.000Z"),
+      threadReplyCount: 3,
+      threadUnreadReplyCount,
+    };
+  }
+
+  it("tints a parent the read names and leaves the rest", () => {
+    const quiet = parent("m2", 0);
+
+    const next = applyThreadUnreadReplyCounts(
+      [parent("m1", 0), quiet],
+      new Map([["m1", 2]]),
+    );
+
+    expect(next[0].threadUnreadReplyCount).toBe(2);
+    expect(next[1]).toBe(quiet);
+  });
+
+  it("clears a parent the read no longer names", () => {
+    const next = applyThreadUnreadReplyCounts([parent("m1", 4)], new Map());
+
+    expect(next[0].threadUnreadReplyCount).toBe(0);
+  });
+
+  it("returns the same list when nothing moved", () => {
+    const messages = [parent("m1", 1), parent("m2"), parent("m3", 0)];
+
+    expect(applyThreadUnreadReplyCounts(messages, new Map([["m1", 1]]))).toBe(
+      messages,
+    );
   });
 });
 
@@ -266,6 +346,29 @@ describe("mergeRoomMessages", () => {
       "stream:zzz-user",
       "stream:aaa-assistant",
     ]);
+  });
+
+  it("keeps a quote sent to yourself, which has no body of its own", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "hello");
+    const savedQuote = {
+      ...message("m2", "2026-07-01T11:00:00.000Z", ""),
+      quote: {
+        messageId: "source-message",
+        roomId: "source-room",
+        authorName: "Alice",
+        snippet: "Ship the launch notes",
+        attachment: null,
+      },
+    };
+
+    expect(
+      mergeRoomMessages([chat], [savedQuote]).map((row) => row.id),
+    ).toEqual(["m1", "m2"]);
+    expect(
+      mergeMessagesWithStreamOverlay([chat, savedQuote], []).map(
+        (row) => row.id,
+      ),
+    ).toEqual(["m1", "m2"]);
   });
 
   it("keeps membership status rows alongside chat messages", () => {
@@ -449,6 +552,58 @@ describe("mergeMessagesWithStreamOverlay", () => {
     expect(merged[1]?.metadata).toEqual(
       expect.objectContaining({ streaming: true }),
     );
+  });
+
+  it("keeps a failed mention shell so Failed to reply and Retry can render", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "@hannah hi");
+    const failed = {
+      ...coworkerMessage("reply_failed", "2026-07-01T10:00:01.000Z", ""),
+      metadata: {
+        in_reply_to_message_id: "m1",
+        mention_id: "mention_1",
+        mention_failed: true,
+      },
+    };
+    const thinking = {
+      ...coworkerMessage("reply_2", "2026-07-01T10:00:02.000Z", ""),
+      metadata: { streaming: true, mention_id: "mention_2" },
+    };
+
+    const idle = mergeMessagesWithStreamOverlay([chat, failed, thinking], []);
+    expect(idle.map((row) => row.id)).toEqual([
+      "m1",
+      "reply_failed",
+      "reply_2",
+    ]);
+    // The row decides Failed to reply / Retry from this flag; it must survive.
+    expect(idle[1]?.metadata).toEqual(
+      expect.objectContaining({
+        mention_failed: true,
+        mention_id: "mention_1",
+      }),
+    );
+
+    const overlay = mergeMessagesWithStreamOverlay(
+      [chat, failed],
+      [coworkerMessage("stream:reply", "2026-07-01T10:00:03.000Z", "")],
+    );
+    expect(overlay.map((row) => row.id)).toEqual([
+      "m1",
+      "reply_failed",
+      "stream:reply",
+    ]);
+  });
+
+  it("drops an empty failed coworker row that has no mention_id", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "@hannah hi");
+    const leaked = {
+      ...coworkerMessage("reply_leak", "2026-07-01T10:00:01.000Z", ""),
+      metadata: { mention_failed: true, in_reply_to_message_id: "m1" },
+    };
+
+    const merged = mergeMessagesWithStreamOverlay([chat, leaked], []);
+
+    expect(merged.map((row) => row.id)).toEqual(["m1"]);
   });
 
   it("drops an empty persisted streaming coworker row that has no mention_id", () => {

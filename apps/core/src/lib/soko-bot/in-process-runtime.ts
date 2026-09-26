@@ -6,6 +6,7 @@ import {
   type RuntimeEventStreamInput,
   type RuntimeHealth,
   type RuntimeInspectInput,
+  type RuntimeJsonValue,
   type RuntimeResetInput,
   type RuntimeTurnInput,
   type RuntimeTurnRef,
@@ -117,7 +118,7 @@ async function withTimeout<T>(
 
 function runtimeEvent(
   type: string,
-  data: Record<string, unknown>,
+  data: Record<string, RuntimeJsonValue>,
 ): RuntimeEvent {
   return {
     type,
@@ -417,7 +418,7 @@ export class InProcessSokoBotRuntime implements SokoBotRuntime {
         startIndex: stored.startIndex,
         event: {
           type: stored.type,
-          data: (stored.data ?? {}) as Record<string, unknown>,
+          data: (stored.data ?? {}) as Record<string, RuntimeJsonValue>,
           meta: {
             id: stored.eventId,
             at: stored.occurredAt.toISOString(),
