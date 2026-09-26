@@ -72,8 +72,9 @@ export async function reserveDriveUploadResource(input: {
     });
 
     if (existing) {
-      // Replacing the bytes at a pathname is a new version of the same
-      // document, so manual metadata and the deep link both survive it.
+      // Replacing the bytes at a live pathname is a new version of the same
+      // document, so manual metadata and the deep link both survive it. A
+      // tombstoned resource cannot appear here: deletion releases its path.
       const revision = existing.contentRevision + 1;
       const version = await tx.fileVersion.create({
         data: {
@@ -253,6 +254,11 @@ export async function tombstoneDriveUploadResource(input: {
         lifecycle: FileResourceLifecycle.TOMBSTONED,
         tombstonedAt: new Date(),
         aclRevision: { increment: 1 },
+        // Release the pathname. A later upload to the same path is a
+        // different document and must get its own identity — it does not
+        // inherit this one's labels by coincidence of name, and this one
+        // cannot be resurrected by re-uploading over it.
+        sourceId: `${input.pathname}#tombstoned:${resource.id}`,
       },
     });
 

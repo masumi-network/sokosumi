@@ -310,6 +310,41 @@ describe.skipIf(!enabled)("Files retrieval against PostgreSQL", () => {
     expect(label?.provenance).toBe(FileMetadataProvenance.MANUAL);
   });
 
+  it("frees the pathname on delete, so a re-upload is a new document", async () => {
+    const { tombstoneDriveUploadResource, reserveDriveUploadResource } =
+      await import("@/services/file-catalog.service");
+
+    const pathname = `drive/users/${ownerId}/recycled.txt`;
+    const first = await reserveDriveUploadResource({
+      key: { workspaceId, scope: "user", ownerId, pathname },
+      displayName: "recycled.txt",
+      mimeType: "text/plain",
+      sizeBytes: 10,
+    });
+
+    await tombstoneDriveUploadResource({
+      workspaceId,
+      scope: "user",
+      pathname,
+    });
+
+    const second = await reserveDriveUploadResource({
+      key: { workspaceId, scope: "user", ownerId, pathname },
+      displayName: "recycled.txt",
+      mimeType: "text/plain",
+      sizeBytes: 12,
+    });
+
+    expect(second.resourceId).not.toBe(first.resourceId);
+
+    const tombstoned = await prisma.fileResource.findUniqueOrThrow({
+      where: { id: first.resourceId },
+      select: { sourceId: true, tombstonedAt: true },
+    });
+    expect(tombstoned.tombstonedAt).not.toBeNull();
+    expect(tombstoned.sourceId).not.toBe(pathname);
+  });
+
   it("rejects an edit made against a stale revision", async () => {
     const [resourceId] = resourceIds;
     const outcome = await updateFileMetadata({
