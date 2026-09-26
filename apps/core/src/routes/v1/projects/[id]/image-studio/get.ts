@@ -1,5 +1,4 @@
 import { createRoute } from "@hono/zod-openapi";
-
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
@@ -7,6 +6,7 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireProjectAccess } from "@/lib/image-studio/access";
+import { IMAGE_STUDIO_CATALOG } from "@/lib/image-studio/catalog";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -89,6 +89,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
           // Omit rather than send null: see the schema comment on `review`.
           review: asset.review ?? undefined,
         })),
+        catalog: IMAGE_STUDIO_CATALOG,
         jobs,
         sessions,
         nextCursor: assetPage.nextCursor,

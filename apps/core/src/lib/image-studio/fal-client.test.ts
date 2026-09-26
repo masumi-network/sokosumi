@@ -63,6 +63,59 @@ describe("buildFalInput", () => {
   });
 });
 
+describe("model-specific payloads", () => {
+  const settings = {
+    prompt: "a cup",
+    aspectRatio: "16:9",
+    resolution: "2K",
+    outputFormat: "png",
+    seed: 42,
+    imageUrls: [] as string[],
+  };
+
+  it("sends only FLUX settings and selects the matching edit endpoint", () => {
+    const endpoint = falModelForKind("GENERATE", "flux-2-pro");
+    expect(buildFalInput(settings, endpoint)).toEqual({
+      prompt: "a cup",
+      image_size: { width: 2048, height: 1152 },
+      output_format: "png",
+      seed: 42,
+    });
+    const edit = falModelForKind("EDIT", "flux-2-pro");
+    expect(edit).toBe("fal-ai/flux-2-pro/edit");
+    expect(
+      buildFalInput(
+        { ...settings, imageUrls: ["https://v3.fal.media/reference.png"] },
+        edit,
+      ),
+    ).toHaveProperty("image_urls", ["https://v3.fal.media/reference.png"]);
+    expect(queueRequestModel(edit)).toBe(endpoint);
+  });
+
+  it("uses Gemini Pro settings and bounds generated image count", () => {
+    expect(
+      buildFalInput(settings, falModelForKind("GENERATE", "gemini-pro")),
+    ).toMatchObject({
+      aspect_ratio: "16:9",
+      resolution: "2K",
+      num_images: 1,
+      limit_generations: true,
+    });
+  });
+
+  it("rejects references on a generation endpoint rather than silently dropping them", () => {
+    expect(() =>
+      buildFalInput(
+        { ...settings, imageUrls: ["https://v3.fal.media/ref.png"] },
+        IMAGE_MODEL_GENERATE,
+      ),
+    ).toThrow("edit endpoint");
+    expect(() => buildFalInput(settings, IMAGE_MODEL_EDIT)).toThrow(
+      "edit endpoint",
+    );
+  });
+});
+
 describe("falModelForKind", () => {
   it("sends a refinement to the endpoint that accepts a reference", () => {
     expect(falModelForKind("EDIT")).toBe(IMAGE_MODEL_EDIT);

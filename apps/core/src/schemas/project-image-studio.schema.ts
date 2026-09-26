@@ -1,6 +1,12 @@
 import { z } from "@hono/zod-openapi";
-
 import { dateTimeSchema } from "@/helpers/datetime";
+import {
+  DEFAULT_IMAGE_MODEL_ID,
+  IMAGE_ASPECT_RATIOS,
+  IMAGE_MODEL_IDS,
+  IMAGE_OUTPUT_FORMATS,
+  IMAGE_RESOLUTIONS,
+} from "@/lib/image-studio/catalog";
 
 export const IMAGE_JOB_STATUSES = [
   "PENDING",
@@ -13,19 +19,6 @@ export const IMAGE_JOB_STATUSES = [
   "SUBMISSION_UNCERTAIN",
   "ORPHANED",
 ] as const;
-
-export const IMAGE_ASPECT_RATIOS = [
-  "1:1",
-  "4:3",
-  "3:4",
-  "16:9",
-  "9:16",
-  "3:2",
-  "2:3",
-] as const;
-
-export const IMAGE_RESOLUTIONS = ["0.5K", "1K", "2K"] as const;
-export const IMAGE_OUTPUT_FORMATS = ["png", "jpeg", "webp"] as const;
 
 export const imageStudioProjectParamsSchema = z.object({
   id: z
@@ -62,6 +55,7 @@ export const imageStudioJobParamsSchema = imageStudioProjectParamsSchema.extend(
 
 export const imageStudioSettingsSchema = z
   .object({
+    placementId: z.string().max(100).nullable().optional(),
     aspectRatio: z.enum(IMAGE_ASPECT_RATIOS).default("1:1"),
     resolution: z.enum(IMAGE_RESOLUTIONS).default("1K"),
     outputFormat: z.enum(IMAGE_OUTPUT_FORMATS).default("png"),
@@ -118,6 +112,7 @@ export const imageStudioJobSchema = z
     id: z.string().uuid(),
     status: z.enum(IMAGE_JOB_STATUSES),
     kind: z.enum(["GENERATE", "EDIT"]),
+    model: z.string(),
     prompt: z.string(),
     /** What this job asked the provider for, so a retry can ask the same. */
     settings: imageStudioSettingsSchema,
@@ -157,6 +152,7 @@ export const imageStudioSessionSchema = z
 
 export const createImageJobRequestSchema = z
   .object({
+    modelId: z.enum(IMAGE_MODEL_IDS).default(DEFAULT_IMAGE_MODEL_ID),
     prompt: z.string().trim().min(1).max(4_000),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
@@ -199,8 +195,46 @@ export const imageStudioStateQuerySchema = z.object({
   beforeId: z.string().uuid().optional(),
 });
 
+export const imageStudioCatalogSchema = z
+  .object({
+    defaultModelId: z.string(),
+    models: z.array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        description: z.string(),
+        generateEndpoint: z.string(),
+        editEndpoint: z.string(),
+        aspectRatios: z.array(z.string()),
+        resolutions: z.array(z.string()),
+        outputFormats: z.array(z.string()),
+        supportsSeed: z.boolean(),
+        maxReferences: z.number().int(),
+        dimensionMode: z.enum(["aspect-ratio", "image-size"]),
+        notes: z.string(),
+        sourceUrls: z.array(z.string()),
+        verifiedAt: z.string(),
+      }),
+    ),
+    placements: z.array(
+      z.object({
+        id: z.string(),
+        platform: z.string(),
+        label: z.string(),
+        aspectRatio: z.string(),
+        width: z.number().int(),
+        height: z.number().int(),
+        notes: z.string(),
+        sourceUrl: z.string(),
+        verifiedAt: z.string(),
+      }),
+    ),
+  })
+  .openapi("ProjectImageStudioCatalog");
+
 export const imageStudioListSchema = z
   .object({
+    catalog: imageStudioCatalogSchema,
     assets: z.array(imageStudioAssetSchema),
     jobs: z.array(imageStudioJobSchema),
     sessions: z.array(imageStudioSessionSchema),

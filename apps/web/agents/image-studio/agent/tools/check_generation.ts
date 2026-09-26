@@ -16,6 +16,8 @@ export default defineTool({
     const { job, version } = await readGeneration(identity, input.jobId);
     return {
       status: job.status,
+      model: job.model,
+      settings: job.settings,
       error: job.error,
       version,
       guidance: job.retryMayDuplicateCharge

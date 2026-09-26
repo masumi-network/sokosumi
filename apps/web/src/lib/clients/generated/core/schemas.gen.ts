@@ -16319,6 +16319,9 @@ export const CancelSocialPostRequestSchema = {
 export const ProjectImageStudioStateSchema = {
     type: 'object',
     properties: {
+        catalog: {
+            $ref: '#/components/schemas/ProjectImageStudioCatalog'
+        },
         assets: {
             type: 'array',
             items: {
@@ -16360,10 +16363,153 @@ export const ProjectImageStudioStateSchema = {
         }
     },
     required: [
+        'catalog',
         'assets',
         'jobs',
         'sessions',
         'nextCursor'
+    ]
+} as const;
+
+export const ProjectImageStudioCatalogSchema = {
+    type: 'object',
+    properties: {
+        defaultModelId: {
+            type: 'string'
+        },
+        models: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    description: {
+                        type: 'string'
+                    },
+                    generateEndpoint: {
+                        type: 'string'
+                    },
+                    editEndpoint: {
+                        type: 'string'
+                    },
+                    aspectRatios: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    resolutions: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    outputFormats: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    supportsSeed: {
+                        type: 'boolean'
+                    },
+                    maxReferences: {
+                        type: 'integer'
+                    },
+                    dimensionMode: {
+                        type: 'string',
+                        enum: [
+                            'aspect-ratio',
+                            'image-size'
+                        ]
+                    },
+                    notes: {
+                        type: 'string'
+                    },
+                    sourceUrls: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    verifiedAt: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'label',
+                    'description',
+                    'generateEndpoint',
+                    'editEndpoint',
+                    'aspectRatios',
+                    'resolutions',
+                    'outputFormats',
+                    'supportsSeed',
+                    'maxReferences',
+                    'dimensionMode',
+                    'notes',
+                    'sourceUrls',
+                    'verifiedAt'
+                ]
+            }
+        },
+        placements: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    platform: {
+                        type: 'string'
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    aspectRatio: {
+                        type: 'string'
+                    },
+                    width: {
+                        type: 'integer'
+                    },
+                    height: {
+                        type: 'integer'
+                    },
+                    notes: {
+                        type: 'string'
+                    },
+                    sourceUrl: {
+                        type: 'string'
+                    },
+                    verifiedAt: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'platform',
+                    'label',
+                    'aspectRatio',
+                    'width',
+                    'height',
+                    'notes',
+                    'sourceUrl',
+                    'verifiedAt'
+                ]
+            }
+        }
+    },
+    required: [
+        'defaultModelId',
+        'models',
+        'placements'
     ]
 } as const;
 
@@ -16450,6 +16596,13 @@ export const ProjectImageAssetSchema = {
 export const ProjectImageSettingsSchema = {
     type: 'object',
     properties: {
+        placementId: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
         aspectRatio: {
             type: 'string',
             enum: [
@@ -16459,7 +16612,9 @@ export const ProjectImageSettingsSchema = {
                 '16:9',
                 '9:16',
                 '3:2',
-                '2:3'
+                '2:3',
+                '4:5',
+                '5:4'
             ],
             default: '1:1'
         },
@@ -16554,6 +16709,9 @@ export const ProjectImageJobSchema = {
                 'EDIT'
             ]
         },
+        model: {
+            type: 'string'
+        },
         prompt: {
             type: 'string'
         },
@@ -16624,6 +16782,7 @@ export const ProjectImageJobSchema = {
         'id',
         'status',
         'kind',
+        'model',
         'prompt',
         'settings',
         'referenceAssetIds',
@@ -16681,6 +16840,15 @@ export const ProjectImageSessionSchema = {
 export const CreateProjectImageJobRequestSchema = {
     type: 'object',
     properties: {
+        modelId: {
+            type: 'string',
+            enum: [
+                'gemini-flash',
+                'gemini-pro',
+                'flux-2-pro'
+            ],
+            default: 'gemini-flash'
+        },
         prompt: {
             type: 'string',
             minLength: 1,

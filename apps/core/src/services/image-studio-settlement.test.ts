@@ -201,6 +201,30 @@ describe("the settlement lease", () => {
   });
 });
 
+describe("model and placement provenance", () => {
+  it("copies the saved job endpoint and placement settings to the immutable version", async () => {
+    const settings = {
+      aspectRatio: "2:3",
+      resolution: "2K",
+      outputFormat: "png",
+      seed: 17,
+      placementId: "pinterest-pin",
+    };
+    jobFindUniqueMock.mockResolvedValue({
+      ...JOB,
+      model: "fal-ai/flux-2-pro",
+      settings,
+    });
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    expect(assetCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ model: "fal-ai/flux-2-pro", settings }),
+      }),
+    );
+  });
+});
+
 describe("concurrent settlement", () => {
   it("does the paid work once when many settlers race one job", async () => {
     // Only the first caller wins the lease; the rest are refused before they

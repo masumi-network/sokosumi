@@ -161,6 +161,73 @@ describe("image studio job submission", () => {
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
   });
 
+  it("persists the chosen model and placement before submitting the model-specific payload", async () => {
+    const stored = jobRow({
+      model: "fal-ai/flux-2-pro",
+      settings: {
+        ...BASE_INPUT.settings,
+        placementId: "pinterest-pin",
+        aspectRatio: "2:3",
+      },
+    });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    submitToQueueMock.mockResolvedValue({
+      kind: "queued",
+      requestId: "fal-123",
+    });
+    await createImageJob({
+      ...BASE_INPUT,
+      modelId: "flux-2-pro",
+      settings: { ...BASE_INPUT.settings, placementId: "pinterest-pin" },
+    });
+    expect(jobCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          model: "fal-ai/flux-2-pro",
+          settings: expect.objectContaining({
+            placementId: "pinterest-pin",
+            aspectRatio: "2:3",
+          }),
+        }),
+      }),
+    );
+    expect(submitToQueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "fal-ai/flux-2-pro",
+        input: expect.objectContaining({
+          image_size: { width: 672, height: 1024 },
+        }),
+      }),
+    );
+    expect(submitToQueueMock.mock.calls[0][0].input).not.toHaveProperty(
+      "resolution",
+    );
+  });
+
+  it.each([
+    { modelId: "unverified-model" },
+    {
+      modelId: "flux-2-pro",
+      settings: { ...BASE_INPUT.settings, outputFormat: "webp" },
+    },
+    {
+      modelId: "gemini-pro",
+      settings: { ...BASE_INPUT.settings, resolution: "0.5K" },
+    },
+    { settings: { ...BASE_INPUT.settings, placementId: "made-up" } },
+  ])(
+    "rejects incompatible model/placement settings before reserving or spending",
+    async (invalid) => {
+      await expect(
+        createImageJob({ ...BASE_INPUT, ...invalid }),
+      ).rejects.toMatchObject({ status: 422 });
+      expect(jobCreateMock).not.toHaveBeenCalled();
+      expect(submitToQueueMock).not.toHaveBeenCalled();
+      expect(uploadReferenceMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("classifies a definite provider refusal as failed and therefore retryable", async () => {
     submitToQueueMock.mockResolvedValue({
       kind: "rejected",
