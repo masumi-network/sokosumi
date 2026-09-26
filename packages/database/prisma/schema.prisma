@@ -182,6 +182,13 @@ model Workspace {
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
 
+  fileResources      FileResource[]
+  fileEvidenceScopes FileEvidenceScope[]
+  fileLabels         WorkspaceLabel[]
+  fileLineages       FileLineage[]
+  fileCollections    FileCollection[]
+  fileAdmissions     FileAuthorizationAdmission[]
+
   @@map("workspace")
 }
 
@@ -471,6 +478,8 @@ model Project {
   imageSessions ProjectImageSession[]
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
+
+  fileLinks FileProjectLink[]
 
   @@index([workspaceId])
   @@map("project")
@@ -4790,4 +4799,580 @@ model SokoBotEvaluationAllowance {
   bindingHash String
   calls       Json    @default("[]")
   frozen      Boolean @default(false)
+}
+
+// ---------------------------------------------------------------------------
+// Intelligent Files — canonical resource catalog
+//
+// The catalog is a derived view over canonical sources (Drive blobs, task
+// outputs, project documents, native tables, studio assets). The source stays
+// authoritative: nothing here grants access, and every read re-checks the
+// source. See docs/intelligent-files/implementation-plan.md.
+// ---------------------------------------------------------------------------
+
+enum FileSourceKind {
+  DRIVE_UPLOAD
+  TASK_OUTPUT
+  PROJECT_DOCUMENT
+  NATIVE_TABLE
+  STUDIO_ASSET
+}
+
+/// Which store a drive-backed resource lives in. Mirrors the `me` / `org`
+/// scope the Drive routes already use, so a resource maps back to one store.
+enum FileSourceScope {
+  USER
+  ORGANIZATION
+}
+
+enum FileResourceLifecycle {
+  PENDING
+  ACTIVE
+  TOMBSTONED
+}
+
+enum FileExtractionState {
+  PENDING
+  RUNNING
+  INDEXED
+  /// Some text was extracted; coverage says how much. Never reported as full.
+  PARTIAL
+  UNSUPPORTED
+  ENCRYPTED
+  QUARANTINED
+  FAILED
+}
+
+enum FileLabelKind {
+  TAG
+  CATEGORY
+}
+
+/// Where a label, category or project link came from. A model may only ever
+/// propose; a person confirms.
+enum FileMetadataProvenance {
+  MANUAL
+  MODEL
+  RULE
+}
+
+enum FileMetadataState {
+  SUGGESTED
+  CONFIRMED
+  /// Dismissed by a person. Retry and reindex cannot resurrect it.
+  REJECTED
+}
+
+/// A durable decision that survives re-extraction and model changes.
+enum FileFieldOverrideDecision {
+  /// This field is set by hand; suggestions may not overwrite it.
+  PIN
+  /// This label was removed by hand; it may not be re-suggested.
+  REJECT
+  /// Explicitly re-open a pinned field to suggestions.
+  ALLOW
+}
+
+enum FileIndexJobPipeline {
+  EXTRACT
+  SUGGEST
+}
+
+enum FileIndexJobState {
+  QUEUED
+  LEASED
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum FileIndexArtifactState {
+  ACTIVE
+  ABANDONED
+  PURGED
+}
+
+/// An authorization predicate, not a user list. A derived field inherits the
+/// intersection of the scopes of everything that contributed to it.
+model FileEvidenceScope {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sourceKind  FileSourceKind
+  sourceScope FileSourceScope
+  /// Canonical source policy reference, e.g. the task id whose visibility
+  /// governs this evidence. Native id, not a catalog id.
+  sourceId    String
+
+  /// Which actor kinds the canonical gate admits at all, e.g.
+  /// ["interactive"] for studio assets. Empty means nobody.
+  actorKinds String[]
+
+  /// Bumped by the canonical mutation that changes who may read this evidence.
+  /// A change invalidates derived metadata and ranked sessions in this scope.
+  scopeVersion Int @default(1)
+
+  chunks    FileChunk[]
+  labels    FileLabel[]
+  links     FileProjectLink[]
+  overrides FileFieldOverride[]
+
+  @@unique([workspaceId, sourceKind, sourceScope, sourceId], map: "file_evidence_scope_source_key")
+  @@index([workspaceId, scopeVersion])
+  @@map("file_evidence_scope")
+}
+
+/// One durable identity for one document, whatever its source.
+model FileResource {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sourceKind  FileSourceKind
+  sourceScope FileSourceScope
+  /// Native source id: a blob pathname for uploads, a task id for outputs.
+  /// Source ids stay native so the canonical owner keeps its own naming.
+  sourceId    String
+
+  /// Who owns the canonical source, for the personal-drive owner gate.
+  ownerUserId         String?
+  ownerOrganizationId String?
+
+  /// Provenance links. Read-only in the UI: an inherited source project is not
+  /// the same thing as a confirmed project association.
+  sourceTaskId    String?
+  sourceProjectId String? @db.Uuid
+
+  displayName String
+  /// NFC, case-folded, trimmed. Exact matches on this beat every model score.
+  ///
+  /// SQL-only: the migration also creates
+  /// `file_resource_normalized_name_prefix_idx`, a btree on
+  /// `(workspaceId, normalizedName text_pattern_ops)` for prefix matching.
+  /// Prisma does not read a btree opclass back, so declaring it here makes
+  /// every later diff want to recreate it.
+  normalizedName String
+
+  mimeType String?
+  sizeBytes Int?
+
+  /// Bumped when the bytes change.
+  contentRevision Int @default(1)
+  /// Bumped by a metadata edit that does not change audience.
+  metadataRevision Int @default(1)
+  /// Bumped only when the canonical gate changes. Rejects ranked sessions.
+  aclRevision Int @default(1)
+
+  lifecycle   FileResourceLifecycle @default(PENDING)
+  tombstonedAt DateTime?
+
+  lineageId String?      @db.Uuid
+  lineage   FileLineage? @relation(fields: [lineageId], references: [id], onDelete: SetNull)
+
+  versions  FileVersion[]
+  labels    FileLabel[]
+  links     FileProjectLink[]
+  overrides FileFieldOverride[]
+  jobs      FileIndexJob[]
+
+  @@unique([workspaceId, sourceKind, sourceScope, sourceId], map: "file_resource_source_key")
+  @@index([workspaceId, lifecycle, updatedAt])
+  @@index([workspaceId, normalizedName])
+  @@index([normalizedName(ops: raw("gin_trgm_ops"))], type: Gin, map: "file_resource_normalized_name_trgm_idx")
+  @@index([lineageId])
+  @@index([sourceTaskId])
+  @@index([sourceProjectId])
+  @@map("file_resource")
+}
+
+/// Immutable bytes for one revision of a resource.
+model FileVersion {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resourceId String       @db.Uuid
+  resource   FileResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  revision Int
+
+  /// Immutable object identity. Never a public URL, and never handed to a
+  /// reader: content is served through the authorized proxy.
+  objectKey String
+  etag      String?
+  checksum  String?
+  sizeBytes Int?
+  mimeType  String?
+
+  extractionState FileExtractionState @default(PENDING)
+  /// 0..1 — how much of the document the extractor actually read. Partial
+  /// coverage is shown as partial, never as full-text coverage.
+  extractionCoverage Float?
+  extractionReason   String?
+  extractorVersion   String?
+
+  /// Bumped when extracted text changes, independently of the bytes.
+  textRevision Int @default(0)
+  /// The index generation these chunks belong to. A rollback swaps this
+  /// atomically and fences the old workers.
+  indexGeneration Int @default(1)
+
+  chunks FileChunk[]
+
+  @@unique([resourceId, revision], map: "file_version_revision_key")
+  @@index([resourceId, createdAt])
+  @@index([extractionState])
+  @@map("file_version")
+}
+
+/// One indexed passage. A chunk never mixes audiences: if two inputs have
+/// different evidence scopes they are two chunks.
+///
+/// SQL-only: a generated `search_vector tsvector` column plus its GIN index
+/// live in the migration. Prisma cannot express a generated column, so the
+/// migration owns them and this comment is the pointer.
+model FileChunk {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  versionId String      @db.Uuid
+  version   FileVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  /// Stable within a version, so an anchor keeps resolving across retries.
+  chunkId String
+  ordinal Int
+
+  /// Where this passage sits in the document, e.g. {"page":3} or {"row":42}.
+  anchor Json?
+
+  text String
+
+  evidenceScopeId String            @db.Uuid
+  evidenceScope   FileEvidenceScope @relation(fields: [evidenceScopeId], references: [id], onDelete: Cascade)
+  scopeVersion    Int
+
+  /// sha256 of the normalized input this chunk was produced from. Keys the
+  /// pair-score cache so a changed input cannot reuse an old score.
+  inputDigest String
+
+  /// `tsvector` has no Prisma type. The indexer fills it with
+  /// `to_tsvector('simple', text)` in the same statement that writes the
+  /// chunk, and only `file-index.service.ts` touches it.
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  @@unique([versionId, chunkId], map: "file_chunk_version_key")
+  @@index([versionId, ordinal])
+  @@index([evidenceScopeId])
+  @@index([searchVector], type: Gin, map: "file_chunk_search_vector_idx")
+  @@map("file_chunk")
+}
+
+/// Workspace-scoped vocabulary. Shared vocabulary is not shared assignment.
+model WorkspaceLabel {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  kind FileLabelKind
+
+  displayName String
+  /// NFC, trimmed, case-folded. Uniqueness is on this, capitalization is kept.
+  normalizedName String
+  /// A category needs a description so suggestions have a stable rubric.
+  description String?
+
+  /// Retired names that still redirect after a merge.
+  aliases String[]
+  /// The label this one was merged into, so old assignments still resolve.
+  mergedIntoId String?         @db.Uuid
+  mergedInto   WorkspaceLabel? @relation("WorkspaceLabelMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom   WorkspaceLabel[] @relation("WorkspaceLabelMerge")
+
+  /// Archived labels keep historical assignments readable but take no new ones.
+  archivedAt DateTime?
+
+  /// Bumped by any vocabulary change. Invalidates stale suggestions.
+  vocabularyVersion Int @default(1)
+
+  createdByUserId String?
+
+  labels    FileLabel[]
+  overrides FileFieldOverride[]
+
+  @@unique([workspaceId, kind, normalizedName], map: "workspace_label_name_key")
+  @@index([workspaceId, kind, archivedAt])
+  @@index([mergedIntoId])
+  @@map("workspace_label")
+}
+
+/// One label on one resource, inside one evidence audience.
+model FileLabel {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resourceId String       @db.Uuid
+  resource   FileResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  labelId String         @db.Uuid
+  label   WorkspaceLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  state      FileMetadataState
+  provenance FileMetadataProvenance
+
+  evidenceScopeId String            @db.Uuid
+  evidenceScope   FileEvidenceScope @relation(fields: [evidenceScopeId], references: [id], onDelete: Cascade)
+
+  /// The exact serialized evidence this decision was made against.
+  evidenceDigest String?
+  /// A short extracted span that answers "Why?". Extracted, never generated.
+  evidenceSnippet String?
+  /// Where that span came from, so the UI can deep link to it.
+  evidenceAnchor Json?
+
+  /// Versions the suggestion was computed against. A newer content or
+  /// vocabulary version makes an unconfirmed suggestion stale.
+  contentRevision   Int
+  vocabularyVersion Int
+
+  decidedByUserId String?
+  decidedAt       DateTime?
+
+  @@unique([resourceId, labelId, evidenceScopeId], map: "file_label_assignment_key")
+  @@index([resourceId, state])
+  @@index([labelId, state])
+  @@index([evidenceScopeId])
+  @@map("file_label")
+}
+
+/// A confirmed association between a file and a project. Never an ACL change.
+model FileProjectLink {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resourceId String       @db.Uuid
+  resource   FileResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  state      FileMetadataState
+  provenance FileMetadataProvenance
+
+  evidenceScopeId String            @db.Uuid
+  evidenceScope   FileEvidenceScope @relation(fields: [evidenceScopeId], references: [id], onDelete: Cascade)
+
+  evidenceDigest  String?
+  evidenceSnippet String?
+
+  contentRevision Int
+
+  decidedByUserId String?
+  decidedAt       DateTime?
+
+  @@unique([resourceId, projectId, evidenceScopeId], map: "file_project_link_key")
+  @@index([resourceId, state])
+  @@index([projectId, state])
+  @@index([evidenceScopeId])
+  @@map("file_project_link")
+}
+
+/// The durable record of a manual correction. This is what makes "I removed
+/// that tag" survive re-extraction, a new extractor and a new model.
+model FileFieldOverride {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resourceId String       @db.Uuid
+  resource   FileResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  /// "category" or "tags". A label-scoped override also sets labelId.
+  field String
+
+  labelId String?         @db.Uuid
+  label   WorkspaceLabel? @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  decision FileFieldOverrideDecision
+
+  evidenceScopeId String            @db.Uuid
+  evidenceScope   FileEvidenceScope @relation(fields: [evidenceScopeId], references: [id], onDelete: Cascade)
+
+  /// The source revision this decision was made for. A dismissal holds for
+  /// the same revision and vocabulary policy, not forever across new content.
+  contentRevision   Int
+  vocabularyVersion Int
+
+  decidedByUserId String
+  decidedAt       DateTime @default(now())
+
+  @@unique([resourceId, field, labelId, evidenceScopeId], map: "file_field_override_key")
+  @@index([resourceId])
+  @@index([labelId])
+  @@index([evidenceScopeId])
+  @@map("file_field_override")
+}
+
+/// A version family, e.g. a studio image refined three times. Members stay
+/// distinct immutable resources; the group only picks a representative.
+model FileLineage {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sourceKind  FileSourceKind
+  sourceScope FileSourceScope
+  /// Native root id of the family.
+  rootId      String
+
+  /// Bumped when the representative could change, e.g. a review decision.
+  groupRevision Int @default(1)
+
+  resources FileResource[]
+
+  @@unique([workspaceId, sourceKind, sourceScope, rootId], map: "file_lineage_root_key")
+  @@index([workspaceId])
+  @@map("file_lineage")
+}
+
+/// A saved filtered view. A definition, never a stored result set: each
+/// reader sees their own authorized subset, and no count is cached.
+model FileCollection {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  ownerUserId String
+
+  name String
+  /// Serialized filter definition: query, categories, tags, projects, types,
+  /// sources, modified range, status.
+  definition Json
+  sortBy     String?
+  sortOrder  String?
+
+  /// Private by default. Sharing shares the definition only.
+  isShared Boolean @default(false)
+
+  /// Bumped on every definition edit, so a stale link cannot silently change
+  /// what a reader thought they saved.
+  definitionVersion Int @default(1)
+
+  @@unique([workspaceId, ownerUserId, name], map: "file_collection_name_key")
+  @@index([workspaceId, isShared])
+  @@map("file_collection")
+}
+
+/// One unit of background work against one resource revision.
+model FileIndexJob {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resourceId String       @db.Uuid
+  resource   FileResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  pipeline FileIndexJobPipeline
+
+  /// Everything that makes this job distinct from a re-run of a different
+  /// shape: resource, content revision, pipeline, required scope, generation.
+  dedupeKey String
+
+  contentRevision   Int
+  requiredScopeVersion Int
+  desiredGeneration Int
+
+  state   FileIndexJobState @default(QUEUED)
+  attempt Int               @default(0)
+  /// Monotonic per job. An old attempt cannot activate after a new one starts.
+  fence   Int               @default(0)
+
+  leaseOwner     String?
+  leaseExpiresAt DateTime?
+
+  runAfter    DateTime  @default(now())
+  lastError   String?
+  completedAt DateTime?
+
+  artifacts FileIndexArtifact[]
+
+  @@unique([dedupeKey], map: "file_index_job_dedupe_key")
+  @@index([state, runAfter])
+  @@index([resourceId, pipeline])
+  @@map("file_index_job")
+}
+
+/// Registered before any sensitive write, so deletion can find every byte a
+/// worker may have produced — including the ones a crashed worker left.
+model FileIndexArtifact {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jobId String       @db.Uuid
+  job   FileIndexJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  attempt Int
+  fence   Int
+
+  /// Unique staging prefix or object key this attempt may write to.
+  namespace String
+  kind      String
+
+  state FileIndexArtifactState @default(ACTIVE)
+
+  purgedAt DateTime?
+
+  @@unique([jobId, attempt, namespace], map: "file_index_artifact_namespace_key")
+  @@index([state, createdAt])
+  @@map("file_index_artifact")
+}
+
+/// The audit trail for one outbound model request. Holds no content: a digest
+/// of the serialized input, never the input.
+model FileAuthorizationAdmission {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Stable hash of actor identity, auth method, capabilities and context.
+  actorFingerprint String
+  /// Serialized epoch vector the admission was granted against.
+  epochVector String
+
+  purpose String
+  /// sha256 of the exact serialized request. No query or document text.
+  payloadDigest String
+  provider      String
+  model         String
+
+  inputTokens Int
+
+  admittedAt DateTime  @default(now())
+  expiresAt  DateTime
+  dispatchedAt DateTime?
+  outcome    String?
+
+  @@index([workspaceId, admittedAt])
+  @@index([payloadDigest])
+  @@map("file_authorization_admission")
 }
