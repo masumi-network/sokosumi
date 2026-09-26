@@ -2458,7 +2458,7 @@
             "description": "Keywords, rankings, audits"
           },
           "socialMedia": {
-            "title": "Social Media",
+            "title": "Social media",
             "description": "Posts, calendar, engagement"
           },
           "email": {
@@ -2466,7 +2466,7 @@
             "description": "Campaigns and sequences"
           },
           "paidAdvertising": {
-            "title": "Paid Advertising",
+            "title": "Paid advertising",
             "description": "Ads, budgets, performance"
           },
           "content": {
@@ -2478,13 +2478,14 @@
             "description": "Press, outreach, coverage"
           },
           "fileBrowser": {
-            "title": "File Browser",
+            "title": "File browser",
             "description": "Every file this project produced"
           },
           "imageStudio": {
             "title": "Image studio",
             "description": "Create and refine images with a studio assistant."
-          }
+          },
+          "comingSoonList": "More coming soon: {areas}."
         },
         "actions": {
           "moreActions": "More actions",
@@ -2552,8 +2553,6 @@
         "imageStudio": {
           "back": "Back to project",
           "updated": "Updated",
-          "title": "Image studio",
-          "subtitle": "Describe what you need, generate on one model or several at once, and compare the results side by side.",
           "emptyTitle": "No images yet",
           "emptyBody": "Write a prompt above, or ask the assistant. You will get versions back to compare, refine and approve.",
           "example1": "A calm product shot on a light neutral background",
@@ -2563,10 +2562,8 @@
           "generate": "Generate",
           "refine": "Refine",
           "regenerate": "New variation",
-          "variations": "Variations",
           "download": "Download",
           "compare": "Compare",
-          "compareOff": "Stop comparing",
           "approve": "Approve",
           "reject": "Reject",
           "undecided": "Undecided",
@@ -2574,7 +2571,6 @@
           "rejected": "Rejected",
           "clearReview": "Clear decision",
           "feedbackPlaceholder": "Optional note for this version",
-          "history": "Versions",
           "version": "Version",
           "generating": "Generating",
           "queued": "Queued at the provider",
@@ -2589,11 +2585,9 @@
           "chatTitle": "Studio assistant",
           "chatUnavailable": "The studio assistant is not available right now. You can still review and download the versions below.",
           "send": "Send",
-          "noApproved": "No approved versions yet.",
           "clearFilter": "Show all",
           "filterAll": "All",
           "filterApproved": "Approved",
-          "elapsed": "Elapsed",
           "lineage": "Lineage",
           "from": "Prompt",
           "you": "You",
@@ -2608,10 +2602,8 @@
           "retryConnection": "Try connecting again",
           "composerTitle": "New images",
           "model": "Model",
-          "modelsUsed": "Models",
           "placement": "Placement",
           "placementNone": "None",
-          "placementTarget": "Platform target",
           "placementNotOutput": "Placement sets the frame. The pixel sizes are the platform's own recommendation for the finished asset, not the size this studio generates — the studio generates up to 2K.",
           "aspectRatio": "Frame",
           "resolution": "Resolution",
@@ -2620,12 +2612,10 @@
           "generateOne": "Generate",
           "generateMany": "Generate {count} images",
           "modelUnsupportedForPlacement": "This model cannot frame images that way, so it cannot serve this placement.",
-          "catalogVerified": "Verified",
           "modelNotInCatalog": "Made before this model list existed; shown as the provider endpoint that ran.",
           "waitingForSlot": "Waiting for a slot",
           "waitingForSlotBody": "Waiting for a slot — this project already has the most generations running that it is allowed.",
           "queueNotDurable": "The remaining requests are held in this tab and are sent as slots free up. Closing the tab drops the ones that have not been sent.",
-          "removeFromQueue": "Remove from queue",
           "gallery": "Images",
           "filterRejected": "Rejected",
           "filterUndecided": "Undecided",
@@ -2637,7 +2627,6 @@
           "clearSelection": "Clear selection",
           "openDetails": "Open",
           "close": "Close",
-          "details": "Details",
           "dimensions": "Size",
           "created": "Created",
           "seed": "Seed",
@@ -2648,10 +2637,16 @@
           "chatCollapse": "Hide assistant",
           "chatExpand": "Show assistant",
           "jumpToLatest": "Jump to latest",
-          "contextAttached": "Sending with",
           "bytesUnavailable": "This version's file is no longer in storage. Its prompt and settings are still here.",
           "previousVersion": "Previous version",
-          "nextVersion": "Next version"
+          "nextVersion": "Next version",
+          "assistant": "Assistant",
+          "moreOptions": "Options",
+          "frameSetByPlacement": "The placement sets the frame. Clear it to choose a different one.",
+          "chatEmptyBody": "Ask for an image, or ask about the ones you already have. The assistant works with the model and placement chosen above.",
+          "modelCount": "{count, plural, one {# model} other {# models}}",
+          "copyCount": "{count, plural, one {# copy} other {# copies}}",
+          "placementTarget": "Platform target"
         },
         "tabs": {
           "overview": "Overview",

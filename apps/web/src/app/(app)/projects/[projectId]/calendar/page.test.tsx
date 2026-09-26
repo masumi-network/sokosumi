@@ -163,9 +163,11 @@ describe("ProjectCalendarPage", () => {
     expect(
       screen.getByRole("link", { name: "backToProjects" }),
     ).toHaveAttribute("href", "/projects");
+    // The app header's breadcrumb covers `sm` and up, so this link is the
+    // mobile-only way back.
     expect(
       screen.getByRole("link", { name: "backToProjects" }).className,
-    ).not.toContain("hidden");
+    ).toContain("inline-flex sm:hidden");
     expect(screen.getByRole("link", { name: "calendar" })).toHaveAttribute(
       "href",
       "/projects/project-1/calendar",

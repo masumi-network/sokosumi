@@ -201,3 +201,35 @@ export function modelIdForRepeat(
     resolveModel(catalog, endpoint).id ?? defaultModel(catalog)?.id ?? null
   );
 }
+
+/**
+ * The same target, written for a person rather than for the model.
+ *
+ * `describeTarget` in the chat is the sentence the agent reads, and it is
+ * deliberately explicit — "model: …; placement: … (2:3, target 1000x1500)".
+ * Putting that string on screen is how the panel came to be captioned with a
+ * line of key-value pairs. This is the reader's copy: the same facts in the
+ * words the composer uses, and nothing it already shows twice.
+ */
+export function summarizeTarget(
+  catalog: StudioCatalog,
+  target: { modelIds: string[]; placementId: string | null },
+  selectedVersion: number | null,
+  labels: { models: (count: number) => string; version: string },
+): string {
+  const models = target.modelIds
+    .map((id) => modelById(catalog, id)?.label)
+    .filter((label): label is string => Boolean(label));
+  const placement = placementById(catalog, target.placementId);
+  return [
+    models.length === 1
+      ? models[0]
+      : models.length
+        ? labels.models(models.length)
+        : null,
+    placement ? placementName(placement) : null,
+    selectedVersion !== null ? `${labels.version} ${selectedVersion}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}

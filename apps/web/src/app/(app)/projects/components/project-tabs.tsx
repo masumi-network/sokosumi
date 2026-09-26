@@ -45,7 +45,7 @@ export function activeProjectTabId(
 }
 
 /**
- * The project's subpages, as one segmented control.
+ * The project's subpages, as one underlined row anchored to a full-bleed rule.
  *
  * Real links, not a client-side tab widget: each subpage is its own route that
  * renders on the server, so a tab is bookmarkable, opens in a new tab with a
@@ -64,33 +64,37 @@ export function ProjectTabs({
   const activeId = activeProjectTabId(pathname, tabs);
 
   return (
-    // The wrapper scrolls, not the pill strip: on a narrow phone five tabs are
-    // wider than the screen, and a clipped strip would hide the last one.
+    // The rule runs the full width of the shell and the tabs sit on it, which
+    // is what makes them read as the page's own navigation rather than as a
+    // filter control floating above the content. The wrapper scrolls, not the
+    // rule: on a narrow phone five tabs are wider than the screen, and a
+    // clipped strip would hide the last one.
     <nav
       aria-label={ariaLabel}
-      className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden"
+      className="border-border -mx-4 overflow-x-auto border-b px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      <div className="bg-card-background flex w-fit items-center gap-1 rounded-lg p-1">
+      <ul className="-mb-px flex w-fit items-center gap-5 text-sm">
         {tabs.map((tab) => {
           const isActive = tab.id === activeId;
           return (
-            <Link
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
-                "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
-                isActive
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              href={tab.href}
-              key={tab.id}
-            >
-              {tab.label}
-            </Link>
+            <li key={tab.id}>
+              <Link
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "-mb-px block border-b-2 py-2.5 whitespace-nowrap transition-colors",
+                  "focus-visible:ring-ring-halo rounded-sm outline-none focus-visible:ring-[3px]",
+                  isActive
+                    ? "border-foreground text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground border-transparent",
+                )}
+                href={tab.href}
+              >
+                {tab.label}
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </nav>
   );
 }

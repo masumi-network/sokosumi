@@ -1,10 +1,25 @@
 "use client";
 
-import { ChevronDown, ImagePlus, Loader2, Sparkles, X } from "lucide-react";
+import { ChevronDown, Loader2, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -55,14 +70,42 @@ function chipClass(active: boolean, disabled = false): string {
 }
 
 /**
+ * One of the composer's three quiet disclosures.
+ *
+ * Each says what is currently chosen and opens to let it be changed. They are
+ * deliberately the same shape and the same weight, so the eye lands on the
+ * one thing that is a different weight — the Generate button.
+ */
+function TriggerLabel({
+  children,
+  label,
+}: {
+  children: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <>
+      <span className="sr-only">{label}</span>
+      <span className="min-w-0 truncate">{children}</span>
+      <ChevronDown aria-hidden className="text-muted-foreground size-3.5" />
+    </>
+  );
+}
+
+const TRIGGER_CLASS =
+  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-xs font-medium";
+
+/**
  * Where a generation is described and bought.
  *
- * Three things make this different from a prompt box. Models are a
- * multi-select, because the reason to name a model at all is usually to see
- * two of them answer the same brief. Placement is a real choice with the
- * platform's own numbers on it, stated as a target rather than a promise.
- * And every option offered — every ratio, every resolution, every format —
- * is read from the model's entry in Core's verified catalog, so the composer
+ * The prompt is the surface; everything that qualifies it is one of three
+ * summaries that open on demand — which models, which placement, and the
+ * frame/resolution/format the request will carry. They read as a sentence
+ * about the work rather than as a form, and the only emphatic control on the
+ * page is the one that spends money.
+ *
+ * Every option offered — every ratio, every resolution, every format — is
+ * read from the model's entry in Core's verified catalog, so the composer
  * cannot offer a combination the provider will refuse.
  */
 export function StudioComposer({
@@ -70,8 +113,10 @@ export function StudioComposer({
   catalog,
   labels,
   onGenerate,
+  onPromptChange,
   onTargetChange,
   projectId,
+  prompt,
   referenceAssets,
   onClearReferences,
   target,
@@ -81,15 +126,25 @@ export function StudioComposer({
   labels: StudioLabels;
   onGenerate: (requests: QueuedGeneration[]) => void;
   /**
-   * The chips are shared with the assistant, so the page owns them.
+   * The prompt lives above this component.
    *
-   * An updater rather than a value: two chips clicked in the same tick are
+   * The empty gallery offers example briefs to start from, and a suggestion
+   * that cannot reach the box it is a suggestion for is decoration. Holding
+   * the draft in the studio is also what lets it survive the composer being
+   * re-rendered by a generation finishing elsewhere on the page.
+   */
+  onPromptChange: (value: string) => void;
+  /**
+   * The target is shared with the assistant, so the page owns it.
+   *
+   * An updater rather than a value: two options changed in the same tick are
    * batched, and computing the second from the render's stale `target` threw
    * the first one away. Selecting two models quickly is the normal way to use
    * this composer, so that was not a rare case.
    */
   onTargetChange: (update: (current: StudioTarget) => StudioTarget) => void;
   projectId: string;
+  prompt: string;
   /** Images the person picked in the gallery to generate *from*. */
   referenceAssets: StudioAsset[];
   onClearReferences: () => void;
@@ -97,18 +152,7 @@ export function StudioComposer({
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Projects.Detail.imageStudio");
-  const [prompt, setPrompt] = useState("");
   const [copies, setCopies] = useState(1);
-  /**
-   * Frame, resolution, format and copies start folded away.
-   *
-   * Unfolded, the settings were taller than the gallery they sit above, which
-   * made a gallery-first studio open on a form. They are summarised in the
-   * toggle, so nothing is hidden — only the rows you are not currently
-   * changing. Model and placement stay out, because choosing those is the
-   * point of the composer.
-   */
-  const [showOptions, setShowOptions] = useState(false);
   const { modelIds: selectedModelIds, placementId, settings } = target;
 
   const selectedModels = useMemo(
@@ -161,8 +205,8 @@ export function StudioComposer({
       const adding = !current.modelIds.includes(model.id);
       const placed = placementById(catalog, current.placementId);
       // A model that cannot frame the active placement must not join the
-      // selection. Its chip is already disabled, so this is the guard for
-      // every other route in — keyboard, a stale render, a future caller.
+      // selection. Its menu entry is already disabled, so this is the guard
+      // for every other route in — keyboard, a stale render, a future caller.
       if (adding && placed && !modelSupportsPlacement(model, placed)) {
         return current;
       }
@@ -184,7 +228,7 @@ export function StudioComposer({
   /**
    * Choose a placement, and drop any selected model that cannot frame it.
    *
-   * Setting the placement alone was not enough. Disabling a model's chip
+   * Setting the placement alone was not enough. Disabling a model's entry
    * stops it being *added*, but a model selected beforehand stayed selected,
    * and `submit` still built a request for it — where `clampToModel` quietly
    * moved 9:16 to that model's first ratio. The result was a square image
@@ -192,7 +236,7 @@ export function StudioComposer({
    * catalog exists to prevent, recorded as though it had been honoured.
    *
    * If nothing selected can frame the placement, the first model in the
-   * catalog that can is selected instead, so the chip always does something
+   * catalog that can is selected instead, so the choice always does something
    * legible rather than silently refusing.
    */
   function choosePlacement(id: string | null) {
@@ -256,19 +300,33 @@ export function StudioComposer({
       }
     }
     onGenerate(requests);
-    setPrompt("");
+    onPromptChange("");
   }
+
+  const modelSummary =
+    selectedModels.length === 1
+      ? selectedModels[0].label
+      : t("modelCount", { count: selectedModels.length });
+
+  const optionSummary = [
+    settings.aspectRatio,
+    settings.resolution,
+    settings.outputFormat,
+    copies > 1 ? t("copyCount", { count: copies }) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <section
       aria-label={labels.composerTitle}
-      className="border-border bg-card-background rounded-xl border"
+      className="border-border bg-card-background focus-within:border-primary-tertiary rounded-xl border transition-colors"
     >
-      <div className="p-3 sm:p-4">
+      <div className="px-3 pt-3 sm:px-4 sm:pt-4">
         <Textarea
           aria-label={labels.promptPlaceholder}
           className="max-h-48 min-h-20 resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0 md:text-sm"
-          onChange={(event) => setPrompt(event.currentTarget.value)}
+          onChange={(event) => onPromptChange(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
               event.preventDefault();
@@ -310,89 +368,112 @@ export function StudioComposer({
         ) : null}
       </div>
 
-      <div className="border-border space-y-3 border-t p-3 sm:p-4">
-        <Row label={labels.model}>
-          {catalog.models.map((model) => {
-            const active = selectedModelIds.includes(model.id);
-            const blocked = Boolean(
-              placement && !modelSupportsPlacement(model, placement),
-            );
-            return (
-              <button
-                aria-pressed={active}
-                className={chipClass(active, blocked)}
-                disabled={blocked}
-                key={model.id}
-                onClick={() => toggleModel(model)}
-                title={
-                  blocked
-                    ? labels.modelUnsupportedForPlacement
-                    : `${model.description} — ${model.notes}`
-                }
-                type="button"
-              >
-                {model.label}
-              </button>
-            );
-          })}
-        </Row>
+      {/* One row, three summaries and the one action. No dividers: the card is
+          a single object, and a rule between the prompt and the thing that
+          qualifies it made two. */}
+      <div className="flex flex-wrap items-center gap-1.5 p-2 sm:px-3 sm:pb-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
+              <TriggerLabel label={labels.model}>{modelSummary}</TriggerLabel>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-80">
+            <DropdownMenuLabel>{labels.model}</DropdownMenuLabel>
+            {catalog.models.map((model) => {
+              const blocked = Boolean(
+                placement && !modelSupportsPlacement(model, placement),
+              );
+              return (
+                <DropdownMenuCheckboxItem
+                  checked={selectedModelIds.includes(model.id)}
+                  className="items-start"
+                  disabled={blocked}
+                  key={model.id}
+                  // Choosing several models is the reason this is a menu and
+                  // not a select, so it must survive its own click.
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    toggleModel(model);
+                  }}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">
+                      {model.label}
+                    </span>
+                    <span className="text-muted-foreground block text-xs text-pretty">
+                      {blocked
+                        ? labels.modelUnsupportedForPlacement
+                        : model.description}
+                    </span>
+                  </span>
+                </DropdownMenuCheckboxItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-        <Row label={labels.placement}>
-          <button
-            aria-pressed={placementId === null}
-            className={chipClass(placementId === null)}
-            onClick={() => choosePlacement(null)}
-            type="button"
-          >
-            {labels.placementNone}
-          </button>
-          {catalog.placements.map((option) => (
-            <button
-              aria-pressed={placementId === option.id}
-              className={chipClass(placementId === option.id)}
-              key={option.id}
-              onClick={() => choosePlacement(option.id)}
-              title={option.notes}
-              type="button"
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
+              <TriggerLabel label={labels.placement}>
+                {placement ? placementName(placement) : labels.placementNone}
+              </TriggerLabel>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-88">
+            <DropdownMenuLabel>{labels.placement}</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              onValueChange={(value) =>
+                choosePlacement(value === "" ? null : value)
+              }
+              value={placementId ?? ""}
             >
-              {placementName(option)}{" "}
-              <span className="font-normal opacity-70">
-                {option.aspectRatio} · {option.width}×{option.height}
-              </span>
-            </button>
-          ))}
-        </Row>
+              <DropdownMenuRadioItem className="items-start" value="">
+                {labels.placementNone}
+              </DropdownMenuRadioItem>
+              {catalog.placements.map((option) => (
+                <DropdownMenuRadioItem
+                  className="items-start"
+                  key={option.id}
+                  value={option.id}
+                >
+                  <span className="min-w-0">
+                    <span className="flex min-w-0 items-baseline gap-2">
+                      <span className="truncate font-medium">
+                        {placementName(option)}
+                      </span>
+                      <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                        {option.aspectRatio} · {option.width}×{option.height}
+                      </span>
+                    </span>
+                    {/* Core's own sourced note, on the option it belongs to
+                        rather than as a paragraph under the whole row. */}
+                    <span className="text-muted-foreground block text-xs text-pretty">
+                      {option.notes}
+                    </span>
+                  </span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
+            {/* The standing caveat, said once, where the pixel numbers are —
+                instead of permanently under the composer. */}
+            <p className="text-muted-foreground px-2 py-1.5 text-xs leading-relaxed text-pretty">
+              {labels.placementNotOutput}
+            </p>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-        {placement ? (
-          // Core's own sourced note first, then the studio's standing caveat.
-          // The note is the part that is specific and verifiable; the caveat
-          // is the part that stops the pixel numbers reading as a promise.
-          <div className="text-muted-foreground space-y-1 text-xs leading-relaxed">
-            <p>{placement.notes}</p>
-            <p>{labels.placementNotOutput}</p>
-          </div>
-        ) : null}
-
-        <button
-          aria-expanded={showOptions}
-          className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-xs font-medium transition-colors"
-          onClick={() => setShowOptions((open) => !open)}
-          type="button"
-        >
-          <ChevronDown
-            aria-hidden
-            className={cn(
-              "size-3.5 transition-transform",
-              showOptions && "rotate-180",
-            )}
-          />
-          {settings.aspectRatio} · {settings.resolution} ·{" "}
-          {settings.outputFormat}
-          {copies > 1 ? ` · ${labels.copies} ${copies}` : ""}
-        </button>
-
-        {showOptions ? (
-          <>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
+              <TriggerLabel label={labels.moreOptions}>
+                {optionSummary}
+              </TriggerLabel>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-80 space-y-3">
             <Row label={labels.aspectRatio}>
               {shared.aspectRatios.map((ratio) => (
                 <button
@@ -401,8 +482,8 @@ export function StudioComposer({
                     settings.aspectRatio === ratio,
                     placement !== null,
                   )}
-                  // Placement owns the frame while one is chosen; changing it here
-                  // would leave the chip and the request disagreeing.
+                  // Placement owns the frame while one is chosen; changing it
+                  // here would leave the summary and the request disagreeing.
                   disabled={placement !== null}
                   key={ratio}
                   onClick={() =>
@@ -417,6 +498,11 @@ export function StudioComposer({
                 </button>
               ))}
             </Row>
+            {placement ? (
+              <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                {labels.frameSetByPlacement}
+              </p>
+            ) : null}
 
             <Row label={labels.resolution}>
               {shared.resolutions.map((resolution) => (
@@ -475,19 +561,19 @@ export function StudioComposer({
                 </button>
               ))}
             </Row>
-          </>
-        ) : null}
-      </div>
+          </PopoverContent>
+        </Popover>
 
-      <div className="border-border flex flex-wrap items-center justify-between gap-3 border-t px-3 py-3 sm:px-4">
-        <p className="text-muted-foreground min-w-0 text-xs">
-          {selectedModels.map((model) => model.label).join(" · ")}
-        </p>
-        <Button disabled={!canGenerate} onClick={submit} size="sm">
+        <span className="grow" />
+
+        <Button
+          disabled={!canGenerate}
+          onClick={submit}
+          size="sm"
+          variant="primary"
+        >
           {busy ? (
             <Loader2 aria-hidden className="animate-spin" />
-          ) : totalJobs > 1 ? (
-            <ImagePlus aria-hidden />
           ) : (
             <Sparkles aria-hidden />
           )}

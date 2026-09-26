@@ -47,8 +47,6 @@ export default async function ProjectStudioPage({
   const workspaceLabels = await getProjectWorkspaceLabels();
 
   const labels: StudioLabels = {
-    title: t("title"),
-    subtitle: t("subtitle"),
     emptyTitle: t("emptyTitle"),
     emptyBody: t("emptyBody"),
     examplePrompts: [t("example1"), t("example2"), t("example3")],
@@ -56,10 +54,8 @@ export default async function ProjectStudioPage({
     generate: t("generate"),
     refine: t("refine"),
     regenerate: t("regenerate"),
-    variations: t("variations"),
     download: t("download"),
     compare: t("compare"),
-    compareOff: t("compareOff"),
     approve: t("approve"),
     reject: t("reject"),
     undecided: t("undecided"),
@@ -67,7 +63,6 @@ export default async function ProjectStudioPage({
     rejected: t("rejected"),
     clearReview: t("clearReview"),
     feedbackPlaceholder: t("feedbackPlaceholder"),
-    history: t("history"),
     version: t("version"),
     generating: t("generating"),
     queued: t("queued"),
@@ -82,11 +77,9 @@ export default async function ProjectStudioPage({
     chatTitle: t("chatTitle"),
     chatUnavailable: t("chatUnavailable"),
     send: t("send"),
-    noApproved: t("noApproved"),
     clearFilter: t("clearFilter"),
     filterAll: t("filterAll"),
     filterApproved: t("filterApproved"),
-    elapsed: t("elapsed"),
     lineage: t("lineage"),
     from: t("from"),
     you: t("you"),
@@ -101,7 +94,6 @@ export default async function ProjectStudioPage({
     retryConnection: t("retryConnection"),
     composerTitle: t("composerTitle"),
     model: t("model"),
-    modelsUsed: t("modelsUsed"),
     placement: t("placement"),
     placementNone: t("placementNone"),
     placementTarget: t("placementTarget"),
@@ -110,14 +102,14 @@ export default async function ProjectStudioPage({
     resolution: t("resolution"),
     outputFormat: t("outputFormat"),
     copies: t("copies"),
+    frameSetByPlacement: t("frameSetByPlacement"),
+    moreOptions: t("moreOptions"),
     generateOne: t("generateOne"),
     modelUnsupportedForPlacement: t("modelUnsupportedForPlacement"),
-    catalogVerified: t("catalogVerified"),
     modelNotInCatalog: t("modelNotInCatalog"),
     waitingForSlot: t("waitingForSlot"),
     waitingForSlotBody: t("waitingForSlotBody"),
     queueNotDurable: t("queueNotDurable"),
-    removeFromQueue: t("removeFromQueue"),
     gallery: t("gallery"),
     filterRejected: t("filterRejected"),
     filterUndecided: t("filterUndecided"),
@@ -128,7 +120,6 @@ export default async function ProjectStudioPage({
     clearSelection: t("clearSelection"),
     openDetails: t("openDetails"),
     close: t("close"),
-    details: t("details"),
     dimensions: t("dimensions"),
     created: t("created"),
     seed: t("seed"),
@@ -139,10 +130,11 @@ export default async function ProjectStudioPage({
     bytesUnavailable: t("bytesUnavailable"),
     previousVersion: t("previousVersion"),
     nextVersion: t("nextVersion"),
+    assistant: t("assistant"),
     chatCollapse: t("chatCollapse"),
+    chatEmptyBody: t("chatEmptyBody"),
     chatExpand: t("chatExpand"),
     jumpToLatest: t("jumpToLatest"),
-    contextAttached: t("contextAttached"),
   };
 
   // A session id in the URL is a request to resume, not a right to. Only a
@@ -173,11 +165,6 @@ export default async function ProjectStudioPage({
       showSocialTab={socialBetaEnabled}
       websiteUrl={project.websiteUrl}
     >
-      <div className="mb-4">
-        <h2 className="text-base font-medium">{labels.title}</h2>
-        <p className="text-muted-foreground mt-1 text-sm">{labels.subtitle}</p>
-      </div>
-
       <ImageStudio
         initialSelectedAssetId={initialSelectedAssetId}
         initialState={state}

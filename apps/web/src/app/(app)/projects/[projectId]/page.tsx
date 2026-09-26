@@ -64,6 +64,22 @@ export default async function ProjectDetailPage({
     tTaskFilters(`statusOptions.${key}`),
   );
 
+  /**
+   * The areas that are still a promise.
+   *
+   * Written out rather than derived, because every one of these is a real
+   * translated name and next-intl's keys are literals. Social media drops out
+   * of the sentence exactly when it becomes a tile.
+   */
+  const comingSoonAreas = [
+    ...(socialBetaEnabled ? [] : [t("modules.socialMedia.title")]),
+    t("modules.seo.title"),
+    t("modules.email.title"),
+    t("modules.paidAdvertising.title"),
+    t("modules.content.title"),
+    t("modules.pr.title"),
+  ];
+
   return (
     <ProjectWorkspaceShell
       actions={
@@ -204,38 +220,20 @@ export default async function ProjectDetailPage({
                     title: t("modules.calendar.title"),
                     description: t("modules.calendar.description"),
                   },
-                  comingSoon: t("modules.comingSoon"),
+                  comingSoon: t("modules.comingSoonList", {
+                    areas: comingSoonAreas.join(", "),
+                  }),
+                  fileBrowser: {
+                    title: t("modules.fileBrowser.title"),
+                    description: t("modules.fileBrowser.description"),
+                  },
                   imageStudio: {
                     title: t("modules.imageStudio.title"),
                     description: t("modules.imageStudio.description"),
                   },
-                  seo: {
-                    title: t("modules.seo.title"),
-                    description: t("modules.seo.description"),
-                  },
                   socialMedia: {
                     title: t("modules.socialMedia.title"),
                     description: t("modules.socialMedia.description"),
-                  },
-                  email: {
-                    title: t("modules.email.title"),
-                    description: t("modules.email.description"),
-                  },
-                  paidAdvertising: {
-                    title: t("modules.paidAdvertising.title"),
-                    description: t("modules.paidAdvertising.description"),
-                  },
-                  content: {
-                    title: t("modules.content.title"),
-                    description: t("modules.content.description"),
-                  },
-                  pr: {
-                    title: t("modules.pr.title"),
-                    description: t("modules.pr.description"),
-                  },
-                  fileBrowser: {
-                    title: t("modules.fileBrowser.title"),
-                    description: t("modules.fileBrowser.description"),
                   },
                 }}
               />

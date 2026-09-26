@@ -91,6 +91,8 @@ function latestOptions(): Record<string, unknown> {
 function renderChat() {
   return render(
     <StudioChat
+      contextSummary=""
+      onClose={() => {}}
       catalog={TEST_CATALOG}
       projectId="project-1"
       labels={LABELS}
@@ -232,6 +234,8 @@ describe("a retry the person has edited", () => {
   it("counts a changed selection as a changed message", async () => {
     const { rerender } = render(
       <StudioChat
+        contextSummary=""
+        onClose={() => {}}
         catalog={TEST_CATALOG}
         projectId="project-1"
         labels={LABELS}
@@ -249,6 +253,8 @@ describe("a retry the person has edited", () => {
 
     rerender(
       <StudioChat
+        contextSummary=""
+        onClose={() => {}}
         catalog={TEST_CATALOG}
         projectId="project-1"
         labels={LABELS}
@@ -389,6 +395,8 @@ describe("the context a turn carries", () => {
     // context that the message text never mentioned.
     const { rerender } = render(
       <StudioChat
+        contextSummary=""
+        onClose={() => {}}
         catalog={TEST_CATALOG}
         projectId="project-1"
         labels={LABELS}
@@ -407,6 +415,8 @@ describe("the context a turn carries", () => {
     // The person clicks a gallery tile while the turn is still going out.
     rerender(
       <StudioChat
+        contextSummary=""
+        onClose={() => {}}
         catalog={TEST_CATALOG}
         projectId="project-1"
         labels={LABELS}
@@ -428,6 +438,8 @@ describe("the context a turn carries", () => {
   it("describes the selection the message was written against", async () => {
     const { rerender } = render(
       <StudioChat
+        contextSummary=""
+        onClose={() => {}}
         catalog={TEST_CATALOG}
         projectId="project-1"
         labels={LABELS}
@@ -450,6 +462,8 @@ describe("the context a turn carries", () => {
 
     rerender(
       <StudioChat
+        contextSummary=""
+        onClose={() => {}}
         catalog={TEST_CATALOG}
         projectId="project-1"
         labels={LABELS}
@@ -471,6 +485,8 @@ describe("the context a turn carries", () => {
   it("carries the settings the message text does not mention", async () => {
     render(
       <StudioChat
+        contextSummary=""
+        onClose={() => {}}
         catalog={TEST_CATALOG}
         projectId="project-1"
         labels={LABELS}

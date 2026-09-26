@@ -33,11 +33,15 @@ export function ProjectDetailHeader({
   const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      {/* The app header already carries "Projects › …" from `sm` up, so this
+          link is wayfinding only where that breadcrumb is hidden. Two back
+          affordances stacked above the title was one row of chrome the page
+          did not need. */}
       <Link
         href={backHref}
         className={`text-muted-foreground hover:text-foreground items-center gap-1.5 text-sm transition-colors ${
-          showBackOnMobile ? "inline-flex" : "hidden md:inline-flex"
+          showBackOnMobile ? "inline-flex sm:hidden" : "hidden md:inline-flex"
         }`}
       >
         <ArrowLeft className="size-4" aria-hidden />
@@ -51,7 +55,7 @@ export function ProjectDetailHeader({
             logo={projectLogo}
             className="size-10 rounded-lg text-sm"
           />
-          <div className="min-w-0">
+          <div className="min-w-0 space-y-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
               <h1 className="truncate text-xl leading-tight font-semibold tracking-tight">
                 {projectName}
@@ -68,23 +72,25 @@ export function ProjectDetailHeader({
                 </a>
               ) : null}
             </div>
+
+            {metadata.length > 0 ? (
+              <dl className="text-muted-foreground flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs tabular-nums">
+                {metadata.map((item, index) => (
+                  <div key={item.label} className="flex items-center gap-2">
+                    {index > 0 ? <span aria-hidden>·</span> : null}
+                    <div className="flex items-center gap-1.5">
+                      <dt>{item.label}</dt>
+                      <dd>{item.value}</dd>
+                    </div>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
           </div>
         </div>
 
         <div className="shrink-0">{actions}</div>
       </div>
-
-      <dl className="text-muted-foreground flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs tabular-nums">
-        {metadata.map((item, index) => (
-          <div key={item.label} className="flex items-center gap-2">
-            {index > 0 ? <span aria-hidden>·</span> : null}
-            <div className="flex items-center gap-1.5">
-              <dt>{item.label}</dt>
-              <dd>{item.value}</dd>
-            </div>
-          </div>
-        ))}
-      </dl>
     </div>
   );
 }

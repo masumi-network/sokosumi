@@ -25,8 +25,8 @@ function read(rel: string): string {
  * A file-wide match is wrong in both directions: in a `cva` the resting fill
  * and the variant hover are separate strings, so a same-string rule misses
  * the agent cards entirely, while a same-file rule flags
- * `project-module-tiles.tsx`, where the calendar tile paints no background of
- * its own and its `hover:bg-card-background` is a genuine lift off the page.
+ * `project-module-tiles.tsx`, where a tile paints no background of its own
+ * and its `hover:bg-card-background` is a genuine lift off the page.
  *
  * So this pins the four call sites that had the bug, the way
  * `panel-divider-spans-panel` pins the panel that had its own.
@@ -35,10 +35,6 @@ const FIXED_SITES: ReadonlyArray<readonly [string, string]> = [
   ["components/agents/agent-card.tsx", 'xs: "hover:bg-card-background-hover'],
   ["components/agents/agent-card.tsx", 'sm: "hover:bg-card-background-hover'],
   ["components/agents/agent-card.tsx", "md:hover:bg-card-background-hover"],
-  [
-    "app/(app)/projects/components/project-module-tiles.tsx",
-    '? "hover:bg-card-background-hover transition-colors"',
-  ],
   [
     "app/(app)/soko-bots/components/team-chart.tsx",
     'className="hover:bg-card-background-hover group',
@@ -52,6 +48,18 @@ const FIXED_SITES: ReadonlyArray<readonly [string, string]> = [
 describe("hover fills differ from the surface they sit on", () => {
   it.each(FIXED_SITES)("%s keeps the hover step on %s", (file, expected) => {
     expect(read(file)).toContain(expected);
+  });
+
+  it("leaves the project module tile with no resting fill to hover to", () => {
+    // Its `hover:bg-card-background` is a lift off the page, not a no-op, and
+    // it stays correct only while the tile paints nothing at rest. The tile
+    // that did carry a resting card fill was the one that could not be
+    // clicked, and those are a sentence now rather than a card.
+    const tiles = read(
+      "app/(app)/projects/components/project-module-tiles.tsx",
+    );
+    expect(tiles).toContain("hover:bg-card-background ");
+    expect(tiles).not.toContain('"bg-card-background');
   });
 
   it("leaves the agent card's resting fill as the card surface", () => {

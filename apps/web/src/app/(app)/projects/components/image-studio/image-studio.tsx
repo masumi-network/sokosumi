@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Columns2, PanelRightClose, X } from "lucide-react";
+import { AlertTriangle, Columns2, MessagesSquare, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -19,7 +19,12 @@ import {
 } from "@/lib/actions/image-studio/action";
 import { cn } from "@/lib/utils";
 
-import { defaultModel, modelIdForRepeat, settingsOf } from "./catalog";
+import {
+  defaultModel,
+  modelIdForRepeat,
+  settingsOf,
+  summarizeTarget,
+} from "./catalog";
 import { StudioChat } from "./studio-chat";
 import { StudioComposer } from "./studio-composer";
 import { StudioGallery } from "./studio-gallery";
@@ -42,14 +47,48 @@ import { type StudioErrorCode, useStudioState } from "./use-studio-state";
 /** Which images the lightbox is showing, and why. */
 type Viewing = { mode: "single" } | { mode: "compare" } | null;
 
+const FILTERS: readonly StudioFilter[] = [
+  "all",
+  "approved",
+  "rejected",
+  "undecided",
+];
+
+/**
+ * Whether a keypress happened somewhere a single letter means something else.
+ *
+ * The review shortcuts are bare letters, and a Radix menu or popover uses
+ * bare letters for typeahead. Without this, opening the model menu and typing
+ * "a" to jump to a model also approved whatever was selected in the gallery.
+ */
+function inTextOrMenu(node: HTMLElement | null): boolean {
+  if (!node) return false;
+  if (
+    node.tagName === "INPUT" ||
+    node.tagName === "TEXTAREA" ||
+    node.isContentEditable
+  ) {
+    return true;
+  }
+  return Boolean(
+    node.closest(
+      '[data-slot="dropdown-menu-content"], [data-slot="popover-content"]',
+    ),
+  );
+}
+
 /**
  * The studio.
  *
- * Gallery-first: the results are the page, the composer sits above them, and
- * the assistant is a column beside them rather than the thing you have to go
- * through. What the person is aiming at — models, placement, frame — is held
- * here rather than inside the composer, because the assistant has to be told
- * the same thing, and two copies of that state would drift.
+ * Gallery-first: the results are the page. Above them sits one composer with
+ * one obvious action, and everything that qualifies a generation is a
+ * summary that opens on demand rather than a row of controls that is always
+ * there. The assistant is a panel you call for, not a column that occupies a
+ * quarter of the width whether or not there is a conversation in it.
+ *
+ * What the person is aiming at — models, placement, frame — is held here
+ * rather than inside the composer, because the assistant has to be told the
+ * same thing, and two copies of that state would drift.
  */
 export function ImageStudio({
   initialSelectedAssetId,
@@ -72,7 +111,17 @@ export function ImageStudio({
   const [filter, setFilter] = useState<StudioFilter>("all");
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [viewing, setViewing] = useState<Viewing>(null);
-  const [chatOpen, setChatOpen] = useState(true);
+  /**
+   * The assistant opens on a project that already has a conversation, and
+   * waits to be asked for on one that does not.
+   *
+   * It used to be open always, which on a new project meant a quarter of the
+   * width was a panel with nothing in it — and an empty panel beside an empty
+   * gallery reads as two things being broken rather than one thing not
+   * started yet.
+   */
+  const [chatOpen, setChatOpen] = useState(() => resumeSessionId !== null);
+  const [prompt, setPrompt] = useState("");
   const [cancelRequestedJobIds, setCancelRequestedJobIds] = useState<string[]>(
     [],
   );
@@ -245,17 +294,15 @@ export function ImageStudio({
     });
   }
 
-  // Keyboard review, deliberately inert while a text field has focus.
+  // Keyboard review, deliberately inert while a text field or a menu has focus.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      const target_ = event.target as HTMLElement | null;
       if (
         !selectedAsset ||
         event.metaKey ||
         event.ctrlKey ||
-        target_?.tagName === "INPUT" ||
-        target_?.tagName === "TEXTAREA" ||
-        target_?.isContentEditable
+        event.altKey ||
+        inTextOrMenu(event.target as HTMLElement | null)
       ) {
         return;
       }
@@ -344,33 +391,45 @@ export function ImageStudio({
   const problem =
     actionError ?? queue.lastError ?? errorMessage(studio.error) ?? null;
 
+  const filterLabel: Record<StudioFilter, string> = {
+    all: labels.filterAll,
+    approved: labels.filterApproved,
+    rejected: labels.filterRejected,
+    undecided: labels.filterUndecided,
+  };
+
+  const contextSummary = summarizeTarget(
+    catalog,
+    target,
+    selectedAsset?.version ?? null,
+    {
+      models: (count) => t("modelCount", { count }),
+      version: labels.version,
+    },
+  );
+
+  const hasWork =
+    state.assets.length > 0 || activeJobs.length > 0 || queue.queued.length > 0;
+  const showsNothing =
+    visibleAssets.length === 0 &&
+    activeJobs.length === 0 &&
+    queue.queued.length === 0;
+
   return (
     <div className="min-w-0 space-y-4">
       {problem ? (
-        <p
-          className="border-border bg-card-background text-foreground flex items-start gap-2 rounded-lg border p-3 text-sm"
-          role="status"
+        <Notice
+          closeLabel={labels.close}
+          onDismiss={queue.lastError ? queue.clearError : undefined}
         >
-          <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
-          <span className="min-w-0 flex-1 break-words">{problem}</span>
-          {queue.lastError ? (
-            <Button
-              aria-label={labels.close}
-              className="size-6"
-              onClick={queue.clearError}
-              size="icon"
-              variant="ghost"
-            >
-              <X aria-hidden className="size-3.5" />
-            </Button>
-          ) : null}
-        </p>
+          {problem}
+        </Notice>
       ) : null}
 
       <div
         className={cn(
           "grid min-w-0 gap-4",
-          chatOpen && "xl:grid-cols-[minmax(0,1fr)_24rem]",
+          chatOpen && "xl:grid-cols-[minmax(0,1fr)_22rem] xl:gap-6",
         )}
       >
         <div className="min-w-0 space-y-4">
@@ -380,14 +439,16 @@ export function ImageStudio({
             labels={labels}
             onClearReferences={() => setCheckedIds([])}
             onGenerate={queue.enqueue}
+            onPromptChange={setPrompt}
             onTargetChange={setTarget}
             projectId={projectId}
+            prompt={prompt}
             referenceAssets={checkedAssets}
             target={target}
           />
 
           {queue.waitingForSlot ? (
-            <p className="border-border bg-card-background text-muted-foreground rounded-lg border p-3 text-xs leading-relaxed">
+            <p className="text-muted-foreground px-1 text-xs leading-relaxed">
               <span className="text-foreground font-medium">
                 {labels.waitingForSlotBody}
               </span>{" "}
@@ -397,7 +458,7 @@ export function ImageStudio({
 
           {settledProblemJob?.retryMayDuplicateCharge ? (
             <div
-              className="border-border bg-card-background rounded-lg border p-4"
+              className="border-border bg-card-background rounded-xl border p-4"
               role="alert"
             >
               <div className="flex items-start gap-3">
@@ -430,7 +491,7 @@ export function ImageStudio({
             </div>
           ) : settledProblemJob ? (
             <div
-              className="border-border bg-card-background rounded-lg border p-4"
+              className="border-border bg-card-background rounded-xl border p-4"
               role="alert"
             >
               <h3 className="text-sm font-medium">{labels.failed}</h3>
@@ -448,43 +509,31 @@ export function ImageStudio({
             </div>
           ) : null}
 
-          {activeJobs.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {activeJobs.map((job) => (
-                <Button
-                  disabled={cancelRequestedJobIds.includes(job.id)}
-                  key={job.id}
-                  onClick={() => handleCancelJob(job.id)}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {cancelRequestedJobIds.includes(job.id)
-                    ? labels.cancelRequested
-                    : `${labels.cancel} — ${job.prompt.slice(0, 32)}`}
-                </Button>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-2">
-            {(
-              [
-                ["all", labels.filterAll],
-                ["approved", labels.filterApproved],
-                ["rejected", labels.filterRejected],
-                ["undecided", labels.filterUndecided],
-              ] as const
-            ).map(([value, label]) => (
-              <Button
-                aria-pressed={filter === value}
-                key={value}
-                onClick={() => setFilter(value)}
-                size="sm"
-                variant={filter === value ? "secondary" : "ghost"}
-              >
-                {label}
-              </Button>
-            ))}
+          {/* One toolbar. The filters appear once there is something to
+              filter, so a project that has never generated anything shows a
+              composer and a hint, and nothing else. */}
+          <div className="flex min-h-8 flex-wrap items-center gap-2">
+            {hasWork ? (
+              <div className="flex flex-wrap items-center gap-1">
+                {FILTERS.map((value) => (
+                  <button
+                    aria-pressed={filter === value}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                      "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
+                      filter === value
+                        ? "bg-secondary text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                    key={value}
+                    onClick={() => setFilter(value)}
+                    type="button"
+                  >
+                    {filterLabel[value]}
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             <span className="grow" />
 
@@ -516,31 +565,43 @@ export function ImageStudio({
             ) : null}
 
             <Button
+              aria-controls="studio-assistant"
               aria-expanded={chatOpen}
-              className="hidden xl:inline-flex"
+              aria-label={chatOpen ? labels.chatCollapse : labels.chatExpand}
               onClick={() => setChatOpen((open) => !open)}
               size="sm"
-              variant="ghost"
+              variant={chatOpen ? "secondary" : "ghost"}
             >
-              <PanelRightClose
-                aria-hidden
-                className={cn(!chatOpen && "rotate-180")}
-              />
-              {chatOpen ? labels.chatCollapse : labels.chatExpand}
+              <MessagesSquare aria-hidden />
+              {labels.assistant}
             </Button>
           </div>
 
-          {visibleAssets.length === 0 &&
-          activeJobs.length === 0 &&
-          queue.queued.length === 0 ? (
-            <div className="border-border bg-card-background rounded-xl border px-6 py-12 text-center">
+          {showsNothing ? (
+            // No border and no fixed height: an empty gallery is an absence,
+            // not a panel. On a project that has never generated anything it
+            // offers somewhere to start instead.
+            <div className="px-1 py-10 sm:py-14">
               <h3 className="text-base font-medium">
                 {filter === "all" ? labels.emptyTitle : labels.noneMatchFilter}
               </h3>
-              <p className="text-muted-foreground mx-auto mt-2 max-w-md text-sm leading-relaxed">
+              <p className="text-muted-foreground mt-1 max-w-prose text-sm leading-relaxed text-pretty">
                 {labels.emptyBody}
               </p>
-              {filter !== "all" ? (
+              {filter === "all" ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {labels.examplePrompts.map((example) => (
+                    <button
+                      className="border-border text-muted-foreground hover:text-foreground hover:border-primary-tertiary focus-visible:ring-ring-halo rounded-md border px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-[3px]"
+                      key={example}
+                      onClick={() => setPrompt(example)}
+                      type="button"
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              ) : (
                 <Button
                   className="mt-3"
                   onClick={() => setFilter("all")}
@@ -549,15 +610,17 @@ export function ImageStudio({
                 >
                   {labels.clearFilter}
                 </Button>
-              ) : null}
+              )}
             </div>
           ) : (
             <>
               <StudioGallery
                 activeJobs={activeJobs}
                 assets={visibleAssets}
+                cancelRequestedJobIds={cancelRequestedJobIds}
                 catalog={catalog}
                 labels={labels}
+                onCancelJob={handleCancelJob}
                 onOpen={(assetId) => {
                   selectAsset(assetId);
                   setViewing({ mode: "single" });
@@ -587,20 +650,37 @@ export function ImageStudio({
         </div>
 
         {chatOpen ? (
-          // Its own scrolling column beside the gallery, and its own height on
-          // desktop, so a long conversation scrolls without moving the page
-          // and the composer stays where it was put.
-          <aside className="h-[32rem] min-w-0 xl:sticky xl:top-4 xl:h-[calc(100dvh-9rem)]">
-            <StudioChat
-              catalog={catalog}
-              labels={labels}
-              onActivity={() => void refresh()}
-              projectId={projectId}
-              resumeSessionId={resumeSessionId}
-              selectedAsset={selectedAsset}
-              target={target}
+          <>
+            {/* Below xl the assistant is an overlay, because a 22rem column
+                does not exist there and pushing the gallery off the bottom of
+                the page to make room for it is not an answer. */}
+            <button
+              aria-label={labels.chatCollapse}
+              className="bg-overlay fixed inset-0 z-40 backdrop-blur-sm xl:hidden"
+              onClick={() => setChatOpen(false)}
+              type="button"
             />
-          </aside>
+            <aside
+              id="studio-assistant"
+              className={cn(
+                "fixed inset-x-0 bottom-0 z-50 h-[75dvh] min-w-0",
+                "xl:sticky xl:inset-auto xl:top-4 xl:z-auto xl:h-[calc(100dvh-10rem)]",
+              )}
+            >
+              <StudioChat
+                catalog={catalog}
+                className="rounded-b-none xl:rounded-b-xl"
+                contextSummary={contextSummary}
+                labels={labels}
+                onActivity={() => void refresh()}
+                onClose={() => setChatOpen(false)}
+                projectId={projectId}
+                resumeSessionId={resumeSessionId}
+                selectedAsset={selectedAsset}
+                target={target}
+              />
+            </aside>
+          </>
         ) : null}
       </div>
 
@@ -641,5 +721,37 @@ export function ImageStudio({
         />
       ) : null}
     </div>
+  );
+}
+
+/** One shape for everything that has gone wrong, wherever it came from. */
+function Notice({
+  children,
+  closeLabel,
+  onDismiss,
+}: {
+  children: React.ReactNode;
+  closeLabel: string;
+  onDismiss?: () => void;
+}) {
+  return (
+    <p
+      className="border-border bg-card-background text-foreground flex items-start gap-2 rounded-lg border p-3 text-sm"
+      role="status"
+    >
+      <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
+      <span className="min-w-0 flex-1 break-words">{children}</span>
+      {onDismiss ? (
+        <Button
+          aria-label={closeLabel}
+          className="size-6"
+          onClick={onDismiss}
+          size="icon"
+          variant="ghost"
+        >
+          <X aria-hidden className="size-3.5" />
+        </Button>
+      ) : null}
+    </p>
   );
 }

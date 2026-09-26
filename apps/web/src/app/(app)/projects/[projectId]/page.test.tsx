@@ -162,7 +162,7 @@ describe("ProjectDetailPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", {
-        name: "App.Projects.Detail.modules.calendar.title",
+        name: /App\.Projects\.Detail\.modules\.calendar\.title/,
       }),
     ).toHaveAttribute("href", "/projects/project-1/calendar");
     expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
@@ -253,9 +253,13 @@ describe("ProjectDetailPage", () => {
     expect(workspaceSection?.className).not.toContain("px-4");
     expect(workspaceSection?.className).not.toContain("md:px-0");
     expect(needsAttentionColumn?.contains(workspaceSection!)).toBe(true);
+    // The areas with no page yet are one sentence, not five dead cards.
     expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
-      5,
+      0,
     );
+    expect(
+      screen.getByText("App.Projects.Detail.modules.comingSoonList"),
+    ).toBeInTheDocument();
     const fileBrowserLink = screen.getByRole("link", {
       name: /App\.Projects\.Detail\.modules\.fileBrowser\.title/i,
     });
@@ -321,7 +325,7 @@ describe("ProjectDetailPage", () => {
 
     expect(
       screen.getByRole("link", {
-        name: "App.Projects.Detail.modules.calendar.title",
+        name: /App\.Projects\.Detail\.modules\.calendar\.title/,
       }),
     ).toHaveAttribute("href", "/projects/project-1/calendar");
     expect(

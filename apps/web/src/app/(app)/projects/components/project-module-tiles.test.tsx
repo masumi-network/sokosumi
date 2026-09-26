@@ -8,33 +8,26 @@ const LABELS = {
     title: "Calendar",
     description: "See upcoming project work",
   },
-  comingSoon: "Coming soon",
-  seo: { title: "SEO", description: "Keywords, rankings, audits" },
-  socialMedia: {
-    title: "Social Media",
-    description: "Posts, calendar, engagement",
-  },
-  email: { title: "Email", description: "Campaigns and sequences" },
-  paidAdvertising: {
-    title: "Paid Advertising",
-    description: "Ads, budgets, performance",
-  },
-  content: { title: "Content", description: "Briefs, drafts, publishing" },
-  pr: { title: "PR", description: "Press, outreach, coverage" },
+  comingSoon:
+    "More coming soon: Social media, SEO, Email, Paid advertising, Content, PR.",
   fileBrowser: {
-    title: "File Browser",
+    title: "File browser",
     description: "Every file this project produced",
   },
   imageStudio: {
     title: "Image studio",
     description: "Create and refine images with a studio assistant.",
   },
+  socialMedia: {
+    title: "Social media",
+    description: "Posts, calendar, engagement",
+  },
 };
 
 const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 
 describe("ProjectModuleTiles", () => {
-  it("renders File Browser first as an active link and keeps others Coming soon", () => {
+  it("gives a tile only to the areas that open, and names the rest in a line", () => {
     const { container } = render(
       <ProjectModuleTiles
         calendarHref="/projects/project-1/calendar"
@@ -43,75 +36,34 @@ describe("ProjectModuleTiles", () => {
       />,
     );
 
-    expect(container.firstElementChild?.className).toContain("grid-cols-2");
-    expect(container.firstElementChild?.className).toContain("md:grid-cols-4");
-    expect(container.firstElementChild?.className).not.toContain(
-      "xl:grid-cols-7",
-    );
-
     const headings = [...container.querySelectorAll("h3")].map(
       (heading) => heading.textContent,
     );
-    expect(headings).toEqual([
-      "Calendar",
-      "File Browser",
-      "Image studio",
-      "SEO",
-      "Social Media",
-      "Email",
-      "Paid Advertising",
-      "Content",
-      "PR",
-    ]);
+    expect(headings).toEqual(["Calendar", "File browser", "Image studio"]);
 
-    const fileBrowserLink = screen.getByRole("link", { name: /File Browser/i });
-    const calendar = screen.getByRole("link", { name: "Calendar" });
-    expect(calendar).toHaveAttribute("href", "/projects/project-1/calendar");
-    expect(calendar).not.toHaveAttribute("aria-disabled");
-    expect(fileBrowserLink).toHaveAttribute(
+    // Every tile is a destination. A card that cannot be clicked is not a
+    // card here any more.
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(3);
+    expect(screen.getByRole("link", { name: /File browser/ })).toHaveAttribute(
       "href",
       `/drive?view=tasks&projectId=${PROJECT_ID}`,
     );
-    expect(fileBrowserLink).not.toHaveAttribute("aria-disabled", "true");
-    expect(fileBrowserLink).not.toHaveTextContent("Coming soon");
+    expect(screen.getByRole("link", { name: /Calendar/ })).toHaveAttribute(
+      "href",
+      "/projects/project-1/calendar",
+    );
+    expect(screen.getByRole("link", { name: /Image studio/ })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT_ID}/studio`,
+    );
 
-    const disabledTiles = [
-      ...container.querySelectorAll('[aria-disabled="true"]'),
-    ];
-    expect(disabledTiles).toHaveLength(6);
-    expect(
-      disabledTiles.map((tile) => tile.querySelector("h3")?.textContent),
-    ).toEqual([
-      "SEO",
-      "Social Media",
-      "Email",
-      "Paid Advertising",
-      "Content",
-      "PR",
-    ]);
-    expect(screen.getAllByText("Coming soon")).toHaveLength(6);
-    expect(
-      screen.getByText("Every file this project produced"),
-    ).toBeInTheDocument();
-    expect(
-      disabledTiles.every((tile) => tile.className.includes("cursor-default")),
-    ).toBe(true);
-    expect(
-      disabledTiles.every((tile) => tile.className.includes("rounded-xl")),
-    ).toBe(true);
-    expect(
-      disabledTiles.every((tile) => !tile.className.includes("rounded-none")),
-    ).toBe(true);
-
-    const links = screen.getAllByRole("link");
-    // Calendar, File Browser, Image studio. Social Media has no href here.
-    expect(links).toHaveLength(3);
-    expect(links).toContain(fileBrowserLink);
-    expect(links).toContain(calendar);
+    expect(container.querySelector('[aria-disabled="true"]')).toBeNull();
+    expect(screen.getByText(LABELS.comingSoon)).toBeInTheDocument();
   });
 
-  it("links the Social Media tile when a social href is provided", () => {
-    const { container } = render(
+  it("promotes social media to a tile when the workspace has the route", () => {
+    render(
       <ProjectModuleTiles
         calendarHref="/projects/project-1/calendar"
         labels={LABELS}
@@ -120,19 +72,17 @@ describe("ProjectModuleTiles", () => {
       />,
     );
 
-    const socialLink = screen.getByRole("link", { name: /Social Media/i });
-    expect(socialLink).toHaveAttribute("href", "/projects/project-1/social");
-    expect(socialLink).not.toHaveAttribute("aria-disabled");
-    expect(socialLink).not.toHaveTextContent("Coming soon");
-
-    const disabledTiles = [
-      ...container.querySelectorAll('[aria-disabled="true"]'),
-    ];
-    expect(
-      disabledTiles.map((tile) => tile.querySelector("h3")?.textContent),
-    ).toEqual(["SEO", "Email", "Paid Advertising", "Content", "PR"]);
-    expect(screen.getAllByText("Coming soon")).toHaveLength(5);
-    // Calendar, File Browser, Image studio, Social Media.
+    expect(screen.getByRole("link", { name: /Social media/ })).toHaveAttribute(
+      "href",
+      "/projects/project-1/social",
+    );
     expect(screen.getAllByRole("link")).toHaveLength(4);
+  });
+
+  it("drops the calendar tile when the project has no calendar route", () => {
+    render(<ProjectModuleTiles labels={LABELS} projectId={PROJECT_ID} />);
+
+    expect(screen.queryByRole("link", { name: /Calendar/ })).toBeNull();
+    expect(screen.getAllByRole("link")).toHaveLength(2);
   });
 });

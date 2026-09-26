@@ -139,7 +139,7 @@ describe("ProjectNeedsAttentionSection", () => {
     expect(listBox).toHaveClass("-mx-4", "md:mx-0");
   });
 
-  it("shows empty copy when there are no attention items", () => {
+  it("says nothing needs attention without drawing a panel to say it in", () => {
     render(
       <ProjectNeedsAttentionSection
         projectId="project-1"
@@ -154,10 +154,11 @@ describe("ProjectNeedsAttentionSection", () => {
       screen.getByText("Nothing needs your attention right now."),
     ).toBeInTheDocument();
 
-    const listBox = screen
-      .getByTestId("project-needs-attention")
-      .querySelector(":scope > div:last-child");
-    expect(listBox).toHaveClass(...PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/));
-    expect(listBox).toHaveClass("-mx-4", "md:mx-0");
+    // The bordered, full-bleed list card exists to hold rows. With no rows it
+    // was a 160px empty box, and the largest thing on a new project's
+    // overview.
+    const section = screen.getByTestId("project-needs-attention");
+    expect(section.querySelector(".rounded-none")).toBeNull();
+    expect(section.querySelector("ul")).toBeNull();
   });
 });

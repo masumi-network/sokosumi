@@ -1,19 +1,6 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  CalendarDays,
-  FileText,
-  FolderOpen,
-  ImagePlus,
-  Mail,
-  Megaphone,
-  Newspaper,
-  Search,
-  Share2,
-} from "lucide-react";
+import { CalendarDays, FolderOpen, ImagePlus, Share2 } from "lucide-react";
 import Link from "next/link";
-
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 interface ProjectModuleLabel {
   description: string;
@@ -22,14 +9,17 @@ interface ProjectModuleLabel {
 
 interface ProjectModuleTilesLabels {
   calendar: ProjectModuleLabel;
+  /**
+   * The areas that are a promise rather than a page, as one finished
+   * sentence.
+   *
+   * Resolved by the page because it interpolates the list of names, and
+   * next-intl returns the message key rather than the message when an ICU
+   * argument is missing.
+   */
   comingSoon: string;
-  content: ProjectModuleLabel;
-  email: ProjectModuleLabel;
   fileBrowser: ProjectModuleLabel;
   imageStudio: ProjectModuleLabel;
-  paidAdvertising: ProjectModuleLabel;
-  pr: ProjectModuleLabel;
-  seo: ProjectModuleLabel;
   socialMedia: ProjectModuleLabel;
 }
 
@@ -40,13 +30,22 @@ interface ProjectModuleTilesProps {
   socialHref?: string;
 }
 
-interface ProjectModuleDefinition {
+type ModuleKey = keyof Omit<ProjectModuleTilesLabels, "comingSoon">;
+
+/**
+ * The areas a project can actually open, in the order they are offered.
+ *
+ * Only these get a tile. Six cards that cannot be clicked filled two thirds
+ * of the workspace with things the person cannot do, and made the three they
+ * *can* do harder to find rather than easier; the rest are named in one line
+ * underneath, which says the same thing and takes one line to say it.
+ */
+const PROJECT_MODULES: {
   href?: (projectId: string) => string;
   icon: LucideIcon;
-  key: keyof Omit<ProjectModuleTilesLabels, "comingSoon">;
-}
-
-const PROJECT_MODULES: ProjectModuleDefinition[] = [
+  key: ModuleKey;
+}[] = [
+  { icon: CalendarDays, key: "calendar" },
   {
     icon: FolderOpen,
     key: "fileBrowser",
@@ -57,12 +56,7 @@ const PROJECT_MODULES: ProjectModuleDefinition[] = [
     key: "imageStudio",
     href: (projectId) => `/projects/${projectId}/studio`,
   },
-  { icon: Search, key: "seo" },
   { icon: Share2, key: "socialMedia" },
-  { icon: Mail, key: "email" },
-  { icon: Megaphone, key: "paidAdvertising" },
-  { icon: FileText, key: "content" },
-  { icon: Newspaper, key: "pr" },
 ];
 
 export function ProjectModuleTiles({
@@ -71,70 +65,40 @@ export function ProjectModuleTiles({
   projectId,
   socialHref,
 }: ProjectModuleTilesProps) {
+  const live = PROJECT_MODULES.map((module) => ({
+    ...module,
+    href:
+      module.key === "calendar"
+        ? calendarHref
+        : module.key === "socialMedia"
+          ? socialHref
+          : module.href?.(projectId),
+  })).filter(
+    (module): module is (typeof PROJECT_MODULES)[number] & { href: string } =>
+      Boolean(module.href),
+  );
+
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-      {calendarHref ? (
-        <Link
-          aria-label={labels.calendar.title}
-          className="border-border hover:border-primary-tertiary hover:bg-card-background focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
-          href={calendarHref}
-        >
-          <span className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-lg">
-            <CalendarDays
-              className="text-muted-foreground size-4"
-              aria-hidden
-            />
-          </span>
-          <h3 className="mt-3 text-sm font-medium">{labels.calendar.title}</h3>
-          <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-            {labels.calendar.description}
-          </p>
-        </Link>
-      ) : null}
-      {PROJECT_MODULES.map(({ icon: Icon, key, href: moduleHref }) => {
-        const module = labels[key];
-        const href =
-          key === "socialMedia" ? socialHref : moduleHref?.(projectId);
-        const className = cn(
-          "bg-card-background border-border min-w-0 rounded-xl border p-4",
-          href
-            ? "hover:bg-card-background-hover transition-colors"
-            : "cursor-default opacity-70",
-        );
-
-        const body = (
-          <>
-            <div className="flex items-start justify-between gap-2">
-              <span className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-lg">
-                <Icon className="text-muted-foreground size-4" aria-hidden />
-              </span>
-              {href ? null : (
-                <Badge variant="outline" className="shrink-0 text-xs">
-                  {labels.comingSoon}
-                </Badge>
-              )}
-            </div>
-            <h3 className="mt-3 text-sm font-medium">{module.title}</h3>
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {live.map(({ icon: Icon, key, href }) => (
+          <Link
+            className="border-border hover:border-primary-tertiary hover:bg-card-background focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
+            href={href}
+            key={key}
+          >
+            <span className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-lg">
+              <Icon className="text-muted-foreground size-4" aria-hidden />
+            </span>
+            <h3 className="mt-3 text-sm font-medium">{labels[key].title}</h3>
             <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-              {module.description}
+              {labels[key].description}
             </p>
-          </>
-        );
+          </Link>
+        ))}
+      </div>
 
-        if (href) {
-          return (
-            <Link key={key} href={href} className={className}>
-              {body}
-            </Link>
-          );
-        }
-
-        return (
-          <div key={key} aria-disabled="true" className={className}>
-            {body}
-          </div>
-        );
-      })}
+      <p className="text-muted-foreground text-xs">{labels.comingSoon}</p>
     </div>
   );
 }

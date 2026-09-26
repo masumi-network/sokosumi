@@ -114,7 +114,7 @@ export function ProjectWorkspaceShell({
         websiteUrl={websiteUrl}
       />
 
-      <div className="mt-5">
+      <div className="mt-4">
         <ProjectTabs ariaLabel={labels.ariaLabel} tabs={tabs} />
       </div>
 

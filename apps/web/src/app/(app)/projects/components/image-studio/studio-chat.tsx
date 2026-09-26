@@ -1,7 +1,14 @@
 "use client";
 
 import { useEveAgent } from "eve/react";
-import { AlertTriangle, ArrowDown, Loader2, SendHorizonal } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDown,
+  Loader2,
+  Paperclip,
+  SendHorizonal,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -251,16 +258,29 @@ function turnContext(
  */
 export function StudioChat({
   catalog,
+  className,
+  contextSummary,
   labels,
   onActivity,
+  onClose,
   projectId,
   resumeSessionId,
   selectedAsset,
   target,
 }: {
   catalog: StudioCatalog;
+  className?: string;
+  /**
+   * What the next turn will carry, written for a reader.
+   *
+   * Resolved by the studio because it interpolates a count, which next-intl
+   * will only do in a client component holding the message catalog.
+   */
+  contextSummary: string;
   labels: StudioLabels;
   onActivity: () => void;
+  /** Dismiss the panel. It is opened on request, so it can be put away. */
+  onClose: () => void;
   projectId: string;
   resumeSessionId: string | null;
   selectedAsset: StudioAsset | null;
@@ -273,9 +293,12 @@ export function StudioChat({
   return (
     <StudioConversation
       catalog={catalog}
+      className={className}
+      contextSummary={contextSummary}
       key={sessionId ?? "new"}
       labels={labels}
       onActivity={onActivity}
+      onClose={onClose}
       onRecoverSession={setRecoveredSessionId}
       projectId={projectId}
       resumeSessionId={sessionId}
@@ -287,8 +310,11 @@ export function StudioChat({
 
 function StudioConversation({
   catalog,
+  className,
+  contextSummary,
   labels,
   onActivity,
+  onClose,
   onRecoverSession,
   projectId,
   resumeSessionId,
@@ -296,9 +322,12 @@ function StudioConversation({
   target,
 }: {
   catalog: StudioCatalog;
+  className?: string;
+  contextSummary: string;
   labels: StudioLabels;
   /** Fires when the agent settles a turn, so the page can look for results. */
   onActivity: () => void;
+  onClose: () => void;
   /**
    * Attach to a conversation the agent named rather than this mount's. Used
    * once, when a creation answers that it will not guess whether the first
@@ -525,7 +554,9 @@ function StudioConversation({
 
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
   const isResuming = agent.status === "resuming";
-  const contextSummary = describeTarget(catalog, target, selectedAsset);
+  // The reader's copy of what the turn will carry. `describeTarget` below is
+  // the agent's copy, and is deliberately more explicit than anything that
+  // belongs on screen.
 
   // Keeping a reader's place while the column grows underneath them is DOM
   // synchronization, and a ResizeObserver is what actually knows when it
@@ -665,10 +696,17 @@ function StudioConversation({
     return (
       <section
         aria-label={labels.chatTitle}
-        className="border-border bg-card-background rounded-xl border p-4"
+        className={cn(
+          "border-border bg-card-background flex h-full min-h-0 flex-col overflow-hidden rounded-xl border",
+          className,
+        )}
       >
-        <h2 className="text-sm font-medium">{labels.chatTitle}</h2>
-        <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+        <PanelHeader
+          closeLabel={labels.chatCollapse}
+          onClose={onClose}
+          title={labels.chatTitle}
+        />
+        <p className="text-muted-foreground p-4 text-sm leading-relaxed">
           {labels.chatUnavailable}
         </p>
       </section>
@@ -678,16 +716,26 @@ function StudioConversation({
   return (
     <section
       aria-label={labels.chatTitle}
-      className="border-border bg-card-background flex h-full min-h-0 flex-col overflow-hidden rounded-xl border"
+      className={cn(
+        "border-border bg-card-background flex h-full min-h-0 flex-col overflow-hidden rounded-xl border",
+        className,
+      )}
     >
-      <div className="border-border shrink-0 border-b px-4 py-3">
-        <h2 className="text-sm font-medium">{labels.chatTitle}</h2>
+      <PanelHeader
+        closeLabel={labels.chatCollapse}
+        onClose={onClose}
+        title={labels.chatTitle}
+      >
         {contextSummary ? (
-          <p className="text-muted-foreground mt-0.5 truncate text-xs">
-            {labels.contextAttached}: {contextSummary}
+          // What the turn will actually carry, in the words the composer
+          // uses. The machine-readable form still rides on the message; this
+          // is the reader's copy of it.
+          <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-xs">
+            <Paperclip aria-hidden className="size-3 shrink-0" />
+            <span className="min-w-0 truncate">{contextSummary}</span>
           </p>
         ) : null}
-      </div>
+      </PanelHeader>
 
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div
@@ -704,8 +752,8 @@ function StudioConversation({
             ref={contentRef}
           >
             {agent.data.messages.length === 0 ? (
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                {labels.emptyBody}
+              <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                {labels.chatEmptyBody}
               </p>
             ) : null}
             {agent.data.messages.map((message) => (
@@ -815,5 +863,42 @@ function StudioConversation({
         </Button>
       </form>
     </section>
+  );
+}
+
+/**
+ * The panel's own chrome.
+ *
+ * The close control is part of it because the panel is opened on request:
+ * below `xl` it covers the gallery, and a thing that covers the work has to
+ * be dismissible from inside itself, not only from the button that opened it.
+ */
+function PanelHeader({
+  children,
+  closeLabel,
+  onClose,
+  title,
+}: {
+  children?: React.ReactNode;
+  closeLabel: string;
+  onClose: () => void;
+  title: string;
+}) {
+  return (
+    <div className="border-border flex shrink-0 items-start gap-2 border-b px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <h2 className="text-sm font-medium">{title}</h2>
+        {children}
+      </div>
+      <Button
+        aria-label={closeLabel}
+        className="-mt-1 -mr-2 size-8"
+        onClick={onClose}
+        size="icon"
+        variant="ghost"
+      >
+        <X aria-hidden className="size-4" />
+      </Button>
+    </div>
   );
 }

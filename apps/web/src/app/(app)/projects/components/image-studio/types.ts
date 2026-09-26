@@ -62,8 +62,6 @@ export type StudioFilter = "all" | "approved" | "rejected" | "undecided";
  * on a resolved message instead is what put a raw translation key on screen.
  */
 export interface StudioLabels {
-  title: string;
-  subtitle: string;
   emptyTitle: string;
   emptyBody: string;
   examplePrompts: string[];
@@ -71,10 +69,8 @@ export interface StudioLabels {
   generate: string;
   refine: string;
   regenerate: string;
-  variations: string;
   download: string;
   compare: string;
-  compareOff: string;
   approve: string;
   reject: string;
   undecided: string;
@@ -82,7 +78,6 @@ export interface StudioLabels {
   rejected: string;
   clearReview: string;
   feedbackPlaceholder: string;
-  history: string;
   version: string;
   generating: string;
   queued: string;
@@ -97,11 +92,9 @@ export interface StudioLabels {
   chatTitle: string;
   chatUnavailable: string;
   send: string;
-  noApproved: string;
   clearFilter: string;
   filterAll: string;
   filterApproved: string;
-  elapsed: string;
   lineage: string;
   from: string;
   you: string;
@@ -118,7 +111,6 @@ export interface StudioLabels {
   // Composer and the model/placement catalog.
   composerTitle: string;
   model: string;
-  modelsUsed: string;
   placement: string;
   placementNone: string;
   placementTarget: string;
@@ -127,16 +119,16 @@ export interface StudioLabels {
   resolution: string;
   outputFormat: string;
   copies: string;
+  frameSetByPlacement: string;
   generateOne: string;
+  moreOptions: string;
   modelUnsupportedForPlacement: string;
-  catalogVerified: string;
   modelNotInCatalog: string;
 
   // The in-page batch queue.
   waitingForSlot: string;
   waitingForSlotBody: string;
   queueNotDurable: string;
-  removeFromQueue: string;
 
   // Gallery, selection and comparison.
   gallery: string;
@@ -149,7 +141,6 @@ export interface StudioLabels {
   clearSelection: string;
   openDetails: string;
   close: string;
-  details: string;
   dimensions: string;
   created: string;
   seed: string;
@@ -162,8 +153,9 @@ export interface StudioLabels {
   nextVersion: string;
 
   // Chat pane.
+  assistant: string;
   chatCollapse: string;
+  chatEmptyBody: string;
   chatExpand: string;
   jumpToLatest: string;
-  contextAttached: string;
 }

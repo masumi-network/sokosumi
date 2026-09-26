@@ -35,13 +35,14 @@ describe("ProjectDetailHeader", () => {
     expect(screen.getByRole("button", { name: "Actions" })).toBeInTheDocument();
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 
-    const titleRow = root?.children[1];
+    // The dates describe the project, so they sit under its name rather than
+    // as a third full-width row of chrome above the content.
+    const heading = screen.getByRole("heading", { name: "Example project" });
     const metadata = root?.querySelector("dl");
-    expect(titleRow).toBeTruthy();
     expect(metadata).toBeTruthy();
-    expect(metadata?.className).toContain("w-full");
-    expect(titleRow?.contains(metadata!)).toBe(false);
-    expect(metadata?.previousElementSibling).toBe(titleRow);
+    expect(heading.parentElement?.parentElement?.contains(metadata!)).toBe(
+      true,
+    );
   });
 
   it("shows a project-specific back link on mobile when requested", () => {
@@ -57,8 +58,11 @@ describe("ProjectDetailHeader", () => {
       />,
     );
 
+    // Visible where the app header's breadcrumb is not, and only there:
+    // stacking a second way back above the title is chrome, not wayfinding.
     const back = screen.getByRole("link", { name: "Back to project" });
     expect(back).toHaveAttribute("href", "/projects/project-1");
-    expect(back.className).not.toContain("hidden");
+    expect(back.className).toContain("inline-flex");
+    expect(back.className).toContain("sm:hidden");
   });
 });

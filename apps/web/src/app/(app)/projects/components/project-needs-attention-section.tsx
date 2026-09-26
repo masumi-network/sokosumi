@@ -73,12 +73,14 @@ export function ProjectNeedsAttentionSection({
         </div>
       </div>
 
-      <div className={PROJECTS_BROWSE_LAYOUT_CLASS}>
-        {items.length === 0 ? (
-          <div className="text-muted-foreground flex items-center justify-center py-16 text-sm">
-            {labels.empty}
-          </div>
-        ) : (
+      {/* Nothing to attend to is a sentence, not a panel. A bordered box with
+          64px of padding above and below one line of grey text was the
+          largest thing on the overview of a project that had just been
+          created, and it was there to say that nothing had happened. */}
+      {items.length === 0 ? (
+        <p className="text-muted-foreground text-sm">{labels.empty}</p>
+      ) : (
+        <div className={PROJECTS_BROWSE_LAYOUT_CLASS}>
           <ul className={PROJECTS_BROWSE_DIVIDE_CLASS}>
             {items.map((item) => (
               <ProjectNeedsAttentionRow
@@ -88,8 +90,8 @@ export function ProjectNeedsAttentionSection({
               />
             ))}
           </ul>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 }
