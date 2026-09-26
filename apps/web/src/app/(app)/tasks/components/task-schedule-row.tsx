@@ -1,0 +1,145 @@
+"use client";
+
+import Link from "next/link";
+import { useFormatter, useTranslations } from "next-intl";
+
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
+import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
+import {
+  formatTaskScheduleRule,
+  taskScheduleAssigneeId,
+  taskScheduleAssigneeLabel,
+  taskSchedulePath,
+} from "@/app/tasks/utils/task-schedule-view";
+import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import type { TaskSchedule } from "@/lib/clients/generated/core";
+import type { CoworkerOption } from "@/lib/types/coworker";
+
+import { TaskScheduleActions } from "./task-schedule-actions";
+import { TaskScheduleStateBadge } from "./task-schedule-state-badge";
+
+interface TaskScheduleRowProps {
+  schedule: TaskSchedule;
+  /** Names and avatars of stored assignees, wider than the create picker. */
+  assigneeDisplayOptions: CoworkerOption[];
+  /** The create picker's choices, for the edit dialog. */
+  coworkerOptions: CoworkerOption[];
+  projectOptions: ProjectFilterOption[];
+  currentUserId: string | null;
+  canCreatePrivate: boolean;
+  onChanged: () => void;
+}
+
+function toAssigneeView(option: CoworkerOption): TaskAssigneeView {
+  return {
+    id: option.id,
+    name: option.name,
+    image: option.image,
+    slug: option.slug,
+    kind: option.kind ?? "coworker",
+    avatarSeed: option.avatarSeed,
+  };
+}
+
+/**
+ * One Task Schedule: who runs it and where it lives, its rule, its state, and
+ * its next run. Its owner manages it in place; everyone opens its detail page.
+ */
+export function TaskScheduleRow({
+  schedule,
+  assigneeDisplayOptions,
+  coworkerOptions,
+  projectOptions,
+  currentUserId,
+  canCreatePrivate,
+  onChanged,
+}: TaskScheduleRowProps) {
+  const t = useTranslations("App.Tasks.Schedules");
+  const tSchedule = useTranslations("App.Tasks.Schedule");
+  const formatter = useFormatter();
+
+  const assigneeId = taskScheduleAssigneeId(schedule);
+  const assignee = assigneeId
+    ? (assigneeDisplayOptions.find((option) => option.id === assigneeId) ??
+      null)
+    : null;
+  const project = schedule.projectId
+    ? (projectOptions.find((option) => option.id === schedule.projectId) ??
+      null)
+    : null;
+  const sourceName = project?.name ?? t("workspace");
+  const assigneeLabel = taskScheduleAssigneeLabel(
+    schedule,
+    assigneeDisplayOptions,
+    { unassigned: t("unassigned"), unavailable: t("unavailableAssignee") },
+  );
+  const nextRunLabel = schedule.nextRunAt
+    ? t("nextRun", {
+        datetime: formatter.dateTime(schedule.nextRunAt, "dateTimeMedium"),
+      })
+    : t("noNextRun");
+
+  return (
+    <li
+      className="bg-background hover:bg-card-background-hover relative flex flex-col gap-3 rounded-lg border border-border p-3 transition-colors lg:flex-row lg:items-center"
+      data-testid="schedule-row"
+    >
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <span
+          aria-hidden
+          className="shrink-0"
+          data-testid="schedule-row-assignee"
+          title={assigneeLabel}
+        >
+          <AssigneeAvatar
+            assignee={assignee ? toAssigneeView(assignee) : null}
+            size="sm"
+          />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <Link
+              className="text-foreground text-sm font-medium break-words after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring"
+              href={taskSchedulePath(schedule.id)}
+            >
+              {schedule.name}
+            </Link>
+            <TaskScheduleStateBadge
+              label={t(`state.${schedule.state}`)}
+              schedule={schedule}
+            />
+          </div>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            <span>{assigneeLabel}</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              {project ? (
+                <ProjectAvatar
+                  className="size-4 rounded-sm"
+                  logo={project.logo}
+                  name={project.name}
+                />
+              ) : null}
+              <span className="break-words">{sourceName}</span>
+            </span>
+            <span>
+              {formatTaskScheduleRule(schedule.rule, formatter, tSchedule)}
+            </span>
+            <span className="tabular-nums">{nextRunLabel}</span>
+          </div>
+        </div>
+      </div>
+      {schedule.ownerId === currentUserId ? (
+        <div className="relative z-10 shrink-0">
+          <TaskScheduleActions
+            onChanged={onChanged}
+            schedule={schedule}
+            coworkerOptions={coworkerOptions}
+            projectOptions={projectOptions}
+            canCreatePrivate={canCreatePrivate}
+          />
+        </div>
+      ) : null}
+    </li>
+  );
+}

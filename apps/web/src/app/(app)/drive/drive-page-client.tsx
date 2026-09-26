@@ -1686,7 +1686,7 @@ function DrivePageWorkspace({
       ) : emptyState ? (
         <div
           className={cn(
-            "bg-card-background border-border -mx-4 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
+            "bg-card-background flex flex-col items-center justify-center overflow-hidden rounded-xl px-4 py-12 text-center",
             PROJECTS_LIST_CARD_MIN_H_CLASS,
           )}
         >

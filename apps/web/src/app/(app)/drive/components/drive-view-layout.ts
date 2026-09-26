@@ -8,35 +8,26 @@ import { cn } from "@/lib/utils";
 const DRIVE_ITEMS_GRID_CLASS =
   "grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
 
-export function driveItemsPanelClass(viewMode: FilesViewMode): string {
+export function driveItemsPanelClass(_viewMode: FilesViewMode): string {
   return cn(
-    "bg-card-background border-border -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+    "bg-card-background overflow-hidden rounded-xl p-2",
     PROJECTS_LIST_CARD_MIN_H_CLASS,
-    viewMode === "grid" ? "p-3" : undefined,
   );
 }
 
 export function driveItemsListClass(viewMode: FilesViewMode): string {
-  return viewMode === "grid"
-    ? DRIVE_ITEMS_GRID_CLASS
-    : "divide-border divide-y";
+  return viewMode === "grid" ? DRIVE_ITEMS_GRID_CLASS : "flex flex-col gap-2";
 }
 
 export function driveRecentsDayItemsClass(viewMode: FilesViewMode): string {
-  return viewMode === "grid"
-    ? DRIVE_ITEMS_GRID_CLASS
-    : "space-y-0 divide-y divide-border";
+  return viewMode === "grid" ? DRIVE_ITEMS_GRID_CLASS : "flex flex-col gap-2";
 }
 
 export function driveItemArticleClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
     ? "group bg-background relative flex items-center gap-2 rounded-lg border border-border p-3 hover:bg-card-background"
     : cn(
-        // Square and full-bleed: the row spans the card, so a radius of its
-        // own would round the hover fill between straight dividers. Its px-2
-        // plus the body's px-2 keep content at the same 16px inset the
-        // container's padding used to provide.
-        "relative flex items-center gap-1 rounded-none px-2 hover:bg-card-background-hover",
+        "bg-background relative flex items-center gap-1 rounded-lg border border-border px-2 hover:bg-card-background-hover",
         PROJECTS_LIST_ROW_LAYOUT_CLASS,
       );
 }

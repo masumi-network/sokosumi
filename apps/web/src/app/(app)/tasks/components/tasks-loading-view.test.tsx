@@ -35,7 +35,7 @@ describe("TasksLoadingView", () => {
     expect(boardScrollport?.className).toContain("md:pb-2");
   });
 
-  it("renders list shell matching TaskListView edge-to-edge classes", () => {
+  it("renders a rounded borderless list shell matching TaskListView", () => {
     const { container } = render(
       <TasksLoadingView
         viewMode="list"
@@ -44,16 +44,10 @@ describe("TasksLoadingView", () => {
     );
 
     const listShell = container.querySelector(
-      ".bg-card-background.border-border",
+      ".bg-card-background.overflow-hidden",
     );
     expect(listShell).toBeTruthy();
-    // The one gutter the app has is 16px, so the bleed is -mx-4.
-    expect(listShell?.className).toContain("-mx-4");
-    expect(listShell?.className).toContain("rounded-none");
-    expect(listShell?.className).toContain("border-0");
-    expect(listShell?.className).toContain("md:mx-0");
-    expect(listShell?.className).toContain("md:rounded-xl");
-    expect(listShell?.className).toContain("md:border");
-    expect(listShell?.className).not.toContain("rounded-xl border");
+    expect(listShell).toHaveClass("rounded-xl", "p-2");
+    expect(listShell).not.toHaveClass("border", "md:border", "-mx-4");
   });
 });

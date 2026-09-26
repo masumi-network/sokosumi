@@ -11,6 +11,7 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 import { TaskSchedulesView } from "./task-schedules-view";
 
 const {
+  changeTaskScheduleStateMock,
   loadMoreTaskSchedulesMock,
   projectSwitcherMock,
   replaceMock,
@@ -18,6 +19,7 @@ const {
   scheduleDialogMock,
   loadWhenVisibleMock,
 } = vi.hoisted(() => ({
+  changeTaskScheduleStateMock: vi.fn().mockResolvedValue({ ok: true }),
   loadMoreTaskSchedulesMock: vi.fn(),
   projectSwitcherMock: vi.fn(),
   replaceMock: vi.fn(),
@@ -50,6 +52,11 @@ vi.mock("./task-schedule-dialog", () => ({
     scheduleDialogMock(props);
     return <div role="dialog" aria-label="schedule dialog" />;
   },
+}));
+
+vi.mock("@/lib/actions/task-schedule/action", () => ({
+  changeTaskScheduleState: changeTaskScheduleStateMock,
+  deleteTaskSchedule: vi.fn(),
 }));
 
 vi.mock("@/app/tasks/actions", () => ({
@@ -268,7 +275,74 @@ describe("TaskSchedulesView", () => {
     expect(screen.queryByRole("button", { name: "loadMore" })).toBeNull();
   });
 
-  it("asks for the next page as the end of the grid comes into view", async () => {
+  it("reloads appended pages after changing a schedule", async () => {
+    const user = userEvent.setup();
+    const older = schedule({
+      id: "older",
+      name: "Older schedule",
+      state: "ACTIVE",
+    });
+    loadMoreTaskSchedulesMock.mockResolvedValue({
+      schedules: [older],
+      nextCursor: null,
+    });
+    renderView([schedule({})], { nextCursor: "cursor-1" });
+    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    const link = await screen.findByRole("link", { name: "Older schedule" });
+    const row = link.closest("li");
+    if (!row) throw new Error("Missing schedule row");
+    await user.click(within(row).getByRole("button", { name: "pause" }));
+    expect(changeTaskScheduleStateMock).toHaveBeenCalledWith({
+      scheduleId: "older",
+      action: "pause",
+    });
+    expect(screen.queryByRole("link", { name: "Older schedule" })).toBeNull();
+    loadMoreTaskSchedulesMock.mockResolvedValue({
+      schedules: [{ ...older, state: "PAUSED" }],
+      nextCursor: null,
+    });
+    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    const refreshed = (
+      await screen.findByRole("link", { name: "Older schedule" })
+    ).closest("li");
+    if (!refreshed) throw new Error("Missing refreshed row");
+    expect(
+      within(refreshed).getByRole("button", { name: "resume" }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses the refreshed first-page cursor after invalidating appended pages", async () => {
+    const user = userEvent.setup();
+    const initial = [schedule({})];
+    const view = renderView(initial, { nextCursor: "old-cursor" });
+    await user.click(screen.getByRole("button", { name: "pause" }));
+    view.rerender(
+      <TaskSchedulesView
+        schedules={initial}
+        nextCursor="new-cursor"
+        coworkerOptions={[ELENA]}
+        assigneeDisplayOptions={[ELENA, MEMBER]}
+        projectOptions={[]}
+        selectedProjectId={null}
+        selectedState={null}
+        canCreate
+        canCreatePrivate={false}
+        currentUserId="user_1"
+      />,
+    );
+    loadMoreTaskSchedulesMock.mockResolvedValue({
+      schedules: [],
+      nextCursor: null,
+    });
+    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    expect(loadMoreTaskSchedulesMock).toHaveBeenCalledWith({
+      cursor: "new-cursor",
+      projectId: null,
+      state: null,
+    });
+  });
+
+  it("asks for the next page as the end of the list comes into view", async () => {
     loadMoreTaskSchedulesMock.mockResolvedValue({
       schedules: [
         schedule({

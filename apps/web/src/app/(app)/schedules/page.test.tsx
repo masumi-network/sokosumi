@@ -46,7 +46,7 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
   },
 }));
 
-import { SchedulesPageContent } from "./page";
+import { SchedulesPageContent } from "./schedules-page-content";
 
 const PROJECT = { id: "project-1", name: "Release planning" };
 const SCHEDULE = { id: "schedule-1", name: "Weekly report" };

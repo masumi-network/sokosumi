@@ -355,13 +355,9 @@ describe("WorkspaceCalendar", () => {
       "workspace-calendar-theme",
       "bg-background",
       "overflow-x-auto",
-      "-mx-4",
-      "rounded-none",
-      "border-0",
+      "rounded-lg",
+      "border",
       "border-border",
-      "md:mx-0",
-      "md:rounded-xl",
-      "md:border",
     );
   });
 
