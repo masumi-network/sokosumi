@@ -1570,8 +1570,7 @@
       },
       "Actions": {
         "loading": "Loading...",
-        "loadMore": "Load More",
-        "showGuide": "Show guide"
+        "loadMore": "Load More"
       },
       "createTaskFab": "Create task",
       "personalAssistant": "Personal assistant",
@@ -2029,17 +2028,6 @@
           "at": "Starts {datetime}"
         }
       },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "elenaAvatarAlt": "Elena avatar"
-      },
       "Schedules": {
         "stateFilter": "Schedule state",
         "filterAll": "All",
@@ -2120,6 +2108,32 @@
         "Page": {
           "title": "Schedules",
           "description": "Every schedule in your workspace. Each run creates a new task."
+        }
+      },
+      "Tags": {
+        "label": "Tags",
+        "empty": "No tags yet",
+        "edit": "Edit tags",
+        "hint": "Choose up to five tags. Saved choices stay; removed suggestions will not return.",
+        "showAll": "Show all {count} tags",
+        "save": "Save tags",
+        "saving": "Saving…",
+        "error": "Unable to save tags. Try again.",
+        "manual": "Chosen by you",
+        "automatic": "Automatically suggested",
+        "noProject": "No project",
+        "openProject": "Open project: {name}",
+        "vocabulary": {
+          "research": "Research",
+          "strategy": "Strategy",
+          "writing": "Writing",
+          "design": "Design",
+          "analysis": "Analysis",
+          "development": "Development",
+          "marketing": "Marketing",
+          "social": "Social media",
+          "seo": "SEO",
+          "operations": "Operations"
         }
       }
     },

@@ -5,6 +5,8 @@ import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 
 import { TaskCard } from "./task-card";
 
+vi.mock("@/lib/actions/task/action", () => ({ updateTaskTags: vi.fn() }));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) =>
     key === "privateBadge" ? "Private" : key,
@@ -85,7 +87,7 @@ describe("TaskCard description preview", () => {
     ).toBeNull();
   });
 
-  it("renders descriptionPlain when present", () => {
+  it("preserves description in data but replaces card preview with tags", () => {
     const task = {
       ...buildTask(TaskVisibility.PUBLIC),
       description: "[CONTEXT.md](https://blob.example/CONTEXT.md)\n\nHello",
@@ -94,7 +96,8 @@ describe("TaskCard description preview", () => {
 
     render(<TaskCard task={task} />);
 
-    expect(screen.getByText("Hello")).toBeInTheDocument();
+    expect(screen.queryByText("Hello")).not.toBeInTheDocument();
+    expect(task.description).toContain("Hello");
   });
 });
 
@@ -145,5 +148,19 @@ describe("TaskCard actor cluster", () => {
       screen.getByRole("img", { name: "Soko, Ada, Bea, Cy, Dee" }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText(/Owner/)).not.toBeInTheDocument();
+  });
+});
+
+describe("TaskCard project navigation", () => {
+  it("keeps project navigation separate from the full-card task link", () => {
+    const task = {
+      ...buildTask(TaskVisibility.PUBLIC),
+      project: { id: "project-1", name: "Long project name", logo: null },
+    };
+    render(<TaskCard task={task} />);
+    const project = screen.getByRole("link", { name: "openProject" });
+    expect(project).toHaveAttribute("href", "/projects/project-1");
+    expect(project.closest('[data-testid="task-detail-link"]')).toBeNull();
+    expect(screen.getByText("Long project name")).toBeInTheDocument();
   });
 });
