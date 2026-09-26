@@ -3132,88 +3132,17 @@ export type DeveloperTaskDetail = {
     } | null;
 };
 
-export type DataTable = {
-    id: string;
-    workspaceId: string;
-    projectId: string | null;
-    title: string;
-    description: string;
-    createdBy: string;
-    version: number;
-    archivedAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-    columns: Array<TableColumn>;
-    views: Array<TableView>;
-};
-
-export type TableColumn = {
+export type FileCollection = {
     id: string;
     name: string;
-    description?: string;
-    type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
-    options?: Array<string>;
-    tableId: string;
-    position: number;
-    version: number;
-};
-
-export type TableView = {
-    id: string;
-    tableId: string;
-    name: string;
-    version: number;
     definition: {
-        filters?: Array<{
-            columnId: string;
-            operator: 'equals' | 'contains' | 'empty';
-            value?: string | number | boolean | Array<string> | null;
-        }>;
-        sort?: {
-            columnId: string;
-            direction: 'asc' | 'desc';
-        } | null;
-        visibleColumnIds?: Array<string>;
+        [key: string]: unknown;
     };
-};
-
-export type TableRow = {
-    id: string;
-    tableId: string;
-    values: {
-        [key: string]: string | number | boolean | Array<string> | null;
-    };
-    evidence: {
-        [key: string]: Array<{
-            url: string;
-            note?: string;
-        }>;
-    };
-    version: number;
-    archivedAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-};
-
-export type TableBatchResult = {
-    batchId: string;
-    rows: Array<TableRow>;
-};
-
-export type TableChange = {
-    id: string;
-    tableId: string;
-    batchId: string;
-    actorId: string;
-    actorKind: string;
-    actorName?: string | null;
-    taskId: string | null;
-    rowId: string | null;
-    columnId: string | null;
-    before?: unknown;
-    after?: unknown;
-    evidence?: unknown;
-    createdAt: Date;
+    sortBy: string | null;
+    sortOrder: string | null;
+    isShared: boolean;
+    definitionVersion: number;
+    isOwner: boolean;
 };
 
 export type DriveFileUploadSession = {
@@ -3389,6 +3318,15 @@ export type DeleteDriveFileRequest = {
     pathname: string;
 };
 
+export type WorkspaceLabel = {
+    id: string;
+    kind: 'TAG' | 'CATEGORY';
+    displayName: string;
+    description: string | null;
+    archived: boolean;
+    vocabularyVersion: number;
+};
+
 export type CreateDriveFolderRequest = {
     /**
      * Folder path relative to scope root (may be nested with slashes)
@@ -3514,6 +3452,251 @@ export type DriveRecentsTaskOutputItem = {
      * Parent project name, or null
      */
     projectName: string | null;
+};
+
+export type FileSelectionTokenResponse = {
+    token: string;
+    /**
+     * Entries in this bounded window that are still eligible, never a corpus total.
+     */
+    count: number;
+    expiresAt: Date;
+};
+
+export type FileMetadataBatchResponse = {
+    outcomes: Array<{
+        resourceId: string;
+        status: 'applied' | 'conflict' | 'forbidden' | 'not-found';
+        metadataRevision: number | null;
+    }>;
+    revisedCount: number | null;
+};
+
+export type FileMetadataBatchRequest = {
+    resourceIds?: Array<string>;
+    selectionToken?: string;
+    idempotencyKey: string;
+    addTagLabelIds?: Array<string>;
+    removeTagLabelIds?: Array<string>;
+    categoryLabelId?: string | null;
+    expectedRevisions?: Array<{
+        resourceId: string;
+        metadataRevision: number;
+    }>;
+};
+
+export type FileResource = {
+    id: string;
+    displayName: string;
+    mimeType: string | null;
+    sizeBytes: number | null;
+    /**
+     * Canonical source this document comes from
+     */
+    sourceKind: 'DRIVE_UPLOAD' | 'TASK_OUTPUT' | 'PROJECT_DOCUMENT' | 'NATIVE_TABLE' | 'STUDIO_ASSET';
+    sourceTaskId: string | null;
+    sourceProjectId: string | null;
+    updatedAt: Date;
+    contentRevision: number;
+    metadataRevision: number;
+    /**
+     * Processing state of the current version. PARTIAL means some text is searchable, never all of it.
+     */
+    extractionState: 'PENDING' | 'RUNNING' | 'INDEXED' | 'PARTIAL' | 'UNSUPPORTED' | 'ENCRYPTED' | 'QUARANTINED' | 'FAILED' | null;
+    extractionCoverage: number | null;
+    extractionReason: string | null;
+    category: FileLabel;
+    tags: Array<FileLabel>;
+    suggestions: Array<FileLabel>;
+    projects: Array<FileProjectLink>;
+    snippet: FileSnippet;
+    relatedReason: string | null;
+    filenameMatch: boolean;
+};
+
+export type FileLabel = {
+    id: string;
+    labelId: string;
+    kind: 'TAG' | 'CATEGORY';
+    displayName: string;
+    state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+    provenance: 'MANUAL' | 'MODEL' | 'RULE';
+    evidenceSnippet: string | null;
+    /**
+     * The suggestion was computed against an older content or vocabulary version.
+     */
+    stale: boolean;
+} | null;
+
+export type FileProjectLink = {
+    id: string;
+    projectId: string;
+    projectName: string;
+    state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+    provenance: 'MANUAL' | 'MODEL' | 'RULE';
+    evidenceSnippet: string | null;
+};
+
+/**
+ * Extracted passage plus highlight offsets. Plain text: the client escapes at render.
+ */
+export type FileSnippet = {
+    text: string;
+    highlights: Array<{
+        start: number;
+        end: number;
+    }>;
+    truncatedStart: boolean;
+    truncatedEnd: boolean;
+} | null;
+
+export type FileRelatedResponse = {
+    items: Array<FileResource>;
+    /**
+     * 'not-indexed' means processing has not finished; 'unavailable' means ranking failed and the reader may retry.
+     */
+    state: 'ok' | 'empty' | 'not-indexed' | 'unavailable';
+};
+
+export type UpdateFileMetadataRequest = {
+    /**
+     * Reject the edit if someone else changed this document's metadata first.
+     */
+    expectedMetadataRevision: number;
+    addTagLabelIds?: Array<string>;
+    removeTagLabelIds?: Array<string>;
+    categoryLabelId?: string | null;
+    confirmProjectIds?: Array<string>;
+    removeProjectIds?: Array<string>;
+    allowSuggestionsFor?: Array<'category' | 'tags'>;
+};
+
+export type FileSuggestionDecisionRequest = {
+    decision: 'accept' | 'reject';
+    expectedMetadataRevision: number;
+};
+
+export type FileSearchResponse = {
+    items: Array<FileResource>;
+    search: FileSearchMeta;
+};
+
+export type FileSearchMeta = {
+    /**
+     * Which ordering produced this page. 'deterministic' means the model stage did not apply.
+     */
+    rankingMode: 'deterministic' | 'model';
+    resultWindowLimit: number;
+    /**
+     * Authorized entries in this bounded window, not a corpus total.
+     */
+    windowCount: number;
+    remainingWindowCount: number;
+    /**
+     * A retrieval budget or the window cap was reached, so more may match. Independent of hasMore.
+     */
+    truncated: boolean;
+    /**
+     * Unconsumed positions remain in this snapshot. Not a claim about the corpus.
+     */
+    hasMore: boolean;
+    nextCursor: string | null;
+    /**
+     * The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.
+     */
+    restarted: boolean;
+    /**
+     * Coverage over this window only, so the UI can be honest about what is searchable.
+     */
+    indexCoverage: {
+        indexed: number;
+        processing: number;
+        filenameOnly: number;
+    };
+};
+
+export type DataTable = {
+    id: string;
+    workspaceId: string;
+    projectId: string | null;
+    title: string;
+    description: string;
+    createdBy: string;
+    version: number;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    columns: Array<TableColumn>;
+    views: Array<TableView>;
+};
+
+export type TableColumn = {
+    id: string;
+    name: string;
+    description?: string;
+    type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+    options?: Array<string>;
+    tableId: string;
+    position: number;
+    version: number;
+};
+
+export type TableView = {
+    id: string;
+    tableId: string;
+    name: string;
+    version: number;
+    definition: {
+        filters?: Array<{
+            columnId: string;
+            operator: 'equals' | 'contains' | 'empty';
+            value?: string | number | boolean | Array<string> | null;
+        }>;
+        sort?: {
+            columnId: string;
+            direction: 'asc' | 'desc';
+        } | null;
+        visibleColumnIds?: Array<string>;
+    };
+};
+
+export type TableRow = {
+    id: string;
+    tableId: string;
+    values: {
+        [key: string]: string | number | boolean | Array<string> | null;
+    };
+    evidence: {
+        [key: string]: Array<{
+            url: string;
+            note?: string;
+        }>;
+    };
+    version: number;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type TableBatchResult = {
+    batchId: string;
+    rows: Array<TableRow>;
+};
+
+export type TableChange = {
+    id: string;
+    tableId: string;
+    batchId: string;
+    actorId: string;
+    actorKind: string;
+    actorName?: string | null;
+    taskId: string | null;
+    rowId: string | null;
+    columnId: string | null;
+    before?: unknown;
+    after?: unknown;
+    evidence?: unknown;
+    createdAt: Date;
 };
 
 export type DriveTasksList = Array<DriveTasksListItem>;
@@ -22337,6 +22520,2533 @@ export type GetDeveloperOwnedCoworkerTaskResponses = {
 
 export type GetDeveloperOwnedCoworkerTaskResponse = GetDeveloperOwnedCoworkerTaskResponses[keyof GetDeveloperOwnedCoworkerTaskResponses];
 
+export type GetDriveCollectionsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/collections';
+};
+
+export type GetDriveCollectionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveCollectionsError = GetDriveCollectionsErrors[keyof GetDriveCollectionsErrors];
+
+export type GetDriveCollectionsResponses = {
+    /**
+     * Collections
+     */
+    200: {
+        data: Array<FileCollection>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveCollectionsResponse = GetDriveCollectionsResponses[keyof GetDriveCollectionsResponses];
+
+export type PostDriveCollectionsData = {
+    body: {
+        name: string;
+        definition: {
+            [key: string]: unknown;
+        };
+        sortBy?: string | null;
+        sortOrder?: 'asc' | 'desc' | null;
+        isShared?: boolean;
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/collections';
+};
+
+export type PostDriveCollectionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveCollectionsError = PostDriveCollectionsErrors[keyof PostDriveCollectionsErrors];
+
+export type PostDriveCollectionsResponses = {
+    /**
+     * Collection created
+     */
+    201: {
+        data: FileCollection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveCollectionsResponse = PostDriveCollectionsResponses[keyof PostDriveCollectionsResponses];
+
+export type DeleteDriveCollectionsByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/collections/{id}';
+};
+
+export type DeleteDriveCollectionsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteDriveCollectionsByIdError = DeleteDriveCollectionsByIdErrors[keyof DeleteDriveCollectionsByIdErrors];
+
+export type DeleteDriveCollectionsByIdResponses = {
+    /**
+     * Collection deleted
+     */
+    204: void;
+};
+
+export type DeleteDriveCollectionsByIdResponse = DeleteDriveCollectionsByIdResponses[keyof DeleteDriveCollectionsByIdResponses];
+
+export type GetDriveFilesData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        /**
+         * Organization ID (required when scope=org)
+         */
+        organizationId?: string;
+        /**
+         * Folder path relative to scope root (empty/omit for root, nested with slashes)
+         */
+        folder?: string;
+        /**
+         * Search query for filename filtering at current folder level (case-sensitive prefix match)
+         */
+        q?: string;
+        /**
+         * Sort key: name | date | type. Omit with sortOrder to keep the endpoint default order. Tasks project/task levels: type falls back to name. Not used by Drive Recents (fixed activityAt descending).
+         */
+        sortBy?: 'name' | 'date' | 'type';
+        /**
+         * Sort direction: asc | desc. When sortBy is omitted and sortOrder is set, applies to the endpoint's default key (Browse: name; Tasks: date). When sortBy is set without sortOrder: name/type → asc, date → desc. Not used by Drive Recents.
+         */
+        sortOrder?: 'asc' | 'desc';
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/drive/files';
+};
+
+export type GetDriveFilesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveFilesError = GetDriveFilesErrors[keyof GetDriveFilesErrors];
+
+export type GetDriveFilesResponses = {
+    /**
+     * Drive items
+     */
+    200: {
+        data: DriveItems;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: DrivePaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveFilesResponse = GetDriveFilesResponses[keyof GetDriveFilesResponses];
+
+export type PostDriveFilesData = {
+    body: CreateDriveFileUploadSessionRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/files';
+};
+
+export type PostDriveFilesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - target pathname already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveFilesError = PostDriveFilesErrors[keyof PostDriveFilesErrors];
+
+export type PostDriveFilesResponses = {
+    /**
+     * Drive file upload session created
+     */
+    201: {
+        data: DriveFileUploadSession;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveFilesResponse = PostDriveFilesResponses[keyof PostDriveFilesResponses];
+
+export type PostDriveFilesFinalizeData = {
+    body: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        pathname: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/files/finalize';
+};
+
+export type PostDriveFilesFinalizeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveFilesFinalizeError = PostDriveFilesFinalizeErrors[keyof PostDriveFilesFinalizeErrors];
+
+export type PostDriveFilesFinalizeResponses = {
+    /**
+     * Upload finalized
+     */
+    200: {
+        data: {
+            resourceId: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveFilesFinalizeResponse = PostDriveFilesFinalizeResponses[keyof PostDriveFilesFinalizeResponses];
+
+export type PatchDriveFilesMoveData = {
+    body: MoveDriveItemRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/files/move';
+};
+
+export type PatchDriveFilesMoveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - target already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - folder exceeds 500 descendant limit
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveFilesMoveError = PatchDriveFilesMoveErrors[keyof PatchDriveFilesMoveErrors];
+
+export type PatchDriveFilesMoveResponses = {
+    /**
+     * Drive item moved successfully
+     */
+    200: {
+        data: MoveDriveItemRequest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveFilesMoveResponse = PatchDriveFilesMoveResponses[keyof PatchDriveFilesMoveResponses];
+
+export type PatchDriveFilesRenameData = {
+    body: RenameDriveFileRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/files/rename';
+};
+
+export type PatchDriveFilesRenameErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - target pathname already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveFilesRenameError = PatchDriveFilesRenameErrors[keyof PatchDriveFilesRenameErrors];
+
+export type PatchDriveFilesRenameResponses = {
+    /**
+     * Drive file renamed
+     */
+    200: {
+        data: DriveFile;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveFilesRenameResponse = PatchDriveFilesRenameResponses[keyof PatchDriveFilesRenameResponses];
+
+export type DeleteDriveFilesDeleteData = {
+    body: DeleteDriveFileRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/files/delete';
+};
+
+export type DeleteDriveFilesDeleteErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteDriveFilesDeleteError = DeleteDriveFilesDeleteErrors[keyof DeleteDriveFilesDeleteErrors];
+
+export type DeleteDriveFilesDeleteResponses = {
+    /**
+     * Drive file deleted
+     */
+    204: void;
+};
+
+export type DeleteDriveFilesDeleteResponse = DeleteDriveFilesDeleteResponses[keyof DeleteDriveFilesDeleteResponses];
+
+export type GetDriveLabelsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        kind?: 'TAG' | 'CATEGORY';
+        includeArchived?: 'true' | 'false';
+    };
+    url: '/drive/labels';
+};
+
+export type GetDriveLabelsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveLabelsError = GetDriveLabelsErrors[keyof GetDriveLabelsErrors];
+
+export type GetDriveLabelsResponses = {
+    /**
+     * Workspace labels
+     */
+    200: {
+        data: Array<WorkspaceLabel>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveLabelsResponse = GetDriveLabelsResponses[keyof GetDriveLabelsResponses];
+
+export type PostDriveLabelsData = {
+    body: {
+        kind: 'TAG' | 'CATEGORY';
+        displayName: string;
+        description?: string | null;
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/labels';
+};
+
+export type PostDriveLabelsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveLabelsError = PostDriveLabelsErrors[keyof PostDriveLabelsErrors];
+
+export type PostDriveLabelsResponses = {
+    /**
+     * Label created
+     */
+    201: {
+        data: WorkspaceLabel;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveLabelsResponse = PostDriveLabelsResponses[keyof PostDriveLabelsResponses];
+
+export type PatchDriveLabelsByIdData = {
+    body: {
+        displayName?: string;
+        description?: string | null;
+        archived?: boolean;
+        mergeIntoLabelId?: string;
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/labels/{id}';
+};
+
+export type PatchDriveLabelsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveLabelsByIdError = PatchDriveLabelsByIdErrors[keyof PatchDriveLabelsByIdErrors];
+
+export type PatchDriveLabelsByIdResponses = {
+    /**
+     * Label updated
+     */
+    200: {
+        data: WorkspaceLabel;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveLabelsByIdResponse = PatchDriveLabelsByIdResponses[keyof PatchDriveLabelsByIdResponses];
+
+export type PostDriveFoldersData = {
+    body: CreateDriveFolderRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/folders';
+};
+
+export type PostDriveFoldersErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - folder already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveFoldersError = PostDriveFoldersErrors[keyof PostDriveFoldersErrors];
+
+export type PostDriveFoldersResponses = {
+    /**
+     * Folder created (marker written)
+     */
+    201: {
+        data: CreateDriveFolderRequest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveFoldersResponse = PostDriveFoldersResponses[keyof PostDriveFoldersResponses];
+
+export type DeleteDriveFoldersDeleteData = {
+    body: DeleteDriveFolderRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/folders/delete';
+};
+
+export type DeleteDriveFoldersDeleteErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteDriveFoldersDeleteError = DeleteDriveFoldersDeleteErrors[keyof DeleteDriveFoldersDeleteErrors];
+
+export type DeleteDriveFoldersDeleteResponses = {
+    /**
+     * Drive folder deleted
+     */
+    204: void;
+};
+
+export type DeleteDriveFoldersDeleteResponse = DeleteDriveFoldersDeleteResponses[keyof DeleteDriveFoldersDeleteResponses];
+
+export type PatchDriveFoldersRenameData = {
+    body: RenameDriveFolderRequest;
+    path?: never;
+    query?: never;
+    url: '/drive/folders/rename';
+};
+
+export type PatchDriveFoldersRenameErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - target folder already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - folder exceeds 500 descendant limit
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveFoldersRenameError = PatchDriveFoldersRenameErrors[keyof PatchDriveFoldersRenameErrors];
+
+export type PatchDriveFoldersRenameResponses = {
+    /**
+     * Drive folder renamed
+     */
+    200: {
+        data: RenameDriveFolderRequest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveFoldersRenameResponse = PatchDriveFoldersRenameResponses[keyof PatchDriveFoldersRenameResponses];
+
+export type GetDriveRecentsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        /**
+         * Organization ID (required when scope=org)
+         */
+        organizationId?: string;
+        /**
+         * Search recents by file name (Drive blobs) or task/file name and task description (task outputs). Case-insensitive substring.
+         */
+        q?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/drive/recents';
+};
+
+export type GetDriveRecentsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveRecentsError = GetDriveRecentsErrors[keyof GetDriveRecentsErrors];
+
+export type GetDriveRecentsResponses = {
+    /**
+     * Drive recents retrieved
+     */
+    200: {
+        data: DriveRecentsList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveRecentsResponse = GetDriveRecentsResponses[keyof GetDriveRecentsResponses];
+
+export type PostDriveResourcesSelectionTokenData = {
+    body: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        windowCursor: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/resources/selection-token';
+};
+
+export type PostDriveResourcesSelectionTokenErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveResourcesSelectionTokenError = PostDriveResourcesSelectionTokenErrors[keyof PostDriveResourcesSelectionTokenErrors];
+
+export type PostDriveResourcesSelectionTokenResponses = {
+    /**
+     * Selection token
+     */
+    201: {
+        data: FileSelectionTokenResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveResourcesSelectionTokenResponse = PostDriveResourcesSelectionTokenResponses[keyof PostDriveResourcesSelectionTokenResponses];
+
+export type PostDriveResourcesMetadataBatchData = {
+    body: FileMetadataBatchRequest & {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/resources/metadata-batch';
+};
+
+export type PostDriveResourcesMetadataBatchErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveResourcesMetadataBatchError = PostDriveResourcesMetadataBatchErrors[keyof PostDriveResourcesMetadataBatchErrors];
+
+export type PostDriveResourcesMetadataBatchResponses = {
+    /**
+     * Per-item outcomes
+     */
+    200: {
+        data: FileMetadataBatchResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveResourcesMetadataBatchResponse = PostDriveResourcesMetadataBatchResponses[keyof PostDriveResourcesMetadataBatchResponses];
+
+export type GetDriveResourcesByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}';
+};
+
+export type GetDriveResourcesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdError = GetDriveResourcesByIdErrors[keyof GetDriveResourcesByIdErrors];
+
+export type GetDriveResourcesByIdResponses = {
+    /**
+     * File
+     */
+    200: {
+        data: FileResource;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdResponse = GetDriveResourcesByIdResponses[keyof GetDriveResourcesByIdResponses];
+
+export type GetDriveResourcesByIdRelatedData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}/related';
+};
+
+export type GetDriveResourcesByIdRelatedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdRelatedError = GetDriveResourcesByIdRelatedErrors[keyof GetDriveResourcesByIdRelatedErrors];
+
+export type GetDriveResourcesByIdRelatedResponses = {
+    /**
+     * Related files
+     */
+    200: {
+        data: FileRelatedResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdRelatedResponse = GetDriveResourcesByIdRelatedResponses[keyof GetDriveResourcesByIdRelatedResponses];
+
+export type PatchDriveResourcesByIdMetadataData = {
+    body: UpdateFileMetadataRequest;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}/metadata';
+};
+
+export type PatchDriveResourcesByIdMetadataErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveResourcesByIdMetadataError = PatchDriveResourcesByIdMetadataErrors[keyof PatchDriveResourcesByIdMetadataErrors];
+
+export type PatchDriveResourcesByIdMetadataResponses = {
+    /**
+     * Updated file
+     */
+    200: {
+        data: FileResource;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveResourcesByIdMetadataResponse = PatchDriveResourcesByIdMetadataResponses[keyof PatchDriveResourcesByIdMetadataResponses];
+
+export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionData = {
+    body: FileSuggestionDecisionRequest;
+    path: {
+        id: string;
+        suggestionId: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}/suggestions/{suggestionId}/decision';
+};
+
+export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionError = PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionErrors[keyof PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionErrors];
+
+export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionResponses = {
+    /**
+     * Updated file
+     */
+    200: {
+        data: FileResource;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionResponse = PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionResponses[keyof PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionResponses];
+
+export type PostDriveResourcesByIdReindexData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}/reindex';
+};
+
+export type PostDriveResourcesByIdReindexErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveResourcesByIdReindexError = PostDriveResourcesByIdReindexErrors[keyof PostDriveResourcesByIdReindexErrors];
+
+export type PostDriveResourcesByIdReindexResponses = {
+    /**
+     * Reindex queued
+     */
+    200: {
+        data: {
+            queued: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveResourcesByIdReindexResponse = PostDriveResourcesByIdReindexResponses[keyof PostDriveResourcesByIdReindexResponses];
+
+export type GetDriveSearchData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        q?: string;
+        categoryLabelIds?: string;
+        tagLabelIds?: string;
+        tagMatch?: 'any' | 'all';
+        projectIds?: string;
+        sourceKinds?: string;
+        typeFamilies?: string;
+        extractionStates?: string;
+        creatorUserIds?: string;
+        modifiedAfter?: string;
+        modifiedBefore?: string;
+        sortBy?: 'relevance' | 'modified' | 'name';
+        sortOrder?: 'asc' | 'desc';
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/drive/search';
+};
+
+export type GetDriveSearchErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveSearchError = GetDriveSearchErrors[keyof GetDriveSearchErrors];
+
+export type GetDriveSearchResponses = {
+    /**
+     * File search results
+     */
+    200: {
+        data: FileSearchResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveSearchResponse = GetDriveSearchResponses[keyof GetDriveSearchResponses];
+
 export type GetDriveTablesData = {
     body?: never;
     headers?: {
@@ -23689,1168 +26399,6 @@ export type PostDriveTablesByIdEnrichResponses = {
 };
 
 export type PostDriveTablesByIdEnrichResponse = PostDriveTablesByIdEnrichResponses[keyof PostDriveTablesByIdEnrichResponses];
-
-export type GetDriveFilesData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * Drive scope: 'me' for personal, 'org' for organization
-         */
-        scope: 'me' | 'org';
-        /**
-         * Organization ID (required when scope=org)
-         */
-        organizationId?: string;
-        /**
-         * Folder path relative to scope root (empty/omit for root, nested with slashes)
-         */
-        folder?: string;
-        /**
-         * Search query for filename filtering at current folder level (case-sensitive prefix match)
-         */
-        q?: string;
-        /**
-         * Sort key: name | date | type. Omit with sortOrder to keep the endpoint default order. Tasks project/task levels: type falls back to name. Not used by Drive Recents (fixed activityAt descending).
-         */
-        sortBy?: 'name' | 'date' | 'type';
-        /**
-         * Sort direction: asc | desc. When sortBy is omitted and sortOrder is set, applies to the endpoint's default key (Browse: name; Tasks: date). When sortBy is set without sortOrder: name/type → asc, date → desc. Not used by Drive Recents.
-         */
-        sortOrder?: 'asc' | 'desc';
-        /**
-         * Cursor for pagination (ID of the last item from previous page)
-         */
-        cursor?: string;
-        /**
-         * Number of items to return (max 100)
-         */
-        limit?: number;
-    };
-    url: '/drive/files';
-};
-
-export type GetDriveFilesErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetDriveFilesError = GetDriveFilesErrors[keyof GetDriveFilesErrors];
-
-export type GetDriveFilesResponses = {
-    /**
-     * Drive items
-     */
-    200: {
-        data: DriveItems;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination: DrivePaginationMetadata;
-        };
-    };
-};
-
-export type GetDriveFilesResponse = GetDriveFilesResponses[keyof GetDriveFilesResponses];
-
-export type PostDriveFilesData = {
-    body: CreateDriveFileUploadSessionRequest;
-    path?: never;
-    query?: never;
-    url: '/drive/files';
-};
-
-export type PostDriveFilesErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict - target pathname already exists
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Payload Too Large
-     */
-    413: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostDriveFilesError = PostDriveFilesErrors[keyof PostDriveFilesErrors];
-
-export type PostDriveFilesResponses = {
-    /**
-     * Drive file upload session created
-     */
-    201: {
-        data: DriveFileUploadSession;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostDriveFilesResponse = PostDriveFilesResponses[keyof PostDriveFilesResponses];
-
-export type PatchDriveFilesMoveData = {
-    body: MoveDriveItemRequest;
-    path?: never;
-    query?: never;
-    url: '/drive/files/move';
-};
-
-export type PatchDriveFilesMoveErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict - target already exists
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity - folder exceeds 500 descendant limit
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchDriveFilesMoveError = PatchDriveFilesMoveErrors[keyof PatchDriveFilesMoveErrors];
-
-export type PatchDriveFilesMoveResponses = {
-    /**
-     * Drive item moved successfully
-     */
-    200: {
-        data: MoveDriveItemRequest;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchDriveFilesMoveResponse = PatchDriveFilesMoveResponses[keyof PatchDriveFilesMoveResponses];
-
-export type PatchDriveFilesRenameData = {
-    body: RenameDriveFileRequest;
-    path?: never;
-    query?: never;
-    url: '/drive/files/rename';
-};
-
-export type PatchDriveFilesRenameErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict - target pathname already exists
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchDriveFilesRenameError = PatchDriveFilesRenameErrors[keyof PatchDriveFilesRenameErrors];
-
-export type PatchDriveFilesRenameResponses = {
-    /**
-     * Drive file renamed
-     */
-    200: {
-        data: DriveFile;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchDriveFilesRenameResponse = PatchDriveFilesRenameResponses[keyof PatchDriveFilesRenameResponses];
-
-export type DeleteDriveFilesDeleteData = {
-    body: DeleteDriveFileRequest;
-    path?: never;
-    query?: never;
-    url: '/drive/files/delete';
-};
-
-export type DeleteDriveFilesDeleteErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteDriveFilesDeleteError = DeleteDriveFilesDeleteErrors[keyof DeleteDriveFilesDeleteErrors];
-
-export type DeleteDriveFilesDeleteResponses = {
-    /**
-     * Drive file deleted
-     */
-    204: void;
-};
-
-export type DeleteDriveFilesDeleteResponse = DeleteDriveFilesDeleteResponses[keyof DeleteDriveFilesDeleteResponses];
-
-export type PostDriveFoldersData = {
-    body: CreateDriveFolderRequest;
-    path?: never;
-    query?: never;
-    url: '/drive/folders';
-};
-
-export type PostDriveFoldersErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict - folder already exists
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostDriveFoldersError = PostDriveFoldersErrors[keyof PostDriveFoldersErrors];
-
-export type PostDriveFoldersResponses = {
-    /**
-     * Folder created (marker written)
-     */
-    201: {
-        data: CreateDriveFolderRequest;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostDriveFoldersResponse = PostDriveFoldersResponses[keyof PostDriveFoldersResponses];
-
-export type DeleteDriveFoldersDeleteData = {
-    body: DeleteDriveFolderRequest;
-    path?: never;
-    query?: never;
-    url: '/drive/folders/delete';
-};
-
-export type DeleteDriveFoldersDeleteErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteDriveFoldersDeleteError = DeleteDriveFoldersDeleteErrors[keyof DeleteDriveFoldersDeleteErrors];
-
-export type DeleteDriveFoldersDeleteResponses = {
-    /**
-     * Drive folder deleted
-     */
-    204: void;
-};
-
-export type DeleteDriveFoldersDeleteResponse = DeleteDriveFoldersDeleteResponses[keyof DeleteDriveFoldersDeleteResponses];
-
-export type PatchDriveFoldersRenameData = {
-    body: RenameDriveFolderRequest;
-    path?: never;
-    query?: never;
-    url: '/drive/folders/rename';
-};
-
-export type PatchDriveFoldersRenameErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict - target folder already exists
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity - folder exceeds 500 descendant limit
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchDriveFoldersRenameError = PatchDriveFoldersRenameErrors[keyof PatchDriveFoldersRenameErrors];
-
-export type PatchDriveFoldersRenameResponses = {
-    /**
-     * Drive folder renamed
-     */
-    200: {
-        data: RenameDriveFolderRequest;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchDriveFoldersRenameResponse = PatchDriveFoldersRenameResponses[keyof PatchDriveFoldersRenameResponses];
-
-export type GetDriveRecentsData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * Drive scope: 'me' for personal, 'org' for organization
-         */
-        scope: 'me' | 'org';
-        /**
-         * Organization ID (required when scope=org)
-         */
-        organizationId?: string;
-        /**
-         * Search recents by file name (Drive blobs) or task/file name and task description (task outputs). Case-insensitive substring.
-         */
-        q?: string;
-        /**
-         * Cursor for pagination (ID of the last item from previous page)
-         */
-        cursor?: string;
-        /**
-         * Number of items to return (max 100)
-         */
-        limit?: number;
-    };
-    url: '/drive/recents';
-};
-
-export type GetDriveRecentsErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetDriveRecentsError = GetDriveRecentsErrors[keyof GetDriveRecentsErrors];
-
-export type GetDriveRecentsResponses = {
-    /**
-     * Drive recents retrieved
-     */
-    200: {
-        data: DriveRecentsList;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination: PaginationMetadata;
-        };
-    };
-};
-
-export type GetDriveRecentsResponse = GetDriveRecentsResponses[keyof GetDriveRecentsResponses];
 
 export type GetDriveTasksData = {
     body?: never;

@@ -162,6 +162,7 @@ export interface LoadedWindow {
   id: string;
   entries: WindowEntry[];
   truncated: boolean;
+  bindingDigest: string;
 }
 
 /**
@@ -173,7 +174,11 @@ export async function loadResultWindow(input: {
   windowId: string;
   workspaceId: string;
   actor: FileActor;
-  bindingDigest: string;
+  /**
+   * Omitted when there is no request to derive it from, e.g. turning a
+   * window into a bulk selection. The actor and epoch checks still apply.
+   */
+  bindingDigest?: string;
   epochVector: string;
   now?: Date;
 }): Promise<{ window: LoadedWindow } | { failure: LoadWindowFailure }> {
@@ -192,7 +197,10 @@ export async function loadResultWindow(input: {
   ) {
     return { failure: "actor-mismatch" };
   }
-  if (record.bindingDigest !== input.bindingDigest) {
+  if (
+    input.bindingDigest !== undefined &&
+    record.bindingDigest !== input.bindingDigest
+  ) {
     return { failure: "binding-mismatch" };
   }
   if (record.epochVector !== input.epochVector) {
@@ -204,6 +212,7 @@ export async function loadResultWindow(input: {
       id: record.id,
       entries: record.entries as unknown as WindowEntry[],
       truncated: record.truncated,
+      bindingDigest: record.bindingDigest,
     },
   };
 }

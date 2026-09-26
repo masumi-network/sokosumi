@@ -33,6 +33,10 @@
       "schedule": "0 * * * *"
     },
     {
+      "path": "/sync/drive-index",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/agents-summary",
       "schedule": "*/5 * * * *"
     },
