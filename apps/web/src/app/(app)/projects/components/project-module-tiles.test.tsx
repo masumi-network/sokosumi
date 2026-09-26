@@ -59,6 +59,11 @@ describe("ProjectModuleTiles", () => {
     );
 
     expect(container.querySelector('[aria-disabled="true"]')).toBeNull();
+    // Three tiles in a four-column grid left a quarter of the shared surface
+    // empty, which reads as a missing card rather than as a tidy row.
+    expect(
+      container.firstElementChild?.querySelector("div")?.className,
+    ).toContain("md:grid-cols-3");
     expect(screen.getByText(LABELS.comingSoon)).toBeInTheDocument();
   });
 
@@ -77,6 +82,9 @@ describe("ProjectModuleTiles", () => {
       "/projects/project-1/social",
     );
     expect(screen.getAllByRole("link")).toHaveLength(4);
+    expect(document.querySelector(".bg-card-background")?.className).toContain(
+      "md:grid-cols-4",
+    );
   });
 
   it("drops the calendar tile when the project has no calendar route", () => {

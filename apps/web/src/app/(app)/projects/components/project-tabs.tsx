@@ -66,14 +66,17 @@ export function ProjectTabs({
   return (
     // The rule runs the full width of the shell and the tabs sit on it, which
     // is what makes them read as the page's own navigation rather than as a
-    // filter control floating above the content. The wrapper scrolls, not the
-    // rule: on a narrow phone five tabs are wider than the screen, and a
-    // clipped strip would hide the last one.
-    <nav
-      aria-label={ariaLabel}
-      className="border-border -mx-4 overflow-x-auto border-b px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
-      <ul className="-mb-px flex w-fit items-center gap-5 text-sm">
+    // filter control floating above the content.
+    //
+    // The tabs wrap rather than scroll. A horizontal scroller here was worse
+    // than the problem it solved: `overflow-x: auto` computes `overflow-y`
+    // to `auto` as well, and the active tab is taller than the row by the
+    // pixel that pulls its underline onto the rule — so the browser clipped
+    // the indicator and offered a vertical scrollbar for it. Four short
+    // labels fit on one line at 390px, and a fifth wrapping to a second line
+    // is a better failure than an indicator nobody can see.
+    <nav aria-label={ariaLabel} className="border-border -mx-4 border-b px-4">
+      <ul className="-mb-px flex flex-wrap items-center gap-x-5 text-sm">
         {tabs.map((tab) => {
           const isActive = tab.id === activeId;
           return (

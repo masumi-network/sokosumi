@@ -53,6 +53,25 @@ describe("ProjectTabs", () => {
     );
   });
 
+  it("does not clip the active tab's underline", () => {
+    // The row carries the rule and the active tab overlaps it by a pixel, so
+    // the tab is taller than the row. Making the row a horizontal scroller
+    // also made it an `overflow-y: auto` box, which clipped exactly that
+    // pixel and offered a vertical scrollbar for three words.
+    pathname.current = "/projects/p1/studio";
+    const { container } = render(
+      <ProjectTabs ariaLabel="Project sections" tabs={TABS} />,
+    );
+
+    const nav = container.querySelector("nav");
+    expect(nav?.className).toContain("border-b");
+    expect(nav?.className).not.toContain("overflow-");
+    expect(container.querySelector("ul")?.className).toContain("flex-wrap");
+    expect(
+      screen.getByRole("link", { name: "Image studio" }).className,
+    ).toContain("-mb-px");
+  });
+
   it("renders real links, so a tab can be opened in a new window", () => {
     pathname.current = "/projects/p1";
     render(<ProjectTabs ariaLabel="Project sections" tabs={TABS} />);

@@ -581,7 +581,7 @@ export function ImageStudio({
             // No border and no fixed height: an empty gallery is an absence,
             // not a panel. On a project that has never generated anything it
             // offers somewhere to start instead.
-            <div className="px-1 py-10 sm:py-14">
+            <div className="px-1 py-8">
               <h3 className="text-base font-medium">
                 {filter === "all" ? labels.emptyTitle : labels.noneMatchFilter}
               </h3>
@@ -662,9 +662,12 @@ export function ImageStudio({
             />
             <aside
               id="studio-assistant"
+              // `max-xl:` rather than a set of `xl:` resets, so the two
+              // positions never depend on which utility Tailwind emits last.
               className={cn(
-                "fixed inset-x-0 bottom-0 z-50 h-[75dvh] min-w-0",
-                "xl:sticky xl:inset-auto xl:top-4 xl:z-auto xl:h-[calc(100dvh-10rem)]",
+                "min-w-0",
+                "max-xl:fixed max-xl:inset-x-0 max-xl:bottom-0 max-xl:z-50 max-xl:h-[75dvh]",
+                "xl:sticky xl:top-4 xl:h-[calc(100dvh-10rem)]",
               )}
             >
               <StudioChat

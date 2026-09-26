@@ -325,7 +325,12 @@ export function StudioComposer({
       <div className="px-3 pt-3 sm:px-4 sm:pt-4">
         <Textarea
           aria-label={labels.promptPlaceholder}
-          className="max-h-48 min-h-20 resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0 md:text-sm"
+          // `dark:bg-transparent` as well as `bg-transparent`: the Textarea
+          // primitive paints its own dark-mode fill, and a `dark:` variant is
+          // a different utility group, so it survives the class merge. In
+          // dark mode the prompt read as an inset panel inside the card
+          // rather than as the card.
+          className="max-h-48 min-h-20 resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0 md:text-sm dark:bg-transparent"
           onChange={(event) => onPromptChange(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
@@ -421,7 +426,10 @@ export function StudioComposer({
               </TriggerLabel>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-88">
+          <DropdownMenuContent
+            align="start"
+            className="w-88 max-w-[calc(100vw-2rem)]"
+          >
             <DropdownMenuLabel>{labels.placement}</DropdownMenuLabel>
             <DropdownMenuRadioGroup
               onValueChange={(value) =>
@@ -440,7 +448,12 @@ export function StudioComposer({
                 >
                   <span className="min-w-0">
                     <span className="flex min-w-0 items-baseline gap-2">
-                      <span className="truncate font-medium">
+                      {/* The name is what is being chosen, so it wraps.
+                          Truncating it turned "Instagram · Reels image
+                          concept" into "Instagram · Reels image c…", which
+                          loses exactly the part that tells two placements
+                          apart. */}
+                      <span className="min-w-0 flex-1 font-medium text-pretty">
                         {placementName(option)}
                       </span>
                       <span className="text-muted-foreground shrink-0 text-xs tabular-nums">

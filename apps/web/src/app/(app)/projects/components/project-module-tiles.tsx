@@ -2,6 +2,8 @@ import type { LucideIcon } from "lucide-react";
 import { CalendarDays, FolderOpen, ImagePlus, Share2 } from "lucide-react";
 import Link from "next/link";
 
+import { cn } from "@/lib/utils";
+
 interface ProjectModuleLabel {
   description: string;
   title: string;
@@ -59,6 +61,19 @@ const PROJECT_MODULES: {
   { icon: Share2, key: "socialMedia" },
 ];
 
+/**
+ * Column counts, spelled out.
+ *
+ * Tailwind scans for whole class names, so the count cannot be interpolated.
+ * Written out is also the honest list of how many tiles this row can hold.
+ */
+const COLUMNS: Record<number, string> = {
+  1: "md:grid-cols-1",
+  2: "md:grid-cols-2",
+  3: "md:grid-cols-3",
+  4: "md:grid-cols-4",
+};
+
 export function ProjectModuleTiles({
   calendarHref,
   labels,
@@ -84,7 +99,12 @@ export function ProjectModuleTiles({
     // `bg-background` on it and lifts to `bg-card-background-hover`, so the
     // hover is a step away from both the tile and the surface under it.
     <div className="space-y-3">
-      <div className="bg-card-background grid grid-cols-2 gap-4 rounded-xl p-2 md:grid-cols-4">
+      <div
+        className={cn(
+          "bg-card-background grid grid-cols-2 gap-4 rounded-xl p-2",
+          COLUMNS[live.length] ?? "md:grid-cols-4",
+        )}
+      >
         {live.map(({ icon: Icon, key, href }) => (
           <Link
             className="border-border bg-background hover:border-primary-tertiary hover:bg-card-background-hover focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
