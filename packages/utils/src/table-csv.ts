@@ -39,7 +39,11 @@ export function parseTableCsv(text: string): string[][] {
     } else if (char === ",") pushField();
     else if (char === "\n" || char === "\r") {
       if (char === "\r" && input[index + 1] === "\n") index++;
-      pushRow();
+      // A blank line carries no field at all, so it is a line separator and
+      // not a one-field row. Exporters routinely end a file with one, and
+      // emitting `[""]` for it fails the whole import on column count. A
+      // quoted empty field sets `closed`, so `""` stays a real row.
+      if (row.length || field || closed) pushRow();
     } else {
       if (closed) throw new Error("Unexpected text after CSV quote");
       field += char;

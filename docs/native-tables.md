@@ -4,7 +4,7 @@ Tables are live workspace resources at `/drive/tables/:id`, accessible from the 
 
 ## Storage and migration
 
-Core owns PostgreSQL access. The additive migrations `20260917220724_native_tables` and `20260917223758_table_history_order_and_task_scope` introduce fixed Prisma models for tables, columns, JSONB rows, views, history, idempotent operations and selected-task scope. The additional `20260923211500_table_change_sequence_index` migration indexes history by table and sequence for bounded ordered reads. They never create physical tables per user resource. Run `pnpm prisma:migrate:deploy`, `pnpm prisma:generate`, and build the workspace packages. An application rollback can leave these tables intact; do not drop them to roll back application code.
+Core owns PostgreSQL access. The additive migrations `20260926210000_native_tables` and `20260926210100_table_history_order_and_task_scope` introduce fixed Prisma models for tables, columns, JSONB rows, views, history, idempotent operations and selected-task scope. The additional `20260926210200_table_change_sequence_index` migration indexes history by table and sequence for bounded ordered reads. They never create physical tables per user resource. Run `pnpm prisma:migrate:deploy`, `pnpm prisma:generate`, and build the workspace packages. An application rollback can leave these tables intact; do not drop them to roll back application code.
 
 ## API and agent access
 

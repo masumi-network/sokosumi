@@ -796,3 +796,33 @@ it("sizes the raw editor and column selects like the shared editable seam", () =
     "h-10",
   );
 });
+
+it("blocks link navigation when a cell save goes unresolved after listeners install", async () => {
+  // The guard effect installs its click listener while the draft is the only
+  // reason to guard. The cell save then fails without changing React state,
+  // so a captured `unresolved` boolean would still read false and let the
+  // link navigate away from a write that may have committed.
+  f.batch.mockRejectedValueOnce(new TypeError("network lost acknowledgement"));
+  const confirmSpy = vi.fn(() => true);
+  const priorConfirm = window.confirm;
+  window.confirm = confirmSpy;
+  render(<TableEditor id={f.column.tableId} />);
+  const cell = screen.getByRole("textbox", { name: "Company" });
+  fireEvent.focus(cell);
+  fireEvent.change(cell, { target: { value: "Pending value" } });
+  fireEvent.blur(cell);
+  await waitFor(() => expect(f.batch).toHaveBeenCalledTimes(1));
+  const link = screen.getByLabelText("backToFiles");
+  const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+  link.dispatchEvent(click);
+  await waitFor(() =>
+    expect(
+      screen
+        .getAllByRole("alert")
+        .some((alert) => alert.textContent === "errors.unresolved"),
+    ).toBe(true),
+  );
+  expect(click.defaultPrevented).toBe(true);
+  expect(confirmSpy).not.toHaveBeenCalled();
+  window.confirm = priorConfirm;
+});

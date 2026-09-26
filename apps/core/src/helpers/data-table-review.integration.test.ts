@@ -416,7 +416,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
     });
 
     it("F1 HTTP: bot keys require assigned tasks on create, detail, list, query and writes", async () => {
-      const { default: app } = await import("@/routes/v1/drive/tables");
+      const { default: app } = await import("@/routes/v1/drive");
       const { generateSokoBotApiKeyToken, hashApiKey } = await import(
         "@/lib/coworker-api-key"
       );
@@ -435,7 +435,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       };
-      const response = await app.request("/", {
+      const response = await app.request("/tables", {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -461,23 +461,23 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         key: randomUUID(),
         insert: [{ values: {} }],
       });
-      const denied = await app.request(`/${table.id}/rows`, {
+      const denied = await app.request(`/tables/${table.id}/rows`, {
         method: "POST",
         headers: { ...headers, "X-Table-Task-Id": task.id },
         body,
       });
       expect(denied.status).toBe(403);
-      const allowed = await app.request(`/${table.id}/rows`, {
+      const allowed = await app.request(`/tables/${table.id}/rows`, {
         method: "POST",
         headers,
         body,
       });
       expect(allowed.status, await allowed.clone().text()).toBe(403);
-      for (const path of ["/", `/${table.id}`])
+      for (const path of ["/tables", `/tables/${table.id}`])
         expect((await app.request(path, { headers })).status).toBe(403);
       expect(
         (
-          await app.request(`/${table.id}/query`, {
+          await app.request(`/tables/${table.id}/query`, {
             method: "POST",
             headers,
             body: "{}",
@@ -490,7 +490,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
       });
       expect(
         (
-          await app.request(`/${table.id}/rows`, {
+          await app.request(`/tables/${table.id}/rows`, {
             method: "POST",
             headers: { ...headers, "X-Table-Task-Id": task.id },
             body,
@@ -500,7 +500,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
     });
 
     it("SECURITY: coworker assigned scope and terminal grants enforced through HTTP", async () => {
-      const { default: app } = await import("@/routes/v1/drive/tables");
+      const { default: app } = await import("@/routes/v1/drive");
       const { generateCoworkerApiKeyToken, hashApiKey } = await import(
         "@/lib/coworker-api-key"
       );
@@ -552,7 +552,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
           "Content-Type": "application/json",
         };
         const query = () =>
-          app.request(`/${table.id}/query`, {
+          app.request(`/tables/${table.id}/query`, {
             method: "POST",
             headers: { ...headers, "X-Table-Task-Id": task.id },
             body: "{}",
@@ -560,13 +560,13 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         const response = await query();
         expect(response.status, await response.clone().text()).toBe(200);
         expect((await response.json()).data).toHaveLength(1);
-        const missing = await app.request(`/${table.id}/query`, {
+        const missing = await app.request(`/tables/${table.id}/query`, {
           method: "POST",
           headers,
           body: "{}",
         });
         expect(missing.status).toBe(403);
-        const foreign = await app.request(`/${randomUUID()}/query`, {
+        const foreign = await app.request(`/tables/${randomUUID()}/query`, {
           method: "POST",
           headers: { ...headers, "X-Table-Task-Id": task.id },
           body: "{}",

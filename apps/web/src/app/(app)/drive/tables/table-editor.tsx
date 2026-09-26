@@ -146,12 +146,17 @@ function TableWorkspace({
     useState<Parameters<typeof dataTableService.enrich>[1]>();
   const [taskId, setTaskId] = useState<string | null>(null);
   useEffect(() => {
-    const unresolved =
+    // Read the pending state when a handler runs, not when the effect does.
+    // `mutate.hasPending()` is not React state, so a request that goes
+    // unresolved after the listeners are installed re-renders nothing, and a
+    // captured boolean would let a link navigate away from a write that may
+    // have committed. `allowNavigation` reads it live for the same reason.
+    const isUnresolved = () =>
       pending ||
       !!retryAction ||
       mutate.hasPending() ||
       (!!enrichmentRequest && !taskId);
-    if (!hasDrafts && !unresolved) return;
+    if (!hasDrafts && !isUnresolved()) return;
     function beforeUnload(event: BeforeUnloadEvent) {
       event.preventDefault();
       event.returnValue = "";
@@ -162,7 +167,7 @@ function TableWorkspace({
           ? event.target.closest("a[href]")
           : null;
       if (!anchor || anchor.getAttribute("target") === "_blank") return;
-      if (unresolved) {
+      if (isUnresolved()) {
         event.preventDefault();
         event.stopPropagation();
         setError(t("errors.unresolved"));

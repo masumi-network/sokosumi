@@ -1,6 +1,6 @@
 import { bodyLimit } from "hono/body-limit";
 import { unprocessableEntity } from "@/helpers/error";
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { createNestedOpenAPIHono } from "@/lib/hono";
 import mountBatch from "./batch.js";
 import mountDetail from "./detail.js";
 import mountEnrich from "./enrich.js";
@@ -12,10 +12,12 @@ import mountQuery from "./query.js";
 import mountUndo from "./undo.js";
 import mountViews from "./views.js";
 
-const app = new OpenAPIHonoWithAuth({
-  includeWorkspaceContext: true,
-  requireOrganizationProductSeat: true,
-});
+// The parent Drive router already applies authentication, coworker and
+// organization context, workspace resolution and the seat check with these
+// same options, as it does for the files, folders, recents and tasks
+// sub-routers. Re-registering them here repeated that work on every table
+// request. The 1 MB body limit stays: it is specific to table payloads.
+const app = createNestedOpenAPIHono();
 app.use(
   "*",
   bodyLimit({
