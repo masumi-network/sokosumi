@@ -65,7 +65,10 @@ vi.mock("@/clients/stripe.client", () => ({
   },
 }));
 
-import { stripeBillingService } from "./stripe-billing.service";
+import {
+  stripeAmountToMajorUnits,
+  stripeBillingService,
+} from "./stripe-billing.service";
 
 const PRICE = (amountPerCredit: number) => ({
   id: `price_${amountPerCredit}`,
@@ -468,12 +471,29 @@ describe("claimCoupon validation", () => {
   });
 });
 
+describe("stripeAmountToMajorUnits", () => {
+  it("divides two-decimal currencies by 100", () => {
+    expect(stripeAmountToMajorUnits(4900, "eur")).toBe(49);
+    expect(stripeAmountToMajorUnits(4999, "USD")).toBe(49.99);
+  });
+
+  it("leaves zero-decimal currencies alone", () => {
+    expect(stripeAmountToMajorUnits(4900, "jpy")).toBe(4900);
+    expect(stripeAmountToMajorUnits(4900, "KRW")).toBe(4900);
+  });
+
+  it("divides three-decimal currencies by 1000", () => {
+    expect(stripeAmountToMajorUnits(4900, "kwd")).toBe(4.9);
+  });
+});
+
 describe("getCheckoutSessionAnalytics ownership", () => {
   beforeEach(() => {
     getCheckoutSessionMock.mockResolvedValue({
       id: "cs_123",
       status: "complete",
       amount_total: 12000,
+      amount_subtotal: 12000,
       currency: "eur",
       customer: "cus_user",
       line_items: { data: [] },
@@ -492,7 +512,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
     expect(analytics).toMatchObject({
       sessionId: "cs_123",
       currency: "eur",
-      value: 12000,
+      value: 120,
     });
   });
 
@@ -505,6 +525,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
       id: "cs_123",
       status: "complete",
       amount_total: 12000,
+      amount_subtotal: 12000,
       currency: "eur",
       customer: "cus_org",
       line_items: { data: [] },
@@ -525,6 +546,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
       status: "complete",
       payment_status: "paid",
       amount_total: 4900,
+      amount_subtotal: 4900,
       currency: "eur",
       customer: "cus_org_new",
       line_items: {
@@ -548,7 +570,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
     ).resolves.toEqual({
       sessionId: "cs_sub",
       currency: "eur",
-      value: 4900,
+      value: 49,
       items: [{ itemId: "prod_pro", itemName: "Pro", quantity: 3 }],
     });
   });
@@ -562,6 +584,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
       status: "complete",
       payment_status: "paid",
       amount_total: 4900,
+      amount_subtotal: 4900,
       currency: "eur",
       customer: "cus_org_new",
       line_items: { data: [] },
@@ -573,6 +596,26 @@ describe("getCheckoutSessionAnalytics ownership", () => {
     ).rejects.toThrow("Checkout session not found");
   });
 
+  it("reports net value in major units: after discounts, before tax", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_user" });
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_tax",
+      status: "complete",
+      payment_status: "paid",
+      amount_subtotal: 4900,
+      amount_total: 4760,
+      total_details: { amount_discount: 900, amount_tax: 760 },
+      currency: "eur",
+      customer: "cus_user",
+      line_items: { data: [] },
+      metadata: {},
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_tax", "user_1"),
+    ).resolves.toMatchObject({ currency: "eur", value: 40 });
+  });
+
   it("returns zero value for a subscription trial that needs no payment", async () => {
     findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_user" });
     getCheckoutSessionMock.mockResolvedValue({
@@ -581,6 +624,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
       status: "complete",
       payment_status: "no_payment_required",
       amount_total: 0,
+      amount_subtotal: 0,
       currency: "eur",
       customer: "cus_user",
       line_items: { data: [] },
@@ -600,6 +644,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
       status: "complete",
       payment_status: "unpaid",
       amount_total: 4900,
+      amount_subtotal: 4900,
       currency: "eur",
       customer: "cus_user",
       line_items: { data: [] },
@@ -625,6 +670,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
       id: "cs_123",
       status: "open",
       amount_total: 12000,
+      amount_subtotal: 12000,
       currency: "eur",
       customer: "cus_user",
       line_items: { data: [] },

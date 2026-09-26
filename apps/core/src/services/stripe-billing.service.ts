@@ -65,6 +65,64 @@ function getCreditsForCoupon(coupon: Stripe.Coupon): number {
   return credits;
 }
 
+/**
+ * Stripe's non-two-decimal currencies. Amounts arrive in the smallest unit:
+ * zero-decimal ones are already whole units, three-decimal ones are thousandths.
+ * https://docs.stripe.com/currencies#special-cases
+ */
+const STRIPE_ZERO_DECIMAL_CURRENCIES = new Set([
+  "bif",
+  "clp",
+  "djf",
+  "gnf",
+  "jpy",
+  "kmf",
+  "krw",
+  "mga",
+  "pyg",
+  "rwf",
+  "ugx",
+  "vnd",
+  "vuv",
+  "xaf",
+  "xof",
+  "xpf",
+]);
+const STRIPE_THREE_DECIMAL_CURRENCIES = new Set([
+  "bhd",
+  "jod",
+  "kwd",
+  "omr",
+  "tnd",
+]);
+
+export function stripeAmountToMajorUnits(
+  amount: number,
+  currency: string,
+): number {
+  const code = currency.toLowerCase();
+  if (STRIPE_ZERO_DECIMAL_CURRENCIES.has(code)) return amount;
+  const exponent = STRIPE_THREE_DECIMAL_CURRENCIES.has(code) ? 3 : 2;
+  return amount / 10 ** exponent;
+}
+
+/**
+ * Revenue for analytics, in major units: subtotal after discounts, excluding
+ * tax and shipping. Null when Stripe did not report an amount or currency.
+ */
+function getCheckoutSessionNetValue(
+  session: Stripe.Checkout.Session,
+): number | null {
+  if (session.amount_subtotal === null || !session.currency) {
+    return null;
+  }
+  const discount = session.total_details?.amount_discount ?? 0;
+  return stripeAmountToMajorUnits(
+    session.amount_subtotal - discount,
+    session.currency,
+  );
+}
+
 function mapCheckoutSessionAnalytics(session: Stripe.Checkout.Session): {
   sessionId: string;
   currency: string | null;
@@ -101,7 +159,7 @@ function mapCheckoutSessionAnalytics(session: Stripe.Checkout.Session): {
   return {
     sessionId: session.id,
     currency: session.currency,
-    value: session.amount_total,
+    value: getCheckoutSessionNetValue(session),
     items,
   };
 }

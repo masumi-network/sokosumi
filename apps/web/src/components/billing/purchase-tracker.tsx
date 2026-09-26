@@ -2,6 +2,11 @@
 
 import { useEffect } from "react";
 
+import {
+  CONSENT_CHANGE_EVENT,
+  type ConsentChoice,
+  readConsent,
+} from "@/lib/analytics/consent";
 import type { CheckoutSessionAnalytics } from "@/lib/clients/generated/core";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
@@ -23,6 +28,8 @@ export interface CheckoutSessionData {
 /**
  * Fires at most once per checkout session id: in memory for this JS realm, and
  * in sessionStorage so reloading the Stripe return URL does not fire again.
+ * An id is only marked once the event was pushed with analytics consent
+ * granted; GTM drops it otherwise, so marking earlier would lose it for good.
  */
 const firedPurchaseSessionIds = new Set<string>();
 const FIRED_STORAGE_PREFIX = "sokosumi_purchase_fired:";
@@ -58,11 +65,27 @@ export function PurchaseTracker({ checkoutSession }: PurchaseTrackerProps) {
   useEffect(() => {
     const { session_id, currency, value, items } =
       mapCheckoutSession(checkoutSession);
+
+    function fireIfGranted(consent: ConsentChoice | null) {
+      if (!consent?.analytics || hasFired(session_id)) {
+        return;
+      }
+      markFired(session_id);
+      fireGTMEvent.purchase(session_id, currency, value, items);
+    }
+
+    fireIfGranted(readConsent());
     if (hasFired(session_id)) {
       return;
     }
-    markFired(session_id);
-    fireGTMEvent.purchase(session_id, currency, value, items);
+
+    // No decision yet (or refused): wait for the banner. A refusal never fires.
+    function handleConsentChange(event: Event) {
+      fireIfGranted((event as CustomEvent<ConsentChoice>).detail);
+    }
+    window.addEventListener(CONSENT_CHANGE_EVENT, handleConsentChange);
+    return () =>
+      window.removeEventListener(CONSENT_CHANGE_EVENT, handleConsentChange);
   }, [checkoutSession]);
 
   return null;

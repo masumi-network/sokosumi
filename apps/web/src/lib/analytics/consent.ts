@@ -12,6 +12,8 @@
 
 export const CONSENT_COOKIE = "sokosumi_consent";
 export const CONSENT_VERSION = 1;
+/** Window event dispatched after a banner choice is applied; `detail` is the ConsentChoice. */
+export const CONSENT_CHANGE_EVENT = "sokosumi:consent-change";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 182; // ~6 months, then we ask again
 
 export interface ConsentChoice {
@@ -121,5 +123,8 @@ export function applyConsentMode(choice: ConsentChoice): void {
       consent_analytics: choice.analytics ? "granted" : "denied",
       consent_marketing: choice.marketing ? "granted" : "denied",
     });
+    window.dispatchEvent(
+      new CustomEvent<ConsentChoice>(CONSENT_CHANGE_EVENT, { detail: choice }),
+    );
   }
 }

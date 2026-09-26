@@ -155,13 +155,27 @@ Core returns 404 unless the session is `complete`, its `payment_status` is not
 `unpaid` (async payments that have not cleared, or a subscription that is not
 active yet), and it belongs to the caller (`metadata.userId`, or a Stripe
 customer of the user or one of their organizations). The event values come from
-Stripe, not the URL: `transaction_id` = Checkout Session id, `value` =
-`amount_total` (in the smallest currency unit), `currency`, and `items` from the
-line items' products (the plan name for subscriptions). A trial or 100 % coupon
-completes with `no_payment_required` and fires with `value` 0.
-`PurchaseTracker` fires once per session id, remembered in memory and in
-`sessionStorage`, so a tab switch or a reload of the return URL does not fire it
-again (a different tab or browser could; GA4 dedupes on `transaction_id`).
+Stripe, not the URL: `transaction_id` = Checkout Session id, `currency`, and
+`items` from the line items' products (the plan name for subscriptions; items
+carry no price). `value` is **net revenue in major units**: `amount_subtotal`
+minus discounts, **excluding tax**, converted with Stripe's minor-unit exponent
+(EUR 4900 → 49, JPY 4900 → 4900, KWD 4900 → 4.9;
+`stripeAmountToMajorUnits` in Core). A trial or 100 % coupon completes with
+`no_payment_required` and fires with `value` 0.
+
+Before Sept 2026 `value` was Stripe's raw `amount_total` (minor units, tax
+included), so historical GA4/Ads revenue for credit purchases is ~100× too high.
+Compare periods across that change with care.
+
+`PurchaseTracker` pushes only while **analytics consent is granted**
+(`sokosumi_consent`). With no decision yet it waits for the banner
+(`CONSENT_CHANGE_EVENT`, dispatched by `applyConsentMode` after
+`consent_status`) and fires then; a refusal never fires. A session id is marked
+as fired, in memory and in `sessionStorage`, only once it was actually pushed,
+so a tab switch or a reload of the return URL does not fire it again, while a
+purchase blocked by missing consent can still fire after a later grant on the
+same page or a reload. A different tab or browser could fire it again; GA4
+dedupes on `transaction_id`.
 
 - **Credits / coupons**: Core creates the session with
   `success_url=…?session_id={CHECKOUT_SESSION_ID}`; `CreditsCheckoutReturn`
