@@ -46,7 +46,14 @@ cron (every five minutes). Creation and title/description edits enqueue work via
 the database trigger. Enabling also drains tasks already `pending` from earlier
 creates/edits while disabled; untouched `unclassified` tasks remain untouched.
 Vercel preview deployments do not run production crons, so preview verification
-must invoke the authenticated sync route explicitly. Missing configuration,
+must invoke the authenticated sync route explicitly. For fixture-only verification,
+`/sync/task-tags?fixtureTaskId=<uuid>&fixtureOwnerId=<owner>` requires the same
+cron authentication and is accepted only with `VERCEL_ENV=preview`. Both IDs are
+required; malformed or unknown parameters never fall through to the global
+queue. Selection and persistence are constrained to that owner’s one unarchived
+Draft task whose name starts with `SYNTHETIC `. This does not enqueue old tasks,
+change retries, or bypass revision/lease guards. Use only synthetic test-owned
+fixtures and a branch-specific preview credential. Missing configuration,
 unavailable discovery, or privacy-compatible routing failure leaves creation and
 manual corrections independent of classification. No production deployment or
 backfill is part of this change.
