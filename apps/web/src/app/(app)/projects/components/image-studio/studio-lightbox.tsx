@@ -2,7 +2,7 @@
 
 import { Check, ChevronLeft, ChevronRight, Download, X } from "lucide-react";
 import { useFormatter } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -37,10 +37,12 @@ export function StudioLightbox({
   assets,
   busy,
   catalog,
+  drafts,
   labels,
   onApprove,
   onClearReview,
   onClose,
+  onDraftChange,
   onRegenerate,
   onStep,
   onUseAsReference,
@@ -51,10 +53,19 @@ export function StudioLightbox({
   assets: StudioAsset[];
   busy: boolean;
   catalog: StudioCatalog;
+  /**
+   * Unsaved notes by version, owned by the studio.
+   *
+   * Local state here did not survive the component being unmounted, which is
+   * what closing the lightbox does — so a note vanished on the way to look at
+   * anything else.
+   */
+  drafts: Record<string, string>;
   labels: StudioLabels;
   onApprove: (assetId: string, feedback: string) => void;
   onClearReview: (assetId: string) => void;
   onClose: () => void;
+  onDraftChange: (assetId: string, value: string) => void;
   onRegenerate: (asset: StudioAsset) => void;
   /** Move to the previous/next image; only offered while showing one. */
   onStep: (delta: number) => void;
@@ -63,8 +74,6 @@ export function StudioLightbox({
   projectId: string;
   stepping: { hasPrevious: boolean; hasNext: boolean };
 }) {
-  /** Notes keyed by version, so a note written on v1 cannot be filed on v2. */
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
   // Formatted on the client: these rows arrive from a poll, so there is no
   // server render to format them in, and a raw ISO string is not a date
   // anybody reads.
@@ -184,9 +193,7 @@ export function StudioLightbox({
                   labels={labels}
                   onApprove={onApprove}
                   onClearReview={onClearReview}
-                  onDraftChange={(value) =>
-                    setDrafts((current) => ({ ...current, [single.id]: value }))
-                  }
+                  onDraftChange={(value) => onDraftChange(single.id, value)}
                   onReject={onReject}
                 />
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -243,12 +250,7 @@ export function StudioLightbox({
                     labels={labels}
                     onApprove={onApprove}
                     onClearReview={onClearReview}
-                    onDraftChange={(value) =>
-                      setDrafts((current) => ({
-                        ...current,
-                        [asset.id]: value,
-                      }))
-                    }
+                    onDraftChange={(value) => onDraftChange(asset.id, value)}
                     onReject={onReject}
                   />
                 </div>

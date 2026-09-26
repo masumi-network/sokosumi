@@ -31,7 +31,19 @@ export function StudioImage({
   label: string;
   projectId: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  /**
+   * *Which* version failed to load, not merely that one did.
+   *
+   * A bare boolean outlives the asset it was about. The single-image lightbox
+   * reuses this component as its arrows move between versions, so one missing
+   * file marked every version stepped to afterwards as unavailable — the
+   * fallback stayed on screen and no `img` was ever created for the next URL.
+   * Keying the failure to an id makes the flag false again the moment a
+   * different version is rendered, and correctly true again if you step back
+   * to the broken one.
+   */
+  const [failedAssetId, setFailedAssetId] = useState<string | null>(null);
+  const failed = failedAssetId === asset.id;
 
   if (failed) {
     return (
@@ -57,7 +69,7 @@ export function StudioImage({
         className,
       )}
       loading="lazy"
-      onError={() => setFailed(true)}
+      onError={() => setFailedAssetId(asset.id)}
       src={assetContentUrl(projectId, asset.id)}
     />
   );

@@ -76,6 +76,17 @@ export function ImageStudio({
   const [cancelRequestedJobIds, setCancelRequestedJobIds] = useState<string[]>(
     [],
   );
+  /**
+   * Unsaved review notes, keyed by version and owned here rather than by the
+   * lightbox.
+   *
+   * Closing the lightbox unmounts it, so a note typed but not yet approved
+   * died the moment someone closed the details to look at the gallery, at
+   * another version, or pressed "Use as reference" — which closes it too.
+   * Holding the drafts above the thing that unmounts is what makes a
+   * half-written note survive ordinary navigation.
+   */
+  const [reviewDrafts, setReviewDrafts] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -119,10 +130,23 @@ export function ImageStudio({
     selectAsset,
     state,
     activeJobs,
+    applyAsset,
     refresh,
     loadOlder,
     hasOlder,
   } = studio;
+
+  const setReviewDraft = useCallback((assetId: string, value: string) => {
+    setReviewDrafts((current) => ({ ...current, [assetId]: value }));
+  }, []);
+
+  const clearReviewDraft = useCallback((assetId: string) => {
+    setReviewDrafts((current) => {
+      if (!(assetId in current)) return current;
+      const { [assetId]: _saved, ...rest } = current;
+      return rest;
+    });
+  }, []);
 
   const queue = useGenerationQueue({
     projectId,
@@ -172,6 +196,17 @@ export function ImageStudio({
         ? [selectedAsset]
         : [];
 
+  /**
+   * Record a decision, and keep the version that was decided on.
+   *
+   * The mutation's return value is the server's copy of the asset, and it is
+   * folded straight into state. Relying on the refresh instead only worked
+   * while reviews could target the selected version: the refresh pins that
+   * one version and returns the newest page, so a decision made from
+   * comparison on an older, unselected version came back in nothing, and its
+   * row kept the decision it had before the save — on its pane, its gallery
+   * badge, and its filter membership, through every later poll.
+   */
   function handleReview(
     assetId: string,
     decision: "APPROVED" | "REJECTED",
@@ -180,12 +215,16 @@ export function ImageStudio({
     setActionError(null);
     startTransition(async () => {
       try {
-        await reviewImageVersion({
+        const updated = await reviewImageVersion({
           projectId,
           assetId,
           decision,
           feedback: feedback.trim() === "" ? null : feedback.trim(),
         });
+        applyAsset(updated);
+        // The note has been accepted, so the unsaved draft is no longer
+        // unsaved; dropping it lets the saved feedback show through.
+        clearReviewDraft(assetId);
         await refresh();
       } catch (error) {
         setActionError(error instanceof Error ? error.message : labels.failed);
@@ -196,7 +235,9 @@ export function ImageStudio({
   function handleClearReview(assetId: string) {
     startTransition(async () => {
       try {
-        await clearImageVersionReview({ projectId, assetId });
+        const updated = await clearImageVersionReview({ projectId, assetId });
+        applyAsset(updated);
+        clearReviewDraft(assetId);
         await refresh();
       } catch (error) {
         setActionError(error instanceof Error ? error.message : labels.failed);
@@ -568,10 +609,12 @@ export function ImageStudio({
           assets={lightboxAssets}
           busy={pending}
           catalog={catalog}
+          drafts={reviewDrafts}
           labels={labels}
           onApprove={(assetId, feedback) =>
             handleReview(assetId, "APPROVED", feedback)
           }
+          onDraftChange={setReviewDraft}
           onClearReview={handleClearReview}
           onClose={() => setViewing(null)}
           onReject={(assetId, feedback) =>
