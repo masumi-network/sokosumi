@@ -10,8 +10,8 @@ import { requireAdminAuthContext } from "@/middleware/auth";
 import mountRemoveAdminOrganizationMember from "./delete";
 
 const {
-  getAdminOrganizationBySlugMock,
-  getMemberByIdAndOrganizationIdMock,
+  organizationFindUniqueMock,
+  memberFindFirstMock,
   removeMemberMock,
   applyOrganizationExitChatRevocationMock,
   publishOrganizationExitChatRevocationMock,
@@ -28,8 +28,8 @@ const {
       role: "admin",
     } as AuthenticationContext,
   },
-  getAdminOrganizationBySlugMock: vi.fn(),
-  getMemberByIdAndOrganizationIdMock: vi.fn(),
+  organizationFindUniqueMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   removeMemberMock: vi.fn(),
   applyOrganizationExitChatRevocationMock: vi.fn(),
   publishOrganizationExitChatRevocationMock: vi.fn(),
@@ -42,18 +42,17 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (callback: (tx: unknown) => unknown) =>
       transactionMock(callback),
+    organization: {
+      findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
+    },
+    member: {
+      findFirst: (...args: unknown[]) => memberFindFirstMock(...args),
+    },
   },
-}));
-
-vi.mock("@/helpers/admin-organization-overview.js", () => ({
-  getAdminOrganizationBySlug: (...args: unknown[]) =>
-    getAdminOrganizationBySlugMock(...args),
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
-    getMemberByIdAndOrganizationId: (...args: unknown[]) =>
-      getMemberByIdAndOrganizationIdMock(...args),
     removeMember: (...args: unknown[]) => removeMemberMock(...args),
   },
 }));
@@ -115,8 +114,8 @@ const MEMBER = {
 describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getAdminOrganizationBySlugMock.mockResolvedValue(ORG);
-    getMemberByIdAndOrganizationIdMock.mockResolvedValue(MEMBER);
+    organizationFindUniqueMock.mockResolvedValue(ORG);
+    memberFindFirstMock.mockResolvedValue(MEMBER);
     removeMemberMock.mockResolvedValue(undefined);
     applyOrganizationExitChatRevocationMock.mockResolvedValue({
       revokedRoomIds: ["room-1"],
@@ -191,7 +190,7 @@ describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
   });
 
   it("returns 404 when the organization is missing", async () => {
-    getAdminOrganizationBySlugMock.mockResolvedValueOnce(null);
+    organizationFindUniqueMock.mockResolvedValueOnce(null);
 
     const app = createApp();
     const response = await app.request(
