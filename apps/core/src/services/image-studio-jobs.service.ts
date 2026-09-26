@@ -865,24 +865,50 @@ export async function settleWithImage(
     .digest("hex");
   const dimensions = readPngDimensions(downloaded.bytes);
 
-  // Private, so the bytes are only reachable through the authorized streaming
-  // route, which checks access per request. The pathname is therefore a
-  // storage coordinate, not a secret, and it is deliberately deterministic:
-  // a random suffix meant that settlers racing the same job each wrote their
-  // own object, and the losers' objects were left behind with nothing
-  // referencing them. One job, one object, overwritten idempotently.
-  const blob = await put(
-    `projects/${job.projectId}/image-studio/${job.id}-${checksum.slice(0, 16)}`,
-    downloaded.bytes as unknown as Buffer,
-    {
-      access: "private",
-      contentType: downloaded.contentType,
-      token: env.BLOB_READ_WRITE_TOKEN,
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      abortSignal: AbortSignal.timeout(60_000),
-    },
-  );
+  // `access` has to match how the store itself is configured: a private `put`
+  // against a public store is refused outright ("Cannot use private access on
+  // a public store"), and `BLOB_READ_WRITE_TOKEN` on both networks names the
+  // one shared public store every other Core upload already writes to
+  // (project files, DESIGN.md, avatars, user uploads). Asking for private
+  // access here meant every generation reached fal, was paid for, and then
+  // failed to settle forever. The app-level guarantee is unchanged and does
+  // not come from the store: the bytes are served only by the authorized
+  // streaming route, which re-checks project access on every request, and the
+  // pathname carries a content hash rather than being enumerable.
+  //
+  // The pathname is deliberately deterministic: a random suffix meant that
+  // settlers racing the same job each wrote their own object, and the losers'
+  // objects were left behind with nothing referencing them. One job, one
+  // object, overwritten idempotently.
+  let blob: Awaited<ReturnType<typeof put>>;
+  try {
+    blob = await put(
+      `projects/${job.projectId}/image-studio/${job.id}-${checksum.slice(0, 16)}`,
+      downloaded.bytes as unknown as Buffer,
+      {
+        access: "public",
+        contentType: downloaded.contentType,
+        token: env.BLOB_READ_WRITE_TOKEN,
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        abortSignal: AbortSignal.timeout(60_000),
+      },
+    );
+  } catch (error) {
+    // The same reasoning as the download above, and the same treatment. This
+    // was the one settlement step that let its failure escape: the lease
+    // stayed held, nothing was recorded on the row, and the caller only logged
+    // it — so a store that refuses every write showed as "Generating" with no
+    // error and no end. Releasing and noting it keeps the job recoverable and
+    // lets the outage clock eventually say so.
+    await releaseSettlementLease(job.id, lease);
+    await noteUnreachable(
+      job.id,
+      error instanceof Error ? error.message : "image storage write failed",
+      "result",
+    );
+    return;
+  }
 
   try {
     await insertAsset({

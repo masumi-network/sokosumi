@@ -224,7 +224,81 @@ describe("concurrent settlement", () => {
     // copies were left behind unreferenced.
     expect(options.addRandomSuffix).toBe(false);
     expect(options.allowOverwrite).toBe(true);
-    expect(options.access).toBe("private");
+    // Must match how the store is configured. `BLOB_READ_WRITE_TOKEN` names
+    // the shared public store every other Core upload writes to, and a
+    // private put against a public store is refused outright — so asking for
+    // private here made every generation reach fal, get paid for, and then
+    // never settle. Reads in image-studio-assets.service.ts say `public` for
+    // the same reason; the two have to agree.
+    expect(options.access).toBe("public");
     expect(putMock.mock.calls[0]![0]).toContain("job-1");
+  });
+});
+
+describe("a settlement whose storage write fails", () => {
+  // The put was the one settlement step with no failure handling: it threw
+  // past the lease it was holding, wrote nothing to the row, and left the
+  // caller to log it. A store that refuses every write therefore showed in the
+  // UI as "Generating", with no error and no end, until someone read the
+  // server log.
+  beforeEach(() => {
+    putMock.mockRejectedValue(
+      new Error(
+        "Vercel Blob: Cannot use private access on a public store. The store must be configured with private access.",
+      ),
+    );
+  });
+
+  it("does not let the failure escape the settler", async () => {
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
+
+    await expect(
+      settleWithImage("job-1", "https://v3b.fal.media/files/a.png"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("hands the lease back to the owner that took it", async () => {
+    const calls: Array<{
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    }> = [];
+    jobUpdateManyMock.mockImplementation(async (args: never) => {
+      calls.push(
+        args as unknown as {
+          where: Record<string, unknown>;
+          data: Record<string, unknown>;
+        },
+      );
+      return { count: 1 };
+    });
+    jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    const claim = calls.find((call) => call.data.settleLeaseOwner != null);
+    const release = calls.find(
+      (call) => call.data.settleLeaseAt === null && call.where.settleLeaseOwner,
+    );
+    // Without this the row stayed locked for the whole lease window after
+    // every attempt, so nothing else could pick the paid image back up.
+    expect(release).toBeDefined();
+    expect(release?.where.settleLeaseOwner).toBe(claim?.data.settleLeaseOwner);
+  });
+
+  it("records the failure on the job as a result outage", async () => {
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    const noted = jobUpdateMock.mock.calls
+      .map((call) => (call[0] as { data: Record<string, unknown> }).data)
+      .find((data) => "lastPollError" in data);
+    // The same treatment the download failure above already gets: the image is
+    // paid for and still recoverable, so the job stays live — but the reason
+    // is on the row, and the outage clock that eventually says so has started.
+    expect(noted?.unreachableSource).toBe("result");
+    expect(String(noted?.lastPollError)).toContain("public store");
   });
 });

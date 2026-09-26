@@ -234,8 +234,12 @@ export async function openAssetStream(options: {
   });
   if (!asset) throw notFound("Image not found");
 
+  // Matches how the settler wrote it, which in turn matches how the store is
+  // configured; see the `put` in image-studio-jobs.service.ts. Reading is
+  // still gated: `requireProjectAccess` above is what decides whether this
+  // caller may have the bytes at all.
   const result = await get(asset.blobPathname, {
-    access: "private",
+    access: "public",
     token: getEnv().BLOB_READ_WRITE_TOKEN,
   });
   if (!result || result.statusCode !== 200) {
@@ -254,7 +258,7 @@ export async function readAssetBytes(
   blobPathname: string,
 ): Promise<Uint8Array> {
   const result = await get(blobPathname, {
-    access: "private",
+    access: "public",
     token: getEnv().BLOB_READ_WRITE_TOKEN,
   });
   if (!result || result.statusCode !== 200) {

@@ -63,6 +63,21 @@ missing — but read the project rather than trusting that sentence:
 `vercel env ls preview --cwd apps/core` lists names and targets without
 revealing any value.
 
+**The store behind that token is a public one, and the studio writes to it as
+such.** `BLOB_READ_WRITE_TOKEN` on both networks names the single shared store
+(`sokosumi-preprod-blob`, `sokosumi-mainnet-blob`) that project files,
+DESIGN.md, avatars and user uploads already write to with `access: "public"`.
+Vercel decides public or private per *store*, not per object, and a private
+`put` against a public store is refused outright — so the studio uses `public`
+too. What keeps a version from being readable by anyone is not the store: it is
+that the only way the product hands the bytes out is
+`GET /api/projects/:projectId/image-studio/assets/:assetId/content`, which
+re-checks project access on every request, and that the pathname carries a
+content hash rather than being enumerable. If a network is ever given a
+dedicated private store for the studio, the `access` in
+`image-studio-jobs.service.ts` and `image-studio-assets.service.ts` has to move
+with it; they must always agree with each other and with the store.
+
 No credential belongs in a `NEXT_PUBLIC_*` variable. The browser never sees the
 Gateway key or either HMAC secret — it only ever holds the five-minute token
 the Web route mints for it.
@@ -156,7 +171,10 @@ first — only step 1 is free.
    adding. **This step already costs money**: the turn is a billed Gateway
    call, priced per token, before any image exists.
 3. Generate one image. This adds the fal charge and is the first call that needs
-   `FAL_KEY` and `BLOB_READ_WRITE_TOKEN` as well.
+   `FAL_KEY` and `BLOB_READ_WRITE_TOKEN` as well. Watch it *settle*, not just
+   start: a version has to appear. A tile that stays **Generating** for minutes
+   after fal is done means settlement is failing, and the job row carries the
+   reason in `lastPollError` with `unreachableSource = result`.
 
 ## Deploy side effects
 

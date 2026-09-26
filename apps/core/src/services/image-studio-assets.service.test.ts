@@ -102,7 +102,7 @@ describe("image studio versions and reviews", () => {
 
   it("streams bytes only after re-authorizing, and never exposes a storage path", async () => {
     assetFindFirstMock.mockResolvedValue({
-      blobPathname: "projects/p/image-studio/private-object",
+      blobPathname: "projects/p/image-studio/stored-object",
       contentType: "image/png",
       checksum: "abc",
     });
@@ -114,13 +114,18 @@ describe("image studio versions and reviews", () => {
 
     const result = await openAssetStream({ ...SCOPE, assetId: "asset-1" });
 
+    // Authorization is this call, not the storage mode: the settler writes
+    // into the shared public store because that is the only store the
+    // platform provisions, so what keeps the bytes private is that they are
+    // served from here and nowhere else in the product.
     expect(requireProjectAccessMock).toHaveBeenCalledWith(
       expect.objectContaining({ assetId: "asset-1" }),
     );
-    // Read as a private object; there is no URL that works without this route.
+    // Has to agree with the `put` in image-studio-jobs.service.ts; a mismatch
+    // is rejected by the store rather than falling back.
     expect(getMock).toHaveBeenCalledWith(
-      "projects/p/image-studio/private-object",
-      expect.objectContaining({ access: "private" }),
+      "projects/p/image-studio/stored-object",
+      expect.objectContaining({ access: "public" }),
     );
     expect(Object.keys(result)).toEqual([
       "stream",
