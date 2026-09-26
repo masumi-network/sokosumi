@@ -1,0 +1,225 @@
+# Intelligent Files — implementation plan (Jev-only revision)
+
+Status: active implementation plan for branch `codepat/intelligent-files-01a0df94`.
+
+This plan is the build-order translation of the reviewed design. It supersedes the
+provider selection, the EU-specific requirements and the planning-only restriction in
+the research deliverables. Everything else in those deliverables — the F1–F9 review
+corrections, the product/interaction specification and the state contract — stays in
+force and is the acceptance baseline for this branch.
+
+Source of record for the design: `FILES-PLAN-FINAL.md` and
+`10-JEV-ONLY-IMPLEMENTATION.md` in the research workspace
+(`sokosumi-files-plan-01a0df94/deliverables/`). The historical research is preserved
+there unchanged; nothing in this document rewrites those findings.
+
+## 1. Provider decision
+
+**Jev (`typesafe-ai/jev`) through the existing Vercel AI Gateway integration is the
+sole AI model** for Files relevance evaluation, related-document ranking and
+taxonomy/project suggestions.
+
+Removed from scope on this branch:
+
+- EU-specific routing and `inferenceRegion` pinning as a launch gate.
+- EU self-hosted ranker and embedding deployment (BGE-M3 / BGE-reranker).
+- ZDR eligibility as a launch gate.
+- Any alternative AI provider or second model as a fallback.
+- A provider or region selector in the UI.
+
+Retained, because they are not provider properties:
+
+- Stable file identity, server-side extraction, an authorized retrieval index.
+- Deterministic exact-filename protection ahead of any model ordering.
+- Bounded, token-accounted evaluation input and per-request authorization admission.
+- Stable, snapshot-based pagination.
+- Honest quality/latency reporting, and explicit candidate-recall measurement.
+
+**Jev evaluates supplied text.** It is not a document store, an extractor, an
+embedding model or a search index. Candidates come from lexical and metadata
+retrieval over the authorized SQL relation; Jev only reorders a bounded shortlist and
+answers bounded typed questions about a bounded excerpt. When Jev is unavailable,
+disabled, over budget or returns anything invalid, the deterministic
+filename + full-text ordering is the result. That fallback is the absence of a model,
+not a second provider.
+
+The historical catalog findings stand: Jev has no `regions` field, `has_zdr=false`,
+`no_training=all`. This branch does not claim otherwise and does not add EU routing
+or ZDR claims to any surface. An independently configured workspace restriction that
+already blocks external inference is still honoured — dropping the EU requirement
+from *this feature* does not authorise bypassing an existing restriction.
+
+No paid live inference is authorised. Every model test on this branch uses mocked or
+synthetic fixtures, and no result from those tests may be described as a live Jev
+benchmark.
+
+## 2. What exists today
+
+| Surface | Today | Gap this plan closes |
+| --- | --- | --- |
+| `/drive` Browse/Recents | Vercel Blob listing by pathname, page-local or drained sort, prefix-only `q` | No durable identity, no metadata, no content search |
+| Drive upload | `POST /v1/drive/files` mints a Blob grant; bytes go client → Blob | Nothing records that the upload happened, so nothing can index it |
+| Task deliverables | `GET /v1/drive/tasks` lists task outputs | Not part of one searchable surface |
+| Global search | `history-search-dialog.tsx` over the history corpus | No Files group, no deep links into a file |
+| AI | `ai` 7.0.114 + AI Gateway (`AI_GATEWAY_API_KEY`), used by Soko Bot classifier/judge | No evaluation adapter; chat streaming interface is the wrong shape for Jev |
+| Background work | Vercel crons under `/sync/*`, **which do not run on previews** | Indexing must also run in-process so a preview can be demonstrated |
+
+Moving contracts to re-check before integrating: **#4747** (native Tables in Files),
+**#5256** (image studio v2), **#5258** (task tags), **#5260** (unified collections).
+This branch must not take ownership of their surfaces.
+
+## 3. Build order
+
+Each increment is a reviewable commit that leaves the branch coherent.
+
+1. **Catalog schema.** Prisma models and one migration: resources, versions, chunks,
+   evidence scopes, vocabulary, labels, project links, field overrides, lineage,
+   collections, index jobs, artifact registry, admissions.
+2. **Catalog admission.** Upload finalize, task-output adoption, tombstones, revision
+   bookkeeping, per-source authorization adapters.
+3. **Extraction and index.** Bounded extraction for the formats the runtime can do
+   safely, chunking with anchors, Postgres FTS (`tsvector`) plus normalized filename
+   exact/prefix indexes, job runner on cron **and** in-process for previews.
+4. **Retrieval.** Authorized SQL relation, candidate budgets, RRF fusion, exact-match
+   protection, ranked-window sessions and cursors.
+5. **Jev evaluation adapter.** Token-ceiling serializer, per-request admission,
+   scheduler quotas, circuit breaker, all-or-nothing reorder.
+6. **Taxonomy and suggestions.** Workspace vocabulary, suggestion runs, persistent
+   manual corrections and negative overrides, confirmed project links.
+7. **Files API.** Search, resource, related, metadata patch, batch, suggestion
+   decision, reindex, labels, collections.
+8. **Files UI.** All-files tab, filters, list/grid, bulk editing, collections, detail
+   route with related documents, mobile sheets.
+9. **Global search.** Files group in the Cmd/K dialog and the mobile search route,
+   with keyboard semantics, safe snippets and deep links.
+
+## 4. Data model
+
+Core-owned, all under `@sokosumi/database`. Immutable IDs, explicit provenance, and
+revisions that are separate from authorization epochs.
+
+- `FileResource` — `(workspaceKind, workspaceId, sourceKind, sourceScope, sourceId)`
+  unique; display and normalized name; `contentRevision`, `metadataRevision`,
+  `aclRevision`; lifecycle with tombstone.
+- `FileVersion` — `(resourceId, revision)` unique; immutable object identity, hash,
+  size, MIME; extraction state and coverage; `textRevision`; extractor version;
+  `indexGeneration`.
+- `FileChunk` — `(versionId, chunkId)`; ordinal and anchors; normalized text;
+  `evidenceScopeId`, `scopeVersion`, `inputDigest`. A chunk never mixes audiences.
+- `FileEvidenceScope` — canonical policy reference plus revision and actor-kind
+  eligibility. It is a predicate, never a model-supplied user list.
+- `WorkspaceLabel` — `TAG` or `CATEGORY`, normalized/display name, description,
+  aliases, archive flag, `vocabularyVersion`.
+- `FileLabel`, `FileProjectLink` — state, provenance (`MANUAL`/`MODEL`/`RULE`),
+  evidence scope and digest, the versions the decision was made against, evidence
+  anchors, decision actor and time.
+- `FileFieldOverride` — versioned pin/reject/allow per field or label and evidence
+  audience. This is what makes a manual correction survive reindexing.
+- `FileLineage` — `(workspaceId, sourceKind, sourceScope, rootId)` group with a
+  representative policy, for Studio version families.
+- `FileCollection` — owner, workspace, private-or-shared, versioned filter definition
+  and sort. Never a stored result set, never a stored count.
+- `FileIndexJob` — dedupe key over
+  `(resource, contentRevision, pipeline, requiredScope, desiredGeneration, operation)`,
+  attempt, fence, lease, budget, retry state.
+- `FileIndexArtifact` — every scratch/object/vector artifact registered **before** a
+  sensitive write, with an active/abandoned/purged state.
+- `FileAuthorizationAdmission` — request id, actor fingerprint, epochs, payload
+  digest, provider, admission and dispatch outcome. No raw content, ever.
+
+## 5. Authorization model
+
+The invariant: every title, tag, snippet, category, project name, related edge and
+cached score requires valid source and evidence-scoped admission for its recipient.
+No field is authorized by the index alone.
+
+- Source × actor gates stay exactly as they are today. The catalog is a ceiling, not
+  a grant. Unimplemented combinations fail closed.
+- Studio assets are interactive-user-only in v1 and expose **no** derived fields to
+  any other actor kind.
+- Native Tables content indexing stays disabled until a canonical column-read
+  contract exists; metadata-only integration may proceed under the existing gate.
+- Content-derived metadata inherits the **intersection** of contributing evidence
+  scopes. Manual confirmation is not declassification.
+- Labels and project links never change access. Confirming a project suggestion says
+  so in the UI and does not mutate any ACL.
+- Every outbound Jev pair request takes its own one-use admission under scope-epoch
+  row locks, expiring after 50 ms if dispatch has not started. The guarantee is
+  *authorized admission*, explicitly weaker than "no socket send after revocation
+  commits", and the code and docs say so.
+- Deletion or any policy epoch change advances the epoch, rejects ranked-session
+  cursors and requires a restart. Content-only changes use revisions and cause the
+  stale entry to be omitted from the snapshot window.
+
+## 6. Retrieval and ranking
+
+Candidate budgets: exact filename ≤20, FTS ≤100 chunks, metadata ≤40 resources,
+union/dedup ≤120 resource/lineage results. No vector stage on this branch — the
+embedding model was removed with the EU deployment and Jev is not an embedding model,
+so semantic quality comes from Jev evaluation over lexical/metadata candidates.
+**Candidate recall is therefore the measured risk**, and the evaluation harness
+reports recall@120 for the synthetic set explicitly rather than assuming it.
+
+Fusion is RRF (k=60, a tuning default). Protected exact normalized filename matches
+always precede everything else and are labelled "Filename match". Explicit date/name
+sorts are never reranked. Postgres FTS ranking is called FTS, not BM25.
+
+Ranked windows: a ≤5 min server-side session stores a fixed order of resource IDs
+with pinned revisions, the query/filter/sort, and the scope epoch vector. The cursor
+is a signed opaque session id plus the **next unconsumed snapshot position**. A page
+advances over every scanned position, omits entries whose revisions changed, and
+never substitutes a new version into an old position. `truncated` and `hasMore` are
+independent; `hasMore` means unconsumed positions, not additional corpus matches.
+
+## 7. Jev adapter
+
+- Transport: AI Gateway, model id `typesafe-ai/jev`, evaluation shape (typed
+  questions over supplied state) — not the chat streaming interface, and not
+  `@sokosumi/ai-provider`, which is the chat provider and stays untouched.
+- Budget unit is tokens in the **entire canonical serialized request**. Ceilings:
+  search pair 1,024, related pair 2,048, label/category/project evaluation 4,096.
+  Fields are bounded, truncated at safe boundaries, re-serialized and re-measured;
+  JSON is never chopped. If the request still exceeds the ceiling, it is rejected,
+  not sent.
+- Scheduler: global token buckets (3,600 req/min, 60 req/s, burst 12, 24 concurrent),
+  ≤6 per query, per-workspace ≤30 req/s. Interactive work reserves 80 %; background
+  labelling takes ≤20 % and never borrows interactive capacity.
+- Results: all-or-nothing reorder. Any missing, invalid, out-of-range or timed-out
+  pair returns the full original fused order. Partial scores never mix scales.
+- Circuit breaker: ≥50 % failed batches in 20 requests over 60 s opens it; probe
+  after 60 s.
+- Failure is silent to the user in ranking terms: the same search field, the
+  deterministic order, no provider jargon, no dead end.
+- No document text, query text or secret ever reaches a log line.
+
+## 8. Product behaviour delivered
+
+Requested tags/categories/vocabulary; suggestions with an evidence "Why?"; manual
+corrections that persist across reindexing through `FileFieldOverride`; explicitly
+confirmed project links that state they change no access; upload and background
+processing states; filters, list/grid, saved collections and bounded bulk editing;
+document detail with metadata and related documents; Files in global search with
+escaped snippets, keyboard semantics and deep links; mobile sheets and full-screen
+detail. The state contract table in the product specification is the acceptance list
+for empty, loading, partial, failed, revoked, conflict, offline and deleted states.
+
+## 9. Verification
+
+- Unit tests for the serializer and token ceilings, the fusion and exact-match
+  protection, the cursor/window semantics, the override persistence rules, the
+  scheduler and circuit breaker, and the evidence-scope suppression rules.
+- Integration tests against a disposable Postgres with all migrations applied, opt-in
+  through `RUN_DATABASE_INTEGRATION_TESTS`, as the existing `*.postgres.test.ts`
+  suites do.
+- Jev is always mocked. A synthetic relevance fixture measures ordering behaviour and
+  candidate recall; it is labelled synthetic everywhere it appears.
+- `pnpm check`, `pnpm typecheck`, and the affected package test suites.
+- UI verification on a preprod preview with the designated test account through
+  chrome-devtools. No local Sokosumi dev server or build.
+
+## 10. Out of scope on this branch
+
+Exhaustive "select all matches", vector/ANN retrieval, OCR, legacy DOC/PPT/XLS
+conversion, Tables content indexing, a metadata declassification operation, generative
+summaries, and any merge or production deployment. Anything in the accepted scope that
+is not finished stays explicit remaining work on this task; it is not quietly dropped.
