@@ -231,9 +231,15 @@ describe("image studio job submission", () => {
       BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
     });
 
-    await expect(createImageJob(BASE_INPUT)).rejects.toMatchObject({
-      status: 503,
-    });
+    const refusal = await createImageJob(BASE_INPUT).catch(
+      (error: unknown) => error,
+    );
+    expect(refusal).toMatchObject({ status: 503 });
+    // Says what happened, not how the deployment is configured: an env var
+    // name is useless to the reader and useful to a prober.
+    expect(String((refusal as Error).message)).not.toContain(
+      "IMAGE_STUDIO_BLOB",
+    );
     expect(jobCreateMock).not.toHaveBeenCalled();
     expect(submitToQueueMock).not.toHaveBeenCalled();
   });

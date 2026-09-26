@@ -850,10 +850,16 @@ export async function settleWithImage(
   // image published by accident is not.
   const studioBlobToken = readStudioBlobToken();
   if (!studioBlobToken) {
+    // `error` is shown to the person, so it says what happened to them and
+    // leaves the variable name to the server log this writes.
+    console.error(
+      "[image-studio] settlement abandoned: IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the generated image has nowhere private to go.",
+      { jobId: job.id },
+    );
     await releaseSettlementLease(job.id, lease);
     await failJob(
       job.id,
-      "Image storage is not configured, so this image could not be kept.",
+      "Image storage was unavailable, so this image could not be kept.",
     );
     return;
   }

@@ -37,6 +37,16 @@ export function readStudioBlobToken(): string | undefined {
 }
 
 /**
+ * What the person is told. Deliberately says nothing about which variable is
+ * missing: the reader of an error toast cannot act on an environment variable
+ * name, and naming server configuration in a response body tells an
+ * unauthenticated prober how the deployment is put together. The name they
+ * would need is in the server log instead, one line below.
+ */
+const STORAGE_UNAVAILABLE_MESSAGE =
+  "Image storage is unavailable, so the studio cannot keep what it generates. Nothing was generated or charged. This needs an administrator.";
+
+/**
  * The same token, or a refusal.
  *
  * There is deliberately no fallback to `BLOB_READ_WRITE_TOKEN`: falling back
@@ -48,9 +58,11 @@ export function readStudioBlobToken(): string | undefined {
 export function requireStudioBlobToken(): string {
   const token = readStudioBlobToken();
   if (!token) {
-    throw serviceUnavailable(
-      "The image studio has no private storage configured, so it cannot keep what it generates. Set IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN.",
+    // The actionable half, for whoever can act on it.
+    console.error(
+      "[image-studio] IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set. The studio needs its own private-access Blob store and will refuse to generate until one is configured; it will not fall back to the shared public store named by BLOB_READ_WRITE_TOKEN.",
     );
+    throw serviceUnavailable(STORAGE_UNAVAILABLE_MESSAGE);
   }
   return token;
 }

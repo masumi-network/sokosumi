@@ -283,7 +283,10 @@ describe("where generated images are stored", () => {
     const failed = jobUpdateManyMock.mock.calls
       .map((call) => (call[0] as { data: Record<string, unknown> }).data)
       .find((data) => data.status === "FAILED");
-    expect(String(failed?.error)).toContain("storage is not configured");
+    // The person-facing text says what happened to them, not which
+    // environment variable is missing; the variable name goes to the log.
+    expect(String(failed?.error)).toContain("Image storage was unavailable");
+    expect(String(failed?.error)).not.toContain("IMAGE_STUDIO_BLOB");
   });
 
   it("hands the lease back when it refuses for want of a private store", async () => {
