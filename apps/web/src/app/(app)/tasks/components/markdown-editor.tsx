@@ -904,7 +904,7 @@ export const MarkdownEditor = forwardRef<
         <div
           role="toolbar"
           aria-label="Format"
-          className="bg-card-background flex flex-wrap items-center gap-0.5 border-b px-2 py-1.5"
+          className="bg-card-background flex flex-wrap items-center gap-0.5 rounded-t-[inherit] border-b px-2 py-1.5"
         >
           <MarkdownFormatTools
             onBold={handleBold}
