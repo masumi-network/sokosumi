@@ -10,7 +10,7 @@ import { put } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 
 import { LIMITS } from "@/config/constants";
-import { getBetterAuthPublicBaseUrl, getEnv } from "@/config/env";
+import { getBetterAuthPublicBaseUrl } from "@/config/env";
 import {
   notFound,
   tooManyRequests,
@@ -22,6 +22,10 @@ import {
   requireProjectAccess,
   requireProjectAccessForUser,
 } from "@/lib/image-studio/access";
+import {
+  readStudioBlobToken,
+  requireStudioBlobToken,
+} from "@/lib/image-studio/blob-store";
 import {
   buildFalInput,
   cancelQueued,
@@ -389,6 +393,12 @@ export async function createImageJob(input: CreateImageJobInput) {
     workspaceId: input.workspaceId,
     userId: input.userId,
   });
+
+  // Checked before anything is reserved or sent, because the alternative is
+  // paying fal for an image that then has nowhere it is allowed to go. The
+  // first version of this bug did exactly that: generations completed at the
+  // provider and were lost at settlement.
+  requireStudioBlobToken();
 
   const { job, created } = await reserveJob(input);
   if (!created) return job;
@@ -832,10 +842,19 @@ export async function settleWithImage(
     return;
   }
 
-  const env = getEnv();
-  if (!env.BLOB_READ_WRITE_TOKEN) {
+  // The studio's private store, and only it. A job can outlive the
+  // configuration that started it — the token can be removed between
+  // submission and settlement — so this is re-checked here rather than relying
+  // on the guard in `createImageJob`. It fails the job instead of falling back
+  // to the shared public store: an image nobody can see is recoverable, an
+  // image published by accident is not.
+  const studioBlobToken = readStudioBlobToken();
+  if (!studioBlobToken) {
     await releaseSettlementLease(job.id, lease);
-    await failJob(job.id, "Image storage is not configured.");
+    await failJob(
+      job.id,
+      "Image storage is not configured, so this image could not be kept.",
+    );
     return;
   }
 
@@ -865,30 +884,28 @@ export async function settleWithImage(
     .digest("hex");
   const dimensions = readPngDimensions(downloaded.bytes);
 
-  // `access` has to match how the store itself is configured: a private `put`
-  // against a public store is refused outright ("Cannot use private access on
-  // a public store"), and `BLOB_READ_WRITE_TOKEN` on both networks names the
-  // one shared public store every other Core upload already writes to
-  // (project files, DESIGN.md, avatars, user uploads). Asking for private
-  // access here meant every generation reached fal, was paid for, and then
-  // failed to settle forever. The app-level guarantee is unchanged and does
-  // not come from the store: the bytes are served only by the authorized
-  // streaming route, which re-checks project access on every request, and the
-  // pathname carries a content hash rather than being enumerable.
+  // Private, and into the studio's own store — `studioBlobToken`, never
+  // `BLOB_READ_WRITE_TOKEN`. Vercel fixes public-or-private per store, and the
+  // shared platform store is public, so putting generated artwork there would
+  // publish it: retrievable by URL, by anyone, with no credential. This store
+  // is created with `--access private`, so the bytes are only readable by a
+  // holder of this token — which lives on the server and is never sent to a
+  // browser.
   //
   // The pathname is deliberately deterministic: a random suffix meant that
   // settlers racing the same job each wrote their own object, and the losers'
   // objects were left behind with nothing referencing them. One job, one
-  // object, overwritten idempotently.
+  // object, overwritten idempotently. That is an idempotency device, not a
+  // secret, and nothing about access control rests on it.
   let blob: Awaited<ReturnType<typeof put>>;
   try {
     blob = await put(
       `projects/${job.projectId}/image-studio/${job.id}-${checksum.slice(0, 16)}`,
       downloaded.bytes as unknown as Buffer,
       {
-        access: "public",
+        access: "private",
         contentType: downloaded.contentType,
-        token: env.BLOB_READ_WRITE_TOKEN,
+        token: studioBlobToken,
         addRandomSuffix: false,
         allowOverwrite: true,
         abortSignal: AbortSignal.timeout(60_000),

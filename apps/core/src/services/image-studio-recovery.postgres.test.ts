@@ -44,7 +44,8 @@ vi.mock("@/config/env", async (importOriginal) => {
     getEnv: () => ({
       ...actual.getEnv(),
       FAL_KEY: "k",
-      BLOB_READ_WRITE_TOKEN: "t",
+      BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
+      IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "studio-private-store-token",
     }),
     getBetterAuthPublicBaseUrl: () => null,
   };

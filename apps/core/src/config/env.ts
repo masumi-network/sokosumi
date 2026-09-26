@@ -221,6 +221,23 @@ const baseEnvSchema = z.object({
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
+   * Read-write token for the image studio's **own, private-access** Blob
+   * store. Deliberately separate from `BLOB_READ_WRITE_TOKEN`.
+   *
+   * `BLOB_READ_WRITE_TOKEN` names the shared store that project files,
+   * DESIGN.md, avatars and user uploads write to, and that store is created
+   * with `access: "public"` — every object in it is retrievable by anyone who
+   * has its URL, with no credential. Generated images are project assets and
+   * must not be in it. Vercel fixes public-or-private per *store*, not per
+   * object, so the only way to store them privately is a second store created
+   * with `--access private`, which is what this token addresses.
+   *
+   * Absent, the studio refuses to generate rather than falling back to the
+   * shared public store: see `requireStudioBlobToken` in
+   * `services/image-studio-jobs.service.ts`.
+   */
+  IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
    * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
    * for presigned client uploads. Required for task-file auto-registration.
    * @see https://vercel.com/docs/vercel-blob/vercel-signed-urls

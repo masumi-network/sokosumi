@@ -20,6 +20,7 @@ const {
   fetchQueueStatusMock,
   putMock,
   requireProjectAccessForUserMock,
+  getEnvMock,
 } = vi.hoisted(() => ({
   jobFindUniqueMock: vi.fn(),
   jobUpdateMock: vi.fn(),
@@ -31,10 +32,14 @@ const {
   fetchQueueStatusMock: vi.fn(),
   putMock: vi.fn(),
   requireProjectAccessForUserMock: vi.fn(),
+  getEnvMock: vi.fn(),
 }));
 
+// `BLOB_READ_WRITE_TOKEN` is present on purpose. It is the shared *public*
+// store, the studio must never reach for it, and leaving it set is what lets
+// the fail-closed tests below prove the studio refuses rather than falls back.
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({ FAL_KEY: "k", BLOB_READ_WRITE_TOKEN: "t" }),
+  getEnv: getEnvMock,
   getBetterAuthPublicBaseUrl: () => "https://core.example.com",
 }));
 vi.mock("@vercel/blob", () => ({ put: putMock }));
@@ -105,8 +110,15 @@ const JOB = {
   asset: null,
 };
 
+const STUDIO_BLOB_TOKEN = "studio-private-store-token";
+
 beforeEach(() => {
   vi.clearAllMocks();
+  getEnvMock.mockReturnValue({
+    FAL_KEY: "k",
+    BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
+    IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: STUDIO_BLOB_TOKEN,
+  });
   jobFindUniqueMock.mockResolvedValue(JOB);
   requireProjectAccessForUserMock.mockResolvedValue({
     projectId: "project-1",
@@ -221,17 +233,85 @@ describe("concurrent settlement", () => {
 
     const options = putMock.mock.calls[0]![2];
     // A random suffix meant each settler wrote its own object and the losers'
-    // copies were left behind unreferenced.
+    // copies were left behind unreferenced. This is an idempotency device, not
+    // a secret — nothing about access control rests on the pathname.
     expect(options.addRandomSuffix).toBe(false);
     expect(options.allowOverwrite).toBe(true);
-    // Must match how the store is configured. `BLOB_READ_WRITE_TOKEN` names
-    // the shared public store every other Core upload writes to, and a
-    // private put against a public store is refused outright — so asking for
-    // private here made every generation reach fal, get paid for, and then
-    // never settle. Reads in image-studio-assets.service.ts say `public` for
-    // the same reason; the two have to agree.
-    expect(options.access).toBe("public");
     expect(putMock.mock.calls[0]![0]).toContain("job-1");
+  });
+});
+
+describe("where generated images are stored", () => {
+  // Generated images are project artwork. Vercel fixes public-or-private per
+  // store, and `BLOB_READ_WRITE_TOKEN` names the shared store the rest of the
+  // platform writes to, which is created with `access: "public"` — everything
+  // in it is retrievable by URL with no credential. Serving the bytes through
+  // an authorizing route does not un-publish an object the store already
+  // serves anonymously, and a hashed pathname is obscurity, not authorization.
+  beforeEach(() => {
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  it("writes privately, into the studio's own store", async () => {
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    const options = putMock.mock.calls[0]![2];
+    expect(options.access).toBe("private");
+    expect(options.token).toBe(STUDIO_BLOB_TOKEN);
+  });
+
+  it("never reaches for the shared public store's token", async () => {
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(putMock.mock.calls[0]![2].token).not.toBe(
+      "shared-public-store-token",
+    );
+  });
+
+  it("fails the job rather than falling back when no private store is set", async () => {
+    // The shared public token is still present in the environment here. The
+    // studio must refuse anyway: an image nobody can see is recoverable, an
+    // image published by accident is not.
+    getEnvMock.mockReturnValue({
+      FAL_KEY: "k",
+      BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
+    });
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(putMock).not.toHaveBeenCalled();
+    const failed = jobUpdateManyMock.mock.calls
+      .map((call) => (call[0] as { data: Record<string, unknown> }).data)
+      .find((data) => data.status === "FAILED");
+    expect(String(failed?.error)).toContain("storage is not configured");
+  });
+
+  it("hands the lease back when it refuses for want of a private store", async () => {
+    getEnvMock.mockReturnValue({
+      FAL_KEY: "k",
+      BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
+    });
+    const calls: Array<{
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    }> = [];
+    jobUpdateManyMock.mockImplementation(async (args: never) => {
+      calls.push(
+        args as unknown as {
+          where: Record<string, unknown>;
+          data: Record<string, unknown>;
+        },
+      );
+      return { count: 1 };
+    });
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    const claim = calls.find((call) => call.data.settleLeaseOwner != null);
+    const release = calls.find(
+      (call) => call.data.settleLeaseAt === null && call.where.settleLeaseOwner,
+    );
+    expect(release?.where.settleLeaseOwner).toBe(claim?.data.settleLeaseOwner);
   });
 });
 

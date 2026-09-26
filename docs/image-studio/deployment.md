@@ -55,32 +55,69 @@ turn succeeds: that takes one real turn, which costs money. Confirm
 | --- | --- | --- |
 | `IMAGE_STUDIO_AGENT_SECRET` | **The same value as the Web project.** Core verifies the agent's grants with it and re-checks the named user's project access on every call. | Core rejects every agent call; the conversation opens and nothing it tries succeeds. |
 | `FAL_KEY` | Submits the generation. | `FAL_KEY is not configured` on the first generate. |
-| `BLOB_READ_WRITE_TOKEN` | Stores the image that comes back. | The job completes at fal and then fails to settle. |
+| `IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN` | Stores the image that comes back, in the studio's **own private-access Blob store**. Not `BLOB_READ_WRITE_TOKEN` — see below. | The studio refuses to generate at all: `POST …/image-studio/jobs` answers `503`, nothing is sent to fal, and nothing is charged. |
 
-Core carries `FAL_KEY` and `BLOB_READ_WRITE_TOKEN` for Soko Bot and the rest of
-the platform, so in practice `IMAGE_STUDIO_AGENT_SECRET` is the only one it is
-missing — but read the project rather than trusting that sentence:
-`vercel env ls preview --cwd apps/core` lists names and targets without
-revealing any value.
+Core carries `FAL_KEY` for Soko Bot and the rest of the platform, so on a fresh
+network the studio needs two variables of its own:
+`IMAGE_STUDIO_AGENT_SECRET` and `IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN`. Read the
+project rather than trusting that sentence: `vercel env ls preview --cwd
+apps/core` lists names and targets without revealing any value.
 
-**The store behind that token is a public one, and the studio writes to it as
-such.** `BLOB_READ_WRITE_TOKEN` on both networks names the single shared store
+#### Why the studio does not use `BLOB_READ_WRITE_TOKEN`
+
+`BLOB_READ_WRITE_TOKEN` names the single shared store on each network
 (`sokosumi-preprod-blob`, `sokosumi-mainnet-blob`) that project files,
-DESIGN.md, avatars and user uploads already write to with `access: "public"`.
-Vercel decides public or private per *store*, not per object, and a private
-`put` against a public store is refused outright — so the studio uses `public`
-too. What keeps a version from being readable by anyone is not the store: it is
-that the only way the product hands the bytes out is
-`GET /api/projects/:projectId/image-studio/assets/:assetId/content`, which
-re-checks project access on every request, and that the pathname carries a
-content hash rather than being enumerable. If a network is ever given a
-dedicated private store for the studio, the `access` in
-`image-studio-jobs.service.ts` and `image-studio-assets.service.ts` has to move
-with it; they must always agree with each other and with the store.
+DESIGN.md, avatars and user uploads write to. **Both of those stores are
+created with `access: "public"`** — confirmed from store metadata, which
+reports `"access": "public"` for each. Everything in a public store is served
+to anyone holding its URL, with no credential.
+
+Generated images are project artwork and must not be in a public store.
+Vercel fixes public-or-private per *store*, not per object, so the studio needs
+a second store created with `--access private`. Two things that look like they
+would substitute for that do not, and neither is relied on here:
+
+- **Serving the bytes through an authorizing route.** Core's asset route
+  controls one way of reaching an object. It cannot un-publish an object the
+  store is already serving anonymously on its own URL.
+- **An unguessable pathname.** The studio's pathnames embed a content hash.
+  That is obscurity, not authorization: it does not survive a leaked URL, a
+  referrer header, a proxy log or a shared screenshot, and it cannot be
+  revoked.
+
+So the studio **fails closed**. With no
+`IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN` it refuses to generate rather than falling
+back to the shared public store, and it refuses *before* reserving a job or
+calling fal, so an unconfigured deployment costs nothing.
+
+#### Provisioning the private store
+
+```sh
+vercel blob create-store sokosumi-<network>-image-studio --access private --region iad1
+```
+
+Then take that store's read-write token and set it as a branch- or
+environment-scoped variable on the Core project:
+
+```sh
+vercel env add IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN preview "$BRANCH" --cwd apps/core --force --yes \
+  < /path/to/studio-blob-token
+```
+
+**Do not let the new store connect itself to the project under the default
+`BLOB` env-var prefix.** The existing shared store already occupies
+`BLOB_READ_WRITE_TOKEN` / `BLOB_STORE_ID` / `BLOB_WEBHOOK_PUBLIC_KEY` on both
+`sokosumi-core-preprod` and `sokosumi-app-preprod`; a second store connected
+with the same prefix would overwrite them and break every other Blob consumer
+on the platform. Either connect it with a distinct prefix, or leave it
+unconnected and set the one variable by hand as above.
+
+Never change the shared store's own access mode. It is public because the rest
+of the platform depends on it being public.
 
 No credential belongs in a `NEXT_PUBLIC_*` variable. The browser never sees the
-Gateway key or either HMAC secret — it only ever holds the five-minute token
-the Web route mints for it.
+Gateway key, either HMAC secret, or any Blob token — it only ever holds the
+five-minute token the Web route mints for it.
 
 ## Setting it up for a branch preview
 
@@ -171,10 +208,20 @@ first — only step 1 is free.
    adding. **This step already costs money**: the turn is a billed Gateway
    call, priced per token, before any image exists.
 3. Generate one image. This adds the fal charge and is the first call that needs
-   `FAL_KEY` and `BLOB_READ_WRITE_TOKEN` as well. Watch it *settle*, not just
-   start: a version has to appear. A tile that stays **Generating** for minutes
-   after fal is done means settlement is failing, and the job row carries the
-   reason in `lastPollError` with `unreachableSource = result`.
+   `FAL_KEY` and `IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN` as well. Watch it
+   *settle*, not just start: a version has to appear. A tile that stays
+   **Generating** for minutes after fal is done means settlement is failing,
+   and the job row carries the reason in `lastPollError` with
+   `unreachableSource = result`.
+
+   A `503` here instead, with nothing sent to fal, means the private store is
+   not configured — that refusal is deliberate and free.
+
+4. Confirm the stored object is not public. Take the version's `blobPathname`
+   from the `project_image_asset` row and check that the store will not serve
+   it anonymously; a private store answers an unauthenticated fetch with a
+   refusal, a public one hands over the bytes. This is the check that would
+   have caught storing artwork in the shared public store.
 
 ## Deploy side effects
 

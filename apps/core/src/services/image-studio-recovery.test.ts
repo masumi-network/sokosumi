@@ -132,7 +132,11 @@ function queuedJob(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  getEnvMock.mockReturnValue({ FAL_KEY: "k", BLOB_READ_WRITE_TOKEN: "t" });
+  getEnvMock.mockReturnValue({
+    FAL_KEY: "k",
+    BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
+    IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "studio-private-store-token",
+  });
   jobUpdateManyMock.mockResolvedValue({ count: 1 });
   // `noteUnreachable` reads these back to decide whether the grace period has
   // run out, so the default stands for "sent a moment ago".

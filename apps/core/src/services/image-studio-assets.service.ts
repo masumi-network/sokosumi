@@ -4,10 +4,10 @@ import {
 } from "@sokosumi/database";
 import { get } from "@vercel/blob";
 
-import { getEnv } from "@/config/env";
 import { internalServerError, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { requireProjectAccess } from "@/lib/image-studio/access";
+import { requireStudioBlobToken } from "@/lib/image-studio/blob-store";
 
 /**
  * Versions, lineage, review decisions, and the bytes behind them.
@@ -15,6 +15,12 @@ import { requireProjectAccess } from "@/lib/image-studio/access";
  * Nothing in this module returns a URL that anyone could fetch without coming
  * back through Core. `blobPathname` is a storage coordinate, not a handle, and
  * it never leaves the server.
+ *
+ * That holds because the objects live in the studio's own private-access Blob
+ * store, not because of how they are named. If they were ever written to a
+ * public store, this paragraph would be false whatever this module returned:
+ * the store would serve them on its own URL regardless. See
+ * `lib/image-studio/blob-store.ts`.
  */
 
 export interface AssetView {
@@ -234,13 +240,14 @@ export async function openAssetStream(options: {
   });
   if (!asset) throw notFound("Image not found");
 
-  // Matches how the settler wrote it, which in turn matches how the store is
-  // configured; see the `put` in image-studio-jobs.service.ts. Reading is
-  // still gated: `requireProjectAccess` above is what decides whether this
-  // caller may have the bytes at all.
+  // Two independent gates, and the feature needs both. `requireProjectAccess`
+  // above decides whether *this caller* may have the bytes. `access: "private"`
+  // on the studio's own store is what stops everyone who never comes through
+  // this route at all: a private object is not served without the token, and
+  // the token is server-side only.
   const result = await get(asset.blobPathname, {
-    access: "public",
-    token: getEnv().BLOB_READ_WRITE_TOKEN,
+    access: "private",
+    token: requireStudioBlobToken(),
   });
   if (!result || result.statusCode !== 200) {
     throw notFound("Image bytes are no longer available");
@@ -258,8 +265,8 @@ export async function readAssetBytes(
   blobPathname: string,
 ): Promise<Uint8Array> {
   const result = await get(blobPathname, {
-    access: "public",
-    token: getEnv().BLOB_READ_WRITE_TOKEN,
+    access: "private",
+    token: requireStudioBlobToken(),
   });
   if (!result || result.statusCode !== 200) {
     throw internalServerError("Reference image bytes are unavailable");

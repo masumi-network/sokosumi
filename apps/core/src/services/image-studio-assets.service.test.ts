@@ -54,7 +54,12 @@ const SCOPE = {
 describe("image studio versions and reviews", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "t" });
+    // Shared public-store token present, studio private-store token present
+    // and different: the studio must use its own.
+    getEnvMock.mockReturnValue({
+      BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
+      IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "studio-private-store-token",
+    });
     requireProjectAccessMock.mockResolvedValue(SCOPE);
   });
 
@@ -114,18 +119,18 @@ describe("image studio versions and reviews", () => {
 
     const result = await openAssetStream({ ...SCOPE, assetId: "asset-1" });
 
-    // Authorization is this call, not the storage mode: the settler writes
-    // into the shared public store because that is the only store the
-    // platform provisions, so what keeps the bytes private is that they are
-    // served from here and nowhere else in the product.
+    // Two independent gates. This call decides whether *this caller* may have
+    // the bytes; `access: "private"` on the studio's own store is what stops
+    // everyone who never comes through this route at all.
     expect(requireProjectAccessMock).toHaveBeenCalledWith(
       expect.objectContaining({ assetId: "asset-1" }),
     );
-    // Has to agree with the `put` in image-studio-jobs.service.ts; a mismatch
-    // is rejected by the store rather than falling back.
     expect(getMock).toHaveBeenCalledWith(
       "projects/p/image-studio/stored-object",
-      expect.objectContaining({ access: "public" }),
+      expect.objectContaining({
+        access: "private",
+        token: "studio-private-store-token",
+      }),
     );
     expect(Object.keys(result)).toEqual([
       "stream",

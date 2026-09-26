@@ -140,7 +140,11 @@ function jobRow(overrides: Record<string, unknown> = {}) {
 describe("image studio job submission", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getEnvMock.mockReturnValue({ FAL_KEY: "k", BLOB_READ_WRITE_TOKEN: "t" });
+    getEnvMock.mockReturnValue({
+      FAL_KEY: "k",
+      BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
+      IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "studio-private-store-token",
+    });
     requireProjectAccessMock.mockResolvedValue({
       projectId: "project-1",
       workspaceId: "workspace-1",
@@ -214,6 +218,24 @@ describe("image studio job submission", () => {
 
     expect(submitToQueueMock).not.toHaveBeenCalled();
     expect(job.status).toBe("SUBMITTING");
+  });
+
+  it("refuses to generate before spending anything when there is no private store", async () => {
+    // Checked ahead of the reservation and the provider call, because the
+    // alternative is paying fal for an image the studio is not allowed to
+    // keep — which is exactly what happened when settlement was the only place
+    // storage was checked. The shared public token is still set here: it is
+    // not an acceptable substitute and must not be treated as one.
+    getEnvMock.mockReturnValue({
+      FAL_KEY: "k",
+      BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
+    });
+
+    await expect(createImageJob(BASE_INPUT)).rejects.toMatchObject({
+      status: 503,
+    });
+    expect(jobCreateMock).not.toHaveBeenCalled();
+    expect(submitToQueueMock).not.toHaveBeenCalled();
   });
 
   it("refuses a new generation past the per-project concurrency limit", async () => {
