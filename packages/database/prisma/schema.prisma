@@ -124,6 +124,10 @@ model User {
   noticeAcknowledgments            NoticeAcknowledgment[]
   projectStars                     ProjectStar[]
 
+  imageSessions ProjectImageSession[] @relation("ProjectImageSessionCreator")
+  imageJobs     ProjectImageJob[]     @relation("ProjectImageJobRequester")
+  imageReviews  ProjectImageReview[]  @relation("ProjectImageReviewDecider")
+
   // Legacy personal-assistant storage. Retained read-only through rollback window.
   hermesMessages           HermesMessage[]
   /// Per-user Soko Bot identity and control-plane state.
@@ -297,6 +301,10 @@ model Workspace {
   sokoBotSchedules         SokoBotSchedule[]
 
   sokoBots SokoBot[]
+
+  imageSessions ProjectImageSession[]
+  imageJobs     ProjectImageJob[]
+  imageAssets   ProjectImageAsset[]
 
   @@map("workspace")
 }
@@ -579,6 +587,10 @@ model Project {
   socialConnections       ProjectSocialConnection[]
   socialPosts             SocialPost[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
+
+  imageSessions ProjectImageSession[]
+  imageJobs     ProjectImageJob[]
+  imageAssets   ProjectImageAsset[]
 
   @@index([workspaceId])
   @@map("project")
@@ -4141,4 +4153,313 @@ model SokoBotInstalledSkill {
   @@unique([sokoBotId, name])
   @@index([sokoBotId])
   @@map("soko_bot_installed_skill")
+}
+
+// ---------------------------------------------------------------------------
+// Project image studio (SOK — native image creation tab)
+//
+// Four tables, one invariant each:
+//   session — binds an eve conversation to exactly one project, durably
+//   job     — one paid fal request, with a submission machine that can never
+//             resubmit an ambiguously-sent request
+//   asset   — an immutable version; nothing here is ever updated
+//   review  — approve/reject, in its own row so a new version cannot inherit
+//             a decision (there is no field to copy forward)
+// ---------------------------------------------------------------------------
+
+enum ProjectImageJobKind {
+  /// Text to image. Routes to the base fal endpoint, which takes no reference.
+  GENERATE
+  /// Image to image. Routes to the `/edit` endpoint, which takes `image_urls`.
+  EDIT
+}
+
+enum ProjectImageJobStatus {
+  /// Row exists, nothing has been sent. The only status that may be submitted.
+  PENDING
+  /// A submitter holds the lease and may be mid-flight to fal right now.
+  SUBMITTING
+  /// fal acknowledged with a request id.
+  QUEUED
+  /// fal reports the runner picked it up.
+  RUNNING
+  /// Settled with an asset.
+  SUCCEEDED
+  /// Definitively not enqueued, or the runner reported an error. Safe to retry.
+  FAILED
+  /// Cancellation was requested and fal accepted it.
+  CANCELED
+  /// We do not know whether fal received it. NEVER retried automatically:
+  /// an automatic retry here is a duplicate charge.
+  SUBMISSION_UNCERTAIN
+  /// The project went away before settlement; the image was not stored.
+  ORPHANED
+}
+
+enum ProjectImageReviewDecision {
+  APPROVED
+  REJECTED
+}
+
+/// What is known about a conversation's very first message.
+///
+/// A session row is written *before* that message is delivered, so the row's
+/// existence says nothing about delivery. This says what is known, and it is
+/// the only thing a retry is allowed to act on.
+enum ProjectImageInitialTurn {
+  /// No first message was ever meant for this conversation — it was created
+  /// empty and will be spoken to through the ordinary send route.
+  NONE
+  /// A first message is owed and nothing has been dispatched. Safe to deliver.
+  PENDING
+  /// One attempt holds the right to deliver it but has not tried yet. A later
+  /// attempt for the same intent may take that right over: the first one may
+  /// never have learned it held it, and nothing has run either way.
+  CLAIMED
+  /// A dispatch has been attempted and its outcome is not in yet. This is the
+  /// state no retry may take over, because taking it over is the duplicate.
+  DELIVERING
+  /// The runtime accepted it. Delivering again would be a duplicate turn.
+  DELIVERED
+  /// An attempt may or may not have been accepted. Never redelivered
+  /// automatically: that is the duplicate-turn mistake. The conversation is
+  /// resumable, so the person can see what happened and decide.
+  UNCERTAIN
+}
+
+/// One eve conversation, permanently bound to one project.
+///
+/// eve owns the transcript; this row is what makes the transcript
+/// project-scoped. Resuming a session requires finding it here first, so a
+/// session id alone never grants access to a conversation.
+model ProjectImageSession {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  createdByUserId String
+  createdByUser   User   @relation("ProjectImageSessionCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  /// The durable eve session. Unique so one eve session can never be claimed
+  /// by a second project.
+  eveSessionId String @unique
+
+  /// The client's own name for the intent that created this conversation,
+  /// carried through every retry of it. This — not possession of an eve
+  /// session id, and not the existence of this row — is what makes a repeated
+  /// creation land on the same conversation instead of starting a second one.
+  ///
+  /// Null for a caller that names no intent; such a caller gets no dedupe,
+  /// which is the eve contract for a create without an `operationId`.
+  clientIntentId String?
+
+  /// What is known about the first message, and the lease on delivering it.
+  ///
+  /// The owner is a token minted for one attempt. A later attempt can take the
+  /// lease while it is only CLAIMED, and the token is what then fences the
+  /// earlier one out: it cannot announce a dispatch it no longer owns, so two
+  /// attempts at one intent still produce one delivery.
+  initialTurn           ProjectImageInitialTurn @default(NONE)
+  initialTurnLeaseAt    DateTime?
+  initialTurnLeaseOwner String?
+
+  title          String?
+  lastActivityAt DateTime @default(now())
+
+  jobs ProjectImageJob[]
+
+  @@unique([projectId, clientIntentId])
+  @@index([projectId, lastActivityAt])
+  @@index([workspaceId])
+  @@index([createdByUserId])
+  @@map("project_image_session")
+}
+
+/// One paid fal request.
+model ProjectImageJob {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sessionId String?              @db.Uuid
+  session   ProjectImageSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  requestedByUserId String
+  requestedByUser   User   @relation("ProjectImageJobRequester", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+
+  kind     ProjectImageJobKind
+  model    String
+  /// User-visible prompt. Persisted so a version can always explain itself.
+  prompt   String
+  /// Provider input minus the references and the prompt: aspect ratio,
+  /// resolution, output format, seed.
+  settings Json
+
+  /// Assets whose bytes were sent as references. Stored as ids, never as URLs:
+  /// a URL in this column would be a durable public handle on a private asset.
+  referenceAssetIds String[] @db.Uuid
+  /// The version this one refines, when the user started from a selection.
+  parentAssetId     String?  @db.Uuid
+
+  status ProjectImageJobStatus @default(PENDING)
+
+  /// Caller-supplied replay guard. Unique per project, so a retried HTTP
+  /// request returns the same job instead of buying a second image.
+  idempotencyKey String
+
+  /// Non-null once a submitter has claimed the row. Set in the same atomic
+  /// update that moves PENDING -> SUBMITTING, so exactly one caller can ever
+  /// reach fal for this row.
+  submitLeaseAt DateTime?
+
+  /// Held by the one worker currently downloading and storing the image.
+  ///
+  /// Separate from `submitLeaseAt` on purpose. Reusing that field made the two
+  /// leases indistinguishable, and an unrelated failed poll — which owns
+  /// neither — released the settler's lease and let a second worker download
+  /// and store the same image concurrently.
+  settleLeaseAt    DateTime?
+  /// Who holds `settleLeaseAt`. A lease is released only by its owner, so a
+  /// failure elsewhere cannot unlock a settlement that is still running.
+  settleLeaseOwner String?
+  /// How many times the row has been claimed for submission. Once this is
+  /// non-zero the row is never auto-submitted again, whatever its status.
+  submitAttempts   Int       @default(0)
+
+  falRequestId String?
+  /// Provider-facing error text, already stripped of anything secret.
+  error        String?
+
+  /// When somebody asked the provider to stop, and it accepted.
+  ///
+  /// Separate from `status` because fal documents that an accepted
+  /// cancellation may still complete: for a request already running it only
+  /// signals the runner. Writing CANCELED as a terminal status here threw away
+  /// images we had paid for. The job keeps reconciling; this field is what the
+  /// UI reads to say "cancellation requested".
+  cancelRequestedAt DateTime?
+
+  submittedAt            DateTime?
+  settledAt              DateTime?
+  /// Last time a reconcile actually reached the provider.
+  polledAt               DateTime?
+  /// Consecutive reconcile attempts that could not reach the provider at all.
+  ///
+  /// A transport failure says nothing about the job, so it must not settle it.
+  pollFailures           Int       @default(0)
+  /// When each dependency's current outage began, one column per dependency;
+  /// each is cleared by a read that gets through to *that* dependency.
+  ///
+  /// The outage is what the grace period bounds, not the age of the request.
+  /// Measuring from `submittedAt` meant a job queued for hours was written off
+  /// by its first failed read.
+  ///
+  /// Tracked separately because these fail independently. A single shared
+  /// timestamp meant a healthy queue-status read reset a continuing result or
+  /// authorization outage — so a job could be reconciled forever without its
+  /// real failure ever reaching the grace period — and a newly failing
+  /// dependency inherited the previous one's start time, reporting a first
+  /// failed provider read as a seven-hour provider outage.
+  statusUnreachableSince DateTime?
+  resultUnreachableSince DateTime?
+  authUnreachableSince   DateTime?
+  /// Which dependency the current `error` describes. Display only.
+  unreachableSource      String?
+  /// Why the last reconcile could not reach the provider. Display only.
+  lastPollError          String?
+
+  asset ProjectImageAsset?
+
+  @@unique([projectId, idempotencyKey])
+  @@unique([falRequestId])
+  @@index([projectId, createdAt])
+  @@index([status, updatedAt])
+  @@index([workspaceId])
+  @@index([sessionId])
+  @@index([requestedByUserId])
+  @@index([parentAssetId])
+  @@map("project_image_job")
+}
+
+/// An immutable version. Rows are inserted and read; never updated.
+model ProjectImageAsset {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// One asset per job. This is what makes settlement idempotent when a
+  /// webhook and a poll race each other.
+  jobId String          @unique @db.Uuid
+  job   ProjectImageJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  /// Origin of the whole family, so one indexed read returns a lineage.
+  rootId   String              @db.Uuid
+  /// The version this one was refined from.
+  parentId String?             @db.Uuid
+  parent   ProjectImageAsset?  @relation("ProjectImageAssetLineage", fields: [parentId], references: [id], onDelete: SetNull)
+  children ProjectImageAsset[] @relation("ProjectImageAssetLineage")
+
+  /// Position within the family, starting at 1. Unique per family so two
+  /// concurrent settlements cannot both take the same number.
+  version Int
+
+  model    String
+  prompt   String
+  settings Json
+
+  /// Private blob pathname. Not a URL: the bytes are only reachable through
+  /// the authorized streaming route, which re-checks access per request.
+  blobPathname String
+  contentType  String
+  width        Int
+  height       Int
+  bytes        Int
+  /// sha256 of the stored bytes.
+  checksum     String
+
+  review ProjectImageReview?
+
+  @@unique([rootId, version])
+  @@index([projectId, createdAt])
+  @@index([workspaceId])
+  @@index([parentId])
+  @@map("project_image_asset")
+}
+
+/// A human decision about one immutable version.
+model ProjectImageReview {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assetId String            @unique @db.Uuid
+  asset   ProjectImageAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  decision ProjectImageReviewDecision
+  feedback String?
+
+  decidedByUserId String
+  decidedByUser   User   @relation("ProjectImageReviewDecider", fields: [decidedByUserId], references: [id], onDelete: Cascade)
+
+  decidedAt DateTime @default(now())
+
+  @@index([decidedByUserId])
+  @@map("project_image_review")
 }

@@ -41,6 +41,7 @@ import type {
   GetJobsData,
   GetNotificationsData,
   GetProjectsByIdCalendarData,
+  GetProjectsByIdImageStudioData,
   GetProjectsByIdSocialPostsData,
   GetProjectsData,
   GetProjectsStatsData,
@@ -82,6 +83,8 @@ import type {
   PostProjectsByIdCloseCancelOwedData,
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
+  PostProjectsByIdImageStudioAssetsByAssetIdReviewData,
+  PostProjectsByIdImageStudioJobsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
@@ -158,6 +161,7 @@ import {
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
+  deleteProjectsByIdImageStudioAssetsByAssetIdReview as coreDeleteProjectsByIdImageStudioAssetsByAssetIdReview,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
   deleteProjectsByIdStar as coreDeleteProjectsByIdStar,
@@ -247,6 +251,7 @@ import {
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
+  getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
@@ -378,6 +383,9 @@ import {
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
+  postProjectsByIdImageStudioAssetsByAssetIdReview as corePostProjectsByIdImageStudioAssetsByAssetIdReview,
+  postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
+  postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
@@ -3033,6 +3041,88 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdImageStudio(
+    id: string,
+    query?: GetProjectsByIdImageStudioData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdImageStudio({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Project image studio",
+    );
+  }
+
+  async function postProjectsByIdImageStudioJobs(
+    id: string,
+    body: NonNullable<PostProjectsByIdImageStudioJobsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioJobs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to start image generation",
+    );
+  }
+
+  async function postProjectsByIdImageStudioJobsByJobIdCancel(
+    id: string,
+    jobId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioJobsByJobIdCancel({
+          client,
+          path: { id, jobId },
+        }),
+      "Failed to request cancellation",
+    );
+  }
+
+  async function postProjectsByIdImageStudioAssetsByAssetIdReview(
+    id: string,
+    assetId: string,
+    body: NonNullable<
+      PostProjectsByIdImageStudioAssetsByAssetIdReviewData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioAssetsByAssetIdReview({
+          client,
+          path: { id, assetId },
+          body,
+        }),
+      "Failed to review image version",
+    );
+  }
+
+  async function deleteProjectsByIdImageStudioAssetsByAssetIdReview(
+    id: string,
+    assetId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdImageStudioAssetsByAssetIdReview({
+          client,
+          path: { id, assetId },
+        }),
+      "Failed to clear image review",
+    );
+  }
+
   async function getProjectsByIdSocialPosts(
     id: string,
     query?: GetProjectsByIdSocialPostsData["query"],
@@ -5622,6 +5712,11 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
     getProjectsByIdSocialConnections,
+    getProjectsByIdImageStudio,
+    postProjectsByIdImageStudioJobs,
+    postProjectsByIdImageStudioJobsByJobIdCancel,
+    postProjectsByIdImageStudioAssetsByAssetIdReview,
+    deleteProjectsByIdImageStudioAssetsByAssetIdReview,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsByPostId,
     patchProjectsByIdSocialPostsByPostId,

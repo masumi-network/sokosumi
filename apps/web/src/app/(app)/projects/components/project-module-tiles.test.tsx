@@ -25,6 +25,10 @@ const LABELS = {
     title: "File Browser",
     description: "Every file this project produced",
   },
+  imageStudio: {
+    title: "Image studio",
+    description: "Create and refine images with a studio assistant.",
+  },
 };
 
 const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
@@ -51,6 +55,7 @@ describe("ProjectModuleTiles", () => {
     expect(headings).toEqual([
       "Calendar",
       "File Browser",
+      "Image studio",
       "SEO",
       "Social Media",
       "Email",
@@ -99,7 +104,8 @@ describe("ProjectModuleTiles", () => {
     ).toBe(true);
 
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(2);
+    // Calendar, File Browser, Image studio. Social Media has no href here.
+    expect(links).toHaveLength(3);
     expect(links).toContain(fileBrowserLink);
     expect(links).toContain(calendar);
   });
@@ -126,6 +132,7 @@ describe("ProjectModuleTiles", () => {
       disabledTiles.map((tile) => tile.querySelector("h3")?.textContent),
     ).toEqual(["SEO", "Email", "Paid Advertising", "Content", "PR"]);
     expect(screen.getAllByText("Coming soon")).toHaveLength(5);
-    expect(screen.getAllByRole("link")).toHaveLength(3);
+    // Calendar, File Browser, Image studio, Social Media.
+    expect(screen.getAllByRole("link")).toHaveLength(4);
   });
 });

@@ -24,6 +24,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/sync/image-jobs",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/sync/agents-summary",
       "schedule": "*/5 * * * *"
     },
