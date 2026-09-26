@@ -36,11 +36,26 @@ public final class AuthState: ObservableObject {
   private var signOutTask: Task<Void, Never>?
   private var attemptID: UUID?
 
+  public convenience init(
+    configuration: OAuthConfiguration?,
+    store: any TokenStore,
+    browser: any OAuthBrowser,
+    restoreSession: Bool = true
+  ) {
+    self.init(
+      configuration: configuration,
+      store: store,
+      browser: browser,
+      transport: URLSessionTokenTransport(),
+      restoreSession: restoreSession
+    )
+  }
+
   public init(
     configuration: OAuthConfiguration?,
     store: any TokenStore,
     browser: any OAuthBrowser,
-    transport: any TokenEndpointTransport = URLSessionTokenTransport(),
+    transport: any TokenEndpointTransport,
     restoreSession: Bool = true
   ) {
     self.configuration = configuration
