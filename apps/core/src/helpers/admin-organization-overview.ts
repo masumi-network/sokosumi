@@ -193,7 +193,12 @@ export async function buildAdminOrganizationOverviewDetail(
     now,
   );
   const [assignedCount, subscription] = await Promise.all([
-    memberRepository.getAssignedMemberCount(organization.id, tx),
+    tx.member.count({
+      where: {
+        organizationId: organization.id,
+        seatAssignedAt: { not: null },
+      },
+    }),
     billingPlan.mode === "self_serve"
       ? subscriptionRepository.resolveActiveSubscriptionByReferenceId(
           organization.id,
@@ -262,11 +267,4 @@ export async function buildAdminOrganizationOverviewDetail(
     },
     totalCredits,
   };
-}
-
-export async function getAdminOrganizationBySlug(
-  slug: string,
-  tx: Prisma.TransactionClient,
-) {
-  return organizationRepository.getOrganizationLimitedInfoBySlug(slug, tx);
 }

@@ -24,28 +24,6 @@ export async function deliverCalendarInvalidationsNow(
   }
 }
 
-/** Resolve a Task's workspace without letting post-commit delivery change mutation semantics. */
-export async function deliverTaskCalendarInvalidationsNow(
-  taskId: string,
-): Promise<void> {
-  try {
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      select: { workspaceId: true },
-    });
-    if (task) {
-      await deliverCalendarInvalidationsNow(task.workspaceId);
-    }
-  } catch (error) {
-    Sentry.captureException(error, {
-      extra: {
-        taskId,
-        notificationType: "task-calendar-invalidation-delivery",
-      },
-    });
-  }
-}
-
 /** Resolve an organization workspace after membership removal, then drain its committed revocation. */
 export async function deliverOrganizationCalendarInvalidationsNow(
   organizationId: string,
