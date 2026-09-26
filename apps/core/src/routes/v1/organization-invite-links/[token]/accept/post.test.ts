@@ -64,14 +64,6 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   };
 });
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {
-    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
-      getMemberMock(...args),
-    createMember: (...args: unknown[]) => createMemberMock(...args),
-  },
-}));
-
 vi.mock("@/helpers/invite-link-consume", () => ({
   tryConsumeOrganizationInviteLink: (...args: unknown[]) =>
     tryConsumeInviteLinkMock(...args),
@@ -84,7 +76,13 @@ vi.mock("@/helpers/org-membership-personal-workspace", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: (cb: (tx: unknown) => unknown) => cb({}),
+    $transaction: (cb: (tx: unknown) => unknown) =>
+      cb({
+        member: {
+          findUnique: (...args: unknown[]) => getMemberMock(...args),
+          create: (...args: unknown[]) => createMemberMock(...args),
+        },
+      }),
     organization: {
       findUnique: (...args: unknown[]) => orgFindUniqueMock(...args),
     },
@@ -201,12 +199,13 @@ describe("POST /organization-invite-links/{token}/accept", () => {
       tx: expect.anything(),
       organizationId: "org_1",
     });
-    expect(createMemberMock).toHaveBeenCalledWith(
-      "user_123",
-      "org_1",
-      "member",
-      expect.anything(),
-    );
+    expect(createMemberMock).toHaveBeenCalledWith({
+      data: {
+        user: { connect: { id: "user_123" } },
+        organization: { connect: { id: "org_1" } },
+        role: "member",
+      },
+    });
     expect(tryConsumeInviteLinkMock).toHaveBeenCalledTimes(1);
     expect(upgradeGuestChatRoomMembershipsToMemberMock).toHaveBeenCalledWith(
       "user_123",

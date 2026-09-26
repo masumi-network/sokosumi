@@ -6725,7 +6725,9 @@
         "Date": {
           "min": "{name} debe ser al menos {value}",
           "max": "{name} no puede superar {value}",
-          "format": "{name} debe ser un/una {value}"
+          "format": "{name} debe ser un/una {value}",
+          "pickDate": "Elegir una fecha",
+          "pickDateTime": "Elegir fecha y hora"
         },
         "Password": {
           "show": "Mostrar contraseña",

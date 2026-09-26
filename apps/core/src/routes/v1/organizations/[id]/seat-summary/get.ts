@@ -3,7 +3,6 @@ import {
   getUnusedSeatCount,
   resolveOrganizationBillingPlan,
 } from "@sokosumi/database/helpers";
-import { memberRepository } from "@sokosumi/database/repositories";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -70,7 +69,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     const [assignedCount, memberCount, billingPlan] = await Promise.all([
-      memberRepository.getAssignedMemberCount(organization.id, prisma),
+      prisma.member.count({
+        where: {
+          organizationId: organization.id,
+          seatAssignedAt: { not: null },
+        },
+      }),
       prisma.member.count({
         where: {
           organizationId: organization.id,
