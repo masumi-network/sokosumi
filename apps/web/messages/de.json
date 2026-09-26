@@ -1570,8 +1570,7 @@
       },
       "Actions": {
         "loading": "Wird geladen...",
-        "loadMore": "Mehr laden",
-        "showGuide": "Show guide"
+        "loadMore": "Mehr laden"
       },
       "createTaskFab": "Aufgabe erstellen",
       "personalAssistant": "Persönlicher Assistent",
@@ -2029,17 +2028,6 @@
           "at": "Startet {datetime}"
         }
       },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "elenaAvatarAlt": "Elena avatar"
-      },
       "Schedules": {
         "stateFilter": "Status des Zeitplans",
         "filterAll": "Alle",
@@ -2120,6 +2108,32 @@
         "Page": {
           "title": "Zeitpläne",
           "description": "Alle Zeitpläne in deinem Workspace. Jeder Lauf erstellt einen neuen Task."
+        }
+      },
+      "Tags": {
+        "label": "Tags",
+        "empty": "Noch keine Tags",
+        "edit": "Tags bearbeiten",
+        "hint": "Wähle bis zu fünf Tags. Gespeicherte Auswahl bleibt; entfernte Vorschläge erscheinen nicht erneut.",
+        "showAll": "Alle {count} Tags anzeigen",
+        "save": "Tags speichern",
+        "saving": "Speichern…",
+        "error": "Tags konnten nicht gespeichert werden. Versuche es erneut.",
+        "manual": "Von dir ausgewählt",
+        "automatic": "Automatisch vorgeschlagen",
+        "noProject": "Kein Projekt",
+        "openProject": "Projekt öffnen: {name}",
+        "vocabulary": {
+          "research": "Recherche",
+          "strategy": "Strategie",
+          "writing": "Text",
+          "design": "Design",
+          "analysis": "Analyse",
+          "development": "Entwicklung",
+          "marketing": "Marketing",
+          "social": "Social Media",
+          "seo": "SEO",
+          "operations": "Betrieb"
         }
       }
     },

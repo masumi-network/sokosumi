@@ -22,6 +22,8 @@ import {
   type TaskLink,
   TaskLinkRelation,
   TaskStatus,
+  type TaskTagId,
+  type TaskTags,
   type UserWritableTaskLinkRelation,
 } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
@@ -925,3 +927,20 @@ export const createTaskAndLink = withSession<
     }
   },
 );
+
+export const updateTaskTags = withSession<
+  AuthenticatedRequest & {
+    taskId: string;
+    add: TaskTagId[];
+    remove: TaskTagId[];
+  },
+  ActionResultDto<TaskTags, ActionError>
+>(async ({ taskId, add, remove }) => {
+  try {
+    const tags = await taskService.patchTaskTags(taskId, { add, remove });
+    revalidateTaskMutationRoutes(taskId);
+    return toActionResult(ok(tags));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});

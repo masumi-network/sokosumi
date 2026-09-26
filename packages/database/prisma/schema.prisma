@@ -2675,6 +2675,18 @@ model Task {
   name        String
   description String?
 
+  /// Controlled vocabulary IDs. Manual additions and rejections survive content edits.
+  automaticTags String[] @default([])
+  manualTags String[] @default([])
+  rejectedTags String[] @default([])
+  /// Maintained by task_tag_revision trigger for all writers, including schedules.
+  tagContentRevision Int @default(1)
+  tagClassificationState String @default("unclassified")
+  tagClassificationAttempts Int @default(0)
+  tagClassificationLease String?
+  tagClassificationAvailableAt DateTime @default(now())
+  tagVocabularyVersion Int @default(1)
+
   status TaskStatus @default(DRAFT)
 
   /// Workspace-visible vs creator-private. Set at create; immutable in v1.
@@ -2759,6 +2771,7 @@ model Task {
   @@index([workspaceId, visibility])
   @@index([scheduleId])
   @@index([status, runAt])
+  @@index([tagClassificationState, tagClassificationAvailableAt], map: "task_tag_queue_idx")
   @@map("task")
 }
 

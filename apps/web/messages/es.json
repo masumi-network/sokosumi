@@ -1570,8 +1570,7 @@
       },
       "Actions": {
         "loading": "Cargando...",
-        "loadMore": "Cargar más",
-        "showGuide": "Show guide"
+        "loadMore": "Cargar más"
       },
       "createTaskFab": "Crear tarea",
       "personalAssistant": "Asistente personal",
@@ -2029,17 +2028,6 @@
           "at": "Empieza {datetime}"
         }
       },
-      "EmptyState": {
-        "title": "Welcome to Task Manager",
-        "description": "Start by creating your first task so Elena has clear context to execute.",
-        "getStartedTitle": "You're all set!",
-        "getStartedDescription": "Start creating tasks and chatting with your AI coworkers. Elena is ready to help you get things done.",
-        "getStartedButton": "Get Started",
-        "next": "Next",
-        "back": "Back",
-        "addTaskHint": "Start by adding a task",
-        "elenaAvatarAlt": "Elena avatar"
-      },
       "Schedules": {
         "stateFilter": "Estado de la programación",
         "filterAll": "Todas",
@@ -2120,6 +2108,32 @@
         "Page": {
           "title": "Programaciones",
           "description": "Todas las programaciones de tu espacio de trabajo. Cada ejecución crea una tarea nueva."
+        }
+      },
+      "Tags": {
+        "label": "Etiquetas",
+        "empty": "Sin etiquetas todavía",
+        "edit": "Editar etiquetas",
+        "hint": "Elige hasta cinco etiquetas. Tus elecciones se guardan; las sugerencias eliminadas no volverán.",
+        "showAll": "Mostrar las {count} etiquetas",
+        "save": "Guardar etiquetas",
+        "saving": "Guardando…",
+        "error": "No se pudieron guardar las etiquetas. Inténtalo de nuevo.",
+        "manual": "Elegida por ti",
+        "automatic": "Sugerida automáticamente",
+        "noProject": "Sin proyecto",
+        "openProject": "Abrir proyecto: {name}",
+        "vocabulary": {
+          "research": "Investigación",
+          "strategy": "Estrategia",
+          "writing": "Redacción",
+          "design": "Diseño",
+          "analysis": "Análisis",
+          "development": "Desarrollo",
+          "marketing": "Marketing",
+          "social": "Redes sociales",
+          "seo": "SEO",
+          "operations": "Operaciones"
         }
       }
     },

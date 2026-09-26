@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-
 import mountGetAgentsSync from "./agents/get.js";
 import mountGetAgentsSummarySync from "./agents-summary/get.js";
 import mountGetCalendarInvalidationsSync from "./calendar-invalidations/get.js";
@@ -20,6 +19,7 @@ import mountGetSourceImportSync from "./source-import/get.js";
 import mountGetStripeCustomersSync from "./stripe-customers/get.js";
 import mountGetTaskPaymentClaimsSync from "./task-payment-claims/get.js";
 import mountGetTaskSchedulesSync from "./task-schedules/get.js";
+import mountTaskTagsSync from "./task-tags/get.js";
 import mountGetTaskX402PaymentHeadersPurgeSync from "./task-x402-payment-headers-purge/get.js";
 
 const app = new Hono();
@@ -44,6 +44,7 @@ mountGetSokoBotTurnsSync(app);
 mountGetStripeCustomersSync(app);
 mountGetTaskPaymentClaimsSync(app);
 mountGetTaskSchedulesSync(app);
+mountTaskTagsSync(app);
 mountGetTaskX402PaymentHeadersPurgeSync(app);
 
 export default app;

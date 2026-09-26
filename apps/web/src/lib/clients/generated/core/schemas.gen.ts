@@ -4585,6 +4585,9 @@ export const TaskSchema = {
             deprecated: true,
             description: 'Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.'
         },
+        tags: {
+            $ref: '#/components/schemas/TaskTags'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -5087,6 +5090,51 @@ export const TaskCreatorSokoBotSchema = {
         'type',
         'id',
         'sokoBot'
+    ]
+} as const;
+
+export const TaskTagsSchema = {
+    type: 'object',
+    properties: {
+        automatic: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            }
+        },
+        manual: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            }
+        },
+        rejected: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            }
+        }
+    },
+    required: [
+        'automatic',
+        'manual',
+        'rejected'
+    ]
+} as const;
+
+export const TaskTagIdSchema = {
+    type: 'string',
+    enum: [
+        'research',
+        'strategy',
+        'writing',
+        'design',
+        'analysis',
+        'development',
+        'marketing',
+        'social',
+        'seo',
+        'operations'
     ]
 } as const;
 
@@ -21027,6 +21075,9 @@ export const TaskListItemSchema = {
             ],
             deprecated: true,
             description: 'Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.'
+        },
+        tags: {
+            $ref: '#/components/schemas/TaskTags'
         },
         name: {
             type: 'string',
