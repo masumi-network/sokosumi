@@ -1,8 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
-
-import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -51,7 +50,7 @@ const route = withOrganizationSlugHeaderParameter(
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const userContext = requireInteractiveUserAuthContext(c.var.authContext);
-    await requireCalendarBetaAccess(userContext.userId, prisma);
+    await requireSocialBetaAccess(userContext.userId, prisma);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     const input = c.req.valid("json");

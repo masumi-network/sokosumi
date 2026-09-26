@@ -116,7 +116,7 @@ public struct SokoBotChainMetadata: Equatable, Sendable {
     "\(roomMessagesThisHour) of \(roomMessagesPerHour) assistant messages in this room this hour."
   }
 
-  public static let lastHopDescription = "This is the last hop — it will not wake anyone else."
+  private static let lastHopDescription = "This is the last hop — it will not wake anyone else."
 
   /// Web's tooltip: depth, room rate and, on the final hop, that it ends there.
   public var summary: String {

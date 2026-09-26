@@ -5,12 +5,12 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono.js";
 
 const {
   assignSeatMock,
-  getAdminOrganizationBySlugMock,
+  organizationFindUniqueMock,
   resolveOrganizationBillingPlanMock,
   transactionMock,
 } = vi.hoisted(() => ({
   assignSeatMock: vi.fn(),
-  getAdminOrganizationBySlugMock: vi.fn(),
+  organizationFindUniqueMock: vi.fn(),
   resolveOrganizationBillingPlanMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
@@ -22,10 +22,6 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   );
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
-
-vi.mock("@/helpers/admin-organization-overview.js", () => ({
-  getAdminOrganizationBySlug: getAdminOrganizationBySlugMock,
-}));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   const actual =
@@ -46,6 +42,9 @@ vi.mock("@sokosumi/database/repositories", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (...args: unknown[]) => transactionMock(...args),
+    organization: {
+      findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
+    },
   },
 }));
 
@@ -73,7 +72,7 @@ describe("PUT /v1/admin/organizations/{slug}/members/{memberId}/seat", () => {
     transactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => callback({}),
     );
-    getAdminOrganizationBySlugMock.mockResolvedValue({ id: "org_123" });
+    organizationFindUniqueMock.mockResolvedValue({ id: "org_123" });
     resolveOrganizationBillingPlanMock.mockResolvedValue({ purchasedSeats: 3 });
     assignSeatMock.mockResolvedValue({
       id: "member_456",
@@ -82,7 +81,7 @@ describe("PUT /v1/admin/organizations/{slug}/members/{memberId}/seat", () => {
   });
 
   it("returns 404 when the organization does not exist", async () => {
-    getAdminOrganizationBySlugMock.mockResolvedValue(null);
+    organizationFindUniqueMock.mockResolvedValue(null);
 
     const response = await assignSeat("missing", "member_456");
 

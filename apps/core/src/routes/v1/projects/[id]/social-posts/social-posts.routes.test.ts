@@ -19,7 +19,7 @@ const {
   createSocialPostMock,
   getSocialPostMock,
   listSocialPostsMock,
-  requireCalendarBetaAccessMock,
+  requireSocialBetaAccessMock,
   scheduleSocialPostMock,
   updateSocialPostMock,
 } = vi.hoisted(() => ({
@@ -27,7 +27,7 @@ const {
   createSocialPostMock: vi.fn(),
   getSocialPostMock: vi.fn(),
   listSocialPostsMock: vi.fn(),
-  requireCalendarBetaAccessMock: vi.fn(),
+  requireSocialBetaAccessMock: vi.fn(),
   scheduleSocialPostMock: vi.fn(),
   updateSocialPostMock: vi.fn(),
 }));
@@ -41,8 +41,8 @@ vi.mock("@/services/social-posts.service", () => ({
   updateSocialPost: updateSocialPostMock,
 }));
 
-vi.mock("@/helpers/calendar-beta-access", () => ({
-  requireCalendarBetaAccess: requireCalendarBetaAccessMock,
+vi.mock("@/helpers/social-beta-access", () => ({
+  requireSocialBetaAccess: requireSocialBetaAccessMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
@@ -194,7 +194,7 @@ function expectNoServiceCalls() {
 describe("Project social post routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireCalendarBetaAccessMock.mockResolvedValue(undefined);
+    requireSocialBetaAccessMock.mockResolvedValue(undefined);
     listSocialPostsMock.mockResolvedValue({
       posts: [draftPost],
       pagination: { cursor: null, nextCursor: null, limit: 20, total: 1 },
@@ -234,12 +234,12 @@ describe("Project social post routes", () => {
     expect(responses.map((response) => response.status)).toEqual([
       403, 403, 403, 403, 403, 403,
     ]);
-    expect(requireCalendarBetaAccessMock).not.toHaveBeenCalled();
+    expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
     expectNoServiceCalls();
   });
 
-  it("gates every operation behind Calendar beta access", async () => {
-    requireCalendarBetaAccessMock.mockRejectedValue(
+  it("gates every operation behind Social beta access", async () => {
+    requireSocialBetaAccessMock.mockRejectedValue(
       forbidden("Calendar is only available to utxo AG workspace members"),
     );
 
@@ -279,7 +279,7 @@ describe("Project social post routes", () => {
       },
     ]);
     expect(filtered.status).toBe(200);
-    expect(requireCalendarBetaAccessMock).toHaveBeenCalledWith(
+    expect(requireSocialBetaAccessMock).toHaveBeenCalledWith(
       USER_ID,
       expect.anything(),
     );

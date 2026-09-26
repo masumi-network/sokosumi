@@ -81,7 +81,7 @@ public func tombstoneTranscriptMessage(
 
 /// Client turn id on any transcript row: the `pending:` suffix for local
 /// shells, else Core's `client_message_id` metadata. Nil when absent.
-public func realtimeClientTurnId(_ message: Components.Schemas.ChatRoomMessage) -> String? {
+func realtimeClientTurnId(_ message: Components.Schemas.ChatRoomMessage) -> String? {
   if isOutboundLocalMessage(message) {
     let raw = message.id.dropFirst(outboundLocalIdPrefix.count).trimmingCharacters(in: .whitespacesAndNewlines)
     return raw.isEmpty ? nil : String(raw)
@@ -147,7 +147,7 @@ public func applyRealtimeTombstone(
 /// rows win by id, oldest first. Rows missing from the page stay — merge
 /// never drops ids the list GET omits. Local-only rows never come over the
 /// wire, so they cannot leak in here.
-public func mergeRealtimePage(
+func mergeRealtimePage(
   messages: [Components.Schemas.ChatRoomMessage],
   page: [Components.Schemas.ChatRoomMessage]
 ) -> [Components.Schemas.ChatRoomMessage] {

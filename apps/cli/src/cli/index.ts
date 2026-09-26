@@ -56,7 +56,6 @@ type ValueOptionName =
   | "priority"
   | "api-key-name"
   | "api-key-expires-at"
-  | "expires-at"
   | "coworker-id"
   | "event-id"
   | "status"
@@ -100,10 +99,9 @@ interface CliOptions {
   priority?: string;
   "api-key-name"?: string;
   "api-key-expires-at"?: string;
-  "expires-at"?: string;
   "coworker-id"?: string;
   "event-id"?: string;
-  status?: CliOptionValue;
+  status?: string;
   comment?: string;
   agent?: string;
   "input-json"?: string;
@@ -193,7 +191,7 @@ export const GLOBAL_BOOLEAN_FLAG_BY_TOKEN = {
   "--version": "version",
 } as const satisfies Record<string, keyof CliOptions>;
 
-export const BOOLEAN_OPTION_NAMES = ["create-api-key", "details"] as const;
+const BOOLEAN_OPTION_NAMES = ["create-api-key", "details"] as const;
 
 function formatGlobalOptionHelp(): string[] {
   const booleanLines: string[] = [];
@@ -255,7 +253,6 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "priority",
   "api-key-name",
   "api-key-expires-at",
-  "expires-at",
   "coworker-id",
   "event-id",
   "status",
@@ -271,7 +268,6 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
   "capability",
   "channel",
-  "status",
 ]);
 
 const BOOLEAN_OPTIONS = new Set<string>(BOOLEAN_OPTION_NAMES);

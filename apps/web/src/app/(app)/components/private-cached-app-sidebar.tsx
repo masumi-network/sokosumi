@@ -14,7 +14,6 @@ interface PrivateCachedAppSidebarProps {
   sessionUser: SessionUser;
   activeOrganizationId: string | null;
   adminMenuEnabled: boolean;
-  calendarMenuEnabled: boolean;
 }
 
 /**
@@ -27,14 +26,12 @@ export default function PrivateCachedAppSidebar({
   sessionUser,
   activeOrganizationId,
   adminMenuEnabled,
-  calendarMenuEnabled,
 }: PrivateCachedAppSidebarProps) {
   const sokoBotMenuEnabled = hasSokoBotBetaAccess(sessionUser);
 
   return (
     <Sidebar
       sokoBotMenuEnabled={sokoBotMenuEnabled}
-      calendarMenuEnabled={calendarMenuEnabled}
       chatList={
         <Suspense
           fallback={

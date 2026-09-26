@@ -44,13 +44,11 @@ const CALENDAR_HREF = "/calendar";
 
 export interface YouPageClientProps extends AccountSummaryCreditProps {
   sessionUser: SessionUser;
-  calendarMenuEnabled: boolean;
   adminSettingsChrome: AccountAdminSettingsChrome;
 }
 
 export function YouPageClient({
   sessionUser,
-  calendarMenuEnabled,
   planName,
   extraCredits,
   creditUsage,
@@ -166,14 +164,12 @@ export function YouPageClient({
               label={tMenu("schedules")}
               testId="you-schedules"
             />
-            {calendarMenuEnabled ? (
-              <MobileStackedMenuLink
-                href={CALENDAR_HREF}
-                icon={<Calendar className="size-4 shrink-0" aria-hidden />}
-                label={tMenu("calendar")}
-                testId="you-calendar"
-              />
-            ) : null}
+            <MobileStackedMenuLink
+              href={CALENDAR_HREF}
+              icon={<Calendar className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("calendar")}
+              testId="you-calendar"
+            />
             <MobileStackedMenuLink
               href={DRIVE_HREF}
               icon={<HardDrive className="size-4 shrink-0" aria-hidden />}

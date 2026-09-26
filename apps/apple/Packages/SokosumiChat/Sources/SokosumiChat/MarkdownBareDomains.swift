@@ -156,9 +156,15 @@ struct MarkdownBareDomains {
   /// only a whitespace gap stays in the same row. Structural markers therefore
   /// split a row even though the Markdown tree deletes them. Fenced and inline
   /// code are skipped so a sample link is not an attachment.
-  func attachmentGroups() -> [[MessageAttachment]] {
+  struct AttachmentRun {
+    var range: Range<Int>
+    var attachments: [MessageAttachment]
+    var offsets: [Int]
+  }
+
+  func attachmentRuns() -> [AttachmentRun] {
     let links = inlineLinks()
-    var groups: [[MessageAttachment]] = []
+    var groups: [AttachmentRun] = []
     var open = false
     var index = 0
     var linkCursor = 0
@@ -175,9 +181,13 @@ struct MarkdownBareDomains {
         let range = links[linkCursor]
         if let attachment = attachment(in: range) {
           if open, !groups.isEmpty {
-            groups[groups.count - 1].append(attachment)
+            groups[groups.count - 1].attachments.append(attachment)
+            groups[groups.count - 1].offsets.append(range.lowerBound)
+            groups[groups.count - 1].range = groups[groups.count - 1].range.lowerBound ..< range.upperBound
           } else {
-            groups.append([attachment])
+            // Keep native Markdown images intact instead of rendering their ! as prose.
+            let start = range.lowerBound > 0 && text[range.lowerBound - 1] == "!" ? range.lowerBound - 1 : range.lowerBound
+            groups.append(AttachmentRun(range: start ..< range.upperBound, attachments: [attachment], offsets: [range.lowerBound]))
             open = true
           }
         } else {

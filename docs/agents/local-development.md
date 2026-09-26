@@ -53,4 +53,4 @@ Prefer the turbo entry points above over `pnpm --filter <workspace> <task>`. A f
 - **OAuth / magic-link:** Google, Microsoft, and magic-link email do **not** work with placeholder credentials. Email/password signup works with no email verification and auto sign-in (`/signup`) — only when testing signup itself.
 - **Agents catalog:** on a Neon agent branch forked from production, catalog/billing data comes from the parent. On empty local Postgres, `GET /v1/agents` / `/v1/categories` may 500 until `credit_cost` has rows (admin `POST /v1/credit-costs` / `/admin` UI) — missing data, not a broken build.
 - **Realtime (Ably) is unconfigured:** `POST /api/ably/auth` proxies Core `POST /v1/realtime/ably-token`; chat pages surface a "Something went wrong" modal when Core `ABLY_SUBSCRIBE_ONLY_KEY` / `ABLY_PUBLISH_ONLY_KEY` are placeholders. Optional; unrelated to setup.
-- Lint (`pnpm lint`), tests (`pnpm test`), and type checks do **not** need the DB or the servers running.
+- Lint (`pnpm check`), tests (`pnpm test`), and type checks do **not** need the DB or the servers running.

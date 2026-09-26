@@ -1304,4 +1304,31 @@ describe("PATCH /tasks/{id} Run at", () => {
     expect(response.status).toBe(422);
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
+
+  it("rejects assigning a queued Task to a human", async () => {
+    mockTask({ status: TaskStatus.QUEUED, runAt: new Date(RUN_AT) });
+
+    const response = await patch({ assigneeUserId: "user_456" });
+
+    expect(response.status).toBe(422);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("allows a human when the same patch clears Run at", async () => {
+    mockTask({ status: TaskStatus.QUEUED, runAt: new Date(RUN_AT) });
+
+    const response = await patch({ runAt: null, assigneeUserId: "user_456" });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.DRAFT,
+          runAt: null,
+          assigneeId: null,
+          assigneeUserId: "user_456",
+        }),
+      }),
+    );
+  });
 });

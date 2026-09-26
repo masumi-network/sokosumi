@@ -566,7 +566,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             );
           }
           if (event.status) {
-            await notifyTaskStatusEvent(taskId, event.id, event.status);
+            await notifyTaskStatusEvent(
+              taskId,
+              event.id,
+              event.status,
+              event.userId,
+            );
           }
         })(),
       );

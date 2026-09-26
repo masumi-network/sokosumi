@@ -46,6 +46,7 @@ import { BlobStatus, Channel, TaskStatus } from "@/lib/clients/generated/core";
 import type {
   TaskEvent,
   TaskFile,
+  TaskParticipant,
 } from "@/lib/clients/generated/core/types.gen";
 import {
   CHANNEL_APP_NAME_KEY_MAP,
@@ -68,6 +69,7 @@ import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
 import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
+import { TaskActivitySubscribeControl } from "./task-activity-subscribe";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
   getTaskStatusBorderColorClass,
@@ -105,6 +107,8 @@ interface TaskActivityProps {
   canComment?: boolean;
   /** Workspace members the composer offers for `@`; mentions add them as Task participants. */
   mentionableUsers?: readonly MentionableUser[];
+  /** Task participants in join order. */
+  participants?: TaskParticipant[];
 }
 
 export interface MentionableUser {
@@ -113,6 +117,7 @@ export interface MentionableUser {
 }
 
 const NO_MENTIONABLE_USERS: readonly MentionableUser[] = [];
+const NO_PARTICIPANTS: TaskParticipant[] = [];
 
 function getEventTimestamp(event: TaskEvent): number {
   return new Date(event.createdAt).getTime();
@@ -212,6 +217,7 @@ export function TaskActivitySection({
   viewerPlan = null,
   canComment = true,
   mentionableUsers = NO_MENTIONABLE_USERS,
+  participants = NO_PARTICIPANTS,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
@@ -419,7 +425,17 @@ export function TaskActivitySection({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
+        <TaskActivitySubscribeControl
+          taskId={taskId}
+          viewerId={currentUser?.id ?? null}
+          viewerName={currentUser?.name ?? null}
+          viewerImage={currentUser?.image ?? null}
+          participants={participants}
+          canComment={canComment}
+        />
+      </div>
 
       {canComment ? (
         <form

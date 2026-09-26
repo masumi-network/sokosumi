@@ -58,12 +58,31 @@ public final class RoomOutbox: ObservableObject {
     jobs[id] = nil
   }
 
-  /// Realtime confirmation can remove a shell before its HTTP result arrives.
+  /// Persisted history can confirm a send before its HTTP result arrives or after it fails.
+  public func reconcile(messages: [Message]) {
+    guard !shells.isEmpty else { return }
+    for message in messages {
+      guard !isOutboundLocalMessage(message), let id = realtimeClientTurnId(message),
+            case let .case1(sender) = message.sender,
+            let shell = shells.first(where: {
+              $0.clientTurnId == id && $0.roomId == message.roomId
+                && $0.parentMessageId == message.parentMessageId && $0.sender.id == sender.user.id
+            }) else { continue }
+      reconcile(shells.filter { $0.clientTurnId != shell.clientTurnId }, confirmed: message)
+    }
+  }
+
+  /// History or realtime confirmation can remove a shell before its HTTP result arrives.
   public func reconcile(_ remaining: [OutboundShell], confirmed message: Message? = nil) {
     if let message, let id = realtimeClientTurnId(message),
        let shell = shells.first(where: { $0.clientTurnId == id }),
        !remaining.contains(where: { $0.clientTurnId == id }) {
       recordConfirmation(message.id, shell: shell)
+    }
+    // Failed requests have settled; release their retry closure once Core confirms.
+    // Keep active jobs until settle so a late response still releases the queue.
+    for shell in shells where shell.status == .failed && !remaining.contains(where: { $0.clientTurnId == shell.clientTurnId }) {
+      jobs[shell.clientTurnId] = nil
     }
     shells = remaining
   }

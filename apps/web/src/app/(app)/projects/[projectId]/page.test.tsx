@@ -1,22 +1,19 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  hasCurrentUserCalendarBetaAccessMock,
-  projectServiceMock,
-  notFoundMock,
-} = vi.hoisted(() => ({
-  hasCurrentUserCalendarBetaAccessMock: vi.fn(),
-  projectServiceMock: {
-    getProjectCloseStatus: vi.fn(),
-    getProjectById: vi.fn(),
-    getProjectsStats: vi.fn(),
-    getProjectNeedsAttention: vi.fn(),
-  },
-  notFoundMock: vi.fn(() => {
-    throw new Error("NOT_FOUND");
-  }),
-}));
+const { hasCurrentUserSocialBetaAccessMock, projectServiceMock, notFoundMock } =
+  vi.hoisted(() => ({
+    hasCurrentUserSocialBetaAccessMock: vi.fn(),
+    projectServiceMock: {
+      getProjectCloseStatus: vi.fn(),
+      getProjectById: vi.fn(),
+      getProjectsStats: vi.fn(),
+      getProjectNeedsAttention: vi.fn(),
+    },
+    notFoundMock: vi.fn(() => {
+      throw new Error("NOT_FOUND");
+    }),
+  }));
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
@@ -31,9 +28,8 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
+vi.mock("@/lib/social-beta-access.server", () => ({
+  hasCurrentUserSocialBetaAccess: () => hasCurrentUserSocialBetaAccessMock(),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -103,7 +99,7 @@ function buildProject() {
 describe("ProjectDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
+    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(true);
   });
 
   it("calls notFound without loading needs-attention when the project is missing", async () => {
@@ -300,9 +296,9 @@ describe("ProjectDetailPage", () => {
     );
   });
 
-  it("hides the Calendar card for non-beta sessions", async () => {
+  it("keeps the Calendar card but hides Social outside the beta", async () => {
     const project = buildProject();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
+    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
     projectServiceMock.getProjectById.mockResolvedValue(project);
     projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
       taskCount: 0,
@@ -318,10 +314,10 @@ describe("ProjectDetailPage", () => {
     render(html);
 
     expect(
-      screen.queryByRole("link", {
+      screen.getByRole("link", {
         name: "App.Projects.Detail.modules.calendar.title",
       }),
-    ).not.toBeInTheDocument();
+    ).toHaveAttribute("href", "/projects/project-1/calendar");
     expect(
       screen.queryByRole("link", {
         name: /App\.Projects\.Detail\.modules\.socialMedia\.title/i,

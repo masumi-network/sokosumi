@@ -10,9 +10,7 @@ export interface FetchTasksOptions {
   status?: string | readonly string[];
   scope?: string;
   coworkerId?: string;
-  cursor?: string;
   take?: number | string;
-  skip?: number | string;
 }
 
 export interface CreateTaskData {
@@ -25,11 +23,6 @@ export interface CreateTaskData {
 export interface CreateTaskEventData {
   status?: string;
   comment?: string;
-  authenticationUrl?: string;
-  credits?: number | null;
-  channel?: string;
-  origin?: string;
-  masumiPayment?: Record<string, unknown>;
 }
 
 function requireId(id: string, name: string): void {
@@ -58,9 +51,7 @@ function tasksPath(options: FetchTasksOptions = {}): string {
   if (options.scope) params.set("scope", String(options.scope).trim());
   if (options.coworkerId)
     params.set("coworkerId", String(options.coworkerId).trim());
-  if (options.cursor) params.set("cursor", String(options.cursor).trim());
   if (options.take !== undefined) params.set("take", String(options.take));
-  if (options.skip !== undefined) params.set("skip", String(options.skip));
   for (const status of values(options.status)) params.append("status", status);
   const query = params.toString();
   return query ? `${TASKS_PATH}?${query}` : TASKS_PATH;

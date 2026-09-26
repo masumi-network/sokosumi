@@ -103,7 +103,9 @@ export default defineConfig({
         test: {
           name: "node",
           environment: "node",
-          include: ["src/**/*.test.ts"],
+          // `agents/**` too: the studio agent's channel is this app's code and
+          // carries its authorization policy, so it belongs in the same run.
+          include: ["src/**/*.test.ts", "agents/**/*.test.ts"],
           exclude: [...defaultExclude, ...DOM_TEST_TS],
         },
       },

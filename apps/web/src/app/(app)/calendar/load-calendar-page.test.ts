@@ -2,14 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getWorkspaceCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
-const listCoworkersMock = vi.fn();
-const listTaskAssigneeMemberOptionsMock = vi.fn();
-const getCoworkerOptionsMock = vi.fn();
+const listTaskAssigneeOptionsMock = vi.fn();
 const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const getSessionMock = vi.fn();
-const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
@@ -27,11 +24,6 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
 }));
 
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
-}));
-
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
     getWorkspaceCalendar: (query: unknown) => getWorkspaceCalendarMock(query),
@@ -39,10 +31,9 @@ vi.mock("@/lib/services/task.service", () => ({
   },
 }));
 
-vi.mock("@/lib/services/coworker.service", () => ({
-  coworkerService: {
-    listCoworkers: () => listCoworkersMock(),
-  },
+vi.mock("@/app/tasks/utils/task-assignee-options", () => ({
+  listTaskAssigneeOptions: (organizationId: string | null) =>
+    listTaskAssigneeOptionsMock(organizationId),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -56,16 +47,6 @@ vi.mock("@/lib/services/project.service", () => ({
 vi.mock("@/lib/helpers/project-filter-options", () => ({
   getProjectFilterOptions: (projectId?: string) =>
     getProjectFilterOptionsMock(projectId),
-}));
-
-vi.mock("@/app/tasks/utils/task-assignee-members", () => ({
-  listTaskAssigneeMemberOptions: (organizationId: string | null) =>
-    listTaskAssigneeMemberOptionsMock(organizationId),
-}));
-
-vi.mock("@/app/tasks/utils/coworker-options", () => ({
-  getCoworkerOptions: (coworkers: unknown[]) =>
-    getCoworkerOptionsMock(coworkers),
 }));
 
 import {
@@ -126,19 +107,16 @@ describe("loadCalendarPageContext", () => {
     getWorkspaceCalendarSourcesMock.mockResolvedValue([
       { sourceId: "project:1" },
     ]);
-    listCoworkersMock.mockResolvedValue([{ id: "coworker-1" }]);
-    listTaskAssigneeMemberOptionsMock.mockResolvedValue([
+    listTaskAssigneeOptionsMock.mockResolvedValue([
       { id: "user-1", kind: "user" },
-    ]);
-    getCoworkerOptionsMock.mockReturnValue([
       { id: "coworker-1", kind: "coworker" },
     ]);
   });
 
-  it("joins member options with coworker options and returns sources", async () => {
+  it("loads Core-backed task assignee options with sources", async () => {
     const result = await loadCalendarPageContext("org-1");
 
-    expect(listTaskAssigneeMemberOptionsMock).toHaveBeenCalledWith("org-1");
+    expect(listTaskAssigneeOptionsMock).toHaveBeenCalledWith("org-1");
     expect(result.sources).toEqual([{ sourceId: "project:1" }]);
     expect(result.coworkerOptions).toEqual([
       { id: "user-1", kind: "user" },
@@ -164,7 +142,6 @@ describe("loadCalendarPageContext", () => {
 describe("loadWorkspaceCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
       user: { id: "user-1" },
@@ -190,9 +167,7 @@ describe("loadWorkspaceCalendarPage", () => {
         isSchedulable: false,
       },
     ]);
-    listCoworkersMock.mockResolvedValue([]);
-    listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
-    getCoworkerOptionsMock.mockReturnValue([]);
+    listTaskAssigneeOptionsMock.mockResolvedValue([]);
     getProjectFilterOptionsMock.mockResolvedValue([
       { id: "project-1", name: "Open" },
       { id: "project-2", name: "Closed" },
@@ -223,17 +198,6 @@ describe("loadWorkspaceCalendarPage", () => {
       }
     },
   );
-
-  it("does not load Calendar data outside the Calendar beta", async () => {
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
-
-    await expect(
-      loadWorkspaceCalendarPage({ searchParams: Promise.resolve({}) }),
-    ).rejects.toThrow("NEXT_NOT_FOUND");
-
-    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
-    expect(getProjectByIdMock).not.toHaveBeenCalled();
-  });
 
   it("loads the workspace Calendar and keeps only schedulable Projects", async () => {
     const result = await loadWorkspaceCalendarPage({

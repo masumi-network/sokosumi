@@ -35,6 +35,7 @@ const taskServiceMock = {
   createTaskEvent: vi.fn(),
   getTaskById: vi.fn(),
   removeTaskParticipant: vi.fn(),
+  subscribeTaskParticipant: vi.fn(),
 };
 const toCoreApiActionErrorMock = vi.fn();
 
@@ -824,6 +825,28 @@ describe("updateTask Run at", () => {
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
+  it("clears Run at in the patch before assigning a human", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.DRAFT,
+    });
+    const { updateTask } = await import("./action");
+
+    await updateTask({
+      ...baseInput,
+      assigneeId: null,
+      assigneeUserId: "user-2",
+      desiredStatus: TaskStatus.DRAFT,
+      runAt: null,
+    });
+
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
+      "task-1",
+      expect.objectContaining({ assigneeUserId: "user-2", runAt: null }),
+    );
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+
   it("leaves Queued with a status event, which clears the Run at on Core", async () => {
     taskServiceMock.patchTask.mockResolvedValue({
       id: "task-1",
@@ -1080,26 +1103,25 @@ describe("task participant actions", () => {
     });
   });
 
-  it("removes a Task participant and reports success", async () => {
+  it("unsubscribes the session user and reports success", async () => {
     taskServiceMock.removeTaskParticipant.mockResolvedValue([]);
     const { removeTaskParticipant } = await import("./action");
 
     const result = await removeTaskParticipant({
       taskId: "task-1",
-      userId: "user-2",
     });
 
     expect(taskServiceMock.removeTaskParticipant).toHaveBeenCalledWith(
       "task-1",
-      "user-2",
+      "user-1",
     );
     expect(result).toEqual({
       ok: true,
-      value: { taskId: "task-1", userId: "user-2" },
+      value: { taskId: "task-1" },
     });
   });
 
-  it("returns the Core error when removal fails", async () => {
+  it("returns the Core error when unsubscribe fails", async () => {
     taskServiceMock.removeTaskParticipant.mockRejectedValue(
       new Error("Forbidden"),
     );
@@ -1111,8 +1133,40 @@ describe("task participant actions", () => {
 
     const result = await removeTaskParticipant({
       taskId: "task-1",
-      userId: "user-2",
     });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { message: "Forbidden", code: "FORBIDDEN" },
+    });
+  });
+
+  it("subscribes the viewer as a Task participant", async () => {
+    taskServiceMock.subscribeTaskParticipant.mockResolvedValue([]);
+    const { subscribeTaskParticipant } = await import("./action");
+
+    const result = await subscribeTaskParticipant({ taskId: "task-1" });
+
+    expect(taskServiceMock.subscribeTaskParticipant).toHaveBeenCalledWith(
+      "task-1",
+    );
+    expect(result).toEqual({
+      ok: true,
+      value: { taskId: "task-1" },
+    });
+  });
+
+  it("returns the Core error when subscribe fails", async () => {
+    taskServiceMock.subscribeTaskParticipant.mockRejectedValue(
+      new Error("Forbidden"),
+    );
+    toCoreApiActionErrorMock.mockReturnValue({
+      message: "Forbidden",
+      code: "FORBIDDEN",
+    });
+    const { subscribeTaskParticipant } = await import("./action");
+
+    const result = await subscribeTaskParticipant({ taskId: "task-1" });
 
     expect(result).toEqual({
       ok: false,

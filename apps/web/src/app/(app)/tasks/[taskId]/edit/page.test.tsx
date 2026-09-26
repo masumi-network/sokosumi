@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getTaskByIdMock = vi.fn();
-const listCoworkersMock = vi.fn();
+const listTaskAssigneeOptionsMock = vi.fn();
 const listProjectsMock = vi.fn();
 const getAvailableAgentsWithCreditsPriceMock = vi.fn();
 const resolveEffectiveDesignMdMock = vi.fn();
@@ -12,7 +12,6 @@ const getOrganizationMembersMock = vi.fn(async () => []);
 const getTranslationsMock = vi.fn();
 const autoContextSwitchMock = vi.fn();
 const taskEditModalMock = vi.fn();
-const getCoworkerOptionsMock = vi.fn();
 const buildAgentNameByIdMock = vi.fn();
 const notFoundMock = vi.fn();
 const redirectMock = vi.fn();
@@ -45,12 +44,16 @@ vi.mock("@/app/tasks/utils/agent-names", () => ({
 }));
 
 vi.mock("@/app/tasks/utils/coworker-options", () => ({
-  getCoworkerOptions: (...args: unknown[]) => getCoworkerOptionsMock(...args),
   getUserOptions: () => [],
   withOwnerSokoBotOption: (options: unknown) => options,
   withCurrentTaskAssigneeOption: (options: unknown) => options,
   taskFormAssigneeId: (task: { assigneeId?: string | null }) =>
     task.assigneeId ?? "",
+}));
+
+vi.mock("@/app/tasks/utils/task-assignee-options", () => ({
+  listTaskAssigneeOptions: (...args: unknown[]) =>
+    listTaskAssigneeOptionsMock(...args),
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
@@ -61,12 +64,6 @@ vi.mock("@/lib/services/agent.service", () => ({
   agentService: {
     getAvailableAgentsWithCreditsPrice: (...args: unknown[]) =>
       getAvailableAgentsWithCreditsPriceMock(...args),
-  },
-}));
-
-vi.mock("@/lib/services/coworker.service", () => ({
-  coworkerService: {
-    listCoworkers: (...args: unknown[]) => listCoworkersMock(...args),
   },
 }));
 
@@ -126,7 +123,7 @@ describe("EditTaskPage", () => {
       translator.raw = (key: string) => key;
       return translator;
     });
-    getCoworkerOptionsMock.mockReturnValue([
+    listTaskAssigneeOptionsMock.mockResolvedValue([
       { value: "cow_123", label: "Coworker" },
     ]);
     buildAgentNameByIdMock.mockReturnValue({
@@ -173,7 +170,7 @@ describe("EditTaskPage", () => {
       targetOrganizationId: "org-workspace",
       successMessage: 'switchedWorkspace:{"account":"Workspace Org"}',
     });
-    expect(listCoworkersMock).not.toHaveBeenCalled();
+    expect(listTaskAssigneeOptionsMock).not.toHaveBeenCalled();
     expect(getAvailableAgentsWithCreditsPriceMock).not.toHaveBeenCalled();
     expect(taskEditModalMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("auto-context-switch")).toBeInTheDocument();
@@ -197,7 +194,6 @@ describe("EditTaskPage", () => {
       },
       user: { id: "user_1" },
     });
-    listCoworkersMock.mockResolvedValue([{ id: "cow_123", name: "Coworker" }]);
     listProjectsMock.mockResolvedValue({
       projects: [{ id: "project_1", name: "Project" }],
       pagination: { nextCursor: null },
@@ -222,7 +218,7 @@ describe("EditTaskPage", () => {
     );
 
     expect(autoContextSwitchMock).not.toHaveBeenCalled();
-    expect(listCoworkersMock).toHaveBeenCalledWith("tasks");
+    expect(listTaskAssigneeOptionsMock).toHaveBeenCalledWith("org-current");
     expect(listProjectsMock).toHaveBeenCalledWith({ limit: 100 });
     expect(getAvailableAgentsWithCreditsPriceMock).toHaveBeenCalled();
     expect(resolveEffectiveDesignMdMock).toHaveBeenCalled();
@@ -273,7 +269,6 @@ describe("EditTaskPage", () => {
       },
       user: { id: "user_1" },
     });
-    listCoworkersMock.mockResolvedValue([{ id: "cow_123", name: "Coworker" }]);
     listProjectsMock.mockResolvedValue({
       projects: [],
       pagination: { nextCursor: null },

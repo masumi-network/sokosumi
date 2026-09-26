@@ -9,7 +9,6 @@ import type {
   GetProjectsByIdCalendarData,
   InitiateProjectSocialConnectionRequest,
   InitiateProjectSocialConnectionResponse,
-  JobSummary,
   Project,
   ProjectCloseRecoveryRequest,
   ProjectCloseRequest,
@@ -24,7 +23,6 @@ import type {
   SocialPost,
   SocialPostStatus,
   StarredProject,
-  TaskListItem,
   UpdateSocialPostRequest,
 } from "@/lib/clients/generated/core/types.gen";
 
@@ -33,11 +31,6 @@ interface ListProjectsParams {
   limit?: number;
   /** Case-insensitive project-name filter, applied by Core before paging. */
   query?: string;
-}
-
-interface ListProjectResourcesParams {
-  cursor?: string | null;
-  limit?: number;
 }
 
 interface CreateProjectInput {
@@ -311,17 +304,6 @@ export const projectService = (() => {
     };
   }
 
-  async function getSocialPost(
-    projectId: string,
-    postId: string,
-  ): Promise<SocialPost> {
-    const result = await coreClient.getProjectsByIdSocialPostsByPostId(
-      projectId,
-      postId,
-    );
-    return result.data;
-  }
-
   async function createSocialPost(
     projectId: string,
     input: CreateSocialPostRequest,
@@ -372,99 +354,6 @@ export const projectService = (() => {
     return result.data;
   }
 
-  async function listProjectJobs(
-    projectId: string,
-    params: ListProjectResourcesParams = {},
-  ): Promise<{
-    jobs: JobSummary[];
-    pagination: CoreApiPagination | null;
-  }> {
-    const result = await coreClient.getJobs({
-      scope: "workspace",
-      projectId,
-      cursor: params.cursor ?? undefined,
-      limit: params.limit,
-    });
-
-    return {
-      jobs: result.data,
-      pagination: result.meta?.pagination ?? null,
-    };
-  }
-
-  async function listProjectTasks(
-    projectId: string,
-    params: ListProjectResourcesParams = {},
-  ): Promise<{
-    tasks: TaskListItem[];
-    pagination: CoreApiPagination | null;
-  }> {
-    const result = await coreClient.getTasks({
-      scope: "workspace",
-      projectId,
-      cursor: params.cursor ?? undefined,
-      limit: params.limit,
-    });
-
-    return {
-      tasks: result.data,
-      pagination: result.meta?.pagination ?? null,
-    };
-  }
-
-  async function addJob(projectId: string, jobId: string): Promise<Project> {
-    const result = await coreClient.postProjectsByIdJobs(projectId, {
-      jobId,
-    });
-
-    if (!result.data) {
-      throw new Error("Failed to add job to project");
-    }
-
-    return result.data;
-  }
-
-  async function removeJob(projectId: string, jobId: string): Promise<Project> {
-    const result = await coreClient.deleteProjectsByIdJobsByJobId({
-      id: projectId,
-      jobId,
-    });
-
-    if (!result.data) {
-      throw new Error("Failed to remove job from project");
-    }
-
-    return result.data;
-  }
-
-  async function addTask(projectId: string, taskId: string): Promise<Project> {
-    const result = await coreClient.postProjectsByIdTasks(projectId, {
-      taskId,
-    });
-
-    if (!result.data) {
-      throw new Error("Failed to add task to project");
-    }
-
-    return result.data;
-  }
-
-  async function removeTask(
-    projectId: string,
-    taskId: string,
-  ): Promise<Project> {
-    const result = await coreClient.deleteProjectsByIdTasksByTaskId({
-      id: projectId,
-      taskId,
-    });
-
-    if (!result.data) {
-      throw new Error("Failed to remove task from project");
-    }
-
-    return result.data;
-  }
-
   return {
     listProjects,
     getProjectsStats,
@@ -487,16 +376,9 @@ export const projectService = (() => {
     retryProjectClose,
     cancelProjectCloseOwedWork,
     listSocialPosts,
-    getSocialPost,
     createSocialPost,
     updateSocialPost,
     scheduleSocialPost,
     cancelSocialPost,
-    listProjectJobs,
-    listProjectTasks,
-    addJob,
-    removeJob,
-    addTask,
-    removeTask,
   };
 })();

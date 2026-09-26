@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { memberRepository } from "@sokosumi/database/repositories";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -62,11 +61,14 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { organizationId } = c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-      resolvedUserId,
-      organizationId,
-      prisma,
-    );
+    const member = await prisma.member.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: resolvedUserId,
+          organizationId,
+        },
+      },
+    });
 
     if (!member) {
       throw notFound("Membership not found");

@@ -116,6 +116,10 @@ SENTRY_ENVIRONMENT=   # development | staging | production
 
 # Maintenance (HTTP 503 on all routes; read at startup)
 MAINTENANCE_MODE=false
+
+# Temporary. Vendor ids (comma separated) whose coworkers keep the old per-Task
+# schedule API. Empty: nobody.
+LEGACY_TASK_SCHEDULE_VENDOR_IDS=
 ```
 
 Maintenance mode is read at startup, so changing `MAINTENANCE_MODE` requires a restart/redeploy.

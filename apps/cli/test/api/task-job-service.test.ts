@@ -55,9 +55,7 @@ test("task services encode IDs and serialize all list filters", async () => {
     status: ["READY", "DONE"],
     scope: "workspace",
     coworkerId: "cow/1",
-    cursor: "next",
     take: 10,
-    skip: 2,
   });
   await fetchTaskJobs(api, "task/1");
   await fetchTaskEvents(api, "task/1");
@@ -69,7 +67,7 @@ test("task services encode IDs and serialize all list filters", async () => {
       { method: "GET", path: "/v1/tasks/task%2F1" },
       {
         method: "GET",
-        path: "/v1/tasks?q=review&scope=workspace&coworkerId=cow%2F1&cursor=next&take=10&skip=2&status=READY&status=DONE",
+        path: "/v1/tasks?q=review&scope=workspace&coworkerId=cow%2F1&take=10&status=READY&status=DONE",
       },
       { method: "GET", path: "/v1/tasks/task%2F1/jobs" },
       { method: "GET", path: "/v1/tasks/task%2F1/events" },

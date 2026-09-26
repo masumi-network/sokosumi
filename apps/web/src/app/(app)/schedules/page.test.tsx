@@ -63,6 +63,7 @@ describe("SchedulesPage", () => {
     vi.clearAllMocks();
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
+      user: { id: "user-1" },
     });
     getProjectFilterOptionsMock.mockResolvedValue([PROJECT]);
     loadTaskScheduleAssigneeOptionsMock.mockResolvedValue({
@@ -88,7 +89,7 @@ describe("SchedulesPage", () => {
     expect(listSchedulesMock).toHaveBeenCalledWith({
       projectId: PROJECT.id,
       state: "PAUSED",
-      limit: 50,
+      limit: 12,
     });
     expect(loadTaskScheduleAssigneeOptionsMock).toHaveBeenCalledWith("org-1");
     expect(props).toEqual(
@@ -104,6 +105,7 @@ describe("SchedulesPage", () => {
         selectedProjectId: PROJECT.id,
         canCreate: true,
         canCreatePrivate: true,
+        currentUserId: "user-1",
       }),
     );
   });
@@ -117,7 +119,7 @@ describe("SchedulesPage", () => {
     expect(listSchedulesMock).toHaveBeenCalledWith({
       projectId: null,
       state: null,
-      limit: 50,
+      limit: 12,
     });
     expect(props).toEqual(expect.objectContaining({ selectedProjectId: null }));
   });

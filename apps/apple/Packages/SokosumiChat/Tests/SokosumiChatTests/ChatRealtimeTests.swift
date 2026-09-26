@@ -2,7 +2,7 @@ import CoreAPI
 import Foundation
 import HTTPTypes
 import OpenAPIRuntime
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 private let ada = "Ada"

@@ -36,6 +36,7 @@ const highlightOptions = { highlighter: markdownHighlighter };
 interface HastLikeNode {
   children?: HastLikeNode[];
   tagName?: string;
+  properties?: Record<string, unknown>;
   type?: string;
 }
 
@@ -54,6 +55,8 @@ function highlightFencedCodeBlocks(node: HastLikeNode) {
   for (let index = 0; index < children.length; index++) {
     const child = children[index];
     if (child.type === "element" && child.tagName === "pre") {
+      if (typeof child.properties?.["data-mermaid-source"] === "string")
+        continue;
       try {
         const highlighted = rehypePreCodeToHast(
           child as Parameters<typeof rehypePreCodeToHast>[0],

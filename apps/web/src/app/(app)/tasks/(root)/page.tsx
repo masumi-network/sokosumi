@@ -10,16 +10,13 @@ import {
   KANBAN_COLUMNS,
   type KanbanColumnId,
 } from "@/app/tasks/types/task-board";
-import {
-  findCoworkerIdBySlug,
-  getCoworkerOptions,
-  withOwnerSokoBotOption,
-} from "@/app/tasks/utils/coworker-options";
+import { findCoworkerIdBySlug } from "@/app/tasks/utils/coworker-options";
 import {
   parseJobsListFilters,
   sanitizeJobAgentIdForPersistedFilter,
 } from "@/app/tasks/utils/jobs-filters";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
+import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
   firstQueryString,
@@ -37,7 +34,6 @@ import { organizationSeatService } from "@/lib/services/organization-seat.servic
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
-import type { CoworkerOption } from "@/lib/types/coworker";
 import {
   parseTasksDensity,
   TASKS_DENSITY_COOKIE_NAME,
@@ -136,6 +132,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
   const [taskCoworkers, projectsPage, ownerBot] = await loadTasksPageData();
   const memberOptions =
     await listTaskAssigneeMemberOptions(activeOrganizationId);
+  // Core decides schedule eligibility; start that request before loading the board.
+  const coworkerOptionsPromise = listTaskAssigneeOptions(
+    activeOrganizationId,
+    memberOptions,
+  );
   const filters = parseTasksFilters(
     {
       scope,
@@ -298,11 +299,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           ]),
         ) as Record<KanbanColumnId, string | null>);
 
-  const coworkerOptions: CoworkerOption[] = withOwnerSokoBotOption(
-    [...memberOptions, ...getCoworkerOptions(taskCoworkers)],
-    ownerBot,
-    { fallbackName: t("sokoBot"), vendorName: t("sokoBots") },
-  );
+  const coworkerOptions = await coworkerOptionsPromise;
   const canCreateTask =
     await organizationSeatService.hasAssignedSeat(activeOrganizationId);
   const initialCreateTaskOpen = create === "true";

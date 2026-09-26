@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const readRouteSessionMock = vi.fn();
 const getWorkspaceAccessMock = vi.fn();
 const hasAssignedOrganizationSeatMock = vi.fn();
-const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const privateCachedAppSidebarMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
@@ -25,11 +24,6 @@ vi.mock("@/lib/auth/route-session", () => ({
 vi.mock("@sokosumi/utils", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/utils")>()),
   hasAdminRole: () => false,
-}));
-
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
 }));
 
 vi.mock("@/lib/services/organization-seat.service", () => ({
@@ -130,7 +124,6 @@ describe("AuthenticatedAppFrame workspace gate", () => {
       },
     });
     hasAssignedOrganizationSeatMock.mockResolvedValue(true);
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
   });
 
   it("redirects not-ready users to the workspace gate before chrome", async () => {
@@ -164,7 +157,6 @@ describe("AuthenticatedAppFrame workspace gate", () => {
   });
 
   it("allows ready users through to the app chrome", async () => {
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getWorkspaceAccessMock.mockResolvedValue({
       gate: "ready",
       hasPersonalWorkspace: true,
@@ -180,8 +172,9 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     render(ui);
     expect(redirectMock).not.toHaveBeenCalled();
     expect(ui).toBeTruthy();
-    expect(privateCachedAppSidebarMock).toHaveBeenCalledWith(
-      expect.objectContaining({ calendarMenuEnabled: true }),
+    // The sidebar no longer takes a Calendar flag: everyone sees Calendar.
+    expect(privateCachedAppSidebarMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "calendarMenuEnabled",
     );
   });
 });

@@ -19,16 +19,16 @@ import {
   PROJECTS_DETAIL_WORKSPACE_CLASS,
 } from "@/app/projects/constants";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
-import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { projectService } from "@/lib/services/project.service";
+import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 export default async function ProjectDetailPage({
   params,
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const [calendarBetaEnabled, { projectId }] = await Promise.all([
-    hasCurrentUserCalendarBetaAccess(),
+  const [socialBetaEnabled, { projectId }] = await Promise.all([
+    hasCurrentUserSocialBetaAccess(),
     params,
   ]);
   const project = await projectService.getProjectById(projectId);
@@ -193,13 +193,9 @@ export default async function ProjectDetailPage({
                 {t("modules.title")}
               </h2>
               <ProjectModuleTiles
-                calendarHref={
-                  calendarBetaEnabled
-                    ? `/projects/${project.id}/calendar`
-                    : undefined
-                }
+                calendarHref={`/projects/${project.id}/calendar`}
                 socialHref={
-                  calendarBetaEnabled
+                  socialBetaEnabled
                     ? `/projects/${project.id}/social`
                     : undefined
                 }
@@ -210,6 +206,10 @@ export default async function ProjectDetailPage({
                     description: t("modules.calendar.description"),
                   },
                   comingSoon: t("modules.comingSoon"),
+                  imageStudio: {
+                    title: t("modules.imageStudio.title"),
+                    description: t("modules.imageStudio.description"),
+                  },
                   seo: {
                     title: t("modules.seo.title"),
                     description: t("modules.seo.description"),

@@ -17,6 +17,10 @@ Root [`AGENTS.md`](../AGENTS.md) is the loading table and trigger list. Task-spe
 
 - [`soko-bot/`](./soko-bot/) — in-process Core runtime (deployment and operations)
 
+## Project image studio
+
+- [`image-studio/deployment.md`](./image-studio/deployment.md) — which project carries which key, branch-scoped preview setup, and deploy side effects
+
 ## Wayfinder
 
 - [`wayfinder/x402-evm/PR2-SPEC.md`](./wayfinder/x402-evm/PR2-SPEC.md) — remaining x402/EVM implementer spec (`Job.paymentRail` / `JobX402Payment`); substrate [`adr/0001-x402-evm-payment-rail.md`](./adr/0001-x402-evm-payment-rail.md)

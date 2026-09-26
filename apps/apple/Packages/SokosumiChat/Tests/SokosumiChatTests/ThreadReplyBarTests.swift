@@ -1,6 +1,6 @@
 import CoreAPI
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 private let ada = #"{"type":"user","user":{"id":"user_ada","name":"Ada Lovelace","email":"ada@example.com","image":null,"presence":"offline"}}"#

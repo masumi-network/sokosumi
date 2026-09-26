@@ -46,7 +46,6 @@ import {
   calculateCentsFromMasumiAmountStrings,
   getAgentCost,
 } from "@/helpers/agent-cost";
-import { incrementAgentJobCount } from "@/helpers/agent-job-count";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { registerJobPurchase } from "@/helpers/job-purchase-registration";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
@@ -62,7 +61,6 @@ import {
   buildCoworkerJobParentTaskWhere,
   buildHumanParentTaskVisibilityWhere,
 } from "./task-visibility";
-import { getCents } from "./user";
 
 export interface JobContext {
   userContext: UserContext;
@@ -82,7 +80,11 @@ async function validateCreditBalance(
     return;
   }
 
-  const centsBalance = await getCents(userId, organizationId, tx);
+  const centsBalance = await creditBucketRepository.getBalance(
+    userId,
+    organizationId,
+    tx,
+  );
 
   if (centsBalance < costCents) {
     throw badRequest("Insufficient balance");
@@ -194,7 +196,10 @@ async function createPaidJob(
       ...jobListSummaryInclude,
     },
   });
-  await incrementAgentJobCount(input.agentId, tx);
+  await tx.agent.update({
+    where: { id: input.agentId },
+    data: { jobCount: { increment: 1 } },
+  });
   return job;
 }
 
@@ -264,7 +269,10 @@ async function createFreeJob(
       ...jobListSummaryInclude,
     },
   });
-  await incrementAgentJobCount(input.agentId, tx);
+  await tx.agent.update({
+    where: { id: input.agentId },
+    data: { jobCount: { increment: 1 } },
+  });
   return job;
 }
 
