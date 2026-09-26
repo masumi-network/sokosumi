@@ -81,6 +81,7 @@ export async function dispatchTaskNotification(
   },
   eventId: string,
   status: string,
+  actorUserId: string | null,
 ): Promise<void> {
   try {
     let messageKey: string;
@@ -161,6 +162,11 @@ export async function dispatchTaskNotification(
       await markParticipantAddedRead(task.id);
     }
 
+    // The owner set this status themselves, so there is nothing to tell them.
+    if (actorUserId === task.ownerId) {
+      return;
+    }
+
     await createNotification({
       userId: task.ownerId,
       kind: NotificationKind.TASK,
@@ -185,12 +191,15 @@ export async function dispatchTaskNotification(
 /**
  * Loads the task's notification relations and dispatches the status
  * notification. The complete waitUntil body of the status-event paths —
- * callers schedule it after their transaction commits.
+ * callers schedule it after their transaction commits. `actorUserId` is the
+ * event's `userId`: the user account that wrote it (session, API key or
+ * OAuth), or null when an agent wrote it.
  */
 export async function notifyTaskStatusEvent(
   taskId: string,
   eventId: string,
   status: string,
+  actorUserId: string | null = null,
 ): Promise<void> {
   try {
     const taskWithRelations = await prisma.task.findUnique({
@@ -221,7 +230,12 @@ export async function notifyTaskStatusEvent(
     });
 
     if (taskWithRelations) {
-      await dispatchTaskNotification(taskWithRelations, eventId, status);
+      await dispatchTaskNotification(
+        taskWithRelations,
+        eventId,
+        status,
+        actorUserId,
+      );
     }
   } catch (error) {
     Sentry.captureException(error, {
@@ -310,7 +324,11 @@ export async function notifyTaskParticipantsAdded(
   }
 }
 
-/** Null when the Task is archived or settled after the mentioning event. */
+/**
+ * Null when the Task is archived or settled after the mentioning event.
+ * Missing TaskEvent (self-join synthetic eventId) still alerts when the Task
+ * is not archived and its current status is not settled.
+ */
 async function findTaskForParticipantAlert(
   taskId: string,
   eventId: string,
@@ -320,21 +338,24 @@ async function findTaskForParticipantAlert(
     where: { id: eventId },
     select: { createdAt: true },
   });
-  if (!event) {
-    return null;
-  }
 
   return prisma.task.findFirst({
-    where: {
-      id: taskId,
-      archivedAt: null,
-      events: {
-        none: {
-          status: { in: TASK_SETTLED_STATUSES },
-          createdAt: { gt: event.createdAt },
+    where: event
+      ? {
+          id: taskId,
+          archivedAt: null,
+          events: {
+            none: {
+              status: { in: TASK_SETTLED_STATUSES },
+              createdAt: { gt: event.createdAt },
+            },
+          },
+        }
+      : {
+          id: taskId,
+          archivedAt: null,
+          status: { notIn: TASK_SETTLED_STATUSES },
         },
-      },
-    },
     select: {
       id: true,
       name: true,

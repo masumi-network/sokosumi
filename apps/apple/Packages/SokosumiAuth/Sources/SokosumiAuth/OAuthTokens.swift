@@ -17,7 +17,7 @@ public struct OAuthTokens: Codable, Sendable, Equatable {
 
   /// Treat tokens expiring within the leeway as expired so a slow Core call
   /// never races a dead access token.
-  public func isExpired(now: Date = Date(), leeway: TimeInterval = 60) -> Bool {
+  func isExpired(now: Date = Date(), leeway: TimeInterval = 60) -> Bool {
     now.addingTimeInterval(leeway) >= expiresAt
   }
 }
@@ -46,14 +46,14 @@ public protocol TokenEndpointTransport: Sendable {
   func postForm(_ fields: [(name: String, value: String)], to url: URL) async throws -> (Data, Int)
 }
 
-public struct URLSessionTokenTransport: TokenEndpointTransport {
+struct URLSessionTokenTransport: TokenEndpointTransport {
   private let session: URLSession
 
-  public init(session: URLSession = .shared) {
+  init(session: URLSession = .shared) {
     self.session = session
   }
 
-  public func postForm(_ fields: [(name: String, value: String)], to url: URL) async throws -> (Data, Int) {
+  func postForm(_ fields: [(name: String, value: String)], to url: URL) async throws -> (Data, Int) {
     var request = URLRequest(url: url)
     request.httpMethod = "POST"
     request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")

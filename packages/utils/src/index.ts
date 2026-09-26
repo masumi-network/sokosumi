@@ -132,10 +132,7 @@ export {
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
-export {
-  CORE_API_ERROR_KINDS,
-  type CoreApiErrorKind,
-} from "./core-api-error-kind.js";
+export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
   COWORKER_IMAGE_ALLOWED_MIME_TYPES,
@@ -164,7 +161,6 @@ export {
   buildAdHocDesignMdPrefix,
   buildOrganizationDesignMdPathname,
   buildProjectDesignMdPathname,
-  buildProjectDesignMdPrefix,
   buildUserDesignMdPathname,
 } from "./design-md-path.js";
 export { isDesignMdBlobUrl } from "./design-md-url.js";
@@ -319,7 +315,6 @@ export {
 export {
   buildProjectBriefingPathname,
   buildProjectContextMdPathname,
-  buildProjectFilesRootPrefix,
 } from "./project-files-path.js";
 export {
   buildProjectLogoContentHashPathname,
@@ -330,7 +325,6 @@ export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
-  type SocialPostProvider,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";

@@ -112,3 +112,40 @@ export async function addTaskParticipantsFromComment(
 
   return addedUserIds;
 }
+
+/**
+ * Self-join: insert the authenticated viewer only.
+ * Idempotent when already a participant. Same workspace-member and PRIVATE
+ * visibility rules as an @ add. Returns whether a row was inserted.
+ */
+export async function addSelfAsTaskParticipant(
+  tx: ParticipantClient,
+  params: {
+    taskId: string;
+    workspaceId: string;
+    visibility: TaskVisibility;
+    ownerId: string;
+    userId: string;
+  },
+): Promise<{ added: boolean }> {
+  if (
+    !isPrivateTaskVisibleToHuman(
+      { visibility: params.visibility, ownerId: params.ownerId },
+      params.userId,
+    )
+  ) {
+    return { added: false };
+  }
+
+  const members = await listTaskWorkspaceMembers(tx, params.workspaceId);
+  if (!members.some((member) => member.id === params.userId)) {
+    return { added: false };
+  }
+
+  const result = await tx.taskParticipant.createMany({
+    data: [{ taskId: params.taskId, userId: params.userId }],
+    skipDuplicates: true,
+  });
+
+  return { added: result.count > 0 };
+}

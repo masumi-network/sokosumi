@@ -335,6 +335,18 @@ export const taskService = (() => {
     return result.data.participants;
   }
 
+  async function subscribeTaskParticipant(
+    taskId: string,
+  ): Promise<TaskParticipant[]> {
+    const result = await coreClient.subscribeTaskParticipant(taskId);
+
+    if (!result.data) {
+      throw new Error("Failed to subscribe to task");
+    }
+
+    return result.data.participants;
+  }
+
   async function deleteTask(taskId: string): Promise<Task> {
     const result = await coreClient.deleteTask(taskId);
 
@@ -380,6 +392,7 @@ export const taskService = (() => {
     createTaskEvent,
     deleteTaskLink,
     removeTaskParticipant,
+    subscribeTaskParticipant,
     moveTaskToWorkspace,
     patchTask,
     listTaskLinks,

@@ -13,7 +13,6 @@ import {
   TaskMetadataStatusField,
   type TaskMetadataStatusFieldLabels,
 } from "./task-metadata-status-field";
-import { TaskParticipantsList } from "./task-participants-list";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskMetadataLabels {
@@ -31,7 +30,6 @@ interface TaskMetadataLabels {
   credits: string;
   created: string;
   updated: string;
-  participants: string;
   personalAssistantFallback: string;
   formatSokoBotRole: (values: { owner: string }) => string;
 }
@@ -43,7 +41,6 @@ interface TaskMetadataTask {
   owner: Task["owner"];
   organization: Task["organization"];
   assignee: Task["assignee"];
-  participants: Task["participants"];
   creator: Task["creator"];
   credits: Task["credits"];
 }
@@ -175,8 +172,6 @@ interface TaskMetadataProps {
   labels: TaskMetadataLabels;
   statusFieldLabels: TaskMetadataStatusFieldLabels;
   editable: boolean;
-  /** Removal follows comment access in Core, not edit access. */
-  canRemoveParticipants: boolean;
   createdAtLabel: string;
   updatedAtLabel: string;
   creditsDisplay: string;
@@ -191,7 +186,6 @@ export function TaskMetadata({
   labels,
   statusFieldLabels,
   editable,
-  canRemoveParticipants,
   createdAtLabel,
   updatedAtLabel,
   creditsDisplay,
@@ -316,18 +310,6 @@ export function TaskMetadata({
             {assignee.name}
           </span>
         </div>
-      </div>
-
-      <div className="flex items-start justify-between gap-4">
-        <span className="text-muted-foreground text-sm">
-          {labels.participants}
-        </span>
-        <TaskParticipantsList
-          taskId={taskId}
-          label={labels.participants}
-          participants={task.participants}
-          canRemove={canRemoveParticipants}
-        />
       </div>
 
       {task.credits > 0 ? (

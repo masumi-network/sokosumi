@@ -1,8 +1,8 @@
 import Foundation
 
-public enum MessageAttachmentKindAttribute: AttributedStringKey {
-  public typealias Value = MessageAttachment.Kind
-  public static let name = "sokosumi.message.attachment-kind"
+enum MessageAttachmentKindAttribute: AttributedStringKey {
+  typealias Value = MessageAttachment.Kind
+  static let name = "sokosumi.message.attachment-kind"
 }
 
 /// File metadata available in message Markdown; size is not carried on the wire.
