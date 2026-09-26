@@ -2603,7 +2603,7 @@
           "composerTitle": "Imágenes nuevas",
           "model": "Modelo",
           "placement": "Ubicación",
-          "placementNone": "Ninguna",
+          "placementNone": "Sin ubicación",
           "placementNotOutput": "La ubicación define el encuadre. Las medidas en píxeles son la recomendación de la propia plataforma para el archivo final, no el tamaño que genera este estudio: el estudio genera hasta 2K.",
           "aspectRatio": "Encuadre",
           "resolution": "Resolución",

@@ -2603,7 +2603,7 @@
           "composerTitle": "Neue Bilder",
           "model": "Modell",
           "placement": "Platzierung",
-          "placementNone": "Keine",
+          "placementNone": "Keine Platzierung",
           "placementNotOutput": "Die Platzierung bestimmt das Format. Die Pixelmaße sind die Empfehlung der Plattform für das fertige Asset, nicht die Größe, die dieses Studio erzeugt — das Studio generiert bis 2K.",
           "aspectRatio": "Format",
           "resolution": "Auflösung",

@@ -2603,7 +2603,7 @@
           "composerTitle": "New images",
           "model": "Model",
           "placement": "Placement",
-          "placementNone": "None",
+          "placementNone": "No placement",
           "placementNotOutput": "Placement sets the frame. The pixel sizes are the platform's own recommendation for the finished asset, not the size this studio generates — the studio generates up to 2K.",
           "aspectRatio": "Frame",
           "resolution": "Resolution",
