@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TEST_CATALOG } from "./studio-fixtures";
 import type { StudioState } from "./types";
 import { useStudioState } from "./use-studio-state";
 
@@ -52,6 +53,7 @@ function job(assetId: string | null, status: string) {
 }
 
 const INITIAL: StudioState = {
+  catalog: TEST_CATALOG,
   assets: [asset("a1", 1)],
   jobs: [job(null, "QUEUED")],
   sessions: [],
@@ -59,6 +61,7 @@ const INITIAL: StudioState = {
 };
 
 const WITH_RESULT: StudioState = {
+  catalog: TEST_CATALOG,
   assets: [asset("a2", 2), asset("a1", 1)],
   jobs: [job("a2", "SUCCEEDED")],
   sessions: [],

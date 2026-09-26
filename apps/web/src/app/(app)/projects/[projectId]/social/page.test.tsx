@@ -12,6 +12,8 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
+  // The project tab bar reads the current route to mark its own tab.
+  usePathname: () => "/projects/project-1/social",
 }));
 
 vi.mock("next/server", () => ({
@@ -135,9 +137,13 @@ describe("ProjectSocialPage", () => {
       statuses: ["PUBLISHED", "FAILED", "MISSED", "CANCELED"],
     });
     expect(listSocialConnectionsMock).toHaveBeenCalledWith(PROJECT.id);
-    expect(screen.getByRole("link", { name: "backToProject" })).toHaveAttribute(
+    // Tabs replaced the per-page back link, so "up" is the project list.
+    expect(
+      screen.getByRole("link", { name: "backToProjects" }),
+    ).toHaveAttribute("href", "/projects");
+    expect(screen.getByRole("link", { name: "social" })).toHaveAttribute(
       "href",
-      "/projects/project-1",
+      "/projects/project-1/social",
     );
     expect(screen.getByTestId("project-social-posts")).toBeInTheDocument();
     expect(projectSocialPostsMock).toHaveBeenCalledWith(

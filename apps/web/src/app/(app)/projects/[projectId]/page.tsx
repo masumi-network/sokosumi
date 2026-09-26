@@ -8,16 +8,16 @@ import {
 import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 import { ProjectCloseStatusCard } from "@/app/projects/components/project-close-status";
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
-import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import { ProjectDetailPinButton } from "@/app/projects/components/project-detail-pin-button";
 import { ProjectLatestUpdate } from "@/app/projects/components/project-latest-update";
 import { ProjectMemoryRow } from "@/app/projects/components/project-memory-row";
 import { ProjectModuleTiles } from "@/app/projects/components/project-module-tiles";
 import { ProjectNeedsAttentionSection } from "@/app/projects/components/project-needs-attention-section";
 import {
-  PROJECTS_DETAIL_SHELL_CLASS,
-  PROJECTS_DETAIL_WORKSPACE_CLASS,
-} from "@/app/projects/constants";
+  getProjectWorkspaceLabels,
+  ProjectWorkspaceShell,
+} from "@/app/projects/components/project-workspace-shell";
+import { PROJECTS_DETAIL_WORKSPACE_CLASS } from "@/app/projects/constants";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { projectService } from "@/lib/services/project.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
@@ -58,13 +58,64 @@ export default async function ProjectDetailPage({
     getTranslations("App.Tasks.Filters"),
     getFormatter(),
   ]);
+  const workspaceLabels = await getProjectWorkspaceLabels();
 
   const taskStatusLabels = buildTaskStatusLabels((key) =>
     tTaskFilters(`statusOptions.${key}`),
   );
 
   return (
-    <div className={PROJECTS_DETAIL_SHELL_CLASS}>
+    <ProjectWorkspaceShell
+      actions={
+        <div className="flex items-center gap-1">
+          <ProjectDetailPinButton
+            projectId={project.id}
+            isClosed={Boolean(project.closingAt || project.closedAt)}
+            labels={{
+              pin: tList("pin"),
+              unpin: tList("unpin"),
+              error: tList("pinError"),
+            }}
+          />
+          <ProjectDetailActions
+            projectId={project.id}
+            projectRevision={project.projectRevision}
+            isClosingOrClosed={Boolean(project.closingAt || project.closedAt)}
+            labels={{
+              moreActions: t("actions.moreActions"),
+              edit: t("actions.edit"),
+              close: t("actions.close"),
+              closeDialog: {
+                title: t("close.dialog.title"),
+                description: t("close.dialog.description"),
+                reasonLabel: t("close.dialog.reasonLabel"),
+                reasonPlaceholder: t("close.dialog.reasonPlaceholder"),
+                confirm: t("close.dialog.confirm"),
+                cancel: t("close.dialog.cancel"),
+                success: t("close.dialog.success"),
+                error: t("close.dialog.error"),
+              },
+            }}
+          />
+        </div>
+      }
+      metadata={[
+        {
+          label: t("header.updated"),
+          value: formatter.dateTime(project.updatedAt, "dateTime"),
+        },
+        {
+          label: t("header.created"),
+          value: formatter.dateTime(project.createdAt, "dateTime"),
+        },
+      ]}
+      labels={workspaceLabels}
+      projectId={project.id}
+      projectLogo={project.logo}
+      projectName={project.name}
+      showSocialTab={socialBetaEnabled}
+      websiteUrl={project.websiteUrl}
+    >
       <ProjectBrandProvider
         key={project.designMd?.url ?? "project-brand-empty"}
         projectId={project.id}
@@ -73,58 +124,6 @@ export default async function ProjectDetailPage({
       >
         <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
           <div className="min-w-0 space-y-8">
-            <ProjectDetailHeader
-              projectName={project.name}
-              projectLogo={project.logo}
-              websiteUrl={project.websiteUrl}
-              backLabel={t("back")}
-              metadata={[
-                {
-                  label: t("header.updated"),
-                  value: formatter.dateTime(project.updatedAt, "dateTime"),
-                },
-                {
-                  label: t("header.created"),
-                  value: formatter.dateTime(project.createdAt, "dateTime"),
-                },
-              ]}
-              actions={
-                <div className="flex items-center gap-1">
-                  <ProjectDetailPinButton
-                    projectId={project.id}
-                    isClosed={Boolean(project.closingAt || project.closedAt)}
-                    labels={{
-                      pin: tList("pin"),
-                      unpin: tList("unpin"),
-                      error: tList("pinError"),
-                    }}
-                  />
-                  <ProjectDetailActions
-                    projectId={project.id}
-                    projectRevision={project.projectRevision}
-                    isClosingOrClosed={Boolean(
-                      project.closingAt || project.closedAt,
-                    )}
-                    labels={{
-                      moreActions: t("actions.moreActions"),
-                      edit: t("actions.edit"),
-                      close: t("actions.close"),
-                      closeDialog: {
-                        title: t("close.dialog.title"),
-                        description: t("close.dialog.description"),
-                        reasonLabel: t("close.dialog.reasonLabel"),
-                        reasonPlaceholder: t("close.dialog.reasonPlaceholder"),
-                        confirm: t("close.dialog.confirm"),
-                        cancel: t("close.dialog.cancel"),
-                        success: t("close.dialog.success"),
-                        error: t("close.dialog.error"),
-                      },
-                    }}
-                  />
-                </div>
-              }
-            />
-
             {closeStatus ? (
               <ProjectCloseStatusCard status={closeStatus} />
             ) : null}
@@ -244,6 +243,6 @@ export default async function ProjectDetailPage({
           </div>
         </div>
       </ProjectBrandProvider>
-    </div>
+    </ProjectWorkspaceShell>
   );
 }

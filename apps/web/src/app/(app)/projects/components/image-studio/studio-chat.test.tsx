@@ -28,6 +28,8 @@ vi.mock("eve/react", () => ({ useEveAgent: useEveAgentMock }));
 vi.mock("@/lib/actions/image-studio/action", () => ({}));
 
 import { StudioChat } from "./studio-chat";
+import { TEST_CATALOG } from "./studio-fixtures";
+import type { StudioTarget } from "./types";
 
 const LABELS = {
   chatTitle: "Studio assistant",
@@ -68,6 +70,19 @@ beforeEach(() => {
   }
 });
 
+/** The chips as the studio hands them over: one model, no placement. */
+const TARGET: StudioTarget = {
+  modelIds: ["model-a"],
+  placementId: null,
+  settings: {
+    aspectRatio: "1:1",
+    resolution: "1K",
+    outputFormat: "png",
+    seed: null,
+    placementId: null,
+  },
+};
+
 /** The options the most recent render handed the hook. */
 function latestOptions(): Record<string, unknown> {
   return useEveAgentMock.mock.calls.at(-1)![0] as Record<string, unknown>;
@@ -76,11 +91,13 @@ function latestOptions(): Record<string, unknown> {
 function renderChat() {
   return render(
     <StudioChat
+      catalog={TEST_CATALOG}
       projectId="project-1"
       labels={LABELS}
       selectedAsset={null}
       resumeSessionId={null}
       onActivity={() => {}}
+      target={TARGET}
     />,
   );
 }
@@ -97,7 +114,14 @@ describe("the first message", () => {
 
     // Previously gated behind a binding the browser had to perform first,
     // which a single render could never observe completing.
-    expect(sendMock).toHaveBeenCalledWith("a cup on a table", undefined);
+    //
+    // The bracketed line is the model and framing the chips are set to. It
+    // is in the message rather than only in the structured context so the
+    // transcript records what the reply was actually shaped by.
+    expect(sendMock).toHaveBeenCalledWith(
+      "a cup on a table\n\n[model: Model A; frame: 1:1; resolution: 1K]",
+      undefined,
+    );
     expect((box as HTMLTextAreaElement).value).toBe("");
   });
 
@@ -183,7 +207,10 @@ describe("a retry the person has edited", () => {
     // the new message sent. The earlier attempt's name is still what finds it.
     expect(prewarmMock).toHaveBeenCalledTimes(1);
     expect(headers()["x-sokosumi-studio-intent"]).toBe(attempt);
-    expect(sendMock).toHaveBeenLastCalledWith("a different request", undefined);
+    expect(sendMock).toHaveBeenLastCalledWith(
+      "a different request\n\n[model: Model A; frame: 1:1; resolution: 1K]",
+      undefined,
+    );
   });
 
   it("still replays an unchanged retry under the same name", async () => {
@@ -205,11 +232,13 @@ describe("a retry the person has edited", () => {
   it("counts a changed selection as a changed message", async () => {
     const { rerender } = render(
       <StudioChat
+        catalog={TEST_CATALOG}
         projectId="project-1"
         labels={LABELS}
         selectedAsset={{ id: "old", version: 1, prompt: "old" } as never}
         resumeSessionId={null}
         onActivity={() => {}}
+        target={TARGET}
       />,
     );
     const box = screen.getByPlaceholderText("Describe the image...");
@@ -220,11 +249,13 @@ describe("a retry the person has edited", () => {
 
     rerender(
       <StudioChat
+        catalog={TEST_CATALOG}
         projectId="project-1"
         labels={LABELS}
         selectedAsset={{ id: "new", version: 2, prompt: "new" } as never}
         resumeSessionId={null}
         onActivity={() => {}}
+        target={TARGET}
       />,
     );
     fireEvent.change(box, { target: { value: "make this warmer" } });
@@ -284,6 +315,9 @@ describe("a first message whose delivery cannot be confirmed", () => {
           "Describe the image...",
         ) as HTMLTextAreaElement
       ).value,
+      // What the person wrote, without the studio's own bracketed summary:
+      // restoring the decorated text would have them re-send it decorated
+      // twice.
     ).toBe("make this warmer");
   });
 
@@ -312,6 +346,7 @@ describe("a message that fails to send", () => {
       fireEvent.submit(box.closest("form") as HTMLFormElement);
     });
 
+    // Their words, not the decorated message that went to the agent.
     expect((box as HTMLTextAreaElement).value).toBe("keep me");
   });
 

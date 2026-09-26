@@ -6,9 +6,12 @@ import {
   type CalendarPageSearchParams,
   loadWorkspaceCalendarPage,
 } from "@/app/calendar/load-calendar-page";
-import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
-import { PROJECTS_CALENDAR_SHELL_CLASS } from "@/app/projects/constants";
+import {
+  getProjectWorkspaceLabels,
+  ProjectWorkspaceShell,
+} from "@/app/projects/components/project-workspace-shell";
 import { CreateTaskModalProvider } from "@/app/tasks/components/create-task-modal";
+import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 interface ProjectCalendarPageProps {
   params: Promise<{ projectId: string }>;
@@ -20,11 +23,13 @@ export default async function ProjectCalendarPage({
   searchParams,
 }: ProjectCalendarPageProps) {
   const { projectId } = await params;
-  const [page, t, formatter] = await Promise.all([
+  const [page, t, formatter, socialBetaEnabled] = await Promise.all([
     loadWorkspaceCalendarPage({ projectId, searchParams }),
     getTranslations("App.Projects.Detail"),
     getFormatter(),
+    hasCurrentUserSocialBetaAccess(),
   ]);
+  const workspaceLabels = await getProjectWorkspaceLabels();
   const project = page.project;
   if (!project) {
     notFound();
@@ -32,27 +37,25 @@ export default async function ProjectCalendarPage({
 
   return (
     <CreateTaskModalProvider initialProjectId={project.id}>
-      <div className={PROJECTS_CALENDAR_SHELL_CLASS}>
-        <ProjectDetailHeader
-          backHref={`/projects/${project.id}`}
-          backLabel={t("backToProject")}
-          metadata={[
-            {
-              label: t("header.updated"),
-              value: formatter.dateTime(project.updatedAt, "dateTime"),
-            },
-            {
-              label: t("header.created"),
-              value: formatter.dateTime(project.createdAt, "dateTime"),
-            },
-          ]}
-          projectLogo={project.logo}
-          projectName={project.name}
-          showBackOnMobile
-          websiteUrl={project.websiteUrl}
-        />
-
-        <div className="mt-6 w-full">
+      <ProjectWorkspaceShell
+        metadata={[
+          {
+            label: t("header.updated"),
+            value: formatter.dateTime(project.updatedAt, "dateTime"),
+          },
+          {
+            label: t("header.created"),
+            value: formatter.dateTime(project.createdAt, "dateTime"),
+          },
+        ]}
+        labels={workspaceLabels}
+        projectId={project.id}
+        projectLogo={project.logo}
+        projectName={project.name}
+        showSocialTab={socialBetaEnabled}
+        websiteUrl={project.websiteUrl}
+      >
+        <div className="w-full">
           <WorkspaceCalendar
             activeOrganizationId={page.activeOrganizationId}
             currentUserId={page.currentUserId}
@@ -73,7 +76,7 @@ export default async function ProjectCalendarPage({
           projectOptions={page.projectOptions}
           lockProjectSelection
         />
-      </div>
+      </ProjectWorkspaceShell>
     </CreateTaskModalProvider>
   );
 }

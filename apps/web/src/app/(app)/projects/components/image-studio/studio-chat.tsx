@@ -1,14 +1,24 @@
 "use client";
 
 import { useEveAgent } from "eve/react";
-import { AlertTriangle, Loader2, SendHorizonal } from "lucide-react";
+import { AlertTriangle, ArrowDown, Loader2, SendHorizonal } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  CHAT_MESSAGE_LIST_CONTENT_CLASS,
+  CHAT_MESSAGE_LIST_SCROLLER_CLASS,
+} from "@/app/chat/chat-message-list-scroller";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-
-import type { StudioAsset, StudioLabels } from "./types";
+import { modelById, placementById, placementName } from "./catalog";
+import { heldScrollTop, isScrolledUp } from "./transcript-anchor";
+import type {
+  StudioAsset,
+  StudioCatalog,
+  StudioLabels,
+  StudioTarget,
+} from "./types";
 
 /**
  * The conversation, running on the eve agent mounted at
@@ -130,6 +140,95 @@ export function recoverableSessionId(error: unknown): string | null {
 }
 
 /**
+ * What the chips mean, written out for a model to read.
+ *
+ * Two carriers, on purpose. `clientContext` is the structured form the agent
+ * reads programmatically; the sentence appended to the message is what a
+ * person sees in the transcript afterwards. Only sending the structured form
+ * would make the conversation lie about itself — the reply would be shaped by
+ * a placement the transcript never mentions.
+ *
+ * Nothing is invented here: every value comes from the catalog entry Core
+ * sent, and the placement's pixels are labelled as a target rather than as
+ * the size of anything.
+ */
+export function describeTarget(
+  catalog: StudioCatalog,
+  target: StudioTarget,
+  asset: StudioAsset | null,
+): string {
+  const parts: string[] = [];
+  const models = target.modelIds
+    .map((id) => modelById(catalog, id)?.label)
+    .filter((label): label is string => Boolean(label));
+  if (models.length > 0) parts.push(`model: ${models.join(", ")}`);
+
+  const placement = placementById(catalog, target.placementId);
+  if (placement) {
+    parts.push(
+      `placement: ${placementName(placement)} (${placement.aspectRatio}, target ${placement.width}x${placement.height})`,
+    );
+  }
+  if (target.settings.aspectRatio) {
+    parts.push(`frame: ${target.settings.aspectRatio}`);
+  }
+  if (target.settings.resolution) {
+    parts.push(`resolution: ${target.settings.resolution}`);
+  }
+  if (asset) parts.push(`looking at: v${asset.version}`);
+  return parts.join("; ");
+}
+
+/**
+ * JSON, spelled out.
+ *
+ * eve only carries values it can serialize, and the studio's setting types
+ * are interfaces rather than index-signature objects, so each field is
+ * copied across explicitly. Verbose, but it is also the list of what the
+ * assistant is told — worth being able to read at a glance.
+ */
+type TurnJson = {
+  readonly [key: string]:
+    | string
+    | number
+    | boolean
+    | null
+    | readonly string[]
+    | TurnJson;
+};
+
+function turnContext(
+  catalog: StudioCatalog,
+  target: StudioTarget,
+  asset: StudioAsset | null,
+): TurnJson {
+  const placement = placementById(catalog, target.placementId);
+  return {
+    modelIds: target.modelIds,
+    placementId: placement?.id ?? null,
+    placementLabel: placement ? placementName(placement) : null,
+    placementAspectRatio: placement?.aspectRatio ?? null,
+    // Named a target, not a size: it is what the platform recommends for the
+    // finished asset, not what this generation will produce.
+    placementTargetWidth: placement?.width ?? null,
+    placementTargetHeight: placement?.height ?? null,
+    settings: {
+      aspectRatio: target.settings.aspectRatio ?? null,
+      resolution: target.settings.resolution ?? null,
+      outputFormat: target.settings.outputFormat ?? null,
+      seed: target.settings.seed ?? null,
+      placementId: target.settings.placementId ?? null,
+    },
+    selectedVersionId: asset?.id ?? null,
+    selectedVersionNumber: asset?.version ?? null,
+    selectedVersionPrompt: asset?.prompt ?? null,
+    note: asset
+      ? "The person is looking at this version. Treat 'this', 'it', and 'the image' as referring to it."
+      : null,
+  };
+}
+
+/**
  * The conversation, and the one thing about it that can change identity.
  *
  * A create can answer with the id of a conversation whose first message may
@@ -139,17 +238,21 @@ export function recoverableSessionId(error: unknown): string | null {
  * instead of sending it into a second conversation to find out.
  */
 export function StudioChat({
+  catalog,
   labels,
   onActivity,
   projectId,
   resumeSessionId,
   selectedAsset,
+  target,
 }: {
+  catalog: StudioCatalog;
   labels: StudioLabels;
   onActivity: () => void;
   projectId: string;
   resumeSessionId: string | null;
   selectedAsset: StudioAsset | null;
+  target: StudioTarget;
 }) {
   const [recoveredSessionId, setRecoveredSessionId] = useState<string | null>(
     null,
@@ -157,6 +260,7 @@ export function StudioChat({
   const sessionId = recoveredSessionId ?? resumeSessionId;
   return (
     <StudioConversation
+      catalog={catalog}
       key={sessionId ?? "new"}
       labels={labels}
       onActivity={onActivity}
@@ -164,18 +268,22 @@ export function StudioChat({
       projectId={projectId}
       resumeSessionId={sessionId}
       selectedAsset={selectedAsset}
+      target={target}
     />
   );
 }
 
 function StudioConversation({
+  catalog,
   labels,
   onActivity,
   onRecoverSession,
   projectId,
   resumeSessionId,
   selectedAsset,
+  target,
 }: {
+  catalog: StudioCatalog;
   labels: StudioLabels;
   /** Fires when the agent settles a turn, so the page can look for results. */
   onActivity: () => void;
@@ -193,6 +301,12 @@ function StudioConversation({
    * "this" meant, and would have to guess or ask.
    */
   selectedAsset: StudioAsset | null;
+  /**
+   * The model and placement chips. Sent with every turn so a request made
+   * after choosing "Instagram Reels" is answered as a 9:16 Reels concept
+   * rather than as whatever the assistant would have defaulted to.
+   */
+  target: StudioTarget;
 }) {
   const draftKey = `sokosumi:image-studio:draft:${projectId}`;
   const [draft, setDraft] = useState("");
@@ -221,12 +335,29 @@ function StudioConversation({
    * it may never run and the text would be lost with it.
    */
   const draftRef = useRef("");
-  const transcriptRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  /**
+   * True while the transcript is parked above the newest message.
+   *
+   * The scroller is bottom-anchored (`flex-col-reverse`), so `scrollTop` is 0
+   * at the newest message and negative above it. That is also why nothing
+   * here writes `scrollTop`: an arriving message appends below the viewport
+   * and the browser keeps the reader where they were, which is the whole
+   * point — reading back through a long conversation used to be interrupted
+   * every time the assistant said anything.
+   */
+  const [scrolledUp, setScrolledUp] = useState(false);
+  /** The transcript column, watched for growth. */
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Read the current selection inside callbacks without making them depend on
   // it; the hook's options are captured when its store is created.
   const selectedAssetRef = useRef<StudioAsset | null>(selectedAsset);
   selectedAssetRef.current = selectedAsset;
+  const targetRef = useRef<StudioTarget>(target);
+  targetRef.current = target;
+  const catalogRef = useRef<StudioCatalog>(catalog);
+  catalogRef.current = catalog;
 
   // Restore the draft once, on mount. Storage can throw in a private window
   // or with site data blocked, so the composer must work without it.
@@ -332,20 +463,14 @@ function StudioConversation({
       : {}),
     // Attach the current selection to every turn without threading it through
     // each call site. It is ephemeral per-turn context, not session history.
-    prepareSend: (input) => {
-      const asset = selectedAssetRef.current;
-      return asset
-        ? {
-            ...input,
-            clientContext: {
-              selectedVersionId: asset.id,
-              selectedVersionNumber: asset.version,
-              selectedVersionPrompt: asset.prompt,
-              note: "The person is looking at this version. Treat 'this', 'it', and 'the image' as referring to it.",
-            },
-          }
-        : input;
-    },
+    prepareSend: (input) => ({
+      ...input,
+      clientContext: turnContext(
+        catalogRef.current,
+        targetRef.current,
+        selectedAssetRef.current,
+      ),
+    }),
     onError: (error) => {
       const message = lastSentRef.current;
       lastSentRef.current = null;
@@ -367,16 +492,35 @@ function StudioConversation({
 
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
   const isResuming = agent.status === "resuming";
+  const contextSummary = describeTarget(catalog, target, selectedAsset);
+
+  // Keeping a reader's place while the column grows underneath them is DOM
+  // synchronization, and a ResizeObserver is what actually knows when it
+  // grew — a message-count dependency would miss a streaming reply, which
+  // grows the same paragraph a token at a time.
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    const content = contentRef.current;
+    if (!scroller || !content) return;
+
+    let previousHeight = content.scrollHeight;
+    const observer = new ResizeObserver(() => {
+      const nextHeight = content.scrollHeight;
+      const held = heldScrollTop({
+        scrollTop: scroller.scrollTop,
+        previousHeight,
+        nextHeight,
+      });
+      previousHeight = nextHeight;
+      if (held !== null) scroller.scrollTop = held;
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, []);
 
   // Read inside the submit handler without making it depend on the render.
   const agentErrorRef = useRef<Error | null>(agent.error ?? null);
   agentErrorRef.current = agent.error ?? null;
-
-  // Following a growing transcript is DOM synchronization.
-  useEffect(() => {
-    const node = transcriptRef.current;
-    if (node) node.scrollTop = node.scrollHeight;
-  }, [agent.data.messages.length]);
 
   function handleDraftChange(value: string) {
     draftRef.current = value;
@@ -413,15 +557,31 @@ function StudioConversation({
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const message = draft.trim();
-    if (message.length === 0 || isResuming) return;
+    const typed = draft.trim();
+    if (typed.length === 0 || isResuming) return;
+
+    // The chips ride along in the text as well as in the context, so the
+    // transcript records what the reply was actually shaped by.
+    const described = describeTarget(
+      catalogRef.current,
+      targetRef.current,
+      selectedAssetRef.current,
+    );
+    const message = described ? `${typed}\n\n[${described}]` : typed;
 
     handleDraftChange("");
-    lastSentRef.current = message;
+    // What goes back in the box on failure is what the person wrote, not what
+    // was sent. Restoring the decorated text put the studio's own bracketed
+    // summary into their draft, and a second attempt would have decorated it
+    // again.
+    lastSentRef.current = typed;
     try {
       // Only the first message needs a name of its own; after that the session
       // id identifies the conversation and every send is addressed to it.
       if (!agent.session) {
+        // Keyed on the decorated message: changing the placement changes the
+        // request, even when the words are identical, so it is a new thing to
+        // say rather than a replay of the old one.
         const says = intentSays(message, selectedAssetRef.current);
         const attempt = intentRef.current;
         if (attempt && attempt.says !== says) {
@@ -440,10 +600,12 @@ function StudioConversation({
       await agent.send(message, isBusy ? { turnPolicy: "steer" } : undefined);
       // Resolving proves the client accepted it, not that it succeeded — so
       // the outcome is read from the agent's own error state, below.
-      if (agentErrorRef.current !== null) restoreFailedMessage(message);
+      // `typed`, not `message`: the composer holds the person's words, and
+      // the studio's bracketed summary is added on the way out each time.
+      if (agentErrorRef.current !== null) restoreFailedMessage(typed);
       else lastSentRef.current = null;
     } catch {
-      restoreFailedMessage(message);
+      restoreFailedMessage(typed);
     }
   }
 
@@ -464,48 +626,82 @@ function StudioConversation({
   return (
     <section
       aria-label={labels.chatTitle}
-      className="border-border bg-card-background flex min-h-0 flex-col rounded-xl border"
+      className="border-border bg-card-background flex h-full min-h-0 flex-col overflow-hidden rounded-xl border"
     >
-      <h2 className="border-border border-b px-4 py-3 text-sm font-medium">
-        {labels.chatTitle}
-      </h2>
-
-      <div
-        aria-live="polite"
-        className="min-h-48 flex-1 space-y-4 overflow-y-auto px-4 py-4"
-        ref={transcriptRef}
-      >
-        {agent.data.messages.length === 0 ? (
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            {labels.emptyBody}
+      <div className="border-border shrink-0 border-b px-4 py-3">
+        <h2 className="text-sm font-medium">{labels.chatTitle}</h2>
+        {contextSummary ? (
+          <p className="text-muted-foreground mt-0.5 truncate text-xs">
+            {labels.contextAttached}: {contextSummary}
           </p>
         ) : null}
-        {agent.data.messages.map((message) => (
-          <article
-            className="text-foreground text-sm leading-relaxed"
-            key={message.id}
+      </div>
+
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <div
+          aria-live="polite"
+          className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}
+          onScroll={(event) => {
+            // Bottom-anchored: 0 is the newest message, negative is above it.
+            setScrolledUp(isScrolledUp(event.currentTarget.scrollTop));
+          }}
+          ref={scrollerRef}
+        >
+          <div
+            className={cn(CHAT_MESSAGE_LIST_CONTENT_CLASS, "gap-4 p-4")}
+            ref={contentRef}
           >
-            <p className="text-muted-foreground mb-1 text-xs font-medium">
-              {message.role === "user" ? labels.you : labels.studio}
-            </p>
-            {message.parts.map((part, index) =>
-              part.type === "text" ? (
-                <p className="whitespace-pre-wrap" key={index}>
-                  {part.text}
+            {agent.data.messages.length === 0 ? (
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {labels.emptyBody}
+              </p>
+            ) : null}
+            {agent.data.messages.map((message) => (
+              <article
+                className="text-foreground text-sm leading-relaxed"
+                key={message.id}
+              >
+                <p className="text-muted-foreground mb-1 text-xs font-medium">
+                  {message.role === "user" ? labels.you : labels.studio}
                 </p>
-              ) : part.type === "dynamic-tool" ? (
-                <p className="text-muted-foreground text-xs italic" key={index}>
-                  {part.toolName}
-                </p>
-              ) : null,
-            )}
-          </article>
-        ))}
-        {isBusy ? (
-          <p className="text-muted-foreground flex items-center gap-2 text-xs">
-            <Loader2 className="size-3 animate-spin" aria-hidden />
-            {labels.thinking}
-          </p>
+                {message.parts.map((part, index) =>
+                  part.type === "text" ? (
+                    <p className="break-words whitespace-pre-wrap" key={index}>
+                      {part.text}
+                    </p>
+                  ) : part.type === "dynamic-tool" ? (
+                    <p
+                      className="text-muted-foreground text-xs italic"
+                      key={index}
+                    >
+                      {part.toolName}
+                    </p>
+                  ) : null,
+                )}
+              </article>
+            ))}
+            {isBusy ? (
+              <p className="text-muted-foreground flex items-center gap-2 text-xs">
+                <Loader2 className="size-3 animate-spin" aria-hidden />
+                {labels.thinking}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        {scrolledUp ? (
+          <Button
+            className="absolute inset-x-0 bottom-2 mx-auto w-fit shadow-sm"
+            onClick={() => {
+              const node = scrollerRef.current;
+              if (node) node.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            size="sm"
+            variant="secondary"
+          >
+            <ArrowDown aria-hidden />
+            {labels.jumpToLatest}
+          </Button>
         ) : null}
       </div>
 
@@ -541,7 +737,7 @@ function StudioConversation({
       ) : null}
 
       <form
-        className="border-border flex items-end gap-2 border-t p-3"
+        className="border-border flex shrink-0 items-end gap-2 border-t p-3"
         onSubmit={handleSubmit}
       >
         <Textarea

@@ -3,10 +3,13 @@ import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { ImageStudio } from "@/app/projects/components/image-studio/image-studio";
 import type { StudioLabels } from "@/app/projects/components/image-studio/types";
-import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
-import { PROJECTS_DETAIL_SHELL_CLASS } from "@/app/projects/constants";
+import {
+  getProjectWorkspaceLabels,
+  ProjectWorkspaceShell,
+} from "@/app/projects/components/project-workspace-shell";
 import { imageStudioService } from "@/lib/services/image-studio.service";
 import { projectService } from "@/lib/services/project.service";
+import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 // Wait for the current session and project access before rendering.
 export const instant = false;
@@ -22,7 +25,11 @@ export default async function ProjectStudioPage({
 }: ProjectStudioPageProps) {
   await connection();
 
-  const [{ projectId }, query] = await Promise.all([params, searchParams]);
+  const [{ projectId }, query, socialBetaEnabled] = await Promise.all([
+    params,
+    searchParams,
+    hasCurrentUserSocialBetaAccess(),
+  ]);
   const project = await projectService.getProjectById(projectId);
   if (!project) {
     notFound();
@@ -37,6 +44,7 @@ export default async function ProjectStudioPage({
     getTranslations("App.Projects.Detail.imageStudio"),
     getFormatter(),
   ]);
+  const workspaceLabels = await getProjectWorkspaceLabels();
 
   const labels: StudioLabels = {
     title: t("title"),
@@ -91,6 +99,48 @@ export default async function ProjectStudioPage({
     errorRefreshFailed: t("errorRefreshFailed"),
     errorLoadOlderFailed: t("errorLoadOlderFailed"),
     retryConnection: t("retryConnection"),
+    composerTitle: t("composerTitle"),
+    model: t("model"),
+    modelsUsed: t("modelsUsed"),
+    placement: t("placement"),
+    placementNone: t("placementNone"),
+    placementTarget: t("placementTarget"),
+    placementNotOutput: t("placementNotOutput"),
+    aspectRatio: t("aspectRatio"),
+    resolution: t("resolution"),
+    outputFormat: t("outputFormat"),
+    copies: t("copies"),
+    generateOne: t("generateOne"),
+    modelUnsupportedForPlacement: t("modelUnsupportedForPlacement"),
+    catalogVerified: t("catalogVerified"),
+    modelNotInCatalog: t("modelNotInCatalog"),
+    waitingForSlot: t("waitingForSlot"),
+    waitingForSlotBody: t("waitingForSlotBody"),
+    queueNotDurable: t("queueNotDurable"),
+    removeFromQueue: t("removeFromQueue"),
+    gallery: t("gallery"),
+    filterRejected: t("filterRejected"),
+    filterUndecided: t("filterUndecided"),
+    noneMatchFilter: t("noneMatchFilter"),
+    select: t("select"),
+    deselect: t("deselect"),
+    compareSelected: t("compareSelected"),
+    clearSelection: t("clearSelection"),
+    openDetails: t("openDetails"),
+    close: t("close"),
+    details: t("details"),
+    dimensions: t("dimensions"),
+    created: t("created"),
+    seed: t("seed"),
+    noSeed: t("noSeed"),
+    parentVersion: t("parentVersion"),
+    compareHint: t("compareHint"),
+    compareNeedsTwo: t("compareNeedsTwo"),
+    bytesUnavailable: t("bytesUnavailable"),
+    chatCollapse: t("chatCollapse"),
+    chatExpand: t("chatExpand"),
+    jumpToLatest: t("jumpToLatest"),
+    contextAttached: t("contextAttached"),
   };
 
   // A session id in the URL is a request to resume, not a right to. Only a
@@ -107,36 +157,32 @@ export default async function ProjectStudioPage({
       : null;
 
   return (
-    <div className={PROJECTS_DETAIL_SHELL_CLASS}>
-      <ProjectDetailHeader
-        backHref={`/projects/${project.id}`}
-        backLabel={t("back")}
-        metadata={[
-          {
-            label: t("updated"),
-            value: formatter.dateTime(project.updatedAt, "dateTime"),
-          },
-        ]}
-        projectLogo={project.logo}
-        projectName={project.name}
-        showBackOnMobile
-        websiteUrl={project.websiteUrl}
-      />
-
-      <div className="mt-8">
-        <h1 className="text-xl font-medium">{labels.title}</h1>
+    <ProjectWorkspaceShell
+      metadata={[
+        {
+          label: t("updated"),
+          value: formatter.dateTime(project.updatedAt, "dateTime"),
+        },
+      ]}
+      labels={workspaceLabels}
+      projectId={project.id}
+      projectLogo={project.logo}
+      projectName={project.name}
+      showSocialTab={socialBetaEnabled}
+      websiteUrl={project.websiteUrl}
+    >
+      <div className="mb-4">
+        <h2 className="text-base font-medium">{labels.title}</h2>
         <p className="text-muted-foreground mt-1 text-sm">{labels.subtitle}</p>
       </div>
 
-      <div className="mt-6">
-        <ImageStudio
-          initialSelectedAssetId={initialSelectedAssetId}
-          initialState={state}
-          labels={labels}
-          projectId={project.id}
-          resumeSessionId={resumeSessionId}
-        />
-      </div>
-    </div>
+      <ImageStudio
+        initialSelectedAssetId={initialSelectedAssetId}
+        initialState={state}
+        labels={labels}
+        projectId={project.id}
+        resumeSessionId={resumeSessionId}
+      />
+    </ProjectWorkspaceShell>
   );
 }

@@ -17,6 +17,8 @@ const { hasCurrentUserSocialBetaAccessMock, projectServiceMock, notFoundMock } =
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
+  // The project tab bar reads the current route to mark its own tab.
+  usePathname: () => "/projects/project-1",
 }));
 
 vi.mock("next-intl/server", async () => {
@@ -144,12 +146,13 @@ describe("ProjectDetailPage", () => {
     expect(notFoundMock).not.toHaveBeenCalled();
 
     const { container } = render(html);
-    expect(container.firstChild).toHaveClass(
-      "mx-auto",
-      "w-full",
-      "max-w-6xl",
-      "py-6",
-    );
+    // Full available width. A centred 6xl column was right when the project
+    // page was a document to read; the tabbed workspace puts a gallery and a
+    // calendar under the same header, and those are measured in how much
+    // fits on a row.
+    expect(container.firstChild).toHaveClass("w-full", "min-w-0", "py-6");
+    expect(container.firstChild).not.toHaveClass("max-w-6xl");
+    expect(container.firstChild).not.toHaveClass("mx-auto");
     expect(container.firstChild).not.toHaveClass("-mx-4");
     expect(container.firstChild).not.toHaveClass("w-[calc(100%+2rem)]");
     expect(container.firstChild).not.toHaveClass("md:px-6");
@@ -184,8 +187,11 @@ describe("ProjectDetailPage", () => {
     expect(layoutGrid).toBeTruthy();
     expect(layoutGrid?.className).not.toContain("lg:grid-cols-");
 
+    // Anchored on the briefing, not on the project name: the name is now in
+    // the shared workspace header above the tabs, so it is page chrome rather
+    // than part of this column.
     const introColumn = screen
-      .getByRole("heading", { name: "Launch plan" })
+      .getByTestId("project-briefing")
       .closest(".space-y-8");
     const aside = screen.getByTestId("brand-card").closest("aside");
     const needsAttentionColumn = screen

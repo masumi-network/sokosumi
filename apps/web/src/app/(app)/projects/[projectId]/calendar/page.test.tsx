@@ -16,6 +16,8 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
+  // The project tab bar reads the current route to mark its own tab.
+  usePathname: () => "/projects/project-1/calendar",
 }));
 
 vi.mock("next/server", () => ({
@@ -156,18 +158,26 @@ describe("ProjectCalendarPage", () => {
         sourceId: expect.anything(),
       }),
     );
-    expect(screen.getByRole("link", { name: "backToProject" })).toHaveAttribute(
-      "href",
-      "/projects/project-1",
-    );
+    // The project's areas are tabs now, so "up" from the calendar is the
+    // project list; the project itself is one tab across, not one level up.
     expect(
-      screen.getByRole("link", { name: "backToProject" }).className,
+      screen.getByRole("link", { name: "backToProjects" }),
+    ).toHaveAttribute("href", "/projects");
+    expect(
+      screen.getByRole("link", { name: "backToProjects" }).className,
     ).not.toContain("hidden");
+    expect(screen.getByRole("link", { name: "calendar" })).toHaveAttribute(
+      "href",
+      "/projects/project-1/calendar",
+    );
+    // Full available width: a calendar beside a gallery has no business in a
+    // centred reading column.
     const shell = screen
-      .getByRole("link", { name: "backToProject" })
-      .closest(".max-w-7xl");
-    expect(shell).toHaveClass("mx-auto", "w-full", "max-w-7xl", "py-6");
+      .getByRole("link", { name: "backToProjects" })
+      .closest("div.w-full");
+    expect(shell).toHaveClass("w-full", "min-w-0", "py-6");
     expect(shell).not.toHaveClass("max-w-6xl");
+    expect(shell).not.toHaveClass("max-w-7xl");
     const calendarProps = workspaceCalendarMock.mock.calls.at(-1)?.[0] as {
       currentUserId?: string;
       lockedProjectId?: string;

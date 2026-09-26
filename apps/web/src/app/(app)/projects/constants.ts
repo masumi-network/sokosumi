@@ -13,8 +13,21 @@ export const PROJECTS_PAGE_SHELL_CLASS = "w-full";
 
 /**
  * Project detail outer shell: centered max-w-6xl container inside main `p-4`.
+ *
+ * Kept for the routes that are still a single centred document (project edit).
+ * The tabbed project areas use `PROJECTS_WORKSPACE_SHELL_CLASS` instead.
  */
 export const PROJECTS_DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl py-6";
+
+/**
+ * The tabbed project workspace: overview, image studio, calendar, social.
+ *
+ * Full available width, deliberately. A 6xl column was right when a project
+ * page was a document to read; it is wrong for a gallery, where the width is
+ * how many images fit on a row, and wrong for a calendar next to it. The
+ * application shell's own `p-4` remains the only horizontal padding.
+ */
+export const PROJECTS_WORKSPACE_SHELL_CLASS = "w-full min-w-0 py-6";
 
 export const PROJECTS_CALENDAR_SHELL_CLASS = "mx-auto w-full max-w-7xl py-6";
 
