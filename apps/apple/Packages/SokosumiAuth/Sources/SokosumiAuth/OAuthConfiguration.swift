@@ -15,11 +15,11 @@ public struct OAuthConfiguration: Sendable {
   public var clientID: String
   public var scopes: [String]
 
-  public init(
-    issuerBaseURL: URL,
-    clientID: String,
-    scopes: [String] = OAuthConfiguration.defaultScopes
-  ) {
+  public init(issuerBaseURL: URL, clientID: String) {
+    self.init(issuerBaseURL: issuerBaseURL, clientID: clientID, scopes: Self.defaultScopes)
+  }
+
+  public init(issuerBaseURL: URL, clientID: String, scopes: [String]) {
     self.issuerBaseURL = issuerBaseURL
     self.clientID = clientID
     self.scopes = scopes
