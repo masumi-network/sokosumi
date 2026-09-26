@@ -2,6 +2,7 @@ import type {
   ProjectSummary,
   TaskEvent,
   TaskShare,
+  TaskTags,
   TaskVisibility,
   UserSummary,
 } from "@/lib/clients/generated/core/types.gen";
@@ -38,6 +39,7 @@ export interface TaskWithCoworker {
   share?: TaskShare | null;
   commentsCount: number;
   columnId: KanbanColumnId;
+  tags?: TaskTags;
   description?: string | null;
   descriptionPlain?: string | null;
   events: TaskEvent[];
