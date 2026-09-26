@@ -97,8 +97,20 @@ interface StudioIntent {
   says: string;
 }
 
-function intentSays(message: string, asset: StudioAsset | null): string {
-  return JSON.stringify([message, asset?.id ?? null]);
+function intentSays(
+  message: string,
+  asset: StudioAsset | null,
+  target: StudioTarget,
+): string {
+  // `message` already carries model, placement, frame and resolution. The
+  // two settings it does not mention are added explicitly, so no submitted
+  // value can change without changing this identity.
+  return JSON.stringify([
+    message,
+    asset?.id ?? null,
+    target.settings.outputFormat ?? null,
+    target.settings.seed ?? null,
+  ]);
 }
 
 function readIntent(projectId: string): StudioIntent | null {
@@ -356,6 +368,12 @@ function StudioConversation({
   selectedAssetRef.current = selectedAsset;
   const targetRef = useRef<StudioTarget>(target);
   targetRef.current = target;
+  /** What the submission in flight is about; see `handleSubmit`. */
+  const pendingSnapshotRef = useRef<{
+    catalog: StudioCatalog;
+    target: StudioTarget;
+    asset: StudioAsset | null;
+  } | null>(null);
   const catalogRef = useRef<StudioCatalog>(catalog);
   catalogRef.current = catalog;
 
@@ -463,14 +481,20 @@ function StudioConversation({
       : {}),
     // Attach the current selection to every turn without threading it through
     // each call site. It is ephemeral per-turn context, not session history.
-    prepareSend: (input) => ({
-      ...input,
-      clientContext: turnContext(
-        catalogRef.current,
-        targetRef.current,
-        selectedAssetRef.current,
-      ),
-    }),
+    prepareSend: (input) => {
+      // The snapshot the submit handler took, so the structured context and
+      // the transcript text describe the same selection even if the person
+      // changed the chips while a prewarm was in flight.
+      const snap = pendingSnapshotRef.current;
+      return {
+        ...input,
+        clientContext: turnContext(
+          snap?.catalog ?? catalogRef.current,
+          snap?.target ?? targetRef.current,
+          snap?.asset ?? selectedAssetRef.current,
+        ),
+      };
+    },
     onError: (error) => {
       const message = lastSentRef.current;
       lastSentRef.current = null;
@@ -560,12 +584,28 @@ function StudioConversation({
     const typed = draft.trim();
     if (typed.length === 0 || isResuming) return;
 
+    /**
+     * One snapshot of what this submission is about, taken now.
+     *
+     * The chips and the gallery selection stay changeable while an `await`
+     * inside this handler is pending — `prewarm()` in particular. Reading the
+     * refs again later, as `prepareSend` did, let the transcript describe one
+     * selection and the structured context carry another. Both now come from
+     * this single snapshot.
+     */
+    const snapshot = {
+      catalog: catalogRef.current,
+      target: targetRef.current,
+      asset: selectedAssetRef.current,
+    };
+    pendingSnapshotRef.current = snapshot;
+
     // The chips ride along in the text as well as in the context, so the
     // transcript records what the reply was actually shaped by.
     const described = describeTarget(
-      catalogRef.current,
-      targetRef.current,
-      selectedAssetRef.current,
+      snapshot.catalog,
+      snapshot.target,
+      snapshot.asset,
     );
     const message = described ? `${typed}\n\n[${described}]` : typed;
 
@@ -579,10 +619,13 @@ function StudioConversation({
       // Only the first message needs a name of its own; after that the session
       // id identifies the conversation and every send is addressed to it.
       if (!agent.session) {
-        // Keyed on the decorated message: changing the placement changes the
-        // request, even when the words are identical, so it is a new thing to
-        // say rather than a replay of the old one.
-        const says = intentSays(message, selectedAssetRef.current);
+        // Keyed on everything this submission actually sends, not just the
+        // words. The decorated message covers model, placement, frame and
+        // resolution; `intentSays` adds the settings the description leaves
+        // out — output format and seed — because changing only those still
+        // makes it a different request, and reusing the old intent id would
+        // have the agent answer it as a replay of the previous settings.
+        const says = intentSays(message, snapshot.asset, snapshot.target);
         const attempt = intentRef.current;
         if (attempt && attempt.says !== says) {
           // The person changed their message before the earlier attempt's

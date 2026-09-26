@@ -2632,7 +2632,7 @@
           "noneMatchFilter": "Nada coincide con ese filtro",
           "select": "Seleccionar",
           "deselect": "Quitar selección",
-          "selectedCount": "{count} seleccionadas",
+          "selectedCount": "{count, plural, one {# imagen seleccionada} other {# imágenes seleccionadas}}",
           "compareSelected": "Comparar",
           "clearSelection": "Borrar selección",
           "openDetails": "Abrir",
@@ -2649,7 +2649,9 @@
           "chatExpand": "Mostrar asistente",
           "jumpToLatest": "Ir a lo más reciente",
           "contextAttached": "Se envía con",
-          "bytesUnavailable": "El archivo de esta versión ya no está en el almacenamiento. Su prompt y ajustes siguen aquí."
+          "bytesUnavailable": "El archivo de esta versión ya no está en el almacenamiento. Su prompt y ajustes siguen aquí.",
+          "previousVersion": "Versión anterior",
+          "nextVersion": "Versión siguiente"
         },
         "tabs": {
           "overview": "Resumen",

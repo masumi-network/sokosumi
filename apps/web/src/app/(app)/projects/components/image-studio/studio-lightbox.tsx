@@ -130,7 +130,7 @@ export function StudioLightbox({
             {single ? (
               <>
                 <Button
-                  aria-label={labels.loadOlder}
+                  aria-label={labels.previousVersion}
                   disabled={!stepping.hasPrevious}
                   onClick={() => onStep(-1)}
                   size="icon"
@@ -139,7 +139,7 @@ export function StudioLightbox({
                   <ChevronLeft aria-hidden />
                 </Button>
                 <Button
-                  aria-label={labels.history}
+                  aria-label={labels.nextVersion}
                   disabled={!stepping.hasNext}
                   onClick={() => onStep(1)}
                   size="icon"

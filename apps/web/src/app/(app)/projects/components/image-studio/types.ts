@@ -158,6 +158,8 @@ export interface StudioLabels {
   compareHint: string;
   compareNeedsTwo: string;
   bytesUnavailable: string;
+  previousVersion: string;
+  nextVersion: string;
 
   // Chat pane.
   chatCollapse: string;

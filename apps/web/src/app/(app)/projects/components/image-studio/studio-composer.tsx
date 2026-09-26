@@ -158,9 +158,17 @@ export function StudioComposer({
 
   function toggleModel(model: StudioModel) {
     onTargetChange((current) => {
-      const next = current.modelIds.includes(model.id)
-        ? current.modelIds.filter((id) => id !== model.id)
-        : [...current.modelIds, model.id];
+      const adding = !current.modelIds.includes(model.id);
+      const placed = placementById(catalog, current.placementId);
+      // A model that cannot frame the active placement must not join the
+      // selection. Its chip is already disabled, so this is the guard for
+      // every other route in — keyboard, a stale render, a future caller.
+      if (adding && placed && !modelSupportsPlacement(model, placed)) {
+        return current;
+      }
+      const next = adding
+        ? [...current.modelIds, model.id]
+        : current.modelIds.filter((id) => id !== model.id);
       // Never leave nothing selected: the composer would have no capabilities
       // to read and every option would empty out.
       if (next.length === 0) return current;
@@ -173,13 +181,48 @@ export function StudioComposer({
     });
   }
 
+  /**
+   * Choose a placement, and drop any selected model that cannot frame it.
+   *
+   * Setting the placement alone was not enough. Disabling a model's chip
+   * stops it being *added*, but a model selected beforehand stayed selected,
+   * and `submit` still built a request for it — where `clampToModel` quietly
+   * moved 9:16 to that model's first ratio. The result was a square image
+   * carrying a Reels `placementId`: exactly the unsupported combination the
+   * catalog exists to prevent, recorded as though it had been honoured.
+   *
+   * If nothing selected can frame the placement, the first model in the
+   * catalog that can is selected instead, so the chip always does something
+   * legible rather than silently refusing.
+   */
   function choosePlacement(id: string | null) {
     const next = placementById(catalog, id);
-    onTargetChange((current) => ({
-      ...current,
-      placementId: next?.id ?? null,
-      settings: applyPlacement(current.settings, next),
-    }));
+    onTargetChange((current) => {
+      if (!next) {
+        return {
+          ...current,
+          placementId: null,
+          settings: applyPlacement(current.settings, null),
+        };
+      }
+      const kept = current.modelIds.filter((modelId) => {
+        const model = catalog.models.find((m) => m.id === modelId);
+        return model ? modelSupportsPlacement(model, next) : false;
+      });
+      const fallback = catalog.models.find((m) =>
+        modelSupportsPlacement(m, next),
+      );
+      const modelIds = kept.length > 0 ? kept : fallback ? [fallback.id] : [];
+      // No model in the catalog can frame it: leave the target untouched
+      // rather than produce a placement nothing can serve.
+      if (modelIds.length === 0) return current;
+      return {
+        ...current,
+        modelIds,
+        placementId: next.id,
+        settings: applyPlacement(current.settings, next),
+      };
+    });
   }
 
   function submit() {
@@ -187,8 +230,15 @@ export function StudioComposer({
     const requests: QueuedGeneration[] = [];
     // Round-robin across models rather than all of model A then all of model
     // B, so a batch clipped by the ceiling still covers every model asked for.
+    // Belt and braces: never build a request whose model cannot frame the
+    // active placement, whatever route the selection arrived by.
+    const eligible = placement
+      ? selectedModels.filter((model) =>
+          modelSupportsPlacement(model, placement),
+        )
+      : selectedModels;
     outer: for (let copy = 0; copy < copies; copy += 1) {
-      for (const model of selectedModels) {
+      for (const model of eligible) {
         if (requests.length >= MAX_BATCH) break outer;
         const id = crypto.randomUUID();
         requests.push({

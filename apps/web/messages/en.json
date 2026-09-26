@@ -2632,7 +2632,7 @@
           "noneMatchFilter": "Nothing matches that filter",
           "select": "Select",
           "deselect": "Deselect",
-          "selectedCount": "{count} selected",
+          "selectedCount": "{count, plural, one {# selected} other {# selected}}",
           "compareSelected": "Compare",
           "clearSelection": "Clear selection",
           "openDetails": "Open",
@@ -2649,7 +2649,9 @@
           "chatExpand": "Show assistant",
           "jumpToLatest": "Jump to latest",
           "contextAttached": "Sending with",
-          "bytesUnavailable": "This version's file is no longer in storage. Its prompt and settings are still here."
+          "bytesUnavailable": "This version's file is no longer in storage. Its prompt and settings are still here.",
+          "previousVersion": "Previous version",
+          "nextVersion": "Next version"
         },
         "tabs": {
           "overview": "Overview",

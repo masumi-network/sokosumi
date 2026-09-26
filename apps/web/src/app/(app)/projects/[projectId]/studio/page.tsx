@@ -137,6 +137,8 @@ export default async function ProjectStudioPage({
     compareHint: t("compareHint"),
     compareNeedsTwo: t("compareNeedsTwo"),
     bytesUnavailable: t("bytesUnavailable"),
+    previousVersion: t("previousVersion"),
+    nextVersion: t("nextVersion"),
     chatCollapse: t("chatCollapse"),
     chatExpand: t("chatExpand"),
     jumpToLatest: t("jumpToLatest"),

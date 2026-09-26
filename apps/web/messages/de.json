@@ -2632,7 +2632,7 @@
           "noneMatchFilter": "Nichts passt zu diesem Filter",
           "select": "Auswählen",
           "deselect": "Abwählen",
-          "selectedCount": "{count} ausgewählt",
+          "selectedCount": "{count, plural, one {# ausgewählt} other {# ausgewählt}}",
           "compareSelected": "Vergleichen",
           "clearSelection": "Auswahl aufheben",
           "openDetails": "Öffnen",
@@ -2649,7 +2649,9 @@
           "chatExpand": "Assistent einblenden",
           "jumpToLatest": "Zum Neuesten springen",
           "contextAttached": "Wird gesendet mit",
-          "bytesUnavailable": "Die Datei dieser Version liegt nicht mehr im Speicher. Prompt und Einstellungen sind weiterhin vorhanden."
+          "bytesUnavailable": "Die Datei dieser Version liegt nicht mehr im Speicher. Prompt und Einstellungen sind weiterhin vorhanden.",
+          "previousVersion": "Vorherige Version",
+          "nextVersion": "Nächste Version"
         },
         "tabs": {
           "overview": "Übersicht",
