@@ -260,7 +260,7 @@ export function DriveFileFilters({
           </PopoverTrigger>
           <PopoverContent
             align="end"
-            className="max-h-[70vh] w-80 overflow-y-auto"
+            className="max-h-[70dvh] w-80 overflow-y-auto"
           >
             <Label className="mb-3 block text-sm font-medium">
               {t("filterHeading")}
