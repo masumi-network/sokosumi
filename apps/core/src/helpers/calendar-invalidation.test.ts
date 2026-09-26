@@ -1,21 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  captureExceptionMock,
-  findTaskMock,
-  findWorkspaceMock,
-  syncInvalidationsMock,
-} = vi.hoisted(() => ({
-  captureExceptionMock: vi.fn(),
-  findTaskMock: vi.fn(),
-  findWorkspaceMock: vi.fn(),
-  syncInvalidationsMock: vi.fn(),
-}));
+const { captureExceptionMock, findWorkspaceMock, syncInvalidationsMock } =
+  vi.hoisted(() => ({
+    captureExceptionMock: vi.fn(),
+    findWorkspaceMock: vi.fn(),
+    syncInvalidationsMock: vi.fn(),
+  }));
 
 vi.mock("@sentry/node", () => ({ captureException: captureExceptionMock }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    task: { findUnique: findTaskMock },
     workspace: { findUnique: findWorkspaceMock },
   },
 }));
@@ -28,14 +22,12 @@ vi.mock("@/services/calendar-invalidation-outbox.service", () => ({
 import {
   deliverCalendarInvalidationsNow,
   deliverOrganizationCalendarInvalidationsNow,
-  deliverTaskCalendarInvalidationsNow,
 } from "./calendar-invalidation";
 
 describe("deliverCalendarInvalidationsNow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     findWorkspaceMock.mockResolvedValue({ id: "workspace_1" });
-    findTaskMock.mockResolvedValue({ workspaceId: "workspace_1" });
     syncInvalidationsMock.mockResolvedValue({
       claimed: 1,
       published: 1,
@@ -100,21 +92,6 @@ describe("deliverCalendarInvalidationsNow", () => {
       error,
       expect.objectContaining({
         extra: expect.objectContaining({ workspaceId: "workspace_1" }),
-      }),
-    );
-  });
-
-  it("keeps a Task workspace lookup failure from changing a committed mutation", async () => {
-    const error = new Error("database unavailable");
-    findTaskMock.mockRejectedValue(error);
-
-    await expect(
-      deliverTaskCalendarInvalidationsNow("task_1"),
-    ).resolves.toBeUndefined();
-    expect(captureExceptionMock).toHaveBeenCalledWith(
-      error,
-      expect.objectContaining({
-        extra: expect.objectContaining({ taskId: "task_1" }),
       }),
     );
   });

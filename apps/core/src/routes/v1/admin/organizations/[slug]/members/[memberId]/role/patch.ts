@@ -4,7 +4,6 @@ import { OrganizationOwnerRetentionError } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 
 import {
-  getAdminOrganizationBySlug,
   mapAdminOrganizationMemberOverviewItem,
   resolveAdminOrganizationOverviewSubscription,
 } from "@/helpers/admin-organization-overview.js";
@@ -52,17 +51,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { slug, memberId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const organization = await getAdminOrganizationBySlug(slug, prisma);
+    const organization = await prisma.organization.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
     if (!organization) {
       throw notFound("Organization not found");
     }
 
-    const existingMember =
-      await memberRepository.getMemberByIdAndOrganizationId(
-        memberId,
-        organization.id,
-        prisma,
-      );
+    const existingMember = await prisma.member.findFirst({
+      where: {
+        id: memberId,
+        organizationId: organization.id,
+      },
+    });
     if (!existingMember) {
       throw notFound("Member not found");
     }
