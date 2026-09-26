@@ -81,7 +81,7 @@ Consent Mode gates whether GTM forwards them to GA4/Ads.
 | `login` `{provider}`  | signed in. Social and magic-link fire on `/auth/callback/signin` after the full page load. Credential (`signin/components/form.tsx`) and passkey (`social-buttons.tsx`) fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts` | `components/social-auth-callback.tsx`, `signin/components/form.tsx`, `components/social-buttons.tsx` |
 | `message_start` `{room_id}` | **a coworker DM is started** (first send per room) | `app/(app)/chat/hooks/use-coworker-direct-room-stream.ts` |
 | `begin_checkout` `{plan?, seats?}` | Stripe checkout opened — credits/coupon (no params) and subscription upgrade (`plan`, org `seats`) | `components/credits/*-form.tsx`, `components/billing/*-subscription-section.tsx` |
-| `purchase` `{transaction_id, value, currency, items}` | **a credit / coupon purchase succeeds** (Stripe returns with `session_id`). Subscription checkouts return with `status=success` only and do **not** fire `purchase` yet — see below | `components/billing/purchase-tracker.tsx` |
+| `purchase` `{transaction_id, value, currency, items}` | **a checkout succeeds**: credits/coupon (Stripe returns with `session_id`) or subscription (returns with `checkout_session_id`) — see [Purchase tracking](#purchase-tracking) | `components/billing/purchase-tracker.tsx`, mounted by `credits-checkout-return.tsx` and `subscription-checkout-return.tsx` |
 | `view_agent`, `view_credits`, `view_register_area`, `view_login_area`, `register_form_start`, `login_area_form_start` | funnel context | various |
 | `consent_status` `{consent_analytics, consent_marketing}` | cookie choice made (banner) **and** on every full page load when the cookie already exists (`consent-mode-init.tsx`). Not re-pushed on SPA route changes — see [Why events go missing](#why-events-go-missing) | banner, `consent-mode-init.tsx` |
 | `set_user_id` `{user_id}` | login state resolves (and on logout, null) | `components/analytics/analytics-user-id.tsx` |
@@ -135,12 +135,50 @@ Lessons from the Aug 2026 GA4 audit — keep these in mind when adding events.
   expect undercounts for repeated in-app events.
 - **`onboarding_*`, `agent_hired`** no longer exist in the app (SOK-805 removed
   the marketplace Hire). GA4/Ads/LinkedIn/Meta tags keyed on them are dead.
-- **Subscription `purchase`** is a known gap: Better Auth's Stripe plugin owns
-  the subscription checkout and returns to `/billing?tab=subscription&status=success`
-  with no session id, so there is nothing to build `transaction_id`/`value`
-  from client-side. Closing it needs `{CHECKOUT_SESSION_ID}` on that
-  `successUrl` (`lib/auth/subscription.server.ts`) plus a `PurchaseTracker`
-  mount on the subscription tab. Only credits/coupons fire `purchase` today.
+
+### Purchase tracking
+
+`purchase` fires for exactly two things, both on `/billing` after a Stripe
+Checkout return:
+
+1. a credit top-up or coupon checkout (return carries `session_id`), and
+2. a self-serve subscription checkout started from the Subscription tab,
+   personal or organization (return carries `checkout_session_id`).
+
+Nothing else fires it: not plan changes that Better Auth applies without a
+Checkout (upgrade returns no redirect URL), not seat changes, not renewals, not
+enterprise contracts, and not a bare `status=success` in the URL.
+
+The URL is never trusted. Both paths only mount `PurchaseTracker` after Core's
+`GET /v1/checkout/sessions/{sessionId}` confirms the Stripe Checkout Session.
+Core returns 404 unless the session is `complete`, its `payment_status` is not
+`unpaid` (async payments that have not cleared, or a subscription that is not
+active yet), and it belongs to the caller (`metadata.userId`, or a Stripe
+customer of the user or one of their organizations). The event values come from
+Stripe, not the URL: `transaction_id` = Checkout Session id, `value` =
+`amount_total` (in the smallest currency unit), `currency`, and `items` from the
+line items' products (the plan name for subscriptions). A trial or 100 % coupon
+completes with `no_payment_required` and fires with `value` 0.
+`PurchaseTracker` fires once per session id, remembered in memory and in
+`sessionStorage`, so a tab switch or a reload of the return URL does not fire it
+again (a different tab or browser could; GA4 dedupes on `transaction_id`).
+
+- **Credits / coupons**: Core creates the session with
+  `success_url=…?session_id={CHECKOUT_SESSION_ID}`; `CreditsCheckoutReturn`
+  reads `session_id`.
+- **Subscriptions**: Better Auth's Stripe plugin owns the session. It never
+  hands our `successUrl` to Stripe directly; it sets Stripe's `success_url` to
+  its own `/subscription/success?callbackURL=<our URL, encoded>&checkoutSessionId={CHECKOUT_SESSION_ID}`,
+  syncs the subscription there, then redirects to `callbackURL` after
+  `replaceAll("{CHECKOUT_SESSION_ID}", checkoutSessionId)`.
+  `lib/auth/subscription.server.ts` therefore appends a **literal**
+  `checkout_session_id={CHECKOUT_SESSION_ID}` to the success URL
+  (`withCheckoutSessionIdPlaceholder`; `URLSearchParams` would encode the
+  braces and the plugin's replace would miss). The billing page passes
+  `checkout_session_id` to `SubscriptionCheckoutReturn`, which ignores anything
+  that is not a `cs_…` id (the plugin skips the replace on some early exits).
+  The param is deliberately not `session_id`, so a subscription return never
+  opens the credits success modal.
 
 ### Event parameters worth registering as GA4 custom dimensions
 
@@ -152,6 +190,22 @@ Lessons from the Aug 2026 GA4 audit — keep these in mind when adding events.
 | `room_id` | `message_start` | no — high cardinality; only register if you want per-coworker DM reports. GTM tag does not forward it today |
 | `transaction_id`, `value`, `currency`, `items` | `purchase` | standard ecommerce — no dimension needed |
 | `consent_analytics`, `consent_marketing` | `consent_status` | no GA4 tag; not needed |
+
+## Internal traffic
+
+Team members keep their own visits out of GA4/Ads by opening any
+`sokosumi.com` or `app.sokosumi.com` URL with `?internal=1`. That sets
+**`sokosumi_internal=1`** (domain `.sokosumi.com`, path `/`, one year);
+`?internal=0` clears it. The marketing site and the app read and write the same
+cookie, so setting it on either domain covers both.
+
+While the cookie is set the app loads neither GTM nor the standalone GA4 tag
+(`components/analytics/google-tags.tsx` wraps both mounts;
+`lib/analytics/internal-traffic.ts`). After handling the param the app removes
+`internal` from the visible URL with `history.replaceState`.
+Consent Mode init and dataLayer pushes still run but go nowhere. Vercel
+Analytics / Speed Insights are unaffected. The flag is per browser, so set it
+once on each browser and device you use.
 
 ## User-ID
 

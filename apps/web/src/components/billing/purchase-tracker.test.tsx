@@ -54,6 +54,20 @@ describe("PurchaseTracker", () => {
     expect(purchaseMock).toHaveBeenCalledTimes(1);
   });
 
+  it("does not re-fire after a reload of the return URL", () => {
+    render(<PurchaseTracker checkoutSession={checkoutSession} />);
+    // A reload starts a new JS realm: only sessionStorage survives.
+    const stored = { ...window.sessionStorage };
+    resetFiredPurchaseSessionIdsForTests();
+    for (const [key, value] of Object.entries(stored)) {
+      window.sessionStorage.setItem(key, value);
+    }
+
+    render(<PurchaseTracker checkoutSession={checkoutSession} />);
+
+    expect(purchaseMock).toHaveBeenCalledTimes(1);
+  });
+
   it("fires again for a different session id", () => {
     render(<PurchaseTracker checkoutSession={checkoutSession} />);
     render(

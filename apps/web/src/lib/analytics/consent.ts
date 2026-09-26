@@ -39,7 +39,7 @@ function gtag(...args: unknown[]): void {
 }
 
 /** sokosumi.com + app.sokosumi.com share one decision; elsewhere stay host-only. */
-function cookieDomainSuffix(): string {
+export function cookieDomainSuffix(): string {
   if (typeof window === "undefined") return "";
   return /(^|\.)sokosumi\.com$/.test(window.location.hostname)
     ? "; domain=.sokosumi.com"
@@ -52,7 +52,7 @@ function cookieDomainSuffix(): string {
  * them — turning tracking on for someone who never agreed. Omitted on http so
  * local development still works.
  */
-function cookieSecureSuffix(): string {
+export function cookieSecureSuffix(): string {
   if (typeof window === "undefined") return "";
   return window.location.protocol === "https:" ? "; Secure" : "";
 }

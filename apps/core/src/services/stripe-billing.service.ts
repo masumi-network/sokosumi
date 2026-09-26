@@ -516,8 +516,10 @@ export const stripeBillingService = {
     }
 
     // Incomplete/open/expired sessions must not unlock success UI or purchase
-    // analytics. Coupons can complete with payment_status=no_payment_required.
-    if (session.status !== "complete") {
+    // analytics. `unpaid` is a completed session whose async payment has not
+    // cleared yet (for a subscription: not active). Coupons and subscription
+    // trials complete with payment_status=no_payment_required and amount_total 0.
+    if (session.status !== "complete" || session.payment_status === "unpaid") {
       throw notFound("Checkout session not found");
     }
 

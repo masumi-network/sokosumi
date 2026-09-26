@@ -516,6 +516,101 @@ describe("getCheckoutSessionAnalytics ownership", () => {
     ).resolves.toMatchObject({ sessionId: "cs_123" });
   });
 
+  it("returns analytics for a Better Auth subscription checkout started by the user", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_other" });
+    organizationFindManyMock.mockResolvedValue([]);
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_sub",
+      mode: "subscription",
+      status: "complete",
+      payment_status: "paid",
+      amount_total: 4900,
+      currency: "eur",
+      customer: "cus_org_new",
+      line_items: {
+        data: [
+          {
+            quantity: 3,
+            price: { product: { id: "prod_pro", name: "Pro" } },
+          },
+        ],
+      },
+      // Set by @better-auth/stripe on every subscription Checkout Session.
+      metadata: {
+        userId: "user_1",
+        subscriptionId: "sub_row_1",
+        referenceId: "org_1",
+      },
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_sub", "user_1"),
+    ).resolves.toEqual({
+      sessionId: "cs_sub",
+      currency: "eur",
+      value: 4900,
+      items: [{ itemId: "prod_pro", itemName: "Pro", quantity: 3 }],
+    });
+  });
+
+  it("rejects a subscription checkout started by another user", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_other" });
+    organizationFindManyMock.mockResolvedValue([]);
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_sub",
+      mode: "subscription",
+      status: "complete",
+      payment_status: "paid",
+      amount_total: 4900,
+      currency: "eur",
+      customer: "cus_org_new",
+      line_items: { data: [] },
+      metadata: { userId: "user_2" },
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_sub", "user_1"),
+    ).rejects.toThrow("Checkout session not found");
+  });
+
+  it("returns zero value for a subscription trial that needs no payment", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_user" });
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_trial",
+      mode: "subscription",
+      status: "complete",
+      payment_status: "no_payment_required",
+      amount_total: 0,
+      currency: "eur",
+      customer: "cus_user",
+      line_items: { data: [] },
+      metadata: {},
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_trial", "user_1"),
+    ).resolves.toMatchObject({ sessionId: "cs_trial", value: 0 });
+  });
+
+  it("rejects a completed checkout whose payment has not cleared", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_user" });
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_unpaid",
+      mode: "subscription",
+      status: "complete",
+      payment_status: "unpaid",
+      amount_total: 4900,
+      currency: "eur",
+      customer: "cus_user",
+      line_items: { data: [] },
+      metadata: {},
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_unpaid", "user_1"),
+    ).rejects.toThrow("Checkout session not found");
+  });
+
   it("rejects checkout session analytics when the customer is not owned by the caller", async () => {
     findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_other" });
 

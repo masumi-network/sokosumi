@@ -20,21 +20,48 @@ export interface CheckoutSessionData {
   }[];
 }
 
-/** Fires at most once per checkout session id for the lifetime of this JS realm. */
+/**
+ * Fires at most once per checkout session id: in memory for this JS realm, and
+ * in sessionStorage so reloading the Stripe return URL does not fire again.
+ */
 const firedPurchaseSessionIds = new Set<string>();
+const FIRED_STORAGE_PREFIX = "sokosumi_purchase_fired:";
 
 export function resetFiredPurchaseSessionIdsForTests() {
   firedPurchaseSessionIds.clear();
+  window.sessionStorage.clear();
+}
+
+function hasFired(sessionId: string): boolean {
+  if (firedPurchaseSessionIds.has(sessionId)) {
+    return true;
+  }
+  try {
+    return (
+      window.sessionStorage.getItem(FIRED_STORAGE_PREFIX + sessionId) !== null
+    );
+  } catch {
+    return false;
+  }
+}
+
+function markFired(sessionId: string) {
+  firedPurchaseSessionIds.add(sessionId);
+  try {
+    window.sessionStorage.setItem(FIRED_STORAGE_PREFIX + sessionId, "1");
+  } catch {
+    // Storage blocked: the in-memory set still covers this page load.
+  }
 }
 
 export function PurchaseTracker({ checkoutSession }: PurchaseTrackerProps) {
   useEffect(() => {
     const { session_id, currency, value, items } =
       mapCheckoutSession(checkoutSession);
-    if (firedPurchaseSessionIds.has(session_id)) {
+    if (hasFired(session_id)) {
       return;
     }
-    firedPurchaseSessionIds.add(session_id);
+    markFired(session_id);
     fireGTMEvent.purchase(session_id, currency, value, items);
   }, [checkoutSession]);
 

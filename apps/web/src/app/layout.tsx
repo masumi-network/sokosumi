@@ -1,6 +1,5 @@
 import "./globals.css";
 
-import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
 import { DEFAULT_LOCALE } from "@sokosumi/utils";
 import type { Metadata, Viewport } from "next";
@@ -12,6 +11,7 @@ import { AnalyticsUserId } from "@/components/analytics/analytics-user-id";
 import { ClientAnalytics } from "@/components/analytics/client-analytics";
 import { ConsentModeInit } from "@/components/analytics/consent-mode-init";
 import { CookieBanner } from "@/components/analytics/cookie-banner";
+import { GoogleTags } from "@/components/analytics/google-tags";
 import { TelemetryBoundary } from "@/components/analytics/telemetry-boundary";
 import { DeploymentRefreshHandler } from "@/components/deployment-refresh-handler";
 import { DynamicTypeRootCap } from "@/components/dynamic-type-root-cap";
@@ -74,8 +74,7 @@ export default function RootLayout({
         <TelemetryBoundary>
           {/* Consent Mode (denied by default) MUST be set before GTM loads. */}
           {analyticsEnabled && <ConsentModeInit />}
-          {gtmId && <GoogleTagManager gtmId={gtmId} />}
-          {gaId && <GoogleAnalytics gaId={gaId} />}
+          {analyticsEnabled && <GoogleTags gtmId={gtmId} gaId={gaId} />}
         </TelemetryBoundary>
       </Suspense>
       <body className="bg-background min-h-dvh max-w-dvw antialiased">
