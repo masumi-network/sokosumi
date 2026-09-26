@@ -101,13 +101,11 @@ export type TaskScheduleReader =
   | { kind: "user"; userId: string }
   | { kind: "coworker"; coworkerId: string; vendorId: string; userId: string };
 
-export type ScheduleActor = TaskScheduleReader & {
-  workspace: WorkspaceContext;
-};
+type ScheduleActor = TaskScheduleReader & { workspace: WorkspaceContext };
 
 type RouteVars = EnvVariables["Variables"];
 
-export async function resolveScheduleActor(
+async function resolveScheduleActor(
   vars: RouteVars,
   { requestMissingGrant = true }: { requestMissingGrant?: boolean } = {},
 ): Promise<ScheduleActor> {
@@ -389,17 +387,6 @@ export async function getTaskSchedule(
     actor,
     id,
   );
-  return schedule;
-}
-
-/** A schedule the caller may change, checked as an edit checks it. */
-export async function getWritableTaskSchedule(
-  vars: RouteVars,
-  id: string,
-): Promise<TaskSchedule> {
-  const actor = await resolveScheduleActor(vars);
-  const { assignee, ...schedule } = await findReadableSchedule(actor, id);
-  requireScheduleWriteAccess(actor, { ...schedule, assignee });
   return schedule;
 }
 
