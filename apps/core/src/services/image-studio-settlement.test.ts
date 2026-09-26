@@ -268,7 +268,7 @@ describe("where generated images are stored", () => {
     );
   });
 
-  it("fails the job rather than falling back when no private store is set", async () => {
+  it("refuses to write anywhere else when no private store is set", async () => {
     // The shared public token is still present in the environment here. The
     // studio must refuse anyway: an image nobody can see is recoverable, an
     // image published by accident is not.
@@ -276,17 +276,36 @@ describe("where generated images are stored", () => {
       FAL_KEY: "k",
       BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
     });
+    jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
 
     await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
 
     expect(putMock).not.toHaveBeenCalled();
-    const failed = jobUpdateManyMock.mock.calls
+  });
+
+  it("keeps the paid job recoverable instead of failing it", async () => {
+    // `failJob` here was a real loss: fal has already produced and charged for
+    // the image, FAILED is outside LIVE_STATUSES, and the row would drop out
+    // of recoverableSelection() — so putting the token back could never bring
+    // the image back, while the UI offered a "Try again" that would buy a
+    // second one.
+    getEnvMock.mockReturnValue({
+      FAL_KEY: "k",
+      BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
+    });
+    jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    const statuses = jobUpdateManyMock.mock.calls.map(
+      (call) => (call[0] as { data: Record<string, unknown> }).data.status,
+    );
+    expect(statuses).not.toContain("FAILED");
+
+    const noted = jobUpdateMock.mock.calls
       .map((call) => (call[0] as { data: Record<string, unknown> }).data)
-      .find((data) => data.status === "FAILED");
-    // The person-facing text says what happened to them, not which
-    // environment variable is missing; the variable name goes to the log.
-    expect(String(failed?.error)).toContain("Image storage was unavailable");
-    expect(String(failed?.error)).not.toContain("IMAGE_STUDIO_BLOB");
+      .find((data) => "lastPollError" in data);
+    expect(noted?.unreachableSource).toBe("storage");
   });
 
   it("hands the lease back when it refuses for want of a private store", async () => {
@@ -369,7 +388,7 @@ describe("a settlement whose storage write fails", () => {
     expect(release?.where.settleLeaseOwner).toBe(claim?.data.settleLeaseOwner);
   });
 
-  it("records the failure on the job as a result outage", async () => {
+  it("records the failure against storage, not the provider", async () => {
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
     jobUpdateMock.mockResolvedValue({ resultUnreachableSince: null });
 
@@ -381,7 +400,11 @@ describe("a settlement whose storage write fails", () => {
     // The same treatment the download failure above already gets: the image is
     // paid for and still recoverable, so the job stays live — but the reason
     // is on the row, and the outage clock that eventually says so has started.
-    expect(noted?.unreachableSource).toBe("result");
+    //
+    // "storage" rather than "result": the download succeeded here, so blaming
+    // the provider for an image "we could not fetch" would point the reader at
+    // the wrong system.
+    expect(noted?.unreachableSource).toBe("storage");
     expect(String(noted?.lastPollError)).toContain("public store");
   });
 });

@@ -45,6 +45,10 @@ const route = withOrganizationSlugHeaderParameter(
       404: jsonErrorResponse("Not Found"),
       422: jsonErrorResponse("Unprocessable Entity"),
       429: jsonErrorResponse("Too Many Requests"),
+      // The studio refuses before reserving a row or calling fal when it has
+      // no private store to keep the result in, so this is a documented
+      // outcome of asking for a generation, not an incident.
+      503: jsonErrorResponse("Service Unavailable - image storage unavailable"),
     },
   }),
 );

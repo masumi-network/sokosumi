@@ -647,16 +647,34 @@ const UNREACHABLE_GRACE_MS = 6 * 60 * 60 * 1000;
  * status read, `result` the result fetch and image download, `authorization`
  * our own ownership lookup.
  */
-type UnreachableSource = "status" | "result" | "authorization";
+type UnreachableSource = "status" | "result" | "authorization" | "storage";
 
-/** The column holding each dependency's outage start. */
+/**
+ * The column holding each dependency's outage start.
+ *
+ * `storage` deliberately shares `result`'s clock rather than owning one. This
+ * dependency is "get the produced image into our hands and keep it", and the
+ * two halves — fetching the bytes and writing them — are sequential steps of
+ * one attempt that never overlap. `noteReachable("result")` is already only
+ * called once the bytes are *stored*, not when their address is read, so the
+ * clock already spans the write. Splitting it would need a column and a
+ * migration to record nothing the shared clock does not already say.
+ */
 const OUTAGE_COLUMN = {
   status: "statusUnreachableSince",
   result: "resultUnreachableSince",
   authorization: "authUnreachableSince",
+  storage: "resultUnreachableSince",
 } as const satisfies Record<UnreachableSource, string>;
 
-/** How the reader is told which dependency let them down. */
+/**
+ * How the reader is told which dependency let them down.
+ *
+ * `storage` is separate from `result` because the two failures are not the
+ * same news. Telling someone the provider "produced an image we could not
+ * fetch" when the fetch worked and our own store refused the write points them
+ * at the wrong system.
+ */
 const OUTAGE_WORDING: Record<UnreachableSource, (hours: number) => string> = {
   status: (hours) =>
     `The provider could not be reached for this request for ${hours} hours`,
@@ -664,6 +682,8 @@ const OUTAGE_WORDING: Record<UnreachableSource, (hours: number) => string> = {
     `The provider produced an image we could not fetch for ${hours} hours`,
   authorization: (hours) =>
     `Could not confirm who this image belongs to for ${hours} hours`,
+  storage: (hours) =>
+    `The image was generated, but storing it has been failing for ${hours} hours`,
 };
 
 /**
@@ -850,17 +870,21 @@ export async function settleWithImage(
   // image published by accident is not.
   const studioBlobToken = readStudioBlobToken();
   if (!studioBlobToken) {
-    // `error` is shown to the person, so it says what happened to them and
-    // leaves the variable name to the server log this writes.
     console.error(
-      "[image-studio] settlement abandoned: IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the generated image has nowhere private to go.",
+      "[image-studio] settlement deferred: IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the generated image has nowhere private to go.",
       { jobId: job.id },
     );
     await releaseSettlementLease(job.id, lease);
-    await failJob(
-      job.id,
-      "Image storage was unavailable, so this image could not be kept.",
-    );
+    // An outage, not a verdict. `failJob` was wrong here: fal has already
+    // produced and charged for this image, and `FAILED` is outside
+    // `LIVE_STATUSES`, so the row would drop out of `recoverableSelection()`
+    // and neither polling nor the webhook could ever pick it up again —
+    // putting the token back would not bring the image back. Worse, the UI
+    // offers a plain "Try again" on a failed job with
+    // `retryMayDuplicateCharge` false, inviting a second paid generation for
+    // an image that already exists. Left live, the configuration can be fixed
+    // and the next reconcile settles the image that was already paid for.
+    await noteUnreachable(job.id, "image storage is not configured", "storage");
     return;
   }
 
@@ -925,10 +949,15 @@ export async function settleWithImage(
     // error and no end. Releasing and noting it keeps the job recoverable and
     // lets the outage clock eventually say so.
     await releaseSettlementLease(job.id, lease);
+    // "storage", not "result": the download above succeeded, so the provider
+    // did its part and it is our store that refused. Reporting this as a
+    // result outage told the reader the provider "produced an image we could
+    // not fetch", which points at the wrong system. Same clock either way —
+    // see OUTAGE_COLUMN.
     await noteUnreachable(
       job.id,
       error instanceof Error ? error.message : "image storage write failed",
-      "result",
+      "storage",
     );
     return;
   }

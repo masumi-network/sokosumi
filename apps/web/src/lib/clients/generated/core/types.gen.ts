@@ -35133,6 +35133,21 @@ export type PostProjectsByIdImageStudioJobsErrors = {
             method: string;
         };
     };
+    /**
+     * Service Unavailable - image storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PostProjectsByIdImageStudioJobsError = PostProjectsByIdImageStudioJobsErrors[keyof PostProjectsByIdImageStudioJobsErrors];
@@ -35301,6 +35316,21 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - image storage unavailable
+     */
+    503: {
         error: string;
         message: string;
         kind?: string;

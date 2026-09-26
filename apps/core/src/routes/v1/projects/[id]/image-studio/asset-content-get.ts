@@ -38,6 +38,10 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      // Distinct from 404: the version exists, but the private store it lives
+      // in is not configured, so the bytes cannot be fetched at all. A caller
+      // should retry later rather than treat the version as gone.
+      503: jsonErrorResponse("Service Unavailable - image storage unavailable"),
     },
   }),
 );

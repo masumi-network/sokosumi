@@ -38,6 +38,17 @@ export async function GET(
       },
     );
     if (!upstream.ok || !upstream.body) {
+      // 503 passes through as itself. Core answers it when the studio's
+      // private store is not configured, and the version is not gone — it is
+      // temporarily unreadable. Flattening that to 404 told the reader their
+      // image had been deleted and gave a caller no reason to retry. Anything
+      // else still collapses to 404 rather than describing Core's internals.
+      if (upstream.status === 503) {
+        return NextResponse.json(
+          { error: "Unavailable" },
+          { status: 503, headers: { "Retry-After": "30" } },
+        );
+      }
       return NextResponse.json(
         { error: "Not found" },
         { status: upstream.status === 401 ? 401 : 404 },
