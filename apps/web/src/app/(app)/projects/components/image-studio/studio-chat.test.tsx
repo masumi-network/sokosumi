@@ -377,3 +377,121 @@ describe("a message that fails to send", () => {
     expect((box as HTMLTextAreaElement).value).toBe("second thoughts");
   });
 });
+
+describe("the context a turn carries", () => {
+  type PrepareSend = (input: Record<string, unknown>) => {
+    clientContext: Record<string, unknown>;
+  };
+
+  it("keeps 'nothing selected' selected when an image is picked mid-flight", async () => {
+    // A submission made with nothing selected has a legitimate null asset.
+    // Reading the live ref instead would put a version into the structured
+    // context that the message text never mentioned.
+    const { rerender } = render(
+      <StudioChat
+        catalog={TEST_CATALOG}
+        projectId="project-1"
+        labels={LABELS}
+        selectedAsset={null}
+        resumeSessionId={null}
+        onActivity={() => {}}
+        target={TARGET}
+      />,
+    );
+    const box = screen.getByPlaceholderText("Describe the image...");
+    fireEvent.change(box, { target: { value: "a calm product shot" } });
+    await act(async () => {
+      fireEvent.submit(box.closest("form") as HTMLFormElement);
+    });
+
+    // The person clicks a gallery tile while the turn is still going out.
+    rerender(
+      <StudioChat
+        catalog={TEST_CATALOG}
+        projectId="project-1"
+        labels={LABELS}
+        selectedAsset={
+          { id: "picked-later", version: 9, prompt: "later" } as never
+        }
+        resumeSessionId={null}
+        onActivity={() => {}}
+        target={TARGET}
+      />,
+    );
+
+    const prepareSend = latestOptions().prepareSend as PrepareSend;
+    const ctx = prepareSend({}).clientContext;
+    expect(ctx.selectedVersionId).toBeNull();
+    expect(ctx.selectedVersionNumber).toBeNull();
+  });
+
+  it("describes the selection the message was written against", async () => {
+    const { rerender } = render(
+      <StudioChat
+        catalog={TEST_CATALOG}
+        projectId="project-1"
+        labels={LABELS}
+        selectedAsset={
+          { id: "at-submit", version: 3, prompt: "at submit" } as never
+        }
+        resumeSessionId={null}
+        onActivity={() => {}}
+        target={TARGET}
+      />,
+    );
+    const box = screen.getByPlaceholderText("Describe the image...");
+    fireEvent.change(box, { target: { value: "make this warmer" } });
+    await act(async () => {
+      fireEvent.submit(box.closest("form") as HTMLFormElement);
+    });
+
+    const sent = sendMock.mock.calls.at(-1)![0] as string;
+    expect(sent).toContain("looking at: v3");
+
+    rerender(
+      <StudioChat
+        catalog={TEST_CATALOG}
+        projectId="project-1"
+        labels={LABELS}
+        selectedAsset={
+          { id: "changed", version: 7, prompt: "changed" } as never
+        }
+        resumeSessionId={null}
+        onActivity={() => {}}
+        target={TARGET}
+      />,
+    );
+
+    // Text and structured context must not disagree.
+    const ctx = (latestOptions().prepareSend as PrepareSend)({}).clientContext;
+    expect(ctx.selectedVersionId).toBe("at-submit");
+    expect(ctx.selectedVersionNumber).toBe(3);
+  });
+
+  it("carries the settings the message text does not mention", async () => {
+    render(
+      <StudioChat
+        catalog={TEST_CATALOG}
+        projectId="project-1"
+        labels={LABELS}
+        selectedAsset={null}
+        resumeSessionId={null}
+        onActivity={() => {}}
+        target={{
+          ...TARGET,
+          settings: { ...TARGET.settings, outputFormat: "jpeg", seed: 42 },
+        }}
+      />,
+    );
+    const box = screen.getByPlaceholderText("Describe the image...");
+    fireEvent.change(box, { target: { value: "a wide banner" } });
+    await act(async () => {
+      fireEvent.submit(box.closest("form") as HTMLFormElement);
+    });
+
+    const ctx = (latestOptions().prepareSend as PrepareSend)({})
+      .clientContext as { settings: Record<string, unknown> };
+    expect(ctx.settings.outputFormat).toBe("jpeg");
+    expect(ctx.settings.seed).toBe(42);
+  });
+});

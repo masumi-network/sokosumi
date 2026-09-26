@@ -482,16 +482,25 @@ function StudioConversation({
     // Attach the current selection to every turn without threading it through
     // each call site. It is ephemeral per-turn context, not session history.
     prepareSend: (input) => {
-      // The snapshot the submit handler took, so the structured context and
-      // the transcript text describe the same selection even if the person
-      // changed the chips while a prewarm was in flight.
+      /**
+       * The snapshot the submit handler took, chosen on *presence* rather
+       * than on each field being truthy.
+       *
+       * `snap?.asset ?? selectedAssetRef.current` was wrong: a submission
+       * made with nothing selected has a perfectly legitimate `asset: null`,
+       * and `??` fell straight through to the live ref. Selecting an image
+       * while a prewarm was in flight then put a version into the structured
+       * context that the message text never mentioned — the same
+       * text-and-context disagreement the snapshot exists to prevent, just
+       * in the other direction.
+       */
       const snap = pendingSnapshotRef.current;
       return {
         ...input,
         clientContext: turnContext(
-          snap?.catalog ?? catalogRef.current,
-          snap?.target ?? targetRef.current,
-          snap?.asset ?? selectedAssetRef.current,
+          snap ? snap.catalog : catalogRef.current,
+          snap ? snap.target : targetRef.current,
+          snap ? snap.asset : selectedAssetRef.current,
         ),
       };
     },
