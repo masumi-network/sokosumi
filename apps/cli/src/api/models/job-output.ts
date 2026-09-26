@@ -1,3 +1,5 @@
+import { asRecord } from "./parse-helpers.js";
+
 export interface JobFile {
   id: string | null;
   name: string | null;
@@ -15,12 +17,6 @@ export interface JobLink {
   url: string | null;
   description: string | null;
   createdAt: string | null;
-}
-
-function asRecord(input: unknown): Record<string, unknown> {
-  return input && typeof input === "object" && !Array.isArray(input)
-    ? (input as Record<string, unknown>)
-    : {};
 }
 
 export function parseJobFile(input: unknown): JobFile {

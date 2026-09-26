@@ -1,5 +1,6 @@
 import type { InputDateSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import { transformJobInputSchemaValidations } from "@/components/job-input/util";
@@ -24,6 +25,8 @@ export function DateInput({
   jobInputSchema,
   controlProps,
 }: JobInputComponentProps<typeof InputType.DATE, InputDateSchemaType>) {
+  const formatter = useFormatter();
+  const t = useTranslations("Library.JobInput.Form.Date");
   const selectedDate =
     typeof field.value === "string" ? parseDateValue(field.value) : undefined;
 
@@ -54,9 +57,13 @@ export function DateInput({
           }
         >
           {selectedDate
-            ? selectedDate.toLocaleDateString()
+            ? formatter.dateTime(selectedDate, {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })
             : ((jobInputSchema as InputDateSchemaType).data?.placeholder ??
-              "Pick a date")}
+              t("pickDate"))}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="p-0" align="start">

@@ -25,6 +25,8 @@ import SwiftUI
       // Keep scroll state below this boundary so scrolling does not rebuild the projection.
       RoomTranscriptContent(roomId: roomId, messages: prepared?.overlaying(input.messages) ?? [],
                             hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared)
+        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: roomId))
+        .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
         .task(id: input) {
           guard let prepared = try? await PreparedTranscript.prepare(input, reusing: preparedTranscript), !Task.isCancelled else { return }
           preparedTranscript = prepared
@@ -137,7 +139,7 @@ import SwiftUI
 
     @ViewBuilder
     private var transcriptBody: some View {
-      if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {
+      if workspaces.transcriptRoomId != roomId || (workspaces.transcriptLoading && !hasLiveMessages) {
         ProgressView("Loading messages…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else if !hasLiveMessages {

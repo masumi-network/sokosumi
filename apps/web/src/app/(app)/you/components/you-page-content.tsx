@@ -8,7 +8,6 @@ import { mapAccountCreditsChrome } from "@/app/components/sidebar";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getSession } from "@/lib/auth/auth.server";
-import { hasCalendarBetaAccess } from "@/lib/beta-access";
 import { resolvePlanName } from "@/lib/utils/plan-label";
 
 import { YouPageClient } from "./you-page.client";
@@ -40,7 +39,6 @@ export async function YouPageContent() {
 
   const credits = mapAccountCreditsChrome(creditsResult);
   const planName = await resolvePlanName(credits.planForLabel);
-  const calendarMenuEnabled = hasCalendarBetaAccess(members);
   const adminMenuEnabled = hasAdminRole(
     (session.user as typeof session.user & { role?: string | null }).role,
   );
@@ -48,7 +46,6 @@ export async function YouPageContent() {
   return (
     <YouPageClient
       sessionUser={session.user}
-      calendarMenuEnabled={calendarMenuEnabled}
       planName={planName}
       totalCredits={credits.totalCredits}
       extraCredits={credits.extraCredits}

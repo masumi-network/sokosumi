@@ -139,7 +139,12 @@ jobs:
     services:
       postgres: *postgres
     steps:
-      - *checkout
+      # Depth 2 also fetches the parents of the PR merge commit, which the
+      # migration check below reads.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
       - *setup
 
       - name: Run Tests
@@ -149,6 +154,32 @@ jobs:
         env:
           JOB_SYNC_TEST_DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
         run: pnpm --filter @sokosumi/database exec vitest run src/helpers/job-sync.postgres.test.ts
+
+      # Prisma applies an older-dated pending folder without warning, so each
+      # folder a PR adds must be stamped after the newest one on its base
+      # branch. On pull_request, HEAD is the PR merge commit. Its first parent
+      # is that base, and it holds every base folder the PR did not remove.
+      # workflow_dispatch has no merge commit, so it compares with the default
+      # branch tip. It still runs the check, because its result goes on the
+      # same head commit as the PR run's result and could replace a failure.
+      # It also runs when the tests above fail, so one run reports both.
+      - name: Check migration folders against the base branch
+        if: ${{ !cancelled() }}
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ] || ! git rev-parse --verify --quiet "HEAD^2" >/dev/null; then
+              echo "::error::HEAD is not the pull request merge commit $GITHUB_SHA with both parents fetched, so HEAD^1 is not the base branch."
+              exit 1
+            fi
+            base="HEAD^1"
+          else
+            git fetch --no-tags --depth=1 origin "+refs/heads/$DEFAULT_BRANCH:refs/remotes/origin/$DEFAULT_BRANCH"
+            echo "::notice::Compared with origin/$DEFAULT_BRANCH. If this branch is behind it, its newer folders show as removed. Merge it first."
+            base="origin/$DEFAULT_BRANCH"
+          fi
+          MIGRATION_ORDER_BASE_REF="$base" pnpm --filter @sokosumi/database --fail-if-no-match exec vitest run --passWithNoTests=false src/helpers/migration-prefix-order.test.ts
 
   cli:
     name: Test CLI

@@ -173,10 +173,38 @@ Pause, resume, and end answer **409** `schedule_state_conflict` from the wrong
 state. A Run change answers **409** `schedule_run_state_conflict` or **422**
 `schedule_run_target_invalid`.
 
+### Legacy vendor schedules (temporary)
+
+Until this compatibility layer is removed, Coworkers of the vendors listed in
+`LEGACY_TASK_SCHEDULE_VENDOR_IDS` (comma-separated vendor ids) keep the
+per-Task schedule API their client was built on, translated to Task
+Schedules. Every other caller gets the current API and the 410s below.
+
+| Old call | What the listed vendor gets |
+| --- | --- |
+| `PUT /v1/tasks/{id}/schedule`, recurring | Makes a Task Schedule from the Task (the Task stays as it is), changes its rule, or resumes a paused one. Re-sending the current rule changes nothing. |
+| `PUT /v1/tasks/{id}/schedule`, once on `2099-12-31` | Pauses the schedule, the hold these clients paused with. |
+| `PUT /v1/tasks/{id}/schedule`, once | Starts the Task itself once: sets its `runAt`. On a repeating job: **422**. |
+| `GET /v1/tasks?sort=nextRunAt` | Live schedules as their old template Tasks (Queued, rule in `metadata`, next Run in `nextRunAt`; a paused one shows the hold), plus Queued one-time Tasks. |
+| `GET /v1/tasks`, `GET /v1/tasks/{id}` | A template id reads as its schedule; one-time Tasks carry `metadata` and `nextRunAt`. |
+| `POST /v1/tasks/{id}/events` on a template | `READY` is accepted; `CANCELED` ends the schedule. |
+| `GET /v1/tasks/{id}/links` on a Run's Task | Adds a `schedule_series` link to the Queued template, which these clients use to tell a scheduled run. |
+
+A template id is the Task a PUT made the schedule from, the template the
+cutover archived, or the schedule id for one made elsewhere. A PUT needs the
+same access as the new routes: the Task belongs to the acting member, is
+Draft, Ready, or Queued, not archived or parked, and the Coworker created it,
+is its assignee, or shares the assignee's vendor. The create is keyed on the
+Task, so a retry returns the first schedule. `occurrences` counts the Runs
+still to come, and an `M H */N * *` cron with no `intervalDays` means every N
+days, as before. A person assignee answers **422**. Every answer of the layer
+logs `legacyTaskScheduleShim`.
+
 ### Removed per-Task schedule routes
 
-The old per-Task schedule routes answer **410 Gone** with `kind`
-`task_schedule_moved` and the route to call instead in `replacement`:
+For every caller outside `LEGACY_TASK_SCHEDULE_VENDOR_IDS`, the old per-Task schedule routes
+answer **410 Gone** with `kind` `task_schedule_moved` and the route to call
+instead in `replacement`:
 
 | Removed route | `replacement` |
 | --- | --- |

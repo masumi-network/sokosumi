@@ -7,7 +7,6 @@ const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const getSessionMock = vi.fn();
-const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
@@ -23,11 +22,6 @@ vi.mock("next/server", () => ({
 
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
-}));
-
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
 }));
 
 vi.mock("@/lib/services/task.service", () => ({
@@ -148,7 +142,6 @@ describe("loadCalendarPageContext", () => {
 describe("loadWorkspaceCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
       user: { id: "user-1" },
@@ -205,17 +198,6 @@ describe("loadWorkspaceCalendarPage", () => {
       }
     },
   );
-
-  it("does not load Calendar data outside the Calendar beta", async () => {
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
-
-    await expect(
-      loadWorkspaceCalendarPage({ searchParams: Promise.resolve({}) }),
-    ).rejects.toThrow("NEXT_NOT_FOUND");
-
-    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
-    expect(getProjectByIdMock).not.toHaveBeenCalled();
-  });
 
   it("loads the workspace Calendar and keeps only schedulable Projects", async () => {
     const result = await loadWorkspaceCalendarPage({

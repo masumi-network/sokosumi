@@ -18,17 +18,19 @@ import SwiftUI
     var content = ComposerContent("")
     var channels: [ComposerChannel] = []
     var mentions: [ComposerMention] = []
+    var attachmentsEnabled = true
     var attach: (() -> Void)?
     var attachFromDrive: (() -> Void)?
     var attachFiles: (([URL]) -> Void)?
     var attachImage: ((Data) -> Void)?
+    var attachmentDragChanged: ((Bool) -> Void)?
     var onPaste: ((ComposerTextPaste) -> Void)?
     var insertion: ComposerInsertion?
 
     var body: some View {
       ComposerLayout {
         HStack(alignment: .top, spacing: 8) {
-          MacComposerTextInput(text: $text, modifierReturnSubmits: cancelEdit != nil, cancel: cancelEdit, onBlur: onBlur, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage, onPaste: onPaste, insertion: insertion)
+          MacComposerTextInput(text: $text, modifierReturnSubmits: cancelEdit != nil, cancel: cancelEdit, onBlur: onBlur, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage, attachmentDragChanged: attachmentDragChanged, onPaste: onPaste, insertion: insertion)
           if let cancelEdit {
             MessageEditControls(canSave: canSend, save: { _ = submit() }, cancel: cancelEdit)
           }
@@ -47,6 +49,7 @@ import SwiftUI
           } label: {
             Image(systemName: "paperclip")
           }
+          .disabled(!attachmentsEnabled)
           .menuStyle(.borderlessButton)
           .fixedSize()
           .help("Attach files")

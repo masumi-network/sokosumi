@@ -315,15 +315,14 @@ describe("GET /workspaces/calendar/sources", () => {
     expect(projectFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("rejects users outside the Calendar beta before reading sources", async () => {
+  it("serves a user who belongs to no beta organization", async () => {
     memberFindFirstMock.mockResolvedValue(null);
 
     const response = await createApp().request(
       "http://localhost/calendar/sources",
     );
 
-    expect(response.status).toBe(403);
-    expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
-    expect(projectFindManyMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(workspaceFindUniqueMock).toHaveBeenCalled();
   });
 });
