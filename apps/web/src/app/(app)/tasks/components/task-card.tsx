@@ -42,7 +42,8 @@ export function TaskCard({
     >
       <article
         className={cn(
-          "bg-background border-border relative isolate space-y-2.5 rounded-lg border p-3 transition-[border-color,box-shadow] hover:border-primary hover:shadow-sm",
+          "bg-background border-border relative isolate rounded-lg border transition-[border-color,box-shadow] hover:border-primary hover:shadow-sm",
+          compact ? "space-y-1 p-2" : "space-y-2.5 p-3",
           dragHandleProps?.isDragging &&
             "border-primary-tertiary ring-ring-halo shadow-lg ring-2",
         )}
@@ -55,9 +56,15 @@ export function TaskCard({
           />
           <TaskPrivateIndicator visibility={task.visibility} />
         </div>
-        <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
+        <h3
+          className={cn(
+            "text-foreground text-sm leading-snug font-medium",
+            compact ? "line-clamp-1" : "line-clamp-2",
+          )}
+        >
           <TaskDetailLink
             href={`/tasks/${task.id}`}
+            title={task.name}
             className="after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-ring"
           >
             {task.name}
@@ -78,7 +85,12 @@ export function TaskCard({
               logo={task.project.logo}
               className="size-5 shrink-0 rounded-sm"
             />
-            <span className="line-clamp-2 break-words">
+            <span
+              className={cn(
+                "min-w-0 break-words",
+                compact ? "line-clamp-1" : "line-clamp-2",
+              )}
+            >
               {task.project.name}
             </span>
           </Link>

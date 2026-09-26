@@ -15,7 +15,7 @@ const LEASE_MS = 60_000;
 
 /** One serial bounded batch; content invalidation is durable even if a process exits. */
 export async function classifyPendingTaskTags(context: SyncExecutionContext) {
-  // Capability discovery never contains task content. No automatic global fallback.
+  // Discovery contains no task content; each evaluation enforces privacy options.
   let available = false;
   try {
     available = await taskTagProviderAvailable(context.abortSignal);
