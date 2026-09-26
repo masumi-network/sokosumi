@@ -12083,28 +12083,273 @@ export const FileResourceSchema = {
             ]
         },
         category: {
-            $ref: '#/components/schemas/FileLabel'
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                labelId: {
+                    type: 'string'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'TAG',
+                        'CATEGORY'
+                    ]
+                },
+                displayName: {
+                    type: 'string'
+                },
+                state: {
+                    type: 'string',
+                    enum: [
+                        'SUGGESTED',
+                        'CONFIRMED',
+                        'REJECTED'
+                    ]
+                },
+                provenance: {
+                    type: 'string',
+                    enum: [
+                        'MANUAL',
+                        'MODEL',
+                        'RULE'
+                    ]
+                },
+                evidenceSnippet: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                stale: {
+                    type: 'boolean',
+                    description: 'The suggestion was computed against an older content or vocabulary version.'
+                }
+            },
+            required: [
+                'id',
+                'labelId',
+                'kind',
+                'displayName',
+                'state',
+                'provenance',
+                'evidenceSnippet',
+                'stale'
+            ]
         },
         tags: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/FileLabel'
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    labelId: {
+                        type: 'string'
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'TAG',
+                            'CATEGORY'
+                        ]
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'SUGGESTED',
+                            'CONFIRMED',
+                            'REJECTED'
+                        ]
+                    },
+                    provenance: {
+                        type: 'string',
+                        enum: [
+                            'MANUAL',
+                            'MODEL',
+                            'RULE'
+                        ]
+                    },
+                    evidenceSnippet: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    stale: {
+                        type: 'boolean',
+                        description: 'The suggestion was computed against an older content or vocabulary version.'
+                    }
+                },
+                required: [
+                    'id',
+                    'labelId',
+                    'kind',
+                    'displayName',
+                    'state',
+                    'provenance',
+                    'evidenceSnippet',
+                    'stale'
+                ]
             }
         },
         suggestions: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/FileLabel'
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    labelId: {
+                        type: 'string'
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'TAG',
+                            'CATEGORY'
+                        ]
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'SUGGESTED',
+                            'CONFIRMED',
+                            'REJECTED'
+                        ]
+                    },
+                    provenance: {
+                        type: 'string',
+                        enum: [
+                            'MANUAL',
+                            'MODEL',
+                            'RULE'
+                        ]
+                    },
+                    evidenceSnippet: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    stale: {
+                        type: 'boolean',
+                        description: 'The suggestion was computed against an older content or vocabulary version.'
+                    }
+                },
+                required: [
+                    'id',
+                    'labelId',
+                    'kind',
+                    'displayName',
+                    'state',
+                    'provenance',
+                    'evidenceSnippet',
+                    'stale'
+                ]
             }
         },
         projects: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/FileProjectLink'
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    projectId: {
+                        type: 'string'
+                    },
+                    projectName: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'SUGGESTED',
+                            'CONFIRMED',
+                            'REJECTED'
+                        ]
+                    },
+                    provenance: {
+                        type: 'string',
+                        enum: [
+                            'MANUAL',
+                            'MODEL',
+                            'RULE'
+                        ]
+                    },
+                    evidenceSnippet: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'projectId',
+                    'projectName',
+                    'state',
+                    'provenance',
+                    'evidenceSnippet'
+                ]
             }
         },
         snippet: {
-            $ref: '#/components/schemas/FileSnippet'
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                text: {
+                    type: 'string'
+                },
+                highlights: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            start: {
+                                type: 'integer'
+                            },
+                            end: {
+                                type: 'integer'
+                            }
+                        },
+                        required: [
+                            'start',
+                            'end'
+                        ]
+                    }
+                },
+                truncatedStart: {
+                    type: 'boolean'
+                },
+                truncatedEnd: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'text',
+                'highlights',
+                'truncatedStart',
+                'truncatedEnd'
+            ],
+            description: 'Extracted passage plus highlight offsets. Plain text: the client escapes at render.'
         },
         relatedReason: {
             type: [
@@ -12138,155 +12383,6 @@ export const FileResourceSchema = {
         'relatedReason',
         'filenameMatch'
     ]
-} as const;
-
-export const FileLabelSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        id: {
-            type: 'string'
-        },
-        labelId: {
-            type: 'string'
-        },
-        kind: {
-            type: 'string',
-            enum: [
-                'TAG',
-                'CATEGORY'
-            ]
-        },
-        displayName: {
-            type: 'string'
-        },
-        state: {
-            type: 'string',
-            enum: [
-                'SUGGESTED',
-                'CONFIRMED',
-                'REJECTED'
-            ]
-        },
-        provenance: {
-            type: 'string',
-            enum: [
-                'MANUAL',
-                'MODEL',
-                'RULE'
-            ]
-        },
-        evidenceSnippet: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        stale: {
-            type: 'boolean',
-            description: 'The suggestion was computed against an older content or vocabulary version.'
-        }
-    },
-    required: [
-        'id',
-        'labelId',
-        'kind',
-        'displayName',
-        'state',
-        'provenance',
-        'evidenceSnippet',
-        'stale'
-    ]
-} as const;
-
-export const FileProjectLinkSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string'
-        },
-        projectId: {
-            type: 'string'
-        },
-        projectName: {
-            type: 'string'
-        },
-        state: {
-            type: 'string',
-            enum: [
-                'SUGGESTED',
-                'CONFIRMED',
-                'REJECTED'
-            ]
-        },
-        provenance: {
-            type: 'string',
-            enum: [
-                'MANUAL',
-                'MODEL',
-                'RULE'
-            ]
-        },
-        evidenceSnippet: {
-            type: [
-                'string',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'id',
-        'projectId',
-        'projectName',
-        'state',
-        'provenance',
-        'evidenceSnippet'
-    ]
-} as const;
-
-export const FileSnippetSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        text: {
-            type: 'string'
-        },
-        highlights: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    start: {
-                        type: 'integer'
-                    },
-                    end: {
-                        type: 'integer'
-                    }
-                },
-                required: [
-                    'start',
-                    'end'
-                ]
-            }
-        },
-        truncatedStart: {
-            type: 'boolean'
-        },
-        truncatedEnd: {
-            type: 'boolean'
-        }
-    },
-    required: [
-        'text',
-        'highlights',
-        'truncatedStart',
-        'truncatedEnd'
-    ],
-    description: 'Extracted passage plus highlight offsets. Plain text: the client escapes at render.'
 } as const;
 
 export const FileRelatedResponseSchema = {

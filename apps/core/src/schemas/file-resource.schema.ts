@@ -50,6 +50,12 @@ export const fileMetadataStateSchema = z.enum([
 ]);
 export const fileMetadataProvenanceSchema = z.enum(["MANUAL", "MODEL", "RULE"]);
 
+/**
+ * These three stay unnamed on purpose. A named component that is also used
+ * nullably comes back out of the generator as `Name | null`, which makes
+ * every array of it an array of nullables in the web client. Inlining costs
+ * a few lines of generated types and keeps `tags: FileLabel[]` honest.
+ */
 export const fileSnippetSchema = z
   .object({
     text: z.string(),
@@ -59,10 +65,9 @@ export const fileSnippetSchema = z
     truncatedStart: z.boolean(),
     truncatedEnd: z.boolean(),
   })
-  .openapi("FileSnippet", {
-    description:
-      "Extracted passage plus highlight offsets. Plain text: the client escapes at render.",
-  });
+  .describe(
+    "Extracted passage plus highlight offsets. Plain text: the client escapes at render.",
+  );
 
 export const fileLabelSchema = z
   .object({
@@ -78,8 +83,7 @@ export const fileLabelSchema = z
       description:
         "The suggestion was computed against an older content or vocabulary version.",
     }),
-  })
-  .openapi("FileLabel");
+  });
 
 export const fileProjectLinkSchema = z
   .object({
@@ -89,8 +93,7 @@ export const fileProjectLinkSchema = z
     state: fileMetadataStateSchema,
     provenance: fileMetadataProvenanceSchema,
     evidenceSnippet: z.string().nullable(),
-  })
-  .openapi("FileProjectLink");
+  });
 
 export const fileResourceSchema = z
   .object({

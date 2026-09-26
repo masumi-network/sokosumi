@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
+import { DriveAllFilesPanel } from "@/app/drive/components/drive-all-files-panel";
 import {
   DriveFilePreview,
   DriveItemCard,
@@ -383,16 +384,21 @@ function DrivePageWorkspace({
   const isTablesView = viewParam === "tables";
   const tablesArchived = driveNavQuery.archived;
   const isTasksView = viewParam === "tasks";
+  const isAllFilesView = !isTasksView && viewParam === "all";
   const isBrowseView =
     !isTablesView &&
     !isTasksView &&
+    !isAllFilesView &&
     (viewParam === "browse" || folderParam.length > 0);
-  const isRecentsView = !isTablesView && !isTasksView && !isBrowseView;
+  const isRecentsView =
+    !isTablesView && !isTasksView && !isAllFilesView && !isBrowseView;
   const primaryView: DrivePrimaryView = isTablesView
     ? "tables"
-    : isBrowseView || isTasksView
-      ? "browse"
-      : "recents";
+    : isAllFilesView
+      ? "all"
+      : isBrowseView || isTasksView
+        ? "browse"
+        : "recents";
   const filesSortSelection = parseFilesSortSelection(
     driveNavQuery.sortBy,
     driveNavQuery.sortOrder,
@@ -1725,6 +1731,16 @@ function DrivePageWorkspace({
           archived={tablesArchived}
           key={activeOrganizationId ?? "personal"}
           workspaceId={activeOrganizationId}
+        />
+      ) : isAllFilesView ? (
+        <DriveAllFilesPanel
+          store={
+            driveStore.scope === "org"
+              ? { scope: "org", organizationId: driveStore.organizationId }
+              : { scope: "me" }
+          }
+          viewMode={layoutMode}
+          isMobile={isMobile}
         />
       ) : isRecentsView ? (
         <DriveRecentsPanel

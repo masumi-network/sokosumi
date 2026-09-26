@@ -55,6 +55,9 @@ const labels = {
   loading: "Loading history...",
   error: "Failed to load history",
   updated: "Updated",
+  filesGroup: "Files",
+  filesSeeAll: "See all files",
+  filesFilenameMatch: "Filename match",
 };
 
 function createTaskItem(id: string, title: string): HistoryItem {

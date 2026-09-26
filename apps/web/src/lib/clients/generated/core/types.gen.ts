@@ -3505,50 +3505,68 @@ export type FileResource = {
     extractionState: 'PENDING' | 'RUNNING' | 'INDEXED' | 'PARTIAL' | 'UNSUPPORTED' | 'ENCRYPTED' | 'QUARANTINED' | 'FAILED' | null;
     extractionCoverage: number | null;
     extractionReason: string | null;
-    category: FileLabel;
-    tags: Array<FileLabel>;
-    suggestions: Array<FileLabel>;
-    projects: Array<FileProjectLink>;
-    snippet: FileSnippet;
+    category: {
+        id: string;
+        labelId: string;
+        kind: 'TAG' | 'CATEGORY';
+        displayName: string;
+        state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+        provenance: 'MANUAL' | 'MODEL' | 'RULE';
+        evidenceSnippet: string | null;
+        /**
+         * The suggestion was computed against an older content or vocabulary version.
+         */
+        stale: boolean;
+    } | null;
+    tags: Array<{
+        id: string;
+        labelId: string;
+        kind: 'TAG' | 'CATEGORY';
+        displayName: string;
+        state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+        provenance: 'MANUAL' | 'MODEL' | 'RULE';
+        evidenceSnippet: string | null;
+        /**
+         * The suggestion was computed against an older content or vocabulary version.
+         */
+        stale: boolean;
+    }>;
+    suggestions: Array<{
+        id: string;
+        labelId: string;
+        kind: 'TAG' | 'CATEGORY';
+        displayName: string;
+        state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+        provenance: 'MANUAL' | 'MODEL' | 'RULE';
+        evidenceSnippet: string | null;
+        /**
+         * The suggestion was computed against an older content or vocabulary version.
+         */
+        stale: boolean;
+    }>;
+    projects: Array<{
+        id: string;
+        projectId: string;
+        projectName: string;
+        state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+        provenance: 'MANUAL' | 'MODEL' | 'RULE';
+        evidenceSnippet: string | null;
+    }>;
+    /**
+     * Extracted passage plus highlight offsets. Plain text: the client escapes at render.
+     */
+    snippet: {
+        text: string;
+        highlights: Array<{
+            start: number;
+            end: number;
+        }>;
+        truncatedStart: boolean;
+        truncatedEnd: boolean;
+    } | null;
     relatedReason: string | null;
     filenameMatch: boolean;
 };
-
-export type FileLabel = {
-    id: string;
-    labelId: string;
-    kind: 'TAG' | 'CATEGORY';
-    displayName: string;
-    state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
-    provenance: 'MANUAL' | 'MODEL' | 'RULE';
-    evidenceSnippet: string | null;
-    /**
-     * The suggestion was computed against an older content or vocabulary version.
-     */
-    stale: boolean;
-} | null;
-
-export type FileProjectLink = {
-    id: string;
-    projectId: string;
-    projectName: string;
-    state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
-    provenance: 'MANUAL' | 'MODEL' | 'RULE';
-    evidenceSnippet: string | null;
-};
-
-/**
- * Extracted passage plus highlight offsets. Plain text: the client escapes at render.
- */
-export type FileSnippet = {
-    text: string;
-    highlights: Array<{
-        start: number;
-        end: number;
-    }>;
-    truncatedStart: boolean;
-    truncatedEnd: boolean;
-} | null;
 
 export type FileRelatedResponse = {
     items: Array<FileResource>;
