@@ -178,9 +178,12 @@ export function TaskSchedulesView({
       </div>
 
       {/* One panel, always the shown state's, so the list is its tab's panel. */}
-      <TabsContent className="flex flex-col gap-4" value={shownValue}>
+      <TabsContent
+        className="bg-card-background flex flex-col gap-4 rounded-xl p-2"
+        value={shownValue}
+      >
         {rows.length === 0 ? (
-          <div className="border-border flex flex-col items-center gap-2 rounded-xl border px-4 py-16 text-center">
+          <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
             <CalendarSync
               className="text-muted-foreground size-6"
               aria-hidden
