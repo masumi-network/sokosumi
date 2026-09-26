@@ -1,21 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import {
-  canArchiveTaskStatus,
-  getTaskCannotArchiveMessage,
-} from "@sokosumi/utils";
-
 import { requireTaskArchiveAccess } from "@/helpers/access-control";
-import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
-import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
-import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
+import { archiveTaskRecord } from "@/services/task-domain.service";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -53,34 +46,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const task = await prisma.$transaction(async (tx) => {
       const currentTask = await requireTaskArchiveAccess(c.var, id, tx);
 
-      if (!canArchiveTaskStatus(currentTask.status)) {
-        throw unprocessableEntity(
-          getTaskCannotArchiveMessage(currentTask.status),
-        );
-      }
-
-      assertTaskScheduleInactive(
-        currentTask,
-        "Remove the schedule before archiving this Task",
-      );
-
-      const archivedAt = new Date();
-      const updateResult = await tx.task.updateMany({
-        where: {
-          id,
-          archivedAt: null,
-          status: currentTask.status,
-        },
-        data: {
-          archivedAt,
-        },
-      });
-
-      if (updateResult.count === 0) {
-        throw conflict("Task was modified concurrently; retry archive");
-      }
-
-      await removeTaskSchedulePlannedOccurrences(tx, id);
+      await archiveTaskRecord(tx, currentTask);
 
       return tx.task.findFirstOrThrow({
         where: { id },

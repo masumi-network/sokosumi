@@ -114,6 +114,7 @@ function report(
 }
 
 interface ChatRoomMessageReaders {
+  throwOnError?: boolean;
   roomId: string;
   memberUserIds?: readonly string[];
   excludedUserIds?: readonly string[];
@@ -151,6 +152,7 @@ export async function invalidateChatRoomMessageReaders(
       roomId: params.roomId,
     });
   } catch (error) {
+    if (params.throwOnError) throw error;
     console.error("Failed to invalidate chat room message readers", error);
     Sentry.captureException(error, {
       tags: { context: "chat_room_reader_invalidation" },

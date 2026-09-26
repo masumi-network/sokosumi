@@ -218,6 +218,7 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotToolCall: {
       count: toolCallCountMock,
       create: toolCallCreateMock,
+      upsert: toolCallCreateMock,
       findUnique: toolCallFindUniqueMock,
       update: toolCallUpdateMock,
       updateMany: toolCallUpdateManyMock,
@@ -267,10 +268,12 @@ vi.mock("@/lib/db/transaction", () => ({
           create: transactionToolCallCreateMock,
           findUnique: transactionToolCallFindUniqueMock,
           update: transactionToolCallUpdateMock,
+          upsert: vi.fn().mockResolvedValue({}),
         },
         project: { findFirst: transactionProjectFindFirstMock },
         workspace: { findFirst: transactionWorkspaceFindFirstMock },
         sokoBotTurn: {
+          findUnique: vi.fn().mockResolvedValue(null),
           findFirst: transactionTurnFindFirstMock,
           updateMany: transactionTurnUpdateManyMock,
         },
@@ -527,6 +530,34 @@ describe("SokoBotRuntimeService authorization", () => {
       service.authorize({ ...SCOPE, capability: "create_task" }),
     ).rejects.toThrow(SokoBotRuntimeAuthorizationError);
   });
+
+  it.each(["create_task", "archive_task"] as const)(
+    "independently rejects %s on a persisted memory-only grant",
+    async (capability) => {
+      turnFindUniqueMock.mockResolvedValue({
+        userMessage: "Remember that I prefer short updates",
+        id: SCOPE.turnId,
+        sokoBotId: SCOPE.sokoBotId,
+        userId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        capabilityNames: ["update_memory", "get_task_status"],
+        contextSnapshot: {
+          id: "01960001-0001-7001-8001-000000000004",
+          packet: { memory: { version: 1 } },
+        },
+        eveSessionId: SCOPE.sessionId,
+        status: "RUNNING",
+        deadlineAt: new Date(Date.now() + 60_000),
+        leaseExpiresAt: new Date(Date.now() + 60_000),
+        sokoBot: { archivedAt: null, status: "RUNNING" },
+      });
+      await expect(
+        new SokoBotRuntimeService().authorize({ ...SCOPE, capability }),
+      ).rejects.toThrow("Capability is not granted for this turn");
+      expect(transactionTaskCreateMock).not.toHaveBeenCalled();
+      expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("denies capability execution after cancellation is requested", async () => {
     turnFindUniqueMock.mockResolvedValue({
@@ -1024,8 +1055,8 @@ describe("SokoBotRuntimeService authorization", () => {
     });
 
     expect(result).toMatchObject({ id: "task_1", status: "READY" });
-    expect(toolCallUpdateManyMock).toHaveBeenCalledOnce();
-    expect(toolCallUpdateMock).toHaveBeenCalledWith(
+    expect(toolCallUpdateManyMock).toHaveBeenCalledTimes(2);
+    expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "COMPLETED" }),
       }),
@@ -1420,7 +1451,8 @@ describe("SokoBotRuntimeService authorization", () => {
       name: rawResult.name,
       description: rawResult.description,
     });
-    const persisted = toolCallUpdateMock.mock.calls.at(-1)?.[0]?.data.result;
+    const persisted =
+      toolCallUpdateManyMock.mock.calls.at(-1)?.[0]?.data.result;
     const serialized = JSON.stringify(persisted);
     expect(Buffer.byteLength(serialized, "utf8")).toBeLessThanOrEqual(16_384);
     expect(serialized).not.toContain("correct-horse-battery-staple");
@@ -1668,15 +1700,16 @@ describe("SokoBotRuntimeService authorization", () => {
       }),
       select: { id: true },
     });
-    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
-      userId: SCOPE.userId,
-      taskId: "task_1",
-      eventType: "task_event",
-    });
-    expect(notifyTaskStatusEventMock).toHaveBeenCalledWith(
-      "task_1",
-      "event_1",
-      TaskStatus.READY,
+    expect(publishTaskEventDataMock).not.toHaveBeenCalled();
+    expect(notifyTaskStatusEventMock).not.toHaveBeenCalled();
+    expect(transactionToolCallUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          disposition: "APPLIED",
+          verification: "LOCAL_TRANSACTION",
+          effectEventId: "event_1",
+        }),
+      }),
     );
   });
 
@@ -1794,7 +1827,7 @@ describe("SokoBotRuntimeService authorization", () => {
       }),
     ).rejects.toThrow("Workspace access is no longer available");
 
-    expect(transactionTurnLockMock).toHaveBeenCalledTimes(2);
+    expect(transactionTurnLockMock).toHaveBeenCalledTimes(3);
     expect(transactionTaskFindFirstMock).not.toHaveBeenCalled();
   });
 });
@@ -1938,6 +1971,8 @@ describe("SokoBotRuntimeService memory updates", () => {
 describe("SokoBotRuntimeService hire decisions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    transactionToolCallFindUniqueMock.mockResolvedValue(null);
+    transactionTurnFindFirstMock.mockResolvedValue({ id: SCOPE.turnId });
     decisionFindFirstMock.mockResolvedValue(hireDecision());
     decisionUpdateManyMock.mockResolvedValue({ count: 1 });
     botFindFirstMock.mockResolvedValue({ id: SCOPE.sokoBotId });
@@ -1971,6 +2006,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
         afterLocalJobCreate?: (
           job: { id: string },
           tx: {
+            sokoBotToolCall: { upsert: typeof toolCallCreateMock };
             sokoBotDelegation: {
               updateMany: typeof localJobDelegationUpdateManyMock;
             };
@@ -1980,6 +2016,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
         await input.beforeSellerStart?.();
         const job = { id: "job_1" };
         await input.afterLocalJobCreate?.(job, {
+          sokoBotToolCall: { upsert: toolCallCreateMock },
           sokoBotDelegation: {
             updateMany: localJobDelegationUpdateManyMock,
           },
@@ -1994,6 +2031,46 @@ describe("SokoBotRuntimeService hire decisions", () => {
     });
   });
 
+  it("retains UNKNOWN external receipts instead of dispatching again", async () => {
+    transactionToolCallFindUniqueMock.mockResolvedValue({
+      id: "uncertain",
+      status: "PENDING",
+      disposition: "UNKNOWN",
+    });
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+      ),
+    ).rejects.toThrow("requires reconciliation");
+    expect(transactionToolCallCreateMock).not.toHaveBeenCalled();
+    expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+    expect(decisionUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "PENDING" }),
+      }),
+    );
+  });
+
+  it("cancelled confirmation turn blocks external reservation", async () => {
+    transactionTurnFindFirstMock.mockImplementation(
+      async (args: { where: { id: string } }) =>
+        args.where.id === "confirmation" ? null : { id: SCOPE.turnId },
+    );
+    await expect(
+      new SokoBotRuntimeService().resolveDecision(
+        SCOPE.userId,
+        DECISION_ID,
+        true,
+        true,
+        "confirmation",
+      ),
+    ).rejects.toThrow("Confirmation turn is no longer writable");
+    expect(transactionToolCallCreateMock).not.toHaveBeenCalled();
+    expect(localJobDelegationUpdateManyMock).not.toHaveBeenCalled();
+  });
+
   it("reserves an approved hire before starting its Agent Job", async () => {
     const sellerStartMock = vi.fn();
     createAgentJobForUserMock.mockImplementationOnce(
@@ -2002,6 +2079,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
         afterLocalJobCreate?: (
           job: { id: string },
           tx: {
+            sokoBotToolCall: { upsert: typeof toolCallCreateMock };
             sokoBotDelegation: {
               updateMany: typeof localJobDelegationUpdateManyMock;
             };
@@ -2012,6 +2090,7 @@ describe("SokoBotRuntimeService hire decisions", () => {
         sellerStartMock();
         const job = { id: "job_1" };
         await input.afterLocalJobCreate?.(job, {
+          sokoBotToolCall: { upsert: toolCallCreateMock },
           sokoBotDelegation: {
             updateMany: localJobDelegationUpdateManyMock,
           },
@@ -2029,6 +2108,27 @@ describe("SokoBotRuntimeService hire decisions", () => {
       status: "ACCEPTED",
       resultingEntityId: "job_1",
     });
+    expect(transactionToolCallCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          disposition: "UNKNOWN",
+          verification: "NONE",
+        }),
+      }),
+    );
+    expect(
+      transactionToolCallCreateMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(sellerStartMock.mock.invocationCallOrder[0] ?? 0);
+    expect(toolCallCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          disposition: "APPLIED",
+          verification: "PROVIDER_ACK",
+          targetId: "job_1",
+        }),
+      }),
+    );
+
     expect(delegationCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({
         turnId: SCOPE.turnId,
@@ -2417,6 +2517,34 @@ describe("SokoBotRuntimeService hire decisions", () => {
         ),
       ).rejects.toThrow(`seller ${kind}`);
 
+      expect(transactionToolCallCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            disposition: "UNKNOWN",
+            verification: "NONE",
+          }),
+        }),
+      );
+      expect(
+        transactionToolCallCreateMock.mock.invocationCallOrder[0],
+      ).toBeLessThan(provideJobInputMock.mock.invocationCallOrder[0] ?? 0);
+      if (kind === "unreachable") {
+        expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: {
+              status: "FAILED",
+              disposition: "REJECTED",
+              verification: "NONE",
+            },
+          }),
+        );
+      } else {
+        expect(toolCallUpdateManyMock).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ disposition: "REJECTED" }),
+          }),
+        );
+      }
       expect(delegationUpdateMock).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ outcome }),
@@ -2829,6 +2957,27 @@ describe("post_chat chain depth", () => {
     serializableTransactionMock.mockImplementation(
       async (run: (tx: unknown) => unknown) =>
         await run({
+          $queryRaw: vi.fn().mockResolvedValue([]),
+          sokoBotTurn: {
+            findFirst: vi.fn().mockResolvedValue({ id: SCOPE.turnId }),
+            findUnique: turnFindUniqueMock,
+          },
+          workspace: {
+            findFirst: vi.fn().mockResolvedValue({ id: SCOPE.workspaceId }),
+            findUnique: workspaceFindUniqueMock,
+          },
+          member: { findFirst: vi.fn().mockResolvedValue({ id: "member" }) },
+          sokoBotToolCall: {
+            update: vi
+              .fn()
+              .mockResolvedValue({ id: "receipt", capability: "post_chat" }),
+          },
+          sokoBotEffectOutbox: {
+            upsert: vi.fn().mockResolvedValue({ id: "effect" }),
+          },
+          chatRoomCoworkerMember: { findMany: chatCoworkerMemberFindManyMock },
+          chatRoomSokoBotMember: { findMany: chatSokoBotMemberFindManyMock },
+          chatRoomUserMember: { findFirst: chatRoomUserMemberFindFirstMock },
           chatRoomMessage: {
             create: transactionChatMessageCreateMock,
             count: chatMessageCountMock,
@@ -2837,7 +2986,15 @@ describe("post_chat chain depth", () => {
             createMany: transactionChatMentionCreateManyMock,
             findMany: mentionFindManyMock,
           },
-          chatRoom: { update: transactionChatRoomUpdateMock },
+          chatRoom: {
+            update: transactionChatRoomUpdateMock,
+            findFirst: chatRoomFindFirstMock,
+            findUniqueOrThrow: vi.fn().mockResolvedValue({
+              userMembers: [{ userId: SCOPE.userId }],
+              coworkerMembers: [],
+              sokoBotMembers: [{ sokoBotId: SCOPE.sokoBotId }],
+            }),
+          },
         }),
     );
     return { turn: { ...SCOPE_TURN, chainDepth } } as never;
@@ -2858,7 +3015,11 @@ describe("post_chat chain depth", () => {
     await expect(
       new SokoBotRuntimeService()["postChat"](
         { turn: { ...SCOPE_TURN, source: "SCHEDULE", chainDepth: 0 } } as never,
-        { roomId: "room_direct", content: "Morning, any update?" },
+        {
+          roomId: "room_direct",
+          content: "Morning, any update?",
+          toolCallId: "call_1",
+        },
       ),
     ).rejects.toThrow(/turns your owner asked for/i);
     expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
@@ -2879,20 +3040,15 @@ describe("post_chat chain depth", () => {
 
     await new SokoBotRuntimeService()["postChat"](
       { turn: { ...SCOPE_TURN, source: "SCHEDULE", chainDepth: 0 } } as never,
-      { roomId: "room_owner", content: "Here is your stand-up." },
+      {
+        roomId: "room_owner",
+        content: "Here is your stand-up.",
+        toolCallId: "call_1",
+      },
     );
 
     expect(transactionChatMessageCreateMock).toHaveBeenCalled();
-    expect(emitChatDirectMessageNotificationsMock).toHaveBeenCalledWith({
-      roomId: "room_owner",
-      roomName: "Ada",
-      organizationId: null,
-      messageId: "msg_1",
-      content: "Here is your stand-up.",
-      authorUserId: null,
-      authorName: "Soko Bot",
-      recipientUserIds: [SCOPE.userId],
-    });
+    expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
   });
 
   it("leaves channels alone on an unattended turn", async () => {
@@ -2907,17 +3063,18 @@ describe("post_chat chain depth", () => {
 
     await new SokoBotRuntimeService()["postChat"](
       { turn: { ...SCOPE_TURN, source: "SCHEDULE", chainDepth: 0 } } as never,
-      { roomId: "room_1", content: "Nightly digest." },
+      { roomId: "room_1", content: "Nightly digest.", toolCallId: "call_1" },
     );
 
     expect(transactionChatMessageCreateMock).toHaveBeenCalled();
     expect(chatRoomUserMemberFindFirstMock).not.toHaveBeenCalled();
   });
 
-  it("summons the bot it addresses, one hop deeper", async () => {
+  it("stages the addressed bot one hop deeper until private publication", async () => {
     const authorized = armPostChat(0);
 
     await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_1",
       roomId: "room_1",
       content: "@jarvis can you confirm the date?",
     });
@@ -2930,13 +3087,13 @@ describe("post_chat chain depth", () => {
             coworkerId: "cow_other",
             sokoBotId: null,
             chainDepth: 1,
+            status: "staged",
           },
         ],
       }),
     );
-    // Writing the row is not enough: reclaim only rescues `sent`, so a row
-    // nobody dispatches stays `pending` for ever and the target never wakes.
-    expect(dispatchChatRoomMentionMock).toHaveBeenCalledWith("mention_1");
+    // Only the audience-checked outbox may activate and dispatch this mention.
+    expect(dispatchChatRoomMentionMock).not.toHaveBeenCalled();
   });
 
   it("stops summoning once the chain reaches its ceiling", async () => {
@@ -2945,13 +3102,17 @@ describe("post_chat chain depth", () => {
     const authorized = armPostChat(MAX_CHAT_CHAIN_DEPTH);
 
     const result = await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_1",
       roomId: "room_1",
       content: "@jarvis one more thing",
     });
 
     expect(transactionChatMessageCreateMock).toHaveBeenCalled();
     expect(transactionChatMentionCreateManyMock).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ summoned: 0 });
+    expect(result).toMatchObject({
+      queuedMentions: 0,
+      deliveryStatus: "QUEUED",
+    });
   });
 
   it("refuses to post once the room has had its hour's worth", async () => {
@@ -2962,6 +3123,7 @@ describe("post_chat chain depth", () => {
 
     await expect(
       new SokoBotRuntimeService()["postChat"](authorized, {
+        toolCallId: "call_1",
         roomId: "room_1",
         content: "@jarvis still here?",
       }),
@@ -2975,6 +3137,7 @@ describe("post_chat chain depth", () => {
     chatMessageCountMock.mockResolvedValue(3);
 
     await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_1",
       roomId: "room_1",
       content: "@jarvis one detail",
     });
@@ -3007,6 +3170,7 @@ describe("post_chat chain depth", () => {
 
     await expect(
       new SokoBotRuntimeService()["postChat"](authorized, {
+        toolCallId: "call_1",
         roomId: "room_somewhere_else",
         content: "@jarvis look at this",
       }),
@@ -3023,6 +3187,7 @@ describe("post_chat chain depth", () => {
     });
 
     await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_1",
       roomId: "room_1",
       content: "@jarvis the date is confirmed",
     });
@@ -3035,6 +3200,7 @@ describe("post_chat chain depth", () => {
     chatCoworkerMemberFindManyMock.mockResolvedValue([]);
 
     await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_1",
       roomId: "room_1",
       content: "@jarvis and me",
     });
@@ -3084,6 +3250,27 @@ describe("open_direct_chat", () => {
     serializableTransactionMock.mockImplementation(
       async (run: (tx: unknown) => unknown) =>
         await run({
+          $queryRaw: vi.fn().mockResolvedValue([]),
+          sokoBotTurn: {
+            findFirst: vi.fn().mockResolvedValue({ id: SCOPE.turnId }),
+            findUnique: turnFindUniqueMock,
+          },
+          workspace: {
+            findFirst: vi.fn().mockResolvedValue({ id: SCOPE.workspaceId }),
+            findUnique: workspaceFindUniqueMock,
+          },
+          member: { findFirst: vi.fn().mockResolvedValue({ id: "member" }) },
+          sokoBotToolCall: {
+            update: vi
+              .fn()
+              .mockResolvedValue({ id: "receipt", capability: "post_chat" }),
+          },
+          sokoBotEffectOutbox: {
+            upsert: vi.fn().mockResolvedValue({ id: "effect" }),
+          },
+          chatRoomCoworkerMember: { findMany: chatCoworkerMemberFindManyMock },
+          chatRoomSokoBotMember: { findMany: chatSokoBotMemberFindManyMock },
+          chatRoomUserMember: { findFirst: chatRoomUserMemberFindFirstMock },
           chatRoomMessage: {
             create: transactionChatMessageCreateMock,
             count: chatMessageCountMock,
@@ -3092,7 +3279,15 @@ describe("open_direct_chat", () => {
             createMany: transactionChatMentionCreateManyMock,
             findMany: mentionFindManyMock,
           },
-          chatRoom: { update: transactionChatRoomUpdateMock },
+          chatRoom: {
+            update: transactionChatRoomUpdateMock,
+            findFirst: chatRoomFindFirstMock,
+            findUniqueOrThrow: vi.fn().mockResolvedValue({
+              userMembers: [{ userId: SCOPE.userId }],
+              coworkerMembers: [],
+              sokoBotMembers: [{ sokoBotId: SCOPE.sokoBotId }],
+            }),
+          },
         }),
     );
     return { turn: SCOPE_TURN } as never;
@@ -3114,13 +3309,17 @@ describe("open_direct_chat", () => {
       sokoBotIds: [SCOPE.sokoBotId],
       sokoBotActorUserId: SCOPE.userId,
       viewerUserId: null,
+      transaction: expect.any(Object),
     });
     expect(result).toMatchObject({ roomId: "room_new", created: true });
-    // The room and its first message land together: a room opened and never
-    // written in is an empty conversation nobody can remove.
+    // The room and its queued message land together, but content stays hidden
+    // until the outbox rechecks the exact audience.
     expect(transactionChatMessageCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ content: "Hi, I am Ana." }),
+        data: expect.objectContaining({
+          content: "",
+          deletedAt: expect.any(Date),
+        }),
       }),
     );
   });
@@ -3142,9 +3341,7 @@ describe("open_direct_chat", () => {
     // Conditioned on the room still being empty: postChat can fail after its
     // message commits, and an unconditional delete would take that message
     // — and any reply to it — with the room.
-    expect(chatRoomDeleteManyMock).toHaveBeenCalledWith({
-      where: { id: "room_new", messages: { none: {} } },
-    });
+    expect(chatRoomDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("leaves a room it did not open standing when the message fails", async () => {
@@ -3434,6 +3631,7 @@ describe("get_agent_input_schema", () => {
             create: transactionToolCallCreateMock,
             findUnique: transactionToolCallFindUniqueMock,
             update: transactionToolCallUpdateMock,
+            upsert: vi.fn().mockResolvedValue({}),
           },
         }),
     );
@@ -3478,5 +3676,276 @@ describe("get_agent_input_schema", () => {
         where: expect.objectContaining({ isShown: true }),
       }),
     );
+  });
+});
+
+describe("external effect receipt finalization", () => {
+  const proposal = { filename: "synthetic.md", content: "Synthetic content" };
+  const inputHash = createHash("sha256")
+    .update(canonicalJson(proposal))
+    .digest("hex");
+
+  function prepare() {
+    vi.clearAllMocks();
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(0);
+    toolCallUpdateManyMock.mockReset().mockResolvedValue({ count: 1 });
+    const mutationTurn = vi.fn().mockResolvedValue({ id: SCOPE.turnId });
+    serializableTransactionMock.mockImplementation(async (operation) =>
+      operation({
+        $queryRaw: transactionTurnLockMock,
+        sokoBotTurn: { findFirst: mutationTurn },
+        workspace: {
+          findFirst: vi
+            .fn()
+            .mockResolvedValue({ id: SCOPE.workspaceId, organizationId: null }),
+        },
+        sokoBotToolCall: {
+          findUnique: transactionToolCallFindUniqueMock,
+          count: transactionToolCallCountMock,
+          create: transactionToolCallCreateMock,
+          updateMany: toolCallUpdateManyMock,
+        },
+      }),
+    );
+    const service = new SokoBotRuntimeService();
+    service.authorize = vi.fn().mockResolvedValue({
+      turn: {
+        id: SCOPE.turnId,
+        sokoBotId: SCOPE.sokoBotId,
+        userId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+      },
+    });
+    const dispatch = vi.fn().mockResolvedValue({
+      url: "https://blob.example/synthetic",
+      filename: "synthetic.md",
+      size: 17,
+    });
+    service["executeAuthorizedTool"] = dispatch;
+    return { service, dispatch, mutationTurn };
+  }
+
+  it("records uncertainty before dispatch and a specific provider acknowledgment afterward", async () => {
+    const { service, dispatch } = prepare();
+    await service.executeTool({
+      ...SCOPE,
+      capability: "upload_file",
+      toolCallId: "external-one",
+      input: proposal,
+    });
+    expect(toolCallUpdateManyMock.mock.calls[0][0].data).toEqual({
+      disposition: "UNKNOWN",
+      verification: "NONE",
+    });
+    expect(toolCallUpdateManyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      dispatch.mock.invocationCallOrder[0],
+    );
+    expect(toolCallUpdateManyMock.mock.calls[1][0].data).toMatchObject({
+      status: "COMPLETED",
+      disposition: "APPLIED",
+      verification: "PROVIDER_ACK",
+      targetId: "https://blob.example/synthetic",
+    });
+  });
+
+  it("never dispatches after transactional authority is revoked", async () => {
+    const { service, dispatch, mutationTurn } = prepare();
+    mutationTurn.mockResolvedValue(null);
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "upload_file",
+        toolCallId: "revoked",
+        input: proposal,
+      }),
+    ).rejects.toThrow("no longer writable");
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(toolCallUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("never dispatches without a reserved row", async () => {
+    const { service, dispatch } = prepare();
+    toolCallUpdateManyMock.mockResolvedValueOnce({ count: 0 });
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "upload_file",
+        toolCallId: "external-one",
+        input: proposal,
+      }),
+    ).rejects.toThrow("reservation is unavailable");
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("dispatches stale same-turn semantic retries with the canonical receipt call id", async () => {
+    const { service, dispatch } = prepare();
+    const localInput = { taskId: "task-one", name: "Synthetic task" };
+    const localHash = createHash("sha256")
+      .update(canonicalJson(localInput))
+      .digest("hex");
+    toolCallFindUniqueMock.mockResolvedValueOnce(null);
+    transactionToolCallFindUniqueMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "receipt-one",
+        turnId: SCOPE.turnId,
+        toolCallId: "canonical-call",
+        capability: "update_task",
+        inputHash: localHash,
+        status: "PENDING",
+        updatedAt: new Date(0),
+      });
+    await service.executeTool({
+      ...SCOPE,
+      capability: "update_task",
+      toolCallId: "retry-call",
+      input: localInput,
+    });
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ toolCallId: "canonical-call" }),
+    );
+    expect(toolCallUpdateManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          turnId: SCOPE.turnId,
+          toolCallId: "canonical-call",
+          status: "PENDING",
+        },
+      }),
+    );
+  });
+
+  it("links a semantic replay to the original receipt without copying execution proof", async () => {
+    const { service, dispatch } = prepare();
+    transactionToolCallFindUniqueMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "original-receipt",
+        turnId: "previous-turn",
+        toolCallId: "original-call",
+        capability: "upload_file",
+        inputHash,
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        result: { url: "https://blob.example/synthetic" },
+      });
+    await service.executeTool({
+      ...SCOPE,
+      capability: "upload_file",
+      toolCallId: "replayed-call",
+      input: { content: proposal.content, filename: proposal.filename },
+    });
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(toolCallCreateMock).toHaveBeenCalledWith({
+      where: {
+        turnId_toolCallId: {
+          turnId: SCOPE.turnId,
+          toolCallId: "replayed-call",
+        },
+      },
+      create: expect.objectContaining({
+        replayedReceiptId: "original-receipt",
+        disposition: "ALREADY_SATISFIED",
+        verification: "NONE",
+        status: "COMPLETED",
+      }),
+      update: {},
+    });
+    expect(toolCallCreateMock.mock.calls[0][0].create).not.toHaveProperty(
+      "committedAt",
+    );
+    expect(toolCallCreateMock.mock.calls[0][0].create).not.toHaveProperty(
+      "operationKey",
+    );
+  });
+
+  it("does not move a stale prior-turn receipt into a new turn", async () => {
+    const { service, dispatch } = prepare();
+    toolCallFindUniqueMock.mockResolvedValueOnce({
+      id: "receipt-one",
+      turnId: "previous-turn",
+      toolCallId: "canonical-call",
+      capability: "update_task",
+      inputHash,
+      status: "PENDING",
+      updatedAt: new Date(0),
+    });
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "update_task",
+        toolCallId: "retry-call",
+        input: proposal,
+      }),
+    ).rejects.toThrow("Previous-turn operation requires reconciliation");
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("marks stale external reservations unknown and never repeats the effect", async () => {
+    const { service, dispatch } = prepare();
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "receipt-one",
+      status: "PENDING",
+      capability: "upload_file",
+      inputHash,
+      updatedAt: new Date(0),
+    });
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "upload_file",
+        toolCallId: "external-one",
+        input: proposal,
+      }),
+    ).rejects.toThrow("reconciliation");
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          status: "FAILED",
+          disposition: "UNKNOWN",
+          verification: "NONE",
+        },
+      }),
+    );
+  });
+
+  it("preserves uncertainty after a timeout, including a retry with a completed decision marker", async () => {
+    const { service, dispatch } = prepare();
+    dispatch.mockRejectedValueOnce(new Error("Timed out after send"));
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "upload_file",
+        toolCallId: "external-one",
+        input: proposal,
+      }),
+    ).rejects.toThrow("Timed out");
+    expect(toolCallUpdateManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "FAILED",
+          disposition: "UNKNOWN",
+        }),
+      }),
+    );
+    toolCallFindUniqueMock.mockResolvedValueOnce({
+      id: "receipt-one",
+      status: "COMPLETED",
+      disposition: "UNKNOWN",
+      capability: "upload_file",
+      inputHash,
+    });
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "upload_file",
+        toolCallId: "external-one",
+        input: proposal,
+      }),
+    ).rejects.toThrow("reconciliation");
+    expect(dispatch).toHaveBeenCalledTimes(1);
   });
 });

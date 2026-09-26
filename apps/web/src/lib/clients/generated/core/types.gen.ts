@@ -226,6 +226,15 @@ export type AdminSokoBotOwner = {
 };
 
 export type AdminSokoBotQuality = {
+    reliability: {
+        fulfillment: {
+            [key: string]: number;
+        };
+        delivery: {
+            [key: string]: number;
+        };
+        invalidActionClaims: number;
+    };
     overall: {
         turns: number;
         judged: number;

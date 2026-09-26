@@ -56,6 +56,7 @@ export async function dispatchTaskNotification(
   },
   eventId: string,
   status: string,
+  options: { throwOnError?: boolean } = {},
 ): Promise<void> {
   try {
     let messageKey: string;
@@ -95,7 +96,7 @@ export async function dispatchTaskNotification(
       },
     });
 
-    await createNotification({
+    const input = {
       userId: task.ownerId,
       kind: NotificationKind.TASK,
       referenceId: task.id,
@@ -103,8 +104,14 @@ export async function dispatchTaskNotification(
       messageKey,
       messageParams,
       metadata,
-    });
+    };
+    if (options.throwOnError) {
+      await createNotification(input, prisma, options);
+    } else {
+      await createNotification(input);
+    }
   } catch (error) {
+    if (options.throwOnError) throw error;
     Sentry.captureException(error, {
       extra: {
         taskId: task.id,
@@ -124,6 +131,7 @@ export async function notifyTaskStatusEvent(
   taskId: string,
   eventId: string,
   status: string,
+  options: { throwOnError?: boolean } = {},
 ): Promise<void> {
   try {
     const taskWithRelations = await prisma.task.findUnique({
@@ -153,9 +161,15 @@ export async function notifyTaskStatusEvent(
     });
 
     if (taskWithRelations) {
-      await dispatchTaskNotification(taskWithRelations, eventId, status);
+      await dispatchTaskNotification(
+        taskWithRelations,
+        eventId,
+        status,
+        options,
+      );
     }
   } catch (error) {
+    if (options.throwOnError) throw error;
     Sentry.captureException(error, {
       extra: {
         taskId,

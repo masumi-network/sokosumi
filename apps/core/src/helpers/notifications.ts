@@ -209,6 +209,7 @@ export async function publishNotificationRow(
    * many for a row the badge already counted.
    */
   created = true,
+  options: { throwOnError?: boolean } = {},
 ): Promise<void> {
   try {
     // Read the same way the count reads them, rather than with a bare
@@ -267,6 +268,7 @@ export async function publishNotificationRow(
       },
     });
   } catch (error) {
+    if (options.throwOnError) throw error;
     console.error("Failed to publish notification over Ably:", error);
     Sentry.captureException(error, {
       extra: {
@@ -348,6 +350,7 @@ export async function publishClearedNotifications(
 export async function createNotification(
   input: CreateNotificationInput,
   prismaClient: Prisma.TransactionClient | typeof prisma = prisma,
+  options: { throwOnError?: boolean } = {},
 ): Promise<CreateNotificationResult> {
   const prisma = prismaClient;
   const uniqueKey = {
@@ -383,7 +386,7 @@ export async function createNotification(
     // Nothing to render and nothing to interrupt with: the publish would be an
     // Ably message no client acts on.
     if (delivery.inApp || delivery.osBanner) {
-      await publishNotificationRow(notification, delivery);
+      await publishNotificationRow(notification, delivery, true, options);
     }
 
     return { notification, created: true };
@@ -402,6 +405,9 @@ export async function createNotification(
       throw error;
     }
 
+    if (options.throwOnError && (delivery.inApp || delivery.osBanner)) {
+      await publishNotificationRow(notification, delivery, false, options);
+    }
     return { notification, created: false };
   }
 }

@@ -929,6 +929,34 @@ export const AdminSokoBotOwnerSchema = {
 export const AdminSokoBotQualitySchema = {
     type: 'object',
     properties: {
+        reliability: {
+            type: 'object',
+            properties: {
+                fulfillment: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                delivery: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                invalidActionClaims: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'fulfillment',
+                'delivery',
+                'invalidActionClaims'
+            ]
+        },
         overall: {
             type: 'object',
             properties: {
@@ -1041,6 +1069,7 @@ export const AdminSokoBotQualitySchema = {
         }
     },
     required: [
+        'reliability',
         'overall',
         'proactive',
         'daily',

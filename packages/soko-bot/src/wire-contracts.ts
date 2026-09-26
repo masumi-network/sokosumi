@@ -23,4 +23,25 @@ export const sokoBotContextPacketSchema = z.object({
   }),
   counts: z.record(z.string(), z.number().int().nonnegative()),
   omissions: z.record(z.string(), z.number().int().nonnegative()),
+  sourceCoverage: z
+    .record(
+      z.string(),
+      z.object({
+        source: z.string(),
+        checkedAt: z.string().datetime().nullable(),
+        filters: z.record(z.string(), z.string()),
+        scannedCount: z.number().int().nonnegative(),
+        includedCount: z.number().int().nonnegative(),
+        omittedCount: z.number().int().nonnegative(),
+        completeness: z.enum(["COMPLETE", "TRUNCATED", "NOT_CHECKED"]),
+        availability: z.enum([
+          "AVAILABLE",
+          "DISCONNECTED",
+          "PERMISSION_DENIED",
+          "QUERY_FAILED",
+          "NOT_FETCHED",
+        ]),
+      }),
+    )
+    .optional(),
 });

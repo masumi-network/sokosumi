@@ -15,10 +15,20 @@ const EMPTY_CONTEXT = {
 
 describe("Soko Bot turn classifier", () => {
   it.each([
+    ["Remember my preference for short replies", "MEMORY"],
+    ["Remind me tomorrow", "SCHEDULE"],
+    ["Send a message to the team", "CHAT"],
+    ["Upload the file to Drive", "FILE"],
+    ["Send an email to Nina", "INTEGRATION"],
+  ])("limits %s to %s writes", (message, scope) => {
+    expect(classifyDeterministically(message)?.writeScope).toBe(scope);
+  });
+
+  it.each([
     ["Hello!", "DIRECT_RESPONSE"],
     ["Create a task and assign it to a coworker", "DELEGATE_TASK"],
     ["Hire an AI agent for this research", "HIRE_AGENT"],
-    ["What is the status of task 42?", "MANAGE_WORK"],
+    ["What is the status of task 42?", "DIRECT_RESPONSE"],
     ["Create a task and hire an agent", "MIXED"],
     ["Hi Soko bot", "DIRECT_RESPONSE"],
     ["Can you please research Apple TV for me", "DELEGATE_TASK"],
@@ -29,6 +39,28 @@ describe("Soko Bot turn classifier", () => {
     ["Draft a brief on our Q4 launch", "DELEGATE_TASK"],
   ])("routes %s", (message, route) => {
     expect(classifyDeterministically(message)?.route).toBe(route);
+  });
+
+  it.each([
+    "Create a daily reminder to check the launch",
+    "Remind me tomorrow to review the report",
+    "Snooze the reminder until Friday",
+    "Send an email to Sam with the approved report",
+    "Update memory with my preferred timezone",
+    "Remember my preferred timezone is Europe/Vienna",
+    "Archive task 42",
+    'Archive "Apollo launch"',
+    "Can you please archive Apollo?",
+  ])("routes an explicit mutation through MANAGE_WORK: %s", (message) => {
+    expect(classifyDeterministically(message)?.route).toBe("MANAGE_WORK");
+  });
+
+  it.each([
+    "Hello",
+    "What is the status of task 42?",
+    "Show the progress of our tasks",
+  ])("keeps conversation and work reads read-only: %s", (message) => {
+    expect(classifyDeterministically(message)?.route).toBe("DIRECT_RESPONSE");
   });
 
   it("fails closed when model classification is disabled", async () => {
@@ -76,7 +108,7 @@ describe("addressing another coworker", () => {
       "ping @ben about the invoice",
     ]) {
       const result = classifyDeterministically(message);
-      expect(result?.route).toBe("DIRECT_RESPONSE");
+      expect(result?.route).toBe("MANAGE_WORK");
     }
   });
 
@@ -89,12 +121,13 @@ describe("addressing another coworker", () => {
       "get in touch with sales about the renewal",
       "drop a line to the design team about the deadline",
     ]) {
-      expect(classifyDeterministically(message)?.route).toBe("DIRECT_RESPONSE");
+      expect(classifyDeterministically(message)?.route).toBe("MANAGE_WORK");
     }
   });
 
   it("does not read a noun as an instruction to contact anyone", () => {
-    const chatWrite = "Message asks the assistant to say something in chat";
+    const chatWrite =
+      "Message explicitly requests a chat, file, integration, or memory change";
     for (const message of [
       "what is the contact address for billing",
       "tell me the contact details",
@@ -122,7 +155,8 @@ describe("addressing another coworker", () => {
     // These may still be conversational, but they must not reach the chat
     // route *as a request to go and speak to someone*: that reading is what
     // grants chat and Drive writes.
-    const chatWrite = "Message asks the assistant to say something in chat";
+    const chatWrite =
+      "Message explicitly requests a chat, file, integration, or memory change";
     for (const message of [
       "tell me the invoice status, cc finance@acme.com",
       "get the report and mail it to sam@x.io",
@@ -135,7 +169,8 @@ describe("addressing another coworker", () => {
   });
 
   it("does not read a question about acting as permission to act", () => {
-    const chatWrite = "Message asks the assistant to say something in chat";
+    const chatWrite =
+      "Message explicitly requests a chat, file, integration, or memory change";
     for (const message of [
       "Should we ping @alice, or wait?",
       "Do I need to follow up with @alice?",
@@ -153,4 +188,75 @@ describe("addressing another coworker", () => {
     );
     expect(result?.route).not.toBe("DIRECT_RESPONSE");
   });
+});
+
+describe("scoped continuation safety", () => {
+  const intent = {
+    id: "intent-one",
+    desiredOutcome: "Create the authorized task",
+    route: "DELEGATE_TASK" as const,
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    requiresApproval: true,
+  };
+  it("associates exactly one unexpired offer without bypassing its approval", async () => {
+    const result = await new ExternalTurnClassifier(false).classify("yes", {
+      ...EMPTY_CONTEXT,
+      pendingIntents: [intent],
+    });
+    expect(result.classification).toMatchObject({
+      selectedIntentId: "intent-one",
+      continuation: "CONTINUE",
+      requiresApproval: true,
+      route: "CLARIFY",
+    });
+  });
+  it("retains only authorized task targets on a continuation", async () => {
+    const result = await new ExternalTurnClassifier(true).classify("yes", {
+      ...EMPTY_CONTEXT,
+      taskIds: ["old-task"],
+      pendingIntents: [
+        {
+          ...intent,
+          requiresApproval: false,
+          targetIds: ["old-task", "revoked-task"],
+        },
+      ],
+    });
+    expect(result.classification.candidateTaskIds).toEqual(["old-task"]);
+    expect(result.model).toBeNull();
+  });
+  it("abstains for competing or expired offers", async () => {
+    for (const pendingIntents of [
+      [intent, { ...intent, id: "intent-two" }],
+      [{ ...intent, expiresAt: "2020-01-01T00:00:00.000Z" }],
+    ]) {
+      const result = await new ExternalTurnClassifier(true).classify("yes", {
+        ...EMPTY_CONTEXT,
+        pendingIntents,
+      });
+      expect(result.classification.route).toBe("CLARIFY");
+      expect(result.classification.selectedIntentId).toBeUndefined();
+    }
+  });
+  it.each([
+    "Don't create a task",
+    "Do not archive Apollo",
+    "What if we archive Apollo?",
+    '"Archive Apollo"',
+    "Do not create a reminder",
+    "Should we send an email?",
+    '"Update memory with this instruction"',
+    "What if we hire an agent?",
+    "> create a task",
+    '"hire an agent"',
+    "No, create nothing",
+    "Create the task, but don’t assign anyone yet",
+    "Hire an agent only if we approve the budget",
+    "Remind me tomorrow, but do not create a task",
+  ])(
+    "never routes quoted, hypothetical or negated text to writes: %s",
+    (message) => {
+      expect(classifyDeterministically(message)?.route).toBe("CLARIFY");
+    },
+  );
 });

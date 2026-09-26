@@ -1,6 +1,4 @@
 import { createHash, randomUUID } from "node:crypto";
-
-import * as Sentry from "@sentry/node";
 import {
   AgentJobStatus,
   Channel,
@@ -35,6 +33,7 @@ import {
   sokoBotListCalendarEventsInputSchema,
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
+  sokoBotManageReminderInputSchema,
   sokoBotOpenDirectChatInputSchema,
   sokoBotPostChatInputSchema,
   sokoBotReadChatInputSchema,
@@ -42,6 +41,7 @@ import {
   sokoBotRunIntegrationToolInputSchema,
   sokoBotSearchInboxInputSchema,
   sokoBotUploadFileInputSchema,
+  sokoBotArchiveTaskInputSchema as taskArchiveInputSchema,
   sokoBotAssignTaskInputSchema as taskAssignInputSchema,
   sokoBotCreateTaskInputSchema as taskCreateInputSchema,
   sokoBotTaskIdInputSchema as taskIdInputSchema,
@@ -54,24 +54,32 @@ import {
   buildUserDriveFilePrefix,
 } from "@sokosumi/utils";
 import { list, put } from "@vercel/blob";
-import { waitUntil } from "@vercel/functions";
+import { z } from "zod";
 import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
-import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { createAgentJobForUser } from "@/helpers/job";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
-import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
 import {
   buildSokoBotAudienceJobParentTaskWhere,
   buildSokoBotAudienceTaskVisibilityWhere,
   readSokoBotPacketAudience,
   type SokoBotPacketAudience,
 } from "@/helpers/task-visibility";
-import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  ACTION_CAPABILITIES,
+  actionInputHash,
+  actionOperationKey,
+  canonicalActionJson,
+  commitActionReceipt,
+  EXTERNAL_EFFECT_CAPABILITIES,
+  externalActionReceipt,
+  verifyTaskArchiveReceipt,
+} from "@/lib/soko-bot/action-receipts";
 import {
   chatChainMayWake,
   MAX_CHAT_CHAIN_DEPTH,
@@ -79,12 +87,42 @@ import {
   ROOM_BOT_MESSAGE_WINDOW_MS,
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
-import { scheduleSokoBotChatMessageEffects } from "@/lib/soko-bot/chat-message-effects";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import {
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
 } from "@/routes/v1/chats/rooms/helpers";
+import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
+import { enqueueSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
+import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
+import {
+  activeIntegrationsForBot,
+  fetchCalendarEvents,
+  fetchInboxMessage,
+  fetchInboxMessages,
+  listIntegrationTools,
+  listSokoBotIntegrations,
+  runIntegrationTool,
+} from "@/services/soko-bot-integrations.service";
+import {
+  criteriaForConfirmedSokoBotAction,
+  readSokoBotTaskOutcome,
+} from "@/services/soko-bot-outcome.service";
+import { manageSokoBotReminder } from "@/services/soko-bot-proactive.service";
+import {
+  createSokoBotSchedule,
+  deleteSokoBotSchedule,
+  listSokoBotSchedules,
+  SokoBotScheduleNotFoundError,
+  SokoBotScheduleValidationError,
+  updateSokoBotSchedule,
+} from "@/services/soko-bot-schedule.service";
+import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
+import {
+  createTaskForActor,
+  updateTaskForActor,
+} from "@/services/task-domain.service";
 
 function toolAssigneeFields(
   coworkerId: string | null | undefined,
@@ -100,33 +138,7 @@ function toolAssigneeFields(
   return { assigneeId: coworkerId, assigneeSokoBotId: null };
 }
 
-import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
-import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
-
 const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
-
-import { serializableTransaction } from "@/lib/db/transaction";
-import {
-  activeIntegrationsForBot,
-  fetchCalendarEvents,
-  fetchInboxMessage,
-  fetchInboxMessages,
-  listIntegrationTools,
-  listSokoBotIntegrations,
-  runIntegrationTool,
-} from "@/services/soko-bot-integrations.service";
-import {
-  createSokoBotSchedule,
-  deleteSokoBotSchedule,
-  listSokoBotSchedules,
-  SokoBotScheduleNotFoundError,
-  SokoBotScheduleValidationError,
-  updateSokoBotSchedule,
-} from "@/services/soko-bot-schedule.service";
-import {
-  createTaskForActor,
-  updateTaskForActor,
-} from "@/services/task-domain.service";
 
 const ACTIVE_STATUSES = ["STARTING", "RUNNING", "CANCEL_REQUESTED"] as const;
 const DECISION_TTL_MS = 24 * 60 * 60 * 1_000;
@@ -139,31 +151,6 @@ const MAX_DIRECTS_OPENED_PER_TURN = 5;
 const TOOL_RESULT_MAX_BYTES = 16_384;
 const ERROR_DETAIL_MAX_BYTES = 1_000;
 const SELLER_RESERVATION_MARKER_VERSION = 1;
-
-function scheduleTaskEventFanout(params: {
-  taskId: string;
-  ownerId: string;
-  eventId: string;
-  status: TaskStatus | null;
-}): void {
-  waitUntil(
-    publishTaskEventData({
-      userId: params.ownerId,
-      taskId: params.taskId,
-      eventType: "task_event",
-    }).catch((error) => {
-      Sentry.captureException(error, {
-        tags: { error_type: "publish_task_event" },
-        extra: { taskId: params.taskId, userId: params.ownerId },
-      });
-    }),
-  );
-  if (params.status) {
-    waitUntil(
-      notifyTaskStatusEvent(params.taskId, params.eventId, params.status),
-    );
-  }
-}
 
 interface SellerReservationMarker {
   version: typeof SELLER_RESERVATION_MARKER_VERSION;
@@ -190,6 +177,8 @@ function parseDecisionProposal(
       return taskCreateInputSchema.parse(proposal);
     case "update_task":
       return taskUpdateInputSchema.parse(proposal);
+    case "archive_task":
+      return taskArchiveInputSchema.parse(proposal);
     case "assign_task":
       return taskAssignInputSchema.parse(proposal);
     case "hire_agent":
@@ -211,6 +200,10 @@ function decisionReason(
     case "update_task": {
       const input = taskUpdateInputSchema.parse(proposal);
       return `Update Task ${input.taskId}`;
+    }
+    case "archive_task": {
+      const input = taskArchiveInputSchema.parse(proposal);
+      return `Archive Task ${input.taskId} (retain history)`;
     }
     case "assign_task": {
       const input = taskAssignInputSchema.parse(proposal);
@@ -253,13 +246,17 @@ async function describeDecision(
         ]);
         return `Assign Task ${quote(task?.name, input.taskId)} to Coworker ${quote(coworker?.name, input.coworkerId)}${input.ready ? " and start it" : ""}`;
       }
+      case "archive_task":
       case "update_task": {
-        const input = taskUpdateInputSchema.parse(proposal);
+        const input =
+          toolName === "archive_task"
+            ? taskArchiveInputSchema.parse(proposal)
+            : taskUpdateInputSchema.parse(proposal);
         const task = await prisma.task.findUnique({
           where: { id: input.taskId },
           select: { name: true },
         });
-        return `Update Task ${quote(task?.name, input.taskId)}`;
+        return `${toolName === "archive_task" ? "Archive" : "Update"} Task ${quote(task?.name, input.taskId)}`;
       }
       case "hire_agent": {
         const input = parseHireAgentInput(proposal);
@@ -284,6 +281,7 @@ export interface RuntimeAuthorizationInput {
 }
 
 export interface SokoBotActionContext {
+  confirmationTurnId?: string;
   turn: {
     id: string;
     sokoBotId: string;
@@ -297,6 +295,8 @@ export interface SokoBotActionContext {
     source: string | null;
     /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
     chainDepth: number;
+    intentId?: string | null;
+    intentRevision?: number | null;
   };
   classificationConfidence: number;
 }
@@ -350,25 +350,12 @@ function truncateUtf8(value: string, maxBytes: number): string {
   return value.slice(0, low);
 }
 
-function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== "object") {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(",")}]`;
-  }
-  return `{${Object.entries(value)
-    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-    .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
-    .join(",")}}`;
-}
-
 function sellerProposalHash(
   toolName: "hire_agent" | "provide_job_input",
   proposal: unknown,
 ): string {
   return createHash("sha256")
-    .update(`${toolName}:${canonicalJson(proposal)}`)
+    .update(`${toolName}:${canonicalActionJson(proposal)}`)
     .digest("hex");
 }
 
@@ -547,6 +534,8 @@ export class SokoBotRuntimeService {
         versionId: true,
         source: true,
         chainDepth: true,
+        intentId: true,
+        intentRevision: true,
         deadlineAt: true,
         leaseExpiresAt: true,
         capabilityNames: true,
@@ -707,6 +696,8 @@ export class SokoBotRuntimeService {
         versionId: turn.versionId,
         source: turn.source,
         chainDepth: turn.chainDepth,
+        intentId: turn.intentId,
+        intentRevision: turn.intentRevision,
       },
       classificationConfidence:
         typeof turn.classification === "object" &&
@@ -790,6 +781,7 @@ export class SokoBotRuntimeService {
       authorized.turn.userId,
       decision.id,
       true,
+      false,
     );
     return {
       executed: resolved.status === "ACCEPTED",
@@ -839,8 +831,9 @@ export class SokoBotRuntimeService {
   private async chatRoomScope(
     authorized: AuthorizedSokoBotRuntime,
     sokoBotId: string,
+    client: Prisma.TransactionClient = prisma,
   ): Promise<Prisma.ChatRoomWhereInput> {
-    const workspace = await prisma.workspace.findUnique({
+    const workspace = await client.workspace.findUnique({
       where: { id: authorized.turn.workspaceId },
       select: { organizationId: true },
     });
@@ -860,6 +853,7 @@ export class SokoBotRuntimeService {
   private async requireChatMembership(
     authorized: AuthorizedSokoBotRuntime,
     roomId: string,
+    client: Prisma.TransactionClient = prisma,
   ): Promise<{
     id: string;
     name: string;
@@ -869,9 +863,9 @@ export class SokoBotRuntimeService {
     authorName: string;
   }> {
     const sokoBotId = authorized.turn.sokoBotId;
-    const room = await prisma.chatRoom.findFirst({
+    const room = await client.chatRoom.findFirst({
       where: {
-        ...(await this.chatRoomScope(authorized, sokoBotId)),
+        ...(await this.chatRoomScope(authorized, sokoBotId, client)),
         id: roomId,
       },
       select: {
@@ -1032,61 +1026,46 @@ export class SokoBotRuntimeService {
     const { createOrGetDirectRoom } = await import(
       "@/routes/v1/chats/rooms/helpers"
     );
-    const { room, created } = await createOrGetDirectRoom({
-      organizationId,
-      currentUserId: member.user.id,
-      memberUserIds: [],
-      coworkerIds: [],
-      sokoBotIds: [sokoBotId],
-      sokoBotActorUserId: authorized.turn.userId,
-      // The sidebar flags belong to a viewer; this actor is not one.
-      viewerUserId: null,
-    });
-    // The message is posted here rather than left to a later tool call. A room
-    // opened and never written in is an empty conversation in somebody's
-    // sidebar that they cannot remove, and the model stopping early — or
-    // simply not calling post_chat — is enough to leave one.
-    let posted: Awaited<ReturnType<SokoBotRuntimeService["postChat"]>>;
-    try {
-      posted = await this.postChat(authorized, {
-        roomId: room.id,
-        content: input.message,
+    return serializableTransaction(async (tx) => {
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        "open_direct_chat",
+      );
+      const stillMember = await tx.member.findFirst({
+        where: { organizationId, userId: member.user.id },
+        select: { id: true },
       });
-    } catch (error) {
-      // A room whose first message never landed is the empty room this exists
-      // to prevent, so it goes with it. Everything hanging off a room cascades.
-      // Conditioned on the room still being empty: `postChat` can fail after
-      // its message commits, and taking the room down then would delete the
-      // very message it just sent — along with anything the other person had
-      // already replied.
-      if (created) {
-        // Reported rather than swallowed: what survives a failure here is the
-        // permanent empty room this whole path exists to prevent, and nothing
-        // downstream would ever notice it.
-        await prisma.chatRoom
-          .deleteMany({ where: { id: room.id, messages: { none: {} } } })
-          .catch((cleanupError: unknown) => {
-            Sentry.captureException(cleanupError, {
-              extra: {
-                roomId: room.id,
-                errorType: "soko-bot-open-direct-chat-rollback",
-              },
-            });
-          });
-      }
-      throw error;
-    }
-    return {
-      roomId: room.id,
-      name: room.name,
-      /** False when the room already existed, so nobody was newly approached. */
-      created,
-      withUserName: member.user.name,
-      // Named so the model reads the message as sent and does not post it a
-      // second time through post_chat.
-      messageId: posted.messageId,
-      postedAt: posted.postedAt,
-    };
+      if (!stillMember)
+        throw new SokoBotRuntimeAuthorizationError(
+          "The person is no longer a workspace member",
+        );
+      const { room, created } = await createOrGetDirectRoom({
+        organizationId,
+        currentUserId: member.user.id,
+        memberUserIds: [],
+        coworkerIds: [],
+        sokoBotIds: [sokoBotId],
+        sokoBotActorUserId: authorized.turn.userId,
+        viewerUserId: null,
+        transaction: tx,
+      });
+      return this.postChat(
+        authorized,
+        {
+          roomId: room.id,
+          content: input.message,
+          toolCallId: input.toolCallId,
+          openedDirect: {
+            name: room.name,
+            created,
+            withUserName: member.user.name,
+          },
+        },
+        tx,
+      );
+    }, "Opening the direct chat collided with another operation");
   }
 
   /**
@@ -1107,11 +1086,12 @@ export class SokoBotRuntimeService {
   private async requireUnattendedPostIsAllowed(
     authorized: AuthorizedSokoBotRuntime,
     room: { id: string; kind: string },
+    client: Prisma.TransactionClient = prisma,
   ) {
     if (authorized.turn.source === "CHAT" || room.kind !== "direct") {
       return;
     }
-    const ownerIsMember = await prisma.chatRoomUserMember.findFirst({
+    const ownerIsMember = await client.chatRoomUserMember.findFirst({
       where: { roomId: room.id, userId: authorized.turn.userId },
       select: { id: true },
     });
@@ -1125,160 +1105,198 @@ export class SokoBotRuntimeService {
   /** Post into a room the bot belongs to, as the bot's Soko Bot identity. */
   private async postChat(
     authorized: AuthorizedSokoBotRuntime,
-    input: { roomId: string; content: string },
+    input: {
+      roomId: string;
+      content: string;
+      toolCallId: string;
+      openedDirect?: { name: string; created: boolean; withUserName: string };
+    },
+    transaction?: Prisma.TransactionClient,
   ) {
-    // A turn another assistant started may answer only where it was asked.
-    // Unreachable while the bot-to-bot ceiling withholds `post_chat` — kept
-    // because it is the guard that would matter the moment that ceiling is
-    // widened again, and the failure it prevents is silent: text from the
-    // requesting bot naming a room its own owner cannot see, and this bot
-    // posting there on its behalf.
-    if (authorized.turn.chainDepth > 0) {
-      const origin = await prisma.sokoBotTurn.findUnique({
-        where: { id: authorized.turn.id },
-        select: {
-          chatMention: { select: { message: { select: { roomId: true } } } },
-        },
-      });
-      const originRoomId = origin?.chatMention?.message.roomId;
-      if (!originRoomId || originRoomId !== input.roomId) {
-        throw new SokoBotRuntimeAuthorizationError(
-          "You may only reply in the room you were asked in",
-        );
-      }
-    }
-    const room = await this.requireChatMembership(authorized, input.roomId);
-    await this.requireUnattendedPostIsAllowed(authorized, room);
-    // Who this post summons. A bot may address another bot, but every hop is
-    // counted: past the ceiling the message still posts and simply stops being
-    // a summons, so an unattended exchange cannot run for ever.
-    const chainDepth = nextChatChainDepth(authorized.turn.chainDepth);
-    // Backstop the hop counter cannot provide: it reasons pairwise, so three
-    // bots in a triangle could defeat it. This does not care who produced the
-    // traffic, only how much of it a room has taken lately.
-    const roomCoworkers = chatChainMayWake(chainDepth)
-      ? await prisma.chatRoomCoworkerMember.findMany({
-          where: { roomId: room.id },
+    const persist = async (tx: Prisma.TransactionClient) => {
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        input.openedDirect ? "open_direct_chat" : "post_chat",
+      );
+      // A turn another assistant started may answer only where it was asked.
+      // Unreachable while the bot-to-bot ceiling withholds `post_chat` — kept
+      // because it is the guard that would matter the moment that ceiling is
+      // widened again, and the failure it prevents is silent: text from the
+      // requesting bot naming a room its own owner cannot see, and this bot
+      // posting there on its behalf.
+      if (authorized.turn.chainDepth > 0) {
+        const origin = await tx.sokoBotTurn.findUnique({
+          where: { id: authorized.turn.id },
           select: {
-            coworker: { select: { id: true, name: true, slug: true } },
+            chatMention: { select: { message: { select: { roomId: true } } } },
           },
-        })
-      : [];
-    const roomSokoBots = chatChainMayWake(chainDepth)
-      ? await prisma.chatRoomSokoBotMember.findMany({
+        });
+        const originRoomId = origin?.chatMention?.message.roomId;
+        if (!originRoomId || originRoomId !== input.roomId) {
+          throw new SokoBotRuntimeAuthorizationError(
+            "You may only reply in the room you were asked in",
+          );
+        }
+      }
+      const room = await this.requireChatMembership(
+        authorized,
+        input.roomId,
+        tx,
+      );
+      await this.requireUnattendedPostIsAllowed(authorized, room, tx);
+      // Who this post summons. A bot may address another bot, but every hop is
+      // counted: past the ceiling the message still posts and simply stops being
+      // a summons, so an unattended exchange cannot run for ever.
+      const chainDepth = nextChatChainDepth(authorized.turn.chainDepth);
+      // Backstop the hop counter cannot provide: it reasons pairwise, so three
+      // bots in a triangle could defeat it. This does not care who produced the
+      // traffic, only how much of it a room has taken lately.
+      const roomCoworkers = chatChainMayWake(chainDepth)
+        ? await tx.chatRoomCoworkerMember.findMany({
+            where: { roomId: room.id },
+            select: {
+              coworker: { select: { id: true, name: true, slug: true } },
+            },
+          })
+        : [];
+      const roomSokoBots = chatChainMayWake(chainDepth)
+        ? await tx.chatRoomSokoBotMember.findMany({
+            where: {
+              roomId: room.id,
+              sokoBotId: { not: room.sokoBotId },
+            },
+            select: {
+              sokoBot: { select: { id: true, name: true } },
+            },
+          })
+        : [];
+      const mentionedCoworkerIds = resolveMentionedCoworkerIds({
+        content: input.content,
+        roomCoworkers: roomCoworkers.map(({ coworker }) => coworker),
+      });
+      const mentionedSokoBotIds = resolveMentionedSokoBotIds({
+        content: input.content,
+        roomSokoBots: roomSokoBots.map(({ sokoBot }) => ({
+          id: sokoBot.id,
+          name: sokoBotDisplayName({ name: sokoBot.name }),
+        })),
+      });
+      // Queue unreadable content and inert mentions. The outbox activates both
+      // only after rechecking the exact audience at the publication boundary.
+      const message = await (async () => {
+        // Counted inside the transaction: read outside it, two bots posting at
+        // once both see room for one more and the room takes both.
+        const botMessagesThisHour = await tx.chatRoomMessage.count({
           where: {
             roomId: room.id,
-            sokoBotId: { not: room.sokoBotId },
-          },
-          select: {
-            sokoBot: { select: { id: true, name: true } },
-          },
-        })
-      : [];
-    const mentionedCoworkerIds = resolveMentionedCoworkerIds({
-      content: input.content,
-      roomCoworkers: roomCoworkers.map(({ coworker }) => coworker),
-    });
-    const mentionedSokoBotIds = resolveMentionedSokoBotIds({
-      content: input.content,
-      roomSokoBots: roomSokoBots.map(({ sokoBot }) => ({
-        id: sokoBot.id,
-        name: sokoBotDisplayName({ name: sokoBot.name }),
-      })),
-    });
-    // Written inside the transaction, dispatched after it commits — the same
-    // handoff the human message route performs. Without it the rows sit
-    // `pending` for ever: reclaim only rescues `sent`, so nobody ever wakes.
-    const mentionIds: string[] = [];
-    const message = await serializableTransaction(async (tx) => {
-      // Counted inside the transaction: read outside it, two bots posting at
-      // once both see room for one more and the room takes both.
-      const botMessagesThisHour = await tx.chatRoomMessage.count({
-        where: {
-          roomId: room.id,
-          deletedAt: null,
-          OR: [
-            { senderCoworkerId: { not: null } },
-            { senderSokoBotId: { not: null } },
-          ],
-          createdAt: {
-            gte: new Date(Date.now() - ROOM_BOT_MESSAGE_WINDOW_MS),
-          },
-        },
-      });
-      if (botMessagesThisHour >= ROOM_BOT_MESSAGES_PER_HOUR) {
-        throw new SokoBotRuntimeValidationError(
-          `This room has taken ${botMessagesThisHour} assistant messages in the last hour and is rate limited. Say nothing further here for now.`,
-        );
-      }
-      const created = await tx.chatRoomMessage.create({
-        data: {
-          roomId: room.id,
-          senderSokoBotId: room.sokoBotId,
-          content: input.content,
-          // Lets the reader see, on hover, that this is part of an assistant
-          // exchange and how close it is to the point where it stops.
-          metadata: {
-            soko_bot_chain: {
-              depth: chainDepth,
-              max_depth: MAX_CHAT_CHAIN_DEPTH,
-              room_messages_this_hour: botMessagesThisHour + 1,
-              room_messages_per_hour: ROOM_BOT_MESSAGES_PER_HOUR,
+            OR: [
+              { senderCoworkerId: { not: null } },
+              { senderSokoBotId: { not: null } },
+            ],
+            createdAt: {
+              gte: new Date(Date.now() - ROOM_BOT_MESSAGE_WINDOW_MS),
             },
           },
-        },
-        select: { id: true, createdAt: true },
-      });
-      if (mentionedCoworkerIds.length > 0 || mentionedSokoBotIds.length > 0) {
-        await tx.chatRoomMention.createMany({
-          data: [
-            ...mentionedCoworkerIds.map((coworkerId) => ({
-              messageId: created.id,
-              coworkerId,
-              sokoBotId: null,
-              chainDepth,
-            })),
-            ...mentionedSokoBotIds.map((sokoBotId) => ({
-              messageId: created.id,
-              coworkerId: null,
-              sokoBotId: sokoBotId,
-              chainDepth,
-            })),
-          ],
-          skipDuplicates: true,
         });
-        mentionIds.push(
-          ...(
-            await tx.chatRoomMention.findMany({
-              where: { messageId: created.id },
-              select: { id: true },
-            })
-          ).map((mention) => mention.id),
-        );
-      }
-      await tx.chatRoom.update({
-        where: { id: room.id },
-        data: { updatedAt: new Date() },
+        if (botMessagesThisHour >= ROOM_BOT_MESSAGES_PER_HOUR) {
+          throw new SokoBotRuntimeValidationError(
+            `This room has taken ${botMessagesThisHour} assistant messages in the last hour and is rate limited. Say nothing further here for now.`,
+          );
+        }
+        const created = await tx.chatRoomMessage.create({
+          data: {
+            roomId: room.id,
+            clientMessageId: `soko-bot-tool:${authorized.turn.id}:${input.toolCallId}`,
+            senderSokoBotId: room.sokoBotId,
+            content: "",
+            deletedAt: new Date(),
+            // Lets the reader see, on hover, that this is part of an assistant
+            // exchange and how close it is to the point where it stops.
+            metadata: {
+              soko_bot_chain: {
+                depth: chainDepth,
+                max_depth: MAX_CHAT_CHAIN_DEPTH,
+                room_messages_this_hour: botMessagesThisHour + 1,
+                room_messages_per_hour: ROOM_BOT_MESSAGES_PER_HOUR,
+              },
+            },
+          },
+          select: { id: true, createdAt: true },
+        });
+        if (mentionedCoworkerIds.length > 0 || mentionedSokoBotIds.length > 0) {
+          await tx.chatRoomMention.createMany({
+            data: [
+              ...mentionedCoworkerIds.map((coworkerId) => ({
+                messageId: created.id,
+                coworkerId,
+                sokoBotId: null,
+                chainDepth,
+                status: "staged",
+              })),
+              ...mentionedSokoBotIds.map((sokoBotId) => ({
+                messageId: created.id,
+                coworkerId: null,
+                sokoBotId: sokoBotId,
+                chainDepth,
+                status: "staged",
+              })),
+            ],
+            skipDuplicates: true,
+          });
+        }
+        await tx.chatRoom.update({
+          where: { id: room.id },
+          data: { updatedAt: new Date() },
+        });
+        return created;
+      })();
+      const result = {
+        messageId: message.id,
+        roomId: room.id,
+        queuedAt: message.createdAt.toISOString(),
+        queuedMentions:
+          mentionedCoworkerIds.length + mentionedSokoBotIds.length,
+        deliveryStatus: "QUEUED",
+        ...input.openedDirect,
+      };
+      const receipt = await commitActionReceipt(tx, {
+        turnId: authorized.turn.id,
+        toolCallId: input.toolCallId,
+        actorBotId: authorized.turn.sokoBotId,
+        targetId: message.id,
+        effectEventId: message.id,
+        result: persistedToolResult(result),
       });
-      return created;
-    }, "Another assistant posted into this room at the same moment");
-    // Every other message-create site publishes; without this the bot's post
-    // only appears after a refresh, which reads as the tool having failed.
-    await publishChatRoomMessageRealtimeById(message.id, "create");
-    await scheduleSokoBotChatMessageEffects(room, message.id, input.content);
-    for (const mentionId of mentionIds) {
-      const { dispatchChatRoomMention } = await import(
-        "@/services/chat-room-coworker-dispatch.service"
-      );
-      waitUntil(dispatchChatRoomMention(mentionId));
-    }
-    return {
-      messageId: message.id,
-      roomId: room.id,
-      postedAt: message.createdAt.toISOString(),
-      /** Coworkers this post woke; empty once the chain hits its ceiling. */
-      summoned: mentionedCoworkerIds.length + mentionedSokoBotIds.length,
+      const audience = await tx.chatRoom.findUniqueOrThrow({
+        where: { id: room.id },
+        select: {
+          userMembers: { select: { userId: true } },
+          coworkerMembers: { select: { coworkerId: true } },
+          sokoBotMembers: { select: { sokoBotId: true } },
+        },
+      });
+      await enqueueSokoBotEffect(tx, {
+        receiptId: receipt.id,
+        purpose: "CHAT_MESSAGE",
+        payload: {
+          messageId: message.id,
+          roomId: room.id,
+          content: input.content,
+          userIds: audience.userMembers.map((m) => m.userId).sort(),
+          coworkerIds: audience.coworkerMembers.map((m) => m.coworkerId).sort(),
+          botIds: audience.sokoBotMembers.map((m) => m.sokoBotId).sort(),
+        },
+      });
+      return result;
     };
+    return transaction
+      ? persist(transaction)
+      : serializableTransaction(
+          persist,
+          "Another assistant posted into this room at the same moment",
+        );
   }
 
   /** Files in the owner's Drive. Blob-backed, listed by the owner's prefix. */
@@ -1403,7 +1421,20 @@ export class SokoBotRuntimeService {
       where: {
         id: taskId,
         workspaceId: authorized.turn.workspaceId,
-        archivedAt: null,
+        // Explicit owner reads may inspect retained archive history; shared
+        // audience reads and related-task discovery still exclude archives.
+        ...(authorized.askedByKind === "OWNER"
+          ? {
+              AND: [
+                {
+                  OR: [
+                    { archivedAt: null },
+                    { ownerId: authorized.turn.userId },
+                  ],
+                },
+              ],
+            }
+          : { archivedAt: null }),
         ...buildSokoBotAudienceTaskVisibilityWhere(
           authorized.turn.userId,
           authorized.askedByKind,
@@ -1412,16 +1443,23 @@ export class SokoBotRuntimeService {
       select: {
         id: true,
         name: true,
+        ownerId: true,
+        creatorUserId: true,
+        assigneeUserId: true,
+        assigneeId: true,
+        assigneeSokoBotId: true,
         description: true,
         status: true,
+        archivedAt: true,
         updatedAt: true,
         assignee: { select: { id: true, name: true } },
         assigneeSokoBot: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
         events: {
-          orderBy: { createdAt: "desc" },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 8,
           select: {
+            id: true,
             status: true,
             comment: true,
             createdAt: true,
@@ -1473,27 +1511,53 @@ export class SokoBotRuntimeService {
       sokoBotId: string | null;
     }) =>
       event.sokoBotId
-        ? "you"
+        ? event.sokoBotId === authorized.turn.sokoBotId
+          ? "you"
+          : "another_bot"
         : event.coworkerId
           ? "coworker"
           : event.userId
-            ? "owner"
+            ? event.userId === task.ownerId
+              ? "owner"
+              : "teammate"
             : "system";
     return {
       id: task.id,
       name: task.name,
+      ownerId: task.ownerId,
+      requesterUserId: task.creatorUserId,
+      assigneeUserId: task.assigneeUserId,
+      assigneeCoworkerId: task.assigneeId,
+      assigneeSokoBotId: task.assigneeSokoBotId,
       status: task.status,
+      archivedAt: task.archivedAt,
       description: task.description,
       assignee: task.assignee ?? task.assigneeSokoBot,
       project: task.project,
       updatedAt: task.updatedAt,
       events: [...task.events].reverse().map((event) => ({
+        id: event.id,
         at: event.createdAt,
+        author: {
+          userId: event.userId,
+          coworkerId: event.coworkerId,
+          sokoBotId: event.sokoBotId,
+        },
         by: actor(event),
         status: event.status,
         comment: event.comment,
       })),
       files: task.files,
+      fulfillment: await readSokoBotTaskOutcome(prisma, {
+        turnId: authorized.turn.id,
+        sokoBotId: authorized.turn.sokoBotId,
+        workspaceId: authorized.turn.workspaceId,
+        userId: authorized.turn.userId,
+        intentId: authorized.turn.intentId,
+        intentRevision: authorized.turn.intentRevision,
+        audience: authorized.askedByKind,
+        taskId: task.id,
+      }),
       links: [
         ...task.linksFrom.map((link) => ({
           relation: link.type,
@@ -1538,7 +1602,26 @@ export class SokoBotRuntimeService {
       QUEUED: [TaskStatus.RUNNING, TaskStatus.COMPLETED, TaskStatus.FAILED],
     };
     const persisted = await serializableTransaction(async (tx) => {
-      await this.requireMutationAuthority(tx, authorized, false);
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        "update_assigned_task",
+      );
+      const claim = await claimTaskEventAction(
+        tx,
+        {
+          ...authorized.turn,
+          turnId: authorized.turn.id,
+          source: authorized.turn.source ?? "CHAT",
+        },
+        input.taskId,
+        "TASK_STATE",
+      );
+      if (!claim.allowed)
+        throw new SokoBotRuntimeAuthorizationError(
+          "This turn has no current authority for this task event action",
+        );
       const task = await tx.task.findFirst({
         where: {
           id: input.taskId,
@@ -1606,18 +1689,26 @@ export class SokoBotRuntimeService {
           taskId: task.id,
         },
       });
+      const result = { taskId: task.id, status: next, eventId: event.id };
+      const receipt = await commitActionReceipt(tx, {
+        turnId: authorized.turn.id,
+        toolCallId,
+        actorBotId: authorized.turn.sokoBotId,
+        targetId: task.id,
+        effectEventId: event.id,
+        result: persistedToolResult(result),
+      });
+      if (claim.claimId)
+        await tx.sokoBotTaskActionClaim.update({
+          where: { id: claim.claimId },
+          data: { receiptId: receipt.id },
+        });
       return {
-        result: { taskId: task.id, status: next },
+        result,
         eventId: event.id,
         ownerId: task.ownerId,
       };
     }, "Soko Bot task update collided with another request");
-    scheduleTaskEventFanout({
-      taskId: persisted.result.taskId,
-      ownerId: persisted.ownerId,
-      eventId: persisted.eventId,
-      status: persisted.result.status,
-    });
     return persisted.result;
   }
 
@@ -1637,12 +1728,37 @@ export class SokoBotRuntimeService {
       TaskStatus.AWAITING_EXTERNAL,
     ];
     const persisted = await serializableTransaction(async (tx) => {
-      await this.requireMutationAuthority(tx, authorized, false);
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        "reply_to_task",
+      );
+      const claim = input.status
+        ? await claimTaskEventAction(
+            tx,
+            {
+              ...authorized.turn,
+              turnId: authorized.turn.id,
+              source: authorized.turn.source ?? "CHAT",
+            },
+            input.taskId,
+            "TASK_STATE",
+          )
+        : { allowed: true, claimId: null };
+      if (!claim.allowed)
+        throw new SokoBotRuntimeAuthorizationError(
+          "This turn has no current authority for this task event action",
+        );
       const task = await tx.task.findFirst({
         where: {
           id: input.taskId,
           workspaceId: authorized.turn.workspaceId,
           archivedAt: null,
+          ...buildSokoBotAudienceTaskVisibilityWhere(
+            authorized.turn.userId,
+            authorized.askedByKind,
+          ),
         },
         select: {
           id: true,
@@ -1669,7 +1785,11 @@ export class SokoBotRuntimeService {
           );
         }
       }
-      if (input.status === "READY") {
+      const changeStatus =
+        input.status === "READY" &&
+        task.status !== TaskStatus.READY &&
+        task.status !== TaskStatus.RUNNING;
+      if (changeStatus) {
         if (!resumable.includes(task.status)) {
           throw new SokoBotRuntimeValidationError(
             `Task is ${task.status}; only ${resumable.join(", ")} can be set READY. To leave a comment without changing the status, omit \`status\`.`,
@@ -1684,14 +1804,14 @@ export class SokoBotRuntimeService {
       const event = await tx.taskEvent.create({
         data: {
           taskId: task.id,
-          status: input.status ?? null,
+          status: changeStatus ? TaskStatus.READY : null,
           comment: input.comment,
           channel: Channel.SOKOSUMI,
           sokoBotId: authorized.turn.sokoBotId,
         },
         select: { id: true },
       });
-      if (input.status === "READY") {
+      if (changeStatus) {
         await applyGuardedTaskStatusUpdate({
           tx,
           taskId: task.id,
@@ -1699,7 +1819,7 @@ export class SokoBotRuntimeService {
           eventStatus: TaskStatus.READY,
         });
       }
-      const status = input.status ?? task.status;
+      const status = changeStatus ? TaskStatus.READY : task.status;
       await tx.sokoBotDelegation.create({
         data: {
           turnId: authorized.turn.id,
@@ -1711,42 +1831,57 @@ export class SokoBotRuntimeService {
           taskId: task.id,
         },
       });
+      const result = {
+        id: task.id,
+        name: task.name,
+        status,
+        commented: true,
+        eventId: event.id,
+        statusChanged: changeStatus,
+      };
+      const receipt = await commitActionReceipt(tx, {
+        turnId: authorized.turn.id,
+        toolCallId,
+        actorBotId: authorized.turn.sokoBotId,
+        targetId: task.id,
+        effectEventId: event.id,
+        result: persistedToolResult(result),
+      });
+      if (claim.claimId)
+        await tx.sokoBotTaskActionClaim.update({
+          where: { id: claim.claimId },
+          data: { receiptId: receipt.id },
+        });
       return {
-        result: {
-          id: task.id,
-          name: task.name,
-          status,
-          commented: true,
-        },
+        result,
         eventId: event.id,
         ownerId: task.ownerId,
-        eventStatus: input.status ? TaskStatus[input.status] : null,
+        eventStatus: changeStatus ? TaskStatus.READY : null,
       };
     }, "Soko Bot task reply collided with another action");
-    scheduleTaskEventFanout({
-      taskId: persisted.result.id,
-      ownerId: persisted.ownerId,
-      eventId: persisted.eventId,
-      status: persisted.eventStatus,
-    });
     return persisted.result;
   }
 
   private async linkTasks(
     authorized: AuthorizedSokoBotRuntime,
     rawInput: unknown,
+    toolCallId: string,
   ) {
     const input = linkTasksInputSchema.parse(rawInput);
     if (input.taskId === input.peerTaskId) {
       throw new SokoBotRuntimeValidationError("A task cannot link to itself");
     }
     return serializableTransaction(async (tx) => {
-      await this.requireMutationAuthority(tx, authorized, false);
+      await this.requireMutationAuthority(tx, authorized, false, "link_tasks");
       const tasks = await tx.task.findMany({
         where: {
           id: { in: [input.taskId, input.peerTaskId] },
           workspaceId: authorized.turn.workspaceId,
           archivedAt: null,
+          ...buildSokoBotAudienceTaskVisibilityWhere(
+            authorized.turn.userId,
+            authorized.askedByKind,
+          ),
         },
         select: { id: true, name: true },
       });
@@ -1770,18 +1905,44 @@ export class SokoBotRuntimeService {
         select: { id: true, type: true },
       });
       if (existing) {
-        return { linked: true, existing: true, relation: existing.type };
+        const result = {
+          linked: true,
+          existing: true,
+          relation: existing.type,
+          id: existing.id,
+        };
+        if (existing.type !== data.type)
+          throw new SokoBotRuntimeValidationError(
+            "A different relationship already exists",
+          );
+        await commitActionReceipt(tx, {
+          turnId: authorized.turn.id,
+          toolCallId,
+          actorBotId: authorized.turn.sokoBotId,
+          targetId: existing.id,
+          disposition: "ALREADY_SATISFIED",
+          result: persistedToolResult(result),
+        });
+        return result;
       }
       const link = await tx.taskLink.create({
         data: { ...data, note: input.note ?? null },
         select: { id: true, type: true },
       });
-      return {
+      const result = {
         linked: true,
         existing: false,
         relation: link.type,
         id: link.id,
       };
+      await commitActionReceipt(tx, {
+        turnId: authorized.turn.id,
+        toolCallId,
+        actorBotId: authorized.turn.sokoBotId,
+        targetId: link.id,
+        result: persistedToolResult(result),
+      });
+      return result;
     }, "Soko Bot task link collided with another action");
   }
 
@@ -1796,7 +1957,7 @@ export class SokoBotRuntimeService {
     const proposalJson = jsonInput(parsedProposal);
     const reason = await describeDecision(toolName, parsedProposal);
     return serializableTransaction(async (tx) => {
-      await this.requireMutationAuthority(tx, authorized, false);
+      await this.requireMutationAuthority(tx, authorized, false, toolName);
       // A model that retries an approval-gated call with the same input must
       // not fan out into several identical approvals for the owner.
       const existing = await tx.sokoBotPendingDecision.findFirst({
@@ -1823,8 +1984,27 @@ export class SokoBotRuntimeService {
         });
         return existing;
       }
+      const intentTurn = await tx.sokoBotTurn.findFirst({
+        where: { id: authorized.turn.id },
+        select: { intentId: true },
+      });
+      if (intentTurn?.intentId) {
+        await tx.sokoBotIntent.updateMany({
+          where: {
+            id: intentTurn.intentId,
+            state: { in: ["ACTIVE", "AWAITING_CONFIRMATION"] },
+          },
+          data: {
+            state: "AWAITING_CONFIRMATION",
+            desiredOutcome: reason,
+            allowedActions: [toolName],
+            expiresAt: new Date(Date.now() + DECISION_TTL_MS),
+          },
+        });
+      }
       const decision = await tx.sokoBotPendingDecision.create({
         data: {
+          intentId: intentTurn?.intentId,
           sokoBotId: authorized.turn.sokoBotId,
           turnId: authorized.turn.id,
           userId: authorized.turn.userId,
@@ -1869,7 +2049,51 @@ export class SokoBotRuntimeService {
         tx,
         authorized,
         approved,
+        "create_task",
       );
+      if (authorized.turn.source === "EVENT" && !input.triggeringTaskId)
+        throw new SokoBotRuntimeValidationError(
+          "Event-driven task creation requires triggeringTaskId from the event batch",
+        );
+      const claim = input.triggeringTaskId
+        ? await claimTaskEventAction(
+            tx,
+            {
+              ...authorized.turn,
+              turnId: authorized.turn.id,
+              source: authorized.turn.source ?? "CHAT",
+            },
+            input.triggeringTaskId,
+            "CREATE_TASK",
+          )
+        : { allowed: true, claimId: null };
+      if (!claim.allowed)
+        throw new SokoBotRuntimeAuthorizationError(
+          "This turn has no current authority for this task event action",
+        );
+      if (approved) {
+        await tx.sokoBotToolCall.upsert({
+          where: {
+            turnId_toolCallId: { turnId: authorized.turn.id, toolCallId },
+          },
+          create: {
+            turnId: authorized.turn.id,
+            toolCallId,
+            capability: "create_task",
+            operationKey: actionOperationKey({
+              workspaceId: authorized.turn.workspaceId,
+              principalId: authorized.turn.userId,
+              intentRevision: toolCallId,
+              capability: "create_task",
+              inputHash: actionInputHash(rawInput),
+            }),
+            inputHash: actionInputHash(rawInput),
+            actorBotId: authorized.turn.sokoBotId,
+          },
+          update: {},
+        });
+      }
+      const effectEventId = randomUUID();
       const task = await createTaskForActor(
         {
           actor: {
@@ -1885,6 +2109,7 @@ export class SokoBotRuntimeService {
           ...toolAssigneeFields(input.coworkerId, authorized.turn.sokoBotId),
           status: input.status,
           channel: Channel.SOKOSUMI,
+          effectEventId,
         },
         tx,
       );
@@ -1905,30 +2130,218 @@ export class SokoBotRuntimeService {
           taskId: result.id,
         },
       });
-      if (!approved) {
-        await tx.sokoBotToolCall.update({
-          where: {
-            turnId_toolCallId: {
-              turnId: authorized.turn.id,
-              toolCallId,
-            },
-          },
-          data: { status: "COMPLETED", result: persistedToolResult(result) },
+      {
+        await commitActionReceipt(tx, {
+          turnId: authorized.turn.id,
+          toolCallId,
+          actorBotId: authorized.turn.sokoBotId,
+          targetId: task.id,
+          effectEventId,
+          claimId: claim.claimId,
+          observedVersion: task.updatedAt?.toISOString(),
+          result: persistedToolResult(result),
         });
       }
       return result;
     }, "Soko Bot Task creation collided with another action");
   }
 
-  private async updateTask(
+  private async mutateTask(
     authorized: SokoBotActionContext,
     rawInput: unknown,
     toolCallId: string,
-    approved = false,
+    options: { capability: "update_task" | "archive_task"; approved?: boolean },
   ) {
-    const input = taskUpdateInputSchema.parse(rawInput);
+    const { capability, approved = false } = options;
+    const input: ReturnType<typeof taskUpdateInputSchema.parse> & {
+      archive: boolean;
+    } =
+      capability === "archive_task"
+        ? { ...taskArchiveInputSchema.parse(rawInput), archive: true }
+        : { ...taskUpdateInputSchema.parse(rawInput), archive: false };
     return serializableTransaction(async (tx) => {
-      await this.requireMutationAuthority(tx, authorized, approved);
+      await this.requireMutationAuthority(tx, authorized, approved, capability);
+      if (input.archive) {
+        const archiveTurn = await tx.sokoBotTurn.findUniqueOrThrow({
+          where: { id: authorized.turn.id },
+          include: { contextSnapshot: { select: { packet: true } } },
+        });
+        if (!approved) {
+          const packet = z
+            .object({
+              tasks: z.array(
+                z.object({
+                  id: z.string(),
+                  requiredReference: z.boolean().optional(),
+                }),
+              ),
+            })
+            .safeParse(archiveTurn.contextSnapshot?.packet);
+          const references = packet.success
+            ? packet.data.tasks
+                .filter((task) => task.requiredReference)
+                .map((task) => task.id)
+            : [];
+          const explicitIds =
+            archiveTurn.userMessage.match(
+              /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+            ) ?? [];
+          const targets = [...new Set([...references, ...explicitIds])];
+          if (targets.length !== 1 || targets[0] !== input.taskId)
+            throw new SokoBotRuntimeAuthorizationError(
+              "Archive requires one explicitly identified task; ask the owner to confirm the exact target",
+            );
+          const priorArchive = await tx.sokoBotToolCall.findFirst({
+            where: {
+              turnId: authorized.turn.id,
+              capability: "archive_task",
+              status: "COMPLETED",
+              targetId: { not: input.taskId },
+              verification: "LOCAL_TRANSACTION",
+            },
+            select: { id: true },
+          });
+          if (priorArchive)
+            throw new SokoBotRuntimeAuthorizationError(
+              "Only one task may be archived per owner request",
+            );
+        }
+      }
+      const claim = await claimTaskEventAction(
+        tx,
+        {
+          ...authorized.turn,
+          turnId: authorized.turn.id,
+          source: authorized.turn.source ?? "CHAT",
+        },
+        input.taskId,
+        "TASK_STATE",
+      );
+      if (!claim.allowed)
+        throw new SokoBotRuntimeAuthorizationError(
+          "This turn has no current authority for this task event action",
+        );
+      if (approved) {
+        await tx.sokoBotToolCall.upsert({
+          where: {
+            turnId_toolCallId: { turnId: authorized.turn.id, toolCallId },
+          },
+          create: {
+            turnId: authorized.turn.id,
+            toolCallId,
+            capability,
+            operationKey: actionOperationKey({
+              workspaceId: authorized.turn.workspaceId,
+              principalId: authorized.turn.userId,
+              intentRevision: toolCallId,
+              capability,
+              inputHash: actionInputHash(rawInput),
+            }),
+            inputHash: actionInputHash(rawInput),
+            actorBotId: authorized.turn.sokoBotId,
+          },
+          update: {},
+        });
+      }
+      const before = await tx.task.findFirst({
+        where: {
+          id: input.taskId,
+          workspaceId: authorized.turn.workspaceId,
+          ownerId: authorized.turn.userId,
+        },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          status: true,
+          projectId: true,
+          archivedAt: true,
+          updatedAt: true,
+          assigneeId: true,
+        },
+      });
+      if (input.archive && before?.archivedAt) {
+        const event = await tx.taskEvent.create({
+          data: {
+            taskId: before.id,
+            sokoBotId: authorized.turn.sokoBotId,
+            comment:
+              "Verified that this Task was already archived; history retained",
+          },
+        });
+        const result = {
+          id: before.id,
+          name: before.name,
+          status: before.status,
+          assigneeId: before.assigneeId,
+          before: {
+            projectId: before.projectId,
+            archivedAt: before.archivedAt,
+          },
+          after: { projectId: before.projectId, archivedAt: before.archivedAt },
+        };
+        await tx.sokoBotDelegation.create({
+          data: {
+            turnId: authorized.turn.id,
+            toolCallId,
+            kind: "TASK",
+            action: capability,
+            outcome: before.status,
+            lastSeenStatus: before.status,
+            taskId: before.id,
+          },
+        });
+        await commitActionReceipt(tx, {
+          turnId: authorized.turn.id,
+          toolCallId,
+          actorBotId: authorized.turn.sokoBotId,
+          targetId: before.id,
+          effectEventId: event.id,
+          claimId: claim.claimId,
+          observedVersion: before.updatedAt.toISOString(),
+          disposition: "ALREADY_SATISFIED",
+          result: persistedToolResult(result),
+        });
+        return result;
+      }
+      if (
+        before &&
+        !input.archive &&
+        (input.name === undefined || input.name === before.name) &&
+        (input.description === undefined ||
+          input.description === before.description) &&
+        (input.status === undefined || input.status === before.status) &&
+        (input.projectId === undefined || input.projectId === before.projectId)
+      ) {
+        if (
+          input.expectedUpdatedAt &&
+          before.updatedAt.toISOString() !== input.expectedUpdatedAt
+        )
+          throw new SokoBotRuntimeConflictError("Task changed; read it again");
+        const unchanged = {
+          id: before.id,
+          name: before.name,
+          status: before.status,
+          assigneeId: before.assigneeId,
+          before: {
+            projectId: before.projectId,
+            archivedAt: before.archivedAt,
+          },
+          after: { projectId: before.projectId, archivedAt: before.archivedAt },
+        };
+        await commitActionReceipt(tx, {
+          turnId: authorized.turn.id,
+          toolCallId,
+          actorBotId: authorized.turn.sokoBotId,
+          targetId: before.id,
+          claimId: claim.claimId,
+          observedVersion: before.updatedAt?.toISOString(),
+          disposition: "ALREADY_SATISFIED",
+          result: persistedToolResult(unchanged),
+        });
+        return unchanged;
+      }
+      const effectEventId = randomUUID();
       const task = await updateTaskForActor(
         {
           actor: {
@@ -1941,8 +2354,14 @@ export class SokoBotRuntimeService {
           intent: "metadata",
           name: input.name,
           description: input.description,
+          projectId: input.projectId,
+          expectedUpdatedAt: input.expectedUpdatedAt
+            ? new Date(input.expectedUpdatedAt)
+            : undefined,
+          archive: input.archive,
           status: input.status,
           channel: Channel.SOKOSUMI,
+          effectEventId,
         },
         tx,
       );
@@ -1951,27 +2370,33 @@ export class SokoBotRuntimeService {
         name: task.name,
         status: task.status,
         assigneeId: task.assigneeId,
+        before: {
+          projectId: before?.projectId ?? null,
+          archivedAt: before?.archivedAt ?? null,
+        },
+        after: { projectId: task.projectId, archivedAt: task.archivedAt },
       };
       await tx.sokoBotDelegation.create({
         data: {
           turnId: authorized.turn.id,
           toolCallId,
           kind: "TASK",
-          action: "update_task",
+          action: capability,
           outcome: updated.status,
           lastSeenStatus: updated.status,
           taskId: updated.id,
         },
       });
-      if (!approved) {
-        await tx.sokoBotToolCall.update({
-          where: {
-            turnId_toolCallId: {
-              turnId: authorized.turn.id,
-              toolCallId,
-            },
-          },
-          data: { status: "COMPLETED", result: persistedToolResult(updated) },
+      {
+        await commitActionReceipt(tx, {
+          turnId: authorized.turn.id,
+          toolCallId,
+          actorBotId: authorized.turn.sokoBotId,
+          targetId: task.id,
+          effectEventId,
+          claimId: claim.claimId,
+          observedVersion: task.updatedAt?.toISOString(),
+          result: persistedToolResult(updated),
         });
       }
       return updated;
@@ -1986,8 +2411,50 @@ export class SokoBotRuntimeService {
   ) {
     const input = taskAssignInputSchema.parse(rawInput);
     return serializableTransaction(async (tx) => {
-      await this.requireMutationAuthority(tx, authorized, approved);
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        approved,
+        "assign_task",
+      );
       const status = input.ready ? TaskStatus.READY : TaskStatus.DRAFT;
+      const claim = await claimTaskEventAction(
+        tx,
+        {
+          ...authorized.turn,
+          turnId: authorized.turn.id,
+          source: authorized.turn.source ?? "CHAT",
+        },
+        input.taskId,
+        "TASK_STATE",
+      );
+      if (!claim.allowed)
+        throw new SokoBotRuntimeAuthorizationError(
+          "This turn has no current authority for this task event action",
+        );
+      if (approved) {
+        await tx.sokoBotToolCall.upsert({
+          where: {
+            turnId_toolCallId: { turnId: authorized.turn.id, toolCallId },
+          },
+          create: {
+            turnId: authorized.turn.id,
+            toolCallId,
+            capability: "assign_task",
+            operationKey: actionOperationKey({
+              workspaceId: authorized.turn.workspaceId,
+              principalId: authorized.turn.userId,
+              intentRevision: toolCallId,
+              capability: "assign_task",
+              inputHash: actionInputHash(rawInput),
+            }),
+            inputHash: actionInputHash(rawInput),
+            actorBotId: authorized.turn.sokoBotId,
+          },
+          update: {},
+        });
+      }
+      const effectEventId = randomUUID();
       const task = await updateTaskForActor(
         {
           actor: {
@@ -2001,6 +2468,7 @@ export class SokoBotRuntimeService {
           ...toolAssigneeFields(input.coworkerId, authorized.turn.sokoBotId),
           status,
           channel: Channel.SOKOSUMI,
+          effectEventId,
         },
         tx,
       );
@@ -2021,15 +2489,16 @@ export class SokoBotRuntimeService {
           taskId: updated.id,
         },
       });
-      if (!approved) {
-        await tx.sokoBotToolCall.update({
-          where: {
-            turnId_toolCallId: {
-              turnId: authorized.turn.id,
-              toolCallId,
-            },
-          },
-          data: { status: "COMPLETED", result: persistedToolResult(updated) },
+      {
+        await commitActionReceipt(tx, {
+          turnId: authorized.turn.id,
+          toolCallId,
+          actorBotId: authorized.turn.sokoBotId,
+          targetId: task.id,
+          effectEventId,
+          claimId: claim.claimId,
+          observedVersion: task.updatedAt?.toISOString(),
+          result: persistedToolResult(updated),
         });
       }
       return updated;
@@ -2040,8 +2509,31 @@ export class SokoBotRuntimeService {
     tx: Prisma.TransactionClient,
     authorized: SokoBotActionContext,
     approved: boolean,
+    capability?: SokoBotCapability,
   ) {
     const now = new Date();
+    if (approved && authorized.confirmationTurnId) {
+      await tx.$queryRaw`SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${authorized.confirmationTurnId}::uuid FOR UPDATE`;
+      const confirmation = await tx.sokoBotTurn.findFirst({
+        where: {
+          id: authorized.confirmationTurnId,
+          sokoBotId: authorized.turn.sokoBotId,
+          userId: authorized.turn.userId,
+          workspaceId: authorized.turn.workspaceId,
+          source: "CHAT",
+          chainDepth: 0,
+          status: { in: ["STARTING", "RUNNING"] },
+          deadlineAt: { gt: now },
+          leaseExpiresAt: { gt: now },
+          cancellationRequestedAt: null,
+        },
+        select: { id: true },
+      });
+      if (!confirmation)
+        throw new SokoBotRuntimeAuthorizationError(
+          "Confirmation turn is no longer writable",
+        );
+    }
     if (approved) {
       // Serialize approved decisions with administrator PAUSE. Whichever
       // transaction locks the bot first defines whether this mutation lands
@@ -2061,6 +2553,30 @@ export class SokoBotRuntimeService {
         WHERE "id" = ${authorized.turn.id}::uuid
         FOR UPDATE
       `;
+      // Serialize runtime effects with pause as well as turn cancellation.
+      await tx.$queryRaw`SELECT "id" FROM "soko_bot" WHERE "id" = ${authorized.turn.sokoBotId}::uuid FOR UPDATE`;
+    }
+    const intentTurn = await tx.sokoBotTurn.findFirst({
+      where: { id: authorized.turn.id },
+      select: { intentId: true, intentRevision: true },
+    });
+    if (intentTurn?.intentId) {
+      await tx.$queryRaw`SELECT "id" FROM "soko_bot_intent" WHERE "id" = ${intentTurn.intentId}::uuid FOR UPDATE`;
+      const intent = await tx.sokoBotIntent.findFirst({
+        where: {
+          id: intentTurn.intentId,
+          revision: intentTurn.intentRevision ?? undefined,
+          sokoBotId: authorized.turn.sokoBotId,
+          workspaceId: authorized.turn.workspaceId,
+          state: { notIn: ["CANCELLED", "SUPERSEDED", "EXPIRED"] },
+          expiresAt: { gt: now },
+        },
+        select: { id: true },
+      });
+      if (!intent)
+        throw new SokoBotRuntimeAuthorizationError(
+          "Intent is expired, cancelled or superseded",
+        );
     }
     const workspace = await requireSokoBotWorkspaceAccess(
       tx,
@@ -2073,6 +2589,7 @@ export class SokoBotRuntimeService {
           id: authorized.turn.sokoBotId,
           userId: authorized.turn.userId,
           archivedAt: null,
+          adminPausedAt: null,
           status: { not: "PAUSED" },
         },
         select: { id: true },
@@ -2094,7 +2611,13 @@ export class SokoBotRuntimeService {
         status: { in: ["STARTING", "RUNNING"] },
         deadlineAt: { gt: now },
         leaseExpiresAt: { gt: now },
-        sokoBot: { archivedAt: null, status: { not: "PAUSED" } },
+        cancellationRequestedAt: null,
+        ...(capability ? { capabilityNames: { has: capability } } : {}),
+        sokoBot: {
+          archivedAt: null,
+          adminPausedAt: null,
+          status: { not: "PAUSED" },
+        },
       },
       select: { id: true },
     });
@@ -2124,7 +2647,12 @@ export class SokoBotRuntimeService {
     }
     const hash = hashMemory(markdown);
     return serializableTransaction(async (tx) => {
-      await this.requireMutationAuthority(tx, authorized, false);
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        "update_memory",
+      );
       const bot = await tx.sokoBot.findUniqueOrThrow({
         where: { id: authorized.turn.sokoBotId },
         select: { memoryVersion: true },
@@ -2166,17 +2694,34 @@ export class SokoBotRuntimeService {
         where: {
           turnId_toolCallId: { turnId: authorized.turn.id, toolCallId },
         },
-        data: { status: "COMPLETED", result: persistedToolResult(revision) },
+        data: {
+          status: "COMPLETED",
+          result: persistedToolResult(revision),
+          actorBotId: authorized.turn.sokoBotId,
+          targetId: revision.id,
+          disposition: "APPLIED",
+          verification: "LOCAL_TRANSACTION",
+          committedAt: new Date(),
+        },
       });
       return revision;
     }, "Memory changed during turn");
   }
 
   async executeTool(input: ExecuteSokoBotToolInput): Promise<unknown> {
-    await this.authorize(input);
-    const inputHash = createHash("sha256")
-      .update(JSON.stringify(input.input ?? null))
-      .digest("hex");
+    const authorized = await this.authorize(input);
+    const inputHash = actionInputHash(input.input ?? null);
+    const operationKey = ACTION_CAPABILITIES.has(input.capability)
+      ? actionOperationKey({
+          workspaceId: authorized.turn.workspaceId,
+          principalId: authorized.turn.userId,
+          intentRevision: authorized.turn.intentId
+            ? `${authorized.turn.intentId}:${authorized.turn.intentRevision}`
+            : authorized.turn.id,
+          capability: input.capability,
+          inputHash,
+        })
+      : null;
     let existing = await prisma.sokoBotToolCall.findUnique({
       where: {
         turnId_toolCallId: {
@@ -2202,6 +2747,12 @@ export class SokoBotRuntimeService {
           },
         });
         if (raced) return raced;
+        if (operationKey) {
+          const operation = await tx.sokoBotToolCall.findUnique({
+            where: { operationKey },
+          });
+          if (operation) return operation;
+        }
         const callCount = await tx.sokoBotToolCall.count({
           where: { turnId: input.turnId },
         });
@@ -2215,6 +2766,8 @@ export class SokoBotRuntimeService {
             turnId: input.turnId,
             toolCallId: input.toolCallId,
             capability: input.capability,
+            operationKey,
+            actorBotId: authorized.turn.sokoBotId,
             inputHash,
             input: persistedToolResult(input.input ?? null),
           },
@@ -2231,39 +2784,176 @@ export class SokoBotRuntimeService {
           "Tool call id was reused with different input",
         );
       }
-      if (existing.status === "COMPLETED") return existing.result;
-      if (existing.status === "FAILED") {
-        throw new SokoBotRuntimeConflictError("Tool call previously failed");
+      if (existing.disposition === "UNKNOWN") {
+        throw new SokoBotRuntimeConflictError(
+          "Effect outcome is unknown; reconciliation is required before retrying",
+        );
       }
-      const reclaimed = await prisma.sokoBotToolCall.updateMany({
-        where: {
-          id: existing.id,
-          status: "PENDING",
-          updatedAt: {
-            lt: new Date(Date.now() - TOOL_CALL_STALE_MS),
+      if (existing.status === "COMPLETED") {
+        if (
+          input.capability === "archive_task" &&
+          !(await verifyTaskArchiveReceipt(
+            prisma,
+            existing.replayedReceiptId ?? existing.id,
+          ))
+        ) {
+          throw new SokoBotRuntimeConflictError(
+            "Archived task history could not be verified",
+          );
+        }
+        if (
+          operationKey &&
+          (existing.turnId !== input.turnId ||
+            existing.toolCallId !== input.toolCallId)
+        ) {
+          await prisma.sokoBotToolCall.upsert({
+            where: {
+              turnId_toolCallId: {
+                turnId: input.turnId,
+                toolCallId: input.toolCallId,
+              },
+            },
+            create: {
+              turnId: input.turnId,
+              toolCallId: input.toolCallId,
+              capability: input.capability,
+              actorBotId: authorized.turn.sokoBotId,
+              inputHash,
+              input: persistedToolResult(input.input ?? null),
+              result: persistedToolResult(existing.result),
+              status: "COMPLETED",
+              replayedReceiptId: existing.replayedReceiptId ?? existing.id,
+              disposition: "ALREADY_SATISFIED",
+              verification: "NONE",
+            },
+            // Never replace a real action receipt with a replay marker.
+            update: {},
+          });
+        }
+        return existing.result;
+      }
+      if (
+        existing.status === "FAILED" &&
+        !EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) &&
+        existing.disposition === "REJECTED" &&
+        existing.verification === "NONE" &&
+        !existing.committedAt
+      ) {
+        const reopened = await prisma.sokoBotToolCall.updateMany({
+          where: {
+            id: existing.id,
+            status: "FAILED",
+            disposition: "REJECTED",
+            verification: "NONE",
+            committedAt: null,
           },
-        },
-        data: {
-          updatedAt: new Date(),
-          errorKind: null,
-          errorDetail: null,
-        },
-      });
-      if (reclaimed.count === 0) {
-        throw new SokoBotRuntimeConflictError("Tool call is already executing");
+          data: {
+            status: "PENDING",
+            disposition: null,
+            operationKey,
+            errorKind: null,
+            errorDetail: null,
+          },
+        });
+        if (reopened.count !== 1)
+          throw new SokoBotRuntimeConflictError(
+            "Tool call retry was claimed concurrently",
+          );
+      } else {
+        if (existing.status === "FAILED") {
+          throw new SokoBotRuntimeConflictError("Tool call previously failed");
+        }
+        if (EXTERNAL_EFFECT_CAPABILITIES.has(input.capability)) {
+          await prisma.sokoBotToolCall.updateMany({
+            where: {
+              id: existing.id,
+              status: "PENDING",
+              updatedAt: { lt: new Date(Date.now() - TOOL_CALL_STALE_MS) },
+            },
+            data: {
+              status: "FAILED",
+              disposition: "UNKNOWN",
+              verification: "NONE",
+            },
+          });
+          throw new SokoBotRuntimeConflictError(
+            "Effect outcome is unknown; reconciliation is required before retrying",
+          );
+        }
+        if (existing.turnId && existing.turnId !== input.turnId) {
+          throw new SokoBotRuntimeConflictError(
+            "Previous-turn operation requires reconciliation before retrying",
+          );
+        }
+        const reclaimed = await prisma.sokoBotToolCall.updateMany({
+          where: {
+            id: existing.id,
+            status: "PENDING",
+            updatedAt: {
+              lt: new Date(Date.now() - TOOL_CALL_STALE_MS),
+            },
+          },
+          data: {
+            updatedAt: new Date(),
+            errorKind: null,
+            errorDetail: null,
+          },
+        });
+        if (reclaimed.count === 0) {
+          throw new SokoBotRuntimeConflictError(
+            "Tool call is already executing",
+          );
+        }
       }
+      // A semantic retry may carry a new call id. The original reserved row
+      // remains authoritative for its transaction and finalization.
+      if (existing.toolCallId)
+        input = { ...input, toolCallId: existing.toolCallId };
     }
 
-    try {
-      const result = await this.executeAuthorizedTool(input);
-      await prisma.sokoBotToolCall.update({
-        where: {
-          turnId_toolCallId: {
+    const externalEffect = EXTERNAL_EFFECT_CAPABILITIES.has(input.capability);
+    if (externalEffect) {
+      // Fence cancellation and capability revocation at the durable dispatch
+      // boundary. A crash after this commit remains UNKNOWN, never retryable.
+      await serializableTransaction(async (tx) => {
+        await this.requireMutationAuthority(
+          tx,
+          authorized,
+          false,
+          input.capability,
+        );
+        const reserved = await tx.sokoBotToolCall.updateMany({
+          where: {
             turnId: input.turnId,
             toolCallId: input.toolCallId,
+            status: "PENDING",
           },
+          data: { disposition: "UNKNOWN", verification: "NONE" },
+        });
+        if (reserved.count !== 1)
+          throw new SokoBotRuntimeConflictError(
+            "External action reservation is unavailable",
+          );
+      }, "External action reservation changed concurrently");
+    }
+    try {
+      const result = await this.executeAuthorizedTool(input);
+      await prisma.sokoBotToolCall.updateMany({
+        where: {
+          turnId: input.turnId,
+          toolCallId: input.toolCallId,
+          ...(externalEffect
+            ? {
+                status: { in: ["PENDING", "COMPLETED"] },
+                disposition: "UNKNOWN",
+                verification: "NONE",
+              }
+            : { status: "PENDING" }),
         },
         data: {
+          ...(externalEffect
+            ? externalActionReceipt(input.capability, result)
+            : {}),
           status: "COMPLETED",
           result: persistedToolResult(result ?? null),
         },
@@ -2274,10 +2964,23 @@ export class SokoBotRuntimeService {
         where: {
           turnId: input.turnId,
           toolCallId: input.toolCallId,
-          status: "PENDING",
+          ...(externalEffect
+            ? {
+                status: { in: ["PENDING", "COMPLETED"] },
+                disposition: "UNKNOWN",
+                verification: "NONE",
+              }
+            : { status: "PENDING" }),
         },
         data: {
           status: "FAILED",
+          // A rolled-back local attempt is not an enduring semantic reservation.
+          ...(!externalEffect ? { operationKey: null } : {}),
+          disposition: ACTION_CAPABILITIES.has(input.capability)
+            ? EXTERNAL_EFFECT_CAPABILITIES.has(input.capability)
+              ? "UNKNOWN"
+              : "REJECTED"
+            : undefined,
           errorKind: error instanceof Error ? error.name : "unknown",
           errorDetail: persistedErrorDetail(error),
         },
@@ -2348,7 +3051,10 @@ export class SokoBotRuntimeService {
       case "create_task":
         return this.createTask(authorized, input.input, input.toolCallId);
       case "update_task":
-        return this.updateTask(authorized, input.input, input.toolCallId);
+      case "archive_task":
+        return this.mutateTask(authorized, input.input, input.toolCallId, {
+          capability: input.capability,
+        });
       case "assign_task":
         return this.assignTask(authorized, input.input, input.toolCallId);
       case "get_task_status": {
@@ -2364,7 +3070,7 @@ export class SokoBotRuntimeService {
       case "reply_to_task":
         return this.replyToTask(authorized, input.input, input.toolCallId);
       case "link_tasks":
-        return this.linkTasks(authorized, input.input);
+        return this.linkTasks(authorized, input.input, input.toolCallId);
       case "find_agents": {
         const { query } = searchInputSchema.parse(input.input);
         return prisma.agent.findMany({
@@ -2585,6 +3291,33 @@ export class SokoBotRuntimeService {
           });
       case "update_memory":
         return this.updateMemory(authorized, input.input, input.toolCallId);
+      case "manage_reminder": {
+        const parsed = sokoBotManageReminderInputSchema.parse(input.input);
+        return serializableTransaction(async (tx) => {
+          await this.requireMutationAuthority(
+            tx,
+            authorized,
+            false,
+            "manage_reminder",
+          );
+          const reminder = await manageSokoBotReminder(tx, {
+            sokoBotId: authorized.turn.sokoBotId,
+            ...parsed,
+          });
+          if (!reminder.applied || !reminder.id)
+            throw new SokoBotRuntimeValidationError(
+              "Reminder changed or action is invalid; read it again",
+            );
+          await commitActionReceipt(tx, {
+            turnId: authorized.turn.id,
+            toolCallId: input.toolCallId,
+            actorBotId: authorized.turn.sokoBotId,
+            targetId: reminder.id,
+            result: persistedToolResult(reminder),
+          });
+          return reminder;
+        }, "Reminder changed concurrently");
+      }
       case "list_schedules":
         return listSokoBotSchedules(authorized.turn.sokoBotId);
       case "list_chats":
@@ -2602,7 +3335,10 @@ export class SokoBotRuntimeService {
       }
       case "post_chat": {
         const parsed = sokoBotPostChatInputSchema.parse(input.input);
-        return this.postChat(authorized, parsed);
+        return this.postChat(authorized, {
+          ...parsed,
+          toolCallId: input.toolCallId,
+        });
       }
       case "list_files": {
         const parsed = sokoBotListFilesInputSchema.parse(input.input);
@@ -2626,23 +3362,33 @@ export class SokoBotRuntimeService {
           "email",
           parsed.provider,
         );
-        if (integrations.length === 0) {
-          return { messages: [], note: "No mailbox is connected." };
-        }
         const limit = parsed.limit ?? 20;
-        const results = await Promise.all(
-          integrations.map((integration) =>
-            fetchInboxMessages(integration, {
-              query: parsed.query,
-              since: parsed.since ? new Date(parsed.since) : undefined,
-              unreadOnly: parsed.unreadOnly,
-              limit,
-            }),
+        const result = await readSokoBotSource({
+          source: "MAIL",
+          filters: {
+            query: parsed.query ?? "",
+            since: parsed.since ?? "",
+            unreadOnly: String(parsed.unreadOnly ?? false),
+          },
+          queries: integrations.map(
+            (integration) => () =>
+              fetchInboxMessages(integration, {
+                query: parsed.query,
+                since: parsed.since ? new Date(parsed.since) : undefined,
+                unreadOnly: parsed.unreadOnly,
+                limit,
+              }),
           ),
-        );
+        });
         return {
-          messages: results
-            .flat()
+          coverage: {
+            ...result.coverage,
+            includedCount: Math.min(result.rows.length, limit),
+            omittedCount: Math.max(0, result.rows.length - limit),
+          },
+          failedSources: result.failedSources,
+          note: result.note,
+          messages: result.rows
             .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
             .slice(0, limit),
         };
@@ -2711,15 +3457,19 @@ export class SokoBotRuntimeService {
           "calendar",
           parsed.provider,
         );
-        if (integrations.length === 0) {
-          return { events: [], note: "No calendar is connected." };
-        }
+        if (to <= from)
+          throw new SokoBotRuntimeValidationError(
+            "Calendar window must end after it starts",
+          );
         const limit = parsed.limit ?? 50;
-        const results = await Promise.all(
-          integrations.map((integration) =>
-            fetchCalendarEvents(integration, { from, to, limit }),
+        const result = await readSokoBotSource({
+          source: "CALENDAR",
+          filters: { from: from.toISOString(), to: to.toISOString() },
+          queries: integrations.map(
+            (integration) => () =>
+              fetchCalendarEvents(integration, { from, to, limit }),
           ),
-        );
+        });
         const tzRow = await prisma.sokoBot.findUnique({
           where: { id: authorized.turn.sokoBotId },
           select: { ingestTimezone: true },
@@ -2738,8 +3488,14 @@ export class SokoBotRuntimeService {
             : null;
         return {
           timeZone,
-          events: results
-            .flat()
+          coverage: {
+            ...result.coverage,
+            includedCount: Math.min(result.rows.length, limit),
+            omittedCount: Math.max(0, result.rows.length - limit),
+          },
+          failedSources: result.failedSources,
+          note: result.note,
+          events: result.rows
             .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
             .slice(0, limit)
             .map((event) => ({
@@ -2750,34 +3506,67 @@ export class SokoBotRuntimeService {
         };
       }
       case "create_schedule":
-        return runScheduleTool(() =>
-          createSokoBotSchedule({
-            userId: authorized.turn.userId,
-            workspaceId: authorized.turn.workspaceId,
-            ...createScheduleInputSchema.parse(input.input),
-          }),
-        );
       case "update_schedule":
+      case "delete_schedule":
         return runScheduleTool(() =>
-          updateSokoBotSchedule({
-            userId: authorized.turn.userId,
-            ...updateScheduleInputSchema.parse(input.input),
-          }),
+          serializableTransaction(async (tx) => {
+            await this.requireMutationAuthority(
+              tx,
+              authorized,
+              false,
+              input.capability,
+            );
+            const scope = {
+              userId: authorized.turn.userId,
+              workspaceId: authorized.turn.workspaceId,
+              sokoBotId: authorized.turn.sokoBotId,
+            };
+            const schedule =
+              input.capability === "create_schedule"
+                ? await createSokoBotSchedule(
+                    {
+                      ...scope,
+                      ...createScheduleInputSchema.parse(input.input),
+                    },
+                    tx,
+                  )
+                : input.capability === "update_schedule"
+                  ? await updateSokoBotSchedule(
+                      {
+                        ...scope,
+                        ...updateScheduleInputSchema.parse(input.input),
+                      },
+                      tx,
+                    )
+                  : await deleteSokoBotSchedule(
+                      scope.userId,
+                      { ...scope, ...scheduleIdInputSchema.parse(input.input) },
+                      tx,
+                    );
+            const result =
+              input.capability === "delete_schedule"
+                ? { ...schedule, deleted: true }
+                : schedule;
+            await commitActionReceipt(tx, {
+              turnId: authorized.turn.id,
+              toolCallId: input.toolCallId,
+              actorBotId: authorized.turn.sokoBotId,
+              targetId: schedule.id,
+              result: persistedToolResult(result),
+            });
+            return result;
+          }, "Schedule action collided with another operation"),
         );
-      case "delete_schedule": {
-        const ref = scheduleIdInputSchema.parse(input.input);
-        return runScheduleTool(async () => {
-          const deleted = await deleteSokoBotSchedule(
-            authorized.turn.userId,
-            ref,
-          );
-          return { deleted: true, ...deleted };
-        });
-      }
     }
   }
 
-  async resolveDecision(userId: string, decisionId: string, accepted: boolean) {
+  async resolveDecision(
+    userId: string,
+    decisionId: string,
+    accepted: boolean,
+    ownerConfirmed = true,
+    confirmationTurnId?: string,
+  ) {
     const decision = await prisma.sokoBotPendingDecision.findFirst({
       where: {
         id: decisionId,
@@ -2798,7 +3587,26 @@ export class SokoBotRuntimeService {
       });
       throw new SokoBotRuntimeConflictError("Pending decision expired");
     }
+    if (decision.intentId) {
+      const intent = await prisma.sokoBotIntent.findFirst({
+        where: {
+          id: decision.intentId,
+          requesterId: userId,
+          state: { in: ["AWAITING_CONFIRMATION", "IN_PROGRESS"] },
+          expiresAt: { gt: new Date() },
+        },
+      });
+      if (!intent)
+        throw new SokoBotRuntimeConflictError(
+          "Pending intent is no longer valid",
+        );
+    }
     if (!accepted) {
+      if (decision.intentId)
+        await prisma.sokoBotIntent.update({
+          where: { id: decision.intentId },
+          data: { state: "CANCELLED", revision: { increment: 1 } },
+        });
       const rejected = await prisma.sokoBotPendingDecision.updateMany({
         where: { id: decision.id, status: "PENDING" },
         data: {
@@ -2818,6 +3626,94 @@ export class SokoBotRuntimeService {
     }
 
     const decisionToolCallId = `decision:${decision.id}`;
+    const externalDecision =
+      decision.toolName === "hire_agent" ||
+      decision.toolName === "provide_job_input";
+    const actionContext: SokoBotActionContext = {
+      confirmationTurnId,
+      turn: {
+        id: decision.turnId,
+        sokoBotId: decision.sokoBotId,
+        userId,
+        workspaceId: decision.workspaceId,
+        eveSessionId: decision.turn.eveSessionId,
+        versionId: decision.turn.versionId,
+        source: decision.turn.source,
+        chainDepth: decision.turn.chainDepth,
+      },
+      classificationConfidence: 1,
+    };
+    const receiptKey = {
+      turnId: decision.turnId,
+      toolCallId: decisionToolCallId,
+    };
+    const receiptIdentity = {
+      ...receiptKey,
+      capability: decision.toolName,
+      inputHash: actionInputHash(decision.proposal),
+      actorBotId: decision.sokoBotId,
+      operationKey: actionOperationKey({
+        workspaceId: decision.workspaceId,
+        principalId: userId,
+        intentRevision: decisionToolCallId,
+        capability: decision.toolName,
+        inputHash: actionInputHash(decision.proposal),
+      }),
+    };
+    const reserveExternalReceipt = async (tx: Prisma.TransactionClient) => {
+      await this.requireMutationAuthority(tx, actionContext, ownerConfirmed);
+      const receipt = await tx.sokoBotToolCall.findUnique({
+        where: { turnId_toolCallId: receiptKey },
+      });
+      if (receipt && receipt.disposition !== "REJECTED") {
+        failureDisposition = "retain";
+        throw new SokoBotRuntimeConflictError(
+          "External decision outcome requires reconciliation before retrying",
+        );
+      }
+      if (receipt) {
+        await tx.sokoBotToolCall.update({
+          where: { id: receipt.id, disposition: "REJECTED" },
+          data: {
+            status: "PENDING",
+            disposition: "UNKNOWN",
+            verification: "NONE",
+            committedAt: null,
+          },
+        });
+      } else {
+        await tx.sokoBotToolCall.create({
+          data: {
+            ...receiptIdentity,
+            disposition: "UNKNOWN",
+            verification: "NONE",
+          },
+        });
+      }
+    };
+    const acknowledgeExternalReceipt = async (
+      targetId: string,
+      tx: Prisma.TransactionClient = prisma,
+    ) => {
+      const data = {
+        status: "COMPLETED" as const,
+        disposition: "APPLIED" as const,
+        verification: "PROVIDER_ACK" as const,
+        targetId,
+        committedAt: new Date(),
+        result: {
+          executed: true,
+          status: "ACCEPTED",
+          resultingEntityId: targetId,
+        },
+      };
+      await tx.sokoBotToolCall.upsert({
+        where: { turnId_toolCallId: receiptKey },
+        create: { ...receiptIdentity, ...data },
+        update: data,
+      });
+    };
+
     let resumeProcessing = false;
     if (decision.status === "PROCESSING") {
       const existingDelegation = await prisma.sokoBotDelegation.findUnique({
@@ -2846,6 +3742,22 @@ export class SokoBotRuntimeService {
         recoveredEntityId = existingInput?.id ?? null;
       }
       if (recoveredEntityId) {
+        if (decision.toolName === "archive_task") {
+          const receipt = await prisma.sokoBotToolCall.findUnique({
+            where: { turnId_toolCallId: receiptKey },
+            select: { id: true },
+          });
+          if (
+            !receipt ||
+            !(await verifyTaskArchiveReceipt(prisma, receipt.id))
+          ) {
+            throw new SokoBotRuntimeConflictError(
+              "Archived task history could not be verified",
+            );
+          }
+        }
+        if (externalDecision)
+          await acknowledgeExternalReceipt(recoveredEntityId);
         const [, recoveredDecision] = await prisma.$transaction([
           prisma.sokoBotDelegation.updateMany({
             where: {
@@ -2872,9 +3784,12 @@ export class SokoBotRuntimeService {
         ]);
         return recoveredDecision;
       }
-      const taskTarget = ["create_task", "update_task", "assign_task"].includes(
-        decision.toolName,
-      );
+      const taskTarget = [
+        "create_task",
+        "update_task",
+        "archive_task",
+        "assign_task",
+      ].includes(decision.toolName);
       const safelyRetryableJobReservation =
         (decision.toolName === "hire_agent" ||
           decision.toolName === "provide_job_input") &&
@@ -2944,6 +3859,17 @@ export class SokoBotRuntimeService {
       }
 
       const proposal = decision.proposal as Record<string, unknown>;
+      if (ownerConfirmed && decision.intentId) {
+        await prisma.sokoBotIntent.update({
+          where: { id: decision.intentId },
+          data: {
+            acceptanceCriteria: criteriaForConfirmedSokoBotAction(
+              decision.toolName,
+              proposal,
+            ),
+          },
+        });
+      }
       let resultingEntityId: string | null = null;
       if (decision.toolName === "hire_agent") {
         const hire = parseHireAgentInput(proposal);
@@ -2957,6 +3883,7 @@ export class SokoBotRuntimeService {
           select: { jobId: true, outcome: true, error: true },
         });
         if (existingDelegation?.jobId) {
+          await acknowledgeExternalReceipt(existingDelegation.jobId);
           return prisma.sokoBotPendingDecision.update({
             where: { id: decision.id },
             data: {
@@ -3011,6 +3938,7 @@ export class SokoBotRuntimeService {
                   "Soko Bot is paused or unavailable",
                 );
               }
+              await reserveExternalReceipt(tx);
               if (existingDelegation?.outcome === "failed") {
                 const reserved = await tx.sokoBotDelegation.updateMany({
                   where: {
@@ -3069,6 +3997,15 @@ export class SokoBotRuntimeService {
             // invalid-success outcomes may already have seller work running.
             failureDisposition =
               failure.kind === "unreachable" ? "restore" : "retain";
+            if (failure.kind === "unreachable")
+              await prisma.sokoBotToolCall.updateMany({
+                where: { ...receiptKey, disposition: "UNKNOWN" },
+                data: {
+                  status: "FAILED",
+                  disposition: "REJECTED",
+                  verification: "NONE",
+                },
+              });
           },
           afterLocalJobCreate: async (job, tx) => {
             const marker = sellerReservationMarker;
@@ -3091,6 +4028,7 @@ export class SokoBotRuntimeService {
                 "Agent hire reservation changed before local commit",
               );
             }
+            await acknowledgeExternalReceipt(job.id, tx);
           },
         });
         resultingEntityId = job.id;
@@ -3165,6 +4103,7 @@ export class SokoBotRuntimeService {
                 "Soko Bot is paused or unavailable",
               );
             }
+            await reserveExternalReceipt(tx);
             if (existingDelegation?.outcome === "failed") {
               const reserved = await tx.sokoBotDelegation.updateMany({
                 where: {
@@ -3231,6 +4170,15 @@ export class SokoBotRuntimeService {
             });
             failureDisposition =
               result.error.kind === "unreachable" ? "restore" : "retain";
+            if (result.error.kind === "unreachable")
+              await prisma.sokoBotToolCall.updateMany({
+                where: { ...receiptKey, disposition: "UNKNOWN" },
+                data: {
+                  status: "FAILED",
+                  disposition: "REJECTED",
+                  verification: "NONE",
+                },
+              });
             throw new SokoBotRuntimeValidationError(result.error.message);
           }
           try {
@@ -3281,6 +4229,7 @@ export class SokoBotRuntimeService {
         }
       } else if (decision.toolName === "create_task") {
         const authorized: SokoBotActionContext = {
+          confirmationTurnId,
           turn: {
             id: decision.turnId,
             sokoBotId: decision.sokoBotId,
@@ -3300,9 +4249,13 @@ export class SokoBotRuntimeService {
           true,
         );
         resultingEntityId = task.id;
-      } else if (decision.toolName === "update_task") {
-        const updated = await this.updateTask(
+      } else if (
+        decision.toolName === "update_task" ||
+        decision.toolName === "archive_task"
+      ) {
+        const updated = await this.mutateTask(
           {
+            confirmationTurnId,
             turn: {
               id: decision.turnId,
               sokoBotId: decision.sokoBotId,
@@ -3317,12 +4270,13 @@ export class SokoBotRuntimeService {
           },
           proposal,
           `decision:${decision.id}`,
-          true,
+          { capability: decision.toolName, approved: true },
         );
         resultingEntityId = updated.id;
       } else if (decision.toolName === "assign_task") {
         const updated = await this.assignTask(
           {
+            confirmationTurnId,
             turn: {
               id: decision.turnId,
               sokoBotId: decision.sokoBotId,
@@ -3342,6 +4296,16 @@ export class SokoBotRuntimeService {
         resultingEntityId = updated.id;
       }
 
+      if (externalDecision && resultingEntityId)
+        await acknowledgeExternalReceipt(resultingEntityId);
+      if (decision.intentId)
+        await prisma.sokoBotIntent.update({
+          where: { id: decision.intentId },
+          data: {
+            state: "IN_PROGRESS",
+            evidenceIds: resultingEntityId ? [resultingEntityId] : [],
+          },
+        });
       return await prisma.sokoBotPendingDecision.update({
         where: { id: decision.id },
         data: {

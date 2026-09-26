@@ -1,35 +1,44 @@
 import { createHash, randomUUID } from "node:crypto";
-
 import {
-  type Prisma,
+  Prisma,
   type SokoBot,
   type SokoBotTurn,
   SokoBotTurnStatus,
 } from "@sokosumi/database";
 import {
   applyVersionCapabilities,
+  capabilitiesForClassification,
   containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
   type IndexedRuntimeEvent,
+  isSokoBotSilentAnswer,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
-  SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRuntime,
   sanitizeSokoBotMemoryMarkdown,
   sokoBotContextPacketSchema,
 } from "@sokosumi/soko-bot";
-
+import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
 import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import {
+  buildSokoBotAudienceJobParentTaskWhere,
+  buildSokoBotAudienceTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  ACTION_CAPABILITIES,
+  actionInputHash,
+} from "@/lib/soko-bot/action-receipts";
+import { buildActionResponse } from "@/lib/soko-bot/action-response";
 import {
   type ClassificationResult,
   ExternalTurnClassifier,
@@ -49,6 +58,11 @@ import {
   requireSokoBotTurnFunding,
 } from "@/services/soko-bot-billing.service";
 import {
+  assessSokoBotIntentOutcome,
+  invalidateSokoBotIntentOutcomes,
+  sokoBotOutcomeSummary,
+} from "@/services/soko-bot-outcome.service";
+import {
   type CreateSokoBotScheduleInput,
   createSokoBotSchedule,
   deleteSokoBotSchedule,
@@ -59,10 +73,11 @@ import {
 } from "@/services/soko-bot-schedule.service";
 import {
   getDefaultSokoBotVersionId,
-  isKnownSokoBotVersionId,
+  isRunnableSokoBotVersionId,
   isSelectableSokoBotVersionId,
-  resolveSokoBotVersion,
+  resolveRunnableSokoBotVersion,
 } from "@/services/soko-bot-version.service";
+import { enqueueSokoBotDelivery } from "./soko-bot-delivery.service";
 
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
 const TURN_LEASE_MS = 16 * 60 * 1_000;
@@ -78,6 +93,7 @@ export const ACTIVE_TURN_STATUSES = [
 
 export class SokoBotNotFoundError extends Error {}
 export class SokoBotBusyError extends Error {}
+export class SokoBotNoDestinationError extends Error {}
 export class SokoBotValidationError extends Error {}
 /** The administrator switched the whole feature off. */
 export class SokoBotDisabledError extends Error {}
@@ -139,6 +155,17 @@ export interface StartSokoBotTurnInput {
   clientTurnId: string;
   message: string;
   source?: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
+  /** Trusted occurrence batch supplied by the internal sync workers. */
+  eventBatch?: {
+    eventId: string;
+    entityId: string;
+    purpose: string;
+    designatedHandlerBotId: string | null;
+    delegationIds?: string[];
+    status: string;
+    taskCursorAt?: Date;
+    delegationEventAt?: Date;
+  }[];
   /** Version override for this turn (lab); otherwise the bot's version. */
   versionId?: string;
   /** Set when a chat-room mention started the turn; the reply lands there. */
@@ -750,6 +777,128 @@ export class SokoBotControlPlane {
     );
   }
 
+  /** A human's exact confirmation consumes one scoped durable proposal. */
+  private async settleOwnerConfirmation(
+    turnId: string,
+    leaseToken: string,
+  ): Promise<boolean> {
+    const turn = await prisma.sokoBotTurn.findUnique({
+      where: { id: turnId },
+      include: {
+        chatMention: { select: { message: { select: { roomId: true } } } },
+        intent: {
+          include: {
+            decisions: {
+              where: { status: { in: ["PENDING", "PROCESSING", "ACCEPTED"] } },
+              take: 2,
+            },
+          },
+        },
+      },
+    });
+    if (
+      !turn ||
+      turn.source !== "CHAT" ||
+      turn.chainDepth !== 0 ||
+      (turn.requestedByUserId && turn.requestedByUserId !== turn.userId) ||
+      !/^(?:yes|yep|yeah|okay|ok|sure|go ahead|do that|please do|proceed)[.! ]*$/i.test(
+        turn.userMessage.trim(),
+      ) ||
+      !turn.intent ||
+      turn.intent.requesterId !== turn.userId ||
+      turn.intent.workspaceId !== turn.workspaceId ||
+      turn.intent.sokoBotId !== turn.sokoBotId ||
+      turn.intent.roomId !== (turn.chatMention?.message.roomId ?? null) ||
+      turn.intent.decisions.length !== 1
+    )
+      return false;
+    if (
+      turn.status !== "STARTING" ||
+      turn.leaseToken !== leaseToken ||
+      turn.cancellationRequestedAt ||
+      turn.intentRevision !== turn.intent.revision ||
+      turn.intent.expiresAt <= new Date() ||
+      !["AWAITING_CONFIRMATION", "IN_PROGRESS"].includes(turn.intent.state)
+    ) {
+      throw new SokoBotStartAbortedError("Confirmation is no longer active");
+    }
+    const decision = turn.intent.decisions[0];
+    if (
+      decision.userId !== turn.userId ||
+      decision.workspaceId !== turn.workspaceId ||
+      decision.sokoBotId !== turn.sokoBotId
+    ) {
+      throw new SokoBotStartAbortedError(
+        "Confirmation proposal is outside this conversation",
+      );
+    }
+    if (decision.status !== "ACCEPTED") {
+      const { sokoBotRuntimeService } = await import(
+        "./soko-bot-runtime.service"
+      );
+      await sokoBotRuntimeService.resolveDecision(
+        turn.userId,
+        decision.id,
+        true,
+        true,
+        turn.id,
+      );
+    }
+    await serializableTransaction(async (tx) => {
+      const active = await tx.sokoBotTurn.findFirst({
+        where: {
+          id: turn.id,
+          status: "STARTING",
+          leaseToken,
+          cancellationRequestedAt: null,
+        },
+      });
+      if (!active)
+        throw new SokoBotStartAbortedError(
+          "Confirmation stopped before settlement",
+        );
+      const receipt = await tx.sokoBotToolCall.findUnique({
+        where: {
+          turnId_toolCallId: {
+            turnId: decision.turnId,
+            toolCallId: `decision:${decision.id}`,
+          },
+        },
+      });
+      await tx.sokoBotToolCall.upsert({
+        where: {
+          turnId_toolCallId: {
+            turnId: turn.id,
+            toolCallId: `confirmed:${decision.id}`,
+          },
+        },
+        create: {
+          turnId: turn.id,
+          toolCallId: `confirmed:${decision.id}`,
+          capability: decision.toolName,
+          inputHash: receipt?.inputHash ?? actionInputHash(decision.proposal),
+          status: "COMPLETED",
+          disposition: receipt ? "ALREADY_SATISFIED" : "UNKNOWN",
+          verification: "NONE",
+          replayedReceiptId: receipt?.id,
+          actorBotId: turn.sokoBotId,
+          targetId: receipt?.targetId,
+          result: { confirmedDecisionId: decision.id },
+        },
+        update: {},
+      });
+      await tx.sokoBotTurn.update({
+        where: { id: turn.id },
+        data: {
+          finalAnswer:
+            "The confirmed action was processed. Verified effects are listed below.",
+        },
+      });
+    }, "Confirmation receipt collided with settlement");
+    await this.settleTurn({ turnId: turn.id, status: "COMPLETED", leaseToken });
+    return true;
+  }
+
   private async resumeAmbiguousStart(
     bot: SokoBot,
     turn: SokoBotTurn,
@@ -758,6 +907,27 @@ export class SokoBotControlPlane {
       throw new SokoBotRetryableStartError(
         "Ambiguous Soko Bot start has no reconciliation lease",
       );
+    }
+    if (
+      turn.intentId &&
+      /^(?:yes|yep|yeah|okay|ok|sure|go ahead|do that|please do|proceed)[.! ]*$/i.test(
+        turn.userMessage.trim(),
+      ) &&
+      (await this.settleOwnerConfirmation(turn.id, turn.leaseToken))
+    ) {
+      const completed = await prisma.sokoBotTurn.findUniqueOrThrow({
+        where: { id: turn.id },
+      });
+      return {
+        turnId: completed.id,
+        sokoBotId: completed.sokoBotId,
+        sessionId: completed.eveSessionId ?? bot.eveSessionId ?? "",
+        status: completed.status,
+        route: completed.route ?? "CLARIFY",
+        capabilities: completed.capabilityNames as SokoBotCapability[],
+        duplicate: true,
+        errorKind: completed.errorKind,
+      };
     }
     if (turn.deadlineAt <= new Date()) {
       throw new SokoBotRetryableStartError(
@@ -1262,11 +1432,16 @@ export class SokoBotControlPlane {
     };
   }
 
-  private async classificationContext(userId: string, workspaceId: string) {
-    const [projects, coworkers, agents, tasks, jobs] = await Promise.all([
+  private async classificationContext(
+    userId: string,
+    workspaceId: string,
+    audience: "OWNER" | "TEAMMATE",
+    message: string,
+  ) {
+    const [projects, coworkers, agents, recentTasks, jobs] = await Promise.all([
       prisma.project.findMany({
         where: { workspaceId },
-        select: { id: true },
+        select: { id: true, name: true },
         take: 50,
       }),
       prisma.coworker.findMany({
@@ -1278,33 +1453,135 @@ export class SokoBotControlPlane {
             { workspaceAccess: { some: { workspaceId, status: "GRANTED" } } },
           ],
         },
-        select: { id: true },
+        select: { id: true, name: true },
         take: 50,
       }),
       prisma.agent.findMany({
         where: { isShown: true, status: "ONLINE", apiBaseUrl: { not: null } },
-        select: { id: true },
+        select: { id: true, name: true },
         take: 50,
       }),
       prisma.task.findMany({
-        where: { workspaceId, archivedAt: null },
-        select: { id: true },
+        where: {
+          workspaceId,
+          archivedAt: null,
+          ...buildSokoBotAudienceTaskVisibilityWhere(userId, audience),
+        },
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          ownerId: true,
+          assigneeId: true,
+          assigneeSokoBotId: true,
+          projectId: true,
+          updatedAt: true,
+        },
         orderBy: { updatedAt: "desc" },
         take: 50,
       }),
       prisma.job.findMany({
-        where: { workspaceId, ownerId: userId },
-        select: { id: true },
+        where: {
+          workspaceId,
+          ownerId: userId,
+          ...buildSokoBotAudienceJobParentTaskWhere(userId, audience),
+        },
+        select: { id: true, name: true },
         orderBy: { updatedAt: "desc" },
         take: 50,
       }),
     ]);
+    const references = [
+      ...new Set(message.match(/\b[a-zA-Z0-9][a-zA-Z0-9_-]{15,80}\b/g) ?? []),
+    ].slice(0, 10);
+    const exactTasks = references.length
+      ? await prisma.task.findMany({
+          where: {
+            workspaceId,
+            archivedAt: null,
+            id: { in: references },
+            ...buildSokoBotAudienceTaskVisibilityWhere(userId, audience),
+          },
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            ownerId: true,
+            assigneeId: true,
+            assigneeSokoBotId: true,
+            projectId: true,
+            updatedAt: true,
+          },
+          take: 10,
+        })
+      : [];
+    // Search names at the same authorized seam as exact IDs. A quoted name
+    // remains one phrase; otherwise use a small conjunction of distinctive words.
+    const quotedName = message.match(/["“]([^"”]{3,120})["”]/u)?.[1];
+    const ignoredWords = new Set(
+      "what which where when how please could would should task tasks status update move archive assign project about with from that this these those into find show tell give have been done latest create research summary".split(
+        " ",
+      ),
+    );
+    const nameTerms = quotedName
+      ? [quotedName]
+      : [
+          ...new Set(
+            (
+              message
+                .slice(0, 1_000)
+                .toLowerCase()
+                .match(/[\p{L}\p{N}][\p{L}\p{N}_-]{3,39}/gu) ?? []
+            ).filter((word) => !ignoredWords.has(word)),
+          ),
+        ].slice(0, 4);
+    const namedTasks =
+      audience === "OWNER" && references.length === 0 && nameTerms.length
+        ? await prisma.task.findMany({
+            where: {
+              workspaceId,
+              archivedAt: null,
+              ...buildSokoBotAudienceTaskVisibilityWhere(userId, audience),
+              AND: nameTerms.map((term) => ({
+                name: { contains: term, mode: "insensitive" },
+              })),
+            },
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              ownerId: true,
+              assigneeId: true,
+              assigneeSokoBotId: true,
+              projectId: true,
+              updatedAt: true,
+            },
+            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+            take: 11,
+          })
+        : [];
+    const tasks = [
+      ...new Map(
+        [...exactTasks, ...namedTasks.slice(0, 10), ...recentTasks].map(
+          (task) => [task.id, task],
+        ),
+      ).values(),
+    ];
     return {
       projectIds: projects.map(({ id }) => id),
       coworkerIds: coworkers.map(({ id }) => id),
       agentIds: agents.map(({ id }) => id),
       taskIds: tasks.map(({ id }) => id),
+      namedTaskIds: namedTasks.slice(0, 10).map(({ id }) => id),
+      ambiguousTaskName: namedTasks.length > 1,
       jobIds: jobs.map(({ id }) => id),
+      candidates: [
+        ...projects.map((row) => ({ ...row, kind: "PROJECT" })),
+        ...coworkers.map((row) => ({ ...row, kind: "COWORKER" })),
+        ...agents.map((row) => ({ ...row, kind: "AGENT" })),
+        ...tasks.map((row) => ({ ...row, kind: "TASK" })),
+        ...jobs.map((row) => ({ ...row, kind: "JOB" })),
+      ],
     };
   }
 
@@ -1328,6 +1605,9 @@ export class SokoBotControlPlane {
           startedAt: true,
           costUsdMicros: true,
           status: true,
+          finalAnswer: true,
+          responseContract: true,
+          capabilityNames: true,
           leaseToken: true,
           cancellationRequestedAt: true,
           scheduleRun: {
@@ -1374,6 +1654,22 @@ export class SokoBotControlPlane {
         ? "Available credits were exhausted while settling this Soko Bot turn"
         : safeRuntimeDiagnostic(input.errorDetail);
 
+      const responseContract =
+        settledStatus === "COMPLETED"
+          ? await buildActionResponse(
+              tx,
+              input.turnId,
+              turn.finalAnswer ?? "",
+              (turn.capabilityNames ?? []).some((capability) =>
+                ACTION_CAPABILITIES.has(capability),
+              ),
+              turn.responseContract &&
+                typeof turn.responseContract === "object" &&
+                !Array.isArray(turn.responseContract)
+                ? turn.responseContract.narrative
+                : undefined,
+            )
+          : null;
       const now = new Date();
       const settled = await tx.sokoBotTurn.updateMany({
         where: {
@@ -1390,12 +1686,36 @@ export class SokoBotControlPlane {
             : null,
           errorKind: errorKind ?? null,
           errorDetail: errorDetail ?? null,
-          finalAnswer: settledStatus === "COMPLETED" ? undefined : null,
+          finalAnswer: responseContract?.answerText ?? null,
+          responseContract: responseContract ?? Prisma.JsonNull,
           leaseToken: null,
           leaseExpiresAt: null,
         },
       });
       if (settled.count === 0) return false;
+      const outcome = await assessSokoBotIntentOutcome(tx, input.turnId);
+      const outcomeSummary = sokoBotOutcomeSummary(outcome);
+      if (
+        responseContract &&
+        outcomeSummary &&
+        outcome &&
+        ["PARTIAL", "BLOCKED", "FAILED", "CANCELLED"].includes(outcome.state) &&
+        !isSokoBotSilentAnswer(responseContract.answerText) &&
+        (outcome.state !== "BLOCKED" ||
+          !["UNVERIFIED_OUTCOME", "OUTCOME_SCOPE_REQUIRES_REVIEW"].includes(
+            outcome.blockerKind ?? "",
+          ))
+      ) {
+        const answerText = `${outcomeSummary}\n\n${responseContract.answerText}`;
+        await tx.sokoBotTurn.update({
+          where: { id: input.turnId },
+          data: {
+            finalAnswer: answerText,
+            responseContract: { ...responseContract, answerText },
+          },
+        });
+      }
+      await enqueueSokoBotDelivery(tx, input.turnId);
 
       await tx.sokoBot.updateMany({
         where: {
@@ -1462,22 +1782,21 @@ export class SokoBotControlPlane {
     }, "Soko Bot turn settlement collided with another operation").then(
       async (settled) => {
         if (settled) {
-          // Lazy: the chat bridge pulls in realtime publishing, which the
-          // control plane must not load for page/schedule turns or tests.
-          const { finalizeSokoBotChatTurn, deliverSokoBotTurnToDirectRoom } =
-            await import("@/services/soko-bot-chat.service");
-          await finalizeSokoBotChatTurn(input.turnId).catch((error) => {
-            console.error("Soko Bot chat write-back failed", {
-              turnId: input.turnId,
-              error: error instanceof Error ? error.message : "unknown",
-            });
-          });
-          await deliverSokoBotTurnToDirectRoom(input.turnId).catch((error) => {
-            console.error("Soko Bot direct-room delivery failed", {
-              turnId: input.turnId,
-              error: error instanceof Error ? error.message : "unknown",
-            });
-          });
+          waitUntil(
+            import("@/services/soko-bot-delivery.service")
+              .then(({ deliverSokoBotTurnOutbox }) =>
+                deliverSokoBotTurnOutbox(input.turnId),
+              )
+              .catch((error) => {
+                console.warn(
+                  "Soko Bot inline delivery failed; durable retry remains pending",
+                  {
+                    turnId: input.turnId,
+                    error: error instanceof Error ? error.message : "unknown",
+                  },
+                );
+              }),
+          );
           // Quality score for every settled turn; the lab re-judges its own
           // turns with the scenario rubric afterwards.
           const { judgeTurnQuality } = await import(
@@ -1722,31 +2041,130 @@ export class SokoBotControlPlane {
     });
     if (!workspace) throw new SokoBotNotFoundError("Workspace not found");
 
+    const version = await resolveRunnableSokoBotVersion(
+      input.versionId ?? bot.versionId,
+    );
+
     await requireSokoBotTurnFunding(input.userId, bot.id);
 
+    const requestedByTeammate =
+      input.chat?.askedByBot === true ||
+      (!!input.chat?.requestedByUserId &&
+        input.chat.requestedByUserId !== input.userId);
+    const conversationMention = input.chat?.mentionId
+      ? await prisma.chatRoomMention.findUnique({
+          where: { id: input.chat.mentionId },
+          select: { message: { select: { roomId: true } } },
+        })
+      : null;
+    const destinationRoom = conversationMention?.message.roomId
+      ? { id: conversationMention.message.roomId }
+      : input.chat
+        ? null
+        : await prisma.chatRoom.findFirst({
+            where: {
+              workspaceId: input.workspaceId,
+              kind: "direct",
+              archivedAt: null,
+              sokoBotMembers: { some: { sokoBotId: bot.id } },
+              userMembers: { some: { userId: input.userId } },
+            },
+            select: { id: true },
+          });
+    if (["SCHEDULE", "EVENT", "INGEST"].includes(source) && !destinationRoom) {
+      throw new SokoBotNoDestinationError(
+        "No authorized destination exists for proactive output. Restore an authorized conversation to resume delivery.",
+      );
+    }
+    const intentScope = {
+      sokoBotId: bot.id,
+      workspaceId: input.workspaceId,
+      roomId: conversationMention?.message.roomId ?? null,
+      requesterId: input.chat?.requestedByUserId ?? input.userId,
+    };
+    const pendingIntents = requestedByTeammate
+      ? []
+      : await prisma.sokoBotIntent.findMany({
+          where: {
+            ...intentScope,
+            state: "AWAITING_CONFIRMATION",
+            expiresAt: { gt: new Date() },
+          },
+          take: 3,
+          select: {
+            id: true,
+            desiredOutcome: true,
+            targetIds: true,
+            expiresAt: true,
+            originatingTurn: { select: { route: true } },
+            decisions: {
+              where: { status: "PENDING" },
+              select: { id: true },
+              take: 2,
+            },
+          },
+        });
     const classifierContext = await this.classificationContext(
       input.userId,
       input.workspaceId,
+      requestedByTeammate ? "TEAMMATE" : "OWNER",
+      [
+        message,
+        ...pendingIntents.flatMap((intent) =>
+          Array.isArray(intent.targetIds)
+            ? intent.targetIds.filter(
+                (id): id is string => typeof id === "string",
+              )
+            : [],
+        ),
+      ].join(" "),
     );
     const classification: ClassificationResult = await this.classifier.classify(
       message,
-      classifierContext,
+      {
+        ...classifierContext,
+        pendingIntents: pendingIntents.map((intent) => ({
+          id: intent.id,
+          desiredOutcome: intent.desiredOutcome,
+          targetIds: Array.isArray(intent.targetIds)
+            ? intent.targetIds.filter(
+                (id): id is string =>
+                  typeof id === "string" &&
+                  classifierContext.taskIds.includes(id),
+              )
+            : [],
+          expiresAt: intent.expiresAt.toISOString(),
+          route: intent.originatingTurn.route ?? "CLARIFY",
+          requiresApproval: intent.decisions.length > 0,
+        })),
+      },
     );
+    if (
+      classification.classification.route === "MANAGE_WORK" &&
+      classifierContext.namedTaskIds.length
+    ) {
+      classification.classification = {
+        ...classification.classification,
+        ...(classifierContext.ambiguousTaskName
+          ? {
+              route: "CLARIFY",
+              requiresClarification: true,
+              candidateTaskIds: [],
+              rationaleSummary:
+                "More than one authorized task matches the supplied name; ask which task.",
+            }
+          : { candidateTaskIds: classifierContext.namedTaskIds }),
+      };
+    }
     if (source === "SCHEDULE" && classification.failed) {
       throw new SokoBotRetryableStartError(
         "Soko Bot classifier unavailable for scheduled turn",
       );
     }
-    const requestedByTeammate =
-      input.chat?.askedByBot === true ||
-      (!!input.chat?.requestedByUserId &&
-        input.chat.requestedByUserId !== input.userId);
     // A teammate may ask the owner's bot questions but never spend the owner's
     // credits, create work in their name, or read the owner's private surfaces:
     // the answer is published back into the shared room.
-    const version = await resolveSokoBotVersion(
-      input.versionId ?? bot.versionId,
-    );
+
     // Self-started turns keep every capability of their route, hiring
     // included. Withholding only `hire_agent` read as a spend limit and was
     // not one: assigning a Task to a Coworker bills the owner just as a hire
@@ -1786,9 +2204,9 @@ export class SokoBotControlPlane {
         );
       }
     }
-    const routeCapabilities = SOKO_BOT_ROUTE_CAPABILITIES[
-      classification.classification.route
-    ] as readonly SokoBotCapability[];
+    const routeCapabilities = capabilitiesForClassification(
+      classification.classification,
+    );
     const capabilities = applyVersionCapabilities(
       version,
       (input.chat?.askedByBot
@@ -1807,6 +2225,16 @@ export class SokoBotControlPlane {
     // Build fallible context before publishing a durable STARTING turn. The
     // snapshot is then committed with the turn, leaving no crash window where
     // a recovery worker lacks the immutable packet needed for exact replay.
+    const destinationAudience = destinationRoom
+      ? await prisma.chatRoom.findUnique({
+          where: { id: destinationRoom.id },
+          select: {
+            userMembers: { select: { userId: true } },
+            coworkerMembers: { select: { coworkerId: true } },
+            sokoBotMembers: { select: { sokoBotId: true } },
+          },
+        })
+      : null;
     const context = await this.contextBuilder.build({
       userId: input.userId,
       sokoBotId: bot.id,
@@ -1820,6 +2248,16 @@ export class SokoBotControlPlane {
           ? "TEAMMATE"
           : "OWNER",
       askedByUserId: input.chat?.requestedByUserId ?? null,
+      roomId: conversationMention?.message.roomId ?? null,
+      referencedTaskIds: [
+        ...new Set([
+          ...classifierContext.namedTaskIds,
+          ...classifierContext.taskIds.filter((id) => message.includes(id)),
+          ...(classification.classification.candidateTaskIds ?? []).filter(
+            (id) => classifierContext.taskIds.includes(id),
+          ),
+        ]),
+      ],
     });
     const contextSnapshotId = randomUUID();
 
@@ -1920,13 +2358,30 @@ export class SokoBotControlPlane {
             clientTurnId,
             versionId: version.id,
             userMessage: message,
+            destinationRoomId: destinationRoom?.id ?? null,
+            destinationAudience: destinationAudience
+              ? {
+                  userIds: destinationAudience.userMembers
+                    .map((m) => m.userId)
+                    .sort(),
+                  coworkerIds: destinationAudience.coworkerMembers
+                    .map((m) => m.coworkerId)
+                    .sort(),
+                  botIds: destinationAudience.sokoBotMembers
+                    .map((m) => m.sokoBotId)
+                    .sort(),
+                }
+              : undefined,
             chatMentionId: input.chat?.mentionId,
             chatResponseMessageId: input.chat?.responseMessageId,
             requestedByUserId: requestedByTeammate
               ? input.chat?.requestedByUserId
               : null,
             chainDepth: input.chat?.chainDepth ?? 0,
-            classification: jsonInput(classification.classification),
+            classification: jsonInput({
+              ...classification.classification,
+              inference: classification.usage?.inference ?? null,
+            }),
             classifierModel: classification.model,
             classifierVersion: classification.version,
             classifierLatencyMs: classification.latencyMs,
@@ -1971,6 +2426,159 @@ export class SokoBotControlPlane {
             },
           },
         });
+        for (const occurrence of input.eventBatch ?? []) {
+          await tx.sokoBotEventInbox.create({
+            data: {
+              botId: bot.id,
+              turnId: created.id,
+              eventId: occurrence.eventId,
+              entityId: occurrence.entityId,
+              purpose: occurrence.purpose,
+              designatedHandlerBotId: occurrence.designatedHandlerBotId,
+            },
+          });
+          await invalidateSokoBotIntentOutcomes(tx, {
+            sokoBotId: bot.id,
+            workspaceId: input.workspaceId,
+            targetId: occurrence.entityId,
+            evidenceId: occurrence.eventId,
+          });
+          if (occurrence.delegationIds?.length) {
+            await tx.sokoBotDelegation.updateMany({
+              where: {
+                id: { in: occurrence.delegationIds },
+                turn: { sokoBotId: bot.id, workspaceId: input.workspaceId },
+              },
+              data: {
+                lastSeenStatus: occurrence.status,
+                lastSeenEventId: occurrence.eventId,
+                lastSeenEventAt: occurrence.delegationEventAt,
+              },
+            });
+          }
+          if (occurrence.taskCursorAt) {
+            await tx.sokoBotTaskWatch.upsert({
+              where: {
+                sokoBotId_taskId: {
+                  sokoBotId: bot.id,
+                  taskId: occurrence.entityId,
+                },
+              },
+              create: {
+                sokoBotId: bot.id,
+                taskId: occurrence.entityId,
+                lastSeenStatus: occurrence.status,
+                lastSeenEventAt: occurrence.taskCursorAt,
+                lastSeenEventId: occurrence.eventId,
+              },
+              update: {
+                lastSeenStatus: occurrence.status,
+                lastSeenEventAt: occurrence.taskCursorAt,
+                lastSeenEventId: occurrence.eventId,
+              },
+            });
+          }
+        }
+        const selectedIntentId = classification.classification.selectedIntentId;
+        if (selectedIntentId) {
+          const selected = await tx.sokoBotIntent.findFirst({
+            where: {
+              id: selectedIntentId,
+              ...intentScope,
+              state: "AWAITING_CONFIRMATION",
+              expiresAt: { gt: new Date() },
+            },
+          });
+          if (!selected)
+            throw new SokoBotBusyError(
+              "Pending intent changed; retry with explicit scope",
+            );
+          await tx.sokoBotTurn.update({
+            where: { id: created.id },
+            data: { intentId: selected.id, intentRevision: selected.revision },
+          });
+        } else {
+          // Only an explicit owner withdrawal or replacement affects an existing offer.
+          const cancelsOffer =
+            /^(?:cancel that|stop that|no[.! ]*$|don't do that|do not do that)/i.test(
+              message.trim(),
+            );
+          const replacesOffer =
+            /^(?:instead[, ]|replace (?:that|the (?:pending )?(?:request|proposal|offer))\b|forget (?:that|the (?:pending )?(?:request|proposal|offer))\b)/i.test(
+              message.trim(),
+            );
+          const withdrawsUniqueOffer =
+            source === "CHAT" &&
+            !requestedByTeammate &&
+            (input.chat?.chainDepth ?? 0) === 0 &&
+            pendingIntents.length === 1 &&
+            (cancelsOffer || replacesOffer);
+          if (withdrawsUniqueOffer) {
+            await tx.sokoBotPendingDecision.updateMany({
+              where: {
+                status: "PENDING",
+                intent: {
+                  id: pendingIntents[0].id,
+                  ...intentScope,
+                  state: "AWAITING_CONFIRMATION",
+                },
+              },
+              data: {
+                status: "REJECTED",
+                resolvedAt: new Date(),
+                resolvedByUserId: intentScope.requesterId,
+              },
+            });
+            await tx.sokoBotIntent.updateMany({
+              where: {
+                id: pendingIntents[0].id,
+                ...intentScope,
+                state: "AWAITING_CONFIRMATION",
+              },
+              data: {
+                state: cancelsOffer ? "CANCELLED" : "SUPERSEDED",
+                revision: { increment: 1 },
+              },
+            });
+          }
+          const intent = await tx.sokoBotIntent.create({
+            data: {
+              ...intentScope,
+              originatingTurnId: created.id,
+              desiredOutcome: classification.classification.requestedOutcome,
+              targetIds: [
+                ...(classification.classification.candidateTaskIds ?? []),
+                ...classifierContext.taskIds.filter((id) =>
+                  message.includes(id),
+                ),
+                ...classification.classification.candidateProjectIds,
+                ...classification.classification.candidateCoworkerIds,
+                ...classification.classification.candidateAgentIds,
+              ],
+              allowedActions: [...capabilities],
+              acceptanceCriteria: [
+                "DELEGATE_TASK",
+                "HIRE_AGENT",
+                "MANAGE_WORK",
+              ].includes(classification.classification.route)
+                ? [
+                    {
+                      kind: "OUTCOME",
+                      id: "requested-outcome",
+                      description:
+                        classification.classification.requestedOutcome,
+                    },
+                  ]
+                : [],
+              evidenceIds: [],
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            },
+          });
+          await tx.sokoBotTurn.update({
+            where: { id: created.id },
+            data: { intentId: intent.id, intentRevision: intent.revision },
+          });
+        }
         await this.bindTurnReservation(tx, input, bot.id, created.id, message);
         const acquired = await tx.sokoBot.updateMany({
           where: {
@@ -2028,6 +2636,19 @@ export class SokoBotControlPlane {
       | { sessionId: string; createdSession: boolean }
       | undefined;
     try {
+      if (
+        classification.classification.selectedIntentId &&
+        source === "CHAT" &&
+        !requestedByTeammate &&
+        !input.chat?.askedByBot &&
+        (input.chat?.chainDepth ?? 0) === 0 &&
+        (await this.settleOwnerConfirmation(turn.id, leaseToken))
+      ) {
+        const completed = await prisma.sokoBotTurn.findUniqueOrThrow({
+          where: { id: turn.id },
+        });
+        return { ...duplicateResult(completed), duplicate: false };
+      }
       const expectedSessionId = sessionIdForTurn ?? `pending:${turn.id}`;
       const tokenScope = {
         userId: input.userId,
@@ -2635,7 +3256,7 @@ export class SokoBotControlPlane {
     // Built-in or console-authored; both share one id namespace. Authored
     // versions are selectable only once promoted, except from the admin lab.
     const known = options.allowUnpromoted
-      ? await isKnownSokoBotVersionId(versionId)
+      ? await isRunnableSokoBotVersionId(versionId)
       : await isSelectableSokoBotVersionId(versionId, userId);
     if (!known) {
       throw new SokoBotValidationError("Unknown Soko Bot version");
@@ -2699,7 +3320,7 @@ export class SokoBotControlPlane {
     failed: number;
     failures: { sokoBotId: string; message: string }[];
   }> {
-    if (!(await isKnownSokoBotVersionId(input.toVersionId))) {
+    if (!(await isRunnableSokoBotVersionId(input.toVersionId))) {
       throw new SokoBotValidationError(
         `Unknown Soko Bot version ${input.toVersionId}`,
       );
@@ -2919,7 +3540,7 @@ export class SokoBotControlPlane {
       // Checked before the intent is recorded: a slug that does not exist is a
       // bad request, not a failed operation, and writing an ATTEMPTED row for
       // it would leave an outbox entry nothing can ever complete.
-      if (!(await isKnownSokoBotVersionId(input.versionId))) {
+      if (!(await isRunnableSokoBotVersionId(input.versionId))) {
         throw new SokoBotValidationError(
           `Unknown Soko Bot version ${input.versionId}`,
         );

@@ -810,6 +810,11 @@ export const sokoBotGatewayModelListSchema = z
 
 export const adminSokoBotQualitySchema = z
   .object({
+    reliability: z.object({
+      fulfillment: z.record(z.string(), z.number().int().nonnegative()),
+      delivery: z.record(z.string(), z.number().int().nonnegative()),
+      invalidActionClaims: z.number().int().nonnegative(),
+    }),
     overall: z.object({
       turns: z.number().int(),
       judged: z.number().int(),

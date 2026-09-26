@@ -5,8 +5,10 @@ import {
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
+  sokoBotArchiveTaskInputSchema,
   sokoBotCreateTaskInputSchema,
   sokoBotDecisionInputSchema,
+  sokoBotUpdateTaskInputSchema,
 } from "../index.js";
 
 describe("Soko Bot tool contracts", () => {
@@ -23,6 +25,38 @@ describe("Soko Bot tool contracts", () => {
     expect(
       sokoBotCreateTaskInputSchema.parse({ name: "  Launch campaign  " }),
     ).toMatchObject({ name: "Launch campaign", status: "DRAFT" });
+  });
+
+  it("requires an exact prior-read revision for archival and keeps one archive tool", () => {
+    const archive = {
+      taskId: "task-one",
+      expectedUpdatedAt: "2026-09-26T12:00:00.000Z",
+    };
+    expect(sokoBotArchiveTaskInputSchema.parse(archive)).toEqual(archive);
+    expect(
+      sokoBotArchiveTaskInputSchema.safeParse({ taskId: "task-one" }).success,
+    ).toBe(false);
+    expect(
+      sokoBotArchiveTaskInputSchema.safeParse({
+        ...archive,
+        expectedUpdatedAt: "yesterday",
+      }).success,
+    ).toBe(false);
+    expect(
+      sokoBotArchiveTaskInputSchema.safeParse({ ...archive, taskId: "" })
+        .success,
+    ).toBe(false);
+    expect(
+      sokoBotArchiveTaskInputSchema.safeParse({
+        ...archive,
+        status: "CANCELED",
+      }).success,
+    ).toBe(false);
+    expect(
+      sokoBotUpdateTaskInputSchema.safeParse({ ...archive, archive: true })
+        .success,
+    ).toBe(false);
+    expect(isSokoBotDecisionTarget("archive_task")).toBe(true);
   });
 
   it("restricts decision requests to supported mutation targets", () => {

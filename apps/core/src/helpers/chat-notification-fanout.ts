@@ -15,6 +15,7 @@ import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
 export interface FanOutChatNotificationsParams {
+  throwOnError?: boolean;
   roomId: string;
   roomName: string;
   organizationId: string | null;
@@ -353,6 +354,7 @@ export async function fanOutChatNotifications(
         readerUserIds: notifyUserIds,
       });
     } catch (error) {
+      if (params.throwOnError) throw error;
       Sentry.captureException(error, {
         extra: {
           roomId: params.roomId,
@@ -390,9 +392,14 @@ export async function fanOutChatNotifications(
       if (params.countPerRoom) {
         await countOntoUnreadRow(input);
       } else {
-        await createNotification(input);
+        if (params.throwOnError) {
+          await createNotification(input, prisma, { throwOnError: true });
+        } else {
+          await createNotification(input);
+        }
       }
     } catch (error) {
+      if (params.throwOnError) throw error;
       Sentry.captureException(error, {
         extra: {
           roomId: params.roomId,

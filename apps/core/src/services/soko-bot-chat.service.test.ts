@@ -40,6 +40,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
+        sokoBotTurn: { findUnique: turnFindUnique },
         chatRoomMention: { updateMany: mentionUpdateMany },
         chatRoomMessage: {
           update: messageUpdate,
@@ -60,11 +61,11 @@ vi.mock("@/lib/ably/publish", () => ({
 }));
 
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
+import prisma from "@/lib/db/prisma";
 
 import {
-  deliverSokoBotTurnToDirectRoom,
-  finalizeSokoBotChatTurn,
   introduceSokoBot,
+  persistSokoBotChatTurn,
   publishSokoBotChatProgress,
 } from "./soko-bot-chat.service";
 
@@ -110,21 +111,17 @@ beforeEach(() => {
   publish.mockResolvedValue(undefined);
 });
 
-describe("finalizeSokoBotChatTurn", () => {
-  it("publishes a successful response once and preserves its completion clock on retry", async () => {
+describe("persistSokoBotChatTurn", () => {
+  it("persists a successful response once and preserves its completion clock on retry", async () => {
     mentionUpdateMany
       .mockResolvedValueOnce({ count: 1 })
       .mockResolvedValueOnce({ count: 0 });
-    await finalizeSokoBotChatTurn("turn-a");
-    await finalizeSokoBotChatTurn("turn-a");
-    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
-      userIds: ["reader"],
-      roomId: "room-a",
-      collections: ["active"],
-    });
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    expect(publishChatRoomsChanged).not.toHaveBeenCalled();
     expect(messageUpdate).toHaveBeenCalledOnce();
     expect(roomUpdate).toHaveBeenCalledOnce();
-    expect(publish).toHaveBeenCalledTimes(2);
+    expect(publish).not.toHaveBeenCalled();
     expect(mentionUpdateMany).toHaveBeenCalledWith({
       where: { id: "mention-a", status: { in: ["pending", "sent"] } },
       data: { status: "responded", error: null },
@@ -140,33 +137,19 @@ describe("finalizeSokoBotChatTurn", () => {
     turnFindUnique.mockResolvedValue(
       completedTurn({ finalAnswer: "", chainDepth: 0 }),
     );
-    await finalizeSokoBotChatTurn("turn-a");
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     expect(mentionUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "failed" }),
       }),
     );
     expect(publishChatRoomsChanged).not.toHaveBeenCalled();
-    expect(publish).toHaveBeenCalledTimes(2);
-  });
-
-  it("publishes the response while control fan-out is pending", async () => {
-    const control = Promise.withResolvers<void>();
-    vi.mocked(publishChatRoomsChanged).mockReturnValueOnce(control.promise);
-    const finishing = finalizeSokoBotChatTurn("turn-a");
-    try {
-      await vi.waitFor(() =>
-        expect(publish).toHaveBeenCalledWith("response-a", "update"),
-      );
-    } finally {
-      control.resolve();
-      await finishing;
-    }
+    expect(publish).not.toHaveBeenCalled();
   });
 
   it("does not overwrite a response after another finalizer wins", async () => {
     mentionUpdateMany.mockResolvedValue({ count: 0 });
-    await finalizeSokoBotChatTurn("turn-a");
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     expect(messageUpdate).not.toHaveBeenCalled();
     expect(roomUpdate).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
@@ -177,7 +160,7 @@ describe("finalizeSokoBotChatTurn", () => {
       completedTurn({ status: "FAILED", finalAnswer: null }),
     );
     mentionUpdateMany.mockResolvedValue({ count: 0 });
-    await finalizeSokoBotChatTurn("turn-a");
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     expect(messageUpdate).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
   });
@@ -186,7 +169,7 @@ describe("finalizeSokoBotChatTurn", () => {
     turnFindUnique.mockResolvedValue(
       completedTurn({ status: "FAILED", finalAnswer: null }),
     );
-    await finalizeSokoBotChatTurn("turn-a");
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     expect(messageUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -203,8 +186,9 @@ describe("finalizeSokoBotChatTurn", () => {
       completedTurn({ chainDepth: 1, finalAnswer: "" }),
     );
     mentionUpdateMany.mockResolvedValue({ count: 0 });
-    await finalizeSokoBotChatTurn("turn-a");
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     expect(messageDelete).not.toHaveBeenCalled();
+    expect(messageUpdate).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
   });
 });
@@ -234,26 +218,6 @@ describe("introduceSokoBot", () => {
     expect(result).toEqual({ messageId: "msg-existing" });
     expect(messageCreate).not.toHaveBeenCalled();
     expect(publishChatRoomsChanged).not.toHaveBeenCalled();
-  });
-});
-
-describe("deliverSokoBotTurnToDirectRoom", () => {
-  it("invalidates readers after posting a non-chat turn into the direct room", async () => {
-    turnFindUnique.mockResolvedValue({
-      source: "SCHEDULE",
-      status: "COMPLETED",
-      finalAnswer: "Here is the digest.",
-      userId: "owner",
-      chatMention: null,
-      sokoBotId: "bot-a",
-    });
-    await deliverSokoBotTurnToDirectRoom("turn-a");
-    expect(messageCreate).toHaveBeenCalledOnce();
-    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
-      userIds: ["reader"],
-      roomId: "room-a",
-      collections: ["active"],
-    });
   });
 });
 

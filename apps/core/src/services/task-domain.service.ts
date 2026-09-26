@@ -9,7 +9,9 @@ import {
   VendorGrantStatus,
 } from "@sokosumi/database";
 import {
+  canArchiveTaskStatus,
   countSetAssignees,
+  getTaskCannotArchiveMessage,
   hasAssigneeValue,
   isAgentOnlyTaskStatus,
   isTaskEditableStatus,
@@ -24,11 +26,14 @@ import {
 } from "@/helpers/access-control";
 import {
   badRequest,
+  conflict,
   forbidden,
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
+import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
+import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import {
   isGrantDeniedOrRevoked,
   parseGrantResumeStatus,
@@ -70,6 +75,8 @@ export interface CreateTaskDomainInput {
     | typeof TaskStatus.QUEUED
     | typeof TaskStatus.READY;
   channel?: Channel;
+  /** Server-reserved effect identity, committed with this operation. */
+  effectEventId?: string;
   schedule?: {
     metadata: TaskScheduleMetadata;
     nextRunAt: Date;
@@ -91,11 +98,15 @@ export interface UpdateTaskDomainInput {
   name?: string;
   description?: string | null;
   projectId?: string | null;
+  expectedUpdatedAt?: Date;
+  archive?: boolean;
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
   status?: typeof TaskStatus.DRAFT | typeof TaskStatus.READY;
   channel?: Channel;
+  /** Server-reserved effect identity, committed with this operation. */
+  effectEventId?: string;
 }
 
 interface PendingGrantState {
@@ -360,6 +371,7 @@ export async function createTaskForActor(
       nextRunAt: input.schedule?.nextRunAt ?? null,
       events: {
         create: {
+          id: input.effectEventId,
           status,
           comment: null,
           channel: input.channel ?? Channel.SOKOSUMI,
@@ -423,6 +435,51 @@ async function requireMutableTask(
   return task;
 }
 
+/** Shared archive mutation after the caller has established archive access. */
+export async function archiveTaskRecord(
+  tx: Prisma.TransactionClient,
+  task: Task,
+  options: {
+    expectedUpdatedAt?: Date;
+    actor?: TaskDomainActor;
+    effectEventId?: string;
+  } = {},
+): Promise<void> {
+  if (!canArchiveTaskStatus(task.status))
+    throw unprocessableEntity(getTaskCannotArchiveMessage(task.status));
+  assertTaskScheduleInactive(
+    task,
+    "Remove the schedule before archiving this Task",
+  );
+  if (
+    options.expectedUpdatedAt &&
+    task.updatedAt.getTime() !== options.expectedUpdatedAt.getTime()
+  )
+    throw conflict("Task changed; read it again");
+  const result = await tx.task.updateMany({
+    where: {
+      id: task.id,
+      archivedAt: null,
+      status: task.status,
+      updatedAt: task.updatedAt,
+    },
+    data: { archivedAt: new Date() },
+  });
+  if (result.count !== 1)
+    throw conflict("Task was modified concurrently; retry archive");
+  if (options.effectEventId && options.actor) {
+    await tx.taskEvent.create({
+      data: {
+        id: options.effectEventId,
+        taskId: task.id,
+        comment: "Task archived",
+        ...eventActorFields(options.actor),
+      },
+    });
+  }
+  await removeTaskSchedulePlannedOccurrences(tx, task.id);
+}
+
 /**
  * Canonical metadata/assignment operation. Soko Bot stays inside its bounded
  * pre-execution state ceiling; owner route keeps existing editable-state rules.
@@ -431,7 +488,89 @@ export async function updateTaskForActor(
   input: UpdateTaskDomainInput,
   tx: Prisma.TransactionClient,
 ): Promise<Task> {
+  if (input.archive || input.projectId !== undefined) {
+    if (!input.expectedUpdatedAt && input.actor.kind === "soko_bot") {
+      throw unprocessableEntity(
+        "Read the task first and supply expectedUpdatedAt for a move or archive",
+      );
+    }
+  }
+  const projectMoveOnly =
+    input.actor.kind === "soko_bot" &&
+    input.projectId !== undefined &&
+    input.name === undefined &&
+    input.description === undefined &&
+    input.status === undefined &&
+    input.assigneeId === undefined &&
+    input.assigneeSokoBotId === undefined &&
+    input.assigneeUserId === undefined;
+  if (
+    input.archive &&
+    (input.projectId !== undefined ||
+      input.name !== undefined ||
+      input.description !== undefined ||
+      input.status !== undefined)
+  ) {
+    throw unprocessableEntity("Archive must be a separate operation");
+  }
+  if (projectMoveOnly && !input.archive) {
+    const task = await tx.task.findFirst({
+      where: {
+        id: input.taskId,
+        ownerId: input.ownerId,
+        workspaceId: input.workspaceId,
+        archivedAt: null,
+      },
+    });
+    if (!task) throw notFound("Task not found");
+    if (
+      input.expectedUpdatedAt &&
+      task.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()
+    )
+      throw conflict("Task changed; read it again");
+    await requireProjectInWorkspace(input.projectId, task.workspaceId, tx);
+    return tx.task.update({
+      where: { id: task.id, updatedAt: task.updatedAt },
+      data: {
+        projectId: input.projectId,
+        events: input.effectEventId
+          ? {
+              create: {
+                id: input.effectEventId,
+                comment: "Task moved to a project",
+                ...eventActorFields(input.actor),
+              },
+            }
+          : undefined,
+      },
+    });
+  }
+  if (input.archive) {
+    const task = await tx.task.findFirst({
+      where: {
+        id: input.taskId,
+        ownerId: input.ownerId,
+        workspaceId: input.workspaceId,
+        archivedAt: null,
+      },
+    });
+    if (!task) throw notFound("Task not found");
+    if (input.actor.kind === "coworker")
+      throw forbidden("Coworkers cannot archive tasks");
+    await archiveTaskRecord(tx, task, {
+      expectedUpdatedAt: input.expectedUpdatedAt,
+      actor: input.actor,
+      effectEventId: input.effectEventId,
+    });
+    return tx.task.findUniqueOrThrow({ where: { id: task.id } });
+  }
+
   const task = await requireMutableTask(input, tx);
+  if (
+    input.expectedUpdatedAt &&
+    task.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()
+  )
+    throw conflict("Task changed; read it again");
   if (input.status !== undefined && input.actor.kind !== "soko_bot") {
     throw unprocessableEntity(
       "Task status changes must use the task event operation",
@@ -501,10 +640,17 @@ export async function updateTaskForActor(
       // Record a status event only for a real transition; a Soko Bot
       // re-assignment that keeps DRAFT must not spam the task timeline.
       events:
-        input.status !== undefined && input.status !== task.status
+        input.effectEventId ||
+        (input.status !== undefined && input.status !== task.status)
           ? {
               create: {
-                status: input.status,
+                id: input.effectEventId,
+                status: input.status !== task.status ? input.status : undefined,
+                comment:
+                  input.effectEventId &&
+                  (input.status === undefined || input.status === task.status)
+                    ? "Task updated"
+                    : undefined,
                 channel: input.channel ?? Channel.SOKOSUMI,
                 ...eventActorFields(input.actor),
               },

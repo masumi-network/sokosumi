@@ -265,3 +265,25 @@ describe("emitChatDirectMessageNotifications", () => {
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
 });
+
+it("strict fan-out propagates recipient failure to the outbox", async () => {
+  createNotificationMock.mockRejectedValueOnce(new Error("transport offline"));
+  await expect(
+    emitChatDirectMessageNotifications({
+      roomId: ROOM_ID,
+      roomName: "Room",
+      organizationId: "org_1",
+      messageId: MESSAGE_ID,
+      content: "ship it",
+      authorUserId: null,
+      authorName: "Bot",
+      recipientUserIds: [PEER_ID],
+      throwOnError: true,
+    }),
+  ).rejects.toThrow("transport offline");
+  expect(createNotificationMock).toHaveBeenCalledWith(
+    expect.any(Object),
+    expect.any(Object),
+    { throwOnError: true },
+  );
+});

@@ -24,6 +24,7 @@ export {
 } from "./memory.js";
 export { composeSokoBotIntroduction } from "./persona.js";
 export {
+  capabilitiesForClassification,
   exceedsUnattendedHireBudget,
   isSokoBotCapability,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
@@ -51,8 +52,11 @@ export type {
   RuntimeResetInput,
   RuntimeTurnInput,
   RuntimeTurnRef,
+  SokoBotActionReceipt,
+  SokoBotActionResponse,
   SokoBotContextPacket,
   SokoBotRuntime,
+  SokoBotSourceCoverage,
   SokoBotTurnGrantClaims,
 } from "./runtime.js";
 export {
@@ -68,6 +72,7 @@ export {
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotDecisionTarget,
   sokoBotAgentIdInputSchema,
+  sokoBotArchiveTaskInputSchema,
   sokoBotAssignTaskInputSchema,
   sokoBotCreateScheduleInputSchema,
   sokoBotCreateTaskInputSchema,
@@ -78,6 +83,7 @@ export {
   sokoBotListCalendarEventsInputSchema,
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
+  sokoBotManageReminderInputSchema,
   sokoBotMemoryUpdateInputSchema,
   sokoBotOpenDirectChatInputSchema,
   sokoBotPostChatInputSchema,

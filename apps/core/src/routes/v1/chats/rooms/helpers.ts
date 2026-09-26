@@ -1876,6 +1876,7 @@ type DirectCreateShape =
     };
 
 export async function createOrGetDirectRoom(params: {
+  transaction?: Prisma.TransactionClient;
   organizationId: string | null;
   currentUserId: string;
   memberUserIds: readonly string[];
@@ -1914,7 +1915,7 @@ export async function createOrGetDirectRoom(params: {
   };
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const create = async (tx: Prisma.TransactionClient) => {
       if (activeOrganizationId) {
         if (shape.kind === "human-direct") {
           await resolveMemberOrganizationById({
@@ -2083,7 +2084,10 @@ export async function createOrGetDirectRoom(params: {
         coworkerIds: [],
         sokoBotIds: [],
       });
-    });
+    };
+    const result = params.transaction
+      ? await create(params.transaction)
+      : await prisma.$transaction(create);
 
     return {
       room: await serializeDirectRoomForViewer(
@@ -2094,6 +2098,7 @@ export async function createOrGetDirectRoom(params: {
       created: result.created,
     };
   } catch (error) {
+    if (params.transaction) throw error;
     // directKey race: another request won the create — return that room.
     if (isDirectKeyUniqueConstraintError(error) && directKeyRef.current) {
       const existing =

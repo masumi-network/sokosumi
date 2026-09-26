@@ -157,42 +157,57 @@ describe("createNotification", () => {
     expect(prismaMock.notification.upsert).not.toHaveBeenCalled();
   });
 
-  it("returns the existing row unchanged on duplicate emits", async () => {
-    publishNotificationEventMock.mockClear();
-    const existing = createNotificationRecord({
-      messageParams: JSON.stringify({ jobName: "Original job name" }),
-      metadata: JSON.stringify({ agentId: "original_agent" }),
-      createdAt: new Date("2026-06-18T08:00:00.000Z"),
-    });
-    const prismaMock = createPrismaMock();
-    prismaMock.notification.create.mockRejectedValue(createUniqueViolation());
-    prismaMock.notification.findUnique.mockResolvedValue(existing);
+  it.each([false, true])(
+    "returns existing row and republishes only for strict retry: %s",
+    async (throwOnError) => {
+      publishNotificationEventMock.mockClear();
+      const existing = createNotificationRecord({
+        messageParams: JSON.stringify({ jobName: "Original job name" }),
+        metadata: JSON.stringify({ agentId: "original_agent" }),
+        createdAt: new Date("2026-06-18T08:00:00.000Z"),
+      });
+      const prismaMock = createPrismaMock();
+      prismaMock.notification.create.mockRejectedValue(createUniqueViolation());
+      prismaMock.notification.findUnique.mockResolvedValue(existing);
 
-    const result = await createNotification(
-      {
-        ...notificationInput,
-        messageParams: { jobName: "Changed job name" },
-        metadata: { agentId: "changed_agent" },
-      },
-      prismaMock as unknown as typeof prisma,
-    );
-
-    expect(result).toEqual({ notification: existing, created: false });
-    expect(publishNotificationEventMock).not.toHaveBeenCalled();
-    expect(prismaMock.notification.findUnique).toHaveBeenCalledWith({
-      where: {
-        userId_kind_referenceId_eventId_messageKey: {
-          userId: notificationInput.userId,
-          kind: notificationInput.kind,
-          referenceId: notificationInput.referenceId,
-          eventId: notificationInput.eventId,
-          messageKey: notificationInput.messageKey,
+      const result = await createNotification(
+        {
+          ...notificationInput,
+          messageParams: { jobName: "Changed job name" },
+          metadata: { agentId: "changed_agent" },
         },
-      },
-    });
-    expect(prismaMock.notification.update).not.toHaveBeenCalled();
-    expect(prismaMock.notification.upsert).not.toHaveBeenCalled();
-  });
+        prismaMock as unknown as typeof prisma,
+        { throwOnError },
+      );
+
+      expect(result).toEqual({ notification: existing, created: false });
+      if (throwOnError) {
+        expect(publishNotificationEventMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            notification: expect.objectContaining({
+              id: existing.id,
+              created: false,
+            }),
+          }),
+        );
+      } else {
+        expect(publishNotificationEventMock).not.toHaveBeenCalled();
+      }
+      expect(prismaMock.notification.findUnique).toHaveBeenCalledWith({
+        where: {
+          userId_kind_referenceId_eventId_messageKey: {
+            userId: notificationInput.userId,
+            kind: notificationInput.kind,
+            referenceId: notificationInput.referenceId,
+            eventId: notificationInput.eventId,
+            messageKey: notificationInput.messageKey,
+          },
+        },
+      });
+      expect(prismaMock.notification.update).not.toHaveBeenCalled();
+      expect(prismaMock.notification.upsert).not.toHaveBeenCalled();
+    },
+  );
 
   it("creates a separate row when the message key differs for the same event", async () => {
     publishNotificationEventMock.mockClear();
@@ -1088,4 +1103,18 @@ describe("publishClearedNotifications", () => {
     expect(publishNotificationEventMock).not.toHaveBeenCalled();
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
+});
+
+it("strict publication propagates transport failure for durable retry", async () => {
+  publishNotificationEventMock.mockRejectedValueOnce(
+    new Error("transport offline"),
+  );
+  await expect(
+    publishNotificationRow(
+      createNotificationRecord(),
+      { inApp: true, osBanner: false },
+      false,
+      { throwOnError: true },
+    ),
+  ).rejects.toThrow("transport offline");
 });
