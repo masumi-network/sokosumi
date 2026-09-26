@@ -482,6 +482,13 @@ describe("stripeAmountToMajorUnits", () => {
     expect(stripeAmountToMajorUnits(4900, "KRW")).toBe(4900);
   });
 
+  it("keeps Stripe's two-decimal representation for UGX, ISK, HUF and TWD", () => {
+    expect(stripeAmountToMajorUnits(4900, "ugx")).toBe(49);
+    expect(stripeAmountToMajorUnits(4900, "isk")).toBe(49);
+    expect(stripeAmountToMajorUnits(4900, "huf")).toBe(49);
+    expect(stripeAmountToMajorUnits(4900, "twd")).toBe(49);
+  });
+
   it("divides three-decimal currencies by 1000", () => {
     expect(stripeAmountToMajorUnits(4900, "kwd")).toBe(4.9);
   });

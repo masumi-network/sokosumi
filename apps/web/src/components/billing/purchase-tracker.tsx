@@ -28,8 +28,9 @@ export interface CheckoutSessionData {
 /**
  * Fires at most once per checkout session id: in memory for this JS realm, and
  * in sessionStorage so reloading the Stripe return URL does not fire again.
- * An id is only marked once the event was pushed with analytics consent
- * granted; GTM drops it otherwise, so marking earlier would lose it for good.
+ * An id is only marked after the event was dispatched to the dataLayer with
+ * analytics consent granted; GTM drops it otherwise, so marking earlier would
+ * lose it for good. Dispatch is local: it cannot prove GA received the hit.
  */
 const firedPurchaseSessionIds = new Set<string>();
 const FIRED_STORAGE_PREFIX = "sokosumi_purchase_fired:";
@@ -70,8 +71,13 @@ export function PurchaseTracker({ checkoutSession }: PurchaseTrackerProps) {
       if (!consent?.analytics || hasFired(session_id)) {
         return;
       }
+      try {
+        fireGTMEvent.purchase(session_id, currency, value, items);
+      } catch (error) {
+        console.error("[purchase-tracker] purchase dispatch failed", error);
+        return;
+      }
       markFired(session_id);
-      fireGTMEvent.purchase(session_id, currency, value, items);
     }
 
     fireIfGranted(readConsent());

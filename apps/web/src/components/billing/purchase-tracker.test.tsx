@@ -144,6 +144,23 @@ describe("PurchaseTracker", () => {
     expect(purchaseMock).toHaveBeenCalledTimes(1);
   });
 
+  it("does not mark the session when dispatch throws", () => {
+    writeConsent({ analytics: true, marketing: false });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    purchaseMock.mockImplementationOnce(() => {
+      throw new Error("dataLayer unavailable");
+    });
+
+    render(<PurchaseTracker checkoutSession={checkoutSession} />);
+    expect(purchaseMock).toHaveBeenCalledTimes(1);
+
+    simulateReload();
+    render(<PurchaseTracker checkoutSession={checkoutSession} />);
+
+    expect(purchaseMock).toHaveBeenCalledTimes(2);
+    vi.mocked(console.error).mockRestore();
+  });
+
   it("stops listening after unmount", () => {
     const { unmount } = render(
       <PurchaseTracker checkoutSession={checkoutSession} />,

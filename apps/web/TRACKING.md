@@ -160,19 +160,23 @@ Stripe, not the URL: `transaction_id` = Checkout Session id, `currency`, and
 carry no price). `value` is **net revenue in major units**: `amount_subtotal`
 minus discounts, **excluding tax**, converted with Stripe's minor-unit exponent
 (EUR 4900 → 49, JPY 4900 → 4900, KWD 4900 → 4.9;
-`stripeAmountToMajorUnits` in Core). A trial or 100 % coupon completes with
+`stripeAmountToMajorUnits` in Core). Stripe's special cases are honoured: UGX
+and ISK stay two-decimal in the API (UGX 4900 → 49) even though Stripe lists
+UGX as zero-decimal, and HUF/TWD are two-decimal for charges. A trial or 100 % coupon completes with
 `no_payment_required` and fires with `value` 0.
 
 Before Sept 2026 `value` was Stripe's raw `amount_total` (minor units, tax
 included), so historical GA4/Ads revenue for credit purchases is ~100× too high.
 Compare periods across that change with care.
 
-`PurchaseTracker` pushes only while **analytics consent is granted**
+`PurchaseTracker` dispatches only while **analytics consent is granted**
 (`sokosumi_consent`). With no decision yet it waits for the banner
 (`CONSENT_CHANGE_EVENT`, dispatched by `applyConsentMode` after
-`consent_status`) and fires then; a refusal never fires. A session id is marked
-as fired, in memory and in `sessionStorage`, only once it was actually pushed,
-so a tab switch or a reload of the return URL does not fire it again, while a
+`consent_status`) and dispatches then; a refusal never does. A session id is
+marked as fired, in memory and in `sessionStorage`, only after the dataLayer
+push returned without throwing. That proves local dispatch, not that GA4
+received the hit (an ad blocker or network failure can still drop it). This
+means a tab switch or a reload of the return URL does not fire it again, while a
 purchase blocked by missing consent can still fire after a later grant on the
 same page or a reload. A different tab or browser could fire it again; GA4
 dedupes on `transaction_id`.

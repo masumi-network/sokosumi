@@ -68,7 +68,13 @@ function getCreditsForCoupon(coupon: Stripe.Coupon): number {
 /**
  * Stripe's non-two-decimal currencies. Amounts arrive in the smallest unit:
  * zero-decimal ones are already whole units, three-decimal ones are thousandths.
- * https://docs.stripe.com/currencies#special-cases
+ * https://docs.stripe.com/currencies#zero-decimal
+ *
+ * Special cases (https://docs.stripe.com/currencies#special-cases): UGX and ISK
+ * are zero-decimal in practice but the API keeps them two-decimal (always
+ * `00`), so they are divided by 100 and UGX is left out of this list despite
+ * appearing on Stripe's zero-decimal list. HUF and TWD are zero-decimal only
+ * for payouts; charges are two-decimal.
  */
 const STRIPE_ZERO_DECIMAL_CURRENCIES = new Set([
   "bif",
@@ -81,7 +87,6 @@ const STRIPE_ZERO_DECIMAL_CURRENCIES = new Set([
   "mga",
   "pyg",
   "rwf",
-  "ugx",
   "vnd",
   "vuv",
   "xaf",
