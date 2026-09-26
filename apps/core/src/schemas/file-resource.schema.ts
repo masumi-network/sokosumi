@@ -69,31 +69,29 @@ export const fileSnippetSchema = z
     "Extracted passage plus highlight offsets. Plain text: the client escapes at render.",
   );
 
-export const fileLabelSchema = z
-  .object({
-    id: z.string(),
-    labelId: z.string(),
-    kind: fileLabelKindSchema,
-    displayName: z.string(),
-    state: fileMetadataStateSchema,
-    provenance: fileMetadataProvenanceSchema,
-    /** A short extracted span that answers "Why?". Never generated prose. */
-    evidenceSnippet: z.string().nullable(),
-    stale: z.boolean().openapi({
-      description:
-        "The suggestion was computed against an older content or vocabulary version.",
-    }),
-  });
+export const fileLabelSchema = z.object({
+  id: z.string(),
+  labelId: z.string(),
+  kind: fileLabelKindSchema,
+  displayName: z.string(),
+  state: fileMetadataStateSchema,
+  provenance: fileMetadataProvenanceSchema,
+  /** A short extracted span that answers "Why?". Never generated prose. */
+  evidenceSnippet: z.string().nullable(),
+  stale: z.boolean().openapi({
+    description:
+      "The suggestion was computed against an older content or vocabulary version.",
+  }),
+});
 
-export const fileProjectLinkSchema = z
-  .object({
-    id: z.string(),
-    projectId: z.string(),
-    projectName: z.string(),
-    state: fileMetadataStateSchema,
-    provenance: fileMetadataProvenanceSchema,
-    evidenceSnippet: z.string().nullable(),
-  });
+export const fileProjectLinkSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  projectName: z.string(),
+  state: fileMetadataStateSchema,
+  provenance: fileMetadataProvenanceSchema,
+  evidenceSnippet: z.string().nullable(),
+});
 
 export const fileResourceSchema = z
   .object({
