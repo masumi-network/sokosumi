@@ -9,13 +9,11 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   memberCountMock,
-  getAssignedMemberCountMock,
   resolveOrganizationBillingPlanMock,
 } = vi.hoisted(() => ({
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   memberCountMock: vi.fn(),
-  getAssignedMemberCountMock: vi.fn(),
   resolveOrganizationBillingPlanMock: vi.fn(),
 }));
 
@@ -65,13 +63,6 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   };
 });
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {
-    getAssignedMemberCount: (...args: unknown[]) =>
-      getAssignedMemberCountMock(...args),
-  },
-}));
-
 const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
@@ -111,6 +102,19 @@ function setMembership(role: string | null) {
   memberFindUniqueMock.mockResolvedValue(role ? { role } : null);
 }
 
+function setMemberCounts({
+  assigned,
+  members,
+}: {
+  assigned: number;
+  members: number;
+}) {
+  memberCountMock.mockImplementation(
+    (args: { where: { seatAssignedAt?: unknown } }) =>
+      Promise.resolve(args.where.seatAssignedAt ? assigned : members),
+  );
+}
+
 function getSeatSummary(id: string) {
   return createApp().request(`http://localhost/${id}/seat-summary`);
 }
@@ -146,8 +150,7 @@ describe("GET /organizations/{id}/seat-summary", () => {
 
   it("returns zeroed seat entitlements for free organizations", async () => {
     setMembership("member");
-    getAssignedMemberCountMock.mockResolvedValue(2);
-    memberCountMock.mockResolvedValue(5);
+    setMemberCounts({ assigned: 2, members: 5 });
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       cancelAtPeriodEnd: false,
       mode: "self_serve",
@@ -173,8 +176,7 @@ describe("GET /organizations/{id}/seat-summary", () => {
 
   it("returns seat counts for paid self-serve organizations", async () => {
     setMembership("member");
-    getAssignedMemberCountMock.mockResolvedValue(2);
-    memberCountMock.mockResolvedValue(5);
+    setMemberCounts({ assigned: 2, members: 5 });
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       cancelAtPeriodEnd: false,
       mode: "self_serve",
@@ -200,8 +202,7 @@ describe("GET /organizations/{id}/seat-summary", () => {
 
   it("returns enterprise seat counts for enterprise contracts", async () => {
     setMembership("owner");
-    getAssignedMemberCountMock.mockResolvedValue(2);
-    memberCountMock.mockResolvedValue(5);
+    setMemberCounts({ assigned: 2, members: 5 });
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       cancelAtPeriodEnd: false,
       contractId: "contract_1",
