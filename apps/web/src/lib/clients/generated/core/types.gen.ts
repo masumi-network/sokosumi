@@ -1136,6 +1136,7 @@ export type Task = {
      * @deprecated
      */
     sokoBot: SokoBotSummary | null;
+    tags?: TaskTags;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -1259,6 +1260,27 @@ export type TaskCreatorSokoBot = {
     id: string;
     sokoBot: SokoBotSummary;
 };
+
+export type TaskTags = {
+    automatic: Array<TaskTagId>;
+    manual: Array<TaskTagId>;
+    rejected: Array<TaskTagId>;
+};
+
+export const TaskTagId = {
+    RESEARCH: 'research',
+    STRATEGY: 'strategy',
+    WRITING: 'writing',
+    DESIGN: 'design',
+    ANALYSIS: 'analysis',
+    DEVELOPMENT: 'development',
+    MARKETING: 'marketing',
+    SOCIAL: 'social',
+    SEO: 'seo',
+    OPERATIONS: 'operations'
+} as const;
+
+export type TaskTagId = typeof TaskTagId[keyof typeof TaskTagId];
 
 /**
  * PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.
@@ -6013,6 +6035,7 @@ export type TaskListItem = {
      * @deprecated
      */
     sokoBot: SokoBotSummary | null;
+    tags?: TaskTags;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -45079,6 +45102,99 @@ export type PatchTasksByIdResponses = {
 };
 
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
+
+export type PatchTasksByIdTagsData = {
+    body?: {
+        add?: Array<TaskTagId>;
+        remove?: Array<TaskTagId>;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/tags';
+};
+
+export type PatchTasksByIdTagsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchTasksByIdTagsError = PatchTasksByIdTagsErrors[keyof PatchTasksByIdTagsErrors];
+
+export type PatchTasksByIdTagsResponses = {
+    /**
+     * Persisted task tags
+     */
+    200: {
+        data: TaskTags;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchTasksByIdTagsResponse = PatchTasksByIdTagsResponses[keyof PatchTasksByIdTagsResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;

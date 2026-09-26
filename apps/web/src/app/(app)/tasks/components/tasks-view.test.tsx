@@ -17,12 +17,14 @@ import { TasksView } from "./tasks-view";
 
 const {
   dndContextPropsSpy,
+  openCreateTaskMock,
   pushMock,
   refreshMock,
   replaceMock,
   showCalendarClientUpgradeModalMock,
 } = vi.hoisted(() => ({
   dndContextPropsSpy: vi.fn(),
+  openCreateTaskMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
   replaceMock: vi.fn(),
@@ -113,26 +115,31 @@ vi.mock("./create-task-modal", () => ({
     <div>{children}</div>
   ),
   useCreateTaskModal: () => ({
-    handleOpen: vi.fn(),
+    handleOpen: openCreateTaskMock,
     handleOpenWithDefaults: vi.fn(),
   }),
 }));
 
 vi.mock("./jobs-list-view", () => ({ JobsListView: () => null }));
 vi.mock("./jobs-view-filters", () => ({ JobsViewFilters: () => null }));
-vi.mock("./tasks-view-filters", () => ({ TasksViewFilters: () => null }));
+vi.mock("./tasks-view-filters", () => ({
+  TasksViewFilters: () => <button type="button">Filters</button>,
+}));
 vi.mock("./tasks-project-switcher", () => ({
-  TasksProjectSwitcher: () => null,
+  TasksProjectSwitcher: () => <button type="button">Project</button>,
 }));
 vi.mock("./task-list-view", () => ({ TaskListView: () => null }));
 vi.mock("./task-list-item", () => ({ TaskListItem: () => null }));
 vi.mock("./task-card", () => ({ TaskCard: () => null }));
 vi.mock("./view-mode-switch", () => ({ ViewModeSwitch: () => null }));
-vi.mock("./tasks-empty-state-overlay", () => ({
-  TasksEmptyStateOverlay: () => null,
-}));
 vi.mock("@/app/components/list-mobile-create-fab", () => ({
-  ListMobileCreateFab: () => null,
+  ListMobileCreateFab: ({
+    ariaLabel,
+    onOpen,
+  }: {
+    ariaLabel: string;
+    onOpen: () => void;
+  }) => <button type="button" aria-label={ariaLabel} onClick={onOpen} />,
 }));
 
 const TASK: TaskWithCoworker = {
@@ -218,18 +225,6 @@ const labels = {
     cancel: "Cancel",
     commentRequired: "A comment is required",
   },
-  emptyState: {
-    title: "No tasks yet",
-    description: "Create one",
-    getStartedTitle: "Get started",
-    getStartedDescription: "Add your first task",
-    getStartedButton: "Add task",
-    next: "Next",
-    back: "Back",
-    addTaskHint: "Add a task",
-    elenaAvatarAlt: "Elena",
-  },
-  showGuideAriaLabel: "Show guide",
 } satisfies ComponentProps<typeof TasksView>["labels"];
 
 const EMPTY_FILTERS: TasksFilters = {
@@ -379,4 +374,41 @@ describe("TasksView board drag", () => {
     );
     expect(showCalendarClientUpgradeModalMock).not.toHaveBeenCalled();
   });
+});
+
+describe("TasksView without the task-board guide", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+  });
+
+  it.each([null, "false", "true"])(
+    "keeps an empty board usable when old guide storage is %s",
+    async (storedValue) => {
+      const key = "sokosumi.tasks.guideCompleted";
+      if (storedValue !== null) window.localStorage.setItem(key, storedValue);
+      const user = userEvent.setup();
+      const { container, unmount } = renderBoard([]);
+
+      expect(
+        screen.queryByRole("button", { name: "Show guide" }),
+      ).not.toBeInTheDocument();
+      expect(
+        container.querySelector(
+          "[data-tasks-empty-state-overlay], [data-tasks-empty-state-overlay-mobile]",
+        ),
+      ).toBeNull();
+      expect(screen.getByRole("tab", { name: "Tasks" })).toHaveAttribute(
+        "data-state",
+        "active",
+      );
+      expect(screen.getByRole("tab", { name: "Jobs" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Project" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Filters" })).toBeEnabled();
+      await user.click(screen.getByRole("button", { name: "createTaskFab" }));
+      expect(openCreateTaskMock).toHaveBeenCalledOnce();
+      expect(window.localStorage.getItem(key)).toBe(storedValue);
+      unmount();
+    },
+  );
 });

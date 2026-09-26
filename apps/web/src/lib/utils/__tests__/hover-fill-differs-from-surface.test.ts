@@ -25,8 +25,8 @@ function read(rel: string): string {
  * A file-wide match is wrong in both directions: in a `cva` the resting fill
  * and the variant hover are separate strings, so a same-string rule misses
  * the agent cards entirely, while a same-file rule flags
- * `project-module-tiles.tsx`, where a tile paints no background of its own
- * and its `hover:bg-card-background` is a genuine lift off the page.
+ * `project-module-tiles.tsx`, whose own panel is `bg-card-background` while
+ * the tiles on it are not.
  *
  * So this pins the four call sites that had the bug, the way
  * `panel-divider-spans-panel` pins the panel that had its own.
@@ -50,18 +50,6 @@ describe("hover fills differ from the surface they sit on", () => {
     expect(read(file)).toContain(expected);
   });
 
-  it("leaves the project module tile with no resting fill to hover to", () => {
-    // Its `hover:bg-card-background` is a lift off the page, not a no-op, and
-    // it stays correct only while the tile paints nothing at rest. The tile
-    // that did carry a resting card fill was the one that could not be
-    // clicked, and those are a sentence now rather than a card.
-    const tiles = read(
-      "app/(app)/projects/components/project-module-tiles.tsx",
-    );
-    expect(tiles).toContain("hover:bg-card-background ");
-    expect(tiles).not.toContain('"bg-card-background');
-  });
-
   it("leaves the agent card's resting fill as the card surface", () => {
     // The pairing is what matters: if this base ever stops being
     // bg-card-background, the hover step above is the wrong one.
@@ -70,11 +58,16 @@ describe("hover fills differ from the surface they sit on", () => {
     );
   });
 
-  it("keeps the lift on the module tile that paints no background", () => {
-    // The calendar tile is transparent on the page, so card-background is a
-    // real step up for it. Guards against a blanket rename of the token.
-    expect(
-      read("app/(app)/projects/components/project-module-tiles.tsx"),
-    ).toContain("hover:border-primary-tertiary hover:bg-card-background ");
+  it("keeps the module tile a step away from the surface under it", () => {
+    // This assertion used to read `hover:bg-card-background`, from when the
+    // tiles sat straight on the page. #5257 grouped them on a shared
+    // `bg-card-background` panel and gave each tile `bg-background`, which
+    // makes that hover the panel's own colour — the very case this file
+    // exists for. The step that differs from both is the right one.
+    const tiles = read(
+      "app/(app)/projects/components/project-module-tiles.tsx",
+    );
+    expect(tiles).toContain("bg-background hover:border-primary-tertiary");
+    expect(tiles).toContain("hover:bg-card-background-hover");
   });
 });

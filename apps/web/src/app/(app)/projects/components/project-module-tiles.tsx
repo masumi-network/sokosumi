@@ -79,11 +79,15 @@ export function ProjectModuleTiles({
   );
 
   return (
+    // The shared surface is main's grouping (#5257): the tiles read as one
+    // workspace rather than as four unrelated cards. Each tile paints
+    // `bg-background` on it and lifts to `bg-card-background-hover`, so the
+    // hover is a step away from both the tile and the surface under it.
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="bg-card-background grid grid-cols-2 gap-4 rounded-xl p-2 md:grid-cols-4">
         {live.map(({ icon: Icon, key, href }) => (
           <Link
-            className="border-border hover:border-primary-tertiary hover:bg-card-background focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
+            className="border-border bg-background hover:border-primary-tertiary hover:bg-card-background-hover focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
             href={href}
             key={key}
           >

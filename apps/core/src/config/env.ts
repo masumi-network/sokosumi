@@ -25,6 +25,12 @@ const baseEnvSchema = z.object({
   // Database
   DATABASE_URL: z.url(),
 
+  // Jev remains disabled until EU inference and required retention are supported.
+  TASK_TAG_CLASSIFICATION_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+
   // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
   REDIS_URL: z.string().optional(),
   KV_URL: z.string().optional(),
