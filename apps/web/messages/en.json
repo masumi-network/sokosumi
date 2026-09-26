@@ -974,6 +974,25 @@
         "REJECTED": "Rejected. Nothing was created.",
         "EXPIRED": "Expired without a decision. Ask your Soko Bot again if still needed."
       }
+    },
+    "Mermaid": {
+      "title": "Mermaid flowchart",
+      "copy": "Copy source",
+      "enlarge": "Enlarge",
+      "inspect": "Scroll to inspect the diagram. Use zoom controls to adjust its size.",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "close": "Close",
+      "alt": "Flowchart. The complete text is available under Diagram source.",
+      "source": "Diagram source",
+      "waiting": "Waiting for the diagram to finish…",
+      "loading": "Preparing diagram…",
+      "unsupported": "This diagram uses unsupported syntax or features. View or copy its source below.",
+      "tooLarge": "This diagram exceeds the rendering limit. View or copy its source below.",
+      "tooMany": "Only eight diagrams can render in one message section. View or copy this source below.",
+      "failed": "This diagram could not be rendered. Check its syntax in the source below.",
+      "copied": "Source copied.",
+      "copyFailed": "Could not copy. Select the diagram source below and copy it manually."
     }
   },
   "Join": {
@@ -1831,10 +1850,10 @@
         "assignee": "Assignee",
         "schedule": "Schedule",
         "privateSchedule": "Private schedule",
-        "participants": "Participants",
-        "removeParticipant": "Remove {name}",
-        "removeParticipantConfirmTitle": "Remove {name}?",
-        "removeParticipantConfirmDescription": "They will no longer be a participant on this task.",
+        "participantsList": "Task participants",
+        "subscribe": "Subscribe",
+        "unsubscribe": "Unsubscribe",
+        "subscribeError": "Couldn’t subscribe. Try again.",
         "removeParticipantError": "Couldn’t remove participant. Try again."
       },
       "NewTask": {
@@ -2000,6 +2019,7 @@
         "clear": "Clear",
         "cancel": "Cancel",
         "notInFuture": "Choose a time in the future.",
+        "requiresAgent": "Scheduled tasks require an agent. Choose one to set a start time.",
         "footer": "Starts {datetime}",
         "badge": {
           "overdue": "Starting soon",
@@ -2037,6 +2057,7 @@
         "noNextRun": "No upcoming run",
         "unassigned": "Unassigned",
         "unavailableAssignee": "Unavailable assignee",
+        "workspace": "Workspace",
         "Dialog": {
           "createTitle": "New schedule",
           "editTitle": "Edit schedule",
@@ -6766,7 +6787,9 @@
         "Date": {
           "min": "{name} must be at least {value}",
           "max": "{name} must be at most {value}",
-          "format": "{name} must be a {value}"
+          "format": "{name} must be a {value}",
+          "pickDate": "Pick a date",
+          "pickDateTime": "Pick date & time"
         },
         "Password": {
           "show": "Show password",

@@ -49,11 +49,7 @@ interface MenuItemConfig {
   separatorAfter?: boolean;
 }
 
-interface MenuItemsProps {
-  calendarMenuEnabled: boolean;
-}
-
-export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
+export default function MenuItems() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   // Soft read: Instant Nav shell may mount before HistorySearchDialogProvider.
@@ -128,16 +124,12 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
       label: t("schedules"),
       Icon: Repeat,
     },
-    ...(calendarMenuEnabled
-      ? [
-          {
-            key: "calendar",
-            href: "/calendar",
-            label: t("calendar"),
-            Icon: CalendarDays,
-          },
-        ]
-      : []),
+    {
+      key: "calendar",
+      href: "/calendar",
+      label: t("calendar"),
+      Icon: CalendarDays,
+    },
     // Desktop only: mobile keeps Files on the You page account surface.
     ...(!isMobile
       ? [

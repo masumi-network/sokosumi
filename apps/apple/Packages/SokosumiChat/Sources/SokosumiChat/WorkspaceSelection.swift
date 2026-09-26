@@ -27,16 +27,16 @@ public enum WorkspaceSelection: Hashable, Sendable {
 /// What launch reads: access gate plus organizations. Notably NOT persisted —
 /// launch must not PUT a default preference (that yanks cross-client state
 /// and turns every flaky upload into a dead window).
-public struct InitialWorkspaceState: Sendable {
-  public var access: Components.Schemas.WorkspaceAccess
-  public var organizations: [Components.Schemas.Organization]
+struct InitialWorkspaceState: Sendable {
+  var access: Components.Schemas.WorkspaceAccess
+  var organizations: [Components.Schemas.Organization]
   /// Session user: id excludes yourself from Direct names, name/email feed
   /// the sidebar "me" section and Settings.
-  public var currentUser: Components.Schemas.User
-  public var currentUserId: String {
+  var currentUser: Components.Schemas.User
+  var currentUserId: String {
     currentUser.id
   }
 
   /// Server-resolved preference, matched to the accessible workspace list.
-  public var defaultSelection: WorkspaceSelection
+  var defaultSelection: WorkspaceSelection
 }

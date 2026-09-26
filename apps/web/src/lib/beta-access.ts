@@ -1,6 +1,6 @@
-import { CALENDAR_BETA_ORGANIZATION_SLUG, isNmkrEmail } from "@sokosumi/utils";
+import { isNmkrEmail, SOCIAL_BETA_ORGANIZATION_SLUG } from "@sokosumi/utils";
 
-interface CalendarBetaMembership {
+interface SocialBetaMembership {
   organization: { slug: string };
 }
 
@@ -11,11 +11,11 @@ export function isSokoBotBetaAccessEmail(
   return isNmkrEmail(email);
 }
 
-export function hasCalendarBetaAccess(
-  memberships: readonly CalendarBetaMembership[],
+export function hasSocialBetaAccess(
+  memberships: readonly SocialBetaMembership[],
 ): boolean {
   return memberships.some(
-    ({ organization }) => organization.slug === CALENDAR_BETA_ORGANIZATION_SLUG,
+    ({ organization }) => organization.slug === SOCIAL_BETA_ORGANIZATION_SLUG,
   );
 }
 

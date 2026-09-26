@@ -17,20 +17,15 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { userFindUniqueMock, getMemberByUserIdAndOrganizationIdMock } =
-  vi.hoisted(() => ({
-    userFindUniqueMock: vi.fn(),
-    getMemberByUserIdAndOrganizationIdMock: vi.fn(),
-  }));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: { user: { findUnique: userFindUniqueMock } },
+const { userFindUniqueMock, memberFindUniqueMock } = vi.hoisted(() => ({
+  userFindUniqueMock: vi.fn(),
+  memberFindUniqueMock: vi.fn(),
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {
-    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
-      getMemberByUserIdAndOrganizationIdMock(...args),
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    user: { findUnique: userFindUniqueMock },
+    member: { findUnique: memberFindUniqueMock },
   },
 }));
 
@@ -75,12 +70,12 @@ describe("GET /users/{id}/organizations/{organizationId}/member", () => {
       "http://localhost/other_user/organizations/org_1/member",
     );
     expect(response.status).toBe(403);
-    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
+    expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("returns the membership for `me` when the user is a member", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce(MEMBER_RECORD);
+    memberFindUniqueMock.mockResolvedValueOnce(MEMBER_RECORD);
 
     const response = await createApp().request(
       "http://localhost/me/organizations/org_1/member",
@@ -88,11 +83,14 @@ describe("GET /users/{id}/organizations/{organizationId}/member", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
-      "user_123",
-      "org_1",
-      expect.anything(),
-    );
+    expect(memberFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        userId_organizationId: {
+          userId: "user_123",
+          organizationId: "org_1",
+        },
+      },
+    });
     expect(body.data).toMatchObject({
       id: "member_1",
       userId: "user_123",
@@ -103,7 +101,7 @@ describe("GET /users/{id}/organizations/{organizationId}/member", () => {
 
   it("returns 404 when the user is not a member of the organization", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce(null);
+    memberFindUniqueMock.mockResolvedValueOnce(null);
 
     const response = await createApp().request(
       "http://localhost/me/organizations/org_1/member",

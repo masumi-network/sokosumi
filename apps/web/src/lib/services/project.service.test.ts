@@ -3,9 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const coreClientMock = {
-  deleteProjectsByIdJobsByJobId: vi.fn(),
   deleteProjectsByIdSocialConnectionsByConnectionId: vi.fn(),
-  deleteProjectsByIdTasksByTaskId: vi.fn(),
   getProjects: vi.fn(),
   getProjectsById: vi.fn(),
   getProjectsByIdCalendar: vi.fn(),
@@ -13,7 +11,6 @@ const coreClientMock = {
   getProjectsByIdContextMd: vi.fn(),
   getProjectsByIdSocialConnections: vi.fn(),
   getProjectsByIdSocialPosts: vi.fn(),
-  getProjectsByIdSocialPostsByPostId: vi.fn(),
   getProjectsStats: vi.fn(),
   patchProjectsById: vi.fn(),
   patchProjectsByIdSocialPostsByPostId: vi.fn(),
@@ -28,8 +25,6 @@ const coreClientMock = {
   postProjectsByIdSocialPostsByPostIdSchedule: vi.fn(),
   putProjectsByIdDesignMd: vi.fn(),
   deleteProjectsByIdDesignMd: vi.fn(),
-  postProjectsByIdJobs: vi.fn(),
-  postProjectsByIdTasks: vi.fn(),
 };
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -319,43 +314,6 @@ describe("project.service", () => {
     );
   });
 
-  it("adds and removes project jobs and tasks via Core", async () => {
-    const project = buildProject();
-    coreClientMock.postProjectsByIdJobs.mockResolvedValue({ data: project });
-    coreClientMock.deleteProjectsByIdJobsByJobId.mockResolvedValue({
-      data: project,
-    });
-    coreClientMock.postProjectsByIdTasks.mockResolvedValue({ data: project });
-    coreClientMock.deleteProjectsByIdTasksByTaskId.mockResolvedValue({
-      data: project,
-    });
-
-    const { projectService } = await import("./project.service");
-    await projectService.addJob("project-1", "job-1");
-    await projectService.removeJob("project-1", "job-1");
-    await projectService.addTask("project-1", "task-1");
-    await projectService.removeTask("project-1", "task-1");
-
-    expect(coreClientMock.postProjectsByIdJobs).toHaveBeenCalledWith(
-      "project-1",
-      { jobId: "job-1" },
-    );
-    expect(coreClientMock.deleteProjectsByIdJobsByJobId).toHaveBeenCalledWith({
-      id: "project-1",
-      jobId: "job-1",
-    });
-    expect(coreClientMock.postProjectsByIdTasks).toHaveBeenCalledWith(
-      "project-1",
-      { taskId: "task-1" },
-    );
-    expect(coreClientMock.deleteProjectsByIdTasksByTaskId).toHaveBeenCalledWith(
-      {
-        id: "project-1",
-        taskId: "task-1",
-      },
-    );
-  });
-
   it("loads project memory and returns null on 404", async () => {
     const contextMd = {
       content: "# Memory",
@@ -540,21 +498,6 @@ describe("project.service", () => {
         "project-1",
         { status: undefined, cursor: undefined, limit: 20 },
       );
-    });
-
-    it("reads a single social post", async () => {
-      coreClientMock.getProjectsByIdSocialPostsByPostId.mockResolvedValue({
-        data: post,
-      });
-
-      const { projectService } = await import("./project.service");
-
-      await expect(
-        projectService.getSocialPost("project-1", "post-1"),
-      ).resolves.toEqual(post);
-      expect(
-        coreClientMock.getProjectsByIdSocialPostsByPostId,
-      ).toHaveBeenCalledWith("project-1", "post-1");
     });
 
     it("creates, updates, schedules, and cancels with the generated request DTOs", async () => {

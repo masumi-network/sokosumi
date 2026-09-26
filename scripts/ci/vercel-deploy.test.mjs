@@ -5,6 +5,10 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
+  NEON_API_KEY_VARIABLE,
+  projectIdVariable,
+} from "./preview-db-reset.mjs";
+import {
   createGitDeployment,
   deployTargets,
   GITHUB_PR_FILES_LIMIT,
@@ -22,6 +26,7 @@ import {
   runPreviewDeployComment,
   runPreviewDeployOpened,
   runPreviewFromGithubEvent,
+  settlePreviewDeployments,
   summarizeCliDeployResult,
   usageMessage,
   VERCEL_PROJECTS,
@@ -75,6 +80,11 @@ describe("parseDeployComment", () => {
       kind: "usage",
     });
     assert.deepEqual(parseDeployComment("/deploy staging"), { kind: "usage" });
+    // The plain /deploy job never deploys a `--reset-db` comment without the
+    // reset.
+    assert.deepEqual(parseDeployComment("/deploy all --reset-db"), {
+      kind: "usage",
+    });
     assert.deepEqual(parseDeployComment("/deploy all mainnet"), {
       kind: "usage",
     });
@@ -579,6 +589,81 @@ describe("pollDeploymentUntilSettled", () => {
         }),
       /did not finish/,
     );
+  });
+});
+
+describe("settlePreviewDeployments", () => {
+  // A job that ends early releases the per-PR queue while a Core build it
+  // started can still migrate, and a queued reset could then restore the
+  // branch under it.
+  function deferred() {
+    let resolve;
+    const promise = new Promise((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  }
+
+  async function settledBefore(promise, release) {
+    let done = false;
+    const watched = promise.then(
+      () => {
+        done = true;
+      },
+      () => {
+        done = true;
+      },
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    const early = done;
+    release();
+    await watched;
+    return early;
+  }
+
+  it("waits for every poll before it reports a failed one", async () => {
+    const core = deferred();
+    const run = settlePreviewDeployments({
+      networks: ["mainnet"],
+      git: {},
+      createDeployment: async ({ target }) => ({
+        id: target.app,
+        readyState: "BUILDING",
+      }),
+      pollDeployment: async (deployment) => {
+        if (deployment.id === "web") {
+          throw new Error("fetch failed");
+        }
+        await core.promise;
+        return { ...deployment, readyState: "READY" };
+      },
+    });
+    assert.equal(await settledBefore(run, core.resolve), false);
+    await assert.rejects(run, /fetch failed/);
+  });
+
+  it("polls the created deployments, then reports the first failure", async () => {
+    const core = deferred();
+    const polled = [];
+    const run = settlePreviewDeployments({
+      networks: ["mainnet"],
+      git: {},
+      createDeployment: async ({ target }) => {
+        if (target.app === "web") {
+          throw new Error("Vercel 500");
+        }
+        return { id: target.app, readyState: "BUILDING" };
+      },
+      pollDeployment: async (deployment) => {
+        polled.push(deployment.id);
+        await core.promise;
+        throw new Error("poll failed");
+      },
+    });
+    assert.equal(await settledBefore(run, core.resolve), false);
+    // web comes first in the target order, so its create error wins.
+    await assert.rejects(run, /Vercel 500/);
+    assert.deepEqual(polled, ["core"]);
   });
 });
 
@@ -1205,7 +1290,7 @@ describe("git preview policy", () => {
     assert.doesNotMatch(workflow, /pull_request\.base\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.ref/);
-    for (const jobId of ["comment", "opened"]) {
+    for (const jobId of ["comment", "opened", "reset-db"]) {
       const checkout = checkoutStep(jobBlock(workflow, jobId), jobId);
       assert.match(
         checkout,
@@ -1231,6 +1316,85 @@ describe("git preview policy", () => {
     );
     assert.doesNotMatch(workflow, /lower\(/);
     assert.match(workflow, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
+  });
+
+  it("gives the Neon key only to the comment-gated reset-db job", async () => {
+    const workflow = await readFile(
+      path.join(repoRoot, ".github/workflows/preview-deploy.yml"),
+      "utf8",
+    );
+    const resetJob = jobBlock(workflow, "reset-db");
+    assert.match(resetJob, /github\.event_name == 'issue_comment'/);
+    assert.match(resetJob, /github\.event\.issue\.pull_request/);
+    assert.match(resetJob, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
+    // `/deploy --reset-db` needs the key too, so it runs here and the
+    // `comment` job skips it. Without the skip, that job would also post a
+    // usage reply.
+    const takesDeployReset =
+      "(startsWith(github.event.comment.body, '/deploy') && contains(github.event.comment.body, '--reset-db'))";
+    assert.ok(
+      resetJob.includes(
+        `      (startsWith(github.event.comment.body, '/reset-db') || ${takesDeployReset})\n`,
+      ),
+    );
+    assert.ok(
+      jobBlock(workflow, "comment").includes(
+        `      contains(github.event.comment.body, '/deploy') &&\n      !${takesDeployReset}\n`,
+      ),
+    );
+    // Like `/deploy`, the reset lets the script's write-access check decide.
+    // author_association can report a private organization member as
+    // CONTRIBUTOR, which would skip the job with no reply.
+    assert.doesNotMatch(workflow, /github\.event\.comment\.author_association/);
+    assert.match(resetJob, /^    environment: preview-database$/m);
+    assert.match(
+      checkoutStep(resetJob, "reset-db"),
+      /^\s+persist-credentials: false$/m,
+    );
+    // Lower, the job can end during the script's longest wait, and then no
+    // reply posts.
+    assert.match(resetJob, /^    timeout-minutes: 40$/m);
+    // A reset and a Core build for one PR never overlap, and a newer job waits
+    // instead of cancelling a waiting one.
+    for (const jobId of ["comment", "opened", "reset-db"]) {
+      assert.match(
+        jobBlock(workflow, jobId),
+        /^ {4}concurrency:\n {6}group: \$\{\{ github\.workflow \}\}-\$\{\{ github\.event\.issue\.number \|\| github\.event\.pull_request\.number \}\}\n {6}cancel-in-progress: false\n {6}queue: max$/m,
+        `${jobId} must share the per-PR queue`,
+      );
+    }
+    // The job passes each name the script reads, from the right store.
+    const env = [
+      ["GITHUB_TOKEN", "secrets.GITHUB_TOKEN"],
+      ["VERCEL_TOKEN", "secrets.VERCEL_TOKEN"],
+      ["VERCEL_ORG_ID", "vars.VERCEL_TEAM_ID"],
+      [NEON_API_KEY_VARIABLE, `secrets.${NEON_API_KEY_VARIABLE}`],
+      ...["mainnet", "preprod"].map((network) => [
+        projectIdVariable(network),
+        `vars.${projectIdVariable(network)}`,
+      ]),
+    ];
+    for (const [name, value] of env) {
+      assert.match(
+        resetJob,
+        new RegExp(
+          `^ {10}${name}: \\$\\{\\{ ${value.replace(".", "\\.")} \\}\\}$`,
+          "m",
+        ),
+      );
+    }
+    assert.match(resetJob, /node scripts\/ci\/preview-db-reset\.mjs/);
+    for (const jobId of ["comment", "opened"]) {
+      assert.doesNotMatch(jobBlock(workflow, jobId), /NEON_/);
+    }
+    // NEON_API_KEY reaches every project in the Neon organization. Only the
+    // reset job, which runs the default branch's code, may read it.
+    assert.equal(workflow.match(/secrets\.NEON_API_KEY\b/g)?.length, 1);
+    assert.match(resetJob, /secrets\.NEON_API_KEY\b/);
+    assert.match(
+      resetJob,
+      /^ {10}ref: \$\{\{ github\.event\.repository\.default_branch \}\}$/m,
+    );
   });
 
   it("treats pull_request_target as an opened-preview event name", () => {

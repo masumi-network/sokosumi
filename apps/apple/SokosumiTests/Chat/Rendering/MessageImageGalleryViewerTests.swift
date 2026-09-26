@@ -83,16 +83,27 @@
         return green > 0.7 && blue < 0.35 && red < 0.6
       }
 
-      /// Bands of rows holding the fixture green, top to bottom, with the columns they span.
+      /// Connected green regions, top to bottom and left to right. Adjacent thumbnails share
+      /// vertical bands, so preserve the gap between their columns when finding a click target.
       private static func greenBands(_ bitmap: NSBitmapImageRep) -> [(rows: ClosedRange<Int>, columns: ClosedRange<Int>)] {
         var bands: [(rows: ClosedRange<Int>, columns: ClosedRange<Int>)] = []
         for row in stride(from: 0, to: bitmap.pixelsHigh, by: 2) {
           let columns = stride(from: 0, to: bitmap.pixelsWide, by: 2).filter { isFixtureGreen(bitmap, $0, row) }
-          guard let first = columns.first, let last = columns.last else { continue }
-          if let open = bands.last, row - open.rows.upperBound <= 4 {
-            bands[bands.count - 1] = (open.rows.lowerBound ... row, min(open.columns.lowerBound, first) ... max(open.columns.upperBound, last))
-          } else {
-            bands.append((row ... row, first ... last))
+          var runs: [ClosedRange<Int>] = []
+          for column in columns {
+            if let last = runs.last, column - last.upperBound <= 4 {
+              runs[runs.count - 1] = last.lowerBound ... column
+            } else {
+              runs.append(column ... column)
+            }
+          }
+          for run in runs {
+            if let index = bands.indices.last(where: { row - bands[$0].rows.upperBound <= 4 && bands[$0].columns.overlaps(run) }) {
+              let open = bands[index]
+              bands[index] = (open.rows.lowerBound ... row, min(open.columns.lowerBound, run.lowerBound) ... max(open.columns.upperBound, run.upperBound))
+            } else {
+              bands.append((row ... row, run))
+            }
           }
         }
         return bands

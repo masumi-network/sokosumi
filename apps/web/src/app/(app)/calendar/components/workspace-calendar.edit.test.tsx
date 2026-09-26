@@ -343,7 +343,7 @@ describe("WorkspaceCalendar editing", () => {
     renderCalendar();
 
     const props = fullCalendarMock.mock.calls[0]?.[0] as FullCalendarProps;
-    expect(props.dayCellClass).toContain("hover:bg-primary-quaternary");
+    expect(props.dayCellClass).toContain("hover:bg-muted");
     expect(props.dayCellClass).toContain("motion-safe:transition-colors");
     expect(props.dayCellClass).toContain("motion-safe:duration-150");
     expect(props.dayCellClass).toContain("motion-safe:ease-out");

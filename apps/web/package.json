@@ -80,6 +80,7 @@
     "lucide-react": "1.48.0",
     "marked": "18.0.14",
     "mdast2docx": "1.6.1",
+    "mermaid": "12.0.0",
     "motion": "13.4.3",
     "nanoid": "6.0.1",
     "neverthrow": "8.2.0",

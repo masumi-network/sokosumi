@@ -1108,7 +1108,7 @@ export type Task = {
      */
     assignee: TaskAssigneeCoworker | TaskAssigneeUser | TaskAssigneeSokoBot | null;
     /**
-     * Workspace members added by @ in Task comment activity, in join order. Owner and assignee are omitted unless they were mentioned. Empty until someone is mentioned.
+     * Workspace members on the Task (via @ mention or self-subscribe), in join order. Owner and assignee are omitted unless they also joined. Empty until someone joins.
      */
     participants: Array<TaskParticipant>;
     /**
@@ -1226,7 +1226,7 @@ export type SokoBotSummary = {
 export type TaskParticipant = {
     user: UserSummary;
     /**
-     * When the @ mention added this person to the Task.
+     * When this person joined the Task (via @ mention or self-subscribe).
      */
     addedAt: Date;
 };
@@ -5950,7 +5950,7 @@ export type TaskListItem = {
      */
     assignee: TaskAssigneeCoworker | TaskAssigneeUser | TaskAssigneeSokoBot | null;
     /**
-     * Workspace members added by @ in Task comment activity, in join order. Owner and assignee are omitted unless they were mentioned. Empty until someone is mentioned.
+     * Workspace members on the Task (via @ mention or self-subscribe), in join order. Owner and assignee are omitted unless they also joined. Empty until someone joins.
      */
     participants: Array<TaskParticipant>;
     /**
@@ -44560,6 +44560,81 @@ export type PatchTasksByIdLinksByLinkIdResponses = {
 };
 
 export type PatchTasksByIdLinksByLinkIdResponse = PatchTasksByIdLinksByLinkIdResponses[keyof PatchTasksByIdLinksByLinkIdResponses];
+
+export type PostTasksByIdParticipantsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/participants';
+};
+
+export type PostTasksByIdParticipantsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdParticipantsError = PostTasksByIdParticipantsErrors[keyof PostTasksByIdParticipantsErrors];
+
+export type PostTasksByIdParticipantsResponses = {
+    /**
+     * Task participants
+     */
+    200: {
+        data: TaskParticipants;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdParticipantsResponse = PostTasksByIdParticipantsResponses[keyof PostTasksByIdParticipantsResponses];
 
 export type DeleteTasksByIdParticipantsByUserIdData = {
     body?: never;

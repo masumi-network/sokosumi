@@ -20,7 +20,7 @@ const {
   getAgentCostMock,
   getCardanoV2ReadySourcesMock,
   getCreditCostsOrThrowMock,
-  getCentsMock,
+  getBalanceMock,
   projectFindFirstMock,
   prismaTransactionMock,
   sentryCaptureExceptionMock,
@@ -36,7 +36,7 @@ const {
   getAgentCostMock: vi.fn(),
   getCardanoV2ReadySourcesMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
-  getCentsMock: vi.fn(),
+  getBalanceMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   sentryCaptureExceptionMock: vi.fn(),
@@ -128,12 +128,9 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("@/helpers/user", () => ({
-  getCents: getCentsMock,
-}));
-
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
+    getBalance: getBalanceMock,
     prepareConsumption: creditBucketPrepareConsumptionMock,
   },
   jobPurchaseRepository: {
@@ -265,7 +262,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       actualPurchaseRegistration.registerJobPurchase,
     );
     getCreditCostsOrThrowMock.mockResolvedValue([{ unit: "lovelace" }]);
-    getCentsMock.mockResolvedValue(BigInt(1_000_000));
+    getBalanceMock.mockResolvedValue(BigInt(1_000_000));
     getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
     getCardanoV2ReadySourcesMock.mockResolvedValue([
       {
@@ -429,7 +426,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   it("rejects insufficient balance before paid seller dispatch", async () => {
     agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
     getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
-    getCentsMock.mockResolvedValue(BigInt(4));
+    getBalanceMock.mockResolvedValue(BigInt(4));
     const startPaidAgentJob = sellerResponding(paidV1JobResponse);
     createAgentClientMock.mockReturnValue({ startPaidAgentJob });
 

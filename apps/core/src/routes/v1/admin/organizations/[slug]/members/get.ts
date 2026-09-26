@@ -1,9 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import {
-  buildAdminOrganizationMemberOverviewPage,
-  getAdminOrganizationBySlug,
-} from "@/helpers/admin-organization-overview.js";
+import { buildAdminOrganizationMemberOverviewPage } from "@/helpers/admin-organization-overview.js";
 import { notFound } from "@/helpers/error";
 import {
   jsonErrorResponse,
@@ -49,11 +46,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { slug } = c.req.valid("param");
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
-
-    const organization = await getAdminOrganizationBySlug(slug, prisma);
-    if (!organization) {
-      throw notFound("Organization not found");
-    }
 
     const page = await buildAdminOrganizationMemberOverviewPage(
       slug,

@@ -398,6 +398,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
+  postTasksByIdParticipants as corePostTasksByIdParticipants,
   postTasksSchedules as corePostTasksSchedules,
   postTasksSchedulesByIdEnd as corePostTasksSchedulesByIdEnd,
   postTasksSchedulesByIdPause as corePostTasksSchedulesByIdPause,
@@ -3877,6 +3878,18 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function subscribeTaskParticipant(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostTasksByIdParticipants({
+          client,
+          path: { id },
+        }),
+      "Failed to subscribe to task",
+    );
+  }
+
   async function deleteTask(id: string) {
     return executeCoreOperation(
       getClient,
@@ -5504,6 +5517,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteTaskLink,
     deleteTaskParticipant,
     deleteTask,
+    subscribeTaskParticipant,
     getChatRoom,
     getChatRoomInvitations,
     getChatRoomMessages,

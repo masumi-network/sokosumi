@@ -3,7 +3,7 @@ import Foundation
 import OpenAPIRuntime
 
 /// Local-only row id: `pending:{clientTurnId}`. Never a server message id.
-public let outboundLocalIdPrefix = "pending:"
+let outboundLocalIdPrefix = "pending:"
 
 /// Sender-local outbound delivery status on a pending shell (ADR 0004).
 public enum OutboundDeliveryStatus: String, Equatable, Sendable {

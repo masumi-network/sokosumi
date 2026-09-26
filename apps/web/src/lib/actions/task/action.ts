@@ -70,11 +70,8 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   projectId?: string | null;
   context?: TaskContextSelectionInput;
   desiredStatus: TaskStatus;
-  /**
-   * New ISO Run at. Core queues the Task (or moves its time); it is never
-   * cleared here, since leaving Queued through a status event clears it.
-   */
-  runAt?: string;
+  /** New ISO Run at, or null to clear it before changing assignee. */
+  runAt?: string | null;
 }
 
 interface TaskMutationError {
@@ -139,7 +136,10 @@ interface CreateTaskCommentParameters extends AuthenticatedRequest {
 
 interface RemoveTaskParticipantParameters extends AuthenticatedRequest {
   taskId: string;
-  userId: string;
+}
+
+interface SubscribeTaskParticipantParameters extends AuthenticatedRequest {
+  taskId: string;
 }
 
 interface CreateTaskLinkParameters extends AuthenticatedRequest {
@@ -601,7 +601,9 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
         ...(context
           ? { context: toCoreTaskContext(context, session.user.id) }
           : {}),
-        ...(runAt ? { runAt: new Date(runAt) } : {}),
+        ...(runAt !== undefined
+          ? { runAt: runAt === null ? null : new Date(runAt) }
+          : {}),
       });
 
       if (desiredStatus !== patchedTask.status) {
@@ -736,16 +738,30 @@ export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
 
 export const removeTaskParticipant = withSession<
   RemoveTaskParticipantParameters,
-  ActionResultDto<{ taskId: string; userId: string }, ActionError>
->(async ({ taskId, userId }) => {
+  ActionResultDto<{ taskId: string }, ActionError>
+>(async ({ taskId, session }) => {
   try {
-    await taskService.removeTaskParticipant(taskId, userId);
+    await taskService.removeTaskParticipant(taskId, session.user.id);
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
-  return toActionResult(ok({ taskId, userId }));
+  return toActionResult(ok({ taskId }));
+});
+
+export const subscribeTaskParticipant = withSession<
+  SubscribeTaskParticipantParameters,
+  ActionResultDto<{ taskId: string }, ActionError>
+>(async ({ taskId }) => {
+  try {
+    await taskService.subscribeTaskParticipant(taskId);
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${taskId}`);
+  return toActionResult(ok({ taskId }));
 });
 
 export const createTaskLink = withSession<

@@ -1,33 +1,36 @@
 "use client";
 
 import { CalendarSync, Plus } from "lucide-react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
-import { useOptimistic, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useOptimistic, useRef, useState, useTransition } from "react";
 
 import { loadMoreTaskSchedules } from "@/app/tasks/actions";
-import {
-  formatTaskScheduleRule,
-  taskScheduleAssigneeLabel,
-  taskSchedulePath,
-} from "@/app/tasks/utils/task-schedule-view";
+import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import {
   parseTaskScheduleStateFilter,
   TASK_SCHEDULE_STATE_PARAM,
 } from "@/app/tasks/utils/task-schedules-filters";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
 import {
   type TaskSchedule,
   TaskScheduleState,
 } from "@/lib/clients/generated/core";
 import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { cn } from "@/lib/utils";
+import { TaskScheduleCard } from "./task-schedule-card";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
-import { TaskScheduleStateBadge } from "./task-schedule-state-badge";
 import { TasksProjectSwitcher } from "./tasks-project-switcher";
 
 const ALL_STATES = "all";
@@ -42,6 +45,8 @@ interface TaskSchedulesViewProps {
   selectedState: TaskScheduleState | null;
   canCreate: boolean;
   canCreatePrivate: boolean;
+  /** Only the owner of a schedule edits it from its card. */
+  currentUserId: string | null;
 }
 
 /**
@@ -58,6 +63,7 @@ export function TaskSchedulesView({
   selectedState,
   canCreate,
   canCreatePrivate,
+  currentUserId,
 }: TaskSchedulesViewProps) {
   const t = useTranslations("App.Tasks.Schedules");
   const router = useRouter();
@@ -69,6 +75,8 @@ export function TaskSchedulesView({
     nextCursor,
   });
   const [isLoadingMore, startLoadingMore] = useTransition();
+  const [hasFailed, setHasFailed] = useState(false);
+  const boundaryRef = useRef<HTMLDivElement | null>(null);
   // The filter is server state; show the pick until the navigation lands.
   const [shownState, setShownState] = useOptimistic(selectedState);
   const [, startFiltering] = useTransition();
@@ -91,6 +99,7 @@ export function TaskSchedulesView({
   function handleLoadMore() {
     const cursor = more.nextCursor;
     if (!cursor) return;
+    setHasFailed(false);
     startLoadingMore(async () => {
       try {
         const page = await loadMoreTaskSchedules({
@@ -103,7 +112,9 @@ export function TaskSchedulesView({
           nextCursor: page.nextCursor,
         }));
       } catch {
-        toast.error(t("loadMoreError"));
+        // Stop loading on its own until the reader asks again, rather than
+        // hammering a server that just said no.
+        setHasFailed(true);
       }
     });
   }
@@ -116,27 +127,42 @@ export function TaskSchedulesView({
     ),
   ];
 
+  const shownValue = shownState ?? ALL_STATES;
+
+  useLoadWhenVisible(boundaryRef, {
+    armed: Boolean(more.nextCursor) && !isLoadingMore && !hasFailed,
+    // A new last row means a moved boundary, which asks for the next page.
+    boundaryKey: rows.at(-1)?.id ?? "",
+    onVisible: handleLoadMore,
+  });
+
   return (
-    <div className="flex flex-col gap-4">
+    <Tabs
+      className="flex flex-col gap-4"
+      onValueChange={handleStateChange}
+      value={shownValue}
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ToggleGroup
-          type="single"
-          value={shownState ?? ALL_STATES}
-          onValueChange={(next) => {
-            if (next) handleStateChange(next);
-          }}
+        <TabsList
           aria-label={t("stateFilter")}
-          className="bg-card-background gap-1 rounded-lg p-1"
+          className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-fit")}
         >
-          <ToggleGroupItem value={ALL_STATES} className="px-3 text-sm">
+          <TabsTrigger
+            className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+            value={ALL_STATES}
+          >
             {t("filterAll")}
-          </ToggleGroupItem>
+          </TabsTrigger>
           {Object.values(TaskScheduleState).map((value) => (
-            <ToggleGroupItem key={value} value={value} className="px-3 text-sm">
+            <TabsTrigger
+              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+              key={value}
+              value={value}
+            >
               {t(`state.${value}`)}
-            </ToggleGroupItem>
+            </TabsTrigger>
           ))}
-        </ToggleGroup>
+        </TabsList>
         <div className="flex items-center gap-2 sm:gap-3">
           <TasksProjectSwitcher
             projectOptions={projectOptions}
@@ -151,9 +177,10 @@ export function TaskSchedulesView({
         </div>
       </div>
 
-      <div className="bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+      {/* One panel, always the shown state's, so the list is its tab's panel. */}
+      <TabsContent className="flex flex-col gap-4" value={shownValue}>
         {rows.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
+          <div className="border-border flex flex-col items-center gap-2 rounded-xl border px-4 py-16 text-center">
             <CalendarSync
               className="text-muted-foreground size-6"
               aria-hidden
@@ -163,29 +190,46 @@ export function TaskSchedulesView({
             </p>
           </div>
         ) : (
-          <ul className="divide-border divide-y">
+          <ul className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {rows.map((schedule) => (
-              <TaskScheduleRow
+              <TaskScheduleCard
+                assigneeDisplayOptions={assigneeDisplayOptions}
+                canCreatePrivate={canCreatePrivate}
+                coworkerOptions={coworkerOptions}
+                currentUserId={currentUserId}
                 key={schedule.id}
+                projectOptions={projectOptions}
                 schedule={schedule}
-                coworkerOptions={assigneeDisplayOptions}
               />
             ))}
           </ul>
         )}
+
         {more.nextCursor ? (
-          <div className="border-border border-t px-4 py-3">
+          // Loads on its own as it scrolls into view, and stays a button so a
+          // click works where no observer runs.
+          <div
+            className="flex flex-col items-center gap-2"
+            data-testid="schedules-load-more"
+            ref={boundaryRef}
+          >
+            {hasFailed ? (
+              <p className="text-destructive text-xs" role="alert">
+                {t("loadMoreError")}
+              </p>
+            ) : null}
             <Button
-              variant="outline"
-              className="text-muted-foreground hover:text-foreground w-full text-xs"
-              onClick={handleLoadMore}
+              aria-busy={isLoadingMore}
               disabled={isLoadingMore}
+              onClick={handleLoadMore}
+              size="sm"
+              variant="outline"
             >
               {isLoadingMore ? t("loadingMore") : t("loadMore")}
             </Button>
           </div>
         ) : null}
-      </div>
+      </TabsContent>
 
       {isCreateOpen ? (
         <TaskScheduleDialog
@@ -197,58 +241,6 @@ export function TaskSchedulesView({
           onSaved={(scheduleId) => router.push(taskSchedulePath(scheduleId))}
         />
       ) : null}
-    </div>
-  );
-}
-
-function TaskScheduleRow({
-  schedule,
-  coworkerOptions,
-}: {
-  schedule: TaskSchedule;
-  coworkerOptions: CoworkerOption[];
-}) {
-  const t = useTranslations("App.Tasks.Schedules");
-  const tSchedule = useTranslations("App.Tasks.Schedule");
-  const formatter = useFormatter();
-
-  return (
-    <li>
-      <Link
-        href={taskSchedulePath(schedule.id)}
-        className="hover:bg-card-background-hover flex flex-col gap-2 px-4 py-3 transition-colors sm:flex-row sm:items-center sm:gap-4"
-      >
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-foreground line-clamp-1 text-sm font-medium">
-            {schedule.name}
-          </span>
-          <span className="text-muted-foreground line-clamp-1 text-xs">
-            {formatTaskScheduleRule(schedule.rule, formatter, tSchedule)}
-          </span>
-        </div>
-        <div className="text-muted-foreground flex shrink-0 items-center gap-3 text-xs sm:gap-4">
-          <span className="tabular-nums">
-            {schedule.nextRunAt
-              ? t("nextRun", {
-                  datetime: formatter.dateTime(
-                    schedule.nextRunAt,
-                    "dateTimeMedium",
-                  ),
-                })
-              : t("noNextRun")}
-          </span>
-          <span className="max-w-40 truncate">
-            {taskScheduleAssigneeLabel(schedule, coworkerOptions, {
-              unassigned: t("unassigned"),
-              unavailable: t("unavailableAssignee"),
-            })}
-          </span>
-          <TaskScheduleStateBadge
-            schedule={schedule}
-            label={t(`state.${schedule.state}`)}
-          />
-        </div>
-      </Link>
-    </li>
+    </Tabs>
   );
 }
