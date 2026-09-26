@@ -6,9 +6,9 @@ import Foundation
 /// (one slash, no host): Better Auth rejects `com.sokosumi.app://auth`.
 /// The `ASWebAuthenticationSession` callback scheme is `com.sokosumi.app`.
 public struct OAuthConfiguration: Sendable {
-  public static let redirectURI = "com.sokosumi.app:/auth"
+  static let redirectURI = "com.sokosumi.app:/auth"
   public static let callbackScheme = "com.sokosumi.app"
-  public static let defaultScopes = ["openid", "sokosumi:api", "offline_access"]
+  static let defaultScopes = ["openid", "sokosumi:api", "offline_access"]
 
   /// e.g. `https://api.sokosumi.com/auth` (Core origin + `/auth`, no `/v1`).
   public var issuerBaseURL: URL
@@ -27,7 +27,7 @@ public struct OAuthConfiguration: Sendable {
 
   /// Path of the fixed redirect URI (`/auth`). Callbacks must land here,
   /// not just anywhere under the callback scheme.
-  public static var redirectPath: String {
+  static var redirectPath: String {
     URLComponents(string: OAuthConfiguration.redirectURI)?.path ?? "/auth"
   }
 
@@ -47,12 +47,12 @@ public struct OAuthConfiguration: Sendable {
     issuerBaseURL.appendingPathComponent("oauth2/authorize")
   }
 
-  public var tokenEndpoint: URL {
+  var tokenEndpoint: URL {
     issuerBaseURL.appendingPathComponent("oauth2/token")
   }
 
   /// System-browser authorize URL for a public PKCE client (no client secret).
-  public func authorizeURL(state: String, codeChallenge: String) throws -> URL {
+  func authorizeURL(state: String, codeChallenge: String) throws -> URL {
     var components = URLComponents(url: authorizeEndpoint, resolvingAgainstBaseURL: false)!
     components.queryItems = [
       URLQueryItem(name: "response_type", value: "code"),
