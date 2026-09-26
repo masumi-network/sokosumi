@@ -124,7 +124,8 @@ describe("TaskTagEditor", () => {
       expect(
         screen.getByRole("checkbox", { name: "vocabulary.research" }),
       ).not.toBeChecked();
-      await user.click(screen.getByRole("button", { name: "save" }));
+      // The error can render before React finishes the pending transition.
+      await user.click(await screen.findByRole("button", { name: "save" }));
       await waitFor(() =>
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
       );
