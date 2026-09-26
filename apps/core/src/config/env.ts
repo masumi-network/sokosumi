@@ -150,6 +150,23 @@ const baseEnvSchema = z.object({
     .string()
     .startsWith("mistral/")
     .default("mistral/mistral-medium-3.5"),
+  /**
+   * Model that reorders Files search candidates and scores taxonomy
+   * suggestions. Jev is an evaluation model reached through AI Gateway; it
+   * never sees a document the reader is not already authorized to read.
+   */
+  FILES_RANKING_MODEL: z.string().min(1).default("typesafe-ai/jev"),
+  /**
+   * Off by default, and it must stay off until reported usage has been
+   * reconciled against the serialized-input ceilings in
+   * `lib/files/jev-request.ts` on a route we are allowed to call. Disabled
+   * means Files ranks with deterministic filename and full-text order — the
+   * product works, it just does not reorder semantically.
+   */
+  FILES_JEV_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 
   // First-party Soko Bot control plane and Eve runtime.
   SOKO_BOT_ENABLED: z

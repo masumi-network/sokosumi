@@ -188,6 +188,7 @@ model Workspace {
   fileLineages       FileLineage[]
   fileCollections    FileCollection[]
   fileAdmissions     FileAuthorizationAdmission[]
+  fileResultWindows  FileResultWindow[]
 
   @@map("workspace")
 }
@@ -5375,4 +5376,46 @@ model FileAuthorizationAdmission {
   @@index([workspaceId, admittedAt])
   @@index([payloadDigest])
   @@map("file_authorization_admission")
+}
+
+/// A search snapshot is a fixed order, not a live query. Paging walks
+/// positions in this list so an entry cannot move between pages, and a bulk
+/// selection materializes from the same snapshot so "select all in this
+/// window" means exactly the rows the reader was shown.
+enum FileResultWindowKind {
+  SEARCH
+  SELECTION
+}
+
+model FileResultWindow {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  kind FileResultWindowKind
+
+  /// Hash of actor identity, auth method and active workspace. A cursor from
+  /// one actor cannot be replayed by another.
+  actorFingerprint String
+  /// Hash of query, filters, sort and index generation. A changed binding is
+  /// a different search, so the cursor restarts instead of paging a stale order.
+  bindingDigest String
+  /// Authorization clocks the order was built under. Any change restarts it.
+  epochVector String
+
+  /// Ordered `[{ r: resourceId, c: contentRevision, m: metadataRevision }]`.
+  /// Positions, not items: a page advances over every position it scans.
+  entries Json
+
+  /// True when a retrieval budget or the window cap was reached, so the UI
+  /// can say "more may match" without claiming a corpus total.
+  truncated Boolean @default(false)
+
+  expiresAt DateTime
+
+  @@index([workspaceId, actorFingerprint])
+  @@index([expiresAt])
+  @@map("file_result_window")
 }

@@ -1,0 +1,264 @@
+import { createHash } from "node:crypto";
+
+/**
+ * Building a Jev request inside an exact token ceiling.
+ *
+ * The budget unit is tokens in the **entire serialized request** — the
+ * repeated query, the ids, the keys and delimiters, the rubric, everything.
+ * Fields are bounded, truncated at safe boundaries, serialized again and
+ * re-measured; if the result is still over the ceiling it is rejected rather
+ * than sent.
+ *
+ * We do not have Jev's tokenizer. Rather than estimate from characters and
+ * hope, this module uses a documented **upper bound**: no byte-pair
+ * tokenizer emits more tokens than the input has Unicode code points, plus a
+ * fixed allowance for provider-added framing. Over-counting costs us a few
+ * characters of excerpt; under-counting would silently blow a paid budget.
+ * Reconciling reported usage against this bound needs live calls, which are
+ * not authorized, so `FILES_JEV_ENABLED` stays off by default.
+ */
+
+/** Conservative allowance for provider-added framing we cannot see. */
+export const PROVIDER_FRAMING_TOKEN_ALLOWANCE = 64;
+
+export interface TokenCeilings {
+  total: number;
+  /** Per-component ceilings, in priority order for trimming. */
+  components: Record<string, number>;
+}
+
+export const SEARCH_PAIR_CEILINGS: TokenCeilings = {
+  total: 1_024,
+  components: { query: 128, candidate: 640, framing: 256 },
+};
+
+export const RELATED_PAIR_CEILINGS: TokenCeilings = {
+  total: 2_048,
+  components: { seeds: 768, candidate: 1_024, framing: 256 },
+};
+
+export const LABEL_EVALUATION_CEILINGS: TokenCeilings = {
+  total: 4_096,
+  components: { excerpt: 2_048, vocabulary: 1_536, framing: 512 },
+};
+
+/**
+ * Upper bound on the tokens a byte-pair tokenizer can produce for this text.
+ * Code points, not UTF-16 units, so an emoji counts once and a surrogate
+ * pair is never counted twice.
+ */
+export function conservativeTokenCount(text: string): number {
+  let count = 0;
+  for (const _ of text) count += 1;
+  return count;
+}
+
+/**
+ * Truncate to at most `maxTokens` under the bound above, cutting on a
+ * grapheme boundary so a combining mark or an emoji sequence is never split.
+ * Deterministic: the same input and budget always produce the same output.
+ */
+export function truncateToTokenBudget(text: string, maxTokens: number): string {
+  if (maxTokens <= 0) return "";
+  if (conservativeTokenCount(text) <= maxTokens) return text;
+
+  const segmenter =
+    typeof Intl !== "undefined" && "Segmenter" in Intl
+      ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+      : null;
+
+  if (!segmenter) return [...text].slice(0, maxTokens).join("");
+
+  let out = "";
+  let used = 0;
+  for (const { segment } of segmenter.segment(text)) {
+    const cost = conservativeTokenCount(segment);
+    if (used + cost > maxTokens) break;
+    out += segment;
+    used += cost;
+  }
+  return out;
+}
+
+export interface JevSearchPairInput {
+  query: string;
+  candidateId: string;
+  candidateTitle: string;
+  candidateExcerpt: string;
+}
+
+export interface JevRelatedPairInput {
+  seedPassages: string[];
+  candidateId: string;
+  candidateTitle: string;
+  candidateExcerpt: string;
+}
+
+export interface JevLabelInput {
+  documentExcerpt: string;
+  /** Authorized vocabulary shortlist: id, name and rubric description. */
+  vocabulary: { id: string; name: string; description: string | null }[];
+  projects: { id: string; name: string; description: string | null }[];
+}
+
+export interface SerializedJevRequest {
+  /** The exact body we would send, already inside the ceiling. */
+  body: Record<string, unknown>;
+  serialized: string;
+  tokens: number;
+  digest: string;
+}
+
+export type JevRequestRejection = { rejected: true; reason: string };
+
+export type JevRequestResult = SerializedJevRequest | JevRequestRejection;
+
+export function isJevRequestRejection(
+  result: JevRequestResult,
+): result is JevRequestRejection {
+  return "rejected" in result;
+}
+
+const SEARCH_RUBRIC =
+  "Rate how well the document answers the search query. 0 unrelated, 1 mentions it, 2 partly answers, 3 directly answers.";
+const RELATED_RUBRIC =
+  "Rate how closely the candidate relates to the seed passages. 0 unrelated, 1 same broad area, 2 clearly related, 3 same topic.";
+const LABEL_RUBRIC =
+  "Choose the vocabulary entries the document belongs to. Use only the supplied ids. Answer with ids, never new names.";
+
+function finalize(
+  body: Record<string, unknown>,
+  ceilings: TokenCeilings,
+): JevRequestResult {
+  const serialized = JSON.stringify(body);
+  const tokens =
+    conservativeTokenCount(serialized) + PROVIDER_FRAMING_TOKEN_ALLOWANCE;
+
+  if (tokens > ceilings.total) {
+    // Ids and rubric are fixed overhead: if they alone no longer fit, the
+    // request is rejected rather than allowed to borrow an unbounded budget.
+    return {
+      rejected: true,
+      reason: `serialized request is ${tokens} tokens, over the ${ceilings.total} ceiling`,
+    };
+  }
+
+  return {
+    body,
+    serialized,
+    tokens,
+    digest: createHash("sha256").update(serialized).digest("base64url"),
+  };
+}
+
+/**
+ * Bound every field, serialize, measure, and trim the lowest-priority
+ * excerpt tail until the whole request fits. JSON syntax is never chopped:
+ * only content values shrink, and the body is re-serialized after each step.
+ */
+function fitWithin(
+  ceilings: TokenCeilings,
+  build: (excerptBudget: number) => Record<string, unknown>,
+  initialExcerptBudget: number,
+): JevRequestResult {
+  let budget = initialExcerptBudget;
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const result = finalize(build(budget), ceilings);
+    if (!isJevRequestRejection(result)) return result;
+    if (budget <= 0) return result;
+    budget = Math.floor(budget / 2);
+  }
+
+  return { rejected: true, reason: "request did not fit after trimming" };
+}
+
+export function buildJevSearchPairRequest(
+  input: JevSearchPairInput,
+): JevRequestResult {
+  const query = truncateToTokenBudget(
+    input.query,
+    SEARCH_PAIR_CEILINGS.components.query,
+  );
+
+  return fitWithin(
+    SEARCH_PAIR_CEILINGS,
+    (excerptBudget) => ({
+      rubric: SEARCH_RUBRIC,
+      query,
+      candidate: {
+        id: input.candidateId,
+        title: truncateToTokenBudget(input.candidateTitle, 64),
+        excerpt: truncateToTokenBudget(input.candidateExcerpt, excerptBudget),
+      },
+    }),
+    SEARCH_PAIR_CEILINGS.components.candidate,
+  );
+}
+
+export function buildJevRelatedPairRequest(
+  input: JevRelatedPairInput,
+): JevRequestResult {
+  // Up to three seed passages share one total, allocated evenly and in a
+  // stable order so the same seed always serializes the same way.
+  const seeds = input.seedPassages.slice(0, 3);
+  const perSeed =
+    seeds.length === 0
+      ? 0
+      : Math.floor(RELATED_PAIR_CEILINGS.components.seeds / seeds.length);
+  const boundedSeeds = seeds.map((passage) =>
+    truncateToTokenBudget(passage, perSeed),
+  );
+
+  return fitWithin(
+    RELATED_PAIR_CEILINGS,
+    (excerptBudget) => ({
+      rubric: RELATED_RUBRIC,
+      seeds: boundedSeeds,
+      candidate: {
+        id: input.candidateId,
+        title: truncateToTokenBudget(input.candidateTitle, 64),
+        excerpt: truncateToTokenBudget(input.candidateExcerpt, excerptBudget),
+      },
+    }),
+    RELATED_PAIR_CEILINGS.components.candidate,
+  );
+}
+
+export function buildJevLabelRequest(input: JevLabelInput): JevRequestResult {
+  const vocabularyBudget = LABEL_EVALUATION_CEILINGS.components.vocabulary;
+  const perEntry =
+    input.vocabulary.length + input.projects.length === 0
+      ? 0
+      : Math.floor(
+          vocabularyBudget / (input.vocabulary.length + input.projects.length),
+        );
+
+  const vocabulary = input.vocabulary.map((entry) => ({
+    id: entry.id,
+    name: truncateToTokenBudget(entry.name, 40),
+    description: truncateToTokenBudget(
+      entry.description ?? "",
+      Math.max(0, perEntry - 40),
+    ),
+  }));
+  const projects = input.projects.map((entry) => ({
+    id: entry.id,
+    name: truncateToTokenBudget(entry.name, 40),
+    description: truncateToTokenBudget(
+      entry.description ?? "",
+      Math.max(0, perEntry - 40),
+    ),
+  }));
+
+  return fitWithin(
+    LABEL_EVALUATION_CEILINGS,
+    (excerptBudget) => ({
+      rubric: LABEL_RUBRIC,
+      document: truncateToTokenBudget(input.documentExcerpt, excerptBudget),
+      vocabulary,
+      projects,
+    }),
+    LABEL_EVALUATION_CEILINGS.components.excerpt,
+  );
+}
