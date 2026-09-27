@@ -1,5 +1,6 @@
 import { gateway, type LanguageModelMiddleware, wrapLanguageModel } from "ai";
 import { z } from "zod";
+import { evaluationBinding, evaluationMiddleware } from "./evaluation-dispatch";
 
 /** Public Gateway catalog checked 2026-09-26. Add exact IDs only after review.
  * Virtual aliases and direct-provider objects cannot bypass regional routing.
@@ -78,7 +79,12 @@ export function sokoBotModelRequest(options: {
   return {
     model: wrapLanguageModel({
       model: gateway.languageModel(options.model),
-      middleware: sokoBotRegionMiddleware,
+      middleware: evaluationBinding()
+        ? [
+            sokoBotRegionMiddleware,
+            evaluationMiddleware(options.model, options.role),
+          ]
+        : sokoBotRegionMiddleware,
     }),
     maxRetries: 0,
     providerOptions: {

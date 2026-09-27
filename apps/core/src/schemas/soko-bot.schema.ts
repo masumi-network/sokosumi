@@ -263,6 +263,7 @@ export const sokoBotTurnSchema = z
     pendingDecisions: z.array(sokoBotPendingDecisionSchema).optional(),
     toolCalls: z.array(sokoBotToolCallSchema).optional(),
     /** Present on the detail route: what the model was given this turn. */
+    evaluation: z.record(z.string(), z.unknown()).nullable().optional(),
     contextSummary: sokoBotContextSummarySchema.nullable().optional(),
     /** Detail route only: the exact context packet sent to the runtime. */
     contextPacket: z.unknown().nullable().optional(),

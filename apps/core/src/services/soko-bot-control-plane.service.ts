@@ -46,6 +46,12 @@ import {
   ExternalTurnClassifier,
 } from "@/lib/soko-bot/classifier";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
+import {
+  assertEvaluationActor,
+  evaluationBinding,
+  evaluationEvidence,
+  withEvaluationActor,
+} from "@/lib/soko-bot/evaluation-dispatch";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import { isRetryableSokoBotRuntimeError } from "@/lib/soko-bot/runtime-errors";
 import {
@@ -1425,6 +1431,11 @@ export class SokoBotControlPlane {
     const { contextSnapshot, ...rest } = turn;
     return {
       ...rest,
+      evaluation: await evaluationEvidence(
+        userId,
+        turn.sokoBotId,
+        turn.clientTurnId,
+      ),
       contextSummary: summarizeContextPacket(contextSnapshot?.packet ?? null),
       contextPacket: contextSnapshot?.packet ?? null,
     };
@@ -1979,6 +1990,21 @@ export class SokoBotControlPlane {
       },
     });
     if (!bot) throw new SokoBotNotFoundError("Create a Soko Bot first");
+    if (
+      evaluationBinding() &&
+      (input.chat?.askedByBot ||
+        (input.chat?.requestedByUserId &&
+          input.chat.requestedByUserId !== input.userId))
+    )
+      throw new SokoBotValidationError(
+        "Evaluation requires the designated owner",
+      );
+    assertEvaluationActor({
+      userId: input.userId,
+      sokoBotId: bot.id,
+      clientTurnId,
+      source,
+    });
     const duplicate = await prisma.sokoBotTurn.findUnique({
       where: {
         sokoBotId_clientTurnId: {
@@ -2135,25 +2161,26 @@ export class SokoBotControlPlane {
         ),
       ].join(" "),
     );
-    const classification: ClassificationResult = await this.classifier.classify(
-      message,
-      {
-        ...classifierContext,
-        pendingIntents: pendingIntents.map((intent) => ({
-          id: intent.id,
-          desiredOutcome: intent.desiredOutcome,
-          targetIds: Array.isArray(intent.targetIds)
-            ? intent.targetIds.filter(
-                (id): id is string =>
-                  typeof id === "string" &&
-                  classifierContext.taskIds.includes(id),
-              )
-            : [],
-          expiresAt: intent.expiresAt.toISOString(),
-          route: intent.originatingTurn.route ?? "CLARIFY",
-          requiresApproval: intent.decisions.length > 0,
-        })),
-      },
+    const classification: ClassificationResult = await withEvaluationActor(
+      { userId: input.userId, sokoBotId: bot.id, clientTurnId, source },
+      () =>
+        this.classifier.classify(message, {
+          ...classifierContext,
+          pendingIntents: pendingIntents.map((intent) => ({
+            id: intent.id,
+            desiredOutcome: intent.desiredOutcome,
+            targetIds: Array.isArray(intent.targetIds)
+              ? intent.targetIds.filter(
+                  (id): id is string =>
+                    typeof id === "string" &&
+                    classifierContext.taskIds.includes(id),
+                )
+              : [],
+            expiresAt: intent.expiresAt.toISOString(),
+            route: intent.originatingTurn.route ?? "CLARIFY",
+            requiresApproval: intent.decisions.length > 0,
+          })),
+        }),
     );
     if (
       classification.classification.route === "MANAGE_WORK" &&

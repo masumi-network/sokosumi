@@ -2588,6 +2588,13 @@ export const SokoBotTurnSchema = {
                 $ref: '#/components/schemas/SokoBotToolCall'
             }
         },
+        evaluation: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {}
+        },
         contextSummary: {
             $ref: '#/components/schemas/SokoBotContextSummary'
         },

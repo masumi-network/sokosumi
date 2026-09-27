@@ -4816,3 +4816,11 @@ model ProjectImageReview {
   @@index([decidedByUserId])
   @@map("project_image_review")
 }
+
+// One immutable partition per preview database; no reset/renewal API.
+model SokoBotEvaluationAllowance {
+  id          String  @id
+  bindingHash String
+  calls       Json    @default("[]")
+  frozen      Boolean @default(false)
+}

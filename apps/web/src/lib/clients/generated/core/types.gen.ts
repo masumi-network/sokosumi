@@ -591,6 +591,9 @@ export type SokoBotTurn = {
     delegations?: Array<SokoBotDelegation>;
     pendingDecisions?: Array<SokoBotPendingDecision>;
     toolCalls?: Array<SokoBotToolCall>;
+    evaluation?: {
+        [key: string]: unknown;
+    } | null;
     contextSummary?: SokoBotContextSummary;
     contextPacket?: unknown;
     requestedBy?: {

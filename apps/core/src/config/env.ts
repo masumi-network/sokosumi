@@ -126,6 +126,8 @@ const baseEnvSchema = z.object({
    * model, so a case for changing it can be made with numbers.
    */
   SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
+  /** Immutable operator-issued preview partition; never accepted from API input. */
+  SOKO_BOT_EVALUATION_ALLOWANCE: z.string().min(1).optional(),
   /** Score every completed turn with the judge model. */
   SOKO_BOT_TURN_JUDGE_ENABLED: z
     .enum(["true", "false"])

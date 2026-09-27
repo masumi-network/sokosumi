@@ -104,6 +104,10 @@ import {
   ROOM_BOT_MESSAGE_WINDOW_MS,
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
+import {
+  assertEvaluationActor,
+  assertEvaluationTool,
+} from "@/lib/soko-bot/evaluation-dispatch";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import {
@@ -2781,6 +2785,11 @@ export class SokoBotRuntimeService {
 
   async executeTool(input: ExecuteSokoBotToolInput): Promise<unknown> {
     const authorized = await this.authorize(input);
+    assertEvaluationActor({
+      ...authorized.turn,
+      clientTurnId: authorized.turn.id,
+    });
+    assertEvaluationTool(input.capability, input.input);
     const inputHash = actionInputHash(input.input ?? null);
     const operationKey = ACTION_CAPABILITIES.has(input.capability)
       ? actionOperationKey({

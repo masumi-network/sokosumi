@@ -5,7 +5,6 @@ import {
   type TurnClassification,
 } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
-
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -13,6 +12,7 @@ import {
   sokoBotInferenceEvidence,
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
+import { evaluationClassifierContext } from "./evaluation-dispatch";
 
 const CLASSIFIER_MODEL = SOKO_BOT_SELECTOR_MODEL;
 const CLASSIFIER_VERSION = "soko-bot-classifier-v1";
@@ -379,6 +379,7 @@ export class ExternalTurnClassifier implements TurnClassifier {
     message: string,
     context: ClassifierContextSummary,
   ): Promise<ClassificationResult> {
+    context = evaluationClassifierContext(context);
     const startedAt = performance.now();
     // Assigned by the model call below and reported whatever happens after it,
     // including the parse failures and timeouts that still cost money.
