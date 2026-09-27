@@ -100,46 +100,56 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // all of them rather than none.
     const deleted: string[] = [];
 
-    do {
-      const result = await list({
-        prefix,
-        token,
-        cursor,
-        limit: 1000,
-      });
-
-      if (result.blobs.length > 0) {
-        foundAnyBlobs = true;
-        const pathnames = result.blobs.map((b) => b.pathname);
-
-        for (let i = 0; i < pathnames.length; i += BATCH_SIZE) {
-          const batch = pathnames.slice(i, i + BATCH_SIZE);
-          await del(batch, { token });
-          deleted.push(...batch);
-        }
-      }
-
-      cursor = result.hasMore ? result.cursor : undefined;
-    } while (cursor);
-
-    // 404 if no blobs exist under this prefix
-    if (!foundAnyBlobs) {
-      throw notFound("Folder not found");
-    }
-
-    // Tombstone in the same request. Without this the documents stayed fully
-    // indexed: deleted files kept matching full-text search and kept
-    // returning content snippets.
+    // Resolve the workspace before deleting anything: resolving after the
+    // blobs are gone means a failure here leaves them deleted and still
+    // fully indexed.
     const workspace = await resolveDriveTasksWorkspace({
       userContext,
       scope: body.scope,
       organizationId: body.scope === "org" ? body.organizationId : undefined,
     });
-    await tombstoneDriveUploadResources({
-      workspaceId: workspace.workspaceId,
-      scope,
-      pathnames: deleted,
-    });
+
+    try {
+      do {
+        const result = await list({
+          prefix,
+          token,
+          cursor,
+          limit: 1000,
+        });
+
+        if (result.blobs.length > 0) {
+          foundAnyBlobs = true;
+          const pathnames = result.blobs.map((b) => b.pathname);
+
+          for (let i = 0; i < pathnames.length; i += BATCH_SIZE) {
+            const batch = pathnames.slice(i, i + BATCH_SIZE);
+            await del(batch, { token });
+            deleted.push(...batch);
+          }
+        }
+
+        cursor = result.hasMore ? result.cursor : undefined;
+      } while (cursor);
+    } finally {
+      // Tombstone in the same request, and tombstone what was *actually*
+      // deleted even when a later batch threw. Without this the documents
+      // stayed fully indexed: deleted files kept matching full-text search
+      // and kept returning content snippets, and a throw part-way through
+      // skipped every batch that had already succeeded.
+      if (deleted.length > 0) {
+        await tombstoneDriveUploadResources({
+          workspaceId: workspace.workspaceId,
+          scope,
+          pathnames: deleted,
+        });
+      }
+    }
+
+    // 404 if no blobs exist under this prefix
+    if (!foundAnyBlobs) {
+      throw notFound("Folder not found");
+    }
 
     return empty(c);
   });

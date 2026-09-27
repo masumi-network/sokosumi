@@ -99,10 +99,10 @@ describe("the request it sends", () => {
 
   it("asks for retention on every call", async () => {
     fetchMock.mockResolvedValue(
-      reply({ clearly_belongs: false, probably_belongs: false }),
+      reply({ directly_answers: false, mentions: false, on_topic: false }),
     );
 
-    await gatewayJevEvaluator.evaluate({ request, rubric: "belongs" });
+    await gatewayJevEvaluator.evaluate({ request, rubric: "relevance" });
 
     expect(sentBody().providerOptions.gateway).toEqual({
       zeroDataRetention: true,

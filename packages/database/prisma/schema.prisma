@@ -5392,6 +5392,9 @@ model FileAuthorizationAdmission {
   outcome    String?
 
   @@index([workspaceId, admittedAt])
+  /// The shared ceiling counts over `admittedAt` alone, across every
+  /// workspace, so the composite index above cannot serve it.
+  @@index([admittedAt])
   @@index([payloadDigest])
   @@map("file_authorization_admission")
 }

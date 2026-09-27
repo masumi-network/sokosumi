@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 
+import { pruneExpiredAdmissions } from "@/lib/files/jev-admission";
 import { processFileIndexJobs } from "@/services/file-index.service";
 import { processFileSuggestionJobs } from "@/services/file-suggestions.service";
 import { processStaleTableIndexes } from "@/services/file-table-index.service";
@@ -27,10 +28,15 @@ export default function mount(app: Hono) {
         const tables = await processStaleTableIndexes({
           shouldContinue: context.shouldContinue,
         });
+        // Nothing reads an admission older than the counting window except
+        // an audit. Left alone the table grows by millions of rows a day at
+        // the stated ceiling, and every admission scans past all of them.
+        const prunedAdmissions = await pruneExpiredAdmissions();
         console.info("[sync/drive-index] Completed sync", {
           extraction,
           suggestions,
           tables,
+          prunedAdmissions,
         });
       },
     );

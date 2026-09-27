@@ -159,8 +159,15 @@ const baseEnvSchema = z.object({
    * `lib/files/jev-request.ts`; that needs live calls we are not authorized
    * to make. Until recently it could not have been done at all, because the
    * ceiling counted only the state and missed the transport envelope — ~686
-   * tokens on a relevance call. It now covers the whole request, so the
-   * reconciliation is possible once someone is allowed to run it.
+   * tokens on a relevance call. That was fixed for search, and then an
+   * independent review found it was still wrong for **labels**, which is
+   * the path this branch rewrote: the envelope charged was a rubric that is
+   * never sent, and a 30-label request was under-counted by ~8,300 tokens.
+   * Both paths now measure what actually goes on the wire.
+   *
+   * The honest cost figure to decide from: a label call at the 30-label
+   * maximum measures ~11,200 tokens against a 12,000 ceiling. A search
+   * relevance call is an order of magnitude smaller.
    *
    * Disabled means Files ranks with deterministic filename and full-text
    * order — the product works, it just does not reorder semantically.

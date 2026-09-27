@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import {
-  type JevRubricKey,
+  labelEnvelopeTokens,
   rubricEnvelopeTokens,
 } from "@/lib/files/jev-rubrics";
 
@@ -69,8 +69,27 @@ export const RELATED_PAIR_CEILINGS: TokenCeilings = {
   components: { seeds: 768, candidate: 1_024 },
 };
 
+/** Tokens a single label's name may occupy in the question that asks it. */
+const LABEL_NAME_TOKEN_BUDGET = 40;
+
+/**
+ * A label call is the largest request this feature makes, and the ceiling
+ * says so now that it is measured rather than assumed.
+ *
+ * It has to cover the state — context, a 2,048-token excerpt and the
+ * bounded vocabulary — *and* the question map, which is one boolean
+ * question per label carrying that label's name and description. At the
+ * `SUGGESTION_VOCABULARY_MAX` of 30 that envelope alone measures ~7,300
+ * tokens, so the previous 4,400 was not a ceiling a full request could ever
+ * have met: it was set against a two-rung rubric that is not sent on this
+ * path.
+ *
+ * This is the number to look at when deciding what enabling the feature
+ * costs. It is an upper bound per suggested document, not a typical one —
+ * a workspace with five labels measures around a third of it.
+ */
 export const LABEL_EVALUATION_CEILINGS: TokenCeilings = {
-  total: 4_400,
+  total: 12_000,
   components: { excerpt: 2_048, vocabulary: 1_536 },
 };
 
@@ -171,14 +190,19 @@ const LABEL_CONTEXT =
 function finalize(
   body: Record<string, unknown>,
   ceilings: TokenCeilings,
-  rubric: JevRubricKey,
+  envelopeTokens: number,
 ): JevRequestResult {
   const serialized = JSON.stringify(body);
   // The state, plus everything the transport wraps around it. Counting only
   // the state is what let a relevance call under-report by ~686 tokens.
+  //
+  // The envelope is passed in rather than derived from a rubric key,
+  // because for a label call it is not fixed: the questions are one per
+  // label, so the envelope grows with the vocabulary. Charging a rubric's
+  // two fixed rungs there under-counted a 30-label request by ~8,300.
   const tokens =
     conservativeTokenCount(serialized) +
-    rubricEnvelopeTokens(rubric) +
+    envelopeTokens +
     PROVIDER_FRAMING_TOKEN_ALLOWANCE;
 
   if (tokens > ceilings.total) {
@@ -207,12 +231,12 @@ function fitWithin(
   ceilings: TokenCeilings,
   build: (excerptBudget: number) => Record<string, unknown>,
   initialExcerptBudget: number,
-  rubric: JevRubricKey,
+  envelopeTokens: number,
 ): JevRequestResult {
   let budget = initialExcerptBudget;
 
   for (let attempt = 0; attempt < 12; attempt += 1) {
-    const result = finalize(build(budget), ceilings, rubric);
+    const result = finalize(build(budget), ceilings, envelopeTokens);
     if (!isJevRequestRejection(result)) return result;
     if (budget <= 0) return result;
     budget = Math.floor(budget / 2);
@@ -241,7 +265,7 @@ export function buildJevSearchPairRequest(
       },
     }),
     SEARCH_PAIR_CEILINGS.components.candidate,
-    "relevance",
+    rubricEnvelopeTokens("relevance"),
   );
 }
 
@@ -271,35 +295,41 @@ export function buildJevRelatedPairRequest(
       },
     }),
     RELATED_PAIR_CEILINGS.components.candidate,
-    "relatedness",
+    rubricEnvelopeTokens("relatedness"),
   );
 }
 
-export function buildJevLabelRequest(input: JevLabelInput): JevRequestResult {
-  const vocabularyBudget = LABEL_EVALUATION_CEILINGS.components.vocabulary;
+/**
+ * The label list a request will actually ask about.
+ *
+ * Exported because the *questions* carry these names and descriptions, and
+ * the questions are built by the evaluator, not here. Both sides call this,
+ * so what is measured is what is sent. It is idempotent: truncating an
+ * already-truncated entry to the same budget changes nothing.
+ */
+export function boundLabelVocabulary(
+  entries: readonly { id: string; name: string; description: string | null }[],
+  total = entries.length,
+): { id: string; name: string; description: string | null }[] {
   const perEntry =
-    input.vocabulary.length + input.projects.length === 0
+    total === 0
       ? 0
-      : Math.floor(
-          vocabularyBudget / (input.vocabulary.length + input.projects.length),
-        );
+      : Math.floor(LABEL_EVALUATION_CEILINGS.components.vocabulary / total);
 
-  const vocabulary = input.vocabulary.map((entry) => ({
+  return entries.map((entry) => ({
     id: entry.id,
-    name: truncateToTokenBudget(entry.name, 40),
+    name: truncateToTokenBudget(entry.name, LABEL_NAME_TOKEN_BUDGET),
     description: truncateToTokenBudget(
       entry.description ?? "",
-      Math.max(0, perEntry - 40),
+      Math.max(0, perEntry - LABEL_NAME_TOKEN_BUDGET),
     ),
   }));
-  const projects = input.projects.map((entry) => ({
-    id: entry.id,
-    name: truncateToTokenBudget(entry.name, 40),
-    description: truncateToTokenBudget(
-      entry.description ?? "",
-      Math.max(0, perEntry - 40),
-    ),
-  }));
+}
+
+export function buildJevLabelRequest(input: JevLabelInput): JevRequestResult {
+  const total = input.vocabulary.length + input.projects.length;
+  const vocabulary = boundLabelVocabulary(input.vocabulary, total);
+  const projects = boundLabelVocabulary(input.projects, total);
 
   return fitWithin(
     LABEL_EVALUATION_CEILINGS,
@@ -310,6 +340,10 @@ export function buildJevLabelRequest(input: JevLabelInput): JevRequestResult {
       projects,
     }),
     LABEL_EVALUATION_CEILINGS.components.excerpt,
-    "belongs",
+    // The real envelope: one boolean question per label, each carrying that
+    // label's name and description. `RUBRICS.belongs` is never sent on this
+    // path, so charging its two fixed rungs measured a request that does
+    // not exist.
+    labelEnvelopeTokens(vocabulary),
   );
 }

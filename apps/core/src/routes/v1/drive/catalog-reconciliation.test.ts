@@ -230,4 +230,99 @@ describe("folder rename", () => {
       },
     ]);
   });
+
+  it("reconciles what moved when one file fails part-way", async () => {
+    // `Promise.all` rejected before the reconcile line, so a folder that
+    // half-moved left every already-renamed document indexed at a pathname
+    // it had left — findable, snippet-returning, and with its vacated
+    // pathname free for the next upload to inherit its manual tags.
+    listMock.mockImplementation(({ prefix }: { prefix: string }) =>
+      prefix === PREFIX
+        ? Promise.resolve({
+            blobs: [
+              { pathname: `${PREFIX}q1.md` },
+              { pathname: `${PREFIX}q2.md` },
+              { pathname: `${PREFIX}q3.md` },
+            ],
+            hasMore: false,
+          })
+        : Promise.resolve({ blobs: [], hasMore: false }),
+    );
+    // First head: no file occupies the new folder name. Then, per file, a
+    // target check that finds nothing and a source read that succeeds.
+    headMock.mockImplementation((pathname: string) =>
+      pathname.startsWith("drive/users/user_123/archive")
+        ? Promise.reject(new BlobNotFoundError("gone"))
+        : Promise.resolve({ contentType: "text/markdown", cacheControl: "" }),
+    );
+    // One file hits a transient failure; the other two commit.
+    renameMock.mockImplementation((from: string) =>
+      from === `${PREFIX}q2.md`
+        ? Promise.reject(new Error("blob store 429"))
+        : Promise.resolve(undefined),
+    );
+
+    const response = await appWith(mountFolderRename).request("/rename", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        scope: "me",
+        oldFolderPath: "reports",
+        newFolderPath: "archive",
+      }),
+    });
+
+    // The request still fails — the caller must know it did not complete.
+    expect(response.status).toBeGreaterThanOrEqual(500);
+
+    // But the two that did move are reconciled, rather than none of them.
+    expect(reconcileMovesMock).toHaveBeenCalledTimes(1);
+    const moves = reconcileMovesMock.mock.calls[0][0].moves as {
+      fromPathname: string;
+    }[];
+    expect(moves.map((move) => move.fromPathname).sort()).toEqual([
+      `${PREFIX}q1.md`,
+      `${PREFIX}q3.md`,
+    ]);
+  });
+
+  it("reconciles a file that a previous attempt had already moved", async () => {
+    // The retry path skipped a file whose target already existed and
+    // returned without recording the pair, so retrying a half-completed
+    // rename reconciled only the files that had *not* moved yet. The ones
+    // that moved first time round were skipped forever.
+    listMock.mockImplementation(({ prefix }: { prefix: string }) =>
+      prefix === PREFIX
+        ? Promise.resolve({
+            blobs: [{ pathname: `${PREFIX}q1.md` }],
+            hasMore: false,
+          })
+        : Promise.resolve({ blobs: [], hasMore: false }),
+    );
+    // The folder-name check finds nothing; the per-file target check finds
+    // the file already sitting at its destination.
+    headMock
+      .mockRejectedValueOnce(new BlobNotFoundError("gone"))
+      .mockResolvedValue({ contentType: "text/markdown", cacheControl: "" });
+
+    const response = await appWith(mountFolderRename).request("/rename", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        scope: "me",
+        oldFolderPath: "reports",
+        newFolderPath: "archive",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(renameMock).not.toHaveBeenCalled();
+    expect(reconcileMovesMock).toHaveBeenCalledTimes(1);
+    expect(reconcileMovesMock.mock.calls[0][0].moves).toEqual([
+      {
+        fromPathname: `${PREFIX}q1.md`,
+        toPathname: "drive/users/user_123/archive/q1.md",
+      },
+    ]);
+  });
 });

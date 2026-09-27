@@ -8,7 +8,7 @@
  */
 
 /** Which rubric to ask. The caller names the judgement, not the wire shape. */
-export type JevRubricKey = "relevance" | "relatedness" | "belongs";
+export type JevRubricKey = "relevance" | "relatedness";
 
 export interface RubricRung {
   readonly id: string;
@@ -64,18 +64,6 @@ export const RUBRICS: Record<JevRubricKey, readonly RubricRung[]> = {
       id: "same_area",
       score: 1,
       instructions: `${UNTRUSTED} Does the candidate fall in the same broad subject area as the seed passages? Answer false when unclear.`,
-    },
-  ],
-  belongs: [
-    {
-      id: "clearly_belongs",
-      score: 3,
-      instructions: `${UNTRUSTED} Does the document clearly belong to the supplied vocabulary entry? Answer false when unclear.`,
-    },
-    {
-      id: "probably_belongs",
-      score: 2,
-      instructions: `${UNTRUSTED} Does the document probably belong to the supplied vocabulary entry, on the balance of what it contains? Answer false when unclear.`,
     },
   ],
 };

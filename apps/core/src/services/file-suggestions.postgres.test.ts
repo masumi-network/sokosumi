@@ -317,6 +317,8 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
 describe.skipIf(!enabled)("the shared admission ceiling", () => {
   let ceilingUserId = "";
   let ceilingWorkspaceId = "";
+  let neighbourUserId = "";
+  let neighbourWorkspaceId = "";
 
   beforeAll(async () => {
     const user = await prisma.user.create({
@@ -334,44 +336,135 @@ describe.skipIf(!enabled)("the shared admission ceiling", () => {
       select: { id: true },
     });
     ceilingWorkspaceId = workspace.id;
+
+    // A second tenant, for showing that one workspace's traffic does not
+    // deny another's. It needs its own user: a personal workspace is unique
+    // per user.
+    const neighbour = await prisma.user.create({
+      data: {
+        name: "Neighbour fixture",
+        email: `neighbour-${suffix}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    neighbourUserId = neighbour.id;
+    neighbourWorkspaceId = (
+      await prisma.workspace.create({
+        data: { userId: neighbourUserId },
+        select: { id: true },
+      })
+    ).id;
   });
 
   afterEach(async () => {
     await prisma.fileAuthorizationAdmission.deleteMany({
-      where: { workspaceId: ceilingWorkspaceId },
+      where: {
+        workspaceId: { in: [ceilingWorkspaceId, neighbourWorkspaceId] },
+      },
     });
   });
 
   afterAll(async () => {
     if (!enabled) return;
-    await prisma.workspace.deleteMany({ where: { id: ceilingWorkspaceId } });
-    await prisma.user.deleteMany({ where: { id: ceilingUserId } });
+    await prisma.workspace.deleteMany({
+      where: { id: { in: [ceilingWorkspaceId, neighbourWorkspaceId] } },
+    });
+    await prisma.user.deleteMany({
+      where: { id: { in: [ceilingUserId, neighbourUserId] } },
+    });
   });
 
-  function actorFor() {
+  function actorFor(userId = ceilingUserId) {
     return {
-      userId: ceilingUserId,
+      userId,
       organizationId: null,
       kind: "worker" as const,
     };
   }
 
-  async function admit(inputTokens: number) {
+  async function admit(
+    inputTokens: number,
+    workspaceId = ceilingWorkspaceId,
+    userId = ceilingUserId,
+  ) {
     const { admitJevRequest } = await import("@/lib/files/jev-admission");
     const { resolveScopeEpoch } = await import("@/lib/files/evidence-scope");
     return admitJevRequest({
-      workspaceId: ceilingWorkspaceId,
-      actor: actorFor(),
+      workspaceId,
+      actor: actorFor(userId),
       purpose: "label-suggest",
       payloadDigest: `digest-${Math.random()}`,
       inputTokens,
       model: "typesafe-ai/jev",
       preparedEpoch: await resolveScopeEpoch({
-        workspaceId: ceilingWorkspaceId,
-        actor: actorFor(),
+        workspaceId,
+        actor: actorFor(userId),
       }),
     });
   }
+
+  it("admits a whole search wave at once, not one of it", async () => {
+    // `rerankFileCandidates` fires `PER_QUERY_MAX_CONCURRENT` admissions in
+    // one `Promise.all`, so this is one ordinary search, not a stress test.
+    // Under SERIALIZABLE the aggregate and the insert are the textbook
+    // write-skew shape and Postgres aborted all but one — four of six came
+    // back null, the caller read that as "over quota", and because the
+    // rerank is all-or-nothing the whole reorder was discarded *after* the
+    // winners had already dispatched and been paid for.
+    const { PER_QUERY_MAX_CONCURRENT } = await import(
+      "@/lib/files/jev-scheduler"
+    );
+
+    const wave = await Promise.all(
+      Array.from({ length: PER_QUERY_MAX_CONCURRENT }, () => admit(10)),
+    );
+
+    expect(wave.filter((grant) => grant !== null)).toHaveLength(
+      PER_QUERY_MAX_CONCURRENT,
+    );
+    expect(
+      await prisma.fileAuthorizationAdmission.count({
+        where: { workspaceId: ceilingWorkspaceId },
+      }),
+    ).toBe(PER_QUERY_MAX_CONCURRENT);
+  });
+
+  it("does not let one workspace's wave deny another's", async () => {
+    // The count filters on `admittedAt` alone, so without an index for it
+    // the scan took a relation-wide predicate lock and unrelated tenants
+    // conflicted with each other.
+    const wave = await Promise.all([
+      admit(10, ceilingWorkspaceId),
+      admit(10, ceilingWorkspaceId),
+      admit(10, ceilingWorkspaceId),
+      admit(10, neighbourWorkspaceId, neighbourUserId),
+      admit(10, neighbourWorkspaceId, neighbourUserId),
+      admit(10, neighbourWorkspaceId, neighbourUserId),
+    ]);
+
+    expect(wave.filter((grant) => grant !== null)).toHaveLength(6);
+  });
+
+  it("still refuses the request that actually crosses the ceiling", async () => {
+    // The concurrency fix must not buy its way out by counting loosely:
+    // six at once are admitted, and the one that would exceed the budget is
+    // still refused.
+    const { PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE } = await import(
+      "@/lib/files/jev-scheduler"
+    );
+    const each = Math.floor(PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE / 6);
+
+    const wave = await Promise.all(
+      Array.from({ length: 6 }, () => admit(each)),
+    );
+    expect(wave.filter((grant) => grant !== null)).toHaveLength(6);
+
+    await expect(
+      admit(PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE),
+    ).resolves.toBeNull();
+  });
 
   it("admits ordinary work", async () => {
     await expect(admit(100)).resolves.not.toBeNull();

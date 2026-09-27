@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { PrismaRaw } from "@sokosumi/database/client";
 
 import prisma from "@/lib/db/prisma";
@@ -32,6 +33,19 @@ export const ADMISSION_VALID_MS = 50;
  * per-minute constants it enforces.
  */
 const SHARED_WINDOW_MS = 60_000;
+
+/**
+ * The advisory lock every admission takes.
+ *
+ * One key for the whole ceiling, not one per workspace: two of the three
+ * limits are global, so a per-workspace lock would not serialize the thing
+ * being counted. An arbitrary constant — it only has to be unique among the
+ * advisory locks this application takes.
+ */
+const ADMISSION_LOCK_KEY = 8_143_072_901_553_001n;
+
+/** How long an admission row is kept after its window has passed. */
+const ADMISSION_RETENTION_DAYS = 30;
 
 export type AdmissionDenial =
   | "epoch-changed"
@@ -77,14 +91,36 @@ export async function admitJevRequest(input: {
    * the admissions themselves, which are rows, so every runtime sees the
    * same total.
    *
-   * It costs no extra round trip — the count runs inside the transaction
-   * that was already writing the admission row — and `SERIALIZABLE` is what
-   * makes two instances admitting at once resolve to one winner rather than
-   * both reading the same pre-count.
+   * ## Why a lock and not `SERIALIZABLE`
+   *
+   * This aggregates over a table and then inserts into it, which is the
+   * textbook write-skew shape. Under SSI each transaction's aggregate takes
+   * predicate locks that the others' inserts fall inside, so Postgres aborts
+   * all but one — and a search fires `PER_QUERY_MAX_CONCURRENT` admissions in
+   * a single wave, so one ordinary query conflicted with *itself*: four of
+   * six came back as denials. Because the count filters on `admittedAt`
+   * alone it could not use the `(workspaceId, admittedAt)` index either, so
+   * the sequential scan's predicate lock was relation-wide and one tenant's
+   * traffic denied another's.
+   *
+   * Retrying the aborts would have been the wrong shape: the contention is
+   * not rare, it is every wave. Taking one transaction-scoped advisory lock
+   * makes concurrent admissions *queue* for a few milliseconds instead of
+   * aborting, which is what a shared ceiling means anyway — the ceiling is
+   * global, so the check has to be serialized somewhere, and a lock does it
+   * without throwing work away. `READ COMMITTED` is then correct: each
+   * statement takes a fresh snapshot, and the count runs after the lock is
+   * held, so it sees every admission committed before it.
    */
   try {
     return await prisma.$transaction<AdmissionGrant | null>(
       async (tx) => {
+        // Held until this transaction ends, so the count and the insert that
+        // depends on it cannot interleave with another admission's.
+        await tx.$executeRaw(
+          PrismaRaw.sql`SELECT pg_advisory_xact_lock(${ADMISSION_LOCK_KEY})`,
+        );
+
         const [usage] = await tx.$queryRaw<
           { requests: bigint; globalTokens: bigint; workspaceTokens: bigint }[]
         >(PrismaRaw.sql`
@@ -132,14 +168,50 @@ export async function admitJevRequest(input: {
           select: { id: true, expiresAt: true },
         });
       },
-      { isolationLevel: "Serializable" },
+      { isolationLevel: "ReadCommitted" },
     );
-  } catch {
-    // A serialization failure means another runtime won the same slot.
-    // Refusing is the safe answer: the caller falls back to the
-    // deterministic order, which is what a quota denial already does.
+  } catch (error) {
+    // Refusing is still the safe answer — the caller falls back to the
+    // deterministic order — but it is not the *same* answer as being over
+    // quota, and the previous version could not tell the two apart. A pool
+    // timeout, a dead connection and a constraint violation all read as
+    // "this workspace has spent its minute", silently. Report it, so a
+    // database problem does not look like ordinary throttling on a
+    // dashboard of denials.
+    Sentry.captureException(error, {
+      tags: { area: "files-jev-admission" },
+      extra: {
+        workspaceId: input.workspaceId,
+        purpose: input.purpose,
+        consequence:
+          "Admission refused for an infrastructure reason, not a quota one. " +
+          "The caller falls back to deterministic ranking.",
+      },
+    });
     return null;
   }
+}
+
+/**
+ * Drop admissions nobody will read again.
+ *
+ * Only the last `SHARED_WINDOW_MS` is ever counted, and the rest is an audit
+ * trail. Left alone the table grows by millions of rows a day at the stated
+ * ceiling, and every admission has to scan past all of them.
+ */
+export async function pruneExpiredAdmissions(input?: {
+  now?: Date;
+  retentionDays?: number;
+}): Promise<number> {
+  const now = input?.now ?? new Date();
+  const cutoff = new Date(
+    now.getTime() -
+      (input?.retentionDays ?? ADMISSION_RETENTION_DAYS) * 86_400_000,
+  );
+  const { count } = await prisma.fileAuthorizationAdmission.deleteMany({
+    where: { admittedAt: { lt: cutoff } },
+  });
+  return count;
 }
 
 export async function recordJevDispatch(input: {

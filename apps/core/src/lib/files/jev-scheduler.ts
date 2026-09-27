@@ -7,13 +7,24 @@
  * many instances that is not a ceiling: ten instances meant ten times every
  * per-minute number here, under a name that read as global.
  *
- * So the per-minute ceilings moved. `admitJevRequest` now enforces
- * `GLOBAL_REQUESTS_PER_MINUTE`, `GLOBAL_INPUT_TOKENS_PER_MINUTE` and
- * `PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE` by counting admission **rows** in
- * a serializable transaction, so every runtime sees one total. Those three
- * are shared and real.
+ * So the per-minute ceilings gained a shared enforcement point.
+ * `admitJevRequest` enforces `GLOBAL_REQUESTS_PER_MINUTE`,
+ * `GLOBAL_INPUT_TOKENS_PER_MINUTE` and
+ * `PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE` by counting admission **rows**
+ * under one advisory lock, so every runtime sees one total.
  *
- * What is still per-runtime, and why:
+ * **"Moved" overstated it, and an earlier version of this docstring said so
+ * wrongly.** Only `GLOBAL_REQUESTS_PER_MINUTE` has no in-memory counterpart
+ * left. `tryAdmit` below still enforces *both* token ceilings itself, in
+ * per-runtime windows (`takeFromTokenWindow`), so each of those two is
+ * checked twice: once here as a per-process share, and once in the
+ * admission as the real global total. The local copy is a pre-filter that
+ * can only refuse earlier than the shared one, never later — which is safe,
+ * but it does mean a single runtime can deny work the global ceiling would
+ * still have allowed, and that a denial reason from this module says
+ * nothing about global spend.
+ *
+ * What is only ever per-runtime, and why:
  *
  * - **Concurrency** (`GLOBAL_MAX_CONCURRENT`, `PER_QUERY_MAX_CONCURRENT`).
  *   "In flight" is a process-local fact. Making it shared needs a lease
@@ -29,8 +40,9 @@
  *   the bill.
  *
  * Read the per-second and concurrency numbers as **per-runtime shares**,
- * because that is what they are. The per-minute numbers are the ones that
- * hold globally.
+ * because that is what they are. The per-minute numbers hold globally at
+ * the admission, and additionally as per-runtime shares here for the two
+ * token ceilings.
  *
  * Two things matter more than the exact numbers. Interactive search keeps a
  * reserved share that background labelling can never borrow, and a reserved

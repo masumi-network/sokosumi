@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  boundLabelVocabulary,
   buildJevLabelRequest,
   buildJevRelatedPairRequest,
   buildJevSearchPairRequest,
@@ -11,7 +12,11 @@ import {
   SEARCH_PAIR_CEILINGS,
   truncateToTokenBudget,
 } from "./jev-request";
-import { RUBRICS, rubricEnvelopeTokens } from "./jev-rubrics";
+import {
+  labelEnvelopeTokens,
+  RUBRICS,
+  rubricEnvelopeTokens,
+} from "./jev-rubrics";
 
 describe("conservativeTokenCount", () => {
   it("counts code points, so an emoji is one and not two", () => {
@@ -204,10 +209,24 @@ describe("what the ceiling actually counts", () => {
     expect(result.tokens).toBeGreaterThan(stateOnly + 600);
   });
 
-  it("charges a label request its own, smaller envelope", () => {
+  it("charges a label request for the questions it actually asks", () => {
+    // A label call's envelope is not fixed: the wire carries one boolean
+    // question per label, each with that label's name and description, so
+    // the envelope grows with the vocabulary. The previous version of this
+    // test used a *one*-label vocabulary and asserted the rubric envelope —
+    // which passed only because at one label the wrong number happens to be
+    // the larger one. At the real maximum of 30 it under-counted by
+    // thousands of tokens, on the one path this branch rewrote.
+    const vocabulary = Array.from({ length: 30 }, (_, index) => ({
+      id: `label-${index}`,
+      name: `Label number ${index}`,
+      description: "What this label is for, described at some length.",
+    }));
+
+    const asked = boundLabelVocabulary(vocabulary);
     const result = buildJevLabelRequest({
       documentExcerpt: "Findings about bicycle commuters.",
-      vocabulary: [{ id: "label-1", name: "Commuting", description: null }],
+      vocabulary,
       projects: [],
     });
     expect(isJevRequestRejection(result)).toBe(false);
@@ -215,19 +234,44 @@ describe("what the ceiling actually counts", () => {
 
     expect(result.tokens).toBe(
       conservativeTokenCount(result.serialized) +
-        rubricEnvelopeTokens("belongs") +
+        labelEnvelopeTokens(asked) +
         PROVIDER_FRAMING_TOKEN_ALLOWANCE,
     );
+    // For contrast: the rubric envelope the old code charged here was 603
+    // tokens flat, whatever the vocabulary.
+    expect(labelEnvelopeTokens(asked)).toBeGreaterThan(6_000);
+  });
+
+  it("keeps a full 30-label request inside its ceiling", () => {
+    // The ceiling has to admit the largest request the feature can make.
+    // Measured properly, the old 4,400 could not: every vocabulary above a
+    // couple of labels was rejected as too large.
+    const result = buildJevLabelRequest({
+      documentExcerpt: "Findings about bicycle commuters. ".repeat(200),
+      vocabulary: Array.from({ length: 30 }, (_, index) => ({
+        id: `label-${index}`,
+        name: `A reasonably descriptive label name ${index}`,
+        description:
+          "A wordy description of what this label covers, as a workspace that documents its taxonomy carefully would write it.",
+      })),
+      projects: [],
+    });
+
+    expect(isJevRequestRejection(result)).toBe(false);
+    if (isJevRequestRejection(result)) return;
+    expect(result.tokens).toBeLessThanOrEqual(LABEL_EVALUATION_CEILINGS.total);
+    // And it is genuinely large: this is the cost figure worth knowing.
+    expect(result.tokens).toBeGreaterThan(9_000);
   });
 
   it("measures the envelope rather than hard-coding it", () => {
-    // Two rungs versus three, so the figures must differ — and both must be
+    // Three rungs versus two, so the figures must differ — and both must be
     // far above the flat allowance they replaced.
     const relevance = rubricEnvelopeTokens("relevance");
-    const belongs = rubricEnvelopeTokens("belongs");
+    const relatedness = rubricEnvelopeTokens("relatedness");
 
-    expect(relevance).toBeGreaterThan(belongs);
-    expect(belongs).toBeGreaterThan(PROVIDER_FRAMING_TOKEN_ALLOWANCE * 5);
+    expect(relevance).not.toBe(relatedness);
+    expect(relatedness).toBeGreaterThan(PROVIDER_FRAMING_TOKEN_ALLOWANCE * 5);
   });
 
   it("still leaves the documented content budget intact", () => {
