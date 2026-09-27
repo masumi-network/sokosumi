@@ -828,3 +828,109 @@ it("blocks link navigation when a cell save goes unresolved after listeners inst
   expect(confirmSpy).not.toHaveBeenCalled();
   window.confirm = priorConfirm;
 });
+
+// ---------------------------------------------------------------------------
+// Independent-review regressions (findings F3–F7). Each one was live on the
+// preview at `a90e2b868`; each assertion fails against that code.
+// ---------------------------------------------------------------------------
+
+it("F3: a cell error wraps instead of painting across the next column", async () => {
+  // The shared TableCell primitive is `whitespace-nowrap`, which is right for
+  // a read-only grid. A cell error is prose: under nowrap the conflict message
+  // measured 536px on one line inside a 240px cell and was drawn over the
+  // neighbouring column's input. `max-w-64 break-words` cannot help while
+  // nowrap is inherited, so the reset has to be on the cell and the error box.
+  f.batch.mockRejectedValue({ error: "Conflict" });
+  render(<TableEditor id={f.column.tableId} />);
+  const cell = screen.getByRole("textbox", { name: "Company" });
+  fireEvent.focus(cell);
+  fireEvent.change(cell, { target: { value: "Conflicting value" } });
+  fireEvent.blur(cell);
+  const alert = await screen.findByRole("alert");
+  expect(alert.className).toContain("whitespace-normal");
+  const valueCell = cell.closest("td");
+  expect(valueCell?.className).toContain("whitespace-normal");
+  expect(valueCell?.className).not.toContain("whitespace-nowrap");
+});
+
+it("F4: value cells and the row checkbox align to the top of an uneven row", () => {
+  // A `long_text` column renders a Textarea that grows, so rows are uneven.
+  // Centred controls float in the middle of a tall band; the row's own
+  // checkbox floated worst of all.
+  f.columns = [
+    { ...f.column, type: "long_text" as const, name: "Notes" },
+  ] as TableColumn[];
+  render(<TableEditor id={f.column.tableId} />);
+  const valueCell = screen
+    .getByRole("textbox", { name: "Notes" })
+    .closest("td");
+  expect(valueCell?.className).toContain("align-top");
+  expect(valueCell?.className).not.toContain("align-middle");
+  const checkboxCell = screen
+    .getByRole("checkbox", { name: "selectRow" })
+    .closest("td");
+  expect(checkboxCell?.className).toContain("align-top");
+});
+
+it("F5: the back link to the Tables tab is present at every width", () => {
+  // The app chrome's chevron and the breadcrumb both go to `/drive`, which
+  // lands on Recents. This link is the only route back to the Tables tab, so
+  // hiding it below `md` stranded phone users — and removed it from the
+  // accessibility tree there.
+  render(<TableEditor id={f.column.tableId} />);
+  const link = screen.getByRole("link", { name: "backToFiles" });
+  expect(link).toHaveAttribute("href", "/drive?view=tables");
+  expect(link.className).not.toContain("hidden");
+  expect(link.className).not.toContain("md:inline-flex");
+});
+
+it("F6: archived-rows mode is announced as a checked state and shown on screen", async () => {
+  // Opened with the keyboard: Radix drives the pointer path off pointerdown,
+  // and the keyboard path is the one that matters for the a11y claim anyway.
+  const openMenu = () =>
+    fireEvent.keyDown(screen.getByRole("button", { name: "tableMenu" }), {
+      key: "Enter",
+    });
+  render(<TableEditor id={f.column.tableId} />);
+  openMenu();
+  const toggle = await screen.findByRole("menuitemcheckbox", {
+    name: "showArchivedRows",
+  });
+  expect(toggle).toHaveAttribute("aria-checked", "false");
+  expect(screen.queryByText("archivedRowsBadge")).not.toBeInTheDocument();
+
+  fireEvent.click(toggle);
+  // Nothing else on the page says the list is now archived rows: a shorter
+  // list of disabled inputs reads as "this table is empty".
+  await waitFor(() =>
+    expect(screen.getByText("archivedRowsBadge")).toBeInTheDocument(),
+  );
+
+  openMenu();
+  await waitFor(async () =>
+    expect(
+      await screen.findByRole("menuitemcheckbox", { name: "showArchivedRows" }),
+    ).toHaveAttribute("aria-checked", "true"),
+  );
+});
+
+it("F7: the CSV picker exposes exactly one control to assistive technology", () => {
+  render(<TableCreateDialog workspaceId={null} />);
+  fireEvent.click(screen.getByRole("button", { name: "newTable" }));
+  // The visible trigger and the filename readout duplicated the native input,
+  // so the picker appeared twice and "No file chosen" was announced twice.
+  expect(
+    screen.queryByRole("button", { name: "chooseCsv" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByLabelText("importCsv")).toBeInTheDocument();
+  const trigger = screen.getByText("chooseCsv").closest("button");
+  expect(trigger).toHaveAttribute("aria-hidden", "true");
+  expect(trigger).toHaveAttribute("tabindex", "-1");
+  // The colour utility has to sit on the same `has-[:focus-visible]` variant
+  // as the ring itself: a plain `focus-visible:` never matches the wrapper,
+  // which is not focusable, so the ring fell back to `currentColor` — it
+  // painted near-black instead of the shared blue halo.
+  const ringed = trigger?.parentElement;
+  expect(ringed?.className).toContain("has-[:focus-visible]:ring-ring");
+  expect(ringed?.className).not.toMatch(/(?:^|\s)focus-visible:ring-ring/);
+});

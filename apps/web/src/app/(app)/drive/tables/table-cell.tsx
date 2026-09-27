@@ -138,11 +138,15 @@ export function TableCell({
             step={column.type === "number" ? "any" : undefined}
           />
         )}
-        {/* The affordance belongs to one cell out of hundreds. Keeping every
-        one painted turned the grid into a field of icons and truncated the
-        values they sit next to, so it is revealed by pointer or focus. It
-        stays in the DOM and in the tab order, and focusing the cell — which
-        is also what a tap does — reveals it. */}
+        {/* The affordance belongs to one cell out of hundreds, and painting
+        every one turned the grid into a field of icons, so it is revealed by
+        pointer or focus. This is a visual-noise fix, not a width fix: the
+        button keeps its 32px in flow whether or not it is painted, which is
+        deliberate — reclaiming that space would mean overlaying the button on
+        the text being edited, and nothing may sit on top of an open editor.
+        The button stays in the DOM, in the accessibility tree and in the tab
+        order, so a keyboard or screen-reader user is unaffected; focusing the
+        cell — which is also what a tap does — reveals it. */}
         <Button
           size="icon"
           variant="ghost"
@@ -156,7 +160,7 @@ export function TableCell({
       {error && (
         <div
           role="alert"
-          className="text-destructive flex max-w-64 flex-wrap items-center gap-2 px-2 pb-2 text-xs"
+          className="text-destructive flex max-w-64 flex-wrap items-center gap-2 px-2 pb-2 text-xs whitespace-normal"
         >
           <span className="min-w-0 break-words">{error}</span>
           <Button

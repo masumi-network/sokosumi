@@ -173,7 +173,10 @@ export function TableCreateDialog({
       <DialogTrigger asChild>
         {/* The Files toolbar states the house rule for this row: 32px
         controls, and the view's own create action is the solid one. */}
-        <Button size="sm" className="h-10 gap-1.5 md:h-8">
+        {/* This trigger sits inside the drive toolbar's `@container`, so it
+        steps down on the same container query its neighbours use, not on a
+        viewport breakpoint that disagrees with them between 42rem and 48rem. */}
+        <Button size="sm" className="h-10 gap-1.5 @2xl:h-8">
           <Plus aria-hidden className="size-4" />
           {t("newTable")}
         </Button>
@@ -226,13 +229,20 @@ export function TableCreateDialog({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="table-csv">{t("importCsv")}</Label>
-            {/* The native control is kept in the accessibility tree and in
-            the tab order; only its browser-supplied, unlocalized chrome is
-            replaced. `has-[:focus-visible]` puts the focus ring back on the
-            visible trigger, which a clipped input cannot show for itself. */}
-            <div className="ring-offset-background focus-visible:ring-ring flex w-fit items-center gap-3 rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2">
+            {/* The native control stays the one real control: it keeps the
+            label, the tab stop and the value, and only its browser-supplied,
+            unlocalized chrome is replaced. The visible trigger and the
+            filename are therefore presentational — otherwise the picker
+            appears twice in the accessibility tree and announces "No file
+            chosen" twice. `has-[:focus-visible]:ring-ring` paints the ring the
+            clipped input cannot paint for itself; put the colour on
+            `focus-visible:` instead and the wrapper, which is never focusable,
+            never matches, so the ring falls back to `currentColor`. */}
+            <div className="ring-offset-background has-[:focus-visible]:ring-ring flex w-fit items-center gap-3 rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2">
               <Button
                 type="button"
+                aria-hidden
+                tabIndex={-1}
                 size="sm"
                 variant="outline"
                 disabled={pending || !!attempt}
@@ -241,7 +251,10 @@ export function TableCreateDialog({
                 <Upload aria-hidden className="size-4" />
                 {t("chooseCsv")}
               </Button>
-              <span className="text-muted-foreground min-w-0 truncate text-sm">
+              <span
+                aria-hidden
+                className="text-muted-foreground min-w-0 truncate text-sm"
+              >
                 {csvName || t("noFileChosen")}
               </span>
               <span className="sr-only">
@@ -307,10 +320,13 @@ export function TableCreateDialog({
                     ))}
                   </select>
                   {column.type.includes("select") && (
+                    // Hangs under the type that asked for it, in the same
+                    // column, so the pair still reads as one mapping row now
+                    // that the grid has headers.
                     <Input
-                      className="col-span-2"
+                      className="col-start-2"
                       disabled={pending || !!attempt}
-                      aria-label={t("options")}
+                      aria-label={t("optionsFor", { column: column.name })}
                       placeholder={t("options")}
                       onChange={(event) =>
                         setColumns(

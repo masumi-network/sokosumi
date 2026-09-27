@@ -7,6 +7,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -19,8 +20,10 @@ import {
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -355,21 +358,31 @@ function TableWorkspace({
   }
   return (
     <div className="flex min-w-0 flex-col gap-4 p-4 md:p-6">
-      {/* The same back affordance the project and task detail pages use: a
-      labelled link, not a bare arrow, and hidden on phones where the app
-      chrome already carries one. */}
+      {/* The same labelled back affordance the project and task detail pages
+      use. It stays at every width: the app chrome's chevron and the breadcrumb
+      both go to `/drive`, which lands on Recents, so this link is the only
+      route back to the Tables tab — and `display: none` would have taken it
+      out of the accessibility tree on phones too. */}
       <Link
         href="/drive?view=tables"
-        className="text-muted-foreground hover:text-foreground hidden w-fit items-center gap-1.5 text-sm transition-colors md:inline-flex"
+        className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5 text-sm transition-colors"
       >
         <ArrowLeft className="size-4" aria-hidden />
         <span>{t("backToFiles")}</span>
       </Link>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="truncate text-xl leading-tight font-semibold tracking-tight">
-            {table.title}
-          </h1>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="truncate text-xl leading-tight font-semibold tracking-tight">
+              {table.title}
+            </h1>
+            {/* Archived rows are a mode, not a filter chip you can miss. The
+            only other cues are a shorter list and disabled inputs, which read
+            as "this table is empty". */}
+            {archivedRows && (
+              <Badge variant="secondary">{t("archivedRowsBadge")}</Badge>
+            )}
+          </div>
           {table.description && (
             <p className="text-muted-foreground mt-1 max-w-2xl text-sm">
               {table.description}
@@ -413,15 +426,20 @@ function TableWorkspace({
               <DropdownMenuItem onClick={() => void run(handleExport)}>
                 {t("exportCsv")}
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
+              <DropdownMenuSeparator />
+              {/* A checkbox item, so assistive technology gets the mode too,
+              and separated from the destructive table-level action below. */}
+              <DropdownMenuCheckboxItem
+                checked={archivedRows}
+                onCheckedChange={() => {
                   setArchivedRows(!archivedRows);
                   setSelected([]);
                   void setCursor(null);
                 }}
               >
-                {archivedRows ? t("showActiveRows") : t("showArchivedRows")}
-              </DropdownMenuItem>
+                {t("showArchivedRows")}
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setDialog("archive")}>
                 {table.archivedAt ? t("restore") : t("archive")}
               </DropdownMenuItem>
@@ -679,7 +697,10 @@ function TableWorkspace({
                 key={row.id}
                 data-state={selected.includes(row.id) ? "selected" : undefined}
               >
-                <TableCellShell className="w-12 px-3">
+                {/* Top-aligned with the first control in the row: a
+                `long_text` column makes rows uneven, and a centred checkbox
+                floats in the middle of a tall band. */}
+                <TableCellShell className="w-12 px-3 pt-4 align-top">
                   <Checkbox
                     aria-label={t("selectRow")}
                     checked={selected.includes(row.id)}
@@ -695,7 +716,13 @@ function TableWorkspace({
                 {columns.map((column) => (
                   <TableCellShell
                     key={column.id}
-                    className="border-s p-1 align-middle"
+                    // The shared cell is `whitespace-nowrap align-middle`,
+                    // which is right for a read-only grid and wrong for this
+                    // one: a cell error is prose, and it painted 283px past
+                    // the cell and over the next column. Rows are also uneven
+                    // once a `long_text` column exists, so controls line up on
+                    // the row's top edge rather than floating mid-band.
+                    className="border-s p-1 align-top whitespace-normal"
                   >
                     <TableCell
                       column={column}
