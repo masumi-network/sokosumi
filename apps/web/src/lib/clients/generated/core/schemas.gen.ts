@@ -19111,6 +19111,43 @@ export const CreateSokoBotApiKeyResponseSchema = {
     ]
 } as const;
 
+export const CompleteSokoBotIntegrationAuthResponseSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DISCONNECTED',
+                'PENDING',
+                'ACTIVE',
+                'FAILED',
+                'REVOKED'
+            ]
+        }
+    },
+    required: [
+        'provider',
+        'status'
+    ]
+} as const;
+
+export const CompleteSokoBotIntegrationAuthRequestSchema = {
+    type: 'object',
+    properties: {
+        sessionUri: {
+            type: 'string',
+            minLength: 1,
+            description: 'The single-use session URI Composio hands to the verifier'
+        }
+    },
+    required: [
+        'sessionUri'
+    ]
+} as const;
+
 export const SokoBotStateSchema = {
     type: 'object',
     properties: {

@@ -352,24 +352,6 @@ export function applyProjectIdSearchParam(
   return nextSearchParams;
 }
 
-export function mergeProjectFilterOptions(
-  primary: readonly ProjectFilterOption[],
-  extra: readonly ProjectFilterOption[],
-): ProjectFilterOption[] {
-  const seen = new Set<string>();
-  const next: ProjectFilterOption[] = [];
-
-  for (const project of [...primary, ...extra]) {
-    if (seen.has(project.id)) {
-      continue;
-    }
-    seen.add(project.id);
-    next.push(project);
-  }
-
-  return next;
-}
-
 export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,

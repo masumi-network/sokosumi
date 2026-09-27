@@ -746,6 +746,25 @@ describe("loadNewTaskWizardOptions", () => {
     });
   });
 
+  it("includes the selected project when it is outside the first page", async () => {
+    const selectedProject = {
+      id: "selected-project",
+      name: "Selected project",
+      contextMd: "Project context",
+    };
+    getProjectFilterOptionsMock.mockImplementation(
+      async (projectId?: string | null) =>
+        projectId === selectedProject.id ? [selectedProject] : [],
+    );
+
+    const result = await loadNewTaskWizardOptions(selectedProject.id);
+
+    expect(getProjectFilterOptionsMock).toHaveBeenCalledWith(
+      selectedProject.id,
+    );
+    expect(result.projectOptions).toEqual([selectedProject]);
+  });
+
   it("treats a personal workspace as no organization", async () => {
     getSessionMock.mockResolvedValue({
       user: { id: "user-1" },
