@@ -8,11 +8,34 @@ import { cn } from "@/lib/utils";
 const DRIVE_ITEMS_GRID_CLASS =
   "grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
 
+/**
+ * The app's large-surface panel: the background and corner every big component
+ * on a page sits on, without the item list's own inner padding. The members
+ * data table (`rounded-xl bg-card-background p-2`) is the same treatment.
+ *
+ * `bg-card-background` and not `bg-card`: `--card` equals `--background` in
+ * dark mode and white-on-white in light, so a `bg-card` panel is invisible
+ * against the page in both themes and reads as bare page with a border.
+ */
+/**
+ * Height of a control in the Files header row, 40px on touch and 32px from
+ * `md` up, matching the `size="sm"` buttons it sits beside.
+ *
+ * The row is `items-center`, so its height is whatever its tallest child is,
+ * and the tab strip is then centred inside it. A bare `Input` is `h-10`, so a
+ * tab that showed a search box made the row 40px while a tab without one made
+ * it 36px (the tab strip's own height) — and the strip, with everything under
+ * it, moved 2px down and back up on every tab switch. Every control in that
+ * row has to agree on a height at or under the strip's for the switch to be
+ * still.
+ */
+export const DRIVE_TOOLBAR_CONTROL_CLASS = "h-10 md:h-8";
+
+export const DRIVE_SURFACE_PANEL_CLASS =
+  "bg-card-background overflow-hidden rounded-xl";
+
 export function driveItemsPanelClass(_viewMode: FilesViewMode): string {
-  return cn(
-    "bg-card-background overflow-hidden rounded-xl p-2",
-    PROJECTS_LIST_CARD_MIN_H_CLASS,
-  );
+  return cn(DRIVE_SURFACE_PANEL_CLASS, "p-2", PROJECTS_LIST_CARD_MIN_H_CLASS);
 }
 
 export function driveItemsListClass(viewMode: FilesViewMode): string {

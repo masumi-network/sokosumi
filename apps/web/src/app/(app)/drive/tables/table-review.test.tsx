@@ -10,6 +10,7 @@ import { TableCell } from "@/app/drive/tables/table-cell";
 import { TableColumnDialog } from "@/app/drive/tables/table-column-dialog";
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { TableEditor } from "@/app/drive/tables/table-editor";
+import { TableList } from "@/app/drive/tables/table-list";
 import type { TableColumn, TableView } from "@/lib/clients/generated/core";
 
 const f = vi.hoisted(() => {
@@ -118,6 +119,7 @@ vi.mock("@/lib/services/data-table.client", () => ({
     query: vi.fn(),
     history: vi.fn(),
     agents: vi.fn(),
+    list: vi.fn(),
   },
 }));
 beforeEach(() => {
@@ -946,4 +948,45 @@ it("F7: the CSV picker exposes exactly one control to assistive technology", () 
   const ringed = trigger?.parentElement;
   expect(ringed?.className).toContain("has-[:focus-visible]:ring-ring");
   expect(ringed?.className).not.toMatch(/(?:^|\s)focus-visible:ring-ring/);
+});
+
+// --- Round three: surface and whitespace -------------------------------------
+
+it("R5: the grid sits on the shared large-surface panel, not on bare page", () => {
+  const { container } = render(<TableEditor id={f.column.tableId} />);
+  const surface = container.querySelector("table")?.closest("div.rounded-xl");
+  expect(surface).not.toBeNull();
+  const classes = [...(surface?.classList ?? [])];
+  // `bg-card` is `--background` in dark mode and white-on-white in light, so
+  // the old surface was invisible against the page and read as a bare border.
+  expect(classes).toContain("bg-card-background");
+  expect(classes).not.toContain("bg-card");
+  expect(classes).not.toContain("border");
+});
+
+it("R5: rows still show a hover that is not the panel's own colour", () => {
+  const { container } = render(<TableEditor id={f.column.tableId} />);
+  const row = container.querySelector("tbody tr");
+  expect(row).not.toBeNull();
+  const classes = [...(row?.classList ?? [])];
+  expect(classes).toContain("hover:bg-card-background-hover");
+  // The primitive's default would now be the panel's own colour.
+  expect(classes).not.toContain("hover:bg-card-background");
+});
+
+it("R6: the editor adds no second page gutter on top of the app shell's", () => {
+  const { container } = render(<TableEditor id={f.column.tableId} />);
+  const outer = container.firstElementChild as HTMLElement;
+  // `<main>` in the app shell owns the single `p-4` gutter, and its comment
+  // says pages must not add one of their own.
+  expect(outer.className).not.toMatch(/\bp-4\b/);
+  expect(outer.className).not.toMatch(/\bmd:p-6\b/);
+});
+
+it("R1: the list owns no archived toggle of its own", () => {
+  render(<TableList workspaceId={null} archived={false} />);
+  // The page's filter row owns this now; the list only receives the state.
+  expect(screen.queryByRole("button", { name: /archiv/i })).toBeNull();
+  expect(screen.queryByText("showArchived")).toBeNull();
+  expect(screen.queryByText("showActive")).toBeNull();
 });

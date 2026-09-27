@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Table2 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   driveItemArticleClass,
   driveItemBodyClass,
@@ -20,11 +20,21 @@ import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { tableError } from "./table-value";
 
-export function TableList({ workspaceId }: { workspaceId: string | null }) {
+export function TableList({
+  workspaceId,
+  archived,
+}: {
+  workspaceId: string | null;
+  archived: boolean;
+}) {
   const t = useTranslations("App.Tables");
   const format = useFormatter();
-  const [archived, setArchived] = useState(false);
   const [cursor, setCursor] = useState<string>();
+  const previousArchivedRef = useRef(archived);
+  if (previousArchivedRef.current !== archived) {
+    previousArchivedRef.current = archived;
+    setCursor(undefined);
+  }
   const query = useQuery({
     queryKey: ["data-tables", workspaceId, archived, cursor],
     queryFn: () =>
@@ -36,20 +46,7 @@ export function TableList({ workspaceId }: { workspaceId: string | null }) {
     // helper, so switching tabs no longer switches page languages. The tab
     // already names the view, so the heading is for assistive technology.
     <section className={cn(driveItemsPanelClass("list"), "space-y-2")}>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="sr-only">{t("tables")}</h2>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="ms-auto h-8"
-          onClick={() => {
-            setArchived(!archived);
-            setCursor(undefined);
-          }}
-        >
-          {archived ? t("showActive") : t("showArchived")}
-        </Button>
-      </div>
+      <h2 className="sr-only">{t("tables")}</h2>
       {query.isPending && (
         <p role="status" className="text-muted-foreground">
           {t("loading")}

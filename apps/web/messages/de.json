@@ -6178,7 +6178,11 @@
       "sortByType": "Typ",
       "sortAscending": "Aufsteigend",
       "sortDescending": "Absteigend",
-      "tablesTab": "Tabellen"
+      "tablesTab": "Tabellen",
+      "workspaceTab": "Dein Arbeitsbereich",
+      "filterStatusLabel": "Status",
+      "filterStatusActive": "Aktiv",
+      "filterStatusArchived": "Archiviert"
     },
     "SokoBot": {
       "Metadata": {
@@ -6712,8 +6716,6 @@
       "retry": "Erneut versuchen",
       "openTable": "Tabelle öffnen",
       "loading": "Wird geladen…",
-      "showActive": "Aktive anzeigen",
-      "showArchived": "Archivierte anzeigen",
       "showArchivedRows": "Archivierte Zeilen anzeigen",
       "archivedRowsBadge": "Archivierte Zeilen",
       "empty": "Noch keine Tabellen",

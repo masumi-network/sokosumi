@@ -6178,7 +6178,11 @@
       "sortByType": "Type",
       "sortAscending": "Ascending",
       "sortDescending": "Descending",
-      "tablesTab": "Tables"
+      "tablesTab": "Tables",
+      "workspaceTab": "Your Workspace",
+      "filterStatusLabel": "Status",
+      "filterStatusActive": "Active",
+      "filterStatusArchived": "Archived"
     },
     "SokoBot": {
       "Metadata": {
@@ -6712,8 +6716,6 @@
       "retry": "Retry",
       "openTable": "Open table",
       "loading": "Loading…",
-      "showActive": "Show active",
-      "showArchived": "Show archived",
       "showArchivedRows": "Show archived rows",
       "archivedRowsBadge": "Archived rows",
       "empty": "No tables yet",

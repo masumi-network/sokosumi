@@ -6,6 +6,10 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
+import {
+  DRIVE_SURFACE_PANEL_CLASS,
+  DRIVE_TOOLBAR_CONTROL_CLASS,
+} from "@/app/drive/components/drive-view-layout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,6 +49,7 @@ import type {
   TableView,
 } from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
+import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { TableCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
@@ -61,7 +66,6 @@ import {
  * uses once there is a pointer. `Button size="sm"` keeps the small padding and
  * gap at both widths; only the height responds.
  */
-const TOOLBAR_CONTROL = "h-10 md:h-8";
 const TOOLBAR_ICON_CONTROL = "size-10 md:size-8";
 
 export function TableEditor({ id }: { id: string }) {
@@ -357,7 +361,7 @@ function TableWorkspace({
     );
   }
   return (
-    <div className="flex min-w-0 flex-col gap-4 p-4 md:p-6">
+    <div className="flex min-w-0 flex-col gap-4">
       {/* The same labelled back affordance the project and task detail pages
       use. It stays at every width: the app chrome's chevron and the breadcrumb
       both go to `/drive`, which lands on Recents, so this link is the only
@@ -393,7 +397,7 @@ function TableWorkspace({
           <Button
             size="sm"
             variant="outline"
-            className={TOOLBAR_CONTROL}
+            className={DRIVE_TOOLBAR_CONTROL_CLASS}
             onClick={() => {
               setHistoryCursor(undefined);
               setHistoryCell({});
@@ -456,7 +460,7 @@ function TableWorkspace({
         <select
           className={withEditableTextSize(
             "bg-background rounded-md border px-2",
-            TOOLBAR_CONTROL,
+            DRIVE_TOOLBAR_CONTROL_CLASS,
           )}
           aria-label={t("view")}
           value={view?.id ?? ""}
@@ -476,14 +480,14 @@ function TableWorkspace({
         <Button
           size="sm"
           variant="outline"
-          className={TOOLBAR_CONTROL}
+          className={DRIVE_TOOLBAR_CONTROL_CLASS}
           onClick={() => setDialog("views")}
         >
           {t("configureView")}
         </Button>
         <Button
           size="sm"
-          className={TOOLBAR_CONTROL}
+          className={DRIVE_TOOLBAR_CONTROL_CLASS}
           disabled={pending || !!table.archivedAt}
           onClick={() =>
             void run(
@@ -501,7 +505,7 @@ function TableWorkspace({
         <Button
           size="sm"
           variant="outline"
-          className={TOOLBAR_CONTROL}
+          className={DRIVE_TOOLBAR_CONTROL_CLASS}
           disabled={!!table.archivedAt}
           onClick={() => setColumn("new")}
         >
@@ -517,7 +521,7 @@ function TableWorkspace({
             </span>
             <Button
               size="sm"
-              className={TOOLBAR_CONTROL}
+              className={DRIVE_TOOLBAR_CONTROL_CLASS}
               disabled={!!table.archivedAt}
               onClick={() => {
                 setEnrichmentKey(crypto.randomUUID());
@@ -532,7 +536,7 @@ function TableWorkspace({
             <Button
               size="sm"
               variant="outline"
-              className={TOOLBAR_CONTROL}
+              className={DRIVE_TOOLBAR_CONTROL_CLASS}
               disabled={pending || !!table.archivedAt}
               onClick={() =>
                 void run(async () => {
@@ -591,11 +595,11 @@ function TableWorkspace({
           </AlertDescription>
         </Alert>
       )}
-      <div className="bg-card min-w-0 overflow-hidden rounded-xl border">
+      <div className={cn(DRIVE_SURFACE_PANEL_CLASS, "min-w-0")}>
         <Table className="border-collapse">
           <caption className="sr-only">{table.title}</caption>
-          <TableHeader className="bg-card-background">
-            <TableRowShell className="hover:bg-card-background">
+          <TableHeader>
+            <TableRowShell className="hover:bg-transparent">
               <TableHead className="w-12 px-3">
                 <Checkbox
                   aria-label={t("selectAll")}
@@ -695,6 +699,7 @@ function TableWorkspace({
             {displayedRows.map((row) => (
               <TableRowShell
                 key={row.id}
+                className="hover:bg-card-background-hover"
                 data-state={selected.includes(row.id) ? "selected" : undefined}
               >
                 {/* Top-aligned with the first control in the row: a
@@ -771,7 +776,7 @@ function TableWorkspace({
         )}
         {/* Pagination and the live-update note belong to the grid, so they
         ride inside its surface the way every other table in the app does. */}
-        <div className="bg-card-background flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2">
           <p role="status" className="text-muted-foreground text-xs">
             {t("liveUpdates")}
           </p>

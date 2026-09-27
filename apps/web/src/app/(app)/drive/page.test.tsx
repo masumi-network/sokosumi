@@ -198,6 +198,38 @@ vi.mock("@/app/drive/components/drive-tasks-filters", () => ({
   },
 }));
 
+const listDataTablesMock = vi.fn();
+
+vi.mock("@/lib/services/data-table.client", () => ({
+  dataTableService: {
+    list: (...args: unknown[]) => listDataTablesMock(...args),
+  },
+}));
+
+/**
+ * Stands in for the shared `FilterDropdownMenu` the real control wraps, the
+ * way `drive-tasks-filters` is stubbed above: these tests are about where the
+ * control lives and what it drives, not about the dropdown's internals.
+ */
+vi.mock("@/app/drive/components/drive-tables-filters", () => ({
+  DriveTablesFilters: ({
+    archived,
+    onArchivedChange,
+  }: {
+    archived: boolean;
+    onArchivedChange: (archived: boolean) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="tables-archived-filter"
+      data-archived={archived ? "true" : "false"}
+      onClick={() => onArchivedChange(!archived)}
+    >
+      filterStatusLabel
+    </button>
+  ),
+}));
+
 vi.mock("@/components/ui/image-viewer", () => ({
   ImageViewer: ({
     images,
@@ -546,7 +578,7 @@ describe("DrivePage tasks mobile toolbar", () => {
 
     expect(screen.getByRole("tab", { name: "recentsTab" })).toBeVisible();
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "Org A" })).toHaveAttribute(
+      expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
         "aria-selected",
         "true",
       );
@@ -668,7 +700,7 @@ describe("DrivePage recents view", () => {
     });
 
     expect(fetchDriveRecentsPageMock).not.toHaveBeenCalled();
-    expect(screen.getByRole("tab", { name: "Org A" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -684,7 +716,7 @@ describe("DrivePage recents view", () => {
       expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
     });
 
-    await user.click(screen.getByRole("tab", { name: "Org A" }));
+    await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
@@ -755,7 +787,7 @@ describe("DrivePage files view mode", () => {
     expect(screen.queryByTestId("files-layout-grid")).not.toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("tab", { name: "Org A" }));
+    await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
@@ -779,7 +811,7 @@ describe("DrivePage files view mode", () => {
     expect(screen.queryByTestId("files-layout-list")).not.toBeInTheDocument();
     expect(fetchDriveRecentsPageMock.mock.calls.length).toBe(recentsCalls);
 
-    await user.click(screen.getByRole("tab", { name: "Org A" }));
+    await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
@@ -1249,7 +1281,7 @@ describe("DrivePage files sort", () => {
     expect(recentsCall).not.toHaveProperty("sortOrder");
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("tab", { name: "Org A" }));
+    await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
@@ -1261,5 +1293,134 @@ describe("DrivePage files sort", () => {
     expect(browseCall).not.toHaveProperty("sortBy");
     expect(browseCall).not.toHaveProperty("sortOrder");
     expect(screen.getByTestId("files-sort-trigger")).toBeVisible();
+  });
+});
+
+describe("DrivePage workspace tab and breadcrumb root", () => {
+  beforeEach(() => {
+    queryClient = createDriveQueryClient();
+    searchParams = new URLSearchParams("view=browse");
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    useSessionMock.mockReset();
+    listDriveItemsMock.mockReset();
+    listDataTablesMock.mockReset();
+    fetchDriveTasksPageMock.mockReset();
+    fetchDriveRecentsPageMock.mockReset();
+    getUsersByIdOrganizationsMock.mockReset();
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
+
+    fetchDriveTasksPageMock.mockResolvedValue({ items: [], nextCursor: null });
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    listDataTablesMock.mockResolvedValue({ items: [], nextCursor: null });
+    getUsersByIdOrganizationsMock.mockResolvedValue({
+      data: { data: [{ id: "org_a", name: "Org A" }] },
+    });
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+  });
+
+  it("names the second tab for the view, not for the organization", async () => {
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toBeVisible();
+    // The organization name used to be the tab's label, so it must no longer
+    // name any tab on this page.
+    expect(screen.queryByRole("tab", { name: "Org A" })).toBeNull();
+  });
+
+  it("drops the breadcrumb root chip at the workspace root", async () => {
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    // The chip carried the organization name and an aria-label of its own.
+    expect(
+      screen.queryByRole("navigation", { name: "breadcrumbNavLabel" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Org A" })).toBeNull();
+  });
+
+  it("keeps a keyboard-reachable root control inside a folder", async () => {
+    searchParams = new URLSearchParams("view=browse&folder=Reports");
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    const nav = screen.getByRole("navigation", {
+      name: "breadcrumbNavLabel",
+    });
+    const root = within(nav).getByRole("button", { name: "workspaceTab" });
+    expect(root).toBeVisible();
+
+    // It is a real button, so it is a tab stop and Enter/Space activate it.
+    expect(root.tagName).toBe("BUTTON");
+
+    await userEvent.setup().click(root);
+    expect(pushMock).toHaveBeenCalledWith(
+      expect.stringContaining("view=browse"),
+    );
+    expect(pushMock.mock.calls.at(-1)?.[0]).not.toContain("folder=");
+  });
+
+  it("keeps every header-row control at the tab strip's height", async () => {
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    // happy-dom does not compute layout, so this asserts the rule rather than
+    // the resulting height: the search box is the one control in this row that
+    // is not `size="sm"`, and a bare `Input` is `h-10`. While it was taller
+    // than the 36px tab strip it set the row's height, and the strip moved 2px
+    // between a tab that has a search box and one that does not.
+    const header = screen.getByTestId("files-desktop-header");
+    const search = within(header).getByPlaceholderText("searchPlaceholder");
+    expect(search.className).toContain("md:h-8");
+  });
+
+  it("puts the archived filter in the page filter row and drives the list", async () => {
+    searchParams = new URLSearchParams("view=tables");
+    const user = userEvent.setup();
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDataTablesMock).toHaveBeenCalled();
+    });
+
+    // In the page header row that holds the tabs and the other filters, not
+    // inside the list panel.
+    const header = screen.getByTestId("files-desktop-header");
+    const filter = within(header).getByTestId("tables-archived-filter");
+    expect(filter).toHaveAttribute("data-archived", "false");
+    expect(listDataTablesMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ archived: "false" }),
+    );
+
+    await user.click(filter);
+
+    await waitFor(() => {
+      expect(listDataTablesMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ archived: "true" }),
+      );
+    });
+    expect(
+      within(screen.getByTestId("files-desktop-header")).getByTestId(
+        "tables-archived-filter",
+      ),
+    ).toHaveAttribute("data-archived", "true");
   });
 });
