@@ -20,7 +20,10 @@ import {
 import type { JevLabelEvaluator } from "@/lib/files/jev-client";
 import { getJevScheduler } from "@/lib/files/jev-scheduler";
 import { writeVersionChunks } from "@/services/file-index.service";
-import { runSuggestionJob } from "@/services/file-suggestions.service";
+import {
+  processFileSuggestionJobs,
+  runSuggestionJob,
+} from "@/services/file-suggestions.service";
 
 /**
  * Does the suggestion pipeline actually suggest anything?
@@ -281,6 +284,113 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
     }
   });
 
+  it("leaves a document untouched when capacity refuses it", async () => {
+    // A capacity refusal is not a verdict about the document. This path
+    // called `completeFileIndexJob`, so the job was recorded as SUCCEEDED
+    // with zero suggestions and never retried — the document silently never
+    // labelled — while the tick reported `{processed: 1, suggested: 0,
+    // failed: 0}`, which reads as a healthy minute. The scheduler's own
+    // refusal had the opposite bug: `failFileIndexJob` burns one of five
+    // attempts, so five capacity refusals fail the document permanently.
+    //
+    // Both should leave it exactly as it was, and be visible as a deferral.
+    const { PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE } = await import(
+      "@/lib/files/jev-scheduler"
+    );
+
+    await prisma.fileAuthorizationAdmission.create({
+      data: {
+        workspaceId,
+        actorFingerprint: "another-runtime",
+        epochVector: "whatever",
+        purpose: "label-suggest",
+        payloadDigest: "spent-for-defer",
+        provider: "vercel-ai-gateway",
+        model: "typesafe-ai/jev",
+        inputTokens: PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE,
+        admittedAt: new Date(),
+        expiresAt: new Date(Date.now() + 50),
+      },
+    });
+
+    try {
+      await queueSuggestionJob(500);
+      const leased = await leaseNextFileIndexJob({
+        pipeline: FileIndexJobPipeline.SUGGEST,
+      });
+      if (!leased) throw new Error("expected a job");
+
+      const attemptOnLease = leased.job.attempt;
+      const outcome = await runSuggestionJob(leased, {
+        evaluator: evaluatorChoosing("all"),
+        configured: () => true,
+      });
+      expect(outcome.skipped).toBe("admission-denied");
+      expect(outcome.deferred).toBe(true);
+
+      const after = await prisma.fileIndexJob.findUnique({
+        where: { id: leased.job.id },
+        select: { state: true, attempt: true, runAfter: true },
+      });
+
+      // Queued again, not finished.
+      expect(after?.state).toBe("QUEUED");
+      // And the refusal cost it nothing: the lease's increment is given
+      // back, so a run of refusals cannot exhaust the attempt budget.
+      expect(after?.attempt).toBe(attemptOnLease - 1);
+      // Held back briefly rather than spun on.
+      expect(after?.runAfter.getTime()).toBeGreaterThan(Date.now());
+    } finally {
+      await prisma.fileAuthorizationAdmission.deleteMany({
+        where: { workspaceId },
+      });
+    }
+  });
+
+  it("reports a deferral separately from a document with nothing to suggest", async () => {
+    // `{processed: 1, suggested: 0, failed: 0}` is what a refused document
+    // and an ordinary document with no matching labels both used to look
+    // like. A reader of the tick could not tell a capacity problem from a
+    // quiet minute.
+    const { PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE } = await import(
+      "@/lib/files/jev-scheduler"
+    );
+    await prisma.fileAuthorizationAdmission.create({
+      data: {
+        workspaceId,
+        actorFingerprint: "another-runtime",
+        epochVector: "whatever",
+        purpose: "label-suggest",
+        payloadDigest: "spent-for-tick",
+        provider: "vercel-ai-gateway",
+        model: "typesafe-ai/jev",
+        inputTokens: PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE,
+        admittedAt: new Date(),
+        expiresAt: new Date(Date.now() + 50),
+      },
+    });
+
+    try {
+      await queueSuggestionJob(600);
+      const tick = await processFileSuggestionJobs({
+        shouldContinue: () => true,
+        maxJobs: 1,
+        dependencies: {
+          evaluator: evaluatorChoosing("all"),
+          configured: () => true,
+        },
+      });
+
+      expect(tick.deferred).toBe(1);
+      expect(tick.suggested).toBe(0);
+      expect(tick.failed).toBe(0);
+    } finally {
+      await prisma.fileAuthorizationAdmission.deleteMany({
+        where: { workspaceId },
+      });
+    }
+  });
+
   it("does not report a local denial to the provider breaker", async () => {
     // A denied admission is our decision, not the provider's. Counting it as
     // a provider failure opened the breaker during a run that never reached
@@ -310,8 +420,11 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
       // burst of three, so without this the fourth iteration onwards is
       // refused by `tryAdmit` before it ever reaches the admission — which
       // is a different branch, and would make this test vacuous again in a
-      // new way. The assertion below is what caught that.
-      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 150));
+      // new way. The assertion below is what caught that, twice: the first
+      // iteration needs it too, because the scheduler is a module-level
+      // singleton and earlier tests in this file have already spent the
+      // burst.
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Spend the workspace's shared minute in the database. The in-memory
       // scheduler keeps its own window, so `tryAdmit` still passes and the

@@ -14,6 +14,7 @@ import {
 } from "@/lib/files/evidence-scope";
 import {
   completeFileIndexJob,
+  deferFileIndexJob,
   failFileIndexJob,
   type LeasedFileIndexJob,
   leaseNextFileIndexJob,
@@ -61,6 +62,11 @@ export const SUGGESTION_MIN_SCORE = 2;
 export interface SuggestionRunOutcome {
   suggested: number;
   skipped: string | null;
+  /**
+   * True when the run ended because capacity refused it, not because the
+   * document had nothing to say. The job is back in the queue, unchanged.
+   */
+  deferred?: boolean;
 }
 
 export async function runSuggestionJob(
@@ -226,15 +232,15 @@ export async function runSuggestionJob(
     inputTokens: request.tokens,
   });
   if (!decision.admitted) {
-    // Quota, not a verdict. Leave the job to be picked up again rather than
-    // completing a document nothing has looked at.
-    await failFileIndexJob({
-      jobId: job.id,
-      leaseOwner,
-      attempt: job.attempt,
-      error: `suggestion quota: ${decision.reason}`,
-    });
-    return { suggested: 0, skipped: `quota:${decision.reason}` };
+    // Quota, not a verdict. `failFileIndexJob` requeued but spent one of
+    // five attempts, so a run of capacity refusals failed the document for
+    // good; a refusal has to cost it nothing.
+    await deferFileIndexJob({ jobId: job.id, leaseOwner });
+    return {
+      suggested: 0,
+      skipped: `quota:${decision.reason}`,
+      deferred: true,
+    };
   }
 
   const admission = await admitJevRequest({
@@ -253,8 +259,13 @@ export async function runSuggestionJob(
     // Local refusal, not a provider failure: give the slot back without
     // telling the breaker anything.
     scheduler.release();
-    await completeFileIndexJob({ jobId: job.id, leaseOwner });
-    return { suggested: 0, skipped: "admission-denied" };
+    // And not a verdict about the document either. This used to complete
+    // the job, so a refusal recorded the document as done with zero
+    // suggestions and it was never looked at again — a capacity problem
+    // turned into a permanent result, invisible in a tick that reported
+    // one processed and nothing failed.
+    await deferFileIndexJob({ jobId: job.id, leaseOwner });
+    return { suggested: 0, skipped: "admission-denied", deferred: true };
   }
 
   const verdict = await evaluator.evaluateLabels({
@@ -315,20 +326,36 @@ export interface SuggestionSyncResult {
   processed: number;
   suggested: number;
   failed: number;
+  /**
+   * Jobs put back untouched because capacity refused them. Counted apart
+   * from `processed` so a throttled minute cannot be read as a quiet one.
+   */
+  deferred: number;
 }
 
 export async function processFileSuggestionJobs(input: {
   shouldContinue: () => boolean;
   maxJobs?: number;
+  /** Same seam as `runSuggestionJob`, so a tick can be exercised. */
+  dependencies?: {
+    evaluator?: JevLabelEvaluator;
+    configured?: () => boolean;
+  };
 }): Promise<SuggestionSyncResult> {
   const maxJobs = input.maxJobs ?? 10;
   const result: SuggestionSyncResult = {
     processed: 0,
     suggested: 0,
     failed: 0,
+    deferred: 0,
   };
 
-  while (result.processed < maxJobs && input.shouldContinue()) {
+  // Bounded by jobs *looked at*, not jobs processed: a deferral does not
+  // count as processed, and without its own counter a throttled queue
+  // would walk the whole backlog in one tick.
+  let visited = 0;
+  while (visited < maxJobs && input.shouldContinue()) {
+    visited += 1;
     const leased = await leaseNextFileIndexJob({
       pipeline: FileIndexJobPipeline.SUGGEST,
     });
@@ -336,8 +363,18 @@ export async function processFileSuggestionJobs(input: {
 
     result.processed += 1;
     try {
-      const outcome = await runSuggestionJob(leased);
+      const outcome = await runSuggestionJob(leased, input.dependencies ?? {});
       result.suggested += outcome.suggested;
+      if (outcome.deferred) {
+        result.deferred += 1;
+        // A deferred job was not processed — it is still waiting. Counting
+        // it as processed is what let a refused document look like a
+        // document with nothing to suggest. The loop carries on, because
+        // the refusal may have been this workspace's budget rather than
+        // everyone's, and the job it just put back is held off by its own
+        // `runAfter`.
+        result.processed -= 1;
+      }
     } catch (error) {
       result.failed += 1;
       await failFileIndexJob({

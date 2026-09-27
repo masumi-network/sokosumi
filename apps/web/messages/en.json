@@ -6418,6 +6418,7 @@
         "collectionsLoading": "Loading collections",
         "collectionsEmpty": "No saved collections yet",
         "collectionsUnavailable": "Collections could not be loaded.",
+        "labelsUnavailable": "Categories and tags could not be loaded.",
         "collectionActions": "Actions for {name}",
         "collectionResave": "Save current filters here",
         "collectionRename": "Rename",

@@ -208,6 +208,54 @@ export async function completeFileIndexJob(input: {
   return updated.count === 1;
 }
 
+/**
+ * How long a job refused for capacity waits before it is offered again.
+ *
+ * Short, because the thing that refused it is a per-minute window. Jittered
+ * so a drained queue does not come back as one wave.
+ */
+const DEFER_BACKOFF_MS = 30_000;
+
+/**
+ * Put a job back exactly as it was, because we refused it — not it.
+ *
+ * A capacity refusal is neither a success nor a failure, and the two
+ * existing endings both lied about it. `completeFileIndexJob` recorded the
+ * document as done with zero suggestions and it was never looked at again;
+ * `failFileIndexJob` consumed one of `FILE_INDEX_JOB_MAX_ATTEMPTS`, so five
+ * refusals failed a perfectly good document permanently. Leasing increments
+ * `attempt`, so giving that increment back is what "as it was" means here.
+ *
+ * `lastError` is deliberately left alone: there was no error, and a previous
+ * genuine one should not be erased by a queueing decision.
+ */
+export async function deferFileIndexJob(input: {
+  jobId: string;
+  leaseOwner: string;
+  retryAfterMs?: number;
+  now?: Date;
+}): Promise<boolean> {
+  const now = input.now ?? new Date();
+  const backoff = input.retryAfterMs ?? DEFER_BACKOFF_MS;
+  const jitter = Math.floor(Math.random() * Math.min(backoff, 15_000));
+
+  const updated = await prisma.fileIndexJob.updateMany({
+    where: {
+      id: input.jobId,
+      leaseOwner: input.leaseOwner,
+      state: FileIndexJobState.LEASED,
+    },
+    data: {
+      state: FileIndexJobState.QUEUED,
+      runAfter: new Date(now.getTime() + backoff + jitter),
+      attempt: { decrement: 1 },
+      leaseOwner: null,
+      leaseExpiresAt: null,
+    },
+  });
+  return updated.count === 1;
+}
+
 export async function failFileIndexJob(input: {
   jobId: string;
   leaseOwner: string;

@@ -6418,6 +6418,7 @@
         "collectionsLoading": "Sammlungen werden geladen",
         "collectionsEmpty": "Noch keine gespeicherten Sammlungen",
         "collectionsUnavailable": "Sammlungen konnten nicht geladen werden.",
+        "labelsUnavailable": "Kategorien und Tags konnten nicht geladen werden.",
         "collectionActions": "Aktionen für {name}",
         "collectionResave": "Aktuelle Filter hier speichern",
         "collectionRename": "Umbenennen",

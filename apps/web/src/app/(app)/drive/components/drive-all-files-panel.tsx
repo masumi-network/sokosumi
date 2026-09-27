@@ -108,6 +108,9 @@ export function DriveAllFilesPanel({
     ...EMPTY_FILE_FILTERS,
   });
   const [labels, setLabels] = useState<WorkspaceLabel[]>([]);
+  const [labelsState, setLabelsState] = useState<
+    "loading" | "ready" | "failed"
+  >("loading");
   const [collections, setCollections] = useState<FileCollection[]>([]);
   /**
    * Collections load separately from results, so they get their own three
@@ -210,25 +213,47 @@ export function DriveAllFilesPanel({
     void runSearch({ query: appliedQuery, filters });
   }, [appliedQuery, filters, runSearch]);
 
+  /**
+   * Two loads, reported separately, because they fail separately.
+   *
+   * These used to share a `Promise.all` and one `catch` that set
+   * `collectionsState: "failed"`. So a labels outage was reported to the
+   * reader as "collections unavailable", and Retry — which re-fetched
+   * collections only — made the message disappear while the vocabulary was
+   * still empty. The filter sheet then offered no categories and no tags,
+   * and the reader had just been shown that everything recovered. A retry
+   * that appears to work while half the data is still missing is worse
+   * than an error that stays on screen.
+   */
   useEffect(() => {
     const controller = new AbortController();
+    setLabelsState("loading");
     setCollectionsState("loading");
+
     void (async () => {
-      try {
-        const [nextLabels, nextCollections] = await Promise.all([
-          fetchWorkspaceLabels({ store, signal: controller.signal }),
-          fetchFileCollections({ store, signal: controller.signal }),
-        ]);
-        setLabels(nextLabels);
-        setCollections(nextCollections);
+      const [labelResult, collectionResult] = await Promise.allSettled([
+        fetchWorkspaceLabels({ store, signal: controller.signal }),
+        fetchFileCollections({ store, signal: controller.signal }),
+      ]);
+      if (controller.signal.aborted) return;
+
+      if (labelResult.status === "fulfilled") {
+        setLabels(labelResult.value);
+        setLabelsState("ready");
+      } else {
+        // Vocabulary is an aid, not the list: a failure here must not empty
+        // the results the reader came for.
+        setLabelsState("failed");
+      }
+
+      if (collectionResult.status === "fulfilled") {
+        setCollections(collectionResult.value);
         setCollectionsState("ready");
-      } catch {
-        // Vocabulary is an aid, not the list. A failure here must not empty
-        // the results the reader came for — but it must not look like an
-        // empty shelf either.
-        if (!controller.signal.aborted) setCollectionsState("failed");
+      } else {
+        setCollectionsState("failed");
       }
     })();
+
     return () => controller.abort();
   }, [store]);
 
@@ -383,11 +408,24 @@ export function DriveAllFilesPanel({
   }
 
   async function reloadCollections() {
+    // "loading" first, so pressing Retry says something immediately rather
+    // than looking inert until the request resolves.
+    setCollectionsState("loading");
     try {
       setCollections(await fetchFileCollections({ store }));
       setCollectionsState("ready");
     } catch {
       setCollectionsState("failed");
+    }
+  }
+
+  async function reloadLabels() {
+    setLabelsState("loading");
+    try {
+      setLabels(await fetchWorkspaceLabels({ store }));
+      setLabelsState("ready");
+    } catch {
+      setLabelsState("failed");
     }
   }
 
@@ -497,6 +535,20 @@ export function DriveAllFilesPanel({
               ? t("filterButtonWithCount", { count: activeFilterCount })
               : t("filterButton")}
           </Button>
+        ) : null}
+
+        {labelsState === "failed" ? (
+          // Named for what actually failed, with a retry that retries it.
+          <span className="text-muted-foreground flex items-center gap-2 text-xs">
+            {t("labelsUnavailable")}
+            <button
+              type="button"
+              className="underline underline-offset-2"
+              onClick={() => void reloadLabels()}
+            >
+              {t("retry")}
+            </button>
+          </span>
         ) : null}
 
         <DriveFileFilters

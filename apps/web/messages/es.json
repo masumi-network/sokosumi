@@ -6418,6 +6418,7 @@
         "collectionsLoading": "Cargando colecciones",
         "collectionsEmpty": "Aún no hay colecciones guardadas",
         "collectionsUnavailable": "No se pudieron cargar las colecciones.",
+        "labelsUnavailable": "No se pudieron cargar las categorías ni las etiquetas.",
         "collectionActions": "Acciones para {name}",
         "collectionResave": "Guardar los filtros actuales aquí",
         "collectionRename": "Cambiar el nombre",
