@@ -66,18 +66,31 @@ export function isInlineRenderable(mimeType: string | null): boolean {
  * The policy that keeps served bytes from acting like a page of ours.
  *
  * `sandbox` with no tokens gives the response an opaque origin and no
- * scripting, which is what we want for everything — except that it also
- * stops the browser's built-in PDF viewer, which needs to run script inside
- * the frame. A PDF served under the strict policy renders as an empty grey
- * box, which is how this was found.
+ * scripting. That is right for everything except a PDF: the browser's own
+ * viewer runs inside the frame and needs both scripting and a real origin,
+ * and under the strict policy a PDF renders as an empty grey box. Observed
+ * on preprod — the same file opened top-level rendered fine.
  *
- * So a PDF gets `allow-scripts` and nothing else. The origin stays opaque:
- * without `allow-same-origin` the frame cannot read this origin's cookies,
- * storage or DOM, so what it may run it can do nothing with.
+ * `allow-scripts allow-same-origin` together normally means "no sandbox at
+ * all", so it is worth being explicit about why it is safe *here* and only
+ * here:
+ *
+ * 1. The response is `Content-Type: application/pdf` with
+ *    `X-Content-Type-Options: nosniff`, so the browser will not parse the
+ *    bytes as HTML no matter what they contain.
+ * 2. The only thing that can therefore occupy the frame is Chrome's PDF
+ *    viewer — browser code, not the file's.
+ * 3. A PDF's own scripting runs inside that viewer, which sandboxes it
+ *    independently of this header.
+ *
+ * Every other type keeps the strict policy, so an HTML or SVG file — the
+ * ones that *would* become a document — never reaches this branch.
  */
 export function contentSecurityPolicyFor(contentType: string): string {
   const base = contentType.split(";")[0].trim().toLowerCase();
-  if (base === "application/pdf") return "sandbox allow-scripts";
+  if (base === "application/pdf") {
+    return "sandbox allow-scripts allow-same-origin";
+  }
   return "sandbox; default-src 'none'";
 }
 

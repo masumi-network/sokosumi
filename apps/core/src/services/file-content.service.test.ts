@@ -115,14 +115,28 @@ describe("contentSecurityPolicyFor", () => {
     },
   );
 
-  it("lets a PDF script so the built-in viewer works, but stays opaque", () => {
+  it("lets the built-in viewer run for a PDF", () => {
     // Found on preprod: the strict policy renders a PDF as an empty grey box
-    // because Chrome's viewer runs script inside the frame.
-    const policy = contentSecurityPolicyFor("application/pdf; charset=binary");
+    // because Chrome's viewer runs inside the frame and needs a real origin.
+    expect(contentSecurityPolicyFor("application/pdf; charset=binary")).toBe(
+      "sandbox allow-scripts allow-same-origin",
+    );
+  });
 
-    expect(policy).toBe("sandbox allow-scripts");
-    // The part that matters: no same-origin, so the frame cannot reach this
-    // origin's cookies, storage or DOM.
-    expect(policy).not.toContain("allow-same-origin");
+  it("relaxes for PDF alone, so a document type never reaches that branch", () => {
+    // The relaxation is safe only because `nosniff` plus an
+    // `application/pdf` type means the frame can hold nothing but the
+    // viewer. Anything that could become an HTML document must stay strict.
+    for (const type of [
+      "text/html",
+      "image/svg+xml",
+      "application/xhtml+xml",
+      "text/markdown",
+      "application/json",
+      "application/octet-stream",
+    ]) {
+      expect(contentSecurityPolicyFor(type)).not.toContain("allow-same-origin");
+      expect(contentSecurityPolicyFor(type)).not.toContain("allow-scripts");
+    }
   });
 });
