@@ -51,23 +51,37 @@ through. At the measured ~$0.0000373 per task the whole backlog observed on
 whether it takes days or hours.
 
 Three guards bound one tick, and each is observable as `stopReason` in the batch
-log. The existing sync deadline (`LOCK_TIMEOUT - LOCK_TIMEOUT_BUFFER`, reserving 15
-seconds for one in-flight evaluation) remains the outer bound for all work.
-Historical work additionally stops 120 seconds into a tick, so a slow provider can
-never hold the sync lock past the next scheduled tick and delay queued work by a
-further interval; at the measured 320-420ms per task the 200-row cap is reached
-first, in roughly 65-85 seconds. A per-tick reported-cost ceiling of $0.05 stops a
-pathological run; the selection caps, not cost, are the primary bound, so a
-provider that returns no billing metadata cannot make a tick unbounded.
+log. The existing sync deadline (`LOCK_TIMEOUT - LOCK_TIMEOUT_BUFFER`, 275 seconds
+on the defaults production runs on, reserving 15 seconds for one in-flight
+evaluation) remains the outer bound for all work. A tick additionally stops
+claiming new work 120 seconds in. A tick that ran to the deadline would still
+release its lock before the next cron fires 300 seconds after the last, but only by
+about 25 seconds, and cron jitter, a slow release, or a function killed at
+`vercel.json`'s 300-second `maxDuration` all eat that margin; a tick still holding
+the lock makes the next one 409 and skips it. Ten rows could never reach the
+deadline, 250 rows with a timing-out provider could, so the tick budget restores a
+wide margin. At the measured per-task latency the 200-row cap is reached first, in
+roughly 65-85 seconds. A per-tick reported-cost ceiling of $0.05 stops a
+pathological run; it covers queued rows too, which spend it first because they are
+evaluated first. The selection caps, not cost, are the primary bound, so a provider
+that returns no billing metadata cannot make a tick unbounded.
+
+Both selections read only the eight columns the worker uses, so a 250-row batch
+does not load whole task rows, whose descriptions have no database length cap.
 
 The `task_tag_classification_batch` log records queued/historical selections,
 attempted/completed/failed/stale/deferred counts, any `stopReason`, remaining
 eligible history, validated token usage, reported cost and the count with
 unreported cost. Per-evaluation logs distinguish historical and queued sources, so
-a full tick emits up to 250 evaluation events plus the batch event. Suggestion logs
-record validated usage and cost without authored content. Throughput is an upper
-bound, not a completion-time promise; estimate cost from actual reported usage
-and report missing cost separately.
+a full tick emits up to 250 evaluation events plus the batch event, against 11
+before, and those events reach Sentry through the evlog drain. That is a one-time
+cost: the backlog is finite and new tasks enqueue as `pending`, never
+`unclassified`, so draining the 2026-09-27 backlog adds on the order of 25,000
+events in total across both targets and historical volume returns to zero
+afterwards. Per-task provider attribution for a bulk classification of customer
+content is worth that. Suggestion logs record validated usage and cost without
+authored content. Throughput is an upper bound, not a completion-time promise;
+estimate cost from actual reported usage and report missing cost separately.
 
 ## Coordinator rollout
 

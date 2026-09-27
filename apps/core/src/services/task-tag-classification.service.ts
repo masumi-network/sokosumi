@@ -21,17 +21,34 @@ const MAX_ATTEMPTS = 2;
 const LEASE_MS = 60_000;
 // One evaluation can take the classifier's full 12s request timeout plus its writes.
 const DEADLINE_RESERVE_MS = 15_000;
-// The cron fires every five minutes and every tick holds the same sync lock, so a
-// tick that ran all the way to the sync deadline would make the next tick lose the
-// lock and delay interactive work by a further interval. Historical work therefore
-// stops here first; the sync deadline above stays the outer bound for everything.
-const HISTORICAL_BUDGET_MS = 120_000;
+// The sync deadline is `LOCK_TIMEOUT - LOCK_TIMEOUT_BUFFER`, 275s on the defaults
+// production runs on, and the cron fires every 300s. A tick that ran to that
+// deadline would still release its lock in time, but only by ~25s, and cron jitter,
+// a slow release or a function killed at vercel.json's 300s maxDuration all eat
+// that margin; a tick that is still holding the lock makes the next one 409 and
+// skips it entirely. Up to 250 rows could reach the deadline where 10 never could,
+// so a tick stops claiming new work here and leaves a wide margin instead. The sync
+// deadline above stays the outer bound.
+const TICK_BUDGET_MS = 120_000;
 // Reported-cost ceiling for one tick. A full queued+historical tick costs about
 // $0.01 at the measured ~$0.0000373 per task, and the per-task input is capped at
 // 300 title plus 8,000 description characters, so this only stops a pathological
-// run. Selection caps, not cost, remain the primary bound, so a provider that
-// returns no billing metadata cannot make a tick unbounded either.
+// run. It covers queued rows too, which are evaluated first and therefore spend
+// this budget first. Selection caps, not cost, remain the primary bound, so a
+// provider that returns no billing metadata cannot make a tick unbounded either.
 const MAX_TICK_COST_USD = 0.05;
+// Only the columns this worker reads. A 250-row batch must not pull whole task
+// rows, whose descriptions have no length cap in the database.
+const TASK_FIELDS = {
+  id: true,
+  workspaceId: true,
+  name: true,
+  description: true,
+  tagContentRevision: true,
+  tagClassificationAttempts: true,
+  tagClassificationState: true,
+  tagClassificationLease: true,
+} satisfies Prisma.TaskSelect;
 
 export async function classifyPendingTaskTags(context: SyncExecutionContext) {
   return runPendingTaskTags(context, {});
@@ -103,6 +120,7 @@ async function runPendingTaskTags(
     },
     orderBy: [{ tagClassificationAvailableAt: "asc" }, { id: "asc" }],
     take: QUEUED_BATCH_SIZE,
+    select: TASK_FIELDS,
   });
   // Historical work runs behind every queued row, under its own cap and its own
   // time budget. Existing state + lease fields are the durable cursor across
@@ -115,16 +133,17 @@ async function runPendingTaskTags(
     tagClassificationAttempts: { lt: MAX_ATTEMPTS },
     tagClassificationAvailableAt: { lte: new Date() },
   } satisfies Prisma.TaskWhereInput;
-  const historicalTimeLeft = () =>
+  const timeLeft = () =>
     context.shouldContinue() &&
     context.msRemaining() >= DEADLINE_RESERVE_MS &&
-    Date.now() - startedAt < HISTORICAL_BUDGET_MS;
-  if (historicalTimeLeft()) {
+    Date.now() - startedAt < TICK_BUDGET_MS;
+  if (timeLeft()) {
     tasks.push(
       ...(await prisma.task.findMany({
         where: historicalWhere,
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         take: HISTORICAL_BATCH_SIZE,
+        select: TASK_FIELDS,
       })),
     );
   }
@@ -140,11 +159,7 @@ async function runPendingTaskTags(
     costUsd: 0,
     unreportedCost: 0,
   };
-  let stopReason:
-    | "deadline"
-    | "historical_budget"
-    | "spend_ceiling"
-    | undefined;
+  let stopReason: "deadline" | "tick_budget" | "spend_ceiling" | undefined;
   for (const task of tasks) {
     const source =
       task.tagClassificationState === "unclassified" ? "historical" : "queued";
@@ -159,9 +174,9 @@ async function runPendingTaskTags(
       stopReason = "spend_ceiling";
       break;
     }
-    // Queued work has already run; the next tick resumes the rest of history.
-    if (source === "historical" && !historicalTimeLeft()) {
-      stopReason = "historical_budget";
+    // Whatever is left keeps its durable state and resumes on the next tick.
+    if (Date.now() - startedAt >= TICK_BUDGET_MS) {
+      stopReason = "tick_budget";
       break;
     }
     const log = createCoreLogger({

@@ -104,6 +104,16 @@ describe("classifyPendingTaskTags", () => {
           ],
         },
         take: 50,
+        select: {
+          id: true,
+          workspaceId: true,
+          name: true,
+          description: true,
+          tagContentRevision: true,
+          tagClassificationAttempts: true,
+          tagClassificationState: true,
+          tagClassificationLease: true,
+        },
       }),
     );
     const claim = updateManyMock.mock.calls[0]![0];
@@ -458,6 +468,16 @@ describe("historical tag backfill", () => {
       },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       take: 200,
+      select: {
+        id: true,
+        workspaceId: true,
+        name: true,
+        description: true,
+        tagContentRevision: true,
+        tagClassificationAttempts: true,
+        tagClassificationState: true,
+        tagClassificationLease: true,
+      },
     });
     expect(updateManyMock.mock.calls[0]![0].where.id).toBe(task.id);
     expect(updateManyMock.mock.calls[2]![0].where).toMatchObject({
@@ -580,7 +600,7 @@ describe("historical tag backfill", () => {
     );
   });
 
-  it("stops history when the tick has spent its historical time budget", async () => {
+  it("stops history when the tick has spent its time budget", async () => {
     vi.useFakeTimers();
     findManyMock
       .mockReset()
@@ -607,12 +627,47 @@ describe("historical tag backfill", () => {
       expect.objectContaining({
         completed: 4,
         deferred: 6,
-        stopReason: "historical_budget",
+        stopReason: "tick_budget",
       }),
     );
   });
 
-  it("never delays queued work to select history late in a tick", async () => {
+  it("stops queued work at the same tick budget so the lock is released early", async () => {
+    vi.useFakeTimers();
+    findManyMock
+      .mockReset()
+      .mockResolvedValue([])
+      .mockResolvedValueOnce(
+        Array.from({ length: 50 }, (_, index) => ({
+          ...task,
+          id: `queued-${index}`,
+        })),
+      );
+    // A provider at its 12s request timeout would otherwise run 50 queued rows
+    // for 600s, far past the deadline and into the next scheduled tick.
+    classifyMock.mockImplementation(() => {
+      vi.advanceTimersByTime(12_000);
+      return Promise.resolve({
+        ok: true,
+        tags: [],
+        usage: { inputTokens: 1, outputTokens: 1 },
+        costUsd: "0",
+      });
+    });
+    await classifyPendingTaskTags(context);
+    expect(classifyMock).toHaveBeenCalledTimes(10);
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selected: 50,
+        queued: 50,
+        completed: 10,
+        deferred: 40,
+        stopReason: "tick_budget",
+      }),
+    );
+  });
+
+  it("does not select history at all when the budget is gone before selection", async () => {
     vi.useFakeTimers();
     findManyMock
       .mockReset()
@@ -624,13 +679,16 @@ describe("historical tag backfill", () => {
     });
     await classifyPendingTaskTags(context);
     expect(findManyMock).toHaveBeenCalledTimes(1);
-    expect(classifyMock).toHaveBeenCalledExactlyOnceWith(
-      task.name,
-      task.description,
-      context.abortSignal,
-    );
+    expect(updateManyMock).not.toHaveBeenCalled();
+    expect(classifyMock).not.toHaveBeenCalled();
     expect(logSetMock).toHaveBeenCalledWith(
-      expect.objectContaining({ queued: 1, historical: 0, completed: 1 }),
+      expect.objectContaining({
+        queued: 1,
+        historical: 0,
+        completed: 0,
+        deferred: 1,
+        stopReason: "tick_budget",
+      }),
     );
   });
 
