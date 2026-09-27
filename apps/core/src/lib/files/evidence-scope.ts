@@ -180,6 +180,24 @@ export function buildAuthorizedResourceSql(input: {
     )`);
   }
 
+  if (admittedKinds.includes(FileSourceKind.NATIVE_TABLE)) {
+    // A table's rows are indexed as one resource, so this arm can only say
+    // "the whole table or none of it". `SOURCE_ACTOR_CEILING` admits only
+    // an interactive actor here, which is what keeps that honest: coworker
+    // and Soko Bot access is narrowed by `scopeForTask` to one task's rows,
+    // and a whole-table index cannot express that narrowing. They see no
+    // table content at all rather than more than they should.
+    arms.push(PrismaRaw.sql`(
+      fr."sourceKind" = ${FileSourceKind.NATIVE_TABLE}::"FileSourceKind"
+      AND EXISTS (
+        SELECT 1 FROM data_table dt
+        WHERE dt.id = fr."sourceId"::uuid
+          AND dt."workspaceId" = fr."workspaceId"
+          AND dt."archivedAt" IS NULL
+      )
+    )`);
+  }
+
   if (arms.length === 0) {
     return PrismaRaw.sql`FALSE`;
   }

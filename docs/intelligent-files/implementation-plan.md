@@ -295,6 +295,38 @@ CSV, JSON, PDF, PNG/JPEG/GIF/WebP) and `attachment` for everything else, so a st
 'none'`. Filenames are stripped of quotes, backslashes and control characters before
 they reach the header, with the real name carried in `filename*`.
 
+### Tables: indexed through the table gate, visible only to interactive readers
+
+A native table's rows are searchable. `services/file-table-index.service.ts`
+reads them through `requireDataTable` and `queryTableRows` and **never**
+touches `table_row` directly or shortcuts via the sequence index — those two
+functions are the only doors, and both run `scopeForTask`. The reader page
+size is 100 because that is the ceiling `tableQuerySchema` enforces: this
+reader lives inside the gate's bounds rather than around them.
+
+**A row becomes one line**, `Column: value · Column: value`, in column order,
+with empty cells dropped. A reader searching for a value finds the row, and
+the snippet reads as a row rather than as a JSON blob.
+
+**Who sees it.** `buildAuthorizedResourceSql` gained a `NATIVE_TABLE` arm
+admitting an interactive actor whose workspace still owns a live, unarchived
+table. Coworker and Soko Bot actors are excluded — `SOURCE_ACTOR_CEILING`
+already listed `NATIVE_TABLE` as interactive-only — because `scopeForTask`
+narrows those actors to one task's rows and a whole-table index cannot
+express that narrowing. Failing closed beats approximating.
+
+The arm's join is load-bearing beyond the outer workspace filter every Files
+query already has: that filter stops workspace A's search reaching B's
+resources, but it does nothing about a resource filed under A whose
+`sourceId` names B's table — a mis-indexed row, which is what an indexer bug
+would produce. A test plants exactly that row and asserts it is not served;
+it fails when the join is removed.
+
+**Bounds:** 2,000 rows and 1M characters per table, paged 100 at a time.
+Over either, the version is `PARTIAL` with a coverage ratio and a reason
+rather than a silent truncation. A table's text is replaced on each index
+rather than appended, because it is a snapshot of the rows.
+
 ### Extraction: what is read, and what is honestly not
 
 Word, PowerPoint and Excel (`.docx`, `.pptx`, `.xlsx`) are read. An OOXML file
