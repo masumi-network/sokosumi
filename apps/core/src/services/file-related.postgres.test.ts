@@ -631,4 +631,104 @@ describe.skipIf(!enabled)("related documents against PostgreSQL", () => {
       "ceiling-pair.txt",
     );
   });
+
+  it("does not let the seed's own vocabulary fill the seed-term slots", async () => {
+    /**
+     * The probe counted matching **chunks** while everything that
+     * consumed the number reasoned in **documents**.
+     *
+     * `docs > 1` is meant to say "some other document has this word", and
+     * the rarity test compares `docs` against a corpus counted in
+     * documents. But with `FILE_CHUNK_OVERLAP_CHARS` at 240, a word
+     * appearing twice in one long file lands in two chunks, so a term the
+     * seed alone contains reported `docs = 2`, passed the filter designed
+     * to exclude exactly that, and sorted *first* under `docs ASC`. The
+     * seed competed with itself for the eight slots, and it won.
+     *
+     * Measured on a realistic fixture: five of eight slots went to words
+     * present only in the seed, four of them additionally flagged rare,
+     * leaving three for the shared vocabulary that could actually match a
+     * neighbour. Counting documents gives all eight to shared terms.
+     *
+     * The fixture below makes that the difference between finding the
+     * neighbour and not. The seed carries ten private words, each twice
+     * so each spans more than one chunk, and one genuinely shared term.
+     * Counting chunks fills every slot with the private words and the
+     * shared term never enters the query.
+     */
+    const owner = await prisma.user.create({
+      data: {
+        name: "Units owner",
+        email: `related-units-${suffix}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    const space = await prisma.workspace.create({
+      data: { userId: owner.id },
+      select: { id: true },
+    });
+    const evidence = await ensureEvidenceScope({
+      workspaceId: space.id,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+      sourceScope: FileSourceScope.USER,
+      sourceId: owner.id,
+    });
+
+    const previousOwner = ownerId;
+    const previousWorkspace = workspaceId;
+    const previousScope = scopeId;
+    ownerId = owner.id;
+    workspaceId = space.id;
+    scopeId = evidence.id;
+
+    const padding = "padding ".repeat(300);
+    const privates = Array.from(
+      { length: 10 },
+      (_, index) => `solitaryterm${index}`,
+    );
+    // Each private word twice, far apart, so it spans chunks — one
+    // document, two chunks, which is the whole confusion.
+    const seedText = [
+      privates.join(" "),
+      padding,
+      privates.join(" "),
+      padding,
+      // Two, not one. One ordinary shared term scores 0.0608 against a
+      // floor of 0.09 and is refused on the merits, which would make this
+      // test fail for a reason that has nothing to do with units.
+      "quorumbearing tesselwright",
+    ].join(" ");
+
+    const seed = await seedResource("units-seed.txt", seedText);
+    // Shares the one term and nothing else.
+    await seedResource(
+      "units-neighbour.txt",
+      "A separate note whose only overlap with the seed is quorumbearing and tesselwright.",
+    );
+    // Enough others carrying the shared term that it is ordinary rather
+    // than rare, so this tests term *selection* and not the rare escape.
+    for (let index = 0; index < 5; index += 1) {
+      await seedResource(
+        `units-filler-${index}.txt`,
+        `Routine quorumbearing tesselwright filler number ${index}.`,
+      );
+    }
+
+    ownerId = previousOwner;
+    workspaceId = previousWorkspace;
+    scopeId = previousScope;
+
+    const result = await findRelatedFiles({
+      workspaceId: space.id,
+      actor: { userId: owner.id, organizationId: null, kind: "interactive" },
+      resourceId: seed,
+    });
+
+    expect(result.state).toBe("ok");
+    expect(result.items.map((item) => item.displayName)).toContain(
+      "units-neighbour.txt",
+    );
+  });
 });

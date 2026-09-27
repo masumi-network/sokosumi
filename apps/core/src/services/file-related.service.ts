@@ -268,11 +268,35 @@ export async function findRelatedFiles(input: {
         ) bounded
       ),
       frequency AS (
-        -- Counting stops at RELATED_DF_PROBE_CAP per term, and that bound
-        -- is what makes this affordable. The count exists only to tell a
-        -- rare term from a common one, so an exact count of a common term
-        -- is work whose answer is never used: every term at or above the
-        -- cap is deprioritised identically.
+        -- Documents, not chunks, and the distinction was a real defect.
+        --
+        -- This counted matching *chunks*. Every consumer of the number
+        -- reasons in documents: docs > 1 below means "some other document
+        -- has this word", and the rarity test compares docs against a
+        -- corpus measured in documents. With FILE_CHUNK_OVERLAP_CHARS at
+        -- 240, a word near a chunk boundary appears in two chunks of the
+        -- same file, so a term the seed alone contains reported docs >= 2
+        -- and passed a filter designed to exclude exactly that: the seed
+        -- competed with itself for the eight seed-term slots, and it won,
+        -- because docs ASC sorts those low counts first.
+        --
+        -- Measured on one 12,000-character document in a two-document
+        -- workspace: a term present only in that document reported
+        -- docs = 4 against corpus_total = 2. Comparing those two numbers
+        -- made the rarity test roughly chunks-per-document times too
+        -- strict, in the direction of calling ordinary words rare.
+        --
+        -- Counting documents costs the same. Measured at 2,000 documents:
+        -- 6.2-8.4 ms for this form against 6.2-9.1 ms for the chunk count,
+        -- because EXISTS lets the LIMIT stop early just as the chunk
+        -- version did. The cheaper unit was also the wrong one, so there
+        -- was nothing to trade.
+        --
+        -- Counting still stops at RELATED_DF_PROBE_CAP per term, and that
+        -- bound is what makes this affordable. The count exists only to
+        -- tell a rare term from a common one, so an exact count of a
+        -- common term is work whose answer is never used: every term at
+        -- or above the cap is deprioritised identically.
         --
         -- Without it each of the forty probes counted every matching
         -- chunk in the workspace. Measured: 121 ms at 300 documents,
@@ -284,11 +308,15 @@ export async function findRelatedFiles(input: {
             SELECT COUNT(*)
             FROM (
               SELECT 1
-              FROM file_chunk fc
-              JOIN file_version fv ON fv.id = fc."versionId"
-              JOIN file_resource fr ON fr.id = fv."resourceId"
+              FROM file_resource fr
               WHERE ${authorized}
-                AND fc.search_vector @@ plainto_tsquery('simple', t.word)
+                AND EXISTS (
+                  SELECT 1
+                  FROM file_version fv
+                  JOIN file_chunk fc ON fc."versionId" = fv.id
+                  WHERE fv."resourceId" = fr.id
+                    AND fc.search_vector @@ plainto_tsquery('simple', t.word)
+                )
               LIMIT ${RELATED_DF_PROBE_CAP}
             ) capped
           ) AS docs
@@ -341,9 +369,26 @@ export async function findRelatedFiles(input: {
           -- The subset rare enough that matching one of them is evidence
           -- on its own. NULL when none qualifies, which the HAVING below
           -- handles by falling through to the rank floor.
+          --
+          -- Both sides are documents. That is worth saying because they
+          -- were not: docs counted chunks while corpus_total counted
+          -- documents, so this compared quantities in different units and
+          -- was chunks-per-document times too strict.
+          --
+          -- What it means exactly, since "half the corpus" is only half
+          -- true: corpus_total is itself capped at
+          -- RELATED_DF_PROBE_CAP, so this is "in at most half of the
+          -- first 32 authorized documents". Below 32 documents that is
+          -- genuinely relative; above it, it is the absolute threshold
+          -- docs <= 16, which moves if the cap is retuned. Left
+          -- bounded rather than made truly relative, because a real
+          -- corpus total is the unbounded count this query was changed
+          -- to stop computing — but written down, because the expression
+          -- reads relative and stops being so at 32.
           to_tsquery(
             'simple',
-            string_agg(word, ' | ') FILTER (WHERE docs * 2 <= corpus_total)
+            string_agg(word, ' | ')
+              FILTER (WHERE docs * 2 <= corpus_total)
           ) AS rare_tsq
         FROM distinctive
       )
