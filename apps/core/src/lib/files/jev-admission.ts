@@ -1,7 +1,14 @@
+import { PrismaRaw } from "@sokosumi/database/client";
+
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
 import { fileActorFingerprint } from "@/lib/files/actor";
 import { resolveScopeEpoch } from "@/lib/files/evidence-scope";
+import {
+  GLOBAL_INPUT_TOKENS_PER_MINUTE,
+  GLOBAL_REQUESTS_PER_MINUTE,
+  PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE,
+} from "@/lib/files/jev-scheduler";
 
 /**
  * One admission per outbound request, in every wave — not one per query.
@@ -19,6 +26,18 @@ import { resolveScopeEpoch } from "@/lib/files/evidence-scope";
 
 /** An admission that has not dispatched within this window must reauthorize. */
 export const ADMISSION_VALID_MS = 50;
+
+/**
+ * The window the shared ceiling counts over. One minute, matching the
+ * per-minute constants it enforces.
+ */
+const SHARED_WINDOW_MS = 60_000;
+
+export type AdmissionDenial =
+  | "epoch-changed"
+  | "shared-global-rate"
+  | "shared-global-token-budget"
+  | "shared-workspace-token-budget";
 
 export interface AdmissionGrant {
   id: string;
@@ -47,24 +66,80 @@ export async function admitJevRequest(input: {
   if (currentEpoch !== input.preparedEpoch) return null;
 
   const expiresAt = new Date(now.getTime() + ADMISSION_VALID_MS);
+  const windowStart = new Date(now.getTime() - SHARED_WINDOW_MS);
 
-  const admission = await prisma.fileAuthorizationAdmission.create({
-    data: {
-      workspaceId: input.workspaceId,
-      actorFingerprint: fileActorFingerprint(input.actor, input.workspaceId),
-      epochVector: currentEpoch,
-      purpose: input.purpose,
-      payloadDigest: input.payloadDigest,
-      provider: "vercel-ai-gateway",
-      model: input.model,
-      inputTokens: input.inputTokens,
-      admittedAt: now,
-      expiresAt,
-    },
-    select: { id: true, expiresAt: true },
-  });
+  /**
+   * The ceiling that actually holds across runtimes.
+   *
+   * `jev-scheduler` counts in memory, so on a platform that runs many
+   * instances its per-minute numbers were a per-process share wearing a
+   * global name: ten instances meant ten times the stated rate. This counts
+   * the admissions themselves, which are rows, so every runtime sees the
+   * same total.
+   *
+   * It costs no extra round trip — the count runs inside the transaction
+   * that was already writing the admission row — and `SERIALIZABLE` is what
+   * makes two instances admitting at once resolve to one winner rather than
+   * both reading the same pre-count.
+   */
+  try {
+    return await prisma.$transaction<AdmissionGrant | null>(
+      async (tx) => {
+        const [usage] = await tx.$queryRaw<
+          { requests: bigint; globalTokens: bigint; workspaceTokens: bigint }[]
+        >(PrismaRaw.sql`
+          SELECT
+            count(*) AS "requests",
+            coalesce(sum("inputTokens"), 0) AS "globalTokens",
+            coalesce(sum("inputTokens") FILTER (
+              WHERE "workspaceId" = ${input.workspaceId}::uuid
+            ), 0) AS "workspaceTokens"
+          FROM file_authorization_admission
+          WHERE "admittedAt" > ${windowStart}
+        `);
 
-  return admission;
+        const requests = Number(usage?.requests ?? 0);
+        const globalTokens = Number(usage?.globalTokens ?? 0);
+        const workspaceTokens = Number(usage?.workspaceTokens ?? 0);
+
+        if (requests + 1 > GLOBAL_REQUESTS_PER_MINUTE) return null;
+        if (globalTokens + input.inputTokens > GLOBAL_INPUT_TOKENS_PER_MINUTE) {
+          return null;
+        }
+        if (
+          workspaceTokens + input.inputTokens >
+          PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE
+        ) {
+          return null;
+        }
+
+        return await tx.fileAuthorizationAdmission.create({
+          data: {
+            workspaceId: input.workspaceId,
+            actorFingerprint: fileActorFingerprint(
+              input.actor,
+              input.workspaceId,
+            ),
+            epochVector: currentEpoch,
+            purpose: input.purpose,
+            payloadDigest: input.payloadDigest,
+            provider: "vercel-ai-gateway",
+            model: input.model,
+            inputTokens: input.inputTokens,
+            admittedAt: now,
+            expiresAt,
+          },
+          select: { id: true, expiresAt: true },
+        });
+      },
+      { isolationLevel: "Serializable" },
+    );
+  } catch {
+    // A serialization failure means another runtime won the same slot.
+    // Refusing is the safe answer: the caller falls back to the
+    // deterministic order, which is what a quota denial already does.
+    return null;
+  }
 }
 
 export async function recordJevDispatch(input: {

@@ -1,11 +1,36 @@
 /**
  * Quotas and a circuit breaker in front of Jev.
  *
- * The limits are global to the provider, not per web process, so this module
- * keeps one in-process accounting per runtime and the numbers below are the
- * per-runtime share. A multi-instance deployment needs a shared counter
- * before these become true global ceilings — that is called out in the plan
- * as remaining work rather than implied by the constant names.
+ * ## What is enforced where, exactly
+ *
+ * This module counts **in memory, per runtime**. On a platform that runs
+ * many instances that is not a ceiling: ten instances meant ten times every
+ * per-minute number here, under a name that read as global.
+ *
+ * So the per-minute ceilings moved. `admitJevRequest` now enforces
+ * `GLOBAL_REQUESTS_PER_MINUTE`, `GLOBAL_INPUT_TOKENS_PER_MINUTE` and
+ * `PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE` by counting admission **rows** in
+ * a serializable transaction, so every runtime sees one total. Those three
+ * are shared and real.
+ *
+ * What is still per-runtime, and why:
+ *
+ * - **Concurrency** (`GLOBAL_MAX_CONCURRENT`, `PER_QUERY_MAX_CONCURRENT`).
+ *   "In flight" is a process-local fact. Making it shared needs a lease
+ *   with a heartbeat and a reaper, because a runtime that dies mid-request
+ *   would otherwise hold its slot forever. That is a bigger change than a
+ *   counter and it is not in this branch.
+ * - **The circuit breaker.** A breaker is a local reaction to what this
+ *   runtime is seeing. Sharing it would mean one instance's bad minute
+ *   silencing every other instance.
+ * - **Per-second smoothing** (`GLOBAL_REQUESTS_PER_SECOND`,
+ *   `PER_WORKSPACE_REQUESTS_PER_SECOND`, the burst capacities). These shape
+ *   traffic within a runtime; the per-minute shared ceiling is what bounds
+ *   the bill.
+ *
+ * Read the per-second and concurrency numbers as **per-runtime shares**,
+ * because that is what they are. The per-minute numbers are the ones that
+ * hold globally.
  *
  * Two things matter more than the exact numbers. Interactive search keeps a
  * reserved share that background labelling can never borrow, and a reserved

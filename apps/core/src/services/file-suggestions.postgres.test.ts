@@ -304,3 +304,139 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
     expect(scheduler.isBreakerOpen()).toBe(before);
   });
 });
+
+/**
+ * The shared ceiling, which only a real database can show.
+ *
+ * `jev-scheduler` counts in memory, so on a multi-instance deployment its
+ * per-minute numbers were a per-process share under a global name. The
+ * per-minute ceilings now count admission rows inside the admitting
+ * transaction, so two runtimes see one total. Mocking Prisma would remove
+ * exactly the thing under test.
+ */
+describe.skipIf(!enabled)("the shared admission ceiling", () => {
+  let ceilingUserId = "";
+  let ceilingWorkspaceId = "";
+
+  beforeAll(async () => {
+    const user = await prisma.user.create({
+      data: {
+        name: "Ceiling fixture",
+        email: `ceiling-${suffix}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    ceilingUserId = user.id;
+    const workspace = await prisma.workspace.create({
+      data: { userId: ceilingUserId },
+      select: { id: true },
+    });
+    ceilingWorkspaceId = workspace.id;
+  });
+
+  afterEach(async () => {
+    await prisma.fileAuthorizationAdmission.deleteMany({
+      where: { workspaceId: ceilingWorkspaceId },
+    });
+  });
+
+  afterAll(async () => {
+    if (!enabled) return;
+    await prisma.workspace.deleteMany({ where: { id: ceilingWorkspaceId } });
+    await prisma.user.deleteMany({ where: { id: ceilingUserId } });
+  });
+
+  function actorFor() {
+    return {
+      userId: ceilingUserId,
+      organizationId: null,
+      kind: "worker" as const,
+    };
+  }
+
+  async function admit(inputTokens: number) {
+    const { admitJevRequest } = await import("@/lib/files/jev-admission");
+    const { resolveScopeEpoch } = await import("@/lib/files/evidence-scope");
+    return admitJevRequest({
+      workspaceId: ceilingWorkspaceId,
+      actor: actorFor(),
+      purpose: "label-suggest",
+      payloadDigest: `digest-${Math.random()}`,
+      inputTokens,
+      model: "typesafe-ai/jev",
+      preparedEpoch: await resolveScopeEpoch({
+        workspaceId: ceilingWorkspaceId,
+        actor: actorFor(),
+      }),
+    });
+  }
+
+  it("admits ordinary work", async () => {
+    await expect(admit(100)).resolves.not.toBeNull();
+  });
+
+  it("refuses once the per-workspace token budget is spent", async () => {
+    const { PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE } = await import(
+      "@/lib/files/jev-scheduler"
+    );
+
+    // One admission that consumes the whole workspace minute.
+    await expect(
+      admit(PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE),
+    ).resolves.not.toBeNull();
+
+    // The next one is refused by a count of rows, not by process memory —
+    // which is what makes it hold for a second runtime too.
+    await expect(admit(1)).resolves.toBeNull();
+  });
+
+  it("counts rows another runtime wrote, not just its own", async () => {
+    const { PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE } = await import(
+      "@/lib/files/jev-scheduler"
+    );
+
+    // Stand in for a sibling instance: a row this process never admitted.
+    await prisma.fileAuthorizationAdmission.create({
+      data: {
+        workspaceId: ceilingWorkspaceId,
+        actorFingerprint: "another-runtime",
+        epochVector: "whatever",
+        purpose: "search-rank",
+        payloadDigest: "from-elsewhere",
+        provider: "vercel-ai-gateway",
+        model: "typesafe-ai/jev",
+        inputTokens: PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE,
+        admittedAt: new Date(),
+        expiresAt: new Date(Date.now() + 50),
+      },
+    });
+
+    await expect(admit(1)).resolves.toBeNull();
+  });
+
+  it("forgets spending that has fallen out of the window", async () => {
+    const { PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE } = await import(
+      "@/lib/files/jev-scheduler"
+    );
+
+    await prisma.fileAuthorizationAdmission.create({
+      data: {
+        workspaceId: ceilingWorkspaceId,
+        actorFingerprint: "another-runtime",
+        epochVector: "whatever",
+        purpose: "search-rank",
+        payloadDigest: "long-ago",
+        provider: "vercel-ai-gateway",
+        model: "typesafe-ai/jev",
+        inputTokens: PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE,
+        // Two minutes ago: outside the one-minute window.
+        admittedAt: new Date(Date.now() - 120_000),
+        expiresAt: new Date(Date.now() - 119_950),
+      },
+    });
+
+    await expect(admit(100)).resolves.not.toBeNull();
+  });
+});

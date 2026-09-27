@@ -241,8 +241,10 @@ export function DriveFileFilters({
     </div>
   );
 
+  // `bg-popover`, not `bg-background`: this strip is pinned inside a popover
+  // surface, and the page colour left it a shade off the panel it belongs to.
   const footer = (
-    <div className="bg-background sticky bottom-0 flex items-center justify-between gap-2 border-t pt-3">
+    <div className="bg-popover sticky bottom-0 flex items-center justify-between gap-2 border-t pt-3">
       <Button variant="ghost" onClick={() => apply({ ...EMPTY_FILE_FILTERS })}>
         {t("filterClear")}
       </Button>
