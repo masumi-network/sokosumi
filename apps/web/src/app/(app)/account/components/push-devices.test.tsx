@@ -123,6 +123,10 @@ describe("push devices in notification settings", () => {
     await userEvent.click(trigger);
     expect(await screen.findByRole("list")).toBeTruthy();
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    await userEvent.tab();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Refresh" }),
+    );
     await userEvent.click(trigger);
     expect(screen.queryByRole("list")).toBeNull();
   });
@@ -156,7 +160,7 @@ describe("push devices in notification settings", () => {
     expect(await screen.findByRole("list")).toBeTruthy();
     expect(screen.getAllByRole("listitem")).toHaveLength(4);
     expect(screen.getAllByText("This device")).toHaveLength(1);
-    expect(screen.getByText("Registered")).toBeTruthy();
+    expect(screen.queryByText("Registered")).toBeNull();
     expect(screen.getByText("Delivery problems")).toBeTruthy();
     expect(screen.getByText("Delivery failed")).toBeTruthy();
     expect(screen.getByText("Status unknown")).toBeTruthy();
@@ -212,6 +216,11 @@ describe("push devices in notification settings", () => {
     listPushDevices.mockResolvedValue([]);
     setup();
     expect(await screen.findByText(/No registered devices found/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Turn on push notifications in a browser to register it here.",
+      ),
+    ).toBeTruthy();
     expect(screen.queryByRole("list")).toBeNull();
   });
   it("shows a recoverable error and retries only when requested", async () => {

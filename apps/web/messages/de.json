@@ -4493,11 +4493,11 @@
         "loading": "Geräte werden geladen…",
         "error": "Geräte konnten nicht geladen werden. Versuche, die Liste zu aktualisieren.",
         "empty": "Keine registrierten Geräte gefunden.",
+        "emptyHint": "Aktiviere Push-Benachrichtigungen in einem Browser, um ihn hier zu registrieren.",
         "thisDevice": "Dieses Gerät",
         "deviceLabel": "{platform} ({formFactor})",
         "browserLabel": "{browser} auf {operatingSystem}",
         "states": {
-          "active": "Registriert",
           "failing": "Zustellprobleme",
           "failed": "Zustellung fehlgeschlagen",
           "unknown": "Status unbekannt"

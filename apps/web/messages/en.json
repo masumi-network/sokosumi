@@ -4529,11 +4529,11 @@
         "loading": "Loading devices…",
         "error": "Unable to load devices. Try refreshing the list.",
         "empty": "No registered devices found.",
+        "emptyHint": "Turn on push notifications in a browser to register it here.",
         "thisDevice": "This device",
         "deviceLabel": "{platform} ({formFactor})",
         "browserLabel": "{browser} on {operatingSystem}",
         "states": {
-          "active": "Registered",
           "failing": "Delivery problems",
           "failed": "Delivery failed",
           "unknown": "Status unknown"

@@ -1,6 +1,16 @@
 "use client";
 
-import { ChevronRight, Loader2, RefreshCw } from "lucide-react";
+import {
+  ChevronRight,
+  CircleHelp,
+  Loader2,
+  Monitor,
+  MonitorSmartphone,
+  RefreshCw,
+  Smartphone,
+  Tablet,
+  TriangleAlert,
+} from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -22,32 +32,33 @@ export function PushDevices({ userId }: PushDevicesProps) {
   const formatter = useFormatter();
   const [open, setOpen] = useState(false);
   const query = usePushDevices(userId, open);
+  const empty = query.data?.devices.length === 0;
+  const showNotice = !query.isFetching && (query.isError || empty);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="@container">
-      <CollapsibleTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="group text-muted-foreground -ms-2 h-auto min-h-9 gap-2 px-2 py-2 font-normal"
-        >
-          <ChevronRight
-            className="size-4 shrink-0 group-data-[state=open]:rotate-90 motion-safe:transition-transform"
-            aria-hidden="true"
-          />
-          {t("title")}
-        </Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="ms-7 space-y-3 pt-2 pb-3">
-        <div className="flex flex-col items-start gap-2 @sm:flex-row @sm:justify-between">
-          <p className="text-muted-foreground min-w-0 flex-1 text-xs leading-relaxed">
-            {t("description")}
-          </p>
+      <div className="flex items-center justify-between gap-2">
+        <CollapsibleTrigger asChild>
           <Button
             type="button"
             variant="ghost"
             size="sm"
+            className="group text-muted-foreground -ms-2 h-auto min-h-9 min-w-0 shrink justify-start gap-2 px-2 py-2 text-start font-normal whitespace-normal"
+          >
+            <ChevronRight
+              className="size-4 shrink-0 group-data-[state=open]:rotate-90 motion-safe:transition-transform"
+              aria-hidden="true"
+            />
+            {t("title")}
+          </Button>
+        </CollapsibleTrigger>
+        {open ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground size-8 p-0 @sm:w-auto @sm:px-2.5"
+            aria-label={t("refresh")}
             disabled={query.isFetching}
             aria-busy={query.isFetching}
             onClick={() => void query.refetch()}
@@ -60,62 +71,132 @@ export function PushDevices({ userId }: PushDevicesProps) {
             ) : (
               <RefreshCw className="size-3.5" aria-hidden="true" />
             )}
-            {t("refresh")}
+            <span className="hidden @sm:inline">{t("refresh")}</span>
           </Button>
-        </div>
+        ) : null}
+      </div>
+      <CollapsibleContent className="space-y-3 pt-2 pb-3">
         <div
           role="status"
-          className={cn("text-sm", query.isFetching && "sr-only")}
+          className={cn(
+            showNotice
+              ? "flex items-start gap-3 rounded-lg border p-4 text-sm"
+              : "sr-only",
+          )}
         >
-          {query.isFetching
-            ? t("loading")
-            : query.isError
-              ? t("error")
-              : query.data?.devices.length === 0
-                ? t("empty")
-                : null}
+          {query.isFetching ? (
+            t("loading")
+          ) : query.isError ? (
+            <>
+              <TriangleAlert
+                className="text-semantic-warning mt-0.5 size-4 shrink-0"
+                aria-hidden="true"
+              />
+              <p className="leading-relaxed">{t("error")}</p>
+            </>
+          ) : empty ? (
+            <>
+              <MonitorSmartphone
+                className="text-muted-foreground mt-0.5 size-4 shrink-0"
+                aria-hidden="true"
+              />
+              <div className="min-w-0 space-y-1">
+                <p className="font-medium">{t("empty")}</p>
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  {t("emptyHint")}
+                </p>
+              </div>
+            </>
+          ) : null}
         </div>
         {!query.isError && query.data && query.data.devices.length > 0 ? (
-          <ul className="space-y-4" aria-busy={query.isFetching}>
-            {query.data.devices.map((device) => (
-              <li
-                key={device.id}
-                className="flex flex-wrap items-start justify-between gap-2"
-              >
-                <div className="min-w-0 space-y-1">
-                  <p className="text-sm font-medium">
-                    {device.browserDetails
-                      ? t("browserLabel", device.browserDetails)
-                      : t("deviceLabel", {
-                          platform: t(`platforms.${device.platform}`),
-                          formFactor: t(`formFactors.${device.formFactor}`),
-                        })}
-                  </p>
-                  <p className="text-muted-foreground text-xs leading-relaxed">
-                    {device.registeredAt ? (
-                      <time dateTime={device.registeredAt.toISOString()}>
-                        {t("registeredAt", {
-                          date: formatter.dateTime(
-                            device.registeredAt,
-                            "dateTimeMedium",
-                          ),
-                        })}
-                      </time>
-                    ) : (
-                      t("registrationDateUnavailable")
-                    )}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {device.id === query.data?.currentDeviceId ? (
-                    <Badge variant="outline">{t("thisDevice")}</Badge>
-                  ) : null}
-                  <Badge variant="outline">{t(`states.${device.state}`)}</Badge>
-                </div>
-              </li>
-            ))}
+          <ul
+            className="divide-y rounded-lg border"
+            aria-busy={query.isFetching}
+          >
+            {query.data.devices.map((device) => {
+              const DeviceIcon =
+                device.formFactor === "phone"
+                  ? Smartphone
+                  : device.formFactor === "tablet"
+                    ? Tablet
+                    : device.formFactor === "desktop"
+                      ? Monitor
+                      : MonitorSmartphone;
+              const hasDeliveryProblem =
+                device.state === "failing" || device.state === "failed";
+              const StatusIcon = hasDeliveryProblem
+                ? TriangleAlert
+                : CircleHelp;
+
+              return (
+                <li
+                  key={device.id}
+                  className="flex items-start gap-3 p-3 @sm:p-4"
+                >
+                  <div className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md">
+                    <DeviceIcon className="size-4" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <p className="min-w-0 text-sm leading-5 font-medium wrap-anywhere">
+                        {device.browserDetails
+                          ? t("browserLabel", device.browserDetails)
+                          : t("deviceLabel", {
+                              platform: t(`platforms.${device.platform}`),
+                              formFactor: t(`formFactors.${device.formFactor}`),
+                            })}
+                      </p>
+                      {device.id === query.data?.currentDeviceId ? (
+                        <Badge
+                          variant="outline"
+                          className="border-transparent bg-muted text-muted-foreground font-normal"
+                        >
+                          {t("thisDevice")}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-col gap-x-4 gap-y-1 @sm:flex-row @sm:flex-wrap @sm:items-center">
+                      <p className="text-muted-foreground text-xs leading-relaxed">
+                        {device.registeredAt ? (
+                          <time dateTime={device.registeredAt.toISOString()}>
+                            {t("registeredAt", {
+                              date: formatter.dateTime(
+                                device.registeredAt,
+                                "dateTimeMedium",
+                              ),
+                            })}
+                          </time>
+                        ) : (
+                          t("registrationDateUnavailable")
+                        )}
+                      </p>
+                      {device.state !== "active" ? (
+                        <p
+                          className={cn(
+                            "flex items-center gap-1.5 text-xs leading-relaxed",
+                            hasDeliveryProblem
+                              ? "text-semantic-warning"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          <StatusIcon
+                            className="size-3.5 shrink-0"
+                            aria-hidden="true"
+                          />
+                          {t(`states.${device.state}`)}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         ) : null}
+        <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+          {t("description")}
+        </p>
       </CollapsibleContent>
     </Collapsible>
   );

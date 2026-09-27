@@ -4493,11 +4493,11 @@
         "loading": "Cargando dispositivos…",
         "error": "No se pudieron cargar los dispositivos. Intenta actualizar la lista.",
         "empty": "No se encontraron dispositivos registrados.",
+        "emptyHint": "Activa las notificaciones push en un navegador para registrarlo aquí.",
         "thisDevice": "Este dispositivo",
         "deviceLabel": "{platform} ({formFactor})",
         "browserLabel": "{browser} en {operatingSystem}",
         "states": {
-          "active": "Registrado",
           "failing": "Problemas de entrega",
           "failed": "Entrega fallida",
           "unknown": "Estado desconocido"
