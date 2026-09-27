@@ -132,10 +132,7 @@ export {
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
-export {
-  CORE_API_ERROR_KINDS,
-  type CoreApiErrorKind,
-} from "./core-api-error-kind.js";
+export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
   COWORKER_IMAGE_ALLOWED_MIME_TYPES,
@@ -154,6 +151,20 @@ export {
   selectCreditTopUpTier,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "./credit-topup-pricing.js";
+export {
+  createDataTableSchema,
+  tableBatchSchema,
+  tableColumnInputSchema,
+  tableColumnTypeSchema,
+  tableEvidenceSchema,
+  tableFilterSchema,
+  tableInsertRowSchema,
+  tableMutationSchema,
+  tableQuerySchema,
+  tableValueSchema,
+  tableValuesSchema,
+  tableViewDefinitionSchema,
+} from "./data-table.js";
 export { DESIGN_MD_ATTACHMENT_LABEL } from "./design-md-attachment.js";
 export {
   withoutDesignMdMetadata,
@@ -164,7 +175,6 @@ export {
   buildAdHocDesignMdPrefix,
   buildOrganizationDesignMdPathname,
   buildProjectDesignMdPathname,
-  buildProjectDesignMdPrefix,
   buildUserDesignMdPathname,
 } from "./design-md-path.js";
 export { isDesignMdBlobUrl } from "./design-md-url.js";
@@ -196,6 +206,12 @@ export {
   isUrlString,
   sanitizeFileName,
 } from "./file-url.js";
+export {
+  githubBlobDownloadUrl,
+  isHtmlContentType,
+  isUnexpectedHtmlImport,
+  resolveDownloadableFileUrl,
+} from "./github-file-url.js";
 export { sniffImageMimeFromBytes } from "./image-mime.js";
 export {
   normalizeOrganizationLogo,
@@ -319,7 +335,6 @@ export {
 export {
   buildProjectBriefingPathname,
   buildProjectContextMdPathname,
-  buildProjectFilesRootPrefix,
 } from "./project-files-path.js";
 export {
   buildProjectLogoContentHashPathname,
@@ -330,10 +345,11 @@ export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
-  type SocialPostProvider,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
+export { encodeTableCsv, parseTableCsv } from "./table-csv.js";
+export { validateTableValues } from "./table-value-validation.js";
 export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,

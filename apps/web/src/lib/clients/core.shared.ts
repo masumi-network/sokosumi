@@ -1,4 +1,9 @@
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
+import {
+  suggestTaskTags as coreSuggestTaskTags,
+  patchTasksByIdTags,
+} from "@/lib/clients/generated/core";
+import type { PatchTasksByIdTagsData } from "@/lib/clients/generated/core/types.gen";
 
 /** Pause, resume, and end each have their own Task Schedule route. */
 export type TaskScheduleStateAction = "pause" | "resume" | "end";
@@ -41,6 +46,7 @@ import type {
   GetJobsData,
   GetNotificationsData,
   GetProjectsByIdCalendarData,
+  GetProjectsByIdImageStudioData,
   GetProjectsByIdSocialPostsData,
   GetProjectsData,
   GetProjectsStatsData,
@@ -82,6 +88,8 @@ import type {
   PostProjectsByIdCloseCancelOwedData,
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
+  PostProjectsByIdImageStudioAssetsByAssetIdReviewData,
+  PostProjectsByIdImageStudioJobsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
@@ -158,6 +166,7 @@ import {
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
+  deleteProjectsByIdImageStudioAssetsByAssetIdReview as coreDeleteProjectsByIdImageStudioAssetsByAssetIdReview,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
   deleteProjectsByIdStar as coreDeleteProjectsByIdStar,
@@ -247,6 +256,7 @@ import {
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
+  getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
@@ -378,6 +388,9 @@ import {
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
+  postProjectsByIdImageStudioAssetsByAssetIdReview as corePostProjectsByIdImageStudioAssetsByAssetIdReview,
+  postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
+  postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
@@ -390,6 +403,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
+  postTasksByIdParticipants as corePostTasksByIdParticipants,
   postTasksSchedules as corePostTasksSchedules,
   postTasksSchedulesByIdEnd as corePostTasksSchedulesByIdEnd,
   postTasksSchedulesByIdPause as corePostTasksSchedulesByIdPause,
@@ -3032,6 +3046,88 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdImageStudio(
+    id: string,
+    query?: GetProjectsByIdImageStudioData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdImageStudio({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Project image studio",
+    );
+  }
+
+  async function postProjectsByIdImageStudioJobs(
+    id: string,
+    body: NonNullable<PostProjectsByIdImageStudioJobsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioJobs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to start image generation",
+    );
+  }
+
+  async function postProjectsByIdImageStudioJobsByJobIdCancel(
+    id: string,
+    jobId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioJobsByJobIdCancel({
+          client,
+          path: { id, jobId },
+        }),
+      "Failed to request cancellation",
+    );
+  }
+
+  async function postProjectsByIdImageStudioAssetsByAssetIdReview(
+    id: string,
+    assetId: string,
+    body: NonNullable<
+      PostProjectsByIdImageStudioAssetsByAssetIdReviewData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioAssetsByAssetIdReview({
+          client,
+          path: { id, assetId },
+          body,
+        }),
+      "Failed to review image version",
+    );
+  }
+
+  async function deleteProjectsByIdImageStudioAssetsByAssetIdReview(
+    id: string,
+    assetId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdImageStudioAssetsByAssetIdReview({
+          client,
+          path: { id, assetId },
+        }),
+      "Failed to clear image review",
+    );
+  }
+
   async function getProjectsByIdSocialPosts(
     id: string,
     query?: GetProjectsByIdSocialPostsData["query"],
@@ -3716,6 +3812,28 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function suggestTaskTags(body: {
+    name?: string;
+    description?: string | null;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSuggestTaskTags({ client, body }),
+      "Task tag suggestions unavailable",
+    );
+  }
+
+  async function patchTaskTags(
+    id: string,
+    body: NonNullable<PatchTasksByIdTagsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => patchTasksByIdTags({ client, path: { id }, body }),
+      "Failed to update task tags",
+    );
+  }
+
   async function patchTask(
     id: string,
     body: NonNullable<PatchTasksByIdData["body"]>,
@@ -3784,6 +3902,18 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id, userId },
         }),
       "Failed to remove task participant",
+    );
+  }
+
+  async function subscribeTaskParticipant(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostTasksByIdParticipants({
+          client,
+          path: { id },
+        }),
+      "Failed to subscribe to task",
     );
   }
 
@@ -5414,6 +5544,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteTaskLink,
     deleteTaskParticipant,
     deleteTask,
+    subscribeTaskParticipant,
     getChatRoom,
     getChatRoomInvitations,
     getChatRoomMessages,
@@ -5608,6 +5739,11 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
     getProjectsByIdSocialConnections,
+    getProjectsByIdImageStudio,
+    postProjectsByIdImageStudioJobs,
+    postProjectsByIdImageStudioJobsByJobIdCancel,
+    postProjectsByIdImageStudioAssetsByAssetIdReview,
+    deleteProjectsByIdImageStudioAssetsByAssetIdReview,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsByPostId,
     patchProjectsByIdSocialPostsByPostId,
@@ -5639,6 +5775,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasks,
     getTasksSummary,
     patchTask,
+    patchTaskTags,
+    suggestTaskTags,
     putJobShare,
     putTaskShare,
     listTaskSchedules,

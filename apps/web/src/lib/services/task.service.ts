@@ -11,6 +11,7 @@ import type {
   TaskLink,
   TaskLinkDeleted,
   TaskParticipant,
+  TaskTagId,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
   WorkspaceCalendarItem,
@@ -45,6 +46,8 @@ interface ListJobsParams {
 }
 
 interface CreateTaskInput {
+  tagSuggestionReceipt?: string;
+  tagCorrections?: { add: TaskTagId[]; remove: TaskTagId[] };
   name?: string;
   description: string | null;
   assigneeId: string | null;
@@ -226,6 +229,14 @@ export const taskService = (() => {
     }
   }
 
+  async function suggestTaskTags(input: {
+    name?: string;
+    description?: string | null;
+  }) {
+    const result = await coreClient.suggestTaskTags(input);
+    return result.data;
+  }
+
   async function createTask(input: CreateTaskInput): Promise<Task> {
     const result = await coreClient.createTask({
       ...input,
@@ -253,6 +264,15 @@ export const taskService = (() => {
       throw new Error("Failed to create task event");
     }
 
+    return result.data;
+  }
+
+  async function patchTaskTags(
+    taskId: string,
+    input: { add: TaskTagId[]; remove: TaskTagId[] },
+  ) {
+    const result = await coreClient.patchTaskTags(taskId, input);
+    if (!result.data) throw new Error("Failed to update task tags");
     return result.data;
   }
 
@@ -335,6 +355,18 @@ export const taskService = (() => {
     return result.data.participants;
   }
 
+  async function subscribeTaskParticipant(
+    taskId: string,
+  ): Promise<TaskParticipant[]> {
+    const result = await coreClient.subscribeTaskParticipant(taskId);
+
+    if (!result.data) {
+      throw new Error("Failed to subscribe to task");
+    }
+
+    return result.data.participants;
+  }
+
   async function deleteTask(taskId: string): Promise<Task> {
     const result = await coreClient.deleteTask(taskId);
 
@@ -376,12 +408,15 @@ export const taskService = (() => {
     getTaskById,
     getTaskWorkspace,
     createTask,
+    suggestTaskTags,
     createTaskLink,
     createTaskEvent,
     deleteTaskLink,
     removeTaskParticipant,
+    subscribeTaskParticipant,
     moveTaskToWorkspace,
     patchTask,
+    patchTaskTags,
     listTaskLinks,
     deleteTask,
   };

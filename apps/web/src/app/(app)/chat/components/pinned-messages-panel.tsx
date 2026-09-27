@@ -288,6 +288,7 @@ export function PinnedMessagesPanel({
                 >
                   <ChannelMessageText
                     content={quoteOnly ? quoteOnly.snippet : message.content}
+                    enableMermaid={!quoteOnly}
                     coworkersById={coworkersById}
                     coworkersBySlug={coworkersBySlug}
                     sokoBotsById={sokoBotsById}

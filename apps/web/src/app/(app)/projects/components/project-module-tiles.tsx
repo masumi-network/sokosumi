@@ -3,6 +3,7 @@ import {
   CalendarDays,
   FileText,
   FolderOpen,
+  ImagePlus,
   Mail,
   Megaphone,
   Newspaper,
@@ -25,6 +26,7 @@ interface ProjectModuleTilesLabels {
   content: ProjectModuleLabel;
   email: ProjectModuleLabel;
   fileBrowser: ProjectModuleLabel;
+  imageStudio: ProjectModuleLabel;
   paidAdvertising: ProjectModuleLabel;
   pr: ProjectModuleLabel;
   seo: ProjectModuleLabel;
@@ -50,6 +52,11 @@ const PROJECT_MODULES: ProjectModuleDefinition[] = [
     key: "fileBrowser",
     href: (projectId) => `/drive?view=tasks&projectId=${projectId}`,
   },
+  {
+    icon: ImagePlus,
+    key: "imageStudio",
+    href: (projectId) => `/projects/${projectId}/studio`,
+  },
   { icon: Search, key: "seo" },
   { icon: Share2, key: "socialMedia" },
   { icon: Mail, key: "email" },
@@ -65,11 +72,11 @@ export function ProjectModuleTiles({
   socialHref,
 }: ProjectModuleTilesProps) {
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+    <div className="bg-card-background grid grid-cols-2 gap-4 rounded-xl p-2 md:grid-cols-4">
       {calendarHref ? (
         <Link
           aria-label={labels.calendar.title}
-          className="border-border hover:border-primary-tertiary hover:bg-card-background focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
+          className="border-border bg-background hover:border-primary-tertiary hover:bg-card-background focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
           href={calendarHref}
         >
           <span className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-lg">
@@ -89,7 +96,7 @@ export function ProjectModuleTiles({
         const href =
           key === "socialMedia" ? socialHref : moduleHref?.(projectId);
         const className = cn(
-          "bg-card-background border-border min-w-0 rounded-xl border p-4",
+          "bg-background border-border min-w-0 rounded-xl border p-4",
           href
             ? "hover:bg-card-background-hover transition-colors"
             : "cursor-default opacity-70",
@@ -97,7 +104,7 @@ export function ProjectModuleTiles({
 
         const body = (
           <>
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
               <span className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-lg">
                 <Icon className="text-muted-foreground size-4" aria-hidden />
               </span>

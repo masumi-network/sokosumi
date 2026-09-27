@@ -1,3 +1,4 @@
+import { asRecord } from "./parse-helpers.js";
 import { parseVendor, type Vendor } from "./vendor.js";
 
 export interface CoworkerPrice {
@@ -37,12 +38,6 @@ export interface CoworkerApiKey {
   token: string | null;
   name: string | null;
   expiresAt: string | null;
-}
-
-function asRecord(input: unknown): Record<string, unknown> {
-  return input && typeof input === "object" && !Array.isArray(input)
-    ? (input as Record<string, unknown>)
-    : {};
 }
 
 export function parseCoworker(input: unknown): Coworker {

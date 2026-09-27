@@ -1,8 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { isDesignMdBlobUrl } from "@sokosumi/utils";
-
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import { taskTagsSchema } from "@/helpers/task-tags";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
 import {
   channelSchema,
@@ -84,7 +84,8 @@ export const taskParticipantSchema = z
   .object({
     user: userSummarySchema,
     addedAt: dateTimeSchema.openapi({
-      description: "When the @ mention added this person to the Task.",
+      description:
+        "When this person joined the Task (via @ mention or self-subscribe).",
       example: "2026-09-24T12:00:00.000Z",
     }),
   })
@@ -280,7 +281,7 @@ const taskBaseSchema = z.object({
   }),
   participants: z.array(taskParticipantSchema).openapi({
     description:
-      "Workspace members added by @ in Task comment activity, in join order. Owner and assignee are omitted unless they were mentioned. Empty until someone is mentioned.",
+      "Workspace members on the Task (via @ mention or self-subscribe), in join order. Owner and assignee are omitted unless they also joined. Empty until someone joins.",
     example: [],
   }),
   /** @deprecated Marketplace-only. Use `assigneeId` or `assignee`. */
@@ -313,6 +314,7 @@ const taskBaseSchema = z.object({
     description:
       "Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.",
   }),
+  tags: taskTagsSchema.optional(),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
   status: taskStatusSchema.openapi({

@@ -6,10 +6,11 @@ import rehypeRaw from "rehype-raw";
 import remarkBreaks from "remark-breaks";
 import remarkEmoji from "remark-emoji";
 import remarkGfm from "remark-gfm";
-
 import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
 import { markdownHighlightThemeCss } from "@/components/markdown-highlight-theme";
 import { rehypeMarkdownCodeHighlight } from "@/components/markdown-highlighter";
+import { prepareMermaidMarkdown } from "@/components/mermaid/markdown-mermaid";
+import { MermaidBlock } from "@/components/mermaid/mermaid-block";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
 import { cn } from "@/lib/utils";
 import { normalizeLooseInlineMarkdown } from "@/lib/utils/composer-markdown-dom";
@@ -77,6 +78,7 @@ interface MarkdownProps {
   className?: string | undefined;
   highlightTerm?: string | undefined;
   components?: Components;
+  enableMermaid?: boolean;
 }
 
 /**
@@ -110,9 +112,23 @@ export default function Markdown({
   className,
   highlightTerm,
   components: extraComponents,
+  enableMermaid = false,
 }: MarkdownProps) {
   const defaultComponents: Components = useMemo(
     () => ({
+      pre: ({ node, children, ...props }) => {
+        const source = node?.properties?.["data-mermaid-source"];
+        if (enableMermaid && typeof source === "string") {
+          return (
+            <MermaidBlock
+              source={source}
+              complete={node?.properties?.["data-mermaid-complete"] === true}
+              overLimit={node?.properties?.["data-mermaid-limit"] === true}
+            />
+          );
+        }
+        return <pre {...props}>{children}</pre>;
+      },
       a: ({ href, children, className, node: _node, ...props }) => {
         const classNames = cn(
           "wrap-anywhere [overflow-wrap:anywhere]",
@@ -249,7 +265,7 @@ export default function Markdown({
         );
       },
     }),
-    [],
+    [enableMermaid],
   );
 
   const components = useMemo(
@@ -269,15 +285,19 @@ export default function Markdown({
   // longer re-parses every message on screen. A room transcript with a
   // hundred or two messages felt that on every keystroke and every jump.
   const rendered = useMemo(() => {
-    const highlightedChildren = applyMarkdownHighlighting(children, {
-      term: highlightTerm,
-    });
-    const normalizedChildren =
-      normalizeLooseInlineMarkdown(highlightedChildren);
-    const sanitizedChildren = sanitizeMarkdown(normalizedChildren);
-    // Display-only: bare domains → markdown links; room message body stays
-    // plain.
-    const linkifiedChildren = linkifyBareDomainsInMarkdown(sanitizedChildren);
+    function transform(source: string) {
+      const highlighted = applyMarkdownHighlighting(source, {
+        term: highlightTerm,
+      });
+      const normalized = normalizeLooseInlineMarkdown(highlighted);
+      const sanitized = sanitizeMarkdown(normalized);
+      // Display-only: bare domains become links; stored message text stays plain.
+      return linkifyBareDomainsInMarkdown(sanitized);
+    }
+    const mermaid = enableMermaid
+      ? prepareMermaidMarkdown({ source: children, highlightTerm, transform })
+      : undefined;
+    const displayMarkdown = mermaid?.markdown ?? transform(children);
     return (
       <ReactMarkdown
         remarkPlugins={[
@@ -285,13 +305,17 @@ export default function Markdown({
           remarkGfm,
           [remarkEmoji, { emoticon: true }],
         ]}
-        rehypePlugins={[rehypeRaw, rehypeMarkdownCodeHighlight]}
+        rehypePlugins={
+          mermaid
+            ? [rehypeRaw, mermaid.rehypeMermaid, rehypeMarkdownCodeHighlight]
+            : [rehypeRaw, rehypeMarkdownCodeHighlight]
+        }
         components={components}
       >
-        {linkifiedChildren}
+        {displayMarkdown}
       </ReactMarkdown>
     );
-  }, [children, components, highlightTerm]);
+  }, [children, components, highlightTerm, enableMermaid]);
 
   return (
     <div className={cn(baseTypographyClassName, className)}>

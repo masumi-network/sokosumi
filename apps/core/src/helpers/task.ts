@@ -8,6 +8,7 @@ import {
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
+import { mapTaskTags } from "@/helpers/task-tags";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import {
@@ -475,6 +476,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     sokoBot: creator.type === "sokoBot" ? creator.sokoBot : null,
     name: task.name,
     description: task.description,
+    tags: mapTaskTags(task),
     status: task.status,
     // DB default is PUBLIC; coalesce for incomplete test fixtures / selects.
     visibility: task.visibility ?? TaskVisibility.PUBLIC,

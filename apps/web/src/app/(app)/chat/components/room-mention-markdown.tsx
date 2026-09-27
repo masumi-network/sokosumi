@@ -89,6 +89,7 @@ function RoomMentionHoverSpan({
 
 export function RoomMessageMarkdown({
   content,
+  enableMermaid = false,
   markdownClassName,
   coworkersById,
   coworkersBySlug,
@@ -104,6 +105,7 @@ export function RoomMessageMarkdown({
   hoverInteractive = true,
 }: {
   content: string;
+  enableMermaid?: boolean;
   markdownClassName?: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -146,7 +148,11 @@ export function RoomMessageMarkdown({
   }
 
   return (
-    <Markdown className={markdownClassName} components={components}>
+    <Markdown
+      enableMermaid={enableMermaid}
+      className={markdownClassName}
+      components={components}
+    >
       {formatRoomMarkdownContent({
         content,
         coworkersById,

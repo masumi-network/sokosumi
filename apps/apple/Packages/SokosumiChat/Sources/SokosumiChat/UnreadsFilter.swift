@@ -22,7 +22,7 @@ public struct RoomUnreadReads: Equatable, Sendable {
   }
 }
 
-public func roomUnreadReads(_ room: Components.Schemas.ChatRoom) -> RoomUnreadReads {
+func roomUnreadReads(_ room: Components.Schemas.ChatRoom) -> RoomUnreadReads {
   let isMuted = room.mutedAt != nil
   return .init(
     roomId: room.id,
@@ -32,7 +32,7 @@ public func roomUnreadReads(_ room: Components.Schemas.ChatRoom) -> RoomUnreadRe
 }
 
 /// Mark all as read's plan: every room a read would still change, with the reads it needs.
-public func unreadsMarkAllTargets(_ rooms: [Components.Schemas.ChatRoom]) -> [RoomUnreadReads] {
+func unreadsMarkAllTargets(_ rooms: [Components.Schemas.ChatRoom]) -> [RoomUnreadReads] {
   rooms.map(roomUnreadReads).filter(\.isNeeded)
 }
 
@@ -92,7 +92,7 @@ public struct UnreadsFilterList: Equatable, Sendable {
 }
 
 /// The filter's list from the rooms (attention applied), the pass so far and the open room.
-public func unreadsFilterList(
+func unreadsFilterList(
   rooms: [Components.Schemas.ChatRoom], pass: UnreadsFilterPass, activeRoomId: String?, hasPendingInvitation: Bool
 ) -> UnreadsFilterList {
   // One answer for what the filter lists and whether the reader is caught up, so the two cannot disagree.

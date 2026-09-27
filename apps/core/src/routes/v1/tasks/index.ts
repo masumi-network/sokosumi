@@ -1,5 +1,4 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-
 import mountDeleteTask from "./[id]/delete.js";
 import mountGetTaskEvents from "./[id]/events/get.js";
 import mountPostTaskEvents from "./[id]/events/post.js";
@@ -13,9 +12,11 @@ import mountPatchTaskLink from "./[id]/links/[linkId]/patch.js";
 import mountGetTaskLinks from "./[id]/links/get.js";
 import mountPostTaskLink from "./[id]/links/post.js";
 import mountDeleteTaskParticipant from "./[id]/participants/[userId]/delete.js";
+import mountPostTaskParticipant from "./[id]/participants/post.js";
 import mountPatchTask from "./[id]/patch.js";
 import mountDeleteTaskShareById from "./[id]/share/delete.js";
 import mountPutTaskShareById from "./[id]/share/put.js";
+import mountPatchTaskTags from "./[id]/tags/patch.js";
 import mountGetTaskWorkspace from "./[id]/workspace/get.js";
 import mountPutTaskWorkspace from "./[id]/workspace/put.js";
 import mountPostTaskX402Payment from "./[id]/x402-payments/post.js";
@@ -35,6 +36,7 @@ import mountGetTaskScheduleAssignees from "./schedules/assignees/get.js";
 import mountGetTaskSchedules from "./schedules/get.js";
 import mountPostTaskSchedule from "./schedules/post.js";
 import mountGetTaskSummary from "./summary/get.js";
+import mountSuggestTaskTags from "./tag-suggestions/post.js";
 
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
@@ -46,6 +48,7 @@ mountLegacyVendorSchedules(app);
 mountGetTasks(app);
 // Before the `/{id}` routes so the literal path cannot be read as a task id.
 mountGetTaskSummary(app);
+mountSuggestTaskTags(app);
 mountGetTaskSchedules(app);
 mountGetTaskScheduleAssignees(app);
 mountPostTaskSchedule(app);
@@ -63,9 +66,11 @@ mountGetTaskLinks(app);
 mountPostTaskLink(app);
 mountDeleteTaskLink(app);
 mountPatchTaskLink(app);
+mountPostTaskParticipant(app);
 mountDeleteTaskParticipant(app);
 mountGetTaskById(app);
 mountPatchTask(app);
+mountPatchTaskTags(app);
 mountPutTaskShareById(app);
 mountDeleteTaskShareById(app);
 mountGetTaskWorkspace(app);

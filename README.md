@@ -90,8 +90,8 @@ Agents should use `verify-sokosumi launch` (see [AGENTS.md](./AGENTS.md)) so `.e
 Other available scripts:
 
 - `pnpm build` — TypeScript build
-- `pnpm lint` — Lint source files with Biome
-- `pnpm format` — Format source files with Biome
+- `pnpm check` — Biome check; CI and the husky hook run this
+- `pnpm format` — Write Biome formatting (not the gate)
 
 ## Testing
 

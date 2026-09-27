@@ -72,6 +72,31 @@ export const LIMITS = {
   SOKO_BOT_AVATAR_GENERATION_PER_HOUR: 24,
 
   /**
+   * Image-studio generations one project may have in flight at once. Each is a
+   * paid fal request, and the preview only shows one image at a time, so a
+   * deep queue buys nothing and spends real money.
+   */
+  IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT: 3,
+
+  /**
+   * Image-studio generations one user may start per hour, across all projects.
+   * Bounds what a single account can spend if a prompt loop goes wrong.
+   */
+  IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR: 40,
+
+  /**
+   * Largest reference image the studio will hand to the provider. Bytes are
+   * uploaded to fal's own storage, so this bounds one upload, not a response.
+   */
+  IMAGE_STUDIO_MAX_REFERENCE_BYTES: 12 * 1024 * 1024,
+
+  /** Reference images one refinement may carry. */
+  IMAGE_STUDIO_MAX_REFERENCES_PER_JOB: 4,
+
+  /** Largest generated image the studio will store. */
+  IMAGE_STUDIO_MAX_ASSET_BYTES: 24 * 1024 * 1024,
+
+  /**
    * Maximum pending guest invitations per external channel. Bounds email blast
    * abuse and keeps host invite lists usable.
    */

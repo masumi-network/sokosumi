@@ -30,6 +30,7 @@
 
     var attachFiles: (([URL]) -> Void)?
     var attachImage: ((Data) -> Void)?
+    var attachmentDragChanged: ((Bool) -> Void)?
     var onPaste: ((ComposerTextPaste) -> Void)?
     var insertion: ComposerInsertion?
 
@@ -64,6 +65,7 @@
       input.placeholder = placeholder
       input.attachFiles = attachFiles
       input.attachImage = attachImage
+      input.attachmentDragChanged = attachmentDragChanged
       input.onPaste = onPaste
       input.mentions = mentions
       input.channels = channels
@@ -82,6 +84,7 @@
       input.placeholder = placeholder
       input.attachFiles = attachFiles
       input.attachImage = attachImage
+      input.attachmentDragChanged = attachmentDragChanged
       input.onPaste = onPaste
       input.mentions = mentions
       input.channels = channels
@@ -425,9 +428,11 @@
 
       var attachFiles: (([URL]) -> Void)?
       var attachImage: ((Data) -> Void)?
+      var attachmentDragChanged: ((Bool) -> Void)?
 
       override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
         if attachFiles != nil, !droppedFiles(sender).isEmpty {
+          attachmentDragChanged?(true)
           return .copy
         }
         return super.draggingEntered(sender)
@@ -435,12 +440,19 @@
 
       override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
         if attachFiles != nil, !droppedFiles(sender).isEmpty {
+          attachmentDragChanged?(true)
           return .copy
         }
         return super.draggingUpdated(sender)
       }
 
+      override func draggingExited(_ sender: (any NSDraggingInfo)?) {
+        attachmentDragChanged?(false)
+        super.draggingExited(sender)
+      }
+
       override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        attachmentDragChanged?(false)
         let files = droppedFiles(sender)
         if let attachFiles, !files.isEmpty {
           attachFiles(files)

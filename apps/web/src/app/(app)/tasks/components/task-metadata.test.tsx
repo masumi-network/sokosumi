@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -20,12 +20,7 @@ vi.mock("@/components/modals/global-modals-context", () => ({
   }),
 }));
 
-const { removeTaskParticipantMock } = vi.hoisted(() => ({
-  removeTaskParticipantMock: vi.fn(),
-}));
-
 vi.mock("@/lib/actions/task/action", () => ({
-  removeTaskParticipant: removeTaskParticipantMock,
   setTaskStatusFromDrag: vi.fn(),
 }));
 
@@ -74,7 +69,6 @@ const baseLabels = {
   credits: "Credits",
   created: "Created",
   updated: "Updated",
-  participants: "Participants",
   personalAssistantFallback: "Personal assistant",
   formatSokoBotRole: ({ owner }: { owner: string }) =>
     `${owner}'s personal assistant`,
@@ -91,7 +85,6 @@ function createTask(
     status?: TaskMetadataTask["status"];
     visibility?: TaskMetadataTask["visibility"];
     selectableStatuses?: TaskMetadataTask["selectableStatuses"];
-    participants?: TaskMetadataTask["participants"];
   } = {},
 ): TaskMetadataTask {
   const creator: Task["creator"] = overrides.creator ?? {
@@ -132,7 +125,6 @@ function createTask(
     creator,
     organization: null,
     assignee,
-    participants: overrides.participants ?? [],
     credits: overrides.credits ?? 0,
   };
 }
@@ -148,7 +140,6 @@ function renderTaskMetadata(
       title="Properties"
       taskId="task-1"
       editable={false}
-      canRemoveParticipants={false}
       task={task}
       project={null}
       createdAtLabel="Jul 16, 10:28 AM"
@@ -454,94 +445,13 @@ describe("TaskMetadata", () => {
   });
 });
 
-function taskParticipant(id: string, name: string) {
-  return {
-    user: { id, name, image: null },
-    addedAt: new Date("2026-07-16T10:00:00.000Z"),
-  };
-}
-
 describe("TaskMetadata participants", () => {
-  const people = ["Ada", "Bea", "Cy", "Dee", "Eve"].map((name) =>
-    taskParticipant(`user-${name}`, name),
-  );
-
-  it("keeps owner and assignee rows and lists every participant", () => {
-    renderTaskMetadata({ task: createTask({ participants: people }) });
+  it("keeps owner and assignee rows and drops the Participants row", () => {
+    renderTaskMetadata({ task: createTask() });
 
     expect(screen.getByText("Owner")).toBeInTheDocument();
     expect(screen.getByText("Coworker")).toBeInTheDocument();
     expect(screen.getByText("Hepha")).toBeInTheDocument();
-    const list = screen.getByRole("list", { name: "Participants" });
-    expect(
-      Array.from(list.querySelectorAll("li")).map((item) => item.textContent),
-    ).toEqual(["AAda", "BBea", "CCy", "DDee", "EEve"]);
-  });
-
-  it("shows an empty Participants row when nobody was mentioned", () => {
-    renderTaskMetadata({ task: createTask() });
-
-    expect(screen.queryByRole("list", { name: "Participants" })).toBeNull();
-    expect(screen.getByText("Participants").parentElement).toHaveTextContent(
-      "Participants—",
-    );
-  });
-
-  it("hides remove buttons when the viewer cannot comment", () => {
-    renderTaskMetadata({ task: createTask({ participants: people }) });
-
-    expect(
-      screen.queryByRole("button", { name: "removeParticipant:Ada" }),
-    ).toBeNull();
-  });
-
-  it("removes a participant after confirmation", async () => {
-    removeTaskParticipantMock.mockResolvedValue({
-      ok: true,
-      value: { taskId: "task-1", userId: "user-Bea" },
-    });
-    renderTaskMetadata({
-      task: createTask({ participants: people }),
-      canRemoveParticipants: true,
-    });
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "removeParticipant:Bea" }),
-    );
-
-    expect(removeTaskParticipantMock).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("heading", {
-        name: "removeParticipantConfirmTitle:Bea",
-      }),
-    ).toBeInTheDocument();
-
-    await userEvent.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "removeParticipant:Bea",
-      }),
-    );
-
-    expect(removeTaskParticipantMock).toHaveBeenCalledWith({
-      taskId: "task-1",
-      userId: "user-Bea",
-    });
-  });
-
-  it("keeps the participant when remove confirmation is cancelled", async () => {
-    renderTaskMetadata({
-      task: createTask({ participants: people }),
-      canRemoveParticipants: true,
-    });
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "removeParticipant:Bea" }),
-    );
-    await userEvent.click(screen.getByRole("button", { name: "cancel" }));
-
-    expect(removeTaskParticipantMock).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("button", { name: "removeParticipant:Bea" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("Participants")).toBeNull();
   });
 });

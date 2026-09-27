@@ -16,7 +16,6 @@ import {
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
-import { CircleHelp } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -128,8 +127,6 @@ import {
   TaskReopenToReadyDialog,
   type TaskReopenToReadyDialogLabels,
 } from "./task-reopen-to-ready-dialog";
-import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
-import { TasksEmptyStateOverlay } from "./tasks-empty-state-overlay";
 import { TasksProjectSwitcher } from "./tasks-project-switcher";
 import { TasksViewFilters } from "./tasks-view-filters";
 import { ViewModeSwitch } from "./view-mode-switch";
@@ -185,7 +182,6 @@ const hydrationStore = (() => {
   return { subscribe, getSnapshot, getServerSnapshot };
 })();
 
-const TASKS_GUIDE_COMPLETED_STORAGE_KEY = "sokosumi.tasks.guideCompleted";
 interface TasksRealtimeListenerProps {
   userId: string;
   onEvent: (data: TaskEventData) => void;
@@ -312,18 +308,6 @@ interface TasksViewProps {
     reopenToReady: TaskReopenToReadyDialogLabels & {
       commentRequired: string;
     };
-    emptyState: {
-      title: string;
-      description: string;
-      getStartedTitle: string;
-      getStartedDescription: string;
-      getStartedButton: string;
-      next: string;
-      back: string;
-      addTaskHint: string;
-      elenaAvatarAlt: string;
-    };
-    showGuideAriaLabel: string;
   };
 }
 
@@ -401,8 +385,6 @@ export function TasksView({
     setPrevTabFromUrl(tabFromUrl);
     setActiveTab(tabFromUrl);
   }
-  const [guideCompleted, setGuideCompleted] = useState<boolean | null>(null);
-  const [forceShowGuide, setForceShowGuide] = useState(false);
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
   const [jobsItems, setJobsItems] = useState<TasksViewJob[]>([]);
   const [jobsCursor, setJobsCursor] = useState<string | null>(null);
@@ -476,17 +458,6 @@ export function TasksView({
     () => router.refresh(),
     TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
   );
-
-  useEffect(() => {
-    try {
-      setGuideCompleted(
-        window.localStorage.getItem(TASKS_GUIDE_COMPLETED_STORAGE_KEY) ===
-          "true",
-      );
-    } catch {
-      // Ignore storage errors.
-    }
-  }, []);
 
   const serverTasksFiltersResetKey = useMemo(
     () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
@@ -1164,13 +1135,6 @@ export function TasksView({
     () => Array.from(new Set(jobsItems.map((job) => job.agentId))),
     [jobsItems],
   );
-  const shouldShowEmptyStateOverlay =
-    shouldShowTasksEmptyStateOverlay({
-      activeTab,
-      taskCount: items.length,
-      viewMode,
-      guideCompleted: guideCompleted === true,
-    }) || forceShowGuide;
   const activeDragTask = useMemo(
     () =>
       activeDragTaskId
@@ -1236,20 +1200,6 @@ export function TasksView({
     listCursor,
   ]);
 
-  const handleGuideComplete = useCallback(() => {
-    setGuideCompleted(true);
-    setForceShowGuide(false);
-    try {
-      window.localStorage.setItem(TASKS_GUIDE_COMPLETED_STORAGE_KEY, "true");
-    } catch {
-      // Ignore storage errors.
-    }
-  }, []);
-
-  const handleGuideDismiss = useCallback(() => {
-    setForceShowGuide(false);
-  }, []);
-
   const tabsContent = (
     <Tabs
       value={activeTab}
@@ -1287,18 +1237,6 @@ export function TasksView({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {activeTab === "tasks" ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              aria-label={labels.showGuideAriaLabel}
-              onClick={() => setForceShowGuide(true)}
-            >
-              <CircleHelp className="size-4" aria-hidden />
-            </Button>
-          ) : null}
           <TasksProjectSwitcher
             projectOptions={resolvedProjectOptions}
             selectedProjectId={selectedProjectId}
@@ -1509,13 +1447,6 @@ export function TasksView({
       {tabsContent}
       {activeTab === "tasks" && canCreateTask ? (
         <TasksMobileCreateFabSlot />
-      ) : null}
-      {shouldShowEmptyStateOverlay ? (
-        <TasksEmptyStateOverlay
-          labels={labels.emptyState}
-          onComplete={handleGuideComplete}
-          onDismiss={handleGuideDismiss}
-        />
       ) : null}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}

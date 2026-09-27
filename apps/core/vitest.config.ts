@@ -13,10 +13,12 @@ import { configDefaults, defineConfig } from "vitest/config";
  * exclude; the filter then narrows the run. Directory filters do not.
  */
 const optInPostgresFiles = [
+  "src/services/image-studio-recovery.postgres.test.ts",
   "src/helpers/calendar-erasure.postgres.test.ts",
   "src/helpers/project-activity.postgres.test.ts",
   "src/routes/v1/projects/get.postgres.test.ts",
   "src/services/soko-bot-integrations.service.postgres.test.ts",
+  "src/services/source-import-github.postgres.test.ts",
 ];
 
 const optInIntegrationFiles = [

@@ -58,9 +58,7 @@ function printJob(
     `status: ${String(value.status || "unknown")}`,
     `agent: ${String(value.agentId || "-")}`,
     value.name ? `name: ${String(value.name)}` : undefined,
-    value.credits != null ? `credits: ${String(value.credits)}` : undefined,
     value.result ? `result: ${String(value.result)}` : undefined,
-    value.output ? `output: ${String(value.output)}` : undefined,
   ];
   if (details.inputRequest) lines.push("input request: pending");
   const events = Array.isArray(details.events) ? details.events : [];

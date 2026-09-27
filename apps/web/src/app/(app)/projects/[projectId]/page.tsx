@@ -206,6 +206,10 @@ export default async function ProjectDetailPage({
                     description: t("modules.calendar.description"),
                   },
                   comingSoon: t("modules.comingSoon"),
+                  imageStudio: {
+                    title: t("modules.imageStudio.title"),
+                    description: t("modules.imageStudio.description"),
+                  },
                   seo: {
                     title: t("modules.seo.title"),
                     description: t("modules.seo.description"),
