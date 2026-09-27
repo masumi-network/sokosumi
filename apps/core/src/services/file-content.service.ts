@@ -133,7 +133,28 @@ export function contentDispositionFor(
     ascii += code > 0x7e ? "_" : character;
   }
   const fallback = ascii.trim().slice(0, 120) || "file";
-  const encoded = encodeURIComponent(displayName).slice(0, 240);
+  /**
+   * Truncate by code point, then encode. Never the other way round.
+   *
+   * Slicing the percent-encoded string can cut inside a `%XX` escape, and
+   * RFC 5987 requires valid pct-encoding — a browser that rejects the
+   * parameter falls back to the ASCII `filename`, so a CJK-named file
+   * downloads as a row of underscores. An ordinary 94-character Japanese
+   * filename was enough to produce `…%8A%E6%9B` and a `URIError` from
+   * `decodeURIComponent`.
+   *
+   * The budget is in encoded bytes because that is what the header
+   * carries, so the loop adds code points while the encoding still fits
+   * rather than guessing a character count. `[...displayName]` iterates
+   * code points, so an astral character is never split into halves of a
+   * surrogate pair either.
+   */
+  let encoded = "";
+  for (const character of displayName) {
+    const next = encoded + encodeURIComponent(character);
+    if (next.length > 240) break;
+    encoded = next;
+  }
   return `${inline ? "inline" : "attachment"}; filename="${fallback}"; filename*=UTF-8''${encoded}`;
 }
 

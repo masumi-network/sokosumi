@@ -45,6 +45,32 @@ describe("isInlineRenderable", () => {
 });
 
 describe("contentDispositionFor", () => {
+  /**
+   * `filename*` has to be valid pct-encoding or the browser discards the
+   * parameter and falls back to the ASCII `filename`, which for a
+   * non-Latin name is a row of underscores.
+   *
+   * The budget was applied by slicing the *encoded* string, which cuts
+   * inside a `%XX` escape. An ordinary 94-character Japanese filename was
+   * enough: the value ended `…%8A%E6%9B` and `decodeURIComponent` threw.
+   */
+  it.each([
+    ["an ordinary Japanese filename", `${"報告書".repeat(30)}.pdf`],
+    ["a long name ending in a multi-byte character", `${"a".repeat(239)}€.pdf`],
+    ["an astral character", `${"x".repeat(200)}${"\u{1F4C4}".repeat(20)}.pdf`],
+    ["a plain short name", "notes.md"],
+  ])("emits a decodable filename* for %s", (_label, name) => {
+    const header = contentDispositionFor(name, false);
+    const encoded = header.split("filename*=UTF-8''")[1];
+
+    expect(encoded).toBeDefined();
+    // The property that matters: a browser can decode it at all.
+    expect(() => decodeURIComponent(encoded)).not.toThrow();
+    // And what it decodes to is a prefix of the real name, not mojibake.
+    expect(name.startsWith(decodeURIComponent(encoded))).toBe(true);
+    expect(encoded.length).toBeLessThanOrEqual(240);
+  });
+
   it("offers a renderable file inline and everything else as an attachment", () => {
     expect(contentDispositionFor("notes.md", true)).toContain("inline;");
     expect(contentDispositionFor("notes.md", false)).toContain("attachment;");
