@@ -146,6 +146,34 @@ function boundedRedis<T>(operation: Promise<T>) {
   return pTimeout(operation, { milliseconds: 2_000, message: unavailable() });
 }
 
+function suggestionCacheKey(scope: SuggestionScope, input: SuggestionInput) {
+  const scopeHash = createHash("sha256")
+    .update(JSON.stringify(scope))
+    .digest("hex");
+  return `${DOMAIN}${TASK_TAG_VOCABULARY_VERSION}:cache:${scopeHash}:${inputHash(input)}`;
+}
+
+/** Reuse completed composer work without making creation depend on Redis. */
+export async function readCachedTaskTagSuggestions(
+  scope: SuggestionScope,
+  input: SuggestionInput,
+) {
+  try {
+    const redis = getRedisClient();
+    if (!redis) return null;
+    const receipt = await pTimeout(
+      redis.get(suggestionCacheKey(scope, input)),
+      {
+        milliseconds: 250,
+        message: unavailable(),
+      },
+    );
+    return verifyTaskTagReceipt(receipt ?? undefined, scope, input);
+  } catch {
+    return null;
+  }
+}
+
 export async function suggestTaskTags(
   scope: SuggestionScope,
   input: SuggestionInput,
@@ -157,11 +185,8 @@ export async function suggestTaskTags(
     throw unavailable();
   }
   if (!redis) throw unavailable();
-  const scopeHash = createHash("sha256")
-    .update(JSON.stringify(scope))
-    .digest("hex");
   const prefix = `${DOMAIN}${TASK_TAG_VOCABULARY_VERSION}:`;
-  const cacheKey = `${prefix}cache:${scopeHash}:${inputHash(input)}`;
+  const cacheKey = suggestionCacheKey(scope, input);
   const leaseKey = `${cacheKey}:lease`;
   const token = randomUUID();
   let admitted = false;

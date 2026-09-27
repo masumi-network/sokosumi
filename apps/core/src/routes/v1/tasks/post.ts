@@ -57,7 +57,10 @@ import {
   createTaskForActor,
   type TaskDomainActor,
 } from "@/services/task-domain.service";
-import { verifyTaskTagReceipt } from "@/services/task-tag-suggestions.service";
+import {
+  readCachedTaskTagSuggestions,
+  verifyTaskTagReceipt,
+} from "@/services/task-tag-suggestions.service";
 import { taskInclude } from "@/types/task";
 
 export const createTaskRequestSchema = z
@@ -195,18 +198,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspaceContext.organizationId,
     );
     if (body.tagCorrections) requireOwnerUserContext(authContext);
-    const suggestedTags =
-      authContext.actor === "user" &&
-      authContext.authenticationMethod === "session"
-        ? verifyTaskTagReceipt(
-            body.tagSuggestionReceipt,
-            {
-              userId: userContext.userId,
-              workspaceId: workspaceContext.workspaceId,
-            },
-            body,
-          )
-        : null;
     const runAt = body.runAt ? parseFutureRunAt(body.runAt) : null;
 
     const resolvedName = await resolveTaskName({
@@ -224,6 +215,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       !shouldEnforceCreateGrant && body.context?.briefing !== false
         ? await healProjectBriefingUrl(project, workspaceContext.workspaceId)
         : project;
+
+    // Read after normal preparation so an in-flight composer evaluation can finish.
+    // Only exact authored input is eligible; generated title/context are derived.
+    const suggestionScope = {
+      userId: userContext.userId,
+      workspaceId: workspaceContext.workspaceId,
+    };
+    const suggestedTags =
+      authContext.actor === "user" &&
+      authContext.authenticationMethod === "session"
+        ? (verifyTaskTagReceipt(
+            body.tagSuggestionReceipt,
+            suggestionScope,
+            body,
+          ) ?? (await readCachedTaskTagSuggestions(suggestionScope, body)))
+        : null;
 
     const task = await prisma.$transaction(async (tx) => {
       const createdTask = await createTaskForActor(

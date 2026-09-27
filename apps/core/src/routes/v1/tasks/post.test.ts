@@ -24,6 +24,14 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
+const cachedSuggestionsMock = vi.hoisted(() => vi.fn().mockResolvedValue(null));
+vi.mock("@/services/task-tag-suggestions.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/task-tag-suggestions.service")
+  >()),
+  readCachedTaskTagSuggestions: cachedSuggestionsMock,
+}));
+
 const {
   ensureProjectFilesTokenMock,
   generateTaskNameMock,
@@ -232,6 +240,7 @@ function mockWorkspaceGrantInTransaction(
 describe("createTaskRequestSchema", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    cachedSuggestionsMock.mockResolvedValue(null);
     resolveEffectiveDesignMdMock.mockResolvedValue(null);
   });
 
@@ -510,6 +519,7 @@ describe("POST /tasks", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    cachedSuggestionsMock.mockResolvedValue(null);
     resolveEffectiveDesignMdMock.mockResolvedValue(null);
     generateTaskNameMock.mockResolvedValue("Generated name");
     taskCreateMock.mockResolvedValue({ id: "tsk_123" });
@@ -564,6 +574,7 @@ describe("POST /tasks", () => {
         }),
       });
       expect(response.status).toBe(201);
+      expect(cachedSuggestionsMock).not.toHaveBeenCalled();
       expect(taskUpdateMock).toHaveBeenCalledWith({
         where: { id: "tsk_123" },
         data: {
@@ -597,6 +608,56 @@ describe("POST /tasks", () => {
     expect(taskUpdateMock).toHaveBeenCalledWith({
       where: { id: "tsk_123" },
       data: { manualTags: ["design"], rejectedTags: [] },
+    });
+  });
+
+  it.each([{ tags: [] }, { tags: ["research"] }] as const)(
+    "reuses cached suggestions $tags when no browser receipt arrived",
+    async ({ tags }) => {
+      cachedSuggestionsMock.mockResolvedValue([...tags]);
+      const body = {
+        description:
+          "Research competitors and prepare a detailed market analysis report",
+      };
+      const response = await createApp().request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(201);
+      expect(cachedSuggestionsMock).toHaveBeenCalledWith(
+        {
+          userId: "user_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+        expect.objectContaining(body),
+      );
+      expect(taskUpdateMock).toHaveBeenCalledWith({
+        where: { id: "tsk_123" },
+        data: expect.objectContaining({
+          automaticTags: [...tags],
+          tagClassificationState: "complete",
+        }),
+      });
+      expect(generateTaskNameMock.mock.invocationCallOrder[0]).toBeLessThan(
+        cachedSuggestionsMock.mock.invocationCallOrder[0]!,
+      );
+      expect(cachedSuggestionsMock.mock.invocationCallOrder[0]).toBeLessThan(
+        prismaTransactionMock.mock.invocationCallOrder[0]!,
+      );
+    },
+  );
+  it("reuses cached suggestions after rejecting a mismatched browser receipt", async () => {
+    cachedSuggestionsMock.mockResolvedValue(["design"]);
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Task", tagSuggestionReceipt: "invalid" }),
+    });
+    expect(response.status).toBe(201);
+    expect(taskUpdateMock).toHaveBeenCalledWith({
+      where: { id: "tsk_123" },
+      data: expect.objectContaining({ automaticTags: ["design"] }),
     });
   });
 
@@ -1491,6 +1552,7 @@ describe("POST /tasks delegated coworker create grant", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    cachedSuggestionsMock.mockResolvedValue(null);
     resolveEffectiveDesignMdMock.mockResolvedValue(null);
     generateTaskNameMock.mockResolvedValue("Generated name");
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_123" });
@@ -1578,6 +1640,7 @@ describe("POST /tasks delegated coworker create grant", () => {
     );
     expect(response.status).toBe(201);
     expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(cachedSuggestionsMock).not.toHaveBeenCalled();
   });
 
   it("parks create with pendingVendorGrantId when workspace access is missing", async () => {

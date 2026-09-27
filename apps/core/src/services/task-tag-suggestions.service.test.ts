@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   issueTaskTagReceipt,
+  readCachedTaskTagSuggestions,
   suggestTaskTags,
   verifyTaskTagReceipt,
 } from "./task-tag-suggestions.service";
@@ -151,5 +152,46 @@ describe("suggestion spend protection", () => {
       status: 503,
       message: "Tag suggestions are temporarily unavailable",
     });
+  });
+});
+
+describe("create-time cached suggestions", () => {
+  it.each([{ tags: [] }, { tags: ["research"] }] as const)(
+    "reuses signed cached result $tags without provider work",
+    async ({ tags }) => {
+      mocks.get.mockResolvedValue(issueTaskTagReceipt(scope, input, [...tags]));
+      expect(await readCachedTaskTagSuggestions(scope, input)).toEqual(tags);
+      expect(mocks.available).not.toHaveBeenCalled();
+      expect(mocks.classify).not.toHaveBeenCalled();
+      expect(mocks.eval).not.toHaveBeenCalled();
+    },
+  );
+  it("ignores receipts for other input or workspace", async () => {
+    mocks.get.mockResolvedValue(
+      issueTaskTagReceipt(scope, input, ["research"]),
+    );
+    expect(
+      await readCachedTaskTagSuggestions(scope, { ...input, name: "Other" }),
+    ).toBeNull();
+    expect(
+      await readCachedTaskTagSuggestions(
+        { ...scope, workspaceId: "other" },
+        input,
+      ),
+    ).toBeNull();
+  });
+  it("fails open to normal creation when Redis is missing or unavailable", async () => {
+    mocks.redis.mockReturnValueOnce(null);
+    expect(await readCachedTaskTagSuggestions(scope, input)).toBeNull();
+    mocks.get.mockRejectedValue(new Error("redis unavailable"));
+    expect(await readCachedTaskTagSuggestions(scope, input)).toBeNull();
+  });
+  it("limits a hanging read to 250ms", async () => {
+    vi.useFakeTimers();
+    mocks.get.mockReturnValue(new Promise(() => {}));
+    const pending = readCachedTaskTagSuggestions(scope, input);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(await pending).toBeNull();
+    vi.useRealTimers();
   });
 });

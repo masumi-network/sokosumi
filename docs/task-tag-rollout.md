@@ -27,6 +27,9 @@ empty results. Invalid or expired receipts fall back to the normal worker;
 client-supplied automatic classifications are never accepted. Manual additions
 and rejections survive future automatic results. Retention and no-training
 controls remain enforced; the existing non-EU authorization remains applicable.
+When a receipt has not reached the browser, creation also attempts a short
+server-side lookup of the same signed cache entry. This lookup does not invoke
+the provider and falls back to the worker on cache failure or timeout.
 
 ## Historical work
 
