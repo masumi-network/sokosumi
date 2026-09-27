@@ -75,6 +75,106 @@ describe("extracting a PDF text layer", () => {
 
 describe("the bounds, each one watched firing", () => {
   it(
+    "returns a large document intact, well past the old truncation cliff",
+    async () => {
+      /**
+       * The regression test for the branch's fourth silent failure.
+       *
+       * The child wrote its whole result with one unflushed
+       * `process.stdout.write` and then called `process.exit(0)`. Writes
+       * to a pipe are asynchronous on POSIX and `process.exit` discards
+       * the pending remainder, so everything past roughly 143 KB of
+       * extracted text arrived as a prefix, failed `JSON.parse` in the
+       * parent, and was recorded as `crashed` — "The PDF reader stopped
+       * unexpectedly on this file", which blamed the document for a bug
+       * in the plumbing. Measured on this machine before the fix: 100,000
+       * characters fine, 140,000 crashed, every time.
+       *
+       * It also meant two of the five advertised bounds could never fire
+       * in production, because the process died two orders of magnitude
+       * before either of them.
+       *
+       * The result now leaves on its own file descriptor, written with
+       * `fs.writeSync`, which returns only once the bytes are handed over.
+       */
+      const asked = 200_000;
+      const outcome = await extractPdfText(
+        buildPdfFixture({ pages: ["Q".repeat(asked)] }),
+      );
+
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect(outcome.text.replace(/\s/gu, "")).toHaveLength(asked);
+      expect(outcome.truncated).toBe(false);
+    },
+    TIMEOUT,
+  );
+
+  it(
+    "does not corrupt multi-byte characters at a chunk boundary",
+    async () => {
+      /**
+       * The parent decoded each `data` event with `part.toString("utf8")`
+       * as it arrived, so a multi-byte sequence straddling a 64 KiB chunk
+       * boundary became replacement characters on both sides. Whether a
+       * boundary lands mid-character depends on where the JSON envelope
+       * pushed it, so the corruption was intermittent — worse than
+       * consistent. It reached the stored chunk text, its digest, the
+       * tsvector and any excerpt sent to the model.
+       *
+       * Driven through a stand-in child rather than a fixture, because
+       * the finding is in the parent's decoding and because the fixture's
+       * Type1 Helvetica font has no CJK glyphs — a PDF carrying this text
+       * cannot be built by `buildPdfFixture` at all.
+       */
+      const text = "企".repeat(60_000);
+      const outcome = await extractPdfText(new Uint8Array([1]), {
+        childProgram: [
+          'import fsSync from "node:fs";',
+          `const payload = Buffer.from(JSON.stringify({ ok: true, text: "企".repeat(60000), pages: 1, totalPages: 1, truncated: false }), "utf8");`,
+          "let written = 0;",
+          "while (written < payload.length) {",
+          "  try { written += fsSync.writeSync(3, payload, written); }",
+          "  catch (e) { if (e && (e.code === 'EAGAIN' || e.code === 'EINTR')) continue; throw e; }",
+          "}",
+          "process.exit(0);",
+        ].join("\n"),
+      });
+
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      // 180,000 bytes of UTF-8, so many 64 KiB boundaries were crossed.
+      expect(outcome.text).toHaveLength(60_000);
+      expect(outcome.text).not.toContain("\uFFFD");
+      expect(outcome.text).toBe(text);
+    },
+    TIMEOUT,
+  );
+
+  it(
+    "still answers a small document promptly",
+    async () => {
+      /**
+       * The other half of the bargain. Removing `process.exit` without
+       * thinking would fix the truncation by letting the child linger
+       * until the 20 second wall clock on every ordinary document, which
+       * trades a wrong answer for a slow one.
+       */
+      const started = Date.now();
+      const outcome = await extractPdfText(
+        buildPdfFixture({ pages: ["A small ordinary document."] }),
+      );
+      const elapsed = Date.now() - started;
+
+      expect(outcome.ok).toBe(true);
+      // Generous against a cold machine, and still two orders of
+      // magnitude below the timeout it must not be waiting for.
+      expect(elapsed).toBeLessThan(5_000);
+    },
+    TIMEOUT,
+  );
+
+  it(
     "stops at the page cap, mid-document",
     async () => {
       // Four pages, a cap of two. The third and fourth must never be read —
@@ -139,7 +239,7 @@ describe("the bounds, each one watched firing", () => {
   );
 
   it(
-    "gives up on a child that floods stdout",
+    "gives up on a child that floods the result channel",
     async () => {
       /**
        * The child here is deliberately **well-behaved about backpressure**,
@@ -159,14 +259,15 @@ describe("the bounds, each one watched firing", () => {
       const started = Date.now();
       const outcome = await extractPdfText(new Uint8Array([1]), {
         timeoutMs: 8_000,
-        maxStdoutBytes: 512 * 1024,
+        maxResultBytes: 512 * 1024,
         childProgram: `
-        const chunk = "y".repeat(64 * 1024);
-        function pump() {
-          while (process.stdout.write(chunk)) {}
-          process.stdout.once("drain", pump);
+import fsSync from "node:fs";
+        const chunk = Buffer.alloc(64 * 1024, 0x79);
+        // Floods the *result* channel, which is the one the parent reads
+        // and therefore the one its byte bound has to defend.
+        for (;;) {
+          try { fsSync.writeSync(3, chunk); } catch { /* EAGAIN: keep going */ }
         }
-        pump();
       `,
       });
       const elapsed = Date.now() - started;
@@ -191,7 +292,8 @@ describe("the bounds, each one watched firing", () => {
         buildPdfFixture({ pages: ["irrelevant"] }),
         {
           childProgram: `
-          process.stdout.write(JSON.stringify({
+import fsSync from "node:fs";
+          fsSync.writeSync(3, JSON.stringify({
             ok: true,
             text: process.env.PDF_MAX_PAGES + "/" + process.env.PDF_MAX_OUTPUT_CHARS,
             pages: 1,
@@ -305,8 +407,19 @@ describe("every failure lands on a named outcome, never a throw", () => {
   it(
     "reports a child that writes something that is not a result",
     async () => {
+      /**
+       * The child must actually write and exit cleanly, or this asserts
+       * the wrong thing. Without the import `fsSync` is undefined, the
+       * child throws, and the parent reports `crashed` because the child
+       * died — which is the expected value, so the test would pass while
+       * testing nothing about unparseable output.
+       */
       const outcome = await extractPdfText(new Uint8Array([1]), {
-        childProgram: 'process.stdout.write("not json at all");',
+        childProgram: [
+          'import fsSync from "node:fs";',
+          'fsSync.writeSync(3, "not json at all");',
+          "process.exit(0);",
+        ].join("\n"),
       });
 
       expect(outcome).toEqual({ ok: false, failure: "crashed" });

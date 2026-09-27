@@ -54,7 +54,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
  *   the child, not the API.
  *
  * A fifth bound sits on our side of the pipe: the parent stops reading
- * stdout past `PDF_MAX_STDOUT_BYTES`. The child is the component we do not
+ * stdout past `PDF_MAX_RESULT_BYTES`. The child is the component we do not
  * trust here, so its output is bounded like any other untrusted input.
  *
  * ## No OCR
@@ -73,8 +73,8 @@ export const PDF_MAX_OUTPUT_CHARS = 1_000_000;
 export const PDF_TIMEOUT_MS = 20_000;
 /** Heap ceiling for the child process, in megabytes. */
 export const PDF_MAX_HEAP_MB = 512;
-/** Stdout the parent will accept from the child before giving up on it. */
-export const PDF_MAX_STDOUT_BYTES = 8 * 1024 * 1024;
+/** Bytes the parent will accept on the result channel before giving up. */
+export const PDF_MAX_RESULT_BYTES = 8 * 1024 * 1024;
 
 export type PdfFailure =
   | "parser-unavailable"
@@ -110,11 +110,42 @@ export type PdfOutcome =
  * extraction does not need them.
  */
 const CHILD_PROGRAM = `
+import fs from "node:fs";
+
+const RESULT_FD = 3;
 const MAX_PAGES = Number(process.env.PDF_MAX_PAGES);
 const MAX_CHARS = Number(process.env.PDF_MAX_OUTPUT_CHARS);
 
+// The result goes out on fd 3, synchronously, and never on stdout.
+//
+// Two reasons, and the first one was a live defect. stdout to a pipe is
+// asynchronous on POSIX, so a single unflushed write followed by
+// process.exit() discards whatever the kernel had not yet accepted:
+// measured, every document over about 143 KB of extracted text arrived as
+// a truncated prefix, failed JSON.parse in the parent, and was recorded as
+// "The PDF reader stopped unexpectedly on this file". fs.writeSync returns
+// only once the bytes are handed over, so exiting immediately after is
+// safe.
+//
+// Second, stdout is shared with pdfjs. One console.log from the library --
+// pdf.mjs carries a dormant deprecation warning, and the worker binds
+// Emscripten's output to console.log -- would corrupt a whole-buffer
+// JSON.parse for every document. A private channel cannot be polluted by
+// a library that does not know it exists.
 function say(value) {
-  process.stdout.write(JSON.stringify(value));
+  const payload = Buffer.from(JSON.stringify(value), "utf8");
+  let written = 0;
+  while (written < payload.length) {
+    try {
+      written += fs.writeSync(RESULT_FD, payload, written);
+    } catch (error) {
+      // A pipe the parent has not drained yet reports EAGAIN. Retrying is
+      // correct: the parent is reading, and there is nothing else to do
+      // with the bytes.
+      if (error && (error.code === "EAGAIN" || error.code === "EINTR")) continue;
+      throw error;
+    }
+  }
 }
 
 async function readStdin() {
@@ -296,8 +327,8 @@ export interface PdfExtractDependencies {
    */
   maxPages?: number;
   maxOutputChars?: number;
-  /** The parent-side stdout bound, lowered by tests. */
-  maxStdoutBytes?: number;
+  /** The parent-side bound on the result channel, lowered by tests. */
+  maxResultBytes?: number;
   /**
    * The resolved pdfjs entry point. Tests point it at nothing to drive the
    * missing-parser path without uninstalling the package.
@@ -324,7 +355,7 @@ export async function extractPdfText(
   const program = dependencies.childProgram ?? CHILD_PROGRAM;
   const maxPages = dependencies.maxPages ?? PDF_MAX_PAGES;
   const maxOutputChars = dependencies.maxOutputChars ?? PDF_MAX_OUTPUT_CHARS;
-  const maxStdoutBytes = dependencies.maxStdoutBytes ?? PDF_MAX_STDOUT_BYTES;
+  const maxResultBytes = dependencies.maxResultBytes ?? PDF_MAX_RESULT_BYTES;
 
   // `in` rather than `??`: an explicit `null` means "there is no parser",
   // which is the case under test, and `??` would read it as "not supplied"
@@ -367,7 +398,8 @@ export async function extractPdfText(
         ],
         {
           cwd: childWorkingDirectory(),
-          stdio: ["pipe", "pipe", "pipe"],
+          // fd 3 is the result channel; see `say` in the child program.
+          stdio: ["pipe", "pipe", "pipe", "pipe"],
           env: {
             ...process.env,
             PDFJS_ENTRY_URL: pathToFileURL(pdfjsEntry).href,
@@ -398,29 +430,45 @@ export async function extractPdfText(
     }, timeoutMs);
     let timedOut = false;
 
-    let stdout = "";
-    let stdoutBytes = 0;
-    let stdoutOverflowed = false;
+    /**
+     * Buffers, decoded once at the end.
+     *
+     * Decoding each chunk as it arrives splits any multi-byte UTF-8
+     * sequence that straddles a 64 KiB boundary into two replacement
+     * characters — measured at 3 corruptions in a 30,000-character CJK
+     * document, and intermittent, because whether a boundary lands
+     * mid-character depends on where the JSON envelope pushed it. That
+     * mojibake would reach the stored chunk text, its digest, the tsvector
+     * and any excerpt sent to the model.
+     */
+    const resultChunks: Buffer[] = [];
+    let resultBytes = 0;
+    let resultOverflowed = false;
 
-    child.stdout?.on("data", (part: Buffer) => {
-      stdoutBytes += part.byteLength;
-      if (stdoutBytes > maxStdoutBytes) {
+    const resultStream = child.stdio[3] as NodeJS.ReadableStream | null;
+    resultStream?.on("data", (part: Buffer) => {
+      resultBytes += part.byteLength;
+      if (resultBytes > maxResultBytes) {
         // Our own bound, on the one input to this process we did not write.
-        stdoutOverflowed = true;
+        resultOverflowed = true;
         child.kill("SIGKILL");
         return;
       }
-      stdout += part.toString("utf8");
+      resultChunks.push(part);
     });
-    // Drained and discarded. pdfjs writes warnings here for ordinary
-    // documents, and an unread pipe that fills would block the child.
+    resultStream?.on("error", () => {});
+
+    // Both drained and discarded. pdfjs writes warnings to these for
+    // ordinary documents, and an unread pipe that fills would block the
+    // child. Nothing is parsed from them: the result has its own channel.
+    child.stdout?.on("data", () => {});
     child.stderr?.on("data", () => {});
 
     child.on("error", () => finish({ ok: false, failure: "crashed" }));
 
     child.on("close", (code, signal) => {
       if (timedOut) return finish({ ok: false, failure: "timeout" });
-      if (stdoutOverflowed) return finish({ ok: false, failure: "crashed" });
+      if (resultOverflowed) return finish({ ok: false, failure: "crashed" });
 
       /**
        * V8 aborts on heap exhaustion, which arrives as `SIGABRT` — and as
@@ -437,7 +485,7 @@ export async function extractPdfText(
 
       let parsed: unknown;
       try {
-        parsed = JSON.parse(stdout);
+        parsed = JSON.parse(Buffer.concat(resultChunks).toString("utf8"));
       } catch {
         return finish({ ok: false, failure: "crashed" });
       }
