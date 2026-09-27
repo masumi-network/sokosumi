@@ -4809,6 +4809,52 @@ model SokoBotEvaluationAllowance {
 // outputs, project documents, native tables, studio assets). The source stays
 // authoritative: nothing here grants access, and every read re-checks the
 // source. See docs/intelligent-files/implementation-plan.md.
+//
+// ## Removing this again
+//
+// Written here rather than in the migration SQL because an applied migration
+// must not be edited — Prisma checksums the file, and changing it makes
+// `migrate status` report drift on every database that already ran it. This
+// block is the place a person deleting these models is already looking.
+//
+// The catalog is derived and holds no source of truth. Every row can be
+// rebuilt by re-indexing from the canonical sources, so dropping it loses
+// derived state (extracted chunks, labels, job history, spend records) and no
+// user data. No pre-existing table is altered by any of the six Files
+// migrations: every column they add belongs to a table they created in the
+// same series, and the only references outward are foreign keys into
+// `workspace` and `project`. So the removal is a drop, not a down-migration.
+//
+// In one transaction, against the target database:
+//
+//   DROP TABLE IF EXISTS
+//     "file_index_artifact", "file_index_job", "file_field_override",
+//     "file_project_link", "file_label", "file_collection", "file_chunk",
+//     "file_version", "file_resource", "file_lineage", "workspace_label",
+//     "file_evidence_scope", "file_result_window",
+//     "file_authorization_admission" CASCADE;
+//
+//   DROP TYPE IF EXISTS
+//     "FileIndexArtifactState", "FileIndexJobState", "FileIndexJobPipeline",
+//     "FileFieldOverrideDecision", "FileMetadataState",
+//     "FileMetadataProvenance", "FileLabelKind", "FileExtractionState",
+//     "FileResourceLifecycle", "FileSourceScope", "FileSourceKind",
+//     "FileResultWindowKind";
+//
+//   DELETE FROM "_prisma_migrations" WHERE "migration_name" LIKE '202609271800%';
+//
+// Leave the `pg_trgm` extension in place. `20260927180001_file_catalog`
+// creates it with IF NOT EXISTS and other work may since have come to depend
+// on it; dropping it is the one step here that can break something outside
+// Files.
+//
+// Checked, not asserted: run against a database carrying the full migration
+// history, the block above drops 14 tables and 12 types, deletes exactly the
+// six `_prisma_migrations` rows, and leaves the other 144 tables and the
+// `pg_trgm` extension in place.
+//
+// Uploaded blobs are not touched by any of this. They live in object storage
+// under their own lifecycle, and rows here only point at them.
 // ---------------------------------------------------------------------------
 
 enum FileSourceKind {
