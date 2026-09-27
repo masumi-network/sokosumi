@@ -1,10 +1,14 @@
 import { createClient } from "@/lib/clients/generated/core/client";
+import { getNotificationsPushDevicesResponseTransformer } from "@/lib/clients/generated/core/transformers.gen";
 import type {
   GetNotificationsCountsErrors,
   GetNotificationsCountsResponse,
   GetNotificationsCountsResponses,
   GetNotificationsData,
   GetNotificationsErrors,
+  GetNotificationsPushDevicesErrors,
+  GetNotificationsPushDevicesResponse,
+  GetNotificationsPushDevicesResponses,
   GetNotificationsResponse,
   GetNotificationsResponses,
   PatchNotificationsByIdReadData,
@@ -15,6 +19,10 @@ import type {
   PatchNotificationsByIdUnreadErrors,
   PatchNotificationsByIdUnreadResponse,
   PatchNotificationsByIdUnreadResponses,
+  PatchNotificationsPushDevicesByIdBrowserData,
+  PatchNotificationsPushDevicesByIdBrowserErrors,
+  PatchNotificationsPushDevicesByIdBrowserResponse,
+  PatchNotificationsPushDevicesByIdBrowserResponses,
   PatchNotificationsReadAllErrors,
   PatchNotificationsReadAllResponse,
   PatchNotificationsReadAllResponses,
@@ -27,6 +35,8 @@ import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
 import { attachCoreRequestIdInterceptor } from "@/lib/clients/utils/core-request-id";
 import { executeCoreOperation } from "./core.request";
+
+const PUSH_DEVICE_METADATA_TIMEOUT_MS = 3000;
 
 let notificationsGeneratedClient: ReturnType<typeof createClient> | undefined;
 
@@ -77,6 +87,45 @@ async function transformNotificationItemResponse(data: unknown) {
 }
 
 export const notificationsBrowserClient = {
+  async updatePushDeviceBrowser(
+    path: PatchNotificationsPushDevicesByIdBrowserData["path"],
+    body: PatchNotificationsPushDevicesByIdBrowserData["body"],
+  ): Promise<PatchNotificationsPushDevicesByIdBrowserResponse> {
+    return executeCoreOperation(
+      getNotificationsGeneratedClient,
+      (client) =>
+        client.patch<
+          PatchNotificationsPushDevicesByIdBrowserResponses,
+          PatchNotificationsPushDevicesByIdBrowserErrors
+        >({
+          url: "/notifications/push-devices/{id}/browser",
+          path,
+          body,
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          signal: AbortSignal.timeout(PUSH_DEVICE_METADATA_TIMEOUT_MS),
+          responseTransformer: transformMetaTimestampResponse,
+        }),
+      "Failed to record push device browser details",
+    );
+  },
+
+  async getPushDevices(): Promise<GetNotificationsPushDevicesResponse> {
+    return executeCoreOperation(
+      getNotificationsGeneratedClient,
+      (client) =>
+        client.get<
+          GetNotificationsPushDevicesResponses,
+          GetNotificationsPushDevicesErrors
+        >({
+          url: "/notifications/push-devices",
+          cache: "no-store",
+          responseTransformer: getNotificationsPushDevicesResponseTransformer,
+        }),
+      "Failed to fetch push devices",
+    );
+  },
+
   async getNotifications(
     query?: GetNotificationsData["query"],
   ): Promise<GetNotificationsResponse> {

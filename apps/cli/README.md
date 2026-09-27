@@ -87,6 +87,7 @@ pnpm --filter @sokosumi/cli sokosumi -- tasks list --json
 pnpm --filter @sokosumi/cli sokosumi -- jobs list --json
 pnpm --filter @sokosumi/cli sokosumi -- jobs input JOB_ID --event-id EVENT_ID --input-json '{"answer":"yes"}' --json
 pnpm --filter @sokosumi/cli sokosumi -- auth login --json
+pnpm --filter @sokosumi/cli sokosumi -- --preprod auth whoami --json
 printf '%s\\n' "$SOKOSUMI_API_KEY" | pnpm --filter @sokosumi/cli sokosumi -- auth login --api-key-stdin --json
 SOKOSUMI_API_KEY=soko_preprod_... pnpm --filter @sokosumi/cli sokosumi -- auth status --json
 pnpm --filter @sokosumi/cli sokosumi -- auth logout
@@ -115,6 +116,12 @@ and `tasks comment` also accept command options for JSON fields. Use
 one-time token only in JSON mode.
 
 Use `jobs input JOB_ID --event-id EVENT_ID` with `--input-json` or `--input-file` to submit a pending job input request; the command also supports `--json`.
+
+[VERIFIED: `src/cli/auth-whoami.ts`, `src/cli/auth-status.ts`, `src/cli/auth-logout.ts`, `src/auth/auth-manager.ts:51-57`]
+After login, run `auth whoami` on the selected target to confirm the account email and platform role with Core.
+`auth status` reports authentication state. Before switching browser accounts, clear `SOKOSUMI_API_KEY` and `SOKOSUMI_AUTH_TOKEN` from the shell.
+These environment credentials override saved OAuth credentials. Sign in as the intended account in the browser.
+Then run CLI `auth login` and `auth whoami`. CLI `auth logout` clears local credentials; it does not switch the browser account.
 
 Target-coded user API keys select mainnet or preprod locally. Legacy keys need `--preprod` or `--api-url`. API keys never go in command arguments.
 

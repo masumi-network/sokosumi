@@ -4519,6 +4519,41 @@
         "kindFollowUp": "Reminders",
         "kindFollowUpHint": "One reminder a day later when you have not opened something that is waiting for you."
       },
+      "PushDevices": {
+        "registeredAt": "Registered {date}",
+        "registrationDateUnavailable": "Registration date unavailable",
+        "title": "Registered devices",
+        "description": "Push delivery also depends on each device’s browser permissions.",
+        "refresh": "Refresh",
+        "loading": "Loading devices…",
+        "error": "Unable to load devices. Try refreshing the list.",
+        "empty": "No registered devices found.",
+        "emptyHint": "Turn on push notifications in a browser to register it here.",
+        "thisDevice": "This device",
+        "deviceLabel": "{platform} ({formFactor})",
+        "browserLabel": "{browser} on {operatingSystem}",
+        "states": {
+          "failing": "Delivery problems",
+          "failed": "Delivery failed",
+          "unknown": "Status unknown"
+        },
+        "platforms": {
+          "browser": "Browser",
+          "ios": "iOS",
+          "android": "Android",
+          "unknown": "Device"
+        },
+        "formFactors": {
+          "desktop": "Desktop",
+          "phone": "Phone",
+          "tablet": "Tablet",
+          "tv": "TV",
+          "watch": "Watch",
+          "car": "Car",
+          "embedded": "Embedded device",
+          "other": "Other"
+        }
+      },
       "ChatDisplay": {
         "title": "Chat display",
         "roomUnreadCountTitle": "Show unread message counts",

@@ -4483,6 +4483,41 @@
         "kindFollowUp": "Erinnerungen",
         "kindFollowUpHint": "Eine Erinnerung einen Tag später, wenn du etwas nicht geöffnet hast, das auf dich wartet."
       },
+      "PushDevices": {
+        "registeredAt": "Registriert am {date}",
+        "registrationDateUnavailable": "Registrierungsdatum nicht verfügbar",
+        "title": "Registrierte Geräte",
+        "description": "Die Zustellung hängt auch von den Browser-Berechtigungen auf jedem Gerät ab.",
+        "refresh": "Aktualisieren",
+        "loading": "Geräte werden geladen…",
+        "error": "Geräte konnten nicht geladen werden. Versuche, die Liste zu aktualisieren.",
+        "empty": "Keine registrierten Geräte gefunden.",
+        "emptyHint": "Aktiviere Push-Benachrichtigungen in einem Browser, um ihn hier zu registrieren.",
+        "thisDevice": "Dieses Gerät",
+        "deviceLabel": "{platform} ({formFactor})",
+        "browserLabel": "{browser} auf {operatingSystem}",
+        "states": {
+          "failing": "Zustellprobleme",
+          "failed": "Zustellung fehlgeschlagen",
+          "unknown": "Status unbekannt"
+        },
+        "platforms": {
+          "browser": "Browser",
+          "ios": "iOS",
+          "android": "Android",
+          "unknown": "Gerät"
+        },
+        "formFactors": {
+          "desktop": "Computer",
+          "phone": "Telefon",
+          "tablet": "Tablet",
+          "tv": "Fernseher",
+          "watch": "Uhr",
+          "car": "Auto",
+          "embedded": "Eingebettetes Gerät",
+          "other": "Sonstiges"
+        }
+      },
       "ChatDisplay": {
         "title": "Chat-Anzeige",
         "roomUnreadCountTitle": "Anzahl ungelesener Nachrichten anzeigen",

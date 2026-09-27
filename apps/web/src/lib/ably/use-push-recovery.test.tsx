@@ -1,5 +1,8 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getPushDevicesQueryKey } from "@/queries/push-devices";
 
 import {
   rememberPushPreference,
@@ -18,6 +21,10 @@ vi.mock("./push-self-heal.client", () => ({
 }));
 
 const heal = vi.mocked(healPushSubscription);
+let queryClient: QueryClient;
+function wrapper({ children }: { children: ReactNode }) {
+  return createElement(QueryClientProvider, { client: queryClient }, children);
+}
 
 async function dispatchWindowEvent(type: string): Promise<void> {
   await act(async () => {
@@ -26,7 +33,18 @@ async function dispatchWindowEvent(type: string): Promise<void> {
 }
 
 describe("usePushRecovery", () => {
+  it("marks cached device lists stale after recovery", async () => {
+    const key = getPushDevicesQueryKey("reader");
+    queryClient.setQueryData(key, { devices: [] });
+    renderHook(() => usePushRecovery("reader"), { wrapper });
+    await act(async () => {});
+    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+  });
+
   beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     localStorage.clear();
     vi.useFakeTimers();
     vi.setSystemTime(0);
@@ -37,12 +55,13 @@ describe("usePushRecovery", () => {
 
   afterEach(() => {
     cleanup();
+    queryClient.clear();
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
   it("repairs on mount and throttles successful checks for one minute", async () => {
-    renderHook(() => usePushRecovery("reader"));
+    renderHook(() => usePushRecovery("reader"), { wrapper });
     await act(async () => {});
     expect(heal).toHaveBeenCalledExactlyOnceWith("reader");
 
@@ -60,7 +79,7 @@ describe("usePushRecovery", () => {
     "throttles failures briefly before retrying on %s",
     async (event) => {
       heal.mockResolvedValue(false);
-      renderHook(() => usePushRecovery("reader"));
+      renderHook(() => usePushRecovery("reader"), { wrapper });
       await act(async () => {});
 
       await dispatchWindowEvent(event);
@@ -73,7 +92,7 @@ describe("usePushRecovery", () => {
 
   it("retries a failed repair immediately when connectivity returns", async () => {
     heal.mockResolvedValue(false);
-    renderHook(() => usePushRecovery("reader"));
+    renderHook(() => usePushRecovery("reader"), { wrapper });
     await act(async () => {});
 
     await dispatchWindowEvent("online");
@@ -87,7 +106,7 @@ describe("usePushRecovery", () => {
         finish = resolve;
       }),
     );
-    renderHook(() => usePushRecovery("reader"));
+    renderHook(() => usePushRecovery("reader"), { wrapper });
 
     await dispatchWindowEvent("online");
     await dispatchWindowEvent("focus");
@@ -106,7 +125,9 @@ describe("usePushRecovery", () => {
           finish = resolve;
         }),
       );
-      const { unmount } = renderHook(() => usePushRecovery("reader"));
+      const { unmount } = renderHook(() => usePushRecovery("reader"), {
+        wrapper,
+      });
       await dispatchWindowEvent("online");
       if (outcome === "unmount") unmount();
       await act(async () => finish(outcome === "success"));
@@ -116,7 +137,7 @@ describe("usePushRecovery", () => {
 
   it("repairs only when a visibility change makes the document visible", async () => {
     heal.mockResolvedValue(false);
-    renderHook(() => usePushRecovery("reader"));
+    renderHook(() => usePushRecovery("reader"), { wrapper });
     await act(async () => {});
 
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
@@ -135,7 +156,9 @@ describe("usePushRecovery", () => {
 
   it("removes all event listeners on unmount", async () => {
     heal.mockResolvedValue(false);
-    const { unmount } = renderHook(() => usePushRecovery("reader"));
+    const { unmount } = renderHook(() => usePushRecovery("reader"), {
+      wrapper,
+    });
     await act(async () => {});
     unmount();
 
@@ -158,6 +181,7 @@ describe("usePushRecovery", () => {
     heal.mockResolvedValue(false);
     const { rerender } = renderHook(({ userId }) => usePushRecovery(userId), {
       initialProps: { userId: "previous" },
+      wrapper,
     });
 
     rerender({ userId: "current" });
@@ -177,7 +201,9 @@ describe("usePushRecovery", () => {
       return true;
     });
 
-    renderHook(() => usePushRecovery("reader", "new-session", 200));
+    renderHook(() => usePushRecovery("reader", "new-session", 200), {
+      wrapper,
+    });
     await act(async () => {});
     expect(heal).toHaveBeenCalledExactlyOnceWith("reader");
     expect(stateAtHeal).toHaveBeenCalledExactlyOnceWith(true, false);
@@ -203,7 +229,9 @@ describe("usePushRecovery", () => {
         return false;
       });
 
-      renderHook(() => usePushRecovery(userId, sessionId, createdAt));
+      renderHook(() => usePushRecovery(userId, sessionId, createdAt), {
+        wrapper,
+      });
       await act(async () => {});
       expect(heal).toHaveBeenCalledExactlyOnceWith(userId);
       expect(stateAtHeal).toHaveBeenCalledExactlyOnceWith(false, false, true);

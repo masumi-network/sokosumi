@@ -327,7 +327,13 @@ function NewsRow({ news }: { news: EmailChoice }) {
  * one in a cell asks the browser, and a browser that cannot show one says so
  * in a banner over the rows rather than in a row about the browser.
  */
-export function NotificationKinds({ news }: { news: EmailChoice }) {
+export function NotificationKinds({
+  news,
+  pushDevices,
+}: {
+  news: EmailChoice;
+  pushDevices?: ReactNode;
+}) {
   const t = useTranslations("App.Account.Notifications");
   const choices = useNotificationDelivery();
 
@@ -408,21 +414,24 @@ export function NotificationKinds({ news }: { news: EmailChoice }) {
           and offers to fix that; the other says one will, and offers to stop
           it. `device` is null whenever a block is set, so they cannot both
           stand. */}
-      {choices.pushBlock && choices.pushWanted ? (
-        <PushBanner
-          block={choices.pushBlock}
-          saving={choices.pushSaving}
-          onEnable={() => {
-            void choices.activatePush();
-          }}
-        />
-      ) : null}
-      {choices.device ? (
-        <DeviceBanner
-          saving={choices.device.saving}
-          onSilence={choices.device.onSilence}
-        />
-      ) : null}
+      <div className="space-y-1">
+        {choices.pushBlock && choices.pushWanted ? (
+          <PushBanner
+            block={choices.pushBlock}
+            saving={choices.pushSaving}
+            onEnable={() => {
+              void choices.activatePush();
+            }}
+          />
+        ) : null}
+        {choices.device ? (
+          <DeviceBanner
+            saving={choices.device.saving}
+            onSilence={choices.device.onSilence}
+          />
+        ) : null}
+        {pushDevices}
+      </div>
       {/* One open explanation for both boxes. A pointer sweeping down a
           column crosses the names of every head on it, and each legend
           holding its own would leave the one it came from standing. */}

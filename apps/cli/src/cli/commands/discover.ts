@@ -10,6 +10,7 @@ export const CLI_COMMANDS = [
   "discover",
   "auth login",
   "auth status",
+  "auth whoami",
   "auth logout",
   "agents list",
   "agents hire",
