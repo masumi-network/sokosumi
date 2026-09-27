@@ -812,7 +812,9 @@ it("blocks link navigation when a cell save goes unresolved after listeners inst
   fireEvent.change(cell, { target: { value: "Pending value" } });
   fireEvent.blur(cell);
   await waitFor(() => expect(f.batch).toHaveBeenCalledTimes(1));
-  const link = screen.getByLabelText("backToFiles");
+  // The back affordance is the labelled link the other detail pages use, so
+  // its accessible name comes from its own text rather than an `aria-label`.
+  const link = screen.getByRole("link", { name: "backToFiles" });
   const click = new MouseEvent("click", { bubbles: true, cancelable: true });
   link.dispatchEvent(click);
   await waitFor(() =>

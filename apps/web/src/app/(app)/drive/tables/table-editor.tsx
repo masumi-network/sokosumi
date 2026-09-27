@@ -355,26 +355,26 @@ function TableWorkspace({
   }
   return (
     <div className="flex min-w-0 flex-col gap-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className={TOOLBAR_ICON_CONTROL}
-          >
-            <Link href="/drive?view=tables" aria-label={t("backToFiles")}>
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
-          <div className="min-w-0">
-            <h1 className="truncate text-xl font-semibold">{table.title}</h1>
-            {table.description && (
-              <p className="text-muted-foreground max-w-2xl text-sm">
-                {table.description}
-              </p>
-            )}
-          </div>
+      {/* The same back affordance the project and task detail pages use: a
+      labelled link, not a bare arrow, and hidden on phones where the app
+      chrome already carries one. */}
+      <Link
+        href="/drive?view=tables"
+        className="text-muted-foreground hover:text-foreground hidden w-fit items-center gap-1.5 text-sm transition-colors md:inline-flex"
+      >
+        <ArrowLeft className="size-4" aria-hidden />
+        <span>{t("backToFiles")}</span>
+      </Link>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl leading-tight font-semibold tracking-tight">
+            {table.title}
+          </h1>
+          {table.description && (
+            <p className="text-muted-foreground mt-1 max-w-2xl text-sm">
+              {table.description}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button
