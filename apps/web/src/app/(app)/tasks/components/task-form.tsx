@@ -62,7 +62,7 @@ import {
   updateTask,
 } from "@/lib/actions/task/action";
 import { useSession } from "@/lib/auth/auth.client";
-import { TaskStatus, type TaskTagId } from "@/lib/clients/generated/core";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import type { Project } from "@/lib/clients/generated/core/types.gen";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -213,7 +213,6 @@ function getTaskFormStatusLabel(
 
 export interface TaskFormCreateInput {
   tagSuggestionReceipt?: string;
-  tagCorrections?: { add: TaskTagId[]; remove: TaskTagId[] };
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -658,12 +657,11 @@ export function TaskForm({
     name,
     description,
     workspaceKey: `${session?.user.id ?? ""}:${session?.session.activeOrganizationId ?? "personal"}`,
+    // Not gated on the wizard step: an offer or a deep-linked prompt fills the
+    // description on step 1, and classifying it there means tags are already on
+    // screen when the user reaches the editor.
     enabled:
-      mode === "create" &&
-      Boolean(session) &&
-      !createdTask &&
-      !isSubmitting &&
-      (!useWizard || step === 2),
+      mode === "create" && Boolean(session) && !createdTask && !isSubmitting,
   });
 
   const handleSave = useCallback(async () => {
@@ -722,9 +720,6 @@ export function TaskForm({
         const result = await createTaskHandler({
           ...(draftTags.tagSuggestionReceipt
             ? { tagSuggestionReceipt: draftTags.tagSuggestionReceipt }
-            : {}),
-          ...(draftTags.tagCorrections
-            ? { tagCorrections: draftTags.tagCorrections }
             : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
           description: trimmedDescription,
@@ -800,7 +795,6 @@ export function TaskForm({
     }
   }, [
     draftTags.tagSuggestionReceipt,
-    draftTags.tagCorrections,
     description,
     isSaveDisabled,
     mode,
