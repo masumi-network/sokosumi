@@ -16,20 +16,132 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
  * we asked for a different URL; this asserts that the URL we now ask for
  * returns the document instead of a web page.
  *
- * Doubly opt-in, because it needs a database *and* the public internet:
+ * ## Why this file provisions its own database
  *
- *   RUN_DATABASE_INTEGRATION_TESTS=true RUN_NETWORK_INTEGRATION_TESTS=true \
- *   DATABASE_URL=postgres://… pnpm --filter @sokosumi/core exec vitest run \
- *   src/services/source-import-github.postgres.test.ts
+ * `importPendingResultBlobs` is the cron's entry point and takes no scope: it
+ * selects **every** PENDING Blob and TaskFile in the database it is pointed
+ * at. Run against a database holding anyone else's pending work, it would
+ * import those rows too and write this file's mocked `blob.test` URLs over
+ * them.
  *
- * No credentials are used: both URLs are public, unauthenticated GETs.
+ * Neither an opt-in flag nor a preflight count is enough. A flag says "the
+ * operator meant to run DB tests", not "this database is disposable"; and a
+ * count is a moment in time — another writer can enqueue immediately after
+ * it, and the global worker would still pick that row up.
+ *
+ * So the suite does not share a database at all. It creates its own:
+ *
+ * 1. `FILES_IMPORT_TEST_DATABASE_URL` names a disposable, already-migrated
+ *    *template*. `DATABASE_URL` is never read, so enabling the other opt-in
+ *    Postgres suites cannot drag this one onto a shared database.
+ * 2. The operator must separately affirm
+ *    `FILES_IMPORT_TEST_DATABASE_DISPOSABLE=true`. No deployment, CI job or
+ *    `.env` sets that, so it cannot be satisfied by accident.
+ * 3. `beforeAll` issues `CREATE DATABASE ... TEMPLATE ...` and points
+ *    `DATABASE_URL` at the copy. The database is seconds old and its name
+ *    carries a fresh UUID, so no other process knows it exists, let alone
+ *    writes to it. Isolation therefore holds for the whole run, not at one
+ *    checkpoint.
+ * 4. `afterAll` disconnects and drops it. A database left by a crashed run
+ *    is inert and named `files_import_test_*`.
+ *
+ * The zero-pending assertion is kept as a cheap invariant: in a database
+ * this suite just created it should be trivially true, and if it ever is
+ * not, provisioning is broken and the unscoped worker is not safe to call.
+ *
+ * To run (the template must be disposable and yours):
+ *
+ *   FILES_IMPORT_TEST_DATABASE_URL=postgres://.../<migrated-template>  \
+ *   FILES_IMPORT_TEST_DATABASE_DISPOSABLE=true                         \
+ *   RUN_NETWORK_INTEGRATION_TESTS=true                                 \
+ *   pnpm --filter @sokosumi/core exec vitest run                       \
+ *     src/services/source-import-github.postgres.test.ts
+ *
+ * No credentials are used against GitHub: both URLs are public,
+ * unauthenticated GETs.
  */
 
-const databaseUrl = process.env.DATABASE_URL;
+const templateDatabaseUrl = process.env.FILES_IMPORT_TEST_DATABASE_URL;
 const enabled =
-  process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.RUN_NETWORK_INTEGRATION_TESTS === "true" &&
-  databaseUrl?.startsWith("postgres");
+  process.env.FILES_IMPORT_TEST_DATABASE_DISPOSABLE === "true" &&
+  Boolean(templateDatabaseUrl?.startsWith("postgres"));
+
+/** Name of the throwaway copy this run created, while it exists. */
+let provisionedDatabase: string | null = null;
+
+function maintenanceUrl(source: string): string {
+  const url = new URL(source);
+  url.pathname = "/postgres";
+  return url.toString();
+}
+
+/**
+ * Copy the template into a database nobody else knows about.
+ *
+ * `CREATE DATABASE ... TEMPLATE ...` is a single statement and yields a
+ * fully migrated, exclusively owned copy — which is what makes calling the
+ * unscoped worker safe. The maintenance connection is closed immediately;
+ * only Prisma talks to the copy afterwards.
+ */
+async function provisionIsolatedDatabase(source: string): Promise<string> {
+  const { Client } = await import("pg");
+
+  const template = decodeURIComponent(
+    new URL(source).pathname.replace(/^\//, ""),
+  );
+  const name = `files_import_test_${randomUUID().replace(/-/g, "")}`;
+
+  const admin = new Client({ connectionString: maintenanceUrl(source) });
+  await admin.connect();
+  try {
+    // Sweep copies a previous run failed to drop. Vitest skips `afterAll`
+    // when `beforeAll` throws, so an aborted run does leak one; the prefix
+    // is only ever produced here, so this cannot remove anything else.
+    const stale = await admin.query<{ datname: string }>(
+      "SELECT datname FROM pg_database WHERE datname LIKE 'files_import_test_%'",
+    );
+    for (const row of stale.rows) {
+      await admin.query(
+        `DROP DATABASE IF EXISTS "${row.datname}" WITH (FORCE)`,
+      );
+    }
+
+    // Identifiers cannot be bound as parameters. Both are quoted; the name
+    // is generated here and the template comes from the operator's own URL.
+    await admin.query(
+      `CREATE DATABASE "${name}" TEMPLATE "${template.replace(/"/g, '""')}"`,
+    );
+  } finally {
+    await admin.end();
+  }
+
+  const target = new URL(source);
+  target.pathname = `/${name}`;
+  process.env.DATABASE_URL = target.toString();
+  return name;
+}
+
+async function dropIsolatedDatabase(
+  source: string,
+  name: string,
+): Promise<void> {
+  const { Client } = await import("pg");
+  const admin = new Client({ connectionString: maintenanceUrl(source) });
+  await admin.connect();
+  try {
+    try {
+      await admin.query(`DROP DATABASE IF EXISTS "${name}"`);
+    } catch {
+      // Only if something is still attached. FORCE terminates those
+      // backends, which the plain drop above avoids so that a tidy run
+      // never has its own sockets killed underneath it.
+      await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+    }
+  } finally {
+    await admin.end();
+  }
+}
 
 /** The exact URL from the report: a page *about* a Markdown file. */
 const GITHUB_BLOB_PAGE =
@@ -40,6 +152,31 @@ const GITHUB_BLOB_PAGE =
 // the service past its configuration check. Set before the service is
 // imported, because `getEnv()` caches on first call.
 process.env.BLOB_READ_WRITE_TOKEN ??= "vercel_blob_rw_test_token";
+
+/**
+ * The suite uses its own Prisma client, not Core's singleton.
+ *
+ * Core builds its client around a `pg.Pool` it owns, and Prisma's
+ * `$disconnect()` deliberately does not close a supplied pool — so its
+ * sockets would still be attached to the throwaway database when the run
+ * ends, and dropping it would have to kill them. Passing a connection string
+ * instead makes Prisma own the pool, so disconnecting really closes it and
+ * the database drops cleanly. It also means this suite can never touch
+ * whatever database the singleton would have used.
+ */
+const prismaHolder = vi.hoisted(() => ({
+  client: null as { $disconnect: () => Promise<void> } | null,
+}));
+
+vi.mock("@/lib/db/prisma", async () => {
+  const { createPrismaClient } = await import("@sokosumi/database/client");
+  // By the time anything imports this, `beforeAll` has provisioned the copy
+  // and pointed DATABASE_URL at it.
+  prismaHolder.client ??= createPrismaClient(
+    process.env.DATABASE_URL as string,
+  ) as unknown as { $disconnect: () => Promise<void> };
+  return { default: prismaHolder.client };
+});
 
 interface CapturedUpload {
   pathname: string;
@@ -74,9 +211,46 @@ let userId = "";
 let workspaceId = "";
 let taskId = "";
 
+/**
+ * The blast radius of `importPendingResultBlobs` is exactly the set of
+ * PENDING rows. Refusing to run while any exist that this suite did not
+ * create is what makes the global selection safe here.
+ */
+export async function assertNoForeignPendingWork(
+  ownedTaskFileIds: readonly string[] = [],
+): Promise<void> {
+  const { default: prisma } = await import("@/lib/db/prisma");
+
+  const [pendingBlobs, pendingTaskFiles] = await Promise.all([
+    prisma.blob.count({ where: { status: "PENDING" } }),
+    prisma.taskFile.count({
+      where: { status: "PENDING", id: { notIn: [...ownedTaskFileIds] } },
+    }),
+  ]);
+
+  if (pendingBlobs > 0 || pendingTaskFiles > 0) {
+    throw new Error(
+      `Refusing to run: the target database holds pending import work this ` +
+        `suite did not create (${pendingBlobs} blob, ${pendingTaskFiles} task ` +
+        `file). importPendingResultBlobs has no scope and would import them ` +
+        `with mocked storage URLs. Point FILES_IMPORT_TEST_DATABASE_URL at a ` +
+        `disposable database.`,
+    );
+  }
+}
+
 describe.skipIf(!enabled)("GitHub-linked import against PostgreSQL", () => {
   beforeAll(async () => {
+    // Before Prisma is imported: its client is a singleton built from the
+    // environment on first import, so the copy must already exist and
+    // DATABASE_URL must already point at it.
+    provisionedDatabase = await provisionIsolatedDatabase(
+      templateDatabaseUrl as string,
+    );
+
     const { default: prisma } = await import("@/lib/db/prisma");
+
+    await assertNoForeignPendingWork();
 
     const user = await prisma.user.create({
       data: {
@@ -114,6 +288,46 @@ describe.skipIf(!enabled)("GitHub-linked import against PostgreSQL", () => {
     await prisma.task.deleteMany({ where: { id: taskId } });
     await prisma.workspace.deleteMany({ where: { id: workspaceId } });
     await prisma.user.deleteMany({ where: { id: userId } });
+
+    // A failure part-way through must not leave pending work behind.
+    await assertNoForeignPendingWork();
+
+    // The copy exists only for this run.
+    await prisma.$disconnect();
+    if (provisionedDatabase) {
+      await dropIsolatedDatabase(
+        templateDatabaseUrl as string,
+        provisionedDatabase,
+      );
+      provisionedDatabase = null;
+    }
+  });
+
+  it("refuses to run when the database holds pending work it does not own", async () => {
+    const { default: prisma } = await import("@/lib/db/prisma");
+
+    const foreign = await prisma.taskFile.create({
+      data: {
+        taskId,
+        name: "someone-elses-pending.pdf",
+        sourceUrl: "https://example.invalid/someone-elses-pending.pdf",
+        fileUrl: null,
+        status: "PENDING",
+        origin: "TASK_OUTPUT",
+      },
+      select: { id: true },
+    });
+
+    try {
+      await expect(assertNoForeignPendingWork()).rejects.toThrow(
+        /pending import work this suite did not create/,
+      );
+    } finally {
+      await prisma.taskFile.delete({ where: { id: foreign.id } });
+    }
+
+    // And it is quiet again once nothing foreign is pending.
+    await expect(assertNoForeignPendingWork()).resolves.toBeUndefined();
   });
 
   it("stores the Markdown file, not GitHub's page about it", async () => {
