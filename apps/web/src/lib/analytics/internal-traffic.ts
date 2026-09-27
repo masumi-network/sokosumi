@@ -30,6 +30,8 @@ export function syncInternalTraffic(search: string): boolean {
   const flag = new URLSearchParams(search).get(INTERNAL_TRAFFIC_PARAM);
   if (flag === "1") {
     writeInternalTrafficCookie("1", MAX_AGE_SECONDS);
+    // Honor this visit's explicit opt-out even if the browser rejects cookies.
+    return true;
   } else if (flag === "0") {
     writeInternalTrafficCookie("", 0);
   }

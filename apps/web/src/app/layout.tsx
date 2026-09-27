@@ -74,7 +74,7 @@ export default function RootLayout({
         <TelemetryBoundary>
           {/* Consent Mode (denied by default) MUST be set before GTM loads. */}
           {analyticsEnabled && <ConsentModeInit />}
-          {analyticsEnabled && <GoogleTags gtmId={gtmId} gaId={gaId} />}
+          <GoogleTags gtmId={gtmId} gaId={gaId} />
         </TelemetryBoundary>
       </Suspense>
       <body className="bg-background min-h-dvh max-w-dvw antialiased">

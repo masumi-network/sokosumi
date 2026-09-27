@@ -623,6 +623,32 @@ describe("getCheckoutSessionAnalytics ownership", () => {
     ).resolves.toMatchObject({ currency: "eur", value: 40 });
   });
 
+  it("excludes inclusive tax from revenue", async () => {
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_inclusive",
+      status: "complete",
+      payment_status: "paid",
+      currency: "eur",
+      metadata: { userId: "user_1" },
+      // Verified against Stripe TEST MODE: EUR 12 including 20% VAT.
+      amount_subtotal: 1200,
+      amount_total: 1200,
+      total_details: {
+        amount_discount: 0,
+        amount_tax: 200,
+        amount_shipping: 0,
+      },
+      line_items: { data: [] },
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics(
+        "cs_inclusive",
+        "user_1",
+      ),
+    ).resolves.toMatchObject({ value: 10 });
+  });
+
   it("returns zero value for a subscription trial that needs no payment", async () => {
     findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_user" });
     getCheckoutSessionMock.mockResolvedValue({
@@ -642,6 +668,47 @@ describe("getCheckoutSessionAnalytics ownership", () => {
       stripeBillingService.getCheckoutSessionAnalytics("cs_trial", "user_1"),
     ).resolves.toMatchObject({ sessionId: "cs_trial", value: 0 });
   });
+
+  it("subtracts shipping without subtracting its tax twice", async () => {
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_shipping",
+      status: "complete",
+      payment_status: "paid",
+      currency: "eur",
+      metadata: { userId: "user_1" },
+      amount_total: 1800,
+      total_details: { amount_tax: 300 },
+      shipping_cost: { amount_total: 600, amount_tax: 100 },
+      line_items: { data: [] },
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_shipping", "user_1"),
+    ).resolves.toMatchObject({ value: 10 });
+  });
+
+  it.each([
+    { amount_total: null, currency: "eur" },
+    { amount_total: 1200, currency: null },
+  ])(
+    "leaves revenue unknown when Stripe omits money fields: %j",
+    async (money) => {
+      getCheckoutSessionMock.mockResolvedValue({
+        id: "cs_unknown",
+        status: "complete",
+        payment_status: "paid",
+        metadata: { userId: "user_1" },
+        ...money,
+      });
+
+      await expect(
+        stripeBillingService.getCheckoutSessionAnalytics(
+          "cs_unknown",
+          "user_1",
+        ),
+      ).resolves.toMatchObject({ value: null });
+    },
+  );
 
   it("rejects a completed checkout whose payment has not cleared", async () => {
     findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_user" });

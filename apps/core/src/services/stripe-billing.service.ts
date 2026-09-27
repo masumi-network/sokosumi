@@ -112,18 +112,23 @@ export function stripeAmountToMajorUnits(
 }
 
 /**
- * Revenue for analytics, in major units: subtotal after discounts, excluding
+ * Revenue for analytics, in major units: total after discounts, excluding
  * tax and shipping. Null when Stripe did not report an amount or currency.
  */
 function getCheckoutSessionNetValue(
   session: Stripe.Checkout.Session,
 ): number | null {
-  if (session.amount_subtotal === null || !session.currency) {
+  if (session.amount_total === null || !session.currency) {
     return null;
   }
-  const discount = session.total_details?.amount_discount ?? 0;
+  const tax = session.total_details?.amount_tax ?? 0;
+  const shipping = session.shipping_cost
+    ? session.shipping_cost.amount_total - session.shipping_cost.amount_tax
+    : 0;
+  // Subtotal still includes inclusive tax. Total already accounts for discounts;
+  // subtract all tax and only net shipping so shipping tax is not removed twice.
   return stripeAmountToMajorUnits(
-    session.amount_subtotal - discount,
+    session.amount_total - tax - shipping,
     session.currency,
   );
 }

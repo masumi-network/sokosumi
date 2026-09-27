@@ -3022,7 +3022,7 @@ export type CheckoutSessionAnalytics = {
     sessionId: string;
     currency: string | null;
     /**
-     * Net revenue in major currency units (e.g. 49 for EUR 49.00): subtotal after discounts, excluding tax.
+     * Net revenue in major currency units (e.g. 49 for EUR 49.00): total after discounts, excluding tax and shipping.
      */
     value: number | null;
     items: Array<{

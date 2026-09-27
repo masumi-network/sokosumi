@@ -475,7 +475,6 @@ describe("BillingPage", () => {
       expect.objectContaining({
         coworkersPromise,
         headline: 'subscriptionTitle:{"plan":"Plans.pro.name"}',
-        returnPath: "/billing?tab=subscription",
         status: "success",
       }),
     );
@@ -571,7 +570,6 @@ describe("BillingPage", () => {
       expect.objectContaining({
         coworkersPromise,
         headline: 'subscriptionTitle:{"plan":"Plans.free.name"}',
-        returnPath: "/billing?tab=subscription",
         status: null,
       }),
     );

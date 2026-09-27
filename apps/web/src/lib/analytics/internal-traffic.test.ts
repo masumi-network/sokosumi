@@ -39,6 +39,13 @@ describe("internal traffic", () => {
     expect(isInternalTraffic()).toBe(false);
   });
 
+  it("honours an explicit opt-out even when cookies cannot persist", () => {
+    vi.spyOn(document, "cookie", "set").mockImplementation(() => {});
+
+    expect(syncInternalTraffic("?internal=1")).toBe(true);
+    expect(isInternalTraffic()).toBe(false);
+  });
+
   it("sets the cookie on ?internal=1 and clears it on ?internal=0", () => {
     expect(syncInternalTraffic("?internal=1")).toBe(true);
     expect(isInternalTraffic()).toBe(true);

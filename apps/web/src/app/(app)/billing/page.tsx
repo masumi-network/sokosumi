@@ -283,7 +283,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               `Plans.${getPlanTranslationKey(currentPlan)}.name`,
             ),
           })}
-          returnPath="/billing?tab=subscription"
           status={subscriptionStatus}
         />
         <SubscriptionCheckoutReturn sessionId={query.checkout_session_id} />
@@ -397,7 +396,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             `Plans.${getPlanTranslationKey(currentPlan)}.name`,
           ),
         })}
-        returnPath="/billing?tab=subscription"
         status={subscriptionStatus}
       />
       <SubscriptionCheckoutReturn sessionId={query.checkout_session_id} />

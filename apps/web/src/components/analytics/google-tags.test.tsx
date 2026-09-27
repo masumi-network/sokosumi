@@ -57,4 +57,14 @@ describe("GoogleTags", () => {
     expect(view.queryByTestId("gtm")).toBeNull();
     expect(view.queryByTestId("ga")).toBeNull();
   });
+
+  it("cleans the URL even when neither Google ID is configured", () => {
+    syncInternalTrafficMock.mockReturnValue(true);
+    window.history.replaceState(null, "", "/billing?internal=1&tab=credits");
+
+    const view = render(<GoogleTags />);
+
+    expect(window.location.search).toBe("?tab=credits");
+    expect(view.container).toBeEmptyDOMElement();
+  });
 });

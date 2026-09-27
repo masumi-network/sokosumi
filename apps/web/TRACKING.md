@@ -157,8 +157,9 @@ active yet), and it belongs to the caller (`metadata.userId`, or a Stripe
 customer of the user or one of their organizations). The event values come from
 Stripe, not the URL: `transaction_id` = Checkout Session id, `currency`, and
 `items` from the line items' products (the plan name for subscriptions; items
-carry no price). `value` is **net revenue in major units**: `amount_subtotal`
-minus discounts, **excluding tax**, converted with Stripe's minor-unit exponent
+carry no price). `value` is **net revenue in major units**: `amount_total`
+minus tax and tax-exclusive shipping (discounts are already applied), converted
+with Stripe's minor-unit exponent
 (EUR 4900 → 49, JPY 4900 → 4900, KWD 4900 → 4.9;
 `stripeAmountToMajorUnits` in Core). Stripe's special cases are honoured: UGX
 and ISK stay two-decimal in the API (UGX 4900 → 49) even though Stripe lists
@@ -178,7 +179,10 @@ push returned without throwing. That proves local dispatch, not that GA4
 received the hit (an ad blocker or network failure can still drop it). This
 means a tab switch or a reload of the return URL does not fire it again, while a
 purchase blocked by missing consent can still fire after a later grant on the
-same page or a reload. A different tab or browser could fire it again; GA4
+same page or a reload. Dismissing the subscription success modal removes only
+`status`; it preserves `checkout_session_id` and the current billing tab so a
+later consent decision can still dispatch the purchase. A different tab or
+browser could fire it again; GA4
 dedupes on `transaction_id`.
 
 - **Credits / coupons**: Core creates the session with
@@ -221,6 +225,10 @@ While the cookie is set the app loads neither GTM nor the standalone GA4 tag
 (`components/analytics/google-tags.tsx` wraps both mounts;
 `lib/analytics/internal-traffic.ts`). After handling the param the app removes
 `internal` from the visible URL with `history.replaceState`.
+An explicit `internal=1` also suppresses tags for the current page when the
+browser refuses cookie persistence. The cookie and URL cleanup run even on
+deployments without Google IDs configured.
+
 Consent Mode init and dataLayer pushes still run but go nowhere. Vercel
 Analytics / Speed Insights are unaffected. The flag is per browser, so set it
 once on each browser and device you use.

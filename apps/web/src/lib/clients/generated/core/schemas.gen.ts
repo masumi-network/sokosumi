@@ -10741,7 +10741,7 @@ export const CheckoutSessionAnalyticsSchema = {
                 'number',
                 'null'
             ],
-            description: 'Net revenue in major currency units (e.g. 49 for EUR 49.00): subtotal after discounts, excluding tax.',
+            description: 'Net revenue in major currency units (e.g. 49 for EUR 49.00): total after discounts, excluding tax and shipping.',
             example: 120
         },
         items: {
