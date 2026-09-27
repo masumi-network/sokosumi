@@ -16,6 +16,7 @@ import { NotificationKinds } from "./notification-kinds";
 
 interface NotificationPreferencesProps {
   marketingOptIn: boolean;
+  pushDevices?: ReactNode;
   /** A quieter card rendered under the grid, for settings that are not delivery. */
   children?: ReactNode;
 }
@@ -25,6 +26,7 @@ type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
 export function NotificationPreferences({
   marketingOptIn: initialMarketingOptIn,
   children,
+  pushDevices,
 }: NotificationPreferencesProps) {
   const t = useTranslations("App.Account.Notifications");
   const [marketingOptIn, setMarketingOptIn] = useState(initialMarketingOptIn);
@@ -95,6 +97,7 @@ export function NotificationPreferences({
             did nothing would look broken; dimmed and marked busy, it says
             why. */}
         <NotificationKinds
+          pushDevices={pushDevices}
           news={{
             enabled: marketingOptIn,
             saving: isSaving,
