@@ -93,7 +93,11 @@ export function TableCell({
         (event.target as HTMLElement).blur();
       }
     },
-    className: "min-w-40 border-0 bg-transparent px-2 shadow-none text-sm",
+    // `dark:bg-transparent` is for the Textarea branch: the shared Textarea
+    // carries `dark:bg-quinary`, so in dark mode a `long_text` cell painted a
+    // filled box while every other cell in the same row stayed transparent.
+    className:
+      "min-w-40 border-0 bg-transparent px-2 shadow-none text-sm dark:bg-transparent",
   };
   return (
     <div className="group/cell min-w-48">

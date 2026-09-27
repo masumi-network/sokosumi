@@ -872,6 +872,19 @@ it("F4: value cells and the row checkbox align to the top of an uneven row", () 
   expect(checkboxCell?.className).toContain("align-top");
 });
 
+it("F4b: a long-text cell is not the only filled cell in a dark row", () => {
+  // The shared Textarea carries `dark:bg-quinary`; the shared Input does not.
+  // Inside the grid that made a `long_text` cell paint a box while every
+  // other cell in the same row stayed transparent.
+  f.columns = [
+    { ...f.column, type: "long_text" as const, name: "Notes" },
+  ] as TableColumn[];
+  render(<TableEditor id={f.column.tableId} />);
+  expect(screen.getByRole("textbox", { name: "Notes" }).className).toContain(
+    "dark:bg-transparent",
+  );
+});
+
 it("F5: the back link to the Tables tab is present at every width", () => {
   // The app chrome's chevron and the breadcrumb both go to `/drive`, which
   // lands on Recents. This link is the only route back to the Tables tab, so
