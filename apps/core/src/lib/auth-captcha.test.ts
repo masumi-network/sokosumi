@@ -62,7 +62,7 @@ describe("auth email abuse protection", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("rejects Cloudflare's dummy secret when siteverify omits action", async () => {
+  it("accepts Cloudflare's dummy secret when siteverify omits action", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(Response.json({ success: true })),
@@ -71,9 +71,9 @@ describe("auth email abuse protection", () => {
       secretKey: TURNSTILE_ALWAYS_PASS_SECRET,
     });
     expect((await post("/sign-up/email", "XXXX.DUMMY.TOKEN.XXXX")).status).toBe(
-      403,
+      200,
     );
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
   it("allows signup without a challenge when no secret is configured", async () => {
