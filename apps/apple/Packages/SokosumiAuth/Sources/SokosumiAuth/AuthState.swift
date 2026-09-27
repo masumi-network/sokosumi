@@ -51,7 +51,7 @@ public final class AuthState: ObservableObject {
     )
   }
 
-  public init(
+  init(
     configuration: OAuthConfiguration?,
     store: any TokenStore,
     browser: any OAuthBrowser,

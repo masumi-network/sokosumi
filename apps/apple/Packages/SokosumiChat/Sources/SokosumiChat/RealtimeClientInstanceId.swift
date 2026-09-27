@@ -56,7 +56,7 @@ public final class MemoryRealtimeClientInstanceIdStore: RealtimeClientInstanceId
 
 /// Instance-id rule shared with Core (`ABLY_CLIENT_INSTANCE_ID_PATTERN`):
 /// opaque, 8–64 chars of letters, digits, `_` or `-`.
-public func isValidRealtimeClientInstanceId(_ id: String) -> Bool {
+func isValidRealtimeClientInstanceId(_ id: String) -> Bool {
   guard id.count >= 8, id.count <= 64 else { return false }
   return id.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "-") }
 }
