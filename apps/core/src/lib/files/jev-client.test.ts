@@ -272,6 +272,70 @@ describe("the ordinal it derives", () => {
     expect(outcome.reason).toBe("invalid-answers");
   });
 
+  it("accepts a reply that reports no token usage", async () => {
+    // The SDK types have `inputTokens` and `outputTokens` as
+    // `number | undefined`, while this schema required non-negative integers
+    // — so a Gateway that omitted them would fail the *whole* response and
+    // the evaluation would read as a provider failure. Our own outcome type
+    // is already `number | null`, and the daily spend cap already treats
+    // null as unknown rather than free, so missing usage maps to null.
+    fetchMock.mockResolvedValue(
+      reply(
+        { directly_answers: true, partly_answers: true, mentions: true },
+        { usage: {} },
+      ),
+    );
+
+    const outcome = await gatewayJevEvaluator.evaluate({
+      request,
+      rubric: "relevance",
+    });
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.score).toBe(3);
+    expect(outcome.inputTokens).toBeNull();
+    expect(outcome.outputTokens).toBeNull();
+  });
+
+  it("accepts a reply with no usage object at all", async () => {
+    fetchMock.mockResolvedValue(
+      rawReply(
+        {
+          directly_answers: { type: "boolean", probability: 0.9 },
+          partly_answers: { type: "boolean", probability: 0.9 },
+          mentions: { type: "boolean", probability: 0.9 },
+        },
+        { usage: undefined },
+      ),
+    );
+
+    const outcome = await gatewayJevEvaluator.evaluate({
+      request,
+      rubric: "relevance",
+    });
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.inputTokens).toBeNull();
+  });
+
+  it("still refuses a negative token count", async () => {
+    // Accepting *missing* usage is not accepting nonsense usage.
+    fetchMock.mockResolvedValue(
+      reply(
+        { directly_answers: true, partly_answers: true, mentions: true },
+        { usage: { inputTokens: -1, outputTokens: 3 } },
+      ),
+    );
+
+    const outcome = await gatewayJevEvaluator.evaluate({
+      request,
+      rubric: "relevance",
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.reason).toBe("invalid-response");
+  });
+
   it("refuses a malformed answer at the schema", async () => {
     fetchMock.mockResolvedValue(
       rawReply({

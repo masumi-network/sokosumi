@@ -173,10 +173,25 @@ export async function jevRouteAvailable(
   }
 }
 
-const usageSchema = z.object({
-  inputTokens: z.number().int().nonnegative(),
-  outputTokens: z.number().int().nonnegative(),
-});
+/**
+ * Token usage, which the provider may not report.
+ *
+ * The SDK's own type has both counts as `number | undefined`, and this schema
+ * required non-negative integers — so a Gateway that omitted them would fail
+ * the *whole* response and a successful evaluation would be recorded as a
+ * provider failure.
+ *
+ * Missing maps to null, which is not a new convention: the outcome type these
+ * feed is already `number | null`, and the daily spend cap already treats a
+ * null cost as unknown rather than as free. Accepting *missing* usage is not
+ * accepting nonsense usage — a negative count still fails.
+ */
+const usageSchema = z
+  .object({
+    inputTokens: z.number().int().nonnegative().nullish(),
+    outputTokens: z.number().int().nonnegative().nullish(),
+  })
+  .nullish();
 
 /**
  * What a `boolean` question actually answers with.
@@ -435,8 +450,8 @@ async function postEvaluation(input: {
 
 function metadataOf(parsed: z.infer<typeof resultSchema>) {
   return {
-    inputTokens: parsed.usage.inputTokens,
-    outputTokens: parsed.usage.outputTokens,
+    inputTokens: parsed.usage?.inputTokens ?? null,
+    outputTokens: parsed.usage?.outputTokens ?? null,
     costUsd: parsed.providerMetadata.gateway.cost ?? null,
     generationId: parsed.providerMetadata.gateway.generationId ?? null,
   };
