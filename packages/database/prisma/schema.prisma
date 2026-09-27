@@ -360,6 +360,9 @@ model CoworkerWorkspaceAccess {
 enum HistoryKind {
   TASK
   JOB
+  /// One generated image version. entityId is the ProjectImageAsset id, so the
+  /// row deep-links straight to the image rather than to its job.
+  IMAGE
 }
 
 model History {
