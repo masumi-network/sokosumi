@@ -562,12 +562,16 @@
   --foreground: hsla(0, 0%, 98%, 1);
   --card: var(--background);
   --card-foreground: hsla(0, 0%, 98%, 1);
-  --card-background: hsla(0, 0%, 9%, 1);
+  /* Raised tier. 9% cleared the old 4% page by 1.104:1; against the #121212
+     base it only reaches 1.045:1, so it moves to 11% for 1.111:1. --popover
+     and --sidebar hold the same value: one raised surface, one number. */
+  --card-background: hsla(0, 0%, 11%, 1);
   /* The hover moves towards the page to separate the row from its card.
      The earlier 50% text value required this darker fill for contrast.
      Muted text now uses 72% so it also remains readable on lighter control
-     surfaces. Keep the existing darker hover direction on cards. */
-  --card-background-hover: hsla(0, 0%, 6%, 1);
+     surfaces. Keep the existing darker hover direction on cards. Tracks the
+     card up: 8% under an 11% card is 1.072:1, the 1.069:1 it held at 6%. */
+  --card-background-hover: hsla(0, 0%, 8%, 1);
   /* See the light block. The scrims do not change: they sit over media. */
   --overlay: color-mix(in srgb, var(--background) 50%, transparent);
   /* Same wash, more alpha: the dark primary is a lighter purple and
@@ -586,8 +590,10 @@
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
   --on-media-quaternary: hsla(0, 0%, 100%, 0.1);
-  --background-muted: hsla(0, 0%, 4%, 0.58);
-  --popover: hsla(330, 0%, 9%, 1);
+  /* The page-side twin of --muted-foreground, so it follows the page. It was
+     left on the literal old 4% base when #5267 moved --background. */
+  --background-muted: color-mix(in srgb, var(--background) 58%, transparent);
+  --popover: hsla(0, 0%, 11%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
   /* Dark keeps the hue and the saturation and lifts the lightness to 48%.
      #2B5C78 itself measures 2.74:1 on the dark page, under both the 4.5 text
@@ -617,13 +623,17 @@
   --quaternary: hsla(0, 0.0%, 28.4%, 1);
   --quinary: hsla(0, 0.0%, 17.2%, 1);
   --senary: hsla(0, 0.0%, 8.8%, 1);
-  --muted: hsla(0, 0%, 15%, 1);
+  /* Interaction wash. 15% held 1.308:1 over the old 4% page; 17% holds
+     1.323:1 over #121212. Muted text on it stays at 7.14:1. */
+  --muted: hsla(0, 0%, 17%, 1);
   --muted-foreground: hsla(0, 0.0%, 72.0%, 1);
-  /* 3.45 on --card and 3.12 on --card-background. --tertiary at 41.6% lands
-     within a step of this in dark; it is light mode the two disagree about. */
-  --disabled-foreground: hsla(0, 0.0%, 40.0%, 1);
+  /* 3.41 on --card and 3.10 on --card-background. Nudged 40% -> 41% so it
+     holds that 3.10 now the raised tier sits at 11%; at 40% it fell to 2.97.
+     --tertiary at 41.6% lands within a step of this in dark; it is light
+     mode the two disagree about. */
+  --disabled-foreground: hsla(0, 0.0%, 41.0%, 1);
   --scrollbar-thumb: hsla(0, 0%, 40%, 1);
-  --accent: hsla(0, 0%, 15%, 1);
+  --accent: hsla(0, 0%, 17%, 1);
   --accent-foreground: hsla(0, 0%, 98%, 1);
   --destructive: hsla(0, 84%, 60%, 1);
   --destructive-foreground: hsla(0, 86%, 97%, 1);
@@ -657,7 +667,7 @@
      1.099:1, so the seam reads as it did before the base moved. */
   --sidebar: hsla(0, 0%, 11%, 1);
   --sidebar-foreground: hsla(0, 0%, 98%, 1);
-  --sidebar-accent: hsla(0, 0%, 15%, 1);
+  --sidebar-accent: hsla(0, 0%, 17%, 1);
   --sidebar-accent-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-border: hsla(0, 0.0%, 20.4%, 1);
   --sidebar-ring: hsla(300, 0%, 45%, 1);
@@ -665,9 +675,12 @@
   /* Semantic */
   --semantic-destructive: hsla(0, 84%, 60%, 1);
   /* The fill under a destructive label. Dialled against the near-white
-     --semantic-destructive-foreground: 5.40 on the label, 3.32 against the
-     page and 3.01 against the card, so the button's own edge still reads. */
-  --semantic-destructive-solid: hsla(0, 74.0%, 44.0%, 1);
+     --semantic-destructive-foreground: 5.05 on the label, 3.36 against the
+     page and 3.06 against the card, so the button's own edge still reads.
+     Lifted 44% -> 46% with the raised tier: the card it has to clear moved
+     to 11%, which took the old 44% down to 2.85 and under the 3:1 floor
+     that status-marker.test.tsx holds the fault mark to. */
+  --semantic-destructive-solid: hsla(0, 74.0%, 46.0%, 1);
   --semantic-destructive-tertiary: hsla(0, 50.9%, 26.4%, 1);
   /* Darkened from 18.6% lightness. At 18.6% the step travelled 10.43 OKLab
      dE from the popover surface, far enough that a hover over it read as
