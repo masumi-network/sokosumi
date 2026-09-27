@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
 import {
   loadTaskEdit,
   TaskEditView,
@@ -16,5 +17,14 @@ export default async function EditTaskPage({
 }) {
   const { taskId } = await params;
   const result = await loadTaskEdit(taskId);
-  return <TaskEditView result={result} />;
+  return (
+    <>
+      {result.kind === "edit" ? (
+        <ProjectScopeMarker
+          projectId={result.initialValues.projectId ?? null}
+        />
+      ) : null}
+      <TaskEditView result={result} />
+    </>
+  );
 }

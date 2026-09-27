@@ -52,6 +52,7 @@ vi.mock("@/helpers/subscription", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
+    sokoBotNudge: { findMany: vi.fn().mockResolvedValue([]) },
     agent: { count: agentCountMock, findMany: agentFindManyMock },
     coworker: { count: coworkerCountMock, findMany: coworkerFindManyMock },
     creditCost: { findMany: creditCostFindManyMock },
@@ -276,6 +277,36 @@ afterEach(() => {
 });
 
 describe("ContextPacketBuilder", () => {
+  it("prioritizes exact referents while retaining recent related tasks within the cap", async () => {
+    taskFindManyMock
+      .mockResolvedValueOnce([task("referenced")])
+      .mockResolvedValueOnce([
+        task("referenced"),
+        ...Array.from({ length: 24 }, (_, i) => task(`recent-${i}`)),
+      ]);
+    taskCountMock.mockResolvedValue(25);
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      referencedTaskIds: ["referenced"],
+      audience: "TEAMMATE",
+    });
+    expect(result.packet.tasks).toHaveLength(24);
+    expect(result.packet.tasks[0].id).toBe("referenced");
+    expect(result.packet.tasks.some((task) => task.id === "recent-0")).toBe(
+      true,
+    );
+    expect(taskFindManyMock).toHaveBeenCalledTimes(2);
+    for (const [query] of taskFindManyMock.mock.calls)
+      expect(query.where).toEqual(
+        expect.objectContaining({
+          workspaceId: buildInput().workspaceId,
+          archivedAt: null,
+          visibility: "PUBLIC",
+        }),
+      );
+    expect(taskFindManyMock.mock.calls[1][0].where.id).toBeUndefined();
+  });
+
   it("adds bounded operational, availability, pricing, input, and billing context", async () => {
     const blocker = {
       id: "blocker-1",
@@ -745,5 +776,34 @@ describe("ContextPacketBuilder", () => {
 
     expect(result.packet.memory.version).toBe(3);
     expect(result.packet.recentTurns).toHaveLength(1);
+  });
+  it("scopes pending offers and conversation history to the current room and requester", async () => {
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      roomId: "room-one",
+      askedByUserId: "user-1",
+    });
+    expect(recentTurnFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          chatMention: { message: { roomId: "room-one" } },
+        }),
+      }),
+    );
+    expect(pendingDecisionFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          sokoBotId: buildInput().sokoBotId,
+          expiresAt: { gt: expect.any(Date) },
+          turn: expect.objectContaining({
+            chatMention: { message: { roomId: "room-one" } },
+          }),
+        }),
+      }),
+    );
+    expect(result.packet.sourceCoverage?.mail.availability).toBe("NOT_FETCHED");
+    expect(result.packet.sourceCoverage?.calendar.availability).toBe(
+      "NOT_FETCHED",
+    );
   });
 });

@@ -82,6 +82,7 @@ export async function dispatchTaskNotification(
   eventId: string,
   status: string,
   actorUserId: string | null,
+  options: { throwOnError?: boolean } = {},
 ): Promise<void> {
   try {
     let messageKey: string;
@@ -178,6 +179,7 @@ export async function dispatchTaskNotification(
       ...(task.workspaceId ? { workspaceId: task.workspaceId } : {}),
     });
   } catch (error) {
+    if (options.throwOnError) throw error;
     Sentry.captureException(error, {
       extra: {
         taskId: task.id,
@@ -200,6 +202,7 @@ export async function notifyTaskStatusEvent(
   eventId: string,
   status: string,
   actorUserId: string | null = null,
+  options: { throwOnError?: boolean } = {},
 ): Promise<void> {
   try {
     const taskWithRelations = await prisma.task.findUnique({
@@ -235,9 +238,11 @@ export async function notifyTaskStatusEvent(
         eventId,
         status,
         actorUserId,
+        options,
       );
     }
   } catch (error) {
+    if (options.throwOnError) throw error;
     Sentry.captureException(error, {
       extra: {
         taskId,

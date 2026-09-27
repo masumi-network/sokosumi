@@ -116,34 +116,34 @@ func aggregateChatPresence(
 /// presence must not emit Ably messages; activity refreshes `lastActiveAt`
 /// on a throttle just inside the online window; visibility changes, entering
 /// and reconnects force an immediate publish.
-public struct OrgPresencePublisherState: Equatable, Sendable {
-  public private(set) var lastActiveAt: Date
-  public private(set) var visible: Bool
-  public private(set) var lastPublished: ChatPresenceMemberData?
-  public private(set) var lastPublishedAt: Date?
+struct OrgPresencePublisherState: Equatable, Sendable {
+  private(set) var lastActiveAt: Date
+  private(set) var visible: Bool
+  private(set) var lastPublished: ChatPresenceMemberData?
+  private(set) var lastPublishedAt: Date?
 
-  public init(now: Date = Date(), visible: Bool = true) {
+  init(now: Date = Date(), visible: Bool = true) {
     lastActiveAt = now
     self.visible = visible
   }
 
-  public mutating func recordActivity(now: Date = Date()) {
+  mutating func recordActivity(now: Date = Date()) {
     lastActiveAt = now
   }
 
   /// Becoming visible counts as activity, like web's `visibilitychange`.
-  public mutating func setVisible(_ visible: Bool, now: Date = Date()) {
+  mutating func setVisible(_ visible: Bool, now: Date = Date()) {
     self.visible = visible
     if visible {
       lastActiveAt = now
     }
   }
 
-  public var data: ChatPresenceMemberData {
+  var data: ChatPresenceMemberData {
     ChatPresenceMemberData(lastActiveAt: lastActiveAt, visible: visible)
   }
 
-  public func shouldPublish(force: Bool, now: Date = Date(), minInterval: TimeInterval = 4 * 60) -> Bool {
+  func shouldPublish(force: Bool, now: Date = Date(), minInterval: TimeInterval = 4 * 60) -> Bool {
     guard !force, let lastPublished, let lastPublishedAt else { return true }
     let next = data
     if next.visible != lastPublished.visible {
@@ -155,21 +155,21 @@ public struct OrgPresencePublisherState: Equatable, Sendable {
     return now.timeIntervalSince(lastPublishedAt) >= minInterval
   }
 
-  public mutating func markPublished(_ data: ChatPresenceMemberData, now: Date = Date()) {
+  mutating func markPublished(_ data: ChatPresenceMemberData, now: Date = Date()) {
     lastPublished = data
     lastPublishedAt = now
   }
 
   /// Forget what was published so the next attempt is unconditional (org
   /// switch, reconnect).
-  public mutating func resetPublication() {
+  mutating func resetPublication() {
     lastPublished = nil
     lastPublishedAt = nil
   }
 
   /// Local self-approximation for the account chrome, like web's
   /// `useSelfPresence`: unreachable → offline; hidden or idle → afk.
-  public func selfPresence(connected: Bool, now: Date = Date(), onlineWindow: TimeInterval = 5 * 60) -> Components.Schemas.ChatRoomPresence {
+  func selfPresence(connected: Bool, now: Date = Date(), onlineWindow: TimeInterval = 5 * 60) -> Components.Schemas.ChatRoomPresence {
     guard connected else { return .offline }
     guard visible, now.timeIntervalSince(lastActiveAt) <= onlineWindow else { return .afk }
     return .online

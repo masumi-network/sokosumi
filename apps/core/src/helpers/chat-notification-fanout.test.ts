@@ -661,6 +661,16 @@ describe("fanOutChatNotifications", () => {
    * One reader's failed write must not cost the others theirs, so the loop
    * reports and continues.
    */
+  it("propagates a failed durable handoff so bot delivery retries", async () => {
+    const failure = new Error("notification queue unavailable");
+    createNotificationMock.mockRejectedValueOnce(failure);
+    await expect(
+      fanOutChatNotifications(
+        params({ recipientUserIds: [ALICE_ID], throwOnError: true }),
+      ),
+    ).rejects.toBe(failure);
+  });
+
   it("reports a failed write and still notifies the rest", async () => {
     const failure = new Error("write failed");
     createNotificationMock

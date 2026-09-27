@@ -13,7 +13,6 @@ import { TaskSchedulesView } from "./task-schedules-view";
 const {
   changeTaskScheduleStateMock,
   loadMoreTaskSchedulesMock,
-  projectSwitcherMock,
   replaceMock,
   searchParamsRef,
   scheduleDialogMock,
@@ -21,7 +20,6 @@ const {
 } = vi.hoisted(() => ({
   changeTaskScheduleStateMock: vi.fn().mockResolvedValue({ ok: true }),
   loadMoreTaskSchedulesMock: vi.fn(),
-  projectSwitcherMock: vi.fn(),
   replaceMock: vi.fn(),
   searchParamsRef: { current: new URLSearchParams() },
   scheduleDialogMock: vi.fn(),
@@ -38,13 +36,6 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock, refresh: vi.fn() }),
   usePathname: () => "/schedules",
   useSearchParams: () => searchParamsRef.current,
-}));
-
-vi.mock("./tasks-project-switcher", () => ({
-  TasksProjectSwitcher: (props: unknown) => {
-    projectSwitcherMock(props);
-    return null;
-  },
 }));
 
 vi.mock("./task-schedule-dialog", () => ({
@@ -407,14 +398,5 @@ describe("TaskSchedulesView", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("loadMoreError");
     expect(loadWhenVisibleMock.mock.calls.at(-1)?.[0].armed).toBe(false);
-  });
-
-  it("scopes the project switcher to the selected project", () => {
-    const projectId = "33333333-3333-4333-8333-333333333333";
-    renderView([], { projectId });
-
-    expect(projectSwitcherMock).toHaveBeenCalledWith(
-      expect.objectContaining({ selectedProjectId: projectId }),
-    );
   });
 });

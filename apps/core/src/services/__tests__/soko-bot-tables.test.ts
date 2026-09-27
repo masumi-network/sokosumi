@@ -9,9 +9,16 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   batch: vi.fn(),
   list: vi.fn(),
+  child: vi.fn(),
+  update: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    sokoBotToolCall: {
+      upsert: mocks.child,
+      update: mocks.update,
+      count: vi.fn().mockResolvedValue(1),
+    },
     workspace: { findUniqueOrThrow: mocks.workspace },
     sokoBotTurn: { findUnique: mocks.turn },
   },
@@ -26,6 +33,7 @@ vi.mock("@/helpers/data-table", () => ({
   mutateDataTable: vi.fn(),
 }));
 
+import prisma from "@/lib/db/prisma";
 import { SokoBotRuntimeService } from "../soko-bot-runtime.service";
 
 const userId = randomUUID();
@@ -58,7 +66,12 @@ const authorized: AuthorizedSokoBotRuntime = {
     contextSnapshotId: randomUUID(),
     memoryRevisionId: null,
     memoryVersion: 0,
-    capabilities: ["create_table", "write_table_rows"],
+    capabilities: [
+      "create_table",
+      "write_table_rows",
+      "post_chat",
+      "reply_to_task",
+    ],
     issuedAt: 0,
     expiresAt: 9999999999,
   },
@@ -72,6 +85,15 @@ describe("Soko Bot table dispatch", () => {
       organizationId: null,
     });
     mocks.actor.mockResolvedValue(actor);
+    mocks.child.mockImplementation(async ({ create }) => ({
+      id: randomUUID(),
+      ...create,
+    }));
+    mocks.update.mockImplementation(async ({ data }) => ({
+      id: randomUUID(),
+      capability: "create_table",
+      ...data,
+    }));
     mocks.turn.mockResolvedValue({
       chatMention: { message: { roomId: "room-test" } },
     });
@@ -79,19 +101,42 @@ describe("Soko Bot table dispatch", () => {
   function service() {
     const service = new SokoBotRuntimeService();
     vi.spyOn(service, "authorize").mockResolvedValue(authorized);
+    service["requireMutationAuthority"] = vi
+      .fn()
+      .mockResolvedValue({ id: workspaceId, organizationId: null });
     return service;
   }
-  it("publishes the live table link immediately through the existing chat path", async () => {
+  it("stages the live table link through the existing receipt-backed chat path", async () => {
     const runtime = service();
     const post = vi.fn<SokoBotRuntimeService["postChat"]>().mockResolvedValue({
       messageId: "message",
       roomId: "room-test",
-      postedAt: new Date().toISOString(),
-      summoned: 0,
+      queuedAt: new Date().toISOString(),
+      queuedMentions: 0,
+      deliveryStatus: "QUEUED",
     });
     runtime["postChat"] = post;
     const table = { id: randomUUID(), title: "Company research" };
-    mocks.create.mockResolvedValue(table);
+    mocks.create.mockImplementation(async (_actor, _input, complete) => {
+      await complete(prisma, {
+        tableId: table.id,
+        result: {
+          ...table,
+          workspaceId,
+          projectId: null,
+          description: "",
+          createdBy: sokoBotId,
+          version: 1,
+          archivedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          columns: [],
+          views: [],
+        },
+        replayed: false,
+      });
+      return table;
+    });
     const body = {
       key: randomUUID(),
       title: table.title,
@@ -118,14 +163,17 @@ describe("Soko Bot table dispatch", () => {
     expect(mocks.create).toHaveBeenCalledWith(
       expect.objectContaining(actor),
       expect.objectContaining({ key: body.key, title: body.title }),
+      expect.any(Function),
     );
     expect(post).toHaveBeenCalledWith(
       authorized,
       {
         roomId: "room-test",
         content: `[Company research](/drive/tables/${table.id})`,
+        toolCallId: "create:table-link:chat",
+        publicationId: expect.any(String),
       },
-      { id: expect.any(String) },
+      prisma,
     );
     expect(result).toMatchObject({ table, url: `/drive/tables/${table.id}` });
   });
@@ -134,12 +182,32 @@ describe("Soko Bot table dispatch", () => {
     const post = vi.fn<SokoBotRuntimeService["postChat"]>().mockResolvedValue({
       messageId: "message",
       roomId: "room-test",
-      postedAt: new Date().toISOString(),
-      summoned: 0,
+      queuedAt: new Date().toISOString(),
+      queuedMentions: 0,
+      deliveryStatus: "QUEUED",
     });
     runtime["postChat"] = post;
     const table = { id: randomUUID(), title: "Research" };
-    mocks.create.mockResolvedValue(table);
+    mocks.create.mockImplementation(async (_actor, _input, complete) => {
+      await complete(prisma, {
+        tableId: table.id,
+        result: {
+          ...table,
+          workspaceId,
+          projectId: null,
+          description: "",
+          createdBy: sokoBotId,
+          version: 1,
+          archivedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          columns: [],
+          views: [],
+        },
+        replayed: false,
+      });
+      return table;
+    });
     const body = {
       key: randomUUID(),
       title: table.title,
@@ -158,8 +226,76 @@ describe("Soko Bot table dispatch", () => {
       body.key,
     ]);
     expect(post).toHaveBeenCalledTimes(2);
-    expect(post.mock.calls[0][2]).toEqual(post.mock.calls[1][2]);
+    expect(post.mock.calls[0][1].publicationId).toEqual(
+      post.mock.calls[1][1].publicationId,
+    );
   });
+  it.each(["grant", "stored permission", "child collision"])(
+    "rejects unsafe link publication: %s",
+    async (failure) => {
+      const runtime = service();
+      const tableId = randomUUID();
+      const body = {
+        key: randomUUID(),
+        title: "Scoped table",
+        columns: [{ name: "Name", type: "text" }],
+      };
+      if (failure === "grant")
+        vi.mocked(runtime.authorize).mockResolvedValue({
+          ...authorized,
+          grant: { ...authorized.grant, capabilities: ["create_table"] },
+        });
+      if (failure === "stored permission")
+        runtime["requireMutationAuthority"] = vi
+          .fn()
+          .mockImplementation(async (_tx, _auth, _approved, capability) => {
+            if (capability === "post_chat")
+              throw new Error("Post permission revoked");
+            return { id: workspaceId, organizationId: null };
+          });
+      if (failure === "child collision")
+        mocks.child.mockResolvedValue({
+          id: randomUUID(),
+          capability: "archive_task",
+          inputHash: "different",
+          status: "COMPLETED",
+        });
+      const post = vi.fn<SokoBotRuntimeService["postChat"]>();
+      runtime["postChat"] = post;
+      mocks.create.mockImplementation(async (_actor, _input, complete) => {
+        await complete(prisma, {
+          tableId,
+          result: {
+            id: tableId,
+            title: "Scoped table",
+            workspaceId,
+            projectId: null,
+            description: "",
+            createdBy: sokoBotId,
+            version: 1,
+            archivedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            columns: [],
+            views: [],
+          },
+          replayed: false,
+        });
+      });
+      await expect(
+        runtime["executeAuthorizedTool"]({
+          sessionId,
+          turnId,
+          toolCallId: "create",
+          capability: "create_table",
+          input: body,
+        }),
+      ).rejects.toThrow();
+      expect(post).not.toHaveBeenCalled();
+      expect(mocks.update).not.toHaveBeenCalled();
+    },
+  );
+
   it("passes task scope and selected cell versions to durable writes", async () => {
     const runtime = service();
     const tableId = randomUUID();
@@ -190,6 +326,7 @@ describe("Soko Bot table dispatch", () => {
       { ...actor, taskId, ownerChat: true },
       tableId,
       expect.objectContaining({ key: body.key, patch: body.patch }),
+      expect.any(Function),
     );
   });
   it("rejects unattended creation without assigned task context", async () => {
@@ -226,11 +363,32 @@ describe("Soko Bot table dispatch", () => {
         name: "Research",
         status: "RUNNING",
         commented: true,
+        eventId: randomUUID(),
+        statusChanged: false,
       });
     runtime["replyToTask"] = reply;
     mocks.turn.mockResolvedValue({ chatMention: null });
     const table = { id: randomUUID(), title: "Task research" };
-    mocks.create.mockResolvedValue(table);
+    mocks.create.mockImplementation(async (_actor, _input, complete) => {
+      await complete(prisma, {
+        tableId: table.id,
+        result: {
+          ...table,
+          workspaceId,
+          projectId: null,
+          description: "",
+          createdBy: sokoBotId,
+          version: 1,
+          archivedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          columns: [],
+          views: [],
+        },
+        replayed: false,
+      });
+      return table;
+    });
     const body = {
       key: randomUUID(),
       taskId: "assigned-task",
@@ -248,6 +406,7 @@ describe("Soko Bot table dispatch", () => {
     expect(mocks.create).toHaveBeenCalledWith(
       { ...actor, taskId: body.taskId, ownerChat: false },
       expect.objectContaining({ key: body.key }),
+      expect.any(Function),
     );
     expect(reply).toHaveBeenCalledTimes(2);
     expect(reply.mock.calls[0][3]).toEqual(reply.mock.calls[1][3]);
@@ -259,8 +418,8 @@ describe("Soko Bot table dispatch", () => {
         taskId: body.taskId,
         comment: `[Open table](/drive/tables/${table.id})`,
       },
-      "task-create-0:table-link",
-      { id: expect.any(String) },
+      "task-create-0:table-link:task",
+      { transaction: prisma, publicationId: expect.any(String) },
     );
   });
   it.each(["list_tables", "read_table"] as const)(

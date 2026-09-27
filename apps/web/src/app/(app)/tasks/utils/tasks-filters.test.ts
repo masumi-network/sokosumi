@@ -8,7 +8,6 @@ import {
   hasActiveTasksFilters,
   isTaskDraggableForViewFilters,
   isTaskOwnerEditable,
-  mergeProjectFilterOptions,
   parseTasksFilters,
   sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
@@ -485,20 +484,6 @@ describe("tasks-filters", () => {
       const cleared = applyProjectIdSearchParam(withProject, null);
       expect(cleared.get("projectId")).toBeNull();
       expect(cleared.get("status")).toBe("READY");
-    });
-  });
-
-  describe("mergeProjectFilterOptions", () => {
-    it("keeps server options first and appends unseen created projects", () => {
-      expect(
-        mergeProjectFilterOptions(projectOptions, [
-          { id: PROJECT_ID, name: "Stale" },
-          { id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa", name: "New" },
-        ]),
-      ).toEqual([
-        { id: PROJECT_ID, name: "Research" },
-        { id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa", name: "New" },
-      ]);
     });
   });
 

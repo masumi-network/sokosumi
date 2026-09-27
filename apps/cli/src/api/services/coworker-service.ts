@@ -6,6 +6,10 @@ import {
   parseCoworker,
   parseCoworkerApiKey,
 } from "../models/coworker.js";
+import {
+  type CoworkerWorkspaceAccess,
+  parseCoworkerWorkspaceAccessResponse,
+} from "../models/coworker-workspace-access.js";
 
 const COWORKERS_PATH = "/v1/coworkers";
 
@@ -19,6 +23,10 @@ export type CoworkerMutationData = Record<string, unknown>;
 export interface CoworkerApiKeyData {
   name?: string | null;
   expiresAt?: string | null;
+}
+
+export interface CoworkerWorkspaceAccessTarget {
+  organizationId: string;
 }
 
 function pathWithQuery(options: FetchCoworkersOptions = {}): string {
@@ -63,6 +71,21 @@ export async function fetchCurrentCoworker(
 ): Promise<{ response: ApiResponse<unknown>; coworker: Coworker }> {
   const response = parseApiResponse(
     await client.get<unknown>(`${COWORKERS_PATH}/me`, signal),
+  );
+  return { response, coworker: parseCoworker(response.data) };
+}
+
+export async function fetchCoworker(
+  client: CoreHttpClient,
+  coworkerId: string,
+  signal?: AbortSignal,
+): Promise<{ response: ApiResponse<unknown>; coworker: Coworker }> {
+  requireId(coworkerId, "coworkerId");
+  const response = parseApiResponse(
+    await client.get<unknown>(
+      `${COWORKERS_PATH}/${encodeURIComponent(coworkerId)}`,
+      signal,
+    ),
   );
   return { response, coworker: parseCoworker(response.data) };
 }
@@ -125,4 +148,26 @@ export async function createCoworkerApiKey(
     ),
   );
   return { response, apiKey: parseCoworkerApiKey(response.data) };
+}
+
+export async function grantCoworkerWorkspaceAccess(
+  client: CoreHttpClient,
+  coworkerId: string,
+  target: CoworkerWorkspaceAccessTarget,
+  signal?: AbortSignal,
+): Promise<{
+  response: ApiResponse<unknown>;
+  access: CoworkerWorkspaceAccess;
+}> {
+  requireId(coworkerId, "coworkerId");
+  if (!target.organizationId.trim())
+    throw new Error("organizationId is required");
+  const parsed = parseCoworkerWorkspaceAccessResponse(
+    await client.post<unknown>(
+      `${COWORKERS_PATH}/${encodeURIComponent(coworkerId)}/workspace-access`,
+      { organizationId: target.organizationId.trim() },
+      signal,
+    ),
+  );
+  return parsed;
 }

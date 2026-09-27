@@ -2,7 +2,7 @@ import CoreAPI
 import Foundation
 import HTTPTypes
 import OpenAPIRuntime
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 /// Row 24f2: the sidebar's Unreads filter, as web's `organization-chat-list.client.tsx` lists it

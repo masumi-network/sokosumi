@@ -124,7 +124,7 @@ export default function OrganizationBulkInviteModal({
                 onChange={(event) => setRawEmails(event.target.value)}
                 placeholder={t("placeholder")}
                 disabled={isSubmitting}
-                className="max-h-36 min-h-36 max-w-full resize-none overflow-y-auto"
+                className="app-scrollbar max-h-36 min-h-36 max-w-full resize-none overflow-y-auto"
               />
               <p className="text-muted-foreground text-sm">{t("hint")}</p>
             </div>
@@ -135,7 +135,7 @@ export default function OrganizationBulkInviteModal({
           </form>
         ) : null}
         {hasResults ? (
-          <div className="max-h-56 overflow-y-auto rounded-md border">
+          <div className="app-scrollbar max-h-56 overflow-y-auto rounded-md border">
             <ul className="divide-y">
               {results.map((row) => (
                 <li

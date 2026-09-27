@@ -12,6 +12,7 @@ import {
   createTableEnrichment,
   mutateDataTable,
   queryTableRows,
+  readTableOperation,
   type TableActor,
   undoTableBatch,
 } from "@/helpers/data-table";
@@ -710,6 +711,123 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
       const current = (await queryTableRows(actor, table.id, {})).rows[0];
       expect(current.values[c]).toBeNull();
       expect(current.version).toBe(2);
+    });
+    it("commits table receipts atomically and recovers ledger results without mutation", async () => {
+      const { commitActionReceipt, actionInputHash } = await import(
+        "@/lib/soko-bot/action-receipts"
+      );
+      const bot =
+        (await prisma.sokoBot.findFirst({
+          where: { userId, workspaceId, archivedAt: null },
+        })) ??
+        (await prisma.sokoBot.create({
+          data: { userId, workspaceId, name: "Table receipt fixture" },
+        }));
+      const turn = await prisma.sokoBotTurn.create({
+        data: {
+          userId,
+          workspaceId,
+          sokoBotId: bot.id,
+          source: "CHAT",
+          status: "RUNNING",
+          clientTurnId: randomUUID(),
+          userMessage: "Create synthetic table",
+          capabilityNames: ["create_table"],
+          deadlineAt: new Date(Date.now() + 60000),
+        },
+      });
+      const body = createDataTableSchema.parse({
+        key: randomUUID(),
+        title: "Atomic receipt fixture",
+        columns: [{ id: randomUUID(), name: "Name", type: "text" }],
+      });
+      const receipt = await prisma.sokoBotToolCall.create({
+        data: {
+          turnId: turn.id,
+          toolCallId: "create",
+          capability: "create_table",
+          status: "PENDING",
+          inputHash: actionInputHash(body),
+        },
+      });
+      const before = await prisma.dataTable.count({ where: { workspaceId } });
+      const commit = async (
+        tx: Parameters<typeof commitActionReceipt>[0],
+        operation: { tableId: string; result: unknown; replayed: boolean },
+      ) => {
+        await commitActionReceipt(tx, {
+          turnId: turn.id,
+          toolCallId: "create",
+          actorBotId: bot.id,
+          targetId: operation.tableId,
+          disposition: operation.replayed ? "ALREADY_SATISFIED" : "APPLIED",
+          result: { tableId: operation.tableId },
+        });
+      };
+      try {
+        await expect(
+          createDataTable(actor, body, async (tx, operation) => {
+            await commit(tx, operation);
+            throw new Error("stop before commit");
+          }),
+        ).rejects.toThrow("stop before commit");
+        expect(await prisma.dataTable.count({ where: { workspaceId } })).toBe(
+          before,
+        );
+        expect(
+          await prisma.tableOperation.count({
+            where: { workspaceId, key: body.key },
+          }),
+        ).toBe(0);
+        expect(
+          await prisma.sokoBotToolCall.findUnique({
+            where: { id: receipt.id },
+          }),
+        ).toMatchObject({ status: "PENDING", committedAt: null });
+        const table = await createDataTable(actor, body, commit);
+        expect(
+          await prisma.sokoBotToolCall.findUnique({
+            where: { id: receipt.id },
+          }),
+        ).toMatchObject({
+          status: "COMPLETED",
+          targetId: table.id,
+          verification: "LOCAL_TRANSACTION",
+        });
+        // A later receipt can recover the existing durable operation without inserting another table.
+        await prisma.sokoBotToolCall.update({
+          where: { id: receipt.id },
+          data: { status: "PENDING", committedAt: null },
+        });
+        expect((await createDataTable(actor, body, commit)).id).toBe(table.id);
+        expect(await prisma.dataTable.count({ where: { workspaceId } })).toBe(
+          before + 1,
+        );
+        expect(
+          await prisma.sokoBotToolCall.findUnique({
+            where: { id: receipt.id },
+          }),
+        ).toMatchObject({ disposition: "ALREADY_SATISFIED" });
+        expect(
+          (await readTableOperation(actor, body.key, { create: body })).result,
+        ).toEqual(table);
+        await expect(
+          readTableOperation(actor, body.key, {
+            create: { ...body, title: "changed" },
+          }),
+        ).rejects.toThrow("different input");
+        await prisma.tableOperation.deleteMany({
+          where: { workspaceId, key: body.key },
+        });
+        await expect(
+          readTableOperation(actor, body.key, { create: body }),
+        ).rejects.toThrow("unavailable");
+        expect(await prisma.dataTable.count({ where: { workspaceId } })).toBe(
+          before + 1,
+        );
+      } finally {
+        await prisma.sokoBotTurn.delete({ where: { id: turn.id } });
+      }
     });
   },
 );

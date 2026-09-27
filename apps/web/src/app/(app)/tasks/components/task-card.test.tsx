@@ -7,8 +7,6 @@ import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 import { KanbanBoard } from "./kanban-board";
 import { TaskCard } from "./task-card";
 
-vi.mock("@/lib/actions/task/action", () => ({ updateTaskTags: vi.fn() }));
-
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) =>
     key === "privateBadge" ? "Private" : key,

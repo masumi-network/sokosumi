@@ -1,6 +1,6 @@
 import CoreAPI
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 private let ada = "550e8400-e29b-41d4-a716-446655440201"

@@ -41,7 +41,7 @@ export function KanbanColumn({
 
       <div
         className={cn(
-          "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2",
+          "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-b-xl px-2 [scrollbar-gutter:stable] app-scrollbar",
           LIST_MOBILE_CREATE_FAB_CLEARANCE,
           "md:pb-2",
         )}

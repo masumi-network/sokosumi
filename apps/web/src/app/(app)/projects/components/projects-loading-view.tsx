@@ -33,7 +33,6 @@ export function ProjectsLoadingView() {
         className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
       >
         <Skeleton className="h-10 w-full rounded-md md:w-64 md:shrink-0" />
-        <Skeleton className="hidden h-3 w-32 shrink-0 lg:inline-block" />
         <Skeleton
           data-testid="projects-loading-create"
           className="hidden h-8 w-[7.25rem] shrink-0 rounded-md md:inline-flex"

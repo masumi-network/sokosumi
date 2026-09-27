@@ -17,6 +17,23 @@ interface Suggestion {
   receipt: string;
 }
 
+/**
+ * Keep in step with `MIN_TASK_TAG_SUGGESTION_CHARACTERS` in Core's
+ * `task-tag-suggestion.schema.ts`. A client gate above Core's would hide working
+ * suggestions; a gate below it would spend a request on a guaranteed 422.
+ */
+const MIN_CHARACTERS = 15;
+/** First request after a pause. */
+const DEBOUNCE_MS = 1_200;
+/**
+ * Spacing between requests once one has been spent. The per-user limit is 6 a
+ * minute, so 10s is exactly that budget: a low content gate must not let ordinary
+ * stop-start typing exhaust the window and leave a composer with nothing.
+ */
+const REQUEST_INTERVAL_MS = 10_000;
+/** Client-side ceiling on one suggestion request. */
+const REQUEST_TIMEOUT_MS = 15_000;
+
 export function useTaskTagSuggestions({
   name,
   description,
@@ -38,7 +55,7 @@ export function useTaskTagSuggestions({
   ]);
   const eligible =
     enabled &&
-    words.join("").length >= 40 &&
+    words.join("").length >= MIN_CHARACTERS &&
     name.length <= 300 &&
     description.length <= 8000;
   const generation = useRef(0);
@@ -50,11 +67,6 @@ export function useTaskTagSuggestions({
     key: string;
     status: "loading" | "unavailable";
   } | null>(null);
-  const [corrections, setCorrections] = useState<{
-    scope: string;
-    add: TaskTagId[];
-    remove: TaskTagId[];
-  }>({ scope: workspaceKey, add: [], remove: [] });
   const [settled, setSettled] = useState(0);
   const inFlight = useRef(false);
   const mounted = useRef(false);
@@ -69,13 +81,9 @@ export function useTaskTagSuggestions({
   const attempted = useRef(new Set<string>());
   const nextRequestAt = useRef(0);
   const failures = useRef(0);
-  const manual: { add: TaskTagId[]; remove: TaskTagId[] } =
-    corrections.scope === workspaceKey ? corrections : { add: [], remove: [] };
   const current =
     eligible && suggestion?.wordKey === wordKey ? suggestion : null;
-  const tags = [...new Set([...manual.add, ...(current?.tags ?? [])])]
-    .filter((tag) => !manual.remove.includes(tag))
-    .slice(0, 5);
+  const tags = [...new Set(current?.tags ?? [])].slice(0, 5);
 
   useEffect(() => {
     if (!eligible || inFlight.current || attempted.current.has(wordKey)) return;
@@ -87,12 +95,12 @@ export function useTaskTagSuggestions({
         if (inFlight.current) return;
         inFlight.current = true;
         attempted.current.add(wordKey);
-        nextRequestAt.current = Date.now() + 5000;
+        nextRequestAt.current = Date.now() + REQUEST_INTERVAL_MS;
         setRequest({ key: wordKey, status: "loading" });
         controller.current = new AbortController();
         const timeout = window.setTimeout(
           () => controller.current?.abort(),
-          15000,
+          REQUEST_TIMEOUT_MS,
         );
         try {
           const response = await fetch("/api/tasks/tag-suggestions", {
@@ -142,7 +150,7 @@ export function useTaskTagSuggestions({
           }
         }
       },
-      Math.max(1200, nextRequestAt.current - Date.now()),
+      Math.max(DEBOUNCE_MS, nextRequestAt.current - Date.now()),
     );
     return () => {
       window.clearTimeout(timer);
@@ -156,31 +164,19 @@ export function useTaskTagSuggestions({
     settled,
   ]);
 
-  function toggleTag(tag: TaskTagId, selected: boolean) {
-    setCorrections((previous) => {
-      const current: { add: TaskTagId[]; remove: TaskTagId[] } =
-        previous.scope === workspaceKey ? previous : { add: [], remove: [] };
-      return {
-        scope: workspaceKey,
-        add: selected
-          ? [...new Set([...current.add, tag])]
-          : current.add.filter((value) => value !== tag),
-        remove: selected
-          ? current.remove.filter((value) => value !== tag)
-          : [...new Set([...current.remove, tag])],
-      };
-    });
-  }
-
   return {
     tags,
-    toggleTag,
-    status: enabled && request?.key === wordKey ? request.status : null,
+    /**
+     * Tags are a quiet convenience, so the composer only ever shows that a
+     * suggestion is on its way. An outage, a policy rejection, a timeout or a rate
+     * limit is tracked here for backoff and shown as nothing at all: Core tags the
+     * task on its next `/sync/task-tags` tick either way.
+     */
+    status:
+      enabled && request?.key === wordKey && request.status === "loading"
+        ? ("loading" as const)
+        : null,
     tagSuggestionReceipt:
       current?.inputKey === inputKey ? current.receipt : undefined,
-    tagCorrections:
-      manual.add.length || manual.remove.length
-        ? { add: manual.add, remove: manual.remove }
-        : undefined,
   };
 }

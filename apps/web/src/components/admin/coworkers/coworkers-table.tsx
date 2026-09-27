@@ -135,7 +135,7 @@ export function CoworkersTable({ coworkers }: CoworkersTableProps) {
               : t("emptyFilter")}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-md border">
+        <div className="app-scrollbar overflow-x-auto rounded-md border">
           <DataTable
             columns={columns}
             data={filtered}

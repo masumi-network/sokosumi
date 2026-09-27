@@ -627,11 +627,11 @@ function OfferDetailBody({
   const active = outputs[Math.min(activeIdx, outputs.length - 1)];
 
   return (
-    <div className="flex max-h-[92dvh] flex-col overflow-y-auto md:grid md:h-[86dvh] md:max-h-none md:grid-cols-[1.7fr_1fr] md:overflow-hidden">
+    <div className="app-scrollbar flex max-h-[92dvh] flex-col overflow-y-auto md:grid md:h-[86dvh] md:max-h-none md:grid-cols-[1.7fr_1fr] md:overflow-hidden">
       {/* Preview */}
       <div className="bg-card-background md:border-border flex flex-col md:min-h-0 md:border-r">
         {outputs.length > 1 ? (
-          <div className="border-border bg-surface-glass flex gap-1.5 overflow-x-auto border-b p-2.5 backdrop-blur">
+          <div className="app-scrollbar border-border bg-surface-glass flex gap-1.5 overflow-x-auto border-b p-2.5 backdrop-blur">
             {outputs.map((output, index) => (
               <button
                 key={output.url ?? output.label ?? output.type}
@@ -661,7 +661,7 @@ function OfferDetailBody({
       </div>
 
       {/* Details */}
-      <div className="md:min-h-0 md:overflow-y-auto">
+      <div className="app-scrollbar md:min-h-0 md:overflow-y-auto">
         <div className="space-y-5 p-6">
           <div className="space-y-2 pr-10">
             <div className="flex flex-wrap items-center gap-2">

@@ -163,7 +163,7 @@ export function ProjectMemoryRow({
             </DialogDescription>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-6 py-5">
             {isLoading ? (
               <p className="text-muted-foreground text-sm">
                 {t("memory.loading")}
