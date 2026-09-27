@@ -132,7 +132,7 @@ describe("syncLateCoworkerResponses", () => {
     expect(persistMock).not.toHaveBeenCalled();
   });
 
-  it("gives up on failed, empty, unknown and expired responses with a note in the chat", async () => {
+  it("gives up on failed, empty and expired responses with a note, but keeps retrying a 404", async () => {
     listMock.mockResolvedValue([
       entry("resp_failed", LATE_RESPONSE_GRACE_MS + 1),
       entry("resp_empty", LATE_RESPONSE_GRACE_MS + 1),
@@ -155,10 +155,11 @@ describe("syncLateCoworkerResponses", () => {
       };
     });
 
-    expect(await sync()).toEqual({ delivered: 0, dropped: 4, waiting: 0 });
+    expect(await sync()).toEqual({ delivered: 0, dropped: 3, waiting: 1 });
     expect(retrieveMock).toHaveBeenCalledTimes(3);
-    expect(untrackMock).toHaveBeenCalledTimes(4);
-    expect(persistMock).toHaveBeenCalledTimes(4);
+    expect(untrackMock).toHaveBeenCalledTimes(3);
+    expect(untrackMock).not.toHaveBeenCalledWith("resp_unknown");
+    expect(persistMock).toHaveBeenCalledTimes(3);
     expect(persistMock).toHaveBeenCalledWith({
       roomId: "room_1",
       senderCoworkerId: "cw_1",
