@@ -38,6 +38,9 @@ test("filters agents by searchable fields and applies a limit", async () => {
         ],
       }) as T,
     post: async <T>() => ({ data: null }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
@@ -56,6 +59,9 @@ test("agents list emits a stable JSON collection", async () => {
   const client: CoreHttpClient = {
     get: async <T>() => ({ data: [createAgent()] }) as T,
     post: async <T>() => ({ data: null }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
@@ -80,6 +86,9 @@ test("agents hire fetches the input schema and posts a job", async () => {
       return {
         data: { id: "job-1", agentId: "agent-1", status: "PENDING" },
       } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: null }) as T,
   };
@@ -107,6 +116,9 @@ test("agents hire requires an agent id and input", async () => {
   const client: CoreHttpClient = {
     get: async <T>() => ({ data: {} }) as T,
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
   await assert.rejects(
@@ -139,6 +151,9 @@ test("agents hire forwards max-credits and name to the job request", async () =>
       body = requestBody as typeof body;
       return { data: { id: "job-1", agentId: "agent-1" } } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
@@ -163,6 +178,9 @@ test("agents hire reads input from a file", async () => {
     post: async <T>(_path: string, requestBody: unknown) => {
       body = requestBody as typeof body;
       return { data: { id: "job-1", agentId: "agent-1" } } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: null }) as T,
   };

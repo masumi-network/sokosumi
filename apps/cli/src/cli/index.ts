@@ -22,6 +22,7 @@ import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
 import { type AuthWhoamiResult, runAuthWhoami } from "./auth-whoami.js";
+import { runAdminCommand, validateAdminCommand } from "./commands/admin.js";
 import { runAgentsCommand } from "./commands/agents.js";
 import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
@@ -68,6 +69,7 @@ type ValueOptionName =
   | "max-credits"
   | "vendor-id"
   | "workspace-id"
+  | "email"
   | "slug";
 
 type CliOptionValue = string | string[];
@@ -146,6 +148,9 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "auth status": "",
   "auth whoami": "",
   "auth logout": "",
+  "admin members": "WORKSPACE_SLUG",
+  "admin add-member": "WORKSPACE_SLUG --email EMAIL",
+  "admin assign-seat": "WORKSPACE_SLUG --email EMAIL",
   "agents list": "",
   "agents hire": "AGENT_ID",
   "coworkers list": "",
@@ -158,6 +163,7 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "vendors me": "",
   "vendors create": "--name NAME --slug SLUG",
   "workspaces list": "",
+  "workspaces check": "ORGANIZATION_ID",
   "tasks list": "[options]",
   "tasks create": "",
   "tasks get": "TASK_ID",
@@ -248,14 +254,23 @@ Developer setup on Preprod:
   2. Give its ID and your final Coworker name to the organizer. Ask for the Coworker ID.
   3. Connect: sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID
   4. Create the runtime key: sokosumi --preprod coworkers api-key COWORKER_ID --json
+  5. Before organization Tasks, check Seat eligibility: sokosumi --preprod workspaces check ORGANIZATION_ID
+  Membership and Coworker access do not prove Task Seat eligibility. This check does not confirm credits or runtime setup.
 
 Organizer setup on Preprod (platform admin):
-  Select an organization Workspace and invite the intended developers in Sokosumi Web.
+  Select an organization Workspace. Workspace creation and email invitations remain in Sokosumi Web.
+  For an existing Preprod account, use the selected Workspace slug:
+  sokosumi --preprod admin members WORKSPACE_SLUG
+  sokosumi --preprod admin add-member WORKSPACE_SLUG --email EMAIL
+  sokosumi --preprod admin assign-seat WORKSPACE_SLUG --email EMAIL
+  Admin commands require a live platform-admin identity. Core authorizes each request.
+  Free Workspace members need no Seat assignment. Paid Seat capacity is managed separately in Web billing.
+  Member lookup uses the account's exact email. It does not select the developer's Vendor.
   Ask each developer for their Vendor ID and final Coworker name.
   Verify your account: sokosumi --preprod auth whoami
   Provision checks the live platform role. Core still authorizes creation.
   sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks
-  Give the returned Coworker ID and Vendor ID to that developer.
+  Give the returned Coworker ID and Vendor ID to that developer, plus the selected organization ID and Workspace slug.
   Vendor admins manage that Vendor's Coworkers. Provisioning does not assign a Coworker to a person by email.
 `;
 }
@@ -291,6 +306,7 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "max-credits",
   "vendor-id",
   "workspace-id",
+  "email",
   "slug",
 ]);
 
@@ -301,6 +317,7 @@ const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
 
 const BOOLEAN_OPTIONS = new Set<string>(BOOLEAN_OPTION_NAMES);
 const CORE_COMMAND_SECTIONS = new Set([
+  "admin",
   "discover",
   "agents",
   "coworkers",
@@ -419,6 +436,7 @@ export async function runCli(
   const coworkerRegistration =
     positionals[0] === "coworkers" &&
     ["register", "provision", "connect"].includes(positionals[1]);
+  const adminOnboarding = positionals[0] === "admin";
 
   if (options.help) {
     stdout.write(formatHelpText());
@@ -435,7 +453,7 @@ export async function runCli(
       environment: dependencies.env || process.env,
       loadFiles: dependencies.env === undefined,
       preprod: options.preprod,
-      preprodDefault: coworkerRegistration,
+      preprodDefault: coworkerRegistration || adminOnboarding,
       apiUrl: options["api-url"],
       authUrl: options["auth-url"],
       clientId: options["client-id"],
@@ -484,6 +502,14 @@ export async function runCli(
     if (coworkerRegistration) {
       requirePreprodCoworkerRegistration(config.target);
     }
+    if (adminOnboarding) {
+      validateAdminCommand({
+        target: config.target,
+        subcommand: command,
+        positionalId,
+        options,
+      });
+    }
     if (
       CORE_COMMAND_SECTIONS.has(section) ||
       (section === "auth" && command === "whoami" && positionalId === undefined)
@@ -496,6 +522,18 @@ export async function runCli(
         config,
         stdout,
         json: options.json,
+      });
+      return {};
+    }
+    if (section === "admin") {
+      await runAdminCommand({
+        client: getCoreClient(session, dependencies),
+        stdout,
+        json: options.json,
+        target: config.target,
+        subcommand: command,
+        positionalId,
+        options,
       });
       return {};
     }
@@ -553,14 +591,15 @@ export async function runCli(
     }
     if (
       section === "workspaces" &&
-      command === "list" &&
-      positionalId === undefined
+      ((command === "list" && positionalId === undefined) ||
+        (command === "check" && positionalId !== undefined))
     ) {
       await runWorkspacesCommand({
         client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
+        positionalId,
       });
       return {};
     }
@@ -613,7 +652,7 @@ export async function runCli(
       positionalId !== undefined
     ) {
       throw new Error(
-        "Usage: sokosumi discover | agents list | coworkers | vendors me|create | workspaces list | tasks | jobs | auth login|status|whoami|logout",
+        "Usage: sokosumi discover | admin members|add-member|assign-seat | agents list | coworkers | vendors me|create | workspaces list|check | tasks | jobs | auth login|status|whoami|logout",
       );
     }
 

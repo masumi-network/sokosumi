@@ -21,6 +21,9 @@ function dependencies(role = "user,admin"): CliDependencies {
       post: async () => {
         throw new Error("Unexpected POST");
       },
+      put: async () => {
+        throw new Error("Unexpected PUT");
+      },
       patch: async () => {
         throw new Error("Unexpected PATCH");
       },
@@ -105,6 +108,7 @@ test("admin provisions through CLI without Vendor or Workspace membership", asyn
           "auth whoami --json",
           "workspaces list",
           "coworkers connect cw-ada",
+          "workspaces check ORGANIZATION_ID",
           "coworkers api-key cw-ada --json",
         ];
         let previous = -1;

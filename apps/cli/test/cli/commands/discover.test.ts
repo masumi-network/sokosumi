@@ -67,6 +67,9 @@ test("discover collects Core resources with stable JSON fields", async () => {
         return { data } as T;
       },
       post: async <T>() => ({ data: null }) as T,
+      put: async () => {
+        throw new Error("Unexpected PUT");
+      },
       patch: async <T>() => ({ data: null }) as T,
     },
     stdout: { write: (value) => output.push(value) },
@@ -94,6 +97,9 @@ test("discover JSON redacts credential assignments in errors", async () => {
       );
     },
     post: async <T>() => ({}) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({}) as T,
   };
 

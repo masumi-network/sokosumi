@@ -28,6 +28,27 @@ A shared organization has a shared credit pool. A Seat does not give each develo
 See the [creation wizard](../web/src/components/organizations/create-organization-wizard/create-organization-wizard.tsx)
 and [invitation form](../web/src/components/organizations/organization-member-invite/form.tsx).
 
+[VERIFIED: `src/cli/commands/admin.ts`, `src/api/services/admin-workspace-service.ts`]
+A platform admin can add an existing Preprod account by email and assign an available Seat.
+Use the selected Workspace's slug. Organization admin alone does not satisfy the CLI's platform-admin check.
+Core authorizes each request.
+
+```bash
+pnpm --filter @sokosumi/cli sokosumi -- --preprod auth whoami --json
+pnpm --filter @sokosumi/cli sokosumi -- --preprod admin members WORKSPACE_SLUG --json
+pnpm --filter @sokosumi/cli sokosumi -- --preprod admin add-member WORKSPACE_SLUG --email DEVELOPER_EMAIL --json
+pnpm --filter @sokosumi/cli sokosumi -- --preprod admin assign-seat WORKSPACE_SLUG --email DEVELOPER_EMAIL --json
+```
+
+[VERIFIED: `src/cli/commands/admin.ts`, `src/api/services/admin-workspace-service.ts`]
+`admin members` returns the organization ID as `workspace.id`, its slug, members, and Seat counts.
+`add-member` matches the exact email across paginated results and adds role `member`.
+It preserves existing membership and roles. It does not create accounts, send invitations, or grant Vendor access.
+Free Workspace members need no Seat assignment. Paid Workspaces use available capacity or keep the existing Seat assignment.
+The CLI does not purchase Seats or reassign another member's Seat. Capacity changes remain in Web billing.
+If a write reports uncertain completion, inspect `admin members` before retrying.
+Coworker provisioning and connection can continue when no Seat is available.
+
 [VERIFIED: `src/cli/commands/coworkers.ts`] Sign in to Preprod as a platform admin.
 Ask each developer for their Vendor ID and final Coworker name. Confirm the intended account before provisioning:
 
@@ -43,7 +64,8 @@ The CLI verifies that the returned Coworker belongs to the requested Vendor and 
 If creation cannot be confirmed, inspect the Coworker list before retrying. Core errors retain their status and request details.
 
 [CORRECTION, VERIFIED: `src/cli/commands/coworkers.ts`] The handoff now includes both `handoff.coworkerId` and `handoff.vendorId`.
-Give these IDs to the developer. They use `coworkers connect` and `coworkers api-key` below.
+Give these IDs to the developer, plus the organization ID and Workspace slug from `admin members`.
+They use `coworkers connect` and `coworkers api-key` below.
 Organizer membership in that Vendor or Workspace is not required. The developer creates and keeps the runtime key.
 [VERIFIED: `../core/src/routes/v1/coworkers/coworker-management-access.ts`] Vendor admins can manage the Vendor's Coworkers.
 Provisioning under a Vendor does not assign the Coworker to a person by email.
@@ -105,6 +127,18 @@ For hackathon participants, connect the organizer-provisioned Coworker:
 ```bash
 pnpm --filter @sokosumi/cli sokosumi -- --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID --json
 ```
+
+[VERIFIED: `src/cli/commands/workspaces.ts`, `src/api/services/organization-workspace-service.ts`]
+Before organization Task creation, check the developer's Seat eligibility:
+
+```bash
+pnpm --filter @sokosumi/cli sokosumi -- --preprod workspaces check ORGANIZATION_ID --json
+```
+
+[VERIFIED: `src/cli/commands/workspaces.ts`]
+`taskSeatEligible` reports the caller's Seat policy result. It does not prove credits, Coworker access, or runtime readiness.
+When false, a platform admin can assign available capacity with `admin assign-seat`.
+An organization owner or admin handles additional capacity in Web billing.
 
 Use the organization ID from `workspaces list` as `--workspace-id`. Coworker
 `provision`, `register`, and `connect` use Preprod by default when no target is configured.
