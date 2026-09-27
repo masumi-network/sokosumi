@@ -56,6 +56,35 @@ describe("Soko Bot turn classifier", () => {
   });
 
   it.each([
+    "Archive task synthetic-one only. Do not touch any other task.",
+    "Archive task synthetic-one; don't change other tasks.",
+    "Please archive task synthetic-one. Never modify anything else.",
+    "Synthetic acceptance test c7d1f0234, request ONE: Please archive only my private draft task “Synthetic Archive EU Fence c7d1f0234 One” (task ID 01a0e088-363a-77bb-9c6b-2472ba54b909). This is the synthetic fixture I created for this test. Do not touch any other task, create schedules, delegate work, or send external messages. If approval is required, ask me first. Report only the outcome supported by the archive receipt.",
+  ])(
+    "retains explicit archive intent with other-task restrictions: %s",
+    (message) => {
+      const classification = classifyDeterministically(message);
+      expect(classification?.route).toBe("MANAGE_WORK");
+      expect(classification?.writeScope).toBe("WORK");
+      expect(classification?.requestedOutcome).toBe(message.slice(0, 500));
+    },
+  );
+  it.each([
+    "Do not archive task synthetic-one. Do not touch any other task.",
+    "Archive task synthetic-one, but do not archive it yet.",
+    "Archive task synthetic-one only if I approve it.",
+    "What if we archive task synthetic-one? Do not touch other tasks.",
+    '"Archive task synthetic-one. Do not touch other tasks."',
+    "Archive task synthetic-one. Do not touch any other task unless I approve.",
+    "Archive task synthetic-one. Do not touch any other task, but archive synthetic-two.",
+  ])(
+    "keeps negated, conditional and quoted archive requests read-only: %s",
+    (message) => {
+      expect(classifyDeterministically(message)?.route).toBe("CLARIFY");
+    },
+  );
+
+  it.each([
     "Hello",
     "What is the status of task 42?",
     "Show the progress of our tasks",

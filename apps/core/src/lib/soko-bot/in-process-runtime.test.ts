@@ -306,6 +306,9 @@ describe("InProcessSokoBotRuntime", () => {
     expect(
       generateTextMock.mock.calls[0][0].providerOptions.gateway.inferenceRegion,
     ).toEqual({ scope: "zone", geoRegion: "eu" });
+    expect(generateTextMock.mock.calls[0][0].prepareStep).toBe(
+      (await import("./evaluation-dispatch")).prepareEvaluationStep,
+    );
   });
 
   it("records a failed turn instead of throwing into the caller", async () => {

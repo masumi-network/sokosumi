@@ -32,6 +32,7 @@ import { buildActionResponse } from "./action-response";
 import {
   evaluationBinding,
   evaluationContext,
+  prepareEvaluationStep,
   withEvaluationTurn,
 } from "./evaluation-dispatch";
 import {
@@ -343,6 +344,7 @@ async function runTurn(
         ].join("\n"),
         messages: [{ role: "user", content: input.message }],
         tools,
+        prepareStep: prepareEvaluationStep,
         stopWhen: stepCountIs(MAX_STEPS),
         abortSignal,
         async onStepFinish(step) {

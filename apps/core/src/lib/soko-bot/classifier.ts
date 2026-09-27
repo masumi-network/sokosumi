@@ -124,7 +124,17 @@ function includesAny(value: string, patterns: readonly RegExp[]): boolean {
 export function classifyDeterministically(
   message: string,
 ): TurnClassification | null {
-  const normalized = message.trim().toLowerCase();
+  // A standalone restriction on other tasks narrows an explicit archive
+  // request; it does not negate that request. Only remove this closed grammar
+  // for routing signals. Keep the full original message in requestedOutcome;
+  // target resolution and independent mutation authorization still see it.
+  const normalized = message
+    .trim()
+    .toLowerCase()
+    .replace(
+      /(^|[.!?;]\s*)(?:do not|don['’]t|never)\s+(?:touch|change|modify)\s+(?:(?:any\s+)?other\s+tasks?|anything else)(?:,\s*(?:or\s+)?(?:create schedules|delegate work|send external messages))*(?=[.!?;]|$)/g,
+      "$1",
+    );
   if (!normalized) {
     return baseClassification(
       "CLARIFY",

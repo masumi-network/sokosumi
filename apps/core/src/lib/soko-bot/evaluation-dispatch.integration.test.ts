@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { generateText, tool, wrapLanguageModel } from "ai";
+import {
+  SOKO_BOT_TOOL_DESCRIPTIONS,
+  SOKO_BOT_TOOL_INPUT_SCHEMAS,
+} from "@sokosumi/soko-bot";
+import { generateText, stepCountIs, tool, wrapLanguageModel } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
 import {
   afterAll,
@@ -397,6 +401,198 @@ describe.skipIf(!process.env.LOCAL_EVALUATION_DATABASE_URL)(
         await fence.evaluationEvidence(owner, bot, actor.clientTurnId),
       ).toMatchObject({ frozen: true, calls: [{ state: "UNCERTAIN" }] });
     });
+    it.each(["ok", "oversized", "tool-error", "reasoning"])(
+      "keeps multi-step observations within the same envelope: %s",
+      async (mode) => {
+        const oversized = mode === "oversized";
+        const failedRead = mode === "tool-error";
+        let dispatches = 0;
+        const observedSizes: number[] = [];
+        const metadata = {
+          gateway: {
+            cost: ".001",
+            routing: {
+              finalProvider: "vertex",
+              modelAttempts: [
+                {
+                  providerAttempts: [
+                    {
+                      provider: "vertex",
+                      inferenceEndpoint: { geoRegion: "eu" },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        };
+        const readResult = {
+          evidenceToolCallId: "read",
+          result: {
+            id: task,
+            status: "DRAFT",
+            updatedAt: "2026-09-27T01:43:38.299Z",
+            archivedAt: null,
+            ownerId: owner,
+            description: oversized ? "x".repeat(33000) : "Synthetic fixture",
+            events: [],
+            files: [],
+            links: [],
+          },
+        };
+        const receipt = {
+          taskId: task,
+          disposition: "COMMITTED",
+          verification: "VERIFIED",
+          receiptId: "synthetic-receipt",
+        };
+        const mock = new MockLanguageModelV3({
+          modelId: model,
+          doGenerate: async (options) => {
+            dispatches++;
+            expect(options.maxOutputTokens).toBe(2048);
+            const reserved = await fence.evaluationEvidence(
+              owner,
+              bot,
+              actor.clientTurnId,
+            );
+            expect(reserved?.calls).toHaveLength(dispatches);
+            expect(reserved?.calls.at(-1)?.state).toBe("RESERVED");
+            expect(
+              reserved?.calls
+                .slice(0, -1)
+                .every((call) => call.state === "SETTLED"),
+            ).toBe(true);
+            observedSizes.push(
+              Buffer.byteLength(JSON.stringify(options)) + 512,
+            );
+            if (dispatches > 1) {
+              const prompt = JSON.stringify(options.prompt);
+              expect(prompt).toContain("Synthetic archive request");
+              expect(prompt).toContain("OPERATING INSTRUCTIONS");
+              expect(prompt).toContain(
+                failedRead
+                  ? "Synthetic read denied"
+                  : "2026-09-27T01:43:38.299Z",
+              );
+              expect(prompt).not.toContain("opaque-signature");
+              expect(prompt).not.toContain("UNSUPPORTED SUCCESS CLAIM");
+              expect(prompt).not.toContain("PRIVATE REASONING");
+              if (dispatches === 3)
+                expect(prompt).toContain("synthetic-receipt");
+            }
+            return {
+              content:
+                dispatches === 1 || (!failedRead && dispatches < 3)
+                  ? [
+                      {
+                        type: "tool-call",
+                        toolCallId: dispatches === 1 ? "read" : "archive",
+                        toolName:
+                          dispatches === 1 ? "get_task_status" : "archive_task",
+                        input: JSON.stringify({
+                          taskId: task,
+                          ...(dispatches === 2
+                            ? { expectedUpdatedAt: "2026-09-27T01:43:38.299Z" }
+                            : {}),
+                        }),
+                        providerMetadata: {
+                          google: {
+                            thoughtSignature: "opaque-signature".repeat(1600),
+                          },
+                        },
+                      },
+                      { type: "text", text: "UNSUPPORTED SUCCESS CLAIM" },
+                      ...(mode === "reasoning"
+                        ? [
+                            {
+                              type: "reasoning" as const,
+                              text: "PRIVATE REASONING",
+                            },
+                          ]
+                        : []),
+                    ]
+                  : [
+                      {
+                        type: "text",
+                        text: '{"kind":"REPORT","observationToolCallIds":["read"]}',
+                      },
+                    ],
+              finishReason: {
+                unified:
+                  dispatches === 1 || (!failedRead && dispatches < 3)
+                    ? "tool-calls"
+                    : "stop",
+                raw: "stop",
+              },
+              warnings: [],
+              usage: {
+                inputTokens: {
+                  total: 100,
+                  noCache: 100,
+                  cacheRead: undefined,
+                  cacheWrite: undefined,
+                },
+                outputTokens: { total: 20, text: 20, reasoning: undefined },
+              },
+              providerMetadata: metadata,
+            };
+          },
+        });
+        const run = () =>
+          fence.withEvaluationActor(actor, () =>
+            generateText({
+              model: wrapLanguageModel({
+                model: mock,
+                middleware: fence.evaluationMiddleware(model, "agent"),
+              }),
+              system: "OPERATING INSTRUCTIONS\n" + "x".repeat(19000),
+              prompt: "Synthetic archive request",
+              prepareStep: fence.prepareEvaluationStep,
+              stopWhen: stepCountIs(3),
+              maxRetries: 0,
+              providerOptions: {
+                gateway: {
+                  inferenceRegion: { scope: "zone", geoRegion: "eu" },
+                  only: ["vertex"],
+                },
+              },
+              tools: {
+                get_task_status: tool({
+                  description: SOKO_BOT_TOOL_DESCRIPTIONS.get_task_status,
+                  inputSchema: SOKO_BOT_TOOL_INPUT_SCHEMAS.get_task_status,
+                  execute: async () => {
+                    if (failedRead) throw new Error("Synthetic read denied");
+                    return readResult;
+                  },
+                }),
+                archive_task: tool({
+                  description: SOKO_BOT_TOOL_DESCRIPTIONS.archive_task,
+                  inputSchema: SOKO_BOT_TOOL_INPUT_SCHEMAS.archive_task,
+                  execute: async () => receipt,
+                }),
+              },
+            }),
+          );
+        if (oversized) {
+          await expect(run()).rejects.toThrow("input bytes");
+          expect(dispatches).toBe(1);
+        } else {
+          await run();
+          expect(dispatches).toBe(failedRead ? 2 : 3);
+        }
+        const evidence = await fence.evaluationEvidence(
+          owner,
+          bot,
+          actor.clientTurnId,
+        );
+        expect(evidence?.calls).toHaveLength(dispatches);
+        expect(evidence?.calls.every((call) => call.state === "SETTLED")).toBe(
+          true,
+        );
+        expect(observedSizes.every((size) => size <= 32768)).toBe(true);
+      },
+    );
     it.each(["transport", "missing", "cost", "blank", "region"])(
       "uncertain %s blocks subsequent dispatch durably",
       async (mode) => {
