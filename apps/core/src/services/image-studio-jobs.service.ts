@@ -26,6 +26,7 @@ import {
   readStudioBlobToken,
   requireStudioBlobToken,
 } from "@/lib/image-studio/blob-store";
+import { resolveImageSettings } from "@/lib/image-studio/catalog";
 import {
   buildFalInput,
   cancelQueued,
@@ -70,6 +71,7 @@ const ACTIVE_STATUSES: ProjectImageJobStatus[] = [
 const SPEND_WINDOW_MS = 60 * 60 * 1000;
 
 export interface ImageJobSettings {
+  placementId?: string | null;
   aspectRatio: string;
   resolution: string;
   outputFormat: string;
@@ -84,6 +86,7 @@ export const DEFAULT_SETTINGS: ImageJobSettings = {
 };
 
 export interface CreateImageJobInput {
+  modelId?: string;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -203,7 +206,7 @@ async function reserveJobTransaction(input: CreateImageJobInput) {
         sessionId: input.sessionId,
         requestedByUserId: input.userId,
         kind,
-        model: falModelForKind(kind),
+        model: falModelForKind(kind, input.modelId),
         prompt: input.prompt,
         settings: { ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
@@ -400,7 +403,20 @@ export async function createImageJob(input: CreateImageJobInput) {
   // provider and were lost at settlement.
   requireStudioBlobToken();
 
-  const { job, created } = await reserveJob(input);
+  let settings: ImageJobSettings;
+  try {
+    settings = resolveImageSettings(
+      input.modelId,
+      input.settings,
+      input.referenceAssetIds.length,
+    );
+  } catch (error) {
+    throw unprocessableEntity(
+      error instanceof Error ? error.message : "Invalid image settings",
+      { kind: "invalid_image_settings" },
+    );
+  }
+  const { job, created } = await reserveJob({ ...input, settings });
   if (!created) return job;
 
   if (!(await claimForSubmission(job.id))) {
@@ -440,14 +456,17 @@ async function sendClaimedJob(jobId: string) {
   const settings = readSettings(job.settings);
   const outcome = await submitToQueue({
     model: job.model,
-    input: buildFalInput({
-      prompt: job.prompt,
-      aspectRatio: settings.aspectRatio,
-      resolution: settings.resolution,
-      outputFormat: settings.outputFormat,
-      seed: settings.seed,
-      imageUrls,
-    }),
+    input: buildFalInput(
+      {
+        prompt: job.prompt,
+        aspectRatio: settings.aspectRatio,
+        resolution: settings.resolution,
+        outputFormat: settings.outputFormat,
+        seed: settings.seed,
+        imageUrls,
+      },
+      job.model,
+    ),
     webhookUrl: webhookUrl(),
   });
 

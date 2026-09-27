@@ -8,17 +8,12 @@ import {
 import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 import { ProjectCloseStatusCard } from "@/app/projects/components/project-close-status";
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
-import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import { ProjectDetailPinButton } from "@/app/projects/components/project-detail-pin-button";
 import { ProjectLatestUpdate } from "@/app/projects/components/project-latest-update";
-import { ProjectMemoryRow } from "@/app/projects/components/project-memory-row";
-import { ProjectModuleTiles } from "@/app/projects/components/project-module-tiles";
-import { ProjectNeedsAttentionSection } from "@/app/projects/components/project-needs-attention-section";
 import {
-  PROJECTS_DETAIL_SHELL_CLASS,
-  PROJECTS_DETAIL_WORKSPACE_CLASS,
-} from "@/app/projects/constants";
-import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
+  getProjectWorkspaceLabels,
+  ProjectWorkspaceShell,
+} from "@/app/projects/components/project-workspace-shell";
 import { projectService } from "@/lib/services/project.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
@@ -37,213 +32,116 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [
-    attention,
-    closeStatus,
-    t,
-    tHistory,
-    tList,
-    tListStats,
-    tTaskFilters,
-    formatter,
-  ] = await Promise.all([
-    projectService.getProjectNeedsAttention(project.id),
+  const [closeStatus, t, tList, formatter] = await Promise.all([
     project.closingAt || project.closedAt
       ? projectService.getProjectCloseStatus(project.id)
       : Promise.resolve(null),
     getTranslations("App.Projects.Detail"),
-    getTranslations("App.History.Row"),
     getTranslations("App.Projects.list"),
-    getTranslations("App.Projects.list.stats"),
-    getTranslations("App.Tasks.Filters"),
     getFormatter(),
   ]);
-
-  const taskStatusLabels = buildTaskStatusLabels((key) =>
-    tTaskFilters(`statusOptions.${key}`),
-  );
+  const workspaceLabels = await getProjectWorkspaceLabels();
 
   return (
-    <div className={PROJECTS_DETAIL_SHELL_CLASS}>
+    <ProjectWorkspaceShell
+      actions={
+        <div className="flex items-center gap-1">
+          <ProjectDetailPinButton
+            projectId={project.id}
+            isClosed={Boolean(project.closingAt || project.closedAt)}
+            labels={{
+              pin: tList("pin"),
+              unpin: tList("unpin"),
+              error: tList("pinError"),
+            }}
+          />
+          <ProjectDetailActions
+            projectId={project.id}
+            projectRevision={project.projectRevision}
+            isClosingOrClosed={Boolean(project.closingAt || project.closedAt)}
+            labels={{
+              moreActions: t("actions.moreActions"),
+              edit: t("actions.edit"),
+              close: t("actions.close"),
+              closeDialog: {
+                title: t("close.dialog.title"),
+                description: t("close.dialog.description"),
+                reasonLabel: t("close.dialog.reasonLabel"),
+                reasonPlaceholder: t("close.dialog.reasonPlaceholder"),
+                confirm: t("close.dialog.confirm"),
+                cancel: t("close.dialog.cancel"),
+                success: t("close.dialog.success"),
+                error: t("close.dialog.error"),
+              },
+            }}
+          />
+        </div>
+      }
+      metadata={[
+        {
+          label: t("header.updated"),
+          value: formatter.dateTime(project.updatedAt, "dateTime"),
+        },
+        {
+          label: t("header.created"),
+          value: formatter.dateTime(project.createdAt, "dateTime"),
+        },
+      ]}
+      labels={workspaceLabels}
+      projectId={project.id}
+      projectLogo={project.logo}
+      projectName={project.name}
+      showSocialTab={socialBetaEnabled}
+      websiteUrl={project.websiteUrl}
+    >
+      {/*
+        One column, not a grid.
+        Overview used to be a two-column grid with a third region under it,
+        because there was enough on the page to need columns: a needs-attention
+        list, a panel of module tiles, memory in an aside. Memory has a tab of
+        its own now and the other two are gone, so what is left is three or four
+        blocks that are all *about* the project and all read top to bottom. A
+        grid over that leaves an aside with one card in it beside a column of
+        empty space, which is exactly the "stack of loose things" this card was
+        drawn to replace. The width is capped for the same reason a paragraph is:
+        the briefing is prose.
+      */}
       <ProjectBrandProvider
         key={project.designMd?.url ?? "project-brand-empty"}
         projectId={project.id}
         initialDesignMd={project.designMd}
         websiteUrl={project.websiteUrl}
       >
-        <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
-          <div className="min-w-0 space-y-8">
-            <ProjectDetailHeader
-              projectName={project.name}
-              projectLogo={project.logo}
-              websiteUrl={project.websiteUrl}
-              backLabel={t("back")}
-              metadata={[
-                {
-                  label: t("header.updated"),
-                  value: formatter.dateTime(project.updatedAt, "dateTime"),
-                },
-                {
-                  label: t("header.created"),
-                  value: formatter.dateTime(project.createdAt, "dateTime"),
-                },
-              ]}
-              actions={
-                <div className="flex items-center gap-1">
-                  <ProjectDetailPinButton
-                    projectId={project.id}
-                    isClosed={Boolean(project.closingAt || project.closedAt)}
-                    labels={{
-                      pin: tList("pin"),
-                      unpin: tList("unpin"),
-                      error: tList("pinError"),
-                    }}
-                  />
-                  <ProjectDetailActions
-                    projectId={project.id}
-                    projectRevision={project.projectRevision}
-                    isClosingOrClosed={Boolean(
-                      project.closingAt || project.closedAt,
-                    )}
-                    labels={{
-                      moreActions: t("actions.moreActions"),
-                      edit: t("actions.edit"),
-                      close: t("actions.close"),
-                      closeDialog: {
-                        title: t("close.dialog.title"),
-                        description: t("close.dialog.description"),
-                        reasonLabel: t("close.dialog.reasonLabel"),
-                        reasonPlaceholder: t("close.dialog.reasonPlaceholder"),
-                        confirm: t("close.dialog.confirm"),
-                        cancel: t("close.dialog.cancel"),
-                        success: t("close.dialog.success"),
-                        error: t("close.dialog.error"),
-                      },
-                    }}
-                  />
-                </div>
-              }
-            />
+        <div className="max-w-3xl min-w-0 space-y-8">
+          {closeStatus ? <ProjectCloseStatusCard status={closeStatus} /> : null}
 
-            {closeStatus ? (
-              <ProjectCloseStatusCard status={closeStatus} />
-            ) : null}
-
-            {project.latestUpdate ? (
-              <ProjectLatestUpdate
-                title={t("latestUpdate")}
-                content={project.latestUpdate.content}
-                showMoreLabel={t("showMore")}
-                showLessLabel={t("showLess")}
-              />
-            ) : null}
-
-            <ProjectBriefing
-              title={t("briefing")}
-              briefing={project.briefing}
-              emptyLabel={t("emptyBriefing")}
-              emptyActionLabel={t("writeBriefing")}
-              editHref={`/projects/${project.id}/edit`}
+          {project.latestUpdate ? (
+            <ProjectLatestUpdate
+              title={t("latestUpdate")}
+              content={project.latestUpdate.content}
               showMoreLabel={t("showMore")}
               showLessLabel={t("showLess")}
             />
-          </div>
+          ) : null}
 
-          <aside className="min-w-0 space-y-8 xl:row-span-2">
-            <ProjectBrandCard
-              projectId={project.id}
-              projectName={project.name}
-              logo={project.logo}
-              websiteUrl={project.websiteUrl}
-            />
-            <ProjectMemoryRow
-              projectId={project.id}
-              contextMd={project.contextMd}
-              contextMdUpdating={project.contextMdUpdating}
-              memoryEnabled={project.memoryEnabled}
-              memoryModel={project.memoryModel}
-            />
-          </aside>
+          <ProjectBriefing
+            title={t("briefing")}
+            briefing={project.briefing}
+            emptyLabel={t("emptyBriefing")}
+            emptyActionLabel={t("writeBriefing")}
+            editHref={`/projects/${project.id}/edit`}
+            showMoreLabel={t("showMore")}
+            showLessLabel={t("showLess")}
+          />
 
-          <div className="min-w-0 space-y-8">
-            <ProjectNeedsAttentionSection
-              projectId={project.id}
-              taskCount={attention.taskCount}
-              jobCount={attention.jobCount}
-              items={attention.items}
-              labels={{
-                needsAttention: t("needsAttention.title"),
-                empty: t("needsAttention.empty"),
-                viewAllTasks: t("tasks.viewAll"),
-                viewAllJobs: t("jobs.viewAll"),
-                counts: {
-                  tasks: tListStats("tasks"),
-                  jobs: tListStats("jobs"),
-                },
-                kind: {
-                  task: tHistory("kind.task"),
-                  job: tHistory("kind.job"),
-                },
-                taskStatus: taskStatusLabels,
-              }}
-            />
-
-            <section className={PROJECTS_DETAIL_WORKSPACE_CLASS}>
-              <h2 className="text-muted-foreground text-xs font-medium">
-                {t("modules.title")}
-              </h2>
-              <ProjectModuleTiles
-                calendarHref={`/projects/${project.id}/calendar`}
-                socialHref={
-                  socialBetaEnabled
-                    ? `/projects/${project.id}/social`
-                    : undefined
-                }
-                projectId={project.id}
-                labels={{
-                  calendar: {
-                    title: t("modules.calendar.title"),
-                    description: t("modules.calendar.description"),
-                  },
-                  comingSoon: t("modules.comingSoon"),
-                  imageStudio: {
-                    title: t("modules.imageStudio.title"),
-                    description: t("modules.imageStudio.description"),
-                  },
-                  seo: {
-                    title: t("modules.seo.title"),
-                    description: t("modules.seo.description"),
-                  },
-                  socialMedia: {
-                    title: t("modules.socialMedia.title"),
-                    description: t("modules.socialMedia.description"),
-                  },
-                  email: {
-                    title: t("modules.email.title"),
-                    description: t("modules.email.description"),
-                  },
-                  paidAdvertising: {
-                    title: t("modules.paidAdvertising.title"),
-                    description: t("modules.paidAdvertising.description"),
-                  },
-                  content: {
-                    title: t("modules.content.title"),
-                    description: t("modules.content.description"),
-                  },
-                  pr: {
-                    title: t("modules.pr.title"),
-                    description: t("modules.pr.description"),
-                  },
-                  fileBrowser: {
-                    title: t("modules.fileBrowser.title"),
-                    description: t("modules.fileBrowser.description"),
-                  },
-                }}
-              />
-            </section>
-          </div>
+          <ProjectBrandCard
+            projectId={project.id}
+            projectName={project.name}
+            logo={project.logo}
+            websiteUrl={project.websiteUrl}
+          />
         </div>
       </ProjectBrandProvider>
-    </div>
+    </ProjectWorkspaceShell>
   );
 }

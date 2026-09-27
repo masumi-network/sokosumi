@@ -5054,6 +5054,7 @@ export type CancelSocialPostRequest = {
 };
 
 export type ProjectImageStudioState = {
+    catalog: ProjectImageStudioCatalog;
     assets: Array<ProjectImageAsset>;
     jobs: Array<ProjectImageJob>;
     sessions: Array<ProjectImageSession>;
@@ -5061,6 +5062,47 @@ export type ProjectImageStudioState = {
         createdAt: Date;
         id: string;
     } | null;
+};
+
+export type ProjectImageStudioCatalog = {
+    defaultModelId: string;
+    models: Array<{
+        id: string;
+        label: string;
+        description: string;
+        generateEndpoint: string;
+        editEndpoint: string;
+        aspectRatios: Array<string>;
+        resolutions: Array<string>;
+        outputFormats: Array<string>;
+        supportsSeed: boolean;
+        maxReferences: number;
+        dimensionMode: 'aspect-ratio' | 'image-size';
+        notes: string;
+        price: {
+            perImageUsd: {
+                '0.5K'?: number;
+                '1K'?: number;
+                '2K'?: number;
+            };
+            basis: string;
+            sourceUrl: string;
+            verifiedAt: string;
+        };
+        sourceUrls: Array<string>;
+        verifiedAt: string;
+    }>;
+    placements: Array<{
+        id: string;
+        platform: string;
+        label: string;
+        aspectRatio: string;
+        width: number;
+        height: number;
+        notes: string;
+        sourceUrl: string;
+        verifiedAt: string;
+    }>;
 };
 
 export type ProjectImageAsset = {
@@ -5082,7 +5124,8 @@ export type ProjectImageAsset = {
 };
 
 export type ProjectImageSettings = {
-    aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3';
+    placementId?: string | null;
+    aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '4:5' | '5:4';
     resolution?: '0.5K' | '1K' | '2K';
     outputFormat?: 'png' | 'jpeg' | 'webp';
     seed?: number | null;
@@ -5099,6 +5142,7 @@ export type ProjectImageJob = {
     id: string;
     status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
     kind: 'GENERATE' | 'EDIT';
+    model: string;
     prompt: string;
     settings: ProjectImageSettings;
     referenceAssetIds: Array<string>;
@@ -5122,6 +5166,7 @@ export type ProjectImageSession = {
 };
 
 export type CreateProjectImageJobRequest = {
+    modelId?: 'gemini-flash' | 'gemini-pro' | 'flux-2-pro';
     prompt: string;
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;

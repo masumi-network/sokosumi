@@ -22,6 +22,8 @@ describe("ProjectDetailHeader", () => {
     expect(root?.className).not.toContain("px-4");
     expect(root?.className).not.toContain("md:px-0");
 
+    // No back affordance at all when the parent is the projects index: the
+    // sidebar scope switcher is that navigation now.
     expect(
       screen.queryByRole("link", { name: "Back" }),
     ).not.toBeInTheDocument();
@@ -34,30 +36,33 @@ describe("ProjectDetailHeader", () => {
     expect(screen.getByRole("button", { name: "Actions" })).toBeInTheDocument();
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 
-    const titleRow = root?.children[0];
+    // The dates describe the project, so they sit under its name rather than
+    // as a third full-width row of chrome above the content.
+    const heading = screen.getByRole("heading", { name: "Example project" });
     const metadata = root?.querySelector("dl");
-    expect(titleRow).toBeTruthy();
     expect(metadata).toBeTruthy();
-    expect(metadata?.className).toContain("w-full");
-    expect(titleRow?.contains(metadata!)).toBe(false);
-    expect(metadata?.previousElementSibling).toBe(titleRow);
+    expect(heading.parentElement?.parentElement?.contains(metadata!)).toBe(
+      true,
+    );
   });
 
-  it("shows a project-specific back link on mobile when requested", () => {
-    render(
+  it("takes the surrounding surface's inset instead of spacing of its own", () => {
+    const { container } = render(
       <ProjectDetailHeader
-        {...{
-          backHref: "/projects/project-1",
-          showBackOnMobile: true,
-        }}
+        backHref="/projects/project-1"
+        className="px-4 md:px-6"
         projectName="Example project"
         backLabel="Back to project"
         metadata={[]}
       />,
     );
 
-    const back = screen.getByRole("link", { name: "Back to project" });
-    expect(back).toHaveAttribute("href", "/projects/project-1");
-    expect(back.className).not.toContain("hidden");
+    // It is the workspace card's header now, so the card decides the gutter.
+    const root = container.firstElementChild;
+    expect(root?.className).toContain("px-4");
+    expect(root?.className).toContain("md:px-6");
+    expect(
+      screen.getByRole("link", { name: "Back to project" }),
+    ).toHaveAttribute("href", "/projects/project-1");
   });
 });

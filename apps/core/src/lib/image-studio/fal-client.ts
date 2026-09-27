@@ -1,4 +1,10 @@
 import { getEnv } from "@/config/env";
+import {
+  imageDimensions,
+  imageModel,
+  imageModelForEndpoint,
+  resolveImageSettings,
+} from "./catalog";
 
 /**
  * The fal queue protocol, and nothing else.
@@ -85,8 +91,12 @@ function authHeaders(): Record<string, string> {
   };
 }
 
-export function falModelForKind(kind: "GENERATE" | "EDIT"): string {
-  return kind === "EDIT" ? IMAGE_MODEL_EDIT : IMAGE_MODEL_GENERATE;
+export function falModelForKind(
+  kind: "GENERATE" | "EDIT",
+  modelId?: string,
+): string {
+  const model = imageModel(modelId);
+  return kind === "EDIT" ? model.editEndpoint : model.generateEndpoint;
 }
 
 /**
@@ -110,13 +120,24 @@ export function queueRequestModel(model: string): string {
 
 export function buildFalInput(
   input: FalGenerationInput,
+  endpoint = falModelForKind(input.imageUrls.length ? "EDIT" : "GENERATE"),
 ): Record<string, unknown> {
+  const model = imageModelForEndpoint(endpoint);
+  resolveImageSettings(model.id, input, input.imageUrls.length);
+  if (input.imageUrls.length > 0 !== (endpoint === model.editEndpoint)) {
+    throw new Error("Reference images require the model edit endpoint.");
+  }
   const body: Record<string, unknown> = {
     prompt: input.prompt,
-    aspect_ratio: input.aspectRatio,
-    resolution: input.resolution,
     output_format: input.outputFormat,
-    num_images: 1,
+    ...(model.dimensionMode === "image-size"
+      ? { image_size: imageDimensions(input.aspectRatio, input.resolution) }
+      : {
+          aspect_ratio: input.aspectRatio,
+          resolution: input.resolution,
+          num_images: 1,
+          limit_generations: true,
+        }),
   };
   if (input.seed !== null) body.seed = input.seed;
   // Only the `/edit` endpoint accepts this field. Sending it to the base

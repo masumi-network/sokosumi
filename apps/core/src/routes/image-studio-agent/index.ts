@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { IMAGE_STUDIO_CATALOG } from "@/lib/image-studio/catalog";
 
 import {
   assetContentPath,
@@ -70,6 +71,12 @@ app.post("/sessions/:eveSessionId/authorize", async (c) => {
   return c.json({ ok: true, sessionId: session.id });
 });
 
+app.get("/options", async (c) => {
+  const context = await authorize(c.req.raw);
+  if (context instanceof Response) return context;
+  return c.json({ ok: true, catalog: IMAGE_STUDIO_CATALOG });
+});
+
 app.get("/versions", async (c) => {
   const context = await authorize(c.req.raw);
   if (context instanceof Response) return context;
@@ -90,6 +97,10 @@ app.get("/versions", async (c) => {
       lineageId: asset.rootId,
       parentId: asset.parentId,
       prompt: asset.prompt,
+      model: asset.model,
+      settings: asset.settings,
+      width: asset.width,
+      height: asset.height,
       createdAt: asset.createdAt.toISOString(),
       review: asset.review ? asset.review.decision : "UNDECIDED",
     })),
@@ -98,6 +109,8 @@ app.get("/versions", async (c) => {
       .map((job) => ({
         id: job.id,
         status: job.status,
+        model: job.model,
+        settings: job.settings,
         prompt: job.prompt,
       })),
   });
@@ -120,12 +133,11 @@ app.post("/generations", async (c) => {
   const parsed = createImageJobRequestSchema.safeParse({
     ...raw,
     settings: {
-      ...(typeof raw.aspectRatio === "string"
-        ? { aspectRatio: raw.aspectRatio }
-        : {}),
-      ...(typeof raw.resolution === "string"
-        ? { resolution: raw.resolution }
-        : {}),
+      aspectRatio: raw.aspectRatio,
+      resolution: raw.resolution,
+      outputFormat: raw.outputFormat,
+      seed: raw.seed,
+      placementId: raw.placementId,
     },
   });
   if (!parsed.success) {
@@ -146,6 +158,7 @@ app.post("/generations", async (c) => {
     userId: context.userId,
     sessionId: input.sessionId,
     prompt: input.prompt,
+    modelId: input.modelId,
     settings: { ...DEFAULT_SETTINGS, ...input.settings },
     referenceAssetIds: input.referenceAssetIds,
     parentAssetId: input.parentAssetId,
@@ -157,6 +170,8 @@ app.post("/generations", async (c) => {
     job: {
       id: job.id,
       status: job.status,
+      model: job.model,
+      settings: job.settings,
       // Said plainly so the model has no excuse to promise otherwise.
       note:
         job.status === "SUBMISSION_UNCERTAIN"
@@ -186,6 +201,8 @@ app.get("/generations/:jobId", async (c) => {
     job: {
       id: job.id,
       status: job.status,
+      model: job.model,
+      settings: job.settings,
       error: job.error,
       retryMayDuplicateCharge: job.retryMayDuplicateCharge,
     },
@@ -194,6 +211,8 @@ app.get("/generations/:jobId", async (c) => {
           id: asset.id,
           version: asset.version,
           lineageId: asset.rootId,
+          model: asset.model,
+          settings: asset.settings,
           review: asset.review ? asset.review.decision : "UNDECIDED",
         }
       : null,

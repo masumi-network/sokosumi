@@ -310,6 +310,7 @@ export interface JobView {
   id: string;
   status: ProjectImageJobStatus;
   kind: string;
+  model: string;
   prompt: string;
   /** The provider input this job asked for, so a retry can ask for the same. */
   settings: unknown;
@@ -346,6 +347,7 @@ export async function getJob(options: {
       id: true,
       status: true,
       kind: true,
+      model: true,
       prompt: true,
       settings: true,
       referenceAssetIds: true,
@@ -376,6 +378,7 @@ export async function listJobs(options: {
       id: true,
       status: true,
       kind: true,
+      model: true,
       prompt: true,
       settings: true,
       referenceAssetIds: true,
@@ -395,6 +398,7 @@ function toJobView(job: {
   id: string;
   status: ProjectImageJobStatus;
   kind: string;
+  model: string;
   prompt: string;
   settings: unknown;
   referenceAssetIds: string[];
@@ -410,6 +414,7 @@ function toJobView(job: {
     id: job.id,
     status: job.status,
     kind: job.kind,
+    model: job.model,
     prompt: job.prompt,
     settings: job.settings,
     referenceAssetIds: job.referenceAssetIds,
