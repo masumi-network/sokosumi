@@ -556,9 +556,9 @@
 
 .dark {
   --radius: 0.625rem;
-  --background: hsla(0, 0%, 4%, 1);
+  --background: #121212;
   --foreground: hsla(0, 0%, 98%, 1);
-  --card: hsla(300, 0%, 4%, 1);
+  --card: var(--background);
   --card-foreground: hsla(0, 0%, 98%, 1);
   --card-background: hsla(0, 0%, 9%, 1);
   /* The hover moves towards the page to separate the row from its card.
@@ -567,13 +567,13 @@
      surfaces. Keep the existing darker hover direction on cards. */
   --card-background-hover: hsla(0, 0%, 6%, 1);
   /* See the light block. The scrims do not change: they sit over media. */
-  --overlay: hsla(0, 0%, 4%, 0.5);
+  --overlay: color-mix(in srgb, var(--background) 50%, transparent);
   /* Same wash, more alpha: the dark primary is a lighter purple and
      needs 0.32 to reach the same weight. 1.489:1 against the page,
      text under it at 8.73:1. */
   --overlay-primary: hsla(201.9, 46.9%, 48.0%, 0.32);
-  --surface-glass: hsla(0, 0%, 4%, 0.8);
-  --surface-sticky: hsla(0, 0%, 4%, 0.95);
+  --surface-glass: color-mix(in srgb, var(--background) 80%, transparent);
+  --surface-sticky: color-mix(in srgb, var(--background) 95%, transparent);
   --scrim-soft: hsla(0, 0%, 0%, 0.25);
   --scrim: hsla(0, 0%, 0%, 0.5);
   --scrim-strong: hsla(0, 0%, 0%, 0.8);
@@ -625,7 +625,8 @@
   --destructive: hsla(0, 84%, 60%, 1);
   --destructive-foreground: hsla(0, 86%, 97%, 1);
   --border: hsla(0, 0.0%, 20.4%, 1);
-  --input: hsla(0, 0.0%, 36.5%, 1);
+  /* Control edges clear 3:1 on both the base and raised panels. */
+  --input: hsla(0, 0%, 40%, 1);
   --ring: hsla(201.9, 46.9%, 48.0%, 1);
   --ring-halo: hsla(201.9, 46.9%, 48.0%, 0.26);
   --primary-hover: hsla(201.8, 47.3%, 53.1%, 1);
@@ -643,7 +644,7 @@
   --chart-3-quinary: hsla(123, 64.3%, 11.0%, 1);
   --chart-4-quinary: hsla(49, 67.9%, 11.0%, 1);
   --chart-5-quinary: hsla(24, 67.9%, 11.0%, 1);
-  --sidebar: hsla(330, 0%, 9%, 1);
+  --sidebar: var(--background);
   --sidebar-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-accent: hsla(0, 0%, 15%, 1);
   --sidebar-accent-foreground: hsla(0, 0%, 98%, 1);
