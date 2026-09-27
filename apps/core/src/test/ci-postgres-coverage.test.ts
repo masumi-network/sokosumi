@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { unprovisionedDbFiles } from "../../vitest.config";
+
 /**
  * Does every `*.postgres.test.ts` in this package actually run in CI?
  *
@@ -73,14 +75,14 @@ describe("every PostgreSQL suite is reachable from CI", () => {
   it.each(suites)("%s is selected, or excluded on purpose", (suite) => {
     /**
      * Two ways to be accounted for. Either the step's filter selects the
-     * file — a substring the path contains — or the step names it in an
-     * `--exclude`, which is a visible decision someone made.
+     * file — a substring the path contains — or `unprovisionedDbFiles` in
+     * `vitest.config.ts` holds it out, which is a visible decision
+     * someone made and documented next to the pattern.
      *
      * A file that is neither is the failure this exists to catch: it runs
      * on the author's machine and nowhere else.
      */
-    const excluded = command.includes(`--exclude '${suite}'`);
-    if (excluded) return;
+    if (unprovisionedDbFiles.includes(suite)) return;
 
     const selected = command
       .split(/\s+/u)
@@ -89,27 +91,27 @@ describe("every PostgreSQL suite is reachable from CI", () => {
 
     expect(
       selected,
-      `${suite} is neither selected by the PostgreSQL step nor excluded by ` +
-        `name. It will pass locally and run in no CI job. Either widen the ` +
-        `step's filter or exclude it explicitly, with a comment saying why.`,
+      `${suite} is neither selected by the PostgreSQL step nor held out in ` +
+        `unprovisionedDbFiles. It will pass locally and run in no CI job. ` +
+        `Either widen the step's filter or hold it out explicitly, with a ` +
+        `comment saying why.`,
     ).toBe(true);
   });
 
   it("holds out only what it says it holds out", () => {
     /**
      * An exclusion is a hole, and a hole that outlives its reason is worse
-     * than no hole. This fails once the excluded file stops existing, so
-     * the line has to be removed rather than left behind.
+     * than no hole. This fails once the held-out file stops existing, so
+     * the entry has to be removed rather than left behind.
+     *
+     * Skipped when the owner's variable is set, because the list is empty
+     * then by design.
      */
-    const excluded = [...command.matchAll(/--exclude '([^']+)'/gu)].map(
-      (match) => match[1],
-    );
-
-    for (const file of excluded) {
+    for (const file of unprovisionedDbFiles) {
       expect(
         suites,
-        `${file} is excluded by the PostgreSQL step but no longer exists; ` +
-          `drop the --exclude line`,
+        `${file} is held out in vitest.config.ts but no longer exists; ` +
+          `drop the entry`,
       ).toContain(file);
     }
   });
