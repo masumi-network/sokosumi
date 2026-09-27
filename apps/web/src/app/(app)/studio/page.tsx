@@ -60,11 +60,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
     );
   }
 
-  const state = await imageStudioService.getState(project.id, {
-    // A selection in the URL may be older than the newest page, so Core is
-    // told to include it whatever its age.
-    ...(query.v ? { assetId: query.v } : {}),
-  });
+  const state = await loadStudioState(project.id, query.v);
 
   // A session id in the URL is a request to resume, not a right to. Only a
   // conversation Core reports as bound to this project is handed to the client.
@@ -100,4 +96,29 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
       />
     </StudioPageShell>
   );
+}
+
+/**
+ * The studio's state, with the selection in the URL treated as a hint.
+ *
+ * `?v=` arrives from a link somebody saved or pasted, so it can name an asset
+ * that has since been deleted, one that belongs to a different project, or a
+ * string that is not an id at all. Core rejects all three, and asking for the
+ * selection is only an optimisation — it makes Core include that asset even if
+ * it is older than the newest page. A failed hint therefore costs one extra
+ * round trip and nothing else; before this it took the whole studio down with
+ * an error boundary, which is a hard way to learn that a bookmark went stale.
+ */
+async function loadStudioState(projectId: string, assetId: string | undefined) {
+  if (!assetId) return imageStudioService.getState(projectId, {});
+
+  try {
+    return await imageStudioService.getState(projectId, { assetId });
+  } catch (error) {
+    console.warn("Image studio: ignoring an unusable selection from the URL", {
+      projectId,
+      error,
+    });
+    return imageStudioService.getState(projectId, {});
+  }
 }

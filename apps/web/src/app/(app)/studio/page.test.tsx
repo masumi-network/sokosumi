@@ -157,6 +157,42 @@ describe("StudioPage", () => {
     );
   });
 
+  it("survives a selection Core will not accept, instead of taking the page down", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    imageStudioServiceMock.getState
+      .mockRejectedValueOnce(new Error("Invalid uuid"))
+      .mockResolvedValueOnce(studioState());
+
+    const { default: StudioPage } = await import("./page");
+
+    render(
+      await StudioPage({
+        searchParams: Promise.resolve({
+          projectId: "project-1",
+          v: "not-an-id",
+        }),
+      }),
+    );
+
+    // A `?v=` from a saved link can name a deleted asset, another project's
+    // asset, or no asset at all. Asking for it is an optimisation, so a
+    // refusal costs one more round trip and nothing else.
+    expect(imageStudioServiceMock.getState).toHaveBeenNthCalledWith(
+      1,
+      "project-1",
+      { assetId: "not-an-id" },
+    );
+    expect(imageStudioServiceMock.getState).toHaveBeenNthCalledWith(
+      2,
+      "project-1",
+      {},
+    );
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-selected",
+      "",
+    );
+  });
+
   it("resumes only a conversation Core reports as bound to this project", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     imageStudioServiceMock.getState.mockResolvedValue(
