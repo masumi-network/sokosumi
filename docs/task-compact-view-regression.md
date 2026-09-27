@@ -1,17 +1,24 @@
 # Task board Compact regression
 
-Follow-up to #5258 for task 01a0df97. Display → Compact is the affected control.
+Follow-up to #5262 for task 01a0df97. Display → Compact is the affected control.
 
-Replacing description previews with tags removed the board card's only density
-distinction for untagged tasks. The previous card hid its description in Compact;
-the replacement only reduces visible tags from two to one. List rows still hide
-their descriptions. Board cards, drag overlays, and server-rendered fallback all
-receive the same persisted density preference.
+Compact board cards must omit tags and project metadata entirely, including
+empty-tag placeholders, tag overflow controls, and the no-project placeholder.
+Normal cards and task detail retain tags and projects. Keep the existing compact
+spacing, status, privacy, scheduling, actor metadata, task opening, keyboard,
+menus, and drag behavior. Audit board rendering, drag overlays, pre-hydration
+fallback, and list density for consistency.
 
-Restore a visibly denser card while keeping tags, project navigation, status,
-privacy, scheduling, metadata, and existing drag and keyboard interactions.
-Verify the actual Display toggle and reload persistence in a preprod preview,
-including tagged/untagged cards, missing/long projects, and desktop/mobile themes.
+Add focused regression tests and verify the actual Display toggle and reload
+persistence on a preprod preview with the designated fixture account. Capture
+separate desktop/mobile and light/dark screenshots for Normal and Compact,
+including tagged/untagged cards and missing/long projects.
+
+Investigate absent production tags read-only: deployed Core revision, enabled
+state, cron activity, throughput, and failures. Distinguish deployment mismatch
+and queued work from the intentionally absent historical backfill. Recommend a
+bounded backfill if needed; do not execute production queue work, backfill, or
+environment changes.
 
 The original implementation disabled automatic Jev classification by default
 because its catalog did not advertise EU routing or zero-data-retention support.
@@ -19,8 +26,8 @@ Patrick subsequently authorized non-EU classification in input
 `01a0e003-b9e2-738a-a7be-9a5a25acd65d`. A synthetic live evaluation succeeded
 through TypeSafe AI with both zero-data-retention and no-training controls
 intact. Gateway skipped the ineligible DigitalOcean endpoint automatically.
-This follow-up enables create/title-description-edit classification by default,
-removes the EU pin, and retains those request-level privacy controls. Existing
+PR #5262 enabled create/title-description-edit classification by default,
+removed the EU pin, and retained those request-level privacy controls. Existing
 untouched tasks are not automatically backfilled. Previously queued creates or
 edits can be processed when classification is enabled.
 
