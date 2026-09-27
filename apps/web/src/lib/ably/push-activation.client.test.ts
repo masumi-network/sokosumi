@@ -2,6 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const unsubscribeDeviceMock = vi.fn();
 const subscribeDeviceMock = vi.fn();
+const beginPushActivationMock = vi.fn();
+vi.mock("@/lib/services/push-devices.service", () => ({
+  beginPushActivation: (...args: unknown[]) => beginPushActivationMock(...args),
+  subscribePushDevice: (...args: unknown[]) => {
+    calls.push("subscribeDevice");
+    return subscribeDeviceMock(...args);
+  },
+}));
+beforeEach(() => {
+  beginPushActivationMock.mockReset().mockResolvedValue({
+    id: "consent-1",
+    revision: 1,
+    revoked: false,
+    replaceDevice: false,
+  });
+});
 const activateMock = vi.fn();
 const deactivateMock = vi.fn();
 const unsubscribeMock = vi.fn();
@@ -86,8 +102,9 @@ vi.mock("./push-client.client", () => ({
           return {
             push: {
               subscribeDevice: () => {
-                calls.push("subscribeDevice");
-                return subscribeDeviceMock();
+                throw new Error(
+                  "Browser must not bind a push channel directly",
+                );
               },
               unsubscribeDevice: () => {
                 calls.push("unsubscribeDevice");
@@ -114,6 +131,7 @@ import {
   hasPushDeviceIdentity,
   rememberPushDeviceIdentity,
 } from "./push-device-identity.client";
+import { wantsPushHere } from "./push-preference.client";
 import { notePushTeardown, queuePushWork } from "./push-work-queue.client";
 
 describe("deactivatePush", () => {
@@ -126,7 +144,7 @@ describe("deactivatePush", () => {
     calls.length = 0;
     clientConstructionError = null;
     activateMock.mockResolvedValue(undefined);
-    subscribeDeviceMock.mockResolvedValue(undefined);
+    subscribeDeviceMock.mockResolvedValue(true);
     unsubscribeDeviceMock.mockResolvedValue(undefined);
     deactivateMock.mockResolvedValue(undefined);
     // The browser, not a constant: a subscription that unsubscribes is gone
@@ -445,7 +463,7 @@ describe("activatePush", () => {
     calls.length = 0;
     clientConstructionError = null;
     activateMock.mockResolvedValue(undefined);
-    subscribeDeviceMock.mockResolvedValue(undefined);
+    subscribeDeviceMock.mockResolvedValue(true);
     deactivateMock.mockResolvedValue(undefined);
     hasWebPushSubscriptionMock.mockResolvedValue(true);
     browserRequestPermission = vi.fn().mockResolvedValue("granted");
@@ -458,6 +476,231 @@ describe("activatePush", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     localStorage.clear();
+  });
+
+  it("honors remote revocation before activation or reset and keeps the consent after reload", async () => {
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    localStorage.setItem("ably.push.deviceIdentityToken", "token");
+    beginPushActivationMock.mockResolvedValueOnce({
+      id: "consent-1",
+      revision: 2,
+      revoked: true,
+      replaceDevice: false,
+    });
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    getNotificationServiceWorkerMock.mockResolvedValueOnce({
+      pushManager: { getSubscription: async () => ({ unsubscribe }) },
+    });
+
+    await expect(
+      activatePush("user_1", { readerInitiated: false }),
+    ).resolves.toBe(false);
+    expect(activateMock).not.toHaveBeenCalled();
+    expect(deactivateMock).not.toHaveBeenCalled();
+    expect(subscribeDeviceMock).not.toHaveBeenCalled();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(revokeRenewalMock).toHaveBeenCalled();
+    expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
+    expect(localStorage.getItem("sokosumi.push.preference")).toBeNull();
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBe("1");
+    const { readPushConsentId } = await import("./push-consent.client");
+    expect(readPushConsentId("user_1")).toBe("consent-1");
+    expect(recordOutcomeMock).toHaveBeenLastCalledWith({ notify: true });
+  });
+
+  it("stops local delivery when revocation wins the final binding race", async () => {
+    subscribeDeviceMock.mockResolvedValueOnce(false);
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    getNotificationServiceWorkerMock.mockResolvedValueOnce({
+      pushManager: { getSubscription: async () => ({ unsubscribe }) },
+    });
+
+    await expect(activatePush("user_1")).resolves.toBe(false);
+    expect(activateMock).toHaveBeenCalledOnce();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(deactivateMock).not.toHaveBeenCalled();
+    expect(recordBrowserMock).not.toHaveBeenCalled();
+    expect(rememberRenewalMock).not.toHaveBeenCalled();
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBe("1");
+  });
+
+  it("uses the retained consent when explicitly enabling a revoked browser later", async () => {
+    beginPushActivationMock
+      .mockResolvedValueOnce({
+        id: "consent-1",
+        revision: 2,
+        revoked: true,
+        replaceDevice: false,
+      })
+      .mockResolvedValueOnce({
+        id: "consent-1",
+        revision: 3,
+        revoked: false,
+        replaceDevice: false,
+      });
+    getNotificationServiceWorkerMock.mockResolvedValueOnce(undefined);
+    await expect(
+      activatePush("user_1", { readerInitiated: false }),
+    ).resolves.toBe(false);
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(beginPushActivationMock).toHaveBeenLastCalledWith({
+      consentId: "consent-1",
+      deviceId: "device-1",
+      readerInitiated: true,
+    });
+    expect(subscribeDeviceMock).toHaveBeenCalledWith("device-1", {
+      consentId: "consent-1",
+      revision: 3,
+    });
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBeNull();
+  });
+
+  it("replaces a healthy revoked registration before binding the new consent revision", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "device-1" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    rememberPushDeviceIdentity("user_1", {
+      id: "device-1",
+      clientId: "user_1:instance",
+    });
+    beginPushActivationMock.mockResolvedValueOnce({
+      id: "consent-1",
+      revision: 3,
+      revoked: false,
+      replaceDevice: true,
+    });
+    let deviceId = "device-1";
+    getDeviceMock.mockImplementation(async () => ({
+      id: deviceId,
+      deviceIdentityToken: "token",
+    }));
+    deactivateMock.mockImplementationOnce(async () => {
+      deviceId = "device-2";
+      localStorage.setItem(
+        "ably.push.deviceId",
+        JSON.stringify({ value: deviceId }),
+      );
+    });
+    getNotificationServiceWorkerMock.mockResolvedValueOnce(undefined);
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(deactivateMock).toHaveBeenCalledOnce();
+    expect(activateMock).toHaveBeenCalledTimes(2);
+    expect(subscribeDeviceMock).toHaveBeenCalledExactlyOnceWith("device-2", {
+      consentId: "consent-1",
+      revision: 3,
+    });
+    expect(hasPushDeviceIdentity("user_1", "device-2")).toBe(true);
+    expect(recordBrowserMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "user_1",
+      expect.any(Date),
+    );
+  });
+
+  it("does not join an explicit enable to a pending automatic repair", async () => {
+    let resolveBegin = (_value: {
+      id: string;
+      revision: number;
+      revoked: boolean;
+    }) => {};
+    beginPushActivationMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveBegin = resolve;
+      }),
+    );
+    getNotificationServiceWorkerMock.mockResolvedValueOnce(undefined);
+    const automatic = activatePush("user_1", { readerInitiated: false });
+    await vi.waitFor(() =>
+      expect(beginPushActivationMock).toHaveBeenCalledOnce(),
+    );
+    const explicit = activatePush("user_1");
+    resolveBegin({ id: "consent-1", revision: 2, revoked: true });
+    await expect(automatic).resolves.toBe(false);
+    await expect(explicit).resolves.toBe(true);
+    expect(beginPushActivationMock).toHaveBeenCalledTimes(2);
+    expect(beginPushActivationMock).toHaveBeenLastCalledWith({
+      consentId: "consent-1",
+      deviceId: "device-1",
+      readerInitiated: true,
+    });
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBeNull();
+    expect(wantsPushHere("user_1")).toBe(true);
+  });
+
+  it("retains explicit recovery intent after an earlier revoked repair and SDK failure", async () => {
+    let resolveBegin = (_value: {
+      id: string;
+      revision: number;
+      revoked: boolean;
+      replaceDevice: boolean;
+    }) => {};
+    beginPushActivationMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveBegin = resolve;
+      }),
+    );
+    getNotificationServiceWorkerMock.mockResolvedValueOnce(undefined);
+    const automatic = activatePush("user_1", { readerInitiated: false });
+    await vi.waitFor(() =>
+      expect(beginPushActivationMock).toHaveBeenCalledOnce(),
+    );
+    activateMock.mockRejectedValueOnce(new Error("SDK unavailable"));
+    const explicit = activatePush("user_1");
+    const explicitFailure = expect(explicit).rejects.toThrow("SDK unavailable");
+    resolveBegin({
+      id: "consent-1",
+      revision: 2,
+      revoked: true,
+      replaceDevice: false,
+    });
+    await expect(automatic).resolves.toBe(false);
+    await explicitFailure;
+    expect(wantsPushHere("user_1")).toBe(true);
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBeNull();
+  });
+
+  it("keeps intentional off when an explicit re-enable cannot reach Core", async () => {
+    localStorage.setItem("sokosumi.push.teardownStarted", "1");
+    beginPushActivationMock.mockRejectedValueOnce(
+      new Error("Core unavailable"),
+    );
+    await expect(activatePush("user_1")).rejects.toThrow("Core unavailable");
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBe("1");
+    expect(activateMock).not.toHaveBeenCalled();
+  });
+
+  it("does not activate when Core cannot establish device consent", async () => {
+    beginPushActivationMock.mockRejectedValueOnce(
+      new Error("Core unavailable"),
+    );
+    await expect(
+      activatePush("user_1", { readerInitiated: false }),
+    ).rejects.toThrow("Core unavailable");
+    expect(activateMock).not.toHaveBeenCalled();
+    expect(deactivateMock).not.toHaveBeenCalled();
+    expect(subscribeDeviceMock).not.toHaveBeenCalled();
+  });
+
+  it("does not reset a device if its stable consent cannot be stored", async () => {
+    const setItem = localStorage.setItem.bind(localStorage);
+    const storage = vi
+      .spyOn(localStorage, "setItem")
+      .mockImplementation((key, value) => {
+        if (key.startsWith("sokosumi.push.consent:"))
+          throw new Error("Storage full");
+        setItem(key, value);
+      });
+    try {
+      await expect(activatePush("user_1")).rejects.toThrow("Storage full");
+      expect(activateMock).not.toHaveBeenCalled();
+      expect(deactivateMock).not.toHaveBeenCalled();
+      expect(subscribeDeviceMock).not.toHaveBeenCalled();
+    } finally {
+      storage.mockRestore();
+    }
   });
 
   it("does not repeatedly reset a working legacy device when marker storage is full", async () => {
@@ -895,15 +1138,22 @@ describe("activatePush", () => {
     expect(calls).toEqual(["activate", "subscribeDevice"]);
   });
 
-  it("binds a preview device only to its branch channel", async () => {
+  it("keeps preview consent separate while Core owns channel binding", async () => {
     envMock.NEXT_PUBLIC_VERCEL_ENV = "preview";
     envMock.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF = "fix/push-urls";
 
     await activatePush("user_1");
 
-    expect(getChannelMock).toHaveBeenCalledWith(
-      "notifications:preview:mainnet:branch_fix%2Fpush-urls:user_user_1",
-    );
+    expect(
+      localStorage.getItem(
+        "sokosumi.push.consent:notifications:preview:mainnet:branch_fix%2Fpush-urls:user_user_1",
+      ),
+    ).toBe("consent-1");
+    expect(subscribeDeviceMock).toHaveBeenCalledWith("device-1", {
+      consentId: "consent-1",
+      revision: 1,
+    });
+    expect(getChannelMock).not.toHaveBeenCalled();
   });
 
   it("does not bind the channel when activation fails", async () => {

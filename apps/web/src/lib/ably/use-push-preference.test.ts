@@ -107,6 +107,26 @@ describe("usePushPreference", () => {
     setAccountOptIn(false);
   });
 
+  it("reports remote revocation as off even before local unsubscribe finishes", async () => {
+    setAccountOptIn(true);
+    setDeviceSubscribed(true);
+    await recordPushRepairOutcome({ deliveryHealthy: true });
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isDeviceEnabled).toBe(true));
+    try {
+      await act(async () => {
+        localStorage.setItem("sokosumi.push.teardownStarted", "1");
+        await recordPushRepairOutcome({ notify: true });
+      });
+      await waitFor(() => expect(result.current.isDeviceEnabled).toBe(false));
+      expect(getPushRepairOutcome()).toBe("healthy");
+    } finally {
+      localStorage.removeItem("sokosumi.push.teardownStarted");
+    }
+  });
+
   it("refreshes the registered device list after turning this browser on and off", async () => {
     setAccountOptIn(true);
     listDevices.mockResolvedValue([]);

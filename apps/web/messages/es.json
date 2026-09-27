@@ -4516,7 +4516,14 @@
           "car": "Coche",
           "embedded": "Dispositivo integrado",
           "other": "Otro"
-        }
+        },
+        "remove": "Eliminar",
+        "removeNamedDevice": "Eliminar {device}",
+        "removeTitle": "¿Eliminar este dispositivo?",
+        "removeDescription": "Dejarás de recibir notificaciones push en {device}. Puedes volver a activarlas desde ese dispositivo.",
+        "removeConfirm": "Eliminar dispositivo",
+        "cancel": "Cancelar",
+        "removeError": "No se pudo eliminar este dispositivo. Comprueba tu conexión e inténtalo de nuevo."
       },
       "ChatDisplay": {
         "title": "Visualización del chat",

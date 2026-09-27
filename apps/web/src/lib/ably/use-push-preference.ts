@@ -20,12 +20,12 @@ import {
   getMyPreferencesQueryOptions,
 } from "@/queries/preferences";
 import { refreshPushDevices } from "@/queries/push-devices";
-
 import {
   getPushRepairOutcome,
   recordPushRepairOutcome,
   subscribePushRepairOutcome,
 } from "./push-repair-outcome.client";
+import { hasUnfinishedPushTeardown } from "./release-push-device.client";
 
 /**
  * Loads the activation module on the click that needs it. That module pulls in
@@ -54,7 +54,11 @@ async function readPushSubscription(): Promise<boolean> {
     return false;
   }
 
-  return getPushRepairOutcome() !== "quiet" && (await hasWebPushSubscription());
+  return (
+    !hasUnfinishedPushTeardown() &&
+    getPushRepairOutcome() !== "quiet" &&
+    (await hasWebPushSubscription())
+  );
 }
 
 /**
