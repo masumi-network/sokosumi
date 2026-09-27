@@ -6408,7 +6408,7 @@
         "previewDownload": "Download",
         "previewLoading": "Loading preview",
         "previewUnavailable": "This preview could not be loaded. The download still works.",
-        "previewNotRenderable": "No preview for this file type. Download it to open it."
+        "previewNotRenderable": "No inline preview for this file type. Open it in a tab, or download it."
       }
     },
     "SokoBot": {

@@ -100,43 +100,24 @@ describe("contentDispositionFor", () => {
 });
 
 describe("contentSecurityPolicyFor", () => {
-  it("gives ordinary content an opaque origin and nothing else", () => {
-    expect(contentSecurityPolicyFor("text/markdown")).toBe(
-      "sandbox; default-src 'none'",
-    );
+  it.each([
+    "text/markdown",
+    "text/html",
+    "image/svg+xml",
+    "application/octet-stream",
+    // PDF included: the relaxation it once had is gone, because it never
+    // made the sandboxed frame render.
+    "application/pdf",
+    "application/pdf; charset=binary",
+  ])("gives %s an opaque origin and nothing else", (type) => {
+    expect(contentSecurityPolicyFor(type)).toBe("sandbox; default-src 'none'");
   });
 
-  it.each(["text/html", "image/svg+xml", "application/octet-stream"])(
-    "keeps %s under the strict policy",
-    (type) => {
-      expect(contentSecurityPolicyFor(type)).toBe(
-        "sandbox; default-src 'none'",
-      );
-    },
-  );
-
-  it("lets the built-in viewer run for a PDF", () => {
-    // Found on preprod: the strict policy renders a PDF as an empty grey box
-    // because Chrome's viewer runs inside the frame and needs a real origin.
-    expect(contentSecurityPolicyFor("application/pdf; charset=binary")).toBe(
-      "sandbox allow-scripts allow-same-origin",
-    );
-  });
-
-  it("relaxes for PDF alone, so a document type never reaches that branch", () => {
-    // The relaxation is safe only because `nosniff` plus an
-    // `application/pdf` type means the frame can hold nothing but the
-    // viewer. Anything that could become an HTML document must stay strict.
-    for (const type of [
-      "text/html",
-      "image/svg+xml",
-      "application/xhtml+xml",
-      "text/markdown",
-      "application/json",
-      "application/octet-stream",
-    ]) {
-      expect(contentSecurityPolicyFor(type)).not.toContain("allow-same-origin");
-      expect(contentSecurityPolicyFor(type)).not.toContain("allow-scripts");
+  it("never grants scripting or a same origin to served bytes", () => {
+    for (const type of ["application/pdf", "text/html", "text/markdown"]) {
+      const policy = contentSecurityPolicyFor(type);
+      expect(policy).not.toContain("allow-scripts");
+      expect(policy).not.toContain("allow-same-origin");
     }
   });
 });

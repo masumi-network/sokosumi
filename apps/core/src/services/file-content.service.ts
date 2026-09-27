@@ -66,31 +66,25 @@ export function isInlineRenderable(mimeType: string | null): boolean {
  * The policy that keeps served bytes from acting like a page of ours.
  *
  * `sandbox` with no tokens gives the response an opaque origin and no
- * scripting. That is right for everything except a PDF: the browser's own
- * viewer runs inside the frame and needs both scripting and a real origin,
- * and under the strict policy a PDF renders as an empty grey box. Observed
- * on preprod — the same file opened top-level rendered fine.
+ * scripting. Every content type gets it, including PDF.
  *
- * `allow-scripts allow-same-origin` together normally means "no sandbox at
- * all", so it is worth being explicit about why it is safe *here* and only
- * here:
+ * ## Why PDF is not special-cased any more
  *
- * 1. The response is `Content-Type: application/pdf` with
- *    `X-Content-Type-Options: nosniff`, so the browser will not parse the
- *    bytes as HTML no matter what they contain.
- * 2. The only thing that can therefore occupy the frame is Chrome's PDF
- *    viewer — browser code, not the file's.
- * 3. A PDF's own scripting runs inside that viewer, which sandboxes it
- *    independently of this header.
+ * It was, briefly. A PDF rendered in an `<iframe>` came out as an empty grey
+ * box under the strict policy, so this granted `allow-scripts` and then
+ * `allow-scripts allow-same-origin` to let Chrome's viewer run — the two
+ * together being, in effect, no sandbox at all.
  *
- * Every other type keeps the strict policy, so an HTML or SVG file — the
- * ones that *would* become a document — never reaches this branch.
+ * It never worked. In a browser where `navigator.pdfViewerEnabled` is true,
+ * where the viewer plugin is present, and where the very same URL renders
+ * correctly when opened top-level, the sandboxed frame still showed the
+ * broken-document icon under both relaxations. So the widening bought
+ * nothing demonstrable, and the honest trade was to take it back: user
+ * supplied bytes keep the strict policy, and the detail view offers "Open"
+ * and "Download" for a PDF rather than an embedded frame that does not
+ * render.
  */
-export function contentSecurityPolicyFor(contentType: string): string {
-  const base = contentType.split(";")[0].trim().toLowerCase();
-  if (base === "application/pdf") {
-    return "sandbox allow-scripts allow-same-origin";
-  }
+export function contentSecurityPolicyFor(_contentType: string): string {
   return "sandbox; default-src 'none'";
 }
 

@@ -6408,7 +6408,7 @@
         "previewDownload": "Descargar",
         "previewLoading": "Cargando vista previa",
         "previewUnavailable": "No se pudo cargar esta vista previa. La descarga sigue funcionando.",
-        "previewNotRenderable": "No hay vista previa para este tipo de archivo. Descárgalo para abrirlo."
+        "previewNotRenderable": "No hay vista previa integrada para este tipo de archivo. Ábrelo en una pestaña o descárgalo."
       }
     },
     "SokoBot": {

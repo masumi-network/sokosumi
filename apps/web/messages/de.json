@@ -6408,7 +6408,7 @@
         "previewDownload": "Herunterladen",
         "previewLoading": "Vorschau wird geladen",
         "previewUnavailable": "Diese Vorschau konnte nicht geladen werden. Der Download funktioniert weiterhin.",
-        "previewNotRenderable": "Für diesen Dateityp gibt es keine Vorschau. Lade sie herunter, um sie zu öffnen."
+        "previewNotRenderable": "Keine Inline-Vorschau für diesen Dateityp. Öffne sie in einem Tab oder lade sie herunter."
       }
     },
     "SokoBot": {

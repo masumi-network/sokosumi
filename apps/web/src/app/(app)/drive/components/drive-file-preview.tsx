@@ -179,12 +179,6 @@ export function DriveFilePreview({
           alt={displayName}
           className="max-h-[60dvh] w-full rounded-md object-contain"
         />
-      ) : type === "application/pdf" ? (
-        <iframe
-          src={source}
-          title={displayName}
-          className="h-[60dvh] w-full rounded-md border"
-        />
       ) : isText ? (
         text.kind === "loading" ? (
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -202,6 +196,11 @@ export function DriveFilePreview({
         )
       ) : (
         <p className="text-muted-foreground text-sm">
+          {/* PDFs land here too. An embedded frame was tried and removed:
+              Chrome's viewer does not run inside the sandbox this route
+              serves, and the only way to make it would be to drop the
+              sandbox on reader-supplied bytes. "Open" gives the real viewer
+              in a tab, which works. */}
           {t("previewNotRenderable")}
         </p>
       )}
