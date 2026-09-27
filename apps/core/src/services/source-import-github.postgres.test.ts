@@ -98,8 +98,15 @@ async function provisionIsolatedDatabase(source: string): Promise<string> {
     // Sweep copies a previous run failed to drop. Vitest skips `afterAll`
     // when `beforeAll` throws, so an aborted run does leak one; the prefix
     // is only ever produced here, so this cannot remove anything else.
+    //
+    // Copies with a live connection are left alone: those belong to another
+    // run of this suite happening right now, not to a crash.
     const stale = await admin.query<{ datname: string }>(
-      "SELECT datname FROM pg_database WHERE datname LIKE 'files_import_test_%'",
+      `SELECT datname FROM pg_database d
+        WHERE datname LIKE 'files_import_test_%'
+          AND NOT EXISTS (
+            SELECT 1 FROM pg_stat_activity a WHERE a.datname = d.datname
+          )`,
     );
     for (const row of stale.rows) {
       await admin.query(
