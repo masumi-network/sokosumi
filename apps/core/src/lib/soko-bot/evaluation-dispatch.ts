@@ -3,8 +3,6 @@ import { createHash } from "node:crypto";
 import type { LanguageModelMiddleware } from "ai";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
-import prisma from "@/lib/db/prisma";
-import { serializableTransaction } from "@/lib/db/transaction";
 import type { ClassifierContextSummary } from "./classifier";
 
 const MAX_CALLS = 10;
@@ -109,6 +107,8 @@ export async function reserveEvaluationCall(input: {
     input.inputBytes < 1
   )
     throw new Error("Evaluation request exceeds envelope");
+  const { default: prisma } = await import("@/lib/db/prisma");
+  const { serializableTransaction } = await import("@/lib/db/transaction");
   // Owner binding comes from the database as well as trusted runtime context.
   const bot = await prisma.sokoBot.findFirst({
     where: {
@@ -161,6 +161,7 @@ export async function settleEvaluationCall(
   evidence: Record<string, string | number | boolean>,
   uncertain: boolean,
 ) {
+  const { serializableTransaction } = await import("@/lib/db/transaction");
   uncertain =
     uncertain ||
     costUsd === null ||
@@ -360,6 +361,7 @@ export function evaluationMiddleware(
 
 export async function withEvaluationTurn<T>(turnId: string, run: () => T) {
   if (!evaluationBinding()) return run();
+  const { default: prisma } = await import("@/lib/db/prisma");
   const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: turnId },
   });
@@ -375,6 +377,7 @@ export async function evaluationEvidence(
   const binding = raw ? bindingSchema.parse(JSON.parse(raw)) : null;
   if (!binding || binding.userId !== userId || binding.botId !== botId)
     return null;
+  const { default: prisma } = await import("@/lib/db/prisma");
   const ledger = await prisma.sokoBotEvaluationAllowance.findUnique({
     where: { id: LEDGER_ID },
   });

@@ -76,10 +76,13 @@ export function sokoBotModelRequest(options: {
 }) {
   assertSokoBotModelPolicy(options);
   const policy = EU_MODELS[options.model];
+  const evaluation = process.env.SOKO_BOT_EVALUATION_ALLOWANCE
+    ? evaluationBinding()
+    : null;
   return {
     model: wrapLanguageModel({
       model: gateway.languageModel(options.model),
-      middleware: evaluationBinding()
+      middleware: evaluation
         ? [
             sokoBotRegionMiddleware,
             evaluationMiddleware(options.model, options.role),
