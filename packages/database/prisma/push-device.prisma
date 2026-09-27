@@ -1,0 +1,30 @@
+/// Durable browser consent survives replacement of the Ably device ID.
+model PushDeviceConsent {
+  id                    String    @id @default(uuid(7)) @db.Uuid
+  userId                String
+  channel               String
+  revision              Int       @default(0)
+  revokedAt             DateTime?
+  revocationCompletedAt DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user          User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  registrations PushDeviceRegistration[]
+
+  @@index([userId, channel])
+  @@map("push_device_consent")
+}
+
+/// Keep old IDs so a stale device-list row can revoke its replacement.
+model PushDeviceRegistration {
+  channel   String
+  deviceId  String
+  consentId String @db.Uuid
+
+  consent PushDeviceConsent @relation(fields: [consentId], references: [id], onDelete: Cascade)
+
+  @@id([channel, deviceId])
+  @@index([consentId])
+  @@map("push_device_registration")
+}
