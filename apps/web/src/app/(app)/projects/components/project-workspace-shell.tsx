@@ -15,8 +15,8 @@ import { cn } from "@/lib/utils";
 export interface ProjectWorkspaceLabels {
   ariaLabel: string;
   backToProjects: string;
-  calendar: string;
-  imageStudio: string;
+  design: string;
+  memory: string;
   overview: string;
   social: string;
 }
@@ -36,8 +36,8 @@ export async function getProjectWorkspaceLabels(): Promise<ProjectWorkspaceLabel
   return {
     ariaLabel: t("ariaLabel"),
     backToProjects: t("backToProjects"),
-    calendar: t("calendar"),
-    imageStudio: t("imageStudio"),
+    design: t("design"),
+    memory: t("memory"),
     overview: t("overview"),
     social: t("social"),
   };
@@ -82,6 +82,19 @@ export function ProjectWorkspaceShell({
   showSocialTab,
   websiteUrl,
 }: ProjectWorkspaceShellProps) {
+  /**
+   * What a project *is*, in three views.
+   *
+   * The image studio and the calendar used to be tabs here. Neither is part of
+   * a project's own record: both are workspace surfaces that happen to be
+   * scoped to one, and they are top-level destinations now. What is left are
+   * the three things that only exist because this project exists — what it is,
+   * how it should look, and what has been learned about it.
+   *
+   * Social is not one of the three. It is still a separate area with its own
+   * route, and this row is its only navigation, so it keeps its tab where the
+   * workspace is in the beta.
+   */
   const tabs: ProjectTab[] = [
     {
       id: "overview",
@@ -91,14 +104,14 @@ export function ProjectWorkspaceShell({
       label: labels.overview,
     },
     {
-      id: "studio",
-      href: `/projects/${projectId}/studio`,
-      label: labels.imageStudio,
+      id: "design",
+      href: `/projects/${projectId}/design-md`,
+      label: labels.design,
     },
     {
-      id: "calendar",
-      href: `/projects/${projectId}/calendar`,
-      label: labels.calendar,
+      id: "memory",
+      href: `/projects/${projectId}/memory`,
+      label: labels.memory,
     },
     ...(showSocialTab
       ? [

@@ -5,6 +5,7 @@ import {
   CalendarDays,
   HardDrive,
   History,
+  ImagePlus,
   ListTodo,
   Plus,
   Repeat,
@@ -134,6 +135,14 @@ function ScopedMenuItems() {
       href: "/calendar",
       label: t("calendar"),
       Icon: CalendarDays,
+    },
+    // Scoped by `?projectId=` like the rows above it, so `hrefFor` carries the
+    // reader's project across without the studio knowing about the switcher.
+    {
+      key: "studio",
+      href: "/studio",
+      label: t("imageStudio"),
+      Icon: ImagePlus,
     },
     // Desktop only: mobile keeps Files on the You page account surface.
     ...(!isMobile

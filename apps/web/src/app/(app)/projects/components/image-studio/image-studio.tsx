@@ -109,7 +109,7 @@ export function ImageStudio({
   resumeSessionId: string | null;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
-  const t = useTranslations("App.Projects.Detail.imageStudio");
+  const t = useTranslations("App.Studio");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

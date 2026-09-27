@@ -14,23 +14,25 @@ export const PROJECTS_PAGE_SHELL_CLASS = "w-full";
 /**
  * Project detail outer shell: centered max-w-6xl container inside main `p-4`.
  *
- * Kept for the routes that are still a single centred document (project edit).
- * The tabbed project areas use `PROJECTS_WORKSPACE_SHELL_CLASS` instead.
+ * No route draws it any more — the tabbed project areas use
+ * `PROJECTS_WORKSPACE_SHELL_CLASS`, and project edit is a modal. It survives as
+ * the reference width that `TASK_DETAIL_SHELL_CLASS` is pinned against, which
+ * is the one thing still asking what a detail page is as wide as.
  */
 export const PROJECTS_DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl py-6";
 
 /**
- * The tabbed project workspace: overview, image studio, calendar, social.
+ * The tabbed project workspace: overview, design, memory, social.
  *
- * Full available width, deliberately. A 6xl column was right when a project
- * page was a document to read; it is wrong for a gallery, where the width is
- * how many images fit on a row, and wrong for a calendar next to it. The
- * application shell's own `p-4` remains the only horizontal padding.
+ * Full available width, deliberately. The application shell's own `p-4`
+ * remains the only horizontal padding; each tab caps its own reading column
+ * where its content is prose, rather than the shell capping all of them.
  */
 export const PROJECTS_WORKSPACE_SHELL_CLASS = "w-full min-w-0";
 
 /**
- * The project workspace as one surface.
+ * The project workspace as one surface. Shared with the image studio, which is
+ * its own destination now but draws the same card.
  *
  * Deliberately the same card the projects index and Drive already draw —
  * `bg-card-background`, hairline border, `rounded-xl` from `md`, full-bleed
@@ -51,13 +53,6 @@ export const PROJECTS_WORKSPACE_CARD_CLASS =
 /** Horizontal inset shared by the card's header, tab strip and content. */
 export const PROJECTS_WORKSPACE_GUTTER_CLASS = "px-4 md:px-6";
 
-export const PROJECTS_CALENDAR_SHELL_CLASS = "mx-auto w-full max-w-7xl py-6";
-
-/**
- * Workspace modules (`modules.title`): stacks heading + tiles in the main column.
- */
-export const PROJECTS_DETAIL_WORKSPACE_CLASS = "space-y-3";
-
 /**
  * Shared list card min-height for Instant skeleton, loaded list, and empty state
  * so route swaps do not thrash CLS. Keep as a full Tailwind class string so the
@@ -68,7 +63,7 @@ export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 /**
  * Primary browse outer chrome: divided list at all breakpoints (Tasks/Drive rhythm).
  * Square corners on mobile; `md:rounded-xl` + border on desktop.
- * Shared by live `ProjectsView`, Instant skeleton, and project needs-attention list.
+ * Shared by live `ProjectsView` and the Instant skeleton.
  */
 export const PROJECTS_BROWSE_LAYOUT_CLASS =
   "bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";

@@ -17,18 +17,17 @@ function read(rel: string): string {
  * An element that paints `bg-card-background` and hovers to
  * `hover:bg-card-background` hovers to its own colour, so nothing happens
  * under the pointer. The agent cards had this on every size variant, which
- * left the whole gallery with no hover response; the project module tiles and
- * the Soko Bots "you" row had it too. `--card-background-hover` is the step
+ * left the whole gallery with no hover response; the Soko Bots "you" row had
+ * it too. `--card-background-hover` is the step
  * that exists for this case.
  *
  * Whether an element sits on a card is not something a regex can decide.
  * A file-wide match is wrong in both directions: in a `cva` the resting fill
  * and the variant hover are separate strings, so a same-string rule misses
- * the agent cards entirely, while a same-file rule flags
- * `project-module-tiles.tsx`, whose own panel is `bg-card-background` while
- * the tiles on it are not.
+ * the agent cards entirely, while a same-file rule flags any file that draws
+ * both a card and something sitting on it.
  *
- * So this pins the four call sites that had the bug, the way
+ * So this pins the call sites that had the bug, the way
  * `panel-divider-spans-panel` pins the panel that had its own.
  */
 const FIXED_SITES: ReadonlyArray<readonly [string, string]> = [
@@ -56,18 +55,5 @@ describe("hover fills differ from the surface they sit on", () => {
     expect(read("components/agents/agent-card.tsx")).toContain(
       "shadow-none bg-card-background",
     );
-  });
-
-  it("keeps the module tile a step away from the surface under it", () => {
-    // This assertion used to read `hover:bg-card-background`, from when the
-    // tiles sat straight on the page. #5257 grouped them on a shared
-    // `bg-card-background` panel and gave each tile `bg-background`, which
-    // makes that hover the panel's own colour — the very case this file
-    // exists for. The step that differs from both is the right one.
-    const tiles = read(
-      "app/(app)/projects/components/project-module-tiles.tsx",
-    );
-    expect(tiles).toContain("bg-background hover:border-primary-tertiary");
-    expect(tiles).toContain("hover:bg-card-background-hover");
   });
 });

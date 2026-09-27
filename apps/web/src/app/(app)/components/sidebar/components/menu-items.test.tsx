@@ -227,7 +227,7 @@ describe("MenuItems search action", () => {
     expect(screen.queryByRole("link", { name: /drive/i })).toBeNull();
   });
 
-  it("shows Files after Calendar on desktop", () => {
+  it("shows Files after Calendar and the studio on desktop", () => {
     const { container } = renderMenu(true, false);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -239,6 +239,7 @@ describe("MenuItems search action", () => {
       "taskManager",
       "schedules",
       "calendar",
+      "imageStudio",
       "drive",
       "history",
     ];
@@ -254,7 +255,7 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("orders primary destinations Search, Agents, Tasks, Schedules, Calendar, History", () => {
+  it("orders primary destinations Search, Agents, Tasks, Schedules, Calendar, Studio, History", () => {
     const { container } = renderMenu(true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -266,6 +267,7 @@ describe("MenuItems search action", () => {
       "taskManager",
       "schedules",
       "calendar",
+      "imageStudio",
       "history",
     ];
     const positions = primaryOrder.map((label) =>
@@ -352,6 +354,7 @@ describe("MenuItems search action", () => {
       "taskManager",
       "schedules",
       "calendar",
+      "imageStudio",
       "drive",
       "history",
     ]);
@@ -425,6 +428,7 @@ describe("MenuItems project scope", () => {
       ["taskManager", "/tasks"],
       ["schedules", "/schedules"],
       ["calendar", "/calendar"],
+      ["imageStudio", "/studio"],
       ["drive", "/drive"],
       ["history", "/history"],
     ]) {
@@ -440,6 +444,7 @@ describe("MenuItems project scope", () => {
       ["taskManager", "/tasks?projectId=p-1"],
       ["schedules", "/schedules?projectId=p-1"],
       ["calendar", "/calendar?projectId=p-1"],
+      ["imageStudio", "/studio?projectId=p-1"],
       ["drive", "/drive?view=tasks&projectId=p-1"],
       ["history", "/history?projectId=p-1"],
     ]) {

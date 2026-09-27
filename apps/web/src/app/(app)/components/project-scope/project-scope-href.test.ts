@@ -17,6 +17,13 @@ describe("readProjectScope", () => {
     expect(readProjectScope("/projects/p1/calendar", params())).toBe("p1");
   });
 
+  it("reads the project the studio is scoped to", () => {
+    expect(
+      readProjectScope("/studio", new URLSearchParams("projectId=p1")),
+    ).toBe("p1");
+    expect(readProjectScope("/studio", new URLSearchParams())).toBeNull();
+  });
+
   it("reads the filter on a scoped workspace page", () => {
     expect(readProjectScope("/tasks", params("projectId=p2"))).toBe("p2");
     expect(readProjectScope("/drive", params("view=tasks&projectId=p3"))).toBe(
@@ -42,6 +49,7 @@ describe("scopedHref", () => {
     expect(scopedHref("/tasks", "p1")).toBe("/tasks?projectId=p1");
     expect(scopedHref("/schedules", "p1")).toBe("/schedules?projectId=p1");
     expect(scopedHref("/calendar", "p1")).toBe("/calendar?projectId=p1");
+    expect(scopedHref("/studio", "p1")).toBe("/studio?projectId=p1");
     expect(scopedHref("/history", "p1")).toBe("/history?projectId=p1");
     expect(scopedHref("/drive", "p1")).toBe("/drive?view=tasks&projectId=p1");
   });
@@ -58,6 +66,10 @@ describe("switchScopeHref", () => {
   it("shows the other version of a scoped page and resets its filters", () => {
     expect(switchScopeHref("/tasks", "p2")).toBe("/tasks?projectId=p2");
     expect(switchScopeHref("/tasks", null)).toBe("/tasks");
+    // The studio has no workspace version to show, so choosing "Everything"
+    // lands on the page that asks which project to work in.
+    expect(switchScopeHref("/studio", "p2")).toBe("/studio?projectId=p2");
+    expect(switchScopeHref("/studio", null)).toBe("/studio");
   });
 
   it("keeps the section when switching between projects", () => {

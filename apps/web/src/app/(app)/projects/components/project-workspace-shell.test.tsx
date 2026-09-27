@@ -13,14 +13,14 @@ import { ProjectWorkspaceShell } from "@/app/projects/components/project-workspa
  */
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/projects/p1/studio",
+  usePathname: () => "/projects/p1/memory",
 }));
 
 const LABELS = {
   ariaLabel: "Project sections",
   backToProjects: "All projects",
-  calendar: "Calendar",
-  imageStudio: "Image studio",
+  design: "Design",
+  memory: "Memory",
   overview: "Overview",
   social: "Social",
 };
@@ -77,9 +77,45 @@ describe("the project workspace surface", () => {
     // a rule the tabs float above.
     expect(nav.className).toContain("border-b");
     expect(nav.className).not.toContain("-mx-4");
-    expect(screen.getByRole("link", { name: "Image studio" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Memory" })).toHaveAttribute(
       "aria-current",
       "page",
+    );
+  });
+
+  it("navigates the three views a project actually has, and nothing else", () => {
+    renderShell();
+
+    // The studio and the calendar are top-level destinations now: neither is
+    // an area *of* a project, so neither is a tab here.
+    const tabs = screen
+      .getAllByRole("link")
+      .map((link) => [link.textContent, link.getAttribute("href")]);
+    expect(tabs).toEqual([
+      ["Overview", "/projects/p1"],
+      ["Design", "/projects/p1/design-md"],
+      ["Memory", "/projects/p1/memory"],
+    ]);
+  });
+
+  it("adds Social as a fourth tab only inside the beta", () => {
+    render(
+      <ProjectWorkspaceShell
+        labels={LABELS}
+        metadata={[]}
+        projectId="p1"
+        projectName="Example project"
+        showSocialTab
+      >
+        <p>area content</p>
+      </ProjectWorkspaceShell>,
+    );
+
+    // This row is Social's only navigation, so dropping the tab would strand
+    // the route rather than tidy the page.
+    expect(screen.getByRole("link", { name: "Social" })).toHaveAttribute(
+      "href",
+      "/projects/p1/social",
     );
   });
 

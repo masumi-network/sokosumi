@@ -151,7 +151,7 @@ export function StudioComposer({
   target: StudioTarget;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
-  const t = useTranslations("App.Projects.Detail.imageStudio");
+  const t = useTranslations("App.Studio");
   const [copies, setCopies] = useState(1);
   const { modelIds: selectedModelIds, placementId, settings } = target;
 

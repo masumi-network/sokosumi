@@ -5,12 +5,19 @@ export const PROJECT_SCOPE_PARAM = "projectId";
 /**
  * Workspace pages that have a project version, with any extra params that
  * version needs. Drive filters by project only in its Tasks view.
+ *
+ * The image studio is here rather than under `/projects/:id` because its work
+ * is per-project but the surface is not part of a project's own page: it is a
+ * destination in the sidebar like Tasks or Calendar, and it scopes itself the
+ * same way they do. Unlike them it has nothing to show for the workspace
+ * view, so `/studio` with no project asks for one.
  */
 const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
   {
     "/tasks": {},
     [TASK_SCHEDULES_PATH]: {},
     "/calendar": {},
+    "/studio": {},
     "/drive": { view: "tasks" },
     "/history": {},
   };
