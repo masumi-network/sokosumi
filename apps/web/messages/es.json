@@ -298,7 +298,7 @@
       "calendar": "Calendario",
       "schedules": "Programaciones",
       "threads": "Hilos",
-      "studio": "Estudio de imagen",
+      "studio": "Content Studio",
       "design-md": "Diseño",
       "memory": "Memoria",
       "social": "Social"
@@ -2619,11 +2619,11 @@
       "copyCount": "{count, plural, one {# copia} other {# copias}}",
       "placementTarget": "Objetivo de la plataforma",
       "pickTitle": "Elige un proyecto",
-      "pickBody": "El estudio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería.",
+      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería.",
       "pickAction": "Elegir proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "scopeLabel": "Proyecto",
-      "title": "Estudio de imagen",
+      "title": "Content Studio",
       "noProject": "Ningún proyecto seleccionado",
       "selectAllModels": "Seleccionar todos",
       "generationTime": "Tiempo de generación",
@@ -2677,7 +2677,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Calendario",
-          "imageStudio": "Estudio de imagen",
+          "contentStudio": "Content Studio",
           "schedules": "Programaciones"
         },
         "ChatLists": {

@@ -314,7 +314,7 @@
       "calendar": "Calendar",
       "schedules": "Schedules",
       "threads": "Threads",
-      "studio": "Image studio",
+      "studio": "Content Studio",
       "design-md": "Design",
       "memory": "Memory",
       "social": "Social"
@@ -2619,11 +2619,11 @@
       "copyCount": "{count, plural, one {# copy} other {# copies}}",
       "placementTarget": "Platform target",
       "pickTitle": "Pick a project",
-      "pickBody": "The studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery.",
+      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery.",
       "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "scopeLabel": "Project",
-      "title": "Image studio",
+      "title": "Content Studio",
       "noProject": "No project selected",
       "selectAllModels": "Select all",
       "generationTime": "Generation time",
@@ -2677,7 +2677,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Calendar",
-          "imageStudio": "Image studio",
+          "contentStudio": "Content Studio",
           "schedules": "Schedules"
         },
         "ChatLists": {
