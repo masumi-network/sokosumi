@@ -174,14 +174,39 @@ describe("push devices in notification settings", () => {
     await screen.findByRole("list");
     expect(screen.queryByText("This device")).toBeNull();
   });
-  it("shows loading while a request is pending and prevents duplicate refresh", async () => {
-    listPushDevices.mockReturnValue(new Promise(() => {}));
+  it("shows loading in Refresh and announces it without a visible loading row", async () => {
+    let resolveDevices: (devices: PushDevice[]) => void = () => {};
+    listPushDevices.mockReturnValue(
+      new Promise<PushDevice[]>((resolve) => {
+        resolveDevices = resolve;
+      }),
+    );
     setup();
-    expect(screen.getByRole("status").textContent).toBe("Loading devices…");
+    const refresh = screen.getByRole("button", { name: "Refresh" });
+    const status = screen.getByRole("status");
+    expect(status.textContent).toBe("Loading devices…");
+    expect(status.classList.contains("sr-only")).toBe(true);
+    expect(refresh.hasAttribute("disabled")).toBe(true);
+    expect(refresh.getAttribute("aria-busy")).toBe("true");
     expect(
-      screen.getByRole("button", { name: "Refresh" }).hasAttribute("disabled"),
+      refresh
+        .querySelector("svg")
+        ?.classList.contains("motion-safe:animate-spin"),
     ).toBe(true);
     expect(screen.queryByText(/No registered devices found/)).toBeNull();
+    fireEvent.click(refresh);
+    expect(listPushDevices).toHaveBeenCalledTimes(1);
+
+    resolveDevices([device]);
+    await screen.findByRole("list");
+    expect(refresh.hasAttribute("disabled")).toBe(false);
+    expect(refresh.getAttribute("aria-busy")).toBe("false");
+    expect(
+      refresh
+        .querySelector("svg")
+        ?.classList.contains("motion-safe:animate-spin"),
+    ).toBe(false);
+    expect(status.textContent).toBe("");
   });
   it("shows an empty state when no devices are registered", async () => {
     listPushDevices.mockResolvedValue([]);

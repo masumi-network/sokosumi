@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 import { usePushDevices } from "./use-push-devices";
 
 interface PushDevicesProps {
@@ -48,13 +49,24 @@ export function PushDevices({ userId }: PushDevicesProps) {
             variant="ghost"
             size="sm"
             disabled={query.isFetching}
+            aria-busy={query.isFetching}
             onClick={() => void query.refetch()}
           >
-            <RefreshCw className="size-3.5" aria-hidden="true" />
+            {query.isFetching ? (
+              <Loader2
+                className="size-3.5 motion-safe:animate-spin"
+                aria-hidden="true"
+              />
+            ) : (
+              <RefreshCw className="size-3.5" aria-hidden="true" />
+            )}
             {t("refresh")}
           </Button>
         </div>
-        <div role="status" className="text-sm">
+        <div
+          role="status"
+          className={cn("text-sm", query.isFetching && "sr-only")}
+        >
           {query.isFetching
             ? t("loading")
             : query.isError
