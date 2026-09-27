@@ -3,7 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
+import { nudgeFileExtraction } from "@/lib/files/in-process-indexer";
 import { SEARCH_PAGE_MAX } from "@/lib/files/search-session";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
@@ -105,7 +105,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         scope: context.scope,
         ownerId: context.ownerId,
       });
-      nudgeFileIndexing();
+      // Extraction only: a search is a read and must not buy label
+      // evaluations. See `nudgeFileExtraction`.
+      nudgeFileExtraction();
     }
 
     const text = query.q?.trim() ?? "";

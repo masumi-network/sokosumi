@@ -78,8 +78,38 @@ export interface IndexingNudgeResult {
   suggestion: SuggestionSyncResult;
 }
 
+/**
+ * Both halves. For the upload path, where the reader asked for this
+ * document to exist and labelling it is the point.
+ */
 export function nudgeFileIndexing(): void {
   waitUntil(runIndexingNudge());
+}
+
+/**
+ * Extraction only. For read paths.
+ *
+ * `GET /v1/drive/search` also nudges, inside the
+ * `isDriveStoreBackfillPending` branch, and the full nudge made a search
+ * spend money: up to three paid label evaluations per request, on top of
+ * the ranking calls the search itself makes. Backfill stays pending across
+ * several visits by design — five listing pages each — so a large Drive
+ * kept that branch live for many searches, and the spend belonged to
+ * whoever happened to be searching.
+ *
+ * That is the same principle this module already states for uploads, one
+ * path over: nobody should quietly work through a backlog on the spend of
+ * a request that did not ask for it. A search asked to read.
+ *
+ * Extraction is kept because it is local work — fetch, parse, chunk, no
+ * provider — and because this branch is exactly where documents are
+ * adopted. Dropping it too would mean that on a preview, where no cron
+ * runs, a freshly adopted document stays unindexed until somebody happens
+ * to upload something. Labelling those documents is left to the upload
+ * path and, in production, to the cron.
+ */
+export function nudgeFileExtraction(): void {
+  waitUntil(runExtractionNudge());
 }
 
 const NO_SUGGESTIONS: SuggestionSyncResult = {
@@ -98,7 +128,7 @@ export async function runIndexingNudge(): Promise<IndexingNudgeResult> {
   return { extraction, suggestion };
 }
 
-async function runExtractionNudge(): Promise<FileIndexSyncResult> {
+export async function runExtractionNudge(): Promise<FileIndexSyncResult> {
   const deadline = Date.now() + IN_PROCESS_BUDGET_MS;
   try {
     return await processFileIndexJobs({

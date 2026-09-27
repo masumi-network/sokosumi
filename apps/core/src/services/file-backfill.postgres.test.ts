@@ -21,7 +21,11 @@ import prisma from "@/lib/db/prisma";
  * that an update matched no rows.
  */
 
-const { listMock } = vi.hoisted(() => ({ listMock: vi.fn() }));
+const { listMock, blob } = vi.hoisted(() => ({
+  listMock: vi.fn(),
+  /** Mutable, so a test can take the token away. */
+  blob: { token: "test-token" as string | undefined },
+}));
 
 vi.mock("@vercel/blob", () => ({ list: listMock }));
 
@@ -31,7 +35,7 @@ vi.mock("@/config/env", async (importOriginal) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
-      BLOB_READ_WRITE_TOKEN: "test-token",
+      BLOB_READ_WRITE_TOKEN: blob.token,
     }),
   };
 });
@@ -124,5 +128,68 @@ describe.skipIf(!enabled)("Drive store backfill", () => {
     expect(scope).not.toBeNull();
     expect(scope?.backfilledAt).toBeInstanceOf(Date);
     expect(scope?.backfillCursor).toBeNull();
+  });
+
+  it("is not pending when there is no blob store to adopt from", async () => {
+    /**
+     * The unbounded spend path, closed.
+     *
+     * `backfillDriveStore` returns at its first line when
+     * `BLOB_READ_WRITE_TOKEN` is unset — before it can write
+     * `backfilledAt` — so the marker this check reads was never set and
+     * the answer was "pending" forever.
+     *
+     * The cost was not a wasted query. The one caller,
+     * `GET /v1/drive/search`, nudges the indexer inside this branch, and
+     * that nudge used to drain label suggestion: a paid model call per
+     * document. A missing environment variable therefore made every
+     * search spend money with no condition that could ever end it. The
+     * other half of the fix is in `in-process-indexer.test.ts`, where the
+     * read path no longer buys evaluations at all.
+     *
+     * A store with no `backfilledAt` row at all is used deliberately:
+     * that is the state the forever case leaves behind, and the state
+     * that answered "yes" every time.
+     */
+    const { isDriveStoreBackfillPending } = await import(
+      "@/services/file-backfill.service"
+    );
+
+    const owner = await prisma.user.create({
+      data: {
+        name: "Tokenless owner",
+        email: `tokenless-${suffix}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    const store = await prisma.workspace.create({
+      data: { userId: owner.id },
+      select: { id: true },
+    });
+
+    const ask = async () =>
+      isDriveStoreBackfillPending({
+        workspaceId: store.id,
+        scope: "user",
+        ownerId: owner.id,
+      });
+
+    // With a token it is pending, because nothing has recorded completion.
+    // Without this the assertion below would hold for the wrong reason.
+    expect(await ask()).toBe(true);
+
+    const previous = blob.token;
+    blob.token = undefined;
+    try {
+      expect(await ask()).toBe(false);
+    } finally {
+      blob.token = previous;
+    }
+
+    // And configuring a token later brings it back, rather than the store
+    // being permanently marked as done.
+    expect(await ask()).toBe(true);
   });
 });

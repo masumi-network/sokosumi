@@ -188,6 +188,28 @@ export async function isDriveStoreBackfillPending(input: {
   scope: "user" | "organization";
   ownerId: string;
 }): Promise<boolean> {
+  /**
+   * No blob store, nothing to adopt from, nothing pending.
+   *
+   * Without this the answer is "yes" forever. `backfillDriveStore` returns
+   * at its first line when `BLOB_READ_WRITE_TOKEN` is unset, before it can
+   * write `backfilledAt`, so the marker this function reads is never set
+   * and every caller sees a store that is permanently mid-backfill.
+   *
+   * That was not merely a wasted query. The one caller —
+   * `GET /v1/drive/search` — nudges the indexer inside this branch, and
+   * the nudge drains label suggestion, which is a paid model call per
+   * document. A missing environment variable therefore turned every
+   * search into billable work with no completion condition: not a slow
+   * path, an unbounded one. Found by review, not by a bill.
+   *
+   * Answering "not pending" is the honest answer rather than a
+   * suppression. Nothing can be adopted without a token, and if one is
+   * configured later this returns to "pending" on its own — which
+   * recording a false `backfilledAt` would have prevented forever.
+   */
+  if (!getEnv().BLOB_READ_WRITE_TOKEN) return false;
+
   const scope = await prisma.fileEvidenceScope.findUnique({
     where: {
       workspaceId_sourceKind_sourceScope_sourceId: {
