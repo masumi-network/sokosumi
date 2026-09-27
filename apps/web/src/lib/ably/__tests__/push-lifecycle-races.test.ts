@@ -5,6 +5,15 @@ const activate = vi.hoisted(() => vi.fn());
 const deactivate = vi.hoisted(() => vi.fn());
 const subscribeDevice = vi.hoisted(() => vi.fn());
 const unsubscribeDevice = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/services/push-devices.service", () => ({
+  beginPushActivation: async () => ({
+    id: "consent-1",
+    revision: 1,
+    revoked: false,
+    replaceDevice: false,
+  }),
+  subscribePushDevice: (...args: unknown[]) => subscribeDevice(...args),
+}));
 
 vi.mock("../push-client.client", () => ({
   createAblyPushClient: (userId: string) => ({
@@ -68,7 +77,7 @@ beforeEach(() => {
     localStorage.setItem(TOKEN_KEY, "new-token");
   });
   deactivate.mockImplementation(async () => localStorage.removeItem(TOKEN_KEY));
-  subscribeDevice.mockResolvedValue(undefined);
+  subscribeDevice.mockResolvedValue(true);
   unsubscribeDevice.mockResolvedValue(undefined);
 
   // Separate module instances model tabs. The browser lock is shared.

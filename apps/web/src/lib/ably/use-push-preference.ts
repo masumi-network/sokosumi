@@ -19,13 +19,20 @@ import {
   getMyPreferencesQueryKey,
   getMyPreferencesQueryOptions,
 } from "@/queries/preferences";
-import { refreshPushDevices } from "@/queries/push-devices";
-
+import {
+  clearPushDeviceSnapshot,
+  getPushDevicesQueryOptions,
+  refreshPushDevices,
+} from "@/queries/push-devices";
 import {
   getPushRepairOutcome,
   recordPushRepairOutcome,
   subscribePushRepairOutcome,
 } from "./push-repair-outcome.client";
+import {
+  hasUnfinishedPushTeardown,
+  readAblyPushDeviceId,
+} from "./release-push-device.client";
 
 /**
  * Loads the activation module on the click that needs it. That module pulls in
@@ -46,15 +53,19 @@ function loadPushActivation() {
  *
  * This is the read half of ADR-0023's self-heal, and only the read half: it
  * re-activates nothing, and it runs in the settings card rather than on app
- * open. It also cannot see whether the device is still subscribed to the
- * notifications channel on Ably's side. SOK-876 owns both gaps.
+ * open. The hook combines this local answer with the registered-device list
+ * once that list has been loaded.
  */
 async function readPushSubscription(): Promise<boolean> {
   if (!isPushSupported() || getBrowserNotificationPermission() !== "granted") {
     return false;
   }
 
-  return getPushRepairOutcome() !== "quiet" && (await hasWebPushSubscription());
+  return (
+    !hasUnfinishedPushTeardown() &&
+    getPushRepairOutcome() !== "quiet" &&
+    (await hasWebPushSubscription())
+  );
 }
 
 /**
@@ -159,6 +170,11 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   const { data: preferences } = useQuery(getMyPreferencesQueryOptions(userId));
   const accountOptIn = preferences?.data.pushOptIn ?? null;
   const queryClient = useQueryClient();
+  // Observe the list without loading it while its disclosure is collapsed.
+  const { data: registrations } = useQuery({
+    ...getPushDevicesQueryOptions(userId),
+    enabled: false,
+  });
 
   /**
    * Records the account-wide consent. The write returns the same DTO the read
@@ -335,23 +351,28 @@ export function usePushPreference(userId: string | undefined): PushPreference {
    * answers for this browser only, for the subscription it is the whole
    * request. Anything else throws for both.
    */
-  const subscribeThisBrowser = useCallback(async (sessionUserId: string) => {
-    // Ask for the OS permission before anything else awaits, so the prompt
-    // opens inside the click that asked for it. Ably asks a second time inside
-    // `activate()` (`ably/build/push.js:194`), by which point the gesture is
-    // long gone: `loadPushActivation` has fetched its chunk in between, and
-    // Ably documents the prompt as valid only "in response to direct user
-    // interaction". `activatePush` answers that second request from the stored
-    // permission, so this one is the only prompt the reader ever sees.
-    const granted = await requestBrowserNotificationPermission();
-    setPermission(granted);
-    if (granted !== "granted") {
-      return false;
-    }
+  const subscribeThisBrowser = useCallback(
+    async (sessionUserId: string) => {
+      // Ask for the OS permission before anything else awaits, so the prompt
+      // opens inside the click that asked for it. Ably asks a second time inside
+      // `activate()` (`ably/build/push.js:194`), by which point the gesture is
+      // long gone: `loadPushActivation` has fetched its chunk in between, and
+      // Ably documents the prompt as valid only "in response to direct user
+      // interaction". `activatePush` answers that second request from the stored
+      // permission, so this one is the only prompt the reader ever sees.
+      const granted = await requestBrowserNotificationPermission();
+      setPermission(granted);
+      if (granted !== "granted") {
+        return false;
+      }
 
-    const { activatePush } = await loadPushActivation();
-    return activatePush(sessionUserId);
-  }, []);
+      const { activatePush } = await loadPushActivation();
+      const subscribed = await activatePush(sessionUserId);
+      if (subscribed) await clearPushDeviceSnapshot(queryClient, sessionUserId);
+      return subscribed;
+    },
+    [queryClient],
+  );
 
   /**
    * A missing push API and a blocked permission both stop a subscription here,
@@ -441,12 +462,20 @@ export function usePushPreference(userId: string | undefined): PushPreference {
 
   const hasSession = Boolean(userId);
   const isAccountEnabled = accountOptIn === true;
+  const missingRegistration =
+    hasPushSubscription === true &&
+    userId &&
+    registrations?.currentDeviceId &&
+    registrations.currentDeviceId === readAblyPushDeviceId(userId) &&
+    !registrations.devices.some(
+      ({ id }) => id === registrations.currentDeviceId,
+    );
 
   return {
     isAccountEnabled,
     // The browser's own state, reported even while account consent is off, so
     // the reader can see which of their devices would wake up when it returns.
-    isDeviceEnabled: hasPushSubscription === true,
+    isDeviceEnabled: hasPushSubscription === true && !missingRegistration,
     isDeviceKnown: hasPushSubscription !== null,
     isSupported,
     isInstallable,
