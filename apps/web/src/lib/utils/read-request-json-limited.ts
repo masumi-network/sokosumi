@@ -10,7 +10,9 @@ export type ReadRequestJsonResult<T> =
 export async function readRequestJsonWithByteLimit<T>(
   request: Request,
   maxBytes: number,
+  signal?: AbortSignal,
 ): Promise<ReadRequestJsonResult<T>> {
+  signal?.throwIfAborted();
   const contentLengthHeader = request.headers.get("content-length");
   if (contentLengthHeader !== null) {
     const contentLength = Number(contentLengthHeader);
@@ -24,12 +26,20 @@ export async function readRequestJsonWithByteLimit<T>(
     return { ok: false, error: "empty" };
   }
 
+  const cancel = () => {
+    void reader.cancel().catch(() => {});
+  };
+  signal?.addEventListener("abort", cancel, { once: true });
+  if (signal?.aborted) cancel();
+
   const chunks: Uint8Array[] = [];
   let total = 0;
 
   try {
     while (true) {
+      signal?.throwIfAborted();
       const { done, value } = await reader.read();
+      signal?.throwIfAborted();
       if (done) {
         break;
       }
@@ -44,8 +54,12 @@ export async function readRequestJsonWithByteLimit<T>(
       chunks.push(value);
     }
   } catch {
+    signal?.throwIfAborted();
     await reader.cancel().catch(() => {});
     return { ok: false, error: "empty" };
+  } finally {
+    signal?.removeEventListener("abort", cancel);
+    reader.releaseLock();
   }
 
   if (total === 0) {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { readRequestJsonWithByteLimit } from "@/lib/utils/read-request-json-limited";
 
@@ -53,5 +53,26 @@ describe("readRequestJsonWithByteLimit", () => {
       1_000,
     );
     expect(result).toEqual({ ok: false, error: "invalid_json" });
+  });
+});
+
+describe("canceled request reads", () => {
+  it("cancels a stalled body and propagates the operation deadline", async () => {
+    const controller = new AbortController();
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({ cancel });
+    const request = new Request("https://app.example/export", {
+      method: "POST",
+      body,
+      duplex: "half",
+    } as RequestInit);
+    const reading = readRequestJsonWithByteLimit(
+      request,
+      100,
+      controller.signal,
+    );
+    controller.abort(new Error("deadline"));
+    await expect(reading).rejects.toThrow("deadline");
+    expect(cancel).toHaveBeenCalledOnce();
   });
 });

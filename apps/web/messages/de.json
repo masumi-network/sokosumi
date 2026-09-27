@@ -1286,7 +1286,6 @@
         },
         "Form": {
           "success": "Wir haben dir eine E-Mail zum Zurücksetzen deines Passworts gesendet",
-          "error": "Passwort konnte nicht zurückgesetzt werden",
           "reset_password": "Passwort zurücksetzen",
           "Fields": {
             "Email": {
@@ -1627,13 +1626,6 @@
         },
         "visibilityLabel": "Sichtbarkeit",
         "visibilityPrivate": "Privat"
-      },
-      "ProjectSwitcher": {
-        "ariaLabel": "Projekt",
-        "allProjects": "Alle Projekte",
-        "searchPlaceholder": "Projekte suchen...",
-        "empty": "Keine Projekte gefunden.",
-        "create": "Projekt erstellen..."
       },
       "Jobs": {
         "filterButton": "Filter",
@@ -2158,7 +2150,6 @@
           "clear": "Filter zurücksetzen",
           "noMatches": "Keine Projekte passen zu „{query}“."
         },
-        "sortedBy": "Nach letzter Aktivität sortiert",
         "lastActivity": "Letzte Aktivität",
         "created": "Erstellt",
         "pin": "Projekt anheften",
@@ -2708,11 +2699,6 @@
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
-          "projects": "Projekte",
-          "allProjects": "Alle Projekte",
-          "projectsPanel": "Deine Projekte",
-          "pinnedProjects": "Angeheftet",
-          "recentProjects": "Zuletzt verwendete Projekte",
           "history": "Verlauf",
           "drive": "Dateien",
           "admin": "Administration",
@@ -2721,10 +2707,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Kalender",
-          "schedules": "Zeitpläne",
-          "projectsLoading": "Projekte werden geladen…",
-          "projectsError": "Projekte konnten nicht geladen werden.",
-          "retryProjects": "Erneut versuchen"
+          "schedules": "Zeitpläne"
         },
         "ChatLists": {
           "title": "Letzte Chats",
@@ -4436,7 +4419,6 @@
         "description": "Wähle, worüber Sokosumi dich informiert und wo es dich erreicht",
         "marketingEmailsTitle": "Marketing-E-Mails",
         "marketingEmailsDescription": "Erhalte eine E-Mail, wenn Sokosumi neue Features, Updates und Aktionen hat.",
-        "marketingEmailOnlyHint": "Sokosumi sendet dafür nur E-Mails.",
         "marketingEmailsEnabledSuccess": "Marketing-E-Mails aktiviert",
         "marketingEmailsDisabledSuccess": "Marketing-E-Mails deaktiviert",
         "pushUnsupported": "Dieser Browser unterstützt keine Push-Benachrichtigungen.",
@@ -4528,11 +4510,52 @@
         "channelsAnnounce": "{kind}: {channels}",
         "channelsNone": "keine",
         "channelCellLabel": "{channel} für {kind}",
-        "channelUnavailableLabel": "{channel}, nicht für {kind}",
         "deliveryAriaLabel": "Zustellung für {kind}",
         "newsDeliveryAriaLabel": "Zustellung für Marketing-E-Mails",
         "kindFollowUp": "Erinnerungen",
         "kindFollowUpHint": "Eine Erinnerung einen Tag später, wenn du etwas nicht geöffnet hast, das auf dich wartet."
+      },
+      "PushDevices": {
+        "registeredAt": "Registriert am {date}",
+        "registrationDateUnavailable": "Registrierungsdatum nicht verfügbar",
+        "title": "Registrierte Geräte",
+        "description": "Die Zustellung hängt auch von den Browser-Berechtigungen auf jedem Gerät ab.",
+        "refresh": "Aktualisieren",
+        "loading": "Geräte werden geladen…",
+        "error": "Geräte konnten nicht geladen werden. Versuche, die Liste zu aktualisieren.",
+        "empty": "Keine registrierten Geräte gefunden.",
+        "emptyHint": "Aktiviere Push-Benachrichtigungen in einem Browser, um ihn hier zu registrieren.",
+        "thisDevice": "Dieses Gerät",
+        "deviceLabel": "{platform} ({formFactor})",
+        "browserLabel": "{browser} auf {operatingSystem}",
+        "states": {
+          "failing": "Zustellprobleme",
+          "failed": "Zustellung fehlgeschlagen",
+          "unknown": "Status unbekannt"
+        },
+        "platforms": {
+          "browser": "Browser",
+          "ios": "iOS",
+          "android": "Android",
+          "unknown": "Gerät"
+        },
+        "formFactors": {
+          "desktop": "Computer",
+          "phone": "Telefon",
+          "tablet": "Tablet",
+          "tv": "Fernseher",
+          "watch": "Uhr",
+          "car": "Auto",
+          "embedded": "Eingebettetes Gerät",
+          "other": "Sonstiges"
+        },
+        "remove": "Entfernen",
+        "removeNamedDevice": "{device} entfernen",
+        "removeTitle": "Dieses Gerät entfernen?",
+        "removeDescription": "Push-Benachrichtigungen werden auf {device} deaktiviert. Du kannst sie auf diesem Gerät wieder aktivieren.",
+        "removeConfirm": "Gerät entfernen",
+        "cancel": "Abbrechen",
+        "removeError": "Dieses Gerät konnte nicht entfernt werden. Prüfe deine Verbindung und versuche es erneut."
       },
       "ChatDisplay": {
         "title": "Chat-Anzeige",
@@ -6848,6 +6871,26 @@
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
         "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben."
       }
+    },
+    "ProjectScope": {
+      "clearSearch": "Suche löschen",
+      "close": "Schließen",
+      "label": "Projekt",
+      "switchLabel": "Projekt wechseln",
+      "workspaceView": "Alles",
+      "workspaceDescription": "Enthält auch Arbeit ohne Projekt",
+      "pinned": "Angepinnt",
+      "recent": "Zuletzt",
+      "all": "Projekte",
+      "searchPlaceholder": "Projekt suchen...",
+      "empty": "Keine Projekte gefunden.",
+      "loading": "Projekte werden geladen...",
+      "error": "Projekte konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "create": "Projekt erstellen",
+      "manage": "Projekte verwalten",
+      "current": "(aktuell)",
+      "searching": "Projekte werden gesucht..."
     }
   },
   "Share": {

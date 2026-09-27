@@ -19,7 +19,7 @@ Claims use provenance labels:
 
 [REPORTED: user decision, 2026-09-24] Coworker registration and Cardano payment tests use Sokosumi Preprod and Cardano Preprod. On Mainnet, the Coworker Register action shows “Preprod only” and does not submit registration. This does not change permission checks or the admin-only whitelist operation.
 
-[VERIFIED] The current CLI defaults to Mainnet and its `coworkers register` command has no Preprod guard. This document records the requested behavior; the CLI change remains separate. [Target resolver](../src/auth/config.ts#L178) · [Register command](../src/cli/commands/coworkers.ts#L183)
+[VERIFIED: CLI source] `coworkers register` and `coworkers connect` use Preprod when no target is configured. Both reject Mainnet before a Core request. Other commands keep their selected target. [Session bootstrap](../src/auth/bootstrap.ts) · [Command dispatch](../src/cli/index.ts) · [Register command](../src/cli/commands/coworkers.ts)
 
 [REPORTED: user decision] The developer or Coworker submits a waitlist request. A Sokosumi platform admin approves it. No permission model or whitelist default changes are part of this CLI work.
 
@@ -31,7 +31,7 @@ Claims use provenance labels:
 
 [VERIFIED] Vendor admins can manage an existing Coworker, create its API key, and grant it access to a Workspace where they are a member. These routes do not create the Coworker record. [Management access](../../core/src/routes/v1/coworkers/coworker-management-access.ts#L24-L66) · [API key create](../../core/src/routes/v1/coworkers/[id]/api-keys/post.ts#L48-L55) · [Workspace grant](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts#L48-L74)
 
-[VERIFIED] The CLI does not call the workspace-access route yet. The current `coworkers register` command creates a Coworker but does not attach a selected Workspace. [CLI command](../src/cli/commands/coworkers.ts#L183)
+[VERIFIED: CLI source] `coworkers register` requests Workspace access after Core creates the Coworker. `coworkers connect` requests access for an existing Coworker. Both report completion only when Core returns `GRANTED`. This source check does not prove live Preprod access. [CLI command](../src/cli/commands/coworkers.ts)
 
 ```
 [Existing hosted agent]
@@ -51,7 +51,7 @@ Claims use provenance labels:
 [Platform admin provisions Coworker under Vendor]
         |
         | Vendor admin selects existing Workspace
-        | CLI grant support: not shipped yet
+        | CLI requests access; live Preprod grant not checked
         | Existing API returns GRANTED for member Workspace
         v
 [Private Coworker in selected Workspace]
@@ -65,7 +65,7 @@ Claims use provenance labels:
 [Global listing, later]
 ```
 
-[PROPOSED] Coworker registration on Mainnet shows “Preprod only” and submits no registration request. Other CLI commands remain network-configurable. The diagram records the current authorization dependency and target sequence. It does not claim remote approval, self-service Coworker creation, or waitlist submission is implemented.
+[VERIFIED: CLI source] Coworker registration on Mainnet shows “Preprod only” and submits no registration request. Other CLI commands remain network-configurable. The diagram records the current authorization dependency and target sequence. It does not claim remote approval, self-service Coworker creation, or waitlist submission is implemented.
 
 ## Decision and verification gate
 

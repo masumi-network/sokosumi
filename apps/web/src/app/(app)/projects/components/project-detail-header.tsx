@@ -43,15 +43,21 @@ export function ProjectDetailHeader({
 
   return (
     <div className={cn("pb-4", className)}>
-      {/* The app header already carries "Projects › …" from `sm` up, so this
-          link is wayfinding only where that breadcrumb is hidden. */}
-      <Link
-        className="text-muted-foreground hover:text-foreground mb-3 inline-flex items-center gap-1.5 text-sm transition-colors sm:hidden"
-        href={backHref}
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        <span>{backLabel}</span>
-      </Link>
+      {/* The sidebar's project scope switcher (and its chip in the app header
+          on a phone) is how you change or leave a project now, so a plain
+          "back to projects" link here is redundant — `main` stopped drawing
+          it. A link to a real parent, like a project sub-page, still earns
+          its place, and only below `sm`, where the app header's
+          "Projects › …" breadcrumb is hidden. */}
+      {backHref !== "/projects" ? (
+        <Link
+          className="text-muted-foreground hover:text-foreground mb-3 inline-flex items-center gap-1.5 text-sm transition-colors sm:hidden"
+          href={backHref}
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          <span>{backLabel}</span>
+        </Link>
+      ) : null}
 
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">

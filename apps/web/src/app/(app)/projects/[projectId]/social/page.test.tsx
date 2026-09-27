@@ -137,10 +137,11 @@ describe("ProjectSocialPage", () => {
       statuses: ["PUBLISHED", "FAILED", "MISSED", "CANCELED"],
     });
     expect(listSocialConnectionsMock).toHaveBeenCalledWith(PROJECT.id);
-    // Tabs replaced the per-page back link, so "up" is the project list.
+    // Tabs replaced the per-page back link, and the sidebar's scope switcher
+    // replaced "back to projects", so this page draws neither.
     expect(
-      screen.getByRole("link", { name: "backToProjects" }),
-    ).toHaveAttribute("href", "/projects");
+      screen.queryByRole("link", { name: "backToProjects" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "social" })).toHaveAttribute(
       "href",
       "/projects/project-1/social",

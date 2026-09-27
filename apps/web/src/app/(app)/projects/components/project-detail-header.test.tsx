@@ -22,12 +22,11 @@ describe("ProjectDetailHeader", () => {
     expect(root?.className).not.toContain("px-4");
     expect(root?.className).not.toContain("md:px-0");
 
-    // One back affordance, and only where the app header's breadcrumb is
-    // hidden. There is no desktop variant any more.
-    const back = screen.getByRole("link", { name: "Back" });
-    expect(back).toHaveAttribute("href", "/projects");
-    expect(back.className).toContain("inline-flex");
-    expect(back.className).toContain("sm:hidden");
+    // No back affordance at all when the parent is the projects index: the
+    // sidebar scope switcher is that navigation now.
+    expect(
+      screen.queryByRole("link", { name: "Back" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
       "href",
       "https://www.example.com/about",

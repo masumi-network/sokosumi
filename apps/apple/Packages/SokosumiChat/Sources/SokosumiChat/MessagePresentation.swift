@@ -85,7 +85,7 @@ public func daySeparatorLabel(
 
 /// A senderless status row (join/leave or Group name change): centered text, never
 /// reacted to, edited, quoted or grouped with a neighbour.
-public func isRoomStatusMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+func isRoomStatusMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
   message.membership != nil || message.groupNameChange != nil
 }
 

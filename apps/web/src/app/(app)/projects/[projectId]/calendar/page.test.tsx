@@ -158,18 +158,11 @@ describe("ProjectCalendarPage", () => {
         sourceId: expect.anything(),
       }),
     );
-    // The project's areas are tabs now, so "up" from the calendar is the
-    // project list; the project itself is one tab across, not one level up.
+    // The project's areas are tabs now, and the sidebar's scope switcher is
+    // how you leave a project, so there is no "back to projects" link here.
     expect(
-      screen.getByRole("link", { name: "backToProjects" }),
-    ).toHaveAttribute("href", "/projects");
-    // The app header's breadcrumb covers `sm` and up, so this link is the
-    // mobile-only way back.
-    const backClass = screen.getByRole("link", {
-      name: "backToProjects",
-    }).className;
-    expect(backClass).toContain("inline-flex");
-    expect(backClass).toContain("sm:hidden");
+      screen.queryByRole("link", { name: "backToProjects" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "calendar" })).toHaveAttribute(
       "href",
       "/projects/project-1/calendar",
@@ -177,7 +170,7 @@ describe("ProjectCalendarPage", () => {
     // Full available width: a calendar beside a gallery has no business in a
     // centred reading column.
     const shell = screen
-      .getByRole("link", { name: "backToProjects" })
+      .getByRole("link", { name: "calendar" })
       .closest("div.w-full");
     expect(shell).toHaveClass("w-full", "min-w-0");
     expect(shell).not.toHaveClass("max-w-6xl");

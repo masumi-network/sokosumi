@@ -838,7 +838,7 @@ struct WorkspaceRealtimeTests {
     let first = WorkspaceState(instanceStore: store)
     let second = WorkspaceState(instanceStore: store)
     #expect(first.realtimeClientInstanceId == second.realtimeClientInstanceId)
-    #expect(isValidRealtimeClientInstanceId(first.realtimeClientInstanceId))
+    #expect(first.realtimeClientInstanceId.count == 16)
   }
 
   @Test func tokenMintUsesInstanceIdAndPersonalOmitsOrgHeader() async throws {

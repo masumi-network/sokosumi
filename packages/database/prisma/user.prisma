@@ -1,0 +1,126 @@
+model User {
+  id            String    @id @default(uuid(7))
+  name          String
+  email         String
+  emailVerified Boolean
+  image         String?
+  logo          String?
+  metadata      String?
+  role          String    @default("user")
+  banned        Boolean?  @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  createdAt     DateTime
+  updatedAt     DateTime
+  sessions      Session[]
+  accounts      Account[]
+  passkeys      Passkey[]
+
+  userAgentRatings UserAgentRating[]
+  transactions     Transaction[]
+  ownedJobs        Job[]             @relation("JobOwner")
+
+  stripeCustomerId        String?
+  preferredOrganizationId String?
+
+  members                        Member[]
+  invitations                    Invitation[]
+  createdOrganizationInviteLinks OrganizationInviteLink[]
+
+  // OAuth Provider relations
+  oauthClients       OauthClient[]
+  oauthAccessTokens  OauthAccessToken[]
+  oauthRefreshTokens OauthRefreshToken[]
+  oauthConsents      OauthConsent[]
+
+  marketingOptIn Boolean @default(false)
+
+  // terms
+  termsAccepted Boolean @default(false)
+
+  // Notifications
+  notificationsOptIn Boolean @default(true) // Whether the user wants to receive notifications
+  pushOptIn          Boolean @default(false) // Whether the user wants OS banners while Sokosumi is closed
+
+  pushDeviceConsents      PushDeviceConsent[]
+  notificationPreferences NotificationPreference[]
+  notifications           Notification[]
+
+  taskScheduleRunsActed  TaskScheduleRun[]       @relation("TaskScheduleRunActor")
+  projectCloseOperations ProjectCloseOperation[] @relation("ProjectCloseOperationActor")
+  projectEventsActed     ProjectEvent[]          @relation("ProjectEventActor")
+
+  // Chat display preferences. Not delivery: these change what the reader sees,
+  // never which notifications are created or sent.
+  hideRoomUnreadCount Boolean @default(false) // Whether the reader switched off the unread message count on chat sidebar rows. Shown by default (ADR-0038)
+
+  // UTM Attribution
+  utmAttribution UTMAttribution?
+
+  // Vendor membership and coworker assignments
+  vendorMembers           VendorMember[]
+  coworkerAssignments     CoworkerAssignment[]
+  createdVendors          Vendor[]             @relation("VendorCreatedBy")
+  vendorMemberInvitesSent VendorMemberInvite[] @relation("VendorMemberInviteInvitedBy")
+  vendorMemberInvitesGot  VendorMemberInvite[] @relation("VendorMemberInviteAcceptedBy")
+
+  workspace Workspace?
+
+  ownedTasks              Task[]                   @relation("TaskOwner")
+  createdTasks            Task[]                   @relation("TaskCreatorUser")
+  createdSocialPosts      SocialPost[]             @relation("SocialPostCreatorUser")
+  scheduledSocialPosts    SocialPost[]             @relation("SocialPostScheduledByUser")
+  assignedTasks           Task[]                   @relation("TaskAssigneeUser")
+  ownedTaskSchedules      TaskSchedule[]           @relation("TaskScheduleOwner")
+  createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorUser")
+  assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssigneeUser")
+  taskParticipations      TaskParticipant[]        @relation("TaskParticipantUser")
+  taskEvents              TaskEvent[]
+  uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
+  coworkerUsages          CoworkerUsage[]
+  sokoBotUsages           SokoBotUsage[]
+  sokoBotTurns            SokoBotTurn[]
+  sokoBotRequestedTurns   SokoBotTurn[]            @relation("SokoBotTurnRequestedBy")
+  sokoBotRequestedAvatars SokoBotAvatar[]          @relation("SokoBotAvatarRequestedBy")
+  sokoBotPendingDecisions SokoBotPendingDecision[]
+  sokoBotSchedules        SokoBotSchedule[]
+  sokoBotLegacyMessages   SokoBotLegacyMessage[]
+
+  vendorGrantsResolved  VendorGrant[] @relation("VendorGrantResolvedBy")
+  vendorGrantsRequested VendorGrant[] @relation("VendorGrantRequestedBy")
+
+  coworkerWorkspaceAccessResolved  CoworkerWorkspaceAccess[] @relation("CoworkerWorkspaceAccessResolvedBy")
+  coworkerWorkspaceAccessRequested CoworkerWorkspaceAccess[] @relation("CoworkerWorkspaceAccessRequestedBy")
+
+  // Credit Buckets
+  creditBuckets CreditBucket[]
+
+  createdChatRooms                 ChatRoom[]                @relation("ChatRoomCreator")
+  chatRoomMemberships              ChatRoomUserMember[]
+  chatRoomMessages                 ChatRoomMessage[]         @relation("ChatRoomUserSender")
+  chatRoomPinnedMessages           ChatRoomPinnedMessage[]   @relation("ChatRoomPinnedMessagePinnedBy")
+  chatRoomReactions                ChatRoomReaction[]
+  chatRoomReadStates               ChatRoomReadState[]
+  chatRoomThreadReadStates         ChatRoomThreadReadState[]
+  chatRoomUserMentions             ChatRoomUserMention[]
+  chatRoomGuestInvitationsInvited  ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationInviter")
+  chatRoomGuestInvitationsAccepted ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationAcceptedBy")
+  chatRoomGuestInviteLinksCreated  ChatRoomGuestInviteLink[] @relation("ChatRoomGuestInviteLinkCreator")
+  noticeAcknowledgments            NoticeAcknowledgment[]
+  projectStars                     ProjectStar[]
+
+  imageSessions ProjectImageSession[] @relation("ProjectImageSessionCreator")
+  imageJobs     ProjectImageJob[]     @relation("ProjectImageJobRequester")
+  imageReviews  ProjectImageReview[]  @relation("ProjectImageReviewDecider")
+
+  // Legacy personal-assistant storage. Retained read-only through rollback window.
+  hermesMessages           HermesMessage[]
+  /// Per-user Soko Bot identity and control-plane state.
+  sokoBots                 SokoBot[]
+  hermesPendingConnections HermesPendingConnection[]
+  authoredSokoBotVersions  SokoBotAuthoredVersion[]  @relation("SokoBotAuthoredVersionAuthor")
+
+  @@unique([email])
+  @@unique([stripeCustomerId])
+  @@map("user")
+}
