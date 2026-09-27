@@ -1,5 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -74,6 +81,67 @@ describe("the pdfjs packaging guard", () => {
     // layer deeper with the same symptom.
     expect(result.stderr).toContain("pdf.mjs");
     expect(result.stderr).toContain("pdf.worker.mjs");
+  });
+
+  it("names the resolution failure when the dependency is absent", () => {
+    /**
+     * The branch neither the guard's own runs nor the test above could
+     * reach, and it was broken for it.
+     *
+     * `catch {` binds nothing, so the `error.code` in the message
+     * referenced an unbound name and the handler threw a ReferenceError.
+     * The build still went red — the gate held — but the operator read a
+     * bug in the guard instead of "cannot resolve (MODULE_NOT_FOUND)" at
+     * the exact moment they needed the real reason.
+     *
+     * Nothing caught it because both existing cases resolve successfully:
+     * the healthy run finds pdfjs, and the repo-root run still resolves
+     * (resolution is relative to the script, not the working directory)
+     * and fails on the later project-root check instead. Reaching this
+     * branch needs resolution itself to fail.
+     *
+     * So the script is copied somewhere with no `node_modules` above it
+     * and run there. That is a real `MODULE_NOT_FOUND` from a real
+     * `require.resolve`, not an assertion about a mocked string — which
+     * is the only way this test can tell a working handler from a
+     * throwing one.
+     */
+    const elsewhere = mkdtempSync(`${tmpdir()}/pdfjs-guard-`);
+    try {
+      const copied = `${elsewhere}/check-pdfjs-bundle.mjs`;
+      copyFileSync(SCRIPT, copied);
+
+      /**
+       * `NODE_PATH` has to go, and that is not a trick to force the test
+       * to pass. pnpm exports it pointing at the workspace store, so a
+       * child spawned from a pnpm script resolves `pdfjs-dist` from
+       * anywhere on the filesystem — including a temporary directory
+       * with no `node_modules` above it. Leaving it set made this test
+       * exercise the project-root branch again, which is the branch that
+       * was already covered and already worked.
+       *
+       * Removing it is what a machine without the dependency looks like,
+       * which is the situation the guard exists for.
+       */
+      const { NODE_PATH: _ignored, ...env } = process.env;
+      const result = spawnSync(process.execPath, [copied], {
+        cwd: elsewhere,
+        encoding: "utf8",
+        env,
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("cannot resolve");
+      expect(result.stderr).toContain("MODULE_NOT_FOUND");
+      // The failure this test exists for: a handler that throws while
+      // reporting the failure it was handling.
+      expect(result.stderr).not.toContain("ReferenceError");
+      // And both specifiers are reported, not just the first.
+      expect(result.stderr).toContain("pdf.mjs");
+      expect(result.stderr).toContain("pdf.worker.mjs");
+    } finally {
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
   });
 
   it("is wired into the build, not merely present", () => {

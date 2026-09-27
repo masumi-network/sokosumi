@@ -49,12 +49,18 @@ export function entityTagFor(version: {
  * It is **not** the only way to reach the bytes. Drive objects live in a
  * *public-access* Vercel Blob store, so anyone already holding a storage URL
  * can fetch it without coming through here — the same caveat the Image Studio
- * proxy records, except that store is private and this one is not. What this
- * route adds is that the product stops *handing out* those URLs: the detail
- * page renders from this route, so a reader without access never learns a
- * storage URL to keep. Closing the remaining hole means moving the drive
- * store to private access, which is a migration of every existing object and
- * is not this change.
+ * proxy records, except that store is private and this one is not.
+ *
+ * What this route adds is an access-checked way in, and the detail page uses
+ * it. It is not the only surface in the product that can expose a storage
+ * URL, so the proxy **narrows** the exposure rather than ending it. An
+ * earlier version of this comment claimed the product had stopped handing
+ * those URLs out and that a reader without access never learns one; that was
+ * checked against the running application and is not true, so it is
+ * withdrawn rather than softened.
+ *
+ * Closing the remaining hole means moving the drive store to private access,
+ * which is a migration of every existing object and is not this change.
  */
 
 /** Never stream a preview larger than this; the UI offers a download instead. */

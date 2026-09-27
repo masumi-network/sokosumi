@@ -43,8 +43,17 @@ for (const specifier of SPECIFIERS) {
   let resolved;
   try {
     resolved = require.resolve(specifier);
-  } catch {
-    failures.push(`${specifier}: cannot resolve (${error.code ?? "unknown"})`);
+  } catch (error) {
+    // Bound, and it has to stay bound. A lint fix for the *other* catch
+    // below — which genuinely does not use its error — was applied with a
+    // pattern that matched both, and this line then referenced an unbound
+    // name. The guard still failed the build, so the gate held, but the
+    // operator read "ReferenceError: error is not defined" instead of
+    // "cannot resolve (MODULE_NOT_FOUND)" at the one moment they need the
+    // real reason.
+    failures.push(
+      `${specifier}: cannot resolve (${/** @type {NodeJS.ErrnoException} */ (error).code ?? "unknown"})`,
+    );
     continue;
   }
 
