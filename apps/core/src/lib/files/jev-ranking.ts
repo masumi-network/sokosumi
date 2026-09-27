@@ -260,6 +260,9 @@ export async function rerankFileCandidates(
           await recordDispatch({
             admissionId: admission.id,
             outcome: outcome.ok ? "scored" : (outcome.reason ?? "failed"),
+            // The daily spend budget sums this column, so a dispatched call
+            // that does not record its cost is a call the budget cannot see.
+            costUsd: outcome.costUsd,
           });
 
           if (!outcome.ok || outcome.score === null) {

@@ -5387,6 +5387,12 @@ model FileAuthorizationAdmission {
   model         String
 
   inputTokens Int
+  /// Cost the provider reported for this call, from
+  /// `providerMetadata.gateway.cost`. Null until the call dispatches, and
+  /// null for a call that never reached the provider. The daily spend
+  /// budget sums this, which is why a missing value must never read as
+  /// "free" — see `PER_WORKSPACE_USD_PER_DAY`.
+  costUsd Decimal? @db.Decimal(12, 6)
 
   admittedAt DateTime  @default(now())
   expiresAt  DateTime

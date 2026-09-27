@@ -151,9 +151,18 @@ const baseEnvSchema = z.object({
     .startsWith("mistral/")
     .default("mistral/mistral-medium-3.5"),
   /**
-   * Off by default. Files would send document body text, which is a larger
-   * surface than the task-tag classifier's title and description, so turning
-   * it on is a decision someone makes rather than a default.
+   * **On by default**, by an explicit product decision. It was off, on the
+   * grounds that sending document body text to an external provider should
+   * be a decision someone makes rather than a default. That decision has now
+   * been made, and it shipped together with the spend controls rather than
+   * ahead of them: `PER_WORKSPACE_INPUT_TOKENS_PER_DAY` and
+   * `PER_WORKSPACE_USD_PER_DAY` in `lib/files/jev-scheduler.ts`, enforced in
+   * the same admission transaction as the per-minute ceilings.
+   *
+   * Before those existed, the per-minute workspace ceiling sustained for a
+   * day was 2,160,000,000 input tokens — 436× a heavy day's real use. A
+   * default flipped on without a daily bound is how a surprise invoice
+   * happens.
    *
    * Reported usage has **not** been reconciled against the ceilings in
    * `lib/files/jev-request.ts`; that needs live calls we are not authorized
@@ -174,7 +183,7 @@ const baseEnvSchema = z.object({
    */
   FILES_JEV_ENABLED: z
     .enum(["true", "false"])
-    .default("false")
+    .default("true")
     .transform((value) => value === "true"),
 
   // First-party Soko Bot control plane and Eve runtime.

@@ -62,6 +62,35 @@ export const INTERACTIVE_RESERVED_FRACTION = 0.8;
 export const GLOBAL_INPUT_TOKENS_PER_MINUTE = 6_000_000;
 export const PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE = 1_500_000;
 
+/**
+ * Daily budgets. The per-minute ceilings above bound a *burst*; until these
+ * existed nothing bounded a **day**.
+ *
+ * `PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE` sustained for 24 hours is
+ * 2,160,000,000 input tokens for one workspace. A heavy real day — 100
+ * reranked searches, 20 related passes and 300 documents labelled — is
+ * 4,956,000. The minute ceiling was therefore 436× a heavy day, which is not
+ * a spend control, it is a rate limiter wearing one's name.
+ *
+ * Two budgets, deliberately, because each covers the other's blind spot:
+ *
+ * - **Tokens** are counted by us, from our own request, so this can never
+ *   silently stop working. It is the load-bearing one.
+ * - **Spend** is read from the provider's own `providerMetadata.gateway.cost`
+ *   and needs no price assumption, so it still holds if the price changes
+ *   under us. But it is only as present as that field: if the Gateway ever
+ *   stops returning a cost, every row records `null`, the sum stays zero and
+ *   a spend-only cap would fail **open**. That is why it is not alone.
+ *
+ * The token figure is ~12× a heavy day and 1/36th of what the minute ceiling
+ * allowed. The dollar figure is a first guess and **has to be reviewed
+ * against the first real invoice** — no live call has ever been made from
+ * this branch, so there is no observed price behind it.
+ */
+export const SPEND_WINDOW_MS = 86_400_000;
+export const PER_WORKSPACE_INPUT_TOKENS_PER_DAY = 60_000_000;
+export const PER_WORKSPACE_USD_PER_DAY = 25;
+
 export const ADMISSION_QUEUE_MAX_MS = 50;
 /** Covers queueing, admissions and every wave — not one pair. */
 export const RANK_DEADLINE_MS = 600;

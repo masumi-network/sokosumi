@@ -8,7 +8,10 @@ import { resolveScopeEpoch } from "@/lib/files/evidence-scope";
 import {
   GLOBAL_INPUT_TOKENS_PER_MINUTE,
   GLOBAL_REQUESTS_PER_MINUTE,
+  PER_WORKSPACE_INPUT_TOKENS_PER_DAY,
   PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE,
+  PER_WORKSPACE_USD_PER_DAY,
+  SPEND_WINDOW_MS,
 } from "@/lib/files/jev-scheduler";
 
 /**
@@ -51,7 +54,9 @@ export type AdmissionDenial =
   | "epoch-changed"
   | "shared-global-rate"
   | "shared-global-token-budget"
-  | "shared-workspace-token-budget";
+  | "shared-workspace-token-budget"
+  | "shared-workspace-daily-tokens"
+  | "shared-workspace-daily-spend";
 
 export interface AdmissionGrant {
   id: string;
@@ -81,6 +86,7 @@ export async function admitJevRequest(input: {
 
   const expiresAt = new Date(now.getTime() + ADMISSION_VALID_MS);
   const windowStart = new Date(now.getTime() - SHARED_WINDOW_MS);
+  const dayStart = new Date(now.getTime() - SPEND_WINDOW_MS);
 
   /**
    * The ceiling that actually holds across runtimes.
@@ -121,22 +127,47 @@ export async function admitJevRequest(input: {
           PrismaRaw.sql`SELECT pg_advisory_xact_lock(${ADMISSION_LOCK_KEY})`,
         );
 
+        /**
+         * One scan, five numbers. The outer filter is the *day* window and
+         * the per-minute figures are `FILTER`ed out of the same rows, so
+         * adding the daily budgets costs no extra round trip and no extra
+         * lock — the same reason the per-minute count lives here.
+         */
         const [usage] = await tx.$queryRaw<
-          { requests: bigint; globalTokens: bigint; workspaceTokens: bigint }[]
+          {
+            requests: bigint;
+            globalTokens: bigint;
+            workspaceTokens: bigint;
+            workspaceDayTokens: bigint;
+            workspaceDaySpend: number;
+          }[]
         >(PrismaRaw.sql`
           SELECT
-            count(*) AS "requests",
-            coalesce(sum("inputTokens"), 0) AS "globalTokens",
+            count(*) FILTER (
+              WHERE "admittedAt" > ${windowStart}
+            ) AS "requests",
+            coalesce(sum("inputTokens") FILTER (
+              WHERE "admittedAt" > ${windowStart}
+            ), 0) AS "globalTokens",
+            coalesce(sum("inputTokens") FILTER (
+              WHERE "admittedAt" > ${windowStart}
+                AND "workspaceId" = ${input.workspaceId}::uuid
+            ), 0) AS "workspaceTokens",
             coalesce(sum("inputTokens") FILTER (
               WHERE "workspaceId" = ${input.workspaceId}::uuid
-            ), 0) AS "workspaceTokens"
+            ), 0) AS "workspaceDayTokens",
+            coalesce(sum("costUsd") FILTER (
+              WHERE "workspaceId" = ${input.workspaceId}::uuid
+            ), 0)::float8 AS "workspaceDaySpend"
           FROM file_authorization_admission
-          WHERE "admittedAt" > ${windowStart}
+          WHERE "admittedAt" > ${dayStart}
         `);
 
         const requests = Number(usage?.requests ?? 0);
         const globalTokens = Number(usage?.globalTokens ?? 0);
         const workspaceTokens = Number(usage?.workspaceTokens ?? 0);
+        const workspaceDayTokens = Number(usage?.workspaceDayTokens ?? 0);
+        const workspaceDaySpend = Number(usage?.workspaceDaySpend ?? 0);
 
         if (requests + 1 > GLOBAL_REQUESTS_PER_MINUTE) return null;
         if (globalTokens + input.inputTokens > GLOBAL_INPUT_TOKENS_PER_MINUTE) {
@@ -148,6 +179,18 @@ export async function admitJevRequest(input: {
         ) {
           return null;
         }
+        // The daily budgets. Refusing here is the same answer a per-minute
+        // denial already gives: the caller falls back to deterministic
+        // order, gives its scheduler slot back with `release()`, and tells
+        // the breaker nothing — this is our decision, not the provider
+        // failing.
+        if (
+          workspaceDayTokens + input.inputTokens >
+          PER_WORKSPACE_INPUT_TOKENS_PER_DAY
+        ) {
+          return null;
+        }
+        if (workspaceDaySpend >= PER_WORKSPACE_USD_PER_DAY) return null;
 
         return await tx.fileAuthorizationAdmission.create({
           data: {
@@ -217,6 +260,12 @@ export async function pruneExpiredAdmissions(input?: {
 export async function recordJevDispatch(input: {
   admissionId: string;
   outcome: string;
+  /**
+   * What the provider said this call cost. Persisted because the daily
+   * spend budget sums it — it was parsed out of `providerMetadata` and then
+   * thrown away, so nothing could enforce a budget in money.
+   */
+  costUsd?: string | null;
   now?: Date;
 }): Promise<void> {
   await prisma.fileAuthorizationAdmission.update({
@@ -224,6 +273,7 @@ export async function recordJevDispatch(input: {
     data: {
       dispatchedAt: input.now ?? new Date(),
       outcome: input.outcome,
+      ...(input.costUsd == null ? {} : { costUsd: input.costUsd }),
     },
   });
 }

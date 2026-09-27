@@ -570,6 +570,135 @@ describe.skipIf(!enabled)("the shared admission ceiling", () => {
     });
   }
 
+  it("refuses once the workspace has spent its day's tokens", async () => {
+    // The per-minute ceilings bound a burst. Sustained for 24 hours the
+    // workspace ceiling allowed 2.16 billion input tokens, which is 436x a
+    // heavy day's real use — so nothing bounded a day at all, and the flag
+    // is now on by default.
+    const { PER_WORKSPACE_INPUT_TOKENS_PER_DAY } = await import(
+      "@/lib/files/jev-scheduler"
+    );
+
+    // Spent earlier today, and deliberately *outside* the one-minute
+    // window, so only the daily budget can see it.
+    await prisma.fileAuthorizationAdmission.create({
+      data: {
+        workspaceId: ceilingWorkspaceId,
+        actorFingerprint: "earlier-today",
+        epochVector: "whatever",
+        purpose: "search-rank",
+        payloadDigest: "spent-today",
+        provider: "vercel-ai-gateway",
+        model: "typesafe-ai/jev",
+        inputTokens: PER_WORKSPACE_INPUT_TOKENS_PER_DAY,
+        admittedAt: new Date(Date.now() - 10 * 60_000),
+        expiresAt: new Date(Date.now() - 10 * 60_000 + 50),
+      },
+    });
+
+    await expect(admit(1)).resolves.toBeNull();
+  });
+
+  it("forgets a day that has rolled out of the window", async () => {
+    // A budget that never forgets is a permanent ban.
+    const { PER_WORKSPACE_INPUT_TOKENS_PER_DAY, SPEND_WINDOW_MS } =
+      await import("@/lib/files/jev-scheduler");
+
+    await prisma.fileAuthorizationAdmission.create({
+      data: {
+        workspaceId: ceilingWorkspaceId,
+        actorFingerprint: "yesterday",
+        epochVector: "whatever",
+        purpose: "search-rank",
+        payloadDigest: "spent-yesterday",
+        provider: "vercel-ai-gateway",
+        model: "typesafe-ai/jev",
+        inputTokens: PER_WORKSPACE_INPUT_TOKENS_PER_DAY,
+        admittedAt: new Date(Date.now() - SPEND_WINDOW_MS - 60_000),
+        expiresAt: new Date(Date.now() - SPEND_WINDOW_MS),
+      },
+    });
+
+    await expect(admit(1)).resolves.not.toBeNull();
+  });
+
+  it("refuses once the workspace has spent its day's money", async () => {
+    // Priced from what the provider actually reported, so this needs no
+    // assumption about cost per token — which matters, because no live call
+    // has ever been made from this branch.
+    const { PER_WORKSPACE_USD_PER_DAY } = await import(
+      "@/lib/files/jev-scheduler"
+    );
+
+    await prisma.fileAuthorizationAdmission.create({
+      data: {
+        workspaceId: ceilingWorkspaceId,
+        actorFingerprint: "expensive",
+        epochVector: "whatever",
+        purpose: "label-suggest",
+        payloadDigest: "spent-money",
+        provider: "vercel-ai-gateway",
+        model: "typesafe-ai/jev",
+        inputTokens: 10,
+        costUsd: String(PER_WORKSPACE_USD_PER_DAY),
+        admittedAt: new Date(Date.now() - 10 * 60_000),
+        expiresAt: new Date(Date.now() - 10 * 60_000 + 50),
+      },
+    });
+
+    await expect(admit(1)).resolves.toBeNull();
+  });
+
+  it("does not let one workspace's spending refuse another's work", async () => {
+    const { PER_WORKSPACE_USD_PER_DAY, PER_WORKSPACE_INPUT_TOKENS_PER_DAY } =
+      await import("@/lib/files/jev-scheduler");
+
+    await prisma.fileAuthorizationAdmission.create({
+      data: {
+        workspaceId: ceilingWorkspaceId,
+        actorFingerprint: "expensive",
+        epochVector: "whatever",
+        purpose: "label-suggest",
+        payloadDigest: "neighbour-unaffected",
+        provider: "vercel-ai-gateway",
+        model: "typesafe-ai/jev",
+        inputTokens: PER_WORKSPACE_INPUT_TOKENS_PER_DAY,
+        costUsd: String(PER_WORKSPACE_USD_PER_DAY * 10),
+        admittedAt: new Date(Date.now() - 10 * 60_000),
+        expiresAt: new Date(Date.now() - 10 * 60_000 + 50),
+      },
+    });
+
+    await expect(admit(1)).resolves.toBeNull();
+    await expect(
+      admit(1, neighbourWorkspaceId, neighbourUserId),
+    ).resolves.not.toBeNull();
+  });
+
+  it("records what a dispatched call cost, so the budget can see it", async () => {
+    // The budget sums a column. A dispatch that does not write the cost is
+    // spend the budget is blind to — and the value was already being parsed
+    // out of `providerMetadata` and thrown away.
+    const { recordJevDispatch } = await import("@/lib/files/jev-admission");
+
+    const grant = await admit(10);
+    expect(grant).not.toBeNull();
+    if (!grant) return;
+
+    await recordJevDispatch({
+      admissionId: grant.id,
+      outcome: "scored",
+      costUsd: "0.004200",
+    });
+
+    const row = await prisma.fileAuthorizationAdmission.findUnique({
+      where: { id: grant.id },
+      select: { costUsd: true, outcome: true },
+    });
+    expect(row?.outcome).toBe("scored");
+    expect(Number(row?.costUsd)).toBeCloseTo(0.0042, 6);
+  });
+
   it("admits a whole search wave at once, not one of it", async () => {
     // `rerankFileCandidates` fires `PER_QUERY_MAX_CONCURRENT` admissions in
     // one `Promise.all`, so this is one ordinary search, not a stress test.

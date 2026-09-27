@@ -278,6 +278,8 @@ export async function runSuggestionJob(
   await recordJevDispatch({
     admissionId: admission.id,
     outcome: verdict.ok ? "scored" : (verdict.reason ?? "failed"),
+    // Summed by the daily spend budget; see `recordJevDispatch`.
+    costUsd: verdict.costUsd,
   });
 
   if (!verdict.ok) {
