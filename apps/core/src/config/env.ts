@@ -25,10 +25,10 @@ const baseEnvSchema = z.object({
   // Database
   DATABASE_URL: z.url(),
 
-  // Jev remains disabled until EU inference and required retention are supported.
+  // Task tags use global Jev routing with enforced retention/no-training options.
   TASK_TAG_CLASSIFICATION_ENABLED: z
     .enum(["true", "false"])
-    .default("false")
+    .default("true")
     .transform((value) => value === "true"),
 
   // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)

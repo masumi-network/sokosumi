@@ -50,9 +50,6 @@ describe("task tag provider capability", () => {
   it.each([
     {},
     { data: [] },
-    { data: [{ id: JEV_TASK_TAG_MODEL, regions: ["us"], zdr: "all" }] },
-    { data: [{ id: JEV_TASK_TAG_MODEL, regions: ["eu"], zdr: "none" }] },
-    { data: [{ id: JEV_TASK_TAG_MODEL, regions: ["eu"] }] },
     { data: [{ id: "other/model", regions: ["eu"], zdr: "all" }] },
   ])(
     "fails closed on unsupported catalog %j without content egress",
@@ -65,12 +62,12 @@ describe("task tag provider capability", () => {
       );
     },
   );
-  it.each(["some", "all"])(
-    "accepts EU capability with %s ZDR routes",
-    async (zdr) => {
+  it.each([{}, { zdr: "none", no_training: "all" }, { regions: ["us"] }])(
+    "accepts a listed model without relying on incomplete catalog policy fields: %j",
+    async (capabilities) => {
       fetchMock.mockResolvedValue(
         Response.json({
-          data: [{ id: JEV_TASK_TAG_MODEL, regions: ["eu"], zdr }],
+          data: [{ id: JEV_TASK_TAG_MODEL, ...capabilities }],
         }),
       );
       expect(await taskTagProviderAvailable(signal)).toBe(true);
@@ -83,7 +80,7 @@ describe("task tag provider capability", () => {
 });
 
 describe("task tag evaluation", () => {
-  it("bounds untrusted input, pins EU/ZDR, asks the vocabulary, and preserves cost metadata", async () => {
+  it("bounds untrusted input, enforces ZDR/no-training globally, and preserves cost metadata", async () => {
     fetchMock.mockResolvedValue(Response.json(evaluation()));
     expect(
       await classifyTaskTags("T".repeat(500), "D".repeat(10_000), signal),
@@ -117,7 +114,6 @@ describe("task tag evaluation", () => {
     });
     expect(body.providerOptions).toEqual({
       gateway: {
-        inferenceRegion: { scope: "zone", geoRegion: "eu" },
         zeroDataRetention: true,
         disallowPromptTraining: true,
       },
@@ -133,16 +129,19 @@ describe("task tag evaluation", () => {
       tags: [],
     });
   });
-  it.each([401, 429, 500])("never falls back after HTTP %s", async (status) => {
-    fetchMock.mockResolvedValue(
-      new Response("sensitive provider error", { status }),
-    );
-    expect(await classifyTaskTags("private title", null, signal)).toEqual({
-      ok: false,
-      reason: `http_${status}`,
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
+  it.each([400, 401, 429, 500])(
+    "never falls back after HTTP %s",
+    async (status) => {
+      fetchMock.mockResolvedValue(
+        new Response("sensitive provider error", { status }),
+      );
+      expect(await classifyTaskTags("private title", null, signal)).toEqual({
+        ok: false,
+        reason: `http_${status}`,
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
   it.each([
     { model: "fallback/model" },
     { usage: { inputTokens: -1, outputTokens: 1 } },

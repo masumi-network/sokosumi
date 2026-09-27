@@ -10741,7 +10741,8 @@ export const CheckoutSessionAnalyticsSchema = {
                 'number',
                 'null'
             ],
-            example: 12000
+            description: 'Net revenue in major currency units (e.g. 49 for EUR 49.00): total after discounts, excluding tax and shipping.',
+            example: 120
         },
         items: {
             type: 'array',
@@ -21422,6 +21423,26 @@ export const TaskActivitySummarySchema = {
         'lastVisitAt',
         'basis',
         'workedMinutes'
+    ]
+} as const;
+
+export const TaskTagSuggestionSchema = {
+    type: 'object',
+    properties: {
+        tags: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            },
+            maxItems: 5
+        },
+        receipt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'tags',
+        'receipt'
     ]
 } as const;
 

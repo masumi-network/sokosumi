@@ -1174,3 +1174,40 @@ describe("task participant actions", () => {
     });
   });
 });
+
+describe("draft task tag actions", () => {
+  it.each([false, true])(
+    "forwards receipts and corrections when creating (related=%s)",
+    async (related) => {
+      taskServiceMock.createTask.mockReset().mockResolvedValue(buildTask());
+      taskServiceMock.createTaskLink.mockResolvedValue({ id: "link-1" });
+      taskServiceMock.listTaskLinks.mockResolvedValue([]);
+      const { createTask, createTaskAndLink } = await import("./action");
+      const input = {
+        name: "Market research",
+        description: "Research the market",
+        assigneeId: null,
+        status: TaskStatus.DRAFT,
+        tagSuggestionReceipt: "receipt-1",
+        tagCorrections: {
+          add: ["design" as const],
+          remove: ["research" as const],
+        },
+      };
+      if (related)
+        await createTaskAndLink({
+          ...input,
+          taskId: "parent-task",
+          relation: "related",
+        });
+      else await createTask(input);
+      expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: input.name,
+          tagSuggestionReceipt: input.tagSuggestionReceipt,
+          tagCorrections: input.tagCorrections,
+        }),
+      );
+    },
+  );
+});

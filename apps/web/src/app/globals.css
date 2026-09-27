@@ -740,7 +740,7 @@
   --fc-classic-muted: var(--accent);
   --fc-classic-faint: var(--muted);
   --fc-classic-muted-foreground: var(--muted-foreground);
-  --fc-classic-background: var(--background);
+  --fc-classic-background: var(--card-background);
   --fc-classic-today: var(--primary-quinary);
 }
 

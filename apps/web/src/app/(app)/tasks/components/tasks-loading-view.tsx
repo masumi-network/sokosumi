@@ -121,7 +121,7 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
         return (
           <section
             key={column.id}
-            className="bg-card-background flex h-full min-h-0 min-w-[260px] shrink-0 flex-1 flex-col rounded-xl border border-transparent transition-colors sm:min-w-[280px] lg:min-w-[350px]"
+            className="bg-card-background flex h-full min-h-0 min-w-[260px] shrink-0 flex-1 flex-col rounded-xl transition-colors sm:min-w-[280px] lg:min-w-[350px]"
           >
             <div className="sticky top-0 z-10 px-3 pt-3 pb-2">
               <ColumnHeader
@@ -158,7 +158,7 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
 
 function TasksListLoading() {
   return (
-    <div className="bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+    <div className="bg-card-background overflow-hidden rounded-xl p-2">
       <div className="flex items-center justify-center px-4 py-16">
         <Loader2
           className="text-muted-foreground size-5 animate-spin"

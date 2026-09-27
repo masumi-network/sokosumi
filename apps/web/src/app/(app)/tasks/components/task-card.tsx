@@ -42,7 +42,8 @@ export function TaskCard({
     >
       <article
         className={cn(
-          "bg-background border-border relative isolate space-y-2.5 rounded-lg border p-3 transition-[border-color,box-shadow] hover:border-primary hover:shadow-sm",
+          "bg-background border-border relative isolate rounded-lg border transition-[border-color,box-shadow] hover:border-primary hover:shadow-sm",
+          compact ? "space-y-1 p-2" : "space-y-2.5 p-3",
           dragHandleProps?.isDragging &&
             "border-primary-tertiary ring-ring-halo shadow-lg ring-2",
         )}
@@ -55,35 +56,45 @@ export function TaskCard({
           />
           <TaskPrivateIndicator visibility={task.visibility} />
         </div>
-        <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
+        <h3
+          className={cn(
+            "text-foreground text-sm leading-snug font-medium",
+            compact ? "line-clamp-1" : "line-clamp-2",
+          )}
+        >
           <TaskDetailLink
             href={`/tasks/${task.id}`}
+            title={task.name}
             className="after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-ring"
           >
             {task.name}
           </TaskDetailLink>
         </h3>
-        <TaskTags tags={task.tags} compact={compact} />
-        {task.project ? (
-          <Link
-            href={`/projects/${task.project.id}`}
-            title={task.project.name}
-            aria-label={t("openProject", { name: task.project.name })}
-            className="text-muted-foreground hover:text-foreground focus-visible:outline-ring relative z-10 flex min-h-8 min-w-0 items-center gap-2 rounded-sm text-xs hover:underline focus-visible:outline-2"
-            onPointerDown={(event) => event.stopPropagation()}
-            onKeyDown={(event) => event.stopPropagation()}
-          >
-            <ProjectAvatar
-              name={task.project.name}
-              logo={task.project.logo}
-              className="size-5 shrink-0 rounded-sm"
-            />
-            <span className="line-clamp-2 break-words">
-              {task.project.name}
-            </span>
-          </Link>
-        ) : (
-          <p className="text-muted-foreground text-xs">{t("noProject")}</p>
+        {!compact && (
+          <>
+            <TaskTags tags={task.tags} />
+            {task.project ? (
+              <Link
+                href={`/projects/${task.project.id}`}
+                title={task.project.name}
+                aria-label={t("openProject", { name: task.project.name })}
+                className="text-muted-foreground hover:text-foreground focus-visible:outline-ring relative z-10 flex min-h-8 min-w-0 items-center gap-2 rounded-sm text-xs hover:underline focus-visible:outline-2"
+                onPointerDown={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
+                <ProjectAvatar
+                  name={task.project.name}
+                  logo={task.project.logo}
+                  className="size-5 shrink-0 rounded-sm"
+                />
+                <span className="min-w-0 line-clamp-2 break-words">
+                  {task.project.name}
+                </span>
+              </Link>
+            ) : (
+              <p className="text-muted-foreground text-xs">{t("noProject")}</p>
+            )}
+          </>
         )}
         {task.runAt ? (
           <TaskRunAtBadge runAt={task.runAt} className="flex" />
