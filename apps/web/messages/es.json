@@ -6819,9 +6819,12 @@
       }
     },
     "ProjectScope": {
+      "clearSearch": "Borrar búsqueda",
+      "close": "Cerrar",
       "label": "Proyecto",
       "switchLabel": "Cambiar de proyecto",
-      "workspaceView": "Todos los proyectos",
+      "workspaceView": "Todo",
+      "workspaceDescription": "Incluye trabajo sin proyecto",
       "pinned": "Fijados",
       "recent": "Recientes",
       "all": "Proyectos",

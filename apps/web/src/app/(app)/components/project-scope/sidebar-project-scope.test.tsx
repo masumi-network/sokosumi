@@ -200,7 +200,7 @@ describe("sidebar project scope rail tooltip", () => {
     await user.hover(row());
 
     expect(
-      await screen.findByRole("tooltip", { name: "label: workspaceView" }),
+      await screen.findByRole("tooltip", { name: "workspaceView" }),
     ).toBeInTheDocument();
   });
 

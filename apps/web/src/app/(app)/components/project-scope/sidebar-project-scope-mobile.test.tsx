@@ -194,8 +194,8 @@ describe("sidebar project scope scope name", () => {
   it("names the workspace view when no project is scoped", () => {
     renderHarness();
 
-    expect(row()).toHaveAccessibleName("label: workspaceView");
-    expect(chip()).toHaveAccessibleName("label: workspaceView");
+    expect(row()).toHaveAccessibleName("workspaceView");
+    expect(chip()).toHaveAccessibleName("workspaceView");
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
 

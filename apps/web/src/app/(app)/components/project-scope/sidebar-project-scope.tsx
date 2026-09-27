@@ -64,7 +64,7 @@ export function SidebarProjectScope() {
                 aria-expanded={sheetOpen}
                 aria-label={label}
                 data-testid="project-scope-sidebar-row"
-                className="font-medium"
+                className="font-medium data-[state=open]:bg-sidebar-accent"
                 onClick={() => {
                   setOpenMobile(false);
                   openScopeSheet();
@@ -79,7 +79,7 @@ export function SidebarProjectScope() {
                     type="button"
                     aria-label={label}
                     data-testid="project-scope-sidebar-row"
-                    className="font-medium"
+                    className="font-medium data-[state=open]:bg-sidebar-accent"
                     // Rail only, and not over its own open popover.
                     tooltip={{ children: label, hidden: !collapsed || open }}
                   >
@@ -91,7 +91,7 @@ export function SidebarProjectScope() {
                   align="start"
                   sideOffset={collapsed ? 8 : 4}
                   aria-label={t("switchLabel")}
-                  className="w-72 p-0"
+                  className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 motion-reduce:animate-none"
                 >
                   <ProjectScopeMenu
                     selectedProjectId={projectId}

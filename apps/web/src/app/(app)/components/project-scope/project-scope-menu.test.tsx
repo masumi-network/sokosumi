@@ -166,6 +166,30 @@ describe("ProjectScopeMenu", () => {
     await waitFor(() => expect(screen.getByText("empty")).toBeInTheDocument());
   });
 
+  it("clears an empty search with Enter and returns focus without choosing a command", async () => {
+    const user = userEvent.setup();
+    const { onSelect, onCreate, onDone } = setup();
+    await screen.findByText("Pinned One");
+    searchResults({});
+    const input = screen.getByRole("combobox");
+    await user.type(input, "zzz");
+
+    const clear = await screen.findByRole("button", { name: "clearSearch" });
+    await user.tab();
+    expect(clear).toHaveFocus();
+    await user.keyboard("{Enter}");
+
+    expect(input).toHaveValue("");
+    expect(input).toHaveFocus();
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(onDone).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
+    await screen.findByText("Pinned One");
+    expect(screen.getByTestId("project-scope-workspace")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "clearSearch" })).toBeNull();
+  });
+
   it("says it is searching, not that none were found, until Core answers", async () => {
     const user = userEvent.setup();
     setup();
@@ -208,6 +232,38 @@ describe("ProjectScopeMenu", () => {
     await screen.findByText("Far Away");
     expect(screen.getByRole("status")).toHaveTextContent("");
     expect(screen.getByRole("listbox")).not.toHaveAttribute("aria-busy");
+  });
+
+  it("names the search input and results list", async () => {
+    setup();
+
+    await screen.findByText("Active One");
+
+    expect(screen.getByRole("combobox")).toHaveAccessibleName(
+      "searchPlaceholder",
+    );
+    expect(screen.getByRole("listbox")).toHaveAccessibleName("all");
+  });
+
+  it("retries with Enter without choosing a project", async () => {
+    const user = userEvent.setup();
+    mocks.load.mockRejectedValueOnce(new Error("Core down"));
+    const { onSelect, onDone } = setup();
+
+    const retry = await screen.findByRole("button", { name: "retry" });
+    expect(screen.getByRole("combobox")).toHaveFocus();
+    await user.tab();
+    expect(retry).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByRole("combobox")).toHaveFocus();
+    await screen.findByText("Active One");
+    expect(screen.getByRole("combobox")).toHaveFocus();
+    expect(mocks.load).toHaveBeenCalledTimes(2);
+    expect(mocks.loadPinned).toHaveBeenCalledTimes(2);
   });
 
   it("says the list failed and asks both reads again on Retry", async () => {

@@ -6819,9 +6819,12 @@
       }
     },
     "ProjectScope": {
+      "clearSearch": "Clear search",
+      "close": "Close",
       "label": "Project",
       "switchLabel": "Switch project",
-      "workspaceView": "All projects",
+      "workspaceView": "Everything",
+      "workspaceDescription": "Includes work without a project",
       "pinned": "Pinned",
       "recent": "Recent",
       "all": "Projects",

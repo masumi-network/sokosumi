@@ -12,7 +12,6 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
@@ -76,14 +75,25 @@ export function ProjectScopeMenu({
         key={`${group}-${project.id}`}
         value={`${group}-${project.id}`}
         data-testid={`project-scope-item-${project.id}`}
+        className={cn(
+          "min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5",
+          project.id === selectedProjectId && "font-medium",
+        )}
         onSelect={() => choose(project.id)}
       >
-        <ProjectAvatar
-          name={project.name}
-          logo={project.logo}
-          className="size-5 shrink-0"
-        />
-        <span className="min-w-0 flex-1 truncate">{project.name}</span>
+        <span
+          aria-hidden
+          className="flex size-6 shrink-0 items-center justify-center"
+        >
+          <ProjectAvatar
+            name={project.name}
+            logo={project.logo}
+            className="size-6 rounded-md [&_[data-slot=avatar-fallback]]:rounded-md"
+          />
+        </span>
+        <span className="min-w-0 flex-1 break-words leading-normal">
+          {project.name}
+        </span>
         <CurrentMark current={project.id === selectedProjectId} />
       </CommandItem>
     );
@@ -111,7 +121,15 @@ export function ProjectScopeMenu({
           : null;
 
   return (
-    <Command ref={menuRef} shouldFilter={false} className={className}>
+    <Command
+      ref={menuRef}
+      label={t("searchPlaceholder")}
+      shouldFilter={false}
+      className={cn(
+        "h-auto min-h-0 overflow-y-auto overscroll-contain [&_[data-slot=command-input-wrapper]]:shrink-0 [&_[cmdk-group]]:p-1.5 [&_[cmdk-group-heading]]:px-2.5 [&_[data-slot=command-input-wrapper]]:has-focus-visible:ring-2 [&_[data-slot=command-input-wrapper]]:has-focus-visible:ring-inset [&_[data-slot=command-input-wrapper]]:has-focus-visible:ring-ring",
+        className,
+      )}
+    >
       <CommandInput
         autoFocus
         placeholder={t("searchPlaceholder")}
@@ -122,11 +140,14 @@ export function ProjectScopeMenu({
           mounted, so a screen reader hears each change. */}
       <div
         className={cn(
-          "flex items-center justify-between gap-2 px-3",
+          "flex shrink-0 flex-wrap items-center justify-between gap-2 px-3",
           statusText && "py-2",
         )}
       >
-        <p role="status" className="text-muted-foreground text-sm">
+        <p
+          role="status"
+          className="text-muted-foreground min-w-0 break-words text-sm"
+        >
           {statusText}
         </p>
         {projects.isError ? (
@@ -134,47 +155,93 @@ export function ProjectScopeMenu({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={projects.refetch}
+            className="h-auto min-h-11 max-w-full whitespace-normal py-2 md:min-h-8"
+            onKeyDown={(event) => event.stopPropagation()}
+            onClick={() => {
+              projects.refetch();
+              menuRef.current?.querySelector("input")?.focus();
+            }}
           >
             {t("retry")}
           </Button>
+        ) : projects.isSearching && rest.length === 0 && !busy ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-auto min-h-11 max-w-full whitespace-normal py-2 md:min-h-8"
+            onKeyDown={(event) => event.stopPropagation()}
+            onClick={() => {
+              setSearch("");
+              menuRef.current?.querySelector("input")?.focus();
+            }}
+          >
+            {t("clearSearch")}
+          </Button>
         ) : null}
       </div>
-      <CommandList aria-busy={busy || undefined}>
-        {projects.isSearching ? null : (
-          <CommandGroup>
-            <CommandItem
-              value={WORKSPACE_VALUE}
-              data-testid="project-scope-workspace"
-              onSelect={() => choose(null)}
-            >
-              <Layers className="size-4 shrink-0" aria-hidden />
-              <span className="flex-1 truncate">{t("workspaceView")}</span>
-              <CurrentMark current={selectedProjectId === null} />
-            </CommandItem>
-          </CommandGroup>
+      <CommandList
+        label={t("all")}
+        aria-busy={busy || undefined}
+        className={cn(
+          "flex min-h-0 max-h-96 flex-col overflow-visible [&_[cmdk-list-sizer]]:flex [&_[cmdk-list-sizer]]:min-h-0 [&_[cmdk-list-sizer]]:flex-col",
+          statusText && "shrink-0",
         )}
+      >
+        <div
+          className="min-h-0 overflow-y-auto overscroll-contain scroll-py-1.5"
+          role="presentation"
+        >
+          {projects.isSearching ? null : (
+            <CommandGroup>
+              <CommandItem
+                value={WORKSPACE_VALUE}
+                data-testid="project-scope-workspace"
+                className={cn(
+                  "min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5",
+                  selectedProjectId === null && "font-medium",
+                )}
+                onSelect={() => choose(null)}
+              >
+                <span
+                  className="flex size-6 shrink-0 items-center justify-center"
+                  aria-hidden
+                >
+                  <Layers className="size-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block break-words">
+                    {t("workspaceView")}
+                  </span>
+                  <span className="text-muted-foreground mt-0.5 block text-xs font-normal leading-relaxed">
+                    {t("workspaceDescription")}
+                  </span>
+                </span>
+                <CurrentMark current={selectedProjectId === null} />
+              </CommandItem>
+            </CommandGroup>
+          )}
 
-        {!projects.isSearching && projects.pinned.length > 0 ? (
-          <CommandGroup heading={t("pinned")}>
-            {projects.pinned.map((project) => row(project, "pinned"))}
-          </CommandGroup>
-        ) : null}
-        {!projects.isSearching && projects.recent.length > 0 ? (
-          <CommandGroup heading={t("recent")}>
-            {projects.recent.map((project) => row(project, "recent"))}
-          </CommandGroup>
-        ) : null}
-        {rest.length > 0 ? (
-          <CommandGroup heading={projects.isSearching ? undefined : t("all")}>
-            {rest.map((project) => row(project, "all"))}
-          </CommandGroup>
-        ) : null}
-
-        <CommandSeparator alwaysRender />
-        <CommandGroup forceMount>
+          {!projects.isSearching && projects.pinned.length > 0 ? (
+            <CommandGroup heading={t("pinned")}>
+              {projects.pinned.map((project) => row(project, "pinned"))}
+            </CommandGroup>
+          ) : null}
+          {!projects.isSearching && projects.recent.length > 0 ? (
+            <CommandGroup heading={t("recent")}>
+              {projects.recent.map((project) => row(project, "recent"))}
+            </CommandGroup>
+          ) : null}
+          {rest.length > 0 ? (
+            <CommandGroup heading={projects.isSearching ? undefined : t("all")}>
+              {rest.map((project) => row(project, "all"))}
+            </CommandGroup>
+          ) : null}
+        </div>
+        <CommandGroup forceMount className="shrink-0 border-t">
           <CommandItem
             forceMount
+            className="min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5"
             value={CREATE_VALUE}
             data-testid="project-scope-create"
             onSelect={() => {
@@ -183,11 +250,17 @@ export function ProjectScopeMenu({
               onCreate(opener);
             }}
           >
-            <Plus className="size-4 shrink-0" aria-hidden />
-            <span className="flex-1 truncate">{t("create")}</span>
+            <span
+              className="flex size-6 shrink-0 items-center justify-center"
+              aria-hidden
+            >
+              <Plus className="size-4" />
+            </span>
+            <span className="min-w-0 flex-1 break-words">{t("create")}</span>
           </CommandItem>
           <CommandItem
             forceMount
+            className="min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5"
             value={MANAGE_VALUE}
             data-testid="project-scope-manage"
             onSelect={() => {
@@ -195,8 +268,13 @@ export function ProjectScopeMenu({
               router.push("/projects");
             }}
           >
-            <FolderKanban className="size-4 shrink-0" aria-hidden />
-            <span className="flex-1 truncate">{t("manage")}</span>
+            <span
+              className="flex size-6 shrink-0 items-center justify-center"
+              aria-hidden
+            >
+              <FolderKanban className="size-4" />
+            </span>
+            <span className="min-w-0 flex-1 break-words">{t("manage")}</span>
           </CommandItem>
         </CommandGroup>
       </CommandList>
