@@ -2641,7 +2641,9 @@
       "pickBody": "Das Studio arbeitet innerhalb eines Projekts: die Bilder, die Marke und der Assistent gehören dazu. Wähle ein Projekt, um seine Galerie zu öffnen.",
       "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
-      "scopeLabel": "Projekt"
+      "scopeLabel": "Projekt",
+      "title": "Bildstudio",
+      "noProject": "Kein Projekt ausgewählt"
     },
     "Error": {
       "title": "Etwas ist schiefgelaufen",

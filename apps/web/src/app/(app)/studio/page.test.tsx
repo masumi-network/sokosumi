@@ -126,7 +126,7 @@ describe("StudioPage", () => {
     const studio = screen.getByTestId("image-studio");
     expect(studio).toHaveAttribute("data-project", "project-1");
     expect(
-      screen.getByRole("heading", { name: "App.Studio.studio" }),
+      screen.getByRole("heading", { name: "App.Studio.title" }),
     ).toBeInTheDocument();
     // Which project's images these are, said on the page rather than only in
     // the sidebar's switcher.

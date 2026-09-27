@@ -151,7 +151,10 @@ export function ProjectMemoryPanel({
         )}
       </section>
 
-      <ProjectMemoryHistory versions={versions} />
+      {/* Nothing has been written yet means there is nothing to have a history
+          of, and a "History (0)" row there reads as something broken rather
+          than as something not started. */}
+      {contextMd ? <ProjectMemoryHistory versions={versions} /> : null}
     </div>
   );
 }

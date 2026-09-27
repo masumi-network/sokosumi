@@ -111,11 +111,10 @@ describe("ProjectMemoryPanel", () => {
     expect(
       screen.getByText("Memory is written the first time a task completes."),
     ).toBeInTheDocument();
-    // Nothing to link to, and no version to list.
+    // Nothing to link to, and no history to disclose: a project that has never
+    // had a memory has no versions, not zero of them.
     expect(screen.queryByRole("link", { name: "Open raw" })).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "History (0)" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /History/ })).toBeNull();
   });
 
   it("says a refresh is running without hiding what is already there", () => {

@@ -37,8 +37,8 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
     return (
       <StudioPageShell
         mark={<ImagePlus className="text-muted-foreground size-5" />}
-        subtitle={t("pickBody")}
-        title={t("studio")}
+        subtitle={t("noProject")}
+        title={t("title")}
       >
         <StudioProjectPicker />
       </StudioPageShell>
@@ -52,8 +52,8 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
     return (
       <StudioPageShell
         mark={<ImagePlus className="text-muted-foreground size-5" />}
-        subtitle={t("pickUnavailable")}
-        title={t("studio")}
+        subtitle={t("noProject")}
+        title={t("title")}
       >
         <StudioProjectPicker notice={t("pickUnavailable")} />
       </StudioPageShell>
@@ -89,7 +89,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         />
       }
       subtitle={project.name}
-      title={t("studio")}
+      title={t("title")}
     >
       <ImageStudio
         initialSelectedAssetId={initialSelectedAssetId}

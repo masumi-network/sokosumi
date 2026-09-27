@@ -2641,7 +2641,9 @@
       "pickBody": "El estudio funciona dentro de un proyecto: las imágenes, la marca y el asistente le pertenecen. Elige un proyecto para abrir su galería.",
       "pickAction": "Elegir proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
-      "scopeLabel": "Proyecto"
+      "scopeLabel": "Proyecto",
+      "title": "Estudio de imagen",
+      "noProject": "Ningún proyecto seleccionado"
     },
     "Error": {
       "title": "Algo salió mal",

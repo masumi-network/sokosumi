@@ -2641,7 +2641,9 @@
       "pickBody": "The studio works inside one project: the images, the brand and the assistant all belong to it. Choose a project to open its gallery.",
       "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
-      "scopeLabel": "Project"
+      "scopeLabel": "Project",
+      "title": "Image studio",
+      "noProject": "No project selected"
     },
     "Error": {
       "title": "Something went wrong",
