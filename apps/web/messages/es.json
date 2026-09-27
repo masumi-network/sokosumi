@@ -3560,12 +3560,18 @@
         "title": "Soko Bots",
         "description": "Salud de la flota y actividad exacta por bot en todos los usuarios.",
         "Health": {
-          "total": "Bots",
-          "running": "En marcha",
-          "paused": "Pausados",
-          "error": "Con errores",
           "pendingDecisions": "Aprobaciones pendientes",
-          "archived": "Archivados"
+          "active": "Bots activos",
+          "activeRecently": "Usados en los últimos 7 días",
+          "attention": "Requieren atención",
+          "attentionTitle": "Requiere atención",
+          "unnamed": "Sin nombre",
+          "reasons": {
+            "error": "En estado de error",
+            "paused": "Pausado por un operador",
+            "failures": "{count, plural, one {# turno fallido seguido} other {# turnos fallidos seguidos}}",
+            "pending": "{count, plural, one {# aprobación pendiente} other {# aprobaciones pendientes}}"
+          }
         },
         "Fleet": {
           "searchPlaceholder": "Buscar por bot, nombre del propietario o correo…",
@@ -3576,14 +3582,13 @@
           "owner": "Propietario",
           "status": "Estado",
           "turns": "Turnos",
-          "pending": "Pendientes",
-          "schedules": "Programaciones",
-          "failures": "Fallos",
-          "runtime": "Runtime",
+          "pending": "{count, plural, one {# pendiente} other {# pendientes}}",
+          "failures": "{count, plural, one {# fallo} other {# fallos}}",
           "lastActivity": "Última actividad",
           "unnamed": "Sin nombre",
           "archived": "Archivado",
-          "version": "Versión"
+          "version": "Versión",
+          "showDormant": "Mostrar sin uso y archivados ({count})"
         },
         "Detail": {
           "backToList": "Volver a Soko Bots",
@@ -3639,7 +3644,8 @@
           "confirm": "Confirmar",
           "working": "Procesando…",
           "done": "{action} registrado.",
-          "error": "La acción falló."
+          "error": "La acción falló.",
+          "more": "Más acciones"
         },
         "Overview": {
           "title": "Resumen",
@@ -3653,7 +3659,6 @@
           "lastSucceededAt": "Último éxito",
           "lastFailedAt": "Último fallo",
           "consecutiveFailures": "Fallos consecutivos",
-          "recentTurns": "Turnos recientes",
           "recentTurnsValue": "{total} en total · {completed} ok · {failed} fallidos",
           "successRate": "Tasa de éxito",
           "runtime": "Runtime",
@@ -3674,7 +3679,10 @@
           "usageCredits": "Créditos gastados",
           "usageTurns": "Turnos",
           "usageTokens": "Tokens (entrada / salida)",
-          "usageModelCost": "Coste del modelo"
+          "usageModelCost": "Coste del modelo",
+          "technicalDetails": "Detalles técnicos",
+          "botId": "ID del bot",
+          "version": "Versión"
         },
         "Turns": {
           "title": "Turnos",
@@ -3684,7 +3692,9 @@
           "source": {
             "CHAT": "Chat",
             "SCHEDULE": "Programado",
-            "ADMIN_RETRY": "Reintento de operador"
+            "ADMIN_RETRY": "Reintento de operador",
+            "EVENT": "Evento de tarea",
+            "INGEST": "Sincronización de bandeja"
           },
           "yes": "Sí",
           "no": "No",
@@ -3863,7 +3873,8 @@
           "version": "Versión",
           "turns": "Turnos",
           "avgScore": "Media",
-          "realRunsByVersion": "Uso real por versión"
+          "realRunsByVersion": "Uso real por versión",
+          "descriptionBot": "Puntuaciones del juez (1–5) para los turnos reales de este bot, últimos 30 días."
         },
         "labLink": "Laboratorio de comportamiento",
         "versionsLink": "Versiones",
@@ -4014,7 +4025,6 @@
           "batchProgress": "Ejecutando {done} de {total}"
         },
         "KillSwitch": {
-          "title": "Interruptor de la función",
           "stateEnabled": "Soko Bot funciona con normalidad.",
           "stateDisabled": "Desactivado — {reason}",
           "noReason": "sin motivo indicado",
@@ -4024,7 +4034,13 @@
           "reasonPlaceholder": "Motivo mostrado a los usuarios (opcional)",
           "disabled": "Soko Bot desactivado.",
           "enabled": "Soko Bot activado.",
-          "error": "No se pudo cambiar el interruptor."
+          "error": "No se pudo cambiar el interruptor.",
+          "offTitle": "Soko Bot está desactivado para todos",
+          "disableEllipsis": "Desactivar…",
+          "confirmTitle": "¿Desactivar Soko Bot para todos?",
+          "confirmDescription": "No se inician turnos ni se hacen llamadas al modelo hasta que lo vuelvas a activar. Los propietarios ven el motivo que indiques.",
+          "reasonLabel": "Motivo",
+          "cancel": "Cancelar"
         },
         "Version": {
           "title": "Versión del agente",

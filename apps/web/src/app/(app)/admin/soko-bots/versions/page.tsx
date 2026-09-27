@@ -2,8 +2,8 @@ import { ArrowLeft, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-
 import { SokoBotVersionList } from "@/components/admin/soko-bots/soko-bot-version-list";
+import { SokoBotVersionMigration } from "@/components/admin/soko-bots/soko-bot-version-migration.client";
 import { Button } from "@/components/ui/button";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 import {
@@ -20,9 +20,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AdminSokoBotVersionsPage() {
-  const [t, catalog] = await Promise.all([
+  const [t, catalog, usage] = await Promise.all([
     getTranslations("App.Admin.SokoBots.Versions"),
     adminSokoBotService.listVersions(),
+    // Counted in Core across every live bot, so the move count is the real
+    // number of bots it will touch.
+    adminSokoBotService.versionUsage(),
   ]);
 
   return (
@@ -50,6 +53,14 @@ export default async function AdminSokoBotVersionsPage() {
         </div>
 
         <SokoBotVersionList versions={catalog.versions} />
+        <SokoBotVersionMigration
+          versions={catalog.versions.map((version) => ({
+            id: version.id,
+            name: version.name,
+          }))}
+          defaultVersionId={catalog.defaultVersionId}
+          inUse={usage.versions}
+        />
       </div>
     </div>
   );
