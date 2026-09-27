@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import {
   isSokoBotDecisionTarget,
@@ -35,5 +36,45 @@ describe("Soko Bot tool contracts", () => {
         proposal: {},
       }),
     ).toThrow();
+  });
+
+  it("converts write_table_rows to an object schema without an intersection root", () => {
+    const jsonSchema = z.toJSONSchema(
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.write_table_rows,
+    );
+
+    expect(jsonSchema.type).toBe("object");
+    expect(jsonSchema.allOf).toBeUndefined();
+    expect(jsonSchema.properties).toHaveProperty("tableId");
+    expect(jsonSchema.required).toContain("tableId");
+  });
+
+  it("keeps write_table_rows validation and the 100-row bound", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.write_table_rows;
+    const tableId = "00000000-0000-4000-8000-000000000001";
+    const row = (value: string) => ({
+      values: {
+        "00000000-0000-4000-8000-000000000002": value,
+      },
+    });
+
+    expect(
+      schema.safeParse({
+        key: "batch",
+        tableId,
+        insert: Array.from({ length: 100 }, (_, index) => row(String(index))),
+      }).success,
+    ).toBe(true);
+    expect(
+      schema.safeParse({
+        key: "batch",
+        tableId,
+        insert: Array.from({ length: 101 }, (_, index) => row(String(index))),
+      }).success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({ key: "batch", tableId, insert: [], patch: [] })
+        .success,
+    ).toBe(false);
   });
 });
