@@ -83,13 +83,58 @@ export const PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE = 1_500_000;
  *   a spend-only cap would fail **open**. That is why it is not alone.
  *
  * The token figure is ~12× a heavy day and 1/36th of what the minute ceiling
- * allowed. The dollar figure is a first guess and **has to be reviewed
- * against the first real invoice** — no live call has ever been made from
- * this branch, so there is no observed price behind it.
+ * allowed.
+ *
+ * ## Which one binds, and why the dollar figure moved
+ *
+ * **Tokens bind. Dollars are the backstop.** They were the other way round
+ * on paper and neither on the evidence: the dollar cap was $25 and could
+ * not be reached.
+ *
+ * The arithmetic, from a review that priced it rather than guessing.
+ * `task-tag-classification.service.ts` records a production measurement of
+ * this model over this Gateway at two priced points; fitting them gives
+ * ~$0.0105 per million code points, and the ledger counts code points, so
+ * the caps stay in one unit with no tokenizer assumption in between.
+ *
+ * - `PER_WORKSPACE_INPUT_TOKENS_PER_DAY` fully consumed: **$0.63** per
+ *   workspace per day.
+ * - Reaching $25 would take **2.38 billion** code points, **40×** the token
+ *   cap.
+ * - `GLOBAL_INPUT_TOKENS_PER_MINUTE` saturated for a day: **~$91**
+ *   platform-wide.
+ *
+ * So the dollar cap did nothing at all, and two rounds of review argued
+ * about a number that could never fire. The fix is not to raise the token
+ * cap to meet $25 — that authorises forty times the spend, and expense was
+ * the stated worry. The dollar cap comes down to sit just above what the
+ * token cap actually permits: $2.00, about 3.2× the $0.63 the tokens allow.
+ * It fires only if the price rises more than threefold or the token
+ * accounting is wrong, which is what a backstop is for.
+ *
+ * The error bar on the price is a factor of two until a live call records
+ * `providerMetadata.gateway.cost`, which no call from this branch has yet
+ * done. A factor of two does not rescue a fortyfold mismatch, and the
+ * headroom above absorbs it.
+ *
+ * ## Known limit: per workspace, not per seat
+ *
+ * These are workspace budgets, and an organization workspace is shared, so
+ * the headroom divides by seat count while the budget does not. Measured
+ * against expected use, the daily token cap binds at roughly 890
+ * simultaneously active users in one workspace, and at heavy use roughly
+ * 129. For one person that is a thousand times ordinary use and not a cost
+ * control; for a 130-seat organization with heavy Drive use it binds during
+ * ordinary work.
+ *
+ * Not sharded here — that is a design change, not a constant. What matters
+ * more in the meantime is that hitting it is visible: admission returns
+ * null, ranking falls back, and the reason now travels to the caller rather
+ * than reading as a healthy deterministic ranking.
  */
 export const SPEND_WINDOW_MS = 86_400_000;
 export const PER_WORKSPACE_INPUT_TOKENS_PER_DAY = 60_000_000;
-export const PER_WORKSPACE_USD_PER_DAY = 25;
+export const PER_WORKSPACE_USD_PER_DAY = 2;
 
 /**
  * Covers queueing, admissions and every wave — not one pair.

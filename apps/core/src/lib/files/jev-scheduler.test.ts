@@ -5,7 +5,9 @@ import {
   GLOBAL_INPUT_TOKENS_PER_MINUTE,
   GLOBAL_MAX_CONCURRENT,
   JevScheduler,
+  PER_WORKSPACE_INPUT_TOKENS_PER_DAY,
   PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE,
+  PER_WORKSPACE_USD_PER_DAY,
 } from "./jev-scheduler";
 
 function fixedClock(start = 1_000_000) {
@@ -203,5 +205,53 @@ describe("JevScheduler", () => {
       admitted: false,
       reason: "workspace-token-budget",
     });
+  });
+});
+
+describe("the two daily budgets are in the same universe", () => {
+  /**
+   * `PER_WORKSPACE_USD_PER_DAY` was 25 and could not be reached.
+   *
+   * The token cap is the primary control and the dollar cap is the
+   * backstop, but the backstop sat forty times above anything the primary
+   * control permits, so it was decoration. Two rounds of review argued
+   * about the figure without either side noticing it could never fire.
+   *
+   * The price comes from a production measurement this repository already
+   * records for the same model over the same Gateway — see
+   * `task-tag-classification.service.ts` — fitted to about $0.0105 per
+   * million code points. The ledger counts code points, so both caps are
+   * in one unit and no tokenizer assumption sits in between.
+   *
+   * This is the relationship, not the numbers: a backstop has to be
+   * reachable, and it has to leave room for the price being wrong. Raising
+   * the dollar cap back to 25, or cutting the token cap without touching
+   * it, turns this red.
+   */
+  const USD_PER_MILLION_CODE_POINTS = 0.0105;
+
+  const tokenCapWorthUsd =
+    (PER_WORKSPACE_INPUT_TOKENS_PER_DAY / 1_000_000) *
+    USD_PER_MILLION_CODE_POINTS;
+
+  it("prices the token cap where the review priced it", () => {
+    // Guards the arithmetic the rest of this describe rests on.
+    expect(tokenCapWorthUsd).toBeCloseTo(0.63, 2);
+  });
+
+  it("keeps the dollar backstop above what the tokens allow", () => {
+    // Below this it would fire before the primary control, which inverts
+    // which one is load-bearing.
+    expect(PER_WORKSPACE_USD_PER_DAY).toBeGreaterThan(tokenCapWorthUsd);
+  });
+
+  it("keeps it close enough to be reachable", () => {
+    /**
+     * The failure being fixed. Headroom absorbs a wrong price — the
+     * stated error bar is a factor of two — but a backstop forty times
+     * above the thing it backs up is not a control.
+     */
+    expect(PER_WORKSPACE_USD_PER_DAY / tokenCapWorthUsd).toBeLessThan(5);
+    expect(PER_WORKSPACE_USD_PER_DAY / tokenCapWorthUsd).toBeGreaterThan(2);
   });
 });
