@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -23,6 +24,7 @@ import { defaultModel, modelIdForRepeat, settingsOf } from "./catalog";
 import { StudioComposer } from "./studio-composer";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
+import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
 import {
   elapsedByAssetId,
   isActive,
@@ -109,6 +111,7 @@ export function ImageStudio({
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [viewing, setViewing] = useState<Viewing>(null);
   const [prompt, setPrompt] = useState("");
+  const promptRef = useRef<HTMLTextAreaElement>(null);
   const [cancelRequestedJobIds, setCancelRequestedJobIds] = useState<string[]>(
     [],
   );
@@ -334,6 +337,27 @@ export function ImageStudio({
     queue.enqueue([request]);
   }
 
+  /**
+   * Start from a template.
+   *
+   * It writes the brief and the frame and stops there: no submission, nothing
+   * locked, and the caret goes into the prompt box, because the value of a
+   * template is the edit that follows it. Undoing one is retyping — the text is
+   * ordinary editable text, which is why this is not a mode.
+   *
+   * The frame is set unconditionally. A model that cannot honour it is already
+   * clamped per leg when the batch is built (`clampToModel`), which is the same
+   * rule any other frame choice goes through.
+   */
+  function applyTemplate(template: StudioTemplate) {
+    setPrompt(template.prompt);
+    setTarget((current) => ({
+      ...current,
+      settings: { ...current.settings, aspectRatio: template.aspectRatio },
+    }));
+    promptRef.current?.focus();
+  }
+
   function handleCancelJob(jobId: string) {
     startTransition(async () => {
       try {
@@ -419,6 +443,7 @@ export function ImageStudio({
           onTargetChange={setTarget}
           projectId={projectId}
           prompt={prompt}
+          promptRef={promptRef}
           referenceAssets={checkedAssets}
           target={target}
         />
@@ -482,6 +507,35 @@ export function ImageStudio({
             </Button>
           </div>
         ) : null}
+
+        {/* Somewhere to start, in the same rhythm as the sections on the
+            project overview: a small heading and then the presses. One
+            wrapping row rather than a gallery of cards, because these are
+            fourteen words, not fourteen things to look at. */}
+        <section
+          aria-labelledby="studio-templates-heading"
+          className="space-y-2"
+        >
+          <h2
+            className="text-muted-foreground text-xs font-medium"
+            id="studio-templates-heading"
+          >
+            {labels.templates}
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {STUDIO_TEMPLATES.map((template) => (
+              <Button
+                key={template.id}
+                onClick={() => applyTemplate(template)}
+                size="sm"
+                type="button"
+                variant="secondary"
+              >
+                {labels.templateLabels[template.id]}
+              </Button>
+            ))}
+          </div>
+        </section>
 
         {/* The gallery's own header row, in the same rhythm the overview
               uses for Briefing and Workspace. Its left-hand subject is the

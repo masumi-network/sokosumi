@@ -134,6 +134,7 @@ export function StudioComposer({
   onTargetChange,
   projectId,
   prompt,
+  promptRef,
   referenceAssets,
   onClearReferences,
   target,
@@ -162,6 +163,14 @@ export function StudioComposer({
   onTargetChange: (update: (current: StudioTarget) => StudioTarget) => void;
   projectId: string;
   prompt: string;
+  /**
+   * The prompt box itself, so the studio can put the caret in it.
+   *
+   * Pressing a template writes the composer's text from outside the composer,
+   * and a brief that lands in a box nobody is typing in reads as a submission
+   * rather than as a draft to edit.
+   */
+  promptRef?: React.Ref<HTMLTextAreaElement>;
   /** Images the person picked in the gallery to generate *from*. */
   referenceAssets: StudioAsset[];
   onClearReferences: () => void;
@@ -341,6 +350,7 @@ export function StudioComposer({
             }
           }}
           placeholder={labels.promptPlaceholder}
+          ref={promptRef}
           value={prompt}
         />
 

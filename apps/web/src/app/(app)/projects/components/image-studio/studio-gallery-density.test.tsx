@@ -77,8 +77,11 @@ vi.mock("./use-generation-queue", () => ({
 }));
 
 const LABELS = new Proxy(
-  {},
-  { get: (_target, key: string) => key },
+  {
+    // Nested, because the studio reads `labels.templateLabels[id]`.
+    templateLabels: new Proxy({}, { get: (_target, key: string) => key }),
+  } as Record<string, unknown>,
+  { get: (target, key: string) => target[key] ?? key },
 ) as unknown as StudioLabels;
 
 const ASSET = {

@@ -5,6 +5,7 @@ import type {
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
 } from "@/lib/clients/generated/core/types.gen";
+import type { StudioTemplateId } from "./studio-templates";
 
 export type StudioAsset = ProjectImageAsset;
 export type StudioJob = ProjectImageJob;
@@ -178,6 +179,12 @@ export interface StudioLabels {
   waitingForSlot: string;
   waitingForSlotBody: string;
   queueNotDurable: string;
+
+  // The template presses above the gallery. Their prompt bodies are not in
+  // here: they are model input rather than copy, and they stay English in
+  // every locale — see `studio-templates.ts`.
+  templates: string;
+  templateLabels: Record<StudioTemplateId, string>;
 
   // Gallery, selection and comparison.
   gallery: string;
