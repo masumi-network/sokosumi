@@ -48,6 +48,10 @@
       "schedule": "0 0 * * *"
     },
     {
+      "path": "/sync/coworker-late-responses",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/chat-room-guest-invitations-expire",
       "schedule": "0 3 * * *"
     },
