@@ -75,3 +75,9 @@ lint-report.json
 # Connect product. Xcode Cloud reads its workflows from App Store Connect, not
 # from the repository, so builds have never needed this file.
 **/xcshareddata/xcodecloud/
+
+# Task capture directories. Screenshots taken while driving the preview belong
+# in the external task evidence tree, not in the repository; four were
+# committed by accident and removed in a follow-up.
+/evidence/recon/
+/evidence/v4/
