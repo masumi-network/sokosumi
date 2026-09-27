@@ -73,6 +73,7 @@
     "evlog": "2.29.0",
     "hono": "4.13.9",
     "ioredis": "6.0.0",
+    "jszip": "3.10.1",
     "neverthrow": "8.2.0",
     "p-limit": "7.3.3",
     "p-timeout": "7.0.2",

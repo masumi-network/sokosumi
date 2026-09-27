@@ -13,7 +13,7 @@ import prisma from "@/lib/db/prisma";
 import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
 import type { ExtractedChunk } from "@/lib/files/extraction";
 import {
-  extractDocument,
+  extractDocumentAsync,
   FILE_EXTRACTION_MAX_BYTES,
 } from "@/lib/files/extraction";
 import {
@@ -158,7 +158,7 @@ export async function runExtractionJob(
   }
 
   const extraction = bytes
-    ? extractDocument({
+    ? await extractDocumentAsync({
         bytes,
         mimeType: version.mimeType ?? resource.mimeType,
         displayName: resource.displayName,

@@ -295,6 +295,44 @@ CSV, JSON, PDF, PNG/JPEG/GIF/WebP) and `attachment` for everything else, so a st
 'none'`. Filenames are stripped of quotes, backslashes and control characters before
 they reach the header, with the real name carried in `filename*`.
 
+### Extraction: what is read, and what is honestly not
+
+Word, PowerPoint and Excel (`.docx`, `.pptx`, `.xlsx`) are read. An OOXML file
+is a ZIP of XML parts, so `lib/files/ooxml.ts` unzips the parts that carry
+prose and strips their tags. `jszip` does the unzipping — chosen because it is
+**already in this repository's lockfile**, pulled in by the `docx` package the
+web app uses to write documents, so Core gains a direct dependency on code
+that was already installed rather than new code in the tree. No XML parser is
+used: the tag stripper is a character scan, which means no entity expansion,
+no DTD, no external-entity fetch, and none of the XXE surface a parser brings.
+
+Bounds, because extraction reads reader-supplied bytes: only named parts are
+opened, a part is refused if its *declared* uncompressed size exceeds 8 MB —
+before it is inflated, which is what stops a zip bomb — the running total is
+capped at 1M characters, enumerated slides and sheets are capped at 200, and
+anything that throws resolves to `UNSUPPORTED` with a reason rather than
+failing the job. A 9 KB archive declaring 9 MB of content is refused without
+expansion; there is a test.
+
+**PDF is not read, and that is a decision.** Nothing in the repository can
+parse one, and every credible option is a large new dependency interpreting
+adversarial bytes in the same process as the API. A half-working reader is
+worse than none: a PDF silently indexed as empty looks searched and is not.
+PDFs stay `UNSUPPORTED` with the reason "PDF text is not read in this version.
+The file is findable by name and can be downloaded." Doing it properly means
+the sandboxed parser this document has always promised — a separate process
+with its own memory and time limits — which is a bigger change than an import.
+
+No OCR, so an image-only or scanned PDF is covered by the same honest state.
+Legacy binary Office (`.doc`, `.ppt`, `.xls`) is out for the same reason as
+PDF.
+
+Extracted Office text goes through the same budgets as text files, verified
+rather than assumed: a 40,000-paragraph document comes back `PARTIAL` with a
+reason and a coverage below 1, and the Jev label request built from its first
+chunks stays inside `LABEL_EVALUATION_CEILINGS.total` — which now counts the
+transport envelope as well.
+
 ## 9. Verification
 
 - Unit tests for the serializer and token ceilings, the fusion and exact-match

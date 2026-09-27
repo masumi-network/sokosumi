@@ -24,16 +24,29 @@ describe("classifyExtraction", () => {
     ).toBe("text");
   });
 
-  it("marks PDF and OOXML unsupported rather than pretending to read them", () => {
+  it("reads OOXML now, and still refuses PDF", () => {
+    // These two used to share a treatment. Office is unzippable without a
+    // parser dependency; PDF is not, so it stays honestly unsupported.
+    expect(
+      classifyExtraction({ mimeType: null, displayName: "deck.pptx" }),
+    ).toBe("ooxml");
+    expect(
+      classifyExtraction({ mimeType: null, displayName: "report.docx" }),
+    ).toBe("ooxml");
     expect(
       classifyExtraction({
         mimeType: "application/pdf",
         displayName: "brief.pdf",
       }),
-    ).toBe("unsupported-binary-document");
-    expect(
-      classifyExtraction({ mimeType: null, displayName: "deck.pptx" }),
-    ).toBe("unsupported-binary-document");
+    ).toBe("unsupported-pdf");
+  });
+
+  it("keeps legacy binary Office out, which needs the same parser PDF does", () => {
+    for (const name of ["old.doc", "old.ppt", "old.xls"]) {
+      expect(classifyExtraction({ mimeType: null, displayName: name })).toBe(
+        "unsupported-binary-document",
+      );
+    }
   });
 
   it("marks media as name-only", () => {
@@ -102,7 +115,10 @@ describe("extractDocument", () => {
     });
     expect(result.state).toBe(FileExtractionState.UNSUPPORTED);
     expect(result.chunks).toHaveLength(0);
-    expect(result.reason).toContain("sandboxed parser");
+    // The reason has to tell the reader what they still have, not just
+    // what is missing.
+    expect(result.reason).toContain("PDF text is not read");
+    expect(result.reason).toContain("findable by name");
   });
 
   it("reports partial rather than silently claiming full coverage", () => {

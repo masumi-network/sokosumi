@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 
 import { FileExtractionState } from "@sokosumi/database";
 
+import { extractOoxmlText, ooxmlKindFor } from "@/lib/files/ooxml";
+
 /**
  * Turning bytes into searchable passages, inside explicit budgets.
  *
@@ -50,12 +52,28 @@ const TEXT_MIME_EXACT = new Set([
 const NAME_ONLY_MIME_PREFIXES = ["audio/", "video/", "image/"];
 
 /**
- * What we can read today. PDF, OOXML and OCR need a sandboxed parser process
- * that this branch does not ship, so they resolve to `UNSUPPORTED` with a
- * reason rather than to a silent empty index.
+ * What we can read today.
+ *
+ * Word, PowerPoint and Excel are read: an OOXML file is a ZIP of XML parts,
+ * and `lib/files/ooxml.ts` takes the text out of the parts that carry prose
+ * without an XML parser and inside explicit caps.
+ *
+ * **PDF is not**, and that is a decision rather than an oversight. Nothing
+ * in this repository can parse one, and every credible option is a large
+ * new dependency interpreting reader-supplied bytes in the same process as
+ * the API. A half-working reader is worse than none here: a PDF silently
+ * indexed as empty looks searched and is not, which is exactly the failure
+ * an honest `UNSUPPORTED` avoids. Doing it properly means the sandboxed
+ * parser the reason string has always promised — a separate process with
+ * its own memory and time limits.
+ *
+ * Legacy binary Office (`.doc`, `.ppt`, `.xls`) and OCR are out for the
+ * same reason.
  */
 export type ExtractionTreatment =
   | "text"
+  | "ooxml"
+  | "unsupported-pdf"
   | "unsupported-binary-document"
   | "unsupported-media"
   | "unsupported-unknown";
@@ -86,12 +104,18 @@ export function classifyExtraction(input: {
   }
 
   if (
-    mime === "application/pdf" ||
-    extension === "pdf" ||
+    ooxmlKindFor({ mimeType: input.mimeType, displayName: input.displayName })
+  ) {
+    return "ooxml";
+  }
+
+  if (mime === "application/pdf" || extension === "pdf") {
+    return "unsupported-pdf";
+  }
+
+  if (
     mime.includes("officedocument") ||
-    ["docx", "pptx", "xlsx", "doc", "ppt", "xls", "odt", "rtf"].includes(
-      extension,
-    )
+    ["doc", "ppt", "xls", "odt", "rtf"].includes(extension)
   ) {
     return "unsupported-binary-document";
   }
@@ -106,7 +130,7 @@ export function classifyExtraction(input: {
 export function extractionStateForTreatment(
   treatment: ExtractionTreatment,
 ): FileExtractionState {
-  return treatment === "text"
+  return treatment === "text" || treatment === "ooxml"
     ? FileExtractionState.INDEXED
     : FileExtractionState.UNSUPPORTED;
 }
@@ -117,9 +141,12 @@ export function extractionReasonForTreatment(
 ): string | null {
   switch (treatment) {
     case "text":
+    case "ooxml":
       return null;
+    case "unsupported-pdf":
+      return "PDF text is not read in this version. The file is findable by name and can be downloaded.";
     case "unsupported-binary-document":
-      return "This format needs a sandboxed parser that is not available yet.";
+      return "This older Office format needs a sandboxed parser that is not available yet.";
     case "unsupported-media":
       return "Audio, video and image contents are not read in this version.";
     default:
@@ -246,6 +273,15 @@ export function extractDocument(input: {
     };
   }
 
+  return resultFromText(decoded);
+}
+
+/**
+ * The shared tail: normalize, budget, chunk, and report coverage honestly.
+ * Text files and OOXML documents converge here so a Word file is bounded by
+ * exactly the same caps as a Markdown one.
+ */
+function resultFromText(decoded: string): ExtractionResult {
   const normalized = normalizeExtractedText(decoded);
   const truncated = normalized.length > FILE_EXTRACTION_MAX_CHARS;
   const usable = truncated
@@ -280,4 +316,58 @@ export function extractDocument(input: {
     chunks,
     extractorVersion: FILE_EXTRACTOR_VERSION,
   };
+}
+
+/**
+ * Extract one document, including formats that need to be unpacked first.
+ *
+ * `extractDocument` stays synchronous and pure for text, which keeps its
+ * budget arithmetic trivially testable. OOXML has to unzip, so it needs a
+ * promise, and this is the entry point the indexer uses.
+ *
+ * An OOXML file we cannot open resolves to `UNSUPPORTED` with a reason — not
+ * to a throw, and not to an empty index that would look like a searched
+ * document with nothing in it.
+ */
+export async function extractDocumentAsync(input: {
+  bytes: Uint8Array;
+  mimeType: string | null;
+  displayName: string;
+}): Promise<ExtractionResult> {
+  const treatment = classifyExtraction({
+    mimeType: input.mimeType,
+    displayName: input.displayName,
+  });
+
+  if (treatment !== "ooxml") return extractDocument(input);
+
+  if (input.bytes.byteLength > FILE_EXTRACTION_MAX_BYTES) {
+    return {
+      state: FileExtractionState.PARTIAL,
+      coverage: 0,
+      reason: "This file is larger than the extraction limit.",
+      chunks: [],
+      extractorVersion: FILE_EXTRACTOR_VERSION,
+    };
+  }
+
+  const kind = ooxmlKindFor({
+    mimeType: input.mimeType,
+    displayName: input.displayName,
+  });
+  if (!kind) return extractDocument(input);
+
+  const text = await extractOoxmlText(input.bytes, kind);
+  if (text === null) {
+    return {
+      state: FileExtractionState.UNSUPPORTED,
+      coverage: 0,
+      reason:
+        "This document could not be unpacked. It may be encrypted or damaged.",
+      chunks: [],
+      extractorVersion: FILE_EXTRACTOR_VERSION,
+    };
+  }
+
+  return resultFromText(text);
 }
