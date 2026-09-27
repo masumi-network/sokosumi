@@ -35,12 +35,54 @@ const request: SerializedJevRequest = {
 };
 
 /** A well-formed reply, with the rungs the caller asks for filled in. */
-function reply(answers: Record<string, unknown>, overrides = {}) {
+/**
+ * Shape a boolean answer the way the provider actually returns one.
+ *
+ * `{type: "boolean", probability}` — an object carrying a float, not a raw
+ * boolean. Confirmed four ways: the `EvaluationAnswer` type in `ai@7.0.114`,
+ * main's shipped `task-tags.ts` answer schema, the HTTP example in the
+ * Gateway docs, and TypeSafe's own `noul` primitive underneath.
+ *
+ * The previous helper passed raw booleans straight through, so every test in
+ * this file asserted that our parser could read our own mock. It could. The
+ * provider's real answers it rejected as malformed.
+ */
+function booleanAnswers(
+  answers: Record<string, boolean | number>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(answers).map(([id, value]) => [
+      id,
+      {
+        type: "boolean",
+        probability: typeof value === "number" ? value : value ? 0.97 : 0.02,
+      },
+    ]),
+  );
+}
+
+/** A reply whose `answers` are passed through exactly as given. */
+function rawReply(answers: Record<string, unknown>, overrides = {}) {
   return {
     ok: true,
     json: async () => ({
       model: MODEL,
       answers,
+      usage: { inputTokens: 40, outputTokens: 3 },
+      providerMetadata: {
+        gateway: { cost: "0.00012", generationId: "gen-1" },
+      },
+      ...overrides,
+    }),
+  } as unknown as Response;
+}
+
+function reply(answers: Record<string, boolean | number>, overrides = {}) {
+  return {
+    ok: true,
+    json: async () => ({
+      model: MODEL,
+      answers: booleanAnswers(answers),
       usage: { inputTokens: 40, outputTokens: 3 },
       providerMetadata: {
         gateway: { cost: "0.00012", generationId: "gen-1" },
@@ -230,9 +272,13 @@ describe("the ordinal it derives", () => {
     expect(outcome.reason).toBe("invalid-answers");
   });
 
-  it("refuses non-boolean answers", async () => {
+  it("refuses a malformed answer at the schema", async () => {
     fetchMock.mockResolvedValue(
-      reply({ directly_answers: "yes", partly_answers: true, mentions: true }),
+      rawReply({
+        directly_answers: { type: "boolean", probability: "yes" },
+        partly_answers: { type: "boolean", probability: 0.9 },
+        mentions: { type: "boolean", probability: 0.9 },
+      }),
     );
 
     const outcome = await gatewayJevEvaluator.evaluate({
@@ -240,7 +286,57 @@ describe("the ordinal it derives", () => {
       rubric: "relevance",
     });
 
-    expect(outcome.reason).toBe("invalid-answers");
+    // The whole payload fails validation, which is a different and more
+    // honest answer than "the answers were unreadable": we never got a
+    // response we could read at all.
+    expect(outcome.ok).toBe(false);
+    expect(outcome.reason).toBe("invalid-response");
+  });
+
+  it("refuses a raw boolean, which is the shape we used to expect", async () => {
+    // This is the regression that mattered. The parser checked
+    // `typeof record[id] !== "boolean"`, so it accepted exactly this and
+    // rejected everything the provider really sends. A schema that still
+    // accepts it would be the old bug wearing new clothes.
+    fetchMock.mockResolvedValue(
+      rawReply({
+        directly_answers: true,
+        partly_answers: true,
+        mentions: true,
+      }),
+    );
+
+    const outcome = await gatewayJevEvaluator.evaluate({
+      request,
+      rubric: "relevance",
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.reason).toBe("invalid-response");
+  });
+
+  it("thresholds a rung's probability rather than trusting a bare yes", async () => {
+    // 0.49 and 0.51 straddle `RUNG_TRUE_PROBABILITY`. Under the old parser
+    // neither was readable at all; under the new one the number decides.
+    fetchMock.mockResolvedValue(
+      reply({ directly_answers: 0.2, partly_answers: 0.51, mentions: 0.99 }),
+    );
+    const middling = await gatewayJevEvaluator.evaluate({
+      request,
+      rubric: "relevance",
+    });
+    expect(middling.ok).toBe(true);
+    expect(middling.score).toBe(2);
+
+    fetchMock.mockResolvedValue(
+      reply({ directly_answers: 0.2, partly_answers: 0.49, mentions: 0.99 }),
+    );
+    const below = await gatewayJevEvaluator.evaluate({
+      request,
+      rubric: "relevance",
+    });
+    expect(below.ok).toBe(true);
+    expect(below.score).toBe(1);
   });
 });
 
@@ -462,7 +558,21 @@ describe("asking about many labels at once", () => {
     ];
   }
 
-  function labelReply(answers: Record<string, unknown>) {
+  /** Real answer objects, same as `booleanAnswers` above. */
+  function labelReply(answers: Record<string, boolean | number>) {
+    return {
+      ok: true,
+      json: async () => ({
+        model: MODEL,
+        answers: booleanAnswers(answers),
+        usage: { inputTokens: 40, outputTokens: 3 },
+        providerMetadata: { gateway: {} },
+      }),
+    } as unknown as Response;
+  }
+
+  /** `answers` exactly as given, for the malformed cases. */
+  function rawLabelReply(answers: Record<string, unknown>) {
     return {
       ok: true,
       json: async () => ({
@@ -519,6 +629,39 @@ describe("asking about many labels at once", () => {
     expect(verdict.ok).toBe(false);
     expect(verdict.chosen).toEqual([]);
     expect(verdict.reason).toBe("invalid-answers");
+  });
+
+  it("suggests only labels above the probability gate", async () => {
+    // `LABEL_MIN_PROBABILITY` is 0.85, matching main's shipped classifier —
+    // the only production evidence anyone has about where this model's
+    // probabilities land. A suggestion is a proposal shown to a reader about
+    // their own document, so it is a precision decision.
+    fetchMock.mockResolvedValue(
+      labelReply({ "label-1": 0.86, "label-2": 0.84 }),
+    );
+
+    const verdict = await gatewayJevEvaluator.evaluateLabels({
+      request,
+      labels: labels(),
+    });
+
+    expect(verdict.ok).toBe(true);
+    expect(verdict.chosen).toEqual(["label-1"]);
+  });
+
+  it("refuses a raw boolean label answer", async () => {
+    // The old shape, refused at the schema rather than silently accepted.
+    fetchMock.mockResolvedValue(
+      rawLabelReply({ "label-1": true, "label-2": false }),
+    );
+
+    const verdict = await gatewayJevEvaluator.evaluateLabels({
+      request,
+      labels: labels(),
+    });
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reason).toBe("invalid-response");
   });
 
   it("still asks for retention, and still fails closed", async () => {

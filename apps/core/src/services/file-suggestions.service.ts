@@ -49,16 +49,6 @@ import { getJevScheduler } from "@/lib/files/jev-scheduler";
 /** Labels one request may ask about, so the shortlist is deterministic. */
 export const SUGGESTION_VOCABULARY_MAX = 30;
 /** Score at or above which a suggestion is worth showing at all. */
-/**
- * Kept for the record rather than used.
- *
- * Suggestions used to come from a 0–3 ladder with this as the bar. One call
- * for the whole shortlist asks a single boolean per label, phrased at the
- * confident end — "clearly belongs", the old score-3 rung — so the bar moved
- * up, not down.
- */
-export const SUGGESTION_MIN_SCORE = 2;
-
 export interface SuggestionRunOutcome {
   suggested: number;
   skipped: string | null;

@@ -238,8 +238,11 @@ describe("what the ceiling actually counts", () => {
         PROVIDER_FRAMING_TOKEN_ALLOWANCE,
     );
     // For contrast: the rubric envelope the old code charged here was 603
-    // tokens flat, whatever the vocabulary.
-    expect(labelEnvelopeTokens(result.askedLabels)).toBeGreaterThan(6_000);
+    // tokens flat, whatever the vocabulary. Measured ~5,900 at 30 labels —
+    // down from ~7,260 when each question still carried "Answer false when
+    // unclear", a sentence that double-counted caution against a probability
+    // answer. Deleting it saved ~18% of the envelope on every label call.
+    expect(labelEnvelopeTokens(result.askedLabels)).toBeGreaterThan(5_000);
   });
 
   it("charges for projects if it ever asks about them", () => {
@@ -287,7 +290,7 @@ describe("what the ceiling actually counts", () => {
     if (isJevRequestRejection(result)) return;
     expect(result.tokens).toBeLessThanOrEqual(LABEL_EVALUATION_CEILINGS.total);
     // And it is genuinely large: this is the cost figure worth knowing.
-    expect(result.tokens).toBeGreaterThan(9_000);
+    expect(result.tokens).toBeGreaterThan(8_000);
   });
 
   it("measures the envelope rather than hard-coding it", () => {

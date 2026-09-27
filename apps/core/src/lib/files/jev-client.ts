@@ -178,9 +178,59 @@ const usageSchema = z.object({
   outputTokens: z.number().int().nonnegative(),
 });
 
+/**
+ * What a `boolean` question actually answers with.
+ *
+ * **An object carrying a float, not a boolean.** The name is the Gateway's;
+ * underneath it is TypeSafe's `noul` primitive, "probability of a yes
+ * answer". Confirmed four independent ways: the `EvaluationAnswer` type in
+ * `ai@7.0.114`, main's shipped `helpers/task-tags.ts` schema, the worked HTTP
+ * example in the Gateway docs, and the vendor's own Python SDK.
+ *
+ * This file previously declared `answers: z.unknown()` and then checked
+ * `typeof record[id] !== "boolean"` downstream. `answers` is the *only* part
+ * of the payload that comes back from someone else, and it was the one part
+ * nothing validated — so every real answer was rejected as malformed while
+ * every mocked one passed. Validating it here is what closes that class:
+ * nothing downstream can see an unchecked value, and a raw boolean now fails
+ * at the boundary instead of being silently accepted.
+ */
+const booleanAnswerSchema = z.object({
+  type: z.literal("boolean"),
+  probability: z.number().finite().min(0).max(1),
+});
+
+export type JevBooleanAnswer = z.infer<typeof booleanAnswerSchema>;
+
+const answersSchema = z.record(z.string(), booleanAnswerSchema);
+
+/**
+ * The probability at which a rung counts as answered yes.
+ *
+ * A rung is an ordinary yes/no claim, so the neutral reading of "probability
+ * of a yes" is the right one: caution belongs in the rubric's wording and in
+ * this one visible number, not in both. The rubric instructions used to add
+ * "Answer false when unclear", which pushed the value down before we
+ * thresholded it — the same caution counted twice.
+ */
+const RUNG_TRUE_PROBABILITY = 0.5;
+
+/**
+ * The probability at which a label is suggested.
+ *
+ * 0.85, matching main's shipped task-tag classifier, which has the only
+ * production evidence anyone has about how this model's probabilities land.
+ * A suggestion is shown to a reader as a proposal about their document, so it
+ * is a precision decision, not a neutral one — and it is now the *only* gate
+ * on that decision. `SUGGESTION_MIN_SCORE` used to sit beside it and stopped
+ * gating anything when labelling became a single call; it is gone rather than
+ * left for the next reader to trust.
+ */
+const LABEL_MIN_PROBABILITY = 0.85;
+
 const resultSchema = z.object({
   model: z.string(),
-  answers: z.unknown(),
+  answers: answersSchema,
   usage: usageSchema,
   providerMetadata: z.object({
     gateway: z.object({
@@ -216,28 +266,27 @@ type LadderReading =
  * falls back to the deterministic order, which is the honest answer.
  */
 function readLadder(
-  answers: unknown,
+  answers: Record<string, JevBooleanAnswer>,
   rungs: readonly RubricRung[],
 ): LadderReading {
-  if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
-    return { ok: false, reason: "invalid-answers" };
-  }
-  const record = answers as Record<string, unknown>;
-
-  // Every rung must come back, and come back boolean. A partial reply is not
-  // a low score — it is an answer we cannot place on the scale.
+  // Every rung must come back. A partial reply is not a low score — it is an
+  // answer we cannot place on the scale. The *shape* of each answer is
+  // already guaranteed by `answersSchema`; what is checked here is presence.
   for (const rung of rungs) {
-    if (typeof record[rung.id] !== "boolean") {
+    if (answers[rung.id] === undefined) {
       return { ok: false, reason: "invalid-answers" };
     }
   }
 
-  const highestTrue = rungs.findIndex((rung) => record[rung.id] === true);
+  const yes = (rung: RubricRung) =>
+    answers[rung.id].probability >= RUNG_TRUE_PROBABILITY;
+
+  const highestTrue = rungs.findIndex(yes);
   if (highestTrue === -1) return { ok: true, score: JEV_SCORE_MIN };
 
   // Everything weaker than the claim it just made must hold too.
   for (const rung of rungs.slice(highestTrue + 1)) {
-    if (record[rung.id] !== true) {
+    if (!yes(rung)) {
       return { ok: false, reason: "contradictory-answers" };
     }
   }
@@ -462,11 +511,11 @@ export const gatewayJevEvaluator: JevEvaluator & JevLabelEvaluator = {
       };
     }
 
-    const record = answers as Record<string, unknown>;
-    // Every label must come back, and come back boolean. A partial reply is
-    // not "those labels are false" — it is an answer we cannot read.
+    const record = answers;
+    // Every label must come back. A partial reply is not "those labels are
+    // false" — it is an answer we cannot read.
     for (const label of input.labels) {
-      if (typeof record[label.id] !== "boolean") {
+      if (record[label.id] === undefined) {
         return {
           ok: false,
           chosen: [],
@@ -480,7 +529,9 @@ export const gatewayJevEvaluator: JevEvaluator & JevLabelEvaluator = {
     return {
       ok: true,
       chosen: input.labels
-        .filter((label) => record[label.id] === true)
+        .filter(
+          (label) => record[label.id].probability >= LABEL_MIN_PROBABILITY,
+        )
         .map((label) => label.id),
       reason: null,
       latencyMs: result.latencyMs,
