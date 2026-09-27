@@ -1480,6 +1480,7 @@
         },
         "chatErrorTitle": "Chat-Fehler",
         "errorFallbackDescription": "Bei der Chat-Oberfläche ist ein Problem aufgetreten. Bitte lade die Seite neu oder kontaktiere den Support, falls das Problem weiterhin besteht.",
+        "errorReference": "Referenz: Raum {roomId}",
         "pastedImage": "Eingefügtes Bild",
         "errorTitle": "Fehler",
         "errorDescription": "Bei der Verarbeitung deiner Nachricht ist ein Fehler aufgetreten. Bitte versuche es erneut.",
