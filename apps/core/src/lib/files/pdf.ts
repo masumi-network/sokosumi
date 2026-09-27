@@ -267,9 +267,44 @@ main().then(
  * ship; a specifier that exists only inside a string is invisible to it,
  * and `pdfjs-dist` would simply not be in the function. The parser would
  * then be "unavailable" in production as the *normal* case while every
- * test passed locally. A literal `require.resolve` here is something a
- * tracer can see, and `apps/core/vercel.json` names the files explicitly
- * as well, because one mechanism for this is not enough.
+ * test passed locally.
+ *
+ * **There is exactly one mechanism that gets the files into the function,
+ * and it is the `includeFiles` glob in `apps/core/vercel.json`.** An
+ * earlier version of this comment claimed the `require.resolve` below is
+ * "something a tracer can see" and that vercel.json was a second,
+ * independent belt. A reviewer measured both halves and neither is true.
+ *
+ * `@vercel/nft` does not follow `createRequire(...).resolve(...)`. Run
+ * over this module's source and over the esbuild bundle, it traces zero
+ * pdfjs files — and it is not the helper indirection, because a literal
+ * `createRequire(import.meta.url).resolve(...)` at the call site traces
+ * zero too. Positive controls in the same harness work: a static import
+ * traces 2 files, a dynamic `import()` 2, CJS `require.resolve` 2,
+ * `import JSZip` 98.
+ *
+ * And a working trace would not have been enough anyway. Those controls
+ * reach the symlink and `pdf.mjs` only; `pdf.worker.mjs` is never traced,
+ * because `pdf.mjs` loads it from a variable. So the glob is the only
+ * thing that ships the worker, and it is the only thing that ships
+ * anything.
+ *
+ * The resolve below therefore earns its place on the first ground alone —
+ * failing honestly before a spawn — and as the input to the build guard,
+ * not as a tracing hint.
+ *
+ * **Which is why the build guard exists.** One silent mechanism is the
+ * dangerous shape: the same glob evaluated from a directory without the
+ * pnpm symlink matches zero files and raises nothing. A hoisted install, a
+ * `--filter` change or a pdfjs release that renames `legacy/build/` would
+ * produce a green build, green CI, and `parser-unavailable` on every
+ * document forever. `scripts/check-pdfjs-bundle.mjs` runs in
+ * `vercel-build` and fails the build instead.
+ *
+ * On the function key itself: `maxDuration: 300` is indistinguishable from
+ * Vercel's own default, so it is not evidence that the
+ * `functions: {"dist/index.js": ...}` key matches the built function. Only
+ * a preprod run proves that binding.
  */
 const PDFJS_SPECIFIER = "pdfjs-dist/legacy/build/pdf.mjs";
 /**
