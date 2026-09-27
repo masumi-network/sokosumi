@@ -73,15 +73,15 @@ export function ProjectDetailHeader({
               ) : null}
             </div>
 
+            {/* Spacing separates these, not a bullet. The bullet belonged to
+                the item after it, so when the row wrapped on a phone the
+                second line opened with a stray "·". */}
             {metadata.length > 0 ? (
-              <dl className="text-muted-foreground flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs tabular-nums">
-                {metadata.map((item, index) => (
-                  <div key={item.label} className="flex items-center gap-2">
-                    {index > 0 ? <span aria-hidden>·</span> : null}
-                    <div className="flex items-center gap-1.5">
-                      <dt>{item.label}</dt>
-                      <dd>{item.value}</dd>
-                    </div>
+              <dl className="text-muted-foreground flex w-full flex-wrap items-center gap-x-4 gap-y-0.5 text-xs tabular-nums">
+                {metadata.map((item) => (
+                  <div className="flex items-center gap-1.5" key={item.label}>
+                    <dt>{item.label}</dt>
+                    <dd>{item.value}</dd>
                   </div>
                 ))}
               </dl>

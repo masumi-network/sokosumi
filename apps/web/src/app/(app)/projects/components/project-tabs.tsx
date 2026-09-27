@@ -85,7 +85,10 @@ export function ProjectTabs({
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "-mb-px block border-b-2 py-2.5 whitespace-nowrap transition-colors",
-                  "focus-visible:ring-ring-halo rounded-sm outline-none focus-visible:ring-[3px]",
+                  // No radius: the corners belong to the indicator too, and a
+                  // rounded 2px bar under a word reads as a pill rather than
+                  // as an underline.
+                  "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
                   isActive
                     ? "border-foreground text-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground border-transparent",
