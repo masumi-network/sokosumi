@@ -168,7 +168,7 @@ export function TableCreateDialog({
       <DialogTrigger asChild>
         <Button variant="outline">{t("newTable")}</Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="app-scrollbar max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("newTable")}</DialogTitle>
           <DialogDescription>{t("createDescription")}</DialogDescription>
@@ -295,7 +295,7 @@ export function TableCreateDialog({
                   )}
                 </div>
               ))}
-              <div className="overflow-x-auto rounded-md border">
+              <div className="app-scrollbar overflow-x-auto rounded-md border">
                 <table className="w-full text-sm">
                   <thead>
                     <tr>

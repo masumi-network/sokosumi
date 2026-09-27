@@ -147,7 +147,7 @@ const MermaidDiagram = memo(function MermaidDiagram({
           {t("source")}
         </summary>
         <pre
-          className="max-h-80 max-w-full overflow-auto whitespace-pre p-2 text-sm"
+          className="app-scrollbar max-h-80 max-w-full overflow-auto whitespace-pre p-2 text-sm"
           tabIndex={0}
         >
           <code>{source}</code>
@@ -181,7 +181,7 @@ const MermaidDiagram = memo(function MermaidDiagram({
               </Button>
             </DialogTrigger>
             <DialogContent
-              className="max-h-[90dvh] overflow-auto sm:max-w-[calc(100%-2rem)]"
+              className="app-scrollbar max-h-[90dvh] overflow-auto sm:max-w-[calc(100%-2rem)]"
               showCloseButton={false}
             >
               <DialogTitle>{t("title")}</DialogTitle>
@@ -216,7 +216,7 @@ const MermaidDiagram = memo(function MermaidDiagram({
                 role="group"
                 aria-label={t("title")}
                 tabIndex={0}
-                className="max-h-[60dvh] overflow-auto overscroll-contain rounded border border-border p-3 focus-visible:outline-2 focus-visible:outline-ring"
+                className="app-scrollbar max-h-[60dvh] overflow-auto overscroll-contain rounded border border-border p-3 focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <img
                   onError={() => setResult({ source, dark, failed: true })}
@@ -244,7 +244,7 @@ const MermaidDiagram = memo(function MermaidDiagram({
           role="group"
           aria-label={t("title")}
           tabIndex={0}
-          className="mt-2 h-64 overflow-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-ring"
+          className="app-scrollbar mt-2 h-64 overflow-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-ring"
         >
           {url && (
             <img

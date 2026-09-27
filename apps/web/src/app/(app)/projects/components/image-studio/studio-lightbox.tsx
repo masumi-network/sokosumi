@@ -162,7 +162,7 @@ export function StudioLightbox({
 
         <div
           className={cn(
-            "grid min-h-0 flex-1 gap-px overflow-y-auto",
+            "app-scrollbar grid min-h-0 flex-1 gap-px overflow-y-auto",
             // One column per image, never a reserved empty one: comparing
             // three should use the whole width, not three quarters of it.
             // Written as whole class strings so the Tailwind scanner sees
@@ -179,7 +179,7 @@ export function StudioLightbox({
           {assets.length === 1 && single ? (
             <>
               <ImagePane asset={single} labels={labels} projectId={projectId} />
-              <aside className="border-border min-w-0 overflow-y-auto border-t p-4 lg:border-t-0 lg:border-l">
+              <aside className="app-scrollbar border-border min-w-0 overflow-y-auto border-t p-4 lg:border-t-0 lg:border-l">
                 <Metadata
                   asset={single}
                   catalog={catalog}

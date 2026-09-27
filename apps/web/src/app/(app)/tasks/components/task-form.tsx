@@ -62,7 +62,7 @@ import {
   updateTask,
 } from "@/lib/actions/task/action";
 import { useSession } from "@/lib/auth/auth.client";
-import { TaskStatus, type TaskTagId } from "@/lib/clients/generated/core";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import type { Project } from "@/lib/clients/generated/core/types.gen";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -213,7 +213,6 @@ function getTaskFormStatusLabel(
 
 export interface TaskFormCreateInput {
   tagSuggestionReceipt?: string;
-  tagCorrections?: { add: TaskTagId[]; remove: TaskTagId[] };
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -658,12 +657,11 @@ export function TaskForm({
     name,
     description,
     workspaceKey: `${session?.user.id ?? ""}:${session?.session.activeOrganizationId ?? "personal"}`,
+    // Not gated on the wizard step: an offer or a deep-linked prompt fills the
+    // description on step 1, and classifying it there means tags are already on
+    // screen when the user reaches the editor.
     enabled:
-      mode === "create" &&
-      Boolean(session) &&
-      !createdTask &&
-      !isSubmitting &&
-      (!useWizard || step === 2),
+      mode === "create" && Boolean(session) && !createdTask && !isSubmitting,
   });
 
   const handleSave = useCallback(async () => {
@@ -722,9 +720,6 @@ export function TaskForm({
         const result = await createTaskHandler({
           ...(draftTags.tagSuggestionReceipt
             ? { tagSuggestionReceipt: draftTags.tagSuggestionReceipt }
-            : {}),
-          ...(draftTags.tagCorrections
-            ? { tagCorrections: draftTags.tagCorrections }
             : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
           description: trimmedDescription,
@@ -800,7 +795,6 @@ export function TaskForm({
     }
   }, [
     draftTags.tagSuggestionReceipt,
-    draftTags.tagCorrections,
     description,
     isSaveDisabled,
     mode,
@@ -1043,7 +1037,7 @@ export function TaskForm({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <section className="flex min-h-0 flex-1 flex-col">
-        <div className="[&::-webkit-scrollbar-thumb]:bg-tertiary flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+        <div className="app-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto">
           {useWizard && step === 1 ? (
             <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8 md:py-0">
               <AgentSpotlight
@@ -1370,7 +1364,7 @@ export function TaskForm({
 
         {showTaskStep ? (
           <div className="flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
-            <div className="flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto">
+            <div className="app-scrollbar flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto">
               <AttachmentSubmenu
                 onUploadClick={() => attachmentTriggerRef.current?.click()}
                 onDriveClick={() =>

@@ -1,13 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
+import pTimeout from "p-timeout";
 import {
   classifyTaskTags,
   JEV_TASK_TAG_MODEL,
   taskTagProviderAvailable,
 } from "@/clients/task-tag-classifier";
+import { getEnv } from "@/config/env";
 import { TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
 import prisma from "@/lib/db/prisma";
-import { createCoreLogger } from "@/lib/evlog";
+import { createCoreLogger, tryUseLogger } from "@/lib/evlog";
 import type { SyncExecutionContext } from "@/routes/sync/handler";
 
 // Creates, edits and retries are interactive work and always go first. A burst of
@@ -50,6 +52,63 @@ const TASK_FIELDS = {
   tagClassificationState: true,
   tagClassificationLease: true,
 } satisfies Prisma.TaskSelect;
+
+// A create must never wait on the provider. Production measures 310-435ms per
+// evaluation end to end, so this ceiling is roughly six times the observed latency
+// and still short enough that a stalled Gateway costs the caller almost nothing.
+const INLINE_TIMEOUT_MS = 2_500;
+
+/**
+ * Best-effort classification on the create path, for every actor.
+ *
+ * Returns null for every failure mode — the feature flag off, no Gateway key, a
+ * 5xx, a policy rejection, a timeout, a 429, an unparseable answer — and never
+ * throws. A null result means the caller writes no tag columns, so the row keeps
+ * the `pending` state its insert trigger set and `/sync/task-tags` drains it on a
+ * later tick. This moves the provider call the cron would have made anyway; it does
+ * not add one.
+ */
+export async function classifyTaskTagsInline(input: {
+  name: string;
+  description?: string | null;
+}): Promise<string[] | null> {
+  // A local flag check, not the catalog probe: one fewer round trip per create.
+  if (!getEnv().TASK_TAG_CLASSIFICATION_ENABLED || !getEnv().AI_GATEWAY_API_KEY)
+    return null;
+  try {
+    const signal = AbortSignal.timeout(INLINE_TIMEOUT_MS);
+    const result = await pTimeout(
+      classifyTaskTags(input.name, input.description ?? null, signal),
+      { milliseconds: INLINE_TIMEOUT_MS, signal },
+    );
+    // Keep validated billing metadata even when the answers themselves failed.
+    tryUseLogger()?.set({
+      taskTagInlineClassification: {
+        model: JEV_TASK_TAG_MODEL,
+        outcome: result.ok ? "complete" : "failed",
+        ...(result.ok ? {} : { reason: result.reason }),
+        ...("usage" in result
+          ? {
+              usage: result.usage,
+              costUsd: result.costUsd,
+              generationId: result.generationId,
+            }
+          : {}),
+      },
+    });
+    return result.ok ? result.tags : null;
+  } catch {
+    // Never include provider bodies, task content, or credentials in a log line.
+    tryUseLogger()?.set({
+      taskTagInlineClassification: {
+        model: JEV_TASK_TAG_MODEL,
+        outcome: "failed",
+        reason: "provider_unavailable_or_timeout",
+      },
+    });
+    return null;
+  }
+}
 
 export async function classifyPendingTaskTags(context: SyncExecutionContext) {
   return runPendingTaskTags(context, {});

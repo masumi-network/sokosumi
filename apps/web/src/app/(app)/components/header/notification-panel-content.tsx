@@ -70,7 +70,7 @@ export function NotificationPanelContent({
           it is what asks for the page of older rows. It carries the line
           under it, so when the list has nothing to say under an account
           notice, the box and its line leave together. */}
-      <div className="max-h-96 overflow-y-auto border-b empty:hidden">
+      <div className="app-scrollbar max-h-96 overflow-y-auto border-b empty:hidden">
         <NotificationCenterList onNavigate={onClose} />
       </div>
       <div className="p-2">

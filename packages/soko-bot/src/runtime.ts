@@ -6,6 +6,22 @@ export interface SokoBotActorContext {
   workspaceId: string;
 }
 
+export interface SokoBotSourceCoverage {
+  source: string;
+  checkedAt: string | null;
+  filters: Record<string, string>;
+  scannedCount: number;
+  includedCount: number;
+  omittedCount: number;
+  completeness: "COMPLETE" | "TRUNCATED" | "NOT_CHECKED";
+  availability:
+    | "AVAILABLE"
+    | "DISCONNECTED"
+    | "PERMISSION_DENIED"
+    | "QUERY_FAILED"
+    | "NOT_FETCHED";
+}
+
 export interface SokoBotContextPacket {
   schemaVersion: 1;
   generatedAt: string;
@@ -40,6 +56,7 @@ export interface SokoBotContextPacket {
   memory: { version: number; hash: string | null; markdown: string };
   counts: Record<string, number>;
   omissions: Record<string, number>;
+  sourceCoverage?: Record<string, SokoBotSourceCoverage>;
 }
 
 export interface SokoBotTurnGrantClaims extends SokoBotActorContext {
@@ -129,4 +146,26 @@ export interface SokoBotRuntime {
   cancelTurn(input: RuntimeCancelInput): Promise<void>;
   resetSession(input: RuntimeResetInput): Promise<void>;
   inspectSession(input: RuntimeInspectInput): Promise<RuntimeHealth>;
+}
+
+export interface SokoBotActionReceipt {
+  id: string;
+  operationKey: string;
+  turnId: string;
+  toolCallId: string;
+  action: string;
+  targetId: string | null;
+  disposition: "APPLIED" | "ALREADY_SATISFIED" | "REJECTED" | "UNKNOWN";
+  actorBotId: string;
+  effectEventId: string | null;
+  observedVersion: string | null;
+  committedAt: string | null;
+  verification: "LOCAL_TRANSACTION" | "PROVIDER_ACK" | "READ_BACK" | "NONE";
+}
+
+export interface SokoBotActionResponse {
+  appliedReceiptIds: string[];
+  observations: string[];
+  unfulfilledActions: { action: string; receiptId: string; reason: string }[];
+  answerText: string;
 }

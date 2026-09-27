@@ -1,7 +1,7 @@
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 export const ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS =
-  "bg-popover text-popover-foreground max-h-(--radix-popover-content-available-height) w-64 overflow-y-auto overscroll-contain rounded-xl border p-3 shadow-md";
+  "app-scrollbar bg-popover text-popover-foreground max-h-(--radix-popover-content-available-height) w-64 overflow-y-auto overscroll-contain rounded-xl border p-3 shadow-md";
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 

@@ -10,7 +10,6 @@ import {
   sanitizeSokoBotMemoryMarkdown,
 } from "@sokosumi/soko-bot";
 import { convertCentsToCredits } from "@sokosumi/utils";
-
 import { AGENT_PRICING_READ_TRANSACTION_OPTIONS } from "@/helpers/agent";
 import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
 import { buildCreditsPayload } from "@/helpers/subscription";
@@ -19,6 +18,7 @@ import {
   buildSokoBotOwnerTaskVisibilityWhere,
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import { buildSourceCoverage } from "./source-coverage";
 
 const LIMITS = {
   projects: 12,
@@ -166,6 +166,8 @@ export interface BuildContextPacketInput {
    */
   askedByKind?: "OWNER" | "TEAMMATE" | "ASSISTANT";
   askedByUserId?: string | null;
+  roomId?: string | null;
+  referencedTaskIds?: readonly string[];
 }
 
 export interface BuiltContextPacket {
@@ -396,6 +398,55 @@ function calculateOmissions(
 }
 
 function serializePacket(packetWithoutHash: ContextPacketWithoutHash) {
+  const privateAudience = packetWithoutHash.trigger.askedBy.kind !== "OWNER";
+  packetWithoutHash.sourceCoverage = Object.fromEntries(
+    ["projects", "tasks", "jobs", "recentTurns", "mail", "calendar"].map(
+      (source) => {
+        const external = source === "mail" || source === "calendar";
+        const forbidden =
+          privateAudience && (external || source === "recentTurns");
+        const included =
+          external || forbidden
+            ? 0
+            : packetWithoutHash[source as PacketCollectionKey].length;
+        const omitted =
+          external || forbidden
+            ? 0
+            : (packetWithoutHash.omissions[source] ?? 0);
+        return [
+          source,
+          buildSourceCoverage({
+            source,
+            checkedAt:
+              external || forbidden ? null : packetWithoutHash.generatedAt,
+            filters: {
+              scope:
+                source === "recentTurns"
+                  ? "Current room and requester only"
+                  : external
+                    ? "No integration window queried"
+                    : "Authorized workspace records; bounded summaries, not complete artifacts",
+            },
+            scannedCount: included + omitted,
+            includedCount: included,
+            omittedCount: omitted,
+            completeness:
+              external || forbidden
+                ? "NOT_CHECKED"
+                : omitted > 0
+                  ? "TRUNCATED"
+                  : "COMPLETE",
+            availability: forbidden
+              ? "PERMISSION_DENIED"
+              : external
+                ? "NOT_FETCHED"
+                : "AVAILABLE",
+          }),
+        ];
+      },
+    ),
+  );
+
   const packet: SokoBotContextPacket = {
     ...packetWithoutHash,
     hash: hashPacket(packetWithoutHash),
@@ -414,7 +465,7 @@ function largestTailCollection(
   let selectedSize = -1;
   for (const key of PACKET_COLLECTION_KEYS) {
     const tail = packet[key].at(-1);
-    if (!tail) continue;
+    if (!tail || tail.requiredReference === true) continue;
     const size = Buffer.byteLength(JSON.stringify(tail), "utf8");
     if (size > selectedSize) {
       selected = key;
@@ -606,66 +657,81 @@ export class ContextPacketBuilder {
           },
         },
       }),
-      prisma.task.findMany({
-        where: {
-          workspaceId: input.workspaceId,
-          archivedAt: null,
-          ...buildPacketTaskVisibilityWhere(input.userId, input.audience),
-        },
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        take: LIMITS.tasks,
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          status: true,
-          projectId: true,
-          assigneeId: true,
-          assigneeSokoBotId: true,
-          runAt: true,
-          scheduleId: true,
-          updatedAt: true,
-          events: {
-            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            take: 1,
-            select: { status: true, comment: true, createdAt: true },
-          },
-          linksTo: {
-            where: {
-              type: "BLOCKS",
-              fromTask: {
+      Promise.all(
+        (input.referencedTaskIds?.length ? [true, false] : [false]).map(
+          (referenced) =>
+            prisma.task.findMany({
+              where: {
+                ...(referenced
+                  ? { id: { in: [...(input.referencedTaskIds ?? [])] } }
+                  : {}),
                 workspaceId: input.workspaceId,
                 archivedAt: null,
                 ...buildPacketTaskVisibilityWhere(input.userId, input.audience),
               },
-            },
-            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            take: LIMITS.blockersPerTask,
-            select: {
-              fromTask: {
-                select: { id: true, name: true, status: true },
-              },
-            },
-          },
-          _count: {
-            select: {
-              linksTo: {
-                where: {
-                  type: "BLOCKS",
-                  fromTask: {
-                    workspaceId: input.workspaceId,
-                    archivedAt: null,
-                    ...buildPacketTaskVisibilityWhere(
-                      input.userId,
-                      input.audience,
-                    ),
+              orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+              take: LIMITS.tasks,
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                status: true,
+                projectId: true,
+                assigneeId: true,
+                assigneeSokoBotId: true,
+                runAt: true,
+                scheduleId: true,
+                updatedAt: true,
+                events: {
+                  orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                  take: 1,
+                  select: { status: true, comment: true, createdAt: true },
+                },
+                linksTo: {
+                  where: {
+                    type: "BLOCKS",
+                    fromTask: {
+                      workspaceId: input.workspaceId,
+                      archivedAt: null,
+                      ...buildPacketTaskVisibilityWhere(
+                        input.userId,
+                        input.audience,
+                      ),
+                    },
+                  },
+                  orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                  take: LIMITS.blockersPerTask,
+                  select: {
+                    fromTask: {
+                      select: { id: true, name: true, status: true },
+                    },
+                  },
+                },
+                _count: {
+                  select: {
+                    linksTo: {
+                      where: {
+                        type: "BLOCKS",
+                        fromTask: {
+                          workspaceId: input.workspaceId,
+                          archivedAt: null,
+                          ...buildPacketTaskVisibilityWhere(
+                            input.userId,
+                            input.audience,
+                          ),
+                        },
+                      },
+                    },
                   },
                 },
               },
-            },
-          },
-        },
-      }),
+            }),
+        ),
+      ).then((pages) =>
+        [
+          ...new Map(pages.flat().map((task) => [task.id, task])).values(),
+        ].slice(0, LIMITS.tasks),
+      ),
       prisma.coworker.findMany({
         where: {
           archivedAt: null,
@@ -738,6 +804,17 @@ export class ContextPacketBuilder {
           userId: input.userId,
           workspaceId: input.workspaceId,
           status: "PENDING",
+          sokoBotId: input.sokoBotId,
+          expiresAt: { gt: new Date() },
+          turn: {
+            requestedByUserId:
+              input.askedByUserId && input.askedByUserId !== input.userId
+                ? input.askedByUserId
+                : null,
+            ...(input.roomId
+              ? { chatMention: { message: { roomId: input.roomId } } }
+              : { chatMentionId: null }),
+          },
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: LIMITS.pendingDecisions,
@@ -755,6 +832,13 @@ export class ContextPacketBuilder {
           userId: input.userId,
           workspaceId: input.workspaceId,
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
+          requestedByUserId:
+            input.askedByUserId && input.askedByUserId !== input.userId
+              ? input.askedByUserId
+              : null,
+          ...(input.roomId
+            ? { chatMention: { message: { roomId: input.roomId } } }
+            : { chatMentionId: null }),
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: LIMITS.recentTurns,
@@ -812,6 +896,17 @@ export class ContextPacketBuilder {
           userId: input.userId,
           workspaceId: input.workspaceId,
           status: "PENDING",
+          sokoBotId: input.sokoBotId,
+          expiresAt: { gt: new Date() },
+          turn: {
+            requestedByUserId:
+              input.askedByUserId && input.askedByUserId !== input.userId
+                ? input.askedByUserId
+                : null,
+            ...(input.roomId
+              ? { chatMention: { message: { roomId: input.roomId } } }
+              : { chatMentionId: null }),
+          },
         },
       }),
       prisma.sokoBotTurn.count({
@@ -820,6 +915,13 @@ export class ContextPacketBuilder {
           userId: input.userId,
           workspaceId: input.workspaceId,
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
+          requestedByUserId:
+            input.askedByUserId && input.askedByUserId !== input.userId
+              ? input.askedByUserId
+              : null,
+          ...(input.roomId
+            ? { chatMention: { message: { roomId: input.roomId } } }
+            : { chatMentionId: null }),
         },
       }),
       // Only a named human is looked up: the owner is already `actor`, and
@@ -834,6 +936,25 @@ export class ContextPacketBuilder {
         : null,
     ]);
 
+    const reminders =
+      input.audience === "TEAMMATE"
+        ? []
+        : await prisma.sokoBotNudge.findMany({
+            where: {
+              sokoBotId: input.sokoBotId,
+              state: { in: ["ACTIVE", "ACKNOWLEDGED", "SNOOZED"] },
+            },
+            orderBy: [{ lastAt: "desc" }, { id: "desc" }],
+            take: 12,
+            select: {
+              key: true,
+              state: true,
+              revision: true,
+              snoozedUntil: true,
+              expiresAt: true,
+              lastDeliveredAt: true,
+            },
+          });
     const [agents, agentCount, creditCosts] = agentRead;
     const counts = {
       projects: projectCount,
@@ -898,6 +1019,7 @@ export class ContextPacketBuilder {
         trust: "untrusted-data",
       },
       workspace: {
+        reminders,
         id: boundedIdentifier(workspace.id),
         scope: organizationId ? "organization" : "personal",
         plan: sanitizeText(
@@ -933,6 +1055,7 @@ export class ContextPacketBuilder {
         trust: "untrusted-data",
       })),
       tasks: tasks.map((task) => ({
+        requiredReference: input.referencedTaskIds?.includes(task.id) ?? false,
         id: boundedIdentifier(task.id),
         name: sanitizeText(task.name, TEXT_LIMITS.name),
         summary: sanitizeText(task.description, TEXT_LIMITS.summary),

@@ -11,7 +11,6 @@ import type {
   TaskLink,
   TaskLinkDeleted,
   TaskParticipant,
-  TaskTagId,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
   WorkspaceCalendarItem,
@@ -47,7 +46,6 @@ interface ListJobsParams {
 
 interface CreateTaskInput {
   tagSuggestionReceipt?: string;
-  tagCorrections?: { add: TaskTagId[]; remove: TaskTagId[] };
   name?: string;
   description: string | null;
   assigneeId: string | null;
@@ -267,15 +265,6 @@ export const taskService = (() => {
     return result.data;
   }
 
-  async function patchTaskTags(
-    taskId: string,
-    input: { add: TaskTagId[]; remove: TaskTagId[] },
-  ) {
-    const result = await coreClient.patchTaskTags(taskId, input);
-    if (!result.data) throw new Error("Failed to update task tags");
-    return result.data;
-  }
-
   async function patchTask(
     taskId: string,
     input: PatchTaskInput,
@@ -416,7 +405,6 @@ export const taskService = (() => {
     subscribeTaskParticipant,
     moveTaskToWorkspace,
     patchTask,
-    patchTaskTags,
     listTaskLinks,
     deleteTask,
   };

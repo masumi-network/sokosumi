@@ -22,7 +22,7 @@ import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
-import { TaskTagEditor } from "@/app/tasks/components/task-tags";
+import { TaskTagSection } from "@/app/tasks/components/task-tags";
 import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
 import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
 import {
@@ -474,17 +474,7 @@ async function TaskMetadataSection({
 
   return (
     <div className="space-y-6">
-      <TaskTagEditor
-        key={task.updatedAt.toString()}
-        taskId={task.id}
-        tags={task.tags}
-        editable={
-          !forceReadOnly &&
-          task.ownerId === session?.user.id &&
-          task.status !== "GRANT_PENDING" &&
-          hasAssignedSeat
-        }
-      />
+      <TaskTagSection key={task.updatedAt.toString()} tags={task.tags} />
       <TaskMetadata
         title={t("properties")}
         taskId={task.id}

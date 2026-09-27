@@ -186,6 +186,22 @@ describe("emitChatHumanMentionNotifications", () => {
     };
   }
 
+  it("propagates notification handoff failure for durable callers", async () => {
+    messageFindUniqueMock.mockResolvedValue(storedMessage());
+    const failure = new Error("queue unavailable");
+    emitChatMentionNotificationsMock.mockRejectedValueOnce(failure);
+    await expect(
+      emitChatHumanMentionNotifications({
+        messageId: MESSAGE_ID,
+        mentionedUserIds: [ALICE_ID],
+        throwOnError: true,
+      }),
+    ).rejects.toBe(failure);
+    expect(emitChatMentionNotificationsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ throwOnError: true }),
+    );
+  });
+
   it("emits under the Soko Bot's display name with no human author", async () => {
     messageFindUniqueMock.mockResolvedValue(storedMessage());
 
