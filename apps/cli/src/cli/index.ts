@@ -1,6 +1,7 @@
 import {
   type CoreHttpClient,
   createCoreHttpClient,
+  validateOrganizationSlug,
 } from "../api/http-client.js";
 import {
   type AuthEnvironment,
@@ -69,6 +70,8 @@ type ValueOptionName =
   | "max-credits"
   | "vendor-id"
   | "workspace-id"
+  | "organization-id"
+  | "organization-slug"
   | "email"
   | "slug";
 
@@ -113,6 +116,7 @@ interface CliOptions {
   "input-file"?: string;
   "max-credits"?: string;
   "vendor-id"?: string;
+  "organization-slug"?: string;
   slug?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
@@ -165,11 +169,11 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "workspaces list": "",
   "workspaces check": "ORGANIZATION_ID",
   "tasks list": "[options]",
-  "tasks create": "",
-  "tasks get": "TASK_ID",
-  "tasks events": "TASK_ID",
-  "tasks jobs": "TASK_ID",
-  "tasks comment": "TASK_ID",
+  "tasks create": "[--organization-slug WORKSPACE_SLUG]",
+  "tasks get": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  "tasks events": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  "tasks jobs": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  "tasks comment": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
   "jobs list": "",
   "jobs get": "JOB_ID",
   "jobs input": "JOB_ID",
@@ -272,6 +276,12 @@ Organizer setup on Preprod (platform admin):
   sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks
   Give the returned Coworker ID and Vendor ID to that developer, plus the selected organization ID and Workspace slug.
   Vendor admins manage that Vendor's Coworkers. Provisioning does not assign a Coworker to a person by email.
+
+Organization Tasks:
+  Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.
+  Core checks Workspace membership and Task permissions. The selected network stays unchanged.
+  Without this flag, Core uses the credential's default context. OAuth defaults to the personal Workspace.
+  Example: sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id ID --description TEXT --status READY
 `;
 }
 
@@ -306,6 +316,8 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "max-credits",
   "vendor-id",
   "workspace-id",
+  "organization-id",
+  "organization-slug",
   "email",
   "slug",
 ]);
@@ -393,6 +405,7 @@ export function parseArgv(argv: string[]): ParsedArgv {
 function getCoreClient(
   session: CliSession,
   dependencies: CliDependencies,
+  organizationSlug?: string,
 ): CoreHttpClient {
   return (
     dependencies.coreClient ||
@@ -403,6 +416,7 @@ function getCoreClient(
       clientId: session.config.clientId,
       clientSecret: session.config.clientSecret,
       environment: session.env,
+      organizationSlug,
     })
   );
 }
@@ -445,6 +459,31 @@ export async function runCli(
   if (options.version) {
     stdout.write(`${CLI_VERSION}\n`);
     return { version: CLI_VERSION };
+  }
+
+  let organizationSlug: string | undefined;
+  try {
+    if (
+      positionals[0] === "tasks" &&
+      (options["organization-id"] !== undefined ||
+        options["workspace-id"] !== undefined)
+    ) {
+      throw new Error(
+        "Task commands do not accept --organization-id or --workspace-id. Use --organization-slug WORKSPACE_SLUG.",
+      );
+    }
+    if (options["organization-slug"] !== undefined) {
+      if (positionals[0] !== "tasks") {
+        throw new Error(
+          "--organization-slug is only supported by tasks commands",
+        );
+      }
+      organizationSlug = validateOrganizationSlug(options["organization-slug"]);
+    }
+  } catch (error) {
+    if (options.json)
+      writeJsonError(stdout, error, dependencies.env || process.env);
+    throw error;
   }
 
   let session: CliSession;
@@ -611,7 +650,7 @@ export async function runCli(
         ))
     ) {
       await runTasksCommand({
-        client: getCoreClient(session, dependencies),
+        client: getCoreClient(session, dependencies, organizationSlug),
         stdout,
         json: options.json,
         subcommand: command,
