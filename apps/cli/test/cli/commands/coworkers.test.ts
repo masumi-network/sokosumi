@@ -113,7 +113,10 @@ test("ordinary developer gets organizer instructions when Core denies Coworker c
     },
     post: async (path: string) => {
       assert.equal(path, "/v1/coworkers");
-      throw createApiError(403, { error: "Forbidden" });
+      throw createApiError(403, {
+        error: "Forbidden",
+        message: "Admin access required",
+      });
     },
     patch: async <T>() => ({}) as T,
   };
@@ -137,6 +140,7 @@ test("ordinary developer gets organizer instructions when Core denies Coworker c
       assert.match(error.message, /vendor-1/);
       assert.match(error.message, /coworkers connect/);
       assert.match(error.message, /coworkers api-key/);
+      assert.match(error.message, /auth whoami/);
       return true;
     },
   );
@@ -382,6 +386,87 @@ test("coworkers connect grants access to an existing Coworker", async () => {
   ]);
   assert.equal(JSON.parse(output.join("")).workspaceAccess.status, "GRANTED");
 });
+
+// V42, V47, V63: retain Core diagnostics and redact credentials in creation errors.
+for (const subcommand of ["provision", "register"] as const) {
+  for (const [status, message] of [
+    [403, "Admin access required"],
+    [403, "Organization membership required"],
+    [409, "Coworker slug already exists"],
+  ] as const) {
+    test(`${subcommand} preserves ${status} ${message} without guessing the cause`, async () => {
+      const errorBody = {
+        error: status === 403 ? "Forbidden" : "Conflict",
+        message,
+        meta: { requestId: "request-1" },
+        details: { apiKey: "sensitive-key" },
+      };
+      const failure = createApiError(status, errorBody);
+      const originalMessage = failure.message;
+      let writes = 0;
+      const api: CoreHttpClient = {
+        get: async <T>(path: string) => {
+          if (path === "/v1/users/me")
+            return {
+              data: {
+                id: "user-admin",
+                email: "admin@example.com",
+                role: "user,admin",
+              },
+            } as T;
+          if (path.endsWith("/organizations"))
+            return { data: [{ id: "org-1", role: "member" }] } as T;
+          if (path.endsWith("/vendors/me"))
+            return { data: [{ id: "vendor-1", role: "admin" }] } as T;
+          throw new Error("Unexpected GET");
+        },
+        post: async () => {
+          writes++;
+          throw failure;
+        },
+        patch: async () => {
+          throw new Error("Unexpected PATCH");
+        },
+      };
+      await assert.rejects(
+        runCoworkersCommand({
+          client: api,
+          stdout: {
+            write() {
+              throw new Error("Unexpected output");
+            },
+          },
+          subcommand,
+          target: "preprod",
+          options: {
+            name: "Agent",
+            "vendor-id": "vendor-1",
+            "workspace-id": subcommand === "register" ? "org-1" : undefined,
+          },
+        }),
+        (error: unknown) => {
+          assert.equal(error, failure);
+          assert.ok(error instanceof Error);
+          assert.equal("status" in error && error.status, status);
+          assert.deepEqual("body" in error && error.body, {
+            ...errorBody,
+            details: { apiKey: "[REDACTED]" },
+          });
+          assert.ok(error.message.startsWith(originalMessage));
+          assert.match(error.message, /request-1/);
+          assert.doesNotMatch(error.message, /sensitive-key/);
+          if (status === 403) assert.match(error.message, /auth whoami --json/);
+          else assert.equal(error.message, originalMessage);
+          if (message === "Admin access required")
+            assert.match(error.message, /platform admin/);
+          else assert.doesNotMatch(error.message, /platform admin|organizer/);
+          return true;
+        },
+      );
+      assert.equal(writes, 1);
+    });
+  }
+}
 
 // V85: the selected Vendor must own the Coworker before Workspace access changes.
 for (const [label, vendor, message] of [

@@ -28,18 +28,25 @@ A shared organization has a shared credit pool. A Seat does not give each develo
 See the [creation wizard](../web/src/components/organizations/create-organization-wizard/create-organization-wizard.tsx)
 and [invitation form](../web/src/components/organizations/organization-member-invite/form.tsx).
 
-[VERIFIED: CLI fixtures] Sign in to Preprod as a platform admin. Ask each developer for their Vendor ID
-and final Coworker name. Check that the Vendor ID belongs to that developer, then run:
+[VERIFIED: `src/cli/commands/coworkers.ts`] Sign in to Preprod as a platform admin.
+Ask each developer for their Vendor ID and final Coworker name. Confirm the intended account before provisioning:
 
 ```bash
 pnpm --filter @sokosumi/cli sokosumi -- --preprod auth login
-pnpm --filter @sokosumi/cli sokosumi -- --preprod coworkers provision --vendor-id VENDOR_ID --name "Developer Agent" --capability tasks
+pnpm --filter @sokosumi/cli sokosumi -- --preprod auth whoami --json
+pnpm --filter @sokosumi/cli sokosumi -- --preprod coworkers provision --vendor-id VENDOR_ID --name "Developer Agent" --capability tasks --json
 ```
 
-[VERIFIED: `test/cli/provision.test.ts`] `provision` creates the Coworker record through Core and prints its ID.
-It does not require organizer membership in the developer's Vendor or Workspace.
-Give the ID to the developer. They use `coworkers connect` and `coworkers api-key` below.
-The developer creates and keeps the runtime key.
+[VERIFIED: `src/api/models/user-identity.ts`, `src/cli/commands/coworkers.ts`]
+`provision` checks the live account for the exact `admin` role before creation. Core still authorizes the request.
+The CLI verifies that the returned Coworker belongs to the requested Vendor and has `isWhitelisted: false`.
+If creation cannot be confirmed, inspect the Coworker list before retrying. Core errors retain their status and request details.
+
+[CORRECTION, VERIFIED: `src/cli/commands/coworkers.ts`] The handoff now includes both `handoff.coworkerId` and `handoff.vendorId`.
+Give these IDs to the developer. They use `coworkers connect` and `coworkers api-key` below.
+Organizer membership in that Vendor or Workspace is not required. The developer creates and keeps the runtime key.
+[VERIFIED: `../core/src/routes/v1/coworkers/coworker-management-access.ts`] Vendor admins can manage the Vendor's Coworkers.
+Provisioning under a Vendor does not assign the Coworker to a person by email.
 
 [VERIFIED: source only, `apps/core/src/routes/v1/coworkers/post.ts:77-80,110-135`]
 Core checks platform admin access and Vendor existence, then creates the Coworker with `isWhitelisted: false`.
