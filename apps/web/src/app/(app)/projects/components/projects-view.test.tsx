@@ -51,7 +51,6 @@ const labels = {
   unpin: "Unpin project",
   pinError: "Could not change the Pin.",
   filter: { placeholder: "Filter projects", clear: "Clear filter" },
-  sortedBy: "Sorted by recent activity",
   noMatches: "No projects match",
 };
 
@@ -147,15 +146,6 @@ describe("ProjectsView create control", () => {
     const button = screen.getByRole("button", { name: "New project" });
     expect(button.className).toContain("hidden");
     expect(button.className).toContain("md:inline-flex");
-  });
-
-  it("hides the sort label on narrow widths so search remains usable", () => {
-    renderView();
-
-    // Search keeps the available width on phones and small desktop panes.
-    const label = screen.getByText("Sorted by recent activity");
-    expect(label.className).toContain("hidden");
-    expect(label.className).toContain("lg:inline");
   });
 
   it("still offers create from the empty state when there is nothing to filter", () => {
