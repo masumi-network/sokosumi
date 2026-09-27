@@ -50,8 +50,44 @@ export function contentUrl(input: {
   return `/api/drive/files/${input.resourceId}/content?${params.toString()}`;
 }
 
-function baseType(mimeType: string | null): string {
-  return (mimeType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+/**
+ * What to fall back to when the catalog has no recorded type.
+ *
+ * Uploads frequently arrive with a null `mimeType` — the detail header shows
+ * them as "Unknown type" — and keying the preview purely off that field meant
+ * every such file, including plain Markdown, reported "no preview". The name
+ * is the only other thing we have, and for these types it is reliable enough
+ * to *render* with: the proxy still decides inline-versus-attachment itself,
+ * so a wrong guess here costs a failed preview, never an executed document.
+ */
+const EXTENSION_TYPES: Record<string, string> = {
+  csv: "text/csv",
+  gif: "image/gif",
+  jpeg: "image/jpeg",
+  jpg: "image/jpeg",
+  json: "application/json",
+  log: "text/plain",
+  markdown: "text/markdown",
+  md: "text/markdown",
+  pdf: "application/pdf",
+  png: "image/png",
+  txt: "text/plain",
+  webp: "image/webp",
+};
+
+export function effectiveType(
+  mimeType: string | null,
+  displayName: string,
+): string {
+  const declared = (mimeType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+  // `application/octet-stream` is what a store says when it does not know
+  // either, so treat it as absent rather than as a decision.
+  if (declared && declared !== "application/octet-stream") return declared;
+
+  const parts = displayName.split(".");
+  if (parts.length < 2) return declared;
+  const extension = (parts.pop() ?? "").toLowerCase();
+  return EXTENSION_TYPES[extension] ?? declared;
 }
 
 type TextState =
@@ -73,7 +109,7 @@ export function DriveFilePreview({
   sizeBytes: number | null;
 }) {
   const t = useTranslations("App.Drive.Files");
-  const type = baseType(mimeType);
+  const type = effectiveType(mimeType, displayName);
   const source = contentUrl({ resourceId, store });
   const isText =
     TEXT_TYPES.has(type) &&
