@@ -2111,6 +2111,9 @@
         }
       },
       "Tags": {
+        "remove": "Tag {name} entfernen",
+        "suggesting": "Tags werden vorgeschlagen…",
+        "suggestionsUnavailable": "Vorschläge sind nicht verfügbar. Du kannst weiterhin Tags auswählen oder deine Aufgabe erstellen.",
         "label": "Tags",
         "empty": "Noch keine Tags",
         "edit": "Tags bearbeiten",

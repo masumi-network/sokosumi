@@ -109,7 +109,8 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: (namespace: string) => (key: string) =>
+    namespace === "App.Tasks.Tags" && key === "label" ? "Tags" : key,
   useFormatter: () => ({
     dateTime: (value: Date) => value.toISOString(),
   }),
@@ -3190,5 +3191,100 @@ describe("TaskForm", () => {
     });
 
     expect(createTaskMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("TaskForm draft tags", () => {
+  const suggestTaskTags = vi.fn<typeof fetch>();
+  it.each(["pending", "failed"])(
+    "creates without waiting for %s suggestions",
+    async (state) => {
+      vi.useFakeTimers();
+      vi.stubGlobal("fetch", suggestTaskTags);
+      try {
+        vi.mocked(suggestTaskTags).mockReset();
+        if (state === "pending")
+          vi.mocked(suggestTaskTags).mockImplementation(
+            () => new Promise(() => {}),
+          );
+        else
+          vi.mocked(suggestTaskTags).mockResolvedValue(
+            Response.json({}, { status: 503 }),
+          );
+        vi.mocked(createTask)
+          .mockReset()
+          .mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+        render(
+          <TaskForm
+            mode="create"
+            labels={baseLabels}
+            coworkerOptions={coworkerOptions}
+            initialValues={{ assigneeId: "coworker-2" }}
+          />,
+        );
+        fireEvent.change(screen.getByTestId("markdown-editor"), {
+          target: {
+            value:
+              "Research the European market and write a detailed launch strategy for our new product",
+          },
+        });
+        await act(() => vi.advanceTimersByTimeAsync(1200));
+        expect(suggestTaskTags).toHaveBeenCalledOnce();
+        const submit = screen.getByRole("button", { name: "Create Task" });
+        expect(submit).toBeEnabled();
+        await act(async () => fireEvent.click(submit));
+        expect(createTask).toHaveBeenCalledOnce();
+        expect(vi.mocked(createTask).mock.calls[0]?.[0]).not.toHaveProperty(
+          "tagSuggestionReceipt",
+        );
+      } finally {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+      }
+    },
+  );
+
+  it("submits a reusable suggestion receipt and a removed suggestion", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", suggestTaskTags);
+    try {
+      vi.mocked(suggestTaskTags)
+        .mockReset()
+        .mockResolvedValue(
+          Response.json({ tags: ["research"], receipt: "receipt-1" }),
+        );
+      const onCreateTask = vi
+        .fn()
+        .mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+      render(
+        <TaskForm
+          mode="create"
+          labels={baseLabels}
+          coworkerOptions={coworkerOptions}
+          initialValues={{ assigneeId: "coworker-2" }}
+          onCreateTask={onCreateTask}
+        />,
+      );
+      fireEvent.change(screen.getByTestId("markdown-editor"), {
+        target: {
+          value:
+            "Research the European market and write a detailed launch strategy for our new product",
+        },
+      });
+      await act(() => vi.advanceTimersByTimeAsync(1200));
+      fireEvent.click(screen.getByRole("button", { name: "remove" }));
+      await act(async () =>
+        fireEvent.click(screen.getByRole("button", { name: "Create Task" })),
+      );
+      expect(onCreateTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tagSuggestionReceipt: "receipt-1",
+          tagCorrections: { add: [], remove: ["research"] },
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 });

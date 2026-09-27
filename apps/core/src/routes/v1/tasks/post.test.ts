@@ -13,6 +13,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
+import { issueTaskTagReceipt } from "@/services/task-tag-suggestions.service";
 import mountPostTask, { createTaskRequestSchema } from "./post";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -38,6 +39,7 @@ const {
   requireTaskAssignableSokoBotMock,
   requireTaskAssignableUserMock,
   taskCreateMock,
+  taskUpdateMock,
   taskFindUniqueOrThrowMock,
   uploadProjectBriefingFileMock,
   workspaceFindUniqueMock,
@@ -56,6 +58,7 @@ const {
   requireTaskAssignableSokoBotMock: vi.fn(),
   requireTaskAssignableUserMock: vi.fn(),
   taskCreateMock: vi.fn(),
+  taskUpdateMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
   uploadProjectBriefingFileMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
@@ -489,6 +492,7 @@ describe("POST /tasks", () => {
         userId: "user_123",
         organizationId: "org_123",
         role: "user",
+        authenticationMethod: "session",
       });
       c.set("workspaceContext", {
         workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -527,11 +531,73 @@ describe("POST /tasks", () => {
           },
           task: {
             create: taskCreateMock,
+            update: taskUpdateMock,
             findUniqueOrThrow: taskFindUniqueOrThrowMock,
           },
         });
       },
     );
+  });
+
+  it.each([{ tags: [] }, { tags: ["research"] }] as const)(
+    "atomically reuses trusted suggestions %j before task readback",
+    async ({ tags }) => {
+      const body = {
+        description:
+          "Research competitors and prepare a detailed market analysis report",
+      };
+      const receipt = issueTaskTagReceipt(
+        {
+          userId: "user_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+        body,
+        [...tags],
+      );
+      const response = await createApp().request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...body,
+          tagSuggestionReceipt: receipt,
+          tagCorrections: { add: ["design"], remove: ["research"] },
+        }),
+      });
+      expect(response.status).toBe(201);
+      expect(taskUpdateMock).toHaveBeenCalledWith({
+        where: { id: "tsk_123" },
+        data: {
+          automaticTags: [...tags],
+          tagClassificationState: "complete",
+          tagClassificationLease: null,
+          tagVocabularyVersion: 1,
+          manualTags: ["design"],
+          rejectedTags: ["research"],
+        },
+      });
+      expect(taskCreateMock.mock.invocationCallOrder[0]).toBeLessThan(
+        taskUpdateMock.mock.invocationCallOrder[0]!,
+      );
+      expect(taskUpdateMock.mock.invocationCallOrder[0]).toBeLessThan(
+        taskFindUniqueOrThrowMock.mock.invocationCallOrder[0]!,
+      );
+    },
+  );
+  it("keeps creation working with an invalid receipt and preserves corrections", async () => {
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Task",
+        tagSuggestionReceipt: "invalid",
+        tagCorrections: { add: ["design"], remove: [] },
+      }),
+    });
+    expect(response.status).toBe(201);
+    expect(taskUpdateMock).toHaveBeenCalledWith({
+      where: { id: "tsk_123" },
+      data: { manualTags: ["design"], rejectedTags: [] },
+    });
   });
 
   it("uses workspaceContext and persists workspaceId on create", async () => {
@@ -1465,11 +1531,53 @@ describe("POST /tasks delegated coworker create grant", () => {
           },
           task: {
             create: taskCreateMock,
+            update: taskUpdateMock,
             findUniqueOrThrow: taskFindUniqueOrThrowMock,
           },
         });
       },
     );
+  });
+
+  it("does not allow delegated coworkers to apply human corrections", async () => {
+    const response = await createDelegatedCoworkerApp().request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Task",
+          tagCorrections: { add: ["research"], remove: [] },
+        }),
+      },
+    );
+    expect(response.status).toBe(403);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+  it("ignores a human receipt in delegated coworker creation", async () => {
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
+    const body = {
+      name: "Parked Task",
+      description: "Research competitors and produce a report",
+    };
+    const receipt = issueTaskTagReceipt(
+      {
+        userId: "user_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+      body,
+      ["research"],
+    );
+    const response = await createDelegatedCoworkerApp().request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...body, tagSuggestionReceipt: receipt }),
+      },
+    );
+    expect(response.status).toBe(201);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("parks create with pendingVendorGrantId when workspace access is missing", async () => {

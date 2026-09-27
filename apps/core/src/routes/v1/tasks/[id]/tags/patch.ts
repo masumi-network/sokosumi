@@ -7,22 +7,14 @@ import {
   correctTaskTags,
   MAX_TASK_TAGS,
   mapTaskTags,
-  taskTagIdSchema,
   taskTagsSchema,
 } from "@/helpers/task-tags";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
+import { taskTagCorrectionsSchema } from "@/schemas/task-tag-suggestion.schema";
 
-export const patchTaskTagsSchema = z
-  .object({
-    add: z.array(taskTagIdSchema).max(MAX_TASK_TAGS).default([]),
-    remove: z.array(taskTagIdSchema).max(10).default([]),
-  })
-  .refine(
-    (value) => !value.add.some((id) => value.remove.includes(id)),
-    "A tag cannot be both added and removed",
-  );
+export const patchTaskTagsSchema = taskTagCorrectionsSchema;
 const route = createRoute({
   method: "patch",
   path: "/{id}/tags",

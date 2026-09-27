@@ -15,10 +15,12 @@ separate desktop/mobile and light/dark screenshots for Normal and Compact,
 including tagged/untagged cards and missing/long projects.
 
 Investigate absent production tags read-only: deployed Core revision, enabled
-state, cron activity, throughput, and failures. Distinguish deployment mismatch
-and queued work from the intentionally absent historical backfill. Recommend a
-bounded backfill if needed; do not execute production queue work, backfill, or
-environment changes.
+state, cron activity, throughput, and failures. Production investigation verified
+the deployed revision and successful scheduled Jev evaluations; the previous
+worker intentionally excluded untouched historical tasks. The user subsequently
+authorized automatic bounded backfill and composer suggestions in this same PR.
+Implement and test those behaviors on preprod before coordinator review; do not
+manually run production queue work or deploy production.
 
 The original implementation disabled automatic Jev classification by default
 because its catalog did not advertise EU routing or zero-data-retention support.
@@ -28,8 +30,9 @@ through TypeSafe AI with both zero-data-retention and no-training controls
 intact. Gateway skipped the ineligible DigitalOcean endpoint automatically.
 PR #5262 enabled create/title-description-edit classification by default,
 removed the EU pin, and retained those request-level privacy controls. Existing
-untouched tasks are not automatically backfilled. Previously queued creates or
-edits can be processed when classification is enabled.
+untouched tasks were not automatically backfilled. This PR fills unused worker
+capacity with those tasks, while prioritizing queued creates and edits. See
+[task tag rollout](task-tag-rollout.md) for limits and rollout verification.
 
 The draft PR starts with this document because the PR-open workflow deploys both
 networks when application paths change. The UI commit follows PR creation and

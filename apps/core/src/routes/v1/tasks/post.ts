@@ -28,6 +28,10 @@ import {
 } from "@/helpers/task-event-channel";
 import { resolveTaskName } from "@/helpers/task-name";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
+import {
+  correctTaskTags,
+  TASK_TAG_VOCABULARY_VERSION,
+} from "@/helpers/task-tags";
 import { notifyWorkspaceApproversOfPendingGrant } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -38,6 +42,7 @@ import {
   type AuthenticationContext,
   isCoworkerAuthContext,
   isSokoBotAuthContext,
+  requireOwnerUserContext,
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -47,14 +52,18 @@ import {
   taskEventDeprecatedOriginField,
   taskSchema,
 } from "@/schemas/task.schema";
+import { taskTagCorrectionsSchema } from "@/schemas/task-tag-suggestion.schema";
 import {
   createTaskForActor,
   type TaskDomainActor,
 } from "@/services/task-domain.service";
+import { verifyTaskTagReceipt } from "@/services/task-tag-suggestions.service";
 import { taskInclude } from "@/types/task";
 
 export const createTaskRequestSchema = z
   .object({
+    tagSuggestionReceipt: z.string().max(4096).optional(),
+    tagCorrections: taskTagCorrectionsSchema.optional(),
     name: z
       .string()
       .trim()
@@ -185,6 +194,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       workspaceContext.organizationId,
     );
+    if (body.tagCorrections) requireOwnerUserContext(authContext);
+    const suggestedTags =
+      authContext.actor === "user" &&
+      authContext.authenticationMethod === "session"
+        ? verifyTaskTagReceipt(
+            body.tagSuggestionReceipt,
+            {
+              userId: userContext.userId,
+              workspaceId: workspaceContext.workspaceId,
+            },
+            body,
+          )
+        : null;
     const runAt = body.runAt ? parseFutureRunAt(body.runAt) : null;
 
     const resolvedName = await resolveTaskName({
@@ -240,6 +262,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         tx,
       );
+      if (suggestedTags !== null || body.tagCorrections) {
+        await tx.task.update({
+          where: { id: createdTask.id },
+          data: {
+            ...(suggestedTags !== null
+              ? {
+                  automaticTags: suggestedTags,
+                  tagClassificationState: "complete",
+                  tagClassificationLease: null,
+                  tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
+                }
+              : {}),
+            ...(body.tagCorrections
+              ? correctTaskTags(
+                  {},
+                  body.tagCorrections.add,
+                  body.tagCorrections.remove,
+                )
+              : {}),
+          },
+        });
+      }
       return tx.task.findUniqueOrThrow({
         where: { id: createdTask.id },
         include: taskInclude,
