@@ -27,11 +27,17 @@ import { unprovisionedDbFiles } from "../../vitest.config";
  * Reverting that step to an enumerated list turns it red for every suite
  * the list forgets — seven, at the time of writing.
  *
- * What it does **not** catch, stated so nobody assumes otherwise: deleting
- * the `--exclude` line leaves this green, because without it the substring
- * does select that file and it is reachable by this test's definition. The
- * consequence there is a red CI job, loudly, which needs no test to
- * notice. This file is only for the failures that are silent.
+ * What it does **not** catch, stated so nobody assumes otherwise:
+ * emptying `unprovisionedDbFiles` leaves this green at every assertion,
+ * because without the hold-out the substring filter does select that file
+ * and it is "reachable" by this test's definition. The CI run then goes
+ * red, loudly, on a suite that throws during collection.
+ *
+ * So the coverage this file provides is one-directional: it catches a
+ * suite that was never added, and a hold-out that has outlived its file.
+ * It does not catch removing a hold-out that is still needed. That case
+ * is caught by the run itself, which is a fine place for it — this file
+ * exists for the failures that are silent, and that one is not.
  */
 
 const WORKFLOW = fileURLToPath(

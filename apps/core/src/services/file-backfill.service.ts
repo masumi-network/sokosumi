@@ -226,3 +226,54 @@ export async function isDriveStoreBackfillPending(input: {
   });
   return scope?.backfilledAt == null;
 }
+
+/**
+ * Adoption on a read path, which must never be the reason a read fails.
+ *
+ * `GET /v1/drive/search` calls this. Adoption is a convenience — it gives
+ * pre-existing blobs a catalog identity so they are findable without a
+ * migration run — and the search behind it works perfectly well from
+ * Postgres without it.
+ *
+ * Unguarded it did not behave that way. `backfillDriveStore` writes its
+ * completion marker only after the paging loop, so any throw from the
+ * blob listing or from an adoption inside the loop skipped the write,
+ * left `isDriveStoreBackfillPending` answering yes, and threw again on
+ * the next search. The result was a 500 on every Drive search for as long
+ * as the Blob API was unhappy, with no fallback to the catalog search
+ * that would have worked throughout. Not paying too much — no search at
+ * all, from a dependency the search does not need.
+ *
+ * That is the opposite of failing gracefully, which is the stated
+ * requirement for this feature, so the failure is contained here and
+ * reported rather than propagated.
+ *
+ * Moving adoption off the read path altogether is the better answer and
+ * is filed separately. This is the part that turns a 500 into a working
+ * search.
+ */
+export type DriveStoreAdoption =
+  | { ran: false }
+  | { ran: true; outcome: BackfillResult }
+  | { ran: true; failed: true };
+
+export async function adoptDriveStoreIfPending(input: {
+  workspaceId: string;
+  scope: "user" | "organization";
+  ownerId: string;
+}): Promise<DriveStoreAdoption> {
+  try {
+    if (!(await isDriveStoreBackfillPending(input))) return { ran: false };
+    return { ran: true, outcome: await backfillDriveStore(input) };
+  } catch (error) {
+    // Including the pending check itself. It reads the same database the
+    // search reads, so a failure there is unlikely to leave the search
+    // working — but "unlikely" is not a reason to let it decide.
+    console.warn("[files] drive store adoption failed; serving the catalog", {
+      workspaceId: input.workspaceId,
+      scope: input.scope,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return { ran: true, failed: true };
+  }
+}

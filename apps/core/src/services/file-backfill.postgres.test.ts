@@ -192,4 +192,114 @@ describe.skipIf(!enabled)("Drive store backfill", () => {
     // being permanently marked as done.
     expect(await ask()).toBe(true);
   });
+
+  it("does not let a failing blob listing take down the read", async () => {
+    /**
+     * The second way into the same wedge, and the one left open.
+     *
+     * The completion marker is written only after the paging loop, so any
+     * throw from `list()` — or from an adoption inside the loop — skips
+     * it. The store stays pending, the next Drive search calls backfill
+     * again, and it throws again. Unguarded on the route, that is a 500
+     * on every Drive search for as long as the Blob API is unhappy, with
+     * no fallback to the catalog search that would have worked from
+     * Postgres the whole time.
+     *
+     * Not overspending — no search at all, caused by a dependency the
+     * search does not need. Failing gracefully is the stated requirement
+     * for this feature and this was its clearest violation.
+     */
+    const { adoptDriveStoreIfPending, isDriveStoreBackfillPending } =
+      await import("@/services/file-backfill.service");
+
+    const owner = await prisma.user.create({
+      data: {
+        name: "Listing failure owner",
+        email: `listing-fail-${suffix}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    const space = await prisma.workspace.create({
+      data: { userId: owner.id },
+      select: { id: true },
+    });
+    const store = {
+      workspaceId: space.id,
+      scope: "user" as const,
+      ownerId: owner.id,
+    };
+
+    listMock.mockRejectedValue(new Error("Blob store unavailable"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    // Does not throw — that is the whole point.
+    await expect(adoptDriveStoreIfPending(store)).resolves.toEqual({
+      ran: true,
+      failed: true,
+    });
+
+    // And it says why, rather than degrading silently.
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+
+    // The store is still pending, correctly: nothing was adopted, so
+    // claiming completion would be a lie that outlives the outage. The
+    // fix is that pending no longer means the read dies.
+    expect(await isDriveStoreBackfillPending(store)).toBe(true);
+
+    // Twice, because the failure repeats every search and must keep
+    // being survivable rather than degrading into something worse.
+    await expect(adoptDriveStoreIfPending(store)).resolves.toEqual({
+      ran: true,
+      failed: true,
+    });
+  });
+
+  it("reports that it did nothing when there was nothing to do", async () => {
+    /**
+     * The other branch, so "never throws" is not achieved by never
+     * running. A store already marked complete must report `ran: false`,
+     * and the caller uses that to decide whether to nudge the indexer.
+     */
+    const { adoptDriveStoreIfPending } = await import(
+      "@/services/file-backfill.service"
+    );
+
+    const owner = await prisma.user.create({
+      data: {
+        name: "Settled store owner",
+        email: `settled-${suffix}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    const space = await prisma.workspace.create({
+      data: { userId: owner.id },
+      select: { id: true },
+    });
+    const { ensureEvidenceScope } = await import("@/lib/files/evidence-scope");
+    const scope = await ensureEvidenceScope({
+      workspaceId: space.id,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+      sourceScope: FileSourceScope.USER,
+      sourceId: owner.id,
+    });
+    await prisma.fileEvidenceScope.update({
+      where: { id: scope.id },
+      data: { backfilledAt: new Date() },
+    });
+
+    listMock.mockRejectedValue(new Error("must not be called"));
+
+    await expect(
+      adoptDriveStoreIfPending({
+        workspaceId: space.id,
+        scope: "user",
+        ownerId: owner.id,
+      }),
+    ).resolves.toEqual({ ran: false });
+  });
 });

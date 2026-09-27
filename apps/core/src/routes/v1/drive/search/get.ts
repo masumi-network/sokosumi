@@ -12,10 +12,7 @@ import {
   fileSearchResponseSchema,
   fileSourceKindSchema,
 } from "@/schemas/file-resource.schema";
-import {
-  backfillDriveStore,
-  isDriveStoreBackfillPending,
-} from "@/services/file-backfill.service";
+import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import { searchFiles } from "@/services/file-search.service";
 
 /** Plain text stays literal: there is no hidden query syntax to learn. */
@@ -93,20 +90,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // resumed from a stored cursor, so a store larger than one listing page
     // finishes across several visits instead of stopping at its first 200.
     // It grants nothing: the Drive gate above already admitted this store.
-    if (
-      await isDriveStoreBackfillPending({
-        workspaceId: context.workspaceId,
-        scope: context.scope,
-        ownerId: context.ownerId,
-      })
-    ) {
-      await backfillDriveStore({
-        workspaceId: context.workspaceId,
-        scope: context.scope,
-        ownerId: context.ownerId,
-      });
+    //
+    // Contained, because a search must not fail for it. `backfillDriveStore`
+    // writes its completion marker only after the paging loop, so a throw
+    // from the blob listing left the store permanently pending and 500'd
+    // every subsequent Drive search — with no fallback to the catalog
+    // search that would have worked from Postgres throughout.
+    const adoption = await adoptDriveStoreIfPending({
+      workspaceId: context.workspaceId,
+      scope: context.scope,
+      ownerId: context.ownerId,
+    });
+    if (adoption.ran && !("failed" in adoption)) {
       // Extraction only: a search is a read and must not buy label
-      // evaluations. See `nudgeFileExtraction`.
+      // evaluations. See `nudgeFileExtraction`. Skipped when adoption
+      // failed, because there is nothing new to index and the nudge would
+      // just be work nobody asked for on a degraded path.
       nudgeFileExtraction();
     }
 
