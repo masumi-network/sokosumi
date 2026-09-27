@@ -14,8 +14,8 @@ import type { SyncExecutionContext } from "@/routes/sync/handler";
 // them is still bounded, because every claim is one serial provider call.
 const QUEUED_BATCH_SIZE = 50;
 // Historical backfill is a fixed, finite set of rows, so a higher rate drains the
-// backlog sooner without raising total spend at all. Production measured 320-420ms
-// per task end to end, so 200 is roughly 65-85s of the ~260s usable budget below.
+// backlog sooner without raising total spend at all. Production measured 310-435ms
+// per task end to end, so 200 is roughly 62-87s of the ~260s usable budget below.
 const HISTORICAL_BATCH_SIZE = 200;
 const MAX_ATTEMPTS = 2;
 const LEASE_MS = 60_000;
@@ -30,12 +30,13 @@ const DEADLINE_RESERVE_MS = 15_000;
 // so a tick stops claiming new work here and leaves a wide margin instead. The sync
 // deadline above stays the outer bound.
 const TICK_BUDGET_MS = 120_000;
-// Reported-cost ceiling for one tick. A full queued+historical tick costs about
-// $0.01 at the measured ~$0.0000373 per task, and the per-task input is capped at
-// 300 title plus 8,000 description characters, so this only stops a pathological
-// run. It covers queued rows too, which are evaluated first and therefore spend
-// this budget first. Selection caps, not cost, remain the primary bound, so a
-// provider that returns no billing metadata cannot make a tick unbounded either.
+// Reported-cost ceiling for one tick. A full 250-row tick costs about $0.01 at the
+// measured ~$0.0000373 per task, and the per-task input is capped at 300 title plus
+// 8,000 description characters, so even an all-maximum-length tick is around $0.03.
+// It covers queued rows too: exempting them would leave 50 rows with no cost bound
+// at all, and at ~9x the worst legitimate spend it cannot defer them in practice.
+// Selection caps, not cost, remain the primary bound, so a provider that returns no
+// billing metadata cannot make a tick unbounded either.
 const MAX_TICK_COST_USD = 0.05;
 // Only the columns this worker reads. A 250-row batch must not pull whole task
 // rows, whose descriptions have no length cap in the database.

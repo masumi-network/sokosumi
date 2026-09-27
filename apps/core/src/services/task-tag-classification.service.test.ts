@@ -721,7 +721,7 @@ describe("historical tag backfill", () => {
     );
   });
 
-  it("keeps a large historical batch going when one row loses its claim", async () => {
+  it("keeps a historical batch going when one row loses its claim", async () => {
     findManyMock
       .mockReset()
       .mockResolvedValueOnce([])

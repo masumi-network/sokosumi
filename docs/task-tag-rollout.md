@@ -37,7 +37,8 @@ The normal five-minute worker selects due queued work first, then oldest eligibl
 nonarchived, unclassified tasks. Queued and historical selection have separate
 caps: at most 50 queued and at most 200 historical rows per tick. Every queued row
 is evaluated before any history, so a large historical batch cannot delay an
-interactive create, edit or retry. Each unchanged revision still has at most two
+interactive create, edit or retry. Whatever the guards below cut short keeps its
+durable state and resumes on the next tick, which again starts with queued work. Each unchanged revision still has at most two
 attempts. Complete results, including empty classifications, and terminal failures
 are excluded. Existing state, revision and lease fields provide durable resume and
 race protection without a mass enqueue or schema migration.
@@ -48,7 +49,7 @@ the historical rate does not raise total spend: the backlog is a fixed, finite s
 of rows, so total cost is bounded by task count, not by how fast it is worked
 through. At the measured ~$0.0000373 per task the whole backlog observed on
 2026-09-27 costs about $0.71 on mainnet (19,006 rows) and $0.23 on preprod (6,105),
-whether it takes days or hours.
+whether it takes days or hours. The rate of spend does rise with the rate of work.
 
 Three guards bound one tick, and each is observable as `stopReason` in the batch
 log. The existing sync deadline (`LOCK_TIMEOUT - LOCK_TIMEOUT_BUFFER`, 275 seconds
@@ -61,10 +62,14 @@ about 25 seconds, and cron jitter, a slow release, or a function killed at
 the lock makes the next one 409 and skips it. Ten rows could never reach the
 deadline, 250 rows with a timing-out provider could, so the tick budget restores a
 wide margin. At the measured per-task latency the 200-row cap is reached first, in
-roughly 65-85 seconds. A per-tick reported-cost ceiling of $0.05 stops a
-pathological run; it covers queued rows too, which spend it first because they are
-evaluated first. The selection caps, not cost, are the primary bound, so a provider
-that returns no billing metadata cannot make a tick unbounded.
+roughly 62-87 seconds, and the budget only becomes the binding constraint above
+about 600ms per task, at which point throughput falls silently to `120,000 /
+latency` per tick. `stopReason: "tick_budget"` in the batch log is the signal to
+watch for that. A per-tick reported-cost ceiling of $0.05 stops a pathological run.
+It covers queued rows too, because exempting them would leave 50 rows with no cost
+bound; at roughly nine times the spend of an all-maximum-length tick it cannot
+defer them in practice. The selection caps, not cost, are the primary bound, so a
+provider that returns no billing metadata cannot make a tick unbounded.
 
 Both selections read only the eight columns the worker uses, so a 250-row batch
 does not load whole task rows, whose descriptions have no database length cap.

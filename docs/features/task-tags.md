@@ -17,8 +17,8 @@ and grant-pending tasks use existing mutation restrictions.
 automatic inference. A configured `AI_GATEWAY_API_KEY` is required. The cron-authenticated
 `/sync/task-tags` endpoint reuses the existing sync lock/deadline, handles at most
 50 queued and 200 historical tasks serially per tick, and permits at most two
-attempts per content revision. Leases,
-revision/workspace checks, and compare-and-set writes discard obsolete results.
+attempts per content revision. Leases, revision/workspace checks, and
+compare-and-set writes discard obsolete results.
 Human corrections are never overwritten by the worker.
 
 Jev uses Gateway `/v1/evaluate`, model `typesafe-ai/jev`, ten boolean questions,
