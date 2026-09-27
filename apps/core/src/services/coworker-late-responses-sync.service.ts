@@ -12,6 +12,13 @@ import prisma from "@/lib/db/prisma";
 export const LATE_RESPONSE_GRACE_MS = 330_000;
 /** Coworker turns are capped at an hour; give up on a response after two. */
 export const LATE_RESPONSE_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+/** Bounds one run; the rest wait for the next minute, oldest first. */
+export const LATE_RESPONSES_PER_RUN = 25;
+/** Posted in the chat when a reply is given up, so the user is not left waiting. */
+export const LATE_RESPONSE_MISSING_TEXT =
+  "No reply arrived for this message. Please send it again.";
+
+type Outcome = "delivered" | "dropped" | "missing" | "waiting";
 
 export interface LateResponsesSyncResult {
   delivered: number;
@@ -22,7 +29,7 @@ export interface LateResponsesSyncResult {
 async function deliver(
   entry: LateCoworkerResponse,
   fetchFn: typeof fetch | undefined,
-): Promise<"delivered" | "dropped" | "waiting"> {
+): Promise<Outcome> {
   const coworker = await prisma.coworker.findUnique({
     where: { id: entry.coworkerId },
     select: { slug: true, baseURL: true },
@@ -39,6 +46,9 @@ async function deliver(
     coworkerSlug: coworker.slug,
     fetchFn,
   });
+  if (result.status === "error" && result.httpStatus === 404) {
+    return "missing";
+  }
   if (result.status === "in_progress" || result.status === "error") {
     return "waiting";
   }
@@ -57,7 +67,22 @@ async function deliver(
     });
     return "delivered";
   }
-  return "dropped";
+  return "missing";
+}
+
+// Same response id as the reply: if that reply was saved after all, no note is added.
+async function postMissingNote(entry: LateCoworkerResponse): Promise<void> {
+  await persistAssistantToChatRoom({
+    roomId: entry.roomId,
+    senderCoworkerId: entry.coworkerId,
+    contentText: LATE_RESPONSE_MISSING_TEXT,
+    responsesApiResponseId: entry.responseId,
+    parentMessageId: entry.parentMessageId,
+  });
+  await clearPendingResponseMirror({
+    roomId: entry.roomId,
+    parentMessageId: entry.parentMessageId,
+  });
 }
 
 export async function syncLateCoworkerResponses(options: {
@@ -71,32 +96,39 @@ export async function syncLateCoworkerResponses(options: {
     dropped: 0,
     waiting: 0,
   };
+  const due: LateCoworkerResponse[] = [];
   for (const entry of await listLateCoworkerResponses()) {
-    if (!options.shouldContinue()) {
+    if (now() - entry.startedAtMs < LATE_RESPONSE_GRACE_MS) {
+      result.waiting += 1;
+    } else {
+      due.push(entry);
+    }
+  }
+  due.sort((a, b) => a.startedAtMs - b.startedAtMs);
+  for (const [index, entry] of due.entries()) {
+    if (index >= LATE_RESPONSES_PER_RUN || !options.shouldContinue()) {
+      result.waiting += due.length - index;
       break;
     }
-    const age = now() - entry.startedAtMs;
-    if (age < LATE_RESPONSE_GRACE_MS) {
-      result.waiting += 1;
-      continue;
-    }
-    let outcome: "delivered" | "dropped" | "waiting";
+    const expired = now() - entry.startedAtMs > LATE_RESPONSE_MAX_AGE_MS;
+    let outcome: Outcome;
     try {
-      outcome =
-        age > LATE_RESPONSE_MAX_AGE_MS
-          ? "dropped"
-          : await deliver(entry, options.fetchFn);
+      outcome = expired ? "missing" : await deliver(entry, options.fetchFn);
+      if (outcome === "missing") {
+        await postMissingNote(entry);
+      }
     } catch (error) {
       console.error(
         `[sync/coworker-late-responses] Failed to deliver ${entry.responseId}:`,
         error,
       );
-      outcome = "waiting";
+      // Past the age limit an entry never stays, even when the note cannot be saved.
+      outcome = expired ? "dropped" : "waiting";
     }
     if (outcome !== "waiting") {
       await untrackLateCoworkerResponse(entry.responseId);
     }
-    result[outcome] += 1;
+    result[outcome === "missing" ? "dropped" : outcome] += 1;
   }
   return result;
 }

@@ -52,11 +52,17 @@ export async function listLateCoworkerResponses(): Promise<
     return [];
   }
   const entries = await redis.hgetall(LATE_RESPONSES_REDIS_KEY);
-  return Object.values(entries).flatMap((value) => {
+  const valid: LateCoworkerResponse[] = [];
+  const unreadable: string[] = [];
+  for (const [responseId, value] of Object.entries(entries)) {
     try {
-      return [JSON.parse(value) as LateCoworkerResponse];
+      valid.push(JSON.parse(value) as LateCoworkerResponse);
     } catch {
-      return [];
+      unreadable.push(responseId);
     }
-  });
+  }
+  if (unreadable.length > 0) {
+    await redis.hdel(LATE_RESPONSES_REDIS_KEY, ...unreadable);
+  }
+  return valid;
 }

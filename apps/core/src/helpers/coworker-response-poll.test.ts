@@ -163,3 +163,22 @@ describe("retrieveCoworkerResponse", () => {
     });
   });
 });
+
+describe("retrieveCoworkerResponse errors", () => {
+  it("reports the HTTP status of a failed retrieve", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(new Response("not found", { status: 404 }));
+
+    const retrieved = await retrieveCoworkerResponse({
+      ...DEFAULT_PARAMS,
+      fetchFn,
+    });
+
+    expect(retrieved.result).toMatchObject({
+      status: "error",
+      httpStatus: 404,
+    });
+    expect(retrieved.text).toBeNull();
+  });
+});
