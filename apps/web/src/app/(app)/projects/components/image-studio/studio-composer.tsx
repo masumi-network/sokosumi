@@ -19,13 +19,13 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-
 import {
   clampToModel,
   estimateBatchUsd,
   formatUsd,
   priceForImage,
 } from "./catalog";
+import { STUDIO_PILL_CLASS } from "./studio-classes";
 import {
   assetContentUrl,
   type StudioAsset,
@@ -75,8 +75,8 @@ const COPY_CHOICES = [1, 2, 3, 4] as const;
 
 function chipClass(active: boolean, disabled = false): string {
   return cn(
-    "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
-    "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
+    STUDIO_PILL_CLASS,
+    "border",
     // Selected wins over disabled: a row that is locked by the batch ceiling
     // still has to say which value is in force.
     active
@@ -109,8 +109,19 @@ function TriggerLabel({
   );
 }
 
+/**
+ * The composer's disclosure triggers.
+ *
+ * `h-8` and `text-sm` are what `size="sm"` on this app's Button already means,
+ * so a summary is the same height and the same type size as any other small
+ * control in the product; the override is only the muted colour and the width
+ * cap. They used to be `text-xs`, which made the row that describes the
+ * purchase a step smaller than every other control on the page for no reason
+ * anyone could name. Emphasis is still carried where it belongs — these are
+ * `ghost` and Generate is `primary`.
+ */
 const TRIGGER_CLASS =
-  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-xs font-medium";
+  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-sm font-medium";
 
 /**
  * Where a generation is described and bought.
@@ -388,7 +399,7 @@ export function StudioComposer({
       {/* One row, three summaries and the one action. No dividers: the card is
           a single object, and a rule between the prompt and the thing that
           qualifies it made two. */}
-      <div className="flex flex-wrap items-center gap-1.5 p-2 sm:px-3 sm:pb-3">
+      <div className="flex flex-wrap items-center gap-2 p-2 sm:px-3 sm:pb-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
@@ -546,7 +557,7 @@ export function StudioComposer({
           <Popover>
             <PopoverTrigger asChild>
               <Button
-                className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-xs font-medium"
+                className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-sm font-medium"
                 size="sm"
                 variant="ghost"
               >
@@ -651,7 +662,7 @@ function Row({
   label: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
       <span className="text-muted-foreground w-20 shrink-0 text-xs font-medium">
         {label}
       </span>

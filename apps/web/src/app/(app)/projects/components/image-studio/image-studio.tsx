@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { defaultModel, modelIdForRepeat, settingsOf } from "./catalog";
+import { STUDIO_PILL_CLASS } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
@@ -422,6 +423,10 @@ export function ImageStudio({
     queue.queued.length === 0;
 
   return (
+    // One vertical rhythm for the whole page: every block the studio stacks —
+    // the notice, the composer, the templates, the gallery — is one `space-y-4`
+    // step apart, and blocks keep their own `space-y-2` inside. This used to be
+    // two nested `space-y-4` wrappers, which is the same number said twice.
     <div className="min-w-0 space-y-4">
       {problem ? (
         <Notice
@@ -432,243 +437,229 @@ export function ImageStudio({
         </Notice>
       ) : null}
 
-      <div className="min-w-0 space-y-4">
-        <StudioComposer
-          busy={pending}
-          catalog={catalog}
-          labels={labels}
-          onClearReferences={() => setCheckedIds([])}
-          onGenerate={queue.enqueue}
-          onPromptChange={setPrompt}
-          onTargetChange={setTarget}
-          projectId={projectId}
-          prompt={prompt}
-          promptRef={promptRef}
-          referenceAssets={checkedAssets}
-          target={target}
-        />
+      <StudioComposer
+        busy={pending}
+        catalog={catalog}
+        labels={labels}
+        onClearReferences={() => setCheckedIds([])}
+        onGenerate={queue.enqueue}
+        onPromptChange={setPrompt}
+        onTargetChange={setTarget}
+        projectId={projectId}
+        prompt={prompt}
+        promptRef={promptRef}
+        referenceAssets={checkedAssets}
+        target={target}
+      />
 
-        {queue.waitingForSlot ? (
-          <p className="text-muted-foreground px-1 text-xs leading-relaxed">
-            <span className="text-foreground font-medium">
-              {labels.waitingForSlotBody}
-            </span>{" "}
-            {labels.queueNotDurable}
-          </p>
-        ) : null}
+      {queue.waitingForSlot ? (
+        <p className="text-muted-foreground text-xs leading-relaxed">
+          <span className="text-foreground font-medium">
+            {labels.waitingForSlotBody}
+          </span>{" "}
+          {labels.queueNotDurable}
+        </p>
+      ) : null}
 
-        {settledProblemJob?.retryMayDuplicateCharge ? (
-          <div
-            className="border-border bg-background rounded-lg border p-4"
-            role="alert"
-          >
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-              <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-medium">{labels.uncertainTitle}</h3>
-                <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-                  {labels.uncertainBody}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    onClick={() => void refresh()}
-                    size="sm"
-                    variant="secondary"
-                  >
-                    {labels.checkAgain}
-                  </Button>
-                  <Button
-                    onClick={() => repeat(settledProblemJob, "job")}
-                    size="sm"
-                    variant="outline"
-                  >
-                    {labels.submitAnyway}
-                  </Button>
-                </div>
+      {settledProblemJob?.retryMayDuplicateCharge ? (
+        <div
+          className="border-border bg-background rounded-lg border p-4"
+          role="alert"
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-medium">{labels.uncertainTitle}</h3>
+              <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                {labels.uncertainBody}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => void refresh()}
+                  size="sm"
+                  variant="secondary"
+                >
+                  {labels.checkAgain}
+                </Button>
+                <Button
+                  onClick={() => repeat(settledProblemJob, "job")}
+                  size="sm"
+                  variant="outline"
+                >
+                  {labels.submitAnyway}
+                </Button>
               </div>
             </div>
           </div>
-        ) : settledProblemJob ? (
-          <div
-            className="border-border bg-background rounded-lg border p-4"
-            role="alert"
+        </div>
+      ) : settledProblemJob ? (
+        <div
+          className="border-border bg-background rounded-lg border p-4"
+          role="alert"
+        >
+          <h3 className="text-sm font-medium">{labels.failed}</h3>
+          <p className="text-muted-foreground mt-1 text-sm break-words">
+            {settledProblemJob.error ?? ""}
+          </p>
+          <Button
+            className="mt-3"
+            onClick={() => repeat(settledProblemJob, "job")}
+            size="sm"
+            variant="secondary"
           >
-            <h3 className="text-sm font-medium">{labels.failed}</h3>
-            <p className="text-muted-foreground mt-1 text-sm break-words">
-              {settledProblemJob.error ?? ""}
-            </p>
+            {labels.tryAgain}
+          </Button>
+        </div>
+      ) : null}
+
+      {/* Somewhere to start, in the same rhythm as the sections on the project
+          overview: a small heading and then the presses. One wrapping row
+          rather than a gallery of cards, because these are fourteen words, not
+          fourteen things to look at. */}
+      <section aria-labelledby="studio-templates-heading" className="space-y-2">
+        <h2
+          className="text-muted-foreground text-xs font-medium"
+          id="studio-templates-heading"
+        >
+          {labels.templates}
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {STUDIO_TEMPLATES.map((template) => (
             <Button
-              className="mt-3"
-              onClick={() => repeat(settledProblemJob, "job")}
+              key={template.id}
+              onClick={() => applyTemplate(template)}
               size="sm"
+              type="button"
               variant="secondary"
             >
-              {labels.tryAgain}
+              {labels.templateLabels[template.id]}
             </Button>
+          ))}
+        </div>
+      </section>
+
+      {/* The gallery's own header row, in the same rhythm the overview uses
+          for Briefing and Workspace. Its left-hand subject is the heading, so
+          the row reads as a section rather than as a strip of controls. The
+          filters join it once there is something to filter. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2
+          className="text-muted-foreground text-xs font-medium"
+          id="studio-gallery-heading"
+        >
+          {labels.gallery}
+        </h2>
+
+        {hasWork ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {FILTERS.map((value) => (
+              <button
+                aria-pressed={filter === value}
+                className={cn(
+                  STUDIO_PILL_CLASS,
+                  // `text-secondary-foreground`, never `text-foreground`:
+                  // --secondary is the inverse of the page in both themes
+                  // (near-black on light, white on dark) and --foreground
+                  // follows the page, so the pair rendered near-black on
+                  // near-black in light mode and near-white on white in
+                  // dark. The active filter was the one chip nobody could
+                  // read. --secondary-foreground is the token that inverts
+                  // with it.
+                  filter === value
+                    ? "bg-secondary text-secondary-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                key={value}
+                onClick={() => setFilter(value)}
+                type="button"
+              >
+                {filterLabel[value]}
+              </button>
+            ))}
           </div>
         ) : null}
 
-        {/* Somewhere to start, in the same rhythm as the sections on the
-            project overview: a small heading and then the presses. One
-            wrapping row rather than a gallery of cards, because these are
-            fourteen words, not fourteen things to look at. */}
-        <section
-          aria-labelledby="studio-templates-heading"
-          className="space-y-2"
-        >
-          <h2
-            className="text-muted-foreground text-xs font-medium"
-            id="studio-templates-heading"
-          >
-            {labels.templates}
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {STUDIO_TEMPLATES.map((template) => (
-              <Button
-                key={template.id}
-                onClick={() => applyTemplate(template)}
-                size="sm"
-                type="button"
-                variant="secondary"
-              >
-                {labels.templateLabels[template.id]}
-              </Button>
-            ))}
-          </div>
-        </section>
+        <span className="grow" />
 
-        {/* The gallery's own header row, in the same rhythm the overview
-              uses for Briefing and Workspace. Its left-hand subject is the
-              heading, so the row reads as a section rather than as a strip of
-              controls. The filters join it once there is something to
-              filter. */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h2
-            className="text-muted-foreground text-xs font-medium"
-            id="studio-gallery-heading"
-          >
-            {labels.gallery}
-          </h2>
-
-          {hasWork ? (
-            <div className="flex flex-wrap items-center gap-1">
-              {FILTERS.map((value) => (
-                <button
-                  aria-pressed={filter === value}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                    "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
-                    // `text-secondary-foreground`, never `text-foreground`:
-                    // --secondary is the inverse of the page in both themes
-                    // (near-black on light, white on dark) and --foreground
-                    // follows the page, so the pair rendered near-black on
-                    // near-black in light mode and near-white on white in
-                    // dark. The active filter was the one chip nobody could
-                    // read. --secondary-foreground is the token that inverts
-                    // with it.
-                    filter === value
-                      ? "bg-secondary text-secondary-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  key={value}
-                  onClick={() => setFilter(value)}
-                  type="button"
-                >
-                  {filterLabel[value]}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          <span className="grow" />
-
-          {checkedIds.length > 0 ? (
-            <>
-              <span className="text-muted-foreground text-xs tabular-nums">
-                {t("selectedCount", { count: checkedIds.length })}
-              </span>
-              <Button
-                disabled={checkedIds.length < 2}
-                onClick={() => setViewing({ mode: "compare" })}
-                size="sm"
-                title={
-                  checkedIds.length < 2 ? labels.compareNeedsTwo : undefined
-                }
-                variant="secondary"
-              >
-                <Columns2 aria-hidden />
-                {labels.compareSelected}
-              </Button>
-              <Button
-                onClick={() => setCheckedIds([])}
-                size="sm"
-                variant="ghost"
-              >
-                {labels.clearSelection}
-              </Button>
-            </>
-          ) : null}
-        </div>
-
-        {showsNothing ? (
-          // No border and no fixed height: an empty gallery is an absence,
-          // not a panel. Where to start is the template row above it, not
-          // three canned briefs repeated here.
-          <div className="px-1 pt-2 pb-8">
-            <h3 className="text-base font-medium">
-              {filter === "all" ? labels.emptyTitle : labels.noneMatchFilter}
-            </h3>
-            <p className="text-muted-foreground mt-1 max-w-prose text-sm leading-relaxed text-pretty">
-              {labels.emptyBody}
-            </p>
-            {filter === "all" ? null : (
-              <Button
-                className="mt-3"
-                onClick={() => setFilter("all")}
-                size="sm"
-                variant="secondary"
-              >
-                {labels.clearFilter}
-              </Button>
-            )}
-          </div>
-        ) : (
+        {checkedIds.length > 0 ? (
           <>
-            <StudioGallery
-              activeJobs={activeJobs}
-              assets={visibleAssets}
-              cancelRequestedJobIds={cancelRequestedJobIds}
-              catalog={catalog}
-              elapsedByAssetId={elapsed}
-              labels={labels}
-              onCancelJob={handleCancelJob}
-              onOpen={(assetId) => {
-                selectAsset(assetId);
-                setViewing({ mode: "single" });
-              }}
-              onToggleSelect={(assetId) =>
-                setCheckedIds((current) =>
-                  current.includes(assetId)
-                    ? current.filter((id) => id !== assetId)
-                    : [...current, assetId],
-                )
-              }
-              projectId={projectId}
-              queued={queue.queued}
-              selectedIds={checkedIds}
-            />
-            {hasOlder ? (
-              <Button
-                onClick={() => void loadOlder()}
-                size="sm"
-                variant="ghost"
-              >
-                {labels.loadOlder}
-              </Button>
-            ) : null}
+            <span className="text-muted-foreground text-xs tabular-nums">
+              {t("selectedCount", { count: checkedIds.length })}
+            </span>
+            <Button
+              disabled={checkedIds.length < 2}
+              onClick={() => setViewing({ mode: "compare" })}
+              size="sm"
+              title={checkedIds.length < 2 ? labels.compareNeedsTwo : undefined}
+              variant="secondary"
+            >
+              <Columns2 aria-hidden />
+              {labels.compareSelected}
+            </Button>
+            <Button onClick={() => setCheckedIds([])} size="sm" variant="ghost">
+              {labels.clearSelection}
+            </Button>
           </>
-        )}
+        ) : null}
       </div>
+
+      {showsNothing ? (
+        // No border and no fixed height: an empty gallery is an absence,
+        // not a panel. Where to start is the template row above it, not
+        // three canned briefs repeated here.
+        <div className="py-6">
+          {/* `text-sm font-medium`, like the two notices above it: this is a
+              block with a title inside the studio, not a page heading, and one
+              treatment for all three is what keeps the page to one scale. */}
+          <h3 className="text-sm font-medium">
+            {filter === "all" ? labels.emptyTitle : labels.noneMatchFilter}
+          </h3>
+          <p className="text-muted-foreground mt-1 max-w-prose text-sm leading-relaxed text-pretty">
+            {labels.emptyBody}
+          </p>
+          {filter === "all" ? null : (
+            <Button
+              className="mt-3"
+              onClick={() => setFilter("all")}
+              size="sm"
+              variant="secondary"
+            >
+              {labels.clearFilter}
+            </Button>
+          )}
+        </div>
+      ) : (
+        <>
+          <StudioGallery
+            activeJobs={activeJobs}
+            assets={visibleAssets}
+            cancelRequestedJobIds={cancelRequestedJobIds}
+            catalog={catalog}
+            elapsedByAssetId={elapsed}
+            labels={labels}
+            onCancelJob={handleCancelJob}
+            onOpen={(assetId) => {
+              selectAsset(assetId);
+              setViewing({ mode: "single" });
+            }}
+            onToggleSelect={(assetId) =>
+              setCheckedIds((current) =>
+                current.includes(assetId)
+                  ? current.filter((id) => id !== assetId)
+                  : [...current, assetId],
+              )
+            }
+            projectId={projectId}
+            queued={queue.queued}
+            selectedIds={checkedIds}
+          />
+          {hasOlder ? (
+            <Button onClick={() => void loadOlder()} size="sm" variant="ghost">
+              {labels.loadOlder}
+            </Button>
+          ) : null}
+        </>
+      )}
 
       {lightboxAssets.length > 0 ? (
         <StudioLightbox

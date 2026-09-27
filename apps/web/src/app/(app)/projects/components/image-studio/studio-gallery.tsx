@@ -100,7 +100,7 @@ export function StudioGallery({
                     of buttons above the gallery it was a second list of the
                     running jobs, in a different order, with no picture. */}
                 <Button
-                  className="mt-1"
+                  className="mt-2"
                   disabled={requested}
                   onClick={() => onCancelJob(job.id)}
                   size="sm"
@@ -210,7 +210,7 @@ export function StudioGallery({
                   {selected ? <Check aria-hidden className="size-3.5" /> : null}
                 </button>
 
-                <figcaption className="space-y-0.5 px-2 py-1.5">
+                <figcaption className="space-y-1 px-2 py-2">
                   <div className="flex min-w-0 items-center gap-1.5">
                     <span className="text-foreground shrink-0 text-xs font-medium tabular-nums">
                       v{asset.version}
@@ -309,7 +309,7 @@ function PendingTile({
   return (
     <div
       className={cn(
-        "border-border bg-background flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-3 text-center",
+        "border-border bg-background flex aspect-square flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed p-3 text-center",
         variant === "queued" && "opacity-70",
       )}
     >
@@ -322,9 +322,10 @@ function PendingTile({
       />
       <p className="text-muted-foreground text-xs">{label}</p>
       <p className="text-muted-foreground w-full truncate text-xs">{model}</p>
-      <p className="text-muted-foreground line-clamp-2 text-xs opacity-70">
-        {prompt}
-      </p>
+      {/* No second dimming: `text-muted-foreground` is already the quiet
+          role, and stacking `opacity-70` on it took this line under the
+          contrast floor for the sake of looking quieter still. */}
+      <p className="text-muted-foreground line-clamp-2 text-xs">{prompt}</p>
       {children}
     </div>
   );

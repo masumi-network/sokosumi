@@ -280,7 +280,7 @@ function ImagePane({
         label={labels.bytesUnavailable}
         projectId={projectId}
       />
-      <figcaption className="bg-card-background text-foreground border-border absolute top-5 left-5 rounded border px-2 py-0.5 text-xs">
+      <figcaption className="bg-card-background text-foreground border-border absolute top-5 left-5 rounded-md border px-2 py-0.5 text-xs">
         {labels.version} {asset.version}
       </figcaption>
     </figure>
@@ -417,7 +417,9 @@ function Review({
       </div>
       <Textarea
         aria-label={labels.feedbackPlaceholder}
-        className="min-h-14 text-xs"
+        // `text-sm`, not `text-xs`: this is something a person writes in, and
+        // the app types every input at the body scale.
+        className="min-h-14 text-sm"
         onChange={(event) => onDraftChange(event.currentTarget.value)}
         placeholder={labels.feedbackPlaceholder}
         value={draft}
