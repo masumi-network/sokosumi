@@ -560,7 +560,10 @@ export function DriveAllFilesPanel({
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="size-8"
+                      // 44px on touch, which is the minimum this codebase
+                      // uses elsewhere (`min-h-11`); a 32px target was
+                      // comfortable with a mouse and a miss with a thumb.
+                      className="size-11 @2xl:size-8"
                       disabled={collectionBusy}
                       aria-label={t("collectionActions", {
                         name: collection.name,

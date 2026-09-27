@@ -365,6 +365,47 @@ reason and a coverage below 1, and the Jev label request built from its first
 chunks stays inside `LABEL_EVALUATION_CEILINGS.total` — which now counts the
 transport envelope as well.
 
+### Gap 7, undo on bulk edits: deliberately not built
+
+A 30-second undo on bulk metadata edits is **not** in this branch, and this
+is the reasoning rather than an omission.
+
+**What an undo would have to reverse.** A bulk edit is not one row. Per
+resource it writes label rows, it writes a `FileFieldOverride` with a `PIN`
+or `REJECT` decision, and it increments `metadataRevision`. The override is
+the point of the feature: it is what makes a manual correction survive
+re-extraction, a new extractor and a new model. Removing an automatic tag
+records a rejection so that a reindex cannot bring it back.
+
+**Why a reversal set is the easy half.** Every write is guarded by
+`expectedMetadataRevision`. An undo issued thirty seconds later holds a
+revision that is stale by construction if anything touched the resource in
+between — another member's edit, an accepted suggestion, a reindex. That
+leaves two options and both are bad: fail exactly when the reader most
+wants it, or force-write over whoever edited in between and silently
+discard their decision.
+
+**And the provenance problem underneath.** An undo *is itself a manual
+decision*. If undoing a rejection does not write its own override, the next
+reindex can resurrect the tag the reader just restored; if it does, there
+are now two competing decision records for one field and a rule is needed
+for which wins. That is a second provenance model, not a buffer.
+
+So the honest scope is not "hold a reversal set for thirty seconds", it is
+"define a second decision-provenance model and reconcile it with the first",
+which is disproportionate to the value here.
+
+**What readers have instead**, which is not nothing: every bulk action
+reports per-item outcomes truthfully, rows that failed stay selected so they
+can be retried exactly, and every action is individually reversible through
+the same controls that applied it — set the category back, add the tag back.
+That is slower than an undo and it is honest, which a half-built undo would
+not be.
+
+If it is picked up later, the design question to answer first is what an
+undo means when the world moved underneath it — not how to store the
+reversal.
+
 ## 9. Verification
 
 - Unit tests for the serializer and token ceilings, the fusion and exact-match
