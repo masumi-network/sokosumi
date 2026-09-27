@@ -2,6 +2,7 @@
 
 import { Archive } from "lucide-react";
 import { useMemo } from "react";
+import { DRIVE_HEADER_CONTROL_CLASS } from "@/app/drive/components/drive-view-layout";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
@@ -71,6 +72,10 @@ export function DriveTablesFilters({
       emptyResultsLabel={labels.emptyResults}
       sections={sections}
       showActiveIndicator={archived}
+      // `size="sm"` is `h-8` at every width. This row's other control,
+      // `New table`, is 40px while the row is stacked, so without this the
+      // two sit side by side 8px apart in height and 4px out of alignment.
+      triggerClassName={DRIVE_HEADER_CONTROL_CLASS}
     />
   );
 }

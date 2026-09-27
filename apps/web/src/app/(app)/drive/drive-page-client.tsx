@@ -53,7 +53,7 @@ import { DriveTablesFilters } from "@/app/drive/components/drive-tables-filters"
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
-  DRIVE_TOOLBAR_CONTROL_CLASS,
+  DRIVE_HEADER_CONTROL_CLASS,
   driveItemIconWellClass,
   driveItemMetaDesktopClass,
   driveItemMetaMobileClass,
@@ -161,6 +161,21 @@ function withoutLegacyDriveScopeParam(
   return next;
 }
 
+/**
+ * The query a drive navigation should carry forward.
+ *
+ * Drops the legacy `scope`, and `archived` — which only the Tables list reads.
+ * Every caller here rebuilds the query from the current URL and then navigates
+ * into browse or tasks, so without this a `?archived=true` left over from the
+ * Tables tab rides along into views that ignore it and ends up in shared links.
+ * `navigateToPrimaryView` clears it through nuqs for the same reason.
+ */
+function driveNavParams(params: URLSearchParams): URLSearchParams {
+  const next = withoutLegacyDriveScopeParam(params);
+  next.delete("archived");
+  return next;
+}
+
 function appendDownloadParam(url: string): string {
   try {
     const parsed = new URL(url);
@@ -231,7 +246,7 @@ export function DrivePageClient({
     ) {
       return;
     }
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     params.delete("folder");
     params.delete("view");
     params.delete("projectId");
@@ -892,7 +907,7 @@ function DrivePageWorkspace({
   }
 
   function navigateToFolder(folderName: string) {
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     const newPath = currentFolder
       ? `${currentFolder}/${folderName}`
       : folderName;
@@ -905,7 +920,7 @@ function DrivePageWorkspace({
   }
 
   function navigateToBreadcrumb(index: number) {
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     if (index === -1) {
       params.delete("folder");
       params.set("view", "browse");
@@ -939,7 +954,7 @@ function DrivePageWorkspace({
   }
 
   function navigateToTasksRoot() {
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.delete("folder");
     params.delete("projectId");
@@ -956,7 +971,7 @@ function DrivePageWorkspace({
         return next;
       });
     }
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.set("projectId", projectId);
     params.delete("folder");
@@ -972,7 +987,7 @@ function DrivePageWorkspace({
         return next;
       });
     }
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.set("taskId", taskId);
     params.delete("folder");
@@ -1336,7 +1351,7 @@ function DrivePageWorkspace({
   function handleTablesArchivedChange(next: boolean) {
     void setDriveNavQuery(
       { archived: next ? true : null },
-      { history: "push" },
+      { history: "replace" },
     );
   }
 
@@ -1407,7 +1422,7 @@ function DrivePageWorkspace({
                       onChange={(e) => handleSearchChange(e.target.value)}
                       className={cn(
                         "w-64 max-w-full pl-8",
-                        DRIVE_TOOLBAR_CONTROL_CLASS,
+                        DRIVE_HEADER_CONTROL_CLASS,
                       )}
                     />
                   </div>
@@ -1437,7 +1452,7 @@ function DrivePageWorkspace({
                     onChange={(e) => handleSearchChange(e.target.value)}
                     className={cn(
                       "w-64 max-w-full pl-8",
-                      DRIVE_TOOLBAR_CONTROL_CLASS,
+                      DRIVE_HEADER_CONTROL_CLASS,
                     )}
                   />
                 </div>
@@ -1487,7 +1502,7 @@ function DrivePageWorkspace({
                     onChange={(e) => handleSearchChange(e.target.value)}
                     className={cn(
                       "w-64 max-w-full pl-8",
-                      DRIVE_TOOLBAR_CONTROL_CLASS,
+                      DRIVE_HEADER_CONTROL_CLASS,
                     )}
                   />
                 </div>

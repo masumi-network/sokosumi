@@ -9,6 +9,33 @@ const DRIVE_ITEMS_GRID_CLASS =
   "grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
 
 /**
+ * Height of a control in the Files **header row** — the row that holds the view
+ * tabs. 40px while that row is stacked, 32px once it is a single centred row.
+ *
+ * The breakpoint is the row's own container query, `@xl`, and it has to be:
+ * that is the exact width at which the row becomes `@xl:flex-row
+ * @xl:items-center` (`drive-page-client.tsx`). From there the row's height is
+ * whatever its tallest child is and the 36px tab strip is centred inside it, so
+ * any control taller than the strip lifts the row and moves the strip — and the
+ * whole page under it — by half the difference. Below `@xl` the row is
+ * `flex-col`, nothing competes, and the controls keep the 40px a finger needs.
+ *
+ * Two things this must NOT be:
+ * - a **viewport** query (`md:`). The row's layout is driven by container
+ *   queries, and the two disagree: between them the row is already centred
+ *   while the controls are still 40px, which is the 2px tab-switch jump this
+ *   constant exists to remove. It shipped as `md:h-8` and was measurably still
+ *   broken at 624px, 700px and 760px.
+ * - `@2xl`. The other tabs' controls are all `hidden @2xl:*`, but the Tables
+ *   tab's `Filter` and `New table` render at every width, so between `@xl` and
+ *   `@2xl` the Tables row would still be 40px while every other tab's is 36px.
+ *
+ * Not to be confused with the table editor's own toolbar constant: that route
+ * has no `@container` ancestor, so it steps on a viewport query instead.
+ */
+export const DRIVE_HEADER_CONTROL_CLASS = "h-10 @xl:h-8";
+
+/**
  * The app's large-surface panel: the background and corner every big component
  * on a page sits on, without the item list's own inner padding. The members
  * data table (`rounded-xl bg-card-background p-2`) is the same treatment.
@@ -17,20 +44,6 @@ const DRIVE_ITEMS_GRID_CLASS =
  * dark mode and white-on-white in light, so a `bg-card` panel is invisible
  * against the page in both themes and reads as bare page with a border.
  */
-/**
- * Height of a control in the Files header row, 40px on touch and 32px from
- * `md` up, matching the `size="sm"` buttons it sits beside.
- *
- * The row is `items-center`, so its height is whatever its tallest child is,
- * and the tab strip is then centred inside it. A bare `Input` is `h-10`, so a
- * tab that showed a search box made the row 40px while a tab without one made
- * it 36px (the tab strip's own height) — and the strip, with everything under
- * it, moved 2px down and back up on every tab switch. Every control in that
- * row has to agree on a height at or under the strip's for the switch to be
- * still.
- */
-export const DRIVE_TOOLBAR_CONTROL_CLASS = "h-10 md:h-8";
-
 export const DRIVE_SURFACE_PANEL_CLASS =
   "bg-card-background overflow-hidden rounded-xl";
 

@@ -10,6 +10,7 @@ import { Plus, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
+import { DRIVE_HEADER_CONTROL_CLASS } from "@/app/drive/components/drive-view-layout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { TableColumn } from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
+import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { tableImportBatches } from "./table-import";
 import { isTableRejection } from "./table-mutations";
@@ -173,10 +175,10 @@ export function TableCreateDialog({
       <DialogTrigger asChild>
         {/* The Files toolbar states the house rule for this row: 32px
         controls, and the view's own create action is the solid one. */}
-        {/* This trigger sits inside the drive toolbar's `@container`, so it
-        steps down on the same container query its neighbours use, not on a
-        viewport breakpoint that disagrees with them between 42rem and 48rem. */}
-        <Button size="sm" className="h-10 gap-1.5 @2xl:h-8">
+        {/* This trigger sits inside the drive header row's `@container`, so it
+        takes that row's shared height rather than open-coding one: a control
+        here taller than the tab strip lifts the row and moves the strip. */}
+        <Button size="sm" className={cn("gap-1.5", DRIVE_HEADER_CONTROL_CLASS)}>
           <Plus aria-hidden className="size-4" />
           {t("newTable")}
         </Button>

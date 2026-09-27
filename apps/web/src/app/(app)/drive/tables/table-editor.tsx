@@ -6,10 +6,7 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
-import {
-  DRIVE_SURFACE_PANEL_CLASS,
-  DRIVE_TOOLBAR_CONTROL_CLASS,
-} from "@/app/drive/components/drive-view-layout";
+import { DRIVE_SURFACE_PANEL_CLASS } from "@/app/drive/components/drive-view-layout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,7 +62,15 @@ import {
  * Toolbar controls: 40px where a finger lands, and the 32px the Files toolbar
  * uses once there is a pointer. `Button size="sm"` keeps the small padding and
  * gap at both widths; only the height responds.
+ *
+ * Viewport queries and not the Files header row's container query, because
+ * this route has **no `@container` ancestor** — `@md`/`@xl` would never fire
+ * here. These controls also have no tab strip to stay level with: nothing in
+ * this toolbar sets the height of a row something else is centred in, which is
+ * what forces `DRIVE_HEADER_CONTROL_CLASS` onto a container query. Kept local
+ * and separately named so the two are not swapped for one another.
  */
+const EDITOR_TOOLBAR_CONTROL = "h-10 md:h-8";
 const TOOLBAR_ICON_CONTROL = "size-10 md:size-8";
 
 export function TableEditor({ id }: { id: string }) {
@@ -397,7 +402,7 @@ function TableWorkspace({
           <Button
             size="sm"
             variant="outline"
-            className={DRIVE_TOOLBAR_CONTROL_CLASS}
+            className={EDITOR_TOOLBAR_CONTROL}
             onClick={() => {
               setHistoryCursor(undefined);
               setHistoryCell({});
@@ -460,7 +465,7 @@ function TableWorkspace({
         <select
           className={withEditableTextSize(
             "bg-background rounded-md border px-2",
-            DRIVE_TOOLBAR_CONTROL_CLASS,
+            EDITOR_TOOLBAR_CONTROL,
           )}
           aria-label={t("view")}
           value={view?.id ?? ""}
@@ -480,14 +485,14 @@ function TableWorkspace({
         <Button
           size="sm"
           variant="outline"
-          className={DRIVE_TOOLBAR_CONTROL_CLASS}
+          className={EDITOR_TOOLBAR_CONTROL}
           onClick={() => setDialog("views")}
         >
           {t("configureView")}
         </Button>
         <Button
           size="sm"
-          className={DRIVE_TOOLBAR_CONTROL_CLASS}
+          className={EDITOR_TOOLBAR_CONTROL}
           disabled={pending || !!table.archivedAt}
           onClick={() =>
             void run(
@@ -505,7 +510,7 @@ function TableWorkspace({
         <Button
           size="sm"
           variant="outline"
-          className={DRIVE_TOOLBAR_CONTROL_CLASS}
+          className={EDITOR_TOOLBAR_CONTROL}
           disabled={!!table.archivedAt}
           onClick={() => setColumn("new")}
         >
@@ -521,7 +526,7 @@ function TableWorkspace({
             </span>
             <Button
               size="sm"
-              className={DRIVE_TOOLBAR_CONTROL_CLASS}
+              className={EDITOR_TOOLBAR_CONTROL}
               disabled={!!table.archivedAt}
               onClick={() => {
                 setEnrichmentKey(crypto.randomUUID());
@@ -536,7 +541,7 @@ function TableWorkspace({
             <Button
               size="sm"
               variant="outline"
-              className={DRIVE_TOOLBAR_CONTROL_CLASS}
+              className={EDITOR_TOOLBAR_CONTROL}
               disabled={pending || !!table.archivedAt}
               onClick={() =>
                 void run(async () => {
