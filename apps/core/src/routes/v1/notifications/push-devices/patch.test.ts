@@ -53,6 +53,13 @@ it("updates only the authenticated owner's device", async () => {
   expect(await response.json()).toMatchObject({ data: { success: true } });
 });
 it.each([
+  {},
+  { browser: "Chrome" },
+  { operatingSystem: "macOS" },
+  { browser: "Chrome", registeredAt: "2026-09-27T12:00:00.000Z" },
+  { registeredAt: "not-a-date" },
+  { registeredAt: "2026-02-30T12:00:00.000Z" },
+  { registeredAt: null },
   { browser: "arbitrary", operatingSystem: "macOS" },
   { ...details, userId: "other" },
   { ...details, metadata: {} },
@@ -83,3 +90,18 @@ it.each([
     (await app().request("/push-devices/device-1/browser", options())).status,
   ).toBe(error.status);
 });
+
+it.each([
+  { registeredAt: "2026-09-27T12:00:00.000Z" },
+  { ...details, registeredAt: "2026-09-27T12:00:00.000Z" },
+])(
+  "accepts registration dates with or without browser names: %j",
+  async (body) => {
+    const response = await app().request(
+      "/push-devices/device-1/browser",
+      options(body),
+    );
+    expect(response.status).toBe(200);
+    expect(update).toHaveBeenCalledExactlyOnceWith("user-1", "device-1", body);
+  },
+);

@@ -72,6 +72,9 @@ export async function listPushDevices(userId: string): Promise<PushDevice[]> {
                 ? device.metadata?.sokosumiBrowser
                 : undefined,
             ),
+          registeredAt: pushDeviceSchema.shape.registeredAt
+            .catch(undefined)
+            .parse(device.metadata?.sokosumiRegisteredAt),
           platform: pushDeviceSchema.shape.platform
             .catch("unknown")
             .parse(device.platform),

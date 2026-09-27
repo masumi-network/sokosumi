@@ -5401,6 +5401,7 @@ export type NotificationCounts = {
 export type PushDevice = {
     id: string;
     browserDetails?: PushDeviceBrowserDetails;
+    registeredAt?: Date;
     platform: 'browser' | 'ios' | 'android' | 'unknown';
     formFactor: 'phone' | 'tablet' | 'desktop' | 'tv' | 'watch' | 'car' | 'embedded' | 'other';
     state: 'active' | 'failing' | 'failed' | 'unknown';
@@ -5409,6 +5410,12 @@ export type PushDevice = {
 export type PushDeviceBrowserDetails = {
     browser: 'Chrome' | 'Edge' | 'Firefox' | 'Safari' | 'Opera' | 'Samsung Internet';
     operatingSystem: 'macOS' | 'Windows' | 'Windows Phone' | 'Android' | 'iOS' | 'Linux' | 'ChromeOS';
+};
+
+export type PushDeviceBrowserUpdate = {
+    browser?: 'Chrome' | 'Edge' | 'Firefox' | 'Safari' | 'Opera' | 'Samsung Internet';
+    operatingSystem?: 'macOS' | 'Windows' | 'Windows Phone' | 'Android' | 'iOS' | 'Linux' | 'ChromeOS';
+    registeredAt?: Date;
 };
 
 export type MarkAllReadResponse = {
@@ -39050,10 +39057,7 @@ export type GetNotificationsPushDevicesResponses = {
 export type GetNotificationsPushDevicesResponse = GetNotificationsPushDevicesResponses[keyof GetNotificationsPushDevicesResponses];
 
 export type PatchNotificationsPushDevicesByIdBrowserData = {
-    body: {
-        browser: 'Chrome' | 'Edge' | 'Firefox' | 'Safari' | 'Opera' | 'Samsung Internet';
-        operatingSystem: 'macOS' | 'Windows' | 'Windows Phone' | 'Android' | 'iOS' | 'Linux' | 'ChromeOS';
-    };
+    body: PushDeviceBrowserUpdate;
     path: {
         id: string;
     };

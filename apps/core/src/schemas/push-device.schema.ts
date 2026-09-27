@@ -26,10 +26,29 @@ export type PushDeviceBrowserDetails = z.infer<
   typeof pushDeviceBrowserDetailsSchema
 >;
 
+export const pushDeviceBrowserUpdateSchema = pushDeviceBrowserDetailsSchema
+  .partial()
+  .extend({ registeredAt: z.iso.datetime().optional() })
+  .strict()
+  .refine(
+    ({ browser, operatingSystem }) =>
+      Boolean(browser) === Boolean(operatingSystem),
+    { message: "Browser and operating system must be provided together" },
+  )
+  .refine(({ browser, registeredAt }) => Boolean(browser || registeredAt), {
+    message: "Provide browser details or a registration date",
+  })
+  .openapi("PushDeviceBrowserUpdate");
+
+export type PushDeviceBrowserUpdate = z.infer<
+  typeof pushDeviceBrowserUpdateSchema
+>;
+
 export const pushDeviceSchema = z
   .object({
     id: z.string(),
     browserDetails: pushDeviceBrowserDetailsSchema.optional(),
+    registeredAt: z.iso.datetime().optional(),
     platform: z.enum(["browser", "ios", "android", "unknown"]),
     formFactor: z.enum([
       "phone",

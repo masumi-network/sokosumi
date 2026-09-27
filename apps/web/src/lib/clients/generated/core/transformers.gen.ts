@@ -2671,7 +2671,15 @@ export const getNotificationsCountsResponseTransformer = async (data: any): Prom
     return data;
 };
 
+const pushDeviceSchemaResponseTransformer = (data: any) => {
+    if (data.registeredAt) {
+        data.registeredAt = new Date(data.registeredAt);
+    }
+    return data;
+};
+
 export const getNotificationsPushDevicesResponseTransformer = async (data: any): Promise<GetNotificationsPushDevicesResponse> => {
+    data.data = data.data.map((item: any) => pushDeviceSchemaResponseTransformer(item));
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

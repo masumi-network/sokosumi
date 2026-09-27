@@ -4,20 +4,20 @@ import { ok } from "@/helpers/response";
 import { updatePushDeviceBrowser } from "@/lib/ably/push-device-browser";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
-import { pushDeviceBrowserDetailsSchema } from "@/schemas/push-device.schema";
+import { pushDeviceBrowserUpdateSchema } from "@/schemas/push-device.schema";
 
 const route = createRoute({
   method: "patch",
   path: "/push-devices/{id}/browser",
   tags: ["Notifications"],
   description:
-    "Record coarse browser and OS names for the current user's registered push device.",
+    "Record browser details and the observed registration date for the current user's push device.",
   request: {
     params: z.object({ id: z.string().min(1).max(256) }),
     body: {
       required: true,
       content: {
-        "application/json": { schema: pushDeviceBrowserDetailsSchema.strict() },
+        "application/json": { schema: pushDeviceBrowserUpdateSchema },
       },
     },
   },

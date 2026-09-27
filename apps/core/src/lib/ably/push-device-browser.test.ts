@@ -110,3 +110,48 @@ it.each([404, 403, 500])(
     ).rejects.toMatchObject({ status: statusCode === 404 ? 404 : 502 });
   },
 );
+
+it("records a registration date without browser names and preserves metadata", async () => {
+  const registeredAt = "2026-09-27T12:00:00.000Z";
+  get.mockResolvedValue({
+    ...device,
+    metadata: { existing: "keep", sokosumiBrowser: details },
+  });
+  await updatePushDeviceBrowser("user-1", device.id, { registeredAt });
+  expect(request.mock.calls[0][4]).toEqual({
+    metadata: {
+      existing: "keep",
+      sokosumiBrowser: details,
+      sokosumiRegisteredAt: registeredAt,
+    },
+  });
+});
+it("preserves an existing registration date during later browser updates", async () => {
+  const registeredAt = "2026-09-26T12:00:00.000Z";
+  get.mockResolvedValue({
+    ...device,
+    metadata: { existing: "keep", sokosumiRegisteredAt: registeredAt },
+  });
+  await updatePushDeviceBrowser("user-1", device.id, {
+    ...details,
+    registeredAt: "2026-09-27T12:00:00.000Z",
+  });
+  expect(request.mock.calls[0][4]).toEqual({
+    metadata: {
+      existing: "keep",
+      sokosumiBrowser: details,
+      sokosumiRegisteredAt: registeredAt,
+    },
+  });
+});
+it("replaces an invalid stored date with an observed registration date", async () => {
+  const registeredAt = "2026-09-27T12:00:00.000Z";
+  get.mockResolvedValue({
+    ...device,
+    metadata: { sokosumiRegisteredAt: "invalid" },
+  });
+  await updatePushDeviceBrowser("user-1", device.id, { registeredAt });
+  expect(request.mock.calls[0][4]).toEqual({
+    metadata: { sokosumiRegisteredAt: registeredAt },
+  });
+});

@@ -75,6 +75,21 @@ describe("listPushDevices", () => {
     expect(devices[1].browserDetails).toBeUndefined();
     expect(JSON.stringify(devices)).not.toContain("hidden");
   });
+  it.each([
+    ["2026-09-27T12:00:00.000Z", "2026-09-27T12:00:00.000Z"],
+    [undefined, undefined],
+    [null, undefined],
+    ["not-a-date", undefined],
+    ["2026-02-30T12:00:00.000Z", undefined],
+    [123, undefined],
+  ])("returns only valid registration dates: %j", async (stored, expected) => {
+    list.mockResolvedValue(page([{ channel, deviceId: "a" }]));
+    get.mockResolvedValue({
+      ...device("a"),
+      metadata: { sokosumiRegisteredAt: stored },
+    });
+    expect((await listPushDevices("user-1"))[0].registeredAt).toBe(expected);
+  });
   it("follows every page, deduplicates devices, and returns only public fields", async () => {
     const next = vi.fn().mockResolvedValue(
       page([

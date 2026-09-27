@@ -1,7 +1,10 @@
 import { makeUserNotificationsChannelName } from "@sokosumi/utils";
 import { z } from "zod";
 import { badGateway, notFound } from "@/helpers/error";
-import type { PushDeviceBrowserDetails } from "@/schemas/push-device.schema";
+import {
+  type PushDeviceBrowserUpdate,
+  pushDeviceSchema,
+} from "@/schemas/push-device.schema";
 import { getPushAdminRestClient } from "./client";
 import { getNotificationChannelEnvironment } from "./notification-channel-environment";
 
@@ -10,7 +13,7 @@ const ABLY_PROTOCOL_VERSION = 2;
 export async function updatePushDeviceBrowser(
   userId: string,
   deviceId: string,
-  browserDetails: PushDeviceBrowserDetails,
+  update: PushDeviceBrowserUpdate,
 ): Promise<void> {
   const client = getPushAdminRestClient();
   const channel = makeUserNotificationsChannelName(
@@ -65,6 +68,14 @@ export async function updatePushDeviceBrowser(
     .record(z.string(), z.unknown())
     .catch({})
     .parse(device.metadata);
+  const registeredAt =
+    pushDeviceSchema.shape.registeredAt
+      .catch(undefined)
+      .parse(metadata.sokosumiRegisteredAt) ?? update.registeredAt;
+  const browserDetails =
+    update.browser && update.operatingSystem
+      ? { browser: update.browser, operatingSystem: update.operatingSystem }
+      : undefined;
   // PATCH only metadata: never recreate a deleted device or change its push recipient.
   const response = await client
     .request(
@@ -72,7 +83,13 @@ export async function updatePushDeviceBrowser(
       `/push/deviceRegistrations/${encodeURIComponent(deviceId)}`,
       ABLY_PROTOCOL_VERSION,
       {},
-      { metadata: { ...metadata, sokosumiBrowser: browserDetails } },
+      {
+        metadata: {
+          ...metadata,
+          ...(browserDetails ? { sokosumiBrowser: browserDetails } : {}),
+          ...(registeredAt ? { sokosumiRegisteredAt: registeredAt } : {}),
+        },
+      },
     )
     .catch(() => {
       throw badGateway("Unable to update push device");

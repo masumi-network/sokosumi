@@ -3009,7 +3009,7 @@ export const getNotificationsPushDevices = <ThrowOnError extends boolean = false
 });
 
 /**
- * Record coarse browser and OS names for the current user's registered push device.
+ * Record browser details and the observed registration date for the current user's push device.
  */
 export const patchNotificationsPushDevicesByIdBrowser = <ThrowOnError extends boolean = false>(options: Options<PatchNotificationsPushDevicesByIdBrowserData, ThrowOnError>): RequestResult<PatchNotificationsPushDevicesByIdBrowserResponses, PatchNotificationsPushDevicesByIdBrowserErrors, ThrowOnError> => (options.client ?? client).patch<PatchNotificationsPushDevicesByIdBrowserResponses, PatchNotificationsPushDevicesByIdBrowserErrors, ThrowOnError>({
     responseTransformer: patchNotificationsPushDevicesByIdBrowserResponseTransformer,
