@@ -558,8 +558,8 @@ export function ImageStudio({
 
         {showsNothing ? (
           // No border and no fixed height: an empty gallery is an absence,
-          // not a panel. On a project that has never generated anything it
-          // offers somewhere to start instead.
+          // not a panel. Where to start is the template row above it, not
+          // three canned briefs repeated here.
           <div className="px-1 pt-2 pb-8">
             <h3 className="text-base font-medium">
               {filter === "all" ? labels.emptyTitle : labels.noneMatchFilter}
@@ -567,20 +567,7 @@ export function ImageStudio({
             <p className="text-muted-foreground mt-1 max-w-prose text-sm leading-relaxed text-pretty">
               {labels.emptyBody}
             </p>
-            {filter === "all" ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {labels.examplePrompts.map((example) => (
-                  <button
-                    className="border-border text-muted-foreground hover:text-foreground hover:border-primary-tertiary focus-visible:ring-ring-halo rounded-md border px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-[3px]"
-                    key={example}
-                    onClick={() => setPrompt(example)}
-                    type="button"
-                  >
-                    {example}
-                  </button>
-                ))}
-              </div>
-            ) : (
+            {filter === "all" ? null : (
               <Button
                 className="mt-3"
                 onClick={() => setFilter("all")}

@@ -128,7 +128,6 @@ export type StudioFilter = "all" | "approved" | "rejected" | "undecided";
 export interface StudioLabels {
   emptyTitle: string;
   emptyBody: string;
-  examplePrompts: string[];
   promptPlaceholder: string;
   generate: string;
   refine: string;

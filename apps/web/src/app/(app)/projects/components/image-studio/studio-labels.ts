@@ -14,7 +14,6 @@ export function buildStudioLabels(t: Translator): StudioLabels {
   return {
     emptyTitle: t("emptyTitle"),
     emptyBody: t("emptyBody"),
-    examplePrompts: [t("example1"), t("example2"), t("example3")],
     promptPlaceholder: t("promptPlaceholder"),
     generate: t("generate"),
     refine: t("refine"),

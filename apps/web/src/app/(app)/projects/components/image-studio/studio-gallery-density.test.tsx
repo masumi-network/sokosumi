@@ -77,8 +77,8 @@ vi.mock("./use-generation-queue", () => ({
 }));
 
 const LABELS = new Proxy(
-  { examplePrompts: ["Example one", "Example two"] } as Record<string, unknown>,
-  { get: (target, key: string) => target[key] ?? key },
+  {},
+  { get: (_target, key: string) => key },
 ) as unknown as StudioLabels;
 
 const ASSET = {
