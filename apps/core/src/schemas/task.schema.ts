@@ -1,8 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { isDesignMdBlobUrl } from "@sokosumi/utils";
-
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import { taskTagsSchema } from "@/helpers/task-tags";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
 import {
   channelSchema,
@@ -314,6 +314,7 @@ const taskBaseSchema = z.object({
     description:
       "Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.",
   }),
+  tags: taskTagsSchema.optional(),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
   status: taskStatusSchema.openapi({

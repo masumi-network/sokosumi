@@ -102,6 +102,10 @@
     {
       "path": "/sync/soko-bot-avatars",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/sync/task-tags",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

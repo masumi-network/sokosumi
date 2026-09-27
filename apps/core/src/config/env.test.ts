@@ -252,6 +252,16 @@ describe("Turnstile deployment configuration", () => {
   });
 });
 
+describe("Task tag classification environment", () => {
+  it.each([
+    [undefined, true],
+    ["false", false],
+  ])("parses %s as enabled=%s", (value, enabled) => {
+    vi.stubEnv("TASK_TAG_CLASSIFICATION_ENABLED", value);
+    expect(validateEnv().TASK_TAG_CLASSIFICATION_ENABLED).toBe(enabled);
+  });
+});
+
 describe("Redis environment", () => {
   it("leaves Redis urls optional", () => {
     vi.stubEnv("REDIS_URL", undefined);
