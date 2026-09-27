@@ -2624,7 +2624,6 @@
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
       "scopeLabel": "Projekt",
       "title": "Content Studio",
-      "noProject": "Kein Projekt ausgewählt",
       "selectAllModels": "Alle auswählen",
       "generationTime": "Generierungsdauer",
       "estimatedCost": "Geschätzte Kosten",

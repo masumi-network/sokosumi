@@ -1,10 +1,9 @@
-import { ImagePlus } from "lucide-react";
+import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
 import { ImageStudio } from "@/app/projects/components/image-studio/image-studio";
 import { buildStudioLabels } from "@/app/projects/components/image-studio/studio-labels";
-import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { imageStudioService } from "@/lib/services/image-studio.service";
 import { projectService } from "@/lib/services/project.service";
 
@@ -16,6 +15,18 @@ export const instant = false;
 
 interface StudioPageProps {
   searchParams: Promise<{ projectId?: string; v?: string }>;
+}
+
+/**
+ * The product name, where a name is still read.
+ *
+ * The page itself no longer carries a headline, so this is the only place it
+ * says what it is — the tab, the history entry and anything that quotes the
+ * document title.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Studio");
+  return { title: t("title") };
 }
 
 /**
@@ -35,11 +46,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
 
   if (!projectId) {
     return (
-      <StudioPageShell
-        mark={<ImagePlus className="text-muted-foreground size-5" />}
-        subtitle={t("noProject")}
-        title={t("title")}
-      >
+      <StudioPageShell>
         <StudioProjectPicker />
       </StudioPageShell>
     );
@@ -50,11 +57,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   // so the repair is to pick another project rather than to leave the page.
   if (!project) {
     return (
-      <StudioPageShell
-        mark={<ImagePlus className="text-muted-foreground size-5" />}
-        subtitle={t("noProject")}
-        title={t("title")}
-      >
+      <StudioPageShell>
         <StudioProjectPicker notice={t("pickUnavailable")} />
       </StudioPageShell>
     );
@@ -68,20 +71,14 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
       : null;
 
   return (
-    <StudioPageShell
-      mark={
-        <ProjectAvatar
-          name={project.name}
-          logo={project.logo}
-          className="size-9 rounded-lg text-sm"
-        />
-      }
-      subtitle={project.name}
-      title={t("title")}
-    >
+    <StudioPageShell>
       <ImageStudio
         initialSelectedAssetId={initialSelectedAssetId}
         initialState={state}
+        // Remounted per project, so no filter, selection, draft prompt or
+        // queued request from the previous one can survive the switch. The
+        // state hook resets on its own too; see `useStudioState`.
+        key={project.id}
         labels={buildStudioLabels(t)}
         projectId={project.id}
       />

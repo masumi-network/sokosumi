@@ -9,46 +9,28 @@ import { cn } from "@/lib/utils";
  * The studio as a destination of its own.
  *
  * Deliberately the same card the project workspace and the projects index
- * draw: one surface, one border weight, one gutter, a rule under the identity
- * row. What it does *not* have is a tab strip, because the studio is no longer
- * one area of a project — it is a top-level page that happens to be scoped to
- * a project, the way Tasks and Calendar are.
+ * draw: one surface, one border weight, one gutter. What it does *not* have is
+ * a tab strip, because the studio is no longer one area of a project — it is a
+ * top-level page that happens to be scoped to a project, the way Tasks and
+ * Calendar are.
+ *
+ * It no longer has an identity row either. A mark, the product name and the
+ * project name repeated what the sidebar row, the breadcrumb and the project
+ * switcher already say, and they said it in the one band of the page the
+ * composer wanted: the studio is a thing you type into, so it opens on the box
+ * you type into. The page's name survives where a name is actually read — the
+ * document title, set by the route's metadata.
  */
-export function StudioPageShell({
-  children,
-  mark,
-  subtitle,
-  title,
-}: {
-  children: React.ReactNode;
-  mark: React.ReactNode;
-  /** Which project this gallery belongs to, or why there is none yet. */
-  subtitle: string;
-  title: string;
-}) {
+export function StudioPageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className={PROJECTS_WORKSPACE_SHELL_CLASS}>
       <div className={PROJECTS_WORKSPACE_CARD_CLASS}>
         <div
           className={cn(
             PROJECTS_WORKSPACE_GUTTER_CLASS,
-            "border-border flex items-center gap-3 border-b py-4 md:pt-5",
+            "min-w-0 py-5 md:pt-6",
           )}
         >
-          <span aria-hidden className="shrink-0">
-            {mark}
-          </span>
-          <div className="min-w-0">
-            <h1 className="truncate text-lg leading-tight font-semibold tracking-tight">
-              {title}
-            </h1>
-            <p className="text-muted-foreground mt-0.5 truncate text-xs">
-              {subtitle}
-            </p>
-          </div>
-        </div>
-
-        <div className={cn(PROJECTS_WORKSPACE_GUTTER_CLASS, "min-w-0 py-5")}>
           {children}
         </div>
       </div>

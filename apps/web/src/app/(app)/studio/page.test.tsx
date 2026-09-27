@@ -102,7 +102,7 @@ describe("StudioPage", () => {
     expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
   });
 
-  it("opens the scoped project's gallery under the project's own name", async () => {
+  it("opens the scoped project's gallery with nothing above it", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     imageStudioServiceMock.getState.mockResolvedValue(studioState());
 
@@ -120,13 +120,21 @@ describe("StudioPage", () => {
     );
     const studio = screen.getByTestId("image-studio");
     expect(studio).toHaveAttribute("data-project", "project-1");
-    expect(
-      screen.getByRole("heading", { name: "App.Studio.title" }),
-    ).toBeInTheDocument();
-    // Which project's images these are, said on the page rather than only in
-    // the sidebar's switcher.
-    expect(screen.getByText("Launch plan")).toBeInTheDocument();
+    // No identity row: the mark, the product name and the project name
+    // repeated the sidebar row, the breadcrumb and the project switcher, in
+    // the one band of the page the composer wanted. The name survives in the
+    // document title; see `generateMetadata`.
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+    expect(screen.queryByText("Launch plan")).not.toBeInTheDocument();
     expect(screen.queryByTestId("studio-no-project")).not.toBeInTheDocument();
+  });
+
+  it("names the page in the document title", async () => {
+    const { generateMetadata } = await import("./page");
+
+    await expect(generateMetadata()).resolves.toEqual({
+      title: "App.Studio.title",
+    });
   });
 
   it("asks Core for a selected version that may be older than the newest page", async () => {
