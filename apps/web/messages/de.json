@@ -6691,6 +6691,8 @@
       "loading": "Wird geladen…",
       "showActive": "Aktive anzeigen",
       "showArchived": "Archivierte anzeigen",
+      "showArchivedRows": "Archivierte Zeilen anzeigen",
+      "showActiveRows": "Aktive Zeilen anzeigen",
       "empty": "Noch keine Tabellen",
       "emptyDescription": "Erstelle eine Tabelle, um Arbeit mit deinem Team und Agenten zu organisieren.",
       "columnCount": "{count, plural, one {# Spalte} other {# Spalten}}",

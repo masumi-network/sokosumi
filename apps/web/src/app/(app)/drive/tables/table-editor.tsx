@@ -413,6 +413,15 @@ function TableWorkspace({
               <DropdownMenuItem onClick={() => void run(handleExport)}>
                 {t("exportCsv")}
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setArchivedRows(!archivedRows);
+                  setSelected([]);
+                  void setCursor(null);
+                }}
+              >
+                {archivedRows ? t("showActiveRows") : t("showArchivedRows")}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setDialog("archive")}>
                 {table.archivedAt ? t("restore") : t("archive")}
               </DropdownMenuItem>
@@ -480,18 +489,6 @@ function TableWorkspace({
         >
           <Plus aria-hidden className="size-4" />
           {t("addColumn")}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className={TOOLBAR_CONTROL}
-          onClick={() => {
-            setArchivedRows(!archivedRows);
-            setSelected([]);
-            void setCursor(null);
-          }}
-        >
-          {archivedRows ? t("showActive") : t("showArchived")}
         </Button>
         {/* Selection actions sit in their own trailing group so selecting a
         row cannot reflow the controls the pointer just left. */}

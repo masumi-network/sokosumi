@@ -6691,6 +6691,8 @@
       "loading": "Loading…",
       "showActive": "Show active",
       "showArchived": "Show archived",
+      "showArchivedRows": "Show archived rows",
+      "showActiveRows": "Show active rows",
       "empty": "No tables yet",
       "emptyDescription": "Create a table to organize work with your team and agents.",
       "columnCount": "{count, plural, one {# column} other {# columns}}",

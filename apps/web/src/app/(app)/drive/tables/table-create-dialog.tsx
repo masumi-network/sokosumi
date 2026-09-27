@@ -226,7 +226,11 @@ export function TableCreateDialog({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="table-csv">{t("importCsv")}</Label>
-            <div className="flex items-center gap-3">
+            {/* The native control is kept in the accessibility tree and in
+            the tab order; only its browser-supplied, unlocalized chrome is
+            replaced. `has-[:focus-visible]` puts the focus ring back on the
+            visible trigger, which a clipped input cannot show for itself. */}
+            <div className="ring-offset-background focus-visible:ring-ring flex w-fit items-center gap-3 rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2">
               <Button
                 type="button"
                 size="sm"
@@ -240,20 +244,17 @@ export function TableCreateDialog({
               <span className="text-muted-foreground min-w-0 truncate text-sm">
                 {csvName || t("noFileChosen")}
               </span>
+              <span className="sr-only">
+                <Input
+                  id="table-csv"
+                  ref={csvInput}
+                  type="file"
+                  accept=".csv,text/csv"
+                  disabled={pending || !!attempt}
+                  onChange={(event) => void handleCsv(event.target.files?.[0])}
+                />
+              </span>
             </div>
-            {/* The native control is kept in the accessibility tree and in the
-            tab order; only its browser-supplied, unlocalized chrome is
-            replaced. */}
-            <span className="sr-only">
-              <Input
-                id="table-csv"
-                ref={csvInput}
-                type="file"
-                accept=".csv,text/csv"
-                disabled={pending || !!attempt}
-                onChange={(event) => void handleCsv(event.target.files?.[0])}
-              />
-            </span>
             <p className="text-muted-foreground text-sm">{t("csvLimit")}</p>
           </div>
           {columns.length > 0 && (
