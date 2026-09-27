@@ -12,7 +12,16 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +29,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import type { PushDevice } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 import { usePushDevices } from "./use-push-devices";
 
@@ -32,14 +42,26 @@ export function PushDevices({ userId }: PushDevicesProps) {
   const formatter = useFormatter();
   const [open, setOpen] = useState(false);
   const query = usePushDevices(userId, open);
+  const disclosureRef = useRef<HTMLButtonElement>(null);
+  const removeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const empty = query.data?.devices.length === 0;
   const showNotice = !query.isFetching && (query.isError || empty);
+
+  function deviceLabel(device: PushDevice) {
+    return device.browserDetails
+      ? t("browserLabel", device.browserDetails)
+      : t("deviceLabel", {
+          platform: t(`platforms.${device.platform}`),
+          formFactor: t(`formFactors.${device.formFactor}`),
+        });
+  }
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="@container">
       <div className="flex items-center justify-between gap-2">
         <CollapsibleTrigger asChild>
           <Button
+            ref={disclosureRef}
             type="button"
             variant="ghost"
             size="sm"
@@ -140,12 +162,7 @@ export function PushDevices({ userId }: PushDevicesProps) {
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <p className="min-w-0 text-sm leading-5 font-medium wrap-anywhere">
-                        {device.browserDetails
-                          ? t("browserLabel", device.browserDetails)
-                          : t("deviceLabel", {
-                              platform: t(`platforms.${device.platform}`),
-                              formFactor: t(`formFactors.${device.formFactor}`),
-                            })}
+                        {deviceLabel(device)}
                       </p>
                       {device.id === query.data?.currentDeviceId ? (
                         <Badge
@@ -189,6 +206,22 @@ export function PushDevices({ userId }: PushDevicesProps) {
                       ) : null}
                     </div>
                   </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground -me-1 min-h-9 shrink-0 px-2 text-xs font-normal"
+                    aria-label={t("removeNamedDevice", {
+                      device: deviceLabel(device),
+                    })}
+                    disabled={query.isRemoving}
+                    onClick={(event) => {
+                      removeTriggerRef.current = event.currentTarget;
+                      query.selectDevice(device);
+                    }}
+                  >
+                    {t("remove")}
+                  </Button>
                 </li>
               );
             })}
@@ -198,6 +231,61 @@ export function PushDevices({ userId }: PushDevicesProps) {
           {t("description")}
         </p>
       </CollapsibleContent>
+      <AlertDialog
+        open={query.selectedDevice !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) query.selectDevice(null);
+        }}
+      >
+        <AlertDialogContent
+          className="max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain motion-reduce:animate-none"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const trigger = removeTriggerRef.current;
+            (trigger?.isConnected ? trigger : disclosureRef.current)?.focus();
+          }}
+        >
+          <AlertDialogHeader className="text-start">
+            <AlertDialogTitle>{t("removeTitle")}</AlertDialogTitle>
+            <AlertDialogDescription className="leading-relaxed wrap-anywhere">
+              {query.selectedDevice
+                ? t("removeDescription", {
+                    device: deviceLabel(query.selectedDevice),
+                  })
+                : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <p
+            role="alert"
+            className={cn(
+              "text-destructive text-sm leading-relaxed",
+              !query.removeFailed && "sr-only",
+            )}
+          >
+            {query.removeFailed ? t("removeError") : null}
+          </p>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={query.isRemoving}>
+              {t("cancel")}
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={query.isRemoving}
+              aria-busy={query.isRemoving}
+              onClick={query.removeSelectedDevice}
+            >
+              {query.isRemoving ? (
+                <Loader2
+                  className="size-4 motion-safe:animate-spin"
+                  aria-hidden="true"
+                />
+              ) : null}
+              {t("removeConfirm")}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Collapsible>
   );
 }
