@@ -19,12 +19,20 @@ import { adoptDriveUploadResource } from "@/services/file-catalog.service";
  * caller has already passed the Drive gate for this store.
  */
 
-/** One listing page. A large store is adopted across several visits. */
+/** One listing page. */
 const BACKFILL_PAGE_SIZE = 200;
+
+/**
+ * Pages per visit. Adoption happens on a read path, so one visit must stay
+ * bounded; the cursor carries the rest to the next one.
+ */
+const BACKFILL_PAGES_PER_VISIT = 5;
 
 export interface BackfillResult {
   scanned: number;
   adopted: number;
+  /** True once the listing reported no further pages. */
+  complete: boolean;
 }
 
 export async function backfillDriveStore(input: {
@@ -33,75 +41,155 @@ export async function backfillDriveStore(input: {
   ownerId: string;
 }): Promise<BackfillResult> {
   const token = getEnv().BLOB_READ_WRITE_TOKEN;
-  if (!token) return { scanned: 0, adopted: 0 };
+  if (!token) return { scanned: 0, adopted: 0, complete: false };
+
+  const sourceScope =
+    input.scope === "user"
+      ? FileSourceScope.USER
+      : FileSourceScope.ORGANIZATION;
+
+  const progress = await storeBackfillProgress({
+    workspaceId: input.workspaceId,
+    sourceScope,
+    ownerId: input.ownerId,
+  });
+  if (progress.backfilledAt) return { scanned: 0, adopted: 0, complete: true };
 
   const prefix =
     input.scope === "user"
       ? buildUserDriveFolderPrefix(input.ownerId, "")
       : buildOrganizationDriveFolderPrefix(input.ownerId, "");
 
-  const page = await list({ prefix, token, limit: BACKFILL_PAGE_SIZE });
-
+  // Everything already catalogued for this store, so adoption never
+  // reinterprets a reserved path as a new document.
   const known = new Set(
     (
       await prisma.fileResource.findMany({
         where: {
           workspaceId: input.workspaceId,
           sourceKind: FileSourceKind.DRIVE_UPLOAD,
-          sourceScope:
-            input.scope === "user"
-              ? FileSourceScope.USER
-              : FileSourceScope.ORGANIZATION,
+          sourceScope,
         },
         select: { sourceId: true },
       })
     ).map((resource) => resource.sourceId),
   );
 
+  let cursor = progress.backfillCursor ?? undefined;
+  let scanned = 0;
   let adopted = 0;
-  for (const blob of page.blobs) {
-    if (isDriveFolderMarker(blob.pathname)) continue;
-    if (known.has(blob.pathname)) continue;
+  let complete = false;
 
-    const segments = blob.pathname.split("/");
-    const displayName = segments[segments.length - 1] ?? blob.pathname;
-
-    await adoptDriveUploadResource({
-      key: {
-        workspaceId: input.workspaceId,
-        scope: input.scope,
-        ownerId: input.ownerId,
-        pathname: blob.pathname,
-      },
-      displayName,
-      mimeType: null,
-      sizeBytes: blob.size,
-      uploadedAt: blob.uploadedAt,
+  for (let visit = 0; visit < BACKFILL_PAGES_PER_VISIT; visit += 1) {
+    const page = await list({
+      prefix,
+      token,
+      cursor,
+      limit: BACKFILL_PAGE_SIZE,
     });
-    adopted += 1;
+    scanned += page.blobs.length;
+
+    for (const blob of page.blobs) {
+      if (isDriveFolderMarker(blob.pathname)) continue;
+      if (known.has(blob.pathname)) continue;
+
+      const segments = blob.pathname.split("/");
+      const displayName = segments[segments.length - 1] ?? blob.pathname;
+
+      await adoptDriveUploadResource({
+        key: {
+          workspaceId: input.workspaceId,
+          scope: input.scope,
+          ownerId: input.ownerId,
+          pathname: blob.pathname,
+        },
+        displayName,
+        mimeType: null,
+        sizeBytes: blob.size,
+        uploadedAt: blob.uploadedAt,
+      });
+      known.add(blob.pathname);
+      adopted += 1;
+    }
+
+    cursor = page.hasMore ? page.cursor : undefined;
+    if (!page.hasMore) {
+      complete = true;
+      break;
+    }
   }
 
-  return { scanned: page.blobs.length, adopted };
-}
-
-/**
- * True when this store has never been catalogued. Used to bootstrap a
- * workspace on its first search rather than requiring a migration run.
- */
-export async function isDriveStoreUncatalogued(input: {
-  workspaceId: string;
-  scope: "user" | "organization";
-}): Promise<boolean> {
-  const existing = await prisma.fileResource.findFirst({
+  // Record where this visit got to, so the next one resumes rather than
+  // starting over — or stops, if the store is fully adopted.
+  await prisma.fileEvidenceScope.updateMany({
     where: {
       workspaceId: input.workspaceId,
       sourceKind: FileSourceKind.DRIVE_UPLOAD,
-      sourceScope:
-        input.scope === "user"
-          ? FileSourceScope.USER
-          : FileSourceScope.ORGANIZATION,
+      sourceScope,
+      sourceId: input.ownerId,
     },
-    select: { id: true },
+    data: {
+      backfillCursor: complete ? null : (cursor ?? null),
+      backfilledAt: complete ? new Date() : null,
+    },
   });
-  return existing === null;
+
+  return { scanned, adopted, complete };
+}
+
+async function storeBackfillProgress(input: {
+  workspaceId: string;
+  sourceScope: FileSourceScope;
+  ownerId: string;
+}): Promise<{ backfillCursor: string | null; backfilledAt: Date | null }> {
+  const scope = await prisma.fileEvidenceScope.findUnique({
+    where: {
+      workspaceId_sourceKind_sourceScope_sourceId: {
+        workspaceId: input.workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope: input.sourceScope,
+        sourceId: input.ownerId,
+      },
+    },
+    select: { backfillCursor: true, backfilledAt: true },
+  });
+  return {
+    backfillCursor: scope?.backfillCursor ?? null,
+    backfilledAt: scope?.backfilledAt ?? null,
+  };
+}
+
+/**
+ * Whether this store still has objects to adopt.
+ *
+ * This used to ask whether the store had *zero* catalog rows, which was
+ * wrong twice over: a store larger than one listing page stopped being
+ * "uncatalogued" after its first 200 objects and never adopted the rest, and
+ * a store that saw any upload after this deploy — `reserveDriveUploadResource`
+ * writes a row at grant-mint time — was never backfilled at all, leaving
+ * every pre-existing file invisible.
+ *
+ * Completion is now recorded per store, so the answer is "not finished yet"
+ * rather than "never started".
+ */
+export async function isDriveStoreBackfillPending(input: {
+  workspaceId: string;
+  scope: "user" | "organization";
+  ownerId: string;
+}): Promise<boolean> {
+  const scope = await prisma.fileEvidenceScope.findUnique({
+    where: {
+      workspaceId_sourceKind_sourceScope_sourceId: {
+        workspaceId: input.workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope:
+          input.scope === "user"
+            ? FileSourceScope.USER
+            : FileSourceScope.ORGANIZATION,
+        sourceId: input.ownerId,
+      },
+    },
+    select: { backfilledAt: true },
+  });
+  return scope?.backfilledAt == null;
 }

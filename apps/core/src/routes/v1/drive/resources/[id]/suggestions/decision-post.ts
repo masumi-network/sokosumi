@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { conflict } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -91,6 +91,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (outcome.status === "conflict") {
       throw conflict("Updated elsewhere — review the changes");
+    }
+    // Only `conflict` was handled, so a `not-found` or `forbidden` outcome
+    // fell through to hydrate an empty list and `parse(undefined)` — a
+    // ZodError, surfacing as a 500 on the path the route documents as 404.
+    // Both answer the same way, so the response never confirms a suggestion
+    // exists to someone who may not act on it.
+    if (outcome.status !== "applied") {
+      throw notFound("Suggestion unavailable");
     }
 
     const resources = await loadLiveResources({

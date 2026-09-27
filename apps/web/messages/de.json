@@ -6315,7 +6315,7 @@
         "retry": "Erneut versuchen",
         "loadMore": "Mehr laden",
         "emptyTitle": "Hier erscheinen deine Dateien",
-        "emptyDescription": "Lade eine Datei hoch oder starte eine Aufgabe – deren Ergebnisse landen ebenfalls hier.",
+        "emptyDescription": "Lade eine Datei hoch und sie erscheint hier.",
         "noMatchesTitle": "Keine zugänglichen Treffer",
         "noMatchesDescription": "Formuliere es anders oder setze die Filter zurück.",
         "statusLoading": "Dateien werden geladen",

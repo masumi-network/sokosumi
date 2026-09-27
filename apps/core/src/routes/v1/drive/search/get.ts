@@ -14,7 +14,7 @@ import {
 } from "@/schemas/file-resource.schema";
 import {
   backfillDriveStore,
-  isDriveStoreUncatalogued,
+  isDriveStoreBackfillPending,
 } from "@/services/file-backfill.service";
 import { searchFiles } from "@/services/file-search.service";
 
@@ -88,14 +88,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizationId: query.organizationId,
     });
 
-    // A workspace that has never been catalogued is bootstrapped on its
-    // first visit, so files that predate this feature are findable without a
-    // separate migration run. Idempotent, bounded to one listing page, and
-    // it grants nothing: the Drive gate above already admitted this store.
+    // Objects that predate this feature are adopted on visits, so they are
+    // findable without a separate migration run. Bounded per visit and
+    // resumed from a stored cursor, so a store larger than one listing page
+    // finishes across several visits instead of stopping at its first 200.
+    // It grants nothing: the Drive gate above already admitted this store.
     if (
-      await isDriveStoreUncatalogued({
+      await isDriveStoreBackfillPending({
         workspaceId: context.workspaceId,
         scope: context.scope,
+        ownerId: context.ownerId,
       })
     ) {
       await backfillDriveStore({

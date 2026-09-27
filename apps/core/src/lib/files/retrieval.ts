@@ -126,9 +126,13 @@ function buildFiltersSql(filters: FileSearchFilters): PrismaRaw.Sql {
     )`);
   }
 
-  // Only metadata this actor can actually see may filter or order results.
-  // The scope join is what keeps a partial reader from narrowing a list with
-  // a label they were never allowed to know about.
+  // Metadata filters narrow an already-authorized set: every row these
+  // clauses can reach has passed `buildAuthorizedResourceSql` above.
+  //
+  // They do **not** join the evidence scope. An earlier comment here claimed
+  // the scope join stopped a partial reader narrowing a list with a label
+  // they were not allowed to know about; it does not, and `scopeVersion` is
+  // never advanced, so it could not. See the note in `evidence-scope.ts`.
   if (filters.categoryLabelIds?.length) {
     clauses.push(PrismaRaw.sql`EXISTS (
       SELECT 1 FROM file_label fl

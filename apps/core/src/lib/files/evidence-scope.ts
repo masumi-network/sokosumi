@@ -90,24 +90,27 @@ export async function ensureEvidenceScope(
 }
 
 /**
- * Advance a scope's version inside the same transaction as the canonical
- * mutation that changed who may read it. A scope version change invalidates
- * every derived field and every ranked session in that scope.
+ * `scopeVersion` is written once and never advanced. Read this before
+ * relying on it.
+ *
+ * There used to be an `advanceEvidenceScopeVersion` helper here, and three
+ * comments across the feature described a scope-invalidation layer built on
+ * it. Nothing ever called it, so the layer did not exist: the
+ * `fes.scopeVersion = fc.scopeVersion` join in retrieval never excluded a
+ * row, and `resolveScopeEpoch`'s sum and max components could only change
+ * when a scope row was added.
+ *
+ * The helper is deleted rather than wired, deliberately. Wiring it means
+ * calling it from every canonical mutation that changes who may read a
+ * store *and* adding the scope predicate to the label, project and hydrate
+ * queries — real work, and a half-wired version would be worse than none
+ * because it would look enforced.
+ *
+ * Nothing is unprotected in the meantime. Authorization is re-evaluated from
+ * the canonical source on every read: `loadLiveResources` runs on every
+ * page, and the task-visibility and membership checks are live SQL. What is
+ * missing is a defence-in-depth layer, not the defence.
  */
-export async function advanceEvidenceScopeVersion(
-  key: EvidenceScopeKey,
-  client: Prisma.TransactionClient = prisma,
-): Promise<void> {
-  await client.fileEvidenceScope.updateMany({
-    where: {
-      workspaceId: key.workspaceId,
-      sourceKind: key.sourceKind,
-      sourceScope: key.sourceScope,
-      sourceId: key.sourceId,
-    },
-    data: { scopeVersion: { increment: 1 } },
-  });
-}
 
 /**
  * The authorization predicate, as SQL, over `file_resource fr` joined to its

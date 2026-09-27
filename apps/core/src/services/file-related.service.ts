@@ -175,6 +175,21 @@ async function attachReasons(input: {
   });
   const seedProjects = new Set(seedLinks.map((link) => link.projectId));
 
+  // The seed's own confirmed tags. "Shares the tag X" used to render the
+  // *candidate's* first tag without checking the seed had it, so every
+  // related item with any tag carried a claim that was usually false.
+  const seedTags = new Set(
+    (
+      await prisma.fileLabel.findMany({
+        where: {
+          resourceId: input.seedId,
+          state: FileMetadataState.CONFIRMED,
+        },
+        select: { labelId: true },
+      })
+    ).map((label) => label.labelId),
+  );
+
   for (const item of input.items) {
     const shared = item.projects.find(
       (link) =>
@@ -186,9 +201,11 @@ async function attachReasons(input: {
       continue;
     }
 
-    const sharedTag = item.tags[0];
+    const sharedTag = item.tags.find((tag) => seedTags.has(tag.labelId));
     if (sharedTag) {
       item.relatedReason = `Shares the tag ${sharedTag.displayName}`;
     }
+    // No reason rather than a false one: a candidate can be related by
+    // content alone, and the list says so by staying quiet.
   }
 }

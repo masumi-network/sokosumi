@@ -30,6 +30,7 @@ import {
   type ReactElement,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -137,6 +138,7 @@ import {
 } from "@/lib/utils/drive-file-upload.client";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import type { FileStore } from "@/lib/utils/file-search.client";
 import {
   FILES_SORT_BY_VALUES,
   FILES_SORT_ORDER_VALUES,
@@ -399,6 +401,25 @@ function DrivePageWorkspace({
       : isBrowseView || isTasksView
         ? "browse"
         : "recents";
+  /**
+   * One stable object for the All files panel.
+   *
+   * It used to be an inline literal, so its identity changed on every
+   * render of this page — upload progress, the tasks-view search box, a
+   * dialog opening. The panel memoises its search on the store, so each of
+   * those re-ran the search and cleared the reader's bulk selection
+   * mid-edit.
+   */
+  const allFilesOrganizationId =
+    driveStore.scope === "org" ? driveStore.organizationId : null;
+  const allFilesStore = useMemo<FileStore>(
+    () =>
+      allFilesOrganizationId
+        ? { scope: "org", organizationId: allFilesOrganizationId }
+        : { scope: "me" },
+    [allFilesOrganizationId],
+  );
+
   const filesSortSelection = parseFilesSortSelection(
     driveNavQuery.sortBy,
     driveNavQuery.sortOrder,
@@ -1734,11 +1755,7 @@ function DrivePageWorkspace({
         />
       ) : isAllFilesView ? (
         <DriveAllFilesPanel
-          store={
-            driveStore.scope === "org"
-              ? { scope: "org", organizationId: driveStore.organizationId }
-              : { scope: "me" }
-          }
+          store={allFilesStore}
           viewMode={layoutMode}
           isMobile={isMobile}
           // Global search's "See all files" arrives with the query already

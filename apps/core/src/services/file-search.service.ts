@@ -349,9 +349,14 @@ export async function loadLiveResources(input: {
 }
 
 /**
- * Attach the metadata this reader may see. Only confirmed, in-scope labels
- * order or filter anything; suggestions are shown as suggestions, with the
- * extracted span that justifies them.
+ * Attach the metadata for resources this reader has already been authorized
+ * to see. Confirmed labels order and filter; suggestions are shown as
+ * suggestions, with the extracted span that justifies them.
+ *
+ * "In-scope" used to appear in this sentence. These queries filter on
+ * `resourceId` and `state`, with no scope predicate, so it was not true —
+ * what makes the result safe is that `loadLiveResources` re-checked every
+ * one of these resources through the authorization predicate first.
  */
 export async function hydrateResources(input: {
   resources: LiveResource[];

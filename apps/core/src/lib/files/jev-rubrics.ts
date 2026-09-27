@@ -93,6 +93,53 @@ export const RUBRICS: Record<JevRubricKey, readonly RubricRung[]> = {
 export const FILES_RANKING_MODEL = "typesafe-ai/jev";
 
 /**
+ * One boolean per vocabulary entry, asked in a single request.
+ *
+ * The suggestion path used to send one whole request per candidate label —
+ * up to 30 per document, each carrying the same 2,048-token excerpt, each
+ * with its own admission row and scheduler reservation. The contract this
+ * branch adopted is the one that makes that unnecessary: main's shipped
+ * classifier puts one boolean question per vocabulary entry in a single
+ * request, and that is what this builds.
+ *
+ * The question is phrased at the confident end deliberately. The ladder it
+ * replaces suggested at score ≥ 2 of 3; "clearly belongs" is the score-3
+ * rung, so the bar moves up rather than down.
+ */
+export function labelQuestions(
+  labels: readonly { id: string; name: string; description: string | null }[],
+): Record<string, { type: "boolean"; instructions: string }> {
+  return Object.fromEntries(
+    labels.map((label) => [
+      label.id,
+      {
+        type: "boolean" as const,
+        instructions: `${UNTRUSTED} Does the document clearly belong to the label "${label.name}"${
+          label.description ? ` (${label.description})` : ""
+        }? Answer false when unclear.`,
+      },
+    ]),
+  );
+}
+
+/** The envelope for a label call, which depends on how many labels it asks. */
+export function labelEnvelopeTokens(
+  labels: readonly { id: string; name: string; description: string | null }[],
+): number {
+  const envelope = JSON.stringify({
+    model: FILES_RANKING_MODEL,
+    state: {},
+    questions: labelQuestions(labels),
+    providerOptions: {
+      gateway: { zeroDataRetention: true, disallowPromptTraining: true },
+    },
+  });
+  let count = 0;
+  for (const _ of envelope) count += 1;
+  return count;
+}
+
+/**
  * Everything the transport wraps around the state, measured rather than
  * guessed.
  *

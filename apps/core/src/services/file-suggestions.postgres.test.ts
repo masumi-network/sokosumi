@@ -17,7 +17,7 @@ import {
   enqueueFileIndexJob,
   leaseNextFileIndexJob,
 } from "@/lib/files/index-jobs";
-import type { JevEvaluator } from "@/lib/files/jev-client";
+import type { JevLabelEvaluator } from "@/lib/files/jev-client";
 import { getJevScheduler } from "@/lib/files/jev-scheduler";
 import { writeVersionChunks } from "@/services/file-index.service";
 import { runSuggestionJob } from "@/services/file-suggestions.service";
@@ -51,15 +51,25 @@ let scopeId = "";
 let labelId = "";
 let resourceId = "";
 
-/** Answers every rung true, which is the top of the `belongs` ladder. */
-function evaluatorSaying(score: number): JevEvaluator & { calls: number } {
+/** Says yes to every label it is asked about, in one call. */
+function evaluatorChoosing(
+  chosen: "all" | "none",
+): JevLabelEvaluator & { calls: number; lastLabelCount: number } {
   const stub = {
     calls: 0,
-    async evaluate() {
+    lastLabelCount: 0,
+    async evaluateLabels(input: {
+      labels: readonly {
+        id: string;
+        name: string;
+        description: string | null;
+      }[];
+    }) {
       stub.calls += 1;
+      stub.lastLabelCount = input.labels.length;
       return {
         ok: true,
-        score,
+        chosen: chosen === "all" ? input.labels.map((label) => label.id) : [],
         reason: null,
         latencyMs: 1,
         inputTokens: 10,
@@ -69,7 +79,10 @@ function evaluatorSaying(score: number): JevEvaluator & { calls: number } {
       };
     },
   };
-  return stub;
+  return stub as unknown as JevLabelEvaluator & {
+    calls: number;
+    lastLabelCount: number;
+  };
 }
 
 /** Enqueued through the real helper, so the dedupe key is the real one. */
@@ -186,7 +199,7 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
     expect(leased).not.toBeNull();
     if (!leased) return;
 
-    const evaluator = evaluatorSaying(3);
+    const evaluator = evaluatorChoosing("all");
     const outcome = await runSuggestionJob(leased, {
       evaluator,
       configured: () => true,
@@ -209,7 +222,7 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
     expect(rows[0].evidenceSnippet).toContain("commuters");
   });
 
-  it("does not suggest below the threshold", async () => {
+  it("suggests nothing when the model says no", async () => {
     await queueSuggestionJob(2);
     const leased = await leaseNextFileIndexJob({
       pipeline: FileIndexJobPipeline.SUGGEST,
@@ -217,7 +230,7 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
     if (!leased) throw new Error("expected a job");
 
     const outcome = await runSuggestionJob(leased, {
-      evaluator: evaluatorSaying(1),
+      evaluator: evaluatorChoosing("none"),
       configured: () => true,
     });
 
@@ -225,6 +238,47 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
     await expect(
       prisma.fileLabel.count({ where: { resourceId } }),
     ).resolves.toBe(0);
+  });
+
+  it("asks about every candidate label in one call", async () => {
+    // Two labels in the workspace, so a per-label loop would make two
+    // requests. It must make one, carrying both.
+    const second = await prisma.workspaceLabel.create({
+      data: {
+        workspaceId,
+        kind: FileLabelKind.TAG,
+        displayName: "Cycling",
+        normalizedName: "cycling",
+        description: "Documents about cycling",
+      },
+      select: { id: true },
+    });
+
+    try {
+      await queueSuggestionJob(50);
+      const leased = await leaseNextFileIndexJob({
+        pipeline: FileIndexJobPipeline.SUGGEST,
+      });
+      if (!leased) throw new Error("expected a job");
+
+      const evaluator = evaluatorChoosing("all");
+      const outcome = await runSuggestionJob(leased, {
+        evaluator,
+        configured: () => true,
+      });
+
+      expect(evaluator.calls).toBe(1);
+      expect(evaluator.lastLabelCount).toBe(2);
+      expect(outcome.suggested).toBe(2);
+
+      // One admission for one request, not one per label.
+      await expect(
+        prisma.fileAuthorizationAdmission.count({ where: { workspaceId } }),
+      ).resolves.toBe(1);
+    } finally {
+      await prisma.fileLabel.deleteMany({ where: { resourceId } });
+      await prisma.workspaceLabel.deleteMany({ where: { id: second.id } });
+    }
   });
 
   it("does not report a local denial to the provider breaker", async () => {
@@ -241,7 +295,7 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
       });
       if (!leased) throw new Error("expected a job");
       await runSuggestionJob(leased, {
-        evaluator: evaluatorSaying(3),
+        evaluator: evaluatorChoosing("all"),
         configured: () => true,
       });
       await prisma.fileLabel.deleteMany({ where: { resourceId } });

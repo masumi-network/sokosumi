@@ -166,6 +166,7 @@ export async function rerankFileCandidates(
         });
         if (!decision.admitted) return { failed: `quota:${decision.reason}` };
 
+        let settled = false;
         try {
           const admission = await admit({
             workspaceId: input.workspaceId,
@@ -194,15 +195,32 @@ export async function rerankFileCandidates(
             return { failed: "admission-expired" };
           }
 
+          /**
+           * Bound the call by what is left of the rank deadline.
+           *
+           * `RANK_DEADLINE_MS` was only checked *between* waves while each
+           * call got a flat 2 s, so a first wave that ran to its timeout
+           * burned ~2 s of a user-facing search — and then the deadline
+           * check threw the whole reorder away. Six paid calls and two
+           * seconds of waiting, for the deterministic order the reader
+           * would have had for free.
+           */
+          const remaining = Math.max(0, deadline - clock());
           const outcome = await evaluator.evaluate({
             request,
             // Related pairs carry seed passages and no query, so they are
             // judged by the seed-based rungs. Asking the query rungs about
             // a request with no query was the defect here.
             rubric: isRelated ? "relatedness" : "relevance",
+            signal: AbortSignal.timeout(remaining),
           });
 
+          // Settled before the record is written, and marked so the catch
+          // below cannot settle it a second time: a double settle
+          // decrements `inFlight` twice (over-admitting later) and adds a
+          // breaker sample for one call.
           scheduler.settle(outcome.ok ? "ok" : "failed");
+          settled = true;
           await recordDispatch({
             admissionId: admission.id,
             outcome: outcome.ok ? "scored" : (outcome.reason ?? "failed"),
@@ -214,7 +232,7 @@ export async function rerankFileCandidates(
 
           return { resourceId: candidate.resourceId, score: outcome.score };
         } catch {
-          scheduler.settle("failed");
+          if (!settled) scheduler.settle("failed");
           return { failed: "evaluation:threw" };
         }
       }),

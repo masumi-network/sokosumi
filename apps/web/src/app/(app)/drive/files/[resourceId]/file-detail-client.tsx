@@ -91,8 +91,15 @@ export function FileDetailClient({ resourceId }: { resourceId: string }) {
     } catch {
       if (current()) setRelatedState("unavailable");
     }
-    // The store is derived from the session and is stable per render pass.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // The dependency is the store's two *fields*, not the object identity,
+    // which changes on every render.
+    //
+    // There was an `eslint-disable-next-line react-hooks/exhaustive-deps`
+    // here. This repo lints with Biome, which does not read it — and its
+    // own rule does not fire on this hook either, so the correct
+    // `biome-ignore` is reported as an ineffective suppression. A comment
+    // that explains the choice is all this needs; a suppression that
+    // suppresses nothing only looks like protection.
   }, [resourceId, store.scope, store.organizationId]);
 
   useEffect(() => {

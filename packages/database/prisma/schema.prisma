@@ -4917,6 +4917,16 @@ model FileEvidenceScope {
   /// A change invalidates derived metadata and ranked sessions in this scope.
   scopeVersion Int @default(1)
 
+  /// Where the adoption of pre-existing Drive objects got to.
+  ///
+  /// Backfill used to run only when a store had *zero* catalog rows and read
+  /// one 200-object page, so a larger store permanently exposed its first 200
+  /// files and a store with any new upload was never backfilled at all. The
+  /// cursor lets it resume across visits; `backfilledAt` is set once the
+  /// listing reports no more pages.
+  backfillCursor String?
+  backfilledAt   DateTime?
+
   chunks    FileChunk[]
   labels    FileLabel[]
   links     FileProjectLink[]

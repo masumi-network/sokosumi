@@ -36,13 +36,17 @@ import {
  * tags let the reader choose any or all.
  */
 
-const SOURCE_KINDS = [
-  "DRIVE_UPLOAD",
-  "TASK_OUTPUT",
-  "PROJECT_DOCUMENT",
-  "NATIVE_TABLE",
-  "STUDIO_ASSET",
-] as const;
+/**
+ * Only the sources the catalog actually holds.
+ *
+ * All five kinds were offered, and four of them could never match: nothing
+ * on this branch creates a `FileResource` with a `sourceKind` other than
+ * `DRIVE_UPLOAD`. A filter that always returns nothing is worse than an
+ * absent one — the reader concludes they have no task outputs rather than
+ * that the feature does not index them yet. They come back as each source
+ * is indexed.
+ */
+const SOURCE_KINDS = ["DRIVE_UPLOAD"] as const;
 
 const TYPE_FAMILIES = ["document", "image", "data", "video", "audio"] as const;
 

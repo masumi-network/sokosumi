@@ -19,7 +19,7 @@ import {
   leaseNextFileIndexJob,
 } from "@/lib/files/index-jobs";
 import { admitJevRequest, recordJevDispatch } from "@/lib/files/jev-admission";
-import type { JevEvaluator } from "@/lib/files/jev-client";
+import type { JevLabelEvaluator } from "@/lib/files/jev-client";
 import { gatewayJevEvaluator, isJevConfigured } from "@/lib/files/jev-client";
 import {
   buildJevLabelRequest,
@@ -48,6 +48,14 @@ import { getJevScheduler } from "@/lib/files/jev-scheduler";
 /** Labels one request may ask about, so the shortlist is deterministic. */
 export const SUGGESTION_VOCABULARY_MAX = 30;
 /** Score at or above which a suggestion is worth showing at all. */
+/**
+ * Kept for the record rather than used.
+ *
+ * Suggestions used to come from a 0–3 ladder with this as the bar. One call
+ * for the whole shortlist asks a single boolean per label, phrased at the
+ * confident end — "clearly belongs", the old score-3 rung — so the bar moved
+ * up, not down.
+ */
 export const SUGGESTION_MIN_SCORE = 2;
 
 export interface SuggestionRunOutcome {
@@ -58,7 +66,7 @@ export interface SuggestionRunOutcome {
 export async function runSuggestionJob(
   leased: LeasedFileIndexJob,
   dependencies: {
-    evaluator?: JevEvaluator;
+    evaluator?: JevLabelEvaluator;
     configured?: () => boolean;
   } = {},
 ): Promise<SuggestionRunOutcome> {
@@ -187,63 +195,92 @@ export async function runSuggestionJob(
     kind: "worker",
   };
 
-  // One bounded request per candidate label. The rubric is a short ladder of
-  // boolean questions, so a reply is a set of booleans we can validate and
-  // place on the 0-3 scale, not prose to parse.
-  for (const entry of shortlist) {
-    const request = buildJevLabelRequest({
-      documentExcerpt: excerpt,
-      vocabulary: [
-        {
-          id: entry.id,
-          name: entry.displayName,
-          description: entry.description,
-        },
-      ],
-      projects: [],
-    });
-    if (isJevRequestRejection(request)) continue;
+  /**
+   * One request for the whole shortlist.
+   *
+   * This was one request per candidate label — up to 30 per document, each
+   * carrying the same 2,048-token excerpt, each with its own admission row
+   * and scheduler reservation. The background bucket holds three, so the
+   * loop reliably ran out of quota part-way and completed the job anyway,
+   * silently leaving the document partly labelled. One call asks about
+   * every label at once, and a quota refusal now requeues instead of
+   * pretending the work is done.
+   */
+  const request = buildJevLabelRequest({
+    documentExcerpt: excerpt,
+    vocabulary: shortlist.map((entry) => ({
+      id: entry.id,
+      name: entry.displayName,
+      description: entry.description,
+    })),
+    projects: [],
+  });
+  if (isJevRequestRejection(request)) {
+    await completeFileIndexJob({ jobId: job.id, leaseOwner });
+    return { suggested: 0, skipped: "request-too-large" };
+  }
 
-    const decision = scheduler.tryAdmit({
-      workspaceId: resource.workspaceId,
-      workClass: "background",
-      inputTokens: request.tokens,
+  const decision = scheduler.tryAdmit({
+    workspaceId: resource.workspaceId,
+    workClass: "background",
+    inputTokens: request.tokens,
+  });
+  if (!decision.admitted) {
+    // Quota, not a verdict. Leave the job to be picked up again rather than
+    // completing a document nothing has looked at.
+    await failFileIndexJob({
+      jobId: job.id,
+      leaseOwner,
+      attempt: job.attempt,
+      error: `suggestion quota: ${decision.reason}`,
     });
-    if (!decision.admitted) break;
+    return { suggested: 0, skipped: `quota:${decision.reason}` };
+  }
 
-    const admission = await admitJevRequest({
+  const admission = await admitJevRequest({
+    workspaceId: resource.workspaceId,
+    actor: workerActor,
+    purpose: "label-suggest",
+    payloadDigest: request.digest,
+    inputTokens: request.tokens,
+    model,
+    preparedEpoch: await resolveScopeEpoch({
       workspaceId: resource.workspaceId,
       actor: workerActor,
-      purpose: "label-suggest",
-      payloadDigest: request.digest,
-      inputTokens: request.tokens,
-      model,
-      preparedEpoch: await resolveScopeEpoch({
-        workspaceId: resource.workspaceId,
-        actor: workerActor,
-      }),
-    });
-    if (!admission) {
-      // Local refusal, not a provider failure: give the slot back without
-      // telling the breaker anything.
-      scheduler.release();
-      break;
-    }
+    }),
+  });
+  if (!admission) {
+    // Local refusal, not a provider failure: give the slot back without
+    // telling the breaker anything.
+    scheduler.release();
+    await completeFileIndexJob({ jobId: job.id, leaseOwner });
+    return { suggested: 0, skipped: "admission-denied" };
+  }
 
-    const outcome = await evaluator.evaluate({
-      request,
-      rubric: "belongs",
-    });
-    scheduler.settle(outcome.ok ? "ok" : "failed");
-    await recordJevDispatch({
-      admissionId: admission.id,
-      outcome: outcome.ok ? "scored" : (outcome.reason ?? "failed"),
-    });
+  const verdict = await evaluator.evaluateLabels({
+    request,
+    labels: shortlist.map((entry) => ({
+      id: entry.id,
+      name: entry.displayName,
+      description: entry.description,
+    })),
+  });
+  scheduler.settle(verdict.ok ? "ok" : "failed");
+  await recordJevDispatch({
+    admissionId: admission.id,
+    outcome: verdict.ok ? "scored" : (verdict.reason ?? "failed"),
+  });
 
-    if (!outcome.ok || outcome.score === null) continue;
-    if (outcome.score < SUGGESTION_MIN_SCORE) continue;
+  if (!verdict.ok) {
+    await completeFileIndexJob({ jobId: job.id, leaseOwner });
+    return { suggested: 0, skipped: verdict.reason ?? "evaluation-failed" };
+  }
 
-    const evidence = resource.versions[0].chunks[0];
+  const chosen = new Set(verdict.chosen);
+  const evidence = resource.versions[0].chunks[0];
+
+  for (const entry of shortlist) {
+    if (!chosen.has(entry.id)) continue;
 
     await prisma.fileLabel.upsert({
       where: {

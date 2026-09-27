@@ -423,3 +423,116 @@ describe("the availability probe", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("the signal it honours", () => {
+  it("composes a caller's signal with its own timeout rather than replacing it", async () => {
+    // `signal ?? timeout` removed the only bound on the fetch for any caller
+    // that passed one. Nothing did yet, so nothing was broken — and the
+    // first caller to pass a request-abort signal would have removed it
+    // silently. P2-11 added exactly such a caller.
+    fetchMock.mockImplementation(
+      (_url: string, init: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          init.signal.addEventListener("abort", () =>
+            reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
+          );
+        }),
+    );
+
+    const controller = new AbortController();
+    const pending = gatewayJevEvaluator.evaluate({
+      request,
+      rubric: "relevance",
+      signal: controller.signal,
+    });
+    controller.abort();
+
+    const outcome = await pending;
+    expect(outcome.ok).toBe(false);
+    // The caller's abort reached the fetch, so the composed signal is live.
+    expect(outcome.reason).toBe("unreachable");
+  });
+});
+
+describe("asking about many labels at once", () => {
+  function labels() {
+    return [
+      { id: "label-1", name: "Commuting", description: "About commuting" },
+      { id: "label-2", name: "Cycling", description: null },
+    ];
+  }
+
+  function labelReply(answers: Record<string, unknown>) {
+    return {
+      ok: true,
+      json: async () => ({
+        model: MODEL,
+        answers,
+        usage: { inputTokens: 40, outputTokens: 3 },
+        providerMetadata: { gateway: {} },
+      }),
+    } as unknown as Response;
+  }
+
+  it("sends one question per label in one request", async () => {
+    fetchMock.mockResolvedValue(
+      labelReply({ "label-1": true, "label-2": false }),
+    );
+
+    const verdict = await gatewayJevEvaluator.evaluateLabels({
+      request,
+      labels: labels(),
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(Object.keys(sentBody().questions).sort()).toEqual([
+      "label-1",
+      "label-2",
+    ]);
+    expect(verdict.ok).toBe(true);
+    expect(verdict.chosen).toEqual(["label-1"]);
+  });
+
+  it("names the label in its question so the model knows what it is judging", async () => {
+    fetchMock.mockResolvedValue(
+      labelReply({ "label-1": false, "label-2": false }),
+    );
+
+    await gatewayJevEvaluator.evaluateLabels({ request, labels: labels() });
+
+    const questions = sentBody().questions;
+    expect(questions["label-1"].instructions).toContain("Commuting");
+    expect(questions["label-1"].instructions).toContain("About commuting");
+    expect(questions["label-1"].instructions).toContain("untrusted data");
+    // Asked at the confident end: this replaces the old score-3 rung.
+    expect(questions["label-1"].instructions).toContain("clearly belong");
+  });
+
+  it("refuses a reply that skipped a label rather than reading it as no", async () => {
+    fetchMock.mockResolvedValue(labelReply({ "label-1": true }));
+
+    const verdict = await gatewayJevEvaluator.evaluateLabels({
+      request,
+      labels: labels(),
+    });
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.chosen).toEqual([]);
+    expect(verdict.reason).toBe("invalid-answers");
+  });
+
+  it("still asks for retention, and still fails closed", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+    } as unknown as Response);
+
+    const verdict = await gatewayJevEvaluator.evaluateLabels({
+      request,
+      labels: labels(),
+    });
+
+    expect(verdict.reason).toBe("provider-options-rejected");
+    expect(isJevProviderLatched()).toBe(true);
+  });
+});

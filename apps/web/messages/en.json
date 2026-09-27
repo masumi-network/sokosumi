@@ -6315,7 +6315,7 @@
         "retry": "Retry",
         "loadMore": "Load more",
         "emptyTitle": "Your files will appear here",
-        "emptyDescription": "Upload a file, or run a task — its outputs land here too.",
+        "emptyDescription": "Upload a file and it will appear here.",
         "noMatchesTitle": "No accessible matches",
         "noMatchesDescription": "Try a different wording, or clear the filters.",
         "statusLoading": "Loading files",
