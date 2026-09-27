@@ -241,7 +241,7 @@ Developer setup on Preprod:
   4. Create the runtime key: sokosumi --preprod coworkers api-key COWORKER_ID --json
 
 Organizer setup on Preprod (platform admin):
-  Create the shared Workspace and invite developers in Sokosumi Web.
+  Select an organization Workspace and invite the intended developers in Sokosumi Web.
   Ask each developer for their Vendor ID and final Coworker name, then run:
   sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks
   Give the returned Coworker ID to that developer.

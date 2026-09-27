@@ -10,9 +10,9 @@ Private workspace package `@sokosumi/cli`; package path `apps/cli`; binary `soko
 
 [REPORTED: user decision, 2026-09-25] Start with one existing agent per developer on Preprod.
 
-1. A platform admin creates one shared organization Workspace and invites the developers.
+1. An organizer selects an organization Workspace and invites the intended developers.
 2. Each developer creates their own Vendor. The admin provisions one private Coworker under that Vendor and returns its ID.
-3. The developer connects that Coworker to the shared Workspace and creates their own `coworker_*` runtime key.
+3. The developer connects that Coworker to the selected Workspace and creates their own `coworker_*` runtime key.
 4. Each developer completes a real Task and proves receipt of a Preprod payment.
 
 [OPEN] Payment receipt has not been verified. The detailed [hackathon track](docs/developer-cli-implementation-plan.md#hackathon-track) lists the remaining blockers.
@@ -20,7 +20,11 @@ Private workspace package `@sokosumi/cli`; package path `apps/cli`; binary `soko
 ### Organizer setup
 
 [VERIFIED: source only] Web has Workspace creation and developer invitations.
-Use the Workspace switcher to create the shared organization, then invite the developers.
+Use the Workspace switcher to create or select the organization, then invite the intended developers.
+
+[CORRECTION, VERIFIED: `src/cli/registration-authority.ts:53-71`, `../../CONTEXT.md:250-254`]
+The earlier shared-Workspace wording described the pilot setup. The CLI accepts any selected organization in the caller's memberships.
+A shared organization has a shared credit pool. A Seat does not give each developer a separate credit allowance.
 See the [creation wizard](../web/src/components/organizations/create-organization-wizard/create-organization-wizard.tsx)
 and [invitation form](../web/src/components/organizations/organization-member-invite/form.tsx).
 
