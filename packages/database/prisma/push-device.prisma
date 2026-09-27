@@ -21,6 +21,7 @@ model PushDeviceRegistration {
   channel   String
   deviceId  String
   consentId String @db.Uuid
+  revision  Int    @default(0)
 
   consent PushDeviceConsent @relation(fields: [consentId], references: [id], onDelete: Cascade)
 

@@ -17,6 +17,7 @@ CREATE TABLE "push_device_registration" (
     "channel" TEXT NOT NULL,
     "deviceId" TEXT NOT NULL,
     "consentId" UUID NOT NULL,
+    "revision" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "push_device_registration_pkey" PRIMARY KEY ("channel","deviceId")
 );
