@@ -155,7 +155,7 @@ describe("stripXmlTags", () => {
 describe("extractOoxmlText", () => {
   it("reads a Word document in order", async () => {
     const bytes = await buildDocx(["First paragraph.", "Second paragraph."]);
-    const text = await extractOoxmlText(bytes, "docx");
+    const text = (await extractOoxmlText(bytes, "docx"))?.text;
 
     expect(text).toContain("First paragraph.");
     expect(text).toContain("Second paragraph.");
@@ -165,7 +165,7 @@ describe("extractOoxmlText", () => {
   it("reads slides in numeric order, not lexical", async () => {
     const slides = Array.from({ length: 11 }, (_, i) => `Slide ${i + 1} body`);
     const bytes = await buildPptx(slides);
-    const text = await extractOoxmlText(bytes, "pptx");
+    const text = (await extractOoxmlText(bytes, "pptx"))?.text;
 
     // "slide10.xml" sorts before "slide2.xml" as a string; it must not here.
     expect(text?.indexOf("Slide 2 body")).toBeLessThan(
@@ -201,7 +201,20 @@ describe("extractOoxmlText", () => {
     // Compresses to a tiny archive, which is the whole danger.
     expect(bytes.byteLength).toBeLessThan(200_000);
 
-    expect(await extractOoxmlText(bytes, "docx")).toBeNull();
+    /**
+     * It yields no text, and it now says why rather than returning a bare
+     * `null`. The distinction matters at the caller: `null` is reported as
+     * "could not be unpacked. It may be encrypted or damaged", and this
+     * archive is neither — it is one oversized part. Telling somebody
+     * their file is damaged sends them to repair a file that is fine.
+     */
+    const outcome = await extractOoxmlText(bytes, "docx");
+
+    expect(outcome).not.toBeNull();
+    expect(outcome?.text).toBe("");
+    expect(outcome?.shortfall).toBe("part-bytes");
+    expect(outcome?.truncated).toBe(true);
+    expect(outcome?.coverage).toBe(0);
   });
 });
 
@@ -342,10 +355,13 @@ describe("bounds that cannot be computed from what the archive claims", () => {
     expect(archive.byteLength).toBeLessThan(1024 * 1024);
 
     const before = process.memoryUsage().heapUsed;
-    const text = await extractOoxmlText(archive, "docx");
+    const outcome = await extractOoxmlText(archive, "docx");
     const spent = process.memoryUsage().heapUsed - before;
 
-    expect(text).toBeNull();
+    // No text, and the cap that stopped it is named rather than the
+    // document being reported as damaged.
+    expect(outcome?.text).toBe("");
+    expect(outcome?.shortfall).toBe("part-bytes");
     // The part cap is 8 MiB; inflating the real 128 MiB would cost at least
     // an order of magnitude more than this ceiling.
     expect(spent).toBeLessThan(48 * 1024 * 1024);
@@ -361,7 +377,15 @@ describe("bounds that cannot be computed from what the archive claims", () => {
     );
     const bytes = await zip.generateAsync({ type: "uint8array" });
 
-    expect(await extractOoxmlText(bytes, "docx")).toContain("Honest content");
+    const outcome = await extractOoxmlText(bytes, "docx");
+
+    expect(outcome?.text).toContain("Honest content");
+    // And it is reported as complete, which is the other half: a coverage
+    // signal that fires on healthy documents is as useless as one that
+    // never fires.
+    expect(outcome?.truncated).toBe(false);
+    expect(outcome?.coverage).toBe(1);
+    expect(outcome?.shortfall).toBeNull();
   });
 
   it("strips a part full of bare ampersands in linear time", async () => {
@@ -380,4 +404,145 @@ describe("bounds that cannot be computed from what the archive claims", () => {
     // magnitude rather than measuring the machine.
     expect(elapsed).toBeLessThan(10_000);
   }, 120_000);
+});
+
+describe("what the caps discarded reaches the caller", () => {
+  /**
+   * The arm reported a quiet lie for as long as it existed.
+   *
+   * `extractOoxmlText` returned a bare string, and the caller passed it to
+   * `resultFromText` with no `source`, which defaults to
+   * `{ truncated: false, coverage: 1 }`. So any of the four caps here could
+   * discard content and the document was still recorded INDEXED at coverage
+   * 1.0 with no reason. Measured on a 400-slide deck at the tip: last slide
+   * read was 200, state INDEXED, coverage 1, reason null. Half the deck
+   * unsearchable while the interface said it was complete.
+   *
+   * That is the same failure `resultFromText`'s own docstring describes for
+   * the PDF arm, which is why the PDF arm passes a `source` and this one
+   * now does too.
+   */
+
+  it("reports half a deck as half, not as complete", async () => {
+    // Twice the enumerated-part cap. Every slide is real and numbered from
+    // one, so this is an ordinary large deck rather than a malformed file.
+    const slides = Array.from(
+      { length: 400 },
+      (_, index) => `Slide ${index + 1} body`,
+    );
+
+    const outcome = await extractOoxmlText(await buildPptx(slides), "pptx");
+
+    expect(outcome?.text).toContain("Slide 200 body");
+    expect(outcome?.text).not.toContain("Slide 201 body");
+    expect(outcome?.truncated).toBe(true);
+    expect(outcome?.shortfall).toBe("parts");
+    // 200 of 400 parts. Not 1.
+    expect(outcome?.coverage).toBeCloseTo(0.5, 5);
+  }, 60_000);
+
+  it("measures coverage against the document, not against what survived", async () => {
+    /**
+     * The subtle half, and the one worth stating precisely.
+     *
+     * A part longer than `MAX_TOTAL_CHARS` is sliced. If the denominator
+     * were the text that came out, the ratio would be 1,000,000/1,000,000
+     * and the truncation would round away to "complete". The denominator
+     * has to be what the part actually held.
+     *
+     * This is not hypothetical arithmetic: a 1.4M-character .docx was
+     * reported at coverage 0.6843, which was the *chunk* cap firing by
+     * accident, measured over the million characters that survived. True
+     * coverage is about 0.49. Computing this factor correctly is what
+     * turns the accident into the answer.
+     */
+    const held = 1_400_000;
+    const zip = new JSZip();
+    zip.file("word/document.xml", `<w:t>${"q".repeat(held)}</w:t>`);
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+
+    const outcome = await extractOoxmlText(bytes, "docx");
+
+    expect(outcome?.text).toHaveLength(1_000_000);
+    expect(outcome?.shortfall).toBe("chars");
+    // 1,000,000 of 1,400,000 — the ratio the document implies, not the
+    // ratio the output implies.
+    expect(outcome?.coverage).toBeCloseTo(1_000_000 / held, 4);
+    expect(outcome?.coverage).toBeLessThan(0.72);
+  }, 120_000);
+
+  it("says nothing was lost when nothing was", async () => {
+    // A signal that fires on healthy documents is as useless as one that
+    // never fires, so both directions are pinned.
+    const outcome = await extractOoxmlText(
+      await buildPptx(["One", "Two", "Three"]),
+      "pptx",
+    );
+
+    expect(outcome?.truncated).toBe(false);
+    expect(outcome?.shortfall).toBeNull();
+    expect(outcome?.coverage).toBe(1);
+  });
+});
+
+describe("parts are found by name, not by enumerating the archive", () => {
+  /**
+   * `MAX_ENUMERATED_PARTS` was applied as `.slice(0, 200)` *after*
+   * `Object.keys(zip.files).filter(...).sort(...)` over every entry in the
+   * archive. It bounded how many parts were read and not the cost of
+   * deciding which — the thing this module's header calls "a check that
+   * runs once the memory is already spent", two paragraphs above the code
+   * doing it. The header also claims only named parts are read, which was
+   * not true.
+   *
+   * Measured on an archive of 300,000 matching entries: selecting cost
+   * 180 ms of synchronous work in the API process, and 29 ms at 60,000.
+   * Probing by name is 0 ms at both.
+   *
+   * Worth recording honestly: that is not where most of the time goes.
+   * `JSZip.loadAsync` on the same archives costs 334 ms and 1,603 ms, and
+   * this change does not touch it. The selection was the part that was
+   * ours to bound.
+   */
+
+  it("reads the contiguous run and ignores a crowd of decoys", async () => {
+    const zip = new JSZip();
+    for (let index = 1; index <= 5; index += 1) {
+      zip.file(`ppt/slides/slide${index}.xml`, `<a:t>Real ${index}</a:t>`);
+    }
+    // Entries the old prefix filter matched and read: numbered far away,
+    // so a numeric sort placed them after the real slides and they
+    // consumed 195 of the 200 read slots.
+    for (let index = 0; index < 2_000; index += 1) {
+      zip.file(`ppt/slides/slide${900_000 + index}.xml`, "<a:t>Decoy</a:t>");
+    }
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+
+    const outcome = await extractOoxmlText(bytes, "pptx");
+
+    expect(outcome?.text).toContain("Real 5");
+    expect(outcome?.text).not.toContain("Decoy");
+    // And the decoys do not drag coverage down either: they are not parts
+    // of this document, so they are in neither the numerator nor the
+    // denominator.
+    expect(outcome?.coverage).toBe(1);
+    expect(outcome?.shortfall).toBeNull();
+  }, 120_000);
+
+  it("steps over a gap rather than stopping at it", async () => {
+    // Every producer numbers from 1 with no gaps, but an edited archive
+    // need not, and stopping at the first miss would read less than the
+    // enumeration did. The lookahead is why this is a replacement rather
+    // than a narrowing.
+    const zip = new JSZip();
+    for (const index of [1, 2, 5, 6]) {
+      zip.file(`ppt/slides/slide${index}.xml`, `<a:t>Slide ${index}</a:t>`);
+    }
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+
+    const outcome = await extractOoxmlText(bytes, "pptx");
+
+    expect(outcome?.text).toContain("Slide 1");
+    expect(outcome?.text).toContain("Slide 6");
+  });
 });

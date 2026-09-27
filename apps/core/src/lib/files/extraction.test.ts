@@ -1,6 +1,6 @@
 import { FileExtractionState } from "@sokosumi/database";
+import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
-
 import {
   chunkExtractedText,
   classifyExtraction,
@@ -10,6 +10,7 @@ import {
   FILE_EXTRACTOR_VERSION,
   normalizeExtractedText,
 } from "./extraction";
+
 import { buildPdfFixture } from "./pdf-fixture";
 
 const encoder = new TextEncoder();
@@ -259,4 +260,119 @@ describe("a PDF goes through the same tail as every other document", () => {
     },
     TIMEOUT,
   );
+});
+
+const PPTX =
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+const DOCX =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+describe("an OOXML document says what it did not read", () => {
+  it("records half a deck as PARTIAL, not as fully indexed", async () => {
+    /**
+     * The end-to-end shape of the lie, at the boundary a person sees.
+     *
+     * The arm called `resultFromText(text)` with no `source`, which
+     * defaults to `{ truncated: false, coverage: 1 }`, so every cap in
+     * `ooxml.ts` was invisible here. A 400-slide deck — training
+     * material, a generated report pack, an ordinary conference deck —
+     * was recorded INDEXED at coverage 1.0 with no reason while slides
+     * 201 to 400 were never opened and could not be found by search.
+     */
+    const zip = new JSZip();
+    for (let index = 1; index <= 400; index += 1) {
+      zip.file(
+        `ppt/slides/slide${index}.xml`,
+        `<p:sld><a:t>Pellucid slide ${index}</a:t></p:sld>`,
+      );
+    }
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+
+    const result = await extractDocumentAsync({
+      bytes,
+      mimeType: PPTX,
+      displayName: "deck.pptx",
+    });
+
+    expect(result.state).toBe(FileExtractionState.PARTIAL);
+    expect(result.coverage).toBeCloseTo(0.5, 5);
+    expect(result.reason).not.toBeNull();
+
+    const text = result.chunks.map((chunk) => chunk.text).join("");
+    expect(text).toContain("Pellucid slide 200");
+    expect(text).not.toContain("Pellucid slide 201");
+  }, 120_000);
+
+  it("does not call a text-dense document damaged", async () => {
+    /**
+     * Four parts each over the per-part cap exhaust the whole document
+     * budget, everything after them is refused, and the extractor yields
+     * no text. That used to arrive as `null` and be reported as "could
+     * not be unpacked. It may be encrypted or damaged."
+     *
+     * The document is neither encrypted nor damaged. Telling somebody
+     * their file is corrupt sends them to repair a file that is fine,
+     * which is worse than telling them nothing.
+     */
+    const zip = new JSZip();
+    for (let index = 1; index <= 8; index += 1) {
+      zip.file(
+        `ppt/slides/slide${index}.xml`,
+        `<a:t>${"A".repeat(9 * 1024 * 1024)}</a:t>`,
+      );
+    }
+    const bytes = await zip.generateAsync({
+      type: "uint8array",
+      compression: "DEFLATE",
+    });
+
+    const result = await extractDocumentAsync({
+      bytes,
+      mimeType: PPTX,
+      displayName: "dense.pptx",
+    });
+
+    expect(result.state).toBe(FileExtractionState.UNSUPPORTED);
+    expect(result.reason).not.toMatch(/encrypted|damaged/iu);
+    expect(result.reason).toMatch(/larger than the reader will unpack/iu);
+  }, 180_000);
+
+  it("still calls a genuinely wrong archive what it is", async () => {
+    // The other direction: `null` is still the answer when the archive is
+    // not the document it claims to be, and the old wording is right for
+    // that case.
+    const zip = new JSZip();
+    zip.file("unrelated.xml", "<x>hello</x>");
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+
+    const result = await extractDocumentAsync({
+      bytes,
+      mimeType: DOCX,
+      displayName: "wrong.docx",
+    });
+
+    expect(result.state).toBe(FileExtractionState.UNSUPPORTED);
+    expect(result.reason).toMatch(/encrypted or damaged/iu);
+  });
+
+  it("leaves an ordinary deck fully indexed", async () => {
+    const zip = new JSZip();
+    for (let index = 1; index <= 12; index += 1) {
+      zip.file(
+        `ppt/slides/slide${index}.xml`,
+        `<p:sld><a:t>Ordinary slide ${index}</a:t></p:sld>`,
+      );
+    }
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+
+    const result = await extractDocumentAsync({
+      bytes,
+      mimeType: PPTX,
+      displayName: "small.pptx",
+    });
+
+    expect(result.state).toBe(FileExtractionState.INDEXED);
+    expect(result.coverage).toBe(1);
+    expect(result.reason).toBeNull();
+  });
 });

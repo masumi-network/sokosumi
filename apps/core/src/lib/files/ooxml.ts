@@ -20,11 +20,40 @@ import JSZip from "jszip";
  *
  * Extraction runs over reader-supplied bytes, so every loop here is capped —
  * and, learned the hard way, **no cap may be computed from a number the
- * archive supplies**:
+ * archive supplies**.
  *
- * - only **named** parts are read, never every entry in the archive, so a
- *   zip with a million members costs one lookup each for the parts we want;
- *   slide and worksheet parts are enumerated but capped by count;
+ * ### The rule a new cap has to satisfy
+ *
+ * **A bound must be enforced before the work it bounds, not after.** Stated
+ * once here because the same defect has now been found three times in this
+ * feature, in three files, wearing three different costumes:
+ *
+ * 1. the *declared* uncompressed size read from the ZIP central directory —
+ *    a number the attacker writes — checked before an inflate that then ran
+ *    to completion anyway;
+ * 2. `MAX_ENUMERATED_PARTS` applied as `.slice(0, 200)` after enumerating,
+ *    filtering and sorting every entry in the archive, which bounded how
+ *    many parts were read and not the cost of choosing them;
+ * 3. `pdf.ts` checking its character cap after `getTextContent()`, which
+ *    materialises every text item on the page before the cap can be
+ *    consulted.
+ *
+ * Each one passed review, and each one is the same sentence: a post-check is
+ * a check that runs once the memory is already spent. The test for a new cap
+ * is not "does it return the right answer" but "can the work it forbids
+ * still happen before it says no".
+ *
+ * ### The caps themselves
+ *
+ * - only **named** parts are read, never every entry in the archive. Slide
+ *   and worksheet parts are found by *probing* `slide1`, `slide2` and so on
+ *   by name up to the cap, so a zip with a million members costs one lookup
+ *   each for the parts we want. This is instance 2 above, fixed: selecting
+ *   by enumeration cost 180 ms of synchronous API-process work on an archive
+ *   of 300,000 matching entries, against 0 ms for the probe. `loadAsync`
+ *   itself still costs 1,603 ms on that archive and this does not address
+ *   it — that cost belongs to jszip's central-directory parse, and it is
+ *   bounded only by `FILE_EXTRACTION_MAX_BYTES`;
  * - each part is inflated through a **streaming budget** and abandoned the
  *   moment the bytes actually received pass `MAX_PART_BYTES`. An earlier
  *   version checked the *declared* uncompressed size from the ZIP central
@@ -34,6 +63,18 @@ import JSZip from "jszip";
  *   whole process and its co-tenant requests with it;
  * - `MAX_DOCUMENT_BYTES` bounds the *sum* across parts, because 200 slides
  *   each just under the part cap is a gigabyte and a half for one upload;
+ *
+ * ### Every cap has to be visible to the caller
+ *
+ * A bound that silently discards content is a worse failure than the one it
+ * prevents. All four caps here report through `OoxmlExtraction`, and the
+ * caller passes that to `resultFromText` as `source`. Before that, the arm
+ * returned a bare string and the caller defaulted to
+ * `{ truncated: false, coverage: 1 }`, so a 400-slide deck read to slide 200
+ * was recorded INDEXED at coverage 1.0 with no reason — half of it
+ * unsearchable while the interface said it was complete. Coverage is
+ * measured against what the document held, never against what survived,
+ * because the second always rounds to 1;
  * - entity decoding looks ahead a bounded window. Scanning for the closing
  *   `;` across the whole document and rejecting an overlong match afterwards
  *   bounded nothing: it was quadratic in the number of bare ampersands, and
@@ -266,16 +307,75 @@ async function readPart(
 }
 
 /**
+ * How many part names to probe before concluding the document has no more.
+ *
+ * Bounds the probe loop. Far above any real document — a 10,000-slide deck
+ * does not exist — and the loop stops at the first gap anyway, so this only
+ * matters for an archive built to make us count.
+ */
+const MAX_PART_PROBE = 10_000;
+
+/**
+ * A gap in the numbering is not necessarily the end.
+ *
+ * Every producer numbers slides and worksheets from 1 with no gaps, but an
+ * edited or hand-built archive need not, and stopping at the first miss
+ * would silently read less than the old enumeration did. Looking a few
+ * names ahead costs a few map lookups and removes the regression.
+ */
+const PART_PROBE_LOOKAHEAD = 8;
+
+/** Which cap, if any, kept text out of the result. */
+export type OoxmlShortfall =
+  | "parts"
+  | "part-bytes"
+  | "document-bytes"
+  | "chars";
+
+export interface OoxmlExtraction {
+  text: string;
+  /** True when any cap discarded content. */
+  truncated: boolean;
+  /**
+   * The fraction of the document's text that reached the caller.
+   *
+   * Measured on both axes that can lose content, because either alone is a
+   * lie. Parts read over parts present catches a deck cut off at slide 200
+   * of 400; characters kept over characters seen catches a single part
+   * longer than the character budget. A 400-slide deck that is otherwise
+   * complete is 0.5, not 1.
+   */
+  coverage: number;
+  /** The first cap that discarded something, for a reason the reader can act on. */
+  shortfall: OoxmlShortfall | null;
+}
+
+/**
  * Text from an OOXML document, or `null` when it cannot be read.
  *
  * `null` is not an error path for the caller to throw on — it means "record
  * this honestly as unsupported". An encrypted, corrupt or unexpected archive
  * lands here.
+ *
+ * ## Why this returns more than a string
+ *
+ * It used to return `string | null`, and the caller passed the string to
+ * `resultFromText` with no `source`, which defaults to
+ * `{ truncated: false, coverage: 1 }`. So every one of the four caps below
+ * could discard content and the document was still recorded as INDEXED at
+ * coverage 1.0 with no reason. Measured on a 400-slide deck: the last slide
+ * read was 200, and the result was INDEXED, coverage 1, reason null. Half
+ * the deck unsearchable, and the interface saying it was fully indexed.
+ *
+ * `resultFromText`'s own docstring already named this failure for the PDF
+ * arm — "a 900-page document read to page 200 would compute coverage 1.0
+ * over the 200 pages it received" — and the OOXML arm was doing exactly
+ * that.
  */
 export async function extractOoxmlText(
   bytes: Uint8Array,
   kind: OoxmlKind,
-): Promise<string | null> {
+): Promise<OoxmlExtraction | null> {
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(bytes);
@@ -287,36 +387,98 @@ export async function extractOoxmlText(
   const budget: InflationBudget = { remaining: MAX_DOCUMENT_BYTES };
   let total = 0;
 
+  /** Denominators, so coverage is measured against the document. */
+  let partsPresent = 0;
+  let partsRead = 0;
+  let charsSeen = 0;
+  let shortfall: OoxmlShortfall | null = null;
+
+  const note = (cap: OoxmlShortfall) => {
+    shortfall ??= cap;
+  };
+
   const take = (text: string | null) => {
-    if (!text || total >= MAX_TOTAL_CHARS) return;
+    if (text === null) return;
+    partsRead += 1;
     const stripped = stripXmlTags(text);
+    charsSeen += stripped.length;
+    if (total >= MAX_TOTAL_CHARS) {
+      if (stripped.trim().length > 0) note("chars");
+      return;
+    }
     const room = MAX_TOTAL_CHARS - total;
     const slice = stripped.slice(0, room);
+    if (slice.length < stripped.length) note("chars");
     if (slice.trim().length === 0) return;
     pieces.push(slice);
     total += slice.length;
   };
 
+  /**
+   * Which part names this document has, found by asking for them.
+   *
+   * This enumerated every entry in the archive, filtered, sorted and then
+   * sliced to the cap — so the cap bounded how many parts were *read* and
+   * not the cost of deciding which. Measured as a synchronous block in the
+   * API process: 376 ms at 60,000 matching entries, 1,734 ms at 300,000,
+   * bounded only by the 50 MiB input limit. This module's own header says
+   * "no cap may be computed from a number the archive supplies" and that
+   * "a post-check is a check that runs once the memory is already spent",
+   * and then did precisely that; it also claims only named parts are read,
+   * which was not true either. Probing by name makes both true.
+   */
+  const probeParts = (prefix: string): string[] => {
+    const found: string[] = [];
+    let misses = 0;
+    for (let index = 1; index <= MAX_PART_PROBE; index += 1) {
+      if (zip.file(`${prefix}${index}.xml`)) {
+        found.push(`${prefix}${index}.xml`);
+        misses = 0;
+        continue;
+      }
+      misses += 1;
+      if (misses > PART_PROBE_LOOKAHEAD) break;
+    }
+    return found;
+  };
+
   try {
     for (const path of fixedParts(kind)) {
-      take(await readPart(zip, path, budget));
+      if (!zip.file(path)) continue;
+      partsPresent += 1;
+      const before = budget.remaining;
+      const text = await readPart(zip, path, budget);
+      if (text === null) {
+        note(budget.remaining < before ? "part-bytes" : "document-bytes");
+        continue;
+      }
+      take(text);
     }
 
     const prefix = enumeratedPrefix(kind);
     if (prefix) {
-      // Sorted so slide 2 follows slide 1 rather than slide 10.
-      const paths = Object.keys(zip.files)
-        .filter((path) => path.startsWith(prefix) && path.endsWith(".xml"))
-        .sort((left, right) => {
-          const number = (value: string) =>
-            Number.parseInt(value.replace(/\D+/g, ""), 10) || 0;
-          return number(left) - number(right);
-        })
-        .slice(0, MAX_ENUMERATED_PARTS);
+      const all = probeParts(prefix);
+      partsPresent += all.length;
+
+      const paths = all.slice(0, MAX_ENUMERATED_PARTS);
+      if (all.length > paths.length) note("parts");
 
       for (const path of paths) {
-        if (total >= MAX_TOTAL_CHARS || budget.remaining <= 0) break;
-        take(await readPart(zip, path, budget));
+        if (total >= MAX_TOTAL_CHARS) {
+          note("chars");
+          break;
+        }
+        if (budget.remaining <= 0) {
+          note("document-bytes");
+          break;
+        }
+        const before = budget.remaining;
+        const text = await readPart(zip, path, budget);
+        if (text === null) {
+          note(budget.remaining < before ? "part-bytes" : "document-bytes");
+          continue;
+        }
+        take(text);
       }
     }
   } catch {
@@ -324,5 +486,32 @@ export async function extractOoxmlText(
   }
 
   const joined = pieces.join("\n").trim();
-  return joined.length > 0 ? joined : null;
+
+  /**
+   * Nothing read and no cap to blame: this is not the document it claimed
+   * to be. Same `null` the caller has always handled, and the same
+   * "encrypted or damaged" it has always produced — which is accurate
+   * here, unlike the size cases below, where it was not.
+   */
+  if (joined.length === 0 && shortfall === null) return null;
+
+  /**
+   * Both factors, multiplied.
+   *
+   * `charsKept / charsSeen` is what survived inside the parts we opened;
+   * `partsRead / partsPresent` is how much of the document we opened at
+   * all. Either on its own reports 1.0 for a failure the other one sees —
+   * a truncated single part looks like full part coverage, and a deck cut
+   * in half looks like every character kept.
+   */
+  const charFactor = charsSeen === 0 ? 1 : Math.min(1, total / charsSeen);
+  const partFactor = partsPresent === 0 ? 1 : partsRead / partsPresent;
+  const coverage = Math.min(1, charFactor * partFactor);
+
+  return {
+    text: joined,
+    truncated: shortfall !== null,
+    coverage,
+    shortfall,
+  };
 }

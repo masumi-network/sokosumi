@@ -2,7 +2,11 @@ import { createHash } from "node:crypto";
 
 import { FileExtractionState } from "@sokosumi/database";
 
-import { extractOoxmlText, ooxmlKindFor } from "@/lib/files/ooxml";
+import {
+  extractOoxmlText,
+  type OoxmlShortfall,
+  ooxmlKindFor,
+} from "@/lib/files/ooxml";
 import {
   extractPdfText,
   type PdfExtractDependencies,
@@ -399,8 +403,8 @@ export async function extractDocumentAsync(input: {
   });
   if (!kind) return extractDocument(input);
 
-  const text = await extractOoxmlText(input.bytes, kind);
-  if (text === null) {
+  const ooxml = await extractOoxmlText(input.bytes, kind);
+  if (ooxml === null) {
     return {
       state: FileExtractionState.UNSUPPORTED,
       coverage: 0,
@@ -411,7 +415,56 @@ export async function extractDocumentAsync(input: {
     };
   }
 
-  return resultFromText(text);
+  /**
+   * Unpacked fine, and still produced nothing. Say which of those it was.
+   *
+   * Four parts each over the per-part cap exhaust the whole document
+   * budget, every later part is refused, and the result is empty text —
+   * which used to arrive here as `null` and be reported as "could not be
+   * unpacked. It may be encrypted or damaged." The document is neither. It
+   * is text-dense, and telling somebody their file is damaged when it is
+   * not is worse than telling them nothing.
+   */
+  if (ooxml.text.trim().length === 0 && ooxml.shortfall !== null) {
+    return {
+      state: FileExtractionState.UNSUPPORTED,
+      coverage: 0,
+      reason: ooxmlShortfallReason(ooxml.shortfall),
+      chunks: [],
+      extractorVersion: FILE_EXTRACTOR_VERSION,
+    };
+  }
+
+  // The `source` the PDF arm has passed all along. Without it every cap in
+  // `ooxml.ts` was invisible: a 400-slide deck read to slide 200 was
+  // recorded INDEXED at coverage 1.0 with no reason, and search silently
+  // could not find the back half.
+  return resultFromText(ooxml.text, {
+    truncated: ooxml.truncated,
+    coverage: ooxml.coverage,
+  });
+}
+
+/**
+ * Why an OOXML document gave up nothing, in words that are true.
+ *
+ * Each of these is a bound this deployment chose, not a property of the
+ * file, and the wording says so — a reader who is told their deck is
+ * "damaged" will go and try to repair a file that is perfectly fine.
+ */
+function ooxmlShortfallReason(shortfall: OoxmlShortfall): string {
+  switch (shortfall) {
+    case "part-bytes":
+      return "This document's sections are individually larger than the reader will unpack. It is findable by name and can be downloaded.";
+    case "document-bytes":
+      return "This document unpacks to more than the reader will hold. It is findable by name and can be downloaded.";
+    case "parts":
+      return "This document has more sections than the reader will open.";
+    case "chars":
+      return "This document is longer than the extraction budget.";
+    default:
+      return "This document could not be read in full.";
+  }
 }
 
 /**
