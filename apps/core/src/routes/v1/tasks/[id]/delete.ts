@@ -1,13 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import {
-  canArchiveTaskStatus,
-  getTaskCannotArchiveMessage,
-} from "@sokosumi/utils";
-
 import { requireTaskArchiveAccess } from "@/helpers/access-control";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
-import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
@@ -16,6 +10,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
+import { archiveTaskRecord } from "@/services/task-domain.service";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -53,27 +48,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const result = await prisma.$transaction(async (tx) => {
       const currentTask = await requireTaskArchiveAccess(c.var, id, tx);
 
-      if (!canArchiveTaskStatus(currentTask.status)) {
-        throw unprocessableEntity(
-          getTaskCannotArchiveMessage(currentTask.status),
-        );
-      }
-
-      const archivedAt = new Date();
-      const updateResult = await tx.task.updateMany({
-        where: {
-          id,
-          archivedAt: null,
-          status: currentTask.status,
-        },
-        data: {
-          archivedAt,
-        },
-      });
-
-      if (updateResult.count === 0) {
-        throw conflict("Task was modified concurrently; retry archive");
-      }
+      await archiveTaskRecord(tx, currentTask);
 
       return {
         task: await tx.task.findFirstOrThrow({

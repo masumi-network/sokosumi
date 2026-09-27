@@ -314,7 +314,7 @@ export async function QualityOverview({
           }}
         />
       </div>
-      <div className="overflow-x-auto border-t">
+      <div className="app-scrollbar overflow-x-auto border-t">
         <table className="w-full text-xs">
           <caption className="text-muted-foreground px-4 py-2 text-left font-medium">
             {t("realRunsByVersion")}

@@ -42,7 +42,7 @@ public protocol TokenStore: Sendable {
 
 /// Token-endpoint HTTP boundary (`POST application/x-www-form-urlencoded`).
 /// `URLSessionTokenTransport` is the live implementation; tests stub this.
-public protocol TokenEndpointTransport: Sendable {
+protocol TokenEndpointTransport: Sendable {
   func postForm(_ fields: [(name: String, value: String)], to url: URL) async throws -> (Data, Int)
 }
 

@@ -1177,7 +1177,7 @@ describe("task participant actions", () => {
 
 describe("draft task tag actions", () => {
   it.each([false, true])(
-    "forwards receipts and corrections when creating (related=%s)",
+    "forwards the suggestion receipt when creating (related=%s)",
     async (related) => {
       taskServiceMock.createTask.mockReset().mockResolvedValue(buildTask());
       taskServiceMock.createTaskLink.mockResolvedValue({ id: "link-1" });
@@ -1189,10 +1189,6 @@ describe("draft task tag actions", () => {
         assigneeId: null,
         status: TaskStatus.DRAFT,
         tagSuggestionReceipt: "receipt-1",
-        tagCorrections: {
-          add: ["design" as const],
-          remove: ["research" as const],
-        },
       };
       if (related)
         await createTaskAndLink({
@@ -1205,8 +1201,11 @@ describe("draft task tag actions", () => {
         expect.objectContaining({
           name: input.name,
           tagSuggestionReceipt: input.tagSuggestionReceipt,
-          tagCorrections: input.tagCorrections,
         }),
+      );
+      // Tags are automatic: nothing in web still sends hand corrections.
+      expect(taskServiceMock.createTask.mock.calls[0]?.[0]).not.toHaveProperty(
+        "tagCorrections",
       );
     },
   );

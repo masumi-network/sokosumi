@@ -11,6 +11,7 @@ import {
 
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { assertSokoBotModelPolicy } from "@/lib/soko-bot/model-policy";
 
 /**
  * Versions come from two places and share one id namespace.
@@ -89,6 +90,18 @@ export async function resolveSokoBotVersion(
   return getSokoBotVersion(versionId);
 }
 
+/** Block incompatible existing pins before any classifier or agent inference. Never silently repin. */
+export async function resolveRunnableSokoBotVersion(
+  versionId: string | null | undefined,
+): Promise<SokoBotVersion> {
+  const version = await resolveSokoBotVersion(versionId);
+  if (!isApprovedVersion(version))
+    throw unprocessableEntity(
+      "This assistant’s version cannot run under the EU inference policy. Ask the owner to choose an approved EU version in assistant settings.",
+    );
+  return version;
+}
+
 /** Built-ins first, then authored, for pickers and the lab. */
 export async function listSokoBotVersions(): Promise<
   (SokoBotVersion & { authored: boolean })[]
@@ -119,7 +132,8 @@ export async function listSelectableSokoBotVersions(
   ]);
   return all.filter(
     (version) =>
-      !version.authored || version.id === defaultId || pinned.has(version.id),
+      isApprovedVersion(version) &&
+      (!version.authored || version.id === defaultId || pinned.has(version.id)),
   );
 }
 
@@ -127,9 +141,11 @@ export async function isSelectableSokoBotVersionId(
   slug: string,
   userId: string,
 ): Promise<boolean> {
-  if (isBuiltInId(slug)) return true;
-  if (slug === (await getDefaultSokoBotVersionId())) return true;
-  return (await ownPinnedVersionIds(userId)).has(slug);
+  if (isBuiltInId(slug)) return isApprovedVersion(getSokoBotVersion(slug));
+  const entitled =
+    slug === (await getDefaultSokoBotVersionId()) ||
+    (await ownPinnedVersionIds(userId)).has(slug);
+  return entitled && (await isRunnableSokoBotVersionId(slug));
 }
 
 /** Versions this user's own live bots already run; never a leak back to them. */
@@ -150,9 +166,42 @@ export async function isKnownSokoBotVersionId(slug: string): Promise<boolean> {
   return row !== null;
 }
 
+function isApprovedVersion(version: {
+  model: string;
+  inferenceRegion?: string | null;
+}): boolean {
+  try {
+    assertSokoBotModelPolicy({ role: "agent", ...version });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function assertApprovedVersion(version: {
+  model: string;
+  inferenceRegion?: string | null;
+}): void {
+  if (!isApprovedVersion(version))
+    throw unprocessableEntity(
+      "Choose an approved EU model before saving or selecting this version",
+    );
+}
+
+/** Administrative pins must be both known and runnable; historical versions remain readable. */
+export async function isRunnableSokoBotVersionId(
+  slug: string,
+): Promise<boolean> {
+  return (
+    (await isKnownSokoBotVersionId(slug)) &&
+    isApprovedVersion(await resolveSokoBotVersion(slug))
+  );
+}
+
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,40}$/;
 
 function assertValid(input: AuthoredVersionInput): void {
+  assertApprovedVersion(input);
   if (!SLUG_PATTERN.test(input.slug)) {
     throw unprocessableEntity(
       "Version id must be lowercase letters, numbers and dashes",
@@ -286,6 +335,7 @@ export async function promoteSokoBotVersion(slug: string): Promise<void> {
   if (!(await isKnownSokoBotVersionId(slug))) {
     throw notFound("Version not found");
   }
+  assertApprovedVersion(await resolveSokoBotVersion(slug));
   await prisma.sokoBotSetting.upsert({
     where: { id: "singleton" },
     create: { id: "singleton", defaultVersionId: slug },

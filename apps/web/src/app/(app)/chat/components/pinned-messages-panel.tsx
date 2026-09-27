@@ -176,7 +176,7 @@ export function PinnedMessagesPanel({
           <X className="size-4" />
         </Button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+      <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto p-3">
         {isLoading ? (
           <p className="text-muted-foreground px-2 py-6 text-center text-sm">
             {labels.loading}

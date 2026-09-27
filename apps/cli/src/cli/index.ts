@@ -21,6 +21,7 @@ import {
 import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
+import { type AuthWhoamiResult, runAuthWhoami } from "./auth-whoami.js";
 import { runAgentsCommand } from "./commands/agents.js";
 import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
@@ -30,6 +31,7 @@ import { runTasksCommand } from "./commands/tasks.js";
 import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
 import { CLI_VERSION } from "./metadata.js";
+import { requirePreprodCoworkerRegistration } from "./registration-authority.js";
 
 type ValueOptionName =
   | "auth-url"
@@ -65,6 +67,7 @@ type ValueOptionName =
   | "input-file"
   | "max-credits"
   | "vendor-id"
+  | "workspace-id"
   | "slug";
 
 type CliOptionValue = string | string[];
@@ -133,6 +136,7 @@ export interface CliResult {
   target?: CliTargetConfig["target"];
   apiUrl?: string;
   expiresAt?: string | null;
+  user?: AuthWhoamiResult["user"];
   tui?: boolean;
 }
 
@@ -140,11 +144,14 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   discover: "",
   "auth login": "",
   "auth status": "",
+  "auth whoami": "",
   "auth logout": "",
   "agents list": "",
   "agents hire": "AGENT_ID",
   "coworkers list": "",
   "coworkers register": "[options]",
+  "coworkers provision": "[options]",
+  "coworkers connect": "COWORKER_ID [options]",
   "coworkers update": "COWORKER_ID [options]",
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
@@ -229,6 +236,24 @@ Global options:
 ${formatGlobalOptionHelp()
   .map((line) => `  ${line}`)
   .join("\n")}
+
+Account checks:
+  auth whoami asks Core for the signed-in email and platform role. auth status shows authentication state.
+  Before switching browser accounts, clear SOKOSUMI_API_KEY and SOKOSUMI_AUTH_TOKEN from the shell. They override saved OAuth credentials.
+  Sign in as the intended account in the browser, run auth login, then auth whoami.
+  auth logout clears local credentials; it does not switch the browser account.
+
+Developer setup on Preprod:
+  1. Create your Vendor: sokosumi --preprod vendors create --name NAME --slug SLUG
+  2. Give its ID and your final Coworker name to the organizer. Ask for the Coworker ID.
+  3. Connect: sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID
+  4. Create the runtime key: sokosumi --preprod coworkers api-key COWORKER_ID --json
+
+Organizer setup on Preprod (platform admin):
+  Select an organization Workspace and invite the intended developers in Sokosumi Web.
+  Ask each developer for their Vendor ID and final Coworker name, then run:
+  sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks
+  Give the returned Coworker ID to that developer.
 `;
 }
 
@@ -262,6 +287,7 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "input-file",
   "max-credits",
   "vendor-id",
+  "workspace-id",
   "slug",
 ]);
 
@@ -387,6 +413,9 @@ export async function runCli(
     throw error;
   }
   const { positionals, options } = parsed;
+  const coworkerRegistration =
+    positionals[0] === "coworkers" &&
+    ["register", "provision", "connect"].includes(positionals[1]);
 
   if (options.help) {
     stdout.write(formatHelpText());
@@ -403,6 +432,7 @@ export async function runCli(
       environment: dependencies.env || process.env,
       loadFiles: dependencies.env === undefined,
       preprod: options.preprod,
+      preprodDefault: coworkerRegistration,
       apiUrl: options["api-url"],
       authUrl: options["auth-url"],
       clientId: options["client-id"],
@@ -448,7 +478,13 @@ export async function runCli(
     if (rest.length > 0) {
       throw new Error(`Unexpected argument: ${rest[0]}`);
     }
-    if (CORE_COMMAND_SECTIONS.has(section)) {
+    if (coworkerRegistration) {
+      requirePreprodCoworkerRegistration(config.target);
+    }
+    if (
+      CORE_COMMAND_SECTIONS.has(section) ||
+      (section === "auth" && command === "whoami" && positionalId === undefined)
+    ) {
       await requireAuthenticatedSession(session);
     }
     if (section === "discover" && command === undefined) {
@@ -477,12 +513,21 @@ export async function runCli(
     if (
       section === "coworkers" &&
       (command === undefined ||
-        ["list", "register", "update", "api-key", "me"].includes(command))
+        [
+          "list",
+          "register",
+          "provision",
+          "connect",
+          "update",
+          "api-key",
+          "me",
+        ].includes(command))
     ) {
       await runCoworkersCommand({
         client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
+        target: config.target,
         subcommand: command,
         positionalId,
         options,
@@ -548,12 +593,24 @@ export async function runCli(
       return {};
     }
     if (
+      section === "auth" &&
+      command === "whoami" &&
+      positionalId === undefined
+    ) {
+      return await runAuthWhoami({
+        client: getCoreClient(session, dependencies),
+        config,
+        stdout,
+        json: options.json,
+      });
+    }
+    if (
       section !== "auth" ||
       (command !== "login" && command !== "logout" && command !== "status") ||
       positionalId !== undefined
     ) {
       throw new Error(
-        "Usage: sokosumi discover | agents list | coworkers | vendors me|create | workspaces list | tasks | jobs | auth login|status|logout",
+        "Usage: sokosumi discover | agents list | coworkers | vendors me|create | workspaces list | tasks | jobs | auth login|status|whoami|logout",
       );
     }
 

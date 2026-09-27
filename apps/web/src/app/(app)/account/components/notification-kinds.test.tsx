@@ -993,15 +993,14 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * Before the read lands the box holds the marketing row alone. Its cells
-   * stand on the row, so the head over it names something a reader can see.
+   * The marketing row needs only its email switch while the matrix loads.
    */
-  it("heads the marketing row before the groups arrive", () => {
+  it("shows only the marketing email switch before the groups arrive", () => {
     renderPending();
 
-    const band = rowsHead().parentElement;
-
-    expect(band?.parentElement?.firstElementChild).toBe(band);
+    expect(screen.queryByText("channelInApp")).not.toBeInTheDocument();
+    expect(screen.queryByText("channelPush")).not.toBeInTheDocument();
+    expect(within(newsRow()).getAllByRole("button")).toHaveLength(1);
     expect(
       screen.getByRole("group", { name: "newsDeliveryAriaLabel" }),
     ).toBeInTheDocument();
@@ -1383,15 +1382,8 @@ describe("NotificationKinds", () => {
       expect(heads[0]?.tagName).toBe("BUTTON");
     }
 
-    // Both kinds of hidden sentence: the one a dead cell is described by, and
-    // the one a blocked push cell carries. In the tree as well, each is read
-    // twice, once as text and once as the description.
-    const described = [
-      within(newsRow()).getByRole("button", {
-        name: "channelUnavailableLabel channelInApp marketingEmailsTitle",
-      }),
-      cellFor("kindSystem", "channelPush"),
-    ];
+    // Hidden hints describe controls without repeating as separate text.
+    const described = [cellFor("kindSystem", "channelPush")];
 
     for (const cell of described) {
       const hintId = cell.getAttribute("aria-describedby");
@@ -1452,18 +1444,17 @@ describe("NotificationKinds", () => {
       }
     }
 
-    // The two that need one: the column nothing can arrive on in this
-    // browser, and the columns a row never uses at all.
+    // A blocked push and the marketing email switch retain their descriptions.
     expect(describedBy(cellFor("kindSystem", "channelPush"))).toContain(
       "pushBlockedHint",
     );
     expect(
       describedBy(
         within(newsRow()).getByRole("button", {
-          name: "channelUnavailableLabel channelInApp marketingEmailsTitle",
+          name: "marketingEmailsTitle",
         }),
       ),
-    ).toBe("marketingEmailOnlyHint");
+    ).toBe("marketingEmailsDescription");
   });
 
   /**
@@ -2178,6 +2169,38 @@ describe("NotificationKinds", () => {
     expect(setAccountEnabled).toHaveBeenCalledTimes(1);
   });
 
+  it("shows a spinner throughout push activation and prevents another press", async () => {
+    isDeviceEnabled = false;
+    const user = userEvent.setup();
+    const view = renderKinds();
+    const button = screen.getByRole("button", { name: "pushBannerAction" });
+    await user.click(button);
+    expect(setDeviceEnabled).toHaveBeenCalledWith(true);
+
+    isSaving = true;
+    view.rerender(
+      <QueryClientProvider client={queryClient}>
+        <AccountHost />
+      </QueryClientProvider>,
+    );
+    expect(button).toHaveAttribute("aria-busy", "true");
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    expect(button).toBeEnabled();
+    expect(button.querySelector("svg")).toHaveClass("motion-safe:animate-spin");
+    await user.click(button);
+    expect(setDeviceEnabled).toHaveBeenCalledTimes(1);
+
+    isSaving = false;
+    view.rerender(
+      <QueryClientProvider client={queryClient}>
+        <AccountHost />
+      </QueryClientProvider>,
+    );
+    expect(button).toHaveAttribute("aria-busy", "false");
+    expect(button).not.toHaveAttribute("aria-disabled");
+    expect(button.querySelector("svg")).toBeNull();
+  });
+
   it("asks for nothing when the browser already pushes", async () => {
     renderKinds();
 
@@ -2765,8 +2788,7 @@ describe("NotificationKinds", () => {
   /**
    * Marketing is the one thing here Sokosumi sends rather than reports, and it
    * arrives by email only. It answers the same question in the same columns as
-   * everything else, and the two columns it cannot use say why rather than
-   * leaving a hole where an answer should be.
+   * everything else. Unused channels have no controls on this row.
    */
   it("answers for the marketing emails in the grid, by email only", async () => {
     const user = userEvent.setup();
@@ -2774,31 +2796,16 @@ describe("NotificationKinds", () => {
 
     const row = newsRow();
 
-    for (const channel of ["channelInApp", "channelPush"]) {
-      const dead = within(row).getByRole("button", {
-        name: `channelUnavailableLabel ${channel} marketingEmailsTitle`,
-      });
-
-      expect(dead).toHaveAttribute("aria-disabled", "true");
-      expect(dead).not.toHaveAttribute("aria-pressed");
-      // A step lighter than an off cell. Without it the two differ by the
-      // border alone, and a reader who reads the icon sees no difference.
-      expect(dead).toHaveClass("text-disabled-foreground");
-      expect(describedBy(dead)).toBe("marketingEmailOnlyHint");
-    }
+    expect(within(row).getAllByRole("button")).toHaveLength(1);
 
     const email = within(row).getByRole("button", {
       name: "marketingEmailsTitle",
     });
 
     expect(email).toHaveAttribute("aria-pressed", "false");
-    // The off cell it is lighter than.
     expect(email).toHaveClass("text-muted-foreground");
     expect(email).not.toHaveClass("text-disabled-foreground");
     // Described by the row's own visible line rather than by a copy of it.
-    // Undescribed, this one live control would be the only cell of the row a
-    // reader meets with nothing said about it, between two dead ones that
-    // both carry a reason.
     expect(describedBy(email)).toBe("marketingEmailsDescription");
 
     await user.click(email);
@@ -3009,6 +3016,10 @@ describe("NotificationKinds", () => {
 
       expect(silenceButton()).toBeEnabled();
       expect(silenceButton()).toHaveAttribute("aria-disabled", "true");
+      expect(silenceButton()).toHaveAttribute("aria-busy", "true");
+      expect(silenceButton().querySelector("svg")).toHaveClass(
+        "motion-safe:animate-spin",
+      );
 
       await user.click(silenceButton());
 

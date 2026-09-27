@@ -206,6 +206,12 @@ export {
   isUrlString,
   sanitizeFileName,
 } from "./file-url.js";
+export {
+  githubBlobDownloadUrl,
+  isHtmlContentType,
+  isUnexpectedHtmlImport,
+  resolveDownloadableFileUrl,
+} from "./github-file-url.js";
 export { sniffImageMimeFromBytes } from "./image-mime.js";
 export {
   normalizeOrganizationLogo,

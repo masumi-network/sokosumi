@@ -45,7 +45,6 @@ export interface ProjectsViewLabels {
   unpin: string;
   pinError: string;
   filter: ProjectsFilterLabels;
-  sortedBy: string;
   noMatches: string;
 }
 
@@ -128,9 +127,6 @@ export function ProjectsView({
           className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
         >
           <ProjectsFilter labels={labels.filter} />
-          <span className="text-muted-foreground hidden shrink-0 text-xs whitespace-nowrap lg:inline">
-            {labels.sortedBy}
-          </span>
           <AddProjectButton
             label={labels.newProject}
             className="hidden md:inline-flex"
