@@ -1,0 +1,116 @@
+import { globSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+import { describe, expect, it } from "vitest";
+
+/**
+ * Does every `*.postgres.test.ts` in this package actually run in CI?
+ *
+ * `optInDbExclude` in `vitest.config.ts` keeps all of them out of
+ * `test:ci`, so the only thing that runs them is the "Test against
+ * PostgreSQL" step in `.github/workflows/ci.yml`. That step used to name
+ * each file, and an enumerated list degrades silently: `vitest run <name>`
+ * treats a name matching nothing as contributing nothing, so a typo, a
+ * rename or a deletion gives "N-1 passed, exit 0". Six Files suites —
+ * 2,140 lines covering the spend cap, the daily budgets and the admission
+ * ceiling — were written, passed locally, and were executed by no CI job
+ * at all. Nothing said so.
+ *
+ * This is the check that would have said so. It is deliberately about the
+ * files on disk rather than about the shape of the YAML: the question is
+ * "is this suite reachable from CI", and any answer of "no" is a finding
+ * whether it came from a list, a glob or a typo.
+ *
+ * It is quiet while the substring filter is in place, which is the point.
+ * Reverting that step to an enumerated list turns it red for every suite
+ * the list forgets — seven, at the time of writing.
+ *
+ * What it does **not** catch, stated so nobody assumes otherwise: deleting
+ * the `--exclude` line leaves this green, because without it the substring
+ * does select that file and it is reachable by this test's definition. The
+ * consequence there is a red CI job, loudly, which needs no test to
+ * notice. This file is only for the failures that are silent.
+ */
+
+const WORKFLOW = fileURLToPath(
+  new URL("../../../../.github/workflows/ci.yml", import.meta.url),
+);
+const PACKAGE_ROOT = fileURLToPath(new URL("../..", import.meta.url));
+
+/** The step that runs them, as one line, comments stripped. */
+function postgresStepCommand(): string {
+  const yaml = readFileSync(WORKFLOW, "utf8");
+  const marker = "- name: Test against PostgreSQL";
+  const at = yaml.indexOf(marker);
+  expect(
+    at,
+    "the PostgreSQL step has been renamed or removed; this test names it",
+  ).toBeGreaterThan(-1);
+
+  // Up to the next step at the same indentation.
+  const rest = yaml.slice(at + marker.length);
+  const end = rest.search(/\n {6}- name:/u);
+  return (end === -1 ? rest : rest.slice(0, end))
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => !line.startsWith("#"))
+    .join(" ")
+    .replace(/\\\s+/gu, " ");
+}
+
+describe("every PostgreSQL suite is reachable from CI", () => {
+  const command = postgresStepCommand();
+
+  const suites = globSync("src/**/*.postgres.test.ts", { cwd: PACKAGE_ROOT })
+    .map((file) => file.replaceAll("\\", "/"))
+    .sort();
+
+  it("finds some suites to reason about", () => {
+    // Without this the whole file passes vacuously if the glob breaks.
+    expect(suites.length).toBeGreaterThan(5);
+  });
+
+  it.each(suites)("%s is selected, or excluded on purpose", (suite) => {
+    /**
+     * Two ways to be accounted for. Either the step's filter selects the
+     * file — a substring the path contains — or the step names it in an
+     * `--exclude`, which is a visible decision someone made.
+     *
+     * A file that is neither is the failure this exists to catch: it runs
+     * on the author's machine and nowhere else.
+     */
+    const excluded = command.includes(`--exclude '${suite}'`);
+    if (excluded) return;
+
+    const selected = command
+      .split(/\s+/u)
+      .filter((token) => !token.startsWith("-") && token.includes(".test.ts"))
+      .some((token) => suite.includes(token.replace(/^['"]|['"]$/gu, "")));
+
+    expect(
+      selected,
+      `${suite} is neither selected by the PostgreSQL step nor excluded by ` +
+        `name. It will pass locally and run in no CI job. Either widen the ` +
+        `step's filter or exclude it explicitly, with a comment saying why.`,
+    ).toBe(true);
+  });
+
+  it("holds out only what it says it holds out", () => {
+    /**
+     * An exclusion is a hole, and a hole that outlives its reason is worse
+     * than no hole. This fails once the excluded file stops existing, so
+     * the line has to be removed rather than left behind.
+     */
+    const excluded = [...command.matchAll(/--exclude '([^']+)'/gu)].map(
+      (match) => match[1],
+    );
+
+    for (const file of excluded) {
+      expect(
+        suites,
+        `${file} is excluded by the PostgreSQL step but no longer exists; ` +
+          `drop the --exclude line`,
+      ).toContain(file);
+    }
+  });
+});

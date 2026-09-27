@@ -126,33 +126,42 @@ jobs:
       - name: Run Tests
         run: pnpm exec turbo run test:ci --filter=@sokosumi/core
 
-      # `optInPostgresFiles` in apps/core/vitest.config.ts excludes every
-      # `*.postgres.test.ts` from `test:ci`, so a suite that is not named
-      # here does not run anywhere. Adding a file to that list without
-      # adding it here produces tests that exist, pass locally, and carry no
-      # information in CI — which is what happened to the six Files suites
-      # below: 2,140 lines covering the spend cap, the daily budgets and the
-      # admission ceiling, none of it executed by any CI job.
+      # `optInDbExclude` in apps/core/vitest.config.ts keeps every
+      # `src/**/*.postgres.test.ts` out of `test:ci`, so these files run
+      # here or they run nowhere.
       #
-      # If you add a `*.postgres.test.ts`, add it to both lists.
-      - name: Test Projects API and Calendar erasure against PostgreSQL
+      # A substring filter rather than a list of filenames, deliberately.
+      # An enumerated list degrades silently: `vitest run <name>` treats a
+      # name that matches nothing as contributing nothing, so a typo, a
+      # rename or a deletion yields "N-1 passed, exit 0" and no warning.
+      # Measured on this repository — six names with one misspelt gives
+      # "Test Files 5 passed, Tests 49 passed, exit 0" — which is the exact
+      # silent failure this step exists to end, reproduced by the step
+      # itself. The substring picks up new suites without anyone
+      # remembering to come back here, and `--passWithNoTests=false` plus
+      # pnpm's `--fail-if-no-match` turn an empty collection into a red
+      # build instead of a green one. Same guard as the migration-order
+      # check in the packages job below.
+      #
+      # `optInPostgresFiles` is not what decides this. `cliSelectsOptInDbFile`
+      # returns true on `filter.includes(".postgres.test.ts")` before it ever
+      # consults that list, so the line below is the only thing that selects
+      # these suites. An earlier version of this comment said the two had to
+      # be edited together; that was wrong.
+      #
+      # One file is held out. `push-device-consent.postgres.test.ts` demands
+      # its own disposable database through `SOK939_TEST_DATABASE_URL`, which
+      # nothing here sets, so it throws during collection rather than
+      # skipping. It arrived with #5291 and belongs to that work — excluded
+      # by name so the hole is visible rather than folded back into a list
+      # nobody re-reads.
+      - name: Test against PostgreSQL
         env: *migrated-db
         run: |
-          RUN_DATABASE_INTEGRATION_TESTS=true pnpm --filter core test \
-            src/routes/v1/projects/get.postgres.test.ts \
-            src/helpers/project-activity.postgres.test.ts \
-            src/helpers/calendar-erasure.postgres.test.ts
-
-      - name: Test Files against PostgreSQL
-        env: *migrated-db
-        run: |
-          RUN_DATABASE_INTEGRATION_TESTS=true pnpm --filter core test \
-            src/services/file-search.postgres.test.ts \
-            src/services/file-suggestions.postgres.test.ts \
-            src/services/file-table-index.postgres.test.ts \
-            src/services/file-collections.postgres.test.ts \
-            src/services/file-related.postgres.test.ts \
-            src/services/file-backfill.postgres.test.ts
+          RUN_DATABASE_INTEGRATION_TESTS=true \
+            pnpm --filter core --fail-if-no-match test .postgres.test.ts \
+            --passWithNoTests=false \
+            --exclude 'src/lib/ably/push-device-consent.postgres.test.ts'
 
   packages:
     name: Test Packages
