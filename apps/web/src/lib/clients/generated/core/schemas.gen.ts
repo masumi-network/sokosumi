@@ -18303,6 +18303,75 @@ export const PushDeviceBrowserDetailsSchema = {
     ]
 } as const;
 
+export const PushDeviceActivationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
+        revoked: {
+            type: 'boolean'
+        },
+        replaceDevice: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'revision',
+        'revoked',
+        'replaceDevice'
+    ]
+} as const;
+
+export const PushDeviceActivationRequestSchema = {
+    type: 'object',
+    properties: {
+        consentId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        deviceId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 256
+        },
+        readerInitiated: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'deviceId',
+        'readerInitiated'
+    ],
+    additionalProperties: false
+} as const;
+
+export const PushDeviceSubscriptionRequestSchema = {
+    type: 'object',
+    properties: {
+        consentId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
+        }
+    },
+    required: [
+        'consentId',
+        'revision'
+    ],
+    additionalProperties: false
+} as const;
+
 export const PushDeviceBrowserUpdateSchema = {
     type: 'object',
     properties: {

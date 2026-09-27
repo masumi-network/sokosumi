@@ -98,7 +98,10 @@ it.each([get, list, request])("hides upstream failures", async (operation) => {
     updatePushDeviceBrowser("user-1", device.id, details),
   ).rejects.toMatchObject({
     status: 502,
-    message: "Unable to update push device",
+    message:
+      operation === request
+        ? "Unable to update push device"
+        : "Unable to manage push device",
   });
 });
 it.each([404, 403, 500])(
