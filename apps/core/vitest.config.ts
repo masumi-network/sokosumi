@@ -23,6 +23,7 @@ const optInPostgresFiles = [
   "src/services/file-suggestions.postgres.test.ts",
   "src/services/file-table-index.postgres.test.ts",
   "src/services/file-collections.postgres.test.ts",
+  "src/services/file-backfill.postgres.test.ts",
 ];
 
 const optInIntegrationFiles = [

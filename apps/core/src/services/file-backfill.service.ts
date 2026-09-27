@@ -8,6 +8,7 @@ import { list } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
 import { adoptDriveUploadResource } from "@/services/file-catalog.service";
 
 /**
@@ -121,13 +122,23 @@ export async function backfillDriveStore(input: {
 
   // Record where this visit got to, so the next one resumes rather than
   // starting over — or stops, if the store is fully adopted.
-  await prisma.fileEvidenceScope.updateMany({
-    where: {
-      workspaceId: input.workspaceId,
-      sourceKind: FileSourceKind.DRIVE_UPLOAD,
-      sourceScope,
-      sourceId: input.ownerId,
-    },
+  //
+  // The row has to be ensured first. It is created by
+  // `adoptDriveUploadResource`, which only runs when there is something to
+  // adopt, so a store that adopted nothing had no row and the previous
+  // `updateMany` matched zero of them: completion was discarded while this
+  // function still returned `complete: true`. `isDriveStoreBackfillPending`
+  // then answered "yes" forever, on a hot path — every Drive search — so an
+  // empty Drive listed the blob store before every search for the life of
+  // the account.
+  const scope = await ensureEvidenceScope({
+    workspaceId: input.workspaceId,
+    sourceKind: FileSourceKind.DRIVE_UPLOAD,
+    sourceScope,
+    sourceId: input.ownerId,
+  });
+  await prisma.fileEvidenceScope.update({
+    where: { id: scope.id },
     data: {
       backfillCursor: complete ? null : (cursor ?? null),
       backfilledAt: complete ? new Date() : null,

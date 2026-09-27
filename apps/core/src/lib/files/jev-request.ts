@@ -164,6 +164,26 @@ export type JevRequestRejection = { rejected: true; reason: string };
 
 export type JevRequestResult = SerializedJevRequest | JevRequestRejection;
 
+/**
+ * A label request, plus the exact entries its question map will be built
+ * from.
+ *
+ * The caller must ask about `askedLabels` and nothing else. That is the
+ * whole point of returning it: the envelope charged is measured from this
+ * same array, so the request that is measured and the request that goes on
+ * the wire cannot drift apart. They already had once — the questions were
+ * built from the raw shortlist while the body carried a truncated copy.
+ */
+export type JevLabelRequestResult =
+  | (SerializedJevRequest & {
+      askedLabels: readonly {
+        id: string;
+        name: string;
+        description: string | null;
+      }[];
+    })
+  | JevRequestRejection;
+
 export function isJevRequestRejection(
   result: JevRequestResult,
 ): result is JevRequestRejection {
@@ -326,12 +346,27 @@ export function boundLabelVocabulary(
   }));
 }
 
-export function buildJevLabelRequest(input: JevLabelInput): JevRequestResult {
+export function buildJevLabelRequest(
+  input: JevLabelInput,
+): JevLabelRequestResult {
   const total = input.vocabulary.length + input.projects.length;
   const vocabulary = boundLabelVocabulary(input.vocabulary, total);
   const projects = boundLabelVocabulary(input.projects, total);
 
-  return fitWithin(
+  /**
+   * Everything the question map will ask about.
+   *
+   * Projects ride in the state today and are not asked as questions, so
+   * they are not in here. **If that changes, add them to this array and
+   * nothing else needs to change** — the envelope below is measured from
+   * it, and the caller asks from it. An envelope computed from a separate
+   * expression is how the label call came to be under-counted by ~8,300
+   * tokens in the first place; a parameter that is only safe because
+   * nobody passes it yet is the same bug waiting for a date.
+   */
+  const askedLabels = vocabulary;
+
+  const result = fitWithin(
     LABEL_EVALUATION_CEILINGS,
     (excerptBudget) => ({
       context: LABEL_CONTEXT,
@@ -340,10 +375,13 @@ export function buildJevLabelRequest(input: JevLabelInput): JevRequestResult {
       projects,
     }),
     LABEL_EVALUATION_CEILINGS.components.excerpt,
-    // The real envelope: one boolean question per label, each carrying that
-    // label's name and description. `RUBRICS.belongs` is never sent on this
-    // path, so charging its two fixed rungs measured a request that does
-    // not exist.
-    labelEnvelopeTokens(vocabulary),
+    // The real envelope: one boolean question per asked entry, each
+    // carrying that entry's name and description. `RUBRICS.belongs` is
+    // never sent on this path, so charging its two fixed rungs measured a
+    // request that does not exist.
+    labelEnvelopeTokens(askedLabels),
   );
+
+  if (isJevRequestRejection(result)) return result;
+  return { ...result, askedLabels };
 }

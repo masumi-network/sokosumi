@@ -229,6 +229,80 @@ describe("rerankFileCandidates", () => {
     expect(tail).toEqual(candidates.slice(24).map((entry) => entry.resourceId));
   });
 
+  it("does not open the breaker when our own rank deadline stops the call", async () => {
+    // A healthy provider that is simply slower than the budget we gave
+    // ourselves. Every call ends because *we* aborted it, and an abort we
+    // caused is our own refusal with a socket attached — the same thing
+    // `release()` exists to keep away from the breaker. Counting these
+    // opened it after two searches and denied interactive ranking for a
+    // minute, for a provider that had not failed once.
+    const scheduler = new JevScheduler();
+    const slowerThanTheDeadline: JevEvaluator = {
+      async evaluate({ signal }) {
+        await new Promise<void>((resolve) => {
+          if (signal?.aborted) return resolve();
+          signal?.addEventListener("abort", () => resolve(), { once: true });
+        });
+        return {
+          ok: false,
+          score: null,
+          reason: "aborted",
+          latencyMs: 1,
+          inputTokens: 0,
+          outputTokens: null,
+          costUsd: null,
+          generationId: null,
+        };
+      },
+    };
+
+    const candidates = Array.from({ length: 6 }, (_, index) =>
+      candidate(`doc-${index}`),
+    );
+
+    // Enough searches to fill the breaker's sample window several times
+    // over, if these counted as samples at all.
+    for (let search = 0; search < 5; search += 1) {
+      await rerankFileCandidates({
+        ...baseInput(candidates),
+        scheduler,
+        evaluator: slowerThanTheDeadline,
+      });
+    }
+
+    expect(scheduler.isBreakerOpen()).toBe(false);
+  }, 30_000);
+
+  it("still opens the breaker when the provider itself is failing", async () => {
+    // The mirror of the case above, so the test can fail in both
+    // directions: a provider that answers and answers badly is exactly
+    // what the breaker is for, and it must still trip.
+    //
+    // The clock is driven forward between searches because these failures
+    // are instant: without it the per-second burst is spent on the first
+    // search and every later one is refused before it dispatches, so no
+    // samples ever reach the breaker and the test would pass for a reason
+    // that has nothing to do with the breaker.
+    let clock = Date.now();
+    const scheduler = new JevScheduler(() => clock);
+    const failing = evaluatorReturning(() => null);
+
+    const candidates = Array.from({ length: 6 }, (_, index) =>
+      candidate(`doc-${index}`),
+    );
+
+    for (let search = 0; search < 5; search += 1) {
+      await rerankFileCandidates({
+        ...baseInput(candidates),
+        scheduler,
+        evaluator: failing,
+      });
+      clock += 1_000;
+    }
+
+    expect(scheduler.isBreakerOpen()).toBe(true);
+  });
+
   it("does nothing when there is nothing to reorder", async () => {
     const outcome = await rerankFileCandidates({
       ...baseInput([candidate("only")]),

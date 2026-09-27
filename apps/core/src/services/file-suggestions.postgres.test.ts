@@ -285,24 +285,76 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
     // A denied admission is our decision, not the provider's. Counting it as
     // a provider failure opened the breaker during a run that never reached
     // the network, and that degrades interactive search reranking.
-    const scheduler = getJevScheduler();
-    const before = scheduler.isBreakerOpen();
+    //
+    // The previous version of this test proved none of that. It used an
+    // evaluator that succeeds and an admission that is granted, so
+    // `release()` was never reached in any iteration; swapping it back to
+    // `settle("failed")` — the exact pre-fix behaviour named in the comment
+    // — left the suite green. It also ran 12 iterations against a 20-sample
+    // window, so the breaker could not have opened however the outcomes
+    // were classified. Two ways of asserting nothing at once.
+    //
+    // So: force the denial through the shared ceiling, assert every
+    // iteration actually took that branch, and run past the sample window.
+    const { PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE } = await import(
+      "@/lib/files/jev-scheduler"
+    );
+    const { BREAKER_SAMPLE_SIZE } = await import("@/lib/files/jev-scheduler");
 
-    for (let attempt = 0; attempt < 12; attempt += 1) {
+    const scheduler = getJevScheduler();
+    const iterations = BREAKER_SAMPLE_SIZE + 2;
+    const skipped: (string | null | undefined)[] = [];
+
+    for (let attempt = 0; attempt < iterations; attempt += 1) {
+      // Let the in-memory per-second bucket refill. Background work gets a
+      // burst of three, so without this the fourth iteration onwards is
+      // refused by `tryAdmit` before it ever reaches the admission — which
+      // is a different branch, and would make this test vacuous again in a
+      // new way. The assertion below is what caught that.
+      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 150));
+
+      // Spend the workspace's shared minute in the database. The in-memory
+      // scheduler keeps its own window, so `tryAdmit` still passes and the
+      // run reaches `admitJevRequest`, which is the branch under test.
+      await prisma.fileAuthorizationAdmission.create({
+        data: {
+          workspaceId,
+          actorFingerprint: "another-runtime",
+          epochVector: "whatever",
+          purpose: "label-suggest",
+          payloadDigest: `spent-${attempt}`,
+          provider: "vercel-ai-gateway",
+          model: "typesafe-ai/jev",
+          inputTokens: PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE,
+          admittedAt: new Date(),
+          expiresAt: new Date(Date.now() + 50),
+        },
+      });
+
       await queueSuggestionJob(100 + attempt);
       const leased = await leaseNextFileIndexJob({
         pipeline: FileIndexJobPipeline.SUGGEST,
       });
       if (!leased) throw new Error("expected a job");
-      await runSuggestionJob(leased, {
+      const outcome = await runSuggestionJob(leased, {
         evaluator: evaluatorChoosing("all"),
         configured: () => true,
       });
+      skipped.push(outcome.skipped);
       await prisma.fileLabel.deleteMany({ where: { resourceId } });
+      await prisma.fileAuthorizationAdmission.deleteMany({
+        where: { workspaceId },
+      });
     }
 
-    expect(scheduler.isBreakerOpen()).toBe(before);
-  });
+    // The assertion that stops this going vacuous again: the denial has to
+    // have actually happened, every time, or the breaker staying shut means
+    // nothing.
+    expect(skipped).toEqual(
+      Array.from({ length: iterations }, () => "admission-denied"),
+    );
+    expect(scheduler.isBreakerOpen()).toBe(false);
+  }, 60_000);
 });
 
 /**

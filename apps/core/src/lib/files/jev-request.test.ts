@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  boundLabelVocabulary,
   buildJevLabelRequest,
   buildJevRelatedPairRequest,
   buildJevSearchPairRequest,
@@ -223,7 +222,6 @@ describe("what the ceiling actually counts", () => {
       description: "What this label is for, described at some length.",
     }));
 
-    const asked = boundLabelVocabulary(vocabulary);
     const result = buildJevLabelRequest({
       documentExcerpt: "Findings about bicycle commuters.",
       vocabulary,
@@ -232,14 +230,42 @@ describe("what the ceiling actually counts", () => {
     expect(isJevRequestRejection(result)).toBe(false);
     if (isJevRequestRejection(result)) return;
 
+    // The invariant that makes this hard to break again: whatever the
+    // builder says will be asked is exactly what it charged for.
     expect(result.tokens).toBe(
       conservativeTokenCount(result.serialized) +
-        labelEnvelopeTokens(asked) +
+        labelEnvelopeTokens(result.askedLabels) +
         PROVIDER_FRAMING_TOKEN_ALLOWANCE,
     );
     // For contrast: the rubric envelope the old code charged here was 603
     // tokens flat, whatever the vocabulary.
-    expect(labelEnvelopeTokens(asked)).toBeGreaterThan(6_000);
+    expect(labelEnvelopeTokens(result.askedLabels)).toBeGreaterThan(6_000);
+  });
+
+  it("charges for projects if it ever asks about them", () => {
+    // Projects ride in the state today and are not asked as questions, so
+    // they are not in `askedLabels` — but the signature accepts them, and
+    // the moment someone asks about them the envelope has to follow. This
+    // pins the relationship rather than the current emptiness: whatever is
+    // asked is what is charged, so adding projects to the asked array
+    // cannot silently under-count the way the rubric envelope did.
+    const result = buildJevLabelRequest({
+      documentExcerpt: "body",
+      vocabulary: [{ id: "label-1", name: "Commuting", description: null }],
+      projects: [
+        { id: "p1", name: "Aurora launch", description: "the launch project" },
+      ],
+    });
+    expect(isJevRequestRejection(result)).toBe(false);
+    if (isJevRequestRejection(result)) return;
+
+    expect(result.tokens).toBe(
+      conservativeTokenCount(result.serialized) +
+        labelEnvelopeTokens(result.askedLabels) +
+        PROVIDER_FRAMING_TOKEN_ALLOWANCE,
+    );
+    // The project is in the state, and the state is measured.
+    expect(result.serialized).toContain("Aurora launch");
   });
 
   it("keeps a full 30-label request inside its ceiling", () => {

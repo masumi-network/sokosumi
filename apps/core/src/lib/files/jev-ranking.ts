@@ -32,8 +32,19 @@ import type { FileCandidate } from "@/lib/files/retrieval";
  */
 
 /** Only the head of the window is worth a paid call. */
-export const SEARCH_RERANK_CANDIDATES = 24;
-export const RELATED_RERANK_CANDIDATES = 12;
+/**
+ * How deep re-ranking goes — one wave, deliberately.
+ *
+ * These were 24 and 12, which at `PER_QUERY_MAX_CONCURRENT = 6` is four and
+ * two sequential waves of a model call. `RANK_DEADLINE_MS` is 600 ms and
+ * covers all of them together, so at any realistic latency the later waves
+ * could not finish inside it — and because re-ranking is all-or-nothing,
+ * the reader got the deterministic order anyway after paying for every call
+ * that did complete. Deep and never applied is worse than shallow and
+ * applied: the head is what a reader looks at.
+ */
+export const SEARCH_RERANK_CANDIDATES = 6;
+export const RELATED_RERANK_CANDIDATES = 6;
 
 export type RankingMode = "deterministic" | "model";
 
@@ -167,6 +178,9 @@ export async function rerankFileCandidates(
         if (!decision.admitted) return { failed: `quota:${decision.reason}` };
 
         let settled = false;
+        // Hoisted so both paths below can ask the one question that
+        // matters: did *we* stop this call, or did the provider fail?
+        let deadlineSignal: AbortSignal | null = null;
         try {
           const admission = await admit({
             workspaceId: input.workspaceId,
@@ -206,14 +220,36 @@ export async function rerankFileCandidates(
            * would have had for free.
            */
           const remaining = Math.max(0, deadline - clock());
+          deadlineSignal = AbortSignal.timeout(remaining);
           const outcome = await evaluator.evaluate({
             request,
             // Related pairs carry seed passages and no query, so they are
             // judged by the seed-based rungs. Asking the query rungs about
             // a request with no query was the defect here.
             rubric: isRelated ? "relatedness" : "relevance",
-            signal: AbortSignal.timeout(remaining),
+            signal: deadlineSignal,
           });
+
+          /**
+           * A deadline we imposed is our own refusal, not a provider
+           * failure.
+           *
+           * It just happens to have a socket attached. Counting it as a
+           * failure sample is the thing `release()` exists to prevent, and
+           * it opened the breaker after two ordinary searches — denying
+           * interactive ranking for a minute over a provider that had not
+           * failed once. The provider's own timeout is composed separately
+           * inside the client, so this signal firing means us and only us.
+           */
+          if (deadlineSignal.aborted) {
+            scheduler.release();
+            settled = true;
+            await recordDispatch({
+              admissionId: admission.id,
+              outcome: "rank-deadline",
+            });
+            return { failed: "rank-deadline" };
+          }
 
           // Settled before the record is written, and marked so the catch
           // below cannot settle it a second time: a double settle
@@ -232,8 +268,17 @@ export async function rerankFileCandidates(
 
           return { resourceId: candidate.resourceId, score: outcome.score };
         } catch {
-          if (!settled) scheduler.settle("failed");
-          return { failed: "evaluation:threw" };
+          if (!settled) {
+            // Same distinction on the throwing path: an abort raised by our
+            // own deadline is not evidence about the provider.
+            if (deadlineSignal?.aborted) scheduler.release();
+            else scheduler.settle("failed");
+          }
+          return {
+            failed: deadlineSignal?.aborted
+              ? "rank-deadline"
+              : "evaluation:threw",
+          };
         }
       }),
     );

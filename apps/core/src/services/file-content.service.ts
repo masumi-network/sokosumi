@@ -8,10 +8,35 @@ import type { FileActor } from "@/lib/files/actor";
 import { buildAuthorizedResourceSql } from "@/lib/files/evidence-scope";
 
 /**
+ * A validator that changes when the bytes change, and reveals nothing.
+ *
+ * This used to be `checksum ?? etag ?? objectKey`. Neither `checksum` nor
+ * `etag` has a writer anywhere in the repository, so it was not a fallback
+ * chain — it was always the object key, on every response. That was wrong
+ * twice over. It put a storage coordinate in a header the web proxy
+ * forwards verbatim, contradicting this module's own claim below; and
+ * because a re-upload to the same pathname keeps the object key while
+ * bumping `contentRevision`, the validator was *identical across content
+ * revisions*. Nothing serves a 304 yet, so no stale bytes have been served
+ * — but a validator that cannot invalidate is worse than none, because the
+ * moment someone adds conditional requests, caches believe it.
+ *
+ * The resource id is already public (the caller just asked with it) and
+ * `contentRevision` is exactly what a new upload moves.
+ */
+export function entityTagFor(version: {
+  resourceId: string;
+  contentRevision: number;
+}): string {
+  return `${version.resourceId}-${version.contentRevision}`;
+}
+
+/**
  * Serving the bytes behind a catalog entry.
  *
  * `FileVersion.objectKey` is a storage coordinate and never leaves the
- * server. A reader asks for a resource id, this module re-checks that *this*
+ * server — including in the `ETag`, which is derived instead from the
+ * resource id and content revision (see `entityTagFor`). A reader asks for a resource id, this module re-checks that *this*
  * caller may still have it, and only then resolves the coordinate.
  *
  * ## What this does and does not protect
@@ -118,8 +143,7 @@ interface AuthorizedVersionRow {
   mimeType: string | null;
   sizeBytes: number | null;
   objectKey: string;
-  checksum: string | null;
-  etag: string | null;
+  contentRevision: number;
 }
 
 export interface FileContentStream {
@@ -158,8 +182,7 @@ export async function openFileContentStream(input: {
       COALESCE(fv."mimeType", fr."mimeType") AS "mimeType",
       COALESCE(fv."sizeBytes", fr."sizeBytes") AS "sizeBytes",
       fv."objectKey",
-      fv.checksum,
-      fv.etag
+      fr."contentRevision"
     FROM file_resource fr
     JOIN file_version fv
       ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
@@ -204,9 +227,7 @@ export async function openFileContentStream(input: {
     contentType,
     size: metadata.size,
     displayName: row.displayName,
-    // Prefer our own checksum; fall back to the store's etag, then to the
-    // revision-stable object key. Never a timestamp: it would churn.
-    entityTag: row.checksum ?? row.etag ?? row.objectKey,
+    entityTag: entityTagFor(row),
     inline: !input.download && isInlineRenderable(contentType),
   };
 }

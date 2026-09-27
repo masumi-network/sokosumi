@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { contentUrl, effectiveType } from "./drive-file-preview";
+import {
+  contentUrl,
+  effectiveType,
+  rendersAsMarkdown,
+} from "./drive-file-preview";
 
 /**
  * The two decisions this component makes before it renders anything: which
@@ -87,5 +91,20 @@ describe("effectiveType", () => {
     // it is called.
     expect(effectiveType(null, "page.html")).toBe("");
     expect(effectiveType(null, "logo.svg")).toBe("");
+  });
+});
+
+describe("rendersAsMarkdown", () => {
+  it("renders Markdown and shows every other text type verbatim", () => {
+    // A CSV or JSON file put through the Markdown renderer is not the
+    // file. Pipes become tables, a leading `-` becomes a bullet, `#`
+    // becomes a heading, `*` vanishes into emphasis, and a `---` row
+    // becomes a rule — in a panel labelled "Preview", with nothing telling
+    // the reader that what they see differs from the bytes.
+    expect(rendersAsMarkdown("text/markdown")).toBe(true);
+
+    for (const type of ["text/csv", "application/json", "text/plain"]) {
+      expect(rendersAsMarkdown(type)).toBe(false);
+    }
   });
 });

@@ -5026,6 +5026,8 @@ model FileVersion {
   /// reader: content is served through the authorized proxy.
   objectKey String
   etag      String?
+  /// Not populated by anything yet. Do not read it as a content
+  /// identity: derive one from `contentRevision` instead.
   checksum  String?
   sizeBytes Int?
   mimeType  String?

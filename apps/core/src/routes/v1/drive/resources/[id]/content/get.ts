@@ -78,7 +78,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // The bytes are immutable for a revision, but permission to read them
       // is not. `no-cache` keeps the browser's copy and forces it back
       // through this route — which re-checks access — before reuse, and the
-      // etag makes that revalidation a cheap 304.
+      // etag makes that revalidation a cheap 304 — once someone adds
+      // conditional-request handling, which nothing here does yet. The tag
+      // is derived from the resource id and content revision, so it does
+      // move when a re-upload changes the bytes.
       "cache-control": "private, no-cache",
       etag: `"${result.entityTag}"`,
       "content-disposition": contentDispositionFor(

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   contentDispositionFor,
   contentSecurityPolicyFor,
+  entityTagFor,
   isInlineRenderable,
 } from "./file-content.service";
 
@@ -119,5 +120,37 @@ describe("contentSecurityPolicyFor", () => {
       expect(policy).not.toContain("allow-scripts");
       expect(policy).not.toContain("allow-same-origin");
     }
+  });
+});
+
+describe("entityTagFor", () => {
+  it("changes when a re-upload changes the bytes", () => {
+    // A re-upload to the same pathname keeps the object key and bumps
+    // `contentRevision`. The old tag was the object key, so it did not move
+    // — a validator that cannot invalidate. Nothing serves a 304 today, but
+    // the first person to add conditional requests would have shipped a
+    // cache that shows the previous document forever.
+    const before = entityTagFor({ resourceId: "res-1", contentRevision: 1 });
+    const after = entityTagFor({ resourceId: "res-1", contentRevision: 2 });
+
+    expect(before).not.toBe(after);
+  });
+
+  it("is stable for the same revision", () => {
+    // It still has to be a usable validator: same bytes, same tag.
+    expect(entityTagFor({ resourceId: "res-1", contentRevision: 3 })).toBe(
+      entityTagFor({ resourceId: "res-1", contentRevision: 3 }),
+    );
+  });
+
+  it("never carries the storage coordinate", () => {
+    // The web proxy forwards this header verbatim, and the blob store is
+    // public with `addRandomSuffix: false`, so the pathname is the public
+    // URL's path. This module claims the object key never leaves the
+    // server; the ETag used to be exactly that key.
+    const tag = entityTagFor({ resourceId: "res-1", contentRevision: 1 });
+
+    expect(tag).not.toContain("drive/");
+    expect(tag).not.toContain("/");
   });
 });

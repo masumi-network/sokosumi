@@ -22,7 +22,6 @@ import { admitJevRequest, recordJevDispatch } from "@/lib/files/jev-admission";
 import type { JevLabelEvaluator } from "@/lib/files/jev-client";
 import { gatewayJevEvaluator, isJevConfigured } from "@/lib/files/jev-client";
 import {
-  boundLabelVocabulary,
   buildJevLabelRequest,
   isJevRequestRejection,
 } from "@/lib/files/jev-request";
@@ -207,20 +206,13 @@ export async function runSuggestionJob(
    * every label at once, and a quota refusal now requeues instead of
    * pretending the work is done.
    */
-  // Bound the vocabulary once, here, and send the same list to both the
-  // builder and the evaluator. The questions carry each label's name and
-  // description, so if the two lists differ the request that is measured is
-  // not the request that goes on the wire.
-  const askedLabels = boundLabelVocabulary(
-    shortlist.map((entry) => ({
+  const request = buildJevLabelRequest({
+    documentExcerpt: excerpt,
+    vocabulary: shortlist.map((entry) => ({
       id: entry.id,
       name: entry.displayName,
       description: entry.description,
     })),
-  );
-  const request = buildJevLabelRequest({
-    documentExcerpt: excerpt,
-    vocabulary: askedLabels,
     projects: [],
   });
   if (isJevRequestRejection(request)) {
@@ -267,7 +259,9 @@ export async function runSuggestionJob(
 
   const verdict = await evaluator.evaluateLabels({
     request,
-    labels: askedLabels,
+    // The builder hands back exactly what it measured. Asking about
+    // anything else would make the charged envelope a fiction again.
+    labels: request.askedLabels,
   });
   scheduler.settle(verdict.ok ? "ok" : "failed");
   await recordJevDispatch({

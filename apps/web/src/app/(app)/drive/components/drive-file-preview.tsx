@@ -34,6 +34,38 @@ const TEXT_TYPES = new Set([
   "application/json",
 ]);
 
+/**
+ * The only type rendered as Markdown.
+ *
+ * Everything else in `TEXT_TYPES` is shown verbatim. A CSV or a JSON file
+ * put through a Markdown renderer is not the file: pipes become tables,
+ * a leading `-` becomes a bullet, `#` becomes a heading, `*` disappears
+ * into emphasis, and a `---` row becomes a rule. The panel calls this
+ * section "Preview" and a reader has no way to tell that what they are
+ * reading differs from the bytes — which is the one thing this component
+ * exists to show them.
+ *
+ * For `.md`, rendering *is* the faithful view. Note for whoever changes
+ * either side: the safety of that path depends on `sanitizeMarkdown`
+ * inside `<Markdown>` — a tight tag allowlist and no `on*` attributes —
+ * because this content is reader-supplied and is parsed into our own
+ * origin rather than served under the content route's
+ * `sandbox; default-src 'none'`.
+ */
+const MARKDOWN_TYPE = "text/markdown";
+
+/**
+ * Whether a text preview should be *rendered* rather than shown verbatim.
+ *
+ * Exported so the decision has a test: Drive components cannot currently be
+ * mounted in this suite (their import graph pulls in the whole generated
+ * Core client and module collection never finishes), so the predicate is
+ * the testable surface.
+ */
+export function rendersAsMarkdown(type: string): boolean {
+  return type === MARKDOWN_TYPE;
+}
+
 /** Text is read into the page, so it needs a ceiling of its own. */
 const MAX_TEXT_PREVIEW_BYTES = 512 * 1024;
 
@@ -189,10 +221,14 @@ export function DriveFilePreview({
           <p className="text-muted-foreground text-sm">
             {t("previewUnavailable")}
           </p>
-        ) : (
+        ) : rendersAsMarkdown(type) ? (
           <div className="bg-background max-h-[60dvh] overflow-y-auto rounded-md border px-4 py-3">
             <Markdown>{text.text}</Markdown>
           </div>
+        ) : (
+          <pre className="bg-background max-h-[60dvh] overflow-auto rounded-md border px-4 py-3 font-mono text-sm break-words whitespace-pre-wrap">
+            {text.text}
+          </pre>
         )
       ) : (
         <p className="text-muted-foreground text-sm">
