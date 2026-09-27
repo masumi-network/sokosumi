@@ -61,6 +61,15 @@ export type AdmissionDenial =
 
 export interface AdmissionGrant {
   id: string;
+  /**
+   * When the database minted this grant, in the database's own clock.
+   *
+   * Returned rather than derived from `expiresAt - ADMISSION_VALID_MS`
+   * because a caller measuring how long the grant took to arrive must not
+   * have to assume the constant that minted it is the constant it is
+   * compiled against.
+   */
+  admittedAt: Date;
   expiresAt: Date;
 }
 
@@ -271,7 +280,9 @@ export async function admitJevRequest(input: {
          *   writes are safe only because both sides of the round trip are
          *   symmetric; hand-writing one side breaks that symmetry.
          */
-        const [row] = await tx.$queryRaw<{ id: string; expiresAt: Date }[]>(
+        const [row] = await tx.$queryRaw<
+          { id: string; admittedAt: Date; expiresAt: Date }[]
+        >(
           PrismaRaw.sql`
             WITH t AS (SELECT clock_timestamp() AS ts)
             INSERT INTO "file_authorization_admission" (
@@ -293,11 +304,15 @@ export async function admitJevRequest(input: {
               (t.ts + ${ADMISSION_VALID_MS} * interval '1 millisecond')
                 AT TIME ZONE 'UTC'
             FROM t
-            RETURNING "id", "expiresAt"
+            RETURNING "id", "admittedAt", "expiresAt"
           `,
         );
         if (!row) return null;
-        return { id: row.id, expiresAt: row.expiresAt };
+        return {
+          id: row.id,
+          admittedAt: row.admittedAt,
+          expiresAt: row.expiresAt,
+        };
       },
       { isolationLevel: "ReadCommitted" },
     );

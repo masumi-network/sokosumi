@@ -69,6 +69,7 @@ function evaluatorReturning(
 
 const admitAlways = vi.fn(async () => ({
   id: "admission-1",
+  admittedAt: new Date(Date.now()),
   expiresAt: new Date(Date.now() + 10_000),
 }));
 const recordDispatch = vi.fn(async () => {});
@@ -190,6 +191,7 @@ describe("rerankFileCandidates", () => {
       ...baseInput([candidate("a"), candidate("b")]),
       admit: vi.fn(async () => ({
         id: "admission-old",
+        admittedAt: new Date(Date.now() - 51),
         expiresAt: new Date(Date.now() - 1),
       })),
       evaluator: { evaluate },
@@ -354,8 +356,7 @@ describe("rerankFileCandidates", () => {
 describe("why a fallback happened", () => {
   /**
    * The gate that proved this necessary: a real search against the real
-   * provider fell back, and nothing anywhere could say which of five causes
-   * it was. `fallbackReason` is computed and discarded, nothing logs, and the
+   * provider fell back, and nothing anywhere could say which cause it was. `fallbackReason` is computed and discarded, nothing logs, and the
    * latch reports to Sentry. From outside the process a silent fallback is
    * indistinguishable from a healthy deterministic search.
    */
@@ -388,7 +389,7 @@ describe("why a fallback happened", () => {
     await rerankFileCandidates({
       ...baseInput([candidate("doc-a"), candidate("doc-b")]),
       configured: () => true,
-      admit: vi.fn(async () => null), // a denial, which is one of the five
+      admit: vi.fn(async () => null), // one of the causes, and the cheapest
       evaluator: evaluatorReturning(() => 3),
       rankingLog,
     });
@@ -427,6 +428,7 @@ describe("why a fallback happened", () => {
     expect(Object.keys(emitted[0]).sort()).toEqual([
       "candidates",
       "elapsedMs",
+      "outcome",
       "reason",
     ]);
   });
@@ -450,5 +452,115 @@ describe("why a fallback happened", () => {
       rankingLog: trivial.rankingLog,
     });
     expect(trivial.emitted).toHaveLength(0);
+  });
+
+  /**
+   * A wave of six can fail six different ways, and one field described one
+   * of them.
+   *
+   * `expiredByMs` was function-scoped and written per candidate, while the
+   * reported reason was whichever failure came first in the array. So a wave
+   * where one candidate's grant arrived expired and another failed for an
+   * unrelated cause produced a single event reading
+   * `reason: "evaluation:invalid-answers", expiredByMs: 671` — two
+   * candidates fused into one sentence that was never true of either. The
+   * measurement below is sized off this field, which is why the attribution
+   * has to hold before anything is measured through it.
+   */
+  function mixedWave() {
+    const { emitted, rankingLog } = captureLog();
+    let call = 0;
+    const admit = vi.fn(async () => {
+      call += 1;
+      // The first grant is healthy; the second arrives 671 ms past expiry,
+      // the figure the real provider gate produced.
+      if (call === 1) {
+        return {
+          id: "admission-fresh",
+          admittedAt: new Date(Date.now() - 2),
+          expiresAt: new Date(Date.now() + 10_000),
+        };
+      }
+      return {
+        id: "admission-stale",
+        admittedAt: new Date(Date.now() - 721),
+        expiresAt: new Date(Date.now() - 671),
+      };
+    });
+    return { emitted, rankingLog, admit };
+  }
+
+  it("reports every distinct failure in the wave, not the first past the post", async () => {
+    const { emitted, rankingLog, admit } = mixedWave();
+
+    const outcome = await rerankFileCandidates({
+      ...baseInput([candidate("doc-a"), candidate("doc-b")]),
+      configured: () => true,
+      admit,
+      // doc-a holds a healthy grant and fails at the evaluation; doc-b never
+      // reaches the provider because its grant was born expired.
+      evaluator: evaluatorReturning((serialized) =>
+        serialized.includes('"id":"doc-a"') ? null : 3,
+      ),
+      rankingLog,
+    });
+
+    // The behaviour is unchanged: first past the post still decides what the
+    // caller is told, because `fallbackReason` names one return site and the
+    // gate reads it that way.
+    expect(outcome.fallbackReason).toBe("evaluation:invalid-answers");
+
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].reasons).toEqual([
+      "admission-expired",
+      "evaluation:invalid-answers",
+    ]);
+  });
+
+  it("attaches expiredByMs only to an event that reports the expiry", async () => {
+    const { emitted, rankingLog, admit } = mixedWave();
+
+    await rerankFileCandidates({
+      ...baseInput([candidate("doc-a"), candidate("doc-b")]),
+      configured: () => true,
+      admit,
+      evaluator: evaluatorReturning((serialized) =>
+        serialized.includes('"id":"doc-a"') ? null : 3,
+      ),
+      rankingLog,
+    });
+
+    const event = emitted[0];
+    expect(event.expiredByMs).toBe(671);
+    // The invariant, stated as the reader has to be able to apply it: if the
+    // number is there, the event says which cause it belongs to.
+    const reported = [
+      event.reason as string,
+      ...((event.reasons as string[] | undefined) ?? []),
+    ];
+    expect(reported).toContain("admission-expired");
+  });
+
+  it("measures the grant's transit on a ranking that succeeded", async () => {
+    // The distribution the window has to be sized against is the warm path,
+    // which by definition never failed and therefore never logged. One
+    // sample of 671 from the one event that did log is not a distribution.
+    const { emitted, rankingLog } = captureLog();
+
+    const outcome = await rerankFileCandidates({
+      ...baseInput([candidate("doc-a"), candidate("doc-b")]),
+      configured: () => true,
+      evaluator: evaluatorReturning(() => 3),
+      rankingLog,
+    });
+
+    expect(outcome.mode).toBe("model");
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].outcome).toBe("applied");
+    expect(emitted[0].reason).toBeUndefined();
+    // One sample per candidate that reached the dispatch check.
+    const transit = emitted[0].grantTransitMs as number[];
+    expect(transit).toHaveLength(2);
+    for (const sample of transit) expect(typeof sample).toBe("number");
   });
 });

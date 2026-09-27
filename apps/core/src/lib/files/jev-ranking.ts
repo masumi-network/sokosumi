@@ -101,6 +101,62 @@ interface PairScore {
 }
 
 /**
+ * What the waves actually observed, collected per candidate.
+ *
+ * Every field here is an array for one reason: the unit of work is a wave of
+ * up to six concurrent pairs, and a scalar per ranking cannot describe six
+ * candidates without picking one and implying it spoke for the rest. That is
+ * the defect this type exists to make unrepresentable.
+ */
+interface RankingMeasurement {
+  /**
+   * Milliseconds from the database minting the grant to this process's
+   * dispatch check, one sample per grant that reached the check.
+   *
+   * This is the quantity `ADMISSION_VALID_MS` has to cover. Emitted on
+   * successful rankings too, because the failures are by definition the tail
+   * and a window sized on the tail alone is sized on nothing.
+   */
+  transitMs: number[];
+  /** Milliseconds past `expiresAt`, for the grants that arrived expired. */
+  expiredByMs: number[];
+  /** Every distinct failure reason in the waves, not only the one returned. */
+  reasons: Set<string>;
+}
+
+/**
+ * The measured fields, each present only when it was measured.
+ *
+ * Absent rather than null throughout, so nothing can be read as "measured,
+ * and zero".
+ *
+ * `expiredByMs` is attributable by construction: it is non-empty only when
+ * the dispatch check rejected a grant, which puts `admission-expired` in
+ * `reasons`; and `reasons` is emitted whenever the set holds more than one
+ * member, so either the singular `reason` *is* `admission-expired` or the
+ * `reasons` array names it alongside whatever came first past the post. A
+ * reader can always tell which cause the number belongs to, which is the
+ * property the previous version claimed and did not have.
+ */
+function measuredFields(
+  measured: RankingMeasurement | undefined,
+): Record<string, unknown> {
+  if (!measured) return {};
+  // Sorted so two events with the same causes are the same line, whatever
+  // order the wave happened to settle in.
+  const reasons = [...measured.reasons].sort();
+  return {
+    ...(measured.transitMs.length === 0
+      ? {}
+      : { grantTransitMs: measured.transitMs }),
+    ...(reasons.length > 1 ? { reasons } : {}),
+    ...(measured.expiredByMs.length === 0
+      ? {}
+      : { expiredByMs: Math.max(...measured.expiredByMs) }),
+  };
+}
+
+/**
  * Run the bounded pair evaluations and reorder, or return the input order
  * unchanged with a reason. Never throws: a ranking stage that can fail a
  * search is worse than a search that is merely ordered lexically.
@@ -112,16 +168,6 @@ export async function rerankFileCandidates(
   const rankingStartedAt = clock();
 
   /**
-   * Set only when a grant arrived already expired; see the dispatch check.
-   *
-   * Declared here rather than beside `failure` below because `unchanged`
-   * closes over it and the early returns for `model-disabled`,
-   * `single-candidate` and `exact-match-head` all run before that point — a
-   * later `let` puts those three in the temporal dead zone.
-   */
-  let expiredByMs: number | null = null;
-
-  /**
    * Reasons that are configuration or triviality rather than a failure.
    *
    * A disabled model and a single-document corpus would otherwise put a line
@@ -131,7 +177,30 @@ export async function rerankFileCandidates(
    */
   const QUIET_REASONS = new Set(["model-disabled", "single-candidate"]);
 
-  const unchanged = (reason: string | null): RankingOutcome => {
+  const emit = (fields: Record<string, unknown>) => {
+    const log =
+      input.rankingLog ??
+      createCoreLogger({ operation: "files_semantic_ranking" });
+    log.set({
+      candidates: input.candidates.length,
+      elapsedMs: clock() - rankingStartedAt,
+      ...fields,
+    });
+    log.emit();
+  };
+
+  const unchanged = (
+    reason: string | null,
+    /**
+     * Passed in rather than closed over, which is what makes the attribution
+     * structural: the three early returns above the wave have no measurement
+     * to hand over, so no measured field can appear on an event that did not
+     * take a measurement. The previous version closed over a function-scoped
+     * `expiredByMs`, and so printed one candidate's number next to another
+     * candidate's reason.
+     */
+    measured?: RankingMeasurement,
+  ): RankingOutcome => {
     /**
      * Say why the model stage did not apply.
      *
@@ -141,15 +210,21 @@ export async function rerankFileCandidates(
      * logged. (An earlier version of this comment said "which of five
      * causes"; there are about ten return shapes here, three of them
      * interpolated strings, so the number was wrong and is not replaced with
-     * another one.) From outside the process a silent
+     * another one. `reasons` exists because the same miscount happens at
+     * runtime: a wave of six can fail six ways at once, and `failure ??=`
+     * keeps the first and drops the rest.) From outside the process a silent
      * fallback is indistinguishable from a healthy deterministic search, so a
      * feature that turns itself off does it invisibly.
      *
-     * Three fields, and deliberately only three. The reason strings are our
-     * own constants, never provider text and never derived from a document,
-     * which is what makes them safe to log — so nothing that is not safe is
-     * allowed to join them. No query, no filename, no resource id, no
-     * snippet. There is a test that asserts exactly that.
+     * Every field is either one of our own constants or a duration we
+     * measured. The reason strings are our constants, never provider text
+     * and never derived from a document, which is what makes them safe to
+     * log — so nothing that is not safe is allowed to join them. No query,
+     * no filename, no resource id, no snippet. The test that asserts this is
+     * a whole-key-set comparison rather than a list of forbidden fields,
+     * because a new field has to be looked at before it can be logged; it is
+     * the reason an unconditional `expiredByMs` cannot be added without
+     * someone noticing.
      *
      * On `evlog` rather than `console.info`, matching
      * `task-tag-classification.service.ts` — the same kind of Jev model stage
@@ -160,18 +235,7 @@ export async function rerankFileCandidates(
      * function has no Hono context by design.
      */
     if (reason !== null && !QUIET_REASONS.has(reason)) {
-      const log =
-        input.rankingLog ??
-        createCoreLogger({ operation: "files_semantic_ranking" });
-      log.set({
-        reason,
-        candidates: input.candidates.length,
-        elapsedMs: clock() - rankingStartedAt,
-        // Only on the one path where it means something. Absent elsewhere
-        // rather than null, so it cannot be read as "measured, and zero".
-        ...(expiredByMs === null ? {} : { expiredByMs }),
-      });
-      log.emit();
+      emit({ outcome: "fallback", reason, ...measuredFields(measured) });
     }
 
     return {
@@ -223,6 +287,11 @@ export async function rerankFileCandidates(
   const deadline = clock() + RANK_DEADLINE_MS;
 
   const scores: PairScore[] = [];
+  const measured: RankingMeasurement = {
+    transitMs: [],
+    expiredByMs: [],
+    reasons: new Set(),
+  };
   let failure: string | null = null;
 
   // Waves of at most six concurrent pairs per query. The deadline covers all
@@ -291,26 +360,37 @@ export async function rerankFileCandidates(
             scheduler.release();
             return { failed: "admission-denied" };
           }
-          if (!isAdmissionDispatchable(admission)) {
+          /**
+           * One clock reading, used for the decision and for both numbers.
+           *
+           * The check and the measurement previously read `Date.now()` at
+           * two different instants, so the recorded overage was not the
+           * overage the check saw. It is the same reading now, which is the
+           * only way the number can be evidence about the decision.
+           *
+           * `checkedAt` is this process's clock; `admittedAt` and
+           * `expiresAt` are the database's. The comparison crosses clock
+           * domains, and that is deliberate rather than overlooked: the
+           * dispatch check itself makes exactly that comparison, so the
+           * window has to cover transit *plus* whatever skew exists, and a
+           * measurement that removed the skew would be measuring something
+           * the check never sees.
+           */
+          const checkedAt = Date.now();
+          // Every grant that reached the check, not only the ones that
+          // failed it: the warm path is the distribution the window has to
+          // be sized against, and it is the path that never used to log.
+          measured.transitMs.push(checkedAt - admission.admittedAt.getTime());
+
+          if (!isAdmissionDispatchable(admission, new Date(checkedAt))) {
             scheduler.release();
             await recordDispatch({
               admissionId: admission.id,
               outcome: "expired-before-dispatch",
             });
-            /**
-             * How stale the grant already was, in milliseconds past expiry.
-             *
-             * Recorded to settle a question rather than to assert an answer.
-             * `expiresAt` is minted by the database at the INSERT;
-             * `Date.now()` here is this process's clock in another host. Two
-             * explanations remain for a grant that arrives expired, and this
-             * number separates them: an overage that is roughly constant and
-             * does not move with load reads as clock skew between the two
-             * domains, while one that varies with cold starts reads as the
-             * commit-plus-return-hop simply not fitting in
-             * `ADMISSION_VALID_MS`.
-             */
-            expiredByMs = Date.now() - admission.expiresAt.getTime();
+            measured.expiredByMs.push(
+              checkedAt - admission.expiresAt.getTime(),
+            );
             return { failed: "admission-expired" };
           }
 
@@ -393,15 +473,22 @@ export async function rerankFileCandidates(
 
     for (const result of results) {
       if ("failed" in result) {
+        // First past the post still decides what the caller is told, because
+        // `fallbackReason` has to name one return site. The set is what gets
+        // reported, because a wave of six can fail six different ways and
+        // reporting one of them hides the other five.
         failure ??= result.failed;
+        measured.reasons.add(result.failed);
         continue;
       }
       scores.push(result);
     }
   }
 
-  if (failure) return unchanged(failure);
-  if (scores.length !== head.length) return unchanged("incomplete-batch");
+  if (failure) return unchanged(failure, measured);
+  if (scores.length !== head.length) {
+    return unchanged("incomplete-batch", measured);
+  }
 
   const scoreById = new Map(
     scores.map((entry) => [entry.resourceId, entry.score]),
@@ -417,6 +504,8 @@ export async function rerankFileCandidates(
     }
     return left.resourceId.localeCompare(right.resourceId);
   });
+
+  emit({ outcome: "applied", ...measuredFields(measured) });
 
   return {
     candidates: [...protectedHead, ...reordered, ...tail],
