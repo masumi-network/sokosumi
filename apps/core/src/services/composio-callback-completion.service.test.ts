@@ -2,12 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   completeComposioAuthMock,
-  hermesPendingConnectionFindUniqueMock,
   socialConnectionIntentFindUniqueMock,
   socialConnectionIntentUpdateManyMock,
 } = vi.hoisted(() => ({
   completeComposioAuthMock: vi.fn(),
-  hermesPendingConnectionFindUniqueMock: vi.fn(),
   socialConnectionIntentFindUniqueMock: vi.fn(),
   socialConnectionIntentUpdateManyMock: vi.fn(),
 }));
@@ -18,9 +16,6 @@ vi.mock("@/clients/composio.client", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    hermesPendingConnection: {
-      findUnique: hermesPendingConnectionFindUniqueMock,
-    },
     projectSocialConnectionIntent: {
       findUnique: socialConnectionIntentFindUniqueMock,
       updateMany: socialConnectionIntentUpdateManyMock,
@@ -125,11 +120,8 @@ describe("completeComposioCallback", () => {
     ).rejects.toThrow("Unknown or expired connection");
   });
 
-  it("keeps Hermes OAuth compatible by redeeming its pending connection with the Hermes user id", async () => {
-    hermesPendingConnectionFindUniqueMock.mockResolvedValue({
-      userId: "user_123",
-      expiresAt: new Date("2026-09-03T10:15:00.000Z"),
-    });
+  it("rejects completion when no Project social intent exists", async () => {
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(null);
     const { completeComposioCallback } = await import(
       "./composio-callback-completion.service"
     );
@@ -140,12 +132,10 @@ describe("completeComposioCallback", () => {
         sessionUri: "https://backend.composio.dev/session/single-use",
         userId: "user_123",
       }),
-    ).resolves.toBeUndefined();
-    expect(completeComposioAuthMock).toHaveBeenCalledWith({
-      sessionUri: "https://backend.composio.dev/session/single-use",
-      userId: "user_123",
-    });
+    ).rejects.toThrow("Unknown or expired connection");
+    expect(completeComposioAuthMock).not.toHaveBeenCalled();
   });
+
   it.each(["closingAt", "closedAt"])(
     "rejects a callback for a terminal Project (%s)",
     async (field) => {

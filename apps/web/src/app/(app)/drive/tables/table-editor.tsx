@@ -6,6 +6,9 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
+import { DRIVE_SURFACE_PANEL_CLASS } from "@/app/drive/components/drive-view-layout";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -18,12 +21,22 @@ import {
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell as TableCellShell,
+  TableHead,
+  TableHeader,
+  TableRow as TableRowShell,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useSession } from "@/lib/auth/auth.client";
 import type {
@@ -33,6 +46,7 @@ import type {
   TableView,
 } from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
+import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { TableCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
@@ -43,6 +57,21 @@ import {
   tableHistoryText,
   tableValueText,
 } from "./table-value";
+
+/**
+ * Toolbar controls: 40px where a finger lands, and the 32px the Files toolbar
+ * uses once there is a pointer. `Button size="sm"` keeps the small padding and
+ * gap at both widths; only the height responds.
+ *
+ * Viewport queries and not the Files header row's container query, because
+ * this route has **no `@container` ancestor** — `@md`/`@xl` would never fire
+ * here. These controls also have no tab strip to stay level with: nothing in
+ * this toolbar sets the height of a row something else is centred in, which is
+ * what forces `DRIVE_HEADER_CONTROL_CLASS` onto a container query. Kept local
+ * and separately named so the two are not swapped for one another.
+ */
+const EDITOR_TOOLBAR_CONTROL = "h-10 md:h-8";
+const TOOLBAR_ICON_CONTROL = "size-10 md:size-8";
 
 export function TableEditor({ id }: { id: string }) {
   const t = useTranslations("App.Tables");
@@ -337,26 +366,43 @@ function TableWorkspace({
     );
   }
   return (
-    <div className="flex min-w-0 flex-col gap-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button asChild variant="ghost" size="icon">
-            <Link href="/drive?view=tables" aria-label={t("backToFiles")}>
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
-          <div className="min-w-0">
-            <h1 className="truncate text-xl font-semibold">{table.title}</h1>
-            {table.description && (
-              <p className="text-muted-foreground max-w-2xl text-sm">
-                {table.description}
-              </p>
+    <div className="flex min-w-0 flex-col gap-4">
+      {/* The same labelled back affordance the project and task detail pages
+      use. It stays at every width: the app chrome's chevron and the breadcrumb
+      both go to `/drive`, which lands on Recents, so this link is the only
+      route back to the Tables tab — and `display: none` would have taken it
+      out of the accessibility tree on phones too. */}
+      <Link
+        href="/drive?view=tables"
+        className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5 text-sm transition-colors"
+      >
+        <ArrowLeft className="size-4" aria-hidden />
+        <span>{t("backToFiles")}</span>
+      </Link>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="truncate text-xl leading-tight font-semibold tracking-tight">
+              {table.title}
+            </h1>
+            {/* Archived rows are a mode, not a filter chip you can miss. The
+            only other cues are a shorter list and disabled inputs, which read
+            as "this table is empty". */}
+            {archivedRows && (
+              <Badge variant="secondary">{t("archivedRowsBadge")}</Badge>
             )}
           </div>
+          {table.description && (
+            <p className="text-muted-foreground mt-1 max-w-2xl text-sm">
+              {table.description}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button
+            size="sm"
             variant="outline"
+            className={EDITOR_TOOLBAR_CONTROL}
             onClick={() => {
               setHistoryCursor(undefined);
               setHistoryCell({});
@@ -367,7 +413,12 @@ function TableWorkspace({
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" aria-label={t("tableMenu")}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className={TOOLBAR_ICON_CONTROL}
+                aria-label={t("tableMenu")}
+              >
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -384,6 +435,20 @@ function TableWorkspace({
               <DropdownMenuItem onClick={() => void run(handleExport)}>
                 {t("exportCsv")}
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {/* A checkbox item, so assistive technology gets the mode too,
+              and separated from the destructive table-level action below. */}
+              <DropdownMenuCheckboxItem
+                checked={archivedRows}
+                onCheckedChange={() => {
+                  setArchivedRows(!archivedRows);
+                  setSelected([]);
+                  void setCursor(null);
+                }}
+              >
+                {t("showArchivedRows")}
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setDialog("archive")}>
                 {table.archivedAt ? t("restore") : t("archive")}
               </DropdownMenuItem>
@@ -399,7 +464,8 @@ function TableWorkspace({
       <div className="flex flex-wrap items-center gap-2">
         <select
           className={withEditableTextSize(
-            "bg-background h-10 rounded-md border px-3 py-2",
+            "bg-background rounded-md border px-2",
+            EDITOR_TOOLBAR_CONTROL,
           )}
           aria-label={t("view")}
           value={view?.id ?? ""}
@@ -416,11 +482,17 @@ function TableWorkspace({
             </option>
           ))}
         </select>
-        <Button variant="outline" onClick={() => setDialog("views")}>
+        <Button
+          size="sm"
+          variant="outline"
+          className={EDITOR_TOOLBAR_CONTROL}
+          onClick={() => setDialog("views")}
+        >
           {t("configureView")}
         </Button>
         <Button
-          variant="outline"
+          size="sm"
+          className={EDITOR_TOOLBAR_CONTROL}
           disabled={pending || !!table.archivedAt}
           onClick={() =>
             void run(
@@ -436,28 +508,25 @@ function TableWorkspace({
           {t("addRow")}
         </Button>
         <Button
+          size="sm"
           variant="outline"
+          className={EDITOR_TOOLBAR_CONTROL}
           disabled={!!table.archivedAt}
           onClick={() => setColumn("new")}
         >
+          <Plus aria-hidden className="size-4" />
           {t("addColumn")}
         </Button>
-        <Button
-          variant="ghost"
-          onClick={() => {
-            setArchivedRows(!archivedRows);
-            setSelected([]);
-            void setCursor(null);
-          }}
-        >
-          {archivedRows ? t("showActive") : t("showArchived")}
-        </Button>
+        {/* Selection actions sit in their own trailing group so selecting a
+        row cannot reflow the controls the pointer just left. */}
         {selected.length > 0 && (
-          <>
+          <div className="flex flex-wrap items-center gap-2 md:ms-auto">
             <span className="text-muted-foreground text-sm">
               {t("selected", { count: selected.length })}
             </span>
             <Button
+              size="sm"
+              className={EDITOR_TOOLBAR_CONTROL}
               disabled={!!table.archivedAt}
               onClick={() => {
                 setEnrichmentKey(crypto.randomUUID());
@@ -470,7 +539,9 @@ function TableWorkspace({
               {t("askAgent")}
             </Button>
             <Button
+              size="sm"
               variant="outline"
+              className={EDITOR_TOOLBAR_CONTROL}
               disabled={pending || !!table.archivedAt}
               onClick={() =>
                 void run(async () => {
@@ -493,39 +564,56 @@ function TableWorkspace({
             >
               {archivedRows ? t("restoreRows") : t("archiveRows")}
             </Button>
-          </>
+          </div>
         )}
       </div>
       {error && (
-        <p role="alert" className="text-destructive text-sm">
-          {error}
-          {retryAction && (
+        <Alert variant="destructive">
+          <AlertDescription className="flex flex-wrap items-center gap-2">
+            <span className="min-w-0 break-words">{error}</span>
+            {retryAction && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={() => void run(retryAction, retrySlot)}
+              >
+                {t("retry")}
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+      {rows.error && (
+        <Alert variant="destructive">
+          <AlertDescription className="flex flex-wrap items-center gap-2">
+            <span className="min-w-0 break-words">
+              {tableError(rows.error, t)}
+            </span>
             <Button
-              disabled={pending}
-              onClick={() => void run(retryAction, retrySlot)}
+              size="sm"
+              variant="outline"
+              onClick={() => void rows.refetch()}
             >
               {t("retry")}
             </Button>
-          )}
-        </p>
+          </AlertDescription>
+        </Alert>
       )}
-      {rows.error && (
-        <p role="alert" className="text-destructive text-sm">
-          {tableError(rows.error, t)}{" "}
-          <Button onClick={() => void rows.refetch()}>{t("retry")}</Button>
-        </p>
-      )}
-      <div className="app-scrollbar max-w-full overflow-x-auto rounded-lg border">
-        <table className="w-full border-collapse text-sm">
+      <div className={cn(DRIVE_SURFACE_PANEL_CLASS, "min-w-0")}>
+        <Table className="border-collapse">
           <caption className="sr-only">{table.title}</caption>
-          <thead className="bg-muted">
-            <tr>
-              <th className="w-12 p-3">
+          <TableHeader>
+            <TableRowShell className="hover:bg-transparent">
+              <TableHead className="w-12 px-3">
                 <Checkbox
                   aria-label={t("selectAll")}
                   checked={
-                    !!rows.data?.rows.length &&
-                    selected.length === rows.data.rows.length
+                    !rows.data?.rows.length || !selected.length
+                      ? false
+                      : selected.length === rows.data.rows.length
+                        ? true
+                        : "indeterminate"
                   }
                   onCheckedChange={(checked) =>
                     setSelected(
@@ -535,20 +623,23 @@ function TableWorkspace({
                     )
                   }
                 />
-              </th>
+              </TableHead>
               {columns.map((column) => (
-                <th
+                <TableHead
                   scope="col"
-                  className="min-w-48 border-s px-2 py-1 text-start font-medium"
+                  className="min-w-48 border-s px-3"
                   key={column.id}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span title={column.description}>{column.name}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="truncate" title={column.description}>
+                      {column.name}
+                    </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="text-muted-foreground size-7 shrink-0"
                           aria-label={t("columnMenu", { column: column.name })}
                         >
                           <MoreHorizontal className="size-4" />
@@ -605,14 +696,21 @@ function TableWorkspace({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRowShell>
+          </TableHeader>
+          <TableBody>
             {displayedRows.map((row) => (
-              <tr key={row.id} className="border-t">
-                <td className="p-3">
+              <TableRowShell
+                key={row.id}
+                className="hover:bg-card-background-hover"
+                data-state={selected.includes(row.id) ? "selected" : undefined}
+              >
+                {/* Top-aligned with the first control in the row: a
+                `long_text` column makes rows uneven, and a centred checkbox
+                floats in the middle of a tall band. */}
+                <TableCellShell className="w-12 px-3 pt-4 align-top">
                   <Checkbox
                     aria-label={t("selectRow")}
                     checked={selected.includes(row.id)}
@@ -624,9 +722,18 @@ function TableWorkspace({
                       )
                     }
                   />
-                </td>
+                </TableCellShell>
                 {columns.map((column) => (
-                  <td key={column.id} className="border-s p-1 align-top">
+                  <TableCellShell
+                    key={column.id}
+                    // The shared cell is `whitespace-nowrap align-middle`,
+                    // which is right for a read-only grid and wrong for this
+                    // one: a cell error is prose, and it painted 283px past
+                    // the cell and over the next column. Rows are also uneven
+                    // once a `long_text` column exists, so controls line up on
+                    // the row's top edge rather than floating mid-band.
+                    className="border-s p-1 align-top whitespace-normal"
+                  >
                     <TableCell
                       column={column}
                       row={row}
@@ -655,12 +762,12 @@ function TableWorkspace({
                         setDialog("history");
                       }}
                     />
-                  </td>
+                  </TableCellShell>
                 ))}
-              </tr>
+              </TableRowShell>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
         {rows.isPending ? (
           <p role="status" className="p-6 text-sm">
             {t("loading")}
@@ -672,34 +779,38 @@ function TableWorkspace({
             </p>
           )
         )}
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <p role="status" className="text-muted-foreground text-xs">
-          {t("liveUpdates")}
-        </p>
-        <div className="flex gap-2">
-          {cursor && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                void setCursor(null);
-                setSelected([]);
-              }}
-            >
-              {t("firstPage")}
-            </Button>
-          )}
-          {rows.data?.nextCursor && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                void setCursor(rows.data?.nextCursor ?? null);
-                setSelected([]);
-              }}
-            >
-              {t("nextPage")}
-            </Button>
-          )}
+        {/* Pagination and the live-update note belong to the grid, so they
+        ride inside its surface the way every other table in the app does. */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2">
+          <p role="status" className="text-muted-foreground text-xs">
+            {t("liveUpdates")}
+          </p>
+          <div className="flex gap-2">
+            {cursor && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  void setCursor(null);
+                  setSelected([]);
+                }}
+              >
+                {t("firstPage")}
+              </Button>
+            )}
+            {rows.data?.nextCursor && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  void setCursor(rows.data?.nextCursor ?? null);
+                  setSelected([]);
+                }}
+              >
+                {t("nextPage")}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
       {column && (
@@ -795,7 +906,7 @@ function TableWorkspace({
                 <select
                   id="filter-column"
                   className={withEditableTextSize(
-                    "bg-background h-10 rounded-md border px-2",
+                    "bg-background h-10 rounded-md border px-3",
                   )}
                   value={definition.filters?.[0]?.columnId ?? ""}
                   onChange={(event) =>
@@ -825,7 +936,7 @@ function TableWorkspace({
                     <select
                       aria-label={t("operator")}
                       className={withEditableTextSize(
-                        "bg-background h-10 rounded-md border px-2",
+                        "bg-background h-10 rounded-md border px-3",
                       )}
                       value={definition.filters[0].operator}
                       onChange={(event) =>
@@ -860,12 +971,36 @@ function TableWorkspace({
                   </>
                 )}
               </div>
-              <Button
-                variant="outline"
-                onClick={() => handleDefinition({ ...definition, sort: null })}
-              >
-                {t("clearSort")}
-              </Button>
+              <div className="grid gap-2">
+                <span className="text-sm font-medium">{t("sort")}</span>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-muted-foreground min-w-0 text-sm">
+                    {definition.sort
+                      ? t("sortedBy", {
+                          column:
+                            table.columns.find(
+                              (column) =>
+                                column.id === definition.sort?.columnId,
+                            )?.name ?? t("unknown"),
+                          direction:
+                            definition.sort.direction === "asc"
+                              ? t("ascending")
+                              : t("descending"),
+                        })
+                      : t("noSort")}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!definition.sort}
+                    onClick={() =>
+                      handleDefinition({ ...definition, sort: null })
+                    }
+                  >
+                    {t("clearSort")}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
           {dialog === "history" && (
@@ -881,7 +1016,7 @@ function TableWorkspace({
                   className="rounded-md border p-3 text-sm"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span>
+                    <span className="text-muted-foreground min-w-0 truncate">
                       {change.actorName ?? change.actorKind} ·{" "}
                       {format.dateTime(
                         new Date(change.createdAt),
@@ -912,9 +1047,9 @@ function TableWorkspace({
                       {t("undoBatch")}
                     </Button>
                   </div>
-                  <dl className="mt-2 grid gap-1">
+                  <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
                     <dt className="text-muted-foreground">{t("before")}</dt>
-                    <dd className="break-words text-sm">
+                    <dd className="min-w-0 break-words text-sm">
                       {tableHistoryText(change.before, {
                         archived: t("archived"),
                         active: t("active"),
@@ -925,7 +1060,7 @@ function TableWorkspace({
                       })}
                     </dd>
                     <dt className="text-muted-foreground">{t("after")}</dt>
-                    <dd className="break-words text-sm">
+                    <dd className="min-w-0 break-words text-sm">
                       {tableHistoryText(change.after, {
                         archived: t("archived"),
                         active: t("active"),
@@ -1004,7 +1139,7 @@ function TableWorkspace({
                   id="table-agent"
                   disabled={pending || !!enrichmentRequest}
                   className={withEditableTextSize(
-                    "bg-background h-10 rounded-md border px-2",
+                    "bg-background h-10 rounded-md border px-3",
                   )}
                   value={agent}
                   onChange={(event) => setAgent(event.target.value)}
@@ -1054,17 +1189,21 @@ function TableWorkspace({
             </div>
           )}
           {error && (
-            <p role="alert" className="text-destructive text-sm">
-              {error}
-              {retryAction && (
-                <Button
-                  disabled={pending}
-                  onClick={() => void run(retryAction, retrySlot)}
-                >
-                  {t("retry")}
-                </Button>
-              )}
-            </p>
+            <Alert variant="destructive">
+              <AlertDescription className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 break-words">{error}</span>
+                {retryAction && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => void run(retryAction, retrySlot)}
+                  >
+                    {t("retry")}
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
           )}
           {dialog !== "history" && (
             <DialogFooter>
