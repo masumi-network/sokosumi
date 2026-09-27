@@ -1474,7 +1474,7 @@ function DrivePageWorkspace({
 
         {!isTasksView && isBrowseView ? (
           <nav
-            className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
+            className="app-scrollbar text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
             aria-label={t("breadcrumbNavLabel")}
           >
             <button
@@ -1516,7 +1516,7 @@ function DrivePageWorkspace({
         ) : null}
         {isTasksView ? (
           <nav
-            className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
+            className="app-scrollbar text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
             aria-label={t("breadcrumbNavLabel")}
           >
             <button
@@ -2296,7 +2296,7 @@ function DrivePageWorkspace({
             </DialogTitle>
             <DialogDescription>{t("moveDialogDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="max-h-96 space-y-2 overflow-y-auto">
+          <div className="app-scrollbar max-h-96 space-y-2 overflow-y-auto">
             {loadingAllFolders ? (
               <p className="text-muted-foreground text-sm">
                 {t("loadingFolders")}

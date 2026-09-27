@@ -33,7 +33,7 @@ export async function AdminDecisionsPanel({
       {decisions.length === 0 ? (
         <p className="text-muted-foreground px-4 py-6 text-sm">{t("empty")}</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="app-scrollbar overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-muted-foreground border-b text-left text-xs">
               <tr>

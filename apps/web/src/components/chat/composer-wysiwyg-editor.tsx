@@ -158,7 +158,7 @@ const EDITOR_PROSE_CLASSNAME = cn(
   "[&_em]:italic [&_i]:italic [&_strong]:font-bold [&_b]:font-bold",
   "[&_u]:underline [&_s]:line-through [&_strike]:line-through [&_del]:line-through",
   "[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs",
-  "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
+  "[&_pre]:app-scrollbar [&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
   "[&_a]:text-primary [&_a]:underline",
   "[&_blockquote]:border-input [&_blockquote]:text-muted-foreground [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
@@ -1463,7 +1463,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
                 : { top: VIEWPORT_PADDING_PX, left: VIEWPORT_PADDING_PX }
             }
             className={cn(
-              "bg-popover text-popover-foreground fixed z-50 overflow-y-auto rounded-xl border p-1 shadow-md",
+              "app-scrollbar bg-popover text-popover-foreground fixed z-50 overflow-y-auto rounded-xl border p-1 shadow-md",
               triggerPosition?.width == null && "w-72",
               !triggerPosition && "mt-1 max-h-60",
             )}

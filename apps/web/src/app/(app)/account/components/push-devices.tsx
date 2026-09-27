@@ -238,7 +238,7 @@ export function PushDevices({ userId }: PushDevicesProps) {
         }}
       >
         <AlertDialogContent
-          className="max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain motion-reduce:animate-none"
+          className="app-scrollbar max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain motion-reduce:animate-none"
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             const trigger = removeTriggerRef.current;

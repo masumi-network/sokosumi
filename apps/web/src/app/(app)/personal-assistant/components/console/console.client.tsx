@@ -441,7 +441,7 @@ export function SokoBotConsole({
                           )}
                         </span>
                       </p>
-                      <Markdown className="prose prose-sm dark:prose-invert max-h-80 max-w-none overflow-y-auto text-sm">
+                      <Markdown className="app-scrollbar prose prose-sm dark:prose-invert max-h-80 max-w-none overflow-y-auto text-sm">
                         {bot.memory.markdown}
                       </Markdown>
                     </div>

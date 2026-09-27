@@ -114,7 +114,7 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
 
 function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
   return (
-    <div className="-mx-2 flex h-full min-h-[calc(100dvh-8.5rem)] w-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 taskboard-scrollbar">
+    <div className="-mx-2 flex h-full min-h-[calc(100dvh-8.5rem)] w-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
       {KANBAN_COLUMNS.map((column, index) => {
         const isFirstColumn = index === 0;
 
@@ -133,7 +133,7 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
 
             <div
               className={cn(
-                "flex min-h-0 flex-1 flex-col overflow-y-auto rounded-b-xl px-2 [scrollbar-gutter:stable] taskboard-scrollbar",
+                "flex min-h-0 flex-1 flex-col overflow-y-auto rounded-b-xl px-2 [scrollbar-gutter:stable] app-scrollbar",
                 LIST_MOBILE_CREATE_FAB_CLEARANCE,
                 "md:pb-2",
               )}

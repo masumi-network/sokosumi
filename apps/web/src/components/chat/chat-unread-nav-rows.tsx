@@ -201,7 +201,7 @@ export function ChatUnreadNavRows({
                 align="start"
                 sideOffset={8}
                 aria-labelledby={panelHeadingId}
-                className="flex max-h-[min(32rem,var(--radix-popover-content-available-height))] w-80 flex-col gap-2 overflow-y-auto p-2"
+                className="app-scrollbar flex max-h-[min(32rem,var(--radix-popover-content-available-height))] w-80 flex-col gap-2 overflow-y-auto p-2"
                 {...contentProps}
                 // Following a row opens its Thread in its room; the panel has
                 // done its job there.
