@@ -30,7 +30,7 @@ Or:
 pnpm --filter @sokosumi/cli sokosumi
 ```
 
-That opens the Ink screen. Choose a sign-in method with Up and Down, then press Enter. Use Esc to go back and q to quit. Choose browser OAuth or a user API key, then choose a preset Coworker runtime (pi-sokosumi, Eve, Hermes, OpenClaw). Register is marked `(soon)` and remains preset-only. OAuth opens Core `/signin`. Stored OAuth credentials and user API keys use the OS vault. Linux persistent auth needs Secret Service. If no vault is available, use `SOKOSUMI_API_KEY` or stdin for the current run.
+That opens the Ink screen. Choose a sign-in method with Up and Down, then press Enter. Use Esc to go back and q to quit. Choose browser OAuth or a user API key. Signed-in home lists Vendors, Workspaces, and Sign out. Coworker create is headless `coworkers register` until TUI connect (T41). OAuth opens Core `/signin`. Stored OAuth credentials and user API keys use the OS vault. Linux persistent auth needs Secret Service. If no vault is available, use `SOKOSUMI_API_KEY` or stdin for the current run.
 
 Headless:
 
