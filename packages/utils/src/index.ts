@@ -212,6 +212,16 @@ export {
   isUnexpectedHtmlImport,
   resolveDownloadableFileUrl,
 } from "./github-file-url.js";
+export {
+  creditsPerImageCents,
+  IMAGE_PRICE_UNITS,
+  type ImageFrame,
+  type ImagePriceFigures,
+  type ImagePriceUnit,
+  imageOutputDimensions,
+  imageOutputMegapixels,
+  isPerImageDerivableUnit,
+} from "./image-credits.js";
 export { sniffImageMimeFromBytes } from "./image-mime.js";
 export {
   normalizeOrganizationLogo,
