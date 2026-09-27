@@ -36,6 +36,8 @@ vi.mock("@/lib/db/prisma", () => ({
 import {
   LATE_RESPONSE_GRACE_MS,
   LATE_RESPONSE_MAX_AGE_MS,
+  LATE_RESPONSE_MISSING_TEXT,
+  LATE_RESPONSES_PER_RUN,
   syncLateCoworkerResponses,
 } from "./coworker-late-responses-sync.service";
 
@@ -130,26 +132,82 @@ describe("syncLateCoworkerResponses", () => {
     expect(persistMock).not.toHaveBeenCalled();
   });
 
-  it("drops failed, empty and expired responses", async () => {
+  it("gives up on failed, empty, unknown and expired responses with a note in the chat", async () => {
     listMock.mockResolvedValue([
       entry("resp_failed", LATE_RESPONSE_GRACE_MS + 1),
       entry("resp_empty", LATE_RESPONSE_GRACE_MS + 1),
+      entry("resp_unknown", LATE_RESPONSE_GRACE_MS + 1),
       entry("resp_old", LATE_RESPONSE_MAX_AGE_MS + 1),
     ]);
-    retrieveMock
-      .mockResolvedValueOnce({
-        result: { status: "failed", responseId: "resp_failed" },
+    retrieveMock.mockImplementation(async ({ responseId }) => {
+      if (responseId === "resp_failed")
+        return { result: { status: "failed", responseId }, text: null };
+      if (responseId === "resp_empty")
+        return { result: { status: "completed", responseId }, text: null };
+      return {
+        result: {
+          status: "error",
+          responseId,
+          cause: new Error("x"),
+          httpStatus: 404,
+        },
         text: null,
-      })
-      .mockResolvedValueOnce({
-        result: { status: "completed", responseId: "resp_empty" },
-        text: null,
-      });
+      };
+    });
 
-    expect(await sync()).toEqual({ delivered: 0, dropped: 3, waiting: 0 });
-    expect(retrieveMock).toHaveBeenCalledTimes(2);
-    expect(untrackMock).toHaveBeenCalledTimes(3);
+    expect(await sync()).toEqual({ delivered: 0, dropped: 4, waiting: 0 });
+    expect(retrieveMock).toHaveBeenCalledTimes(3);
+    expect(untrackMock).toHaveBeenCalledTimes(4);
+    expect(persistMock).toHaveBeenCalledTimes(4);
+    expect(persistMock).toHaveBeenCalledWith({
+      roomId: "room_1",
+      senderCoworkerId: "cw_1",
+      contentText: LATE_RESPONSE_MISSING_TEXT,
+      responsesApiResponseId: "resp_old",
+      parentMessageId: null,
+    });
+  });
+
+  it("drops an entry without a note when its coworker is gone", async () => {
+    listMock.mockResolvedValue([
+      entry("resp_orphan", LATE_RESPONSE_GRACE_MS + 1),
+    ]);
+    coworkerFindUniqueMock.mockResolvedValue(null);
+
+    expect(await sync()).toEqual({ delivered: 0, dropped: 1, waiting: 0 });
     expect(persistMock).not.toHaveBeenCalled();
+    expect(untrackMock).toHaveBeenCalledWith("resp_orphan");
+  });
+
+  it("handles the oldest responses first and bounds each run", async () => {
+    const entries = Array.from({ length: LATE_RESPONSES_PER_RUN + 2 }, (_, i) =>
+      entry(`resp_${i}`, LATE_RESPONSE_GRACE_MS + 1 + i),
+    );
+    listMock.mockResolvedValue(entries);
+    retrieveMock.mockImplementation(async ({ responseId }) => ({
+      result: { status: "in_progress", responseId },
+      text: null,
+    }));
+
+    expect(await sync()).toEqual({
+      delivered: 0,
+      dropped: 0,
+      waiting: LATE_RESPONSES_PER_RUN + 2,
+    });
+    expect(retrieveMock).toHaveBeenCalledTimes(LATE_RESPONSES_PER_RUN);
+    expect(retrieveMock.mock.calls[0][0].responseId).toBe(
+      `resp_${LATE_RESPONSES_PER_RUN + 1}`,
+    );
+  });
+
+  it("removes an expired entry even when its note cannot be saved", async () => {
+    listMock.mockResolvedValue([
+      entry("resp_old", LATE_RESPONSE_MAX_AGE_MS + 1),
+    ]);
+    persistMock.mockRejectedValueOnce(new Error("coworker deleted"));
+
+    expect(await sync()).toEqual({ delivered: 0, dropped: 1, waiting: 0 });
+    expect(untrackMock).toHaveBeenCalledWith("resp_old");
   });
 
   it("retries later when saving the reply fails", async () => {

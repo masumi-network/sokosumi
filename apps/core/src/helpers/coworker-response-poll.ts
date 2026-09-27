@@ -7,7 +7,12 @@ export type CoworkerResponsePollStatus =
   | { status: "completed"; responseId: string }
   | { status: "failed"; responseId: string }
   | { status: "cancelled"; responseId: string }
-  | { status: "error"; responseId: string; cause: unknown };
+  | {
+      status: "error";
+      responseId: string;
+      cause: unknown;
+      httpStatus?: number;
+    };
 
 export interface PollCoworkerResponseStatusParams {
   responsesApiBaseUrl: string;
@@ -128,9 +133,15 @@ export async function retrieveCoworkerResponse(
   }
 
   if (!response.ok) {
-    return failed(
-      new Error(`Coworker retrieve returned HTTP ${response.status}`),
-    );
+    return {
+      result: {
+        status: "error",
+        responseId: params.responseId,
+        cause: new Error(`Coworker retrieve returned HTTP ${response.status}`),
+        httpStatus: response.status,
+      },
+      text: null,
+    };
   }
 
   let payload: unknown;
