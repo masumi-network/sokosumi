@@ -26,6 +26,102 @@ import {
  */
 
 export const RELATED_CANDIDATE_LIMIT = 40;
+/**
+ * How many of the seed's own words are considered as query terms, and how
+ * many of those actually become the query.
+ *
+ * ## What was wrong
+ *
+ * This query was `plainto_tsquery('simple', <first 2,000 characters of the
+ * seed>)`, and `plainto_tsquery` joins every term with **AND**. A candidate
+ * chunk therefore had to contain *every word* of the seed. For any real
+ * document that is unsatisfiable, so the feature returned nothing — while
+ * presenting as a calm "No related files yet", indistinguishable from a
+ * document that genuinely has no neighbours.
+ *
+ * Measured on the preview by varying only the seed's term count: a
+ * two-word seed returned `state: "ok"` with a neighbour; a 70-byte file
+ * (~11 terms) and a 3.5 KB file both returned `empty`.
+ *
+ * ## Why this is not simply OR
+ *
+ * Swapping AND for OR over every term would be a worse failure that looks
+ * like success. The stored vectors are built with the **`simple`**
+ * dictionary (`file-index.service.ts`, `to_tsvector('simple', …)`), which
+ * does no stemming and removes no stopwords, so "the" and "of" are ordinary
+ * terms. An OR across a 2,000 character seed would relate every document to
+ * every other one through its function words.
+ *
+ * So the terms are chosen before they are OR-ed, by **document frequency
+ * across the authorized corpus**: a word that appears in every document
+ * sorts last and never reaches the query, while a word that appears in two
+ * sorts first. That is stopword removal derived from the corpus rather than
+ * from a hardcoded list, which matters because the list would have to be
+ * per-language and the corpus is not guaranteed to be English.
+ *
+ * ## On the dictionary itself
+ *
+ * `simple` is a poor choice for relatedness — without stemming,
+ * "reconciled" and "reconciliation" are unrelated terms. But it is the
+ * dictionary every `search_vector` in the table is already built under, so
+ * this query cannot change it unilaterally: a `to_tsquery('english', …)`
+ * would produce lexemes that match nothing stored. Changing it means
+ * rebuilding every vector and re-tuning search ranking, which is a
+ * migration-scale decision and not this fix's to make. Recorded as a known
+ * limit rather than quietly accepted.
+ */
+const RELATED_TERM_POOL = 40;
+/**
+ * How far each term's document-frequency probe counts before giving up.
+ *
+ * The probe answers "is this word distinctive here", and any term reaching
+ * this many documents is common enough to be deprioritised whatever its
+ * true count is. Bounding it turns forty unbounded counts into forty
+ * bounded ones and takes the lookup from 1,065 ms at 2,000 documents to
+ * something that does not grow with the corpus.
+ */
+const RELATED_DF_PROBE_CAP = 32;
+const RELATED_SEED_TERM_LIMIT = 8;
+/** Shorter than this is punctuation or an initial more often than a word. */
+const RELATED_MIN_TERM_LENGTH = 3;
+/**
+ * The floor below which a neighbour is not offered.
+ *
+ * Deliberately low, and provisional. The primary defence against spurious
+ * neighbours is the term selection above, not this number: by the time a
+ * query runs it contains only the seed's rarest words. This exists to drop
+ * a document that matched exactly one of them, weakly.
+ *
+ * **It has not been calibrated against real data**, and the risk of setting
+ * it too high is precisely the failure being fixed here — an empty result
+ * that looks like a considered answer. It is therefore set to exclude
+ * almost nothing, and wants a look once there is a corpus worth measuring.
+ */
+const RELATED_MIN_RANK = 0.01;
+
+/**
+ * The seed's own words, deduplicated, in the order they first appear.
+ *
+ * Only a pool of candidates: which of them become the query is decided in
+ * SQL by how rare each one is across the corpus. Split on anything that is
+ * not a letter or a digit, with Unicode classes rather than `a-z`, so this
+ * does not silently discard every term of a non-Latin document.
+ */
+export function seedCandidateTerms(text: string): string[] {
+  const seen = new Set<string>();
+  const terms: string[] = [];
+
+  for (const token of text.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+    if (token.length < RELATED_MIN_TERM_LENGTH) continue;
+    if (seen.has(token)) continue;
+    seen.add(token);
+    terms.push(token);
+    if (terms.length >= RELATED_TERM_POOL) break;
+  }
+
+  return terms;
+}
+
 export const RELATED_RANK_LIMIT = 12;
 export const RELATED_RESULT_LIMIT = 6;
 
@@ -68,10 +164,86 @@ export async function findRelatedFiles(input: {
   // Lexical neighbours over the seed's own passages, plus anything sharing a
   // confirmed project or label the reader can see.
   const seedText = passages.map((passage) => passage.text).join(" ");
+  const seedTerms = seedCandidateTerms(seedText);
+
+  if (seedTerms.length === 0) return { items: [], state: "empty" };
+
   const candidates = await prisma.$queryRaw<{ id: string; rank: number }[]>(
     PrismaRaw.sql`
-      WITH q AS (
-        SELECT plainto_tsquery('simple', ${seedText.slice(0, 2_000)}) AS tsq
+      WITH terms AS (
+        SELECT DISTINCT unnest(ARRAY[${PrismaRaw.join(seedTerms)}]::text[]) AS word
+      ),
+      corpus AS (
+        SELECT COUNT(DISTINCT fv."resourceId") AS total
+        FROM file_chunk fc
+        JOIN file_version fv ON fv.id = fc."versionId"
+        JOIN file_resource fr ON fr.id = fv."resourceId"
+        WHERE ${authorized}
+      ),
+      frequency AS (
+        -- Counting stops at RELATED_DF_PROBE_CAP per term, and that bound
+        -- is what makes this affordable. The count exists only to tell a
+        -- rare term from a common one, so an exact count of a common term
+        -- is work whose answer is never used: every term at or above the
+        -- cap is deprioritised identically.
+        --
+        -- Without it each of the forty probes counted every matching
+        -- chunk in the workspace. Measured: 121 ms at 300 documents,
+        -- 1,065 ms at 2,000, growing with the corpus, on a lookup that
+        -- runs every time somebody opens a file.
+        SELECT
+          t.word,
+          (
+            SELECT COUNT(*)
+            FROM (
+              SELECT DISTINCT fv."resourceId"
+              FROM file_chunk fc
+              JOIN file_version fv ON fv.id = fc."versionId"
+              JOIN file_resource fr ON fr.id = fv."resourceId"
+              WHERE ${authorized}
+                AND fc.search_vector @@ plainto_tsquery('simple', t.word)
+              LIMIT ${RELATED_DF_PROBE_CAP}
+            ) capped
+          ) AS docs
+        FROM terms t
+      ),
+      distinctive AS (
+        -- Distinctive AND shared, which is not the same as rare. Ordering
+        -- by rarity alone picks the words that occur only in the seed, and
+        -- those are precisely the words no neighbour can contain, since
+        -- the seed is excluded below. Straight IDF answers "what is
+        -- unusual about this document"; the question here is "what does
+        -- this document have in common with another", so the docs > 1
+        -- test drops the seed's private vocabulary.
+        --
+        -- The other end is a preference, not an exclusion, and the
+        -- difference matters. Excluding terms present in every document is
+        -- the corpus-derived stopword filter this dictionary lacks, and
+        -- the first version of this fix did exactly that. It emptied
+        -- related for any workspace holding two documents, because there
+        -- every shared term is in every document: the bug being fixed,
+        -- reintroduced at a different corpus size and just as silent.
+        -- Sorting universal terms last instead means they are used only
+        -- when nothing better exists, and the filter can never empty the
+        -- set by itself.
+        SELECT word
+        FROM frequency, corpus
+        WHERE docs > 1
+        ORDER BY
+          -- "Appears everywhere it could" — at the probe cap in a large
+          -- corpus, or in literally every document in a small one. LEAST
+          -- makes one expression cover both, so the capped count cannot
+          -- make a common term look distinctive just because counting
+          -- stopped early.
+          (docs >= LEAST(${RELATED_DF_PROBE_CAP}, corpus.total)) ASC,
+          docs ASC,
+          length(word) DESC,
+          word ASC
+        LIMIT ${RELATED_SEED_TERM_LIMIT}
+      ),
+      q AS (
+        SELECT to_tsquery('simple', string_agg(word, ' | ')) AS tsq
+        FROM distinctive
       )
       SELECT fr.id, MAX(ts_rank(fc.search_vector, q.tsq)) AS rank
       FROM file_resource fr
@@ -80,12 +252,14 @@ export async function findRelatedFiles(input: {
       JOIN file_chunk fc ON fc."versionId" = fv.id
       CROSS JOIN q
       WHERE ${authorized}
+        AND q.tsq IS NOT NULL
         AND fr.id <> ${seed.id}::uuid
         AND (fr."lineageId" IS NULL OR fr."lineageId" IS DISTINCT FROM (
           SELECT seed."lineageId" FROM file_resource seed WHERE seed.id = ${seed.id}::uuid
         ))
         AND fc.search_vector @@ q.tsq
       GROUP BY fr.id
+      HAVING MAX(ts_rank(fc.search_vector, q.tsq)) >= ${RELATED_MIN_RANK}
       ORDER BY rank DESC
       LIMIT ${RELATED_CANDIDATE_LIMIT}
     `,
