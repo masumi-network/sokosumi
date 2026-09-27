@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  githubRawFileUrl,
+  githubBlobDownloadUrl,
   isHtmlContentType,
   isUnexpectedHtmlImport,
   resolveDownloadableFileUrl,
@@ -15,61 +15,57 @@ import {
  */
 const BLOB_PAGE =
   "https://github.com/masumi-network/sokosumi/blob/84d0a395284dd5dda58367470411a1e611c2c997/docs/image-studio/deployment.md";
-const RAW_FILE =
+const DOWNLOAD_ROUTE =
+  "https://github.com/masumi-network/sokosumi/raw/84d0a395284dd5dda58367470411a1e611c2c997/docs/image-studio/deployment.md";
+const RAW_HOST_URL =
   "https://raw.githubusercontent.com/masumi-network/sokosumi/84d0a395284dd5dda58367470411a1e611c2c997/docs/image-studio/deployment.md";
 
-describe("githubRawFileUrl", () => {
-  it("rewrites the blob page from the report to its raw file", () => {
-    expect(githubRawFileUrl(BLOB_PAGE)).toBe(RAW_FILE);
+describe("githubBlobDownloadUrl", () => {
+  it("resolves the blob page from the report to GitHub's download route", () => {
+    expect(githubBlobDownloadUrl(BLOB_PAGE)).toBe(DOWNLOAD_ROUTE);
   });
 
-  it("rewrites a branch blob URL", () => {
+  it("resolves a branch blob URL", () => {
     expect(
-      githubRawFileUrl("https://github.com/owner/repo/blob/main/README.md"),
-    ).toBe("https://raw.githubusercontent.com/owner/repo/main/README.md");
+      githubBlobDownloadUrl(
+        "https://github.com/owner/repo/blob/main/README.md",
+      ),
+    ).toBe("https://github.com/owner/repo/raw/main/README.md");
   });
 
   it("keeps a slashed branch name intact, as GitHub resolves it", () => {
     expect(
-      githubRawFileUrl(
+      githubBlobDownloadUrl(
         "https://github.com/owner/repo/blob/feature/new-docs/docs/a.md",
       ),
-    ).toBe(
-      "https://raw.githubusercontent.com/owner/repo/feature/new-docs/docs/a.md",
-    );
-  });
-
-  it("normalizes the /raw/ route too, saving a redirect hop", () => {
-    expect(
-      githubRawFileUrl("https://github.com/owner/repo/raw/main/docs/a.md"),
-    ).toBe("https://raw.githubusercontent.com/owner/repo/main/docs/a.md");
+    ).toBe("https://github.com/owner/repo/raw/feature/new-docs/docs/a.md");
   });
 
   it("drops the page's own query and fragment", () => {
     expect(
-      githubRawFileUrl(
+      githubBlobDownloadUrl(
         "https://github.com/owner/repo/blob/main/README.md?plain=1#L10",
       ),
-    ).toBe("https://raw.githubusercontent.com/owner/repo/main/README.md");
+    ).toBe("https://github.com/owner/repo/raw/main/README.md");
   });
 
-  it("accepts the www host", () => {
+  it("accepts the www host and normalizes to github.com", () => {
     expect(
-      githubRawFileUrl("https://www.github.com/owner/repo/blob/main/a.md"),
-    ).toBe("https://raw.githubusercontent.com/owner/repo/main/a.md");
+      githubBlobDownloadUrl("https://www.github.com/owner/repo/blob/main/a.md"),
+    ).toBe("https://github.com/owner/repo/raw/main/a.md");
   });
 
-  it("leaves a raw URL alone — it is already the file", () => {
-    expect(githubRawFileUrl(RAW_FILE)).toBeNull();
+  it("leaves a raw.githubusercontent.com URL alone", () => {
+    expect(githubBlobDownloadUrl(RAW_HOST_URL)).toBeNull();
   });
 
   it("leaves a tree, release or repository page alone", () => {
     expect(
-      githubRawFileUrl("https://github.com/owner/repo/tree/main/docs"),
+      githubBlobDownloadUrl("https://github.com/owner/repo/tree/main/docs"),
     ).toBeNull();
-    expect(githubRawFileUrl("https://github.com/owner/repo")).toBeNull();
+    expect(githubBlobDownloadUrl("https://github.com/owner/repo")).toBeNull();
     expect(
-      githubRawFileUrl(
+      githubBlobDownloadUrl(
         "https://github.com/owner/repo/releases/download/v1/app.zip",
       ),
     ).toBeNull();
@@ -77,26 +73,63 @@ describe("githubRawFileUrl", () => {
 
   it("leaves a blob URL with no file path alone", () => {
     expect(
-      githubRawFileUrl("https://github.com/owner/repo/blob/main"),
+      githubBlobDownloadUrl("https://github.com/owner/repo/blob/main"),
     ).toBeNull();
   });
 
   it("does not touch another host that happens to have /blob/", () => {
     expect(
-      githubRawFileUrl("https://example.com/owner/repo/blob/main/a.md"),
+      githubBlobDownloadUrl("https://example.com/owner/repo/blob/main/a.md"),
     ).toBeNull();
   });
 
   it("returns null for a non-http scheme or a malformed URL", () => {
-    expect(githubRawFileUrl("javascript:alert(1)")).toBeNull();
-    expect(githubRawFileUrl("data:text/html,<b>x</b>")).toBeNull();
-    expect(githubRawFileUrl("not a url")).toBeNull();
+    expect(githubBlobDownloadUrl("javascript:alert(1)")).toBeNull();
+    expect(githubBlobDownloadUrl("data:text/html,<b>x</b>")).toBeNull();
+    expect(githubBlobDownloadUrl("not a url")).toBeNull();
+  });
+});
+
+/**
+ * Git LFS is the reason the blob page resolves to GitHub's own `/raw/` route
+ * rather than to `raw.githubusercontent.com`. For an LFS-tracked file the two
+ * differ: `/raw/` redirects to `media.githubusercontent.com` and serves the
+ * real bytes, while `raw.githubusercontent.com` serves the ~130 byte pointer
+ * Git stores — with a 200 and `text/plain`, so nothing downstream notices.
+ */
+describe("Git LFS routing", () => {
+  const LFS_RAW_ROUTE =
+    "https://github.com/Schoonology/git-lfs-test/raw/master/binary.jpg";
+  const LFS_BLOB_PAGE =
+    "https://github.com/Schoonology/git-lfs-test/blob/master/binary.jpg";
+
+  it("never rewrites an existing /raw/ link, which already reaches the media", () => {
+    expect(githubBlobDownloadUrl(LFS_RAW_ROUTE)).toBeNull();
+    expect(resolveDownloadableFileUrl(LFS_RAW_ROUTE)).toBe(LFS_RAW_ROUTE);
+  });
+
+  it("sends a blob page to the storage-aware route, not the pointer host", () => {
+    const resolved = resolveDownloadableFileUrl(LFS_BLOB_PAGE);
+    expect(resolved).toBe(LFS_RAW_ROUTE);
+    expect(resolved).not.toContain("raw.githubusercontent.com");
+  });
+
+  it("never produces a raw.githubusercontent.com URL for any blob page", () => {
+    for (const page of [BLOB_PAGE, LFS_BLOB_PAGE]) {
+      expect(resolveDownloadableFileUrl(page)).not.toContain(
+        "raw.githubusercontent.com",
+      );
+    }
   });
 });
 
 describe("resolveDownloadableFileUrl", () => {
-  it("swaps a blob page for the raw file", () => {
-    expect(resolveDownloadableFileUrl(BLOB_PAGE)).toBe(RAW_FILE);
+  it("swaps a blob page for the download route", () => {
+    expect(resolveDownloadableFileUrl(BLOB_PAGE)).toBe(DOWNLOAD_ROUTE);
+  });
+
+  it("passes an existing raw.githubusercontent.com URL through untouched", () => {
+    expect(resolveDownloadableFileUrl(RAW_HOST_URL)).toBe(RAW_HOST_URL);
   });
 
   it("passes every other URL through untouched", () => {
@@ -128,7 +161,7 @@ describe("isUnexpectedHtmlImport", () => {
     expect(
       isUnexpectedHtmlImport({
         contentType: "text/html; charset=utf-8",
-        fileName: "deployment.md",
+        fileNames: ["deployment.md"],
       }),
     ).toBe(true);
   });
@@ -137,7 +170,7 @@ describe("isUnexpectedHtmlImport", () => {
     expect(
       isUnexpectedHtmlImport({
         contentType: "text/html",
-        fileName: "invoice.pdf",
+        fileNames: ["invoice.pdf"],
       }),
     ).toBe(true);
   });
@@ -146,7 +179,7 @@ describe("isUnexpectedHtmlImport", () => {
     expect(
       isUnexpectedHtmlImport({
         contentType: "text/html",
-        fileName: "report.html",
+        fileNames: ["report.html"],
       }),
     ).toBe(false);
   });
@@ -155,13 +188,13 @@ describe("isUnexpectedHtmlImport", () => {
     expect(
       isUnexpectedHtmlImport({
         contentType: "text/markdown",
-        fileName: "deployment.md",
+        fileNames: ["deployment.md"],
       }),
     ).toBe(false);
     expect(
       isUnexpectedHtmlImport({
         contentType: "application/pdf",
-        fileName: "invoice.pdf",
+        fileNames: ["invoice.pdf"],
       }),
     ).toBe(false);
   });
@@ -170,7 +203,7 @@ describe("isUnexpectedHtmlImport", () => {
     expect(
       isUnexpectedHtmlImport({
         contentType: "text/html",
-        fileName: "deliverable",
+        fileNames: ["deliverable"],
       }),
     ).toBe(false);
   });
@@ -179,14 +212,46 @@ describe("isUnexpectedHtmlImport", () => {
     expect(
       isUnexpectedHtmlImport({
         contentType: "text/html",
-        fileName: "archive.weird",
+        fileNames: ["archive.weird"],
       }),
     ).toBe(false);
   });
 
   it("does nothing when the response is not HTML", () => {
     expect(
-      isUnexpectedHtmlImport({ contentType: null, fileName: "a.md" }),
+      isUnexpectedHtmlImport({ contentType: null, fileNames: ["a.md"] }),
+    ).toBe(false);
+  });
+
+  /**
+   * One of the candidate names comes from the response being judged. Taking
+   * the first name and trusting it let a page clear itself by answering
+   * `Content-Disposition: filename="login.html"`.
+   */
+  it("still rejects when the response renames itself to an HTML file", () => {
+    expect(
+      isUnexpectedHtmlImport({
+        contentType: "text/html",
+        fileNames: ["login.html", "guide.md", "guide.md"],
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects when only the source URL knows it should be a document", () => {
+    expect(
+      isUnexpectedHtmlImport({
+        contentType: "text/html",
+        fileNames: [null, "guide.md", "login.html"],
+      }),
+    ).toBe(true);
+  });
+
+  it("tolerates null and undefined candidates", () => {
+    expect(
+      isUnexpectedHtmlImport({
+        contentType: "text/html",
+        fileNames: [null, undefined],
+      }),
     ).toBe(false);
   });
 });

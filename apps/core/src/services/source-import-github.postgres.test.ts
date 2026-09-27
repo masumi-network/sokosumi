@@ -41,19 +41,33 @@ const GITHUB_BLOB_PAGE =
 // imported, because `getEnv()` caches on first call.
 process.env.BLOB_READ_WRITE_TOKEN ??= "vercel_blob_rw_test_token";
 
-const uploads: { pathname: string; body: string; contentType: string }[] = [];
+interface CapturedUpload {
+  pathname: string;
+  bytes: Uint8Array;
+  body: string;
+  contentType: string;
+}
+
+const uploads: CapturedUpload[] = [];
 
 vi.mock("@vercel/blob", () => ({
   put: async (pathname: string, file: File) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
     uploads.push({
       pathname,
-      body: await file.text(),
+      bytes,
+      body: new TextDecoder().decode(bytes),
       contentType: file.type,
     });
     return { url: `https://blob.test/${pathname}` };
   },
   head: async () => ({ contentType: "text/markdown", size: 1234 }),
 }));
+
+/** `binary.jpg` in Schoonology/git-lfs-test, as GitHub's media host serves it. */
+const LFS_MEDIA_BYTES = 620_773;
+/** What `raw.githubusercontent.com` serves for the same path instead. */
+const LFS_POINTER_BYTES = 131;
 
 const suffix = randomUUID().slice(0, 8);
 let userId = "";
@@ -192,4 +206,109 @@ describe.skipIf(!enabled)("GitHub-linked import against PostgreSQL", () => {
     expect(settled.status).toBe("FAILED");
     expect(uploads).toHaveLength(0);
   }, 60_000);
+
+  /**
+   * Git LFS is the reason a blob page resolves to GitHub's own `/raw/` route
+   * rather than to `raw.githubusercontent.com`. A string assertion cannot
+   * show the difference — only the bytes can, so this imports the real file
+   * and checks them.
+   */
+  describe("Git LFS", () => {
+    const LFS_RAW_ROUTE =
+      "https://github.com/Schoonology/git-lfs-test/raw/master/binary.jpg";
+    const LFS_BLOB_PAGE =
+      "https://github.com/Schoonology/git-lfs-test/blob/master/binary.jpg";
+
+    async function importOne(name: string, sourceUrl: string) {
+      const { default: prisma } = await import("@/lib/db/prisma");
+      const { sourceImportSyncService } = await import(
+        "./source-import-sync.service"
+      );
+
+      uploads.length = 0;
+
+      const taskFile = await prisma.taskFile.create({
+        data: {
+          taskId,
+          name,
+          sourceUrl,
+          fileUrl: null,
+          status: "PENDING",
+          origin: "TASK_OUTPUT",
+        },
+        select: { id: true },
+      });
+
+      await sourceImportSyncService.importPendingResultBlobs({
+        abortSignal: new AbortController().signal,
+        deadlineMs: Date.now() + 60_000,
+        shouldContinue: () => true,
+      });
+
+      const settled = await prisma.taskFile.findUniqueOrThrow({
+        where: { id: taskFile.id },
+        select: { status: true },
+      });
+
+      return { settled, stored: uploads[0] };
+    }
+
+    function expectRealJpeg(stored: CapturedUpload | undefined) {
+      expect(stored).toBeDefined();
+      if (!stored) return;
+
+      // JPEG magic. The LFS pointer is UTF-8 text beginning "version https".
+      expect([...stored.bytes.slice(0, 3)]).toEqual([0xff, 0xd8, 0xff]);
+      expect(stored.bytes.byteLength).toBe(LFS_MEDIA_BYTES);
+      expect(stored.bytes.byteLength).not.toBe(LFS_POINTER_BYTES);
+      expect(stored.body.startsWith("version https://git-lfs.github.com")).toBe(
+        false,
+      );
+    }
+
+    it("imports the media for an existing /raw/ link, not the pointer", async () => {
+      const { settled, stored } = await importOne(
+        "binary-raw.jpg",
+        LFS_RAW_ROUTE,
+      );
+      expect(settled.status).toBe("READY");
+      expectRealJpeg(stored);
+    }, 120_000);
+
+    it("imports the media for a blob page too", async () => {
+      const { settled, stored } = await importOne(
+        "binary-blob.jpg",
+        LFS_BLOB_PAGE,
+      );
+      expect(settled.status).toBe("READY");
+      expectRealJpeg(stored);
+    }, 120_000);
+
+    /**
+     * The non-equivalence itself, as executable fact: the pointer host does
+     * not serve the file. This is what an earlier revision of the helper
+     * produced by rewriting `/raw/` links, and it is why it no longer does.
+     *
+     * It also records a real limit. A job that emits the
+     * `raw.githubusercontent.com` URL itself still gets the pointer, because
+     * that URL is passed through as the job wrote it — guessing that a
+     * caller meant a different host is not this importer's decision.
+     */
+    it("shows the pointer host is not equivalent to the media route", async () => {
+      const { settled, stored } = await importOne(
+        "binary-pointer.jpg",
+        "https://raw.githubusercontent.com/Schoonology/git-lfs-test/master/binary.jpg",
+      );
+
+      expect(settled.status).toBe("READY");
+      expect(stored).toBeDefined();
+      if (!stored) return;
+
+      expect(stored.bytes.byteLength).toBe(LFS_POINTER_BYTES);
+      expect(stored.body.startsWith("version https://git-lfs.github.com")).toBe(
+        true,
+      );
+      expect([...stored.bytes.slice(0, 3)]).not.toEqual([0xff, 0xd8, 0xff]);
+    }, 120_000);
+  });
 });

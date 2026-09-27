@@ -207,7 +207,7 @@ export {
   sanitizeFileName,
 } from "./file-url.js";
 export {
-  githubRawFileUrl,
+  githubBlobDownloadUrl,
   isHtmlContentType,
   isUnexpectedHtmlImport,
   resolveDownloadableFileUrl,
