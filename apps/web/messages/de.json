@@ -2029,6 +2029,8 @@
         }
       },
       "Schedules": {
+        "viewList": "Listenansicht",
+        "viewGrid": "Rasteransicht",
         "stateFilter": "Status des Zeitplans",
         "filterAll": "Alle",
         "state": {

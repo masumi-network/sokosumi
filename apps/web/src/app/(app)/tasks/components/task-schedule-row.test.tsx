@@ -5,10 +5,19 @@ import { describe, expect, it, vi } from "vitest";
 import type { TaskSchedule } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
-import { TaskScheduleCard } from "./task-schedule-card";
+import { TaskScheduleRow } from "./task-schedule-row";
 
 const { scheduleDialogMock } = vi.hoisted(() => ({
   scheduleDialogMock: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+}));
+
+vi.mock("@/lib/actions/task-schedule/action", () => ({
+  changeTaskScheduleState: vi.fn().mockResolvedValue({ ok: true }),
+  deleteTaskSchedule: vi.fn(),
 }));
 
 vi.mock("next-intl", () => ({
@@ -90,17 +99,18 @@ function schedule(overrides: Partial<TaskSchedule> = {}): TaskSchedule {
   };
 }
 
-function renderCard(
+function renderRow(
   overrides: Partial<TaskSchedule> = {},
   { currentUserId = OWNER.id }: { currentUserId?: string | null } = {},
 ) {
   return render(
     <ul>
-      <TaskScheduleCard
+      <TaskScheduleRow
         assigneeDisplayOptions={[ELENA, OWNER]}
         canCreatePrivate={false}
         coworkerOptions={[ELENA]}
         currentUserId={currentUserId}
+        onChanged={vi.fn()}
         projectOptions={[PROJECT]}
         schedule={schedule(overrides)}
       />
@@ -108,9 +118,9 @@ function renderCard(
   );
 }
 
-describe("TaskScheduleCard", () => {
+describe("TaskScheduleRow", () => {
   it("shows the rule, the next run, the state, and its assignee", () => {
-    renderCard();
+    renderRow();
 
     expect(screen.getByRole("link", { name: "Weekly report" })).toHaveAttribute(
       "href",
@@ -121,33 +131,33 @@ describe("TaskScheduleCard", () => {
     );
     expect(screen.getByText("nextRun(Mon, 9:00)")).toBeInTheDocument();
     expect(screen.getByText("state.ACTIVE")).toBeInTheDocument();
-    expect(screen.getByTestId("schedule-card-assignee")).toHaveAttribute(
+    expect(screen.getByTestId("schedule-row-assignee")).toHaveAttribute(
       "title",
       "Elena",
     );
   });
 
   it("marks a workspace schedule as its own source", () => {
-    renderCard();
+    renderRow();
 
     expect(screen.getByText("workspace")).toBeInTheDocument();
     expect(screen.queryByTestId("project-avatar")).toBeNull();
   });
 
   it("names the project a schedule belongs to", () => {
-    renderCard({ projectId: PROJECT.id });
+    renderRow({ projectId: PROJECT.id });
 
     expect(screen.getByText(PROJECT.name)).toBeInTheDocument();
     expect(screen.getByTestId("project-avatar")).toBeInTheDocument();
   });
 
   it("says when nothing is scheduled and nobody is assigned", () => {
-    renderCard({ nextRunAt: null, assigneeId: null });
+    renderRow({ nextRunAt: null, assigneeId: null });
 
     expect(screen.getByText("noNextRun")).toBeInTheDocument();
     expect(screen.getByText("unassigned")).toBeInTheDocument();
-    // Still a face, so the card keeps the height of an assigned one.
-    expect(screen.getByTestId("schedule-card-assignee")).toHaveAttribute(
+    // Still a face, so the row keeps the height of an assigned one.
+    expect(screen.getByTestId("schedule-row-assignee")).toHaveAttribute(
       "title",
       "unassigned",
     );
@@ -155,7 +165,7 @@ describe("TaskScheduleCard", () => {
 
   it("lets the owner edit the schedule in place", async () => {
     const user = userEvent.setup();
-    renderCard();
+    renderRow();
 
     await user.click(screen.getByRole("button", { name: "edit" }));
 
@@ -170,21 +180,22 @@ describe("TaskScheduleCard", () => {
     );
   });
 
-  it("opens from anywhere on the card, with the edit left clickable", () => {
-    renderCard();
+  it("opens from anywhere on the row, with the edit left clickable", () => {
+    renderRow();
 
-    // One link per card, stretched over it — not a link per element.
+    // One link per row, stretched over it — not a link per element.
     expect(screen.getAllByRole("link")).toHaveLength(1);
     expect(
       screen.getByRole("link", { name: "Weekly report" }).className,
     ).toMatch(/after:inset-0/);
-    expect(screen.getByRole("button", { name: "edit" }).className).toMatch(
-      /z-10/,
-    );
+    expect(
+      screen.getByRole("button", { name: "edit" }).parentElement?.parentElement
+        ?.className,
+    ).toMatch(/z-10/);
   });
 
   it("offers no edit to anyone but the owner", () => {
-    renderCard({}, { currentUserId: "user_other" });
+    renderRow({}, { currentUserId: "user_other" });
 
     expect(screen.queryByRole("button", { name: "edit" })).toBeNull();
   });
