@@ -4,7 +4,7 @@ import { taskX402PaymentPurgeService } from "@/services/task-x402-payment.purge"
 
 import { handleSyncRequest } from "../handler.js";
 
-export const TASK_X402_PAYMENT_HEADERS_PURGE_SYNC_LOCK_KEY =
+const TASK_X402_PAYMENT_HEADERS_PURGE_SYNC_LOCK_KEY =
   "task-x402-payment-headers-purge-sync";
 
 export default function mount(app: Hono) {

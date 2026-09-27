@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { getActiveRoomIdFromPathname } from "./active-room-id";
+import {
+  getActiveRoomIdFromPathname,
+  getActiveRoomIdFromSelection,
+} from "./active-room-id";
 
 describe("getActiveRoomIdFromPathname", () => {
   it("reads the room id from a chat room path", () => {
@@ -27,5 +30,23 @@ describe("getActiveRoomIdFromPathname", () => {
 
   it("returns null when there is no pathname yet", () => {
     expect(getActiveRoomIdFromPathname(null)).toBeNull();
+  });
+});
+
+describe("getActiveRoomIdFromSelection", () => {
+  it("reads the room the highlight already moved to, query included", () => {
+    expect(getActiveRoomIdFromSelection("/chat/rooms/room-1?message=m-1")).toBe(
+      "room-1",
+    );
+  });
+
+  it("returns null for a non-room selection", () => {
+    expect(getActiveRoomIdFromSelection("/chat")).toBeNull();
+  });
+
+  it("returns null when the path continues past the room", () => {
+    expect(
+      getActiveRoomIdFromSelection("/chat/rooms/room-1/threads/t-9"),
+    ).toBeNull();
   });
 });

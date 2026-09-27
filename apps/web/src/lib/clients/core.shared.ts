@@ -1,4 +1,13 @@
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
+import {
+  suggestTaskTags as coreSuggestTaskTags,
+  patchTasksByIdTags,
+} from "@/lib/clients/generated/core";
+import type { PatchTasksByIdTagsData } from "@/lib/clients/generated/core/types.gen";
+
+/** Pause, resume, and end each have their own Task Schedule route. */
+export type TaskScheduleStateAction = "pause" | "resume" | "end";
+
 import type {
   ActivateEnterpriseContractRequest,
   AdminSokoBotActionRequest,
@@ -11,8 +20,10 @@ import type {
   CreateEnterpriseContractRequest,
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
+  CreateTaskScheduleRequest,
   DeleteJobsByIdShareError,
   DeleteProjectsByIdJobsByJobIdData,
+  DeleteProjectsByIdSocialConnectionsByConnectionIdData,
   DeleteProjectsByIdTasksByTaskIdData,
   DeleteTasksByIdShareError,
   GetAgentsByIdJobsData,
@@ -27,22 +38,26 @@ import type {
   GetChatsRoomsChannelSlugAvailabilityData,
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
+  GetChatsThreadsEarlierData,
+  GetChatsThreadsUnreadData,
   GetCoworkersData,
   GetEnterpriseContractsData,
   GetHistoryData,
   GetJobsData,
   GetNotificationsData,
   GetProjectsByIdCalendarData,
+  GetProjectsByIdImageStudioData,
+  GetProjectsByIdSocialPostsData,
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
-  GetTasksByIdScheduleOccurrencesData,
   GetTasksData,
+  GetTasksSchedulesByIdRunsData,
+  GetTasksSchedulesData,
   GetTasksSummaryData,
   GetWorkspacesCalendarData,
   JudgeSokoBotLabTurnRequest,
   ListAdminTaskX402PaymentsData,
-  MutateTaskScheduleOccurrenceRequest,
   Notice,
   PaginationMetadata,
   PatchAdminVendorData,
@@ -54,6 +69,7 @@ import type {
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
   PatchProjectsByIdData,
+  PatchProjectsByIdSocialPostsByPostIdData,
   PatchTasksByIdData,
   PatchVendorData,
   PostAgentsByIdJobsData,
@@ -64,6 +80,7 @@ import type {
   PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData,
   PostChatsRoomsByIdMessagesData,
   PostChatsRoomsData,
+  PostComposioCallbackCompleteData,
   PostJobsByIdInputsData,
   PostOrganizationsByIdFilesCleanupData,
   PostOrganizationsByIdFilesData,
@@ -71,23 +88,26 @@ import type {
   PostProjectsByIdCloseCancelOwedData,
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
+  PostProjectsByIdImageStudioAssetsByAssetIdReviewData,
+  PostProjectsByIdImageStudioJobsData,
   PostProjectsByIdJobsData,
+  PostProjectsByIdSocialConnectionsFinalizeData,
+  PostProjectsByIdSocialConnectionsInitiateData,
+  PostProjectsByIdSocialPostsByPostIdCancelData,
+  PostProjectsByIdSocialPostsByPostIdScheduleData,
+  PostProjectsByIdSocialPostsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
   PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
-  PostTasksScheduledData,
   PostUsersByIdFilesData,
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
   PostWorkspacesDesignMdAdhocData,
-  PutCalendarTaskScheduleRequest,
-  PutCalendarTaskScheduleSourceRequest,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutProjectsByIdDesignMdData,
-  PutTaskScheduleRequest,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   RefundAdminTaskX402PaymentData,
@@ -97,6 +117,8 @@ import type {
   SokoBotVersionWrite,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
+  UpdateTaskScheduleRequest,
+  UpdateTaskScheduleRunRequest,
 } from "@/lib/clients/generated/core";
 import {
   addAdminMatchedChannelParticipant as coreAddAdminMatchedChannelParticipant,
@@ -144,15 +166,17 @@ import {
   deleteMySokoBotSchedule as coreDeleteMySokoBotSchedule,
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
-  deleteProjectsById as coreDeleteProjectsById,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
+  deleteProjectsByIdImageStudioAssetsByAssetIdReview as coreDeleteProjectsByIdImageStudioAssetsByAssetIdReview,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
+  deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
   deleteProjectsByIdStar as coreDeleteProjectsByIdStar,
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
-  deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
+  deleteTasksByIdParticipantsByUserId as coreDeleteTasksByIdParticipantsByUserId,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
+  deleteTasksSchedulesById as coreDeleteTasksSchedulesById,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   deleteUsersByIdPersonalWorkspace as coreDeleteUsersByIdPersonalWorkspace,
   disconnectMySokoBotIntegration as coreDisconnectMySokoBotIntegration,
@@ -190,6 +214,8 @@ import {
   getChatsRoomsByIdThreadsUnreadCount as coreGetChatsRoomsByIdThreadsUnreadCount,
   getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
+  getChatsThreadsEarlier as coreGetChatsThreadsEarlier,
+  getChatsThreadsUnread as coreGetChatsThreadsUnread,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
@@ -231,17 +257,24 @@ import {
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
+  getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
+  getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
+  getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
   getProjectsStarred as coreGetProjectsStarred,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
   getSokoBotTeam as coreGetSokoBotTeam,
   getSubscriptionCatalog as coreGetSubscriptionCatalog,
+  getTaskScheduleAssignees as coreGetTaskScheduleAssignees,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
-  getTasksByIdScheduleOccurrences as coreGetTasksByIdScheduleOccurrences,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
+  getTasksSchedules as coreGetTasksSchedules,
+  getTasksSchedulesById as coreGetTasksSchedulesById,
+  getTasksSchedulesByIdRuns as coreGetTasksSchedulesByIdRuns,
   getTasksSummary as coreGetTasksSummary,
   getToolsSiteIcon as coreGetToolsSiteIcon,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
@@ -302,8 +335,10 @@ import {
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchProjectsById as corePatchProjectsById,
+  patchProjectsByIdSocialPostsByPostId as corePatchProjectsByIdSocialPostsByPostId,
   patchTasksById as corePatchTasksById,
-  patchTasksByIdScheduleOccurrencesByOccurrenceId as corePatchTasksByIdScheduleOccurrencesByOccurrenceId,
+  patchTasksSchedulesById as corePatchTasksSchedulesById,
+  patchTasksSchedulesByIdRunsByRunId as corePatchTasksSchedulesByIdRunsByRunId,
   patchVendor as corePatchVendor,
   performAdminSokoBotAction as corePerformAdminSokoBotAction,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
@@ -330,6 +365,7 @@ import {
   postChatsRoomsByIdThreadsByParentMessageIdRead as corePostChatsRoomsByIdThreadsByParentMessageIdRead,
   postChatsRoomsByIdThreadsRead as corePostChatsRoomsByIdThreadsRead,
   postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
+  postComposioCallbackComplete as corePostComposioCallbackComplete,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
   postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -353,14 +389,26 @@ import {
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
+  postProjectsByIdImageStudioAssetsByAssetIdReview as corePostProjectsByIdImageStudioAssetsByAssetIdReview,
+  postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
+  postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
+  postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
+  postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
+  postProjectsByIdSocialPosts as corePostProjectsByIdSocialPosts,
+  postProjectsByIdSocialPostsByPostIdCancel as corePostProjectsByIdSocialPostsByPostIdCancel,
+  postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
   postProjectsByIdStar as corePostProjectsByIdStar,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
-  postTasksScheduled as corePostTasksScheduled,
+  postTasksByIdParticipants as corePostTasksByIdParticipants,
+  postTasksSchedules as corePostTasksSchedules,
+  postTasksSchedulesByIdEnd as corePostTasksSchedulesByIdEnd,
+  postTasksSchedulesByIdPause as corePostTasksSchedulesByIdPause,
+  postTasksSchedulesByIdResume as corePostTasksSchedulesByIdResume,
   postUsersByIdCoworkerAccessByAccessIdApprove as corePostUsersByIdCoworkerAccessByAccessIdApprove,
   postUsersByIdCoworkerAccessByAccessIdDeny as corePostUsersByIdCoworkerAccessByAccessIdDeny,
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
@@ -384,9 +432,6 @@ import {
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
-  putTasksByIdCalendarSchedule as corePutTasksByIdCalendarSchedule,
-  putTasksByIdCalendarSource as corePutTasksByIdCalendarSource,
-  putTasksByIdSchedule as corePutTasksByIdSchedule,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
@@ -465,8 +510,8 @@ function transformTaskListResponseEnvelope(data: any) {
   data.data = (data.data ?? []).map((item: any) => {
     item.createdAt = toDate(item.createdAt);
     item.updatedAt = toDate(item.updatedAt);
-    if (item.nextRunAt) {
-      item.nextRunAt = toDate(item.nextRunAt);
+    if (item.runAt) {
+      item.runAt = toDate(item.runAt);
     }
 
     return item;
@@ -483,8 +528,8 @@ function transformTaskResponseEnvelope(data: any) {
 
   task.createdAt = toDate(task.createdAt);
   task.updatedAt = toDate(task.updatedAt);
-  if (task.nextRunAt) {
-    task.nextRunAt = toDate(task.nextRunAt);
+  if (task.runAt) {
+    task.runAt = toDate(task.runAt);
   }
   task.events = task.events.map((event: any) => ({
     ...event,
@@ -1032,6 +1077,36 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch unread thread count",
+    );
+  }
+
+  async function getChatUnreadThreads(
+    query?: GetChatsThreadsUnreadData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsThreadsUnread({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch unread threads",
+    );
+  }
+
+  async function getChatEarlierThreads(
+    query?: GetChatsThreadsEarlierData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsThreadsEarlier({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch earlier threads",
     );
   }
 
@@ -2959,6 +3034,211 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialConnections(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnections({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Project social connections",
+    );
+  }
+
+  async function getProjectsByIdImageStudio(
+    id: string,
+    query?: GetProjectsByIdImageStudioData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdImageStudio({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Project image studio",
+    );
+  }
+
+  async function postProjectsByIdImageStudioJobs(
+    id: string,
+    body: NonNullable<PostProjectsByIdImageStudioJobsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioJobs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to start image generation",
+    );
+  }
+
+  async function postProjectsByIdImageStudioJobsByJobIdCancel(
+    id: string,
+    jobId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioJobsByJobIdCancel({
+          client,
+          path: { id, jobId },
+        }),
+      "Failed to request cancellation",
+    );
+  }
+
+  async function postProjectsByIdImageStudioAssetsByAssetIdReview(
+    id: string,
+    assetId: string,
+    body: NonNullable<
+      PostProjectsByIdImageStudioAssetsByAssetIdReviewData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioAssetsByAssetIdReview({
+          client,
+          path: { id, assetId },
+          body,
+        }),
+      "Failed to review image version",
+    );
+  }
+
+  async function deleteProjectsByIdImageStudioAssetsByAssetIdReview(
+    id: string,
+    assetId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdImageStudioAssetsByAssetIdReview({
+          client,
+          path: { id, assetId },
+        }),
+      "Failed to clear image review",
+    );
+  }
+
+  async function getProjectsByIdSocialPosts(
+    id: string,
+    query?: GetProjectsByIdSocialPostsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialPosts({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Project social posts",
+    );
+  }
+
+  async function getProjectsByIdSocialPostsByPostId(
+    id: string,
+    postId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialPostsByPostId({
+          client,
+          path: { id, postId },
+          cache: "no-store",
+        }),
+      "Failed to fetch Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPosts(
+    id: string,
+    body: NonNullable<PostProjectsByIdSocialPostsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPosts({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to create Project social post",
+    );
+  }
+
+  async function patchProjectsByIdSocialPostsByPostId(
+    id: string,
+    postId: string,
+    body: NonNullable<PatchProjectsByIdSocialPostsByPostIdData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePatchProjectsByIdSocialPostsByPostId({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to update Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPostsByPostIdSchedule(
+    id: string,
+    postId: string,
+    body: NonNullable<PostProjectsByIdSocialPostsByPostIdScheduleData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdSchedule({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to schedule Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPostsByPostIdCancel(
+    id: string,
+    postId: string,
+    body: NonNullable<PostProjectsByIdSocialPostsByPostIdCancelData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdCancel({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to cancel Project social post",
+    );
+  }
+
+  async function completeComposioCallback(
+    body: NonNullable<PostComposioCallbackCompleteData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostComposioCallbackComplete({ client, body }),
+      "Failed to verify OAuth callback",
+    );
+  }
+
   async function patchProjectsById(
     id: string,
     body: NonNullable<PatchProjectsByIdData["body"]>,
@@ -3003,15 +3283,46 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function deleteProjectsById(id: string) {
+  async function postProjectsByIdSocialConnectionsInitiate(
+    id: string,
+    body: NonNullable<PostProjectsByIdSocialConnectionsInitiateData["body"]>,
+  ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreDeleteProjectsById({
+        corePostProjectsByIdSocialConnectionsInitiate({
           client,
           path: { id },
+          body,
         }),
-      "Failed to delete project",
+      "Failed to initiate Project social connection",
+    );
+  }
+
+  async function postProjectsByIdSocialConnectionsFinalize(
+    id: string,
+    body: NonNullable<PostProjectsByIdSocialConnectionsFinalizeData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialConnectionsFinalize({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to finalize Project social connection",
+    );
+  }
+
+  async function deleteProjectsByIdSocialConnectionsByConnectionId(
+    path: DeleteProjectsByIdSocialConnectionsByConnectionIdData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdSocialConnectionsByConnectionId({ client, path }),
+      "Failed to disconnect Project social connection",
     );
   }
 
@@ -3468,22 +3779,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function createScheduledTask(
-    body: NonNullable<PostTasksScheduledData["body"]>,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostTasksScheduled({
-          client,
-          body,
-          responseTransformer: async (data) =>
-            transformTaskResponseEnvelope(data),
-        }),
-      "Failed to create scheduled task",
-    );
-  }
-
   async function createTaskEvent(
     id: string,
     body: {
@@ -3503,6 +3798,7 @@ export function createCoreClient(getClient: GetCoreClient) {
         | "FAILED"
         | "CANCELED";
       comment?: string;
+      mentionedUserIds?: string[];
     },
   ) {
     return executeCoreOperation(
@@ -3514,6 +3810,28 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to create task event",
+    );
+  }
+
+  async function suggestTaskTags(body: {
+    name?: string;
+    description?: string | null;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSuggestTaskTags({ client, body }),
+      "Task tag suggestions unavailable",
+    );
+  }
+
+  async function patchTaskTags(
+    id: string,
+    body: NonNullable<PatchTasksByIdTagsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => patchTasksByIdTags({ client, path: { id }, body }),
+      "Failed to update task tags",
     );
   }
 
@@ -3576,6 +3894,30 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function deleteTaskParticipant(id: string, userId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteTasksByIdParticipantsByUserId({
+          client,
+          path: { id, userId },
+        }),
+      "Failed to remove task participant",
+    );
+  }
+
+  async function subscribeTaskParticipant(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostTasksByIdParticipants({
+          client,
+          path: { id },
+        }),
+      "Failed to subscribe to task",
+    );
+  }
+
   async function deleteTask(id: string) {
     return executeCoreOperation(
       getClient,
@@ -3590,118 +3932,114 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function putTaskSchedule(id: string, body: PutTaskScheduleRequest) {
+  async function listTaskSchedules(query?: GetTasksSchedulesData["query"]) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePutTasksByIdSchedule({
+        coreGetTasksSchedules({
           client,
-          path: { id },
-          body,
-          responseTransformer: async (data) =>
-            transformTaskResponseEnvelope(data),
+          query,
+          cache: "no-store",
         }),
-      "Failed to save task schedule",
+      "Failed to fetch Task Schedules",
     );
   }
 
-  async function putTaskCalendarSchedule(
+  async function getTaskScheduleAssignees() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetTaskScheduleAssignees({ client, cache: "no-store" }),
+      "Failed to fetch Task Schedule assignees",
+    );
+  }
+
+  async function createTaskSchedule(body: CreateTaskScheduleRequest) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostTasksSchedules({ client, body }),
+      "Failed to create Task Schedule",
+    );
+  }
+
+  async function getTaskSchedule(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksSchedulesById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Task Schedule",
+    );
+  }
+
+  async function updateTaskSchedule(
     id: string,
-    body: PutCalendarTaskScheduleRequest,
+    body: UpdateTaskScheduleRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePatchTasksSchedulesById({ client, path: { id }, body }),
+      "Failed to update Task Schedule",
+    );
+  }
+
+  async function changeTaskScheduleState(
+    id: string,
+    action: TaskScheduleStateAction,
+  ) {
+    const operation = {
+      pause: corePostTasksSchedulesByIdPause,
+      resume: corePostTasksSchedulesByIdResume,
+      end: corePostTasksSchedulesByIdEnd,
+    }[action];
+    return executeCoreOperation(
+      getClient,
+      (client) => operation({ client, path: { id } }),
+      `Failed to ${action} Task Schedule`,
+    );
+  }
+
+  async function deleteTaskScheduleById(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreDeleteTasksSchedulesById({ client, path: { id } }),
+      "Failed to delete Task Schedule",
+    );
+  }
+
+  async function listTaskScheduleRuns(
+    id: string,
+    query?: GetTasksSchedulesByIdRunsData["query"],
   ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePutTasksByIdCalendarSchedule({
-          client,
-          path: { id },
-          body,
-          responseTransformer: async (data) =>
-            transformTaskResponseEnvelope(data),
-        }),
-      "Failed to save Calendar task schedule",
-    );
-  }
-
-  async function putTaskCalendarSource(
-    id: string,
-    body: PutCalendarTaskScheduleSourceRequest,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePutTasksByIdCalendarSource({
-          client,
-          path: { id },
-          body,
-        }),
-      "Failed to move Calendar task source",
-    );
-  }
-
-  /**
-   * Series removal has no body, so its idempotency identity and observed
-   * revision travel as request metadata. A custom revision header avoids
-   * deployment platforms applying HTTP `If-Match` semantics themselves.
-   */
-  async function deleteTaskSchedule(
-    id: string,
-    precondition: {
-      operationId: string;
-      expectedScheduleRevision: number;
-    },
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreDeleteTasksByIdSchedule({
-          client,
-          path: { id },
-          headers: {
-            "idempotency-key": precondition.operationId,
-            "x-sokosumi-schedule-revision": String(
-              precondition.expectedScheduleRevision,
-            ),
-          },
-          responseTransformer: async (data) =>
-            transformTaskResponseEnvelope(data),
-        }),
-      "Failed to clear task schedule",
-    );
-  }
-
-  async function getTaskScheduleOccurrences(
-    id: string,
-    query: GetTasksByIdScheduleOccurrencesData["query"],
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetTasksByIdScheduleOccurrences({
+        coreGetTasksSchedulesByIdRuns({
           client,
           path: { id },
           query,
           cache: "no-store",
         }),
-      "Failed to fetch task schedule occurrences",
+      "Failed to fetch Task Schedule Runs",
     );
   }
 
-  async function mutateTaskScheduleOccurrence(
+  async function changeTaskScheduleRun(
     id: string,
-    occurrenceId: string,
-    body: MutateTaskScheduleOccurrenceRequest,
+    runId: string,
+    body: UpdateTaskScheduleRunRequest,
   ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePatchTasksByIdScheduleOccurrencesByOccurrenceId({
+        corePatchTasksSchedulesByIdRunsByRunId({
           client,
-          path: { id, occurrenceId },
+          path: { id, runId },
           body,
-          cache: "no-store",
         }),
-      "Failed to mutate task schedule occurrence",
+      "Failed to change Task Schedule Run",
     );
   }
 
@@ -5204,19 +5542,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     createOrganizationLogoUploadSession,
     createVendorLogoUploadSession,
     createTask,
-    createScheduledTask,
     createTaskFileUploadSession,
     createTaskLink,
     createTaskEvent,
     deleteJobShare,
-    deleteProjectsById,
     deleteProjectsByIdDesignMd,
     deleteProjectsByIdJobsByJobId,
+    deleteProjectsByIdSocialConnectionsByConnectionId,
     deleteProjectsByIdTasksByTaskId,
     deleteTaskShare,
     deleteTaskLink,
+    deleteTaskParticipant,
     deleteTask,
-    deleteTaskSchedule,
+    subscribeTaskParticipant,
     getChatRoom,
     getChatRoomInvitations,
     getChatRoomMessages,
@@ -5225,6 +5563,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThreadMessages,
     getChatRoomThreads,
     getChatRoomThreadsUnreadCount,
+    getChatUnreadThreads,
+    getChatEarlierThreads,
     getChatRooms,
     getChannelSlugAvailability,
     getDiscoverableChatRooms,
@@ -5408,6 +5748,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdClose,
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
+    getProjectsByIdSocialConnections,
+    getProjectsByIdImageStudio,
+    postProjectsByIdImageStudioJobs,
+    postProjectsByIdImageStudioJobsByJobIdCancel,
+    postProjectsByIdImageStudioAssetsByAssetIdReview,
+    deleteProjectsByIdImageStudioAssetsByAssetIdReview,
+    getProjectsByIdSocialPosts,
+    getProjectsByIdSocialPostsByPostId,
+    patchProjectsByIdSocialPostsByPostId,
+    postProjectsByIdSocialPosts,
+    postProjectsByIdSocialPostsByPostIdCancel,
+    postProjectsByIdSocialPostsByPostIdSchedule,
+    completeComposioCallback,
     getProjectsStats,
     getSharedResourceByToken,
     moveJobToWorkspace,
@@ -5421,22 +5774,30 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdCloseCancelOwed,
     postProjectsByIdCloseRetry,
     postProjectsByIdJobs,
+    postProjectsByIdSocialConnectionsFinalize,
+    postProjectsByIdSocialConnectionsInitiate,
     postProjectsByIdTasks,
     requestJobRefund,
     revokeMyOauthConsent,
     getTaskById,
     getTaskLinks,
-    getTaskScheduleOccurrences,
     getTaskWorkspace,
     getTasks,
     getTasksSummary,
     patchTask,
+    patchTaskTags,
+    suggestTaskTags,
     putJobShare,
-    putTaskCalendarSchedule,
-    putTaskCalendarSource,
-    putTaskSchedule,
     putTaskShare,
-    mutateTaskScheduleOccurrence,
+    listTaskSchedules,
+    getTaskScheduleAssignees,
+    createTaskSchedule,
+    getTaskSchedule,
+    updateTaskSchedule,
+    changeTaskScheduleState,
+    deleteTaskScheduleById,
+    listTaskScheduleRuns,
+    changeTaskScheduleRun,
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
     getMySokoBot,

@@ -7,11 +7,14 @@ import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { organizationSeatAssignmentSchema } from "@/schemas/organization-seat.schema";
-import { mapSeatRepositoryError } from "@/services/organization-seat.service";
+import {
+  mapSeatRepositoryError,
+  SEAT_ASSIGNMENT_CONFLICT_MESSAGE,
+} from "@/services/organization-seat.service";
 
 const params = z.object({
   id: z.string().openapi({
@@ -56,6 +59,7 @@ const route = createRoute({
       "Forbidden - You must be an organization owner or admin",
     ),
     404: jsonErrorResponse("Not Found - Organization or member not found"),
+    409: jsonErrorResponse("Conflict"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
@@ -66,7 +70,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id, memberId } = c.req.valid("param");
 
     try {
-      const result = await prisma.$transaction(async (tx) => {
+      // Serializable so the capacity count and the seat write commit as one
+      // unit (SOK-1007): two concurrent assignments cannot both read the same
+      // count, both pass the capacity check and both write.
+      const result = await serializableTransaction(async (tx) => {
         const { organization } = await resolveMemberOrganizationById({
           id,
           userId: userContext.userId,
@@ -95,7 +102,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           memberId: member.id,
           seatAssignedAt: member.seatAssignedAt,
         };
-      });
+      }, SEAT_ASSIGNMENT_CONFLICT_MESSAGE);
 
       return ok(c, organizationSeatAssignmentSchema.parse(result));
     } catch (error) {

@@ -12,7 +12,6 @@ import {
   encodeProjectActivityCursor,
   type ProjectActivityRow,
   projectActivityPageQuery,
-  projectActivityVisibility,
   projectNameCountQuery,
 } from "@/helpers/project-activity";
 import { ok } from "@/helpers/response";
@@ -29,7 +28,7 @@ import {
 } from "@/schemas/project.schema";
 import {
   createProjectListCountsInclude,
-  resolveProjectReaderVisibility,
+  resolveProjectReaderAccess,
 } from "@/types/project";
 
 const query = cursorPaginationQuerySchema
@@ -90,18 +89,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const search = queryParams.q;
     const workspaceId = workspaceContext.workspaceId;
     const takePlusOne = take + 1;
-    const visibility = await resolveProjectReaderVisibility(
-      c.var.authContext,
-      workspaceContext.workspaceId,
-    );
+    const { prismaWhere: visibility, sqlWhere: activityVisibility } =
+      await resolveProjectReaderAccess(
+        c.var.authContext,
+        workspaceContext.workspaceId,
+      );
     const projectListCountsInclude = createProjectListCountsInclude(
       workspaceContext.workspaceId,
       visibility,
-    );
-
-    const activityVisibility = await projectActivityVisibility(
-      c.var.authContext,
-      workspaceContext.workspaceId,
     );
     const ranked = await prisma.$queryRaw<ProjectActivityRow[]>(
       projectActivityPageQuery({

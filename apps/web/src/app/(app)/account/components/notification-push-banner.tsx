@@ -1,6 +1,11 @@
 "use client";
 
-import { AlertTriangle, type LucideIcon, Smartphone } from "lucide-react";
+import {
+  AlertTriangle,
+  type LucideIcon,
+  Share,
+  Smartphone,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
@@ -11,6 +16,7 @@ import type { PushBlock } from "./notification-delivery";
 /** What is wrong, in a line the reader can act on or dismiss in their head. */
 const TITLE_KEY: Record<PushBlock, string> = {
   unsupported: "pushBannerUnsupportedTitle",
+  installable: "pushBannerInstallableTitle",
   denied: "pushBannerDeniedTitle",
   unsubscribed: "pushBannerUnsubscribedTitle",
 };
@@ -26,8 +32,25 @@ const TITLE_KEY: Record<PushBlock, string> = {
  */
 const BODY_KEY: Record<PushBlock, string> = {
   unsupported: "pushBannerUnsupportedBody",
+  installable: "pushBannerInstallableBody",
   denied: "pushBannerDeniedBody",
   unsubscribed: "pushBannerUnsubscribedBody",
+};
+
+/**
+ * The mark over the words.
+ *
+ * Three of them are something gone wrong and take the warning's. The iPhone
+ * is not: its words are instructions, and its mark is the button the reader
+ * is being sent to tap. The tint stays a warning's on all four, because a
+ * push the rows asked for is not arriving on any of them, and that is what
+ * this page's warning tint means.
+ */
+const ICON: Record<PushBlock, LucideIcon> = {
+  unsupported: AlertTriangle,
+  installable: Share,
+  denied: AlertTriangle,
+  unsubscribed: AlertTriangle,
 };
 
 /** The press a notice offers, where it has one to offer. */
@@ -207,10 +230,11 @@ function BrowserNotice({
  * row under it. The cells stay exactly as the reader set them: they write the
  * account rather than this browser, so what is missing is this browser alone.
  *
- * Only one of the three can be fixed from here. A refusal has to be taken back
- * in the browser's own settings, since a site that has been refused cannot ask
- * again, and a browser without the feature has nothing to offer. Those two
- * explain themselves and take no press.
+ * Only one of the four takes a press. A refusal has to be taken back in the
+ * browser's own settings, since a site that has been refused cannot ask again;
+ * a browser without the feature has nothing to offer; and no API can put this
+ * app on a Home Screen, so the iPhone case names the taps and leaves them to
+ * the reader. Those three explain themselves and take no press.
  */
 export function PushBanner({
   block,
@@ -225,7 +249,7 @@ export function PushBanner({
   return (
     <BrowserNotice
       warning={true}
-      icon={AlertTriangle}
+      icon={ICON[block]}
       titleKey={TITLE_KEY[block]}
       bodyKey={BODY_KEY[block]}
       action={

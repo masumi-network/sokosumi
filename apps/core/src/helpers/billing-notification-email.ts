@@ -5,6 +5,7 @@ import { BILLING_LOW_BALANCE_MESSAGE_KEY } from "@sokosumi/utils";
 import type { SendEmailInput } from "@/clients/email.client";
 import { sendEmail } from "@/clients/email.client";
 import { getWebAppBaseUrl } from "@/config/env";
+import { notificationSettingsLink } from "@/helpers/notification-email-link";
 import { resolveDelivery } from "@/helpers/notifications";
 import prisma from "@/lib/db/prisma";
 
@@ -64,6 +65,7 @@ export async function sendBillingNotificationEmail(
     credits,
     locale: "en",
     recipientName: reader.name,
+    settingsUrl: notificationSettingsLink(),
   });
 
   const email: SendEmailInput = {

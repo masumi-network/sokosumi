@@ -12,7 +12,6 @@ import {
   applyPendingOrganizationJoinCookie,
   joinTokenFromJoinPath,
 } from "@/lib/pending-organization-join-cookie";
-import { RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME } from "@/lib/retired-onboarding-storage";
 
 const EXCLUDED_PATHS = [
   "/auth/",
@@ -51,23 +50,6 @@ const EXCLUDED_PATHS = [
   "/maintenance",
 ];
 
-function expireRetiredOnboardingGateCookie(
-  request: NextRequest,
-  response: NextResponse,
-): NextResponse {
-  if (request.cookies.has(RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME)) {
-    response.cookies.set({
-      name: RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME,
-      value: "",
-      path: "/",
-      maxAge: 0,
-      sameSite: "lax",
-      secure: request.nextUrl.protocol === "https:",
-    });
-  }
-  return response;
-}
-
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const searchParams = request.nextUrl.search;
@@ -92,14 +74,14 @@ export async function proxy(request: NextRequest) {
         maintenanceApiResponse,
         securityHeaderOptions,
       );
-      return expireRetiredOnboardingGateCookie(request, maintenanceApiResponse);
+      return maintenanceApiResponse;
     }
     if (pathname !== "/maintenance") {
       const maintenanceRedirect = NextResponse.redirect(
         new URL("/maintenance", request.url),
       );
       applyDocumentSecurityHeaders(maintenanceRedirect, securityHeaderOptions);
-      return expireRetiredOnboardingGateCookie(request, maintenanceRedirect);
+      return maintenanceRedirect;
     }
   }
 
@@ -118,7 +100,7 @@ export async function proxy(request: NextRequest) {
         new URL(`/signin?returnUrl=${returnUrl}`, request.url),
       );
       applyDocumentSecurityHeaders(redirectResponse, securityHeaderOptions);
-      return expireRetiredOnboardingGateCookie(request, redirectResponse);
+      return redirectResponse;
     }
   }
 
@@ -140,7 +122,7 @@ export async function proxy(request: NextRequest) {
 
   // Skip session check for excluded paths (but still set headers above)
   if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
-    return expireRetiredOnboardingGateCookie(request, response);
+    return response;
   }
 
   const sessionCookie = getSessionCookie(request, {
@@ -153,13 +135,13 @@ export async function proxy(request: NextRequest) {
       new URL(`/signin?returnUrl=${returnUrl}`, request.url),
     );
     applyDocumentSecurityHeaders(signInRedirect, securityHeaderOptions);
-    return expireRetiredOnboardingGateCookie(request, signInRedirect);
+    return signInRedirect;
   }
 
   // Workspace gate (not ready → /setup) is enforced server-side in
   // AuthenticatedAppFrame via Core workspace access.
 
-  return expireRetiredOnboardingGateCookie(request, response);
+  return response;
 }
 
 export const config = {

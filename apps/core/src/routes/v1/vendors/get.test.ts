@@ -95,6 +95,7 @@ describe("GET /vendors", () => {
 
     expect(response.status).toBe(200);
     expect(vendorFindManyMock).toHaveBeenCalledWith({
+      where: { listed: true },
       orderBy: [{ name: "asc" }, { slug: "asc" }],
     });
     expect(body.data).toEqual([

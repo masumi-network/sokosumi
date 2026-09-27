@@ -15,7 +15,6 @@ const buildAgentNameByIdMock = vi.fn();
 const notFoundMock = vi.fn();
 const redirectMock = vi.fn();
 const listProjectsMock = vi.fn();
-const readSchedulePreconditionMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
@@ -81,11 +80,6 @@ vi.mock("@/lib/services/project.service", () => ({
     listProjects: (...args: unknown[]) => listProjectsMock(...args),
     getProjectById: vi.fn(),
   },
-}));
-
-vi.mock("@/app/tasks/utils/task-schedule-precondition", () => ({
-  readTaskScheduleSeriesPrecondition: (...args: unknown[]) =>
-    readSchedulePreconditionMock(...args),
 }));
 
 vi.mock("@/lib/services/task.service", () => ({
@@ -171,7 +165,7 @@ describe("TaskEditModalPage", () => {
     expect(screen.getByTestId("auto-context-switch")).toBeInTheDocument();
   });
 
-  it("hands the intercepted edit modal its schedule precondition", async () => {
+  it("hands the intercepted edit modal the Task's Run at", async () => {
     getTaskByIdMock.mockResolvedValue({
       id: "task_1",
       name: "Scheduled task",
@@ -179,8 +173,7 @@ describe("TaskEditModalPage", () => {
       assigneeId: "cow_123",
       assigneeSokoBotId: null,
       status: "QUEUED",
-      metadata: '{"version":2}',
-      nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
+      runAt: new Date("2030-06-25T09:00:00.000Z"),
       workspace: { organizationId: "org-current" },
     });
     getSessionMock.mockResolvedValue({
@@ -194,10 +187,6 @@ describe("TaskEditModalPage", () => {
     getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
     getCoworkerOptionsMock.mockReturnValue([]);
     buildAgentNameByIdMock.mockReturnValue(new Map());
-    readSchedulePreconditionMock.mockResolvedValue({
-      scheduleRevision: 7,
-      futureExceptionCount: 2,
-    });
 
     const { default: TaskEditModalPage } = await import("./page");
 
@@ -210,8 +199,10 @@ describe("TaskEditModalPage", () => {
     expect(taskEditModalMock).toHaveBeenCalledWith(
       expect.objectContaining({
         taskId: "task_1",
-        scheduleRevision: 7,
-        futureExceptionCount: 2,
+        initialValues: expect.objectContaining({
+          status: "QUEUED",
+          runAt: "2030-06-25T09:00:00.000Z",
+        }),
       }),
     );
   });

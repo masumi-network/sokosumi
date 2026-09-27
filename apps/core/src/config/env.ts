@@ -25,6 +25,16 @@ const baseEnvSchema = z.object({
   // Database
   DATABASE_URL: z.url(),
 
+  // Task tags use global Jev routing with enforced retention/no-training options.
+  TASK_TAG_CLASSIFICATION_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+
+  // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
+  REDIS_URL: z.string().optional(),
+  KV_URL: z.string().optional(),
+
   WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
 
   // Vercel (optional; Better Auth base URL on Preview)
@@ -121,8 +131,19 @@ const baseEnvSchema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((value) => value === "true"),
-  /** fal.ai key for Soko Bot avatar generation; the pool cannot top up without it. */
+  /**
+   * fal.ai key for Soko Bot avatar generation and the Project image studio.
+   * Neither feature can reach the provider without it; both degrade to a
+   * read-only view rather than failing a page render.
+   */
   FAL_KEY: z.string().min(1).optional(),
+  /**
+   * Shared secret the image-studio agent signs its grants with. The agent runs
+   * outside Core, so a grant is how it names the acting user; Core still
+   * re-checks that user's project access on every call. Without it the agent
+   * cannot reach Core at all, which is the safe default.
+   */
+  IMAGE_STUDIO_AGENT_SECRET: z.string().min(32).optional(),
   PROJECT_MEMORY_MODEL: z
     .string()
     .startsWith("mistral/")
@@ -149,6 +170,7 @@ const baseEnvSchema = z.object({
   /** Composio brokers OAuth for Soko Bot integrations (Gmail, Outlook, …). */
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
+  COMPOSIO_X_AUTH_CONFIG_ID: z.string().min(1).optional(),
   SOKO_BOT_RUNTIME_ADAPTER: z
     .enum(["in-memory", "in-process"])
     .default("in-process"),
@@ -204,6 +226,23 @@ const baseEnvSchema = z.object({
 
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
+   * Read-write token for the image studio's **own, private-access** Blob
+   * store. Deliberately separate from `BLOB_READ_WRITE_TOKEN`.
+   *
+   * `BLOB_READ_WRITE_TOKEN` names the shared store that project files,
+   * DESIGN.md, avatars and user uploads write to, and that store is created
+   * with `access: "public"` — every object in it is retrievable by anyone who
+   * has its URL, with no credential. Generated images are project assets and
+   * must not be in it. Vercel fixes public-or-private per *store*, not per
+   * object, so the only way to store them privately is a second store created
+   * with `--access private`, which is what this token addresses.
+   *
+   * Absent, the studio refuses to generate rather than falling back to the
+   * shared public store: see `requireStudioBlobToken` in
+   * `services/image-studio-jobs.service.ts`.
+   */
+  IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
    * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
    * for presigned client uploads. Required for task-file auto-registration.

@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionMock = vi.fn();
-const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
@@ -59,11 +58,6 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
 }));
 
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
-}));
-
 vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
     listCoworkers: () => listCoworkersMock(),
@@ -106,7 +100,6 @@ const PROJECT = {
 describe("ProjectCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getSessionMock.mockResolvedValue({
       user: { id: "user-1", email: "ada@example.com" },
     });
@@ -127,20 +120,6 @@ describe("ProjectCalendarPage", () => {
     ]);
     listCoworkersMock.mockResolvedValue([]);
     listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
-  });
-
-  it("does not load Project data outside the Calendar beta", async () => {
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
-
-    await expect(
-      ProjectCalendarPage({
-        params: Promise.resolve({ projectId: PROJECT.id }),
-        searchParams: Promise.resolve({}),
-      }),
-    ).rejects.toThrow("NEXT_NOT_FOUND");
-
-    expect(getProjectByIdMock).not.toHaveBeenCalled();
-    expect(getProjectCalendarMock).not.toHaveBeenCalled();
   });
 
   it("loads only the route Project Calendar", async () => {

@@ -7,6 +7,16 @@ export interface FetchVendorMembershipsResult {
   vendors: Vendor[];
 }
 
+export interface CreateVendorInput {
+  name: string;
+  slug: string;
+}
+
+export interface CreateVendorResult {
+  response: ApiResponse<Vendor>;
+  vendor: Vendor;
+}
+
 export async function fetchVendorMemberships(
   client: CoreHttpClient,
   signal?: AbortSignal,
@@ -24,4 +34,26 @@ export async function fetchVendorMemberships(
     data: vendors,
   };
   return { response: normalizedResponse, vendors };
+}
+
+export async function createVendor(
+  client: CoreHttpClient,
+  input: CreateVendorInput,
+  signal?: AbortSignal,
+): Promise<CreateVendorResult> {
+  const name = input.name.trim();
+  const slug = input.slug.trim();
+  if (!name) throw new Error("Vendor name is required");
+  if (!slug) throw new Error("Vendor slug is required");
+  const response = parseApiResponse<unknown>(
+    await client.post<unknown>("/v1/vendors", { name, slug }, signal),
+  );
+  const vendor = parseVendor(response.data);
+  if (vendor.role !== "admin") {
+    throw new Error("Invalid vendor create response: expected admin role");
+  }
+  return {
+    response: { ...response, data: vendor },
+    vendor,
+  };
 }

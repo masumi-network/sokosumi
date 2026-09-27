@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  CircleStop,
-  LoaderCircle,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { CircleStop, LoaderCircle, MoreHorizontal, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -31,13 +25,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { closeProject, deleteProject } from "@/lib/actions/project/action";
+import { closeProject } from "@/lib/actions/project/action";
 
 interface ProjectDetailActionsLabels {
   moreActions: string;
   edit: string;
   close: string;
-  delete: string;
   closeDialog: {
     title: string;
     description: string;
@@ -46,13 +39,6 @@ interface ProjectDetailActionsLabels {
     confirm: string;
     cancel: string;
     success: string;
-    error: string;
-  };
-  deleteDialog: {
-    title: string;
-    description: string;
-    confirm: string;
-    cancel: string;
     error: string;
   };
 }
@@ -79,8 +65,6 @@ export function ProjectDetailActions({
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
   const [isClosing, startCloseTransition] = useTransition();
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeleting, startDeleteTransition] = useTransition();
 
   useEffect(() => {
     if (!isClosingOrClosed) {
@@ -89,21 +73,7 @@ export function ProjectDetailActions({
     closeAttemptRef.current = null;
     setCloseReason("");
     setIsCloseDialogOpen(false);
-    setIsDeleteDialogOpen(false);
   }, [isClosingOrClosed]);
-
-  function handleDeleteProject() {
-    startDeleteTransition(async () => {
-      try {
-        await deleteProject({ projectId });
-        setIsDeleteDialogOpen(false);
-        router.replace("/projects");
-        router.refresh();
-      } catch {
-        toast.error(labels.deleteDialog.error, { duration: Infinity });
-      }
-    });
-  }
 
   function handleCloseProject() {
     if (projectRevision === undefined) {
@@ -174,18 +144,6 @@ export function ProjectDetailActions({
               {labels.close}
             </DropdownMenuItem>
           ) : null}
-          {!isClosingOrClosed ? (
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={(event) => {
-                event.preventDefault();
-                setIsDeleteDialogOpen(true);
-              }}
-            >
-              <Trash2 className="size-4" aria-hidden />
-              {labels.delete}
-            </DropdownMenuItem>
-          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -241,44 +199,6 @@ export function ProjectDetailActions({
                 />
               ) : null}
               {labels.closeDialog.confirm}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={isDeleteDialogOpen && !isClosingOrClosed}
-        onOpenChange={(open) => {
-          if (open || !isDeleting) {
-            setIsDeleteDialogOpen(open);
-          }
-        }}
-      >
-        <AlertDialogContent
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            menuTriggerRef.current?.focus();
-          }}
-        >
-          <AlertDialogHeader>
-            <AlertDialogTitle>{labels.deleteDialog.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {labels.deleteDialog.description}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>
-              {labels.deleteDialog.cancel}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
-              disabled={isDeleting}
-              onClick={(event) => {
-                event.preventDefault();
-                handleDeleteProject();
-              }}
-            >
-              {labels.deleteDialog.confirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

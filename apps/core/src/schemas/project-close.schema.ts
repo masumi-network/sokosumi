@@ -29,7 +29,10 @@ export const projectCloseRecoveryRequestSchema = z
 
 export const projectCloseFailureSchema = z
   .object({
-    seriesTaskId: z.string().nullable(),
+    scheduleId: z.string().nullable().openapi({
+      description:
+        "Task Schedule the close could not finish; cancel-owed drops its owed Runs. Null when no schedule is named.",
+    }),
     message: z.string(),
   })
   .openapi("ProjectCloseFailure");

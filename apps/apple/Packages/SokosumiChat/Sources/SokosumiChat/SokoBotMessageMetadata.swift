@@ -108,15 +108,15 @@ public struct SokoBotChainMetadata: Equatable, Sendable {
     "\(depth)/\(maxDepth)"
   }
 
-  public var depthDescription: String {
+  private var depthDescription: String {
     "Assistant-to-assistant reply \(depth) of \(maxDepth). A person writing here resets the count."
   }
 
-  public var roomRateDescription: String {
+  private var roomRateDescription: String {
     "\(roomMessagesThisHour) of \(roomMessagesPerHour) assistant messages in this room this hour."
   }
 
-  public static let lastHopDescription = "This is the last hop — it will not wake anyone else."
+  private static let lastHopDescription = "This is the last hop — it will not wake anyone else."
 
   /// Web's tooltip: depth, room rate and, on the final hop, that it ends there.
   public var summary: String {

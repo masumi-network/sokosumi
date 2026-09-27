@@ -5,18 +5,13 @@ import {
 import {
   type AuthEnvironment,
   type AuthManager,
-  getAuthManager,
 } from "../auth/auth-manager.js";
-import { resolveInitialAuth } from "../auth/bootstrap.js";
 import {
-  type CliTargetConfig,
-  MAINNET_API_URL,
-  PREPROD_API_URL,
-  resolveCliConfig,
-  resolveTargetScope,
-  targetFromUserApiKey,
-} from "../auth/config.js";
-import { loadCliEnvironment } from "../config/loader.js";
+  bootstrapCliSession,
+  type CliSession,
+  requireAuthenticatedSession,
+} from "../auth/bootstrap.js";
+import { type CliTargetConfig } from "../auth/config.js";
 import { redactErrorMessage } from "../error-redaction.js";
 import {
   isNetworkSelectionLocked,
@@ -26,6 +21,7 @@ import {
 import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
+import { type AuthWhoamiResult, runAuthWhoami } from "./auth-whoami.js";
 import { runAgentsCommand } from "./commands/agents.js";
 import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
@@ -35,6 +31,7 @@ import { runTasksCommand } from "./commands/tasks.js";
 import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
 import { CLI_VERSION } from "./metadata.js";
+import { requirePreprodCoworkerRegistration } from "./registration-authority.js";
 
 type ValueOptionName =
   | "auth-url"
@@ -46,10 +43,8 @@ type ValueOptionName =
   | "limit"
   | "scope"
   | "capability"
-  | "capabilities"
   | "channel"
   | "id"
-  | "q"
   | "metadata-json"
   | "metadata-file"
   | "name"
@@ -63,7 +58,6 @@ type ValueOptionName =
   | "priority"
   | "api-key-name"
   | "api-key-expires-at"
-  | "expires-at"
   | "coworker-id"
   | "event-id"
   | "status"
@@ -72,7 +66,9 @@ type ValueOptionName =
   | "input-json"
   | "input-file"
   | "max-credits"
-  | "vendor-id";
+  | "vendor-id"
+  | "workspace-id"
+  | "slug";
 
 type CliOptionValue = string | string[];
 
@@ -91,10 +87,8 @@ interface CliOptions {
   limit?: string;
   scope?: string;
   capability?: CliOptionValue;
-  capabilities?: CliOptionValue;
   channel?: CliOptionValue;
   id?: string;
-  q?: string;
   "metadata-json"?: string;
   "metadata-file"?: string;
   name?: string;
@@ -108,20 +102,18 @@ interface CliOptions {
   priority?: string;
   "api-key-name"?: string;
   "api-key-expires-at"?: string;
-  "expires-at"?: string;
   "coworker-id"?: string;
   "event-id"?: string;
-  status?: CliOptionValue;
+  status?: string;
   comment?: string;
   agent?: string;
   "input-json"?: string;
   "input-file"?: string;
   "max-credits"?: string;
   "vendor-id"?: string;
+  slug?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
-  "create-vendor"?: boolean;
-  "confirm-create-vendor"?: boolean;
   details?: boolean;
 }
 
@@ -144,34 +136,37 @@ export interface CliResult {
   target?: CliTargetConfig["target"];
   apiUrl?: string;
   expiresAt?: string | null;
+  user?: AuthWhoamiResult["user"];
   tui?: boolean;
 }
 
 const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
-  discover: "[--json]",
-  "auth login": "[--json]",
-  "auth status": "[--json]",
-  "auth logout": "[--json]",
-  "agents list": "[--search TEXT] [--limit N] [--json]",
-  "agents hire": "AGENT_ID --input-json JSON [--max-credits N]",
-  "coworkers list": "[--scope SCOPE] [--capability CAPABILITY]",
-  "coworkers register":
-    "[--vendor-id ID] [--create-api-key] [--create-vendor --confirm-create-vendor] [options]",
+  discover: "",
+  "auth login": "",
+  "auth status": "",
+  "auth whoami": "",
+  "auth logout": "",
+  "agents list": "",
+  "agents hire": "AGENT_ID",
+  "coworkers list": "",
+  "coworkers register": "[options]",
+  "coworkers provision": "[options]",
+  "coworkers connect": "COWORKER_ID [options]",
   "coworkers update": "COWORKER_ID [options]",
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
   "vendors me": "",
+  "vendors create": "--name NAME --slug SLUG",
   "workspaces list": "",
   "tasks list": "[options]",
-  "tasks create": "--coworker-id ID --description TEXT",
+  "tasks create": "",
   "tasks get": "TASK_ID",
   "tasks events": "TASK_ID",
   "tasks jobs": "TASK_ID",
-  "tasks comment": "TASK_ID [--comment TEXT] [--status STATUS]",
-  "jobs list": "[--search TEXT] [--limit N]",
-  "jobs get": "JOB_ID [--details]",
-  "jobs input":
-    "JOB_ID --event-id EVENT_ID [--input-json JSON|--input-file FILE]",
+  "tasks comment": "TASK_ID",
+  "jobs list": "",
+  "jobs get": "JOB_ID",
+  "jobs input": "JOB_ID",
 };
 
 export const GLOBAL_VALUE_OPTIONS = [
@@ -203,12 +198,7 @@ export const GLOBAL_BOOLEAN_FLAG_BY_TOKEN = {
   "--version": "version",
 } as const satisfies Record<string, keyof CliOptions>;
 
-export const BOOLEAN_OPTION_NAMES = [
-  "create-api-key",
-  "create-vendor",
-  "confirm-create-vendor",
-  "details",
-] as const;
+const BOOLEAN_OPTION_NAMES = ["create-api-key", "details"] as const;
 
 function formatGlobalOptionHelp(): string[] {
   const booleanLines: string[] = [];
@@ -246,6 +236,24 @@ Global options:
 ${formatGlobalOptionHelp()
   .map((line) => `  ${line}`)
   .join("\n")}
+
+Account checks:
+  auth whoami asks Core for the signed-in email and platform role. auth status shows authentication state.
+  Before switching browser accounts, clear SOKOSUMI_API_KEY and SOKOSUMI_AUTH_TOKEN from the shell. They override saved OAuth credentials.
+  Sign in as the intended account in the browser, run auth login, then auth whoami.
+  auth logout clears local credentials; it does not switch the browser account.
+
+Developer setup on Preprod:
+  1. Create your Vendor: sokosumi --preprod vendors create --name NAME --slug SLUG
+  2. Give its ID and your final Coworker name to the organizer. Ask for the Coworker ID.
+  3. Connect: sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID
+  4. Create the runtime key: sokosumi --preprod coworkers api-key COWORKER_ID --json
+
+Organizer setup on Preprod (platform admin):
+  Select an organization Workspace and invite the intended developers in Sokosumi Web.
+  Ask each developer for their Vendor ID and final Coworker name, then run:
+  sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks
+  Give the returned Coworker ID to that developer.
 `;
 }
 
@@ -255,10 +263,8 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "limit",
   "scope",
   "capability",
-  "capabilities",
   "channel",
   "id",
-  "q",
   "metadata-json",
   "metadata-file",
   "name",
@@ -272,7 +278,6 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "priority",
   "api-key-name",
   "api-key-expires-at",
-  "expires-at",
   "coworker-id",
   "event-id",
   "status",
@@ -282,12 +287,13 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "input-file",
   "max-credits",
   "vendor-id",
+  "workspace-id",
+  "slug",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
   "capability",
   "channel",
-  "status",
 ]);
 
 const BOOLEAN_OPTIONS = new Set<string>(BOOLEAN_OPTION_NAMES);
@@ -364,71 +370,19 @@ export function parseArgv(argv: string[]): ParsedArgv {
   return { positionals, options };
 }
 
-function applyGlobalEnv(
-  env: AuthEnvironment,
-  options: CliOptions,
-): AuthEnvironment {
-  const next: Record<string, string | undefined> = { ...env };
-  if (options.preprod) next.SOKOSUMI_API_URL = PREPROD_API_URL;
-  if (options["api-url"]) next.SOKOSUMI_API_URL = options["api-url"];
-  return next;
-}
-
-function resolveCommandConfig(
-  env: AuthEnvironment,
-  options: CliOptions,
-): CliTargetConfig {
-  const detectedApiKeyTarget = targetFromUserApiKey(
-    String(env.SOKOSUMI_API_KEY || ""),
-  );
-  const explicitApiUrl = options["api-url"];
-  const apiUrl =
-    explicitApiUrl ||
-    (options.preprod
-      ? PREPROD_API_URL
-      : env.SOKOSUMI_API_URL ||
-        (detectedApiKeyTarget === "preprod"
-          ? PREPROD_API_URL
-          : MAINNET_API_URL));
-  return resolveCliConfig({
-    env,
-    apiUrl,
-    authBaseUrl: options["auth-url"],
-    clientId: options["client-id"],
-    preprod: options.preprod,
-  });
-}
-
-function getManager(
-  config: CliTargetConfig,
-  env: AuthEnvironment,
-  authManager?: AuthManager,
-): AuthManager {
-  return (
-    authManager ||
-    getAuthManager({
-      targetScope: resolveTargetScope(config.target, config.apiUrl),
-      clientId: config.clientId,
-      environment: env,
-    })
-  );
-}
-
 function getCoreClient(
-  config: CliTargetConfig,
-  env: AuthEnvironment,
+  session: CliSession,
   dependencies: CliDependencies,
 ): CoreHttpClient {
-  const manager = getManager(config, env, dependencies.authManager);
   return (
     dependencies.coreClient ||
     createCoreHttpClient({
-      apiUrl: config.apiUrl,
-      authManager: manager,
-      authBaseUrl: config.authBaseUrl,
-      clientId: config.clientId,
-      clientSecret: config.clientSecret,
-      environment: env,
+      apiUrl: session.config.apiUrl,
+      authManager: session.authManager,
+      authBaseUrl: session.config.authBaseUrl,
+      clientId: session.config.clientId,
+      clientSecret: session.config.clientSecret,
+      environment: session.env,
     })
   );
 }
@@ -459,6 +413,9 @@ export async function runCli(
     throw error;
   }
   const { positionals, options } = parsed;
+  const coworkerRegistration =
+    positionals[0] === "coworkers" &&
+    ["register", "provision", "connect"].includes(positionals[1]);
 
   if (options.help) {
     stdout.write(formatHelpText());
@@ -469,25 +426,24 @@ export async function runCli(
     return { version: CLI_VERSION };
   }
 
-  let env: AuthEnvironment;
-  let config: CliTargetConfig;
+  let session: CliSession;
   try {
-    env = applyGlobalEnv(
-      loadCliEnvironment({
-        environment: dependencies.env || process.env,
-        loadFiles: dependencies.env === undefined,
-      }),
-      options,
-    );
-    config = resolveCommandConfig(env, options);
+    session = bootstrapCliSession({
+      environment: dependencies.env || process.env,
+      loadFiles: dependencies.env === undefined,
+      preprod: options.preprod,
+      preprodDefault: coworkerRegistration,
+      apiUrl: options["api-url"],
+      authUrl: options["auth-url"],
+      clientId: options["client-id"],
+      authManager: dependencies.authManager,
+    });
   } catch (error) {
     if (options.json)
       writeJsonError(stdout, error, dependencies.env || process.env);
     throw error;
   }
-  const targetExplicit = Boolean(
-    options.preprod || options["api-url"] || env.SOKOSUMI_API_URL,
-  );
+  const { env, config, targetExplicit, authManager } = session;
   const networkSelectionLocked = isNetworkSelectionLocked(config, {
     preprod: options.preprod,
     apiUrl: options["api-url"],
@@ -495,7 +451,6 @@ export async function runCli(
 
   try {
     if (positionals.length === 0) {
-      const authManager = getManager(config, env, dependencies.authManager);
       const tuiFn = dependencies.tuiFn || renderStatusApp;
       return await tuiFn({
         authManager,
@@ -523,22 +478,18 @@ export async function runCli(
     if (rest.length > 0) {
       throw new Error(`Unexpected argument: ${rest[0]}`);
     }
-    if (CORE_COMMAND_SECTIONS.has(section)) {
-      const auth = await resolveInitialAuth({
-        authManager: getManager(config, env, dependencies.authManager),
-        config,
-        environment: env,
-        targetExplicit,
-      });
-      if (!auth.authenticated) {
-        throw new Error(
-          "Authentication required. Run `sokosumi auth login` first.",
-        );
-      }
+    if (coworkerRegistration) {
+      requirePreprodCoworkerRegistration(config.target);
+    }
+    if (
+      CORE_COMMAND_SECTIONS.has(section) ||
+      (section === "auth" && command === "whoami" && positionalId === undefined)
+    ) {
+      await requireAuthenticatedSession(session);
     }
     if (section === "discover" && command === undefined) {
       await runDiscoverCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         config,
         stdout,
         json: options.json,
@@ -550,7 +501,7 @@ export async function runCli(
       (command === undefined || command === "list" || command === "hire")
     ) {
       await runAgentsCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
@@ -562,12 +513,21 @@ export async function runCli(
     if (
       section === "coworkers" &&
       (command === undefined ||
-        ["list", "register", "update", "api-key", "me"].includes(command))
+        [
+          "list",
+          "register",
+          "provision",
+          "connect",
+          "update",
+          "api-key",
+          "me",
+        ].includes(command))
     ) {
       await runCoworkersCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
+        target: config.target,
         subcommand: command,
         positionalId,
         options,
@@ -576,14 +536,15 @@ export async function runCli(
     }
     if (
       section === "vendors" &&
-      command === "me" &&
+      (command === "me" || command === "create") &&
       positionalId === undefined
     ) {
       await runVendorsCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
+        options,
       });
       return {};
     }
@@ -593,7 +554,7 @@ export async function runCli(
       positionalId === undefined
     ) {
       await runWorkspacesCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
@@ -608,7 +569,7 @@ export async function runCli(
         ))
     ) {
       await runTasksCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
@@ -622,7 +583,7 @@ export async function runCli(
       (command === undefined || ["list", "get", "input"].includes(command))
     ) {
       await runJobsCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
@@ -632,12 +593,24 @@ export async function runCli(
       return {};
     }
     if (
+      section === "auth" &&
+      command === "whoami" &&
+      positionalId === undefined
+    ) {
+      return await runAuthWhoami({
+        client: getCoreClient(session, dependencies),
+        config,
+        stdout,
+        json: options.json,
+      });
+    }
+    if (
       section !== "auth" ||
       (command !== "login" && command !== "logout" && command !== "status") ||
       positionalId !== undefined
     ) {
       throw new Error(
-        "Usage: sokosumi discover | agents list | coworkers | vendors me | workspaces list | tasks | jobs | auth login|status|logout",
+        "Usage: sokosumi discover | agents list | coworkers | vendors me|create | workspaces list | tasks | jobs | auth login|status|whoami|logout",
       );
     }
 
@@ -645,7 +618,7 @@ export async function runCli(
       return await runAuthLogout({
         env,
         config,
-        authManager: dependencies.authManager,
+        authManager,
         stdout,
         json: options.json,
       });
@@ -654,7 +627,7 @@ export async function runCli(
       return await runAuthStatus({
         env,
         config,
-        authManager: dependencies.authManager,
+        authManager,
         stdout,
         json: options.json,
         targetExplicit,
@@ -678,7 +651,7 @@ export async function runCli(
           : Number(options["oauth-timeout-ms"]),
       apiKeyStdin: options["api-key-stdin"],
       json: options.json,
-      authManager: dependencies.authManager,
+      authManager,
       stdout,
     });
   } catch (error) {

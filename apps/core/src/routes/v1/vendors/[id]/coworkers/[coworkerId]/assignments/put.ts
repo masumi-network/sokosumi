@@ -6,7 +6,6 @@ import {
   requireAssignableVendorMembership,
   requireCoworkerBelongsToVendor,
   requireVendorAdminMembership,
-  resolveUserIdFromIdentity,
 } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -34,7 +33,7 @@ const route = createRoute({
   path: "/{id}/coworkers/{coworkerId}/assignments",
   operationId: "assignCoworkerDeveloper",
   description:
-    "Assign a vendor member (admin or developer) to a coworker by userId or email (vendor admin only). Idempotent when the assignment already exists.",
+    "Assign a vendor member (admin or developer) to a coworker by user ID (vendor admin only). Idempotent when the assignment already exists.",
   tags: ["Vendors"],
   request: {
     params,
@@ -79,22 +78,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await requireVendorAdminMembership(userAuth.userId, id);
     await requireCoworkerBelongsToVendor(coworkerId, id);
 
-    const targetUserId = await resolveUserIdFromIdentity({
-      userId: body.userId,
-      email: body.email,
-    });
-    await requireAssignableVendorMembership(targetUserId, id);
+    await requireAssignableVendorMembership(body.userId, id);
 
     const assignment = await prisma.coworkerAssignment.upsert({
       where: {
         coworkerId_userId: {
           coworkerId,
-          userId: targetUserId,
+          userId: body.userId,
         },
       },
       create: {
         coworkerId,
-        userId: targetUserId,
+        userId: body.userId,
       },
       update: {},
     });

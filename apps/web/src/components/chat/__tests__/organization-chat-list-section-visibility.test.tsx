@@ -19,6 +19,31 @@ describe("OrganizationChatList section visibility", () => {
     resetOrganizationChatListMocks();
   });
 
+  // One list is the app sidebar and the phone's Chats tab alike, so this is
+  // where Threads and All unreads land on both (SOK-1159).
+  it("puts Threads and All unreads above every section, workspace or not", () => {
+    const pinned = makeRoom({
+      id: "launch",
+      kind: "channel",
+      myAccess: "member",
+      starredAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    for (const organizationId of ["org-1", null]) {
+      const { unmount } = renderOrganizationChatList({
+        organizationId,
+        rooms: [pinned],
+      });
+
+      const entry = screen.getByTestId("chat-unread-nav-rows");
+      const firstSection = screen.getByText("App.Channels.pinned");
+      expect(
+        entry.compareDocumentPosition(firstSection) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      unmount();
+    }
+  });
+
   it("hides Channels in a personal workspace", () => {
     renderOrganizationChatList({ organizationId: null });
 

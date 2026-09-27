@@ -582,3 +582,51 @@ describe("GET /notifications?needsAction=true", () => {
     );
   });
 });
+
+describe("GET /notifications?mentions=true", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    notificationFindFirstMock.mockResolvedValue(null);
+    notificationFindManyMock.mockResolvedValue([]);
+    notificationCountMock.mockResolvedValue(0);
+    vendorGrantFindManyMock.mockResolvedValue([]);
+    coworkerWorkspaceAccessFindManyMock.mockResolvedValue([]);
+    prismaTransactionMock.mockImplementation(
+      async (operations: Array<Promise<unknown>>) =>
+        await Promise.all(operations),
+    );
+  });
+
+  it("narrows the feed to the rows where someone named the reader", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?mentions=true");
+
+    expect(response.status).toBe(200);
+    const where = {
+      userId: "user_123",
+      ...notificationFeedWhere(),
+      messageKey: {
+        in: [
+          "Notifications.Chat.mentioned",
+          "Notifications.Chat.mentionedFollowUp",
+        ],
+      },
+    };
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where }),
+    );
+    expect(notificationCountMock).toHaveBeenCalledWith({ where });
+  });
+
+  it("leaves the feed whole when the flag is false", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?mentions=false");
+
+    expect(response.status).toBe(200);
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { userId: "user_123", ...notificationFeedWhere() },
+      }),
+    );
+  });
+});

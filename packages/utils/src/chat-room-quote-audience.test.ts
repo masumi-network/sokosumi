@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { canQuoteIntoRoom } from "./chat-room-quote-audience.js";
+import {
+  canQuoteIntoRoom,
+  isSelfJoinableChannelDiscoverability,
+} from "./chat-room-quote-audience.js";
 
 describe("canQuoteIntoRoom", () => {
   it("allows a quote when every target reader is in the source room", () => {
@@ -29,5 +32,19 @@ describe("canQuoteIntoRoom", () => {
 
   it("refuses an empty source roster", () => {
     expect(canQuoteIntoRoom(["alice"], [])).toBe(false);
+  });
+});
+
+describe("isSelfJoinableChannelDiscoverability", () => {
+  it.each([
+    ["public", true],
+    ["external", true],
+    ["private", false],
+    ["matched", false],
+    [null, false],
+  ])("%s → %s", (discoverability, joinable) => {
+    expect(isSelfJoinableChannelDiscoverability(discoverability)).toBe(
+      joinable,
+    );
   });
 });

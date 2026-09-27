@@ -35,6 +35,13 @@ vi.mock("@/lib/utils/compose-upload.client", () => ({
   uploadComposeAttachments: vi.fn(),
 }));
 
+// RoomComposer mounts DriveFilePicker, which calls useSession. The real
+// better-auth session atom schedules a nanostores unmount timer that can fire
+// after happy-dom tears down `window`.
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null }),
+}));
+
 describe("RoomSessionComposer draft clear on send", () => {
   const roomId = "room-draft-clear";
   const draftKey = composeDraftKey.room(roomId);

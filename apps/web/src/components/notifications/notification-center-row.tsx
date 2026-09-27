@@ -53,8 +53,8 @@ export function NotificationCenterRow({
   const showPendingAccessActions =
     showVendorGrantActions || showCoworkerAccessActions;
   const rowClassName = cn(
-    "group/row hover:bg-accent flex w-full items-start text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
-    isPending && "bg-accent opacity-80",
+    "group/row hover:bg-card-background-hover flex w-full items-start text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
+    isPending && "bg-card-background-hover opacity-80",
     showPendingAccessActions ? "cursor-default" : "cursor-pointer",
   );
 
@@ -73,13 +73,17 @@ export function NotificationCenterRow({
             className="hover:bg-card-background-hover -mx-1 cursor-pointer rounded-md px-1 text-left"
             onClick={() => onClick(notification)}
           >
-            <p className="text-sm">{message}</p>
-            <p className="text-muted-foreground text-xs">{timeLabel}</p>
+            <p className="text-sm text-pretty">{message}</p>
+            <p className="text-muted-foreground text-xs tabular-nums">
+              {timeLabel}
+            </p>
           </button>
         ) : (
           <>
-            <p className="text-sm">{message}</p>
-            <p className="text-muted-foreground text-xs">{timeLabel}</p>
+            <p className="text-sm text-pretty">{message}</p>
+            <p className="text-muted-foreground text-xs tabular-nums">
+              {timeLabel}
+            </p>
           </>
         )}
         {showVendorGrantActions ? (

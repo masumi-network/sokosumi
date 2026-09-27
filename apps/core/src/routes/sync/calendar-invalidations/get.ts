@@ -4,8 +4,7 @@ import { calendarInvalidationOutboxService } from "@/services/calendar-invalidat
 
 import { handleSyncRequest } from "../handler.js";
 
-export const CALENDAR_INVALIDATIONS_SYNC_LOCK_KEY =
-  "calendar-invalidations-sync";
+const CALENDAR_INVALIDATIONS_SYNC_LOCK_KEY = "calendar-invalidations-sync";
 
 export default function mount(app: Hono) {
   app.get("/calendar-invalidations", async (c) => {

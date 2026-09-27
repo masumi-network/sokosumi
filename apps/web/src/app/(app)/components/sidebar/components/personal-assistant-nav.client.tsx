@@ -16,7 +16,10 @@ import {
   SidebarRailSelectionBar,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ROW_FIXED_LABEL_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
@@ -53,16 +56,6 @@ export default function PersonalAssistantNav({
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           <SidebarMenuItem>
-            {/*
-              An ordinary Sidebar row, not a card. It used to be a 48px
-              bordered box expanded and a 32px square on the rail, holding a
-              stack of up to three faces that shrank as the stack grew — so
-              the entry above every other row was the one that moved the list
-              furthest on a toggle, and its mark changed size with the number
-              of bots in the workspace. One face at 20px in the shared slot
-              says the same thing and lines up with the nav under it; the
-              divider below still marks it as the entry it is.
-            */}
             <SidebarMenuButton
               asChild
               isActive={isActive}
@@ -88,7 +81,8 @@ export default function PersonalAssistantNav({
                   <span
                     className={cn(
                       SIDEBAR_ROW_LABEL_CLASS,
-                      "truncate font-medium",
+                      SIDEBAR_ROW_FIXED_LABEL_CLASS,
+                      "font-medium",
                     )}
                   >
                     {t("sokoBot")}

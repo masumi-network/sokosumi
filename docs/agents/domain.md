@@ -4,10 +4,10 @@ How the engineering skills should consume this repo's domain documentation when 
 
 ## Before exploring, read these
 
-- **`CONTEXT.md`** at the repo root.
+- **`CONTEXT.md`** at the repo root (live glossary).
 - **`docs/adr/`** — read ADRs that touch the area you're about to work in.
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The producer skill (`/grill-with-docs`) creates them lazily when terms or decisions actually get resolved.
+`/grill-with-docs` extends these when new terms or decisions land. They already exist; read them.
 
 ## File structure
 
@@ -15,8 +15,8 @@ This is a **single-context** repo: one shared domain language (jobs, agents, cre
 
 ```
 /
-├── CONTEXT.md                 ← created lazily by /grill-with-docs
-├── docs/adr/                  ← created lazily; system-wide decisions
+├── CONTEXT.md                 ← domain glossary
+├── docs/adr/                  ← system-wide decisions
 ├── apps/
 │   ├── web/
 │   ├── core/

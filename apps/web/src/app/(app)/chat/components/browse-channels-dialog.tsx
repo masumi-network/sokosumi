@@ -85,7 +85,10 @@ export function BrowseChannelsDialog({
         return;
       }
       toast.success(t("joinSuccess", { name: result.value.name }));
-      notifyOrganizationChatRoomsChanged(result.value);
+      notifyOrganizationChatRoomsChanged({
+        room: result.value,
+        joinedRoomId: result.value.id,
+      });
       setOpen(false);
       // Soft router navigation from this Dialog + useTransition path does not
       // commit; hard assign reliably opens the joined room.

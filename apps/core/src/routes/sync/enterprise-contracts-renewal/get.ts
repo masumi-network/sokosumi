@@ -5,7 +5,7 @@ import prisma from "@/lib/db/prisma";
 
 import { handleSyncRequest } from "../handler.js";
 
-export const ENTERPRISE_CONTRACTS_RENEWAL_SYNC_LOCK_KEY =
+const ENTERPRISE_CONTRACTS_RENEWAL_SYNC_LOCK_KEY =
   "enterprise-contracts-renewal-sync";
 
 export default function mount(app: Hono) {

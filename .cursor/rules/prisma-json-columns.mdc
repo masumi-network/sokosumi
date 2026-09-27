@@ -66,13 +66,4 @@ Property 'senderUser' does not exist … Did you mean 'senderUserId'?
 
 That error is a **symptom**. Its cause is an assignability failure higher up
 in the same call, usually on a JSON field. Fix the root and its dependents
-disappear together — one such fix cleared 16 errors at once.
-
-### History
-
-Until [ADR 0035](../../docs/adr/0035-database-consumed-from-source.md), Core
-consumed `@sokosumi/database` through emitted declarations, and declaration
-emit widened 18 of Prisma's runtime exports to `any` — including the
-`DbNull` / `JsonNull` sentinels that these unions are defined from. Every
-JSON write typechecked against `any`. Consuming the package from source
-restored the real types; this rule keeps them.
+disappear together.

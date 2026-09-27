@@ -17,26 +17,16 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const {
-  userFindUniqueMock,
-  getUserByIdMock,
-  updateUserMetadataMock,
-  uploadDesignMdContentMock,
-} = vi.hoisted(() => ({
-  userFindUniqueMock: vi.fn(),
-  getUserByIdMock: vi.fn(),
-  updateUserMetadataMock: vi.fn(),
-  uploadDesignMdContentMock: vi.fn(),
-}));
+const { userFindUniqueMock, userUpdateMock, uploadDesignMdContentMock } =
+  vi.hoisted(() => ({
+    userFindUniqueMock: vi.fn(),
+    userUpdateMock: vi.fn(),
+    uploadDesignMdContentMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { user: { findUnique: userFindUniqueMock } },
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  userRepository: {
-    getUserById: (...args: unknown[]) => getUserByIdMock(...args),
-    updateUserMetadata: (...args: unknown[]) => updateUserMetadataMock(...args),
+  default: {
+    user: { findUnique: userFindUniqueMock, update: userUpdateMock },
   },
 }));
 
@@ -90,12 +80,13 @@ describe("PUT /users/{id}/design-md", () => {
     });
     expect(response.status).toBe(403);
     expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
-    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(userUpdateMock).not.toHaveBeenCalled();
   });
 
   it("uploads the content and persists the resulting URL", async () => {
-    userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    getUserByIdMock.mockResolvedValueOnce({ metadata: JSON.stringify({}) });
+    userFindUniqueMock
+      .mockResolvedValueOnce({ id: "user_123" })
+      .mockResolvedValueOnce({ metadata: JSON.stringify({}) });
     uploadDesignMdContentMock.mockResolvedValueOnce(
       "https://blob.example/design.md",
     );
@@ -112,11 +103,12 @@ describe("PUT /users/{id}/design-md", () => {
       owner: { kind: "user", id: "user_123" },
       extractionId: "123",
     });
-    expect(updateUserMetadataMock).toHaveBeenCalledWith(
-      "user_123",
-      expect.stringContaining("https://blob.example/design.md"),
-      expect.anything(),
-    );
+    expect(userUpdateMock).toHaveBeenCalledWith({
+      where: { id: "user_123" },
+      data: {
+        metadata: expect.stringContaining("https://blob.example/design.md"),
+      },
+    });
     expect(body.data.designMd).toEqual({
       url: "https://blob.example/design.md",
       extractionId: "123",
@@ -124,13 +116,14 @@ describe("PUT /users/{id}/design-md", () => {
   });
 
   it("clears the DESIGN.md and returns null when content is null", async () => {
-    userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    getUserByIdMock.mockResolvedValueOnce({
-      metadata: JSON.stringify({
-        designMdUrl: "https://blob.example/old.md",
-        designMdExtractionId: "9",
-      }),
-    });
+    userFindUniqueMock
+      .mockResolvedValueOnce({ id: "user_123" })
+      .mockResolvedValueOnce({
+        metadata: JSON.stringify({
+          designMdUrl: "https://blob.example/old.md",
+          designMdExtractionId: "9",
+        }),
+      });
 
     const response = await putDesignMd("me/design-md", {
       content: null,
@@ -140,7 +133,7 @@ describe("PUT /users/{id}/design-md", () => {
 
     expect(response.status).toBe(200);
     expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
-    expect(updateUserMetadataMock).toHaveBeenCalled();
+    expect(userUpdateMock).toHaveBeenCalled();
     expect(body.data.designMd).toBeNull();
   });
 
@@ -153,12 +146,13 @@ describe("PUT /users/{id}/design-md", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(userUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 503 when storage fails", async () => {
-    userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    getUserByIdMock.mockResolvedValueOnce({ metadata: JSON.stringify({}) });
+    userFindUniqueMock
+      .mockResolvedValueOnce({ id: "user_123" })
+      .mockResolvedValueOnce({ metadata: JSON.stringify({}) });
     uploadDesignMdContentMock.mockResolvedValueOnce(null);
 
     const response = await putDesignMd("me/design-md", {
@@ -167,12 +161,13 @@ describe("PUT /users/{id}/design-md", () => {
     });
 
     expect(response.status).toBe(503);
-    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(userUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the user is not found", async () => {
-    userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    getUserByIdMock.mockResolvedValueOnce(null);
+    userFindUniqueMock
+      .mockResolvedValueOnce({ id: "user_123" })
+      .mockResolvedValueOnce(null);
 
     const response = await putDesignMd("me/design-md", {
       content: "# Brand",
@@ -181,6 +176,6 @@ describe("PUT /users/{id}/design-md", () => {
 
     expect(response.status).toBe(404);
     expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
-    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(userUpdateMock).not.toHaveBeenCalled();
   });
 });

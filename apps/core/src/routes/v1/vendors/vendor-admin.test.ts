@@ -9,7 +9,6 @@ import mountPutCoworkerAssignment from "./[id]/coworkers/[coworkerId]/assignment
 import mountRemoveVendorMember from "./[id]/members/[userId]/delete";
 import mountPatchVendorMemberRole from "./[id]/members/[userId]/patch";
 import mountListVendorMembers from "./[id]/members/get";
-import mountAddVendorMember from "./[id]/members/post";
 import mountPatchVendor from "./[id]/patch";
 import mountListMyVendorMemberships from "./me/get";
 
@@ -38,6 +37,7 @@ const {
   userFindUniqueMock,
   userFindFirstMock,
   transactionMock,
+  txQueryRawMock,
   txVendorMemberFindFirstMock,
   txVendorMemberCountMock,
   txVendorMemberFindUniqueMock,
@@ -61,6 +61,7 @@ const {
   userFindUniqueMock: vi.fn(),
   userFindFirstMock: vi.fn(),
   transactionMock: vi.fn(),
+  txQueryRawMock: vi.fn(),
   txVendorMemberFindFirstMock: vi.fn(),
   txVendorMemberCountMock: vi.fn(),
   txVendorMemberFindUniqueMock: vi.fn(),
@@ -114,7 +115,6 @@ function createApp(authContext: AuthVariables["authContext"]) {
   mountListMyVendorMemberships(app);
   mountPatchVendor(app);
   mountListVendorMembers(app);
-  mountAddVendorMember(app);
   mountPatchVendorMemberRole(app);
   mountRemoveVendorMember(app);
   mountListCoworkerAssignments(app);
@@ -143,10 +143,10 @@ function mockVendorAdmin() {
   vendorMemberFindFirstMock.mockResolvedValue({ id: "vm_admin" });
 }
 
-function mockVendorDeveloperTarget() {
+function mockVendorDeveloperTarget(userId = "dev_user") {
   vendorMemberFindFirstMock
     .mockResolvedValueOnce({ id: "vm_admin" })
-    .mockResolvedValueOnce({ id: "vm_dev" });
+    .mockResolvedValueOnce({ id: "vm_dev", userId });
 }
 
 describe("vendor admin APIs", () => {
@@ -171,11 +171,13 @@ describe("vendor admin APIs", () => {
     });
     txVendorMemberDeleteMock.mockResolvedValue({ id: "vm_dev" });
     txCoworkerAssignmentDeleteManyMock.mockResolvedValue({ count: 1 });
+    txQueryRawMock.mockResolvedValue([]);
     // The tx double uses its own spies so a write that slips back onto the
     // top-level client fails the SOK-1024 assertions below.
     transactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
         callback({
+          $queryRaw: txQueryRawMock,
           coworkerAssignment: {
             deleteMany: txCoworkerAssignmentDeleteManyMock,
           },
@@ -308,103 +310,9 @@ describe("vendor admin APIs", () => {
     });
   });
 
-  it("adds a vendor member by email and defaults role to developer", async () => {
-    mockVendorAdmin();
-    userFindFirstMock.mockResolvedValue({ id: "dev_user" });
-    vendorMemberFindUniqueMock.mockResolvedValue(null);
-
-    const app = createApp(userAuth);
-    const response = await app.request(
-      `http://localhost/${testVendor.id}/members`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: "dev@example.com",
-        }),
-      },
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(201);
-    expect(vendorMemberCreateMock).toHaveBeenCalledWith({
-      data: {
-        vendorId: testVendor.id,
-        userId: "dev_user",
-        role: "developer",
-      },
-      include: {
-        user: {
-          select: { id: true, email: true, name: true },
-        },
-      },
-    });
-    expect(body.data.role).toBe("developer");
-  });
-
-  it("adds a vendor member as admin when role is provided", async () => {
-    mockVendorAdmin();
-    userFindUniqueMock.mockResolvedValue({ id: "admin_user" });
-    vendorMemberFindUniqueMock.mockResolvedValue(null);
-    vendorMemberCreateMock.mockResolvedValue({
-      role: "admin",
-      user: {
-        id: "admin_user",
-        email: "admin@example.com",
-        name: "Admin User",
-      },
-    });
-
-    const app = createApp(userAuth);
-    const response = await app.request(
-      `http://localhost/${testVendor.id}/members`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: "admin_user",
-          role: "admin",
-        }),
-      },
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(201);
-    expect(vendorMemberCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          userId: "admin_user",
-          role: "admin",
-        }),
-      }),
-    );
-    expect(body.data.role).toBe("admin");
-  });
-
-  it("rejects add when both userId and email are provided", async () => {
-    mockVendorAdmin();
-
-    const app = createApp(userAuth);
-    const response = await app.request(
-      `http://localhost/${testVendor.id}/members`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: "dev_user",
-          email: "dev@example.com",
-          role: "developer",
-        }),
-      },
-    );
-
-    expect(response.status).toBe(422);
-    expect(vendorMemberCreateMock).not.toHaveBeenCalled();
-  });
-
   it("patches vendor member role by user id", async () => {
     mockVendorAdmin();
-    userFindUniqueMock.mockResolvedValue({ id: "dev_user" });
+    txVendorMemberFindFirstMock.mockResolvedValue({ userId: "dev_user" });
     txVendorMemberFindUniqueMock.mockResolvedValue({ role: "developer" });
 
     const app = createApp(userAuth);
@@ -436,9 +344,11 @@ describe("vendor admin APIs", () => {
 
   it("demotes an admin to developer when another admin remains", async () => {
     mockVendorAdmin();
-    userFindUniqueMock.mockResolvedValue({ id: "other_admin" });
+    txVendorMemberFindFirstMock.mockResolvedValue({
+      userId: "other_admin",
+      role: "admin",
+    });
     txVendorMemberFindUniqueMock.mockResolvedValue({ role: "admin" });
-    txVendorMemberFindFirstMock.mockResolvedValue({ role: "admin" });
     txVendorMemberCountMock.mockResolvedValue(2);
     txVendorMemberUpdateMock.mockResolvedValue({
       role: "developer",
@@ -525,9 +435,11 @@ describe("vendor admin APIs", () => {
 
   it("blocks demoting the last admin inside the transaction", async () => {
     mockVendorAdmin();
-    userFindUniqueMock.mockResolvedValue({ id: "other_admin" });
+    txVendorMemberFindFirstMock.mockResolvedValue({
+      userId: "other_admin",
+      role: "admin",
+    });
     txVendorMemberFindUniqueMock.mockResolvedValue({ role: "admin" });
-    txVendorMemberFindFirstMock.mockResolvedValue({ role: "admin" });
     txVendorMemberCountMock.mockResolvedValue(1);
 
     const app = createApp(userAuth);
@@ -547,8 +459,10 @@ describe("vendor admin APIs", () => {
 
   it("removes a vendor member and clears coworker assignments", async () => {
     mockVendorAdmin();
-    userFindUniqueMock.mockResolvedValue({ id: "dev_user" });
-    txVendorMemberFindFirstMock.mockResolvedValue({ role: "developer" });
+    txVendorMemberFindFirstMock.mockResolvedValue({
+      userId: "dev_user",
+      role: "developer",
+    });
 
     const app = createApp(userAuth);
     const response = await app.request(
@@ -621,8 +535,10 @@ describe("vendor admin APIs", () => {
 
   it("blocks removing the last admin inside the transaction", async () => {
     mockVendorAdmin();
-    userFindUniqueMock.mockResolvedValue({ id: "other_admin" });
-    txVendorMemberFindFirstMock.mockResolvedValue({ role: "admin" });
+    txVendorMemberFindFirstMock.mockResolvedValue({
+      userId: "other_admin",
+      role: "admin",
+    });
     txVendorMemberCountMock.mockResolvedValue(1);
 
     const app = createApp(userAuth);
@@ -667,9 +583,8 @@ describe("vendor admin APIs", () => {
     });
   });
 
-  it("assigns a vendor member to a coworker by email", async () => {
-    mockVendorDeveloperTarget();
-    userFindFirstMock.mockResolvedValue({ id: "dev_user" });
+  it("rejects assignment by email", async () => {
+    mockVendorAdmin();
 
     const app = createApp(userAuth);
     const response = await app.request(
@@ -681,15 +596,13 @@ describe("vendor admin APIs", () => {
       },
     );
 
-    expect(response.status).toBe(201);
-    expect(userFindFirstMock).toHaveBeenCalledWith({
-      where: { email: { equals: "dev@example.com", mode: "insensitive" } },
-      select: { id: true },
-    });
+    expect(response.status).toBe(422);
+    expect(userFindFirstMock).not.toHaveBeenCalled();
+    expect(coworkerAssignmentUpsertMock).not.toHaveBeenCalled();
   });
 
   it("assigns a vendor admin member to a coworker", async () => {
-    mockVendorDeveloperTarget();
+    mockVendorDeveloperTarget("admin_user");
     userFindUniqueMock.mockResolvedValue({ id: "admin_user" });
 
     const app = createApp(userAuth);
@@ -773,9 +686,9 @@ describe("vendor admin APIs", () => {
     });
   });
 
-  it("unassigns a developer by email path", async () => {
+  it("does not resolve an email-shaped assignment path as a user", async () => {
     mockVendorAdmin();
-    userFindFirstMock.mockResolvedValue({ id: "dev_user" });
+    userFindFirstMock.mockResolvedValue({ id: "registered_user" });
 
     const app = createApp(userAuth);
     const response = await app.request(
@@ -784,11 +697,90 @@ describe("vendor admin APIs", () => {
     );
 
     expect(response.status).toBe(204);
+    expect(userFindFirstMock).not.toHaveBeenCalled();
     expect(coworkerAssignmentDeleteManyMock).toHaveBeenCalledWith({
       where: {
         coworkerId: "cow_123",
-        userId: "dev_user",
+        userId: "dev@example.com",
       },
     });
+  });
+
+  it("returns the same 404 for an unknown email and a registered non-member", async () => {
+    mockVendorAdmin();
+    userFindFirstMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "registered_non_member" });
+    txVendorMemberFindFirstMock.mockResolvedValue(null);
+
+    const app = createApp(userAuth);
+    const unknown = await app.request(
+      `http://localhost/${testVendor.id}/members/${encodeURIComponent("missing@example.com")}`,
+      { method: "DELETE" },
+    );
+    const known = await app.request(
+      `http://localhost/${testVendor.id}/members/${encodeURIComponent("registered@example.com")}`,
+      { method: "DELETE" },
+    );
+    const unknownBody = await unknown.json();
+    const knownBody = await known.json();
+
+    expect(unknown.status).toBe(404);
+    expect(known.status).toBe(unknown.status);
+    expect(unknownBody.message).toBe("Vendor member not found");
+    expect(knownBody.message).toBe(unknownBody.message);
+    expect(userFindFirstMock).not.toHaveBeenCalled();
+    expect(userFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("returns the same patch 404 for an unknown email and a registered non-member", async () => {
+    mockVendorAdmin();
+    userFindFirstMock.mockResolvedValue({ id: "registered_non_member" });
+    txVendorMemberFindFirstMock.mockResolvedValue(null);
+
+    const app = createApp(userAuth);
+    const unknown = await app.request(
+      `http://localhost/${testVendor.id}/members/${encodeURIComponent("missing@example.com")}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "developer" }),
+      },
+    );
+    const known = await app.request(
+      `http://localhost/${testVendor.id}/members/${encodeURIComponent("registered@example.com")}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "developer" }),
+      },
+    );
+    const unknownBody = await unknown.json();
+    const knownBody = await known.json();
+
+    expect(unknown.status).toBe(404);
+    expect(known.status).toBe(unknown.status);
+    expect(unknownBody.message).toBe("Vendor member not found");
+    expect(knownBody.message).toBe(unknownBody.message);
+    expect(userFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 204 for assignment delete whether or not the email is registered", async () => {
+    mockVendorAdmin();
+    userFindFirstMock.mockResolvedValue({ id: "registered_non_member" });
+
+    const app = createApp(userAuth);
+    const unknown = await app.request(
+      `http://localhost/${testVendor.id}/coworkers/cow_123/assignments/${encodeURIComponent("missing@example.com")}`,
+      { method: "DELETE" },
+    );
+    const known = await app.request(
+      `http://localhost/${testVendor.id}/coworkers/cow_123/assignments/${encodeURIComponent("registered@example.com")}`,
+      { method: "DELETE" },
+    );
+
+    expect(unknown.status).toBe(204);
+    expect(known.status).toBe(204);
+    expect(userFindFirstMock).not.toHaveBeenCalled();
   });
 });

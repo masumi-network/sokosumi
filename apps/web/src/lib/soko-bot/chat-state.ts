@@ -2,7 +2,6 @@ import type {
   SokoBot,
   SokoBotDelegation,
   SokoBotEvent,
-  SokoBotLegacyMessage,
   SokoBotPendingDecision,
   SokoBotSchedule,
   SokoBotStatus,
@@ -120,16 +119,6 @@ export interface ChatTurnDetail extends ChatTurn {
   versionId: string | null;
 }
 
-export interface ChatLegacyMessage {
-  id: string;
-  role: string;
-  content: string;
-  kind: string | null;
-  stepCount: number;
-  durationMs: number | null;
-  createdAt: string;
-}
-
 export interface ChatSchedule {
   id: string;
   name: string;
@@ -166,7 +155,6 @@ export interface ChatBot {
   memory: ChatMemory | null;
   lastActivityAt: string | null;
   schedules: ChatSchedule[];
-  legacyMessages: ChatLegacyMessage[];
   pendingDecisions: ChatDecision[];
 }
 
@@ -283,18 +271,6 @@ export function toChatTurnDetail(turn: SokoBotTurn): ChatTurnDetail {
   };
 }
 
-function toLegacyMessage(message: SokoBotLegacyMessage): ChatLegacyMessage {
-  return {
-    id: message.id,
-    role: message.role,
-    content: message.content,
-    kind: message.kind,
-    stepCount: message.stepCount,
-    durationMs: message.durationMs,
-    createdAt: message.createdAt.toISOString(),
-  };
-}
-
 function toSchedule(schedule: SokoBotSchedule): ChatSchedule {
   return {
     id: schedule.id,
@@ -334,7 +310,6 @@ function toChatBot(bot: SokoBot): ChatBot {
       : null,
     lastActivityAt: iso(bot.lastActivityAt),
     schedules: (bot.schedules ?? []).map(toSchedule),
-    legacyMessages: (bot.legacyMessages ?? []).map(toLegacyMessage),
     pendingDecisions: (bot.pendingDecisions ?? []).map(toDecision),
   };
 }

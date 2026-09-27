@@ -10,7 +10,6 @@ function clientWith(response: unknown): CoreHttpClient {
     get: async <T>() => response as T,
     post: async <T>() => ({}) as T,
     patch: async <T>() => ({}) as T,
-    delete: async <T>() => ({}) as T,
   };
 }
 
@@ -55,7 +54,37 @@ test("vendors me emits stable text output", async () => {
   ]);
 });
 
-test("TestV79 vendors me describes an empty membership result", async () => {
+test("vendors create posts name and slug then prints admin membership", async () => {
+  let posted: unknown;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: [] }) as T,
+    post: async <T>(_path: string, body: unknown) => {
+      posted = body;
+      return {
+        data: {
+          id: "vendor-new",
+          name: "Acme Labs",
+          slug: "acme-labs",
+          role: "admin",
+        },
+      } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+  };
+  const output: string[] = [];
+  await runVendorsCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    subcommand: "create",
+    options: { name: "Acme Labs", slug: "acme-labs" },
+  });
+  assert.deepEqual(posted, { name: "Acme Labs", slug: "acme-labs" });
+  assert.deepEqual(output, [
+    "Vendor Acme Labs [vendor-new]\nslug: acme-labs\nrole: admin\n",
+  ]);
+});
+
+test("vendors me describes an empty membership result", async () => {
   const output: string[] = [];
   await runVendorsCommand({
     client: clientWith({ data: [] }),
@@ -66,7 +95,38 @@ test("TestV79 vendors me describes an empty membership result", async () => {
   assert.deepEqual(output, ["No vendors found.\n"]);
 });
 
-test("TestV79 workspaces JSON allowlists organization identity fields", async () => {
+test("vendors create uses the last repeated option value", async () => {
+  let posted: unknown;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: [] }) as T,
+    post: async <T>(_path: string, body: unknown) => {
+      posted = body;
+      return {
+        data: {
+          id: "vendor-new",
+          name: "Acme Labs",
+          slug: "acme-labs",
+          role: "admin",
+        },
+      } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+  };
+
+  await runVendorsCommand({
+    client,
+    stdout: { write: () => {} },
+    subcommand: "create",
+    options: {
+      name: ["Old Name", "Acme Labs"],
+      slug: ["old-name", "acme-labs"],
+    },
+  });
+
+  assert.deepEqual(posted, { name: "Acme Labs", slug: "acme-labs" });
+});
+
+test("workspaces JSON allowlists organization identity fields", async () => {
   const output: string[] = [];
   await runWorkspacesCommand({
     client: clientWith({
@@ -135,7 +195,7 @@ test("workspaces list describes an empty organization workspace candidate result
   assert.deepEqual(output, ["No organization workspaces found.\n"]);
 });
 
-test("TestV80 direct discovery handlers require explicit subcommands", async () => {
+test("direct discovery handlers require explicit subcommands", async () => {
   const stdout = { write: (_value: string) => {} };
   await assert.rejects(
     runVendorsCommand({ client: clientWith({ data: [] }), stdout }),

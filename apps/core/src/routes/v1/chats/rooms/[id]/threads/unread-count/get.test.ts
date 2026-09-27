@@ -110,16 +110,32 @@ function room() {
   };
 }
 
+/** One unread Thread as the gated aggregate query returns it. */
+function aggregateRow(parentMessageId: string, unreadReplyCount: number) {
+  return {
+    parentMessageId,
+    replyCount: unreadReplyCount + 2,
+    lastReplyAt: new Date("2026-01-02T00:00:00.000Z"),
+    unreadReplyCount,
+    lastUnreadReplyAt: new Date("2026-01-02T00:00:00.000Z"),
+    hasLooked: true,
+    mutedAt: null,
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   roomFindFirstMock.mockResolvedValue(room());
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
-  queryRawUnsafeMock.mockResolvedValue([{ count: 4 }]);
+  queryRawUnsafeMock.mockResolvedValue([
+    aggregateRow("11111111-1111-4111-8111-111111111111", 3),
+    aggregateRow("22222222-2222-4222-8222-222222222222", 1),
+  ]);
 });
 
 describe("GET /chats/rooms/{id}/threads/unread-count", () => {
-  it("returns the unread thread count without hydrating parents", async () => {
+  it("returns each unread thread's reply count without hydrating parents", async () => {
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/threads/unread-count`,
     );
@@ -127,13 +143,33 @@ describe("GET /chats/rooms/{id}/threads/unread-count", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     const body = await response.json();
-    expect(body.data).toEqual({ count: 4 });
+    expect(body.data).toEqual({
+      count: 2,
+      threads: [
+        {
+          parentMessageId: "11111111-1111-4111-8111-111111111111",
+          unreadReplyCount: 3,
+        },
+        {
+          parentMessageId: "22222222-2222-4222-8222-222222222222",
+          unreadReplyCount: 1,
+        },
+      ],
+    });
     expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
     expect(messageFindManyMock).not.toHaveBeenCalled();
-    const sql = String(queryRawUnsafeMock.mock.calls[0]?.[0]);
-    expect(sql).toContain("COUNT(DISTINCT parent.id)");
-    expect(sql).toContain('room_read."createdAt"');
-    expect(sql).not.toContain('"unreadReplyCount"');
+  });
+
+  it("answers an empty list when no thread is unread", async () => {
+    queryRawUnsafeMock.mockResolvedValue([]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/threads/unread-count`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual({ count: 0, threads: [] });
   });
 
   it("rejects a malformed room id with 422", async () => {

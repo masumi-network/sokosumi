@@ -31,7 +31,7 @@ const MESSAGES: Record<string, string> = {
   "brandCard.removeDialog.title": "Remove brand context?",
   "brandCard.removeDialog.description":
     "This removes the project's DESIGN.md file.",
-  "deleteDialog.cancel": "Cancel",
+  "brandCard.removeDialog.cancel": "Cancel",
   "errors.brand": "Couldn't update project brand context",
 };
 
@@ -177,6 +177,9 @@ describe("ProjectBrandCard", () => {
     );
     await user.click(screen.getByRole("menuitem", { name: /Remove/ }));
     const dialog = screen.getByRole("alertdialog");
+    expect(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    ).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Remove" }));
 
     await waitFor(() => {

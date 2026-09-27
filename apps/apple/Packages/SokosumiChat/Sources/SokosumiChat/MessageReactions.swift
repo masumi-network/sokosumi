@@ -2,7 +2,7 @@ import CoreAPI
 
 /// Pins reuse this rule. A thinking coworker shell has no actions (web `showActions`).
 public func canReactToMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-  message.deletedAt == nil && message.membership == nil
+  message.deletedAt == nil && !isRoomStatusMessage(message)
     && !isOutboundLocalMessage(message) && !message.id.hasPrefix("stream:")
     && CoworkerMentionShell(message: message)?.isThinking != true
 }

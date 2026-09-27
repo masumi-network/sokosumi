@@ -199,8 +199,16 @@ vi.mock("@/app/drive/components/drive-tasks-filters", () => ({
 }));
 
 vi.mock("@/components/ui/image-viewer", () => ({
-  ImageViewer: ({ open, alt }: { open: boolean; alt: string }) =>
-    open ? <div role="dialog" aria-label={alt} /> : null,
+  ImageViewer: ({
+    images,
+    activeSrc,
+  }: {
+    images: { src: string; alt: string }[];
+    activeSrc: string | null;
+  }) => {
+    const active = images.find((image) => image.src === activeSrc);
+    return active ? <div role="dialog" aria-label={active.alt} /> : null;
+  },
 }));
 
 vi.mock("@/components/ui/document-viewer", () => ({

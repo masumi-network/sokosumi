@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  hasCalendarBetaAccess,
+  hasSocialBetaAccess,
   hasSokoBotBetaAccess,
   isSokoBotBetaAccessEmail,
 } from "@/lib/beta-access";
@@ -62,10 +62,10 @@ describe("hasSokoBotBetaAccess", () => {
   });
 });
 
-describe("hasCalendarBetaAccess", () => {
+describe("hasSocialBetaAccess", () => {
   it("allows membership in the utxo AG workspace", () => {
     expect(
-      hasCalendarBetaAccess([
+      hasSocialBetaAccess([
         { organization: { slug: "other" } },
         { organization: { slug: "utxo" } },
       ]),
@@ -73,9 +73,9 @@ describe("hasCalendarBetaAccess", () => {
   });
 
   it("denies users without an utxo AG workspace membership", () => {
-    expect(hasCalendarBetaAccess([{ organization: { slug: "other" } }])).toBe(
+    expect(hasSocialBetaAccess([{ organization: { slug: "other" } }])).toBe(
       false,
     );
-    expect(hasCalendarBetaAccess([])).toBe(false);
+    expect(hasSocialBetaAccess([])).toBe(false);
   });
 });

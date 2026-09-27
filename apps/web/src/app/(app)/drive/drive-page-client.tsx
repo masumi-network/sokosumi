@@ -55,11 +55,12 @@ import {
   driveItemsListClass,
   driveItemsPanelClass,
 } from "@/app/drive/components/drive-view-layout";
-import { DriveViewModeSwitch } from "@/app/drive/components/drive-view-mode-switch";
 import {
   type DrivePrimaryView,
   DriveViewTabs,
 } from "@/app/drive/components/drive-view-tabs";
+import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
+import { TableList } from "@/app/drive/tables/table-list";
 import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
 import {
   AlertDialog,
@@ -90,6 +91,7 @@ import {
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -357,12 +359,18 @@ function DrivePageWorkspace({
   const folderParam = driveNavQuery.folder ?? searchParams.get("folder") ?? "";
   const currentFolder = folderParam;
   const viewParam = driveNavQuery.view ?? searchParams.get("view");
+  const isTablesView = viewParam === "tables";
   const isTasksView = viewParam === "tasks";
   const isBrowseView =
-    !isTasksView && (viewParam === "browse" || folderParam.length > 0);
-  const isRecentsView = !isTasksView && !isBrowseView;
-  const primaryView: DrivePrimaryView =
-    isBrowseView || isTasksView ? "browse" : "recents";
+    !isTablesView &&
+    !isTasksView &&
+    (viewParam === "browse" || folderParam.length > 0);
+  const isRecentsView = !isTablesView && !isTasksView && !isBrowseView;
+  const primaryView: DrivePrimaryView = isTablesView
+    ? "tables"
+    : isBrowseView || isTasksView
+      ? "browse"
+      : "recents";
   const filesSortSelection = parseFilesSortSelection(
     driveNavQuery.sortBy,
     driveNavQuery.sortOrder,
@@ -912,7 +920,7 @@ function DrivePageWorkspace({
   function navigateToPrimaryView(view: DrivePrimaryView) {
     void setDriveNavQuery(
       {
-        view: view === "recents" ? null : "browse",
+        view: view === "recents" ? null : view,
         folder: null,
         projectId: null,
         taskId: null,
@@ -1318,7 +1326,9 @@ function DrivePageWorkspace({
   }
 
   const filesViewModeSwitch = (
-    <DriveViewModeSwitch
+    <ListGridViewSwitch
+      className="hidden @2xl:flex"
+      data-testid="files-view-mode-switch"
       value={filesViewMode}
       onChange={handleFilesViewModeChange}
       labels={{
@@ -1451,8 +1461,14 @@ function DrivePageWorkspace({
                 </div>
               </div>
             )}
-            {!isRecentsView && filesSortControl}
-            {filesViewModeSwitch}
+            {isTablesView && (
+              <TableCreateDialog
+                key={activeOrganizationId ?? "personal"}
+                workspaceId={activeOrganizationId}
+              />
+            )}
+            {!isTablesView && !isRecentsView && filesSortControl}
+            {!isTablesView && filesViewModeSwitch}
           </div>
         </div>
 
@@ -1655,7 +1671,12 @@ function DrivePageWorkspace({
         </div>
       )}
 
-      {isRecentsView ? (
+      {isTablesView ? (
+        <TableList
+          key={activeOrganizationId ?? "personal"}
+          workspaceId={activeOrganizationId}
+        />
+      ) : isRecentsView ? (
         <DriveRecentsPanel
           driveStore={driveStore}
           activeOrganizationId={activeOrganizationId}
@@ -1686,7 +1707,7 @@ function DrivePageWorkspace({
       ) : emptyState ? (
         <div
           className={cn(
-            "bg-card-background border-border -mx-4 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
+            "bg-card-background flex flex-col items-center justify-center overflow-hidden rounded-xl px-4 py-12 text-center",
             PROJECTS_LIST_CARD_MIN_H_CLASS,
           )}
         >

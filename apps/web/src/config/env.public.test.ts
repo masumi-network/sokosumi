@@ -34,3 +34,21 @@ describe("Turnstile public configuration", () => {
     );
   });
 });
+
+describe("Sentry public configuration", () => {
+  it("leaves the DSN optional", async () => {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", undefined);
+    const { getEnvPublicConfig } = await import("./env.public");
+    expect(getEnvPublicConfig().NEXT_PUBLIC_SENTRY_DSN).toBeUndefined();
+  });
+
+  it("preserves a configured DSN", async () => {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", "https://example.ingest.sentry.io/1");
+    const { getEnvPublicConfig } = await import("./env.public");
+    expect(getEnvPublicConfig().NEXT_PUBLIC_SENTRY_DSN).toBe(
+      "https://example.ingest.sentry.io/1",
+    );
+  });
+});

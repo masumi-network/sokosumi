@@ -147,6 +147,64 @@ describe("redactDeep", () => {
     expect(result.message).toBe(REDACTED_SECRET);
   });
 
+  it("redacts every reference to a shared object without mutating it", () => {
+    const shared = { message: "paykey_secret1" };
+    const event = { first: shared, second: shared };
+
+    const result = redactDeep(event, ["paykey_secret1"]);
+
+    expect(JSON.stringify(result)).not.toContain("paykey_secret1");
+    expect(result.first).toBe(result.second);
+    expect(result.first).not.toBe(shared);
+    expect(shared.message).toBe("paykey_secret1");
+  });
+
+  it("redacts every reference to a shared array without mutating it", () => {
+    const shared = ["paykey_secret1"];
+    const event = { first: shared, second: shared };
+
+    const result = redactDeep(event, ["paykey_secret1"]);
+
+    expect(result.first).toEqual([REDACTED_SECRET]);
+    expect(result.second).toBe(result.first);
+    expect(result.first).not.toBe(shared);
+    expect(shared).toEqual(["paykey_secret1"]);
+  });
+
+  it("preserves object and array cycles using redacted copies", () => {
+    const event: Record<string, unknown> = { message: "paykey_secret1" };
+    const items: unknown[] = ["paykey_secret1", event];
+    event.self = event;
+    event.items = items;
+    items.push(items);
+
+    const result = redactDeep(event, ["paykey_secret1"]);
+    const redactedItems = result.items as unknown[];
+
+    expect(result.self).toBe(result);
+    expect(result.message).toBe(REDACTED_SECRET);
+    expect(redactedItems[0]).toBe(REDACTED_SECRET);
+    expect(redactedItems[1]).toBe(result);
+    expect(redactedItems[2]).toBe(redactedItems);
+    expect(result).not.toBe(event);
+    expect(redactedItems).not.toBe(items);
+    expect(event.message).toBe("paykey_secret1");
+    expect(event.self).toBe(event);
+    expect(event.items).toBe(items);
+    expect(items).toEqual(["paykey_secret1", event, items]);
+  });
+
+  it("reuses a redacted copy when a later reference reaches the depth limit", () => {
+    const shared = { message: "paykey_secret1" };
+    const event = { shared, nested: [[[[[[[shared]]]]]]] };
+
+    const result = redactDeep(event, ["paykey_secret1"]);
+
+    expect(result.nested[0][0][0][0][0][0][0]).toBe(result.shared);
+    expect(JSON.stringify(result)).not.toContain("paykey_secret1");
+    expect(shared.message).toBe("paykey_secret1");
+  });
+
   it("leaves non-plain objects intact", () => {
     // Rebuilding a Date as a plain object would corrupt the event.
     const stamp = new Date("2026-08-28T00:00:00.000Z");

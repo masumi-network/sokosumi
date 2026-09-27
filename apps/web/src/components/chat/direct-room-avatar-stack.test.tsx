@@ -53,6 +53,8 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     slug: "dm",
     kind: "direct",
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: "key",
     topic: null,
     discoverability: "private",
@@ -78,6 +80,8 @@ describe("DirectRoomAvatarStack", () => {
       <DirectRoomAvatarStack
         room={makeDirectRoom({
           isSelfDirect: true,
+          isGroupDirect: false,
+          groupName: null,
           userMembers: [makeUser("me", "Me")],
         })}
         currentUserId="me"

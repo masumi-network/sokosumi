@@ -8,9 +8,14 @@ import {
   projectActivityVisibility,
 } from "./project-activity";
 
-vi.mock("@/helpers/vendor-grants", () => ({
-  hasGrantedWorkspaceAccess: vi.fn().mockResolvedValue(true),
-}));
+vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/vendor-grants")>();
+  return {
+    ...actual,
+    hasGrantedWorkspaceAccess: vi.fn().mockResolvedValue(true),
+  };
+});
 
 const url = process.env.DATABASE_URL;
 const enabled =

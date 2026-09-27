@@ -41,8 +41,8 @@ const requestBodySchema = z
     }),
     showRoomUnreadCount: z.boolean().optional().openapi({
       description:
-        "Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery",
-      example: false,
+        "Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery",
+      example: true,
     }),
     notificationPreferences: z
       .array(notificationPreferenceSchema)
@@ -132,8 +132,10 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       ...(body.pushOptIn !== undefined && {
         pushOptIn: body.pushOptIn,
       }),
+      // The wire says "show"; the column stores "hide" (ADR-0038), so a
+      // reader who never chose is shown the count.
       ...(body.showRoomUnreadCount !== undefined && {
-        showRoomUnreadCount: body.showRoomUnreadCount,
+        hideRoomUnreadCount: !body.showRoomUnreadCount,
       }),
     };
 

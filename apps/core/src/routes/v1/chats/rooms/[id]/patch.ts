@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import type { Prisma } from "@sokosumi/database";
 
 import {
   expireStalePendingInvitations,
@@ -29,8 +30,10 @@ import {
 
 import {
   assertChatRoomPatchAuth,
+  type ChatRoomWithMembers,
   chatRoomInclude,
   filterOrganizationUserIds,
+  isGroupDirectRoom,
   mapChatRoomWithSidebarFlags,
   membershipAccessForUser,
   normalizeUniqueStrings,
@@ -42,7 +45,73 @@ import {
 import {
   diffChannelMembershipRoster,
   recordChannelMembershipStatus,
+  recordGroupNameChange,
 } from "../membership-status";
+
+const ONLY_GROUP_DIRECTS_CAN_BE_NAMED = "Only group Directs can be named.";
+
+type UpdateChatRoomRequest = z.infer<typeof updateChatRoomRequestSchema>;
+
+/**
+ * The one edit a Direct takes. A direct room's identity IS its participant
+ * set: `directKey` is derived from it, and `POST /chats/rooms` with
+ * `kind: "direct"` resolves an existing DM by that key alone. Rewriting its
+ * roster would leave the key pointing at a membership that no longer matches,
+ * so every other field stays rejected. A Group name only labels the room and
+ * leaves the key and roster alone (ADR-0040), so any member of a group Direct
+ * may set, change or clear it. Saving what is already there changes nothing.
+ */
+async function updateGroupName(
+  tx: Prisma.TransactionClient,
+  existing: ChatRoomWithMembers,
+  body: UpdateChatRoomRequest,
+  userId: string,
+) {
+  const { groupName, ...otherFields } = body;
+  if (
+    groupName === undefined ||
+    Object.values(otherFields).some((value) => value !== undefined)
+  ) {
+    throw badRequest("Direct rooms cannot be edited.");
+  }
+  if (!isGroupDirectRoom(existing)) {
+    throw badRequest(ONLY_GROUP_DIRECTS_CAN_BE_NAMED);
+  }
+
+  const next = groupName || null;
+  const unchanged = {
+    room: existing,
+    statusMessages: [],
+    removedUserIds: [],
+    mentionMessageIds: [],
+  };
+  if (next === existing.groupName) {
+    return unchanged;
+  }
+
+  await tx.chatRoom.update({
+    where: { id: existing.id },
+    data: { groupName: next },
+  });
+  const actor = existing.userMembers.find((member) => member.userId === userId);
+  const statusMessage = await recordGroupNameChange(tx, {
+    roomId: existing.id,
+    change: {
+      action: next ? "named" : "cleared",
+      name: next,
+      actor: { id: userId, name: actor?.user.name ?? "" },
+    },
+  });
+  return {
+    ...unchanged,
+    // Re-read after the status row, whose `updatedAt` bump is the last write.
+    room: await tx.chatRoom.findUniqueOrThrow({
+      where: { id: existing.id },
+      include: chatRoomInclude,
+    }),
+    statusMessages: [statusMessage],
+  };
+}
 
 const paramsSchema = z.object({
   id: z
@@ -58,7 +127,8 @@ const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "patch",
     path: "/{id}",
-    description: "Update an organization chat room and its roster.",
+    description:
+      "Update an organization chat room and its roster. On a group Direct, only `groupName` is accepted.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -103,14 +173,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           tx,
         );
 
-        // A direct room's identity IS its participant set: `directKey` is
-        // derived from it, and `POST /chats/rooms` with `kind: "direct"`
-        // resolves an existing DM by that key alone. Renaming one or rewriting
-        // its roster here would leave the key pointing at a membership that no
-        // longer matches, so reopening the DM could hand someone a conversation
-        // they are no longer part of. Direct rooms are created, never edited.
         if (existing.kind === "direct") {
-          throw badRequest("Direct rooms cannot be edited.");
+          return await updateGroupName(tx, existing, body, userContext.userId);
+        }
+
+        if (body.groupName !== undefined) {
+          throw badRequest(ONLY_GROUP_DIRECTS_CAN_BE_NAMED);
         }
 
         if (!existing.organizationId) {

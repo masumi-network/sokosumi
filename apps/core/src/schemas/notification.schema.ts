@@ -83,6 +83,11 @@ export const notificationCountsSchema = z
         "Number of feed notifications whose request still waits on the reader",
       example: 2,
     }),
+    mentions: z.number().int().min(0).openapi({
+      description:
+        "Number of unread feed notifications where someone named the reader",
+      example: 1,
+    }),
   })
   .openapi("NotificationCounts");
 

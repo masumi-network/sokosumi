@@ -8,7 +8,9 @@ import {
 import {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   isBrowserOnlyNotification,
+  isMentionNotification,
   isNeedsActionNotification,
+  MENTION_MESSAGE_KEYS,
   NEEDS_ACTION_MESSAGE_KEYS,
 } from "./notification-feed-kinds";
 import {
@@ -82,5 +84,25 @@ describe("isNeedsActionNotification", () => {
       isNeedsActionNotification("Notifications.Task.approvalRequired"),
     ).toBe(false);
     expect(isNeedsActionNotification(CHAT_MENTION_MESSAGE_KEY)).toBe(false);
+  });
+});
+
+describe("isMentionNotification", () => {
+  it("names the rows where someone named the reader", () => {
+    expect(MENTION_MESSAGE_KEYS).toEqual([
+      "Notifications.Chat.mentioned",
+      "Notifications.Chat.mentionedFollowUp",
+    ]);
+    for (const key of MENTION_MESSAGE_KEYS) {
+      expect(isMentionNotification(key)).toBe(true);
+    }
+  });
+
+  it("keeps direct messages and room messages out", () => {
+    expect(isMentionNotification(CHAT_DIRECT_MESSAGE_MESSAGE_KEY)).toBe(false);
+    expect(
+      isMentionNotification(CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY),
+    ).toBe(false);
+    expect(isMentionNotification(CHAT_ROOM_MESSAGE_MESSAGE_KEY)).toBe(false);
   });
 });

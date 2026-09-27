@@ -17,6 +17,7 @@ export {
   renderAccessRequestEmail,
   renderChatDirectMessageEmail,
   renderChatMentionEmail,
+  renderChatRoomMessageEmail,
   renderProjectUpdateEmail,
   renderTaskAttentionEmail,
   renderTaskCompletedEmail,

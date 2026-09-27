@@ -80,21 +80,9 @@ export function parseInteger(
   return parsed;
 }
 
-const TASK_STATUSES = [
-  "DRAFT",
-  "READY",
-  "RUNNING",
-  "COMPLETED",
-  "CANCELED",
-  "CANCELLED",
-  "FAILED",
-  "INPUT_REQUIRED",
-  "OUT_OF_CREDITS",
-] as const;
-
 export function validateStatus(
   value: CommandOption,
-  allowed: readonly string[] = TASK_STATUSES,
+  allowed: readonly string[],
 ): string | undefined {
   const text =
     value === undefined || typeof value === "boolean"

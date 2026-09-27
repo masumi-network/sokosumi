@@ -1,19 +1,12 @@
 import { err, ok } from "neverthrow";
 
-import {
-  DEFAULT_DESIGN_MD_API_URL,
-  DEFAULT_DESIGN_MD_POLL_INTERVAL_MS,
-} from "./constants.js";
+import { DEFAULT_DESIGN_MD_API_URL } from "./constants.js";
 import type { DesignMdJobPayload, DesignMdSubmitInput } from "./schemas.js";
-import {
-  designMdApiResponseSchema,
-  isDesignMdJobInProgress,
-} from "./schemas.js";
+import { designMdApiResponseSchema } from "./schemas.js";
 import type {
   DesignMdClient,
   DesignMdClientConfig,
   DesignMdClientError,
-  DesignMdGenerateUntilDoneInput,
   DesignMdRequestOptions,
 } from "./types.js";
 
@@ -99,31 +92,6 @@ async function requestDesignMdJob(
   return parseDesignMdResponse(response);
 }
 
-function wait(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new Error("Operation aborted"));
-      return;
-    }
-
-    const timeout = setTimeout(resolve, ms);
-
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timeout);
-        reject(new Error("Operation aborted"));
-      },
-      { once: true },
-    );
-  });
-}
-
-function getFailedJobMessage(payload: DesignMdJobPayload): string {
-  if (payload.status !== "failed") return "DESIGN.md job failed";
-  return payload.error ?? payload.message ?? "DESIGN.md job failed";
-}
-
 export function createDesignMdClient({
   apiUrl = DEFAULT_DESIGN_MD_API_URL,
   apiKey,
@@ -158,46 +126,6 @@ export function createDesignMdClient({
           signal: options.signal,
         },
       );
-    },
-
-    async generateUntilDone(input: DesignMdGenerateUntilDoneInput) {
-      const submitResult = await this.submit(
-        { url: input.url, force: input.force },
-        { signal: input.signal },
-      );
-
-      if (submitResult.isErr()) return err(submitResult.error);
-
-      let payload = submitResult.value;
-      const pollIntervalMs =
-        input.pollIntervalMs ?? DEFAULT_DESIGN_MD_POLL_INTERVAL_MS;
-
-      while (isDesignMdJobInProgress(payload)) {
-        try {
-          await wait(pollIntervalMs, input.signal);
-        } catch (error) {
-          return err<never, DesignMdClientError>({
-            type: "network_error",
-            message: toErrorMessage(error),
-          });
-        }
-
-        const pollResult = await this.pollJob(payload.jobId, {
-          signal: input.signal,
-        });
-
-        if (pollResult.isErr()) return err(pollResult.error);
-        payload = pollResult.value;
-      }
-
-      if (payload.status === "failed") {
-        return err({
-          type: "job_failed",
-          message: getFailedJobMessage(payload),
-        });
-      }
-
-      return ok(payload);
     },
   };
 }

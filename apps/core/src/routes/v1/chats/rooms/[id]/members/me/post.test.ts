@@ -143,6 +143,7 @@ function publicChannel(overrides: Record<string, unknown> = {}) {
     slug: "general",
     kind: "channel",
     directKey: null,
+    groupName: null,
     topic: null,
     discoverability: "public",
     createdByUserId: OTHER_ID,

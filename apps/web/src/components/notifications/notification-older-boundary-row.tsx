@@ -62,11 +62,17 @@ export function NotificationOlderBoundaryRow({
             </span>
             {t("retry")}
           </>
-        ) : (
+        ) : isLoading ? (
           <>
             <Loader2 className="size-4 animate-spin" aria-hidden />
             {t("loading")}
           </>
+        ) : (
+          // Idle is a button waiting to be pressed, not a load in flight.
+          // A spinner and "Loading..." here say the older rows are on their
+          // way before anything has asked for them, and that is the state a
+          // reader sees for good when no observer runs.
+          t("showOlder")
         )}
       </Button>
     </div>

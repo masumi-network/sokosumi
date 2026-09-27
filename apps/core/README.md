@@ -48,7 +48,7 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | -------- | ------- |
 | `DATABASE_URL` | Postgres connection string (Neon pooled URL at runtime on Vercel) |
 | `DATABASE_URL_UNPOOLED` | Injected by the Vercel Neon integration. Non-pooler URL used by `prisma migrate deploy` during the Core build. Not required for local Postgres |
-| `BETTER_AUTH_SECRET` | Better Auth server secret (sessions, cookies, OAuth state). Independent of web `APP_SIGNING_SECRET` |
+| `BETTER_AUTH_SECRET` | Better Auth server secret (sessions, cookies, OAuth state) and the key for stored OAuth provider tokens. Do not replace it in place, or stored tokens become unreadable; rotate by setting `BETTER_AUTH_SECRETS` (`2:<new>,1:<old>`) and keeping this value. Independent of web `APP_SIGNING_SECRET` |
 | `BETTER_AUTH_URL` | Public base URL of **this** Core deployment (e.g. `http://localhost:8787`). Used as Better Auth `baseURL` when not on Vercel Preview |
 | `BETTER_AUTH_COOKIE_DOMAIN` | Optional shared cookie domain for Better Auth cross-subdomain cookies. Leave unset on localhost; set it explicitly in deployed environments that need shared auth cookies |
 | `RESEND_API_KEY` | Resend API key for transactional email |
@@ -116,6 +116,10 @@ SENTRY_ENVIRONMENT=   # development | staging | production
 
 # Maintenance (HTTP 503 on all routes; read at startup)
 MAINTENANCE_MODE=false
+
+# Temporary. Vendor ids (comma separated) whose coworkers keep the old per-Task
+# schedule API. Empty: nobody.
+LEGACY_TASK_SCHEDULE_VENDOR_IDS=
 ```
 
 Maintenance mode is read at startup, so changing `MAINTENANCE_MODE` requires a restart/redeploy.

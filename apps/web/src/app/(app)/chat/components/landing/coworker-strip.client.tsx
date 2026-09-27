@@ -7,15 +7,8 @@ import { useEffectEvent, useRef } from "react";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
+import type { StripCoworker } from "./landing-content";
 import { findNearestCenterIdFromElements } from "./nearest-center-coworker";
-
-export interface StripCoworker {
-  id: string;
-  imageUrl: null | string;
-  name: string;
-  /** Specialty shown under the name. Null when unset. */
-  title: null | string;
-}
 
 interface CoworkerStripProps {
   coworkers: StripCoworker[];

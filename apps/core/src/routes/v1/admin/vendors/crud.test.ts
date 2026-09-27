@@ -61,9 +61,12 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   };
 });
 
-function createVendor(overrides: Partial<typeof testVendor> = {}) {
+function createVendor(
+  overrides: Partial<typeof testVendor & { listed: boolean }> = {},
+) {
   return {
     ...testVendor,
+    listed: true,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,
@@ -182,6 +185,29 @@ describe("admin vendor CRUD", () => {
         logoDark: null,
       },
     });
+  });
+
+  it("publishes a self-service vendor on the grant picker", async () => {
+    vendorUpdateMock.mockResolvedValue(createVendor({ listed: true }));
+
+    const app = createApp();
+    const response = await app.request(`http://localhost/${testVendor.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listed: true }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(vendorUpdateMock).toHaveBeenCalledWith({
+      where: { id: testVendor.id },
+      data: {
+        name: undefined,
+        slug: undefined,
+        listed: true,
+      },
+    });
+    expect(body.data.listed).toBe(true);
   });
 
   it("returns 404 when patching a missing vendor", async () => {

@@ -1,6 +1,6 @@
 import CoreAPI
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 private func preferencesBody(
@@ -36,7 +36,7 @@ struct ChatServicePreferencesTests {
     #expect(display.showRoomUnreadCount)
     #expect(try JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Bool] == ["showRoomUnreadCount": true])
 
-    let cell = NotificationPreferenceCell(category: .chatMention, channel: .inApp, enabled: false)
+    let cell = Components.Schemas.NotificationPreference(category: .chatMention, channel: .inApp, enabled: false)
     let delivery = try await ChatService().updateUserPreferences(
       client: client,
       pushOptIn: false,

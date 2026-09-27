@@ -3,20 +3,27 @@ import "server-only";
 import type { CoreApiPagination } from "@/lib/clients/core.client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  CancelSocialPostRequest,
+  CreateSocialPostRequest,
+  DisconnectProjectSocialConnectionResponse,
   GetProjectsByIdCalendarData,
-  JobSummary,
+  InitiateProjectSocialConnectionRequest,
+  InitiateProjectSocialConnectionResponse,
   Project,
   ProjectCloseRecoveryRequest,
   ProjectCloseRequest,
   ProjectCloseStatus,
   ProjectContextMd,
-  ProjectDeleted,
   ProjectListItem,
   ProjectNeedsAttention,
+  ProjectSocialConnection,
   ProjectStar,
   ProjectStatsEntry,
+  ScheduleSocialPostRequest,
+  SocialPost,
+  SocialPostStatus,
   StarredProject,
-  TaskListItem,
+  UpdateSocialPostRequest,
 } from "@/lib/clients/generated/core/types.gen";
 
 interface ListProjectsParams {
@@ -24,11 +31,6 @@ interface ListProjectsParams {
   limit?: number;
   /** Case-insensitive project-name filter, applied by Core before paging. */
   query?: string;
-}
-
-interface ListProjectResourcesParams {
-  cursor?: string | null;
-  limit?: number;
 }
 
 interface CreateProjectInput {
@@ -213,16 +215,6 @@ export const projectService = (() => {
     return result.data;
   }
 
-  async function deleteProject(projectId: string): Promise<ProjectDeleted> {
-    const result = await coreClient.deleteProjectsById(projectId);
-
-    if (!result.data) {
-      throw new Error("Failed to delete project");
-    }
-
-    return result.data;
-  }
-
   async function closeProject(
     projectId: string,
     input: ProjectCloseRequest,
@@ -253,96 +245,112 @@ export const projectService = (() => {
     return result.data;
   }
 
-  async function listProjectJobs(
+  async function listSocialConnections(
     projectId: string,
-    params: ListProjectResourcesParams = {},
-  ): Promise<{
-    jobs: JobSummary[];
-    pagination: CoreApiPagination | null;
-  }> {
-    const result = await coreClient.getJobs({
-      scope: "workspace",
-      projectId,
-      cursor: params.cursor ?? undefined,
-      limit: params.limit,
-    });
+  ): Promise<ProjectSocialConnection[]> {
+    const result = await coreClient.getProjectsByIdSocialConnections(projectId);
+    return result.data;
+  }
 
+  async function initiateSocialConnection(
+    projectId: string,
+    input: InitiateProjectSocialConnectionRequest,
+  ): Promise<InitiateProjectSocialConnectionResponse> {
+    const result = await coreClient.postProjectsByIdSocialConnectionsInitiate(
+      projectId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function finalizeSocialConnection(
+    projectId: string,
+    connectionId: string,
+  ): Promise<ProjectSocialConnection> {
+    const result = await coreClient.postProjectsByIdSocialConnectionsFinalize(
+      projectId,
+      { connectionId },
+    );
+    return result.data;
+  }
+
+  async function disconnectSocialConnection(
+    projectId: string,
+    socialConnectionId: string,
+  ): Promise<DisconnectProjectSocialConnectionResponse> {
+    const result =
+      await coreClient.deleteProjectsByIdSocialConnectionsByConnectionId({
+        id: projectId,
+        connectionId: socialConnectionId,
+      });
+    return result.data;
+  }
+
+  async function listSocialPosts(
+    projectId: string,
+    params: {
+      statuses?: readonly SocialPostStatus[];
+      cursor?: string | null;
+    } = {},
+  ): Promise<{ posts: SocialPost[]; nextCursor: string | null }> {
+    const result = await coreClient.getProjectsByIdSocialPosts(projectId, {
+      status: params.statuses?.join(","),
+      cursor: params.cursor ?? undefined,
+      limit: 20,
+    });
     return {
-      jobs: result.data,
-      pagination: result.meta?.pagination ?? null,
+      posts: result.data,
+      nextCursor: result.meta?.pagination?.nextCursor ?? null,
     };
   }
 
-  async function listProjectTasks(
+  async function createSocialPost(
     projectId: string,
-    params: ListProjectResourcesParams = {},
-  ): Promise<{
-    tasks: TaskListItem[];
-    pagination: CoreApiPagination | null;
-  }> {
-    const result = await coreClient.getTasks({
-      scope: "workspace",
+    input: CreateSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPosts(
       projectId,
-      cursor: params.cursor ?? undefined,
-      limit: params.limit,
-    });
-
-    return {
-      tasks: result.data,
-      pagination: result.meta?.pagination ?? null,
-    };
-  }
-
-  async function addJob(projectId: string, jobId: string): Promise<Project> {
-    const result = await coreClient.postProjectsByIdJobs(projectId, {
-      jobId,
-    });
-
-    if (!result.data) {
-      throw new Error("Failed to add job to project");
-    }
-
+      input,
+    );
     return result.data;
   }
 
-  async function removeJob(projectId: string, jobId: string): Promise<Project> {
-    const result = await coreClient.deleteProjectsByIdJobsByJobId({
-      id: projectId,
-      jobId,
-    });
-
-    if (!result.data) {
-      throw new Error("Failed to remove job from project");
-    }
-
-    return result.data;
-  }
-
-  async function addTask(projectId: string, taskId: string): Promise<Project> {
-    const result = await coreClient.postProjectsByIdTasks(projectId, {
-      taskId,
-    });
-
-    if (!result.data) {
-      throw new Error("Failed to add task to project");
-    }
-
-    return result.data;
-  }
-
-  async function removeTask(
+  async function updateSocialPost(
     projectId: string,
-    taskId: string,
-  ): Promise<Project> {
-    const result = await coreClient.deleteProjectsByIdTasksByTaskId({
-      id: projectId,
-      taskId,
-    });
+    postId: string,
+    input: UpdateSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.patchProjectsByIdSocialPostsByPostId(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
 
-    if (!result.data) {
-      throw new Error("Failed to remove task from project");
-    }
+  async function scheduleSocialPost(
+    projectId: string,
+    postId: string,
+    input: ScheduleSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdSchedule(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
 
+  async function cancelSocialPost(
+    projectId: string,
+    postId: string,
+    input: CancelSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdCancel(
+      projectId,
+      postId,
+      input,
+    );
     return result.data;
   }
 
@@ -360,15 +368,17 @@ export const projectService = (() => {
     listPinnedProjects,
     patchProject,
     removeProjectDesignMd,
-    deleteProject,
+    listSocialConnections,
+    initiateSocialConnection,
+    finalizeSocialConnection,
+    disconnectSocialConnection,
     closeProject,
     retryProjectClose,
     cancelProjectCloseOwedWork,
-    listProjectJobs,
-    listProjectTasks,
-    addJob,
-    removeJob,
-    addTask,
-    removeTask,
+    listSocialPosts,
+    createSocialPost,
+    updateSocialPost,
+    scheduleSocialPost,
+    cancelSocialPost,
   };
 })();

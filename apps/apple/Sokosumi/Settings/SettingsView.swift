@@ -130,7 +130,7 @@ struct ChatSettingsSection: View {
     Section("Chat") {
       Toggle(isOn: $showsRoomUnreadCount) {
         Text("Show unread message counts")
-        Text("Muted chats and the chat you have open stay quiet. Your notifications do not change.")
+        Text("Shown on every chat with unread messages. Muted chats stay quiet, and your notifications do not change.")
         if let saveError {
           Text(saveError).foregroundStyle(.red)
         }

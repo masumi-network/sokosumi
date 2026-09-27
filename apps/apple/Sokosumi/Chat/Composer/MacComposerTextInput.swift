@@ -7,7 +7,7 @@
   struct MacComposerTextInput: NSViewRepresentable {
     @Binding var text: String
     @Environment(\.isEnabled) private var isEnabled
-    var submitOnModifier = false
+    var modifierReturnSubmits = false
     var cancel: (() -> Void)?
     var onBlur: (() -> Void)?
     let submit: () -> Bool
@@ -17,12 +17,20 @@
     var channels: [ComposerChannel] = []
     var mentions: [ComposerMention] = []
 
+    static let textInset = NSSize(width: 2, height: 2)
+
+    /// One body line plus the text container's insets: the height of the field's first line of text.
+    static var firstLineHeight: CGFloat {
+      NSLayoutManager().defaultLineHeight(for: .preferredFont(forTextStyle: .body)) + textInset.height * 2
+    }
+
     func makeCoordinator() -> Coordinator {
       Coordinator(self)
     }
 
     var attachFiles: (([URL]) -> Void)?
     var attachImage: ((Data) -> Void)?
+    var attachmentDragChanged: ((Bool) -> Void)?
     var onPaste: ((ComposerTextPaste) -> Void)?
     var insertion: ComposerInsertion?
 
@@ -44,20 +52,20 @@
       input.isHorizontallyResizable = false
       input.autoresizingMask = [.width]
       input.textContainer?.widthTracksTextView = true
-      input.textContainerInset = NSSize(width: 2, height: 2)
-      input.setAccessibilityLabel("Message")
+      input.textContainerInset = Self.textInset
       input.delegate = context.coordinator
       commands?.input = input
       input.openLinkEditor = { [weak commands] in commands?.beginLink() }
       input.suggestionKeyHandler = { [weak commands] key in commands?.handleSuggestionKey(key) ?? false }
       input.formattingDidChange = { [weak commands] in commands?.refresh() }
       input.submit = submit
-      input.submitOnModifier = submitOnModifier
+      input.modifierReturnSubmits = modifierReturnSubmits
       input.cancel = cancel
       input.isEditable = isEnabled
       input.placeholder = placeholder
       input.attachFiles = attachFiles
       input.attachImage = attachImage
+      input.attachmentDragChanged = attachmentDragChanged
       input.onPaste = onPaste
       input.mentions = mentions
       input.channels = channels
@@ -70,12 +78,13 @@
       context.coordinator.parent = self
       guard let input = scroll.documentView as? InputView else { return }
       input.submit = submit
-      input.submitOnModifier = submitOnModifier
+      input.modifierReturnSubmits = modifierReturnSubmits
       input.cancel = cancel
       input.isEditable = isEnabled
       input.placeholder = placeholder
       input.attachFiles = attachFiles
       input.attachImage = attachImage
+      input.attachmentDragChanged = attachmentDragChanged
       input.onPaste = onPaste
       input.mentions = mentions
       input.channels = channels
@@ -174,7 +183,15 @@
       private var preservesRawDraft = false
       private(set) var serializedDraft = ""
       var submit: () -> Bool = { false }
-      var submitOnModifier = false
+      /// The inline edit composer, as web's `modifierEnterSubmits`: Return saves with or without
+      /// Command/Control, and only Shift inserts a line. Sets the VoiceOver name and key help too.
+      var modifierReturnSubmits = false {
+        didSet {
+          setAccessibilityLabel(modifierReturnSubmits ? "Edit message" : "Message")
+          setAccessibilityHelp(modifierReturnSubmits ? "Return to save, Escape to cancel, Shift-Return for a new line." : nil)
+        }
+      }
+
       var cancel: (() -> Void)?
       var openLinkEditor: (() -> Void)?
       var formattingDidChange: (() -> Void)?
@@ -239,15 +256,22 @@
 
       func applyBlockFormat(_ format: ComposerBlockFormat) {
         guard !hasMarkedText(), !preservesRawDraft else { return }
-        let selection = selectedRange()
-        let range = format == .codeBlock ? selection : (string as NSString).paragraphRange(for: selection)
-        let selected = attributedString().attributedSubstring(from: range)
-        let replacement = MacComposerAttributedText.styled(format.applying(to: selected))
+        // The model sees the whole text: a code block toggles off from anywhere inside it.
+        let edit = format.edit(in: attributedString(), selection: selectedRange())
         breakUndoCoalescing()
-        replaceFormatting(replacement, range: range)
-        let caret = range.location + replacement.length - (replacement.string.hasSuffix("\n") ? 1 : 0)
-        setSelectedRange(NSRange(location: caret, length: 0))
+        replaceFormatting(MacComposerAttributedText.styled(edit.replacement), range: edit.range)
+        setSelectedRange(NSRange(location: edit.caret, length: 0))
+        // The caret types into the block it was left in: a fresh block's first character
+        // would otherwise take the attributes of the text before the block.
+        if format == .codeBlock, let textStorage, textStorage.length > 0 {
+          typingAttributes = textStorage.attributes(at: min(edit.caret, textStorage.length - 1), effectiveRange: nil)
+        }
         breakUndoCoalescing()
+        // Web calls `handleInput` after this toggle, so its input rule runs at the caret: a
+        // closed pair ending the unwrapped text formats. Inside a block it never does.
+        if format == .codeBlock {
+          _ = applyInputRuleAfterUserEdit()
+        }
       }
 
       private func replaceFormatting(_ replacement: NSAttributedString, range: NSRange) {
@@ -287,11 +311,96 @@
         breakUndoCoalescing()
       }
 
+      /// Replaces a typed `**hi**` with its formatted inner text. Unlike a toolbar
+      /// toggle the caret ends up collapsed after the run, and typing goes on in
+      /// the format around the delimiters, as web's caret leaves the new mark.
+      /// Undo puts the literal delimiters back with the caret after them.
+      private func replaceTyped(_ replacement: NSAttributedString, range: NSRange, surrounding: [NSAttributedString.Key: Any], formats: Bool) {
+        guard let textStorage, NSMaxRange(range) <= textStorage.length else { return }
+        let previous = textStorage.attributedSubstring(from: range)
+        undoManager?.registerUndo(withTarget: self) { input in
+          input.replaceTyped(previous, range: NSRange(location: range.location, length: replacement.length), surrounding: surrounding, formats: !formats)
+        }
+        textStorage.replaceCharacters(in: range, with: replacement)
+        setSelectedRange(NSRange(location: range.location + replacement.length, length: 0))
+        if formats {
+          typingAttributes = surrounding
+        }
+        didChangeText()
+        formattingDidChange?()
+      }
+
+      /// Formats a closed `**hi**`, `~~hi~~`, `_hi_` or `` `hi` `` ending at the caret as its own undo step.
+      func applyInputRule() -> Bool {
+        let text = attributedString()
+        guard !preservesRawDraft, let rule = ComposerInputRule.match(in: text, caret: selectedRange().location) else { return false }
+        breakUndoCoalescing()
+        replaceTyped(MacComposerAttributedText.styled(rule.replacement(in: text)), range: rule.range,
+                     surrounding: text.attributes(at: rule.range.location, effectiveRange: nil), formats: true)
+        breakUndoCoalescing()
+        return true
+      }
+
+      /// Web runs its input rules on every `input` event: typing, paste and deletion. Text
+      /// the app inserts itself (`insertAtCaret`, chips, emoji, a restored draft) is not one.
+      /// Nothing is replaced under an input method; the rule waits for the commit.
+      private func applyInputRuleAfterUserEdit(hadMarkedText: Bool = false) -> Bool {
+        let isReplayingEdit = undoManager?.isUndoing == true || undoManager?.isRedoing == true
+        guard !isReplayingEdit, !hadMarkedText, !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return false }
+        return applyInputRule()
+      }
+
+      private func deleting(_ delete: () -> Void) {
+        let hadMarkedText = hasMarkedText()
+        delete()
+        _ = applyInputRuleAfterUserEdit(hadMarkedText: hadMarkedText)
+      }
+
+      override func deleteBackward(_ sender: Any?) {
+        deleting { super.deleteBackward(sender) }
+      }
+
+      override func deleteForward(_ sender: Any?) {
+        deleting { super.deleteForward(sender) }
+      }
+
+      override func deleteWordBackward(_ sender: Any?) {
+        deleting { super.deleteWordBackward(sender) }
+      }
+
+      override func deleteWordForward(_ sender: Any?) {
+        deleting { super.deleteWordForward(sender) }
+      }
+
+      override func deleteToBeginningOfLine(_ sender: Any?) {
+        deleting { super.deleteToBeginningOfLine(sender) }
+      }
+
+      override func deleteToEndOfLine(_ sender: Any?) {
+        deleting { super.deleteToEndOfLine(sender) }
+      }
+
+      override func cut(_ sender: Any?) {
+        deleting { super.cut(sender) }
+      }
+
+      /// `insertAtCaret` inserts through `insertText` as well; only the person's own edits fire an input rule.
+      private var insertsUntypedText = false
+
+      private func insertUntyped(_ text: String) {
+        insertsUntypedText = true
+        defer { insertsUntypedText = false }
+        insertText(text, replacementRange: selectedRange())
+      }
+
       override func insertText(_ insertString: Any, replacementRange: NSRange) {
         let isReplayingEdit = undoManager?.isUndoing == true || undoManager?.isRedoing == true
         clearReferenceTypingAttributes()
         super.insertText(insertString, replacementRange: replacementRange)
         guard !isReplayingEdit, !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return }
+        if !insertsUntypedText, applyInputRuleAfterUserEdit() {
+          return
+        }
         if let edit = ComposerEmoji.match(in: string, caret: selectedRange().location) {
           breakUndoCoalescing()
           super.insertText(edit.replacement, replacementRange: edit.range)
@@ -319,9 +428,11 @@
 
       var attachFiles: (([URL]) -> Void)?
       var attachImage: ((Data) -> Void)?
+      var attachmentDragChanged: ((Bool) -> Void)?
 
       override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
         if attachFiles != nil, !droppedFiles(sender).isEmpty {
+          attachmentDragChanged?(true)
           return .copy
         }
         return super.draggingEntered(sender)
@@ -329,12 +440,19 @@
 
       override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
         if attachFiles != nil, !droppedFiles(sender).isEmpty {
+          attachmentDragChanged?(true)
           return .copy
         }
         return super.draggingUpdated(sender)
       }
 
+      override func draggingExited(_ sender: (any NSDraggingInfo)?) {
+        attachmentDragChanged?(false)
+        super.draggingExited(sender)
+      }
+
       override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        attachmentDragChanged?(false)
         let files = droppedFiles(sender)
         if let attachFiles, !files.isEmpty {
           attachFiles(files)
@@ -402,7 +520,7 @@
       func insertAtCaret(_ text: String) {
         window?.makeFirstResponder(self)
         breakUndoCoalescing()
-        insertText(text, replacementRange: selectedRange())
+        insertUntyped(text)
         breakUndoCoalescing()
       }
 
@@ -520,8 +638,8 @@
           super.keyDown(with: event)
           return
         }
-        let modified = !event.modifierFlags.isDisjoint(with: [.shift, .command, .control])
-        let submits = submitOnModifier ? event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control) : !modified
+        // Option never counts, as web never reads Alt for Enter.
+        let submits = event.modifierFlags.isDisjoint(with: modifierReturnSubmits ? [.shift] : [.shift, .command, .control])
         if !submits {
           if let edit = ComposerBlockText.exitingQuote(attributedString(), selection: selectedRange()), !preservesRawDraft {
             breakUndoCoalescing()

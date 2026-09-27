@@ -5,7 +5,7 @@ import prisma from "@/lib/db/prisma";
 
 import { handleSyncRequest } from "../handler.js";
 
-export const CHAT_ROOM_GUEST_INVITATIONS_EXPIRE_SYNC_LOCK_KEY =
+const CHAT_ROOM_GUEST_INVITATIONS_EXPIRE_SYNC_LOCK_KEY =
   "chat-room-guest-invitations-expire-sync";
 
 export default function mount(app: Hono) {

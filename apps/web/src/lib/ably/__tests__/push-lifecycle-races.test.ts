@@ -18,7 +18,7 @@ vi.mock("../push-client.client", () => ({
   }),
 }));
 vi.mock("../push-device-health.client", () => ({
-  pushDeviceNeedsReset: async () => false,
+  findPushDeviceFault: async () => null,
   isMissingPushDevice: () => false,
 }));
 vi.mock("../current-notifications-channel.client", () => ({

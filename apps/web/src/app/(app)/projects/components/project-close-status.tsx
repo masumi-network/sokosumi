@@ -100,7 +100,7 @@ export function ProjectCloseStatusCard({ status }: ProjectCloseStatusProps) {
     });
   } else if (status.state === "CLOSE_FAILED") {
     description = t(
-      status.failure?.seriesTaskId
+      status.failure?.scheduleId
         ? "status.CLOSE_FAILED.descriptionWithCancel"
         : "status.CLOSE_FAILED.descriptionRetryOnly",
       { cutoff: formattedCutoff },
@@ -212,7 +212,7 @@ export function ProjectCloseStatusCard({ status }: ProjectCloseStatusProps) {
               >
                 {t("recovery.retryAction")}
               </Button>
-              {status.failure?.seriesTaskId ? (
+              {status.failure?.scheduleId ? (
                 <Button
                   type="button"
                   variant="destructive"

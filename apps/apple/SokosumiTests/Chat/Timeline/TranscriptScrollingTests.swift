@@ -11,7 +11,12 @@
 
   extension NativeWindowTests {
     @MainActor struct TranscriptScrollingTests {
-      @Test(arguments: [false, true], [false, true])
+      /// Default text transcript, and media inside a thread (different layout height). Theme/size
+      /// combinatorials do not buy a distinct product path.
+      @Test(arguments: [
+        (thread: false, media: false),
+        (thread: true, media: true)
+      ])
       func richHistoryStartsAtBottomAndScrollsUp(thread: Bool, media: Bool) async throws {
         URLProtocol.registerClass(ScrollMediaProtocol.self)
         defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
@@ -29,11 +34,15 @@
         window.orderFront(nil)
         defer { window.orderOut(nil) }
         let scroll = try await loadedTranscriptScrollView(in: host)
+        // Having a scroll view does not mean its initial bottom anchor has landed.
+        _ = try await waitForView(in: host, timeoutMessage: "Expected bottom distance within 1 pt and offset above 600 pt; got distance \(distanceFromBottom(scroll)) pt and offset \(scroll.contentView.bounds.minY) pt") {
+          abs(distanceFromBottom(scroll)) <= 1 && scroll.contentView.bounds.minY > 600 ? scroll : nil
+        }
         let initialOffset = scroll.contentView.bounds.minY
         #expect(scroll.contentInsets.bottom > 0)
         #expect(abs(distanceFromBottom(scroll)) <= 1)
         #expect(initialOffset > 600)
-        try await measureScroll(scroll, host: host, thread: thread, media: media)
+        try await scrollAwayFromBottom(scroll, host: host)
         if media {
           #expect(ScrollMediaProtocol.completedRequests > completed)
         }
@@ -43,8 +52,8 @@
         #expect(distanceFromBottom(scroll) > 400)
       }
 
-      @Test(arguments: [false, true], [false, true])
-      func messageLinkWaitsForPreparedTranscript(thread: Bool, dark: Bool) async throws {
+      @Test(arguments: [false, true])
+      func messageLinkWaitsForPreparedTranscript(thread: Bool) async throws {
         let state = try fixtureState(thread: thread, media: false)
         let auth = AuthState()
         if thread {
@@ -59,9 +68,8 @@
           } else {
             RoomTimelineView(roomId: "fixture")
           }
-        }.background(.background).environmentObject(state).environmentObject(auth).environment(\.colorScheme, dark ? .dark : .light))
+        }.background(.background).environmentObject(state).environmentObject(auth))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
-        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         window.contentView = host
         window.orderFront(nil)
         defer { window.orderOut(nil) }
@@ -84,8 +92,6 @@
           #expect(visibleText.contains { $0.hasPrefix("Message 2:") }, "OCR read: \(visibleText)")
           #expect(!visibleText.contains { $0.hasPrefix("Message 98:") }, "OCR read: \(visibleText)")
         }
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("message-link-navigation-\(thread)-\(dark).png"))
       }
 
       /// The text Vision reads in the render, or nil where Vision cannot run at all. A missing image is a
@@ -115,6 +121,21 @@
       private func distanceFromBottom(_ scroll: NSScrollView) -> CGFloat {
         let height = scroll.documentView?.frame.height ?? 0
         return height - (scroll.contentView.bounds.maxY - scroll.contentInsets.bottom)
+      }
+
+      /// Wheel until the reader is more than 400 pt from the newest edge. No baseline I/O.
+      private func scrollAwayFromBottom(_ scroll: NSScrollView, host: NSView) async throws {
+        for index in 0 ..< 40 {
+          if distanceFromBottom(scroll) > 400 {
+            return
+          }
+          let scrollEvent = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 80, wheel2: 0, wheel3: 0))
+          scrollEvent.setIntegerValueField(.scrollWheelEventScrollPhase, value: index == 0 ? 1 : 2)
+          let event = try #require(NSEvent(cgEvent: scrollEvent))
+          scroll.scrollWheel(with: event)
+          host.layoutSubtreeIfNeeded()
+          try await Task.sleep(for: .milliseconds(16))
+        }
       }
 
       private func fixtureState(thread: Bool, media: Bool) throws -> WorkspaceState {
@@ -150,31 +171,6 @@
           }
           return message
         }
-      }
-
-      private func measureScroll(_ scroll: NSScrollView, host: NSView, thread: Bool, media: Bool) async throws {
-        let clock = ContinuousClock()
-        var layoutDurations: [Duration] = []
-        var stepDurations: [Duration] = []
-        for index in 0 ..< 120 {
-          let start = clock.now
-          let scrollEvent = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 60, wheel2: 0, wheel3: 0))
-          scrollEvent.setIntegerValueField(.scrollWheelEventScrollPhase, value: index == 0 ? 1 : 2)
-          let event = try #require(NSEvent(cgEvent: scrollEvent))
-          scroll.scrollWheel(with: event)
-          host.layoutSubtreeIfNeeded()
-          layoutDurations.append(start.duration(to: clock.now))
-          try await Task.sleep(for: .milliseconds(16))
-          stepDurations.append(start.duration(to: clock.now))
-        }
-        // Host event/layout and scheduling costs, not display frame times.
-        let layout = layoutDurations.sorted()
-        let steps = stepDurations.sorted()
-        let p95 = (steps.count - 1) * 95 / 100
-        let last = steps.count - 1
-        let report = "SCROLL_BASELINE media=\(media) thread=\(thread) layout_p95=\(layout[p95]) layout_max=\(layout[last]) step_p95=\(steps[p95]) step_max=\(steps[last])"
-        let output = FileManager.default.temporaryDirectory.appendingPathComponent("scroll-baseline-\(media)-\(thread)-\(ProcessInfo.processInfo.processIdentifier).txt")
-        try report.write(to: output, atomically: true, encoding: .utf8)
       }
     }
   }

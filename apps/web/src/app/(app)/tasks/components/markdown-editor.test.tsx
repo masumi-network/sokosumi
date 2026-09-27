@@ -10,6 +10,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MarkdownEditor } from "@/app/tasks/components/markdown-editor";
 
+// MarkdownEditor mounts DriveFilePicker, which calls useSession. The real
+// better-auth session atom schedules a nanostores unmount timer that can fire
+// after happy-dom tears down `window`.
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null }),
+}));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({

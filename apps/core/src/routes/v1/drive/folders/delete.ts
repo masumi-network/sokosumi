@@ -107,7 +107,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         foundAnyBlobs = true;
         const pathnames = result.blobs.map((b) => b.pathname);
 
-        // Delete this page in bounded batches
         for (let i = 0; i < pathnames.length; i += BATCH_SIZE) {
           const batch = pathnames.slice(i, i + BATCH_SIZE);
           await del(batch, { token });

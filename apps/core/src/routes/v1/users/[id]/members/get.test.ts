@@ -17,20 +17,15 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { userFindUniqueMock, getMembersWithOrganizationByUserIdMock } =
-  vi.hoisted(() => ({
-    userFindUniqueMock: vi.fn(),
-    getMembersWithOrganizationByUserIdMock: vi.fn(),
-  }));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: { user: { findUnique: userFindUniqueMock } },
+const { userFindUniqueMock, memberFindManyMock } = vi.hoisted(() => ({
+  userFindUniqueMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {
-    getMembersWithOrganizationByUserId: (...args: unknown[]) =>
-      getMembersWithOrganizationByUserIdMock(...args),
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    user: { findUnique: userFindUniqueMock },
+    member: { findMany: memberFindManyMock },
   },
 }));
 
@@ -91,7 +86,7 @@ describe("GET /users/{id}/members", () => {
       "http://localhost/other_user/members",
     );
     expect(response.status).toBe(403);
-    expect(getMembersWithOrganizationByUserIdMock).not.toHaveBeenCalled();
+    expect(memberFindManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when an admin requests a missing user", async () => {
@@ -100,23 +95,22 @@ describe("GET /users/{id}/members", () => {
       "http://localhost/missing_user/members",
     );
     expect(response.status).toBe(404);
-    expect(getMembersWithOrganizationByUserIdMock).not.toHaveBeenCalled();
+    expect(memberFindManyMock).not.toHaveBeenCalled();
   });
 
   it("returns the resolved user's memberships for `me`", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    getMembersWithOrganizationByUserIdMock.mockResolvedValueOnce([
-      MEMBER_WITH_ORG,
-    ]);
+    memberFindManyMock.mockResolvedValueOnce([MEMBER_WITH_ORG]);
 
     const response = await createApp().request("http://localhost/me/members");
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(getMembersWithOrganizationByUserIdMock).toHaveBeenCalledWith(
-      "user_123",
-      expect.anything(),
-    );
+    expect(memberFindManyMock).toHaveBeenCalledWith({
+      where: { userId: "user_123" },
+      include: { organization: true },
+      orderBy: [{ role: "asc" }],
+    });
     expect(body.data).toHaveLength(1);
     expect(body.data[0]).toMatchObject({
       id: "member_1",
@@ -127,7 +121,7 @@ describe("GET /users/{id}/members", () => {
 
   it("returns an empty list when the user has no memberships", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    getMembersWithOrganizationByUserIdMock.mockResolvedValueOnce([]);
+    memberFindManyMock.mockResolvedValueOnce([]);
 
     const response = await createApp().request("http://localhost/me/members");
     const body = await response.json();

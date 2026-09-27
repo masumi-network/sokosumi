@@ -1,14 +1,32 @@
 # Developer CLI implementation plan
 
-Status: proposed implementation; product direction approved in the 2026-09-18 planning conversation. No capability below is declared shipped by this document.
+Status: MPS-first MVP plan, user-confirmed 2026-09-24. This plan does not declare any new capability shipped.
 
 ## Goal and scope
 
-[REPORTED: user decision, 2026-09-18] Connect existing framework runtimes as Coworkers through the single Sokosumi developer CLI. Support brief sessions, retained workspace-only registrations, and permanent cloud-hosted workers. Public paid operation is optional.
+[REPORTED: user decision, 2026-09-24] Use the CLI and its Skill to onboard an existing hosted agent as a private Coworker in one selected Sokosumi Workspace. Hermes is the first runtime. The MVP uses MPS through Sokosumi Tasks and must prove payment receipt in the Coworker's Cardano Preprod wallet.
 
-[REPORTED: user decision] Capabilities have no required completion order. A developer may connect only to test eligibility. Private workspace use has no automatic seller fee; model costs and authorized external purchases still apply. Public paid usage charges customers at approved seller prices.
+[REPORTED: user decision] Keep the Coworker private until it works in the selected Workspace and meets payment requirements. Global listing requires a separate waitlist request and platform-admin approval. Cardano x402 buyers reach Coworkers through Sokosumi after the MPS-first MVP.
 
-The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](adr/0004-coworker-capabilities-and-graduation.md). Follow those documents before implementing a slice. Use the existing TypeScript CLI and Core HTTP boundary. No new CLI product, recursive CLI dispatch, automatic npm installer, or TUI redesign belongs to this plan.
+The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](adr/0004-coworker-capabilities-and-graduation.md). Follow those documents before implementing a slice. Use the existing TypeScript CLI and Core HTTP boundary. Skills CLI installs the Skill files only. The CLI binary release path is open. Do not claim one-command installation until that path is chosen.
+
+## Hackathon track
+
+[REPORTED: user decision, 2026-09-25] Use one shared organization Workspace on Preprod. Start with one existing agent per developer and one private Coworker record for that agent. Keep implementation changes under `apps/cli`; use existing Core permissions and routes. The success check is a real Task completed by each developer's Coworker, followed by proof that the intended developer received the Preprod payment.
+
+[CORRECTION, VERIFIED: `apps/cli/src/cli/registration-authority.ts:53-71`, `CONTEXT.md:250-254`, 2026-09-27] The earlier shared-Workspace decision describes the pilot arrangement. The CLI does not require all developers to share one Workspace. Select an organization from the caller's memberships. Organization credits form a shared pool; a Seat is not a separate spending allowance. Separate developer Workspaces can provide separate organization access and credit pools. This CLI work changes no Core authorization or billing policy.
+
+1. [REPORTED: user decision] A platform admin selects the organization Workspace and invites the intended developers. [VERIFIED: `CONTEXT.md:250`] On a paid Organization, its owner or admin must assign a Seat before a member can use Tasks. Check the actual Preprod plan and Seat capacity before the event; they have not been verified.
+2. [VERIFIED: `apps/core/src/routes/v1/vendors/post.ts:23-25,87-104`] Each developer can create their own Vendor and becomes its admin. The developer gives the organizer the Vendor ID and final Coworker name. [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:82-113`] Creation derives a unique slug from the name. Check name availability before provisioning.
+3. [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:77-80,110-135`] A platform admin creates the Coworker under that Vendor. Core checks that the Vendor exists, but the organizer must verify that the Vendor ID belongs to the intended developer. Core creates the Coworker with `isWhitelisted: false`. The organizer returns the Coworker ID only. The ID identifies a record; the `coworker_*` key grants runtime access and stays with the developer.
+4. [VERIFIED: `apps/cli/src/cli/commands/coworkers.ts:250-315`; `apps/core/src/helpers/coworker-workspace-access.ts:458-481`] The developer runs the CLI on their laptop. They connect the Coworker to the selected Workspace and create its key. A Vendor admin who belongs to that Workspace gets `GRANTED` access through the current Core route. Different Vendors can connect Coworkers to the same Workspace. A `GRANTED` record makes a private Coworker selectable by Workspace members.
+5. [REPORTED: user decision] Each developer runs their agent against a real Task and proves Preprod payment receipt. [VERIFIED: `apps/core/src/routes/v1/tasks/[id]/events/post.ts:319-328,419-460`; `apps/core/src/services/task-payment-claim.service.ts:146`] The assigned Coworker can submit `masumiPayment` on a Task event. `TaskPaymentClaim.PURCHASED` alone does not prove that the seller received funds. Collect the actual seller receipt for each developer.
+
+[OPEN] The hosted-agent adapter, MPS seller identity and wallet setup, safe runtime-key delivery, CLI executable distribution, Preprod credits, and Seat capacity need an event test. The CLI has no `masumiPayment` command yet.
+
+[CORRECTION, VERIFIED: CLI fixtures] The earlier track left admin provisioning as a direct Core operation. `coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks` now calls that route from the CLI. It returns the Coworker ID for the developer to connect and create a key. Core still requires platform admin access. The organizer does not need membership in the developer's Vendor. Workspace creation and invitations use the existing Web flow. The current `coworkers register` command still requires Vendor admin and Workspace membership. [Provisioning tests](../test/cli/provision.test.ts) · [Organizer steps](../README.md#organizer-setup)
+
+[OPEN] Choose Task visibility after a pilot. A Workspace grant lets members select the Coworker; it does not make every private Task visible to it. A Coworker can see public Tasks and private Tasks assigned to itself or a same-Vendor Coworker. [Task visibility](../../core/src/helpers/task-visibility.ts#L132-L170)
 
 ## Architecture and ownership
 
@@ -16,13 +34,19 @@ The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](a
 
 | Component | Owns | Must not own |
 | --- | --- | --- |
-| Developer CLI | Human login, setup, registration requests, lifecycle controls, diagnostics, readiness display | Runtime identity, independent grant policy, self-approval, wallet signing backend |
-| Skill or framework plugin | Discoverable tool instructions and framework integration | Broad developer credentials or a second CLI product |
+| Developer CLI | Human login, Preprod setup, existing Core-authorized Coworker management, Workspace access request, diagnostics | Permission bypass, self-approval, wallet signing backend |
+| Skill at `apps/cli/skills/sokosumi` | Discoverable setup and use instructions for supported runtimes | Core authorization, broad developer credentials, a second CLI product |
 | Runtime adapter and worker | Coworker execution identity, task invocation, progress, reconnect behavior | Granting itself workspace access or replacing Core task authority |
-| Core | Registration policy, workspace permissions, task/job state, spending authorization, waitlist review, graduation | Treating runtime-reported credits as proof of accepted seller pricing |
-| Masumi Payment Service | Supported chain-specific payment operations and settlement | Sokosumi workspace authorization or administrative promotion |
+| Core | Existing Coworker authorization, Workspace grants, Task/Job state, spending authorization, waitlist review | CLI permission changes or treating runtime-reported credits as seller receipt |
+| Masumi Payment Service | MPS payment execution and settlement | Sokosumi Workspace authorization or administrative promotion |
 
 [VERIFIED: ADR 0005, 2026-09-21] Shared command handlers serve integrations directly. Do not recursively launch the CLI entrypoint from the TUI or adapters. Developer auth (OAuth / user API key) remains separate from runtime auth (`coworker_*` only). A short-lived developer-delegation token is rejected for the current path.
+
+[VERIFIED] Current Core Coworker creation requires platform admin authentication. This CLI work does not change that permission. Vendor admins can manage an existing Coworker, grant Workspace access, and create a runtime key. If ordinary developers must create Coworkers themselves, the Sokosumi team must define that server-side path. [Create route](../../core/src/routes/v1/coworkers/post.ts#L77-L80) · [Management access](../../core/src/routes/v1/coworkers/coworker-management-access.ts#L24-L66) · [Workspace access](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts#L48-L74)
+
+[VERIFIED] The current CLI lists organization workspaces but does not create one. When none exists, it directs the user to the Sokosumi Web workspace switcher. [Workspace guidance](../src/cli/registration-authority.ts#L18-L23) · [Workspace command](../src/cli/commands/workspaces.ts#L39-L45)
+
+[VERIFIED: CLI source] `coworkers register` creates a Coworker through Core, then requests Workspace access. `coworkers connect` requests access for an existing Coworker. Both report completion only after `GRANTED`. Live Preprod access remains unverified. [CLI command](../src/cli/commands/coworkers.ts) · [Core route](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts)
 
 The runtime initiates its local connection outward. Automatic work requires a running worker; a closed local session is not an always-on service. Cloud-hosted operation needs the same capability checks and credential isolation. Verify the exact Hermes, OpenClaw, Pi, Eve, Claude Code, or other framework interface before claiming support. A tool-call integration does not prove automatic execution support.
 
@@ -30,85 +54,109 @@ The runtime initiates its local connection outward. Automatic work requires a ru
 
 [PROPOSED] Preserve that split behind the user-facing payment capability. Resolve network, asset, recipient, approved amount, and selected funding source before payment. A payment header or customer debit is not seller receipt. General x402 resource access also requires destination and redirect controls. No new payment command or Masumi SaaS contract is implied by this document.
 
-## Visual flows
+## ASCII flows
 
 [PROPOSED] These diagrams describe the agreed direction, not installed commands or implemented transports. A framework runtime acts as a Coworker; a Masumi Agent is a separate service it can hire.
 
 ### CLI setup and runtime operation
 
-```mermaid
-flowchart TD
-  Developer["Developer"] --> CLI["Sokosumi developer CLI: admin control"]
-  CLI --> Setup["Sign in; choose or create workspace and controlled Vendor"]
-  Setup --> Register["Core authorizes workspace-only Coworker registration"]
-  Register --> Mode{"Choose connection lifetime"}
-  Mode --> Session["Brief local session"]
-  Mode --> Private["Retained workspace-only Coworker"]
-  Mode --> Hosted["Persistent hosted worker"]
-  Session --> Connect["Connect existing framework runtime through its adapter"]
-  Private --> Connect
-  Hosted --> Connect
-  Connect --> Tools["Active-session tools"]
-  Connect --> Worker["Automatic execution while worker is running"]
-  Tools --> Core["Core checks Coworker identity, workspace, and permissions"]
-  Worker --> Core
-  Core --> Work["Authorized chat, Tasks, or Masumi Agent Jobs"]
-  Work --> Results["Results and progress return to Sokosumi"]
-  Session --> End["Session ends or expires"]
-  End --> Revoke["Remove temporary authority; retain identity and work history"]
+```
+Developer
+  |
+  | Install the Sokosumi Skill from apps/cli/skills/sokosumi
+  | Skills CLI installs Skill files only
+  v
+Existing hosted agent
+  |
+  | Needs the Sokosumi CLI executable
+  | Binary release path: OPEN
+  v
+Sokosumi CLI
+  |
+  | Owner browser approval URL for remote auth
+  | Auth-service contract: OPEN; current flow uses same-machine callback
+  v
+Sokosumi Preprod
+  |
+  +-- Create Coworker: current Core role is platform admin
+  |     isWhitelisted starts false
+  |
+  +-- Ordinary Vendor admin: existing Core create route rejects request
+  |     Platform-admin provisioning is required under current permissions
+  |
+  v
+Vendor admin selects an existing Workspace
+  |
+  | Existing workspace-access route returns GRANTED
+  v
+Private Coworker in selected Workspace
+  |
+  | Hermes adapter uses Coworker runtime identity
+  v
+Sokosumi Tasks and other existing Workspace capabilities
+
+Mainnet Coworker registration: show "Preprod only" and send no request.
+Other CLI commands remain network-configurable.
 ```
 
-The CLI administers the connection. Runtime credentials and execution belong to the adapter, not the developer login. A brief session does not require an always-on worker.
+The CLI administers the connection. Runtime credentials and execution belong to the adapter, not the developer login. The CLI cannot create Core permissions. A brief session does not require an always-on worker.
 
 ### Road to paid graduation
 
-```mermaid
-flowchart TD
-  Connected["Registered Coworker"] --> Choice{"Choose optional capabilities; no fixed order"}
-  Choice --> Chat["Chat and room-access checks"]
-  Choice --> Tasks["Task and Job authorization checks"]
-  Choice --> Buy["x402 purchase checks: chosen funding and spending limits"]
-  Choice --> Sell["Seller checks: metering, customer charge, seller receipt"]
-  Connected --> Baseline["Identity, permissions, and public-runtime isolation checks"]
-  Connected --> Stay["Remain private; publication is optional"]
-  Chat -.-> Readiness["Core derives readiness for advertised capabilities"]
-  Tasks -.-> Readiness
-  Buy -.-> Readiness
-  Sell -.-> Readiness
-  Baseline --> Readiness
-  Readiness --> Eligible{"Paid baseline, seller proof, and relevant checks valid?"}
-  Eligible -->|No| Fix["Show missing or expired checks; fix affected capability"]
-  Fix --> Choice
-  Eligible -->|Yes| Apply["Developer applies with usage pricing and evidence"]
-  Apply --> Review["Waitlisted: Sokosumi admin review"]
-  Review -->|Changes requested| Fix
-  Review -->|Explicit approval| Public["Globally available paid Coworker"]
-  Public --> Access["Customer workspace authorizes use and spending"]
-  Public --> Invalid["Required readiness becomes invalid"]
-  Invalid --> Suspend["Block affected operations or paid availability; retain approval history"]
+```
+Private Coworker in selected Workspace
+  |
+  | Complete MPS-first Sokosumi Task payment test
+  v
+Seller receipt in Coworker's Cardano Preprod wallet
+  |
+  | Submit waitlist request through a confirmed surface
+  | Request surface: OPEN
+  v
+Sokosumi platform admin review
+  |
+  +-- Changes requested --> fix evidence, then resubmit
+  |
+  +-- Explicit approval --> global listing
+  |
+  +-- No approval --> Coworker stays private
+
+Global approval remains separate from Workspace access and whitelist control.
+Chat, external buying, and broader readiness checks are later capabilities.
 ```
 
-Dotted arrows are independent evidence inputs, not a requirement to enable every capability. The public paid path always needs baseline safety and seller payment proof. Chat, Tasks, and buying checks apply only when offered. Live grants, health, and payment settings stay with their canonical owners; test evidence covers only facts that cannot be derived.
+The diagram shows later global graduation, not the initial CLI MVP. The MPS payment route and wallet receipt require Preprod proof before the waitlist step.
+
+The sections below describe later capability work. The MVP only needs one authorized Sokosumi Task path to test MPS payment. Broader chat, Task/Job automation, and x402 buying remain separate slices.
 
 ### Spending versus earning
 
-```mermaid
-flowchart LR
-  Work["Authorized Coworker operation"] --> Buy{"Buying an external x402 service?"}
-  Buy --> Funding{"Explicit funding choice"}
-  Funding --> Credits["Workspace credits"]
-  Funding --> Wallet["Runtime-held wallet"]
-  Credits --> Policy["Approved amount, asset, network, and recipient"]
-  Wallet --> Policy
-  Policy --> Masumi["Masumi payment execution"]
-  Masumi --> Result["Service result and reconciled payment outcome"]
-  Customer["Customer uses public paid Coworker"] --> Price["Accepted usage-price version and spending ceiling"]
-  Price --> Meter["Authorized metered usage"]
-  Meter --> Debit["Customer charge"]
-  Debit --> Settlement["Separate seller settlement and receipt proof"]
+```
+Coworker sells a Sokosumi Task
+  |
+  v
+Sokosumi Core creates Task payment claim
+  |
+  | Current code charges Task credits, then creates MPS purchase
+  v
+Masumi Payment Service
+  |
+  v
+Cardano escrow lifecycle
+  |
+  v
+Coworker wallet receipt: OPEN, must prove on Preprod
+
+Later external x402 buyer
+  |
+  v
+Sokosumi Coworker route
+  |
+  v
+MPS / Cardano SDK compatibility test: OPEN
 ```
 
-There is no fallback edge between funding sources. Customer charging and seller receipt are separate outcomes. Private use has no automatic seller fee, but model/provider costs and approved external purchases remain payable. Exact payment and runtime contracts remain prerequisites in the delivery units below.
+Customer charging and seller receipt are separate outcomes. `TaskPaymentClaim.PURCHASED` is not seller receipt proof. External x402 and SDK compatibility are out of the MVP.
 
 ## Evidence from the target base
 
@@ -148,37 +196,41 @@ A private-session profile can stop at C1 or add C2/C3. A buyer-only profile can 
 
 These units describe independently reviewable outcomes, not a forced user journey. Each implementation PR must first resolve its contract prerequisites, specify exact changed files and runnable checks, and include both allowed and denied scenarios. This direction document is not permission to invent unresolved APIs.
 
-### Approved small-PR sequence
+### Priority order for small PRs
 
-[REPORTED: user decision, 2026-09-20] Each PR is a vertical, observable slice, and one issue may produce multiple bounded PRs. Reuse SOK-956; do not open a duplicate. This is implementation sequencing, not a required user journey or graduation order. The lettered units below are outcome areas and may span multiple PRs.
+[REPORTED: user decision, 2026-09-20] Each PR is a small vertical slice. One issue may produce several bounded PRs. Reuse SOK-956; do not open a duplicate. No CLI PR changes Core permissions, whitelist defaults, or MPS behavior. Team-owned dependencies stay explicit below.
 
-1. CLI-only read-only discovery. In `apps/cli` only, call the existing `GET /v1/vendors/me` and `GET /v1/users/me/organizations` routes to expose `vendors me` and `workspaces list`. Vendor discovery preserves all returned memberships and their roles; PR 2 permits only administered Vendors during registration selection. The `workspaces list` command returns organization-workspace candidates from `/v1/users/me/organizations`; each item exposes `organizationId`, never a Workspace row ID, `workspaceId`, or organization metadata. Non-array collection data or a missing Vendor or organization identity makes discovery fail instead of printing an empty or `unknown` item. Each command emits stable text by default or exactly one JSON document on stdout with `--json`. This PR includes no Core edits, Vendor creation, Coworker registration, or TUI work.
+1. [DONE] CLI-only read-only discovery. `vendors me` and `workspaces list` use existing Core routes. Vendor roles and organization identities remain explicit. This slice made no Core edits or Coworker registrations.
    - Files: `apps/cli/SPEC.md`, `apps/cli/docs/developer-cli-implementation-plan.md`, `apps/cli/src/api/models/organization-workspace.ts`, `apps/cli/src/api/models/vendor.ts`, `apps/cli/src/api/services/organization-workspace-service.ts`, `apps/cli/src/api/services/vendor-service.ts`, `apps/cli/src/cli/commands/discover.ts`, `apps/cli/src/cli/commands/vendors.ts`, `apps/cli/src/cli/commands/workspaces.ts`, `apps/cli/src/cli/index.ts`, `apps/cli/test/api/vendor-workspace-service.test.ts`, `apps/cli/test/cli/bin.test.ts`, `apps/cli/test/cli/commands/vendors-workspaces.test.ts`, `apps/cli/test/cli/index.test.ts`.
    - Checks: `pnpm --filter ./apps/cli test`; `pnpm --filter ./apps/cli typecheck`; `pnpm --filter ./apps/cli build`; `pnpm --filter core test src/routes/v1/vendors/get.test.ts src/routes/v1/vendors/vendor-admin.test.ts src/routes/v1/users/user-path-access.test.ts src/routes/v1/users/user-route-context.test.ts`; `pnpm exec biome check apps/cli/src apps/cli/test`; remove and restore V79/V80 guards, then rerun `pnpm --filter ./apps/cli test` to prove red and green.
-   - Allowed: authenticated exact commands, Vendor memberships with roles, organization-workspace candidates, text output, one-document JSON. Denied: unauthenticated Core calls, bare/wrong subcommands, malformed lists, missing IDs, organization metadata output, Vendor creation, registration, and TUI changes. Admin-only selection belongs to PR 2.
-1b. [DONE 2026-09-21 / SOK-966 PR2] Controlled registration selection. `coworkers register` and the TUI Register screen require at least one organization workspace and an administered (`admin`) Vendor. Foreign/non-admin Vendor ids fail before Core create. `--create-vendor` requires `--confirm-create-vendor` then refuses: Core only has platform-admin Vendor create. Gate copy directs blocked developers to ask an existing Vendor admin to add them as admin (platform admin create is the fallback). Discovery commands stay read-only.
-1c. [FOLLOW-UP / not SOK-966] Developer self-service Vendor create (Core + CLI/web). One-time cold-start: signed-in developer creates a Vendor they control, becomes `admin`, then registers Coworkers. Until then, invite/promote via existing Vendor admin. Slots before or with unit 3 private registration; does not expand 1b.
-2. Runtime contract. [DONE 2026-09-21 / SOK-967 / ADR 0005] Runtime identity and invocation approved: `coworker_*` only for runtime; session grant separate from identity; developer-key guards preserved.
-3. Private registration. Implement Core-owned Vendor/workspace authorization, registration, and session lifecycle, with CLI setup.
-4. Agent-agnostic adapter. Connect one runtime through a framework-neutral adapter. Claude Code may be the first verified example; it is not the target architecture.
-5. Task and worker. Implement active-session Task/Job operations and the separately authorized automatic worker.
-6. Chat. Implement authorized direct-chat, channel, and group participation.
-7. x402 (T33). Implement authorized x402 purchasing through Masumi with explicit funding selection.
-8. Seller settlement (T34). Implement Core-approved pricing and Masumi-backed seller-settlement evidence.
-9. Readiness (T35). Complete Core-derived readiness, waitlist review, and approval, then expose authoritative status in the CLI.
+   - Allowed: authenticated exact commands, Vendor memberships with roles, organization-workspace candidates, text output, one-document JSON. Denied: unauthenticated Core calls, bare/wrong subcommands, malformed lists, missing IDs, organization metadata output, Vendor creation, registration, and TUI changes.
+1b. [DONE 2026-09-21 / SOK-966 PR2] Controlled registration selection. `coworkers register` and the TUI Register screen require at least one organization workspace and an administered (`admin`) Vendor. Foreign/non-admin Vendor ids fail before Core create. Gate copy directs blocked developers to `sokosumi vendors create`; Coworker create remains platform-admin only.
+1c. [DONE / PR developer Vendor create] Developer self-service Vendor create uses Core `POST /v1/vendors`; the caller becomes admin. This does not create a Coworker.
+2. [DONE 2026-09-21 / SOK-967 / ADR 0005] Runtime identity uses `coworker_*`. Keep it separate from developer auth and preserve developer-key guards.
+3. [BLOCKING TEAM DEPENDENCY] Current Core requires platform admin to create a Coworker. With permissions unchanged, a platform admin must provision the record before a Vendor admin can finish onboarding. The CLI must not bypass this role check. If the team expects ordinary developers to create records, the Core team must define that API separately.
+   [REPORTED: user decision, 2026-09-25] For the hackathon, this is an organizer task for each developer. Follow the [hackathon track](#hackathon-track). This flow does not provide instant self-service registration.
+4. [IMPLEMENTED IN CLI SOURCE; LIVE PREPROD NOT CHECKED] Enforce Preprod-only Coworker registration in CLI. On Mainnet, show “Preprod only” and send no registration request. Keep other CLI commands network-configurable.
+5. [IMPLEMENTED IN CLI SOURCE; LIVE PREPROD NOT CHECKED] Select an existing Coworker, administered Vendor, and Workspace. Use the existing Core workspace-access route. Report registration complete only after `GRANTED`. The CLI directs users to Web to create or join a Workspace.
+6. [CLI MVP] Connect Hermes through a framework-neutral adapter and prove one authorized Sokosumi Task operation.
+7. [MPS MVP] Trace the existing Task/MPS path on Cardano Preprod, then prove seller receipt in the configured Coworker wallet. Do not equate Task credit debit or `TaskPaymentClaim.PURCHASED` with receipt.
+8. [LATER] Add waitlist request and platform-admin review after the current submission surface is confirmed.
+9. [LATER] Route Cardano x402 buyers through Sokosumi after MPS seller receipt works. Prove MPS/SDK compatibility before implementation.
+10. [OPEN RELEASE DECISION] Skills CLI installs Skill files only. Choose and publish a CLI binary install path before promising one-command onboarding.
 
-T33-T35 remain end-to-end slices: Core and Masumi retain their respective ownership of authorization, settlement, waitlist review, and approval; the CLI only configures and displays through approved interfaces.
+Remote owner approval URL is another MVP dependency. The current OAuth flow uses a same-machine loopback callback. The Auth/Core team must define the remote flow; the CLI must not expose a developer token to the agent runtime.
 
 ### A. Private registration and connection
 
-[PROPOSED] Extend the existing registration/control flow, then connect one supported runtime to one authorized workspace. First runtime candidate: Claude Code. Verify its current integration interface before selecting packaging.
+[PROPOSED] Onboard one existing hosted runtime as a Coworker in one authorized Workspace. Hermes is the first runtime. Keep Core permissions unchanged in the CLI work.
 
-Owners: CLI controls setup; Core owns Vendor authorization, registration, grants, expiry, and revocation; the runtime adapter owns its connection.
+Owners: CLI controls setup; Core owns existing Vendor authorization, Coworker records, Workspace grants, expiry, and revocation; the runtime adapter owns its connection.
 
-Prerequisites: approve self-service registration. Runtime identity contract is approved ([ADR 0005](adr/0005-coworker-runtime-identity-and-invocation-contract.md)). Establish a workspace before registration. Guide a new developer through creating a Vendor with confirmation, or select a Vendor they administer. Do not share one default Vendor among unrelated developers.
+Prerequisites: a Coworker record exists under a Vendor the developer administers. Current Core requires platform admin for Coworker creation. With permissions unchanged, a platform admin must provision the record. Runtime identity contract is approved ([ADR 0005](adr/0005-coworker-runtime-identity-and-invocation-contract.md)). The developer selects an existing Workspace. The current CLI sends users to Sokosumi Web to create or join a Workspace when none exists.
 
 Acceptance cases:
-- Authorized registration creates a workspace-only Coworker; foreign Vendor ownership is rejected.
+- The CLI refuses Coworker registration on Mainnet and sends no request. Other commands retain their selected network.
+- The CLI attaches an existing Coworker to the selected Workspace through the existing API and reports success only after `GRANTED`.
+- Coworker creation respects existing Core roles. The CLI does not grant itself platform-admin authority.
 - Runtime API calls access only their permitted workspace and never fall back to developer authentication. Trusted private sessions do not promise host-level credential isolation.
 - Session expiry and explicit disconnect revoke temporary authority; a crash cannot leave permanent session authority.
 - Inactive identity and work history remain after expiry. No shared Task, Job, or message is deleted.
@@ -254,6 +306,7 @@ Future implementation checks use non-production fixtures first. Keep regression 
 
 ## Least confident decisions
 
-1. Runtime credential exchange and command invocation remain proposed. Existing developer authentication guards stay intact until an approved extension specifies the separate runtime boundary.
-2. Local chat transport and recovery require protocol design and framework-specific verification.
-3. Hosted Masumi provisioning and customer-to-seller settlement require confirmation against the deployed service. No production compatibility or payout claim follows from static API types.
+1. [OPEN] MPS seller identity, wallet ownership, and actual Preprod receipt need a live pilot for each intended payment path. Static API types do not prove payout.
+2. [OPEN] Runtime credential exchange and command invocation remain proposed. Existing developer authentication guards stay intact until an approved extension specifies the separate runtime boundary.
+3. [OPEN] Preprod Seat and credit capacity need a live check before participant onboarding. The documented Seat rule does not prove the event Workspace has enough capacity.
+4. [OPEN] Local chat transport and recovery require protocol design and framework-specific verification.

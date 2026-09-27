@@ -12,7 +12,7 @@ private let roomC = "550e8400-e29b-41d4-a716-446655440203"
 private func pinnedRoomJSON(id: String, starredAt: String?) -> String {
   let pin = starredAt.map { "\"\($0)\"" } ?? "null"
   return """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id.suffix(3))","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":\(pin),"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id.suffix(3))","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":\(pin),"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
 }
 
@@ -112,6 +112,22 @@ struct PinnedRoomsReorderTests {
     core.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     #expect(state.rooms.first { $0.id == roomC }?.starredAt == core.date(from: "2026-02-01T00:00:00.000Z"))
     #expect(state.actionError == nil)
+  }
+
+  @Test func optimisticReorderKeysUseInjectedNow() async throws {
+    let state = try await sidebar()
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let transport = PausedReorderTransport([(200, orderBody([roomC, roomA, roomB]))])
+    let reorderClient = try client(transport)
+    let task = Task {
+      try await state.reorderPinned([roomC, roomA, roomB], client: reorderClient, organizationSlug: nil, now: now)
+    }
+    await transport.waitForRequests(1)
+    #expect(state.rooms.first { $0.id == roomC }?.starredAt == now.addingTimeInterval(-0.003))
+    #expect(state.rooms.first { $0.id == roomA }?.starredAt == now.addingTimeInterval(-0.002))
+    #expect(state.rooms.first { $0.id == roomB }?.starredAt == now.addingTimeInterval(-0.001))
+    await transport.release()
+    try await task.value
   }
 
   @Test func latestReorderWinsOverAnEarlierAnswerAndAnEarlierFailure() async throws {

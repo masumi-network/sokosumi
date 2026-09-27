@@ -26,12 +26,10 @@ struct DirectStreamMessage: Sendable {
     parts.filter { !$0.reasoning }.map(\.text).joined()
   }
 
-  var reasoning: String {
-    parts.filter(\.reasoning).map(\.text).joined(separator: "\n\n")
-  }
-
-  var latestThought: String? {
-    parts.last { $0.reasoning && !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }?.text
+  /// Each reasoning part's text in stream order, as received. `CoworkerThought`
+  /// trims and joins them.
+  var reasoningParts: [String] {
+    parts.filter(\.reasoning).map(\.text)
   }
 
   mutating func receive(_ data: String) throws {

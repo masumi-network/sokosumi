@@ -53,30 +53,13 @@ export const jobForStatusComputeSelect = {
   },
 } as const;
 
-type JobForStatusCompute = Prisma.JobGetPayload<{
-  select: typeof jobForStatusComputeSelect;
-}>;
-
-// biome-ignore lint/correctness/noUnusedVariables: file-private payload alias
-type JobEventForStatusCompute = JobForStatusCompute["events"][number];
-
 export const jobWithPurchase = {
   purchase: true,
 } as const;
 
-// biome-ignore lint/correctness/noUnusedVariables: file-private payload alias
-type JobWithPurchase = Prisma.JobGetPayload<{
-  include: typeof jobWithPurchase;
-}>;
-
 export const jobWithTransaction = {
   transaction: true,
 } as const;
-
-// biome-ignore lint/correctness/noUnusedVariables: file-private payload alias
-type JobWithTransaction = Prisma.JobGetPayload<{
-  include: typeof jobWithTransaction;
-}>;
 
 const jobSummaryOwnerOrganizationInclude = {
   owner: { select: { id: true, name: true, image: true } },
@@ -126,9 +109,6 @@ export type JobWithListSummaryRelations = Prisma.JobGetPayload<{
   include: typeof jobListSummaryInclude;
 }>;
 
-// biome-ignore lint/correctness/noUnusedVariables: file-private payload alias
-type JobEventForListSummary = JobWithListSummaryRelations["events"][number];
-
 const jobWithRefundedTransaction = {
   refundedTransaction: true,
 } as const;
@@ -152,11 +132,6 @@ const jobWithOrganization = {
 export const jobWithShare = {
   share: true,
 } as const;
-
-// biome-ignore lint/correctness/noUnusedVariables: file-private payload alias
-type JobWithShare = Prisma.JobGetPayload<{
-  include: typeof jobWithShare;
-}>;
 
 export const jobInclude = {
   ...jobSummaryInclude,

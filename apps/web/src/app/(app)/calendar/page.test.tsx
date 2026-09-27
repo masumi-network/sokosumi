@@ -3,11 +3,9 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionMock = vi.fn();
-const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const getWorkspaceCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
-const listCoworkersMock = vi.fn();
-const listTaskAssigneeMemberOptionsMock = vi.fn();
+const listTaskAssigneeOptionsMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const calendarCreateTaskModalMock = vi.fn();
 const workspaceCalendarMock = vi.fn();
@@ -44,20 +42,9 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
 }));
 
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
-}));
-
-vi.mock("@/lib/services/coworker.service", () => ({
-  coworkerService: {
-    listCoworkers: () => listCoworkersMock(),
-  },
-}));
-
-vi.mock("@/app/tasks/utils/task-assignee-members", () => ({
-  listTaskAssigneeMemberOptions: (organizationId: string | null) =>
-    listTaskAssigneeMemberOptionsMock(organizationId),
+vi.mock("@/app/tasks/utils/task-assignee-options", () => ({
+  listTaskAssigneeOptions: (organizationId: string | null) =>
+    listTaskAssigneeOptionsMock(organizationId),
 }));
 
 vi.mock("@/lib/services/task.service", () => ({
@@ -77,7 +64,6 @@ import CalendarPage from "./page";
 describe("CalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getSessionMock.mockResolvedValue(null);
     getWorkspaceCalendarMock.mockResolvedValue({
       items: [],
@@ -95,23 +81,11 @@ describe("CalendarPage", () => {
         isSchedulable: true,
       },
     ]);
-    listCoworkersMock.mockResolvedValue([]);
-    listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
+    listTaskAssigneeOptionsMock.mockResolvedValue([]);
     getProjectFilterOptionsMock.mockResolvedValue([]);
   });
 
-  it("does not load Calendar data outside the Calendar beta", async () => {
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
-
-    await expect(
-      CalendarPage({ searchParams: Promise.resolve({}) }),
-    ).rejects.toThrow("NEXT_NOT_FOUND");
-
-    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
-    expect(getWorkspaceCalendarSourcesMock).not.toHaveBeenCalled();
-  });
-
-  it("loads Calendar data for Calendar beta users", async () => {
+  it("loads Calendar data for any authorized user", async () => {
     render(await CalendarPage({ searchParams: Promise.resolve({}) }));
 
     expect(getWorkspaceCalendarMock).toHaveBeenCalledOnce();
@@ -203,30 +177,15 @@ describe("CalendarPage", () => {
     expect(workspaceCalendarMock).not.toHaveBeenCalled();
   });
 
-  it("does not render without the authoritative active workspace source", async () => {
-    getWorkspaceCalendarMock.mockResolvedValue({
-      items: [{ id: "occurrence-1" }],
-      pagination: null,
-    });
-    getWorkspaceCalendarSourcesMock.mockRejectedValue(
-      new Error("Calendar sources unavailable"),
-    );
-
-    await expect(
-      CalendarPage({ searchParams: Promise.resolve({}) }),
-    ).rejects.toThrow("Calendar sources unavailable");
-    expect(workspaceCalendarMock).not.toHaveBeenCalled();
-  });
-
   it("passes the selected non-Project source filter to the initial Calendar read", async () => {
     await CalendarPage({
       searchParams: Promise.resolve({
-        sourceId: "legacy-unknown:workspace-1",
+        sourceId: "workspace:workspace-1",
       }),
     });
 
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceId: "legacy-unknown:workspace-1" }),
+      expect.objectContaining({ sourceId: "workspace:workspace-1" }),
     );
   });
 
@@ -234,7 +193,7 @@ describe("CalendarPage", () => {
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
     });
-    listTaskAssigneeMemberOptionsMock.mockResolvedValue([
+    listTaskAssigneeOptionsMock.mockResolvedValue([
       {
         id: "user-1",
         kind: "user",
@@ -252,7 +211,7 @@ describe("CalendarPage", () => {
 
     render(await CalendarPage({ searchParams: Promise.resolve({}) }));
 
-    expect(listTaskAssigneeMemberOptionsMock).toHaveBeenCalledWith("org-1");
+    expect(listTaskAssigneeOptionsMock).toHaveBeenCalledWith("org-1");
     expect(calendarCreateTaskModalMock).toHaveBeenCalledWith(
       expect.objectContaining({
         coworkerOptions: expect.arrayContaining([

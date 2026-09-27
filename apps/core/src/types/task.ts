@@ -26,6 +26,18 @@ export const taskEventApiInclude = {
   transaction: { select: { amount: true } },
 } as const;
 
+const taskParticipantsInclude = {
+  participants: {
+    // UUID v7 ids sort in join order.
+    orderBy: {
+      id: "asc" as const,
+    },
+    include: {
+      user: taskEventApiInclude.user,
+    },
+  },
+} as const;
+
 const taskOwnerAssigneeCreatorInclude = {
   owner: taskEventApiInclude.user,
   organization: { select: { id: true, name: true, slug: true } },
@@ -36,6 +48,7 @@ const taskOwnerAssigneeCreatorInclude = {
   creatorUser: taskEventApiInclude.user,
   creatorCoworker: taskEventApiInclude.coworker,
   creatorSokoBot: taskEventApiInclude.sokoBot,
+  ...taskParticipantsInclude,
 } as const;
 
 export const taskFileApiInclude = {

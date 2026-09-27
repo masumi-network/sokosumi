@@ -33,7 +33,7 @@ const route = createRoute({
         data: {
           sessionId: "cs_test_123",
           currency: "eur",
-          value: 12000,
+          value: 120,
           items: [
             {
               itemId: "prod_123",

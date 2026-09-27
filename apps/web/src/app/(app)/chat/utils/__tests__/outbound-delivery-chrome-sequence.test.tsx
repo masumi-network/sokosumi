@@ -76,6 +76,7 @@ function serverMessage(
     metadata: clientTurnId ? { client_message_id: clientTurnId } : null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: { type: "user", user: senderUser },
   };

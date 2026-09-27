@@ -34,6 +34,7 @@ function message(
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls,
   };
 }

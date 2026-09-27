@@ -178,7 +178,7 @@ public struct ChatNotificationEvent: Equatable, Sendable {
   }
 }
 
-public let chatNotificationAppTitle = "Sokosumi"
+private let chatNotificationAppTitle = "Sokosumi"
 
 /// What a banner routes to when opened (web `NotificationTarget`, chat fields only).
 public struct ChatNotificationTarget: Equatable, Sendable {

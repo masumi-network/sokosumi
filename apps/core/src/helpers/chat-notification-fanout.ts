@@ -1,12 +1,15 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { buildNamedChatMessagePreview } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
+
 import {
   hasCalendarWorkspaceAccess,
   lockCalendarWorkspaceMembership,
 } from "@/helpers/calendar-membership-fence";
 import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
 import { loadChatMentionNames } from "@/helpers/chat-mention-names";
+import { resendRoomMessageEmail } from "@/helpers/notification-email-dispatch";
 import {
   notificationPublishFields,
   scheduleNotificationPublish,
@@ -214,6 +217,12 @@ async function countOntoUnreadRow(
     if (written.count === 0) {
       continue;
     }
+
+    // The row now stands for one more message than the email waiting on it
+    // said, so that email is sent again with the new tally. Scheduled rather
+    // than awaited, like the first send: the reader has been answered, and a
+    // resend that fails must not cost them the message (SOK-1142).
+    waitUntil(resendRoomMessageEmail(unread.id));
 
     if (!delivery.inApp && !delivery.osBanner) {
       return;

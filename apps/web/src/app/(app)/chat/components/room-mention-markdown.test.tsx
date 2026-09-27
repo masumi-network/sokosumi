@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { REGRESSION } from "@/components/mermaid/__tests__/regression";
 import type { ChatRoomCoworkerParticipant } from "@/lib/clients/generated/core";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
 
@@ -96,5 +97,28 @@ describe("RoomMessageMarkdown mention hover", () => {
     );
 
     expect(screen.getByRole("button", { name: "Elena" })).toBeInTheDocument();
+  });
+});
+
+vi.mock("@/components/mermaid/mermaid-block", () => ({
+  MermaidBlock: ({ source }: { source: string }) => <figure>{source}</figure>,
+}));
+
+describe("room Mermaid opt-in", () => {
+  const props = {
+    content: `\`\`\`mermaid\n${REGRESSION}\n\`\`\``,
+    coworkersById: new Map<string, ChatRoomCoworkerParticipant>(),
+    coworkersBySlug: new Map<string, ChatRoomCoworkerParticipant>(),
+  };
+  it("preserves the regression through room formatting", () => {
+    const { container } = render(
+      <RoomMessageMarkdown {...props} enableMermaid />,
+    );
+    expect(container.querySelector("figure")?.textContent).toBe(REGRESSION);
+  });
+  it("keeps quoted/composer previews free of diagram controls", () => {
+    const { container } = render(<RoomMessageMarkdown {...props} />);
+    expect(container.querySelector("figure")).toBeNull();
+    expect(container.querySelector("pre")).toHaveTextContent("flowchart LR");
   });
 });

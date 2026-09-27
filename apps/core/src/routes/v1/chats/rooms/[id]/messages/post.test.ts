@@ -24,6 +24,7 @@ const {
   threadReadUpsertMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
+  memberFindManyMock,
   prismaTransactionMock,
   dispatchMock,
   emitChatMentionNotificationsMock,
@@ -45,6 +46,7 @@ const {
   threadReadUpsertMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   dispatchMock: vi.fn(),
   emitChatMentionNotificationsMock: vi.fn(),
@@ -206,6 +208,7 @@ const tx = {
   },
   member: {
     findUnique: memberFindUniqueMock,
+    findMany: memberFindManyMock,
   },
 };
 
@@ -438,6 +441,7 @@ beforeEach(() => {
   prismaTransactionMock.mockImplementation(async (callback) => callback(tx));
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
+  memberFindManyMock.mockResolvedValue([]);
   roomUpdateMock.mockResolvedValue({});
   readStateUpsertMock.mockResolvedValue({});
   threadReadUpsertMock.mockResolvedValue({
@@ -1897,7 +1901,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
       }
 
       /** The sender reads the source room; `userIds` is its roster. */
-      function sourceRoom(userIds: string[]) {
+      function sourceRoom(
+        userIds: string[],
+        discoverability: string | null = "private",
+      ) {
         membershipFindManyMock.mockResolvedValue(
           userIds.map((userId) => ({ userId })),
         );
@@ -1905,6 +1912,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
           id: SOURCE_ROOM_ID,
           organizationId: "org_1",
           kind: "channel",
+          discoverability,
           userMembers: [{ access: "member" }],
         };
       }
@@ -1966,6 +1974,73 @@ describe("POST /chats/rooms/{id}/messages", () => {
             roomWithMembers({ userMembers: roomMembers([USER_ID, ALICE_ID]) }),
           )
           .mockResolvedValueOnce(sourceRoom([USER_ID, BOB_ID]));
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+
+        const response = await postCrossRoomQuote();
+
+        expect(response.status).toBe(400);
+        expect(messageCreateMock).not.toHaveBeenCalled();
+      });
+
+      it.each(["public", "external"])(
+        "accepts a %s source channel when every other reader is in its organization",
+        async (discoverability) => {
+          roomFindFirstMock
+            .mockResolvedValueOnce(
+              roomWithMembers({
+                userMembers: roomMembers([USER_ID, ALICE_ID, BOB_ID]),
+              }),
+            )
+            .mockResolvedValueOnce(sourceRoom([USER_ID], discoverability));
+          memberFindManyMock.mockResolvedValue([
+            { userId: ALICE_ID },
+            { userId: BOB_ID },
+          ]);
+          messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+          messageCreateMock.mockResolvedValue(
+            createdMessage({
+              senderUserId: USER_ID,
+              metadata: { quote: crossRoomSnapshot },
+            }),
+          );
+
+          const response = await postCrossRoomQuote();
+
+          expect(response.status).toBe(201);
+          expect(memberFindManyMock).toHaveBeenCalledWith({
+            where: {
+              organizationId: "org_1",
+              userId: { in: [ALICE_ID, BOB_ID] },
+            },
+            select: { userId: true },
+          });
+        },
+      );
+
+      it("returns 400 when a reader outside the public source channel's organization cannot join it", async () => {
+        roomFindFirstMock
+          .mockResolvedValueOnce(
+            roomWithMembers({
+              userMembers: roomMembers([USER_ID, ALICE_ID, BOB_ID]),
+            }),
+          )
+          .mockResolvedValueOnce(sourceRoom([USER_ID], "public"));
+        memberFindManyMock.mockResolvedValue([{ userId: ALICE_ID }]);
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+
+        const response = await postCrossRoomQuote();
+
+        expect(response.status).toBe(400);
+        expect(messageCreateMock).not.toHaveBeenCalled();
+      });
+
+      it("does not open a private source channel to its organization", async () => {
+        roomFindFirstMock
+          .mockResolvedValueOnce(
+            roomWithMembers({ userMembers: roomMembers([USER_ID, ALICE_ID]) }),
+          )
+          .mockResolvedValueOnce(sourceRoom([USER_ID], "private"));
+        memberFindManyMock.mockResolvedValue([{ userId: ALICE_ID }]);
         messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
 
         const response = await postCrossRoomQuote();

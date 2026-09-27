@@ -135,7 +135,7 @@ test("OAuth refresh derives auth base from resolveCliConfig when omitted", async
   );
 });
 
-test("TestV16 hosted refresh does not use an unconfigured fallback client", async () => {
+test("hosted refresh does not use an unconfigured fallback client", async () => {
   let refreshed = false;
   const manager = new AuthManager({
     credentialStore: {

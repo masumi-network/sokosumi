@@ -33,11 +33,6 @@ export function validateConfirmationName(
   return { isValid: true };
 }
 
-export function formatApiKeyDisplay(key: string | null | undefined): string {
-  if (!key) return "••••••••";
-  return key.substring(0, 8) + "••••••••";
-}
-
 export function getToggleActionText(
   enabled: boolean | null | undefined,
 ): "disabled" | "enabled" {

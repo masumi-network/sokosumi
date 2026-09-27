@@ -85,6 +85,24 @@ function setServiceWorkerSupported(supported: boolean): void {
   Reflect.deleteProperty(window.navigator, "serviceWorker");
 }
 
+/**
+ * `navigator.standalone`, which WebKit for iOS and iPadOS alone defines:
+ * absent off those platforms, false in a tab, true in the installed app. The
+ * install read asks this rather than the user agent, because iPadOS sends
+ * Safari's macOS string and Request Desktop Website gives an iPhone the same.
+ */
+function setAppleStandalone(standalone: boolean | undefined): void {
+  if (standalone === undefined) {
+    Reflect.deleteProperty(window.navigator, "standalone");
+    return;
+  }
+
+  Object.defineProperty(window.navigator, "standalone", {
+    configurable: true,
+    value: standalone,
+  });
+}
+
 /** Translations are mocked to the key, so the link text is the key. */
 const settingsLink = () =>
   screen.getByRole("link", { name: "browserPermissionOpenSettings" });
@@ -93,6 +111,7 @@ describe("NotificationBrowserPermissionPrimer", () => {
   beforeEach(() => {
     setPushSupported(true);
     setServiceWorkerSupported(true);
+    setAppleStandalone(undefined);
     repairOutcome = "pending";
     preferences = {
       data: {
@@ -171,6 +190,48 @@ describe("NotificationBrowserPermissionPrimer", () => {
     );
 
     expect(requestPermissionMock).toHaveBeenCalled();
+  });
+
+  /**
+   * The one platform this card had nothing to say to. iOS Safari ships no
+   * Notification global outside the installed app, so the card bailed on the
+   * permission read and drew nothing, on the devices where installing is the
+   * whole fix.
+   */
+  it("tells an iPhone outside the installed app how to install it", () => {
+    setPushSupported(false);
+    setServiceWorkerSupported(true);
+    setAppleStandalone(false);
+    vi.stubGlobal("Notification", undefined);
+    render(<NotificationBrowserPermissionPrimer />);
+
+    expect(
+      screen.getByText("browserPermissionInstallTitle"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("browserPermissionInstallDescription"),
+    ).toBeInTheDocument();
+    // Nothing to press. No API puts an app on a Home Screen, and the account
+    // page cannot subscribe a browser that has no push to subscribe.
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  /**
+   * A desktop browser with no push reads the same properties and must not take
+   * the install branch: it has no Home Screen to be sent to.
+   */
+  it("keeps offering the permission on a desktop browser with no push", () => {
+    setPushSupported(false);
+    setServiceWorkerSupported(true);
+    setAppleStandalone(undefined);
+    setNotificationPermission("default");
+    render(<NotificationBrowserPermissionPrimer />);
+
+    expect(screen.queryByText("browserPermissionInstallTitle")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "browserPermissionEnable" }),
+    ).toBeInTheDocument();
   });
 
   /**

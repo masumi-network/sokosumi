@@ -12,8 +12,6 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import { markTaskArchivedRead } from "@/helpers/task-notifications";
-import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
-import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -31,7 +29,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}",
   description:
-    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. Active Calendar schedule series fail with 409 (kind: schedule_active), including for organization workspace collaborators; released schedule runs are independent tasks and are never archived with their template.",
+    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. A Task created by a Task Schedule archives like any other Task.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -61,11 +59,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      assertTaskScheduleInactive(
-        currentTask,
-        "Remove the schedule before archiving this Task",
-      );
-
       const archivedAt = new Date();
       const updateResult = await tx.task.updateMany({
         where: {
@@ -81,8 +74,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (updateResult.count === 0) {
         throw conflict("Task was modified concurrently; retry archive");
       }
-
-      await removeTaskSchedulePlannedOccurrences(tx, id);
 
       return {
         task: await tx.task.findFirstOrThrow({

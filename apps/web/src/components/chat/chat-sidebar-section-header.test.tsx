@@ -243,4 +243,36 @@ describe("ChatSidebarSectionContent", () => {
     expect(classes).toContain("-mx-2");
     expect(classes).toContain("px-2");
   });
+
+  it("heightens the clip box by the rail ring the first and last row wear", () => {
+    // Regression: the rows fill the box top to bottom, so the clip used to
+    // land on the outermost row's own edge and cut the collapsed rail's
+    // `ring-2` there — the last room in a section rendered open-bottomed on
+    // hover. The margin/padding pair cancels out, so nothing else moves.
+    const { container } = render(<Section />);
+    const classes =
+      container
+        .querySelector('[data-slot="collapsible-content"]')
+        ?.className.split(/\s+/) ?? [];
+
+    // In `px`, not on the spacing scale: the ring is a fixed 2px, and
+    // `0.125rem` falls under it below a 16px root.
+    expect(classes).toContain("-my-[2px]");
+    expect(classes).toContain("py-[2px]");
+  });
+
+  it("leaves the strip it grew into to the heading it overlaps", () => {
+    // The negative top margin puts 2px of this box over the bottom of the
+    // heading above, which paints earlier and would lose those hits. The box
+    // takes no pointer events and hands them back on its rows, which start
+    // inside the padding.
+    const { container } = render(<Section />);
+    const classes =
+      container
+        .querySelector('[data-slot="collapsible-content"]')
+        ?.className.split(/\s+/) ?? [];
+
+    expect(classes).toContain("pointer-events-none");
+    expect(classes).toContain("[&>*]:pointer-events-auto");
+  });
 });

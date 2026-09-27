@@ -56,7 +56,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id: roomId } = c.req.valid("param");
 
-    // Read-only GET: no interactive transaction (pool / P2028 — apps/core AGENTS.md).
     const room = await requireRoomMemberCanInviteGuests(
       roomId,
       userContext.userId,

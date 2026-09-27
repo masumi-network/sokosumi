@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const handleEventMock = vi.fn();
 const handleSubscriptionDeletedEventMock = vi.fn();
 const handleCheckoutSessionCompletedEventMock = vi.fn();
+const handleSubscriptionCreatedEventMock = vi.fn();
 const captureExceptionMock = vi.fn();
 const notifyPaymentFailedMock = vi.fn();
 const notifySubscriptionEndingMock = vi.fn();
@@ -31,6 +32,8 @@ vi.mock("@/services/stripe-backed-subscription.service", () => ({
     handleSubscriptionDeletedEventMock(...args),
   handleCheckoutSessionCompletedEvent: (...args: unknown[]) =>
     handleCheckoutSessionCompletedEventMock(...args),
+  handleSubscriptionCreatedEvent: (...args: unknown[]) =>
+    handleSubscriptionCreatedEventMock(...args),
 }));
 
 import {
@@ -60,6 +63,7 @@ describe("handleStripeAuthWebhookOnEvent", () => {
     handleEventMock.mockResolvedValue(undefined);
     handleSubscriptionDeletedEventMock.mockResolvedValue(undefined);
     handleCheckoutSessionCompletedEventMock.mockResolvedValue(undefined);
+    handleSubscriptionCreatedEventMock.mockResolvedValue(undefined);
     resolveBillingWalletByStripeCustomerIdMock.mockResolvedValue({
       userId: "user-1",
       organizationId: null,
@@ -206,6 +210,52 @@ describe("handleStripeAuthWebhookOnEvent", () => {
       session,
     );
     expect(handleEventMock).not.toHaveBeenCalled();
+  });
+
+  it("handles customer.subscription.created", async () => {
+    const subscription = { id: "sub_123", customer: "cus_123" };
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    try {
+      await handleStripeAuthWebhookOnEvent({
+        id: "evt_sub_created",
+        type: "customer.subscription.created",
+        data: { object: subscription },
+      } as never);
+
+      expect(handleSubscriptionCreatedEventMock).toHaveBeenCalledWith(
+        subscription,
+      );
+      expect(handleEventMock).not.toHaveBeenCalled();
+      // Handled, so it must not fall through to the unhandled-type log.
+      expect(infoSpy).not.toHaveBeenCalled();
+    } finally {
+      infoSpy.mockRestore();
+    }
+  });
+
+  it("reports a failed created reconciliation and rethrows so Stripe retries", async () => {
+    const failure = new Error("reconcile failed");
+    handleSubscriptionCreatedEventMock.mockRejectedValue(failure);
+
+    await expect(
+      handleStripeAuthWebhookOnEvent({
+        id: "evt_sub_created",
+        type: "customer.subscription.created",
+        data: { object: { id: "sub_123", customer: "cus_123" } },
+      } as never),
+    ).rejects.toThrow("reconcile failed");
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({
+        tags: expect.objectContaining({
+          stripeEventType: "customer.subscription.created",
+          stripeSubscriptionId: "sub_123",
+        }),
+        extra: { customer: "cus_123", eventId: "evt_sub_created" },
+      }),
+    );
   });
 
   it("handles customer.subscription.deleted", async () => {

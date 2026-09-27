@@ -4,7 +4,7 @@ import { stockAvatarPool } from "@/services/soko-bot-avatar.service";
 
 import { handleSyncRequest } from "../handler.js";
 
-export const SOKO_BOT_AVATARS_SYNC_LOCK_KEY = "soko-bot-avatars-sync";
+const SOKO_BOT_AVATARS_SYNC_LOCK_KEY = "soko-bot-avatars-sync";
 
 export default function mount(app: Hono) {
   app.get("/soko-bot-avatars", async (c) => {

@@ -423,6 +423,7 @@ describe("publishChatRoomMessageEvent", () => {
       metadata: null,
       quote: null,
       membership: null,
+      groupNameChange: null,
       unfurls: null,
     };
 
@@ -471,6 +472,7 @@ describe("publishChatRoomMessageEvent", () => {
       },
       quote: null,
       membership: null,
+      groupNameChange: null,
       unfurls: null,
     };
 

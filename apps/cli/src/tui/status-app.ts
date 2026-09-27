@@ -18,19 +18,20 @@ import { fetchVendorMemberships } from "../api/services/vendor-service.js";
 import {
   type AuthEnvironment,
   type AuthManager,
-  getAuthManager,
 } from "../auth/auth-manager.js";
 import {
+  type AuthManagerFactory,
+  createSessionAuthManager,
   type InitialAuthState,
   resolveInitialAuth,
   selectBootRoute,
 } from "../auth/bootstrap.js";
 import {
+  assertApiKeyTarget,
   type CliTargetConfig,
   MAINNET_API_URL,
   PREPROD_API_URL,
   resolveCliConfig,
-  resolveTargetScope,
   sanitizeApiUrl,
   targetFromUserApiKey,
   USER_API_KEY_PREFIX_BY_TARGET,
@@ -47,6 +48,7 @@ import {
   administeredVendors,
   describeRegistrationAdminVendorRequirement,
   describeRegistrationWorkspaceRequirement,
+  isPreprodCoworkerRegistrationTarget,
 } from "../cli/registration-authority.js";
 import {
   COWORKER_FRAMEWORK_PRESETS,
@@ -127,24 +129,6 @@ export function oauthCallbackDisplayUri(
   return `http://${OAUTH_LOOPBACK_HOST}:${port}${normalizedPath}`;
 }
 
-type AuthManagerFactory = (options: {
-  targetScope: string;
-  clientId: string;
-  environment: AuthEnvironment;
-}) => AuthManager;
-
-function getManagerForConfig(
-  config: CliTargetConfig,
-  env: AuthEnvironment,
-  authManagerFactory: AuthManagerFactory = getAuthManager,
-): AuthManager {
-  return authManagerFactory({
-    targetScope: resolveTargetScope(config.target, config.apiUrl),
-    clientId: config.clientId,
-    environment: env,
-  });
-}
-
 export function resolveHostedTargetConfig(
   env: AuthEnvironment,
   target: HostedTarget,
@@ -158,18 +142,18 @@ export function resolveHostedTargetConfig(
   });
 }
 
-export function explicitApiKeyTargetError(
+function explicitApiKeyError(
   apiKey: string,
   config: CliTargetConfig,
   targetExplicit: boolean,
 ): string | null {
   if (!targetExplicit) return null;
-  const detectedTarget = targetFromUserApiKey(apiKey);
-  if (!detectedTarget) return null;
-  if (config.target === "custom" || detectedTarget !== config.target) {
-    return `API key belongs to ${detectedTarget}, but the explicit target is ${config.target}.`;
+  try {
+    assertApiKeyTarget(apiKey, config, true);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
   }
-  return null;
 }
 
 export function displayTargetLabel(config: CliTargetConfig): string {
@@ -443,7 +427,11 @@ function StatusApp({
     () =>
       selectedConfig.apiUrl === config.apiUrl
         ? authManager
-        : getManagerForConfig(selectedConfig, env, authManagerFactory),
+        : createSessionAuthManager({
+            config: selectedConfig,
+            environment: env,
+            authManagerFactory,
+          }),
     [authManager, authManagerFactory, config.apiUrl, env, selectedConfig],
   );
   const coreClient = useMemo(
@@ -589,7 +577,11 @@ function StatusApp({
   };
 
   const startOAuthLogin = (loginConfig: CliTargetConfig) => {
-    const manager = getManagerForConfig(loginConfig, env, authManagerFactory);
+    const manager = createSessionAuthManager({
+      config: loginConfig,
+      environment: env,
+      authManagerFactory,
+    });
     const controller = new AbortController();
     const attempt = ++oauthAttempt.current;
     abortController.current = controller;
@@ -639,7 +631,11 @@ function StatusApp({
     loginConfig: CliTargetConfig,
     loginTargetExplicit: boolean,
   ) => {
-    const manager = getManagerForConfig(loginConfig, env, authManagerFactory);
+    const manager = createSessionAuthManager({
+      config: loginConfig,
+      environment: env,
+      authManagerFactory,
+    });
     const controller = new AbortController();
     const attempt = ++apiKeyLoginAttempt.current;
     abortController.current = controller;
@@ -699,7 +695,7 @@ function StatusApp({
     setApiKeyBuffer("");
     setBusy(false);
     const detectedTarget = targetFromUserApiKey(apiKey);
-    const mismatch = explicitApiKeyTargetError(
+    const mismatch = explicitApiKeyError(
       apiKey,
       selectedConfig,
       targetExplicit,
@@ -733,7 +729,7 @@ function StatusApp({
   const beginApiKeyLogin = () => {
     const envApiKey = String(env.SOKOSUMI_API_KEY || "").trim();
     if (envApiKey) {
-      const mismatch = explicitApiKeyTargetError(
+      const mismatch = explicitApiKeyError(
         envApiKey,
         selectedConfig,
         targetExplicit,
@@ -1159,16 +1155,22 @@ function StatusApp({
     const adminVendors = administeredVendors(vendors);
     const missingWorkspace = !resourceLoading && workspaces.length === 0;
     const missingAdminVendor = !resourceLoading && adminVendors.length === 0;
-    const registrationBlocked = missingWorkspace || missingAdminVendor;
+    const preprodOnly = !isPreprodCoworkerRegistrationTarget(
+      selectedConfig.target,
+    );
+    const registrationBlocked =
+      preprodOnly || missingWorkspace || missingAdminVendor;
     const rawWebUrl = String(env.SOKOSUMI_WEB_URL || "").trim();
     const webBase = rawWebUrl ? sanitizeApiUrl(rawWebUrl) : "";
-    const gateHint = resourceLoading
-      ? "Checking workspace and Vendor admin authority…"
-      : missingWorkspace
-        ? describeRegistrationWorkspaceRequirement(webBase || undefined)
-        : missingAdminVendor
-          ? describeRegistrationAdminVendorRequirement(webBase || undefined)
-          : "Choose a preset runtime. Connect it under an administered Vendor in a later step.";
+    const gateHint = preprodOnly
+      ? "Coworker registration is Preprod only. Restart with `sokosumi --preprod` to register."
+      : resourceLoading
+        ? "Checking workspace and Vendor admin authority…"
+        : missingWorkspace
+          ? describeRegistrationWorkspaceRequirement(webBase || undefined)
+          : missingAdminVendor
+            ? describeRegistrationAdminVendorRequirement(webBase || undefined)
+            : "Choose a preset to see the next step. An organizer must provision its Coworker ID first. Then use `coworkers connect` for the selected Workspace.";
     signedInContent = React.createElement(
       Box,
       { flexDirection: "column", width: "100%" },
@@ -1198,7 +1200,7 @@ function StatusApp({
           label: vendor.name || "Unnamed vendor",
           hint:
             vendor.role === "admin"
-              ? "admin · can register Coworkers"
+              ? "admin · Vendor access"
               : vendor.role || undefined,
         }))
       : [{ value: "empty", label: "No vendors found", hint: "empty" }];
@@ -1211,7 +1213,7 @@ function StatusApp({
         { dimColor: true },
         resourceLoading
           ? "Loading vendor memberships…"
-          : "Admin role is required to register Coworkers under a Vendor.",
+          : "Choose an administered Vendor. Core also checks who can create Coworkers.",
       ),
       React.createElement(SelectInput, {
         items: vendorItems,
@@ -1251,7 +1253,7 @@ function StatusApp({
         { dimColor: true },
         resourceLoading
           ? "Loading organization workspaces…"
-          : "Choose a workspace before registering a workspace-only Coworker.",
+          : "Choose a workspace for the Coworker.",
       ),
       React.createElement(SelectInput, {
         items: workspaceItems,
@@ -1277,7 +1279,7 @@ function StatusApp({
       React.createElement(
         Text,
         { dimColor: true },
-        "Sign in is done. Review Vendors and Workspaces, then register a Coworker.",
+        "Sign in is done. Review Vendors and Workspaces, then connect an organizer-provisioned Coworker.",
       ),
       React.createElement(Text, { dimColor: true }, "sokosumi coworkers list"),
       React.createElement(
@@ -1323,8 +1325,12 @@ export async function renderStatusApp({
   targetExplicit = false,
   networkSelectionLocked = false,
 }: StatusAppOptions = {}): Promise<{ tui: true }> {
-  const manager =
-    authManager || getManagerForConfig(config, env, authManagerFactory);
+  const manager = createSessionAuthManager({
+    config,
+    environment: env,
+    authManager,
+    authManagerFactory,
+  });
   const { waitUntilExit } = render(
     React.createElement(StatusApp, {
       authManager: manager,

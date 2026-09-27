@@ -20,7 +20,7 @@ export default async function AccountNotificationsPage() {
         marketingOptIn={session.user.marketingOptIn ?? false}
       >
         <ChatDisplayPreferences
-          showRoomUnreadCount={session.user.showRoomUnreadCount ?? false}
+          showRoomUnreadCount={session.user.hideRoomUnreadCount !== true}
         />
       </NotificationPreferences>
     </div>

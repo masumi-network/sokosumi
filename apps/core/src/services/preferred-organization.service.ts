@@ -3,7 +3,9 @@ import {
   userRepository,
   workspaceRepository,
 } from "@sokosumi/database/repositories";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
+import { forbidden, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 
 export async function resolveActiveOrganizationIdForSession(
@@ -34,4 +36,43 @@ export async function resolveActiveOrganizationIdForSession(
   const organizationIds =
     await memberRepository.getMembersOrganizationIdsByUserId(userId, prisma);
   return organizationIds[0] ?? null;
+}
+
+export async function setPreferredOrganizationId(
+  userId: string,
+  organizationId: string | null,
+): Promise<void> {
+  if (!organizationId) {
+    const personalWorkspace = await prisma.workspace.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!personalWorkspace) {
+      throw notFound("Personal workspace is missing", {
+        kind: CORE_API_ERROR_KINDS.PERSONAL_WORKSPACE_MISSING,
+      });
+    }
+    await userRepository.updatePreferredOrganizationId(userId, null, prisma);
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+      userId,
+      organizationId,
+      tx,
+    );
+
+    if (!member) {
+      throw forbidden("The user is not a member of the organization", {
+        kind: CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED,
+      });
+    }
+
+    await userRepository.updatePreferredOrganizationId(
+      userId,
+      organizationId,
+      tx,
+    );
+  });
 }

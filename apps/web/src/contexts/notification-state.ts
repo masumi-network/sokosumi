@@ -1,5 +1,6 @@
 import {
   isBrowserOnlyNotification,
+  isMentionNotification,
   isNeedsActionNotification,
 } from "@sokosumi/utils";
 import type { NotificationItem } from "@/lib/clients/generated/core";
@@ -47,6 +48,15 @@ function mergeNotificationList(
   ].sort(byNewestFirst);
 }
 
+function isMention(notification: NotificationItem): boolean {
+  return isMentionNotification(notification.messageKey);
+}
+
+/** What a change to one row's read state does to the Mentions count. */
+function mentionsDelta(notification: NotificationItem, delta: number): number {
+  return isMention(notification) ? delta : 0;
+}
+
 function mergeUnreadCount(
   current: NotificationItem[],
   fetched: NotificationItem[],
@@ -70,17 +80,20 @@ function mergeUnreadCount(
 
 /**
  * Which rows the Notification Center shows: everything, only what is still
- * unread, or only what still needs the reader. A lens over the shared list,
- * held for the session: it never marks anything read and goes back to All
- * on reload.
+ * unread, only what still needs the reader, or only where someone named the
+ * reader. A lens over the shared list: it never marks anything read.
  */
-export type NotificationCenterView = "all" | "unread" | "needs-action";
+export type NotificationCenterView =
+  | "all"
+  | "unread"
+  | "needs-action"
+  | "mentions";
 
 /**
  * Whether a row the list already holds still belongs under `view`, as far as
  * the list can tell on its own. All keeps everything; Unread keeps unread
  * rows; Needs you keeps rows that asked, because whether they are still
- * asking is Core's to say on the next fetch.
+ * asking is Core's to say on the next fetch; Mentions keeps mentions.
  */
 function belongsToView(
   view: NotificationCenterView,
@@ -93,6 +106,8 @@ function belongsToView(
       return !notification.isRead;
     case "needs-action":
       return isNeedsActionNotification(notification.messageKey);
+    case "mentions":
+      return isMention(notification);
     default: {
       const _exhaustive: never = view;
       void _exhaustive;
@@ -106,6 +121,8 @@ export interface NotificationState {
   unreadCount: number;
   /** Rows whose request still waits on the reader. Core's number, as of the last fetch. */
   needsActionCount: number;
+  /** Unread mentions. Core's number on a fetch, moved by reads in between. */
+  mentionsCount: number;
 }
 
 export type NotificationAction =
@@ -114,6 +131,7 @@ export type NotificationAction =
       fetched: NotificationItem[];
       serverUnreadCount: number;
       serverNeedsActionCount: number;
+      serverMentionsCount: number;
       realtimeIds: ReadonlySet<string>;
       /** Whether Core has rows older than this page, which decides what the
           page is allowed to speak for. */
@@ -183,12 +201,17 @@ export function notificationReducer(
             )
           : [];
 
-      const readStateChanged = current.some((notification) =>
+      // A row read while the request was out makes Core's number stale.
+      // Each count asks only about its own rows, so a job read mid-fetch
+      // does not hold the Mentions count at its local value.
+      const changedDuringFetch = current.filter((notification) =>
         fetched.some(
           (row) =>
             row.id === notification.id && row.isRead !== notification.isRead,
         ),
       );
+      const readStateChanged = changedDuringFetch.length > 0;
+      const mentionReadStateChanged = changedDuringFetch.some(isMention);
 
       return {
         notifications: mergeNotificationList(current, fetched, kept),
@@ -198,6 +221,13 @@ export function notificationReducer(
           readStateChanged ? state.unreadCount : action.serverUnreadCount,
         ),
         needsActionCount: action.serverNeedsActionCount,
+        mentionsCount: mergeUnreadCount(
+          current.filter(isMention),
+          fetched.filter(isMention),
+          mentionReadStateChanged
+            ? state.mentionsCount
+            : action.serverMentionsCount,
+        ),
       };
     }
     case "load_older_success": {
@@ -236,13 +266,12 @@ export function notificationReducer(
       if (existing) {
         const wasUnread = !existing.isRead;
         const isUnread = !convertedNotification.isRead;
-        let unreadCount = state.unreadCount;
-
-        if (wasUnread && !isUnread) {
-          unreadCount = Math.max(0, unreadCount - 1);
-        } else if (!wasUnread && isUnread) {
-          unreadCount = unreadCount + 1;
-        }
+        const delta = Number(isUnread) - Number(wasUnread);
+        const unreadCount = Math.max(0, state.unreadCount + delta);
+        const mentionsCount = Math.max(
+          0,
+          state.mentionsCount + mentionsDelta(convertedNotification, delta),
+        );
 
         // Sorted rather than replaced in place. A room's row moves to the
         // top of the feed when a message counts onto it, and a list that kept
@@ -259,6 +288,7 @@ export function notificationReducer(
             )
             .sort(byNewestFirst),
           unreadCount,
+          mentionsCount,
         };
       }
 
@@ -295,6 +325,10 @@ export function notificationReducer(
           convertedNotification.isRead || !action.created
             ? state.unreadCount
             : state.unreadCount + 1,
+        mentionsCount:
+          convertedNotification.isRead || !action.created
+            ? state.mentionsCount
+            : state.mentionsCount + mentionsDelta(convertedNotification, 1),
       };
     }
     case "mark_read_optimistic": {
@@ -316,6 +350,10 @@ export function notificationReducer(
             : notification,
         ),
         unreadCount: Math.max(0, state.unreadCount - 1),
+        mentionsCount: Math.max(
+          0,
+          state.mentionsCount + mentionsDelta(existing, -1),
+        ),
       };
     }
     case "mark_unread_optimistic": {
@@ -335,6 +373,7 @@ export function notificationReducer(
             : notification,
         ),
         unreadCount: state.unreadCount + 1,
+        mentionsCount: state.mentionsCount + mentionsDelta(existing, 1),
       };
     }
     case "mark_unread_success": {
@@ -361,6 +400,10 @@ export function notificationReducer(
           shouldIncrementUnread && !action.updated.isRead
             ? state.unreadCount + 1
             : state.unreadCount,
+        mentionsCount:
+          shouldIncrementUnread && !action.updated.isRead
+            ? state.mentionsCount + mentionsDelta(action.updated, 1)
+            : state.mentionsCount,
       };
     }
     case "mark_read_success": {
@@ -384,6 +427,13 @@ export function notificationReducer(
           shouldDecrementUnread && action.updated.isRead
             ? Math.max(0, state.unreadCount - 1)
             : state.unreadCount,
+        mentionsCount:
+          shouldDecrementUnread && action.updated.isRead
+            ? Math.max(
+                0,
+                state.mentionsCount + mentionsDelta(action.updated, -1),
+              )
+            : state.mentionsCount,
       };
     }
     case "remove": {
@@ -409,6 +459,9 @@ export function notificationReducer(
         needsActionCount: isNeedsActionNotification(existing.messageKey)
           ? Math.max(0, state.needsActionCount - 1)
           : state.needsActionCount,
+        mentionsCount: existing.isRead
+          ? state.mentionsCount
+          : Math.max(0, state.mentionsCount + mentionsDelta(existing, -1)),
       };
     }
     case "reset_list": {
@@ -429,6 +482,7 @@ export function notificationReducer(
             : { ...notification, isRead: true, readAt },
         ),
         unreadCount: 0,
+        mentionsCount: 0,
       };
     }
     default: {

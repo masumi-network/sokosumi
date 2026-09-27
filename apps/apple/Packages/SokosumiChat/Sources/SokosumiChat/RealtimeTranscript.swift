@@ -61,34 +61,27 @@ public func resolveRealtimeEnvelope(
 
 /// In-place tombstone matching Core's mapped delete DTO and web
 /// `tombstoneChatRoomMessage`: body cleared, `deletedAt` set, chrome
-/// emptied. Identity, timestamps, sender, and thread counts stay.
+/// emptied. Identity, timestamps, sender and the thread reply bar stay.
 public func tombstoneTranscriptMessage(
   _ message: Components.Schemas.ChatRoomMessage,
   now: Date = Date()
 ) -> Components.Schemas.ChatRoomMessage {
-  .init(
-    id: message.id,
-    roomId: message.roomId,
-    parentMessageId: message.parentMessageId,
-    content: "",
-    createdAt: message.createdAt,
-    deletedAt: message.deletedAt ?? now,
-    editedAt: nil,
-    sender: message.sender,
-    mentions: [],
-    reactions: [],
-    threadReplyCount: message.threadReplyCount,
-    threadLastReplyAt: message.threadLastReplyAt,
-    metadata: nil,
-    quote: nil,
-    membership: nil,
-    unfurls: nil
-  )
+  var tombstone = message
+  tombstone.content = ""
+  tombstone.deletedAt = message.deletedAt ?? now
+  tombstone.editedAt = nil
+  tombstone.mentions = []
+  tombstone.reactions = []
+  tombstone.metadata = nil
+  tombstone.quote = nil
+  tombstone.membership = nil
+  tombstone.unfurls = nil
+  return tombstone
 }
 
 /// Client turn id on any transcript row: the `pending:` suffix for local
 /// shells, else Core's `client_message_id` metadata. Nil when absent.
-public func realtimeClientTurnId(_ message: Components.Schemas.ChatRoomMessage) -> String? {
+func realtimeClientTurnId(_ message: Components.Schemas.ChatRoomMessage) -> String? {
   if isOutboundLocalMessage(message) {
     let raw = message.id.dropFirst(outboundLocalIdPrefix.count).trimmingCharacters(in: .whitespacesAndNewlines)
     return raw.isEmpty ? nil : String(raw)
@@ -125,7 +118,7 @@ public func applyRealtimeFullEvent(
   }
   var next = messages
   if let index = next.firstIndex(where: { $0.id == message.id }) {
-    next[index] = message
+    next[index] = keepKnownThreadUnreadReplyCount(known: next[index], incoming: message)
   } else {
     next.append(message)
   }
@@ -154,7 +147,7 @@ public func applyRealtimeTombstone(
 /// rows win by id, oldest first. Rows missing from the page stay — merge
 /// never drops ids the list GET omits. Local-only rows never come over the
 /// wire, so they cannot leak in here.
-public func mergeRealtimePage(
+func mergeRealtimePage(
   messages: [Components.Schemas.ChatRoomMessage],
   page: [Components.Schemas.ChatRoomMessage]
 ) -> [Components.Schemas.ChatRoomMessage] {

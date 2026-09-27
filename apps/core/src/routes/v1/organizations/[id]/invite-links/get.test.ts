@@ -25,11 +25,11 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   resolveMemberOrganizationByIdMock,
-  listInviteLinksByOrganizationIdMock,
+  findManyInviteLinksMock,
   getWebAppBaseUrlMock,
 } = vi.hoisted(() => ({
   resolveMemberOrganizationByIdMock: vi.fn(),
-  listInviteLinksByOrganizationIdMock: vi.fn(),
+  findManyInviteLinksMock: vi.fn(),
   getWebAppBaseUrlMock: vi.fn(),
 }));
 
@@ -37,15 +37,10 @@ vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  organizationInviteLinkRepository: {
-    listInviteLinksByOrganizationId: (...args: unknown[]) =>
-      listInviteLinksByOrganizationIdMock(...args),
-  },
-}));
-
 vi.mock("@/lib/db/prisma", () => ({
-  default: {},
+  default: {
+    organizationInviteLink: { findMany: findManyInviteLinksMock },
+  },
 }));
 
 vi.mock("@/config/env", async (importOriginal) => {
@@ -132,7 +127,7 @@ describe("GET /organizations/{id}/invite-links", () => {
       organization: { id: orgId },
       role: MemberRole.OWNER,
     });
-    listInviteLinksByOrganizationIdMock.mockResolvedValue([]);
+    findManyInviteLinksMock.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -142,14 +137,14 @@ describe("GET /organizations/{id}/invite-links", () => {
   it("returns 401 when unauthenticated", async () => {
     const response = await getList(null);
     expect(response.status).toBe(401);
-    expect(listInviteLinksByOrganizationIdMock).not.toHaveBeenCalled();
+    expect(findManyInviteLinksMock).not.toHaveBeenCalled();
   });
 
   it("rejects a coworker/context actor", async () => {
     const response = await getList(COWORKER_AUTH_CONTEXT);
     expect(response.status).toBe(403);
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-    expect(listInviteLinksByOrganizationIdMock).not.toHaveBeenCalled();
+    expect(findManyInviteLinksMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when the caller is a plain member (not owner/admin)", async () => {
@@ -159,7 +154,7 @@ describe("GET /organizations/{id}/invite-links", () => {
 
     const response = await getList();
     expect(response.status).toBe(403);
-    expect(listInviteLinksByOrganizationIdMock).not.toHaveBeenCalled();
+    expect(findManyInviteLinksMock).not.toHaveBeenCalled();
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
       expect.objectContaining({
         id: orgId,
@@ -174,10 +169,10 @@ describe("GET /organizations/{id}/invite-links", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(listInviteLinksByOrganizationIdMock).toHaveBeenCalledWith(
-      orgId,
-      expect.anything(),
-    );
+    expect(findManyInviteLinksMock).toHaveBeenCalledWith({
+      where: { organizationId: orgId },
+      orderBy: { createdAt: "desc" },
+    });
     expect(body.data).toEqual([]);
   });
 
@@ -190,7 +185,7 @@ describe("GET /organizations/{id}/invite-links", () => {
     const createdAt = new Date("2026-07-20T12:00:00.000Z");
     const expiresAt = new Date("2026-07-27T12:00:00.000Z");
     const revokedAt = new Date("2026-07-21T12:00:00.000Z");
-    listInviteLinksByOrganizationIdMock.mockResolvedValue([
+    findManyInviteLinksMock.mockResolvedValue([
       liveLink({
         id: "link_mapped",
         token: "tok_mapped",
@@ -226,7 +221,7 @@ describe("GET /organizations/{id}/invite-links", () => {
     ]);
   });
 
-  it("preserves repository createdAt descending order", async () => {
+  it("preserves createdAt descending order", async () => {
     const newest = liveLink({
       id: "newest",
       token: "tok_newest",
@@ -246,12 +241,8 @@ describe("GET /organizations/{id}/invite-links", () => {
       createdAt: new Date("2026-07-20T12:00:00.000Z"),
     });
 
-    // Repository contract: already sorted by createdAt desc.
-    listInviteLinksByOrganizationIdMock.mockResolvedValue([
-      newest,
-      middle,
-      oldest,
-    ]);
+    // Query contract: already sorted by createdAt desc.
+    findManyInviteLinksMock.mockResolvedValue([newest, middle, oldest]);
 
     const response = await getList();
     const body = await response.json();

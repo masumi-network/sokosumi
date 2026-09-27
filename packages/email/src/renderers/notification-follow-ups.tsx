@@ -12,8 +12,10 @@ import type {
 } from "../types.js";
 import {
   buildGreeting,
+  footerNote,
   linkInstructions,
   nameOr,
+  type RichFn,
   type TranslateFn,
 } from "./notification-shared.js";
 
@@ -23,7 +25,16 @@ const FOLLOW_UP_SCOPE = "notifications.followUp";
 interface FollowUpEmailOptions {
   actionUrl: string;
   facts?: readonly ActionEmailFact[];
-  family: "billing" | "directMessage" | "mention" | "task";
+  family:
+    | "billing"
+    | "directMessage"
+    | "directMessageMany"
+    | "mention"
+    | "mentionMany"
+    | "task";
+  lang: string;
+  rich: RichFn;
+  settingsUrl?: null | string;
   quote?: null | string;
   /** Source-row catalog key; omitted when the catalog has no sentence for it. */
   reason?: null | string;
@@ -36,9 +47,12 @@ function renderFollowUpEmail({
   actionUrl,
   facts,
   family,
+  lang,
   quote,
   reason,
   recipientName,
+  rich,
+  settingsUrl,
   t,
   values,
 }: FollowUpEmailOptions): Promise<RenderedEmail> {
@@ -53,8 +67,9 @@ function renderFollowUpEmail({
     actionUrl,
     body,
     facts,
-    footer: t(`${FOLLOW_UP_SCOPE}.footer`),
+    footer: footerNote(rich, `${FOLLOW_UP_SCOPE}.footer`, settingsUrl),
     greeting: buildGreeting(t, recipientName),
+    lang,
     linkInstructions: linkInstructions(t),
     // Preheader uses the family line only when the body does; a reason
     // sentence would contradict it.
@@ -65,27 +80,54 @@ function renderFollowUpEmail({
   });
 }
 
-/** A mention in a named room that the reader never opened. */
+/**
+ * Whether this reminder stands for more rows than the one it was written
+ * from. A tally that is not a whole number above one reads as one.
+ */
+function standsForSeveral(unreadCount?: null | number): boolean {
+  return (
+    typeof unreadCount === "number" &&
+    Number.isInteger(unreadCount) &&
+    unreadCount > 1
+  );
+}
+
+/**
+ * A mention in a named room that the reader never opened.
+ *
+ * One mention is quoted, the way the event email quoted it. Several are
+ * counted and none is quoted, because no one of them speaks for the rest
+ * (SOK-1142).
+ */
 export function renderChatMentionFollowUpEmail({
   actionUrl,
   authorName,
   locale,
   messagePreview,
   recipientName,
+  settingsUrl,
   roomName,
+  unreadCount,
 }: ChatMentionFollowUpEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
+  const many = standsForSeveral(unreadCount);
+  const room = nameOr(t, roomName, "fallbackRoomName");
 
   return renderFollowUpEmail({
+    lang,
+    rich,
+    settingsUrl,
     actionUrl,
-    family: "mention",
-    quote: messagePreview,
+    family: many ? "mentionMany" : "mention",
+    quote: many ? null : messagePreview,
     recipientName,
     t,
-    values: {
-      authorName: nameOr(t, authorName, "fallbackAuthorName"),
-      roomName: nameOr(t, roomName, "fallbackRoomName"),
-    },
+    values: many
+      ? { count: String(unreadCount), roomName: room }
+      : {
+          authorName: nameOr(t, authorName, "fallbackAuthorName"),
+          roomName: room,
+        },
   });
 }
 
@@ -96,16 +138,25 @@ export function renderChatDirectMessageFollowUpEmail({
   locale,
   messagePreview,
   recipientName,
+  settingsUrl,
+  unreadCount,
 }: ChatDirectMessageFollowUpEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
+  const many = standsForSeveral(unreadCount);
+  const author = nameOr(t, authorName, "fallbackAuthorName");
 
   return renderFollowUpEmail({
+    lang,
+    rich,
+    settingsUrl,
     actionUrl,
-    family: "directMessage",
-    quote: messagePreview,
+    family: many ? "directMessageMany" : "directMessage",
+    quote: many ? null : messagePreview,
     recipientName,
     t,
-    values: { authorName: nameOr(t, authorName, "fallbackAuthorName") },
+    values: many
+      ? { authorName: author, count: String(unreadCount) }
+      : { authorName: author },
   });
 }
 
@@ -116,11 +167,15 @@ export function renderBillingFollowUpEmail({
   locale,
   reason,
   recipientName,
+  settingsUrl,
 }: BillingFollowUpEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
   const hasCredits = typeof credits === "number";
 
   return renderFollowUpEmail({
+    lang,
+    rich,
+    settingsUrl,
     actionUrl,
     family: "billing",
     reason: reason === "lowBalance" && !hasCredits ? null : reason,
@@ -138,12 +193,16 @@ export function renderTaskFollowUpEmail({
   projectName,
   reason,
   recipientName,
+  settingsUrl,
   taskName,
 }: TaskFollowUpEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
   const trimmedProjectName = projectName?.trim();
 
   return renderFollowUpEmail({
+    lang,
+    rich,
+    settingsUrl,
     actionUrl,
     facts: trimmedProjectName
       ? [

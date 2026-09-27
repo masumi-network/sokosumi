@@ -32,6 +32,7 @@ import {
   aroundWindowPaginationMeta,
   listChatRoomMessagesAround,
 } from "../../message-window-around";
+import { getChatRoomThreadAggregates } from "../../room-unread";
 
 const paramsSchema = z.object({
   id: z
@@ -104,6 +105,33 @@ const route = withOrganizationSlugHeaderParameter(
   }),
 );
 
+/**
+ * The viewer's unread reply count per thread parent in this room. One gated
+ * query per request rather than a per-message N+1. It reads every unread
+ * thread in the room, not only this page's parents: that set is small, and
+ * the aggregates are already Participant- and mute-gated, so this cannot
+ * disagree with the room's thread unread number.
+ */
+async function getUnreadReplyCountByParent(
+  roomId: string,
+  userId: string,
+  messages: ReadonlyArray<{ _count: { replies: number } }>,
+): Promise<Map<string, number>> {
+  // Most pages hold no thread parent, and then nothing can be unread.
+  if (!messages.some((message) => message._count.replies > 0)) {
+    return new Map();
+  }
+  const aggregates = await getChatRoomThreadAggregates(roomId, userId, prisma, {
+    unreadOnly: true,
+  });
+  return new Map(
+    aggregates.map((aggregate) => [
+      aggregate.parentMessageId,
+      aggregate.unreadReplyCount,
+    ]),
+  );
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
@@ -117,11 +145,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unprocessableEntity("around cannot be combined with q or cursor");
     }
 
-    // Avoid interactive transaction on this read-only path — room page loads
-    // messages in parallel with room + members (SOKOSUMI-Q9). Membership gate
-    // + page query do not need a shared snapshot. Concurrent findMany/count on
-    // the default client is fine; Promise.all inside interactive txs is not
-    // (#2559).
     await requireChatRoomUserMembership(id, userContext.userId, prisma);
     // Shared per-user budget across rooms and credentials (SOK-1060). Runs
     // after authorization so 401/403/404 keep their status, before the reads
@@ -164,13 +187,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         count,
         hasMoreOlder,
       );
+      const unreadByParent = await getUnreadReplyCountByParent(
+        id,
+        userContext.userId,
+        messages,
+      );
       return ok(
         c,
         z
           .array(chatRoomMessageSchema)
           .parse(
             messages.map((message) =>
-              mapChatRoomMessage(message, userContext.userId),
+              mapChatRoomMessage(
+                message,
+                userContext.userId,
+                unreadByParent.get(message.id) ?? 0,
+              ),
             ),
           ),
         paginationMeta,
@@ -232,13 +264,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
+    // Search is not a live timeline: hits carry no unread reply count.
+    const unreadByParent = searchQuery
+      ? new Map<string, number>()
+      : await getUnreadReplyCountByParent(
+          id,
+          userContext.userId,
+          orderedMessages,
+        );
+
     return ok(
       c,
       z
         .array(chatRoomMessageSchema)
         .parse(
           orderedMessages.map((message) =>
-            mapChatRoomMessage(message, userContext.userId),
+            mapChatRoomMessage(
+              message,
+              userContext.userId,
+              unreadByParent.get(message.id) ?? 0,
+            ),
           ),
         ),
       paginationMeta,

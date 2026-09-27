@@ -11,11 +11,12 @@ export function AssigneeAvatar({
   size = "sm",
 }: {
   assignee: TaskAssigneeView | null | undefined;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 }) {
   const image = getCoworkerImage(assignee);
-  const sizeClass = size === "sm" ? "size-5" : "size-6";
-  const orbSize = size === "sm" ? 20 : 24;
+  const sizeClass =
+    size === "sm" ? "size-5" : size === "md" ? "size-6" : "size-8";
+  const orbSize = size === "sm" ? 20 : size === "md" ? 24 : 32;
 
   if (
     assignee?.kind === "sokoBot" &&

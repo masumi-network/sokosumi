@@ -2,9 +2,7 @@ import Combine
 import CoreAPI
 import Foundation
 
-public typealias NotificationPreferenceCell = Components.Schemas.NotificationPreference
-
-/// The three chat rows of web's notification matrix (Account → Notifications → Chat).
+/// The three chat rows of the notification matrix (Account → Notifications → Chat).
 public enum ChatNotificationKind: String, CaseIterable, Identifiable, Sendable {
   case roomMessage = "CHAT_ROOM_MESSAGE"
   case mention = "CHAT_MENTION"
@@ -14,7 +12,7 @@ public enum ChatNotificationKind: String, CaseIterable, Identifiable, Sendable {
     rawValue
   }
 
-  var category: NotificationPreferenceCell.CategoryPayload {
+  var category: Components.Schemas.NotificationPreference.CategoryPayload {
     switch self {
     case .roomMessage: .chatRoomMessage
     case .mention: .chatMention
@@ -23,9 +21,8 @@ public enum ChatNotificationKind: String, CaseIterable, Identifiable, Sendable {
   }
 }
 
-/// How far one kind reaches (web `Reach`). A banner carries the in-app entry
-/// with it in both directions (web `withChannel`), so these three are every
-/// pairing the row offers.
+/// How far one kind reaches. A banner carries the in-app entry with it in
+/// both directions, so these three are every pairing the row offers.
 public enum ChatNotificationReach: String, CaseIterable, Identifiable, Sendable {
   case off
   case inApp
@@ -35,7 +32,7 @@ public enum ChatNotificationReach: String, CaseIterable, Identifiable, Sendable 
     rawValue
   }
 
-  var channels: Set<NotificationPreferenceCell.ChannelPayload> {
+  var channels: Set<Components.Schemas.NotificationPreference.ChannelPayload> {
     switch self {
     case .off: []
     case .inApp: [.inApp]
@@ -44,7 +41,7 @@ public enum ChatNotificationReach: String, CaseIterable, Identifiable, Sendable 
   }
 }
 
-/// One situation the chat group can be in (web `PresetSpec`, Chat group).
+/// One situation the chat group can be in.
 public enum ChatNotificationPreset: String, CaseIterable, Identifiable, Sendable {
   case most
   case essential
@@ -65,14 +62,14 @@ public enum ChatNotificationPreset: String, CaseIterable, Identifiable, Sendable
   }
 }
 
-/// Account-synced chat delivery preferences: web's notification matrix cut to
+/// Account-synced chat delivery preferences: the notification matrix cut to
 /// the chat rows. Follows `ChatDisplayPreferences`: optimistic write with
 /// rollback, single flight, and generation guards against stale reads and
 /// results that outlive sign-out.
 @MainActor
 public final class ChatNotificationPreferences: ObservableObject {
   /// The whole resolved matrix as Core answered it; only chat cells are written.
-  @Published public private(set) var cells: [NotificationPreferenceCell] = []
+  @Published public private(set) var cells: [Components.Schemas.NotificationPreference] = []
   /// Account-wide consent; Core sends no OS banner without it, whatever the cells say.
   @Published public private(set) var pushOptIn = false
   @Published public private(set) var isLoaded = false
@@ -141,7 +138,7 @@ public final class ChatNotificationPreferences: ObservableObject {
   /// the preference is the account's, not this Mac's.
   public func setReach(_ changes: [ChatNotificationKind: ChatNotificationReach], client: Client, authorize: () async -> Void) async throws {
     guard isLoaded, !isSaving else { return }
-    let written: [NotificationPreferenceCell] = cells.compactMap { cell in
+    let written: [Components.Schemas.NotificationPreference] = cells.compactMap { cell in
       guard let kind = ChatNotificationKind.allCases.first(where: { $0.category == cell.category }),
             let reach = changes[kind], cell.channel != .email else { return nil }
       return .init(category: cell.category, channel: cell.channel, enabled: reach.channels.contains(cell.channel))
@@ -189,7 +186,7 @@ public final class ChatNotificationPreferences: ObservableObject {
     }
   }
 
-  private func enabledChannels(for kind: ChatNotificationKind) -> Set<NotificationPreferenceCell.ChannelPayload> {
+  private func enabledChannels(for kind: ChatNotificationKind) -> Set<Components.Schemas.NotificationPreference.ChannelPayload> {
     Set(cells.filter { $0.category == kind.category && $0.enabled && $0.channel != .email }.map(\.channel))
   }
 }

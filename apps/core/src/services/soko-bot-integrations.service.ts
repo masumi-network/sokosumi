@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import {
+  ComposioToolkitNotFoundError,
+  ComposioToolNotFoundError,
+} from "@composio/core";
 import { Prisma } from "@sokosumi/database";
 import {
   getSokoBotIntegrationProvider,
@@ -38,6 +42,13 @@ export function composioEntityId(sokoBotId: string): string {
   return `sokobot:${sokoBotId}`;
 }
 
+function isComposioMissingResource(error: unknown): boolean {
+  return (
+    error instanceof ComposioToolNotFoundError ||
+    error instanceof ComposioToolkitNotFoundError
+  );
+}
+
 /** Any failure talking to Composio surfaces with its message instead of a 500. */
 export async function withComposio<T>(
   what: string,
@@ -59,7 +70,10 @@ export async function withComposio<T>(
         // Not JSON after all; keep the raw text.
       }
     }
-    throw new SokoBotIntegrationError(`Composio (${what}): ${message}`);
+    throw new SokoBotIntegrationError(
+      `Composio (${what}): ${message}`,
+      isComposioMissingResource(error) ? "NOT_FOUND" : "UPSTREAM",
+    );
   }
 }
 
@@ -184,13 +198,21 @@ async function lookupToolkit(
 ): Promise<{ name: string; logoUrl: string | null }> {
   const composio = requireComposio();
   try {
-    const toolkit = await composio.toolkits.get(slug);
+    const toolkit = await withComposio("toolkit", () =>
+      composio.toolkits.get(slug),
+    );
     return { name: toolkit.name, logoUrl: toolkit.meta?.logo ?? null };
-  } catch {
-    return {
-      name: getSokoBotIntegrationProvider(slug)?.name ?? slug,
-      logoUrl: null,
-    };
+  } catch (error) {
+    if (
+      error instanceof SokoBotIntegrationError &&
+      error.kind === "NOT_FOUND"
+    ) {
+      return {
+        name: getSokoBotIntegrationProvider(slug)?.name ?? slug,
+        logoUrl: null,
+      };
+    }
+    throw error;
   }
 }
 

@@ -13,7 +13,10 @@ export const betterAuthUserAdditionalFields = {
     required: true,
     defaultValue: true,
   },
-  showRoomUnreadCount: {
+  // The sidebar's unread message count is shown unless the reader switched it
+  // off (ADR-0038). Stored as "hide" so false, which every reader holds, means
+  // shown.
+  hideRoomUnreadCount: {
     type: "boolean",
     required: false,
     defaultValue: false,

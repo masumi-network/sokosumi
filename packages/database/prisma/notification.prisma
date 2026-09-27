@@ -5,7 +5,7 @@ model Notification {
   workspaceId        String?          @db.Uuid
   workspace          Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   organizationId     String?
-  organizationMember Member?          @relation("NotificationOrganizationMember", fields: [userId, organizationId], references: [userId, organizationId], onDelete: Cascade)
+  organizationMember Member?          @relation("NotificationOrganizationMember", fields: [userId, organizationId], references: [userId, organizationId], onDelete: Cascade, map: "notification_organization_member_fkey")
   kind               NotificationKind
   referenceId        String
   eventId            String

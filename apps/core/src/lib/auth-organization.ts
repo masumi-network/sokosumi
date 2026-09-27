@@ -19,10 +19,6 @@ import {
   publishOrganizationExitChatRevocation,
 } from "@/helpers/chat-room-organization-exit";
 import {
-  evaluateOrganizationDeletion,
-  throwIfOrganizationDeletionBlocked,
-} from "@/helpers/deletion-evaluate";
-import {
   applyDesignMdMetadataGuardToOrganizationCreate,
   applyDesignMdMetadataGuardToOrganizationUpdate,
 } from "@/helpers/design-md-metadata-auth";
@@ -30,6 +26,7 @@ import {
   ensurePersonalWorkspaceForOrganizationMembership,
   pinPreferredOrganizationIfUnset,
 } from "@/helpers/org-membership-personal-workspace";
+import { prepareOrganizationForDeletion } from "@/helpers/organization-deletion";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import prisma from "@/lib/db/prisma";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
@@ -194,18 +191,11 @@ export function createAuthOrganizationPlugin() {
         ]);
       },
       beforeDeleteOrganization: async ({ organization, user }) => {
-        const evaluation = await evaluateOrganizationDeletion(
+        organization.stripeCustomerId = await prepareOrganizationForDeletion(
           organization.id,
           user.id,
           prisma,
         );
-        throwIfOrganizationDeletionBlocked(evaluation);
-        const organizationCustomer = await prisma.organization.findUnique({
-          where: { id: organization.id },
-          select: { stripeCustomerId: true },
-        });
-        organization.stripeCustomerId =
-          organizationCustomer?.stripeCustomerId ?? null;
       },
       afterDeleteOrganization: async ({ organization }) => {
         waitUntil(

@@ -2,6 +2,13 @@ import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+// ProjectsMenuItem and the chat rows call useSession. The real better-auth
+// session atom schedules a nanostores unmount timer that can fire after
+// happy-dom tears down `window`.
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null }),
+}));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/chat",
   useSearchParams: () => new URLSearchParams(),
@@ -119,7 +126,7 @@ function renderSidebar() {
             <PersonalAssistantNav
               bot={{ id: "bot-1", imageUrl: null, seed: "seed" }}
             />
-            <MenuItems calendarMenuEnabled />
+            <MenuItems />
             <OrganizationChatList
               rooms={rooms}
               archivedRooms={archivedRooms}

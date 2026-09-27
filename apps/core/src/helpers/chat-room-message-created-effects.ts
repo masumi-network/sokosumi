@@ -21,7 +21,14 @@ interface Reader {
   }[];
 }
 
-/** Whether a notification of this category would reach the reader at all. */
+/**
+ * Whether a notification of this category would reach the reader at all.
+ *
+ * All three channels, because the email is sent off the notification row: a
+ * reader who turned the email on and left the two in-app channels off has no
+ * row written for them, so nothing dispatches and the cell they pressed
+ * reaches nothing (SOK-1142).
+ */
 function arrives(reader: Reader, category: NotificationCategory): boolean {
   const delivery = resolveNotificationDelivery({
     category,
@@ -29,7 +36,7 @@ function arrives(reader: Reader, category: NotificationCategory): boolean {
     pushOptIn: reader.pushOptIn,
   });
 
-  return delivery.inApp || delivery.osBanner;
+  return delivery.inApp || delivery.osBanner || delivery.email;
 }
 
 export interface ChatRoomMessageCreatedEffectsParams {
@@ -69,10 +76,11 @@ export interface ChatRoomMessageCreatedEffectsParams {
  * message would otherwise hear about every message in the room except the one
  * addressed to them.
  *
- * The rest are kept only when this category would reach them, asked through
- * the same `resolveNotificationDelivery` that decides delivery at write time.
- * A gate that asked a looser question would write a notification row per member
- * per message that no surface ever shows.
+ * The rest are kept only when this category would reach them on some channel,
+ * asked through the same `resolveNotificationDelivery` that decides delivery
+ * at write time. A gate that asked a looser question would write a
+ * notification row per member per message that no surface ever shows; one that
+ * asked a narrower question would drop the rows the email is sent off.
  */
 export async function emitChatRoomMessageCreatedEffects(
   params: ChatRoomMessageCreatedEffectsParams,

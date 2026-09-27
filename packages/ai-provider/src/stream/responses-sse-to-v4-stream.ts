@@ -11,6 +11,7 @@ import {
 } from "@sokosumi/utils";
 
 import { extractTextFromCompletedOutput } from "../completed-output-text.js";
+import { isRecord } from "../is-record.js";
 
 const SSE_DATA_PREFIX = "data: ";
 const SSE_DONE_MARKER = "[DONE]";
@@ -60,10 +61,6 @@ type SseChunk = {
 };
 
 type ReactEnvelopeState = "idle" | "inEnvelope" | "afterEnvelope";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function isPreviewableImageUrl(imageUrl: string): boolean {
   if (DATA_IMAGE_URL_REGEX.test(imageUrl)) {

@@ -9,6 +9,7 @@ import {
   formatParticipantNameList,
   linkifyChannelLinksInMarkdown,
 } from "@sokosumi/utils";
+import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import type {
   MentionSuggestionGroup,
@@ -18,6 +19,7 @@ import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomMessageSender,
   ChatRoomPresence,
   ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
@@ -384,8 +386,15 @@ export function pendingQuoteFromMessage(
 }
 
 export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
-  if (message.sender.type === "user") {
-    const user = message.sender.user;
+  return senderProfile(message.sender);
+}
+
+/** A message sender or thread replier, resolved for an avatar and a name. */
+export function senderProfile(
+  sender: ChatRoomMessageSender,
+): MessageSenderProfile {
+  if (sender.type === "user") {
+    const user = sender.user;
     return {
       kind: "human",
       id: user.id,
@@ -395,8 +404,8 @@ export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
       presence: user.presence,
     };
   }
-  if (message.sender.type === "coworker") {
-    const coworker = message.sender.coworker;
+  if (sender.type === "coworker") {
+    const coworker = sender.coworker;
     return {
       kind: "coworker",
       id: coworker.id,
@@ -407,8 +416,8 @@ export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
       presence: coworker.presence,
     };
   }
-  if (message.sender.type === "sokoBot") {
-    const sokoBot = message.sender.sokoBot;
+  if (sender.type === "sokoBot") {
+    const sokoBot = sender.sokoBot;
     return {
       kind: "sokoBot",
       id: sokoBot.id,
@@ -428,17 +437,25 @@ export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
 
 /** Stable sender identity for grouping; null when identity is unknown. */
 export function messageSenderKey(message: ChatRoomMessage): string | null {
-  if (message.sender.type === "user") {
-    return `user:${message.sender.user.id}`;
+  return senderKey(message.sender);
+}
+
+/** Stable identity of a sender or thread replier; null when unknown. */
+export function senderKey(sender: ChatRoomMessageSender): string | null {
+  if (sender.type === "user") {
+    return `user:${sender.user.id}`;
   }
-  if (message.sender.type === "coworker") {
-    return `coworker:${message.sender.coworker.id}`;
+  if (sender.type === "coworker") {
+    return `coworker:${sender.coworker.id}`;
   }
-  if (message.sender.type === "sokoBot") {
-    return `sokoBot:${message.sender.sokoBot.id}`;
+  if (sender.type === "sokoBot") {
+    return `sokoBot:${sender.sokoBot.id}`;
   }
   return null;
 }
+
+/** Faces on a thread reply bar. Core caps `threadRepliers` at the same. */
+export const THREAD_REPLY_FACE_CAP = 3;
 
 /**
  * True when `current` should render as a Slack-style continuation of `previous`
@@ -453,8 +470,8 @@ export function isMessageContinuation(
     return false;
   }
 
-  // Membership status rows are not chat bubbles; never continue across them.
-  if (previous.membership != null || current.membership != null) {
+  // Room status rows are not chat bubbles; never continue across them.
+  if (isRoomStatusMessage(previous) || isRoomStatusMessage(current)) {
     return false;
   }
 
@@ -651,6 +668,10 @@ export function getRoomDisplayName(
   }
   if (room.kind !== "direct") {
     return room.name;
+  }
+  // Core only lets a group Direct carry one, and every member sees the same.
+  if (room.groupName) {
+    return room.groupName;
   }
   return formatDirectParticipantNames(
     getDirectRoomParticipants(room, currentUserId),

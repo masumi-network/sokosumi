@@ -56,13 +56,6 @@ const PNPM_BUILTINS = new Set([
   "why",
 ]);
 
-/**
- * Historical commands that docs cite as history rather than instruction — an
- * ADR explaining what a build used to do still has to name it. Keep this list
- * short: an entry here is a command a reader can no longer run.
- */
-const ALLOWED_HISTORICAL = new Set(["database:build"]);
-
 async function collectMarkdownFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = [];
@@ -173,7 +166,6 @@ describe("docs reference scripts that exist", () => {
           if (template) continue;
           if (script === "run") continue; // bare `pnpm run`, describing the CLI
           if (PNPM_BUILTINS.has(script)) continue;
-          if (ALLOWED_HISTORICAL.has(script)) continue;
 
           // `pnpm run <script>` in a package's own README/AGENTS.md means that
           // package's script — the one form specific enough to resolve, and
@@ -198,7 +190,7 @@ describe("docs reference scripts that exist", () => {
     assert.deepEqual(
       unknown,
       [],
-      `Docs name pnpm scripts that no workspace defines. Update the doc, or add the name to ALLOWED_HISTORICAL when it is deliberately historical:\n${unknown.join("\n")}`,
+      `Docs name pnpm scripts that no workspace defines. Update the doc so it names a live script:\n${unknown.join("\n")}`,
     );
   });
 });

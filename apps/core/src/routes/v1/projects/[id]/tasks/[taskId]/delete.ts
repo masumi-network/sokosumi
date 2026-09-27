@@ -5,8 +5,6 @@ import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
-import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -53,7 +51,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireOwnerUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, taskId } = c.req.valid("param");
 
@@ -71,8 +69,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       select: {
         pendingVendorGrantId: true,
         status: true,
-        metadata: true,
-        nextRunAt: true,
         workspaceId: true,
       },
     });
@@ -83,27 +79,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireTaskNotParked(task);
 
     await prisma.$transaction(async (tx) => {
-      if (!(await lockCalendarScope(tx, workspaceId, [projectId]))) {
+      if (
+        !(await lockCalendarScope(
+          tx,
+          workspaceId,
+          [projectId],
+          userContext.userId,
+        ))
+      ) {
         throw notFound("Project or task link not found");
       }
       if (!(await lockTaskRows(tx, [taskId]))) {
         throw notFound("Project or task link not found");
       }
-      // Unlinking moves the Calendar source back to workspace scope (SOK-887).
-      // Re-read under the locks so a series armed after the pre-transaction
-      // read cannot slip past this guard.
-      const lockedTask = await tx.task.findUnique({
-        where: { id: taskId },
-        select: { metadata: true, nextRunAt: true },
-      });
-      if (!lockedTask) {
-        throw notFound("Project or task link not found");
-      }
-      assertTaskScheduleInactive(
-        lockedTask,
-        "Remove the schedule before removing this Task from its project",
-      );
-
       const unlinkResult = await tx.task.updateMany({
         where: { id: taskId, projectId, workspaceId, archivedAt: null },
         data: { projectId: null },
@@ -111,21 +99,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (unlinkResult.count === 0) {
         throw notFound("Project or task link not found");
       }
-      const updatedTask = await tx.task.findUnique({
-        where: { id: taskId },
-        select: {
-          id: true,
-          workspaceId: true,
-          projectId: true,
-          status: true,
-          metadata: true,
-          nextRunAt: true,
-        },
-      });
-      if (!updatedTask) {
-        throw notFound("Project or task link not found");
-      }
-      await refreshTaskSchedulePlannedOccurrences(tx, updatedTask);
     });
     await deliverCalendarInvalidationsNow(workspaceId);
 

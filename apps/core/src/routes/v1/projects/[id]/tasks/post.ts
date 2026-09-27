@@ -5,8 +5,6 @@ import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
-import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -60,7 +58,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireOwnerUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     const body = c.req.valid("json");
@@ -80,8 +78,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         projectId: true,
         pendingVendorGrantId: true,
         status: true,
-        metadata: true,
-        nextRunAt: true,
         workspaceId: true,
       },
     });
@@ -97,28 +93,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (task.projectId !== projectId) {
       await prisma.$transaction(async (tx) => {
-        if (!(await lockCalendarScope(tx, workspaceId, [projectId]))) {
+        if (
+          !(await lockCalendarScope(
+            tx,
+            workspaceId,
+            [projectId],
+            userContext.userId,
+          ))
+        ) {
           throw notFound("Project not found");
         }
         if (!(await lockTaskRows(tx, [body.taskId]))) {
           throw notFound("Task not found");
         }
-        // Moving a Calendar source between project and workspace scope belongs
-        // to SOK-887; an active series is managed through the schedule
-        // endpoints. Re-read under the locks so a series armed after the
-        // pre-transaction read cannot slip past this guard.
-        const lockedTask = await tx.task.findUnique({
-          where: { id: body.taskId },
-          select: { metadata: true, nextRunAt: true },
-        });
-        if (!lockedTask) {
-          throw notFound("Task not found");
-        }
-        assertTaskScheduleInactive(
-          lockedTask,
-          "Remove the schedule before moving this Task into a project",
-        );
-
         const projectAssignment = await tx.task.updateMany({
           where: {
             id: body.taskId,
@@ -134,21 +121,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (projectAssignment.count === 0) {
           throw conflict("Task changed during project assignment");
         }
-        const updatedTask = await tx.task.findUnique({
-          where: { id: body.taskId },
-          select: {
-            id: true,
-            workspaceId: true,
-            projectId: true,
-            status: true,
-            metadata: true,
-            nextRunAt: true,
-          },
-        });
-        if (!updatedTask) {
-          throw notFound("Task not found");
-        }
-        await refreshTaskSchedulePlannedOccurrences(tx, updatedTask);
       });
       await deliverCalendarInvalidationsNow(workspaceId);
     }

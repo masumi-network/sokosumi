@@ -52,6 +52,8 @@ export interface JobFailureNotificationEmailProps extends LocalizedEmailProps {
 export interface NotificationEmailProps extends LocalizedEmailProps {
   actionUrl: string;
   recipientName?: null | string;
+  /** Notification settings page, linked from the footer note. */
+  settingsUrl?: null | string;
 }
 
 interface QuotedChatMessage {
@@ -78,7 +80,7 @@ export type TaskAttentionReason =
   | "authenticationRequired"
   | "inputRequired"
   | "outOfCredits"
-  | "scheduleRemovedByOperator";
+  | "participantAdded";
 
 interface TaskEmailProps extends NotificationEmailProps {
   /** Whoever the task is waiting on the reader for, or who finished it. */
@@ -92,16 +94,10 @@ export interface TaskAttentionEmailProps extends TaskEmailProps {
   reason: TaskAttentionReason;
 }
 
-export type TaskUpdateReason =
-  | "failed"
-  | "canceled"
-  | "scheduleRepaired"
-  | "scheduleRemovedByOperator"
-  | "scheduleUpdatedByMember"
-  | "scheduleRemovedByMember"
-  | "scheduleSourceChangedByMember"
-  | "scheduleOccurrenceChangedByMember";
+/** Catalog keys for task updates, plus `updated` as the fallback for unknown keys. */
+export type TaskUpdateReason = "failed" | "canceled" | "updated";
 
+/** A task changed without asking anything of the reader (SOK-1090, SOK-1142). */
 export interface TaskUpdateEmailProps extends TaskEmailProps {
   reason: TaskUpdateReason;
 }
@@ -114,6 +110,21 @@ export interface ProjectUpdateEmailProps extends NotificationEmailProps {
 /** A task that finished (SOK-1090). */
 export type TaskCompletedEmailProps = TaskEmailProps;
 
+/**
+ * Unread messages wait in a room the reader is in (SOK-1142).
+ *
+ * One unread message is shown the way a mention is: who wrote, and what they
+ * wrote. Several are counted instead, because no one of them speaks for the
+ * rest. `unreadCount` is how many the email stands for at the moment it is
+ * handed to the sender, so an email that is rescheduled is rendered again.
+ */
+export interface ChatRoomMessageEmailProps extends NotificationEmailProps {
+  authorName?: null | string;
+  messagePreview?: null | string;
+  roomName?: null | string;
+  unreadCount?: null | number;
+}
+
 export type AccessRequestKind = "coworker" | "vendor";
 
 /** Someone asked for access to a workspace the reader manages (SOK-1090). */
@@ -122,10 +133,27 @@ export interface AccessRequestEmailProps extends NotificationEmailProps {
   requesterName?: null | string;
 }
 
-/** The reminders (SOK-916), a day after the emails above went unread. */
-export type ChatMentionFollowUpEmailProps = ChatMentionEmailProps;
+/**
+ * How many rows a chat reminder speaks for, when it speaks for more than the
+ * one it was written from.
+ *
+ * The reminder is one per room per day, so it can stand for several unread
+ * rows. One of them is shown the way the event email showed it: who wrote,
+ * and what they wrote. Several are counted instead, because no one of them
+ * speaks for the rest (SOK-1142).
+ */
+interface ChatFollowUpCount {
+  unreadCount?: null | number;
+}
 
-export type ChatDirectMessageFollowUpEmailProps = ChatDirectMessageEmailProps;
+/** The reminders (SOK-916), a day after the emails above went unread. */
+export interface ChatMentionFollowUpEmailProps
+  extends ChatMentionEmailProps,
+    ChatFollowUpCount {}
+
+export interface ChatDirectMessageFollowUpEmailProps
+  extends ChatDirectMessageEmailProps,
+    ChatFollowUpCount {}
 
 export interface TaskFollowUpEmailProps extends TaskEmailProps {
   reason?: null | TaskAttentionReason;

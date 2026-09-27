@@ -39,7 +39,6 @@ test("filters agents by searchable fields and applies a limit", async () => {
       }) as T,
     post: async <T>() => ({ data: null }) as T,
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
     client,
@@ -58,7 +57,6 @@ test("agents list emits a stable JSON collection", async () => {
     get: async <T>() => ({ data: [createAgent()] }) as T,
     post: async <T>() => ({ data: null }) as T,
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
     client,
@@ -84,7 +82,6 @@ test("agents hire fetches the input schema and posts a job", async () => {
       } as T;
     },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   const output: string[] = [];
   await runAgentsCommand({
@@ -111,7 +108,6 @@ test("agents hire requires an agent id and input", async () => {
     get: async <T>() => ({ data: {} }) as T,
     post: async <T>() => ({ data: {} }) as T,
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   await assert.rejects(
     () =>
@@ -144,7 +140,6 @@ test("agents hire forwards max-credits and name to the job request", async () =>
       return { data: { id: "job-1", agentId: "agent-1" } } as T;
     },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
     client,
@@ -170,7 +165,6 @@ test("agents hire reads input from a file", async () => {
       return { data: { id: "job-1", agentId: "agent-1" } } as T;
     },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
     client,

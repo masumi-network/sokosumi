@@ -19,6 +19,7 @@ function buildTask(
     updatedAt: "2026-03-01T00:00:00.000Z",
     jobsCount: 0,
     commentsCount: 0,
+    participants: [],
     columnId: "todo" as const,
     events: [],
     agents: [],

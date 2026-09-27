@@ -2,14 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getWorkspaceCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
-const listCoworkersMock = vi.fn();
-const listTaskAssigneeMemberOptionsMock = vi.fn();
-const getCoworkerOptionsMock = vi.fn();
+const listTaskAssigneeOptionsMock = vi.fn();
 const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const getSessionMock = vi.fn();
-const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
@@ -27,11 +24,6 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
 }));
 
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
-}));
-
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
     getWorkspaceCalendar: (query: unknown) => getWorkspaceCalendarMock(query),
@@ -39,10 +31,9 @@ vi.mock("@/lib/services/task.service", () => ({
   },
 }));
 
-vi.mock("@/lib/services/coworker.service", () => ({
-  coworkerService: {
-    listCoworkers: () => listCoworkersMock(),
-  },
+vi.mock("@/app/tasks/utils/task-assignee-options", () => ({
+  listTaskAssigneeOptions: (organizationId: string | null) =>
+    listTaskAssigneeOptionsMock(organizationId),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -56,16 +47,6 @@ vi.mock("@/lib/services/project.service", () => ({
 vi.mock("@/lib/helpers/project-filter-options", () => ({
   getProjectFilterOptions: (projectId?: string) =>
     getProjectFilterOptionsMock(projectId),
-}));
-
-vi.mock("@/app/tasks/utils/task-assignee-members", () => ({
-  listTaskAssigneeMemberOptions: (organizationId: string | null) =>
-    listTaskAssigneeMemberOptionsMock(organizationId),
-}));
-
-vi.mock("@/app/tasks/utils/coworker-options", () => ({
-  getCoworkerOptions: (coworkers: unknown[]) =>
-    getCoworkerOptionsMock(coworkers),
 }));
 
 import {
@@ -93,6 +74,26 @@ describe("resolveCalendarPageQuery", () => {
     expect(result.range.to).toBeInstanceOf(Date);
   });
 
+  it("starts Agenda at today in the selected timezone and spans the supported horizon", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-23T01:00:00Z"));
+    try {
+      const result = resolveCalendarPageQuery(
+        "2025-01-01",
+        undefined,
+        "agenda",
+        "America/Los_Angeles",
+      );
+      expect(result.initialDate).toBe("2026-09-22");
+      expect(result.range.from.toISOString()).toBe("2026-09-22T07:00:00.000Z");
+      expect(result.range.to.getTime() - result.range.from.getTime()).toBe(
+        90 * 24 * 60 * 60 * 1000,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("drops an unknown status filter", () => {
     const result = resolveCalendarPageQuery(undefined, "not-a-status");
 
@@ -106,19 +107,16 @@ describe("loadCalendarPageContext", () => {
     getWorkspaceCalendarSourcesMock.mockResolvedValue([
       { sourceId: "project:1" },
     ]);
-    listCoworkersMock.mockResolvedValue([{ id: "coworker-1" }]);
-    listTaskAssigneeMemberOptionsMock.mockResolvedValue([
+    listTaskAssigneeOptionsMock.mockResolvedValue([
       { id: "user-1", kind: "user" },
-    ]);
-    getCoworkerOptionsMock.mockReturnValue([
       { id: "coworker-1", kind: "coworker" },
     ]);
   });
 
-  it("joins member options with coworker options and returns sources", async () => {
+  it("loads Core-backed task assignee options with sources", async () => {
     const result = await loadCalendarPageContext("org-1");
 
-    expect(listTaskAssigneeMemberOptionsMock).toHaveBeenCalledWith("org-1");
+    expect(listTaskAssigneeOptionsMock).toHaveBeenCalledWith("org-1");
     expect(result.sources).toEqual([{ sourceId: "project:1" }]);
     expect(result.coworkerOptions).toEqual([
       { id: "user-1", kind: "user" },
@@ -144,7 +142,6 @@ describe("loadCalendarPageContext", () => {
 describe("loadWorkspaceCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
       user: { id: "user-1" },
@@ -170,9 +167,7 @@ describe("loadWorkspaceCalendarPage", () => {
         isSchedulable: false,
       },
     ]);
-    listCoworkersMock.mockResolvedValue([]);
-    listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
-    getCoworkerOptionsMock.mockReturnValue([]);
+    listTaskAssigneeOptionsMock.mockResolvedValue([]);
     getProjectFilterOptionsMock.mockResolvedValue([
       { id: "project-1", name: "Open" },
       { id: "project-2", name: "Closed" },
@@ -184,16 +179,25 @@ describe("loadWorkspaceCalendarPage", () => {
     });
   });
 
-  it("does not load Calendar data outside the Calendar beta", async () => {
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
-
-    await expect(
-      loadWorkspaceCalendarPage({ searchParams: Promise.resolve({}) }),
-    ).rejects.toThrow("NEXT_NOT_FOUND");
-
-    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
-    expect(getProjectByIdMock).not.toHaveBeenCalled();
-  });
+  it.each([undefined, PROJECT.id])(
+    "loads the first ten Agenda occurrences for project %s",
+    async (projectId) => {
+      await loadWorkspaceCalendarPage({
+        projectId,
+        searchParams: Promise.resolve({ view: "agenda", timezone: "UTC" }),
+      });
+      if (projectId) {
+        expect(getProjectCalendarMock).toHaveBeenCalledWith(
+          projectId,
+          expect.objectContaining({ limit: 10 }),
+        );
+      } else {
+        expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+          expect.objectContaining({ limit: 10 }),
+        );
+      }
+    },
+  );
 
   it("loads the workspace Calendar and keeps only schedulable Projects", async () => {
     const result = await loadWorkspaceCalendarPage({
@@ -201,7 +205,7 @@ describe("loadWorkspaceCalendarPage", () => {
         assigneeId: "coworker-1",
         date: "2026-06-18",
         projectId: "project-1",
-        sourceId: "legacy-unknown:workspace-1",
+        sourceId: "workspace:workspace-1",
         scope: "owned",
         status: "READY",
       }),
@@ -211,7 +215,7 @@ describe("loadWorkspaceCalendarPage", () => {
       expect.objectContaining({
         assigneeId: "coworker-1",
         projectId: "project-1",
-        sourceId: "legacy-unknown:workspace-1",
+        sourceId: "workspace:workspace-1",
         scope: "owned",
         status: "READY",
       }),

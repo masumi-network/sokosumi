@@ -40,6 +40,11 @@ export interface OwnerSokoBotCopy {
   vendorName: string;
 }
 
+type OwnerSokoBotOptionSource = Pick<
+  SokoBot,
+  "id" | "name" | "avatarSeed" | "avatarImageUrl"
+>;
+
 function sokoBotsVendor(vendorName: string): CoworkerOption["vendor"] {
   return {
     id: "soko-bots",
@@ -111,7 +116,7 @@ export function findCoworkerIdBySlug(
 }
 
 export function getOwnerSokoBotOption(
-  bot: SokoBot | null,
+  bot: OwnerSokoBotOptionSource | null,
   copy: OwnerSokoBotCopy,
 ): CoworkerOption | null {
   if (!bot) {
@@ -131,7 +136,7 @@ export function getOwnerSokoBotOption(
 
 export function withOwnerSokoBotOption(
   options: CoworkerOption[],
-  bot: SokoBot | null,
+  bot: OwnerSokoBotOptionSource | null,
   copy: OwnerSokoBotCopy,
 ): CoworkerOption[] {
   const option = getOwnerSokoBotOption(bot, copy);

@@ -46,6 +46,7 @@ import { BlobStatus, Channel, TaskStatus } from "@/lib/clients/generated/core";
 import type {
   TaskEvent,
   TaskFile,
+  TaskParticipant,
 } from "@/lib/clients/generated/core/types.gen";
 import {
   CHANNEL_APP_NAME_KEY_MAP,
@@ -54,7 +55,10 @@ import {
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { createFileUploadProgressToast } from "@/lib/utils/file-upload-progress-toast";
-import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
+import {
+  formatMentionsAsMarkdownLinks,
+  parseMentions,
+} from "@/lib/utils/mention-parser";
 import {
   extractTaskAttachmentUrls,
   removeTaskAttachmentLinks,
@@ -65,6 +69,7 @@ import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
 import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
+import { TaskActivitySubscribeControl } from "./task-activity-subscribe";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
   getTaskStatusBorderColorClass,
@@ -100,7 +105,19 @@ interface TaskActivityProps {
    */
   viewerPlan?: SubscriptionPlanName | null;
   canComment?: boolean;
+  /** Workspace members the composer offers for `@`; mentions add them as Task participants. */
+  mentionableUsers?: readonly MentionableUser[];
+  /** Task participants in join order. */
+  participants?: TaskParticipant[];
 }
+
+export interface MentionableUser {
+  id: string;
+  name: string;
+}
+
+const NO_MENTIONABLE_USERS: readonly MentionableUser[] = [];
+const NO_PARTICIPANTS: TaskParticipant[] = [];
 
 function getEventTimestamp(event: TaskEvent): number {
   return new Date(event.createdAt).getTime();
@@ -199,6 +216,8 @@ export function TaskActivitySection({
   collapseLabel = "Show less",
   viewerPlan = null,
   canComment = true,
+  mentionableUsers = NO_MENTIONABLE_USERS,
+  participants = NO_PARTICIPANTS,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
@@ -217,10 +236,31 @@ export function TaskActivitySection({
   const [isPending, startTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const { os, isMobile } = useOSDetection();
-  const mentionOptions = useMemo(
-    () => convertAgentNamesToMentionOptions(resolvedAgentNameById),
-    [resolvedAgentNameById],
-  );
+  // Match chat and Core `excludeUserId`: @ of yourself does not enroll the writer.
+  const viewerId = currentUser?.id;
+  const mentionOptions = useMemo(() => {
+    const humans =
+      viewerId == null
+        ? mentionableUsers
+        : mentionableUsers.filter((user) => user.id !== viewerId);
+    return {
+      ...convertAgentNamesToMentionOptions(resolvedAgentNameById),
+      ...Object.fromEntries(
+        humans.map((user) => [user.id, { value: user.name }]),
+      ),
+    };
+  }, [resolvedAgentNameById, mentionableUsers, viewerId]);
+  const mentionUserNameById = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const [id, actor] of Object.entries(userById ?? {})) {
+      names.set(id, actor.name);
+    }
+    for (const user of mentionableUsers) {
+      if (viewerId != null && user.id === viewerId) continue;
+      names.set(user.id, user.name);
+    }
+    return names;
+  }, [userById, mentionableUsers, viewerId]);
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(comment),
     [comment],
@@ -294,6 +334,19 @@ export function TaskActivitySection({
       credits: null,
     };
 
+    const memberIds = new Set(
+      mentionableUsers
+        .filter((user) => viewerId == null || user.id !== viewerId)
+        .map((user) => user.id),
+    );
+    const mentionedUserIds = [
+      ...new Set(
+        parseMentions(trimmedComment)
+          .map((mention) => mention.id)
+          .filter((id) => memberIds.has(id)),
+      ),
+    ];
+
     setLocalEvents((prev) => [optimisticEvent, ...prev]);
     setComment("");
 
@@ -303,6 +356,7 @@ export function TaskActivitySection({
           await createTaskComment({
             taskId,
             comment: trimmedComment,
+            mentionedUserIds,
           });
           router.refresh();
         } catch {
@@ -371,7 +425,17 @@ export function TaskActivitySection({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
+        <TaskActivitySubscribeControl
+          taskId={taskId}
+          viewerId={currentUser?.id ?? null}
+          viewerName={currentUser?.name ?? null}
+          viewerImage={currentUser?.image ?? null}
+          participants={participants}
+          canComment={canComment}
+        />
+      </div>
 
       {canComment ? (
         <form
@@ -504,6 +568,7 @@ export function TaskActivitySection({
               ? formatMentionsAsMarkdownLinks(
                   event.comment ?? "",
                   resolvedAgentNameById,
+                  mentionUserNameById,
                 )
               : null;
             const sourceFiles = formattedComment

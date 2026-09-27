@@ -72,6 +72,7 @@ function buildListQuery(
     ...(cursor === undefined ? {} : { cursor }),
     ...(view === "unread" ? { isRead: "false" as const } : {}),
     ...(view === "needs-action" ? { needsAction: "true" as const } : {}),
+    ...(view === "mentions" ? { mentions: "true" as const } : {}),
   };
 }
 
@@ -96,6 +97,8 @@ interface NotificationContextValue {
   unreadCount: number;
   /** Rows whose request still waits on the reader, for the Needs you tab. */
   needsActionCount: number;
+  /** Unread mentions, for the Mentions tab. */
+  mentionsCount: number;
   /** Which rows the list shows. Both frames read and write the same value. */
   view: NotificationCenterView;
   /** Switch views, restarting the list under the new one. */
@@ -152,6 +155,7 @@ const NOTIFICATION_FALLBACK_VALUE: NotificationContextValue = {
   notifications: [],
   unreadCount: 0,
   needsActionCount: 0,
+  mentionsCount: 0,
   view: "all",
   setView: noopSetView,
   markRead: noopAsync,
@@ -238,6 +242,7 @@ export function NotificationProvider({
     notifications: [],
     unreadCount: 0,
     needsActionCount: 0,
+    mentionsCount: 0,
   });
   const confirmedState = useRef(state);
   const readQueue = useRef(createNotificationReadQueue());
@@ -344,6 +349,7 @@ export function NotificationProvider({
         fetched: listResponse.data,
         serverUnreadCount: countsResponse.data.unread,
         serverNeedsActionCount: countsResponse.data.needsAction,
+        serverMentionsCount: countsResponse.data.mentions,
         realtimeIds,
         hasMore: nextCursor !== null,
         view,
@@ -626,6 +632,7 @@ export function NotificationProvider({
     notifications: state.notifications,
     unreadCount: state.unreadCount,
     needsActionCount: state.needsActionCount,
+    mentionsCount: state.mentionsCount,
     view,
     setView,
     markRead,

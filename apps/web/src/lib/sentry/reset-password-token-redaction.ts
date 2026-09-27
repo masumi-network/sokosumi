@@ -11,6 +11,14 @@ interface SentryEventWithRequest {
   request?: ErrorEvent["request"];
 }
 
+function eventRequest(event: object): ErrorEvent["request"] | undefined {
+  if (!("request" in event)) {
+    return undefined;
+  }
+
+  return (event as SentryEventWithRequest).request;
+}
+
 interface ResetPasswordScan {
   hasResetPasswordContext: boolean;
   tokens: Set<string>;
@@ -286,9 +294,7 @@ function redactAllEventFields(
   return redactedRecord;
 }
 
-export function redactResetPasswordToken<T extends SentryEventWithRequest>(
-  event: T,
-): T {
+export function redactResetPasswordToken<T extends object>(event: T): T {
   const scan: ResetPasswordScan = {
     hasResetPasswordContext: false,
     tokens: new Set(),
@@ -300,19 +306,18 @@ export function redactResetPasswordToken<T extends SentryEventWithRequest>(
   }
 
   collectNamedTokens(event, scan.tokens, new WeakSet());
-  const requestUrl = event.request?.url;
+  const request = eventRequest(event);
+  const requestUrl = request?.url;
   const eventWithRedactedRequest =
     requestUrl && isResetPasswordUrl(requestUrl)
       ? {
           ...event,
           request: {
-            ...event.request,
+            ...request,
             url: redactTokenFromUrl(requestUrl),
-            query_string: redactTokenFromQueryString(
-              event.request?.query_string,
-            ),
-            headers: redactResetPasswordHeaders(event.request?.headers),
-            cookies: redactResetPasswordCookies(event.request?.cookies),
+            query_string: redactTokenFromQueryString(request?.query_string),
+            headers: redactResetPasswordHeaders(request?.headers),
+            cookies: redactResetPasswordCookies(request?.cookies),
           },
         }
       : event;

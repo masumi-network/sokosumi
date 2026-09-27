@@ -38,8 +38,7 @@ struct DirectStreamTests {
     #expect(updates == events.count - 1)
     #expect(message.id == "answer")
     #expect(message.text == "Hello 世界!")
-    #expect(message.reasoning == "Thinking 🤔")
-    #expect(message.latestThought == "Thinking 🤔")
+    #expect(message.reasoningParts == ["Thinking 🤔"])
     #expect(message.finished)
   }
 

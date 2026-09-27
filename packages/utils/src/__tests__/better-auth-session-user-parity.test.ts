@@ -26,7 +26,7 @@ function buildSessionUserWithSchemaFields(
     updatedAt: "2025-01-01T00:00:00.000Z",
     termsAccepted: true,
     marketingOptIn: true,
-    showRoomUnreadCount: false,
+    hideRoomUnreadCount: false,
     logo: null,
     metadata: null,
     stripeCustomerId: null,

@@ -1,13 +1,8 @@
 import { z } from "@hono/zod-openapi";
-import {
-  Channel,
-  TaskScheduleEventKind,
-  TaskStatus,
-  TaskVisibility,
-} from "@sokosumi/database";
+import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { isDesignMdBlobUrl } from "@sokosumi/utils";
-
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import { taskTagsSchema } from "@/helpers/task-tags";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
 import {
   channelSchema,
@@ -85,6 +80,17 @@ const taskEventActorSokoBotSchema = z
   })
   .openapi("TaskEventActorSokoBot");
 
+export const taskParticipantSchema = z
+  .object({
+    user: userSummarySchema,
+    addedAt: dateTimeSchema.openapi({
+      description:
+        "When this person joined the Task (via @ mention or self-subscribe).",
+      example: "2026-09-24T12:00:00.000Z",
+    }),
+  })
+  .openapi("TaskParticipant");
+
 export const taskEventActorSchema = z
   .discriminatedUnion("type", [
     taskEventActorUserSchema,
@@ -152,21 +158,6 @@ export const taskEventSchema = z
       .union([taskStatusSchema, z.null()])
       .optional()
       .openapi({ example: TaskStatus.RUNNING }),
-    scheduleKind: z.enum(TaskScheduleEventKind).nullish().openapi({
-      description: "Schedule activity represented by this event",
-      example: TaskScheduleEventKind.OCCURRENCE_SKIPPED,
-    }),
-    schedulePayload: z
-      .record(z.string(), z.unknown())
-      .nullish()
-      .openapi({
-        description: "Schedule activity details for audit and notifications",
-        example: { occurrenceKey: "occurrence-key" },
-      }),
-    scheduleOperationId: z.string().uuid().nullish().openapi({
-      description: "Idempotency identity for the schedule mutation",
-      example: "123e4567-e89b-42d3-a456-426614174000",
-    }),
   })
   .openapi("TaskEvent");
 
@@ -288,6 +279,11 @@ const taskBaseSchema = z.object({
       "Discriminated assignee: coworker, workspace member, Soko Bot, or unassigned.",
     example: null,
   }),
+  participants: z.array(taskParticipantSchema).openapi({
+    description:
+      "Workspace members on the Task (via @ mention or self-subscribe), in join order. Owner and assignee are omitted unless they also joined. Empty until someone joins.",
+    example: [],
+  }),
   /** @deprecated Marketplace-only. Use `assigneeId` or `assignee`. */
   coworkerId: z.string().nullable().openapi({
     example: "cow_123",
@@ -318,6 +314,7 @@ const taskBaseSchema = z.object({
     description:
       "Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.",
   }),
+  tags: taskTagsSchema.optional(),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
   status: taskStatusSchema.openapi({
@@ -340,17 +337,15 @@ const taskBaseSchema = z.object({
       "Vendor grant blocking this task. Exposed on the task API only while status is GRANT_PENDING so integrators can correlate the parked task with the grant; null otherwise.",
     example: null,
   }),
-  metadata: z.string().nullable().openapi({
-    description: "Serialized task schedule metadata JSON",
-    example: null,
-  }),
-  nextRunAt: dateTimeSchema.nullable().openapi({
-    description: "Next scheduled run time for queued tasks",
+  runAt: dateTimeSchema.nullable().openapi({
+    description:
+      "The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.",
     example: "2026-06-24T09:00:00.000Z",
   }),
-  scheduleRevision: z.number().int().nonnegative().default(0).openapi({
-    description: "Revision used for optimistic schedule mutations",
-    example: 0,
+  scheduleId: z.string().uuid().nullable().openapi({
+    description:
+      "Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.",
+    example: null,
   }),
   credits: z.number().openapi({ example: 5 }),
   events: z.array(taskEventSchema).openapi({ example: [] }),

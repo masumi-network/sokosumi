@@ -265,18 +265,20 @@ export const calendarInvalidationOutboxService = {
           }
 
           // A second transaction fences membership only. The revision above is
-          // already committed, while the shared advisory lock guarantees that a
-          // removal cannot commit before a fanout using its old membership.
+          // already committed; the advisory lock holds until we snapshot the
+          // audience. Ably publish runs after commit so the interactive tx does
+          // not hold a pool connection across the network call.
           const { emails } = splitEmailCancellationPayload(
             readyInvalidation.payload,
           );
-          const publication = prisma.$transaction(async (tx) => {
-            await lockCalendarWorkspaceMembership(
-              tx,
-              readyInvalidation.workspaceId,
-            );
+          const publication = prisma
+            .$transaction(async (tx) => {
+              await lockCalendarWorkspaceMembership(
+                tx,
+                readyInvalidation.workspaceId,
+              );
 
-            const lockedRows = await tx.$queryRaw<Array<{ id: string }>>`
+              const lockedRows = await tx.$queryRaw<Array<{ id: string }>>`
             SELECT id
             FROM "calendar_invalidation_outbox"
             WHERE id = ${readyInvalidation.id}::UUID
@@ -284,60 +286,56 @@ export const calendarInvalidationOutboxService = {
               AND "publishedAt" IS NULL
             FOR UPDATE
           `;
-            if (lockedRows.length !== 1) {
-              return false;
-            }
+              if (lockedRows.length !== 1) {
+                return null;
+              }
 
-            const invalidation = await tx.calendarInvalidationOutbox.findUnique(
-              {
-                where: { id: readyInvalidation.id },
-                select: {
-                  id: true,
-                  workspaceId: true,
-                  projectId: true,
-                  calendarRevision: true,
-                  payload: true,
-                  attempts: true,
-                  publishedAt: true,
-                },
-              },
-            );
-            if (
-              !invalidation ||
-              invalidation.attempts !== attempts ||
-              invalidation.publishedAt !== null
-            ) {
-              return false;
-            }
-
-            const workspace = await tx.workspace.findUnique({
-              where: { id: invalidation.workspaceId },
-              select: {
-                userId: true,
-                organization: {
+              const invalidation =
+                await tx.calendarInvalidationOutbox.findUnique({
+                  where: { id: readyInvalidation.id },
                   select: {
-                    members: { select: { userId: true } },
+                    id: true,
+                    workspaceId: true,
+                    projectId: true,
+                    calendarRevision: true,
+                    payload: true,
+                    attempts: true,
+                    publishedAt: true,
+                  },
+                });
+              if (
+                !invalidation ||
+                invalidation.attempts !== attempts ||
+                invalidation.publishedAt !== null
+              ) {
+                return null;
+              }
+
+              const workspace = await tx.workspace.findUnique({
+                where: { id: invalidation.workspaceId },
+                select: {
+                  userId: true,
+                  organization: {
+                    select: {
+                      members: { select: { userId: true } },
+                    },
                   },
                 },
-              },
-            });
-            if (!workspace) {
-              await tx.calendarInvalidationOutbox.deleteMany({
-                where: { id: invalidation.id, attempts },
               });
-              return false;
-            }
+              if (!workspace) {
+                await tx.calendarInvalidationOutbox.deleteMany({
+                  where: { id: invalidation.id, attempts },
+                });
+                return null;
+              }
 
-            const userIds = workspace.userId
-              ? [workspace.userId]
-              : (workspace.organization?.members.map(
-                  (member) => member.userId,
-                ) ?? []);
-            const revoked = accessRevocation(invalidation.payload);
-            const shouldPublishRevocation =
-              revoked !== null && !userIds.includes(revoked.userId);
-            await Promise.all([
-              publishCalendarInvalidationToUsers({
+              const userIds = workspace.userId
+                ? [workspace.userId]
+                : (workspace.organization?.members.map(
+                    (member) => member.userId,
+                  ) ?? []);
+              const revoked = accessRevocation(invalidation.payload);
+              return {
                 userIds,
                 workspaceId: invalidation.workspaceId,
                 invalidation: {
@@ -348,18 +346,33 @@ export const calendarInvalidationOutboxService = {
                   payload: splitEmailCancellationPayload(invalidation.payload)
                     .publicPayload,
                 },
-              }),
-              ...(shouldPublishRevocation && revoked
-                ? [
-                    publishCalendarAccessRevoked({
-                      ...revoked,
-                      workspaceId: invalidation.workspaceId,
-                    }),
-                  ]
-                : []),
-            ]);
-            return true;
-          });
+                revocation:
+                  revoked !== null && !userIds.includes(revoked.userId)
+                    ? revoked
+                    : null,
+              };
+            })
+            .then(async (snapshot) => {
+              if (!snapshot) {
+                return false;
+              }
+              await Promise.all([
+                publishCalendarInvalidationToUsers({
+                  userIds: snapshot.userIds,
+                  workspaceId: snapshot.workspaceId,
+                  invalidation: snapshot.invalidation,
+                }),
+                ...(snapshot.revocation
+                  ? [
+                      publishCalendarAccessRevoked({
+                        ...snapshot.revocation,
+                        workspaceId: snapshot.workspaceId,
+                      }),
+                    ]
+                  : []),
+              ]);
+              return true;
+            });
           // Cancellation uses the email queue; never wait on it while holding
           // the membership fence, which senders acquire from inside that queue.
           const deliveries = await Promise.allSettled([

@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { subscriptionRepository } from "@sokosumi/database/repositories";
 
+import { findActiveSubscriptionByReferenceId } from "@/helpers/active-subscription";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -60,16 +60,13 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
-    // Validate the path param shape; the resolved user id comes from the route
-    // context (`me` resolution + access checks), not the raw param.
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    const subscription =
-      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-        resolvedUserId,
-        prisma,
-      );
+    const subscription = await findActiveSubscriptionByReferenceId(
+      resolvedUserId,
+      prisma,
+    );
 
     return ok(c, activeSubscriptionResponseSchema.parse({ subscription }));
   });

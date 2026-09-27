@@ -8,17 +8,13 @@ const { getInviteLinkByTokenMock, orgFindUniqueMock } = vi.hoisted(() => ({
   orgFindUniqueMock: vi.fn(),
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  organizationInviteLinkRepository: {
-    getInviteLinkByToken: (...args: unknown[]) =>
-      getInviteLinkByTokenMock(...args),
-  },
-}));
-
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     organization: {
       findUnique: (...args: unknown[]) => orgFindUniqueMock(...args),
+    },
+    organizationInviteLink: {
+      findUnique: (...args: unknown[]) => getInviteLinkByTokenMock(...args),
     },
   },
 }));

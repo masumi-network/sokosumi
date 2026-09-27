@@ -54,7 +54,7 @@ export function ActivateContractDialog({
 
       if (!result.ok) {
         if (
-          "kind" in result.error &&
+          "blocker" in result.error &&
           result.error.kind === "enterprise_activation_blocked"
         ) {
           setBlocker(result.error.blocker);

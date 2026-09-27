@@ -87,6 +87,8 @@ function externalChannel(): ChatRoom {
     slug: "general",
     kind: "channel",
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: "external",

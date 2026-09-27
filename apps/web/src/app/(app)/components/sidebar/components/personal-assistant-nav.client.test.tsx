@@ -142,6 +142,13 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
       "group-data-[collapsible=icon]:hidden",
     );
   });
+
+  it("clips the label on collapse instead of re-ellipsizing it", () => {
+    renderNav({ bot });
+    const label = screen.getByText("sokoBot");
+    expect(tokens(label.className)).toContain("text-clip!");
+    expect(tokens(label.className)).not.toContain("truncate");
+  });
 });
 
 // Collapsed, the rail's fill belongs to hover alone. This row is on that

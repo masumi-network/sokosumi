@@ -12,11 +12,11 @@ Before working in an app or package, read its `AGENTS.md` and any deeper instruc
 | Writing or reviewing TypeScript, tests, dependencies, or lint configuration | [Code conventions and testing](docs/agents/coding-conventions.md) |
 | Implementing or reviewing Web UI, styling, or React components | [Web UI conventions](docs/agents/web-ui.md), `apps/web/AGENTS.md`, and its required UI skills |
 | Installing dependencies, configuring env/DB, launching services, or performing browser verification/login | [Local development](docs/agents/local-development.md); use `.cursor/skills/verify-sokosumi/` for launch, doctor, and sign-in |
-| Running in Cursor Cloud; provisioning, using, or tearing down a cloud-agent DB | [Cloud environment](docs/agents/cloud-environment.md) and [cloud database runbook](docs/agents/cloud-agent-database.md), before running commands |
+| Running in Cursor Cloud or a Claude Code cloud session (`CLAUDE_CODE_REMOTE=true`); provisioning, using, or tearing down a cloud-agent DB | [Cloud environment](docs/agents/cloud-environment.md) and [cloud database runbook](docs/agents/cloud-agent-database.md), before running commands |
 | Creating branches, committing, pushing, opening/updating PRs, or modifying CI checks | [Delivery rules](docs/agents/delivery.md) |
 | Choosing an engineering flow; maintaining skills; working on Next.js, evlog, SwiftUI, Linear, translations, domain docs, coworker access, or Soko Bot | The matching section of [Skill and domain routing](docs/agents/skill-routing.md), then its referenced skill/docs |
 
-Existing scope entry points: [Web](apps/web/AGENTS.md), [Core](apps/core/AGENTS.md), [Apple](apps/apple/AGENTS.md), [CLI](apps/cli/AGENTS.md), [Database](packages/database/AGENTS.md), [Masumi](packages/masumi/AGENTS.md), [Email](packages/email/AGENTS.md). Check for deeper instructions even when the directory is not listed here.
+Existing scope entry points: [Web](apps/web/AGENTS.md), [Core](apps/core/AGENTS.md), [Apple](apps/apple/AGENTS.md), [CLI](apps/cli/AGENTS.md), [Database](packages/database/AGENTS.md), [Masumi](packages/masumi/AGENTS.md), [Email](packages/email/AGENTS.md), [Utils](packages/utils/AGENTS.md), [AI provider](packages/ai-provider/AGENTS.md), [Net](packages/net/AGENTS.md), [Soko Bot](packages/soko-bot/AGENTS.md).
 
 ## Always apply
 

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchMock = vi.fn();
 
+import { internalServerError } from "@/helpers/error";
 import {
   COWORKER_CHAT_BILLING_MESSAGE,
   CoworkerConversationError,
@@ -31,7 +32,10 @@ describe("coworker-conversation", () => {
         coworkerSlug: "ops-agent",
         sokosumiConversationId: "conv-local-1",
       }),
-    ).rejects.toThrow("Responses API base URL is required");
+    ).rejects.toMatchObject({
+      status: 500,
+      message: "Responses API base URL is required",
+    });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -142,6 +146,19 @@ describe("coworker-conversation", () => {
 });
 
 describe("throwCoworkerRemoteConversationHttpError", () => {
+  it("rethrows HTTPException from createCoworkerConversation", () => {
+    expect(() =>
+      throwCoworkerRemoteConversationHttpError(
+        internalServerError("Responses API base URL is required"),
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        status: 500,
+        message: "Responses API base URL is required",
+      }),
+    );
+  });
+
   it("maps billing_required to 403 with a user-facing message", () => {
     expect(() =>
       throwCoworkerRemoteConversationHttpError(

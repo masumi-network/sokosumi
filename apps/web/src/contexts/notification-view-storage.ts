@@ -15,22 +15,25 @@ import type { NotificationCenterView } from "./notification-state";
 export const NOTIFICATION_VIEW_STORAGE_KEY =
   "sokosumi:notification-center-view:v1" as const;
 
-// A record, not a list: a fourth view has to be named here or the type check
+// A record, not a list: a new view has to be named here or the type check
 // fails, which is the only thing stopping a new view from silently failing
 // to restore.
 const VIEWS: Record<NotificationCenterView, true> = {
   all: true,
   unread: true,
   "needs-action": true,
+  mentions: true,
 };
 
-function isView(raw: string): raw is NotificationCenterView {
+export function isNotificationCenterView(
+  raw: string,
+): raw is NotificationCenterView {
   return Object.hasOwn(VIEWS, raw);
 }
 
 export function getNotificationViewPreference(): NotificationCenterView | null {
   return readStoredPreference(NOTIFICATION_VIEW_STORAGE_KEY, (raw) =>
-    isView(raw) ? raw : null,
+    isNotificationCenterView(raw) ? raw : null,
   );
 }
 

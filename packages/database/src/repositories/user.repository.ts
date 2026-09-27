@@ -1,8 +1,7 @@
 import type { Prisma, User } from "../generated/prisma/client.js";
 
 /**
- * Case-insensitive name/email match used by user search and the admin
- * overview listing.
+ * Case-insensitive name/email match used by the admin overview listing.
  */
 function buildUserSearchWhere(trimmed: string): Prisma.UserWhereInput {
   return {
@@ -31,28 +30,8 @@ export const userRepository = {
   },
 
   /**
-   * Empty or whitespace-only query returns [] without querying.
-   */
-  searchUsers: async (
-    query: string,
-    limit: number,
-    tx: Prisma.TransactionClient,
-  ): Promise<Array<Pick<User, "id" | "name" | "email">>> => {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      return [];
-    }
-    return tx.user.findMany({
-      where: buildUserSearchWhere(trimmed),
-      select: { id: true, name: true, email: true },
-      orderBy: { name: "asc" },
-      take: limit,
-    });
-  },
-
-  /**
-   * Admin overview listing. Unlike `searchUsers`, an empty query lists all
-   * users. Ordered newest-first.
+   * Admin overview listing. An empty query lists all users. Ordered
+   * newest-first.
    */
   listUsersForAdminOverview: async (
     params: {
@@ -100,17 +79,6 @@ export const userRepository = {
     return tx.user.update({
       where: { id: userId },
       data: { preferredOrganizationId },
-    });
-  },
-
-  updateUserMetadata: async (
-    userId: string,
-    metadata: string | null,
-    tx: Prisma.TransactionClient,
-  ): Promise<User> => {
-    return tx.user.update({
-      where: { id: userId },
-      data: { metadata },
     });
   },
 };

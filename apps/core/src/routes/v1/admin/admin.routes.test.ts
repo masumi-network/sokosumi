@@ -38,12 +38,10 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/db/prisma", () => ({ default: {} }));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  userRepository: { searchUsers: searchUsersMock },
-  organizationRepository: {
-    searchOrganizations: searchOrganizationsMock,
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    user: { findMany: searchUsersMock },
+    organization: { findMany: searchOrganizationsMock },
   },
 }));
 
@@ -132,23 +130,42 @@ describe("admin search routes", () => {
       };
 
       expect(response.status).toBe(200);
-      expect(searchUsersMock).toHaveBeenCalledWith(
-        "ada",
-        20,
-        expect.anything(),
-      );
+      expect(searchUsersMock).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { name: { contains: "ada", mode: "insensitive" } },
+            { email: { contains: "ada", mode: "insensitive" } },
+          ],
+        },
+        select: { id: true, name: true, email: true },
+        orderBy: { name: "asc" },
+        take: 20,
+      });
       expect(body.data).toEqual([
         { id: "user_1", name: "Ada", email: "ada@example.com" },
       ]);
     });
 
-    it("passes an empty string when query is omitted", async () => {
+    it("returns an empty list without querying when query is omitted", async () => {
       const app = createApp(mountSearchAdminUsers);
 
       const response = await app.request("http://localhost/users");
+      const body = (await response.json()) as { data: unknown[] };
 
       expect(response.status).toBe(200);
-      expect(searchUsersMock).toHaveBeenCalledWith("", 20, expect.anything());
+      expect(searchUsersMock).not.toHaveBeenCalled();
+      expect(body.data).toEqual([]);
+    });
+
+    it("returns an empty list without querying when query is whitespace", async () => {
+      const app = createApp(mountSearchAdminUsers);
+
+      const response = await app.request("http://localhost/users?query=%20%20");
+      const body = (await response.json()) as { data: unknown[] };
+
+      expect(response.status).toBe(200);
+      expect(searchUsersMock).not.toHaveBeenCalled();
+      expect(body.data).toEqual([]);
     });
   });
 
@@ -167,11 +184,17 @@ describe("admin search routes", () => {
       };
 
       expect(response.status).toBe(200);
-      expect(searchOrganizationsMock).toHaveBeenCalledWith(
-        "acme",
-        20,
-        expect.anything(),
-      );
+      expect(searchOrganizationsMock).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { name: { contains: "acme", mode: "insensitive" } },
+            { slug: { contains: "acme", mode: "insensitive" } },
+          ],
+        },
+        select: { id: true, name: true, slug: true },
+        orderBy: { name: "asc" },
+        take: 20,
+      });
       expect(body.data).toEqual([{ id: "org_1", name: "Acme", slug: "acme" }]);
     });
   });

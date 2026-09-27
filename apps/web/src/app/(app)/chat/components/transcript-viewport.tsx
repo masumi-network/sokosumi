@@ -84,7 +84,17 @@ export interface TranscriptViewportHandle {
   scrollToMessage: (messageId: string) => boolean;
 }
 
+export interface TranscriptPosition {
+  anchorId: string | null;
+  anchorCreatedAt: number;
+  offset: number;
+  atLiveEdge: boolean;
+  visibleMessageIds: string[];
+}
+
 interface TranscriptViewportProps {
+  initialPosition?: TranscriptPosition;
+  onPositionChange?: (position: TranscriptPosition) => void;
   /**
    * The native overflow scroller the list lives in. Handed in as an element
    * rather than a ref: on a same-commit mount the shell's ref is attached
@@ -245,6 +255,29 @@ export function rowHoldAfterRowsChange(
   };
 }
 
+function retainedPositionIndex(
+  rows: readonly RoomTranscriptRenderRow[],
+  saved: TranscriptPosition,
+): number {
+  const exact = saved.anchorId
+    ? findTranscriptRowIndex(rows, saved.anchorId)
+    : -1;
+  if (exact >= 0 || saved.atLiveEdge) return exact;
+  let index = -1;
+  let nearest = Infinity;
+  rows.forEach((row, candidate) => {
+    if (row.kind !== "message") return;
+    const distance = Math.abs(
+      new Date(row.message.createdAt).getTime() - saved.anchorCreatedAt,
+    );
+    if (distance < nearest) {
+      nearest = distance;
+      index = candidate;
+    }
+  });
+  return index;
+}
+
 /**
  * A transcript, mounting only the rows near the viewport.
  *
@@ -261,12 +294,21 @@ export function TranscriptViewport({
   renderRow,
   list = CHAT_MESSAGE_LIST_ROOM,
   holdOffBottom,
+  initialPosition,
+  onPositionChange,
   ref,
 }: TranscriptViewportProps) {
   // A prop of the virtualizer rather than a ref: it decides per render
   // whether an append pulls the view down. A jump that merges a window while
   // the reader sits at the live edge would otherwise be undone by that pull.
-  const [held, setHeld] = useState(false);
+  const [held, setHeld] = useState(
+    Boolean(initialPosition && !initialPosition.atLiveEdge),
+  );
+  const restoreRef = useRef(initialPosition);
+  const restoringRef = useRef(false);
+  const positionCallbackRef = useRef(onPositionChange);
+  positionCallbackRef.current = onPositionChange;
+  const lastPositionRef = useRef("");
   const hold = held || holdOffBottom;
   const landingRef = useRef(0);
   // Unmount ends a landing still polling for its row.
@@ -326,6 +368,43 @@ export function TranscriptViewport({
     const distance = Math.max(-element.scrollTop, 0);
     distanceFromEndRef.current = distance;
     setAtEnd(distance <= STICK_TO_BOTTOM_NEAR_PX);
+    const instance = virtualizerRef.current;
+    if (!instance || restoreRef.current || !positionCallbackRef.current) return;
+    const edge = element.getBoundingClientRect();
+    // Persist measured DOM coordinates, not estimates that can lag a
+    // direct virtualizer layout update by one frame.
+    const visible = Array.from(
+      element.querySelectorAll<HTMLElement>("[data-index]"),
+    )
+      .map((node) => ({
+        node,
+        row: rowsRef.current[Number(node.dataset.index)],
+        rect: node.getBoundingClientRect(),
+      }))
+      .filter(
+        ({ row, rect }) =>
+          row?.kind === "message" &&
+          rect.bottom > edge.top &&
+          rect.top < edge.bottom,
+      );
+    const anchor = visible[0];
+    const position: TranscriptPosition = {
+      anchorId: anchor?.row.kind === "message" ? anchor.row.message.id : null,
+      anchorCreatedAt:
+        anchor?.row.kind === "message"
+          ? new Date(anchor.row.message.createdAt).getTime()
+          : 0,
+      offset: anchor ? edge.top - anchor.rect.top : 0,
+      atLiveEdge: distance <= STICK_TO_BOTTOM_NEAR_PX,
+      visibleMessageIds: visible.flatMap(({ row }) =>
+        row.kind === "message" ? [row.message.id] : [],
+      ),
+    };
+    const signature = JSON.stringify(position);
+    if (signature !== lastPositionRef.current) {
+      lastPositionRef.current = signature;
+      positionCallbackRef.current(position);
+    }
   };
 
   // Growth at or below the top edge since the last virtualizer change. A
@@ -551,7 +630,76 @@ export function TranscriptViewport({
         rowsChange.previousOffset + total - rowsChange.previousTotal;
     }
   }
+  let restoreIndex = -1;
+  if (
+    restoreRef.current &&
+    !restoringRef.current &&
+    scroller &&
+    rows.length > 0
+  ) {
+    const saved = restoreRef.current;
+    const index = retainedPositionIndex(rows, saved);
+    restoreIndex = index;
+    virtualizer.getTotalSize();
+    const item = virtualizer.measurementsCache[index];
+    if (!saved.atLiveEdge && item) {
+      virtualizer.scrollOffset = Math.max(item.start + saved.offset, 0);
+      distanceFromEndRef.current = Infinity;
+      writeScrollRef.current = true;
+    }
+  }
   useLayoutEffect(() => {
+    const saved = restoreRef.current;
+    if (saved && !restoringRef.current && scroller && rows.length > 0) {
+      // DOM observers initially report the new scroller's live edge. An
+      // index target survives their first measurements; a numeric offset
+      // can be clamped to the transient DOM height and lose the anchor.
+      restoringRef.current = true;
+      writeScrollRef.current = false;
+      if (saved.atLiveEdge || restoreIndex < 0) {
+        restoreRef.current = undefined;
+        virtualizer.scrollToEnd();
+      } else {
+        virtualizer.scrollToIndex(restoreIndex, { align: "start" });
+        const landing = ++landingRef.current;
+        let frames = 0;
+        let settledFrames = 0;
+        const finishRestore = () => {
+          if (landing !== landingRef.current) return;
+          // Reconciliation may insert/delete rows while the landing settles.
+          // Resolve identity each frame instead of following a stale index.
+          const index = retainedPositionIndex(rowsRef.current, saved);
+          const anchor = scroller.querySelector<HTMLElement>(
+            `[data-index="${index}"]`,
+          );
+          if (!anchor && index >= 0 && index !== restoreIndex) {
+            virtualizer.scrollToIndex(index, { align: "start" });
+          }
+          const correction = anchor
+            ? anchor.getBoundingClientRect().top -
+              scroller.getBoundingClientRect().top +
+              saved.offset
+            : null;
+          if (correction != null && Math.abs(correction) >= 1) {
+            growthBelowRef.current = 0;
+            virtualizer.scrollBy(correction);
+            settledFrames = 0;
+          } else {
+            settledFrames = correction == null ? 0 : settledFrames + 1;
+          }
+          // Hold the measured anchor through late row sizing and the
+          // virtualizer's index reconciliation before publishing position.
+          if (settledFrames < 3 && ++frames < LANDING_FRAMES) {
+            requestAnimationFrame(finishRestore);
+            return;
+          }
+          restoreRef.current = undefined;
+          recordDistance(scroller);
+        };
+        requestAnimationFrame(finishRestore);
+      }
+      return;
+    }
     if (!writeScrollRef.current || !scroller) {
       return;
     }
@@ -569,10 +717,14 @@ export function TranscriptViewport({
     ref,
     () => ({
       scrollToBottom: () => {
+        restoreRef.current = undefined;
+        landingRef.current += 1;
         setHeld(false);
         virtualizer.scrollToEnd();
       },
       pinToBottomAfterOwnSend: () => {
+        restoreRef.current = undefined;
+        landingRef.current += 1;
         // Immediate + rAF: the appended row commits after this call, and the
         // rAF puts the view on it once it exists.
         virtualizer.scrollToEnd();
@@ -581,12 +733,15 @@ export function TranscriptViewport({
         });
       },
       suppressStickToBottom: () => {
+        restoreRef.current = undefined;
+        landingRef.current += 1;
         setHeld(true);
       },
       releaseStickToBottomSuppress: () => {
         setHeld(false);
       },
       landOnMessage: (messageId) => {
+        restoreRef.current = undefined;
         const index = findTranscriptRowIndex(rowsRef.current, messageId);
         if (index < 0) {
           return false;
@@ -613,6 +768,8 @@ export function TranscriptViewport({
         return true;
       },
       scrollToMessage: (messageId) => {
+        restoreRef.current = undefined;
+        landingRef.current += 1;
         const index = findTranscriptRowIndex(rowsRef.current, messageId);
         if (index < 0) {
           return false;

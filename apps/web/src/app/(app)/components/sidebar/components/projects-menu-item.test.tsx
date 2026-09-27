@@ -144,6 +144,9 @@ describe("Projects sidebar", () => {
     expect(label?.className.split(/\s+/)).not.toContain(
       "group-data-[collapsible=icon]:hidden",
     );
+    // A fixed name, so it clips on collapse instead of re-ellipsizing.
+    expect(label?.className.split(/\s+/)).toContain("text-clip!");
+    expect(label?.className.split(/\s+/)).not.toContain("truncate");
   });
 
   it("writes nothing to browser storage of its own", async () => {

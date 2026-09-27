@@ -25,9 +25,11 @@ public final class RoomOutbox: ObservableObject {
   private var request: Task<Void, Never>?
   private var timer: Task<Void, Never>?
   private let timeout: Duration
+  private let now: () -> Date
 
-  public init(timeout: Duration = .seconds(30)) {
+  public init(timeout: Duration = .seconds(30), now: @escaping () -> Date = Date.init) {
     self.timeout = timeout
+    self.now = now
   }
 
   public func enqueue(
@@ -56,12 +58,31 @@ public final class RoomOutbox: ObservableObject {
     jobs[id] = nil
   }
 
-  /// Realtime confirmation can remove a shell before its HTTP result arrives.
+  /// Persisted history can confirm a send before its HTTP result arrives or after it fails.
+  public func reconcile(messages: [Message]) {
+    guard !shells.isEmpty else { return }
+    for message in messages {
+      guard !isOutboundLocalMessage(message), let id = realtimeClientTurnId(message),
+            case let .case1(sender) = message.sender,
+            let shell = shells.first(where: {
+              $0.clientTurnId == id && $0.roomId == message.roomId
+                && $0.parentMessageId == message.parentMessageId && $0.sender.id == sender.user.id
+            }) else { continue }
+      reconcile(shells.filter { $0.clientTurnId != shell.clientTurnId }, confirmed: message)
+    }
+  }
+
+  /// History or realtime confirmation can remove a shell before its HTTP result arrives.
   public func reconcile(_ remaining: [OutboundShell], confirmed message: Message? = nil) {
     if let message, let id = realtimeClientTurnId(message),
        let shell = shells.first(where: { $0.clientTurnId == id }),
        !remaining.contains(where: { $0.clientTurnId == id }) {
       recordConfirmation(message.id, shell: shell)
+    }
+    // Failed requests have settled; release their retry closure once Core confirms.
+    // Keep active jobs until settle so a late response still releases the queue.
+    for shell in shells where shell.status == .failed && !remaining.contains(where: { $0.clientTurnId == shell.clientTurnId }) {
+      jobs[shell.clientTurnId] = nil
     }
     shells = remaining
   }
@@ -80,12 +101,12 @@ public final class RoomOutbox: ObservableObject {
   }
 
   private func recordConfirmation(_ messageId: String, shell: OutboundShell) {
-    let now = Date()
-    guard now.timeIntervalSince(shell.createdAt) >= 0.5 else { return }
-    sentAt[messageId] = now
+    let confirmedAt = now()
+    guard confirmedAt.timeIntervalSince(shell.createdAt) >= 0.5 else { return }
+    sentAt[messageId] = confirmedAt
     Task { [weak self] in
       try? await Task.sleep(for: .milliseconds(1600))
-      guard self?.sentAt[messageId] == now else { return }
+      guard self?.sentAt[messageId] == confirmedAt else { return }
       self?.sentAt[messageId] = nil
     }
   }
@@ -129,7 +150,7 @@ public final class RoomOutbox: ObservableObject {
     switch result {
     case let .success(message):
       // A realtime echo may already have removed the shell. The send still
-      // succeeded, so confirm it like web does.
+      // succeeded, so confirm it.
       if let shell = shells.first(where: { $0.clientTurnId == id }) {
         recordConfirmation(message.id, shell: shell)
         shells.removeAll { $0.clientTurnId == id }

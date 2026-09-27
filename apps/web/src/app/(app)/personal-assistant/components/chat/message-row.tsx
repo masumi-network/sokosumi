@@ -31,7 +31,7 @@ function useTimestamp() {
   };
 }
 
-export function UserRow({
+function UserRow({
   content,
   createdAt,
   userImageUrl,
@@ -71,37 +71,6 @@ export function UserRow({
           {userName?.trim() ? userName.trim().charAt(0).toUpperCase() : "U"}
         </AvatarFallback>
       </Avatar>
-    </div>
-  );
-}
-
-/** Read-only assistant message (imported history). */
-export function AssistantMarkdownRow({
-  content,
-  createdAt,
-  chip,
-  muted = false,
-}: {
-  content: string;
-  createdAt: string;
-  chip?: string | null;
-  muted?: boolean;
-}) {
-  return (
-    <div className="group/message flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
-      <AssistantAvatar className={cn(muted && "opacity-70")} />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        {chip ? <KindChip>{chip}</KindChip> : null}
-        <Markdown
-          className={cn(
-            "text-foreground pt-1 pr-10 pb-1 text-sm",
-            muted && "text-muted-foreground",
-          )}
-        >
-          {content}
-        </Markdown>
-        <MessageFooter text={content} createdAt={createdAt} />
-      </div>
     </div>
   );
 }

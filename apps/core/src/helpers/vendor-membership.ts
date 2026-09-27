@@ -9,11 +9,6 @@ import {
   type UserAuthenticationContext,
 } from "@/middleware/auth";
 
-export interface VendorUserIdentity {
-  userId?: string;
-  email?: string;
-}
-
 export function buildAccessibleCoworkerMembershipOr(
   userId: string,
 ): Prisma.CoworkerWhereInput[] {
@@ -142,62 +137,82 @@ export async function requireCoworkerBelongsToVendor(
 }
 
 /**
- * Resolve an existing user from exactly one of `userId` or `email`.
- * Email match is case-insensitive.
+ * Account deletion's half of the handshake with
+ * `lockVendorMembershipMutation`. Call inside the deletion transaction before
+ * rechecking the last-admin rule.
+ *
+ * Writes (not only locks) every Vendor row the user belongs to, in stable
+ * order. A membership change locks the same row first thing in a Serializable
+ * transaction whose snapshot predates the wait; after a mere FOR UPDATE here it
+ * would proceed on that stale snapshot, but after a committed write Postgres
+ * aborts it and `serializableTransaction` retries on current data. The write
+ * bumps `Vendor.updatedAt`.
+ *
+ * Then revokes pending invites to Vendors the user alone administers: once
+ * accepted they would add a member to a Vendor left without an admin. A
+ * concurrent accept either commits first, and the recheck sees the new member,
+ * or waits on the invite row and fails serialization after deletion commits.
  */
-export async function resolveUserIdFromIdentity(
-  identity: VendorUserIdentity,
-): Promise<string> {
-  if (identity.userId !== undefined && identity.email === undefined) {
-    const user = await prisma.user.findUnique({
-      where: { id: identity.userId },
+export async function prepareVendorsForMemberDeletion(
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const memberships = await tx.vendorMember.findMany({
+    where: { userId },
+    select: { vendorId: true },
+    orderBy: { vendorId: "asc" },
+  });
+  for (const { vendorId } of memberships) {
+    await tx.vendor.update({
+      where: { id: vendorId },
+      data: { updatedAt: new Date() },
       select: { id: true },
     });
-    if (!user) {
-      throw notFound("User not found");
-    }
-    return user.id;
   }
 
-  if (identity.email !== undefined && identity.userId === undefined) {
-    const email = identity.email.trim();
-    const user = await prisma.user.findFirst({
-      where: { email: { equals: email, mode: "insensitive" } },
-      select: { id: true },
-    });
-    if (!user) {
-      throw notFound("User not found");
-    }
-    return user.id;
-  }
-
-  throw badRequest("Provide exactly one of userId or email");
+  await tx.vendorMemberInvite.updateMany({
+    where: {
+      status: "PENDING",
+      vendor: {
+        vendorMembers: {
+          some: { userId, role: "admin" },
+          none: { userId: { not: userId }, role: "admin" },
+        },
+      },
+    },
+    data: { status: "REVOKED", resolvedAt: new Date() },
+  });
 }
 
 /**
- * Resolve a path segment that may be a user id or an email address.
- * Values containing `@` are treated as email (after URI decoding).
+ * Serialize membership changes with account deletion; see
+ * `prepareVendorsForMemberDeletion` for the deletion side.
  */
-export async function resolveUserIdFromUserIdOrEmail(
-  userIdOrEmail: string,
-): Promise<string> {
-  const value = decodeURIComponent(userIdOrEmail).trim();
-  if (value.includes("@")) {
-    return resolveUserIdFromIdentity({ email: value });
-  }
-  return resolveUserIdFromIdentity({ userId: value });
+async function lockVendorMembershipMutation(
+  vendorId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  await tx.$queryRaw`
+    SELECT "id"
+    FROM "vendor"
+    WHERE "id" = ${vendorId}::uuid
+    FOR UPDATE
+  `;
 }
 
 /**
  * Block removing or demoting the last vendor admin. `tx` is required and must
- * be the caller's Serializable write transaction: on the default client two
- * concurrent requests can both see two admins and leave the vendor with none.
+ * be the caller's Serializable write transaction. The Vendor row lock also
+ * serializes this change with account deletion's in-transaction admin check.
  */
-export async function assertCanRemoveOrDemoteVendorAdmin(
+export async function assertCanChangeVendorMembership(
   vendorId: string,
   targetUserId: string,
+  nextRole: "admin" | "developer" | null,
   tx: Prisma.TransactionClient,
 ): Promise<void> {
+  await lockVendorMembershipMutation(vendorId, tx);
+
   const membership = await tx.vendorMember.findFirst({
     where: { vendorId, userId: targetUserId },
     select: { role: true },
@@ -207,7 +222,7 @@ export async function assertCanRemoveOrDemoteVendorAdmin(
     throw notFound("Vendor member not found");
   }
 
-  if (membership.role !== "admin") {
+  if (membership.role !== "admin" || nextRole === "admin") {
     return;
   }
 

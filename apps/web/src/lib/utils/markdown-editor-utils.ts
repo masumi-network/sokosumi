@@ -1,7 +1,3 @@
-const DEFAULT_CODE_TEXT = "code";
-const DEFAULT_LINK_TEXT = "link";
-const DEFAULT_HEADING_TEXT = "Heading";
-
 /**
  * Tags whose html→markdown serializer emits a trailing newline (or a fenced
  * code block). When these follow bare text — Chrome contentEditable's first
@@ -27,15 +23,6 @@ export function isBlockMarkdownElement(
     childTag === "li" ||
     (childTag === "code" && childMarkdown.startsWith("```"))
   );
-}
-
-function getNormalizedSelection(
-  selectionText: string,
-  fallbackText: string,
-): string {
-  const trimmed = selectionText.trim();
-  if (!trimmed) return fallbackText;
-  return selectionText;
 }
 
 export function getBacktickFence(text: string): string {
@@ -65,34 +52,4 @@ export function normalizeUrl(input: string): string | null {
   }
 
   return null;
-}
-
-export function formatInlineCodeSnippet(selectionText: string): string {
-  const text = getNormalizedSelection(selectionText, DEFAULT_CODE_TEXT);
-  if (text.includes("\n") || text.includes("`")) {
-    const fence = getBacktickFence(text);
-    return `${fence}\n${text}\n${fence}`;
-  }
-
-  return `\`${text}\``;
-}
-
-export function formatMarkdownLink(
-  selectionText: string,
-  url: string,
-): string | null {
-  const normalizedUrl = normalizeUrl(url);
-  if (!normalizedUrl) return null;
-
-  const text = selectionText.trim() || DEFAULT_LINK_TEXT;
-  // Escape backslashes first so they can't merge with the following escape
-  // and break out of the link/text (js/incomplete-sanitization).
-  const escapedText = text.replace(/\\/g, "\\\\").replace(/]/g, "\\]");
-  const escapedUrl = normalizedUrl.replace(/\\/g, "\\\\").replace(/\)/g, "\\)");
-  return `[${escapedText}](${escapedUrl})`;
-}
-
-export function formatHeading(selectionText: string): string {
-  const text = selectionText.trim() || DEFAULT_HEADING_TEXT;
-  return `\n## ${text}\n`;
 }

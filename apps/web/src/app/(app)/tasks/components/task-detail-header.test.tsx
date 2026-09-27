@@ -36,4 +36,14 @@ describe("TaskDetailHeader", () => {
     expect(screen.getByRole("heading", { name: "Secret" })).toBeInTheDocument();
     expect(screen.queryByText("Private")).not.toBeInTheDocument();
   });
+
+  it("shows a Markdown task name as plain text", () => {
+    render(
+      <TaskDetailHeader taskName="**Task Name:** _Weekly_" backLabel="Back" />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Task Name: Weekly" }),
+    ).toBeInTheDocument();
+  });
 });

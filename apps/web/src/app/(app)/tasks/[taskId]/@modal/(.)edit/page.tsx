@@ -11,7 +11,6 @@ import {
 } from "@/app/tasks/utils/coworker-options";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
-import { readTaskScheduleSeriesPrecondition } from "@/app/tasks/utils/task-schedule-precondition";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
@@ -83,19 +82,16 @@ export default async function TaskEditModalPage({
   );
   const agentNameById = buildAgentNameById(agents);
 
-  const [tEdit, tStatus, tTasks, schedulePrecondition] = await Promise.all([
+  const [tEdit, tStatus, tTasks] = await Promise.all([
     getTranslations("App.Tasks.EditTask"),
     getTranslations("App.Tasks.Filters.statusOptions"),
     getTranslations("App.Tasks"),
-    readTaskScheduleSeriesPrecondition(taskResult),
   ]);
 
   return (
     <TaskEditModal
       taskId={taskId}
       title={tEdit("title")}
-      scheduleRevision={schedulePrecondition.scheduleRevision}
-      futureExceptionCount={schedulePrecondition.futureExceptionCount}
       initialDesignMdAttachment={initialDesignMdAttachment}
       labels={{
         details: tEdit("details"),
@@ -137,7 +133,7 @@ export default async function TaskEditModalPage({
         ),
         removeAttachment: tEdit("removeAttachment"),
         submit: tEdit("save"),
-        openSchedule: tEdit("openSchedule"),
+        openRunAt: tEdit("openRunAt"),
         cancel: tEdit("cancel"),
         ctrl: tEdit("ctrl"),
       }}
@@ -160,8 +156,7 @@ export default async function TaskEditModalPage({
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,
         selectableStatuses: taskResult.selectableStatuses,
-        metadata: taskResult.metadata,
-        nextRunAt: taskResult.nextRunAt?.toISOString() ?? null,
+        runAt: taskResult.runAt?.toISOString() ?? null,
       }}
     />
   );

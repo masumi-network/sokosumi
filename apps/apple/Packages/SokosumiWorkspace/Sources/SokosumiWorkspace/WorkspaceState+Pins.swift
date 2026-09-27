@@ -75,14 +75,6 @@ public extension WorkspaceState {
                                        organizationSlug: selection?.workspace.organizationSlug, generation: timeline.generation)
   }
 
-  func loadHistoryGap(before messageId: String, auth: AuthState) async throws {
-    guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to load messages.")
-    }
-    try await timeline.loadPage(.boundary(messageId), client: client,
-                                organizationSlug: selection?.workspace.organizationSlug, generation: timeline.generation)
-  }
-
   func returnToLatest(auth: AuthState) async throws -> Bool {
     guard timeline.historicalAnchor != nil else { return true }
     guard let client = resolveClient(auth: auth) else {

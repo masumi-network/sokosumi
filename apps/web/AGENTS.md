@@ -8,6 +8,8 @@
 **Location**: `apps/web/` directory within the pnpm workspace
 **Key Directories**: The live tree is `src/`. Conventions that still match: `src/app/` (routes), `src/components/` (Shadcn + Radix), `src/lib/` (three-layer services/actions/utils, including `src/lib/auth/`), `src/hooks/`, `src/contexts/`. Also `src/config/`, `src/i18n/`, `src/queries/`, `src/middleware/` (auth helpers). The Next.js 16 request interceptor is `src/proxy.ts` (`export async function proxy`), not `middleware.ts`.
 
+Outside `src/`: `agents/image-studio/` is the Project image studio's eve agent. `withEve()` in `next.config.ts` builds it as a service inside this deployment at `/eve/image-studio/v1/*`, so its model credential and its Core origin are this project's environment. See [image studio deployment](../../docs/image-studio/deployment.md).
+
 ## App Router Structure
 
 The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `auth/` (OAuth callbacks), `share/`, `(app)/tasks`, `maintenance`.
@@ -349,7 +351,7 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
   literals, no opacity modifiers on color utilities. Use the alpha-baked ramp step
   (`-tertiary` / `-quaternary` / `-quinary`) and add a token when none fits, in both theme
   blocks and in the `@theme inline` bridge. Guard:
-  `src/lib/utils/__tests__/color-tokens.test.ts`. See `.cursor/rules/color-tokens.mdc`.
+  `src/lib/utils/__tests__/src-walk-guards.test.ts`. See `.cursor/rules/color-tokens.mdc`.
 - Ensure dark/light mode compatibility
 - Use `size-*` utilities instead of `h-* w-*`
 - **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See `.cursor/rules/dynamic-type.mdc` and `apps/web/src/lib/utils/dynamic-type.ts`.
@@ -404,7 +406,7 @@ export async function createNewItem(data: FormData) {
 import { useTranslations } from 'next-intl';
 
 export function MyComponent() {
-  const t = useTranslations('common');
+  const t = useTranslations('CookieConsent');
   return <h1>{t('title')}</h1>;
 }
 ```
@@ -488,7 +490,7 @@ When implementing or reviewing UI in this app, load and follow these app-scoped 
 
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other approved pure helpers from `@sokosumi/utils` directly; no passthrough files. See [Core DTO boundary](#core-dto-boundary).
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
-- [Whole pixels](../../.cursor/rules/whole-pixels.mdc) – no fractional `px` on a layout or border length; guard `src/lib/utils/__tests__/whole-pixels.test.ts`
+- [Whole pixels](../../.cursor/rules/whole-pixels.mdc) – no fractional `px` on a layout or border length; guard `src/lib/utils/__tests__/src-walk-guards.test.ts`
 - [Effects](.cursor/rules/effects.mdc)
 - [Translations](../../.agents/skills/translations/) – next-intl cleanup and locale parity
 - [Locale-safe formatting](.cursor/rules/i18n-formatting.mdc) – `useFormatter` / `getFormatter`; avoid bare `toLocaleString()` in client components

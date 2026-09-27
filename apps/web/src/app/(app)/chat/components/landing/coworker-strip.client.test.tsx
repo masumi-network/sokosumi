@@ -8,7 +8,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { StripCoworker } from "./coworker-strip.client";
+import type { StripCoworker } from "./landing-content";
 
 vi.mock("next/image", () => ({
   default: ({ alt, src }: { alt: string; src: string }) => (

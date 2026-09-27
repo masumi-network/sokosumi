@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { CreditBucketReferenceType } from "@sokosumi/database";
 import {
   buildOrganizationInvoiceCreditReferenceId,
@@ -14,19 +15,22 @@ import {
 import { convertCreditsToCents } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
+import { stripeClient } from "@/clients/stripe.client";
 import { getEnv } from "@/config/env";
 import { notifyInvoicePaid } from "@/helpers/billing-notifications";
+import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { getSubscriptionCatalog } from "@/services/subscription-catalog.service";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
 /**
  * Port of the web app's `handleInvoicePaidEvent`
- * (Core `stripe-backed-subscription.service.ts`). One deliberate behavior
- * change: an unknown Stripe customer THROWS instead of silently returning, so
- * the webhook responds 5xx and Stripe retries — the web path's silent 200
- * permanently lost the credits when the customer-id write-back had not landed
- * yet.
+ * (Core `stripe-backed-subscription.service.ts`).
+ *
+ * Unknown `cus_` is not a silent 200: retrieve the Stripe Customer and try
+ * metadata / email write-back (same owner fields as `customer.created`).
+ * Permanent misses (deleted customer, no metadata, no email match) ack after
+ * Sentry so Stripe stops retrying. Transient Stripe/DB failures still throw.
  */
 
 const SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS = new Set([
@@ -395,6 +399,211 @@ function buildInvoiceCreditGrants(
   return creditGrants;
 }
 
+interface InvoiceCreditOwner {
+  organizationId: string | null;
+  userId: string | null;
+}
+
+type PermanentUnknownInvoiceCustomerReason =
+  | "customer_deleted"
+  | "resource_missing"
+  | "no_owner"
+  | "email_linked_other_customer"
+  | "owner_gone_p2025";
+
+type InvoiceCreditOwnerResolveResult =
+  | { kind: "resolved"; owner: InvoiceCreditOwner }
+  | {
+      kind: "permanent_miss";
+      reason: PermanentUnknownInvoiceCustomerReason;
+    };
+
+function isStripeResourceMissing(error: unknown): boolean {
+  return (
+    error !== null &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code: unknown }).code === "resource_missing"
+  );
+}
+
+async function writeBackUserStripeCustomerId(
+  userId: string,
+  stripeCustomerId: string,
+): Promise<boolean> {
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { stripeCustomerId },
+    });
+    return true;
+  } catch (error) {
+    if (isPrismaRecordNotFoundError(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function writeBackOrganizationStripeCustomerId(
+  organizationId: string,
+  stripeCustomerId: string,
+): Promise<boolean> {
+  try {
+    await prisma.organization.update({
+      where: { id: organizationId },
+      data: { stripeCustomerId },
+    });
+    return true;
+  } catch (error) {
+    if (isPrismaRecordNotFoundError(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function retrieveStripeCustomerForInvoice(
+  stripeCustomerId: string,
+): Promise<
+  | { kind: "customer"; customer: Stripe.Customer }
+  | {
+      kind: "permanent_miss";
+      reason: Extract<
+        PermanentUnknownInvoiceCustomerReason,
+        "customer_deleted" | "resource_missing"
+      >;
+    }
+> {
+  try {
+    const customer = await stripeClient.retrieveCustomer(stripeCustomerId);
+    if (customer.deleted) {
+      return { kind: "permanent_miss", reason: "customer_deleted" };
+    }
+    return { kind: "customer", customer };
+  } catch (error) {
+    // Missing/deleted on Stripe is permanent. Timeouts, 5xx, and rate limits
+    // stay thrown so Stripe retries.
+    if (isStripeResourceMissing(error)) {
+      return { kind: "permanent_miss", reason: "resource_missing" };
+    }
+    throw error;
+  }
+}
+
+async function resolveOwnerFromStripeCustomer(
+  customer: Stripe.Customer,
+): Promise<InvoiceCreditOwnerResolveResult> {
+  const metadata = customer.metadata;
+  if (metadata?.customerType === "user" && metadata.userId) {
+    const written = await writeBackUserStripeCustomerId(
+      metadata.userId,
+      customer.id,
+    );
+    return written
+      ? {
+          kind: "resolved",
+          owner: { organizationId: null, userId: metadata.userId },
+        }
+      : { kind: "permanent_miss", reason: "owner_gone_p2025" };
+  }
+
+  if (metadata?.customerType === "organization" && metadata.organizationId) {
+    const written = await writeBackOrganizationStripeCustomerId(
+      metadata.organizationId,
+      customer.id,
+    );
+    return written
+      ? {
+          kind: "resolved",
+          owner: { organizationId: metadata.organizationId, userId: null },
+        }
+      : { kind: "permanent_miss", reason: "owner_gone_p2025" };
+  }
+
+  const email = customer.email?.trim();
+  if (!email) {
+    return { kind: "permanent_miss", reason: "no_owner" };
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+    select: { id: true, stripeCustomerId: true },
+  });
+  if (!user) {
+    return { kind: "permanent_miss", reason: "no_owner" };
+  }
+  if (user.stripeCustomerId && user.stripeCustomerId !== customer.id) {
+    return { kind: "permanent_miss", reason: "email_linked_other_customer" };
+  }
+  if (!user.stripeCustomerId) {
+    const written = await writeBackUserStripeCustomerId(user.id, customer.id);
+    return written
+      ? { kind: "resolved", owner: { organizationId: null, userId: user.id } }
+      : { kind: "permanent_miss", reason: "owner_gone_p2025" };
+  }
+
+  return { kind: "resolved", owner: { organizationId: null, userId: user.id } };
+}
+
+async function resolveInvoiceCreditOwner(
+  stripeCustomerId: string,
+): Promise<InvoiceCreditOwnerResolveResult> {
+  const user = await userRepository.getUserByStripeCustomerId(
+    stripeCustomerId,
+    prisma,
+  );
+  if (user) {
+    return {
+      kind: "resolved",
+      owner: { organizationId: null, userId: user.id },
+    };
+  }
+
+  const organization =
+    await organizationRepository.getOrganizationByStripeCustomerId(
+      stripeCustomerId,
+      prisma,
+    );
+  if (organization) {
+    return {
+      kind: "resolved",
+      owner: { organizationId: organization.id, userId: null },
+    };
+  }
+
+  const retrieved = await retrieveStripeCustomerForInvoice(stripeCustomerId);
+  if (retrieved.kind === "permanent_miss") {
+    return retrieved;
+  }
+
+  return await resolveOwnerFromStripeCustomer(retrieved.customer);
+}
+
+function capturePermanentUnknownInvoiceCustomer(params: {
+  invoiceId: string;
+  reason: PermanentUnknownInvoiceCustomerReason;
+  stripeCustomerId: string;
+}): void {
+  Sentry.captureException(
+    new Error(
+      `Stripe customer ${params.stripeCustomerId} is not linked to a user or organization for invoice ${params.invoiceId}`,
+    ),
+    {
+      extra: {
+        invoiceId: params.invoiceId,
+        reason: params.reason,
+        stripeCustomerId: params.stripeCustomerId,
+      },
+      tags: {
+        context: "invoice_paid_unknown_customer",
+        reason: params.reason,
+        stripeEventType: "invoice.paid",
+      },
+    },
+  );
+}
+
 export async function handleInvoicePaidEvent(
   invoice: Stripe.Invoice,
 ): Promise<void> {
@@ -416,42 +625,28 @@ export async function handleInvoicePaidEvent(
       ? invoice.customer
       : invoice.customer.id;
 
-  let userId: string | null = null;
-  let organizationId: string | null = null;
+  const resolved = await resolveInvoiceCreditOwner(stripeCustomerId);
+  if (resolved.kind === "permanent_miss") {
+    capturePermanentUnknownInvoiceCustomer({
+      invoiceId,
+      reason: resolved.reason,
+      stripeCustomerId,
+    });
+    return;
+  }
+
+  const userId = resolved.owner.userId;
+  const organizationId = resolved.owner.organizationId;
   let purchasedSeats = 1;
 
-  const user = await userRepository.getUserByStripeCustomerId(
-    stripeCustomerId,
-    prisma,
-  );
-
-  if (user) {
-    userId = user.id;
-  } else {
-    const organization =
-      await organizationRepository.getOrganizationByStripeCustomerId(
-        stripeCustomerId,
+  if (organizationId) {
+    const subscription =
+      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+        organizationId,
         prisma,
       );
 
-    if (organization) {
-      organizationId = organization.id;
-
-      const subscription =
-        await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-          organizationId,
-          prisma,
-        );
-
-      purchasedSeats = resolvePurchasedSeats(subscription?.seats);
-    } else {
-      // Unlike the web handler, throw so the webhook responds 5xx and Stripe
-      // retries — a silent 200 permanently drops the credits when the
-      // customer-id write-back has not landed yet.
-      throw new Error(
-        `Stripe customer ${stripeCustomerId} not found in our system for invoice ${invoiceId}`,
-      );
-    }
+    purchasedSeats = resolvePurchasedSeats(subscription?.seats);
   }
 
   const creditScope: CreditScope = organizationId

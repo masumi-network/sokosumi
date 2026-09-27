@@ -142,7 +142,8 @@ function task(id: string, description = "Task summary") {
     status: "RUNNING",
     projectId: "project-new",
     assigneeId: "coworker-1",
-    nextRunAt: LATER,
+    runAt: LATER,
+    scheduleId: "schedule-1",
     updatedAt: NOW,
     events: [{ status: "RUNNING", comment: "Working", createdAt: NOW }],
     linksTo: [],
@@ -360,7 +361,8 @@ describe("ContextPacketBuilder", () => {
     expect(result.packet.tasks[0]).toMatchObject({
       priority: null,
       dueAt: null,
-      scheduledAt: LATER.toISOString(),
+      runAt: LATER.toISOString(),
+      scheduleId: "schedule-1",
       blockedBy: [{ id: "blocker-1", status: "RUNNING" }],
       blockersOmitted: 1,
     });

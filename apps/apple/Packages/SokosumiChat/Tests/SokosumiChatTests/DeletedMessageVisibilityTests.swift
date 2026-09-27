@@ -57,8 +57,9 @@ struct DeletedMessageVisibilityTests {
     #expect(full.map(\.id) == ["first", "target"])
     #expect(displayedTranscript(messages: full, shells: []).map(\.id) == ["first"])
     // The id-only envelope path tombstones in place and leaves display the same way.
-    let enveloped = applyRealtimeTombstone(messages: rows, messageId: "target")
-    #expect(enveloped.first { $0.id == "target" }?.deletedAt != nil)
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let enveloped = applyRealtimeTombstone(messages: rows, messageId: "target", now: now)
+    #expect(enveloped.first { $0.id == "target" }?.deletedAt == now)
     #expect(displayedTranscript(messages: enveloped, shells: []).map(\.id) == ["first"])
   }
 
@@ -83,9 +84,10 @@ struct DeletedMessageVisibilityTests {
     #expect(session.displayedReplies.isEmpty)
 
     // Web filters replies only; the root above the divider keeps its tombstone.
-    session.apply(eventType: .delete, message: tombstoneTranscriptMessage(root, now: Date(timeIntervalSince1970: 1_700_000_000)))
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    session.apply(eventType: .delete, message: tombstoneTranscriptMessage(root, now: now))
     #expect(session.parent?.id == "root")
-    #expect(session.parent?.deletedAt != nil)
+    #expect(session.parent?.deletedAt == now)
     #expect(session.parent?.content.isEmpty == true)
   }
 }

@@ -25,7 +25,7 @@ const pricingId = randomUUID();
 const olderId = randomUUID();
 const newerId = randomUUID();
 
-// Use the actual repository schema (prisma db push into a disposable database),
+// Use the actual repository migrations in a disposable database,
 // real Prisma, raw SQL and HTTP serialization. Only auth is a trusted fixture.
 // A handwritten table fixture previously hid the Job/job mapping regression.
 describe.skipIf(!enabled)(

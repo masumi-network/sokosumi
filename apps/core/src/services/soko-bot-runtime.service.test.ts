@@ -60,7 +60,7 @@ const {
   transactionTurnFindFirstMock,
   transactionTurnUpdateManyMock,
   transactionTaskUpdateMock,
-  transactionTaskEventCountMock,
+  transactionTaskEventFindManyMock,
   transactionTaskEventCreateMock,
   transactionTaskWatchUpsertMock,
   transactionWorkspaceFindFirstMock,
@@ -142,7 +142,7 @@ const {
   transactionTurnFindFirstMock: vi.fn(),
   transactionTurnUpdateManyMock: vi.fn(),
   transactionTaskUpdateMock: vi.fn(),
-  transactionTaskEventCountMock: vi.fn(),
+  transactionTaskEventFindManyMock: vi.fn(),
   transactionTaskEventCreateMock: vi.fn(),
   transactionTaskWatchUpsertMock: vi.fn(),
   transactionWorkspaceFindFirstMock: vi.fn(),
@@ -174,6 +174,16 @@ vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: availabilityMock,
 }));
+vi.mock("@/helpers/data-table", () => ({
+  resolveTableActor: vi.fn(),
+  createDataTable: vi.fn(),
+  listDataTables: vi.fn(),
+  requireDataTable: vi.fn(),
+  queryTableRows: vi.fn(),
+  batchTableRows: vi.fn(),
+  mutateDataTable: vi.fn(),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
@@ -280,7 +290,7 @@ vi.mock("@/lib/db/transaction", () => ({
           update: transactionTaskUpdateMock,
         },
         taskEvent: {
-          count: transactionTaskEventCountMock,
+          findMany: transactionTaskEventFindManyMock,
           create: transactionTaskEventCreateMock,
         },
         sokoBotTaskWatch: { upsert: transactionTaskWatchUpsertMock },
@@ -328,6 +338,7 @@ vi.mock("@/helpers/task-notifications", () => ({
   notifyTaskStatusEvent: notifyTaskStatusEventMock,
 }));
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishTaskEventData: publishTaskEventDataMock,
 }));
 vi.mock("@/helpers/chat-direct-message-notifications", () => ({
@@ -348,7 +359,8 @@ vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
   emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
 }));
-vi.mock("@/helpers/task-link", () => ({
+vi.mock("@/helpers/task-link", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/task-link")>()),
   mapTaskLinkRelationToWriteData: vi.fn(),
 }));
 vi.mock("@sokosumi/masumi", () => ({
@@ -507,7 +519,7 @@ describe("SokoBotRuntimeService authorization", () => {
     transactionToolCallFindUniqueMock.mockResolvedValue(null);
     transactionToolCallCountMock.mockResolvedValue(0);
     transactionToolCallCreateMock.mockResolvedValue({});
-    transactionTaskEventCountMock.mockResolvedValue(0);
+    transactionTaskEventFindManyMock.mockResolvedValue([]);
     transactionTaskEventCreateMock.mockResolvedValue({ id: "event_1" });
     transactionTaskWatchUpsertMock.mockResolvedValue({});
     applyGuardedTaskStatusUpdateMock.mockResolvedValue(undefined);
@@ -1148,12 +1160,8 @@ describe("SokoBotRuntimeService authorization", () => {
         archivedAt: null,
         ...buildSokoBotAudienceTaskVisibilityWhere(SCOPE.userId, askedByKind),
       };
-      const visiblePeerWhere = {
-        toTask: { is: visiblePeerTask },
-      };
-      const visibleFromPeerWhere = {
-        fromTask: { is: visiblePeerTask },
-      };
+      const visiblePeerWhere = { toTask: { is: visiblePeerTask } };
+      const visibleFromPeerWhere = { fromTask: { is: visiblePeerTask } };
       taskFindFirstMock.mockImplementation(
         async (args: {
           select?: {
@@ -2708,6 +2716,52 @@ describe("SokoBotRuntimeService chat reading", () => {
     });
     // Membership is the boundary; ChatRoom has no workspaceId column.
     expect(where.archivedAt).toBeNull();
+  });
+
+  it("lists a named group by its Group name", async () => {
+    chatRoomFindManyMock.mockResolvedValue([
+      {
+        id: "room_1",
+        name: "Ada, Ben",
+        groupName: "Launch crew",
+        kind: "direct",
+        updatedAt: new Date("2026-09-23T10:00:00.000Z"),
+        _count: { messages: 3 },
+      },
+      {
+        id: "room_2",
+        name: "Ada, Cara",
+        groupName: null,
+        kind: "direct",
+        updatedAt: new Date("2026-09-23T09:00:00.000Z"),
+        _count: { messages: 1 },
+      },
+    ]);
+
+    const result = await new SokoBotRuntimeService()["listChats"]({
+      turn: SCOPE_TURN,
+    } as never);
+
+    expect(result.rooms.map((room) => room.name)).toEqual([
+      "Launch crew",
+      "Ada, Cara",
+    ]);
+  });
+
+  it("names a read group by its Group name", async () => {
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_1",
+      name: "Ada, Ben",
+      groupName: "Launch crew",
+    });
+    chatMessageFindManyMock.mockResolvedValue([]);
+
+    const result = await new SokoBotRuntimeService()["readChat"](
+      { turn: SCOPE_TURN } as never,
+      { roomId: "room_1" },
+    );
+
+    expect(result.name).toBe("Launch crew");
   });
 
   it("refuses to read a room the bot does not belong to", async () => {

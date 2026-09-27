@@ -42,13 +42,13 @@ The Xcode navigator follows the physical source folders. Start with `Sokosumi/Ap
 | `Sokosumi/Chat/Sidebar` | Conversation list and account/workspace menus |
 | `Sokosumi/Chat/Timeline` | Scrolling, message rows and status rows |
 | `Sokosumi/Chat/Threads` | Reply-thread presentation |
-| `Sokosumi/Chat/Details` | Room information and member roster inspector, channel settings sheet and guest access section |
+| `Sokosumi/Chat/Details` | Room information and member roster inspector, channel settings sheet, group Direct Name Group sheet and guest access section |
 | `Sokosumi/Chat/Invitations` | Channel invitation and guest join-link sheets opened from in-app links |
 | `Sokosumi/Chat/Pins` | Pinned-message inspector and preview cards |
 | `Sokosumi/Chat/Search` | Room Find toolbar, shared inspector presentation and search result rows |
 | `Sokosumi/Chat/Composer` | Rich composer, Drive picker and native text input |
 | `Sokosumi/Chat/Rendering` | Markdown, code, thought presentation, Soko Bot footer/hop badge and attachment chips/previews |
-| `Sokosumi/Shared` | Participant avatar, `PresenceDot`, `ParticipantProfileButton` and `ParticipantDetailsView` |
+| `Sokosumi/Shared` | Participant avatar, `PresenceDot`, `ParticipantProfileButton`, `ParticipantDetailsView` and the shared `WrappingRow` layout |
 | `Sokosumi/Settings` | Settings scene content (account, chat display, time format and chat notification delivery) and the time-format environment value |
 | `Sokosumi/Notifications` | `UNUserNotificationCenter` adapter for local chat banners while the app runs; what to show or dismiss is decided in the shared packages |
 | `SokosumiTests` | App integration tests, grouped by feature |

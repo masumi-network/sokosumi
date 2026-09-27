@@ -142,7 +142,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await head(pathname, { token });
       throw conflict("Target pathname already exists");
     } catch (error) {
-      // If it's a not-found error, target doesn't exist (expected)
       if (error instanceof BlobNotFoundError) {
       } else if (
         error &&
@@ -150,7 +149,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         "kind" in error &&
         error.kind === "conflict"
       ) {
-        // Re-throw our own conflict errors
         throw error;
       } else {
         throw error;

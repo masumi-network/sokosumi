@@ -8,6 +8,7 @@ import {
 } from "@/helpers/billing-notifications";
 import {
   handleCheckoutSessionCompletedEvent,
+  handleSubscriptionCreatedEvent,
   handleSubscriptionDeletedEvent,
 } from "@/services/stripe-backed-subscription.service";
 import { stripeWebhookService } from "@/services/stripe-webhook.service";
@@ -41,6 +42,33 @@ export async function handleStripeAuthWebhookOnEvent(
         extra: {
           eventId: event.id,
           sessionId: session.id,
+        },
+      });
+      throw error;
+    }
+    return;
+  }
+
+  // Here and not in the plugin's onSubscriptionCreated hook: the plugin logs
+  // and drops a hook error, so Stripe never retries it. A throw from onEvent
+  // becomes a 400 and Stripe redelivers. The redelivery is safe because the
+  // plugin skips creating a subscription row that already exists.
+  if (event.type === "customer.subscription.created") {
+    const subscription = event.data.object;
+    try {
+      await handleSubscriptionCreatedEvent(subscription);
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: {
+          stripeEventType: "customer.subscription.created",
+          stripeSubscriptionId: subscription.id,
+        },
+        extra: {
+          customer:
+            typeof subscription.customer === "string"
+              ? subscription.customer
+              : subscription.customer.id,
+          eventId: event.id,
         },
       });
       throw error;

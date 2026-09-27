@@ -43,8 +43,10 @@ export async function sendAccountVerificationEmail(
 
 /**
  * Where a notice leads from surfaces that cannot host the security check
- * (toast, dropdown menu). Email verification lands on the notifications page,
- * whose notice card carries the resend button and its inline check.
+ * (toast, the bell panel). Email verification lands on the notifications
+ * page, whose Needs you row carries the resend button and its inline check.
+ * The toast switches the view to Needs you first (`useAccountNoticeAction`);
+ * the panel only shows the row on Needs you, and the page shares its view.
  */
 export function getAccountNoticePath(notice: AccountNotice): string {
   return notice.type === "emailVerification" ? "/notifications" : notice.path;

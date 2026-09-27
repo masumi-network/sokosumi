@@ -23,6 +23,8 @@ import SwiftUI
       let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
       ReplyThreadContent(messages: prepared?.overlaying(input.messages) ?? [], preparedTranscript: prepared,
                          preparationScope: input.scope, preparedHasMore: preparedHasMore)
+        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: workspaces.transcriptRoomId ?? "", parentMessageId: workspaces.thread.parent?.id))
+        .id([workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? ""])
         .onChange(of: workspaces.thread.timeline.hasMore) { _, hasMore in
           if preparedTranscript?.input == input {
             preparedHasMore = hasMore
@@ -218,7 +220,26 @@ import SwiftUI
                            onAccepted: { scrollIntent.followLatest() })
             .id(parent.id)
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+          if let failure = workspaces.thread.mute?.failure {
+            ThreadMuteFailureRow(message: failure.message) { workspaces.thread.dismissMuteFailure() }
+          }
+        }
         .navigationTitle("Thread")
+        .toolbar {
+          if let mute = workspaces.thread.mute, let isMuted = mute.isMuted {
+            ToolbarItem {
+              ThreadMuteToggle(isMuted: isMuted, isPending: mute.isPending) {
+                Task { await workspaces.toggleThreadMute(auth: auth) }
+              }
+            }
+          }
+        }
+        // Stored replies only. A pending shell reads too early (404) and the stored row that replaces it
+        // does not change the displayed count, so the bell would never appear.
+        .task(id: [parent.id, String(liveThreadReplyCount(messages))]) {
+          await workspaces.readThreadMuteIfNeeded(auth: auth)
+        }
         .onChange(of: parent.id) { _, _ in pendingQuote = nil
           jumpError = nil
         }
@@ -285,24 +306,21 @@ import SwiftUI
         let previous = index > 0 && !hasGap ? messages[index - 1] : nil
         let streaming = message.id.hasPrefix("stream:") && isCoworkerMessage(message)
         let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
-        let reasoning = thinking ? (workspaces.directStream.latestThought ?? workspaces.directStream.reasoning) : workspaces.directStream.reasoning
         let outbox = workspaces.thread.outbox
         let shell = outbox.shells.first { $0.id == message.id }
         VStack(alignment: .leading, spacing: 0) {
           if hasGap {
-            Button("Load messages in this gap") {
+            // Web's thread panel has no gap row (a reply jump is Apple's), so this stays a
+            // tap; the row and its failure follow the room's gap row.
+            PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.thread.timeline.boundaryLoads.status(of: message.id)) {
               workspaces.loadThreadPage(.boundary(message.id), auth: auth)
             }
-            .buttonStyle(.link)
-            .disabled(workspaces.thread.timeline.isRefreshing)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
           }
           if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
             DaySeparatorRow(label: label)
           }
-          if let status = membershipStatusText(message) {
-            MembershipStatusRow(text: status)
+          if let status = roomStatusText(message) {
+            RoomStatusRow(text: status)
           } else {
             MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.documents[message.id], message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                            outbound: shell, sentAt: outbox.sentAt[message.id],
@@ -317,7 +335,7 @@ import SwiftUI
                            onToggleReaction: reactionAction(for: message),
                            editing: workspaces.messageEditing,
                            onQuoteJump: jumpToQuote, onSendToSelf: sendToSelfAction(for: message),
-                           streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
+                           streamThinking: thinking)
           }
         }
         .id(message.id)

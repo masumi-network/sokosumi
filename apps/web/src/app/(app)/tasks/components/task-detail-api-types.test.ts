@@ -43,4 +43,24 @@ describe("task-detail-api-types", () => {
       },
     ]);
   });
+
+  it("shows a Markdown peer name as plain text", () => {
+    const result = mapVisibleTaskLinks([
+      {
+        id: "link-1",
+        createdAt: new Date("2026-03-31T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-31T10:00:00.000Z"),
+        relation: TaskLinkRelation.RELATED,
+        note: null,
+        peerTask: {
+          id: "task-2",
+          name: "**Task Name:** _Weekly_",
+          status: TaskStatus.READY,
+          archivedAt: null,
+        },
+      },
+    ]);
+
+    expect(result[0]?.name).toBe("Task Name: Weekly");
+  });
 });

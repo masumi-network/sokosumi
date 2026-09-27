@@ -13,7 +13,9 @@ struct CoworkerThoughtView: View {
           VStack(alignment: .leading, spacing: 4) {
             header
             if !thought.text.isEmpty {
-              Text(thought.text)
+              // Web stacks the whole trace's paragraphs without a gap and clamps the stack
+              // to three lines, so the reader sees its start.
+              Text(thought.steps.joined(separator: "\n"))
                 .textSelection(.enabled)
                 .lineLimit(3)
             }

@@ -1,8 +1,8 @@
 import Foundation
 
-public enum MessageAttachmentKindAttribute: AttributedStringKey {
-  public typealias Value = MessageAttachment.Kind
-  public static let name = "sokosumi.message.attachment-kind"
+enum MessageAttachmentKindAttribute: AttributedStringKey {
+  typealias Value = MessageAttachment.Kind
+  static let name = "sokosumi.message.attachment-kind"
 }
 
 /// File metadata available in message Markdown; size is not carried on the wire.
@@ -93,12 +93,34 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
   }
 }
 
-public extension MessageMarkdown {
-  var containsAttachments: Bool {
-    func walk(_ block: MessageMarkdownBlock) -> Bool {
-      MessageAttachmentSegment.split(block.text).contains { $0.attachment != nil }
-        || block.children.contains(where: walk)
+extension MessageMarkdown {
+  /// Attachments in document order, grouped where only whitespace separates them.
+  static func attachmentRows(in blocks: [MessageMarkdownBlock]) -> [[MessageAttachment]] {
+    var rows: [[MessageAttachment]] = []
+    var open = false
+    func walk(_ block: MessageMarkdownBlock) {
+      guard block.children.isEmpty else {
+        block.children.forEach(walk)
+        return
+      }
+      if case .codeBlock = block.kind {
+        open = false
+        return
+      }
+      for segment in MessageAttachmentSegment.split(block.text) {
+        if let attachment = segment.attachment {
+          if open {
+            rows[rows.count - 1].append(attachment)
+          } else {
+            rows.append([attachment])
+            open = true
+          }
+        } else if !String(segment.text.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+          open = false
+        }
+      }
     }
-    return blocks.contains(where: walk)
+    blocks.forEach(walk)
+    return rows
   }
 }

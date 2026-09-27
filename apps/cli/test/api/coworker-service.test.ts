@@ -5,8 +5,10 @@ import type { CoreHttpClient } from "../../src/api/http-client.js";
 import {
   createCoworker,
   createCoworkerApiKey,
+  fetchCoworker,
   fetchCoworkers,
   fetchCurrentCoworker,
+  grantCoworkerWorkspaceAccess,
   updateCoworker,
 } from "../../src/api/services/coworker-service.js";
 
@@ -32,21 +34,21 @@ function client(
       calls.push({ method: "PATCH", path, body });
       return response as T;
     },
-    delete: async <T>(path: string) => {
-      calls.push({ method: "DELETE", path });
-      return response as T;
-    },
   };
 }
 
 test("coworker services use Core routes, encode IDs, and repeat capabilities", async () => {
   const calls: Call[] = [];
   const api = client(calls, { data: [{ id: "cow-1" }] });
-  await fetchCoworkers(api, { scope: "owned", capability: ["tasks", "chat"] });
+  await fetchCoworkers(api, {
+    scope: "owned",
+    capabilities: ["tasks", "chat"],
+  });
   await fetchCurrentCoworker(api);
   await createCoworker(api, { name: "  Ops  ", vendorId: "vendor-1" });
   await updateCoworker(api, "cow/1", { caption: "Ops" });
   await createCoworkerApiKey(api, "cow/1", { name: " Production " });
+  await fetchCoworker(api, "cow/1");
   assert.deepEqual(
     calls.map(({ method, path }) => ({ method, path })),
     [
@@ -58,6 +60,7 @@ test("coworker services use Core routes, encode IDs, and repeat capabilities", a
       { method: "POST", path: "/v1/coworkers" },
       { method: "PATCH", path: "/v1/coworkers/cow%2F1" },
       { method: "POST", path: "/v1/coworkers/cow%2F1/api-keys" },
+      { method: "GET", path: "/v1/coworkers/cow%2F1" },
     ],
   );
   assert.deepEqual(calls[2]?.body, { name: "Ops", vendorId: "vendor-1" });
@@ -69,9 +72,47 @@ test("coworker services validate required inputs before HTTP", async () => {
   const api = client(calls);
   await assert.rejects(() => createCoworker(api, {}), /name is required/);
   await assert.rejects(() => updateCoworker(api, ""), /coworkerId is required/);
+  await assert.rejects(() => fetchCoworker(api, ""), /coworkerId is required/);
   await assert.rejects(
     () => createCoworkerApiKey(api, ""),
     /coworkerId is required/,
+  );
+  assert.equal(calls.length, 0);
+});
+
+test("coworker workspace grant sends the selected organization target", async () => {
+  const calls: Call[] = [];
+  const api = client(calls, {
+    data: {
+      id: "access-1",
+      coworkerId: "cow/1",
+      workspaceId: "workspace-1",
+      status: "GRANTED",
+    },
+  });
+
+  const result = await grantCoworkerWorkspaceAccess(api, "cow/1", {
+    organizationId: " org-1 ",
+  });
+
+  assert.deepEqual(calls, [
+    {
+      method: "POST",
+      path: "/v1/coworkers/cow%2F1/workspace-access",
+      body: { organizationId: "org-1" },
+    },
+  ]);
+  assert.equal(result.access.status, "GRANTED");
+});
+
+test("coworker workspace grant rejects an empty organization before HTTP", async () => {
+  const calls: Call[] = [];
+  await assert.rejects(
+    () =>
+      grantCoworkerWorkspaceAccess(client(calls), "cow-1", {
+        organizationId: "  ",
+      }),
+    /organizationId is required/,
   );
   assert.equal(calls.length, 0);
 });

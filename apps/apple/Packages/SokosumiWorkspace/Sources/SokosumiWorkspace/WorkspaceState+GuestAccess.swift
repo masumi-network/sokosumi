@@ -44,10 +44,10 @@ public extension WorkspaceState {
   @discardableResult
   func removeGuest(roomId: String, userId: String, context: UUID, auth: AuthState) async throws -> Bool {
     guard canStartMutation(context: context) else { return false }
-    updatingChannel = true
+    updatingRoom = true
     defer {
       if context == compositionContext {
-        updatingChannel = false
+        updatingRoom = false
       }
     }
     try await channelOperation(context: context, auth: auth) { client, _, slug in

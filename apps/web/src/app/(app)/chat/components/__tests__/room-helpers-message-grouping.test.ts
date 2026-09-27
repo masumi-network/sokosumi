@@ -26,6 +26,7 @@ function baseMessage(
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     deletedAt: null,
     ...overrides,

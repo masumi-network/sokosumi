@@ -11,7 +11,7 @@ import {
 } from "@/schemas/soko-bot-integration-auth.schema";
 import { completeSokoBotIntegrationAuth } from "@/services/soko-bot-integration-auth.service";
 import { finalizeSokoBotIntegration } from "@/services/soko-bot-integrations.service";
-import { mapIntegrationError } from "./integration-error.js";
+import { mapIntegrationError } from "./helpers.js";
 
 export function mountSokoBotIntegrationAuthRoutes(
   app: OpenAPIHonoWithAuth,

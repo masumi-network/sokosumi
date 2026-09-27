@@ -8,7 +8,6 @@ function clientWith(response: unknown): CoreHttpClient {
     get: async <T>() => response as T,
     post: async <T>() => response as T,
     patch: async <T>() => response as T,
-    delete: async <T>() => response as T,
   };
 }
 
@@ -39,7 +38,6 @@ test("jobs input submits JSON and emits the submitted input", async () => {
       } as T;
     },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
 
   await runJobsCommand({
@@ -148,7 +146,6 @@ test("jobs get text surfaces the newest Core event result", async () => {
     },
     post: async <T>() => ({ data: null }) as T,
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
 
   await runJobsCommand({
@@ -174,7 +171,6 @@ test("jobs get --details maps events, files, links, and input request", async ()
     },
     post: async <T>() => ({ data: null }) as T,
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   const output: string[] = [];
   await runJobsCommand({
@@ -204,7 +200,6 @@ test("jobs get --details still emits the job when a detail fetch fails", async (
     },
     post: async <T>() => ({ data: null }) as T,
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   const output: string[] = [];
   await runJobsCommand({

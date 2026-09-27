@@ -1,14 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  memberRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
-import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
@@ -16,6 +9,7 @@ import {
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
 import { preferredOrganizationSchema } from "@/schemas/preferred-organization.schema";
+import { setPreferredOrganizationId } from "@/services/preferred-organization.service";
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,
@@ -70,43 +64,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
     const { organizationId } = c.req.valid("json");
 
-    if (!organizationId) {
-      const personalWorkspace = await prisma.workspace.findUnique({
-        where: { userId: resolvedUserId },
-        select: { id: true },
-      });
-      if (!personalWorkspace) {
-        throw notFound("Personal workspace is missing", {
-          kind: CORE_API_ERROR_KINDS.PERSONAL_WORKSPACE_MISSING,
-        });
-      }
-      await userRepository.updatePreferredOrganizationId(
-        resolvedUserId,
-        null,
-        prisma,
-      );
-      return ok(c, preferredOrganizationSchema.parse({ organizationId: null }));
-    }
-
-    await prisma.$transaction(async (tx) => {
-      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-        resolvedUserId,
-        organizationId,
-        tx,
-      );
-
-      if (!member) {
-        throw forbidden("The user is not a member of the organization", {
-          kind: CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED,
-        });
-      }
-
-      await userRepository.updatePreferredOrganizationId(
-        resolvedUserId,
-        organizationId,
-        tx,
-      );
-    });
+    await setPreferredOrganizationId(resolvedUserId, organizationId);
 
     return ok(c, preferredOrganizationSchema.parse({ organizationId }));
   });

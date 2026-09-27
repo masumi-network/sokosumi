@@ -5,11 +5,13 @@ import type { OrganizationWorkspace } from "../../src/api/models/organization-wo
 import type { Vendor } from "../../src/api/models/vendor.js";
 import {
   administeredVendors,
-  assertVendorCreationRequest,
   describeRegistrationAdminVendorRequirement,
   describeRegistrationWorkspaceRequirement,
+  isPreprodCoworkerRegistrationTarget,
   requireAdministeredVendorForRegistration,
   requireOrganizationWorkspacesForRegistration,
+  requirePreprodCoworkerRegistration,
+  requireSelectedOrganizationWorkspace,
 } from "../../src/cli/registration-authority.js";
 
 function vendor(partial: Partial<Vendor> & Pick<Vendor, "id">): Vendor {
@@ -35,7 +37,7 @@ function workspace(organizationId: string): OrganizationWorkspace {
   };
 }
 
-test("TestV67 administeredVendors keeps only admin memberships", () => {
+test("administeredVendors keeps only admin memberships", () => {
   assert.deepEqual(
     administeredVendors([
       vendor({ id: "v-admin", role: "admin" }),
@@ -46,7 +48,7 @@ test("TestV67 administeredVendors keeps only admin memberships", () => {
   );
 });
 
-test("TestV67 empty organization workspaces block registration", () => {
+test("empty organization workspaces block registration", () => {
   assert.throws(
     () => requireOrganizationWorkspacesForRegistration([]),
     /organization workspace/,
@@ -56,7 +58,34 @@ test("TestV67 empty organization workspaces block registration", () => {
   );
 });
 
-test("TestV67 registration accepts only an administered Vendor", () => {
+test("registration selects only a listed Workspace", () => {
+  const workspaces = [workspace("org-1")];
+  assert.equal(
+    requireSelectedOrganizationWorkspace(workspaces, "org-1"),
+    workspaces[0],
+  );
+  assert.throws(
+    () => requireSelectedOrganizationWorkspace(workspaces, "org-2"),
+    /not in your organization memberships/,
+  );
+  assert.throws(
+    () => requireSelectedOrganizationWorkspace(workspaces, undefined),
+    /workspace id is required/,
+  );
+});
+
+test("Coworker registration is limited to Preprod", () => {
+  assert.equal(isPreprodCoworkerRegistrationTarget("preprod"), true);
+  assert.equal(isPreprodCoworkerRegistrationTarget("mainnet"), false);
+  assert.equal(isPreprodCoworkerRegistrationTarget("custom"), false);
+  assert.doesNotThrow(() => requirePreprodCoworkerRegistration("preprod"));
+  assert.throws(
+    () => requirePreprodCoworkerRegistration("mainnet"),
+    /Preprod only/,
+  );
+});
+
+test("registration accepts only an administered Vendor", () => {
   const vendors = [
     vendor({ id: "v-admin", role: "admin" }),
     vendor({ id: "v-dev", role: "developer" }),
@@ -75,21 +104,7 @@ test("TestV67 registration accepts only an administered Vendor", () => {
   );
 });
 
-test("TestV67 Vendor creation needs confirm then refuses without Core path", () => {
-  assert.doesNotThrow(() =>
-    assertVendorCreationRequest({ requested: false, confirmed: false }),
-  );
-  assert.throws(
-    () => assertVendorCreationRequest({ requested: true, confirmed: false }),
-    /explicit confirmation/,
-  );
-  assert.throws(
-    () => assertVendorCreationRequest({ requested: true, confirmed: true }),
-    /no developer self-service Vendor create/,
-  );
-});
-
-test("TestV67 registration gate copy tells how to get workspace and Vendor admin", () => {
+test("registration gate copy provides workspace and Vendor setup guidance", () => {
   assert.match(
     describeRegistrationWorkspaceRequirement("https://app.example.test"),
     /workspace switcher/,
@@ -100,7 +115,19 @@ test("TestV67 registration gate copy tells how to get workspace and Vendor admin
   );
   assert.match(
     describeRegistrationAdminVendorRequirement("https://app.example.test"),
-    /existing Vendor admin to add you as admin/,
+    /vendors create/,
+  );
+  assert.match(
+    describeRegistrationAdminVendorRequirement("https://app.example.test"),
+    /creating a Coworker still requires a platform admin/,
+  );
+  assert.doesNotMatch(
+    describeRegistrationAdminVendorRequirement("https://app.example.test"),
+    /invite|role[- ]promot(e|ion)/i,
+  );
+  assert.doesNotMatch(
+    describeRegistrationAdminVendorRequirement("https://app.example.test"),
+    /create is unavailable/,
   );
   assert.match(
     describeRegistrationAdminVendorRequirement("https://app.example.test"),

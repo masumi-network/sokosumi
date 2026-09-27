@@ -23,7 +23,13 @@ const needsResetMock = vi.fn();
 const getDeviceMock = vi.fn();
 vi.mock("./push-device-health.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./push-device-health.client")>()),
-  pushDeviceNeedsReset: () => needsResetMock(),
+  findPushDeviceFault: async () => {
+    const answer: unknown = await needsResetMock();
+    // A string is the fault itself, so a test can arm two different ones and
+    // tell which read reported which.
+    if (typeof answer === "string") return answer;
+    return answer ? "delivery-failed" : null;
+  },
 }));
 const recordOutcomeMock = vi.fn<(...args: unknown[]) => Promise<void>>(
   async () => {},
@@ -166,6 +172,21 @@ describe("deactivatePush", () => {
     finish();
     await work;
     expect(deactivateMock).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * The name outlives the teardown, because what it names does. A release
+   * drops the identity token and leaves the device id, and a release the cap
+   * cuts short leaves the record on Ably with this reader's channel still
+   * bound to it. Forgetting the name there would hand the next reader an
+   * unclaimed device and bind them beside this reader.
+   */
+  it("keeps the name of the reader the device was registered for", async () => {
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+
+    await deactivatePush("user_1");
+
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
   });
 
   it("drops the browser subscription as well as the Ably device", async () => {
@@ -424,6 +445,104 @@ describe("activatePush", () => {
     localStorage.clear();
   });
 
+  it("stops before binding when the device owner cannot be saved", async () => {
+    // No device id: a run that finds one takes the replacement path, and that
+    // path drops the browser subscription itself. The drop under test is the
+    // one in the abort, so nothing may consume it first.
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
+    // Seeded because `activate()` is a stub here. The real one writes the
+    // token, and a reader who reached this run has a preference recorded.
+    localStorage.setItem("ably.push.deviceIdentityToken", "token");
+    localStorage.setItem(
+      "sokosumi.push.preference",
+      JSON.stringify({ userId: "user_1", suspended: false }),
+    );
+    // `activate()` leaves a browser subscription behind, and the abort has to
+    // take it with it, so the run has one to drop.
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    // Once, not for the whole describe: `clearAllMocks` between tests clears
+    // calls and keeps implementations, so a lasting one would answer the later
+    // cases here that expect this browser to hold no subscription.
+    getSubscriptionMock.mockResolvedValueOnce({ unsubscribe });
+    getNotificationServiceWorkerMock.mockResolvedValueOnce({
+      pushManager: { getSubscription: getSubscriptionMock },
+    });
+    // Read at the moment the record runs. Forgetting the token clears the
+    // unresolved-repair flag that recording arms, so the record has to come
+    // after it, and only the order at call time says which one ran first.
+    let tokenWhenRecorded: string | null = "token";
+    recordOutcomeMock.mockImplementationOnce(async () => {
+      tokenWhenRecorded = localStorage.getItem("ably.push.deviceIdentityToken");
+    });
+    const failure = new DOMException("Storage unavailable", "SecurityError");
+    const setItem = localStorage.setItem.bind(localStorage);
+    const storage = vi
+      .spyOn(localStorage, "setItem")
+      .mockImplementation((key, value) => {
+        if (key === "sokosumi.push.deviceOwner") throw failure;
+        setItem(key, value);
+      });
+
+    try {
+      await expect(activatePush("user_1")).rejects.toBe(failure);
+      expect(subscribeDeviceMock).not.toHaveBeenCalled();
+      expect(tokenWhenRecorded).toBeNull();
+      expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_2");
+      // The switch and the repair check both read the browser subscription.
+      // Left behind, it would say push is on for a device bound to nothing.
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
+      expect(localStorage.getItem("sokosumi.push.preference")).toBeNull();
+      expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
+      // The reader keeps nothing that would say push broke here, so the
+      // notice has to be recorded on the way out (SOK-929).
+      expect(recordOutcomeMock).toHaveBeenCalledWith({
+        hadRegistration: true,
+        teardownVersion: expect.any(String),
+        deliveryHealthy: false,
+      });
+    } finally {
+      storage.mockRestore();
+    }
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+    expect(subscribeDeviceMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports the storage failure when the subscription drop also fails", async () => {
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
+    const unsubscribeFailure = new Error("unsubscribe failed");
+    getSubscriptionMock.mockResolvedValueOnce({
+      unsubscribe: vi.fn().mockRejectedValue(unsubscribeFailure),
+    });
+    getNotificationServiceWorkerMock.mockResolvedValueOnce({
+      pushManager: { getSubscription: getSubscriptionMock },
+    });
+    const failure = new DOMException("Storage unavailable", "SecurityError");
+    const setItem = localStorage.setItem.bind(localStorage);
+    const storage = vi
+      .spyOn(localStorage, "setItem")
+      .mockImplementation((key, value) => {
+        if (key === "sokosumi.push.deviceOwner") throw failure;
+        setItem(key, value);
+      });
+    const reported = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      // The caller logs what it catches, and the storage failure is the one
+      // that says why the run stopped. A drop that fails on the way out is a
+      // second fact, not a replacement for the first.
+      await expect(activatePush("user_1")).rejects.toBe(failure);
+      expect(reported).toHaveBeenCalledWith(
+        "Failed to drop the push subscription",
+        unsubscribeFailure,
+      );
+    } finally {
+      storage.mockRestore();
+      reported.mockRestore();
+    }
+  });
+
   /**
    * A note that a teardown was cut short reads as push off, and turning push
    * on is the reader saying the opposite. Left there, the repair would decline
@@ -467,6 +586,143 @@ describe("activatePush", () => {
 
     expect(calls).toEqual(["activate", "unsubscribeBrowser", "deactivate"]);
     expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBe("1");
+  });
+
+  /**
+   * SOK-1152: a browser two readers share. An expired session releases
+   * nothing, so the previous reader's registration is still here, and joining
+   * it would bind this reader's channel beside theirs on one device.
+   */
+  it("replaces a registration this browser holds for another reader", async () => {
+    localStorage.setItem("ably.push.deviceId", "their-device");
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+
+    expect(calls).toEqual([
+      "activate",
+      "unsubscribeBrowser",
+      "deactivate",
+      "activate",
+      "subscribeDevice",
+    ]);
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+  });
+
+  /**
+   * The name has to survive a run that registers and then fails, because the
+   * device is already bound to this reader by then. Left naming the reader
+   * this run took it from, their next activation would read a device of their
+   * own and bind a second channel beside this one.
+   */
+  it("names the reader it bound the device to even when the run then fails", async () => {
+    localStorage.setItem("ably.push.deviceId", "their-device");
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
+    hasWebPushSubscriptionMock.mockResolvedValue(false);
+
+    await expect(activatePush("user_1")).rejects.toThrow(
+      "The browser created no push subscription",
+    );
+
+    expect(calls).toContain("subscribeDevice");
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+  });
+
+  /**
+   * Every browser registered before the name was written down. Ably cannot
+   * say who it belongs to, so the registration is replaced rather than
+   * adopted, once, and named afterwards.
+   */
+  it("replaces a registration whose reader was never recorded", async () => {
+    localStorage.setItem("ably.push.deviceId", "old-device");
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+
+    expect(calls).toEqual([
+      "activate",
+      "unsubscribeBrowser",
+      "deactivate",
+      "activate",
+      "subscribeDevice",
+    ]);
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+  });
+
+  /**
+   * The cost of the two above must fall on a browser that held a
+   * registration, and on no one else. A first activation registers nothing
+   * beforehand, so it has no reader to take the device from.
+   */
+  it("names a browser that held no registration without replacing anything", async () => {
+    await expect(activatePush("user_1")).resolves.toBe(true);
+
+    expect(calls).toEqual(["activate", "subscribeDevice"]);
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+  });
+
+  /**
+   * The bind is the step that makes the device this reader's, so the name has
+   * to be down before it, not merely before the checks that follow it. A bind
+   * that reaches Ably and then rejects is the case that tells the two apart.
+   */
+  it("names the reader before binding, even when the bind then fails", async () => {
+    localStorage.setItem("ably.push.deviceId", "their-device");
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
+    subscribeDeviceMock.mockRejectedValueOnce(new Error("ably said no"));
+
+    await expect(activatePush("user_1")).rejects.toThrow("ably said no");
+
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+  });
+
+  /**
+   * SOK-1152, the reader this change is for: their own device, named as
+   * theirs. Replacing it would be the original defect in another form, a
+   * teardown and re-registration on every activation and every repair.
+   */
+  it("keeps a device this browser already holds for this reader", async () => {
+    localStorage.setItem("ably.push.deviceId", "my-device");
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+
+    expect(calls).toEqual(["activate", "subscribeDevice"]);
+  });
+
+  /**
+   * The SDK mints a device id for a browser that never had one, so an
+   * ownership answer read after that point would call every first activation
+   * a device taken from someone else and reset it for nothing.
+   */
+  it("does not replace a device the run itself minted", async () => {
+    activateMock.mockImplementation(async () => {
+      localStorage.setItem("ably.push.deviceId", "fresh-device");
+    });
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+
+    expect(calls).toEqual(["activate", "subscribeDevice"]);
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+  });
+
+  /**
+   * SOK-1152 was diagnosed from this message and nothing else. A registration
+   * that stays broken through a reset is the one failure no retry clears, so
+   * the message has to say which state held, and whether the reset changed it.
+   */
+  it("names both faults when a reset leaves the registration unhealthy", async () => {
+    needsResetMock
+      .mockReset()
+      .mockResolvedValueOnce("endpoint-moved")
+      .mockResolvedValue("another-reader");
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
+
+    await expect(activatePush("user_1")).rejects.toThrow(
+      "The push device registration is still unhealthy: another-reader (was endpoint-moved)",
+    );
   });
 
   /**

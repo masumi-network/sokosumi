@@ -3,12 +3,12 @@ import {
   type TaskStatus as TaskStatusType,
 } from "@/lib/clients/generated/core";
 
-/** Queued is only pickable for an agent assignee with an active schedule. */
+/** Queued is only pickable for an agent assignee with a Run at (ADR 0041). */
 export function canSelectQueuedTaskStatus(options: {
-  hasSchedule: boolean;
+  hasRunAt: boolean;
   isAgent: boolean;
 }): boolean {
-  return options.hasSchedule && options.isAgent;
+  return options.hasRunAt && options.isAgent;
 }
 
 /** UI display order for task statuses (stats chips, label builders, etc.). */

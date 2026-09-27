@@ -54,7 +54,9 @@ export function ChatDisplayPreferences({
     // flag that re-enables the switch. The sibling notification card orders its
     // write the same way.
     const updatePromise = Promise.resolve()
-      .then(() => authClient.updateUser({ showRoomUnreadCount: nextValue }))
+      // The switch says "show"; the stored field says "hide" (ADR-0038), so
+      // that every reader's false means shown.
+      .then(() => authClient.updateUser({ hideRoomUnreadCount: !nextValue }))
       .then((result: UpdateUserResult) => {
         if (result.error) {
           throw new Error(result.error.message ?? "update_failed");

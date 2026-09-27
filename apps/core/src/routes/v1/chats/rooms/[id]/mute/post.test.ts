@@ -88,6 +88,7 @@ function room() {
     slug: "launch-room",
     kind: "channel",
     directKey: null,
+    groupName: null,
     topic: null,
     createdByUserId: USER_ID,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),

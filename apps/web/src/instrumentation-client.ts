@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/nextjs";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { ablyAuthSessionIgnoreErrors } from "@/lib/sentry/ably-auth-session-errors";
 import { ablyChannelLifecycleIgnoreErrors } from "@/lib/sentry/ably-channel-lifecycle-errors";
+import { webSentryDataCollection } from "@/lib/sentry/data-collection";
 import { expectedClientNoiseIgnoreErrors } from "@/lib/sentry/expected-request-errors";
 import { redactResetPasswordToken } from "@/lib/sentry/reset-password-token-redaction";
 import {
@@ -20,8 +22,9 @@ import {
 import { thirdPartyWalletIgnoreErrors } from "@/lib/sentry/third-party-wallet-errors";
 
 Sentry.init({
-  // eslint-disable-next-line no-restricted-properties
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  dsn: getEnvPublicConfig().NEXT_PUBLIC_SENTRY_DSN,
+  dataCollection: webSentryDataCollection,
+  enhanceFetchErrorMessages: "report-only",
 
   denyUrls: [...thirdPartyAnalyticsDenyUrls, ...thirdPartyScriptDenyUrls],
   ignoreErrors: [
@@ -38,7 +41,7 @@ Sentry.init({
     ...expectedClientNoiseIgnoreErrors,
   ],
   beforeSend: beforeSendClientEvent,
-  beforeSendTransaction: redactResetPasswordToken,
+  beforeSendSpan: redactResetPasswordToken,
 
   integrations: [Sentry.replayIntegration({})],
 

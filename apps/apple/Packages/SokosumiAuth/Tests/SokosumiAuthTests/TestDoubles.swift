@@ -1,5 +1,5 @@
 import Foundation
-import SokosumiAuth
+@testable import SokosumiAuth
 
 /// Canned token-endpoint answers; records the last form POST for assertions.
 final class StubTokenTransport: TokenEndpointTransport, @unchecked Sendable {
@@ -33,28 +33,6 @@ final class StubTokenTransport: TokenEndpointTransport, @unchecked Sendable {
     case let .failure(error):
       throw error
     }
-  }
-}
-
-final class InMemoryTokenStore: TokenStore, @unchecked Sendable {
-  private(set) var saved: OAuthTokens?
-  var saveError: (any Error)?
-
-  func load() -> OAuthTokens? {
-    saved
-  }
-
-  func save(_ tokens: OAuthTokens) throws {
-    if let saveError {
-      throw saveError
-    }
-    saved = tokens
-  }
-
-  @discardableResult
-  func clear() -> Bool {
-    saved = nil
-    return true
   }
 }
 

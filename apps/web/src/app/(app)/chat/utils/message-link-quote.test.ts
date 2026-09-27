@@ -4,11 +4,27 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import { resolveMessageLinkQuote } from "./message-link-quote";
 
-function room(id: string, userIds: string[]) {
+type QuoteRoom = Parameters<typeof resolveMessageLinkQuote>[0]["targetRoom"];
+
+function room(
+  id: string,
+  userIds: string[],
+  overrides: Partial<Omit<QuoteRoom, "id" | "userMembers">> & {
+    guestIds?: string[];
+  } = {},
+): QuoteRoom {
+  const { guestIds = [], ...rest } = overrides;
   return {
     id,
-    userMembers: userIds.map((userId) => ({ id: userId })),
-  } as Parameters<typeof resolveMessageLinkQuote>[0]["targetRoom"];
+    kind: "channel",
+    discoverability: "private",
+    organizationId: "org-1",
+    userMembers: [
+      ...userIds.map((userId) => ({ id: userId, access: "member" as const })),
+      ...guestIds.map((userId) => ({ id: userId, access: "guest" as const })),
+    ],
+    ...rest,
+  } as QuoteRoom;
 }
 
 function message(overrides: Partial<ChatRoomMessage> = {}): ChatRoomMessage {
@@ -69,6 +85,45 @@ describe("resolveMessageLinkQuote", () => {
 
     expect(quote).toBeNull();
     expect(loadMessage).not.toHaveBeenCalled();
+  });
+
+  it.each(["public", "external"] as const)(
+    "quotes from a %s channel every organization member can join",
+    async (discoverability) => {
+      const quote = await resolveMessageLinkQuote({
+        link,
+        targetRoom: room("target", ["me", "carol"]),
+        rooms: [room("source", ["me"], { discoverability })],
+        allowCrossRoom: true,
+        loadMessage: async () => message(),
+      });
+
+      expect(quote?.roomId).toBe("source");
+    },
+  );
+
+  it("stays a link when a guest of the target room cannot join the public source channel", async () => {
+    const quote = await resolveMessageLinkQuote({
+      link,
+      targetRoom: room("target", ["me"], { guestIds: ["guest"] }),
+      rooms: [room("source", ["me"], { discoverability: "public" })],
+      allowCrossRoom: true,
+      loadMessage: async () => message(),
+    });
+
+    expect(quote).toBeNull();
+  });
+
+  it("stays a link when the target room belongs to another organization", async () => {
+    const quote = await resolveMessageLinkQuote({
+      link,
+      targetRoom: room("target", ["me", "carol"], { organizationId: "org-2" }),
+      rooms: [room("source", ["me"], { discoverability: "public" })],
+      allowCrossRoom: true,
+      loadMessage: async () => message(),
+    });
+
+    expect(quote).toBeNull();
   });
 
   it("stays a link when the source room is not one the sender can see", async () => {

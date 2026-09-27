@@ -25,6 +25,8 @@ import SwiftUI
       // Keep scroll state below this boundary so scrolling does not rebuild the projection.
       RoomTranscriptContent(roomId: roomId, messages: prepared?.overlaying(input.messages) ?? [],
                             hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared)
+        .modifier(ComposerAttachmentPane(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId, roomId: roomId))
+        .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
         .task(id: input) {
           guard let prepared = try? await PreparedTranscript.prepare(input, reusing: preparedTranscript), !Task.isCancelled else { return }
           preparedTranscript = prepared
@@ -137,7 +139,7 @@ import SwiftUI
 
     @ViewBuilder
     private var transcriptBody: some View {
-      if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {
+      if workspaces.transcriptRoomId != roomId || (workspaces.transcriptLoading && !hasLiveMessages) {
         ProgressView("Loading messages…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else if !hasLiveMessages {
@@ -168,21 +170,13 @@ import SwiftUI
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
             if workspaces.transcriptHasMore {
-              Button("Load older messages") {
+              PageBoundaryRow(copy: .transcript(isGap: false), status: workspaces.timeline.oldestBoundaryStatus) {
                 scrollIntent.readOlder()
                 workspaces.loadOlderMessages(auth: auth)
               }
-              .disabled(workspaces.transcriptLoadingOlder || workspaces.transcriptRefreshing)
-              .buttonStyle(.link)
-              .frame(maxWidth: .infinity)
-              .padding(.vertical, 8)
             }
-            if workspaces.transcriptLoadingOlder {
-              ProgressView()
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
-            }
-            if let error = workspaces.transcriptError {
+            // An older page's failure is on its row; the banner is for the latest page.
+            if let error = workspaces.transcriptError, workspaces.timeline.failedPage != .older {
               inlineError(error)
                 .padding(.horizontal, 12)
             }
@@ -199,23 +193,22 @@ import SwiftUI
               // lazy path reserve blank slots. One container per message id.
               VStack(alignment: .leading, spacing: 0) {
                 if hasGap {
-                  Button("Load missing messages") {
-                    Task {
-                      do {
-                        try await workspaces.loadHistoryGap(before: message.id, auth: auth)
-                      } catch { jumpError = friendlyMessage(for: error) }
+                  // Web's `useLoadWhenVisible`: the row loads itself once it scrolls into
+                  // view; a failure stays on it with Try again, never in the jump alert.
+                  PageBoundaryRow(copy: .transcript(isGap: true), status: workspaces.timeline.boundaryLoads.status(of: message.id)) {
+                    workspaces.loadHistoryGap(before: message.id, auth: auth)
+                  }
+                  .onScrollVisibilityChange(threshold: 0.01) { visible in
+                    Task { @MainActor in
+                      workspaces.setHistoryGapVisible(before: message.id, visible, auth: auth)
                     }
                   }
-                  .buttonStyle(.link)
-                  .disabled(workspaces.transcriptRefreshing || workspaces.transcriptLoadingOlder)
-                  .frame(maxWidth: .infinity)
-                  .padding(.vertical, 8)
                 }
                 if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
                   DaySeparatorRow(label: label)
                 }
-                if let status = membershipStatusText(message) {
-                  MembershipStatusRow(text: status)
+                if let status = roomStatusText(message) {
+                  RoomStatusRow(text: status)
                     .padding(.horizontal, 12)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
@@ -255,7 +248,6 @@ import SwiftUI
                                  } },
                                  onSendToSelf: sendToSelfAction(for: message),
                                  horizontalInset: 12,
-                                 streamReasoning: streamReasoning(for: message),
                                  streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)
                 }
               }
@@ -420,12 +412,7 @@ import SwiftUI
     /// is illegal inside the scroll view.
     private func inlineError(_ error: String) -> some View {
       errorBanner(error) {
-        if workspaces.timeline.failedPage == .older {
-          scrollIntent.readOlder()
-          workspaces.loadOlderMessages(auth: auth)
-        } else {
-          workspaces.refreshTranscript(auth: auth)
-        }
+        workspaces.refreshTranscript(auth: auth)
       }
       .frame(maxWidth: .infinity)
     }
@@ -440,14 +427,6 @@ import SwiftUI
 
     private func isLiveCoworkerOverlay(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
       message.id.hasPrefix("stream:") && isCoworkerMessage(message)
-    }
-
-    private func streamReasoning(for message: Components.Schemas.ChatRoomMessage) -> String? {
-      guard isLiveCoworkerOverlay(message) else { return nil }
-      if ComposerContent(message.content).text.isEmpty, workspaces.directStream.isBusy {
-        return workspaces.directStream.latestThought ?? workspaces.directStream.reasoning
-      }
-      return workspaces.directStream.reasoning
     }
   }
 

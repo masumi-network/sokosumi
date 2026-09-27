@@ -10,8 +10,8 @@ import {
 import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
 import { createAblyPushClient } from "./push-client.client";
 import {
+  findPushDeviceFault,
   isMissingPushDevice,
-  pushDeviceNeedsReset,
 } from "./push-device-health.client";
 import {
   forgetPushPreference,
@@ -27,8 +27,11 @@ import {
 import {
   forgetAblyPushRegistration,
   forgetUnfinishedPushTeardown,
+  hasAblyPushDeviceId,
   hasUnfinishedPushTeardown,
   notePushTeardownStarted,
+  readPushDeviceOwner,
+  rememberPushDeviceOwner,
 } from "./release-push-device.client";
 
 interface ActivatePushOptions {
@@ -110,6 +113,31 @@ async function runActivation(
   if (getPushTeardownVersion() !== teardownVersion) {
     return false;
   }
+  // Asked before anything below runs. `ably@2.28.0` mints a device id the
+  // first time it loads the local device (`build/ably.js:2693`), which
+  // `activate()` does, so an answer read later would call the id this run
+  // just minted a device taken from someone else. Reading it here needs no
+  // view of where in that sequence the mint lands.
+  //
+  // A device this browser already held, under any name but this reader's, is
+  // one to replace rather than join. An unnamed one is every browser
+  // registered before the name was written down, and Ably cannot settle it
+  // either way: the health check reads the device as itself, and such a read
+  // carries no clientId (SOK-1152).
+  //
+  // So every browser already registered pays one replacement, and a reader
+  // whose Ably deregistration fails during it is left without a subscription
+  // until one answers: the replacement drops the browser subscription before
+  // Ably is asked, and the id it would retire stays. That reader is quieter
+  // for the length of such a failure than this change found them. It is the
+  // price of naming a device that Ably will not name, and it is paid once.
+  //
+  // The id rather than the identity token, because the id is what a channel
+  // subscription is keyed on (`build/push.js:74-77`) and the id is what
+  // survives a release the sign-out cap cut short.
+  const foreignRegistration =
+    hasAblyPushDeviceId() && readPushDeviceOwner() !== userId;
+
   const restorePermissionRequest = answerPermissionFromStoredValue();
   try {
     const client = await createAblyPushClient(userId);
@@ -120,9 +148,17 @@ async function runActivation(
       return false;
     await client.push.activate();
     if (await abandonedToTeardown(teardownVersion)) return false;
-    const needsReset = await pushDeviceNeedsReset(client, userId);
+    const fault = foreignRegistration
+      ? "another-reader"
+      : await findPushDeviceFault(client, userId);
     if (await abandonedToTeardown(teardownVersion)) return false;
-    if (needsReset) {
+    if (fault) {
+      // Recorded before the destructive steps below, and for a device held
+      // for someone else as much as for a broken one. This call is what arms
+      // the unresolved-repair flag, and a tab closed between the unsubscribe
+      // and the re-registration is exactly the browser that flag is for. A
+      // foreign device costs one such record that reads as a delivery
+      // failure, which is the cheaper of the two wrong answers.
       await recordPushRepairOutcome({
         hadRegistration: true,
         teardownVersion,
@@ -137,10 +173,61 @@ async function runActivation(
       if (repairOvertakenAcrossTabs(readerInitiated)) return false;
       await client.push.activate();
       if (await abandonedToTeardown(teardownVersion)) return false;
-      if (await pushDeviceNeedsReset(client, userId)) {
-        throw new Error("The push device registration is still unhealthy");
+      const remainingFault = await findPushDeviceFault(client, userId);
+      if (remainingFault) {
+        // The reason is in the message rather than a log line beside it. Every
+        // caller reports this by logging what it caught, and a reset that
+        // changes nothing is the one failure a retry never clears: which of
+        // the six states held is the whole diagnosis.
+        throw new Error(
+          `The push device registration is still unhealthy: ${remainingFault} (was ${fault})`,
+        );
       }
       if (await abandonedToTeardown(teardownVersion)) return false;
+    }
+    // Said before the binding below, not after the run. The binding is what
+    // makes the device this reader's, and a step after it can still throw:
+    // the name would then stay with the reader this run took the device from,
+    // and their next activation would read a device of their own and bind a
+    // second channel to it rather than replacing it.
+    try {
+      rememberPushDeviceOwner(userId);
+    } catch (error) {
+      // Binding an unnamed device is what lets a later reader join it rather
+      // than replace it, so the run stops here. What `activate()` already made
+      // goes with it: left in place, the browser subscription answers the
+      // settings switch and the repair check, so the reader would read push as
+      // on and receive nothing, with no banner and no retry that clears it.
+      // Dropped first, in the teardown's order: the unsubscribe is the step
+      // that stops delivery, and the two writes below only describe what is
+      // left. Guarded the same way, because the subscription read and the
+      // unsubscribe can both reject, and a rejection here would report itself
+      // in place of the storage failure that caused the abort.
+      await dropBrowserPushSubscription().catch((dropError) =>
+        console.error("Failed to drop the push subscription", dropError),
+      );
+      forgetPushPreference();
+      // The token `activate()` wrote is what every later run reads as a live
+      // registration. Left behind with no preference beside it, the self-heal
+      // gate falls to `hadRegistration` and repairs this browser unattended on
+      // every open, for whoever is signed in.
+      forgetAblyPushRegistration();
+      // Recorded after the two forgets, not before: `recordPushRepairOutcome`
+      // arms the unresolved-repair flag, and `forgetAblyPushRegistration`
+      // clears it. Told for itself that this browser held a registration,
+      // because the line above just took the token that would have said so.
+      //
+      // Without this the reader is the one case SOK-929 exists for: push off,
+      // no preference, no token, so every later read answers "healthy" and
+      // nothing tells them this browser stopped receiving anything.
+      await recordPushRepairOutcome({
+        hadRegistration: true,
+        teardownVersion,
+        deliveryHealthy: false,
+      }).catch((reportError) =>
+        console.error("Failed to record push repair", reportError),
+      );
+      throw error;
     }
     await getNotificationsPushChannel(client, userId).subscribeDevice();
     if (await abandonedToTeardown(teardownVersion)) return false;

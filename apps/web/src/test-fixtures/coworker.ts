@@ -9,7 +9,7 @@ function mockVendor(overrides: Partial<Vendor> = {}): Vendor {
     name: "Serviceplan",
     slug: "serviceplan",
     logos: {
-      light: "/images/logos/serviceplan-logo.png",
+      light: "/images/logos/serviceplan-logo-white.png",
       dark: "/images/logos/serviceplan-logo-white.png",
     },
     ...overrides,

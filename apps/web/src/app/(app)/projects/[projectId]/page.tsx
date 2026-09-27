@@ -19,16 +19,16 @@ import {
   PROJECTS_DETAIL_WORKSPACE_CLASS,
 } from "@/app/projects/constants";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
-import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { projectService } from "@/lib/services/project.service";
+import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 export default async function ProjectDetailPage({
   params,
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const [calendarBetaEnabled, { projectId }] = await Promise.all([
-    hasCurrentUserCalendarBetaAccess(),
+  const [socialBetaEnabled, { projectId }] = await Promise.all([
+    hasCurrentUserSocialBetaAccess(),
     params,
   ]);
   const project = await projectService.getProjectById(projectId);
@@ -109,7 +109,6 @@ export default async function ProjectDetailPage({
                       moreActions: t("actions.moreActions"),
                       edit: t("actions.edit"),
                       close: t("actions.close"),
-                      delete: t("actions.delete"),
                       closeDialog: {
                         title: t("close.dialog.title"),
                         description: t("close.dialog.description"),
@@ -119,13 +118,6 @@ export default async function ProjectDetailPage({
                         cancel: t("close.dialog.cancel"),
                         success: t("close.dialog.success"),
                         error: t("close.dialog.error"),
-                      },
-                      deleteDialog: {
-                        title: t("deleteDialog.title"),
-                        description: t("deleteDialog.description"),
-                        confirm: t("deleteDialog.confirm"),
-                        cancel: t("deleteDialog.cancel"),
-                        error: t("errors.delete"),
                       },
                     }}
                   />
@@ -201,9 +193,10 @@ export default async function ProjectDetailPage({
                 {t("modules.title")}
               </h2>
               <ProjectModuleTiles
-                calendarHref={
-                  calendarBetaEnabled
-                    ? `/projects/${project.id}/calendar`
+                calendarHref={`/projects/${project.id}/calendar`}
+                socialHref={
+                  socialBetaEnabled
+                    ? `/projects/${project.id}/social`
                     : undefined
                 }
                 projectId={project.id}
@@ -213,6 +206,10 @@ export default async function ProjectDetailPage({
                     description: t("modules.calendar.description"),
                   },
                   comingSoon: t("modules.comingSoon"),
+                  imageStudio: {
+                    title: t("modules.imageStudio.title"),
+                    description: t("modules.imageStudio.description"),
+                  },
                   seo: {
                     title: t("modules.seo.title"),
                     description: t("modules.seo.description"),

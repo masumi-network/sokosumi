@@ -6,7 +6,7 @@ import { sokoBotSchedulesSyncService } from "@/services/soko-bot-schedules-sync.
 
 import { handleSyncRequest } from "../handler.js";
 
-export const SOKO_BOT_SCHEDULES_SYNC_LOCK_KEY = "soko-bot-schedules-sync";
+const SOKO_BOT_SCHEDULES_SYNC_LOCK_KEY = "soko-bot-schedules-sync";
 
 export default function mount(app: Hono) {
   app.get("/soko-bot-schedules", async (c) => {

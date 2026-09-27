@@ -168,6 +168,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
     slug: "launch-room",
     kind: "channel",
     directKey: null,
+    groupName: null,
     topic: null,
     discoverability: "public",
     createdByUserId: USER_ID,
@@ -198,6 +199,7 @@ function directRoom(overrides: Record<string, unknown> = {}) {
     slug: null,
     kind: "direct",
     directKey: DIRECT_KEY,
+    groupName: null,
     discoverability: null,
     userMembers: [
       {
@@ -228,6 +230,7 @@ function coworkerDirectRoom(overrides: Record<string, unknown> = {}) {
     name: "Elena",
     slug: null,
     directKey: COWORKER_DIRECT_KEY,
+    groupName: null,
     createdByUserId: OTHER_USER_ID,
     userMembers: [
       {
@@ -783,6 +786,7 @@ describe("POST /chats/rooms", () => {
       name: "Elena",
       slug: null,
       directKey: `coworker:${USER_ID}:${coworkerId}`,
+      groupName: null,
       userMembers: [
         {
           user: {
@@ -849,6 +853,7 @@ describe("POST /chats/rooms", () => {
       name: "Elena",
       slug: null,
       directKey: `coworker:${USER_ID}:${coworkerId}`,
+      groupName: null,
       userMembers: [
         {
           user: {
@@ -1419,6 +1424,7 @@ describe("POST /chats/rooms", () => {
         slug: null,
         organizationId: null,
         directKey: `direct:self:${USER_ID}`,
+        groupName: null,
         discoverability: null,
       });
       roomCreateMock.mockResolvedValue(self);
@@ -1815,6 +1821,7 @@ describe("POST /chats/rooms", () => {
       slug: null,
       kind: "direct",
       directKey: SOKO_BOT_DIRECT_KEY,
+      groupName: null,
       discoverability: null,
       userMembers: [
         {
@@ -1922,6 +1929,7 @@ describe("POST /chats/rooms", () => {
       slug: null,
       kind: "direct",
       directKey: SOKO_BOT_DIRECT_KEY,
+      groupName: null,
       discoverability: null,
       userMembers: [
         {

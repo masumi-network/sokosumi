@@ -24,43 +24,6 @@ export const organizationRepository = {
     return await this.getUniqueOrganizationWithRelations({ id }, tx);
   },
 
-  async updateOrganizationById(
-    organizationId: string,
-    data: Prisma.OrganizationUpdateInput,
-    tx: Prisma.TransactionClient,
-  ) {
-    return await tx.organization.update({
-      where: { id: organizationId },
-      data,
-      include: organizationInclude,
-    });
-  },
-
-  /**
-   * Empty or whitespace-only query returns [] without querying.
-   */
-  async searchOrganizations(
-    query: string,
-    limit: number,
-    tx: Prisma.TransactionClient,
-  ): Promise<OrganizationWithLimitedInfo[]> {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      return [];
-    }
-    return await tx.organization.findMany({
-      where: {
-        OR: [
-          { name: { contains: trimmed, mode: "insensitive" } },
-          { slug: { contains: trimmed, mode: "insensitive" } },
-        ],
-      },
-      select: organizationLimitedInfoInclude,
-      orderBy: { name: "asc" },
-      take: limit,
-    });
-  },
-
   /**
    * Limited info by slug, for seeding a combobox with the already-selected org.
    */
@@ -84,8 +47,8 @@ export const organizationRepository = {
   },
 
   /**
-   * Admin overview listing. Unlike `searchOrganizations`, an empty query lists
-   * all organizations. Ordered newest-first.
+   * Admin overview listing. An empty query lists all organizations. Ordered
+   * newest-first.
    */
   async listOrganizationsForAdminOverview(
     params: {

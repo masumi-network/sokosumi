@@ -5,12 +5,7 @@ import { ChevronRight, FolderKanban } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  type KeyboardEvent as ReactKeyboardEvent,
-  useId,
-  useRef,
-  useState,
-} from "react";
+import { useId } from "react";
 import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
@@ -29,34 +24,21 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ROW_FIXED_LABEL_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { usePinnedProjects } from "@/hooks/use-pinned-projects";
 import {
   type RecentProjectsScope,
   useRecentProjectIds,
 } from "@/hooks/use-recent-projects";
+import { useSidebarFlyout } from "@/hooks/use-sidebar-flyout";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 
 import { orderSidebarProjects } from "./order-sidebar-projects";
-
-/**
- * Long enough that sweeping the pointer up the sidebar towards the logo does
- * not flash the panel open, short enough that aiming at the row feels direct.
- * Matches the chat participant hover card so both flyouts in the app answer
- * the pointer on the same beat.
- */
-const FLYOUT_OPEN_DELAY_MS = 200;
-const FLYOUT_CLOSE_DELAY_MS = 100;
-
-/**
- * Opening the panel from the row, for a reader who is not holding a pointer.
- * Right matches the chevron and the side the panel comes out on; down is what
- * a menu button answers to, and costs nothing to accept as well.
- */
-const FLYOUT_OPEN_KEYS = new Set(["ArrowRight", "ArrowDown"]);
 
 export function ProjectsMenuItem() {
   const { data: session, isPending, isRefetching, error } = useSession();
@@ -158,22 +140,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   const { rows, pinnedCount, isPending, isError, refetch } =
     useSidebarProjects(scope);
   const active = pathname === "/projects" || pathname.startsWith("/projects/");
-  const [open, setOpen] = useState(false);
   const headingId = useId();
-  const rowRef = useRef<HTMLAnchorElement>(null);
-  const openTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const closeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const openedByPointer = useRef(false);
-  const interactedOutside = useRef(false);
-
-  function clearPending() {
-    clearTimeout(openTimer.current);
-    clearTimeout(closeTimer.current);
-  }
-
-  // The pointer can leave with a timer still owing; unmounting behind it would
-  // otherwise set state on a component that is gone.
-  useMountEffect(() => clearPending);
 
   // Mounted while the page is still in flight so an early pointer lands on the
   // skeleton rather than on nothing.
@@ -183,38 +150,12 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   // projects, and a row that changes shape under the reader is the twitch this
   // whole change exists to remove.
   const showsChevron = rows.length > 0 || isError;
+  const { open, setOpen, rowProps, contentProps } = useSidebarFlyout({
+    enabled: mountsPanel,
+  });
 
   function handleNavigate() {
     if (isMobile) setOpenMobile(false);
-  }
-
-  // Which way the panel was opened decides who owns focus: a pointer must not
-  // pull it off whatever the reader was typing in, and a keyboard open is
-  // worthless unless focus follows into the rows.
-  function openForPointer() {
-    clearPending();
-    openTimer.current = setTimeout(() => {
-      openedByPointer.current = true;
-      setOpen(true);
-    }, FLYOUT_OPEN_DELAY_MS);
-  }
-
-  function closeForPointer() {
-    clearPending();
-    closeTimer.current = setTimeout(
-      () => setOpen(false),
-      FLYOUT_CLOSE_DELAY_MS,
-    );
-  }
-
-  function handleRowKeyDown(event: ReactKeyboardEvent<HTMLAnchorElement>) {
-    if (!mountsPanel || !FLYOUT_OPEN_KEYS.has(event.key)) return;
-    // Enter is left alone, so the row still navigates the way a link should.
-    event.preventDefault();
-    clearPending();
-    openedByPointer.current = false;
-    interactedOutside.current = false;
-    setOpen(true);
   }
 
   const row = (
@@ -227,13 +168,9 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
       tooltip={mountsPanel ? undefined : t("projects")}
     >
       <Link
-        ref={rowRef}
+        {...rowProps}
         href="/projects"
         onClick={handleNavigate}
-        onPointerEnter={mountsPanel ? openForPointer : undefined}
-        onPointerLeave={mountsPanel ? closeForPointer : undefined}
-        onKeyDown={handleRowKeyDown}
-        aria-expanded={mountsPanel ? open : undefined}
         aria-current={pathname === "/projects" ? "page" : undefined}
         className={cn(
           "min-w-0",
@@ -245,7 +182,9 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
         <SidebarRowSlot>
           <FolderKanban className="size-4" aria-hidden />
         </SidebarRowSlot>
-        <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
+        <span
+          className={cn(SIDEBAR_ROW_LABEL_CLASS, SIDEBAR_ROW_FIXED_LABEL_CLASS)}
+        >
           {t("projects")}
         </span>
         {showsChevron ? (
@@ -271,28 +210,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             sideOffset={8}
             className="w-56 p-1"
             aria-labelledby={headingId}
-            // A pointer open leaves focus where it was; a keyboard open sends
-            // it into the rows, which is the whole point of opening that way.
-            onOpenAutoFocus={(event) => {
-              if (openedByPointer.current) event.preventDefault();
-            }}
-            // Radix would restore to a trigger we do not have. Escape should
-            // land back on the row; a click or focus outside should not —
-            // there is no trigger, so Radix also no longer withholds that
-            // restore after an outside interaction.
-            onInteractOutside={() => {
-              interactedOutside.current = true;
-            }}
-            onCloseAutoFocus={(event) => {
-              event.preventDefault();
-              if (interactedOutside.current) {
-                interactedOutside.current = false;
-                return;
-              }
-              if (!openedByPointer.current) rowRef.current?.focus();
-            }}
-            onPointerEnter={clearPending}
-            onPointerLeave={closeForPointer}
+            {...contentProps}
           >
             {/* Names the panel itself, for a reader on the rail where
                 nothing else does. Its own name, not the row's echoed back,

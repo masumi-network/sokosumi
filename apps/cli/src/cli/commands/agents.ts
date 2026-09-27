@@ -22,10 +22,6 @@ export interface AgentsCommandOptions extends CommandContext {
   options?: CommandOptions;
 }
 
-function formatAgentStatus(status: string | null): string {
-  return status || "unknown";
-}
-
 function printAgentList(
   stdout: CommandContext["stdout"],
   agents: readonly {
@@ -42,7 +38,7 @@ function printAgentList(
     `${agents
       .map(
         (agent) =>
-          `${agent.name || "Unnamed"} [${agent.id || "unknown"}] | ${formatAgentStatus(agent.status)}`,
+          `${agent.name || "Unnamed"} [${agent.id || "unknown"}] | ${agent.status || "unknown"}`,
       )
       .join("\n")}\n`,
   );

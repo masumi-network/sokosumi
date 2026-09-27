@@ -13,9 +13,6 @@ export {
   type NotificationChannelEnvironment,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
-  parseUserIdFromCalendarControlChannelName,
-  parseWorkspaceCalendarChannelName,
-  type WorkspaceCalendarChannelIdentity,
 } from "./ably-channel.js";
 export {
   AUTH_CAPTCHA_ACTION,
@@ -46,7 +43,6 @@ export {
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
 } from "./billing-notification-message-keys.js";
-export { CALENDAR_BETA_ORGANIZATION_SLUG } from "./calendar-beta.js";
 export {
   CALENDAR_CLIENT_VERSION,
   CALENDAR_CLIENT_VERSION_HEADER,
@@ -114,7 +110,10 @@ export {
   CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
   type ChatRoomPinnedMessageAction,
 } from "./chat-room-pinned-message-event.js";
-export { canQuoteIntoRoom } from "./chat-room-quote-audience.js";
+export {
+  canQuoteIntoRoom,
+  isSelfJoinableChannelDiscoverability,
+} from "./chat-room-quote-audience.js";
 export {
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
@@ -133,10 +132,7 @@ export {
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
-export {
-  CORE_API_ERROR_KINDS,
-  type CoreApiErrorKind,
-} from "./core-api-error-kind.js";
+export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
   COWORKER_IMAGE_ALLOWED_MIME_TYPES,
@@ -155,6 +151,20 @@ export {
   selectCreditTopUpTier,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "./credit-topup-pricing.js";
+export {
+  createDataTableSchema,
+  tableBatchSchema,
+  tableColumnInputSchema,
+  tableColumnTypeSchema,
+  tableEvidenceSchema,
+  tableFilterSchema,
+  tableInsertRowSchema,
+  tableMutationSchema,
+  tableQuerySchema,
+  tableValueSchema,
+  tableValuesSchema,
+  tableViewDefinitionSchema,
+} from "./data-table.js";
 export { DESIGN_MD_ATTACHMENT_LABEL } from "./design-md-attachment.js";
 export {
   withoutDesignMdMetadata,
@@ -165,7 +175,6 @@ export {
   buildAdHocDesignMdPrefix,
   buildOrganizationDesignMdPathname,
   buildProjectDesignMdPathname,
-  buildProjectDesignMdPrefix,
   buildUserDesignMdPathname,
 } from "./design-md-path.js";
 export { isDesignMdBlobUrl } from "./design-md-url.js";
@@ -197,6 +206,12 @@ export {
   isUrlString,
   sanitizeFileName,
 } from "./file-url.js";
+export {
+  githubBlobDownloadUrl,
+  isHtmlContentType,
+  isUnexpectedHtmlImport,
+  resolveDownloadableFileUrl,
+} from "./github-file-url.js";
 export { sniffImageMimeFromBytes } from "./image-mime.js";
 export {
   normalizeOrganizationLogo,
@@ -247,8 +262,10 @@ export {
   CHAT_FEED_MESSAGE_KEYS,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   isBrowserOnlyNotification,
+  isMentionNotification,
   isNeedsActionNotification,
   JOB_INPUT_REQUIRED_MESSAGE_KEY,
+  MENTION_MESSAGE_KEYS,
   NEEDS_ACTION_MESSAGE_KEYS,
   TASK_INPUT_REQUIRED_MESSAGE_KEY,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
@@ -318,15 +335,21 @@ export {
 export {
   buildProjectBriefingPathname,
   buildProjectContextMdPathname,
-  buildProjectFilesRootPrefix,
 } from "./project-files-path.js";
 export {
   buildProjectLogoContentHashPathname,
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
+export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
+export {
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
+  SOCIAL_POST_TEXT_LIMITS,
+} from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
+export { encodeTableCsv, parseTableCsv } from "./table-csv.js";
+export { validateTableValues } from "./table-value-validation.js";
 export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
@@ -358,14 +381,6 @@ export {
   resolveTaskFileContentType,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
-export {
-  hasActiveTaskSchedule,
-  hasReachedTaskScheduleReleaseTarget,
-  parseTaskScheduleMetadata,
-  type TaskScheduleMetadata,
-  type TaskScheduleMetadataV1,
-  type TaskScheduleMetadataV2,
-} from "./task-schedule.js";
 export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,

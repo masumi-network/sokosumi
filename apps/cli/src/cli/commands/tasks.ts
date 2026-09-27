@@ -7,7 +7,6 @@ import {
   fetchTasks,
 } from "../../api/services/task-service.js";
 import {
-  applyListFilters,
   type CommandContext,
   type CommandOptions,
   formatDate,
@@ -163,7 +162,7 @@ export async function runTasksCommand({
     const { tasks } = await fetchTasks(
       client,
       {
-        q: optionString(options, "search", "q"),
+        q: optionString(options, "search"),
         status: optionString(options, "status"),
         scope: optionString(options, "scope"),
         coworkerId: optionString(options, "coworker-id"),
@@ -171,28 +170,14 @@ export async function runTasksCommand({
       },
       signal,
     );
-    const filtered = applyListFilters(tasks, {
-      search: option(options, "search", "q"),
-      limit,
-      fields: (item) => {
-        const value = record(item);
-        return [
-          value.id,
-          value.name,
-          value.description,
-          value.status,
-          value.coworkerId,
-          value.coworkerName,
-        ];
-      },
-    });
-    if (json) writeJson(stdout, { tasks: filtered });
-    else printTaskList(stdout, filtered);
+    const listed = limit === undefined ? tasks : tasks.slice(0, limit);
+    if (json) writeJson(stdout, { tasks: listed });
+    else printTaskList(stdout, listed);
     return;
   }
   if (command === "create") {
     const coworkerId = optionString(options, "coworker-id");
-    const description = optionString(options, "description", "desc");
+    const description = optionString(options, "description");
     if (!coworkerId)
       throw new Error("--coworker-id is required for `tasks create`");
     if (!description)
@@ -216,7 +201,7 @@ export async function runTasksCommand({
     else printTask(stdout, task, details);
     return;
   }
-  const id = positionalId || optionString(options, "id", "task-id");
+  const id = positionalId || optionString(options, "id");
   if (command === "get") {
     if (!id) throw new Error("task id is required for `tasks get`");
     const { task } = await fetchTask(client, id, signal);

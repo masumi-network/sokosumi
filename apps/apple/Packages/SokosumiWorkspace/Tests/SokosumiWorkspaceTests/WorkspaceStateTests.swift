@@ -10,21 +10,10 @@ import Testing
 
 private let timestamp = "2026-01-01T00:00:00.000Z"
 
-private struct MemoryTokenStore: TokenStore {
-  var tokens: OAuthTokens?
-  func load() -> OAuthTokens? {
-    tokens
-  }
-
-  func save(_: OAuthTokens) throws {}
-  func clear() -> Bool {
-    true
-  }
-}
-
 @MainActor
 private final class ScriptedTransport: ClientTransport {
   private(set) var operationIDs: [String] = []
+  private(set) var paths: [String] = []
   private(set) var bodies: [Data] = []
   private var responses: [(Int, String)]
   var remainingStubs: Int {
@@ -68,7 +57,7 @@ private final class ScriptedTransport: ClientTransport {
   }
 
   func send(
-    _: HTTPRequest,
+    _ request: HTTPRequest,
     body: HTTPBody?,
     baseURL _: URL,
     operationID: String
@@ -81,6 +70,7 @@ private final class ScriptedTransport: ClientTransport {
       }
     }
     operationIDs.append(operationID)
+    paths.append(request.path ?? "")
     if let body, let bytes = try? await Array(collecting: body, upTo: 1_000_000) {
       bodies.append(Data(bytes))
     } else {
@@ -164,7 +154,7 @@ private func roomsBody(names: [String], pinned: Bool = false, members: [String: 
       """
     }.joined(separator: ",")
     return """
-    {"id":"550e8400-e29b-41d4-a716-44665544000\(index)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":\(starredAt),"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[\(roster)],"coworkerMembers":[],"sokoBotMembers":[]}
+    {"id":"550e8400-e29b-41d4-a716-44665544000\(index)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":\(starredAt),"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[\(roster)],"coworkerMembers":[],"sokoBotMembers":[]}
     """
   }.joined(separator: ",")
   return """
@@ -214,7 +204,7 @@ private func ephemeralState(
   )
   state.readAttention.setVisible(visible, window: UUID())
   state.clientResolver = { client }
-  return (state, AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport, defaults)
+  return (state, AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport, defaults)
 }
 
 /// Settles the fire-and-forget transcript tasks `openRoom` / `loadOlder`
@@ -303,7 +293,7 @@ struct WorkspaceStateTests {
     let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: true)
     let context = state.compositionContext
     #expect(try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth))
-    #expect(!state.updatingChannel)
+    #expect(!state.updatingRoom)
     #expect(state.transcriptRoomId == opened)
     #expect(state.rooms.count == 2)
     #expect(state.rooms.first { $0.id == edited }?.name == "Design renamed")
@@ -391,7 +381,7 @@ struct WorkspaceStateTests {
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/members/me") {
       await Task.yield()
     }
-    #expect(state.channelMutationInFlight)
+    #expect(state.roomMutationInFlight)
     #expect(try await state.leaveChannel(roomId: general, context: context, auth: auth) == false)
     #expect(try await state.archiveChannel(roomId: general, context: context, auth: auth) == false)
     transport.releasePausedRequest()
@@ -482,7 +472,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func clientProviderReceivesCurrentAuthOnEveryResolution() throws {
-    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
+    let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: ScriptedTransport([]))
     var available = true
     var calls = 0
@@ -962,7 +952,7 @@ struct WorkspaceStateTests {
 
   @Test func missingThreadClientEndsInitialLoading() throws {
     let (state, _, _, _) = try ephemeralState([])
-    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
+    let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     state.clientResolver = nil
     #expect(state.resolveClient(auth: auth) == nil)
     state.thread.timeline.reset(roomId: "room", parentMessageId: "parent")
@@ -1149,6 +1139,132 @@ struct WorkspaceStateTests {
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
   }
 
+  /// History confirms room/thread sends even when their POST answer arrives late or is lost.
+  @Test(arguments: [false, true], [false, true])
+  func historyConfirmsSendBeforeOrAfterPOSTFailure(threadReply: Bool, failedFirst: Bool) async throws {
+    let fixture = try historyConfirmationFixture(threadReply: threadReply)
+    let (state, shell) = (fixture.state, fixture.shell)
+    let persisted = fixture.persisted
+    let timeline = threadReply ? state.thread.timeline : state.timeline
+    let outbox = threadReply ? state.thread.outbox : state.outbox
+    var gate: CheckedContinuation<Void, Never>?
+    var failures = 0
+    var retainedByJob: NSObject? = NSObject()
+    weak var jobLifetime = retainedByJob
+    outbox.enqueue(shell, send: { [retainedByJob] in
+      _ = retainedByJob
+      await withCheckedContinuation { gate = $0 }
+      throw URLError(.networkConnectionLost)
+    }, confirmed: { _ in Issue.record("The POST never confirms") }, failed: { _ in failures += 1 })
+    retainedByJob = nil
+    while gate == nil {
+      await Task.yield()
+    }
+    if failedFirst {
+      gate?.resume()
+      while outbox.isSending {
+        await Task.yield()
+      }
+      #expect(outbox.shells.first?.status == .failed)
+    }
+    // Equal client IDs in another room, thread, sender, or local shell cannot confirm.
+    var otherRoom = persisted
+    otherRoom.roomId = "other-room"
+    var otherThread = persisted
+    otherThread.parentMessageId = "other-parent"
+    var otherSender = persisted
+    otherSender.sender = .case1(.init(_type: .user, user: .init(id: "peer", name: "Peer", email: "peer@example.com", presence: .online)))
+    timeline.messages = [otherRoom, otherThread, otherSender, chatRoomMessage(from: shell)]
+    #expect(outbox.shells.count == 1)
+    timeline.messages = []
+    let client = try #require(state.clientResolver?())
+    #expect(try await timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: timeline.generation))
+    #expect(outbox.shells.isEmpty)
+    #expect((jobLifetime == nil) == failedFirst)
+    let displayed = threadReply ? state.thread.displayedReplies : state.displayedTranscript
+    #expect(displayed.map(\.id) == [persisted.id])
+    if !failedFirst {
+      #expect(outbox.isSending)
+      gate?.resume()
+      while outbox.isSending {
+        await Task.yield()
+      }
+    }
+    #expect(failures == (failedFirst ? 1 : 0))
+    #expect(outbox.shells.isEmpty)
+  }
+
+  private struct HistoryConfirmationFixture {
+    let state: WorkspaceState
+    let shell: OutboundShell
+    let persisted: Components.Schemas.ChatRoomMessage
+  }
+
+  private func historyConfirmationFixture(threadReply: Bool) throws -> HistoryConfirmationFixture {
+    let roomID = "550e8400-e29b-41d4-a716-446655440000"
+    let shell = OutboundShell(
+      clientTurnId: "history-confirmed-turn", roomId: roomID, parentMessageId: threadReply ? "root" : nil,
+      content: "hello", createdAt: Date(timeIntervalSince1970: 1_767_225_600),
+      sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)
+    )
+    var persisted = chatRoomMessage(from: shell)
+    persisted.id = "550e8400-e29b-41d4-a716-446655440501"
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .custom { date, encoder in
+      var container = encoder.singleValueContainer()
+      try container.encode(date.ISO8601Format(.init(includingFractionalSeconds: true)))
+    }
+    let data = try encoder.encode(persisted)
+    let body = try #require(String(bytes: data, encoding: .utf8))
+    let (state, _, _, _) = try ephemeralState([(200, transcriptPageBody(messages: [body], nextCursor: nil))], visible: false)
+    state.timeline.reset(roomId: roomID)
+    if threadReply {
+      var parent = persisted
+      parent.id = "root"
+      parent.parentMessageId = nil
+      state.thread.open(parent)
+    }
+    return HistoryConfirmationFixture(state: state, shell: shell, persisted: persisted)
+  }
+
+  /// A room can accept a send before its first page arrives. That older snapshot
+  /// must neither erase the accepted message nor duplicate a row already confirmed.
+  @Test(arguments: [false, true])
+  func sendDuringInitialHistoryPreservesConfirmation(historyIncludesSend: Bool) async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440000"
+    let confirmedID = "550e8400-e29b-41d4-a716-446655440501"
+    let historical = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440500", roomId: roomID, content: "earlier")
+    let confirmed = transcriptMessage(id: confirmedID, roomId: roomID, content: "hello")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: historyIncludesSend ? [historical, confirmed] : [historical], nextCursor: nil)),
+      (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "hello")),
+      (200, roomReadBody(id: roomID, unread: 0))
+    ])
+    transport.pauseGET = true
+    await state.reload(auth: auth)
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("get/chats/rooms/{id}/messages") {
+      await Task.yield()
+    }
+    #expect(state.transcriptLoading)
+    let accepted = state.sendMessage("hello", auth: auth)
+    #expect(accepted)
+    if accepted {
+      #expect(state.displayedTranscript.map(\.content) == ["hello"])
+      await waitForOutboundIdle(state)
+      #expect(state.transcriptLoading)
+      #expect(state.outboundShells.isEmpty)
+      #expect(state.transcriptMessages.map(\.id) == [confirmedID])
+    }
+    transport.pauseGET = false
+    transport.releasePausedRequest()
+    await waitForTranscriptIdle(state)
+    #expect(state.displayedTranscript.map(\.content) == ["earlier", "hello"])
+    #expect(state.transcriptMessages.filter { $0.id == confirmedID }.count == 1)
+  }
+
   @Test func sendPaintsPendingThenConfirmed() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440501"
@@ -1326,7 +1442,7 @@ struct WorkspaceStateTests {
       (200, transcriptPageBody(messages: [transcriptMessage(id: "persisted", roomId: roomId, content: "Answer")], nextCursor: nil))
     ], visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1369,7 +1485,7 @@ struct WorkspaceStateTests {
     ]
     let (state, auth, transport, _) = try ephemeralState(responses, visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1407,7 +1523,7 @@ struct WorkspaceStateTests {
       ], nextCursor: nil))
     ], visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1446,7 +1562,7 @@ struct WorkspaceStateTests {
       (200, transcriptPageBody(messages: [transcriptMessage(id: "persisted", roomId: roomId, content: "Answer")], nextCursor: nil))
     ], visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1553,9 +1669,18 @@ private func waitWhile(_ condition: () -> Bool) async {
 private func coworkerDirect(roomId: String) -> Components.Schemas.ChatRoom {
   let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
   return .init(
-    id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
+    id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
     unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender],
     coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: []
+  )
+}
+
+/// Same id `roomsBody(names: ["general"])` emits.
+private func generalChannel(id: String = "550e8400-e29b-41d4-a716-446655440000") -> Components.Schemas.ChatRoom {
+  .init(
+    id: id, name: "general", kind: .channel, isSelfDirect: false, isGroupDirect: false, createdByUserId: "user_1",
+    createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
+    userMembers: [], coworkerMembers: [], sokoBotMembers: []
   )
 }
 
@@ -1595,7 +1720,7 @@ private func preparedCoworkerDirect(
 
 private func unreadRoomsBody(id: String, unread: Int) -> String {
   """
-  {"data":[{"id":"\(id)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":1,"nextCursor":null}}}
+  {"data":[{"id":"\(id)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":1,"nextCursor":null}}}
   """
 }
 
@@ -1621,9 +1746,24 @@ private func createdMessageBody(id: String, roomId: String, content: String) -> 
   """
 }
 
-private func roomReadBody(id: String, unread: Int, name: String = "general") -> String {
+/// `split` gives the answer ADR 0037's two halves beside the total, with the room's unread Thread count.
+/// A room's `unreadThreads` as Core lists them (row 24g2): one unread reply each, parent text "Parent".
+private func unreadThreadsJSON(_ parents: [String]) -> String {
+  let threads = parents.map {
+    #"{"parentMessageId":"\#($0)","firstUnreadReplyId":"\#($0)-reply","parentContent":"Parent","unreadReplyCount":1,"unreadMentionCount":0}"#
+  }
+  return "\"unreadThreads\":[\(threads.joined(separator: ","))],"
+}
+
+private func roomReadBody(
+  id: String, unread: Int, name: String = "general", split: (channel: Int, threads: Int)? = nil, mentions: Int = 0,
+  threads: [String]? = nil
+) -> String {
+  let halves = (split.map {
+    "\"channelUnreadCount\":\($0.channel),\"threadUnreadCount\":\(unread - $0.channel),\"unreadThreadCount\":\($0.threads),"
+  } ?? "") + (threads.map(unreadThreadsJSON) ?? "")
   let room = """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),\(halves)"unreadMentionCount":\(mentions),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
   return """
   {"data":\(room),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
@@ -2013,12 +2153,11 @@ extension WorkspaceStateTests {
 
   @Test func pinMutationsUpdateOnlyAfterSuccess() async throws {
     let (state, auth, transport, _) = try ephemeralState([
-      (200, roomsBody(names: ["general"])),
       (200, #"{"data":{"messageId":"message","pinnedMessageCount":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#),
       (403, #"{"message":"Denied"}"#)
     ], visible: false)
-    state.rooms = try await ChatService().listRooms(client: #require(state.resolveClient(auth: auth)), organizationSlug: nil)
-    let room = try #require(state.rooms.first)
+    let room = generalChannel()
+    state.rooms = [room]
     state.timeline.reset(roomId: room.id)
     state.pins.reset(roomId: room.id)
     var message = chatRoomMessage(from: .init(clientTurnId: "pin", roomId: room.id, content: "Pinned",
@@ -2035,16 +2174,15 @@ extension WorkspaceStateTests {
 
   @Test func oldPinMutationCannotUpdateNewRoom() async throws {
     let (state, auth, transport, _) = try ephemeralState([
-      (200, roomsBody(names: ["general"])),
       (200, #"{"data":{"messageId":"message","pinnedMessageCount":0},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#)
     ], visible: false)
-    state.rooms = try await ChatService().listRooms(client: #require(state.resolveClient(auth: auth)), organizationSlug: nil)
-    let room = try #require(state.rooms.first)
+    let room = generalChannel()
+    state.rooms = [room]
     state.timeline.reset(roomId: room.id)
     state.pins.reset(roomId: room.id)
     transport.pauseDELETE = true
     let request = Task { try await state.setPinned(false, messageId: "message", auth: auth) }
-    while transport.operationIDs.count < 2 {
+    while transport.operationIDs.isEmpty {
       await Task.yield()
     }
     #expect(state.isUpdatingPin("message"))
@@ -2096,19 +2234,18 @@ extension WorkspaceStateTests {
   @Test func sendingFromHistoryPreservesLoadedRowsAndPendingPinMutation() async throws {
     let roomId = "550e8400-e29b-41d4-a716-446655440000"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [transcriptMessage(id: "old", roomId: roomId, content: "Old")], nextCursor: nil)),
       (200, #"{"data":{"messageId":"old","pinnedMessageCount":0},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#),
       (500, #"{"message":"Unavailable"}"#),
       (500, #"{"message":"Unavailable"}"#)
     ], visible: false)
-    state.rooms = try await ChatService().listRooms(client: #require(state.resolveClient(auth: auth)), organizationSlug: nil)
+    state.rooms = [generalChannel(id: roomId)]
     state.timeline.reset(roomId: roomId)
     state.pins.reset(roomId: roomId)
     #expect(try await state.jumpToMessage("old", auth: auth))
     transport.pauseDELETE = true
     let unpin = Task { try await state.setPinned(false, messageId: "old", auth: auth) }
-    while transport.operationIDs.count < 3 {
+    while transport.operationIDs.count < 2 {
       await Task.yield()
     }
     let revision = state.pins.revision
@@ -2175,7 +2312,7 @@ extension WorkspaceStateTests {
 extension WorkspaceStateTests {
   @Test func searchWithoutClientReportsFailureForTheSubmittedQuery() async {
     let state = WorkspaceState(clientProvider: { _ in nil })
-    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
+    let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     state.timeline.reset(roomId: "room")
     let search = RoomSearch()
     await state.searchMessages("  matching  ", roomId: "room", search: search, auth: auth)
@@ -2559,7 +2696,7 @@ extension WorkspaceStateTests {
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/invitations/{id}/accept") {
       await Task.yield()
     }
-    #expect(state.channelMutationInFlight)
+    #expect(state.roomMutationInFlight)
     state.selectRoom("550e8400-e29b-41d4-a716-446655440001", auth: auth)
     await waitForTranscriptIdle(state)
     transport.releasePausedRequest()
@@ -2567,7 +2704,7 @@ extension WorkspaceStateTests {
     await waitForTranscriptIdle(state)
     #expect(state.rooms.count == 3)
     #expect(state.transcriptRoomId == "550e8400-e29b-41d4-a716-446655440001")
-    #expect(!state.channelMutationInFlight)
+    #expect(!state.roomMutationInFlight)
     #expect(transport.operationIDs.suffix(3) == ["post/chats/invitations/{id}/accept", "get/chats/rooms/{id}/messages", "get/chats/rooms"])
   }
 
@@ -2641,7 +2778,7 @@ private func externalRoomsBody(general: String, partners: String) -> String {
   """
   func room(_ id: String, name: String, discoverability: String, members: String) -> String {
     """
-    {"id":"\(id)","organizationId":"org_1","organizationName":"Acme","name":"\(name)","slug":"\(name)","kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":"\(discoverability)","createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":\(members),"coworkerMembers":[],"sokoBotMembers":[]}
+    {"id":"\(id)","organizationId":"org_1","organizationName":"Acme","name":"\(name)","slug":"\(name)","kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":"\(discoverability)","createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":\(members),"coworkerMembers":[],"sokoBotMembers":[]}
     """
   }
   return """
@@ -2687,7 +2824,7 @@ extension WorkspaceStateTests {
 
     #expect(try await state.removeGuest(roomId: partners, userId: "user_guest", context: UUID(), auth: auth) == false)
     #expect(try await state.removeGuest(roomId: partners, userId: "user_guest", context: context, auth: auth))
-    #expect(!state.updatingChannel && state.transcriptRoomId == general)
+    #expect(!state.updatingRoom && state.transcriptRoomId == general)
     #expect(state.rooms.first { $0.id == partners }?.userMembers.map(\.id) == ["user_1"])
     #expect(transport.operationIDs.suffix(7) == [
       "get/chats/rooms/{id}/invitations", "get/chats/rooms/{id}/invite-links", "post/chats/rooms/{id}/invitations",
@@ -2794,12 +2931,13 @@ extension WorkspaceStateTests {
     #expect(CoworkerMentionShell(message: shell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
 
     transport.pauseMentionRetry = true
-    let retry = Task { try await state.retryMention(shell, auth: auth) }
+    let now = Date(timeIntervalSince1970: 1_700_000_123.456)
+    let retry = Task { try await state.retryMention(shell, auth: auth, now: now) }
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
     let inFlight = reply ? state.thread.timeline.messages.first : state.timeline.messages.last
-    #expect(try CoworkerMentionShell(message: #require(inFlight))?.isThinking == true)
+    #expect(try CoworkerMentionShell(message: #require(inFlight)) == .thinking(startedAt: now))
     #expect(try !canQuoteMessage(#require(inFlight)))
     #expect(state.pendingMentionRetries.count == 1)
     // A second click while the POST is in flight must not send another request.
@@ -3170,5 +3308,785 @@ extension WorkspaceStateTests {
     let base = try #require(URL(string: "https://app.sokosumi.com"))
     #expect(await state.messageLinkQuote(pasted: "just words", roomId: target, webBaseURL: base, auth: auth) == nil)
     #expect(!transport.operationIDs.contains("get/chats/rooms/{id}/messages/{messageId}"))
+  }
+}
+
+/// Row 04a: the history gap row loads itself once it is in view, keeps a failure on the row and reloads on Try again.
+@MainActor
+extension WorkspaceStateTests {
+  private static let latestPage = (200, transcriptPageBody(messages: [transcriptMessage(id: "z", roomId: "room", content: "Latest")], nextCursor: "z"))
+  private static let jumpWindow = (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned")], nextCursor: "a"))
+
+  /// The latest page and a jump window with the history between them missing: one gap, on `z`.
+  private func stateWithGap(_ responses: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let (state, auth, transport, _) = try ephemeralState([Self.latestPage, Self.jumpWindow] + responses, visible: false)
+    state.timeline.reset(roomId: "room")
+    let client = try #require(state.resolveClient(auth: auth))
+    try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
+    #expect(try await state.jumpToMessage("a", auth: auth))
+    #expect(state.timeline.historyGapMessageIds == ["z"])
+    return (state, auth, transport)
+  }
+
+  private func gapPages(_ transport: ScriptedTransport) -> [String] {
+    transport.paths.filter { $0.contains("cursor=") }.compactMap { path in
+      path.split(separator: "?").last?.split(separator: "&").first { $0.hasPrefix("cursor=") }.map(String.init)
+    }
+  }
+
+  @Test func aVisibleHistoryGapLoadsItselfOnceAndAgainWhenItMoves() async throws {
+    let (state, auth, transport) = try await stateWithGap([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Between")], nextCursor: "m")),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "b", roomId: "room", content: "After")], nextCursor: "a"))
+    ])
+    defer { state.reset() }
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .loading)
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=z"], "Once per arming, and never twice for one in-flight request.")
+    #expect(state.timeline.historyGapMessageIds == ["m"], "The page stopped short of the jump window, so the gap moved to its oldest row.")
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .idle)
+    #expect(state.transcriptError == nil)
+
+    state.setHistoryGapVisible(before: "m", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=z", "cursor=m"])
+    #expect(state.timeline.historyGapMessageIds.isEmpty)
+    #expect(state.timeline.boundaryLoads == TranscriptBoundaryLoads())
+    #expect(state.historyGapTask == nil)
+  }
+
+  @Test func aFailedHistoryGapWaitsForTryAgainWithoutATranscriptError() async throws {
+    let (state, auth, transport) = try await stateWithGap([
+      (500, "{}"),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "m", roomId: "room", content: "Between")], nextCursor: "a"))
+    ])
+    defer { state.reset() }
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .failed)
+    #expect(state.transcriptError == nil, "No banner above the transcript and nothing for an alert to show.")
+    #expect(state.timeline.failedPage == nil)
+    #expect(state.timeline.historyGapMessageIds == ["z"])
+    #expect(state.transcriptMessages.map(\.id) == ["a", "z"])
+
+    state.setHistoryGapVisible(before: "z", false, auth: auth)
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=z"], "A failed row does not load itself again.")
+
+    state.loadHistoryGap(before: "z", auth: auth)
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .loading)
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=z", "cursor=z"])
+    #expect(state.timeline.historyGapMessageIds.isEmpty)
+    #expect(state.transcriptMessages.map(\.id) == ["a", "m", "z"])
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .idle)
+  }
+
+  @Test func twoVisibleGapsLoadOneAfterTheOther() async throws {
+    let (state, auth, transport) = try await stateWithGap([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Middle")], nextCursor: "m")),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "b", roomId: "room", content: "After")], nextCursor: "a")),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Middle"), transcriptMessage(id: "n", roomId: "room", content: "Later")], nextCursor: "m"))
+    ])
+    defer { state.reset() }
+    #expect(try await state.jumpToMessage("m", auth: auth))
+    #expect(state.timeline.historyGapMessageIds == ["m", "z"])
+    state.setHistoryGapVisible(before: "m", true, auth: auth)
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    #expect(state.timeline.boundaryLoads.status(of: "m") == .loading)
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .idle, "The second gap waits; the timeline admits one page at a time.")
+    await state.historyGapTask?.value
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=m", "cursor=z"])
+    #expect(state.timeline.historyGapMessageIds.isEmpty)
+    #expect(state.transcriptMessages.map(\.id) == ["a", "b", "m", "n", "z"])
+  }
+
+  @Test func leavingTheRoomForgetsTheGapRows() async throws {
+    let (state, auth, _) = try await stateWithGap([(500, "{}")])
+    defer { state.reset() }
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .failed)
+    state.clearTranscript()
+    #expect(state.timeline.boundaryLoads == TranscriptBoundaryLoads())
+    #expect(state.historyGapTask == nil)
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    #expect(state.timeline.boundaryLoads == TranscriptBoundaryLoads(), "No transcript, no gap rows.")
+  }
+}
+
+/// Row 24b: the open thread reads its mute, a toggle writes it, and a written mute re-counts the Threads
+/// trigger and re-reads the room's attention, as web's `onMuteChanged` does.
+extension WorkspaceStateTests {
+  private static let muteRoomId = "550e8400-e29b-41d4-a716-446655440000"
+  private static let muteRootId = "550e8400-e29b-41d4-a716-446655440034"
+
+  private static func threadBody(mutedAt: String?) -> String {
+    let parent = transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")
+    let muted = mutedAt.map { "\"\($0)\"" } ?? "null"
+    return """
+    {"data":{"parentMessage":\(parent),"replyCount":1,"lastReplyAt":"\(timestamp)","unreadReplyCount":0,"lastUnreadReplyAt":null,"hasLooked":true,"mutedAt":\(muted)},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+    """
+  }
+
+  /// A signed-in room with its thread open and looked, then `extra` for the mute calls.
+  private static func openMuteThread(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let root = transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")
+    let reply = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440035", roomId: muteRoomId, content: "Reply")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(muteRootId)\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [root], nextCursor: nil)),
+      (200, roomReadBody(id: muteRoomId, unread: 3)),
+      (200, #"{"data":{"parentMessageId":"\#(muteRootId)","lastReadAt":"\#(timestamp)"},"meta":{"timestamp":"\#(timestamp)","requestId":"test"}}"#),
+      (200, roomReadBody(id: muteRoomId, unread: 2)),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ] + extra)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    return (state, auth, transport)
+  }
+
+  @Test(arguments: [false, true])
+  func theOpenThreadReadsItsMuteOnceAndAToggleRefreshesAttention(muted: Bool) async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.threadBody(mutedAt: muted ? timestamp : nil)),
+      (200, Self.threadBody(mutedAt: muted ? nil : timestamp)),
+      (200, roomReadBody(id: Self.muteRoomId, unread: 1))
+    ])
+    #expect(state.thread.mute?.isMuted == nil, "No control before Core answers.")
+    await state.readThreadMuteIfNeeded(auth: auth)
+    await state.readThreadMuteIfNeeded(auth: auth)
+    #expect(state.thread.mute?.isMuted == muted)
+    let revision = state.threadAttentionRevision
+    await state.toggleThreadMute(auth: auth)
+    #expect(state.thread.mute?.isMuted == !muted)
+    #expect(state.thread.mute?.isPending == false)
+    #expect(state.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
+    #expect(state.rooms.first?.unreadCount == 1, "The room row takes Core's answer to the room read.")
+    #expect(transport.operationIDs.suffix(3) == [
+      "get/chats/rooms/{id}/threads/{parentMessageId}",
+      "\(muted ? "delete" : "post")/chats/rooms/{id}/threads/{parentMessageId}/mute",
+      "post/chats/rooms/{id}/read"
+    ])
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func aFailedToggleRevertsWithoutTouchingAttention() async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.threadBody(mutedAt: nil)),
+      (500, #"{"error":"Internal Server Error","message":"boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/threads/y/mute","method":"POST"}}"#)
+    ])
+    await state.readThreadMuteIfNeeded(auth: auth)
+    let revision = state.threadAttentionRevision
+    await state.toggleThreadMute(auth: auth)
+    #expect(state.thread.mute?.isMuted == false)
+    #expect(state.thread.mute?.failure == .mute)
+    #expect(state.threadAttentionRevision == revision)
+    #expect(state.rooms.first?.unreadCount == 2)
+    #expect(transport.operationIDs.last == "post/chats/rooms/{id}/threads/{parentMessageId}/mute")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+}
+
+/// Row 24c: every Look re-counts the Threads trigger, the automatic one included, and Mark all posts the
+/// room read and re-counts before it reloads the list, as web's `onThreadLooked` and `onAllThreadsLooked` do.
+extension WorkspaceStateTests {
+  private static let lookBody = """
+  {"data":{"parentMessageId":"\(muteRootId)","lastReadAt":"\(timestamp)"},"meta":{"timestamp":"\(timestamp)","requestId":"test"}}
+  """
+  private static let markAllBody = #"{"data":{"markedCount":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#
+
+  private static func threadsPage(unread: Int) -> String {
+    let parent = transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")
+    return transcriptPageBody(messages: ["""
+    {"parentMessage":\(parent),"replyCount":2,"lastReplyAt":"\(timestamp)","unreadReplyCount":\(unread),"lastUnreadReplyAt":null,"hasLooked":true,"mutedAt":null}
+    """], nextCursor: nil)
+  }
+
+  /// A signed-in room with the Threads overview loaded, then `extra` for Mark all.
+  private static func openOverview(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")], nextCursor: nil)),
+      (200, roomReadBody(id: muteRoomId, unread: 3)),
+      (200, threadsPage(unread: 2))
+    ] + extra)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    await state.updateThreadOverview(.load, roomId: muteRoomId, auth: auth)
+    return (state, auth, transport)
+  }
+
+  /// `ChatRootView` runs `syncReadAttention` when the window becomes active and whenever the read content
+  /// changes; with a thread open that writes a Look, which lowers the room's unread-thread count.
+  @Test func anAutomaticLookReCountsTheThreadsTrigger() async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.lookBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1))
+    ])
+    let revision = state.threadAttentionRevision
+    await state.syncReadAttention(auth: auth)
+    #expect(state.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
+    #expect(transport.operationIDs.suffix(2) == ["post/chats/rooms/{id}/threads/{parentMessageId}/read", "post/chats/rooms/{id}/read"])
+    #expect(state.rooms.first?.unreadCount == 1)
+    await state.syncReadAttention(auth: auth)
+    #expect(state.threadAttentionRevision == revision + 1, "Unchanged content writes no second Look.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func markAllReadPostsTheRoomReadAndReCountsBeforeReloading() async throws {
+    let (state, auth, transport) = try await Self.openOverview([
+      (200, Self.markAllBody), (200, roomReadBody(id: Self.muteRoomId, unread: 0)), (200, Self.threadsPage(unread: 0))
+    ])
+    let revision = state.threadAttentionRevision
+    await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId, auth: auth)
+    #expect(transport.operationIDs.suffix(4) == [
+      "get/chats/rooms/{id}/threads", "post/chats/rooms/{id}/threads/read",
+      "post/chats/rooms/{id}/read", "get/chats/rooms/{id}/threads"
+    ])
+    #expect(state.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
+    #expect(state.rooms.first?.unreadCount == 0, "The room row takes Core's answer to the room read.")
+    #expect(state.threadOverview.items.first?.unreadReplyCount == 0)
+    let pages = zip(transport.operationIDs, transport.paths).filter { $0.0 == "get/chats/rooms/{id}/threads" }
+    #expect(pages.count == 2 && pages.allSatisfy { $0.1.contains("limit=50") }, "Both loads ask for web's page size.")
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func aRefusedMarkAllTouchesNeitherTheTriggerNorTheRoom() async throws {
+    let (state, auth, transport) = try await Self.openOverview([
+      (500, #"{"error":"Internal Server Error","message":"boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/threads/read","method":"POST"}}"#)
+    ])
+    let revision = state.threadAttentionRevision
+    await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId, auth: auth)
+    #expect(transport.operationIDs.last == "post/chats/rooms/{id}/threads/read")
+    #expect(state.threadAttentionRevision == revision)
+    #expect(state.rooms.first?.unreadCount == 3)
+    #expect(state.threadOverview.items.first?.unreadReplyCount == 2 && state.threadOverview.failureMessage != nil)
+    #expect(transport.remainingStubs == 0)
+  }
+}
+
+/// Row 24g1 (ADR 0037): a thread mute and Mark all end in the room read, and the sidebar row takes Core's
+/// answer whole — the channel half that decides bold, the Thread half and the room's unread Threads.
+extension WorkspaceStateTests {
+  @Test func aThreadMuteSettlesTheRowOnCoresHalves() async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.threadBody(mutedAt: nil)),
+      (200, Self.threadBody(mutedAt: timestamp)),
+      (200, roomReadBody(id: Self.muteRoomId, unread: 2, split: (channel: 0, threads: 1)))
+    ])
+    await state.readThreadMuteIfNeeded(auth: auth)
+    await state.toggleThreadMute(auth: auth)
+    let room = try #require(state.rooms.first)
+    #expect(room.unreadCount == 2 && room.channelUnreadCount == 0 && room.threadUnreadCount == 2 && room.unreadThreadCount == 1)
+    #expect(resolveRoomAttention(room, showUnreadCount: true) == .init(bold: false, badgeCount: 0),
+            "Two Thread replies left, nothing in the channel: the row is quiet.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func markAllSettlesTheRowOnCoresHalves() async throws {
+    let (state, auth, transport) = try await Self.openOverview([
+      (200, Self.markAllBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 1, threads: 0))),
+      (200, Self.threadsPage(unread: 0))
+    ])
+    await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId, auth: auth)
+    let room = try #require(state.rooms.first)
+    #expect(room.channelUnreadCount == 1 && room.threadUnreadCount == 0 && room.unreadThreadCount == 0)
+    #expect(resolveRoomAttention(room, showUnreadCount: true) == .init(bold: true, badgeCount: 0, unreadTextCount: 1),
+            "A channel message that arrived meanwhile keeps the row bold, with its count.")
+    #expect(transport.remainingStubs == 0)
+  }
+}
+
+/// Row 24f1: the chat-level Threads view takes the detail column in place of the selected room (web
+/// `/chat/threads`), so the room behind it is not on screen and nothing in it is read; a row opens its
+/// Thread in its own room.
+extension WorkspaceStateTests {
+  @Test func theThreadsViewReadsNothingInTheRoomBehindIt() async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.lookBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1))
+    ])
+    let written = transport.operationIDs.count
+    state.showThreadsView()
+    #expect(state.sidebar.showsThreadsView)
+    await state.syncReadAttention(auth: auth)
+    await state.syncThreadAttention(auth: auth)
+    #expect(transport.operationIDs.count == written, "Neither the room nor its open thread is on screen.")
+    await state.showRoom(Self.muteRoomId, auth: auth)
+    #expect(!state.sidebar.showsThreadsView && state.selectedRoomId == Self.muteRoomId)
+    #expect(transport.operationIDs.suffix(2) == ["post/chats/rooms/{id}/threads/{parentMessageId}/read", "post/chats/rooms/{id}/read"],
+            "Back on the room, what is on screen is read.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func aThreadsRowOpensItsThreadInItsRoom() async throws {
+    let first = "550e8400-e29b-41d4-a716-446655440051"
+    let second = "550e8400-e29b-41d4-a716-446655440052"
+    let parentId = "550e8400-e29b-41d4-a716-446655440053"
+    let replyId = "550e8400-e29b-41d4-a716-446655440054"
+    let reply = transcriptMessage(id: replyId, roomId: second, content: "Reply")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(parentId)\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: parentId, roomId: second, content: "Parent")], nextCursor: nil)),
+      (200, #"{"data":\#(reply),"meta":{"timestamp":"\#(timestamp)","requestId":"req-1"}}"#),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    var rooms = [coworkerDirect(roomId: first), coworkerDirect(roomId: second)]
+    rooms[1].kind = .channel
+    state.rooms = rooms
+    state.showThreadsView()
+    #expect(state.sidebar.showsThreadsView)
+    #expect(try await state.openRoomLink(roomId: second, messageId: replyId, auth: auth) == .opened)
+    #expect(!state.sidebar.showsThreadsView, "The room takes the detail column again.")
+    #expect(state.selectedRoomId == second && state.thread.parent?.id == parentId)
+    #expect(state.thread.jumpTarget?.messageId == replyId)
+    #expect(transport.operationIDs == [
+      "get/chats/rooms/{id}/messages", "get/chats/rooms/{id}/messages/{messageId}",
+      "get/chats/rooms/{id}/threads/{parentMessageId}/messages"
+    ])
+  }
+
+  /// Web's `UnreadThreadsList` asks Core nothing while the rooms already say zero, and reads the workspace's
+  /// unread Threads once a room counts one.
+  @Test func theUnreadGroupAsksCoreOnlyWhileTheRoomsCountAThread() async throws {
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    var room = coworkerDirect(roomId: "550e8400-e29b-41d4-a716-446655440061")
+    room.unreadThreadCount = 0
+    state.rooms = [room]
+    await state.updateCrossRoomThreads(.unread, auth: auth)
+    #expect(transport.operationIDs.isEmpty)
+    #expect(state.crossRoomThreads.unreadState(rooms: state.rooms, roomsLive: state.roomsLive) == .caughtUp)
+    room.unreadThreadCount = 1
+    state.rooms = [room]
+    await state.updateCrossRoomThreads(.unread, auth: auth)
+    #expect(transport.operationIDs == ["get/chats/threads/unread"])
+    #expect(transport.paths.first?.contains("limit=50") == true)
+    #expect(state.crossRoomThreads.unreadState(rooms: state.rooms, roomsLive: state.roomsLive) == .caughtUp,
+            "Core's empty answer agrees.")
+  }
+
+  /// The lists hold parent text. Sign-out and a workspace switch drop it; a failed switch keeps it.
+  @Test func signOutAndWorkspaceSwitchDropCrossRoomThreadText() async throws {
+    let roomId = "550e8400-e29b-41d4-a716-446655440061"
+    let parent = "550e8400-e29b-41d4-a716-446655440071"
+    let page = transcriptPageBody(messages: ["""
+    {"parentMessageId":"\(parent)","firstUnreadReplyId":"\(parent)-reply","parentContent":"Secret parent","unreadReplyCount":1,"roomId":"\(roomId)","lastUnreadAt":"\(timestamp)"}
+    """], nextCursor: nil)
+    let (state, auth, _, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+      """),
+      (200, """
+      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+      """),
+      (200, roomsBody(names: ["launch"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0, name: "launch"))
+    ])
+    defer { state.reset() }
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: ScriptedTransport([(200, page), (200, page)]))
+    var room = state.rooms[0]
+    room.unreadThreadCount = 1
+    state.rooms = [room]
+    try await state.crossRoomThreads.load(.unread, rooms: state.rooms, scope: state.selectionId, client: client, organizationSlug: nil)
+    #expect(state.crossRoomThreads.label(for: parent) == "Secret parent")
+    let org = try #require(state.options.first { $0.id == "org_1" })
+    await state.switchRooms(auth: auth, option: org)
+    #expect(state.selectionId == "personal")
+    #expect(state.crossRoomThreads.label(for: parent) == "Secret parent", "A failed switch keeps the open workspace's Threads.")
+    await state.switchRooms(auth: auth, option: org)
+    await waitForTranscriptIdle(state)
+    #expect(state.selectionId == "org_1")
+    #expect(state.crossRoomThreads.unread.threads.isEmpty)
+    #expect(state.crossRoomThreads.label(for: parent) == "Thread")
+    try await state.crossRoomThreads.load(.unread, rooms: state.rooms, scope: state.selectionId, client: client, organizationSlug: nil)
+    #expect(state.crossRoomThreads.label(for: parent) == "Secret parent")
+    state.reset()
+    #expect(state.crossRoomThreads.unread.threads.isEmpty)
+    #expect(!state.crossRoomThreads.unread.hasAnswered)
+    #expect(state.crossRoomThreads.label(for: parent) == "Thread")
+  }
+}
+
+/// Row 24g2: a room's unread Threads inset under its sidebar row. Nothing moves them optimistically; each
+/// Look, thread mute, Mark all and room-list read replaces them with Core's answer, a room mute hides them,
+/// and the overflow row opens the room's thread overview.
+extension WorkspaceStateTests {
+  private static let otherRootId = "550e8400-e29b-41d4-a716-446655440036"
+
+  private static func insetThreads(_ state: WorkspaceState) -> [String] {
+    sidebarRoomListItems(state.sidebar.partitioned.channels).compactMap {
+      if case let .thread(row) = $0 {
+        row.parentMessageId
+      } else {
+        nil
+      }
+    }
+  }
+
+  /// A signed-in room whose read answer lists two unread Threads, then `extra`.
+  private static func openInsetRows(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")], nextCursor: nil)),
+      (200, roomReadBody(id: muteRoomId, unread: 3, split: (channel: 0, threads: 2), threads: [muteRootId, otherRootId]))
+    ] + extra)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    return (state, auth, transport)
+  }
+
+  /// The Look and the room read after it, whose answer lists `threads`, then the thread's replies.
+  private static func lookStubs(threads: [String]) -> [(Int, String)] {
+    let reply = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440035", roomId: muteRoomId, content: "Reply")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(muteRootId)\"")
+    return [
+      (200, lookBody),
+      (200, roomReadBody(id: muteRoomId, unread: threads.count, split: (channel: 0, threads: threads.count), threads: threads)),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ]
+  }
+
+  @Test func aLookSettlesTheInsetRowsOnCoresAnswer() async throws {
+    let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.otherRootId]))
+    #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId], "The room read lists both Threads.")
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    #expect(Self.insetThreads(state) == [Self.otherRootId], "The Look's room read drops the Thread just read.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func aThreadMuteSettlesTheInsetRowsOnCoresAnswer() async throws {
+    let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.muteRootId, Self.otherRootId]) + [
+      (200, Self.threadBody(mutedAt: nil)), (200, Self.threadBody(mutedAt: timestamp)),
+      (200, roomReadBody(id: Self.muteRoomId, unread: 1, split: (channel: 0, threads: 1), threads: [Self.otherRootId]))
+    ])
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    #expect(Self.insetThreads(state) == [Self.muteRootId, Self.otherRootId])
+    await state.readThreadMuteIfNeeded(auth: auth)
+    await state.toggleThreadMute(auth: auth)
+    #expect(Self.insetThreads(state) == [Self.otherRootId], "A muted Thread leaves the room's list with Core's answer.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func markAllClearsTheInsetRows() async throws {
+    let (state, auth, transport) = try await Self.openInsetRows([
+      (200, Self.threadsPage(unread: 2)), (200, Self.markAllBody),
+      (200, roomReadBody(id: Self.muteRoomId, unread: 0, split: (channel: 0, threads: 0), threads: [])),
+      (200, Self.threadsPage(unread: 0))
+    ])
+    await state.updateThreadOverview(.load, roomId: Self.muteRoomId, auth: auth)
+    #expect(Self.insetThreads(state).count == 2, "Loading the overview reads nothing.")
+    await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId, auth: auth)
+    #expect(Self.insetThreads(state).isEmpty)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func theNextRoomListReplacesTheInsetRows() async throws {
+    let listed = roomsBody(names: ["general"])
+      .replacingOccurrences(of: "\"unreadCount\":0,", with: "\"unreadCount\":1,\"unreadThreadCount\":4,\(unreadThreadsJSON([Self.otherRootId]))")
+    let (state, auth, transport) = try await Self.openInsetRows([(200, listed)])
+    await state.refreshRooms(auth: auth)
+    #expect(Self.insetThreads(state) == [Self.otherRootId])
+    #expect(sidebarRoomListItems(state.sidebar.partitioned.channels).last == .moreThreads(roomId: Self.muteRoomId, count: 3))
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func aRoomMuteHidesTheInsetRows() async throws {
+    let muted = roomReadBody(id: Self.muteRoomId, unread: 2, split: (channel: 0, threads: 2), threads: [Self.muteRootId, Self.otherRootId])
+      .replacingOccurrences(of: "\"mutedAt\":null", with: "\"mutedAt\":\"\(timestamp)\"")
+    let (state, auth, transport) = try await Self.openInsetRows([(200, muted)])
+    #expect(Self.insetThreads(state).count == 2)
+    await state.performSidebarAction(.mute, roomId: Self.muteRoomId, auth: auth)
+    #expect(state.rooms.first?.unreadThreads?.count == 2, "The room still holds its Threads.")
+    #expect(Self.insetThreads(state).isEmpty, "A muted room lists none.")
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// Web's overflow row opens the room's thread list (`?threads=1`), putting an open thread away first.
+  @Test func theOverflowRowOpensTheRoomsThreadOverview() async throws {
+    let (state, auth, transport) = try await Self.openInsetRows(Self.lookStubs(threads: [Self.muteRootId, Self.otherRootId]))
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    let written = transport.operationIDs.count
+    await state.openThreadOverview(roomId: Self.muteRoomId, auth: auth)
+    #expect(state.thread.parent == nil, "The open thread steps aside for the list.")
+    let request = try #require(state.threadOverviewRequest)
+    #expect(request.roomId == Self.muteRoomId && state.selectedRoomId == Self.muteRoomId)
+    #expect(transport.operationIDs.count == written, "Opening the list reads nothing.")
+    state.consumeThreadOverviewRequest(request.requestId)
+    #expect(state.threadOverviewRequest == nil)
+  }
+
+  @Test func theOverflowRowShowsItsRoomInPlaceOfTheThreadsView() async throws {
+    let first = "550e8400-e29b-41d4-a716-446655440051"
+    let second = "550e8400-e29b-41d4-a716-446655440052"
+    let (state, auth, _, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [], nextCursor: nil)), (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    state.rooms = [coworkerDirect(roomId: first), coworkerDirect(roomId: second)]
+    state.showThreadsView()
+    await state.openThreadOverview(roomId: "550e8400-e29b-41d4-a716-446655440059", auth: auth)
+    #expect(state.threadOverviewRequest == nil && state.sidebar.showsThreadsView, "A room the sidebar does not list opens nothing.")
+    await state.openThreadOverview(roomId: second, auth: auth)
+    #expect(!state.sidebar.showsThreadsView && state.selectedRoomId == second)
+    #expect(state.threadOverviewRequest?.roomId == second)
+    state.selectRoom(first, auth: auth)
+    #expect(state.threadOverviewRequest == nil, "Another room drops a request its room never took.")
+  }
+}
+
+/// Row 24f2: the sidebar's Unreads filter through the real coordinator. Mark all as read runs each room's reads as
+/// `roomUnreadReads` says, then reads the rooms again whatever the outcome (web `ChatUnreadNavRows`).
+extension WorkspaceStateTests {
+  private static let designRoomId = "550e8400-e29b-41d4-a716-446655440001"
+
+  /// `general` open and read, `design` beside it; `extra` answers what the test does next.
+  private static func openUnreadsFilter(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "design"])),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")], nextCursor: nil)),
+      (200, roomReadBody(id: muteRoomId, unread: 0))
+    ] + extra)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    try #require(state.selectedRoomId == muteRoomId)
+    state.sidebar.setUnreadsFilter(true)
+    return (state, auth, transport)
+  }
+
+  private static func designRoom(_ state: WorkspaceState) throws -> Components.Schemas.ChatRoom {
+    try #require(state.rooms.first { $0.id == designRoomId })
+  }
+
+  @Test func markAllReadsABoldRoomThenTheRooms() async throws {
+    let (state, auth, transport) = try await Self.openUnreadsFilter([
+      (200, roomReadBody(id: Self.designRoomId, unread: 0, name: "design", split: (channel: 0, threads: 0))),
+      (200, roomsBody(names: ["general", "design"]))
+    ])
+    let index = try #require(state.rooms.firstIndex { $0.id == Self.designRoomId })
+    state.rooms[index].unreadCount = 2
+    state.rooms[index].channelUnreadCount = 2
+    let before = try #require(state.unreadsFilter)
+    #expect(before.rooms.map(\.name) == ["design", "general"], "The open room is listed below the pass.")
+    #expect(before.markAllTargets == [.init(roomId: Self.designRoomId, readRoom: true, lookThreads: false)])
+    state.sidebar.keepUnreadsFilterPass(before.pass)
+    let written = transport.operationIDs.count
+    await state.markAllUnreadRead(auth: auth)
+    #expect(Array(transport.operationIDs.dropFirst(written)) == ["post/chats/rooms/{id}/read", "get/chats/rooms"])
+    #expect(try !resolveRoomAttention(Self.designRoom(state)).bold)
+    let after = try #require(state.unreadsFilter)
+    #expect(after.rooms.map(\.name) == ["design", "general"] && after.isDimmed(Self.designRoomId), "Read, it keeps its place, dimmed.")
+    #expect(after.caughtUp && after.showsReadLabel && after.markAllTargets.isEmpty)
+    #expect(!state.sidebar.isMarkingAllUnreadRead && state.sidebar.actionError == nil)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func markAllLooksAThreadOnlyRoomAndTheRoomsSettleIt() async throws {
+    let (state, auth, transport) = try await Self.openUnreadsFilter([
+      (200, Self.markAllBody), (200, roomsBody(names: ["general", "design"]))
+    ])
+    let index = try #require(state.rooms.firstIndex { $0.id == Self.designRoomId })
+    state.rooms[index].unreadCount = 1
+    state.rooms[index].channelUnreadCount = 0
+    state.rooms[index].threadUnreadCount = 1
+    state.rooms[index].unreadThreadCount = 1
+    #expect(try !resolveRoomAttention(Self.designRoom(state)).bold, "Thread replies alone leave the row quiet.")
+    #expect(state.unreadsFilter?.rooms.first?.id == Self.designRoomId, "The filter still lists the room.")
+    let written = transport.operationIDs.count
+    await state.markAllUnreadRead(auth: auth)
+    #expect(Array(transport.operationIDs.dropFirst(written)) == ["post/chats/rooms/{id}/threads/read", "get/chats/rooms"],
+            "The row is not bold, so the room itself is not read.")
+    #expect(try (Self.designRoom(state).unreadThreadCount ?? 0) == 0, "The room list brings the Look's answer.")
+    #expect(state.unreadsFilter?.caughtUp == true)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func aFailedMarkAllSaysSoAndStillReadsTheRooms() async throws {
+    let failure = #"{"error":"Internal Server Error","message":"Boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/read","method":"POST"}}"#
+    let (state, auth, transport) = try await Self.openUnreadsFilter([
+      (500, failure), (200, roomsBody(names: ["general", "design"]))
+    ])
+    let index = try #require(state.rooms.firstIndex { $0.id == Self.designRoomId })
+    state.rooms[index].unreadCount = 2
+    state.rooms[index].channelUnreadCount = 2
+    await state.markAllUnreadRead(auth: auth)
+    #expect(state.sidebar.actionError == "Could not mark everything as read.")
+    #expect(transport.operationIDs.last == "get/chats/rooms", "What Core holds now is what the rooms show next.")
+    #expect(!state.sidebar.isMarkingAllUnreadRead)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// Behind the Threads view no room is on screen, so none is listed for being open.
+  @Test func theOpenRoomIsTheOneOnScreen() async throws {
+    let (state, _, _) = try await Self.openUnreadsFilter([])
+    #expect(state.unreadsFilter?.rooms.map(\.id) == [Self.muteRoomId])
+    state.showThreadsView()
+    #expect(state.unreadsFilter?.rooms.isEmpty == true)
+    state.sidebar.setUnreadsFilter(false)
+    #expect(state.unreadsFilter == nil)
+  }
+}
+
+/// Row 24h (SOK-1151): the transcript's reply bars and the Threads trigger read one answer, and a Look or
+/// Mark all drops the Threads it cleared from both before the re-count, as web's `clearThreadUnreadReplies`.
+extension WorkspaceStateTests {
+  private static func unreadCountsBody(_ threads: [(String, Int)]) -> String {
+    let items = threads.map { #"{"parentMessageId":"\#($0.0)","unreadReplyCount":\#($0.1)}"# }.joined(separator: ",")
+    return #"{"data":{"count":\#(threads.count),"threads":[\#(items)]},"meta":{"timestamp":"\#(timestamp)","requestId":"test"}}"#
+  }
+
+  /// A parent whose list page says it holds `unread` unread replies of three.
+  private static func barParent(id: String, unread: Int) -> String {
+    transcriptMessage(id: id, roomId: muteRoomId, content: "Parent")
+      .replacingOccurrences(of: #""threadReplyCount":0"#, with: #""threadReplyCount":3,"threadUnreadReplyCount":\#(unread)"#)
+  }
+
+  private static func threadItem(id: String, unread: Int, muted: Bool) -> String {
+    """
+    {"parentMessage":\(transcriptMessage(id: id, roomId: muteRoomId, content: "Parent")),"replyCount":3,"lastReplyAt":"\(timestamp)","unreadReplyCount":\(unread),"lastUnreadReplyAt":null,"hasLooked":true,"mutedAt":\(muted ? "\"\(timestamp)\"" : "null")}
+    """
+  }
+
+  /// A signed-in room showing two thread parents, then `extra`.
+  private static func openBars(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [barParent(id: muteRootId, unread: 2), barParent(id: otherRootId, unread: 1)], nextCursor: nil)),
+      (200, roomReadBody(id: muteRoomId, unread: 3))
+    ] + extra)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    return (state, auth, transport)
+  }
+
+  /// What each bar draws: an absent count is none unread.
+  private func shownUnread(_ state: WorkspaceState) -> [Int] {
+    state.displayedTranscript.map { $0.threadUnreadReplyCount ?? 0 }
+  }
+
+  @Test func theUnreadReadOwnsEveryReplyBar() async throws {
+    let (state, auth, transport) = try await Self.openBars([
+      (200, Self.unreadCountsBody([(Self.otherRootId, 4)]))
+    ])
+    #expect(shownUnread(state) == [2, 1], "Until the read lands, the bars show the message list's counts.")
+    await state.updateThreadOverview(.count, roomId: Self.muteRoomId, auth: auth)
+    #expect(shownUnread(state) == [0, 4], "A parent absent from the read has no unread replies.")
+    #expect(state.threadOverview.unreadCount == 1, "The Threads trigger counts the same answer.")
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func aLookClearsItsBarBeforeTheReCount() async throws {
+    let reply = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440035", roomId: Self.muteRoomId, content: "Reply")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(Self.muteRootId)\"")
+    let (state, auth, transport) = try await Self.openBars([
+      (200, Self.unreadCountsBody([(Self.muteRootId, 2), (Self.otherRootId, 1)])),
+      (200, Self.lookBody),
+      (200, roomReadBody(id: Self.muteRoomId, unread: 1)),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ])
+    await state.updateThreadOverview(.count, roomId: Self.muteRoomId, auth: auth)
+    let revision = state.threadAttentionRevision
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    #expect(transport.operationIDs.contains("post/chats/rooms/{id}/threads/{parentMessageId}/read"))
+    #expect(state.threadOverview.unreadReplyCounts == [Self.otherRootId: 1], "The looked Thread leaves the trigger at once.")
+    #expect(shownUnread(state) == [0, 1], "Its bar untints without waiting for the re-count.")
+    #expect(state.threadAttentionRevision == revision + 1, "The trigger still counts again.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func anAutomaticLookClearsItsBar() async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.unreadCountsBody([(Self.muteRootId, 1)])),
+      (200, Self.lookBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1))
+    ])
+    await state.updateThreadOverview(.count, roomId: Self.muteRoomId, auth: auth)
+    #expect(state.threadOverview.unreadReplyCounts == [Self.muteRootId: 1], "A reply landed in the open Thread.")
+    await state.syncReadAttention(auth: auth)
+    #expect(state.threadOverview.unreadReplyCounts?.isEmpty == true)
+    #expect(shownUnread(state) == [0])
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func markAllKeepsOnlyTheMutedUnreadBars() async throws {
+    let (state, auth, transport) = try await Self.openBars([
+      (200, Self.unreadCountsBody([(Self.muteRootId, 2), (Self.otherRootId, 1)])),
+      (200, transcriptPageBody(messages: [
+        Self.threadItem(id: Self.muteRootId, unread: 2, muted: true), Self.threadItem(id: Self.otherRootId, unread: 1, muted: false)
+      ], nextCursor: nil)),
+      (200, Self.markAllBody), (200, roomReadBody(id: Self.muteRoomId, unread: 2)),
+      (200, transcriptPageBody(messages: [
+        Self.threadItem(id: Self.muteRootId, unread: 2, muted: true), Self.threadItem(id: Self.otherRootId, unread: 0, muted: false)
+      ], nextCursor: nil))
+    ])
+    await state.updateThreadOverview(.count, roomId: Self.muteRoomId, auth: auth)
+    await state.updateThreadOverview(.load, roomId: Self.muteRoomId, auth: auth)
+    await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId, auth: auth)
+    #expect(state.threadOverview.unreadReplyCounts == [Self.muteRootId: 2], "Mark all skips the muted Thread's mention.")
+    #expect(shownUnread(state) == [2, 0])
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// A Look clears the bar before the unread read answers. The reply must count on that row without putting
+  /// the open thread's earlier unread count back.
+  @Test func ownReplyKeepsTheUnreadALookClearedBeforeTheCountRead() async throws {
+    let replyId = "550e8400-e29b-41d4-a716-446655440099"
+    let reply = createdMessageBody(id: replyId, roomId: Self.muteRoomId, content: "On it")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(Self.muteRootId)\"")
+    let (state, auth, transport) = try await Self.openBars([(201, reply)])
+    #expect(state.threadOverview.unreadReplyCounts == nil && state.directStream.roomId == nil)
+    let parent = try #require(state.transcriptMessages.first { $0.id == Self.muteRootId })
+    #expect(parent.threadUnreadReplyCount == 2 && parent.threadReplyCount == 3)
+    #expect(state.thread.open(parent))
+    state.clearThreadUnreadReplies { $0 == Self.muteRootId }
+    #expect(state.transcriptMessages.first { $0.id == Self.muteRootId }?.threadUnreadReplyCount == 0)
+    #expect(state.sendThreadReply("On it", auth: auth))
+    for _ in 0 ..< 1000 where state.thread.outbox.isSending {
+      await Task.yield()
+    }
+    let shown = try #require(state.transcriptMessages.first { $0.id == Self.muteRootId })
+    #expect(shown.threadUnreadReplyCount == 0, "A reply must not put back the count a Look cleared.")
+    #expect(shown.threadReplyCount == 4 && shown.threadRepliers?.count == 1)
+    #expect(state.thread.parent?.threadReplyCount == 4)
+    #expect(transport.remainingStubs == 0)
   }
 }

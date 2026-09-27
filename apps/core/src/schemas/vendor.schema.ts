@@ -1,6 +1,13 @@
 import { z } from "@hono/zod-openapi";
 
+import { LIMITS } from "@/config/constants";
+import { dateTimeSchema } from "@/helpers/datetime";
+
 const vendorLogoSchema = z.string().nullable();
+const vendorLogoInputSchema = z
+  .string()
+  .max(LIMITS.VENDOR_LOGO_MAX_LENGTH)
+  .nullable();
 
 const vendorLogosSchema = z
   .object({
@@ -15,8 +22,8 @@ const vendorLogosSchema = z
 
 export const vendorLogosInputSchema = z
   .object({
-    light: vendorLogoSchema.optional(),
-    dark: vendorLogoSchema.optional(),
+    light: vendorLogoInputSchema.optional(),
+    dark: vendorLogoInputSchema.optional(),
   })
   .openapi("VendorLogosInput");
 
@@ -30,6 +37,14 @@ export const vendorSchema = z
     logos: vendorLogosSchema,
   })
   .openapi("Vendor");
+
+export const adminVendorSchema = vendorSchema
+  .extend({
+    listed: z.boolean().openapi({
+      description: "Whether this vendor appears in GET /v1/vendors.",
+    }),
+  })
+  .openapi("AdminVendor");
 
 export const createVendorRequestSchema = z
   .object({
@@ -50,6 +65,10 @@ export const patchVendorRequestSchema = z
     name: createVendorRequestSchema.shape.name.optional(),
     slug: createVendorRequestSchema.shape.slug.optional(),
     logos: vendorLogosInputSchema.optional(),
+    listed: z.boolean().optional().openapi({
+      description:
+        "Whether this vendor appears in GET /v1/vendors. Platform admin only.",
+    }),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one vendor field is required",
@@ -75,30 +94,51 @@ export const vendorMemberSchema = z
   })
   .openapi("VendorMember");
 
-function exactlyOneUserIdentity(data: {
-  userId?: string;
-  email?: string;
-}): boolean {
-  return (data.userId !== undefined) !== (data.email !== undefined);
-}
+export const vendorMemberInviteStatusSchema = z
+  .enum(["PENDING", "ACCEPTED", "DECLINED", "REVOKED", "EXPIRED"])
+  .openapi("VendorMemberInviteStatus");
 
-const userIdentityFields = {
-  userId: z.string().min(1).optional().openapi({ example: "user_123" }),
-  email: z.string().email().optional().openapi({ example: "dev@example.com" }),
-};
-
-export const addVendorMemberRequestSchema = z
+export const createVendorMemberInviteRequestSchema = z
   .object({
-    ...userIdentityFields,
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email()
+      .max(320)
+      .openapi({ example: "dev@example.com" }),
     role: vendorMemberRoleSchema.default("developer").openapi({
-      description: "Member role. Defaults to developer when omitted.",
+      description:
+        "Role granted on accept. Defaults to developer when omitted.",
       example: "developer",
     }),
   })
-  .refine(exactlyOneUserIdentity, {
-    message: "Provide exactly one of userId or email",
+  .openapi("CreateVendorMemberInviteRequest");
+
+export const vendorMemberInviteSchema = z
+  .object({
+    id: z.string().openapi({ example: "01960001-0001-7001-8001-000000000001" }),
+    vendorId: z
+      .string()
+      .openapi({ example: "01960001-0001-7001-8001-000000000002" }),
+    email: z.string().email().openapi({ example: "dev@example.com" }),
+    role: vendorMemberRoleSchema,
+    status: vendorMemberInviteStatusSchema,
+    expiresAt: dateTimeSchema,
+    createdAt: dateTimeSchema,
   })
-  .openapi("AddVendorMemberRequest");
+  .openapi("VendorMemberInvite");
+
+export const myVendorInviteSchema = z
+  .object({
+    id: z.string().openapi({ example: "01960001-0001-7001-8001-000000000001" }),
+    role: vendorMemberRoleSchema,
+    status: vendorMemberInviteStatusSchema,
+    expiresAt: dateTimeSchema,
+    createdAt: dateTimeSchema,
+    vendor: vendorSchema,
+  })
+  .openapi("MyVendorInvite");
 
 export const patchVendorMemberRoleRequestSchema = z
   .object({
@@ -117,9 +157,8 @@ export const patchVendorAdminRequestSchema = z
   .openapi("PatchVendorAdminRequest");
 
 export const assignCoworkerRequestSchema = z
-  .object(userIdentityFields)
-  .refine(exactlyOneUserIdentity, {
-    message: "Provide exactly one of userId or email",
+  .object({
+    userId: z.string().min(1).openapi({ example: "user_123" }),
   })
   .openapi("AssignCoworkerRequest");
 

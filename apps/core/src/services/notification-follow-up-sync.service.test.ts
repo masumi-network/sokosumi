@@ -16,6 +16,7 @@ const {
   createNotificationMock,
   notificationFindManyMock,
   notificationUpdateManyMock,
+  notificationCountMock,
   resolveDeliveryMock,
   sendEmailsMock,
   userFindUniqueMock,
@@ -26,6 +27,7 @@ const {
   createNotificationMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
+  notificationCountMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
   sendEmailsMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
@@ -42,6 +44,7 @@ vi.mock("@/lib/db/prisma", () => ({
     notification: {
       findMany: notificationFindManyMock,
       updateMany: notificationUpdateManyMock,
+      count: notificationCountMock,
     },
     user: {
       findUnique: userFindUniqueMock,
@@ -355,6 +358,9 @@ describe("NotificationFollowUpSyncService", () => {
     sendEmailsMock.mockImplementation(async (inputs: readonly unknown[]) =>
       inputs.map((_, index) => ({ id: `resend_${index}` })),
     );
+    // One row unless a test says otherwise: the reminder stands for the
+    // source row it was written from.
+    notificationCountMock.mockResolvedValue(1);
     createNotificationMock.mockImplementation(
       async (input: {
         eventId: string;
@@ -1453,13 +1459,58 @@ describe("NotificationFollowUpSyncService", () => {
     wantsEmail();
     seed([row()]);
 
-    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+    const emailedResult = await notificationFollowUpSyncService.sendFollowUps({
+      now,
+    });
 
-    expect(result.emailed).toBe(1);
+    expect(emailedResult.emailed).toBe(1);
     expect(notificationUpdateManyMock).toHaveBeenCalledWith({
       where: { id: written[0]?.eventId, emailId: null },
       data: { emailId: "resend_0" },
     });
+  });
+
+  /**
+   * One reminder covers a room for a day, so it can stand for several unread
+   * mentions. The email counts what is still waiting rather than naming the
+   * one row the reminder happened to be written from (SOK-1142).
+   */
+  it("counts the rows the reminder stands for, in the email it sends", async () => {
+    wantsEmail();
+    notificationCountMock.mockResolvedValue(3);
+    seed([row()]);
+
+    await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    const [email] = emailsSent();
+
+    expect(email.subject).toBe(
+      "Sokosumi - 3 mentions are still waiting for you in Design",
+    );
+    // The reader's own unread mentions in that room, not the room's traffic.
+    expect(notificationCountMock).toHaveBeenCalledWith({
+      where: {
+        userId: "reader-1",
+        kind: NotificationKind.CHAT,
+        referenceId: "room-1",
+        messageKey: CHAT_MENTION_MESSAGE_KEY,
+        isRead: false,
+      },
+    });
+  });
+
+  /** A count that will not read costs the number, never the reminder. */
+  it("still emails the reminder when the count cannot be read", async () => {
+    wantsEmail();
+    notificationCountMock.mockRejectedValue(new Error("no"));
+    seed([row()]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(result.emailed).toBe(1);
+    expect(emailsSent()[0]?.subject).toBe(
+      "Sokosumi - Ada is still waiting for you in Design",
+    );
   });
 
   /**

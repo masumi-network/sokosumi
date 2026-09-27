@@ -366,7 +366,7 @@ export function ProjectBrandCard({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isRemoving}>
-              {t("deleteDialog.cancel")}
+              {t("brandCard.removeDialog.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"

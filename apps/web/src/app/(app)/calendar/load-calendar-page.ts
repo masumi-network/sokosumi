@@ -1,13 +1,13 @@
 import "server-only";
 
+import { isValidTimezone } from "@sokosumi/utils";
 import { format } from "date-fns";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
-import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
+import { Temporal } from "temporal-polyfill";
+import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
-import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import {
   type Project,
   TaskStatus,
@@ -20,7 +20,6 @@ import {
   getLatestCalendarDate,
   resolveCalendarDate,
 } from "@/lib/schedules/calendar-range";
-import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
 import {
   taskService,
@@ -36,6 +35,8 @@ export interface CalendarPageSearchParams {
   sourceId?: string;
   scope?: string;
   status?: string;
+  view?: string;
+  timezone?: string;
 }
 
 export interface LoadedWorkspaceCalendarPage {
@@ -57,14 +58,27 @@ export interface LoadedWorkspaceCalendarPage {
 export function resolveCalendarPageQuery(
   date: string | undefined,
   status: string | undefined,
+  view?: string,
+  timezone?: string,
 ) {
   const calendarStatus = Object.values(TaskStatus).find(
     (taskStatus) => taskStatus === status,
   );
   const now = new Date();
   const latestCalendarDate = getLatestCalendarDate(now);
-  const initialDate = resolveCalendarDate(date, now);
-  const range = getCalendarRange(initialDate);
+  const today = Temporal.Now.plainDateISO(
+    isValidTimezone(timezone) ? timezone : "UTC",
+  );
+  const initialDate =
+    view === "agenda" ? today.toString() : resolveCalendarDate(date, now);
+  const from = new Date(
+    today.toZonedDateTime(isValidTimezone(timezone) ? timezone : "UTC")
+      .epochMilliseconds,
+  );
+  const range =
+    view === "agenda"
+      ? { from, to: new Date(from.getTime() + 90 * 24 * 60 * 60 * 1000) }
+      : getCalendarRange(initialDate);
 
   return { calendarStatus, latestCalendarDate, initialDate, range };
 }
@@ -73,18 +87,17 @@ export async function loadCalendarPageContext(
   activeOrganizationId: string | null,
   options: { requireSources?: boolean } = {},
 ) {
-  const [sources, coworkers, memberOptions] = await Promise.all([
+  const [sources, coworkerOptions] = await Promise.all([
     taskService.getWorkspaceCalendarSources().catch((error: unknown) => {
       if (options.requireSources) throw error;
       return [];
     }),
-    coworkerService.listCoworkers().catch(() => []),
-    listTaskAssigneeMemberOptions(activeOrganizationId),
+    listTaskAssigneeOptions(activeOrganizationId),
   ]);
 
   return {
     sources,
-    coworkerOptions: [...memberOptions, ...getCoworkerOptions(coworkers)],
+    coworkerOptions,
   };
 }
 
@@ -108,13 +121,14 @@ export async function loadWorkspaceCalendarPage({
 }): Promise<LoadedWorkspaceCalendarPage> {
   await connection();
   const session = await getSession();
-  if (!(await hasCurrentUserCalendarBetaAccess())) {
-    notFound();
-  }
-
   const params = await searchParams;
   const { calendarStatus, latestCalendarDate, initialDate, range } =
-    resolveCalendarPageQuery(params.date, params.status);
+    resolveCalendarPageQuery(
+      params.date,
+      params.status,
+      params.view,
+      params.timezone,
+    );
   const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
   const scope = params.scope === "owned" ? "owned" : "workspace";
   const latestDate = format(latestCalendarDate, "yyyy-MM-dd");
@@ -131,7 +145,7 @@ export async function loadWorkspaceCalendarPage({
           ...range,
           assigneeId: params.assigneeId,
           assigneeUserId: params.assigneeUserId,
-          limit: 100,
+          limit: params.view === "agenda" ? 10 : 100,
           scope,
           status: calendarStatus,
         }),
@@ -146,7 +160,7 @@ export async function loadWorkspaceCalendarPage({
       activeOrganizationId,
       currentUserId: session?.user?.id ?? null,
       workspaceId: project.workspaceId,
-      calendarKey: `${project.id}-${initialDate}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}`,
+      calendarKey: `${project.id}-${initialDate}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}-${params.view ?? "all"}`,
       coworkerOptions,
       initialDate,
       items,
@@ -168,7 +182,7 @@ export async function loadWorkspaceCalendarPage({
       ...range,
       assigneeId: params.assigneeId,
       assigneeUserId: params.assigneeUserId,
-      limit: 100,
+      limit: params.view === "agenda" ? 10 : 100,
       projectId: params.projectId,
       sourceId: params.sourceId,
       scope,
@@ -195,7 +209,7 @@ export async function loadWorkspaceCalendarPage({
     activeOrganizationId,
     currentUserId: session?.user?.id ?? null,
     workspaceId,
-    calendarKey: `${initialDate}-${params.projectId ?? "all"}-${params.sourceId ?? "all"}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}`,
+    calendarKey: `${initialDate}-${params.projectId ?? "all"}-${params.sourceId ?? "all"}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}-${params.view ?? "all"}`,
     coworkerOptions,
     initialDate,
     items,

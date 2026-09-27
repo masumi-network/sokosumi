@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 
 import { createRoute, z } from "@hono/zod-openapi";
-import { chatRoomGuestInviteLinkRepository } from "@sokosumi/database/repositories";
 
 import { LIMITS } from "@/config/constants";
 import { toChatRoomGuestInviteLinkResponse } from "@/helpers/chat-room-guest-invite-link-response";
@@ -85,12 +84,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       `;
 
       const now = new Date();
-      const liveCount =
-        await chatRoomGuestInviteLinkRepository.countLiveInviteLinksByRoomId(
+      const liveCount = await tx.chatRoomGuestInviteLink.count({
+        where: {
           roomId,
-          now,
-          tx,
-        );
+          revokedAt: null,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+      });
       if (liveCount >= LIMITS.CHAT_ROOM_GUEST_INVITE_LINK_ACTIVE_LIMIT) {
         // Match email guest-invite rate limits: 429, not 400.
         throw tooManyRequests(
@@ -99,12 +99,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      const recentCreates =
-        await chatRoomGuestInviteLinkRepository.countRecentCreatesByUser(
-          userContext.userId,
-          hourAgo,
-          tx,
-        );
+      const recentCreates = await tx.chatRoomGuestInviteLink.count({
+        where: {
+          createdByUserId: userContext.userId,
+          createdAt: { gte: hourAgo },
+        },
+      });
       if (recentCreates >= LIMITS.CHAT_ROOM_GUEST_INVITE_LINK_CREATE_PER_HOUR) {
         throw tooManyRequests(
           `You can create at most ${LIMITS.CHAT_ROOM_GUEST_INVITE_LINK_CREATE_PER_HOUR} shareable invite links per hour. Try again later.`,
@@ -121,16 +121,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             );
       const maxUses = body.maxUses ?? null;
 
-      return await chatRoomGuestInviteLinkRepository.createInviteLink(
-        {
+      return await tx.chatRoomGuestInviteLink.create({
+        data: {
           token,
-          roomId,
-          createdByUserId: userContext.userId,
+          room: { connect: { id: roomId } },
+          createdBy: { connect: { id: userContext.userId } },
           expiresAt,
           maxUses,
         },
-        tx,
-      );
+      });
     });
 
     return created(c, toChatRoomGuestInviteLinkResponse(link));

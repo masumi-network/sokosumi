@@ -7,6 +7,7 @@ import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
 import { TaskPrivateIndicator } from "./task-private-indicator";
+import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskListItemProps {
@@ -44,7 +45,7 @@ export function TaskListItem({
         href={`/tasks/${task.id}`}
         className={cn(
           "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
-          "rounded-none px-4 py-3 transition-colors",
+          "bg-background rounded-lg border border-border px-4 py-3 transition-colors",
           "hover:bg-card-background-hover",
           "active:scale-[0.995]",
           (dragHandleProps?.isDragging || isOverlay) && "bg-senary shadow-sm",
@@ -72,9 +73,11 @@ export function TaskListItem({
             />
             <TaskPrivateIndicator visibility={task.visibility} />
           </div>
+          {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
           <TaskMetaDetails
-            project={task.project}
+            project={compact ? null : task.project}
             assignee={task.assignee}
+            participants={task.participants}
             commentsCount={task.commentsCount}
             createdAt={task.createdAt}
             variant="list"

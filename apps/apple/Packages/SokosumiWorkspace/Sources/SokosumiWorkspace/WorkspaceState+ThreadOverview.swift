@@ -16,7 +16,19 @@ public extension WorkspaceState {
       case .count:
         try await threadOverview.refreshCount(client: client, roomId: roomId, organizationSlug: slug)
       case .markAllRead:
-        try await threadOverview.markAllRead(client: client, roomId: roomId, organizationSlug: slug, mentions: rooms.first(where: { $0.id == roomId }).map(MessageMentions.init))
+        try await threadOverview.markAllRead(client: client, roomId: roomId, organizationSlug: slug, mentions: rooms.first(where: { $0.id == roomId }).map(MessageMentions.init)) {
+          // Web's `onAllThreadsLooked` voids its room read: a failed one never fails Mark all.
+          guard roomId == transcriptRoomId else { return }
+          let stillUnread = threadOverview.mutedUnreadParentIds
+          clearThreadUnreadReplies { !stillUnread.contains($0) }
+          do {
+            try await syncRoomAttentionAfterThreadChange(client: client)
+          } catch {
+            if let error = error as? ChatServiceError {
+              signOutIfUnauthorized(error, auth: auth)
+            }
+          }
+        }
       }
     } catch {
       guard generation == timeline.generation, !Task.isCancelled else { return }

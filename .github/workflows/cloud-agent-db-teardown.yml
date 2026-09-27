@@ -19,9 +19,12 @@ jobs:
     name: Tear down agent Neon branch
     # Same-repo only: pull_request_target would otherwise pass NEON secrets to
     # fork close events. Cloud agent PRs are always same-repo.
+    # `--from-text` only tears down `bc-…` ids found in the body, so a PR
+    # without one skips here instead of paying a runner to find nothing.
     if: >
       github.event_name == 'workflow_dispatch' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.body, 'bc-'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

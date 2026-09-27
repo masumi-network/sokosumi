@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/node";
 import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
+import { dateTimeSchema } from "@/helpers/datetime";
 import { errorResponseSchema } from "@/helpers/error";
 import {
   jsonContent,
@@ -11,7 +12,7 @@ import {
 } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { created } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
+import { mapTask, parseFutureRunAt } from "@/helpers/task";
 import {
   refineAssigneeXorConflict,
   resolveAssigneeIdFromRequest,
@@ -27,6 +28,10 @@ import {
 } from "@/helpers/task-event-channel";
 import { resolveTaskName } from "@/helpers/task-name";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
+import {
+  correctTaskTags,
+  TASK_TAG_VOCABULARY_VERSION,
+} from "@/helpers/task-tags";
 import { notifyWorkspaceApproversOfPendingGrant } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -37,6 +42,7 @@ import {
   type AuthenticationContext,
   isCoworkerAuthContext,
   isSokoBotAuthContext,
+  requireOwnerUserContext,
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -46,14 +52,21 @@ import {
   taskEventDeprecatedOriginField,
   taskSchema,
 } from "@/schemas/task.schema";
+import { taskTagCorrectionsSchema } from "@/schemas/task-tag-suggestion.schema";
 import {
   createTaskForActor,
   type TaskDomainActor,
 } from "@/services/task-domain.service";
+import {
+  readCachedTaskTagSuggestions,
+  verifyTaskTagReceipt,
+} from "@/services/task-tag-suggestions.service";
 import { taskInclude } from "@/types/task";
 
 export const createTaskRequestSchema = z
   .object({
+    tagSuggestionReceipt: z.string().max(4096).optional(),
+    tagCorrections: taskTagCorrectionsSchema.optional(),
     name: z
       .string()
       .trim()
@@ -84,6 +97,11 @@ export const createTaskRequestSchema = z
       .optional()
       .default(TaskStatus.DRAFT)
       .openapi({ example: TaskStatus.READY }),
+    runAt: dateTimeSchema.nullish().openapi({
+      description:
+        "Start the Task at this future time instead of now. Puts the Task in QUEUED (status is ignored); requires a Coworker or Soko Bot assignee.",
+      example: "2026-06-24T09:00:00.000Z",
+    }),
     channel: taskEventChannelField.optional(),
     origin: taskEventDeprecatedOriginField.optional(),
     context: createTaskContextSchema.optional().openapi({
@@ -179,6 +197,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       workspaceContext.organizationId,
     );
+    if (body.tagCorrections) requireOwnerUserContext(authContext);
+    const runAt = body.runAt ? parseFutureRunAt(body.runAt) : null;
 
     const resolvedName = await resolveTaskName({
       name: body.name,
@@ -195,6 +215,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       !shouldEnforceCreateGrant && body.context?.briefing !== false
         ? await healProjectBriefingUrl(project, workspaceContext.workspaceId)
         : project;
+
+    // Read after normal preparation so an in-flight composer evaluation can finish.
+    // Only exact authored input is eligible; generated title/context are derived.
+    const suggestionScope = {
+      userId: userContext.userId,
+      workspaceId: workspaceContext.workspaceId,
+    };
+    const suggestedTags =
+      authContext.actor === "user" &&
+      authContext.authenticationMethod === "session"
+        ? (verifyTaskTagReceipt(
+            body.tagSuggestionReceipt,
+            suggestionScope,
+            body,
+          ) ?? (await readCachedTaskTagSuggestions(suggestionScope, body)))
+        : null;
 
     const task = await prisma.$transaction(async (tx) => {
       const createdTask = await createTaskForActor(
@@ -226,12 +262,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           assigneeId: body.assigneeId,
           assigneeSokoBotId: body.assigneeSokoBotId,
           assigneeUserId: body.assigneeUserId,
-          status: body.status,
+          status: runAt ? TaskStatus.QUEUED : body.status,
+          runAt,
           channel: body.channel,
           visibility: body.visibility,
         },
         tx,
       );
+      if (suggestedTags !== null || body.tagCorrections) {
+        await tx.task.update({
+          where: { id: createdTask.id },
+          data: {
+            ...(suggestedTags !== null
+              ? {
+                  automaticTags: suggestedTags,
+                  tagClassificationState: "complete",
+                  tagClassificationLease: null,
+                  tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
+                }
+              : {}),
+            ...(body.tagCorrections
+              ? correctTaskTags(
+                  {},
+                  body.tagCorrections.add,
+                  body.tagCorrections.remove,
+                )
+              : {}),
+          },
+        });
+      }
       return tx.task.findUniqueOrThrow({
         where: { id: createdTask.id },
         include: taskInclude,

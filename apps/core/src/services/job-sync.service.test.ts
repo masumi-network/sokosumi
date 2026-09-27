@@ -173,6 +173,7 @@ vi.mock("@/helpers/purchase", async (importOriginal) => ({
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishJobStatusData: publishJobStatusDataMock,
 }));
 

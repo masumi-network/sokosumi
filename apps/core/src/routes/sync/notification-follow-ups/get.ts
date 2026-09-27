@@ -4,8 +4,7 @@ import { notificationFollowUpSyncService } from "@/services/notification-follow-
 
 import { handleSyncRequest } from "../handler.js";
 
-export const NOTIFICATION_FOLLOW_UPS_SYNC_LOCK_KEY =
-  "notification-follow-ups-sync";
+const NOTIFICATION_FOLLOW_UPS_SYNC_LOCK_KEY = "notification-follow-ups-sync";
 
 export default function mount(app: Hono) {
   app.get("/notification-follow-ups", async (c) => {

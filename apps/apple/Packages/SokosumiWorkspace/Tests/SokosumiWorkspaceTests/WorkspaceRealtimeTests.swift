@@ -13,18 +13,6 @@ private let roomA = "550e8400-e29b-41d4-a716-446655440700"
 private let roomB = "550e8400-e29b-41d4-a716-446655440701"
 private let realtimeWindow = UUID()
 
-private struct RealtimeMemoryTokenStore: TokenStore {
-  var tokens: OAuthTokens?
-  func load() -> OAuthTokens? {
-    tokens
-  }
-
-  func save(_: OAuthTokens) throws {}
-  func clear() -> Bool {
-    true
-  }
-}
-
 private final class RealtimeScriptedTransport: ClientTransport, @unchecked Sendable {
   private(set) var operationIDs: [String] = []
   private(set) var requests: [HTTPRequest] = []
@@ -131,10 +119,10 @@ private let realtimeUserBody = """
 {"data":{"id":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
 """
 
-private func realtimeRoomsBody(ids: [String]) -> String {
+private func realtimeRoomsBody(ids: [String], groupDirect: Bool = false) -> String {
   let rooms = ids.map { id in
     """
-    {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+    {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"\(groupDirect ? "direct" : "channel")","isSelfDirect":false,"directKey":null,"isGroupDirect":\(groupDirect),"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
     """
   }.joined(separator: ",")
   return """
@@ -149,12 +137,13 @@ private func realtimeMessageJSON(
   createdAt: String = realtimeTimestamp,
   deletedAt: String? = nil,
   editedAt: String? = nil,
-  metadata: String? = nil
+  metadata: String? = nil,
+  groupNameChange: String? = nil
 ) -> String {
   let deletedJSON = deletedAt.map { "\"\($0)\"" } ?? "null"
   let editedJSON = editedAt.map { "\"\($0)\"" } ?? "null"
   return """
-  {"id":"\(id)","roomId":"\(roomId)","parentMessageId":null,"content":"\(content)","createdAt":"\(createdAt)","deletedAt":\(deletedJSON),"editedAt":\(editedJSON),"sender":{"type":"user","user":{"id":"user_2","name":"Ada","email":"ada@example.com","presence":"offline"}},"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":\(metadata ?? "null"),"quote":null,"membership":null,"unfurls":null}
+  {"id":"\(id)","roomId":"\(roomId)","parentMessageId":null,"content":"\(content)","createdAt":"\(createdAt)","deletedAt":\(deletedJSON),"editedAt":\(editedJSON),"sender":{"type":"user","user":{"id":"user_2","name":"Ada","email":"ada@example.com","presence":"offline"}},"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":\(metadata ?? "null"),"quote":null,"membership":null,"groupNameChange":\(groupNameChange ?? "null"),"unfurls":null}
   """
 }
 
@@ -166,7 +155,7 @@ private func realtimePageBody(messages: [String], nextCursor: String? = nil) -> 
 
 private func realtimeReadBody(id: String) -> String {
   """
-  {"data":{"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+  {"data":{"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
   """
 }
 
@@ -208,11 +197,11 @@ private func realtimeState(
   defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(
     savedRoom: SavedRoomSelection(defaults: defaults),
-    instanceStore: MemoryAblyClientInstanceIdStore(stored: instanceId)
+    instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId)
   )
   state.setWindowVisible(true, window: realtimeWindow)
   state.clientResolver = { client }
-  return (state, AuthState(configuration: nil, store: RealtimeMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport)
+  return (state, AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport)
 }
 
 private func waitForRealtimeIdle(_ state: WorkspaceState) async {
@@ -342,6 +331,38 @@ struct WorkspaceRealtimeTests {
     #expect(state.displayedTranscript.map(\.content) == ["first", "from web"])
     // No extra history GET: the row arrived over the wire.
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
+  }
+
+  @Test func renameRowRetitlesTheOpenGroupDirect() async throws {
+    let (state, auth, _) = try realtimeState([
+      (200, realtimeAccessBody()),
+      (200, realtimeOrgsBody),
+      (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA], groupDirect: true)),
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440716", roomId: roomA, content: "first")])),
+      (200, realtimeReadBody(id: roomA))
+    ])
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    #expect(state.rooms.first?.groupName == nil)
+
+    let change = #"{"action":"named","name":"Launch crew","actor":{"id":"user_2","name":"Ada"}}"#
+    let renamed = try await decodeRealtimeMessages([
+      realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440717", roomId: roomA, content: "Ada named the group Launch crew",
+                          createdAt: "2026-01-01T00:00:01.000Z", groupNameChange: change)
+    ])
+    state.applyRealtimeMessage(roomId: roomA, eventType: .create, message: renamed[0])
+    #expect(state.rooms.first?.groupName == "Launch crew")
+    #expect(state.displayedTranscript.map(\.content) == ["first", "Ada named the group Launch crew"])
+
+    let cleared = try await decodeRealtimeMessages([
+      realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440718", roomId: roomA, content: "Ada removed the group name",
+                          createdAt: "2026-01-01T00:00:02.000Z", groupNameChange: #"{"action":"cleared","name":null,"actor":{"id":"user_2","name":"Ada"}}"#)
+    ])
+    state.applyRealtimeMessage(roomId: roomA, eventType: .create, message: cleared[0])
+    #expect(state.rooms.first?.groupName == nil)
+    state.reset()
   }
 
   @Test func realtimeUpdateAndHardDeleteApply() async throws {
@@ -813,11 +834,11 @@ struct WorkspaceRealtimeTests {
   }
 
   @Test func instanceIdIsStableAcrossStates() {
-    let store = MemoryAblyClientInstanceIdStore()
+    let store = MemoryRealtimeClientInstanceIdStore()
     let first = WorkspaceState(instanceStore: store)
     let second = WorkspaceState(instanceStore: store)
-    #expect(first.ablyClientInstanceId == second.ablyClientInstanceId)
-    #expect(isValidAblyClientInstanceId(first.ablyClientInstanceId))
+    #expect(first.realtimeClientInstanceId == second.realtimeClientInstanceId)
+    #expect(first.realtimeClientInstanceId.count == 16)
   }
 
   @Test func tokenMintUsesInstanceIdAndPersonalOmitsOrgHeader() async throws {

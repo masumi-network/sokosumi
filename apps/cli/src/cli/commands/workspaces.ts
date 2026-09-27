@@ -36,7 +36,6 @@ export async function runWorkspacesCommand({
   signal,
   subcommand,
 }: WorkspacesCommandContext): Promise<void> {
-  // Dispatch requires the explicit workspaces list form; bare workspaces is rejected.
   if (subcommand !== "list") throw new Error("Usage: sokosumi workspaces list");
   const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
     client,

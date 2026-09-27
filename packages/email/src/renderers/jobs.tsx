@@ -36,22 +36,21 @@ export async function renderJobFailureNotificationEmail({
   result,
   resultHash,
 }: JobFailureNotificationEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, t } = createEmailTranslator(locale);
+  // What failed and what it said. The identifiers a support reply needs sit
+  // below, out of the reader's way.
   const fields: JobFailureField[] = [
-    { label: t("jobs.failureNotification.network"), value: network },
     { label: t("jobs.failureNotification.agentName"), value: agentName },
-    { label: t("jobs.failureNotification.agentId"), value: agentId },
     {
-      label: t("jobs.failureNotification.agentBlockchainIdentifier"),
-      value: agentBlockchainIdentifier,
-      wordBreak: "break-all",
+      codeBlock: true,
+      label: t("jobs.failureNotification.output"),
+      value: formatJsonValue(result),
     },
+  ];
+  const details: JobFailureField[] = [
+    { label: t("jobs.failureNotification.network"), value: network },
     { label: t("jobs.failureNotification.jobId"), value: jobId },
-    {
-      label: t("jobs.failureNotification.jobBlockchainIdentifier"),
-      value: jobBlockchainIdentifier ?? "null",
-      wordBreak: "break-all",
-    },
+    { label: t("jobs.failureNotification.agentId"), value: agentId },
     {
       label: t("jobs.failureNotification.onChainStatus"),
       value: onChainStatus ?? "null",
@@ -61,19 +60,23 @@ export async function renderJobFailureNotificationEmail({
       value: agentStatus ?? "null",
     },
     {
-      label: t("jobs.failureNotification.resultHash"),
-      value: resultHash ?? "null",
-      wordBreak: "break-all",
+      label: t("jobs.failureNotification.jobBlockchainIdentifier"),
+      value: jobBlockchainIdentifier ?? "null",
     },
     {
-      codeBlock: true,
-      label: t("jobs.failureNotification.output"),
-      value: formatJsonValue(result),
+      label: t("jobs.failureNotification.agentBlockchainIdentifier"),
+      value: agentBlockchainIdentifier,
+    },
+    {
+      label: t("jobs.failureNotification.resultHash"),
+      value: resultHash ?? "null",
     },
   ];
   const html = await render(
     <JobFailureNotificationEmailTemplate
+      lang={lang}
       description={t("jobs.failureNotification.description")}
+      details={details}
       fields={fields}
       footer={t("jobs.failureNotification.footer")}
       preview={t("jobs.failureNotification.preview", { jobId })}

@@ -10,15 +10,19 @@ export const CLI_COMMANDS = [
   "discover",
   "auth login",
   "auth status",
+  "auth whoami",
   "auth logout",
   "agents list",
   "agents hire",
   "coworkers list",
   "coworkers register",
+  "coworkers provision",
+  "coworkers connect",
   "coworkers update",
   "coworkers api-key",
   "coworkers me",
   "vendors me",
+  "vendors create",
   "workspaces list",
   "tasks list",
   "tasks create",
@@ -37,10 +41,6 @@ export interface DiscoverCommandOptions {
   stdout: CommandOutput;
   json?: boolean;
   signal?: AbortSignal;
-}
-
-function errorMessage(reason: unknown): string {
-  return redactErrorMessage(reason);
 }
 
 export async function runDiscoverCommand({
@@ -83,19 +83,19 @@ export async function runDiscoverCommand({
     if (agentsResult.status === "rejected") {
       errors.push({
         resource: "agents",
-        message: errorMessage(agentsResult.reason),
+        message: redactErrorMessage(agentsResult.reason),
       });
     }
     if (coworkersResult.status === "rejected") {
       errors.push({
         resource: "coworkers",
-        message: errorMessage(coworkersResult.reason),
+        message: redactErrorMessage(coworkersResult.reason),
       });
     }
     if (jobsResult.status === "rejected") {
       errors.push({
         resource: "jobs",
-        message: errorMessage(jobsResult.reason),
+        message: redactErrorMessage(jobsResult.reason),
       });
     }
     if (errors.length > 0) result.errors = errors;

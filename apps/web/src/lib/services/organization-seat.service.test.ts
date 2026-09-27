@@ -255,6 +255,44 @@ describe("organizationSeatService", () => {
     });
   });
 
+  it("maps the concurrency_conflict kind to CONFLICT", async () => {
+    assignOrganizationSeatMock.mockRejectedValue(
+      coreError(
+        409,
+        "Seat assignment lost a concurrent update. Try again.",
+        "concurrency_conflict",
+      ),
+    );
+
+    const { organizationSeatService } = await import(
+      "./organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.assignSeat("user-1", "org-1", "member-1"),
+    ).rejects.toMatchObject({
+      status: "CONFLICT",
+      message: "Another seat change was in progress. Try again.",
+    });
+  });
+
+  it("maps a 409 without a kind to CONFLICT", async () => {
+    assignOrganizationSeatMock.mockRejectedValue(
+      coreError(409, "Seat assignment lost a concurrent update. Try again."),
+    );
+
+    const { organizationSeatService } = await import(
+      "./organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.assignSeat("user-1", "org-1", "member-1"),
+    ).rejects.toMatchObject({
+      status: "CONFLICT",
+      message: "Another seat change was in progress. Try again.",
+    });
+  });
+
   it("maps a missing member to NOT_FOUND", async () => {
     assignOrganizationSeatMock.mockRejectedValue(
       coreError(404, "Member not found"),

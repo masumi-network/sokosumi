@@ -16,16 +16,15 @@ import {
  * the safe direction for noise and the wrong one for work that waits on the
  * reader, and it is silent either way. This test is the noise: add a producer
  * key and it fails until someone puts the key on a row.
+ *
+ * The per-Task schedule keys left with the old series (SOK-1173), the way the
+ * job keys left in SOK-930: Core writes none of them, the web catalog keeps
+ * their strings for rows stored earlier, and the email for such a row falls to
+ * the generic update sentence.
  */
 const UPDATE_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Task.failed",
   "Notifications.Task.canceled",
-  "Notifications.Task.scheduleOccurrenceChangedByMember",
-  "Notifications.Task.scheduleRepaired",
-  "Notifications.Task.scheduleRemovedByMember",
-  "Notifications.Task.scheduleRemovedByOperator",
-  "Notifications.Task.scheduleSourceChangedByMember",
-  "Notifications.Task.scheduleUpdatedByMember",
 ];
 
 const SOURCE_ROOT = join(process.cwd(), "src");

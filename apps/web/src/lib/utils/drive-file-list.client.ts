@@ -1,7 +1,7 @@
 "use client";
 
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type { DriveFileItem, DriveItem } from "@/lib/clients/generated/core";
+import type { DriveItem } from "@/lib/clients/generated/core";
 import { getDriveFiles } from "@/lib/clients/generated/core";
 import type { FilesSortBy, FilesSortOrder } from "@/lib/utils/files-sort";
 
@@ -41,13 +41,6 @@ type ListDriveFilesOptions = DriveWorkspaceStore & {
   sortOrder?: FilesSortOrder;
   signal?: AbortSignal;
 };
-
-export async function listDriveFiles(
-  options: ListDriveFilesOptions,
-): Promise<DriveFileItem[]> {
-  const items = await listDriveItems(options);
-  return items.filter((item): item is DriveFileItem => item.type === "file");
-}
 
 export async function listDriveItems(
   options: ListDriveFilesOptions,

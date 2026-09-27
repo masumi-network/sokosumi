@@ -2,8 +2,8 @@ import Ably from "ably";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  findPushDeviceFault,
   isMissingPushDevice,
-  pushDeviceNeedsReset,
 } from "./push-device-health.client";
 
 const { getSubscription, getDevice, request, getWorker } = vi.hoisted(() => ({
@@ -37,9 +37,10 @@ function remoteDevice(state = "Active", endpoint = ENDPOINT) {
   };
 }
 
-describe("pushDeviceNeedsReset", () => {
+describe("findPushDeviceFault", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     getWorker.mockResolvedValue({
       pushManager: { getSubscription },
     });
@@ -56,7 +57,7 @@ describe("pushDeviceNeedsReset", () => {
   });
 
   it("keeps an active registration and authenticates only the local device", async () => {
-    expect(await pushDeviceNeedsReset(client, "reader")).toBe(false);
+    expect(await findPushDeviceFault(client, "reader")).toBeNull();
     expect(request).toHaveBeenCalledExactlyOnceWith(
       "get",
       "/push/deviceRegistrations/device%2Fwith%20spaces",
@@ -75,7 +76,9 @@ describe("pushDeviceNeedsReset", () => {
         success: true,
         items: [remoteDevice(state)],
       });
-      expect(await pushDeviceNeedsReset(client, "reader")).toBe(true);
+      expect(await findPushDeviceFault(client, "reader")).toBe(
+        "delivery-failed",
+      );
     },
   );
 
@@ -85,7 +88,7 @@ describe("pushDeviceNeedsReset", () => {
       success: true,
       items: [remoteDevice("Failing")],
     });
-    expect(await pushDeviceNeedsReset(client, "reader")).toBe(false);
+    expect(await findPushDeviceFault(client, "reader")).toBeNull();
   });
 
   it("resets a registration whose endpoint no longer matches the browser", async () => {
@@ -94,18 +97,35 @@ describe("pushDeviceNeedsReset", () => {
       success: true,
       items: [remoteDevice("Active", "https://push.example/expired")],
     });
-    expect(await pushDeviceNeedsReset(client, "reader")).toBe(true);
+    expect(await findPushDeviceFault(client, "reader")).toBe("endpoint-moved");
   });
 
-  it.each(["other:instance", "reader-other:instance", undefined])(
-    "resets a registration without confirmed ownership by this reader: %s",
+  it.each(["other:instance", "reader-other:instance"])(
+    "resets a registration another reader owns: %s",
     async (clientId) => {
       request.mockResolvedValue({
         statusCode: 200,
         success: true,
         items: [{ ...remoteDevice(), clientId }],
       });
-      expect(await pushDeviceNeedsReset(client, "reader")).toBe(true);
+      expect(await findPushDeviceFault(client, "reader")).toBe(
+        "another-reader",
+      );
+    },
+  );
+
+  // SOK-1152: a device-authenticated read carries no clientId, so treating
+  // absence as a foreign device left the repair resetting a healthy
+  // registration for as long as the reader kept pressing.
+  it.each([undefined, null, ""])(
+    "keeps a registration Ably reports without a clientId: %s",
+    async (clientId) => {
+      request.mockResolvedValue({
+        statusCode: 200,
+        success: true,
+        items: [{ ...remoteDevice(), clientId }],
+      });
+      expect(await findPushDeviceFault(client, "reader")).toBeNull();
     },
   );
 
@@ -115,32 +135,38 @@ describe("pushDeviceNeedsReset", () => {
       success: true,
       items: [remoteDevice("unknown")],
     });
-    await expect(pushDeviceNeedsReset(client, "reader")).rejects.toThrow();
+    await expect(findPushDeviceFault(client, "reader")).rejects.toThrow();
   });
 
   it.each([401, 404])(
     "resets a missing device credential (%s)",
     async (statusCode) => {
       request.mockResolvedValue({ statusCode, success: false, items: [] });
-      expect(await pushDeviceNeedsReset(client, "reader")).toBe(true);
+      expect(await findPushDeviceFault(client, "reader")).toBe(
+        "unknown-to-ably",
+      );
     },
   );
 
   it("resets a missing browser subscription without a remote request", async () => {
     getSubscription.mockResolvedValue(null);
-    expect(await pushDeviceNeedsReset(client, "reader")).toBe(true);
+    expect(await findPushDeviceFault(client, "reader")).toBe(
+      "no-browser-subscription",
+    );
     expect(request).not.toHaveBeenCalled();
   });
 
   it("resets when the service worker is absent", async () => {
     getWorker.mockResolvedValue(null);
-    expect(await pushDeviceNeedsReset(client, "reader")).toBe(true);
+    expect(await findPushDeviceFault(client, "reader")).toBe(
+      "no-browser-subscription",
+    );
     expect(request).not.toHaveBeenCalled();
   });
 
   it("resets a missing device identity token without a remote request", async () => {
     getDevice.mockResolvedValue({ id: "device" });
-    expect(await pushDeviceNeedsReset(client, "reader")).toBe(true);
+    expect(await findPushDeviceFault(client, "reader")).toBe("no-device-token");
     expect(request).not.toHaveBeenCalled();
   });
 
@@ -148,7 +174,7 @@ describe("pushDeviceNeedsReset", () => {
     "does not treat an unsuccessful health check (%s) as a reset decision",
     async (statusCode) => {
       request.mockResolvedValue({ statusCode, success: false, items: [] });
-      await expect(pushDeviceNeedsReset(client, "reader")).rejects.toThrow(
+      await expect(findPushDeviceFault(client, "reader")).rejects.toThrow(
         "Could not verify the push device registration",
       );
     },
@@ -157,7 +183,7 @@ describe("pushDeviceNeedsReset", () => {
   it("propagates network errors without a reset decision", async () => {
     const offline = new Error("Offline");
     request.mockRejectedValue(offline);
-    await expect(pushDeviceNeedsReset(client, "reader")).rejects.toBe(offline);
+    await expect(findPushDeviceFault(client, "reader")).rejects.toBe(offline);
   });
 
   it.each([
@@ -170,7 +196,7 @@ describe("pushDeviceNeedsReset", () => {
     },
   ])("rejects malformed remote device data: %j", async ({ items }) => {
     request.mockResolvedValue({ statusCode: 200, success: true, items });
-    await expect(pushDeviceNeedsReset(client, "reader")).rejects.toThrow();
+    await expect(findPushDeviceFault(client, "reader")).rejects.toThrow();
   });
 });
 

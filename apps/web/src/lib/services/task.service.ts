@@ -2,7 +2,6 @@ import "server-only";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type {
-  CreateScheduledTaskRequest,
   CreateTaskContext,
   GetWorkspacesCalendarData,
   JobSummary,
@@ -11,6 +10,8 @@ import type {
   TaskEvent,
   TaskLink,
   TaskLinkDeleted,
+  TaskParticipant,
+  TaskTagId,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
   WorkspaceCalendarItem,
@@ -30,7 +31,9 @@ interface ListTasksParams {
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "nextRunAt";
+  sort?: "createdAt";
+  /** Only the Tasks this Task Schedule created. */
+  scheduleId?: string;
 }
 
 interface ListJobsParams {
@@ -43,6 +46,8 @@ interface ListJobsParams {
 }
 
 interface CreateTaskInput {
+  tagSuggestionReceipt?: string;
+  tagCorrections?: { add: TaskTagId[]; remove: TaskTagId[] };
   name?: string;
   description: string | null;
   assigneeId: string | null;
@@ -51,6 +56,8 @@ interface CreateTaskInput {
   projectId?: string | null;
   context?: CreateTaskContext;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
+  /** Start at this future time: Core creates the Task Queued. */
+  runAt?: Date;
   visibility?: "PUBLIC" | "PRIVATE";
 }
 
@@ -62,17 +69,14 @@ interface PatchTaskInput {
   assigneeUserId?: string | null;
   projectId?: string | null;
   context?: CreateTaskContext;
-  /**
-   * Required by Core while the Task has an active schedule series: field edits
-   * serialize against release under the same revision, and the returned Task
-   * carries the incremented value the following schedule write must send.
-   */
-  expectedScheduleRevision?: number;
+  /** A future time queues the Task; null clears a saved Run at. */
+  runAt?: Date | null;
 }
 
 interface CreateTaskEventInput {
   status?: TaskStatus;
   comment?: string;
+  mentionedUserIds?: string[];
 }
 
 interface CreateTaskLinkInput {
@@ -148,6 +152,7 @@ export const taskService = (() => {
           ? { assigneeUserId: params.assigneeUserId }
           : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
+      scheduleId: params.scheduleId,
       q: params.q,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),
@@ -224,6 +229,14 @@ export const taskService = (() => {
     }
   }
 
+  async function suggestTaskTags(input: {
+    name?: string;
+    description?: string | null;
+  }) {
+    const result = await coreClient.suggestTaskTags(input);
+    return result.data;
+  }
+
   async function createTask(input: CreateTaskInput): Promise<Task> {
     const result = await coreClient.createTask({
       ...input,
@@ -241,18 +254,6 @@ export const taskService = (() => {
     return result.data;
   }
 
-  async function createScheduledTask(
-    input: CreateScheduledTaskRequest,
-  ): Promise<Task> {
-    const result = await coreClient.createScheduledTask(input);
-
-    if (!result.data) {
-      throw new Error("Failed to create scheduled task");
-    }
-
-    return result.data;
-  }
-
   async function createTaskEvent(
     taskId: string,
     input: CreateTaskEventInput,
@@ -263,6 +264,15 @@ export const taskService = (() => {
       throw new Error("Failed to create task event");
     }
 
+    return result.data;
+  }
+
+  async function patchTaskTags(
+    taskId: string,
+    input: { add: TaskTagId[]; remove: TaskTagId[] },
+  ) {
+    const result = await coreClient.patchTaskTags(taskId, input);
+    if (!result.data) throw new Error("Failed to update task tags");
     return result.data;
   }
 
@@ -332,6 +342,31 @@ export const taskService = (() => {
     return result.data;
   }
 
+  async function removeTaskParticipant(
+    taskId: string,
+    userId: string,
+  ): Promise<TaskParticipant[]> {
+    const result = await coreClient.deleteTaskParticipant(taskId, userId);
+
+    if (!result.data) {
+      throw new Error("Failed to remove task participant");
+    }
+
+    return result.data.participants;
+  }
+
+  async function subscribeTaskParticipant(
+    taskId: string,
+  ): Promise<TaskParticipant[]> {
+    const result = await coreClient.subscribeTaskParticipant(taskId);
+
+    if (!result.data) {
+      throw new Error("Failed to subscribe to task");
+    }
+
+    return result.data.participants;
+  }
+
   async function deleteTask(taskId: string): Promise<Task> {
     const result = await coreClient.deleteTask(taskId);
 
@@ -373,12 +408,15 @@ export const taskService = (() => {
     getTaskById,
     getTaskWorkspace,
     createTask,
-    createScheduledTask,
+    suggestTaskTags,
     createTaskLink,
     createTaskEvent,
     deleteTaskLink,
+    removeTaskParticipant,
+    subscribeTaskParticipant,
     moveTaskToWorkspace,
     patchTask,
+    patchTaskTags,
     listTaskLinks,
     deleteTask,
   };
