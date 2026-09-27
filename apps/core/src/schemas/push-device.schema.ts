@@ -1,8 +1,35 @@
 import { z } from "@hono/zod-openapi";
 
+export const pushDeviceBrowserDetailsSchema = z
+  .object({
+    browser: z.enum([
+      "Chrome",
+      "Edge",
+      "Firefox",
+      "Safari",
+      "Opera",
+      "Samsung Internet",
+    ]),
+    operatingSystem: z.enum([
+      "macOS",
+      "Windows",
+      "Windows Phone",
+      "Android",
+      "iOS",
+      "Linux",
+      "ChromeOS",
+    ]),
+  })
+  .openapi("PushDeviceBrowserDetails");
+
+export type PushDeviceBrowserDetails = z.infer<
+  typeof pushDeviceBrowserDetailsSchema
+>;
+
 export const pushDeviceSchema = z
   .object({
     id: z.string(),
+    browserDetails: pushDeviceBrowserDetailsSchema.optional(),
     platform: z.enum(["browser", "ios", "android", "unknown"]),
     formFactor: z.enum([
       "phone",

@@ -50,6 +50,31 @@ describe("listPushDevices", () => {
     list.mockResolvedValue(page([]));
     get.mockImplementation(async (id: string) => device(id));
   });
+  it("exposes only validated browser details", async () => {
+    list.mockResolvedValue(
+      page([
+        { channel, deviceId: "a" },
+        { channel, deviceId: "b" },
+      ]),
+    );
+    get.mockImplementation(async (id: string) => ({
+      ...device(id),
+      metadata: {
+        secret: "hidden",
+        sokosumiBrowser:
+          id === "a"
+            ? { browser: "Chrome", operatingSystem: "macOS", secret: "hidden" }
+            : { browser: "untrusted", operatingSystem: "macOS" },
+      },
+    }));
+    const devices = await listPushDevices("user-1");
+    expect(devices[0].browserDetails).toEqual({
+      browser: "Chrome",
+      operatingSystem: "macOS",
+    });
+    expect(devices[1].browserDetails).toBeUndefined();
+    expect(JSON.stringify(devices)).not.toContain("hidden");
+  });
   it("follows every page, deduplicates devices, and returns only public fields", async () => {
     const next = vi.fn().mockResolvedValue(
       page([

@@ -18223,6 +18223,9 @@ export const PushDeviceSchema = {
         id: {
             type: 'string'
         },
+        browserDetails: {
+            $ref: '#/components/schemas/PushDeviceBrowserDetails'
+        },
         platform: {
             type: 'string',
             enum: [
@@ -18260,6 +18263,39 @@ export const PushDeviceSchema = {
         'platform',
         'formFactor',
         'state'
+    ]
+} as const;
+
+export const PushDeviceBrowserDetailsSchema = {
+    type: 'object',
+    properties: {
+        browser: {
+            type: 'string',
+            enum: [
+                'Chrome',
+                'Edge',
+                'Firefox',
+                'Safari',
+                'Opera',
+                'Samsung Internet'
+            ]
+        },
+        operatingSystem: {
+            type: 'string',
+            enum: [
+                'macOS',
+                'Windows',
+                'Windows Phone',
+                'Android',
+                'iOS',
+                'Linux',
+                'ChromeOS'
+            ]
+        }
+    },
+    required: [
+        'browser',
+        'operatingSystem'
     ]
 } as const;
 

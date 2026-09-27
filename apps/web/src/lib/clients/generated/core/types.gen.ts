@@ -5400,9 +5400,15 @@ export type NotificationCounts = {
 
 export type PushDevice = {
     id: string;
+    browserDetails?: PushDeviceBrowserDetails;
     platform: 'browser' | 'ios' | 'android' | 'unknown';
     formFactor: 'phone' | 'tablet' | 'desktop' | 'tv' | 'watch' | 'car' | 'embedded' | 'other';
     state: 'active' | 'failing' | 'failed' | 'unknown';
+};
+
+export type PushDeviceBrowserDetails = {
+    browser: 'Chrome' | 'Edge' | 'Firefox' | 'Safari' | 'Opera' | 'Samsung Internet';
+    operatingSystem: 'macOS' | 'Windows' | 'Windows Phone' | 'Android' | 'iOS' | 'Linux' | 'ChromeOS';
 };
 
 export type MarkAllReadResponse = {
@@ -39042,6 +39048,131 @@ export type GetNotificationsPushDevicesResponses = {
 };
 
 export type GetNotificationsPushDevicesResponse = GetNotificationsPushDevicesResponses[keyof GetNotificationsPushDevicesResponses];
+
+export type PatchNotificationsPushDevicesByIdBrowserData = {
+    body: {
+        browser: 'Chrome' | 'Edge' | 'Firefox' | 'Safari' | 'Opera' | 'Samsung Internet';
+        operatingSystem: 'macOS' | 'Windows' | 'Windows Phone' | 'Android' | 'iOS' | 'Linux' | 'ChromeOS';
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/notifications/push-devices/{id}/browser';
+};
+
+export type PatchNotificationsPushDevicesByIdBrowserErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid browser details
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unable to update push device
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device administration is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchNotificationsPushDevicesByIdBrowserError = PatchNotificationsPushDevicesByIdBrowserErrors[keyof PatchNotificationsPushDevicesByIdBrowserErrors];
+
+export type PatchNotificationsPushDevicesByIdBrowserResponses = {
+    /**
+     * Browser details recorded
+     */
+    200: {
+        data: {
+            success: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchNotificationsPushDevicesByIdBrowserResponse = PatchNotificationsPushDevicesByIdBrowserResponses[keyof PatchNotificationsPushDevicesByIdBrowserResponses];
 
 export type PatchNotificationsByIdReadData = {
     body?: never;

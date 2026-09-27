@@ -8,6 +8,7 @@ import type {
 import { badGateway } from "@/helpers/error";
 import {
   type PushDevice,
+  pushDeviceBrowserDetailsSchema,
   pushDeviceSchema,
 } from "@/schemas/push-device.schema";
 import { getPushAdminRestClient } from "./client";
@@ -63,6 +64,14 @@ export async function listPushDevices(userId: string): Promise<PushDevice[]> {
         if (!device?.clientId?.startsWith(`${userId}:`)) continue;
         devices.set(device.id, {
           id: device.id,
+          browserDetails: pushDeviceBrowserDetailsSchema
+            .optional()
+            .catch(undefined)
+            .parse(
+              device.platform === "browser"
+                ? device.metadata?.sokosumiBrowser
+                : undefined,
+            ),
           platform: pushDeviceSchema.shape.platform
             .catch("unknown")
             .parse(device.platform),
