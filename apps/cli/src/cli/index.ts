@@ -21,6 +21,7 @@ import {
 import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
+import { type AuthWhoamiResult, runAuthWhoami } from "./auth-whoami.js";
 import { runAgentsCommand } from "./commands/agents.js";
 import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
@@ -135,6 +136,7 @@ export interface CliResult {
   target?: CliTargetConfig["target"];
   apiUrl?: string;
   expiresAt?: string | null;
+  user?: AuthWhoamiResult["user"];
   tui?: boolean;
 }
 
@@ -142,6 +144,7 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   discover: "",
   "auth login": "",
   "auth status": "",
+  "auth whoami": "",
   "auth logout": "",
   "agents list": "",
   "agents hire": "AGENT_ID",
@@ -233,6 +236,12 @@ Global options:
 ${formatGlobalOptionHelp()
   .map((line) => `  ${line}`)
   .join("\n")}
+
+Account checks:
+  auth whoami asks Core for the signed-in email and platform role. auth status shows authentication state.
+  Before switching browser accounts, clear SOKOSUMI_API_KEY and SOKOSUMI_AUTH_TOKEN from the shell. They override saved OAuth credentials.
+  Sign in as the intended account in the browser, run auth login, then auth whoami.
+  auth logout clears local credentials; it does not switch the browser account.
 
 Developer setup on Preprod:
   1. Create your Vendor: sokosumi --preprod vendors create --name NAME --slug SLUG
@@ -472,7 +481,10 @@ export async function runCli(
     if (coworkerRegistration) {
       requirePreprodCoworkerRegistration(config.target);
     }
-    if (CORE_COMMAND_SECTIONS.has(section)) {
+    if (
+      CORE_COMMAND_SECTIONS.has(section) ||
+      (section === "auth" && command === "whoami" && positionalId === undefined)
+    ) {
       await requireAuthenticatedSession(session);
     }
     if (section === "discover" && command === undefined) {
@@ -581,12 +593,24 @@ export async function runCli(
       return {};
     }
     if (
+      section === "auth" &&
+      command === "whoami" &&
+      positionalId === undefined
+    ) {
+      return await runAuthWhoami({
+        client: getCoreClient(session, dependencies),
+        config,
+        stdout,
+        json: options.json,
+      });
+    }
+    if (
       section !== "auth" ||
       (command !== "login" && command !== "logout" && command !== "status") ||
       positionalId !== undefined
     ) {
       throw new Error(
-        "Usage: sokosumi discover | agents list | coworkers | vendors me|create | workspaces list | tasks | jobs | auth login|status|logout",
+        "Usage: sokosumi discover | agents list | coworkers | vendors me|create | workspaces list | tasks | jobs | auth login|status|whoami|logout",
       );
     }
 
