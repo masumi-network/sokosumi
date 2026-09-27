@@ -1,3 +1,4 @@
+import { createCoreLogger } from "@/lib/evlog";
 import type { FileActor } from "@/lib/files/actor";
 import {
   admitJevRequest,
@@ -66,8 +67,21 @@ export interface RerankDependencies {
   configured?: () => boolean;
   admit?: typeof admitJevRequest;
   recordDispatch?: typeof recordJevDispatch;
+  /**
+   * Where a fallback is reported. Injected like every other dependency here
+   * rather than reached for globally: this function's whole shape is
+   * injection, and a test that holds the sink can assert on the exact payload
+   * at the boundary instead of spying on a global side effect.
+   */
+  rankingLog?: RankingLogSink;
   scheduler?: ReturnType<typeof getJevScheduler>;
   now?: () => number;
+}
+
+/** The narrow slice of an evlog logger this uses. */
+export interface RankingLogSink {
+  set(fields: Record<string, unknown>): void;
+  emit(): void;
 }
 
 export interface RerankInput extends RerankDependencies {
@@ -121,13 +135,25 @@ export async function rerankFileCandidates(
      * which is what makes them safe to log — so nothing that is not safe is
      * allowed to join them. No query, no filename, no resource id, no
      * snippet. There is a test that asserts exactly that.
+     *
+     * On `evlog` rather than `console.info`, matching
+     * `task-tag-classification.service.ts` — the same kind of Jev model stage
+     * on another content type. That is what makes "every Jev stage outcome
+     * across Files and task tags" a question someone can actually ask, and it
+     * puts the event through the Sentry drain. `createCoreLogger` rather than
+     * the request-scoped `useLogger` follows that same precedent: this
+     * function has no Hono context by design.
      */
     if (reason !== null && !QUIET_REASONS.has(reason)) {
-      console.info("[drive/search] semantic ranking did not apply", {
+      const log =
+        input.rankingLog ??
+        createCoreLogger({ operation: "files_semantic_ranking" });
+      log.set({
         reason,
         candidates: input.candidates.length,
         elapsedMs: clock() - rankingStartedAt,
       });
+      log.emit();
     }
 
     return {

@@ -320,56 +320,63 @@ describe("why a fallback happened", () => {
    * latch reports to Sentry. From outside the process a silent fallback is
    * indistinguishable from a healthy deterministic search.
    */
-  function captureInfo() {
-    const lines: unknown[][] = [];
-    const spy = vi
-      .spyOn(console, "info")
-      .mockImplementation((...args: unknown[]) => {
-        lines.push(args);
-      });
-    return { lines, restore: () => spy.mockRestore() };
+  /**
+   * A sink standing in for the evlog logger.
+   *
+   * Injected rather than spied on a global: the test then holds the exact
+   * object the code hands over, so "nothing unsafe joined these fields" is an
+   * assertion about the payload at the boundary rather than about whatever
+   * happened to reach a console.
+   */
+  function captureLog() {
+    const emitted: Record<string, unknown>[] = [];
+    let pending: Record<string, unknown> = {};
+    const rankingLog = {
+      set(fields: Record<string, unknown>) {
+        pending = { ...pending, ...fields };
+      },
+      emit() {
+        emitted.push(pending);
+        pending = {};
+      },
+    };
+    return { emitted, rankingLog };
   }
 
   it("logs the reason, the candidate count and the elapsed time", async () => {
-    const { lines, restore } = captureInfo();
-    try {
-      await rerankFileCandidates({
-        ...baseInput([candidate("doc-a"), candidate("doc-b")]),
-        configured: () => true,
-        admit: vi.fn(async () => null), // a denial, which is one of the five
-        evaluator: evaluatorReturning(() => 3),
-      });
-    } finally {
-      restore();
-    }
+    const { emitted, rankingLog } = captureLog();
 
-    expect(lines).toHaveLength(1);
-    const [message, payload] = lines[0] as [string, Record<string, unknown>];
-    expect(message).toContain("semantic ranking did not apply");
-    expect(payload.reason).toBe("admission-denied");
-    expect(payload.candidates).toBe(2);
-    expect(typeof payload.elapsedMs).toBe("number");
+    await rerankFileCandidates({
+      ...baseInput([candidate("doc-a"), candidate("doc-b")]),
+      configured: () => true,
+      admit: vi.fn(async () => null), // a denial, which is one of the five
+      evaluator: evaluatorReturning(() => 3),
+      rankingLog,
+    });
+
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].reason).toBe("admission-denied");
+    expect(emitted[0].candidates).toBe(2);
+    expect(typeof emitted[0].elapsedMs).toBe("number");
   });
 
   it("logs nothing that came from a document or a query", async () => {
-    const { lines, restore } = captureInfo();
-    try {
-      await rerankFileCandidates({
-        ...baseInput([
-          candidate("doc-a", { displayName: "salaries-2026.xlsx" }),
-          candidate("doc-b", { bestChunkText: "confidential board minutes" }),
-        ]),
-        query: "board salaries",
-        configured: () => true,
-        admit: vi.fn(async () => null),
-        evaluator: evaluatorReturning(() => 3),
-      });
-    } finally {
-      restore();
-    }
+    const { emitted, rankingLog } = captureLog();
+
+    await rerankFileCandidates({
+      ...baseInput([
+        candidate("doc-a", { displayName: "salaries-2026.xlsx" }),
+        candidate("doc-b", { bestChunkText: "confidential board minutes" }),
+      ]),
+      query: "board salaries",
+      configured: () => true,
+      admit: vi.fn(async () => null),
+      evaluator: evaluatorReturning(() => 3),
+      rankingLog,
+    });
 
     // The reason string is safe to log precisely because nothing joins it.
-    const serialized = JSON.stringify(lines);
+    const serialized = JSON.stringify(emitted);
     for (const secret of [
       "salaries-2026.xlsx",
       "confidential board minutes",
@@ -378,7 +385,7 @@ describe("why a fallback happened", () => {
     ]) {
       expect(serialized).not.toContain(secret);
     }
-    expect(Object.keys((lines[0] as unknown[])[1] as object).sort()).toEqual([
+    expect(Object.keys(emitted[0]).sort()).toEqual([
       "candidates",
       "elapsedMs",
       "reason",
@@ -389,26 +396,20 @@ describe("why a fallback happened", () => {
     // A disabled model and a list too short to reorder are configuration and
     // triviality, not failures. Logging them would put a line on every
     // search in an environment with the flag off.
-    const disabled = captureInfo();
-    try {
-      await rerankFileCandidates({
-        ...baseInput([candidate("doc-a"), candidate("doc-b")]),
-        configured: () => false,
-      });
-    } finally {
-      disabled.restore();
-    }
-    expect(disabled.lines).toHaveLength(0);
+    const disabled = captureLog();
+    await rerankFileCandidates({
+      ...baseInput([candidate("doc-a"), candidate("doc-b")]),
+      configured: () => false,
+      rankingLog: disabled.rankingLog,
+    });
+    expect(disabled.emitted).toHaveLength(0);
 
-    const trivial = captureInfo();
-    try {
-      await rerankFileCandidates({
-        ...baseInput([candidate("only-one")]),
-        configured: () => true,
-      });
-    } finally {
-      trivial.restore();
-    }
-    expect(trivial.lines).toHaveLength(0);
+    const trivial = captureLog();
+    await rerankFileCandidates({
+      ...baseInput([candidate("only-one")]),
+      configured: () => true,
+      rankingLog: trivial.rankingLog,
+    });
+    expect(trivial.emitted).toHaveLength(0);
   });
 });
