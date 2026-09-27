@@ -647,7 +647,15 @@
   --chart-3-quinary: hsla(123, 64.3%, 11.0%, 1);
   --chart-4-quinary: hsla(49, 67.9%, 11.0%, 1);
   --chart-5-quinary: hsla(24, 67.9%, 11.0%, 1);
-  --sidebar: var(--background);
+  /* The chrome is a raised panel, not the page. #5267 pointed this at
+     var(--background) and the sidebar and desktop header (md:bg-sidebar)
+     dissolved into the content area.
+
+     11%, not the 9% it held before #5267. 9% was calibrated against a 4%
+     page and cleared it by 1.104:1; against the #121212 base that same 9%
+     only reaches 1.045:1, under half the old separation. 11% lands on
+     1.099:1, so the seam reads as it did before the base moved. */
+  --sidebar: hsla(0, 0%, 11%, 1);
   --sidebar-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-accent: hsla(0, 0%, 15%, 1);
   --sidebar-accent-foreground: hsla(0, 0%, 98%, 1);
