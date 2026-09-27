@@ -46,9 +46,6 @@ async function deliver(
     coworkerSlug: coworker.slug,
     fetchFn,
   });
-  if (result.status === "error" && result.httpStatus === 404) {
-    return "missing";
-  }
   if (result.status === "in_progress" || result.status === "error") {
     return "waiting";
   }
