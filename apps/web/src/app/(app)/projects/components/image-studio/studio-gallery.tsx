@@ -133,7 +133,7 @@ export function StudioGallery({
             <li key={asset.id}>
               <figure
                 className={cn(
-                  "group border-border bg-card-background relative overflow-hidden rounded-xl border transition-colors",
+                  "group border-border bg-background relative overflow-hidden rounded-lg border transition-colors",
                   selected && "border-primary ring-ring-halo ring-2",
                 )}
                 data-asset-id={asset.id}
@@ -181,7 +181,7 @@ export function StudioGallery({
                     "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
                     selected
                       ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card-background text-muted-foreground hover:text-foreground",
+                      : "border-border bg-background text-muted-foreground hover:text-foreground",
                   )}
                   onClick={() => onToggleSelect(asset.id)}
                   type="button"
@@ -268,7 +268,7 @@ function PendingTile({
   return (
     <div
       className={cn(
-        "border-border bg-card-background flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-dashed p-3 text-center",
+        "border-border bg-background flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-3 text-center",
         variant === "queued" && "opacity-70",
       )}
     >

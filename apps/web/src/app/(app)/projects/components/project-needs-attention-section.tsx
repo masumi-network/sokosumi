@@ -3,10 +3,7 @@ import Link from "next/link";
 import { HistoryTypeColumn } from "@/app/history/components/history-list-item";
 import { getHistoryItemHref } from "@/app/history/utils/history-item-href";
 import { ProjectResourceCountPills } from "@/app/projects/components/project-resource-count-pills";
-import {
-  PROJECTS_BROWSE_DIVIDE_CLASS,
-  PROJECTS_BROWSE_LAYOUT_CLASS,
-} from "@/app/projects/constants";
+import { PROJECTS_BROWSE_DIVIDE_CLASS } from "@/app/projects/constants";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { TimeAgo } from "@/components/time-ago";
@@ -80,7 +77,10 @@ export function ProjectNeedsAttentionSection({
       {items.length === 0 ? (
         <p className="text-muted-foreground text-sm">{labels.empty}</p>
       ) : (
-        <div className={PROJECTS_BROWSE_LAYOUT_CLASS}>
+        // A divided list on the workspace card, not the browse card. That
+        // card is what this section sits inside now, and drawing a second one
+        // of the same colour inside it produces a seam rather than a group.
+        <div className="border-border bg-background overflow-hidden rounded-lg border">
           <ul className={PROJECTS_BROWSE_DIVIDE_CLASS}>
             {items.map((item) => (
               <ProjectNeedsAttentionRow

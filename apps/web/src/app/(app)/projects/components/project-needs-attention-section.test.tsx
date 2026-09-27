@@ -2,7 +2,6 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ProjectNeedsAttentionSection } from "@/app/projects/components/project-needs-attention-section";
-import { PROJECTS_BROWSE_LAYOUT_CLASS } from "@/app/projects/constants";
 import {
   type HistoryItem,
   type HistoryJobItem,
@@ -132,11 +131,15 @@ describe("ProjectNeedsAttentionSection", () => {
       SokosumiJobStatus.PAYMENT_FAILED,
     );
 
+    // A divided list on the workspace card. It used to draw the browse card,
+    // which is the surface this section now sits inside — the same colour
+    // twice is a seam rather than a group.
     const listBox = screen
       .getByTestId("project-needs-attention")
       .querySelector(":scope > div:last-child");
-    expect(listBox).toHaveClass(...PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/));
-    expect(listBox).toHaveClass("-mx-4", "md:mx-0");
+    expect(listBox).toHaveClass("bg-background", "rounded-lg", "border");
+    expect(listBox).not.toHaveClass("bg-card-background");
+    expect(listBox).not.toHaveClass("-mx-4");
   });
 
   it("says nothing needs attention without drawing a panel to say it in", () => {

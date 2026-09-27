@@ -320,7 +320,11 @@ export function StudioComposer({
   return (
     <section
       aria-label={labels.composerTitle}
-      className="border-border bg-card-background focus-within:border-primary-tertiary rounded-xl border transition-colors"
+      // `bg-background` on the workspace card, not `bg-card-background`: the
+      // card already paints that, and a panel the same colour as the surface
+      // under it is either invisible or a seam. As an input well it wants to
+      // read slightly recessed anyway.
+      className="border-border bg-background focus-within:border-primary-tertiary rounded-lg border transition-colors"
     >
       <div className="px-3 pt-3 sm:px-4 sm:pt-4">
         <Textarea

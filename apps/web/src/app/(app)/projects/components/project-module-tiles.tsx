@@ -94,27 +94,27 @@ export function ProjectModuleTiles({
   );
 
   return (
-    // The shared surface is main's grouping (#5257): the tiles read as one
-    // workspace rather than as four unrelated cards. Each tile paints
-    // `bg-background` on it and lifts to `bg-card-background-hover`, so the
-    // hover is a step away from both the tile and the surface under it.
+    // No panel around these. #5257 put the tiles on a shared surface because
+    // they were loose on the page background; the workspace card is that
+    // surface now, and a second one inside it is exactly the nested ornament
+    // this page was full of. The gutter does the grouping, and each tile
+    // still paints `bg-background` so its hover is a step away from both the
+    // tile and the card under it.
     <div className="space-y-3">
       <div
         className={cn(
-          "bg-card-background grid grid-cols-2 gap-4 rounded-xl p-2",
+          "grid grid-cols-2 gap-3",
           COLUMNS[live.length] ?? "md:grid-cols-4",
         )}
       >
         {live.map(({ icon: Icon, key, href }) => (
           <Link
-            className="border-border bg-background hover:border-primary-tertiary hover:bg-card-background-hover focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
+            className="border-border bg-background hover:border-primary-tertiary hover:bg-card-background-hover focus-visible:border-ring focus-visible:ring-ring-halo flex min-w-0 flex-col rounded-lg border p-3 transition-colors outline-none focus-visible:ring-[3px]"
             href={href}
             key={key}
           >
-            <span className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-lg">
-              <Icon className="text-muted-foreground size-4" aria-hidden />
-            </span>
-            <h3 className="mt-3 text-sm font-medium">{labels[key].title}</h3>
+            <Icon className="text-muted-foreground size-4" aria-hidden />
+            <h3 className="mt-2.5 text-sm font-medium">{labels[key].title}</h3>
             <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
               {labels[key].description}
             </p>

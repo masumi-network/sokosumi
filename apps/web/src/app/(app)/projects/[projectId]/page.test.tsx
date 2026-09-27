@@ -150,7 +150,7 @@ describe("ProjectDetailPage", () => {
     // page was a document to read; the tabbed workspace puts a gallery and a
     // calendar under the same header, and those are measured in how much
     // fits on a row.
-    expect(container.firstChild).toHaveClass("w-full", "min-w-0", "py-6");
+    expect(container.firstChild).toHaveClass("w-full", "min-w-0");
     expect(container.firstChild).not.toHaveClass("max-w-6xl");
     expect(container.firstChild).not.toHaveClass("mx-auto");
     expect(container.firstChild).not.toHaveClass("-mx-4");

@@ -5,7 +5,12 @@ import {
   type ProjectTab,
   ProjectTabs,
 } from "@/app/projects/components/project-tabs";
-import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
+import {
+  PROJECTS_WORKSPACE_CARD_CLASS,
+  PROJECTS_WORKSPACE_GUTTER_CLASS,
+  PROJECTS_WORKSPACE_SHELL_CLASS,
+} from "@/app/projects/constants";
+import { cn } from "@/lib/utils";
 
 export interface ProjectWorkspaceLabels {
   ariaLabel: string;
@@ -52,14 +57,19 @@ interface ProjectWorkspaceShellProps {
 }
 
 /**
- * The chrome every project subpage shares: one header, one tab row, and the
- * full width of the application shell.
+ * A project, as one object on the page.
  *
- * Before this, each subpage drew its own header and its own "Back to project"
- * link, which is how a project's areas came to read as four unrelated pages
- * that happened to be about the same project. The tabs make the relationship
- * the navigation, so the back link goes back to the project *list* — the only
- * place left to go up to.
+ * Identity, navigation and the active area share a single card — the same
+ * card the projects index and Drive already draw — so the tab strip reads as
+ * the top edge of the thing it navigates rather than as a rule floating above
+ * unrelated content. Before this, a project page was four surfaces stacked in
+ * the app gutter with nothing holding them together, and each area then added
+ * containers of its own inside that, which is how a panel of tiles ended up
+ * nested in a page that had no panel around it.
+ *
+ * Everything inside shares one horizontal inset, one border weight, one
+ * radius. Areas render their content directly onto this surface and should
+ * not re-draw it.
  */
 export function ProjectWorkspaceShell({
   actions,
@@ -103,22 +113,31 @@ export function ProjectWorkspaceShell({
 
   return (
     <div className={PROJECTS_WORKSPACE_SHELL_CLASS}>
-      <ProjectDetailHeader
-        actions={actions}
-        backHref="/projects"
-        backLabel={labels.backToProjects}
-        metadata={metadata}
-        projectLogo={projectLogo}
-        projectName={projectName}
-        showBackOnMobile
-        websiteUrl={websiteUrl}
-      />
+      <div className={PROJECTS_WORKSPACE_CARD_CLASS}>
+        <ProjectDetailHeader
+          actions={actions}
+          backHref="/projects"
+          backLabel={labels.backToProjects}
+          className={cn(PROJECTS_WORKSPACE_GUTTER_CLASS, "pt-4 md:pt-5")}
+          metadata={metadata}
+          projectLogo={projectLogo}
+          projectName={projectName}
+          websiteUrl={websiteUrl}
+        />
 
-      <div className="mt-4">
-        <ProjectTabs ariaLabel={labels.ariaLabel} tabs={tabs} />
+        {/* The tab strip is the card's own divider, with the labels on it.
+            That is the whole difference between navigation that belongs to a
+            surface and navigation that floats above one. */}
+        <ProjectTabs
+          ariaLabel={labels.ariaLabel}
+          className={PROJECTS_WORKSPACE_GUTTER_CLASS}
+          tabs={tabs}
+        />
+
+        <div className={cn(PROJECTS_WORKSPACE_GUTTER_CLASS, "min-w-0 py-5")}>
+          {children}
+        </div>
       </div>
-
-      <div className="mt-6 min-w-0">{children}</div>
     </div>
   );
 }

@@ -485,7 +485,7 @@ export function ImageStudio({
 
           {settledProblemJob?.retryMayDuplicateCharge ? (
             <div
-              className="border-border bg-card-background rounded-xl border p-4"
+              className="border-border bg-background rounded-lg border p-4"
               role="alert"
             >
               <div className="flex items-start gap-3">
@@ -518,7 +518,7 @@ export function ImageStudio({
             </div>
           ) : settledProblemJob ? (
             <div
-              className="border-border bg-card-background rounded-xl border p-4"
+              className="border-border bg-background rounded-lg border p-4"
               role="alert"
             >
               <h3 className="text-sm font-medium">{labels.failed}</h3>
@@ -794,7 +794,7 @@ function Notice({
 }) {
   return (
     <p
-      className="border-border bg-card-background text-foreground flex items-start gap-2 rounded-lg border p-3 text-sm"
+      className="border-border bg-background text-foreground flex items-start gap-2 rounded-lg border p-3 text-sm"
       role="status"
     >
       <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />

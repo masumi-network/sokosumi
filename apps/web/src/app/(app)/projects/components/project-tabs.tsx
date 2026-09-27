@@ -45,7 +45,8 @@ export function activeProjectTabId(
 }
 
 /**
- * The project's subpages, as one underlined row anchored to a full-bleed rule.
+ * The project's subpages, as one underlined row sitting on the workspace
+ * card's own divider.
  *
  * Real links, not a client-side tab widget: each subpage is its own route that
  * renders on the server, so a tab is bookmarkable, opens in a new tab with a
@@ -55,18 +56,21 @@ export function activeProjectTabId(
  */
 export function ProjectTabs({
   ariaLabel,
+  className,
   tabs,
 }: {
   ariaLabel: string;
+  /** The surrounding surface's horizontal inset. */
+  className?: string;
   tabs: readonly ProjectTab[];
 }) {
   const pathname = usePathname();
   const activeId = activeProjectTabId(pathname, tabs);
 
   return (
-    // The rule runs the full width of the shell and the tabs sit on it, which
-    // is what makes them read as the page's own navigation rather than as a
-    // filter control floating above the content.
+    // The rule is the card's own divider between its header and its content,
+    // and the tabs sit on it. That is what makes them read as the top edge of
+    // the thing they navigate rather than as a control floating above it.
     //
     // The tabs wrap rather than scroll. A horizontal scroller here was worse
     // than the problem it solved: `overflow-x: auto` computes `overflow-y`
@@ -75,7 +79,10 @@ export function ProjectTabs({
     // the indicator and offered a vertical scrollbar for it. Four short
     // labels fit on one line at 390px, and a fifth wrapping to a second line
     // is a better failure than an indicator nobody can see.
-    <nav aria-label={ariaLabel} className="border-border -mx-4 border-b px-4">
+    <nav
+      aria-label={ariaLabel}
+      className={cn("border-border border-b", className)}
+    >
       <ul className="-mb-px flex flex-wrap items-center gap-x-5 text-sm">
         {tabs.map((tab) => {
           const isActive = tab.id === activeId;

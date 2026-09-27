@@ -82,9 +82,9 @@ describe("ProjectModuleTiles", () => {
       "/projects/project-1/social",
     );
     expect(screen.getAllByRole("link")).toHaveLength(4);
-    expect(document.querySelector(".bg-card-background")?.className).toContain(
-      "md:grid-cols-4",
-    );
+    // No panel of its own: the workspace card is the surface these sit on.
+    expect(document.querySelector(".bg-card-background")).toBeNull();
+    expect(document.querySelector(".md\\:grid-cols-4")).not.toBeNull();
   });
 
   it("drops the calendar tile when the project has no calendar route", () => {

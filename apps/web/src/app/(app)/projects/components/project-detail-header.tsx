@@ -2,6 +2,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import { cn } from "@/lib/utils";
 import { getHostname } from "@/lib/utils/url";
 
 interface ProjectDetailHeaderMetadataItem {
@@ -11,38 +12,42 @@ interface ProjectDetailHeaderMetadataItem {
 
 interface ProjectDetailHeaderProps {
   backHref?: string;
+  className?: string;
   projectName: string;
   projectLogo?: string | null;
   websiteUrl?: string | null;
   backLabel: string;
   metadata: ProjectDetailHeaderMetadataItem[];
-  showBackOnMobile?: boolean;
   actions?: React.ReactNode;
 }
 
+/**
+ * Who this page is about, as the top of the workspace card.
+ *
+ * One block: the mark, the name, where it points, what has been done to it,
+ * and the actions that apply to the whole project. It used to sit loose in
+ * the app gutter above an unrelated rule; it is the card's header now, which
+ * is why it carries the card's inset rather than spacing of its own.
+ */
 export function ProjectDetailHeader({
   backHref = "/projects",
+  className,
   projectName,
   projectLogo,
   websiteUrl,
   backLabel,
   metadata,
-  showBackOnMobile = false,
   actions,
 }: ProjectDetailHeaderProps) {
   const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
 
   return (
-    <div className="space-y-3">
+    <div className={cn("pb-4", className)}>
       {/* The app header already carries "Projects › …" from `sm` up, so this
-          link is wayfinding only where that breadcrumb is hidden. Two back
-          affordances stacked above the title was one row of chrome the page
-          did not need. */}
+          link is wayfinding only where that breadcrumb is hidden. */}
       <Link
+        className="text-muted-foreground hover:text-foreground mb-3 inline-flex items-center gap-1.5 text-sm transition-colors sm:hidden"
         href={backHref}
-        className={`text-muted-foreground hover:text-foreground items-center gap-1.5 text-sm transition-colors ${
-          showBackOnMobile ? "inline-flex sm:hidden" : "hidden md:inline-flex"
-        }`}
       >
         <ArrowLeft className="size-4" aria-hidden />
         <span>{backLabel}</span>
@@ -53,11 +58,11 @@ export function ProjectDetailHeader({
           <ProjectAvatar
             name={projectName}
             logo={projectLogo}
-            className="size-10 rounded-lg text-sm"
+            className="size-9 rounded-lg text-sm"
           />
           <div className="min-w-0 space-y-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-              <h1 className="truncate text-xl leading-tight font-semibold tracking-tight">
+              <h1 className="truncate text-lg leading-tight font-semibold tracking-tight">
                 {projectName}
               </h1>
               {websiteUrl && websiteHostname ? (

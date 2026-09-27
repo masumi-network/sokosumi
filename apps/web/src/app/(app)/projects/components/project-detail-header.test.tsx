@@ -22,10 +22,12 @@ describe("ProjectDetailHeader", () => {
     expect(root?.className).not.toContain("px-4");
     expect(root?.className).not.toContain("md:px-0");
 
+    // One back affordance, and only where the app header's breadcrumb is
+    // hidden. There is no desktop variant any more.
     const back = screen.getByRole("link", { name: "Back" });
     expect(back).toHaveAttribute("href", "/projects");
-    expect(back.className).toContain("hidden");
-    expect(back.className).toContain("md:inline-flex");
+    expect(back.className).toContain("inline-flex");
+    expect(back.className).toContain("sm:hidden");
     expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
       "href",
       "https://www.example.com/about",
@@ -45,24 +47,23 @@ describe("ProjectDetailHeader", () => {
     );
   });
 
-  it("shows a project-specific back link on mobile when requested", () => {
-    render(
+  it("takes the surrounding surface's inset instead of spacing of its own", () => {
+    const { container } = render(
       <ProjectDetailHeader
-        {...{
-          backHref: "/projects/project-1",
-          showBackOnMobile: true,
-        }}
+        backHref="/projects/project-1"
+        className="px-4 md:px-6"
         projectName="Example project"
         backLabel="Back to project"
         metadata={[]}
       />,
     );
 
-    // Visible where the app header's breadcrumb is not, and only there:
-    // stacking a second way back above the title is chrome, not wayfinding.
-    const back = screen.getByRole("link", { name: "Back to project" });
-    expect(back).toHaveAttribute("href", "/projects/project-1");
-    expect(back.className).toContain("inline-flex");
-    expect(back.className).toContain("sm:hidden");
+    // It is the workspace card's header now, so the card decides the gutter.
+    const root = container.firstElementChild;
+    expect(root?.className).toContain("px-4");
+    expect(root?.className).toContain("md:px-6");
+    expect(
+      screen.getByRole("link", { name: "Back to project" }),
+    ).toHaveAttribute("href", "/projects/project-1");
   });
 });

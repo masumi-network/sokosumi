@@ -697,7 +697,10 @@ function StudioConversation({
       <section
         aria-label={labels.chatTitle}
         className={cn(
-          "border-border bg-card-background flex h-full min-h-0 flex-col overflow-hidden rounded-xl border",
+          "border-border bg-background flex h-full min-h-0 flex-col overflow-hidden rounded-lg border",
+          // Below `xl` it is a sheet floating over a scrim and wants to lift;
+          // at `xl` it is a column on the workspace card and must not.
+          "max-xl:shadow-lg",
           className,
         )}
       >
@@ -717,7 +720,8 @@ function StudioConversation({
     <section
       aria-label={labels.chatTitle}
       className={cn(
-        "border-border bg-card-background flex h-full min-h-0 flex-col overflow-hidden rounded-xl border",
+        "border-border bg-background flex h-full min-h-0 flex-col overflow-hidden rounded-lg border",
+        "max-xl:shadow-lg",
         className,
       )}
     >
