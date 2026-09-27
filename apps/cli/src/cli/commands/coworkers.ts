@@ -44,6 +44,26 @@ export interface CoworkersCommandContext extends CommandContext {
   options?: CommandOptions;
 }
 
+function rethrowCoworkerCreationError(
+  error: unknown,
+  vendorId: string,
+  organizationId = "ORGANIZATION_ID",
+): never {
+  const failure = error instanceof Error ? error : new Error(String(error));
+  const status = "status" in failure ? failure.status : undefined;
+  if (status === 403) {
+    failure.message +=
+      "\nOnly a Sokosumi platform admin can create a Coworker.\n" +
+      `Send Vendor ${vendorId} and your final Coworker name to the organizer.\n` +
+      `After you receive a Coworker ID, run \`sokosumi --preprod coworkers connect COWORKER_ID --vendor-id ${vendorId} --workspace-id ${organizationId}\`.\n` +
+      "Then create its runtime key with `sokosumi --preprod coworkers api-key COWORKER_ID --json`.";
+  } else if (typeof status !== "number" || status < 400 || status >= 500) {
+    failure.message +=
+      " Creation may have succeeded. Inspect `sokosumi --preprod coworkers list --scope all` before retrying.";
+  }
+  throw failure;
+}
+
 async function buildPayload(
   options: CommandOptions | undefined,
   command: "register" | "provision" | "update",
@@ -93,6 +113,9 @@ async function buildPayload(
     payload.capabilities = normalizeCapabilities(rawCapabilities);
   const mergedMetadata = mergeChannels(metadata, channels);
   if (mergedMetadata !== undefined) payload.metadata = mergedMetadata;
+  if (!update && (typeof payload.name !== "string" || !payload.name.trim())) {
+    throw new Error("name is required");
+  }
   return payload;
 }
 
@@ -211,15 +234,7 @@ export async function runCoworkersCommand({
     try {
       ({ coworker } = await createCoworker(client, payload, signal));
     } catch (error) {
-      if (error instanceof Error && "status" in error && error.status === 403) {
-        throw new Error(
-          "Only a Sokosumi platform admin can provision a Coworker.\n" +
-            `Send Vendor ${vendorId} and your final Coworker name to the organizer.\n` +
-            `After you receive a Coworker ID, run \`sokosumi --preprod coworkers connect COWORKER_ID --vendor-id ${vendorId} --workspace-id ORGANIZATION_ID\`.\n` +
-            "Then create its runtime key with `sokosumi --preprod coworkers api-key COWORKER_ID --json`.",
-        );
-      }
-      throw error;
+      rethrowCoworkerCreationError(error, vendorId);
     }
     if (!coworker.id?.trim()) {
       throw new Error(
@@ -255,15 +270,7 @@ export async function runCoworkersCommand({
     try {
       ({ coworker } = await createCoworker(client, payload, signal));
     } catch (error) {
-      if (error instanceof Error && "status" in error && error.status === 403) {
-        throw new Error(
-          `Only a Sokosumi platform admin can create a Coworker.\n` +
-            `Send Vendor ${vendorId} and your final Coworker name to the organizer.\n` +
-            `After you receive a Coworker ID, run \`sokosumi --preprod coworkers connect COWORKER_ID --vendor-id ${vendorId} --workspace-id ${workspace.organizationId}\`.\n` +
-            "Then create its runtime key with `sokosumi --preprod coworkers api-key COWORKER_ID --json`.",
-        );
-      }
-      throw error;
+      rethrowCoworkerCreationError(error, vendorId, workspace.organizationId);
     }
     const coworkerId = String(record(coworker).id || "");
     let workspaceAccess: CoworkerWorkspaceAccess;
