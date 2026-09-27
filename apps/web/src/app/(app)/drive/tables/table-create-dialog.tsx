@@ -6,9 +6,12 @@ import {
   validateTableValues,
 } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
+import { Plus, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { DRIVE_HEADER_CONTROL_CLASS } from "@/app/drive/components/drive-view-layout";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { TableColumn } from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
+import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { tableImportBatches } from "./table-import";
 import { isTableRejection } from "./table-mutations";
@@ -58,6 +62,8 @@ export function TableCreateDialog({
   const [description, setDescription] = useState("");
   const [projectId, setProjectId] = useState("");
   const [csv, setCsv] = useState<string[][]>([]);
+  const [csvName, setCsvName] = useState("");
+  const csvInput = useRef<HTMLInputElement>(null);
   const [columns, setColumns] = useState<
     Array<{
       id: string;
@@ -80,6 +86,7 @@ export function TableCreateDialog({
       if (file.size > 5000000) throw new Error(t("csvLimit"));
       const rows = parseTableCsv(await file.text());
       setCsv(rows);
+      setCsvName(file.name);
       setColumns(
         rows[0].map((name) => ({
           id: crypto.randomUUID(),
@@ -166,7 +173,15 @@ export function TableCreateDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline">{t("newTable")}</Button>
+        {/* The Files toolbar states the house rule for this row: 32px
+        controls, and the view's own create action is the solid one. */}
+        {/* This trigger sits inside the drive header row's `@container`, so it
+        takes that row's shared height rather than open-coding one: a control
+        here taller than the tab strip lifts the row and moves the strip. */}
+        <Button size="sm" className={cn("gap-1.5", DRIVE_HEADER_CONTROL_CLASS)}>
+          <Plus aria-hidden className="size-4" />
+          {t("newTable")}
+        </Button>
       </DialogTrigger>
       <DialogContent className="app-scrollbar max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
@@ -216,18 +231,54 @@ export function TableCreateDialog({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="table-csv">{t("importCsv")}</Label>
-            <Input
-              id="table-csv"
-              type="file"
-              accept=".csv,text/csv"
-              disabled={pending || !!attempt}
-              onChange={(event) => void handleCsv(event.target.files?.[0])}
-            />
+            {/* The native control stays the one real control: it keeps the
+            label, the tab stop and the value, and only its browser-supplied,
+            unlocalized chrome is replaced. The visible trigger and the
+            filename are therefore presentational — otherwise the picker
+            appears twice in the accessibility tree and announces "No file
+            chosen" twice. `has-[:focus-visible]:ring-ring` paints the ring the
+            clipped input cannot paint for itself; put the colour on
+            `focus-visible:` instead and the wrapper, which is never focusable,
+            never matches, so the ring falls back to `currentColor`. */}
+            <div className="ring-offset-background has-[:focus-visible]:ring-ring flex w-fit items-center gap-3 rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2">
+              <Button
+                type="button"
+                aria-hidden
+                tabIndex={-1}
+                size="sm"
+                variant="outline"
+                disabled={pending || !!attempt}
+                onClick={() => csvInput.current?.click()}
+              >
+                <Upload aria-hidden className="size-4" />
+                {t("chooseCsv")}
+              </Button>
+              <span
+                aria-hidden
+                className="text-muted-foreground min-w-0 truncate text-sm"
+              >
+                {csvName || t("noFileChosen")}
+              </span>
+              <span className="sr-only">
+                <Input
+                  id="table-csv"
+                  ref={csvInput}
+                  type="file"
+                  accept=".csv,text/csv"
+                  disabled={pending || !!attempt}
+                  onChange={(event) => void handleCsv(event.target.files?.[0])}
+                />
+              </span>
+            </div>
             <p className="text-muted-foreground text-sm">{t("csvLimit")}</p>
           </div>
           {columns.length > 0 && (
             <div className="grid gap-3">
               <h3 className="font-medium">{t("mapping")}</h3>
+              <div className="text-muted-foreground grid grid-cols-2 gap-2 text-xs font-medium">
+                <span>{t("columnName")}</span>
+                <span>{t("type")}</span>
+              </div>
               {columns.map((column, index) => (
                 <div key={column.id} className="grid grid-cols-2 gap-2">
                   <Input
@@ -271,10 +322,13 @@ export function TableCreateDialog({
                     ))}
                   </select>
                   {column.type.includes("select") && (
+                    // Hangs under the type that asked for it, in the same
+                    // column, so the pair still reads as one mapping row now
+                    // that the grid has headers.
                     <Input
-                      className="col-span-2"
+                      className="col-start-2"
                       disabled={pending || !!attempt}
-                      aria-label={t("options")}
+                      aria-label={t("optionsFor", { column: column.name })}
                       placeholder={t("options")}
                       onChange={(event) =>
                         setColumns(
@@ -295,12 +349,15 @@ export function TableCreateDialog({
                   )}
                 </div>
               ))}
-              <div className="app-scrollbar overflow-x-auto rounded-md border">
+              <div className="app-scrollbar bg-card overflow-x-auto rounded-md border">
                 <table className="w-full text-sm">
-                  <thead>
-                    <tr>
+                  <thead className="bg-card-background">
+                    <tr className="border-b">
                       {columns.map((column) => (
-                        <th className="p-2 text-start" key={column.id}>
+                        <th
+                          className="h-10 px-2 text-start font-medium whitespace-nowrap"
+                          key={column.id}
+                        >
                           {column.name}
                         </th>
                       ))}
@@ -311,7 +368,7 @@ export function TableCreateDialog({
                       <tr key={index}>
                         {row.map((value, i) => (
                           <td
-                            className="max-w-48 truncate border-t p-2"
+                            className="max-w-48 truncate border-b p-2"
                             key={columns[i].id}
                           >
                             {value}
@@ -328,9 +385,11 @@ export function TableCreateDialog({
             </div>
           )}
           {error && (
-            <p role="alert" className="text-destructive text-sm">
-              {error}
-            </p>
+            <Alert variant="destructive">
+              <AlertDescription>
+                <span className="min-w-0 break-words">{error}</span>
+              </AlertDescription>
+            </Alert>
           )}
           <p role="status" className="text-muted-foreground text-sm">
             {pending && csv.length
