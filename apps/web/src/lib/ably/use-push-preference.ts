@@ -2,7 +2,6 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
-
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { preferencesBrowserClient } from "@/lib/clients/core.preferences.browser.client";
 import {
@@ -20,6 +19,7 @@ import {
   getMyPreferencesQueryKey,
   getMyPreferencesQueryOptions,
 } from "@/queries/preferences";
+import { refreshPushDevices } from "@/queries/push-devices";
 
 import {
   getPushRepairOutcome,
@@ -307,9 +307,10 @@ export function usePushPreference(userId: string | undefined): PushPreference {
         saveOwnsSubscriptionRow.current = false;
         setIsSaving(false);
         await applySubscriptionRead();
+        void refreshPushDevices(queryClient, userId);
       }
     },
-    [applySubscriptionRead, userId],
+    [applySubscriptionRead, queryClient, userId],
   );
 
   /**

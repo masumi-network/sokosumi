@@ -2,7 +2,7 @@ import {
   act,
   cleanup,
   fireEvent,
-  render,
+  render as renderComponent,
   screen,
   waitFor,
   within,
@@ -17,6 +17,7 @@ import { NotificationProvider } from "@/contexts/notification-provider";
 import { NOTIFICATION_VIEW_STORAGE_KEY } from "@/contexts/notification-view-storage";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import type { NotificationItem } from "@/lib/clients/generated/core";
+import { TestQueryProvider } from "@/test/query-provider";
 
 /**
  * The Notification Center, driven from the outside.
@@ -27,6 +28,10 @@ import type { NotificationItem } from "@/lib/clients/generated/core";
  * reports about width and scrolling. A test asserts on what a reader would see
  * and on which Core calls the reader's moves produced.
  */
+
+function render(ui: ReactNode) {
+  return renderComponent(ui, { wrapper: TestQueryProvider });
+}
 
 const getNotificationsMock = vi.fn();
 const getNotificationsCountsMock = vi.fn();

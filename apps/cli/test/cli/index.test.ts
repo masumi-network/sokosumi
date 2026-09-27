@@ -525,6 +525,149 @@ test("auth status returns stable non-secret JSON", async () => {
   assert.deepEqual(JSON.parse(output.join("")), result);
 });
 
+test("auth whoami verifies the live identity on the selected target", async () => {
+  for (const target of [
+    {
+      argv: ["--preprod"],
+      name: "preprod",
+      url: "https://api.preprod.sokosumi.com",
+    },
+    { argv: [], name: "mainnet", url: "https://api.sokosumi.com" },
+    {
+      argv: ["--api-url", "https://core.example.test"],
+      name: "custom",
+      url: "https://core.example.test",
+    },
+  ]) {
+    const output: string[] = [];
+    const calls: string[] = [];
+    const result = await runCli([...target.argv, "auth", "whoami", "--json"], {
+      env: { SOKOSUMI_AUTH_TOKEN: "test-token" },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async <T>(path: string) => {
+          calls.push(path);
+          return {
+            data: {
+              id: "developer-1",
+              email: "developer@example.test",
+              role: "user",
+              token: "must-not-appear",
+            },
+          } as T;
+        },
+        post: async () => {
+          throw new Error("whoami must not write");
+        },
+        patch: async () => {
+          throw new Error("whoami must not write");
+        },
+      },
+      stdout: { write: (value) => output.push(value) },
+    });
+    assert.deepEqual(calls, ["/v1/users/me"]);
+    assert.equal(output.length, 1);
+    assert.deepEqual(JSON.parse(output[0]), {
+      user: {
+        id: "developer-1",
+        email: "developer@example.test",
+        platformRole: "user",
+      },
+      target: target.name,
+      apiUrl: target.url,
+    });
+    assert.deepEqual(result, JSON.parse(output[0]));
+    assert.doesNotMatch(output[0], /must-not-appear|test-token/);
+  }
+});
+
+test("auth whoami rejects missing authentication before Core", async () => {
+  for (const args of [["auth", "whoami"]]) {
+    const output: string[] = [];
+    let calls = 0;
+    await assert.rejects(
+      runCli(["--preprod", ...args, "--json"], {
+        env: {},
+        authManager: createTestAuthManager(),
+        coreClient: {
+          get: async <T>() => {
+            calls++;
+            return {} as T;
+          },
+          post: async () => {
+            throw new Error("Unexpected write");
+          },
+          patch: async () => {
+            throw new Error("Unexpected write");
+          },
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      /Authentication required/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(output.length, 1);
+    assert.match(JSON.parse(output[0]).error, /Authentication required/);
+  }
+});
+
+test("auth whoami reports rejected credentials as one JSON error", async () => {
+  const output: string[] = [];
+  await assert.rejects(
+    runCli(["--preprod", "auth", "whoami", "--json"], {
+      env: { SOKOSUMI_AUTH_TOKEN: "present-but-revoked" },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async () => {
+          throw Object.assign(new Error("Bearer present-but-revoked"), {
+            status: 401,
+          });
+        },
+        post: async () => {
+          throw new Error("Unexpected write");
+        },
+        patch: async () => {
+          throw new Error("Unexpected write");
+        },
+      },
+      stdout: { write: (value) => output.push(value) },
+    }),
+    /401/,
+  );
+  assert.equal(output.length, 1);
+  assert.match(JSON.parse(output[0]).error, /Sign in again/);
+  assert.doesNotMatch(output[0], /present-but-revoked|authenticated/);
+});
+
+test("auth whoami rejects trailing arguments", async () => {
+  for (const args of [["auth", "whoami", "extra"]]) {
+    const output: string[] = [];
+    let calls = 0;
+    await assert.rejects(
+      runCli([...args, "--json"], {
+        env: { SOKOSUMI_AUTH_TOKEN: "test-token" },
+        authManager: createTestAuthManager(),
+        coreClient: {
+          get: async <T>() => {
+            calls++;
+            return {} as T;
+          },
+          post: async () => {
+            throw new Error("Unexpected write");
+          },
+          patch: async () => {
+            throw new Error("Unexpected write");
+          },
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      /Usage:|Unexpected argument:/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(output.length, 1);
+  }
+});
+
 test("auth status rejected promises emit one redacted JSON error", async () => {
   const secret = "status-secret-token";
   const output: string[] = [];
