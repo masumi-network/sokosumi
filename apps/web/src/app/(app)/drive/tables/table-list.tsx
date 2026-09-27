@@ -4,7 +4,15 @@ import { Table2 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
-import { driveItemsPanelClass } from "@/app/drive/components/drive-view-layout";
+import {
+  driveItemArticleClass,
+  driveItemBodyClass,
+  driveItemIconWellClass,
+  driveItemMetaDesktopClass,
+  driveItemNameClass,
+  driveItemsListClass,
+  driveItemsPanelClass,
+} from "@/app/drive/components/drive-view-layout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { dataTableService } from "@/lib/services/data-table.client";
@@ -26,7 +34,7 @@ export function TableList({ workspaceId }: { workspaceId: string | null }) {
     // Literally the surface Recents and browse render into, from their own
     // helper, so switching tabs no longer switches page languages. The tab
     // already names the view, so the heading is for assistive technology.
-    <section className={cn(driveItemsPanelClass("grid"), "space-y-2")}>
+    <section className={cn(driveItemsPanelClass("list"), "space-y-2")}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="sr-only">{t("tables")}</h2>
         <Button
@@ -74,24 +82,33 @@ export function TableList({ workspaceId }: { workspaceId: string | null }) {
           </p>
         </div>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {/* A table is a Files item, so it wears the Files item row: the same
+      helpers the drive cards use, not a lookalike. */}
+      <div className={driveItemsListClass("list")}>
         {query.data?.items.map((table) => (
           <Link
             href={`/drive/tables/${table.id}`}
             key={table.id}
-            className="bg-background border-border hover:bg-card-background focus-visible:ring-ring flex min-w-0 items-center gap-2 rounded-lg border p-3 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2"
+            className={cn(
+              driveItemArticleClass("list"),
+              "focus-visible:ring-ring transition-colors focus-visible:ring-2 focus-visible:ring-offset-2",
+            )}
           >
-            <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg">
-              <Table2 aria-hidden className="text-muted-foreground size-5" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="truncate text-sm font-medium">{table.title}</h3>
-              <p className="text-muted-foreground mt-1 truncate text-xs">
-                {format.dateTime(new Date(table.updatedAt), {
-                  dateStyle: "medium",
-                })}{" "}
-                · {t("columnCount", { count: table.columns.length })}
-              </p>
+            <div className={driveItemBodyClass("list")}>
+              <div className={driveItemIconWellClass("list")}>
+                <Table2 aria-hidden className="text-muted-foreground size-5" />
+              </div>
+              <h3 className={cn(driveItemNameClass(), "min-w-0 flex-1")}>
+                {table.title}
+              </h3>
+              <div className={driveItemMetaDesktopClass("list")}>
+                <span>{t("columnCount", { count: table.columns.length })}</span>
+                <span>
+                  {format.dateTime(new Date(table.updatedAt), {
+                    dateStyle: "medium",
+                  })}
+                </span>
+              </div>
             </div>
           </Link>
         ))}
