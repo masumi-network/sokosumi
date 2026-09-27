@@ -15,6 +15,9 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
 export const ACTION_CAPABILITIES = new Set([
   ...EXTERNAL_EFFECT_CAPABILITIES,
   "create_task",
+  "create_table",
+  "write_table_rows",
+  "update_table_columns",
   "update_task",
   "archive_task",
   "assign_task",

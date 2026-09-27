@@ -272,6 +272,35 @@ describe("authoritative action responses", () => {
     expect(result.answerText).toBe("Updated task (task-one).");
   });
 
+  it.each(["create_table", "write_table_rows", "update_table_columns"])(
+    "reports %s only from its committed table receipt",
+    async (capability) => {
+      db.sokoBotToolCall.findMany.mockResolvedValue([
+        receipt({ capability, targetId: "table-one" }),
+      ]);
+      const result = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "I emailed the table to everyone.",
+      );
+      expect(result.appliedReceiptIds).toHaveLength(1);
+      expect(result.answerText).not.toContain("emailed");
+      expect(result.answerText).toContain(
+        capability === "create_table" ? "/drive/tables/table-one" : "table-one",
+      );
+      db.sokoBotToolCall.findMany.mockResolvedValue([
+        receipt({ capability, targetId: "table-one", verification: "NONE" }),
+      ]);
+      const unverified = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "Created the table.",
+      );
+      expect(unverified.appliedReceiptIds).toEqual([]);
+      expect(unverified.answerText).toBe(`I could not verify ${capability}.`);
+    },
+  );
+
   it("preserves an explicit clarification without accepting success prose", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValue([]);
     const response = await buildActionResponse(

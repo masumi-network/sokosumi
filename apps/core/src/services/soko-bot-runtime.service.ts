@@ -52,11 +52,27 @@ import {
 import {
   buildUserDriveFilePathname,
   buildUserDriveFilePrefix,
+  createDataTableSchema,
+  tableBatchSchema,
+  tableMutationSchema,
+  tableQuerySchema,
 } from "@sokosumi/utils";
 import { list, put } from "@vercel/blob";
+import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
+import {
+  batchTableRows,
+  createDataTable,
+  listDataTables,
+  mutateDataTable,
+  queryTableRows,
+  readTableOperation,
+  requireDataTable,
+  resolveTableActor,
+  type TableOperationCompletion,
+} from "@/helpers/data-table";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonInput } from "@/helpers/prisma-json";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
@@ -94,6 +110,7 @@ import {
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
 } from "@/routes/v1/chats/rooms/helpers";
+import { dataTableSchema } from "@/schemas/data-table.schema";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { enqueueSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
 import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
@@ -1109,6 +1126,7 @@ export class SokoBotRuntimeService {
       content: string;
       toolCallId: string;
       openedDirect?: { name: string; created: boolean; withUserName: string };
+      publicationId?: string;
     },
     transaction?: Prisma.TransactionClient,
   ) {
@@ -1184,7 +1202,22 @@ export class SokoBotRuntimeService {
       });
       // Queue unreadable content and inert mentions. The outbox activates both
       // only after rechecking the exact audience at the publication boundary.
+      let replayedPublication = false;
       const message = await (async () => {
+        if (input.publicationId) {
+          const existing = await tx.chatRoomMessage.findFirst({
+            where: {
+              id: input.publicationId,
+              roomId: room.id,
+              senderSokoBotId: room.sokoBotId,
+            },
+            select: { id: true, createdAt: true },
+          });
+          if (existing) {
+            replayedPublication = true;
+            return existing;
+          }
+        }
         // Counted inside the transaction: read outside it, two bots posting at
         // once both see room for one more and the room takes both.
         const botMessagesThisHour = await tx.chatRoomMessage.count({
@@ -1207,6 +1240,7 @@ export class SokoBotRuntimeService {
         const created = await tx.chatRoomMessage.create({
           data: {
             roomId: room.id,
+            ...(input.publicationId ? { id: input.publicationId } : {}),
             clientMessageId: `soko-bot-tool:${authorized.turn.id}:${input.toolCallId}`,
             senderSokoBotId: room.sokoBotId,
             content: "",
@@ -1268,6 +1302,7 @@ export class SokoBotRuntimeService {
         effectEventId: message.id,
         result: persistedToolResult(result),
       });
+      if (replayedPublication) return result;
       const audience = await tx.chatRoom.findUniqueOrThrow({
         where: { id: room.id },
         select: {
@@ -1716,6 +1751,7 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     rawInput: unknown,
     toolCallId: string,
+    options?: { transaction: Prisma.TransactionClient; publicationId: string },
   ) {
     const input = replyToTaskInputSchema.parse(rawInput);
     const resumable: TaskStatus[] = [
@@ -1726,7 +1762,7 @@ export class SokoBotRuntimeService {
       TaskStatus.APPROVAL_REQUIRED,
       TaskStatus.AWAITING_EXTERNAL,
     ];
-    const persisted = await serializableTransaction(async (tx) => {
+    const persist = async (tx: Prisma.TransactionClient) => {
       await this.requireMutationAuthority(
         tx,
         authorized,
@@ -1769,15 +1805,32 @@ export class SokoBotRuntimeService {
         },
       });
       if (!task) throw new SokoBotRuntimeValidationError("Task not found");
-      if (!input.status) {
-        const recent = await tx.taskEvent.count({
+      if (!input.status && !options?.publicationId) {
+        const events = await tx.taskEvent.findMany({
           where: {
             taskId: task.id,
             sokoBotId: authorized.turn.sokoBotId,
             status: null,
             createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1_000) },
           },
+          select: { id: true, comment: true },
         });
+        const recent = events.filter((event) => {
+          const match =
+            /^\[Open table\]\(\/drive\/tables\/([0-9a-f-]+)\)$/.exec(
+              event.comment ?? "",
+            );
+          const tableId = z.uuid().safeParse(match?.[1]);
+          return (
+            !tableId.success ||
+            event.comment !== `[Open table](/drive/tables/${tableId.data})` ||
+            event.id !==
+              uuidv5(
+                `table-created:task:${task.id}:${authorized.turn.sokoBotId}`,
+                tableId.data,
+              )
+          );
+        }).length;
         if (recent >= MAX_BOT_COMMENTS_PER_TASK_PER_DAY) {
           throw new SokoBotRuntimeValidationError(
             `You already commented ${recent} times on this Task today; hold further comments unless they are urgent`,
@@ -1800,16 +1853,29 @@ export class SokoBotRuntimeService {
           );
         }
       }
-      const event = await tx.taskEvent.create({
-        data: {
-          taskId: task.id,
-          status: changeStatus ? TaskStatus.READY : null,
-          comment: input.comment,
-          channel: Channel.SOKOSUMI,
-          sokoBotId: authorized.turn.sokoBotId,
-        },
-        select: { id: true },
-      });
+      const previous = options?.publicationId
+        ? await tx.taskEvent.findFirst({
+            where: {
+              id: options.publicationId,
+              taskId: task.id,
+              sokoBotId: authorized.turn.sokoBotId,
+            },
+            select: { id: true },
+          })
+        : null;
+      const event =
+        previous ??
+        (await tx.taskEvent.create({
+          data: {
+            ...(options?.publicationId ? { id: options.publicationId } : {}),
+            taskId: task.id,
+            status: changeStatus ? TaskStatus.READY : null,
+            comment: input.comment,
+            channel: Channel.SOKOSUMI,
+            sokoBotId: authorized.turn.sokoBotId,
+          },
+          select: { id: true },
+        }));
       if (changeStatus) {
         await applyGuardedTaskStatusUpdate({
           tx,
@@ -1857,7 +1923,13 @@ export class SokoBotRuntimeService {
         ownerId: task.ownerId,
         eventStatus: changeStatus ? TaskStatus.READY : null,
       };
-    }, "Soko Bot task reply collided with another action");
+    };
+    const persisted = options?.transaction
+      ? await persist(options.transaction)
+      : await serializableTransaction(
+          persist,
+          "Soko Bot task reply collided with another action",
+        );
     return persisted.result;
   }
 
@@ -2789,6 +2861,58 @@ export class SokoBotRuntimeService {
         );
       }
       if (existing.status === "COMPLETED") {
+        let replayResult = existing.result;
+        if (
+          input.capability === "list_tables" ||
+          input.capability === "read_table"
+        ) {
+          return this.executeAuthorizedTool(input);
+        }
+        if (
+          ["create_table", "write_table_rows", "update_table_columns"].includes(
+            input.capability,
+          )
+        ) {
+          const actor = await this.tableActor(authorized, input.input);
+          let key: string;
+          let request: unknown;
+          if (input.capability === "create_table") {
+            const body = createDataTableSchema.parse(input.input);
+            key = body.key;
+            request = { create: body };
+          } else {
+            const { tableId } = z
+              .object({ tableId: z.uuid() })
+              .parse(input.input);
+            if (input.capability === "write_table_rows") {
+              const body = tableBatchSchema.parse(input.input);
+              key = body.key;
+              request = {
+                id: tableId,
+                batch: body,
+                taskId: actor.taskId ?? body.taskId,
+              };
+            } else {
+              const body = tableMutationSchema.parse(input.input);
+              key = body.key;
+              request = { id: tableId, metadata: body };
+            }
+          }
+          const operation = await readTableOperation(actor, key, request);
+          if (existing.targetId && operation.tableId !== existing.targetId)
+            throw new SokoBotRuntimeConflictError(
+              "Table receipt target changed",
+            );
+          replayResult =
+            input.capability === "create_table"
+              ? {
+                  table: operation.result,
+                  url: `/drive/tables/${operation.tableId}`,
+                  instruction:
+                    "Table created. Present this link now; enrich in bounded batches. Reuse this table ID for follow-ups.",
+                }
+              : operation.result;
+        }
         if (
           input.capability === "archive_task" &&
           !(await verifyTaskArchiveReceipt(
@@ -2829,7 +2953,7 @@ export class SokoBotRuntimeService {
             update: {},
           });
         }
-        return existing.result;
+        return replayResult;
       }
       if (
         existing.status === "FAILED" &&
@@ -2988,11 +3112,244 @@ export class SokoBotRuntimeService {
     }
   }
 
+  private async tableActor(
+    authorized: AuthorizedSokoBotRuntime,
+    rawInput: unknown,
+  ) {
+    const workspace = await prisma.workspace.findUniqueOrThrow({
+      where: { id: authorized.turn.workspaceId },
+    });
+    const actor = await resolveTableActor(
+      {
+        actor: "sokoBot",
+        sokoBotId: authorized.turn.sokoBotId,
+        userId: authorized.turn.userId,
+        workspaceId: workspace.id,
+        organizationId: workspace.organizationId,
+      },
+      workspace.id,
+    );
+    const { taskId } = z
+      .object({ taskId: z.string().max(200).optional() })
+      .parse(rawInput);
+    const ownerChat =
+      authorized.turn.source === "CHAT" &&
+      (!authorized.askedByKind || authorized.askedByKind === "OWNER") &&
+      authorized.turn.chainDepth === 0;
+    if (!ownerChat && !taskId)
+      throw new SokoBotRuntimeAuthorizationError(
+        "Task-driven table operations require an assigned taskId",
+      );
+    return { ...actor, taskId, ownerChat };
+  }
+
   private async executeAuthorizedTool(
     input: ExecuteSokoBotToolInput,
   ): Promise<unknown> {
     const authorized = await this.authorize(input);
     switch (input.capability) {
+      case "list_tables":
+      case "read_table":
+      case "create_table":
+      case "write_table_rows":
+      case "update_table_columns": {
+        const scopedActor = await this.tableActor(authorized, input.input);
+        const { taskId } = scopedActor;
+        const actor = scopedActor;
+        if (input.capability === "list_tables")
+          return listDataTables(
+            scopedActor,
+            z
+              .object({
+                cursor: z.uuid().optional(),
+                limit: z.number().int().min(1).max(100).optional(),
+              })
+              .parse(input.input),
+          );
+        const complete: TableOperationCompletion = async (tx, operation) => {
+          await this.requireMutationAuthority(
+            tx,
+            authorized,
+            false,
+            input.capability,
+          );
+          const table =
+            input.capability === "create_table"
+              ? dataTableSchema.parse(operation.result)
+              : null;
+          const result = table
+            ? {
+                table,
+                url: `/drive/tables/${table.id}`,
+                instruction:
+                  "Table created. Present this link now; enrich in bounded batches. Reuse this table ID for follow-ups.",
+              }
+            : operation.result;
+          if (table) {
+            const turn = await tx.sokoBotTurn.findUnique({
+              where: { id: authorized.turn.id },
+              select: {
+                chatMention: {
+                  select: { message: { select: { roomId: true } } },
+                },
+              },
+            });
+            const publications = [
+              ...(turn?.chatMention
+                ? [
+                    {
+                      capability: "post_chat" as const,
+                      destination: turn.chatMention.message.roomId,
+                    },
+                  ]
+                : []),
+              ...(taskId
+                ? [
+                    {
+                      capability: "reply_to_task" as const,
+                      destination: taskId,
+                    },
+                  ]
+                : []),
+            ];
+            for (const publication of publications) {
+              // Table creation never grants independent chat/task write permission.
+              if (
+                !authorized.grant.capabilities.includes(publication.capability)
+              ) {
+                throw new SokoBotRuntimeAuthorizationError(
+                  "Table link publication requires its own capability grant",
+                );
+              }
+              await this.requireMutationAuthority(
+                tx,
+                authorized,
+                false,
+                publication.capability,
+              );
+              const kind =
+                publication.capability === "post_chat" ? "chat" : "task";
+              const publicationId = uuidv5(
+                `table-created:${kind}:${publication.destination}:${actor.actorId}`,
+                table.id,
+              );
+              const childToolCallId = `${input.toolCallId}:table-link:${kind}`;
+              const content =
+                kind === "chat"
+                  ? `[${table.title.replaceAll("[", "").replaceAll("]", "")}](/drive/tables/${table.id})`
+                  : `[Open table](/drive/tables/${table.id})`;
+              const childInput =
+                publication.capability === "post_chat"
+                  ? { roomId: publication.destination, content }
+                  : { taskId: publication.destination, comment: content };
+              const childInputHash = actionInputHash(childInput);
+              const child = await tx.sokoBotToolCall.upsert({
+                where: {
+                  turnId_toolCallId: {
+                    turnId: authorized.turn.id,
+                    toolCallId: childToolCallId,
+                  },
+                },
+                create: {
+                  turnId: authorized.turn.id,
+                  toolCallId: childToolCallId,
+                  capability: publication.capability,
+                  actorBotId: actor.actorId,
+                  inputHash: childInputHash,
+                  input: persistedToolResult(childInput),
+                  status: "PENDING",
+                },
+                update: {},
+              });
+              if (
+                child.capability !== publication.capability ||
+                child.inputHash !== childInputHash
+              ) {
+                throw new SokoBotRuntimeAuthorizationError(
+                  "Table link tool call ID was reused with different input",
+                );
+              }
+              if (child.status === "COMPLETED") continue;
+              if (
+                (await tx.sokoBotToolCall.count({
+                  where: { turnId: authorized.turn.id },
+                })) > TOOL_CALL_LIMIT_PER_TURN
+              ) {
+                throw new SokoBotRuntimeConflictError(
+                  "Soko Bot turn tool-call limit reached",
+                );
+              }
+              if (publication.capability === "post_chat") {
+                await this.postChat(
+                  authorized,
+                  {
+                    roomId: publication.destination,
+                    content,
+                    toolCallId: childToolCallId,
+                    publicationId,
+                  },
+                  tx,
+                );
+              } else {
+                await this.replyToTask(
+                  authorized,
+                  { taskId: publication.destination, comment: content },
+                  childToolCallId,
+                  { transaction: tx, publicationId },
+                );
+              }
+            }
+          }
+          await commitActionReceipt(tx, {
+            turnId: authorized.turn.id,
+            toolCallId: input.toolCallId,
+            actorBotId: actor.actorId,
+            targetId: operation.tableId,
+            disposition: operation.replayed ? "ALREADY_SATISFIED" : "APPLIED",
+            result: persistedToolResult(result),
+          });
+        };
+        if (input.capability === "create_table") {
+          const table = await createDataTable(
+            scopedActor,
+            createDataTableSchema.parse(input.input),
+            complete,
+          );
+          return {
+            table,
+            url: `/drive/tables/${table.id}`,
+            instruction:
+              "Table created. Present this link now; enrich in bounded batches. Reuse this table ID for follow-ups.",
+          };
+        }
+        const { tableId } = z
+          .object({ tableId: z.uuid(), taskId: z.string().optional() })
+          .parse(input.input);
+        if (input.capability === "read_table")
+          return {
+            table: dataTableSchema.parse(
+              await requireDataTable(scopedActor, tableId),
+            ),
+            ...(await queryTableRows(
+              scopedActor,
+              tableId,
+              tableQuerySchema.parse(input.input),
+            )),
+          };
+        if (input.capability === "write_table_rows")
+          return batchTableRows(
+            scopedActor,
+            tableId,
+            tableBatchSchema.parse(input.input),
+            complete,
+          );
+        return mutateDataTable(
+          scopedActor,
+          tableId,
+          tableMutationSchema.parse(input.input),
+          complete,
+        );
+      }
       case "refresh_context":
         return this.getContext(input);
       case "find_coworkers": {

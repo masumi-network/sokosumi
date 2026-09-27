@@ -22,6 +22,7 @@ describe.skipIf(!databaseUrl)(
         ![
           "/soko_reliability_verified",
           "/soko_reliability_integrated",
+          "/soko_reliability_integrated_6e",
         ].includes(url.pathname)
       ) {
         throw new Error(

@@ -11,6 +11,9 @@ import {
 const ACTION_LABELS: Record<string, string> = {
   manage_reminder: "Updated reminder",
   create_task: "Created task",
+  create_table: "Created table",
+  write_table_rows: "Updated table rows",
+  update_table_columns: "Updated table columns",
   update_task: "Updated task",
   archive_task: "Archived task",
   assign_task: "Assigned task",
@@ -244,7 +247,7 @@ export async function buildActionResponse(
     }));
   const actionText = unique.map(
     (call) =>
-      `${call.turnId !== turnId ? "Previously verified: " : ""}${call.disposition === "ALREADY_SATISFIED" ? "Already satisfied" : ACTION_LABELS[call.capability]} (${call.targetId}).`,
+      `${call.turnId !== turnId ? "Previously verified: " : ""}${call.disposition === "ALREADY_SATISFIED" ? "Already satisfied" : ACTION_LABELS[call.capability]} (${call.capability === "create_table" ? `[Open table](/drive/tables/${encodeURIComponent(call.targetId ?? "")})` : call.targetId}).`,
   );
   for (const action of unfulfilledActions) {
     actionText.push(
