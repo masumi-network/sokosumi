@@ -5,6 +5,9 @@ export {};
 const createClientMock = vi.fn();
 const getMock = vi.fn();
 const patchMock = vi.fn();
+const postMock = vi.fn();
+const putMock = vi.fn();
+const deleteMock = vi.fn();
 
 vi.mock("@/lib/clients/utils/core-api-base-url.browser", () => ({
   getBrowserCoreApiBaseUrl: () => "https://api.sokosumi.com/v1",
@@ -41,7 +44,58 @@ describe("core.notifications.browser.client", () => {
     createClientMock.mockReturnValue({
       get: getMock,
       patch: patchMock,
+      post: postMock,
+      put: putMock,
+      delete: deleteMock,
     });
+  });
+
+  it("sends activation, revision-bound subscription, and removal through Core", async () => {
+    const result = {
+      id: "consent",
+      revision: 3,
+      revoked: false,
+      replaceDevice: true,
+    };
+    const meta = { timestamp: "2026-09-27T00:00:00Z" };
+    await withTransformer(postMock, { data: result, meta });
+    await withTransformer(putMock, { data: { subscribed: true }, meta });
+    await withTransformer(deleteMock, { data: { success: true }, meta });
+    const { notificationsBrowserClient: client } = await import(
+      "./core.notifications.browser.client"
+    );
+    const input = { deviceId: "old", readerInitiated: false };
+    expect((await client.beginPushActivation(input)).data).toEqual(result);
+    await client.subscribePushDevice(
+      { id: "new" },
+      { consentId: "consent", revision: 3 },
+    );
+    await client.revokePushDevice({ id: "old" });
+    expect(postMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "/notifications/push-devices/activations",
+        body: input,
+        cache: "no-store",
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(putMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "/notifications/push-devices/{id}/subscription",
+        path: { id: "new" },
+        body: { consentId: "consent", revision: 3 },
+      }),
+    );
+    expect(deleteMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "/notifications/push-devices/{id}",
+        path: { id: "old" },
+        cache: "no-store",
+      }),
+    );
+    expect(createClientMock).toHaveBeenCalledWith(
+      expect.objectContaining({ credentials: "include" }),
+    );
   });
 
   it("records coarse details with cookies, JSON, and a bounded request", async () => {

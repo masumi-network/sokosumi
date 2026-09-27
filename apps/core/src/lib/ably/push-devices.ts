@@ -4,8 +4,8 @@ import type {
   PaginatedResult,
   PushChannelSubscription,
 } from "ably";
-
 import { badGateway } from "@/helpers/error";
+import prisma from "@/lib/db/prisma";
 import {
   type PushDevice,
   pushDeviceBrowserDetailsSchema,
@@ -92,5 +92,19 @@ export async function listPushDevices(userId: string): Promise<PushDevice[]> {
     // Provider responses may contain device credentials or push endpoints.
     throw badGateway("Unable to retrieve push devices");
   }
+  const revoked = await prisma.pushDeviceRegistration.findMany({
+    where: {
+      channel,
+      deviceId: { in: [...devices.keys()] },
+      consent: {
+        userId,
+        channel,
+        revokedAt: { not: null },
+        revocationCompletedAt: { not: null },
+      },
+    },
+    select: { deviceId: true },
+  });
+  for (const registration of revoked) devices.delete(registration.deviceId);
   return [...devices.values()].sort((a, b) => a.id.localeCompare(b.id));
 }

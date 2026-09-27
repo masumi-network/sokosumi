@@ -36,7 +36,6 @@ import {
 import { cn } from "@/lib/utils";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
 import { TaskScheduleRow } from "./task-schedule-row";
-import { TasksProjectSwitcher } from "./tasks-project-switcher";
 
 const ALL_STATES = "all";
 
@@ -198,10 +197,6 @@ export function TaskSchedulesView({
               document.cookie = serializeSchedulesViewModeCookie(next);
             }}
             labels={{ list: t("viewList"), grid: t("viewGrid") }}
-          />
-          <TasksProjectSwitcher
-            projectOptions={projectOptions}
-            selectedProjectId={selectedProjectId}
           />
           {canCreate ? (
             <Button size="sm" onClick={() => setIsCreateOpen(true)}>

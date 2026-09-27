@@ -1627,13 +1627,6 @@
         "visibilityLabel": "Visibility",
         "visibilityPrivate": "Private"
       },
-      "ProjectSwitcher": {
-        "ariaLabel": "Project",
-        "allProjects": "All projects",
-        "searchPlaceholder": "Search projects...",
-        "empty": "No projects found.",
-        "create": "Create project..."
-      },
       "Jobs": {
         "filterButton": "Filters",
         "agentLabel": "Agent",
@@ -2657,11 +2650,6 @@
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
-          "projects": "Projects",
-          "allProjects": "All projects",
-          "projectsPanel": "Your projects",
-          "pinnedProjects": "Pinned",
-          "recentProjects": "Recent projects",
           "history": "History",
           "drive": "Files",
           "admin": "Admin",
@@ -2670,10 +2658,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Calendar",
-          "schedules": "Schedules",
-          "projectsLoading": "Loading projects…",
-          "projectsError": "Could not load projects.",
-          "retryProjects": "Retry"
+          "schedules": "Schedules"
         },
         "ChatLists": {
           "title": "Recent Chats",
@@ -4421,7 +4406,6 @@
         "description": "Choose what Sokosumi tells you about, and where it reaches you",
         "marketingEmailsTitle": "Marketing emails",
         "marketingEmailsDescription": "Get an email when Sokosumi has new features, updates, and promotions.",
-        "marketingEmailOnlyHint": "Sokosumi sends this by email only.",
         "marketingEmailsEnabledSuccess": "Marketing emails enabled",
         "marketingEmailsDisabledSuccess": "Marketing emails disabled",
         "pushUnsupported": "This browser does not support push notifications.",
@@ -4513,7 +4497,6 @@
         "channelsAnnounce": "{kind}: {channels}",
         "channelsNone": "none",
         "channelCellLabel": "{channel} for {kind}",
-        "channelUnavailableLabel": "{channel}, not used for {kind}",
         "deliveryAriaLabel": "Delivery for {kind}",
         "newsDeliveryAriaLabel": "Delivery for marketing emails",
         "kindFollowUp": "Reminders",
@@ -4552,7 +4535,14 @@
           "car": "Car",
           "embedded": "Embedded device",
           "other": "Other"
-        }
+        },
+        "remove": "Remove",
+        "removeNamedDevice": "Remove {device}",
+        "removeTitle": "Remove this device?",
+        "removeDescription": "Push notifications will stop on {device}. You can turn them on again from that device.",
+        "removeConfirm": "Remove device",
+        "cancel": "Cancel",
+        "removeError": "Unable to remove this device. Check your connection and try again."
       },
       "ChatDisplay": {
         "title": "Chat display",
@@ -6832,6 +6822,26 @@
         "csvHeaders": "Give every CSV column a non-empty header.",
         "csvWidth": "Every CSV row must have the same number of columns."
       }
+    },
+    "ProjectScope": {
+      "clearSearch": "Clear search",
+      "close": "Close",
+      "label": "Project",
+      "switchLabel": "Switch project",
+      "workspaceView": "Everything",
+      "workspaceDescription": "Includes work without a project",
+      "pinned": "Pinned",
+      "recent": "Recent",
+      "all": "Projects",
+      "searchPlaceholder": "Find a project...",
+      "empty": "No projects found.",
+      "loading": "Loading projects...",
+      "error": "Projects could not load.",
+      "retry": "Try again",
+      "create": "Create project",
+      "manage": "Manage projects",
+      "current": "(current)",
+      "searching": "Searching projects..."
     }
   },
   "Share": {

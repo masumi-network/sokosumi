@@ -2,7 +2,10 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { refreshPushDevices } from "@/queries/push-devices";
+import {
+  clearPushDeviceSnapshot,
+  refreshPushDevices,
+} from "@/queries/push-devices";
 
 import { resumePushPreferenceForSession } from "./push-preference.client";
 import { healPushSubscription } from "./push-self-heal.client";
@@ -53,7 +56,11 @@ export function usePushRecovery(
       lastAttemptSucceeded = false;
       try {
         lastAttemptSucceeded = await healPushSubscription(userId);
-        if (!disposed) void refreshPushDevices(queryClient, userId);
+        if (!disposed) {
+          if (lastAttemptSucceeded)
+            await clearPushDeviceSnapshot(queryClient, userId);
+          void refreshPushDevices(queryClient, userId);
+        }
       } catch (error) {
         console.error("Failed to recover push notifications", error);
       } finally {

@@ -1627,13 +1627,6 @@
         "visibilityLabel": "Visibilidad",
         "visibilityPrivate": "Privado"
       },
-      "ProjectSwitcher": {
-        "ariaLabel": "Proyecto",
-        "allProjects": "Todos los proyectos",
-        "searchPlaceholder": "Buscar proyectos...",
-        "empty": "No se encontraron proyectos.",
-        "create": "Crear proyecto..."
-      },
       "Jobs": {
         "filterButton": "Filtros",
         "agentLabel": "Agente",
@@ -2657,11 +2650,6 @@
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
-          "projects": "Proyectos",
-          "allProjects": "Todos los proyectos",
-          "projectsPanel": "Tus proyectos",
-          "pinnedProjects": "Fijados",
-          "recentProjects": "Proyectos recientes",
           "history": "Historial",
           "drive": "Archivos",
           "admin": "Administración",
@@ -2670,10 +2658,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Calendario",
-          "schedules": "Programaciones",
-          "projectsLoading": "Cargando proyectos…",
-          "projectsError": "No se pudieron cargar los proyectos.",
-          "retryProjects": "Reintentar"
+          "schedules": "Programaciones"
         },
         "ChatLists": {
           "title": "Chats Recientes",
@@ -4385,7 +4370,6 @@
         "description": "Elige de qué te avisa Sokosumi y dónde te llega",
         "marketingEmailsTitle": "Emails de marketing",
         "marketingEmailsDescription": "Recibe un email cuando Sokosumi tenga nuevas funciones, actualizaciones y promociones.",
-        "marketingEmailOnlyHint": "Sokosumi solo envía esto por email.",
         "marketingEmailsEnabledSuccess": "Emails de marketing activados",
         "marketingEmailsDisabledSuccess": "Emails de marketing desactivados",
         "pushUnsupported": "Este navegador no admite notificaciones push.",
@@ -4477,7 +4461,6 @@
         "channelsAnnounce": "{kind}: {channels}",
         "channelsNone": "ninguno",
         "channelCellLabel": "{channel} para {kind}",
-        "channelUnavailableLabel": "{channel}, no se usa para {kind}",
         "deliveryAriaLabel": "Entrega para {kind}",
         "newsDeliveryAriaLabel": "Entrega para los emails de marketing",
         "kindFollowUp": "Recordatorios",
@@ -4516,7 +4499,14 @@
           "car": "Coche",
           "embedded": "Dispositivo integrado",
           "other": "Otro"
-        }
+        },
+        "remove": "Eliminar",
+        "removeNamedDevice": "Eliminar {device}",
+        "removeTitle": "¿Eliminar este dispositivo?",
+        "removeDescription": "Dejarás de recibir notificaciones push en {device}. Puedes volver a activarlas desde ese dispositivo.",
+        "removeConfirm": "Eliminar dispositivo",
+        "cancel": "Cancelar",
+        "removeError": "No se pudo eliminar este dispositivo. Comprueba tu conexión e inténtalo de nuevo."
       },
       "ChatDisplay": {
         "title": "Visualización del chat",
@@ -6832,6 +6822,26 @@
         "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
         "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas."
       }
+    },
+    "ProjectScope": {
+      "clearSearch": "Borrar búsqueda",
+      "close": "Cerrar",
+      "label": "Proyecto",
+      "switchLabel": "Cambiar de proyecto",
+      "workspaceView": "Todo",
+      "workspaceDescription": "Incluye trabajo sin proyecto",
+      "pinned": "Fijados",
+      "recent": "Recientes",
+      "all": "Proyectos",
+      "searchPlaceholder": "Buscar un proyecto...",
+      "empty": "No se encontraron proyectos.",
+      "loading": "Cargando proyectos...",
+      "error": "No se pudieron cargar los proyectos.",
+      "retry": "Reintentar",
+      "create": "Crear proyecto",
+      "manage": "Gestionar proyectos",
+      "current": "(actual)",
+      "searching": "Buscando proyectos..."
     }
   },
   "Share": {

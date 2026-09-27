@@ -18,6 +18,10 @@ import {
 } from "@/helpers/active-ui-stream-room-metadata";
 import { deleteChatRoomMessageMetadataKeys } from "@/helpers/chat-room-message-metadata-patch";
 import {
+  trackLateCoworkerResponse,
+  untrackLateCoworkerResponse,
+} from "@/helpers/coworker-late-responses";
+import {
   clearPendingResponseMirror,
   getPendingResponseMirror,
   renewPendingResponseMirror,
@@ -502,6 +506,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         onResponseStarted: async (responseId: string) => {
           responsesApiResponseIdRef.current = responseId;
           await setPendingResponseMirror(pendingResponseScope, responseId);
+          // Delivered by the late-responses sync if it outlives this request.
+          await trackLateCoworkerResponse({
+            responseId,
+            roomId: room.id,
+            parentMessageId: parentMessageId ?? null,
+            coworkerId: coworker.id,
+            userId: userContext.userId,
+            organizationId: roomOrganizationId,
+            startedAtMs: Date.now(),
+          });
         },
         onResponseCompleted: async () => {
           await clearPendingResponseMirror(pendingResponseScope);
@@ -545,6 +559,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           for (let attempt = 0; attempt < 3; attempt += 1) {
             try {
               await persistAssistantToChatRoom(persistArgs);
+              if (responsesApiResponseIdRef.current) {
+                await untrackLateCoworkerResponse(
+                  responsesApiResponseIdRef.current,
+                );
+              }
               return;
             } catch (error) {
               lastError = error;
