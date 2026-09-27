@@ -159,18 +159,17 @@ function enumeratedPrefix(kind: OoxmlKind): string | null {
   }
 }
 
-async function readPart(
-  zip: JSZip,
-  path: string,
-): Promise<string | null> {
+async function readPart(zip: JSZip, path: string): Promise<string | null> {
   const entry = zip.file(path);
   if (!entry) return null;
 
   // `_data.uncompressedSize` is the size the archive *declares*. Checking it
   // before inflating is what keeps a zip bomb from being expanded at all.
-  const declared = (entry as unknown as {
-    _data?: { uncompressedSize?: number };
-  })._data?.uncompressedSize;
+  const declared = (
+    entry as unknown as {
+      _data?: { uncompressedSize?: number };
+    }
+  )._data?.uncompressedSize;
   if (typeof declared === "number" && declared > MAX_PART_BYTES) return null;
 
   const text = await entry.async("string");
