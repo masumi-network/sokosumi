@@ -293,4 +293,342 @@ describe.skipIf(!enabled)("related documents against PostgreSQL", () => {
     expect(result.state).toBe("not-indexed");
     expect(result.items).toHaveLength(0);
   });
+
+  it("relates on a single rare shared term at the full seed-term limit", async () => {
+    /**
+     * The band the rank floor was silently eating.
+     *
+     * `ts_rank` over an OR query divides by the number of OR-ed terms, so
+     * a neighbour matching exactly one of eight scored 0.0076 against a
+     * fixed floor of 0.01 and was dropped, while the same neighbour in a
+     * two-term query scored 0.0304 and was kept. Nobody chose that: the
+     * constant changed meaning with the seed's vocabulary breadth.
+     *
+     * A distant-but-genuine neighbour is what this feature is *for*, and
+     * `docs ASC` biases term selection toward rare words, which makes
+     * single-term overlap the expected case rather than the edge one.
+     *
+     * Two things have to hold for this to be the test it claims to be, so
+     * both are asserted below rather than assumed: the query really is
+     * eight terms wide, and the neighbour really shares exactly one of
+     * them. Getting that fixture right is most of the work — the first
+     * version shared a term that `docs ASC` ranked last and never put it
+     * in the query at all.
+     *
+     * Reverting either half turns this red: the term-count normalisation
+     * in the HAVING clause, or the rare-term escape beside it.
+     */
+    const owner = await prisma.user.create({
+      data: {
+        name: "Single overlap owner",
+        email: `related-single-${suffix}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    const space = await prisma.workspace.create({
+      data: { userId: owner.id },
+      select: { id: true },
+    });
+    const evidence = await ensureEvidenceScope({
+      workspaceId: space.id,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+      sourceScope: FileSourceScope.USER,
+      sourceId: owner.id,
+    });
+
+    const previousOwner = ownerId;
+    const previousWorkspace = workspaceId;
+    const previousScope = scopeId;
+    ownerId = owner.id;
+    workspaceId = space.id;
+    scopeId = evidence.id;
+
+    /**
+     * `common` goes in most of the workspace, so those terms sort *after*
+     * the rare one and fill the remaining seven slots. `zarbrinth` is in
+     * the seed and one other document only, which makes it both eligible
+     * (`docs > 1`) and the rarest thing the seed has.
+     */
+    const COMMON =
+      "quarterly departmental summary prepared against the standing " +
+      "reporting calendar for circulation to the committee members";
+    const seed = await seedResource(
+      "rare-seed.txt",
+      `${COMMON} and the zarbrinth position specifically`,
+    );
+    /**
+     * Three, not more. They exist to make the common vocabulary common
+     * and to push the corpus above the rarity threshold; beyond that they
+     * are competitors, and `RELATED_RESULT_LIMIT` is 6, so a crowd of
+     * strong neighbours pushes the one being tested off the end and the
+     * test fails for a reason that has nothing to do with the fix.
+     */
+    for (let index = 0; index < 3; index += 1) {
+      await seedResource(`filler-${index}.txt`, `${COMMON} number ${index}`);
+    }
+    // Shares `zarbrinth` with the seed and none of the common vocabulary.
+    await seedResource(
+      "single-overlap.txt",
+      "Unrelated subject matter mentioning zarbrinth once, with no other " +
+        "word this document has in common with its neighbour.",
+    );
+
+    ownerId = previousOwner;
+    workspaceId = previousWorkspace;
+    scopeId = previousScope;
+
+    const result = await findRelatedFiles({
+      workspaceId: space.id,
+      actor: { userId: owner.id, organizationId: null, kind: "interactive" },
+      resourceId: seed,
+    });
+
+    expect(result.state).toBe("ok");
+    expect(result.items.map((item) => item.displayName)).toContain(
+      "single-overlap.txt",
+    );
+  });
+
+  it("chooses the seed's rarer terms over its longer ones", async () => {
+    /**
+     * `docs ASC` — the document-frequency ordering, which the commit that
+     * introduced it called the working defence and the reason this is not
+     * a bare AND-to-OR swap. A reviewer deleted that one clause and the
+     * whole suite stayed green: with it gone the rule becomes "the eight
+     * longest words" and nothing noticed. The AND-versus-OR test does not
+     * cover it, because it tests AND versus OR.
+     *
+     * So this pins the ordering directly, through its consequence. The
+     * seed carries a rare short word and several long words that every
+     * document has. Ordering by frequency picks the short rare one and
+     * finds the neighbour that shares it; ordering by length picks the
+     * long common ones, whose neighbours are everybody, and the
+     * distinctive match is crowded out of a six-item list.
+     */
+    const owner = await prisma.user.create({
+      data: {
+        name: "Frequency ordering owner",
+        email: `related-df-${suffix}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    const space = await prisma.workspace.create({
+      data: { userId: owner.id },
+      select: { id: true },
+    });
+    const evidence = await ensureEvidenceScope({
+      workspaceId: space.id,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+      sourceScope: FileSourceScope.USER,
+      sourceId: owner.id,
+    });
+
+    const previousOwner = ownerId;
+    const previousWorkspace = workspaceId;
+    const previousScope = scopeId;
+    ownerId = owner.id;
+    workspaceId = space.id;
+    scopeId = evidence.id;
+
+    /**
+     * Every word here is longer than the rare term, and every one of them
+     * is in all of the bulk documents below. Length ordering prefers
+     * them; frequency ordering puts them last.
+     */
+    const LONG_AND_COMMON = [
+      "interdepartmental correspondence regarding administrative",
+      "reorganisation throughout the consolidated infrastructure",
+      "programme documentation supplementary appendices",
+    ].join(" ");
+
+    const seed = await seedResource(
+      "df-seed.txt",
+      `${LONG_AND_COMMON} plus obex.`,
+    );
+    for (let index = 0; index < 3; index += 1) {
+      await seedResource(
+        `df-bulk-${index}.txt`,
+        `${LONG_AND_COMMON} variation ${index}`,
+      );
+    }
+    // Shares only the short, rare word.
+    await seedResource(
+      "df-rare-match.txt",
+      "A note about obex and nothing else whatsoever in it.",
+    );
+
+    ownerId = previousOwner;
+    workspaceId = previousWorkspace;
+    scopeId = previousScope;
+
+    const result = await findRelatedFiles({
+      workspaceId: space.id,
+      actor: { userId: owner.id, organizationId: null, kind: "interactive" },
+      resourceId: seed,
+    });
+
+    expect(result.state).toBe("ok");
+    expect(result.items.map((item) => item.displayName)).toContain(
+      "df-rare-match.txt",
+    );
+  });
+
+  it("does not offer a neighbour that matched one ordinary word", async () => {
+    /**
+     * The rank floor, which a reviewer raised from 0.01 to 0.05 without
+     * reddening anything. Nothing pinned it, so it could be any number.
+     *
+     * The case it has to decide: a neighbour sharing exactly one term
+     * that is *not* rare. On the normalised scale that is 0.0608, against
+     * a floor of 0.09, so it is refused — while the rare-term escape in
+     * the same HAVING clause lets the previous test's genuine match
+     * through. Both halves have to hold or the constant is arbitrary
+     * again.
+     *
+     * Lowering the floor below 0.0608 turns this red. The upper bound is
+     * pinned by the test after this one, not by the two-document test —
+     * an earlier version of this comment claimed otherwise and a mutant
+     * disproved it: the two-document neighbour shares most of the seed's
+     * vocabulary and stays well above any floor worth considering.
+     */
+    const owner = await prisma.user.create({
+      data: {
+        name: "Floor owner",
+        email: `related-floor-${suffix}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    const space = await prisma.workspace.create({
+      data: { userId: owner.id },
+      select: { id: true },
+    });
+    const evidence = await ensureEvidenceScope({
+      workspaceId: space.id,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+      sourceScope: FileSourceScope.USER,
+      sourceId: owner.id,
+    });
+
+    const previousOwner = ownerId;
+    const previousWorkspace = workspaceId;
+    const previousScope = scopeId;
+    ownerId = owner.id;
+    workspaceId = space.id;
+    scopeId = evidence.id;
+
+    // Shared by the seed and its twin, so every one of them is eligible
+    // and none is rare enough to carry a match on its own.
+    // Exactly RELATED_SEED_TERM_LIMIT words, so every one of them is
+    // chosen and the match count is the only variable left. With nine,
+    // `docs ASC` drops whichever term the candidate shares and the test
+    // measures term selection instead of the floor.
+    const SHARED =
+      "settlement reconciliation variance ledger committee schedule " +
+      "appendix residual";
+    const seed = await seedResource("floor-seed.txt", SHARED);
+    await seedResource("floor-twin.txt", SHARED);
+    // Exactly one ordinary shared word, and it is not rare: it is in
+    // three of the four documents here.
+    await seedResource(
+      "floor-brush.txt",
+      "Kitchen worktop delivery and the extractor hood, plus one " +
+        "settlement of the invoice.",
+    );
+
+    ownerId = previousOwner;
+    workspaceId = previousWorkspace;
+    scopeId = previousScope;
+
+    const result = await findRelatedFiles({
+      workspaceId: space.id,
+      actor: { userId: owner.id, organizationId: null, kind: "interactive" },
+      resourceId: seed,
+    });
+
+    expect(result.items.map((item) => item.displayName)).toContain(
+      "floor-twin.txt",
+    );
+    expect(result.items.map((item) => item.displayName)).not.toContain(
+      "floor-brush.txt",
+    );
+  });
+
+  it("offers a neighbour that matched two ordinary words", async () => {
+    /**
+     * The floor's upper bound, which nothing pinned: raising it from 0.09
+     * to 0.15 left the whole suite green, so the number could have been
+     * anything above the single-match case.
+     *
+     * Two ordinary matches measure 0.1216 on the normalised scale. That
+     * is the weakest neighbour the feature should still offer when no
+     * rare term is involved — a real but modest overlap — so it is the
+     * case that fixes the ceiling. Together with the test above, the
+     * constant is now bounded on both sides by measurement rather than
+     * chosen.
+     */
+    const owner = await prisma.user.create({
+      data: {
+        name: "Ceiling owner",
+        email: `related-ceiling-${suffix}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    const space = await prisma.workspace.create({
+      data: { userId: owner.id },
+      select: { id: true },
+    });
+    const evidence = await ensureEvidenceScope({
+      workspaceId: space.id,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+      sourceScope: FileSourceScope.USER,
+      sourceId: owner.id,
+    });
+
+    const previousOwner = ownerId;
+    const previousWorkspace = workspaceId;
+    const previousScope = scopeId;
+    ownerId = owner.id;
+    workspaceId = space.id;
+    scopeId = evidence.id;
+
+    // Exactly RELATED_SEED_TERM_LIMIT words, so every one of them is
+    // chosen and the match count is the only variable left. With nine,
+    // `docs ASC` drops whichever term the candidate shares and the test
+    // measures term selection instead of the floor.
+    const SHARED =
+      "settlement reconciliation variance ledger committee schedule " +
+      "appendix residual";
+    const seed = await seedResource("ceiling-seed.txt", SHARED);
+    // Keeps every seed term eligible without being the answer.
+    await seedResource("ceiling-twin.txt", SHARED);
+    // Exactly two of the seed's ordinary terms, and no rare one.
+    await seedResource(
+      "ceiling-pair.txt",
+      "A note on the settlement and the variance, concerning a kitchen " +
+        "worktop and an extractor hood delivered last month.",
+    );
+
+    ownerId = previousOwner;
+    workspaceId = previousWorkspace;
+    scopeId = previousScope;
+
+    const result = await findRelatedFiles({
+      workspaceId: space.id,
+      actor: { userId: owner.id, organizationId: null, kind: "interactive" },
+      resourceId: seed,
+    });
+
+    expect(result.state).toBe("ok");
+    expect(result.items.map((item) => item.displayName)).toContain(
+      "ceiling-pair.txt",
+    );
+  });
 });

@@ -85,19 +85,70 @@ const RELATED_SEED_TERM_LIMIT = 8;
 /** Shorter than this is punctuation or an initial more often than a word. */
 const RELATED_MIN_TERM_LENGTH = 3;
 /**
- * The floor below which a neighbour is not offered.
+ * The floor below which a neighbour is not offered, per matched term.
  *
- * Deliberately low, and provisional. The primary defence against spurious
- * neighbours is the term selection above, not this number: by the time a
- * query runs it contains only the seed's rarest words. This exists to drop
- * a document that matched exactly one of them, weakly.
+ * **Per matched term is the whole point of this comment.** `ts_rank` over
+ * an OR query divides by the number of OR-ed terms, so the raw figure for
+ * one matched term occurring once falls as the seed contributes more
+ * vocabulary. Measured:
  *
- * **It has not been calibrated against real data**, and the risk of setting
- * it too high is precisely the failure being fixed here — an empty result
- * that looks like a considered answer. It is therefore set to exclude
- * almost nothing, and wants a look once there is a corpus worth measuring.
+ * | OR-ed terms | rank, single match |
+ * | ----------- | ------------------ |
+ * | 1           | 0.0608             |
+ * | 5           | 0.0122             |
+ * | 8           | 0.0076             |
+ *
+ * Against a fixed floor of 0.01 that meant this constant silently changed
+ * meaning with the seed. At the shipped `RELATED_SEED_TERM_LIMIT` of 8 it
+ * dropped **every** neighbour whose only overlap was one term occurring
+ * once — 0.0076 against a floor of 0.01 — while two-term overlap survived
+ * at 0.0152. The comment this replaces claimed the constant was "set to
+ * exclude almost nothing". It excluded the entire single-overlap band, and
+ * that band is the distant-but-genuine neighbour the feature exists to
+ * surface. `docs ASC` deliberately biases term selection toward rare
+ * words, which makes single-term overlap the expected case rather than the
+ * edge case.
+ *
+ * The bug was the coupling, not the number. Nobody chose "the same
+ * candidate is or is not a neighbour depending on how broad the seed's
+ * vocabulary happens to be", and no value of a fixed floor fixes it. The
+ * query now multiplies the rank back by the term count, so the floor means
+ * one thing at one term and at eight, and the number below can be reasoned
+ * about on its own.
+ *
+ * ## Why the number is not simply lowered
+ *
+ * Normalising alone does not settle it, and finding out why is what the
+ * measurement was for. On the normalised scale each matched term
+ * contributes 0.0608 whatever the seed's width:
+ *
+ * | matched terms | normalised |
+ * | ------------- | ---------- |
+ * | 1             | 0.0608     |
+ * | 2             | 0.1216     |
+ * | 3             | 0.1824     |
+ *
+ * A floor low enough to admit every single-term match also admits the
+ * failure the suite already guards against: in a three-document
+ * workspace, kitchen-renovation quotes relate to a reconciliation
+ * memorandum because both contain "following", which measures 0.0608 —
+ * indistinguishable from a genuine distant neighbour. The old fixed floor
+ * excluded that case, but only as a side effect of excluding *every*
+ * single-term match, which is the defect being fixed.
+ *
+ * `ts_rank` cannot tell the two apart, because they are the same event: one
+ * term, once. What separates them is the term, so that is where the test
+ * goes. A term matched by a document is evidence on its own when it is
+ * rare in the corpus — see `rare_tsq` — and otherwise a neighbour needs
+ * more than one of them. Hence 0.09, between one match and two.
+ *
+ * The honest limit: in a corpus this small nothing can tell "following"
+ * from "reconciliation", since both appear in two of three documents. The
+ * rarity test needs a corpus to work with, which is the same shape as the
+ * `simple`-dictionary limitation recorded above. What the number does now
+ * is mean one thing regardless of the seed, which it did not before.
  */
-const RELATED_MIN_RANK = 0.01;
+const RELATED_MIN_RANK = 0.09;
 
 /**
  * The seed's own words, deduplicated, in the order they first appear.
@@ -174,11 +225,47 @@ export async function findRelatedFiles(input: {
         SELECT DISTINCT unnest(ARRAY[${PrismaRaw.join(seedTerms)}]::text[]) AS word
       ),
       corpus AS (
-        SELECT COUNT(DISTINCT fv."resourceId") AS total
-        FROM file_chunk fc
-        JOIN file_version fv ON fv.id = fc."versionId"
-        JOIN file_resource fr ON fr.id = fv."resourceId"
-        WHERE ${authorized}
+        -- min(authorized documents with text, probe cap) — never the true
+        -- total, which nothing here needs.
+        --
+        -- Authorized, and that has a consequence worth stating: the
+        -- corpus statistic is computed over the rows this actor may read,
+        -- so relatedness is per-actor. Two people opening the same file
+        -- can see different neighbours, and somebody whose authorized
+        -- corpus is two documents gets terms chosen from a two-document
+        -- statistic. That is the price of not leaking, and it is the
+        -- right trade -- the alternative is a global statistic that tells
+        -- a reader something about documents they cannot open -- but it
+        -- was nowhere written down. A reviewer confirmed there is no leak:
+        -- the predicate is applied in this CTE and in the per-term probe,
+        -- each with its own file_resource join.
+        --
+        -- This counted every authorized document exactly, and it was the
+        -- one part of the lookup with no bound at all. The only consumer
+        -- is the LEAST() below, which never looks past the probe cap, so
+        -- the exact figure was computed and then discarded. Measured at
+        -- 2,000 documents: 11.6-15.7 ms exact against 4.1-6.6 ms bounded,
+        -- and the bounded form stops growing. I previously recorded this
+        -- CTE at 3 ms from a single reading at a small corpus and
+        -- dismissed it on that basis; that was not a measurement of the
+        -- case that matters.
+        --
+        -- Counting resources directly, rather than DISTINCT over chunks,
+        -- so the LIMIT can stop early instead of de-duplicating the whole
+        -- join first.
+        SELECT COUNT(*) AS total
+        FROM (
+          SELECT 1
+          FROM file_resource fr
+          WHERE ${authorized}
+            AND EXISTS (
+              SELECT 1
+              FROM file_version fv
+              JOIN file_chunk fc ON fc."versionId" = fv.id
+              WHERE fv."resourceId" = fr.id
+            )
+          LIMIT ${RELATED_DF_PROBE_CAP}
+        ) bounded
       ),
       frequency AS (
         -- Counting stops at RELATED_DF_PROBE_CAP per term, and that bound
@@ -196,7 +283,7 @@ export async function findRelatedFiles(input: {
           (
             SELECT COUNT(*)
             FROM (
-              SELECT DISTINCT fv."resourceId"
+              SELECT 1
               FROM file_chunk fc
               JOIN file_version fv ON fv.id = fc."versionId"
               JOIN file_resource fr ON fr.id = fv."resourceId"
@@ -222,30 +309,50 @@ export async function findRelatedFiles(input: {
         -- the first version of this fix did exactly that. It emptied
         -- related for any workspace holding two documents, because there
         -- every shared term is in every document: the bug being fixed,
-        -- reintroduced at a different corpus size and just as silent.
-        -- Sorting universal terms last instead means they are used only
-        -- when nothing better exists, and the filter can never empty the
-        -- set by itself.
-        SELECT word
+        -- reintroduced at a different corpus size and just as silent. So
+        -- universal terms stay eligible and are simply ordered last,
+        -- which docs ASC already does.
+        --
+        -- It used to do it twice. A leading
+        -- (docs >= LEAST(cap, corpus.total)) ASC sat above docs ASC
+        -- to sort "appears everywhere it could" to the end. That
+        -- expression is true exactly for the largest values of docs, so
+        -- it is a monotone function of the very column sorted next and
+        -- cannot reorder anything. Checked exhaustively over every
+        -- (docs, total) pair in range rather than argued: the orderings
+        -- are identical for all forty totals. Deleting a mutation
+        -- survivor is the right answer when the survivor is dead code
+        -- rather than an untested branch.
+        SELECT word, docs, corpus.total AS corpus_total
         FROM frequency, corpus
         WHERE docs > 1
         ORDER BY
-          -- "Appears everywhere it could" — at the probe cap in a large
-          -- corpus, or in literally every document in a small one. LEAST
-          -- makes one expression cover both, so the capped count cannot
-          -- make a common term look distinctive just because counting
-          -- stopped early.
-          (docs >= LEAST(${RELATED_DF_PROBE_CAP}, corpus.total)) ASC,
           docs ASC,
           length(word) DESC,
           word ASC
         LIMIT ${RELATED_SEED_TERM_LIMIT}
       ),
       q AS (
-        SELECT to_tsquery('simple', string_agg(word, ' | ')) AS tsq
+        SELECT
+          to_tsquery('simple', string_agg(word, ' | ')) AS tsq,
+          -- Carried out so the floor below can mean the same thing
+          -- whatever the seed's vocabulary turned out to be.
+          COUNT(*) AS terms,
+          -- The subset rare enough that matching one of them is evidence
+          -- on its own. NULL when none qualifies, which the HAVING below
+          -- handles by falling through to the rank floor.
+          to_tsquery(
+            'simple',
+            string_agg(word, ' | ') FILTER (WHERE docs * 2 <= corpus_total)
+          ) AS rare_tsq
         FROM distinctive
       )
-      SELECT fr.id, MAX(ts_rank(fc.search_vector, q.tsq)) AS rank
+      SELECT
+        fr.id,
+        -- ts_rank over an OR query divides by the number of OR-ed terms,
+        -- so multiplying it back out gives a figure comparable across
+        -- seeds. See RELATED_MIN_RANK.
+        MAX(ts_rank(fc.search_vector, q.tsq)) * q.terms AS rank
       FROM file_resource fr
       JOIN file_version fv
         ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
@@ -258,8 +365,13 @@ export async function findRelatedFiles(input: {
           SELECT seed."lineageId" FROM file_resource seed WHERE seed.id = ${seed.id}::uuid
         ))
         AND fc.search_vector @@ q.tsq
-      GROUP BY fr.id
-      HAVING MAX(ts_rank(fc.search_vector, q.tsq)) >= ${RELATED_MIN_RANK}
+      GROUP BY fr.id, q.terms
+      HAVING
+        MAX(ts_rank(fc.search_vector, q.tsq)) * q.terms >= ${RELATED_MIN_RANK}
+        -- Or it matched a term rare enough to carry the claim by itself.
+        -- Matching against NULL yields NULL and bool_or skips nulls, so
+        -- an empty rare set leaves the rank floor as the only test.
+        OR bool_or(fc.search_vector @@ q.rare_tsq)
       ORDER BY rank DESC
       LIMIT ${RELATED_CANDIDATE_LIMIT}
     `,
