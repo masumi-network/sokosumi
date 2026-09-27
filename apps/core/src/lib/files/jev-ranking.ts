@@ -94,12 +94,49 @@ interface PairScore {
 export async function rerankFileCandidates(
   input: RerankInput,
 ): Promise<RankingOutcome> {
-  const unchanged = (reason: string | null): RankingOutcome => ({
-    candidates: input.candidates,
-    mode: "deterministic",
-    fallbackReason: reason,
-    evaluated: 0,
-  });
+  const clock = input.now ?? (() => Date.now());
+  const rankingStartedAt = clock();
+
+  /**
+   * Reasons that are configuration or triviality rather than a failure.
+   *
+   * A disabled model and a list too short to reorder would otherwise put a
+   * line on every single search in an environment with the flag off.
+   */
+  const QUIET_REASONS = new Set(["model-disabled", "nothing-to-reorder"]);
+
+  const unchanged = (reason: string | null): RankingOutcome => {
+    /**
+     * Say why the model stage did not apply.
+     *
+     * This exists because a real search against the real provider fell back
+     * and **nothing anywhere could say which of five causes it was**.
+     * `fallbackReason` was computed and discarded; the latch reports to
+     * Sentry; nothing on this path logged. From outside the process a silent
+     * fallback is indistinguishable from a healthy deterministic search, so a
+     * feature that turns itself off does it invisibly.
+     *
+     * Three fields, and deliberately only three. The reason strings are our
+     * own constants, never provider text and never derived from a document,
+     * which is what makes them safe to log — so nothing that is not safe is
+     * allowed to join them. No query, no filename, no resource id, no
+     * snippet. There is a test that asserts exactly that.
+     */
+    if (reason !== null && !QUIET_REASONS.has(reason)) {
+      console.info("[drive/search] semantic ranking did not apply", {
+        reason,
+        candidates: input.candidates.length,
+        elapsedMs: clock() - rankingStartedAt,
+      });
+    }
+
+    return {
+      candidates: input.candidates,
+      mode: "deterministic",
+      fallbackReason: reason,
+      evaluated: 0,
+    };
+  };
 
   const configured = input.configured ?? isJevConfigured;
   if (!configured()) return unchanged("model-disabled");
@@ -126,7 +163,6 @@ export async function rerankFileCandidates(
   const evaluator = input.evaluator ?? gatewayJevEvaluator;
   const admit = input.admit ?? admitJevRequest;
   const recordDispatch = input.recordDispatch ?? recordJevDispatch;
-  const clock = input.now ?? (() => Date.now());
   const model = FILES_RANKING_MODEL;
   const workClass = input.workClass ?? "interactive";
   const deadline = clock() + RANK_DEADLINE_MS;

@@ -311,3 +311,104 @@ describe("rerankFileCandidates", () => {
     expect(outcome.fallbackReason).toBe("nothing-to-reorder");
   });
 });
+
+describe("why a fallback happened", () => {
+  /**
+   * The gate that proved this necessary: a real search against the real
+   * provider fell back, and nothing anywhere could say which of five causes
+   * it was. `fallbackReason` is computed and discarded, nothing logs, and the
+   * latch reports to Sentry. From outside the process a silent fallback is
+   * indistinguishable from a healthy deterministic search.
+   */
+  function captureInfo() {
+    const lines: unknown[][] = [];
+    const spy = vi
+      .spyOn(console, "info")
+      .mockImplementation((...args: unknown[]) => {
+        lines.push(args);
+      });
+    return { lines, restore: () => spy.mockRestore() };
+  }
+
+  it("logs the reason, the candidate count and the elapsed time", async () => {
+    const { lines, restore } = captureInfo();
+    try {
+      await rerankFileCandidates({
+        ...baseInput([candidate("doc-a"), candidate("doc-b")]),
+        configured: () => true,
+        admit: vi.fn(async () => null), // a denial, which is one of the five
+        evaluator: evaluatorReturning(() => 3),
+      });
+    } finally {
+      restore();
+    }
+
+    expect(lines).toHaveLength(1);
+    const [message, payload] = lines[0] as [string, Record<string, unknown>];
+    expect(message).toContain("semantic ranking did not apply");
+    expect(payload.reason).toBe("admission-denied");
+    expect(payload.candidates).toBe(2);
+    expect(typeof payload.elapsedMs).toBe("number");
+  });
+
+  it("logs nothing that came from a document or a query", async () => {
+    const { lines, restore } = captureInfo();
+    try {
+      await rerankFileCandidates({
+        ...baseInput([
+          candidate("doc-a", { displayName: "salaries-2026.xlsx" }),
+          candidate("doc-b", { bestChunkText: "confidential board minutes" }),
+        ]),
+        query: "board salaries",
+        configured: () => true,
+        admit: vi.fn(async () => null),
+        evaluator: evaluatorReturning(() => 3),
+      });
+    } finally {
+      restore();
+    }
+
+    // The reason string is safe to log precisely because nothing joins it.
+    const serialized = JSON.stringify(lines);
+    for (const secret of [
+      "salaries-2026.xlsx",
+      "confidential board minutes",
+      "board salaries",
+      "doc-a",
+    ]) {
+      expect(serialized).not.toContain(secret);
+    }
+    expect(Object.keys((lines[0] as unknown[])[1] as object).sort()).toEqual([
+      "candidates",
+      "elapsedMs",
+      "reason",
+    ]);
+  });
+
+  it("stays quiet for the two non-diagnostic cases", async () => {
+    // A disabled model and a list too short to reorder are configuration and
+    // triviality, not failures. Logging them would put a line on every
+    // search in an environment with the flag off.
+    const disabled = captureInfo();
+    try {
+      await rerankFileCandidates({
+        ...baseInput([candidate("doc-a"), candidate("doc-b")]),
+        configured: () => false,
+      });
+    } finally {
+      disabled.restore();
+    }
+    expect(disabled.lines).toHaveLength(0);
+
+    const trivial = captureInfo();
+    try {
+      await rerankFileCandidates({
+        ...baseInput([candidate("only-one")]),
+        configured: () => true,
+      });
+    } finally {
+      trivial.restore();
+    }
+    expect(trivial.lines).toHaveLength(0);
+  });
+});
