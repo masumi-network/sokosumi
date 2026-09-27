@@ -18,10 +18,25 @@ import { cn } from "@/lib/utils";
  * project name repeated what the sidebar row, the breadcrumb and the project
  * switcher already say, and they said it in the one band of the page the
  * composer wanted: the studio is a thing you type into, so it opens on the box
- * you type into. The page's name survives where a name is actually read — the
- * document title, set by the route's metadata.
+ * you type into.
  */
-export function StudioPageShell({ children }: { children: React.ReactNode }) {
+export function StudioPageShell({
+  children,
+  title,
+}: {
+  children: React.ReactNode;
+  /**
+   * The page's name, for the heading outline only.
+   *
+   * The same string the route's metadata puts in the document title, and it is
+   * `sr-only` on purpose: the visible headline row is gone, but a page whose
+   * outline starts at `h2` is a page a screen-reader reader cannot place, and
+   * everything below here — Templates, Images — is a section *of* something.
+   * Hiding it visually is what lets the page open on the composer and still
+   * have one `h1`.
+   */
+  title: string;
+}) {
   return (
     <div className={PROJECTS_WORKSPACE_SHELL_CLASS}>
       <div className={PROJECTS_WORKSPACE_CARD_CLASS}>
@@ -31,6 +46,7 @@ export function StudioPageShell({ children }: { children: React.ReactNode }) {
             "min-w-0 py-5 md:pt-6",
           )}
         >
+          <h1 className="sr-only">{title}</h1>
           {children}
         </div>
       </div>

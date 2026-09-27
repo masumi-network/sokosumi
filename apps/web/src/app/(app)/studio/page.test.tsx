@@ -102,7 +102,7 @@ describe("StudioPage", () => {
     expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
   });
 
-  it("opens the scoped project's gallery with nothing above it", async () => {
+  it("opens the scoped project's gallery with nothing visible above it", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     imageStudioServiceMock.getState.mockResolvedValue(studioState());
 
@@ -120,13 +120,46 @@ describe("StudioPage", () => {
     );
     const studio = screen.getByTestId("image-studio");
     expect(studio).toHaveAttribute("data-project", "project-1");
-    // No identity row: the mark, the product name and the project name
-    // repeated the sidebar row, the breadcrumb and the project switcher, in
-    // the one band of the page the composer wanted. The name survives in the
-    // document title; see `generateMetadata`.
-    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
-    expect(screen.queryByText("Launch plan")).not.toBeInTheDocument();
     expect(screen.queryByTestId("studio-no-project")).not.toBeInTheDocument();
+  });
+
+  /**
+   * The identity row is gone, and the page outline is not.
+   *
+   * The mark, the product name and the project name repeated the sidebar row,
+   * the breadcrumb and the project switcher, in the one band of the page the
+   * composer wanted — so they went. What must not go with them is the page's
+   * `h1`: everything the studio renders below it is a section *of* something,
+   * and an outline that starts at `h2` leaves a screen-reader reader with no
+   * way to place the page. So the heading stays and is `sr-only`.
+   */
+  it("keeps one accessible heading and no visible headline row", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    imageStudioServiceMock.getState.mockResolvedValue(studioState());
+
+    const { default: StudioPage } = await import("./page");
+
+    render(
+      await StudioPage({
+        searchParams: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    const headings = screen.getAllByRole("heading");
+    expect(headings).toHaveLength(1);
+    const [heading] = headings;
+    expect(heading.tagName).toBe("H1");
+    // The same key the document title reads, so the tab and the outline cannot
+    // disagree about what this page is called.
+    expect(heading).toHaveTextContent("App.Studio.title");
+    // Hidden by the class, not by `display: none` — visually absent, present
+    // in the accessibility tree. No stylesheet runs here, so the class is the
+    // only thing that can be asserted on.
+    expect(heading).toHaveClass("sr-only");
+    // And the project name the row used to carry beside it is still gone. (The
+    // studio's own `Templates`/`Images` headings are inside the mocked child,
+    // so this file cannot and does not speak for them.)
+    expect(screen.queryByText("Launch plan")).not.toBeInTheDocument();
   });
 
   it("names the page in the document title", async () => {

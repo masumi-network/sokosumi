@@ -18,11 +18,11 @@ interface StudioPageProps {
 }
 
 /**
- * The product name, where a name is still read.
+ * The product name, for the tab and anything that quotes the document title.
  *
- * The page itself no longer carries a headline, so this is the only place it
- * says what it is — the tab, the history entry and anything that quotes the
- * document title.
+ * The page carries no visible headline, so this and the shell's `sr-only` `h1`
+ * are the only two places it says what it is. They deliberately read the same
+ * key, so the tab and the heading outline can never disagree.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Studio");
@@ -46,7 +46,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
 
   if (!projectId) {
     return (
-      <StudioPageShell>
+      <StudioPageShell title={t("title")}>
         <StudioProjectPicker />
       </StudioPageShell>
     );
@@ -57,7 +57,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   // so the repair is to pick another project rather than to leave the page.
   if (!project) {
     return (
-      <StudioPageShell>
+      <StudioPageShell title={t("title")}>
         <StudioProjectPicker notice={t("pickUnavailable")} />
       </StudioPageShell>
     );
@@ -71,7 +71,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
       : null;
 
   return (
-    <StudioPageShell>
+    <StudioPageShell title={t("title")}>
       <ImageStudio
         initialSelectedAssetId={initialSelectedAssetId}
         initialState={state}
