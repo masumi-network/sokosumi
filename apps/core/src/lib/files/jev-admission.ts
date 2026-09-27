@@ -43,30 +43,34 @@ import {
  *
  * **What it has to cover.** The time from the database committing the grant
  * to this process deciding to dispatch — `grantTransitMs` in the ranking
- * log, emitted on every ranking. Measured on `d0b5ab652` against the
- * preview, 163 grants over 81 rankings: p50 4 ms, p90 6 ms, p99 18 ms,
- * **max 43 ms**. One cold-start observation, from the gate capture at
- * `405ddcadd`: roughly **721 ms**. The full dataset and how it was gathered
- * are in `evidence/ADMISSION-WINDOW-MEASUREMENT.md`.
+ * log, emitted on every ranking. Two runs against the preview, and all
+ * percentiles here are nearest-rank:
  *
- * **Why 50 was wrong**, and the warm number is the damning one rather than
- * the cold one: at steady state, warm, uncontended, the worst observed
- * transit was 43 ms against a 50 ms window. A bound the happy path nearly
- * misses is not a bound. The cold observation then exceeds it by 14×.
+ * - `d0b5ab652`, warm, 163 grants over 80 rankings: p50 4, p90 6, p95 11,
+ *   p99 31, **max 43**.
+ * - `f00c908bf`, including the first search against a freshly deployed
+ *   instance, 104 grants over 52 rankings: p50 3, p90 4, p95 5, p99 12,
+ *   **max 13**.
  *
- * **Why 2000.** Not a percentile: a p99 over that population is 18 ms, and
- * sizing on it would rebuild the present failure, because the population is
- * almost entirely warm and cold starts are the case that fails. The number
- * comes from a property instead — it must exceed `RANK_DEADLINE_MS` (600),
- * so that on the interactive path the rank deadline always binds first and
- * this window can never be the reason a dispatch is refused that the
- * deadline would have allowed. 2000 gives 3.3× over that deadline, 2.8× over
- * the single cold observation, and 46× over warm p99. A single sample of a
- * cold-start tail earns a multiple, not a percentage.
+ * The full datasets are in `evidence/ADMISSION-WINDOW-MEASUREMENT.md`.
+ *
+ * **Why 50 was wrong.** At steady state, warm, uncontended, the worst
+ * observed transit was 43 ms against a 50 ms window. A bound the happy path
+ * clears by 7 ms is not a bound; it is a coin toss that usually lands the
+ * right way up.
+ *
+ * **Why 2000.** Not a percentile — sizing on p99 (31) would leave the same
+ * kind of thin margin the 50 had. The number comes from a property instead:
+ * it must exceed `RANK_DEADLINE_MS` (600), so that on the interactive path
+ * the rank deadline always binds first and this window can never be the
+ * reason a dispatch is refused that the deadline would have allowed. 2000
+ * gives 3.3× over that deadline, 65× over warm p99 and 47× over the worst
+ * transit ever observed.
  *
  * The prior going in was "low seconds" and this lands inside it, but the
- * measurement did not confirm the prior: nothing observed needed seconds.
- * 1,000 would cover everything seen. The second second is headroom.
+ * measurement did not confirm the prior: nothing observed needed seconds,
+ * or came close. The seconds are headroom bought cheaply, justified by the
+ * ordering property rather than by the data.
  *
  * **Why the increase is negligible.** It adds 1,950 ms of authorization
  * staleness. The same admission row already counts against
@@ -81,7 +85,14 @@ import {
  * moment earlier and the search result itself is unaffected by any window.
  *
  * **What this does not fix.** Cold-start rankings still fall back, at the
- * rank deadline, which is by design — see `RANK_DEADLINE_MS`.
+ * rank deadline, which is by design — see `RANK_DEADLINE_MS`. The cause is
+ * provider latency under our own 600 ms cap, **not** admission transit: the
+ * first search against the freshly deployed `f00c908bf` fell back with
+ * `rank-deadline:aborted` at 616 ms while its two grants had taken 13 ms and
+ * 9 ms. An earlier draft of this docstring attributed the cold fallback to a
+ * ~721 ms admission round trip, on one observation from `405ddcadd` that
+ * this run did not reproduce and that nothing since has come near. That
+ * attribution is withdrawn; see the evidence file for what remains of it.
  *
  * **What it costs in signal.** `recordJevDispatch` with
  * `expired-before-dispatch` should now approach never on the interactive
@@ -201,24 +212,30 @@ export async function admitJevRequest(input: {
          * The clock starts here, and the position of this line is the whole
          * fix.
          *
-         * `ADMISSION_VALID_MS` is 50, and the module contract above puts the
-         * linearization point at *the transaction that writes the row*. The
-         * window was previously opened at function entry, so it was spent on
-         * our own work before the caller ever held the grant: a
-         * `resolveScopeEpoch` round trip, then queueing on
-         * `ADMISSION_LOCK_KEY` behind the rest of its own wave, then an
-         * aggregate scan. On a cold pool that exceeds 50 ms comfortably, so
-         * the caller's `isAdmissionDispatchable` check was already false and
-         * the grant was **born expired**. Observed in preprod as
+         * The module contract above puts the linearization point at *the
+         * transaction that writes the row*. The window was previously opened
+         * at function entry, so it was spent on our own work before the
+         * caller ever held the grant: a `resolveScopeEpoch` round trip, then
+         * queueing on `ADMISSION_LOCK_KEY` behind the rest of its own wave,
+         * then an aggregate scan. Against the 50 ms the window then was,
+         * that could exhaust it outright, so the caller's
+         * `isAdmissionDispatchable` check was already false and the grant was
+         * **born expired**. Observed in preprod as
          * `reason: "admission-expired"` with `elapsedMs` of 405 and 511 —
          * both under the 600 ms rank deadline, which is why a deadline could
          * never have explained it.
          *
-         * Widening the 50 ms would have been the wrong fix: it is a security
-         * property, not a tuning constant. It bounds how long a grant issued
-         * before a revocation commits may still open a socket. Moving where
-         * the window *starts* preserves that bound exactly and removes only
-         * the self-defeat.
+         * **An earlier version of this comment said widening the window
+         * would have been the wrong fix, "a security property, not a tuning
+         * constant". The window has since been widened, from 50 ms to
+         * 2,000 — see `ADMISSION_VALID_MS`, which argues it out and does not
+         * repeat the claim.** The part that survives is narrower and is the
+         * reason this line stays where it is: moving where the window
+         * *starts* is free, because it removes self-inflicted delay without
+         * touching the bound at all. Widening is not free; it is a real,
+         * argued trade, and the two fixes are independent. Doing the cheap
+         * one did not license skipping the argument for the expensive one,
+         * and this comment previously read as though it forbade it.
          *
          * `clock_timestamp()`, not `now()`: `now()` is fixed at transaction
          * start in Postgres, so it would be captured **before** the lock wait
@@ -306,14 +323,18 @@ export async function admitJevRequest(input: {
          * The previous attempt took `clock_timestamp()` right after the lock
          * and called that "the row write". It was not: the aggregate scan
          * above, this insert, the COMMIT and the return hop all still sat
-         * inside the 50 ms. That removed two of the three pre-commit
+         * inside the window. That removed two of the three pre-commit
          * consumers the comment above names and left the third, three lines
          * below naming it.
          *
          * Minting here leaves only COMMIT plus the return hop to fra1 inside
-         * the window. **Whether those two fit in 50 ms is not yet known** —
-         * the `grantAgeMs` recorded on the `admission-expired` path is there
-         * to measure it rather than to assert it.
+         * the window. **That has since been measured** rather than asserted,
+         * which is what `grantTransitMs` in the ranking log is for: 163
+         * grants at p50 4 ms and max 43 ms warm, and 104 grants at p50 3 ms
+         * and max 13 ms on a freshly deployed instance. They fit, and they
+         * fitted inside the old 50 ms too — with 7 ms to spare at the worst
+         * observed, which is why the window moved anyway. See
+         * `ADMISSION_VALID_MS`.
          *
          * Raw SQL because Prisma cannot express a server-side
          * `clock_timestamp()` in `create`, and `CURRENT_TIMESTAMP` — which is
@@ -323,11 +344,15 @@ export async function admitJevRequest(input: {
          * `clock_timestamp()` is **volatile**, so calling it twice reads the
          * clock twice. Each reading rounds independently into `TIMESTAMP(3)`,
          * and when the pair straddles a millisecond boundary the stored gap
-         * is 51 rather than 50. Measured on this schema: 3 in 4000 trials.
-         * That is an intermittent test failure nobody reproduces and a
-         * window that is quietly wrong by a millisecond. The CTE takes one
-         * reading and derives both columns from it — 4000 of 4000 at exactly
-         * 50 — which is what lets the test below assert equality at all.
+         * is one millisecond over. Measured on this schema while the window
+         * was 50: 51 rather than 50 in 3 of 4000 trials. That is an
+         * intermittent test failure nobody reproduces and a window that is
+         * quietly wrong by a millisecond. The CTE takes one reading and
+         * derives both columns from it — 4000 of 4000 exact — which is what
+         * lets the test below assert equality against
+         * `ADMISSION_VALID_MS` at all. The defect and the fix are
+         * independent of what the constant happens to be; the trial counts
+         * are quoted at the value they were run under.
          *
          * Three further sharp edges, all load-bearing:
          *

@@ -556,9 +556,14 @@ describe("why a fallback happened", () => {
           expiresAt: new Date(Date.now() + 10_000),
         };
       }
+      // Minted one whole window before it expired, so `expiredByMs`
+      // (now - expiresAt = 671) and the transit (now - admittedAt = 2671)
+      // are far enough apart that an assertion on one cannot be satisfied
+      // by the other. They were 50 ms apart and a mutation swapping the
+      // two went undetected.
       return {
         id: "admission-stale",
-        admittedAt: new Date(Date.now() - 721),
+        admittedAt: new Date(Date.now() - 671 - 2_000),
         expiresAt: new Date(Date.now() - 671),
       };
     });
@@ -606,7 +611,22 @@ describe("why a fallback happened", () => {
     });
 
     const event = emitted[0];
-    expect(event.expiredByMs).toBe(671);
+    /**
+     * A range, not an equality, and the reason is worth keeping.
+     *
+     * This asserted `toBe(671)` and failed once in a re-run. The mock builds
+     * `expiresAt` from `Date.now()` when `admit` is called; the code reads
+     * the clock again at the dispatch check, deliberately, because that is
+     * the reading the check itself uses and it cannot be injected. One
+     * millisecond between the two makes the answer 672. An exact assertion
+     * on a difference of two real clock readings is a coin toss, and a test
+     * that fails once in twenty teaches people to re-run rather than to
+     * read. The bound is still tight enough to prove the number is the
+     * expiry overage and not some other duration.
+     */
+    const expiredByMs = event.expiredByMs as number;
+    expect(expiredByMs).toBeGreaterThanOrEqual(671);
+    expect(expiredByMs).toBeLessThan(771);
     // The invariant, stated as the reader has to be able to apply it: if the
     // number is there, the event says which cause it belongs to.
     const reported = [
@@ -622,9 +642,18 @@ describe("why a fallback happened", () => {
     // sample of 671 from the one event that did log is not a distribution.
     const { emitted, rankingLog } = captureLog();
 
+    // A grant minted 300 ms ago and valid for another 10 s. The two offsets
+    // are deliberately on opposite sides of "now" so that measuring from
+    // the wrong column is not merely a different number but a negative one.
+    const MINTED_AGO_MS = 300;
     const outcome = await rerankFileCandidates({
       ...baseInput([candidate("doc-a"), candidate("doc-b")]),
       configured: () => true,
+      admit: vi.fn(async () => ({
+        id: "admission-timed",
+        admittedAt: new Date(Date.now() - MINTED_AGO_MS),
+        expiresAt: new Date(Date.now() + 10_000),
+      })),
       evaluator: evaluatorReturning(() => 3),
       rankingLog,
     });
@@ -636,6 +665,18 @@ describe("why a fallback happened", () => {
     // One sample per candidate that reached the dispatch check.
     const transit = emitted[0].grantTransitMs as number[];
     expect(transit).toHaveLength(2);
-    for (const sample of transit) expect(typeof sample).toBe("number");
+    /**
+     * And it is the age of the grant, not some other duration.
+     *
+     * Asserting only `typeof === "number"` let a mutation that measured
+     * from `expiresAt` instead of `admittedAt` pass — the field the whole
+     * window is sized from, unpinned. A range rather than an equality for
+     * the same reason as `expiredByMs` above: both ends of this subtraction
+     * are real clock readings.
+     */
+    for (const sample of transit) {
+      expect(sample).toBeGreaterThanOrEqual(MINTED_AGO_MS);
+      expect(sample).toBeLessThan(MINTED_AGO_MS + 100);
+    }
   });
 });

@@ -98,24 +98,34 @@ export const PER_WORKSPACE_USD_PER_DAY = 25;
  * Writing it down because it was previously true and unexplained, and 25% of
  * a small sample reads as broken to anyone who has not been told otherwise.
  *
- * What was measured, on `d0b5ab652` against the preview (the numbers and the
- * raw events are in `evidence/ADMISSION-WINDOW-MEASUREMENT.md`): warm, a
- * whole ranking takes p50 366 ms and p99 605 ms, and 2 of 81 crossed this
- * deadline — those two are the provider's own latency sitting near the cap,
- * with healthy 4 ms grants. Cold, the admission round trip **alone** was
- * about 721 ms, which is past this deadline before a single evaluation has
- * been requested.
+ * What was measured against the preview (numbers and raw events in
+ * `evidence/ADMISSION-WINDOW-MEASUREMENT.md`): a whole ranking takes p50
+ * 366 ms and p99 605 ms warm, and 2 of 81 crossed this deadline. The first
+ * search against a freshly deployed instance also crossed it, at 616 ms.
  *
- * So on a cold instance no setting of `ADMISSION_VALID_MS` recovers the
- * rerank; only raising this deadline would, and raising it is the one thing
- * it exists to prevent. The deadline's purpose is that a user waiting for
- * search results never pays for a cold model stage, and the fallback is not
- * a degraded answer — it is the deterministic fused order, the same order
- * the reader would have had before this feature existed.
+ * **In every case the cause was provider latency under this cap, not our
+ * own overhead.** The cold fallback logged `rank-deadline:aborted` — our
+ * signal cutting a call the provider still had — with grants that had taken
+ * 13 ms and 9 ms to arrive. An earlier version of this comment said the
+ * cold admission round trip alone was ~721 ms and therefore past this
+ * deadline before any evaluation was requested. That rested on a single
+ * observation from `405ddcadd` which the measured run did not reproduce,
+ * and it is withdrawn.
  *
- * Telling the two apart from outside the process is now possible and was
- * not before: a `rank-deadline` event carries `grantTransitMs`, so ~700 ms
- * reads as cold start and ~4 ms reads as a slow provider.
+ * What survives is the decision, and it survives for a better reason: the
+ * model stage on a cold instance is slow where it is *expensive* to be
+ * slow, in the provider call, and no local tuning reaches that. Raising
+ * this deadline is the only thing that would, and raising it is the one
+ * thing it exists to prevent. The deadline's purpose is that a user waiting
+ * for search results never pays for a cold model stage, and the fallback is
+ * not a degraded answer — it is the deterministic fused order, the same
+ * order the reader would have had before this feature existed.
+ *
+ * Telling the causes apart from outside the process is now possible and was
+ * not before, on two counts: every event carries `grantTransitMs`, so a
+ * slow grant is visible rather than inferred, and the deadline reasons are
+ * split per return site, so `:pre-wave` (budget gone before the wave) reads
+ * differently from `:aborted` (we cut the provider).
  *
  * (`ADMISSION_QUEUE_MAX_MS = 50` stood here, exported and referenced by
  * nothing. Removed rather than left: it was the same number as the old
