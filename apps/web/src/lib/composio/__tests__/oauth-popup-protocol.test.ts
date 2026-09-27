@@ -7,6 +7,7 @@ import {
   COMPOSIO_OAUTH_BROADCAST_CHANNEL,
   COMPOSIO_OAUTH_MESSAGE_TYPE,
   COMPOSIO_OAUTH_NONCE_STORAGE_KEY,
+  getComposioOAuthPopupName,
   isComposioOAuthAckPayload,
   isComposioOAuthCallbackPayload,
   parseComposioCallbackSearchParams,
@@ -120,51 +121,121 @@ describe("oauth-popup-protocol", () => {
 });
 
 describe("callback delivery after cross-site navigation", () => {
-  it("delivers the stored nonce when the browser clears window.name and opener", () => {
-    const postMessage = vi.fn();
-    const close = vi.fn();
-    const channels: string[] = [];
-    const getItem = vi.fn(() => "attempt-123");
-    const removeItem = vi.fn();
-    class CallbackChannel {
-      constructor(name: string) {
-        channels.push(name);
+  it.each([
+    { source: "session storage", storedNonce: "attempt-123", name: "" },
+    {
+      source: "popup name",
+      storedNonce: null,
+      name: getComposioOAuthPopupName("attempt-123"),
+    },
+  ])(
+    "delivers the $source nonce without redirecting to the bot verifier",
+    ({ storedNonce, name }) => {
+      const postMessage = vi.fn();
+      const close = vi.fn();
+      const channels: string[] = [];
+      const getItem = vi.fn(() => storedNonce);
+      const replace = vi.fn();
+      const removeItem = vi.fn();
+      class CallbackChannel {
+        constructor(name: string) {
+          channels.push(name);
+        }
+        postMessage = postMessage;
+        close = vi.fn();
       }
-      postMessage = postMessage;
-      close = vi.fn();
-    }
 
+      runInNewContext(buildComposioCallbackInlineScript(), {
+        URLSearchParams,
+        BroadcastChannel: CallbackChannel,
+        setTimeout: vi.fn(),
+        window: {
+          sessionStorage: { getItem, removeItem },
+          name,
+          opener: null,
+          location: {
+            origin: "https://app.sokosumi.com",
+            replace,
+            search:
+              "?session_uri=https%3A%2F%2Fbackend.composio.dev%2Fsession%2Fone-use",
+          },
+          addEventListener: vi.fn(),
+          close,
+        },
+      });
+
+      expect(channels).toEqual([
+        `${COMPOSIO_OAUTH_BROADCAST_CHANNEL}:attempt-123`,
+      ]);
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nonce: "attempt-123",
+          connectionId: null,
+          sessionUri: "https://backend.composio.dev/session/one-use",
+          status: "success",
+        }),
+      );
+      expect(getItem).toHaveBeenCalledWith(COMPOSIO_OAUTH_NONCE_STORAGE_KEY);
+      expect(removeItem).toHaveBeenCalledWith(COMPOSIO_OAUTH_NONCE_STORAGE_KEY);
+      expect(close).toHaveBeenCalledOnce();
+      expect(replace).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("same-tab Composio verification", () => {
+  it.each(["session_uri", "sessionUri"])(
+    "forwards %s to the signed-in bot verifier without using popup delivery",
+    (parameter) => {
+      const sessionUri =
+        "session_token&returnUrl=https://untrusted.example/?a=1#fragment";
+      const replace = vi.fn();
+      const postMessage = vi.fn();
+      const close = vi.fn();
+      const broadcast = vi.fn();
+      const query = new URLSearchParams({
+        [parameter]: sessionUri,
+        returnUrl: "https://untrusted.example/",
+        userId: "someone-else",
+      });
+
+      runInNewContext(buildComposioCallbackInlineScript(), {
+        URLSearchParams,
+        BroadcastChannel: broadcast,
+        setTimeout: vi.fn(),
+        window: {
+          sessionStorage: { getItem: () => null, removeItem: vi.fn() },
+          name: "",
+          opener: { postMessage },
+          location: {
+            origin: "https://preprod.sokosumi.com",
+            search: `?${query}`,
+            replace,
+          },
+          addEventListener: vi.fn(),
+          close,
+        },
+      });
+
+      expect(replace).toHaveBeenCalledExactlyOnceWith(
+        `/personal-assistant/integrations/verify?session_uri=${encodeURIComponent(sessionUri)}`,
+      );
+      expect(broadcast).not.toHaveBeenCalled();
+      expect(postMessage).not.toHaveBeenCalled();
+      expect(close).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not redeem a callback without a session or popup nonce", () => {
+    const replace = vi.fn();
     runInNewContext(buildComposioCallbackInlineScript(), {
       URLSearchParams,
-      BroadcastChannel: CallbackChannel,
-      setTimeout: vi.fn(),
       window: {
-        sessionStorage: { getItem, removeItem },
+        sessionStorage: { getItem: () => null, removeItem: vi.fn() },
         name: "",
-        opener: null,
-        location: {
-          origin: "https://app.sokosumi.com",
-          search:
-            "?session_uri=https%3A%2F%2Fbackend.composio.dev%2Fsession%2Fone-use",
-        },
-        addEventListener: vi.fn(),
-        close,
+        location: { search: "?status=success", replace },
       },
     });
-
-    expect(channels).toEqual([
-      `${COMPOSIO_OAUTH_BROADCAST_CHANNEL}:attempt-123`,
-    ]);
-    expect(postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        nonce: "attempt-123",
-        connectionId: null,
-        sessionUri: "https://backend.composio.dev/session/one-use",
-        status: "success",
-      }),
-    );
-    expect(getItem).toHaveBeenCalledWith(COMPOSIO_OAUTH_NONCE_STORAGE_KEY);
-    expect(removeItem).toHaveBeenCalledWith(COMPOSIO_OAUTH_NONCE_STORAGE_KEY);
-    expect(close).toHaveBeenCalledOnce();
+    expect(replace).not.toHaveBeenCalled();
   });
 });

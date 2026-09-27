@@ -107,6 +107,7 @@ export function chatMentionRoomShape(
 }
 
 interface EmitChatHumanMentionNotificationsParams {
+  throwOnError?: boolean;
   messageId: string;
   mentionedUserIds: readonly string[];
 }
@@ -174,8 +175,10 @@ export async function emitChatHumanMentionNotifications(
         ? sokoBotDisplayName(message.senderSokoBot)
         : (message.senderCoworker?.name ?? "Someone"),
       mentionedUserIds: params.mentionedUserIds,
+      ...(params.throwOnError ? { throwOnError: true } : {}),
     });
   } catch (error) {
+    if (params.throwOnError) throw error;
     Sentry.captureException(error, {
       tags: { context: "chat_mention_notifications" },
       extra: {

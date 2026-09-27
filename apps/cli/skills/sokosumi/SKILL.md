@@ -44,13 +44,19 @@ sokosumi agents list --json
 printf '%s\n' "$SOKOSUMI_API_KEY" | sokosumi auth login --api-key-stdin --json
 ```
 
-For Coworker registration, use Sokosumi Preprod by default. Do not register a Coworker on Mainnet. The current CLI does not yet enforce this rule, so verify the resolved target before sending a registration request. Keep other CLI commands on the user's selected target.
+For Coworker onboarding, use Sokosumi Preprod. `coworkers register` and `connect` default to Preprod when no target is configured. The CLI blocks those commands on Mainnet or a custom target before it sends a Core request. Keep other CLI commands on the user's selected target.
 
 ## Coworker onboarding status
 
-The intended flow keeps the Coworker private and attaches it to one selected Workspace. The current Core create route requires platform admin authentication. The current CLI does not attach Workspace access during registration or expose the existing workspace-access route yet. If a Vendor admin receives `403`, stop. Do not ask for a platform-admin token or try another route.
+The intended flow keeps the Coworker private and attaches it to one selected Workspace. Choose a Workspace from `sokosumi workspaces list`. Pass its organization ID as `--workspace-id`. The CLI sends that ID to Core as `organizationId`.
 
-With current Core permissions, a platform admin must provision the Coworker record first. Core then lets a Vendor admin manage that Coworker, create its runtime API key, and grant access to a Workspace where they are a member. The CLI does not complete that Workspace grant yet. Report setup as complete only when Core returns `GRANTED`.
+For the hackathon, an organizer with platform admin access provisions a private Coworker under the developer's Vendor on Preprod. Wait for the Coworker ID before running `coworkers connect`. Do not run `coworkers register` with ordinary developer credentials. Core rejects Coworker creation without platform admin access. If Core returns `403`, stop. Do not ask for a platform-admin token or try another route. A Vendor admin can connect an existing Coworker to a Workspace they can access. Report setup as complete only when Core returns `GRANTED`.
+
+If registration creates a Coworker but Workspace access does not reach `GRANTED`, keep the Coworker ID and retry after approval:
+
+```bash
+sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID --json
+```
 
 If the user has no organization Workspace, the current CLI directs them to the Sokosumi Web workspace switcher. It does not create a Workspace.
 
@@ -60,8 +66,11 @@ If the user has no organization Workspace, the current CLI directs them to the S
 sokosumi discover --json
 sokosumi agents list --search "code review" --json
 sokosumi agents hire AGENT_ID --input-file ./payload.json --max-credits 25 --json
+sokosumi --preprod vendors me --json
 sokosumi coworkers list --scope available --search "QUERY" --capability tasks --json
-sokosumi --preprod coworkers register --vendor-id VENDOR_ID --name "Nexus" --base-url "https://nexus.example.com/v1" --capability chat --capability tasks --json
+sokosumi --preprod workspaces list --json
+sokosumi --preprod coworkers register --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID --name "Nexus" --base-url "https://nexus.example.com/v1" --capability chat --capability tasks --json
+sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID --json
 sokosumi tasks create --coworker-id COWORKER_ID --name "Task title" --description "Task brief" --status READY --json
 sokosumi tasks get TASK_ID --json
 sokosumi tasks events TASK_ID --json
@@ -74,7 +83,7 @@ sokosumi jobs input JOB_ID --event-id EVENT_ID --input-json '{"answer":"..."}' -
 
 Use `--metadata-json` or `--metadata-file` for coworker metadata. Use repeated `--channel provider=value` options for channel metadata. Text API-key output is masked. JSON API-key output contains the one-time token so the user can store it securely.
 
-The `coworkers register` example is the current command shape. It does not complete the private Workspace setup described above. Use it only on Preprod and only when the signed-in user has the Core role required to create Coworkers.
+The `coworkers register` command creates a record and requests Workspace access. It completes only when Core returns `GRANTED`. Coworker creation still follows Core's platform-admin role check. Use `coworkers connect` for an existing Coworker when the signed-in user has the required Vendor and Workspace access.
 
 ## Skill routing
 
@@ -88,6 +97,8 @@ The `coworkers register` example is the current command shape. It does not compl
 - `GET /v1/agents`
 - `POST /v1/agents/:agentId/jobs` (`agents hire` fetches `GET /v1/agents/:agentId/input-schema` internally)
 - `GET /v1/coworkers`
+- `POST /v1/coworkers`
+- `POST /v1/coworkers/:coworkerId/workspace-access`
 - `POST /v1/tasks`
 - `GET /v1/tasks`
 - `GET /v1/tasks/:taskId`

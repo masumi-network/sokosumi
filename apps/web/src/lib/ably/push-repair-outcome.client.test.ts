@@ -56,6 +56,18 @@ beforeEach(() => {
 });
 
 describe("push repair outcome", () => {
+  it("can notify browser state readers when an intentional off leaves repair status healthy", async () => {
+    const store = await loadStore();
+    hasUnfinishedPushTeardownMock.mockReturnValue(true);
+    await store.recordPushRepairOutcome();
+    const listener = vi.fn();
+    const unsubscribe = store.subscribePushRepairOutcome(listener);
+    await store.recordPushRepairOutcome({ notify: true });
+    expect(listener).toHaveBeenCalledOnce();
+    expect(store.getPushRepairOutcome()).toBe("healthy");
+    unsubscribe();
+  });
+
   it("starts pending, so nothing reports on a browser no repair has read", async () => {
     const store = await loadStore();
 

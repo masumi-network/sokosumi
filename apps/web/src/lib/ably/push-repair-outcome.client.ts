@@ -59,6 +59,8 @@ export function subscribePushRepairOutcome(listener: () => void): () => void {
 }
 
 interface RecordPushRepairOutcomeOptions {
+  /** Notify browser-state readers even when the repair status did not change. */
+  notify?: boolean;
   /**
    * Whether Ably held a registration for this browser *before* the repair
    * ran, which the caller has to have read for itself.
@@ -98,7 +100,7 @@ export async function recordPushRepairOutcome(
     return;
   }
   setUnresolvedPushRepair(next === "quiet");
-  if (next === outcome) {
+  if (next === outcome && !options?.notify) {
     return;
   }
 

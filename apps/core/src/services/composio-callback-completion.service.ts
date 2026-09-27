@@ -59,23 +59,5 @@ export async function completeComposioCallback(input: {
     return;
   }
 
-  const hermesIntent = await prisma.hermesPendingConnection.findUnique({
-    where: { connectionId: input.connectionId },
-    select: { userId: true, expiresAt: true },
-  });
-  if (
-    !hermesIntent ||
-    hermesIntent.userId !== input.userId ||
-    hermesIntent.expiresAt <= new Date()
-  ) {
-    throw notFound("Unknown or expired connection");
-  }
-
-  const completion = await completeComposioAuth({
-    sessionUri: input.sessionUri,
-    userId: input.userId,
-  });
-  if (completion.connectedAccountId !== input.connectionId) {
-    throw notFound("Unknown or expired connection");
-  }
+  throw notFound("Unknown or expired connection");
 }

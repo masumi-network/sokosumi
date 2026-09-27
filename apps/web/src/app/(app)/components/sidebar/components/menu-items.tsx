@@ -3,7 +3,6 @@
 import {
   Bot,
   CalendarDays,
-  FolderKanban,
   HardDrive,
   History,
   ListTodo,
@@ -14,9 +13,10 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ComponentType, Fragment, type SVGProps } from "react";
+import { type ComponentType, Fragment, Suspense, type SVGProps } from "react";
 import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
+import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { SheetClose } from "@/components/ui/sheet";
 import {
@@ -36,8 +36,6 @@ import {
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 
-import { ProjectsMenuItem } from "./projects-menu-item";
-
 interface MenuItemConfig {
   key: string;
   href?: string;
@@ -50,6 +48,15 @@ interface MenuItemConfig {
 }
 
 export default function MenuItems() {
+  return (
+    <Suspense fallback={null}>
+      <ScopedMenuItems />
+    </Suspense>
+  );
+}
+
+function ScopedMenuItems() {
+  const { hrefFor, projectId } = useProjectScope();
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   // Soft read: Instant Nav shell may mount before HistorySearchDialogProvider.
@@ -66,7 +73,7 @@ export default function MenuItems() {
   }
 
   function handleNewTaskClick() {
-    newTaskWizard?.openNewTaskWizard();
+    newTaskWizard?.openNewTaskWizard({ projectId });
     if (isMobile) {
       setOpenMobile(false);
     }
@@ -87,7 +94,11 @@ export default function MenuItems() {
       // Task Manager link, which explains the Seat requirement.
       ...(newTaskWizard && hasAssignedSeat
         ? { onClick: handleNewTaskClick }
-        : { href: "/tasks?create=true" }),
+        : {
+            href: projectId
+              ? `${hrefFor("/tasks")}&create=true`
+              : "/tasks?create=true",
+          }),
       label: t("newTask"),
       Icon: Plus,
       separatorAfter: true,
@@ -105,12 +116,6 @@ export default function MenuItems() {
       href: "/agents",
       label: t("exploreAgents"),
       Icon: Bot,
-    },
-    {
-      key: "projects",
-      href: "/projects",
-      label: t("projects"),
-      Icon: FolderKanban,
     },
     {
       key: "task-manager",
@@ -170,9 +175,6 @@ export default function MenuItems() {
                 ariaKeyshortcuts,
                 separatorAfter,
               }) => {
-                if (key === "projects") {
-                  return <ProjectsMenuItem key={key} />;
-                }
                 const isActive = href ? isPathActive(href) : false;
                 // The pill wears the rail square's 4px inset and 4px padding
                 // at every width, so collapsing only narrows it: its edge
@@ -227,7 +229,7 @@ export default function MenuItems() {
                         >
                           <SheetClose asChild>
                             <Link
-                              href={href}
+                              href={hrefFor(href)}
                               aria-current={isActive ? "page" : undefined}
                               className={cn(
                                 key === "new-task"

@@ -6,7 +6,7 @@ import {
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type prisma from "@/lib/db/prisma";
+import prisma from "@/lib/db/prisma";
 
 import {
   type CreateNotificationInput,
@@ -38,6 +38,8 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: userFindUniqueMock,
     },
     notification: {
+      create: vi.fn(),
+      findUnique: vi.fn(),
       findMany: notificationFindManyMock,
     },
   },
@@ -210,6 +212,27 @@ describe("createNotification", () => {
         workspaceId: "11111111-1111-7111-8111-111111111111",
       }),
     });
+  });
+
+  it("retains one durable publication revision after an outbox handoff retry", async () => {
+    const queued = createNotificationRecord({
+      publishId: "stable-publication-revision",
+      publishQueuedAt: CREATED_AT,
+      publishNextAttemptAt: CREATED_AT,
+    });
+    vi.mocked(prisma.notification.create).mockRejectedValueOnce(
+      createUniqueViolation(),
+    );
+    vi.mocked(prisma.notification.findUnique).mockResolvedValueOnce(queued);
+    schedulePublishMock.mockClear();
+    publishNotificationEventMock.mockClear();
+
+    const result = await createNotification(notificationInput);
+
+    expect(result).toEqual({ notification: queued, created: false });
+    expect(result.notification.publishId).toBe("stable-publication-revision");
+    expect(schedulePublishMock).not.toHaveBeenCalled();
+    expect(publishNotificationEventMock).not.toHaveBeenCalled();
   });
 
   it("returns the existing row unchanged on duplicate emits", async () => {

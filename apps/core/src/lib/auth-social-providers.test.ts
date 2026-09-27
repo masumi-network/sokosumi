@@ -52,6 +52,8 @@ function createLinkingAuth(
     socialProviders: {
       google: {
         ...socialProviderOptions.google,
+        // This fixture exercises token storage through the legacy linking path.
+        disableIdTokenSignIn: false,
         verifyIdToken: async () => true,
         refreshAccessToken: async () => ({ accessToken: "ya29.refreshed" }),
       },
@@ -118,12 +120,14 @@ describe("social provider options", () => {
     expect(socialProviderOptions.google).toEqual({
       clientId: "test-google-client-id",
       clientSecret: "test-google-client-secret",
+      disableIdTokenSignIn: true,
       overrideUserInfoOnSignIn: false,
       mapProfileToUser: expect.any(Function),
     });
     expect(socialProviderOptions.microsoft).toEqual({
       clientId: "test-microsoft-client-id",
       clientSecret: "test-microsoft-client-secret",
+      disableIdTokenSignIn: true,
       overrideUserInfoOnSignIn: false,
       mapProfileToUser: expect.any(Function),
     });
@@ -192,6 +196,85 @@ describe("social provider options", () => {
     });
     expect(captureExceptionMock).toHaveBeenCalledWith(expect.any(Error));
   });
+});
+
+describe("social sign-in boundaries (SOK-1178)", () => {
+  it.each(["google", "microsoft"] as const)(
+    "rejects client-submitted %s ID tokens before creating a session",
+    async (provider) => {
+      const db: MemoryDb = {
+        user: [],
+        session: [],
+        account: [],
+        verification: [],
+      };
+      const signInAuth = betterAuth({
+        baseURL: "https://auth.example.com",
+        basePath: "/auth",
+        secret: linkingSecret,
+        database: memoryAdapter(db),
+        socialProviders: socialProviderOptions,
+        rateLimit: { enabled: false },
+      });
+
+      const response = await signInAuth.handler(
+        new Request("https://auth.example.com/auth/sign-in/social", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider,
+            idToken: { token: "provider-token" },
+          }),
+        }),
+      );
+
+      expect(response.status).toBe(404);
+      expect(await response.json()).toMatchObject({
+        code: "ID_TOKEN_NOT_SUPPORTED",
+      });
+      expect(response.headers.get("set-cookie")).toBeNull();
+      expect(db.user).toEqual([]);
+      expect(db.account).toEqual([]);
+      expect(db.session).toEqual([]);
+    },
+  );
+
+  it.each([
+    ["google", "accounts.google.com"],
+    ["microsoft", "login.microsoftonline.com"],
+  ] as const)(
+    "keeps %s authorization-code sign-in available",
+    async (provider, host) => {
+      const db: MemoryDb = {
+        user: [],
+        session: [],
+        account: [],
+        verification: [],
+      };
+      const signInAuth = betterAuth({
+        baseURL: "https://auth.example.com",
+        basePath: "/auth",
+        secret: linkingSecret,
+        database: memoryAdapter(db),
+        socialProviders: socialProviderOptions,
+        rateLimit: { enabled: false },
+      });
+
+      const response = await signInAuth.api.signInSocial({
+        body: { provider, callbackURL: "https://auth.example.com/home" },
+      });
+
+      expect(response.redirect).toBe(true);
+      const url = new URL(response.url ?? "");
+      expect(url.hostname).toBe(host);
+      expect(url.searchParams.get("response_type")).toBe("code");
+      expect(url.searchParams.get("state")).toBeTruthy();
+      expect(url.searchParams.get("redirect_uri")).toBe(
+        `https://auth.example.com/auth/callback/${provider}`,
+      );
+      expect(db.session).toEqual([]);
+    },
+  );
 });
 
 describe("stored OAuth provider tokens", () => {

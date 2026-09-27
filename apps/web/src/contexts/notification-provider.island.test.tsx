@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render as renderComponent, screen } from "@testing-library/react";
 import { type ReactNode, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,6 +7,11 @@ import {
   useNotifications,
 } from "@/contexts/notification-provider";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
+import { TestQueryProvider } from "@/test/query-provider";
+
+function render(ui: ReactNode) {
+  return renderComponent(ui, { wrapper: TestQueryProvider });
+}
 
 const getNotificationsMock = vi.fn();
 

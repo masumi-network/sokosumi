@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   batch: vi.fn(),
   list: vi.fn(),
   mutate: vi.fn(),
+  recover: vi.fn(),
+  alias: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -20,6 +22,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: mocks.receipt,
       update: mocks.updateReceipt,
       updateMany: mocks.reclaim,
+      upsert: mocks.alias,
     },
     workspace: { findUniqueOrThrow: mocks.workspace },
     sokoBotTurn: { findUnique: mocks.turn },
@@ -27,6 +30,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 vi.mock("@/helpers/data-table", () => ({
   resolveTableActor: mocks.actor,
+  readTableOperation: mocks.recover,
   createDataTable: mocks.create,
   batchTableRows: mocks.batch,
   listDataTables: mocks.list,
@@ -102,15 +106,16 @@ it.each(["write_table_rows", "create_table", "update_table_columns"] as const)(
       update_table_columns: { tableId, key: randomUUID(), version: 1, columns },
     };
     const input = payloads[capability];
-    const { createHash } = await import("node:crypto");
+    const { actionInputHash } = await import("@/lib/soko-bot/action-receipts");
     let receipt = {
       id: randomUUID(),
-      status: "PENDING",
+      turnId,
+      toolCallId: "original-call",
+      status: "COMPLETED",
+      targetId: tableId,
       capability,
-      inputHash: createHash("sha256")
-        .update(JSON.stringify(input))
-        .digest("hex"),
-      result: null,
+      inputHash: actionInputHash(input),
+      result: { truncated: true },
     };
     mocks.receipt.mockImplementation(async () => receipt);
     mocks.reclaim.mockResolvedValue({ count: 1 });
@@ -146,16 +151,30 @@ it.each(["write_table_rows", "create_table", "update_table_columns"] as const)(
       capability,
       input,
     };
-    const first = await runtime.executeTool(request);
-    expect(first).toMatchObject(
+    mocks.recover.mockResolvedValue({ tableId, result });
+    const replay = await runtime.executeTool(request);
+    expect(replay).toEqual(
       capability === "create_table"
-        ? { table: result, url: `/drive/tables/${tableId}` }
+        ? {
+            table: result,
+            url: `/drive/tables/${tableId}`,
+            instruction:
+              "Table created. Present this link now; enrich in bounded batches. Reuse this table ID for follow-ups.",
+          }
         : result,
     );
-    const replay = await runtime.executeTool(request);
-    expect(replay).toEqual(first);
-    expect(helper).toHaveBeenCalledTimes(2);
-    expect(helper.mock.calls[0]).toEqual(helper.mock.calls[1]);
+    expect(helper).not.toHaveBeenCalled();
+    expect(mocks.recover).toHaveBeenCalledOnce();
+    expect(mocks.alias).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          turnId,
+          toolCallId: "same-call",
+          replayedReceiptId: receipt.id,
+          disposition: "ALREADY_SATISFIED",
+        }),
+      }),
+    );
     expect(receipt.result).toMatchObject({ truncated: true });
   },
 );

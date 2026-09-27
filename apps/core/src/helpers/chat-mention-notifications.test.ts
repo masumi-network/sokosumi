@@ -359,6 +359,25 @@ describe("emitChatMentionNotifications", () => {
    * rejection has no caller left to catch it and arrives as an unhandled one
    * that names nothing (#4411).
    */
+  it("propagates queue failure through strict mention fan-out", async () => {
+    const failure = new Error("queue write failed");
+    createNotificationMock.mockRejectedValueOnce(failure);
+    await expect(
+      emitChatMentionNotifications({
+        roomId: ROOM_ID,
+        roomName: "Engineering",
+        roomShape: "channel",
+        organizationId: null,
+        messageId: MESSAGE_ID,
+        content: "ship it",
+        authorUserId: AUTHOR_ID,
+        authorName: "Ada",
+        mentionedUserIds: [MENTIONED_ID],
+        throwOnError: true,
+      }),
+    ).rejects.toBe(failure);
+  });
+
   it("reports a failed fan-out instead of rejecting", async () => {
     const failure = new Error("fan-out failed");
     membershipFindManyMock.mockRejectedValueOnce(failure);

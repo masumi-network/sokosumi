@@ -34,6 +34,7 @@ interface CreateProjectWizardProps {
   creationSource?: ProjectCreationSource;
   onSuccess?: (projectId: string, name: string, project?: Project) => void;
   onSubmittingChange?: (isSubmitting: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export function CreateProjectWizard({
@@ -43,6 +44,7 @@ export function CreateProjectWizard({
   creationSource,
   onSuccess,
   onSubmittingChange,
+  onCloseAutoFocus,
 }: CreateProjectWizardProps) {
   const t = useTranslations("App.Projects");
   const [step, setStep] = useState(0);
@@ -150,6 +152,7 @@ export function CreateProjectWizard({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         data-testid="create-project-wizard"
+        onCloseAutoFocus={onCloseAutoFocus}
         className="bg-background top-0 left-0 grid h-dvh w-screen max-w-none! translate-x-0 translate-y-0 grid-rows-[auto_1fr_auto] gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[720px] sm:max-h-[92dvh] sm:w-[calc(100vw-4rem)] sm:max-w-2xl! sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border [&>button]:top-5 [&>button]:right-5 sm:[&>button]:top-6 sm:[&>button]:right-6"
       >
         <DialogTitle className="sr-only">{t("Wizard.title")}</DialogTitle>
@@ -186,7 +189,7 @@ export function CreateProjectWizard({
           </span>
         </div>
 
-        <div className="flex min-h-0 flex-col overflow-y-auto px-6 py-6 sm:px-16">
+        <div className="app-scrollbar flex min-h-0 flex-col overflow-y-auto px-6 py-6 sm:px-16">
           <div
             key={isBrandStep ? "brand" : step}
             className="animate-in fade-in-0 slide-in-from-bottom-1 my-auto w-full duration-200 ease-out motion-reduce:animate-none"
@@ -292,7 +295,7 @@ export function CreateProjectWizard({
                     </dt>
                     <dd>
                       {briefing.trim() ? (
-                        <p className="text-foreground max-h-40 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
+                        <p className="app-scrollbar text-foreground max-h-40 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
                           {briefing.trim()}
                         </p>
                       ) : (

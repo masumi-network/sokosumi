@@ -235,7 +235,7 @@ export function CreateDirectDialog() {
         </DialogHeader>
         <div
           data-testid="direct-recipient-composer"
-          className="border-input focus-within:border-ring focus-within:ring-ring-halo flex max-h-24 min-h-10 min-w-0 shrink-0 cursor-text flex-wrap items-center gap-2 overflow-y-auto rounded-md border px-2.5 py-1.5 focus-within:ring-[3px]"
+          className="app-scrollbar border-input focus-within:border-ring focus-within:ring-ring-halo flex max-h-24 min-h-10 min-w-0 shrink-0 cursor-text flex-wrap items-center gap-2 overflow-y-auto rounded-md border px-2.5 py-1.5 focus-within:ring-[3px]"
           onClick={() => searchInputRef.current?.focus()}
         >
           <Search
@@ -306,7 +306,7 @@ export function CreateDirectDialog() {
           <div
             ref={rosterScrollRef}
             data-testid="direct-roster-scrollport"
-            className="absolute inset-0 overflow-y-auto overscroll-contain"
+            className="app-scrollbar absolute inset-0 overflow-y-auto overscroll-contain"
             aria-busy={!rosterLoaded || undefined}
           >
             {!rosterLoaded ? (

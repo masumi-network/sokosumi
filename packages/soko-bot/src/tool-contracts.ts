@@ -35,6 +35,7 @@ export const sokoBotAgentIdInputSchema = z
 
 export const sokoBotCreateTaskInputSchema = z
   .object({
+    triggeringTaskId: z.string().min(1).optional(),
     name: z.string().trim().min(1).max(160),
     description: z.string().trim().max(20_000).nullable().optional(),
     projectId: z.string().uuid().nullable().optional(),
@@ -46,9 +47,26 @@ export const sokoBotCreateTaskInputSchema = z
 export const sokoBotUpdateTaskInputSchema = z
   .object({
     taskId: z.string().min(1),
+    projectId: z.string().uuid().nullable().optional(),
+    expectedUpdatedAt: z.string().datetime().optional(),
     name: z.string().trim().min(1).max(160).optional(),
     description: z.string().trim().max(20_000).nullable().optional(),
     status: z.enum(["DRAFT", "READY"]).optional(),
+  })
+  .strict()
+  .refine(
+    (input) =>
+      input.name !== undefined ||
+      input.description !== undefined ||
+      input.status !== undefined ||
+      input.projectId !== undefined,
+    { message: "Specify a task change" },
+  );
+
+export const sokoBotArchiveTaskInputSchema = z
+  .object({
+    taskId: z.string().min(1),
+    expectedUpdatedAt: z.string().datetime(),
   })
   .strict();
 
@@ -110,6 +128,7 @@ export const sokoBotProvideJobInputSchema = z
 export const SOKO_BOT_DECISION_TARGETS = [
   "create_task",
   "update_task",
+  "archive_task",
   "assign_task",
   "hire_agent",
   "provide_job_input",
@@ -246,6 +265,15 @@ export const sokoBotRunIntegrationToolInputSchema = z.object({
   arguments: z.record(z.string(), z.unknown()).optional(),
 });
 
+export const sokoBotManageReminderInputSchema = z
+  .object({
+    key: z.string().min(1).max(200),
+    action: z.enum(["ACKNOWLEDGE", "SNOOZE", "CANCEL"]),
+    revision: z.number().int().positive(),
+    snoozedUntil: z.string().datetime().optional(),
+  })
+  .strict();
+
 export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   list_tables: z.object({
     taskId: z.string().max(200).optional(),
@@ -280,6 +308,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   find_coworkers: sokoBotSearchInputSchema,
   create_task: sokoBotCreateTaskInputSchema,
   update_task: sokoBotUpdateTaskInputSchema,
+  archive_task: sokoBotArchiveTaskInputSchema,
   assign_task: sokoBotAssignTaskInputSchema,
   get_task_status: sokoBotTaskIdInputSchema,
   reply_to_task: sokoBotReplyToTaskInputSchema,
@@ -296,10 +325,13 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   list_schedules: emptyInputSchema,
   create_schedule: sokoBotCreateScheduleInputSchema,
   update_schedule: sokoBotUpdateScheduleInputSchema,
+  manage_reminder: sokoBotManageReminderInputSchema,
   delete_schedule: sokoBotScheduleIdInputSchema,
 } as const satisfies Record<SokoBotCapability, z.ZodType>;
 
 export const SOKO_BOT_TOOL_DESCRIPTIONS = {
+  manage_reminder:
+    "Acknowledge, snooze, or cancel an existing follow-up reminder using its key and current revision from context. Acknowledgment pauses notifications; it does not resolve the underlying task. Snoozing never changes task due dates.",
   list_integration_tools:
     "What you can do with one of the owner's connected accounts (Slack, Notion, Linear, GitHub, …): tool slugs with descriptions and input schemas. Mailboxes are read through search_inbox/read_email instead.",
   run_integration_tool:
@@ -338,7 +370,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Find available AI Coworkers suitable for delegated Task work.",
   create_task:
     "Create Sokosumi Task, preferably DRAFT, for Coworker execution.",
-  update_task: "Update existing Task scope or DRAFT/READY status.",
+  update_task:
+    "Update existing Task scope or DRAFT/READY status. Move with projectId as a separate operation; first read the task and provide its exact updatedAt as expectedUpdatedAt. Never create a replacement task to simulate a move.",
+  archive_task:
+    "Archive exactly one eligible task owned by the requesting owner, only when the owner explicitly asks. First use get_task_status and pass its exact updatedAt as expectedUpdatedAt. Clarify ambiguous names. Archiving removes the task from the normal board but preserves task history; it neither cancels work nor permanently deletes data. Active schedule templates and tasks in disallowed states cannot be archived. Never bypass these checks by changing status or removing a schedule. Report success only from the committed archive receipt.",
   assign_task: "Assign Task to available Coworker and optionally make READY.",
   get_task_status:
     "Read a Task in full: status, assignee, description, the latest events with the Coworker's comments (questions, results, failure reasons), attached files, and linked Tasks.",
@@ -357,7 +392,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   provide_job_input:
     "Send the input an Agent Job is waiting for; applied right away.",
   request_user_decision:
-    "Create durable Pending decision without parking runtime.",
+    "Persist an owner approval proposal for one currently granted decision target without parking runtime. Use when the owner requests approval before acting; clarify an ambiguous target before proposing. A proposal is not an executed action. An explicit owner instruction to perform an eligible action is already authorization and does not require asking again.",
   read_memory: "Read canonical short-term Soko Bot memory.",
   update_memory:
     "Replace bounded canonical memory file with durable working context.",

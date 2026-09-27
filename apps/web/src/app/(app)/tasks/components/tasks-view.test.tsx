@@ -132,9 +132,6 @@ vi.mock("./jobs-view-filters", () => ({ JobsViewFilters: () => null }));
 vi.mock("./tasks-view-filters", () => ({
   TasksViewFilters: () => <button type="button">Filters</button>,
 }));
-vi.mock("./tasks-project-switcher", () => ({
-  TasksProjectSwitcher: () => <button type="button">Project</button>,
-}));
 vi.mock("./task-list-view", () => ({
   TaskListView: ({ compact }: { compact: boolean }) => (
     <div data-testid="list-density" data-compact={compact} />
@@ -465,7 +462,6 @@ describe("TasksView without the task-board guide", () => {
         "active",
       );
       expect(screen.getByRole("tab", { name: "Jobs" })).toBeEnabled();
-      expect(screen.getByRole("button", { name: "Project" })).toBeEnabled();
       expect(screen.getByRole("button", { name: "Filters" })).toBeEnabled();
       await user.click(screen.getByRole("button", { name: "createTaskFab" }));
       expect(openCreateTaskMock).toHaveBeenCalledOnce();

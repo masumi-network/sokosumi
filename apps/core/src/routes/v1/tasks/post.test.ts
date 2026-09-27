@@ -6,7 +6,7 @@ import {
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
@@ -31,6 +31,22 @@ vi.mock("@/services/task-tag-suggestions.service", async (importOriginal) => ({
   >()),
   readCachedTaskTagSuggestions: cachedSuggestionsMock,
 }));
+
+// Inline classification runs for real in this file. It is off unless a test turns
+// it on, so every other test here sees the same behaviour as before: no key, no
+// provider call, no tag write.
+const gateway = vi.hoisted(() => ({ enabled: false }));
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({
+      ...actual.getEnv(),
+      TASK_TAG_CLASSIFICATION_ENABLED: gateway.enabled,
+      ...(gateway.enabled ? { AI_GATEWAY_API_KEY: "test-gateway-key" } : {}),
+    }),
+  };
+});
 
 const {
   ensureProjectFilesTokenMock,
@@ -567,11 +583,7 @@ describe("POST /tasks", () => {
       const response = await createApp().request("http://localhost/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...body,
-          tagSuggestionReceipt: receipt,
-          tagCorrections: { add: ["design"], remove: ["research"] },
-        }),
+        body: JSON.stringify({ ...body, tagSuggestionReceipt: receipt }),
       });
       expect(response.status).toBe(201);
       expect(cachedSuggestionsMock).not.toHaveBeenCalled();
@@ -582,8 +594,6 @@ describe("POST /tasks", () => {
           tagClassificationState: "complete",
           tagClassificationLease: null,
           tagVocabularyVersion: 1,
-          manualTags: ["design"],
-          rejectedTags: ["research"],
         },
       });
       expect(taskCreateMock.mock.invocationCallOrder[0]).toBeLessThan(
@@ -594,21 +604,25 @@ describe("POST /tasks", () => {
       );
     },
   );
-  it("keeps creation working with an invalid receipt and preserves corrections", async () => {
+  it("keeps creation working and untagged when the receipt is invalid", async () => {
     const response = await createApp().request("http://localhost/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Task",
-        tagSuggestionReceipt: "invalid",
-        tagCorrections: { add: ["design"], remove: [] },
-      }),
+      body: JSON.stringify({ name: "Task", tagSuggestionReceipt: "invalid" }),
     });
     expect(response.status).toBe(201);
-    expect(taskUpdateMock).toHaveBeenCalledWith({
-      where: { id: "tsk_123" },
-      data: { manualTags: ["design"], rejectedTags: [] },
-    });
+    // No provider is configured, so the row keeps the `pending` state its insert
+    // trigger set and the `/sync/task-tags` cron classifies it later.
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("no longer accepts tag corrections on create", () => {
+    expect(
+      createTaskRequestSchema.parse({
+        name: "Task",
+        tagCorrections: { add: ["design"], remove: [] },
+      }),
+    ).not.toHaveProperty("tagCorrections");
   });
 
   it.each([{ tags: [] }, { tags: ["research"] }] as const)(
@@ -1601,21 +1615,6 @@ describe("POST /tasks delegated coworker create grant", () => {
     );
   });
 
-  it("does not allow delegated coworkers to apply human corrections", async () => {
-    const response = await createDelegatedCoworkerApp().request(
-      "http://localhost/",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: "Task",
-          tagCorrections: { add: ["research"], remove: [] },
-        }),
-      },
-    );
-    expect(response.status).toBe(403);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
-  });
   it("ignores a human receipt in delegated coworker creation", async () => {
     mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
     const body = {
@@ -1982,5 +1981,279 @@ describe("POST /tasks delegated coworker create grant", () => {
       expect.anything(),
     );
     expect(taskCreateMock).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Item 3 acceptance: a Gateway outage, a policy rejection, a timeout or a rate
+ * limit must never fail or slow a create. These run the real inline classifier
+ * against a stubbed Gateway, on both the token/API actor and the session actor
+ * the composer uses, and assert the task is created every time.
+ */
+describe("POST /tasks inline tag classification failure modes", () => {
+  const gatewayUrl = "https://ai-gateway.vercel.sh/v1/evaluate";
+  const body = {
+    description:
+      "Research competitors and prepare a detailed market analysis report",
+  };
+
+  function createAppForMethod(authenticationMethod: "session" | "api_key") {
+    const app = new OpenAPIHonoWithAuth();
+    app.onError(errorHandler);
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+        role: "user",
+        authenticationMethod,
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      });
+      return await next();
+    });
+    mountPostTask(app);
+    return app;
+  }
+
+  function jevAnswers(probability: number) {
+    return {
+      model: "typesafe-ai/jev",
+      answers: Object.fromEntries(
+        [
+          "research",
+          "strategy",
+          "writing",
+          "design",
+          "analysis",
+          "development",
+          "marketing",
+          "social",
+          "seo",
+          "operations",
+        ].map((id) => [
+          id,
+          { type: "boolean", probability: id === "research" ? probability : 0 },
+        ]),
+      ),
+      usage: { inputTokens: 40, outputTokens: 12 },
+      providerMetadata: {
+        gateway: { cost: "0.0000373", generationId: "gen_1" },
+      },
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    gateway.enabled = true;
+    cachedSuggestionsMock.mockResolvedValue(null);
+    resolveEffectiveDesignMdMock.mockResolvedValue(null);
+    generateTaskNameMock.mockResolvedValue("Generated name");
+    taskCreateMock.mockResolvedValue({ id: "tsk_123" });
+    taskFindUniqueOrThrowMock.mockResolvedValue({ id: "tsk_123" });
+    mapTaskMock.mockImplementation((task) => buildMapTaskResponse(task));
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => unknown) =>
+        await callback({
+          project: { findFirst: projectFindFirstMock },
+          task: {
+            create: taskCreateMock,
+            update: taskUpdateMock,
+            findUniqueOrThrow: taskFindUniqueOrThrowMock,
+          },
+        }),
+    );
+  });
+  afterEach(() => {
+    gateway.enabled = false;
+    vi.unstubAllGlobals();
+  });
+
+  it.each(["api_key", "session"] as const)(
+    "tags a %s create inline, in the create response",
+    async (method) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(jevAnswers(0.97))),
+      );
+      const response = await createAppForMethod(method).request(
+        "http://localhost/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      expect(response.status).toBe(201);
+      expect(fetch).toHaveBeenCalledWith(
+        gatewayUrl,
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(taskUpdateMock).toHaveBeenCalledWith({
+        where: { id: "tsk_123" },
+        data: {
+          automaticTags: ["research"],
+          tagClassificationState: "complete",
+          tagClassificationLease: null,
+          tagVocabularyVersion: 1,
+        },
+      });
+    },
+  );
+
+  it.each([
+    { label: "a 5xx outage", status: 503 },
+    { label: "a policy rejection", status: 403 },
+    { label: "a rate limit", status: 429 },
+  ])(
+    "still creates an api_key task through $label and leaves it pending",
+    async ({ status }) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response("", { status })),
+      );
+      const response = await createAppForMethod("api_key").request(
+        "http://localhost/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      expect(response.status).toBe(201);
+      expect(taskCreateMock).toHaveBeenCalledTimes(1);
+      // No tag write at all: the insert trigger's `pending` state survives, so the
+      // `/sync/task-tags` cron picks the row up on a later tick.
+      expect(taskUpdateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { label: "a 5xx outage", status: 503 },
+    { label: "a rate limit", status: 429 },
+  ])(
+    "still creates a composer (session) task through $label",
+    async ({ status }) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response("", { status })),
+      );
+      const response = await createAppForMethod("session").request(
+        "http://localhost/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      expect(response.status).toBe(201);
+      expect(taskUpdateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["api_key", "session"] as const)(
+    "still creates a %s task when the Gateway connection itself fails",
+    async (method) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => {
+          throw new TypeError("fetch failed");
+        }),
+      );
+      const response = await createAppForMethod(method).request(
+        "http://localhost/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      expect(response.status).toBe(201);
+      expect(taskUpdateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["api_key", "session"] as const)(
+    "bounds a hung Gateway and still creates a %s task",
+    async (method) => {
+      // Honour the abort signal exactly as the runtime's fetch does, and never
+      // settle otherwise: the create must come back on our own short ceiling,
+      // well inside the classifier's own 12s request timeout.
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          (_url: string, init?: { signal?: AbortSignal }) =>
+            new Promise<Response>((_resolve, reject) => {
+              init?.signal?.addEventListener("abort", () =>
+                reject(
+                  new DOMException("The operation was aborted", "AbortError"),
+                ),
+              );
+            }),
+        ),
+      );
+      const startedAt = Date.now();
+      const response = await createAppForMethod(method).request(
+        "http://localhost/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      const elapsed = Date.now() - startedAt;
+      expect(response.status).toBe(201);
+      expect(taskUpdateMock).not.toHaveBeenCalled();
+      expect(elapsed).toBeLessThan(6_000);
+    },
+    15_000,
+  );
+
+  it("still creates the task when the Gateway answers are unusable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ model: "typesafe-ai/jev" })),
+    );
+    const response = await createAppForMethod("api_key").request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+    expect(response.status).toBe(201);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("prefers a verified composer receipt over an inline call", async () => {
+    const fetchMock = vi.fn(async () => Response.json(jevAnswers(0.97)));
+    vi.stubGlobal("fetch", fetchMock);
+    const receipt = issueTaskTagReceipt(
+      {
+        userId: "user_123",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+      body,
+      ["strategy"],
+    );
+    const response = await createAppForMethod("session").request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...body, tagSuggestionReceipt: receipt }),
+      },
+    );
+    expect(response.status).toBe(201);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(taskUpdateMock).toHaveBeenCalledWith({
+      where: { id: "tsk_123" },
+      data: expect.objectContaining({ automaticTags: ["strategy"] }),
+    });
   });
 });

@@ -1129,7 +1129,7 @@ function StatusApp({
           label: vendor.name || "Unnamed vendor",
           hint:
             vendor.role === "admin"
-              ? "admin · can register Coworkers"
+              ? "admin · Vendor access"
               : vendor.role || undefined,
         }))
       : [{ value: "empty", label: "No vendors found", hint: "empty" }];
@@ -1142,7 +1142,7 @@ function StatusApp({
         { dimColor: true },
         resourceLoading
           ? "Loading vendor memberships…"
-          : "Admin role is required to register Coworkers under a Vendor.",
+          : "Choose an administered Vendor. Core also checks who can create Coworkers.",
       ),
       React.createElement(SelectInput, {
         items: vendorItems,
@@ -1182,7 +1182,7 @@ function StatusApp({
         { dimColor: true },
         resourceLoading
           ? "Loading organization workspaces…"
-          : "Choose a workspace before registering a workspace-only Coworker.",
+          : "Choose a workspace for the Coworker.",
       ),
       React.createElement(SelectInput, {
         items: workspaceItems,
@@ -1208,7 +1208,7 @@ function StatusApp({
       React.createElement(
         Text,
         { dimColor: true },
-        "Sign in is done. Review Vendors and Workspaces. Create a Coworker with headless `sokosumi coworkers register`.",
+        "Sign in is done. Review Vendors and Workspaces, then connect an organizer-provisioned Coworker.",
       ),
       React.createElement(Text, { dimColor: true }, "sokosumi coworkers list"),
       React.createElement(
