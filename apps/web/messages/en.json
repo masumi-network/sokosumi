@@ -1286,7 +1286,6 @@
         },
         "Form": {
           "success": "We've sent you an email to reset your password",
-          "error": "Failed to reset password",
           "reset_password": "Reset password",
           "Fields": {
             "Email": {

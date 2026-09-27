@@ -1286,7 +1286,6 @@
         },
         "Form": {
           "success": "Te hemos enviado un email para restablecer tu contraseña",
-          "error": "No se pudo restablecer la contraseña",
           "reset_password": "Restablecer contraseña",
           "Fields": {
             "Email": {

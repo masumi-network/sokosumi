@@ -1286,7 +1286,6 @@
         },
         "Form": {
           "success": "Wir haben dir eine E-Mail zum Zurücksetzen deines Passworts gesendet",
-          "error": "Passwort konnte nicht zurückgesetzt werden",
           "reset_password": "Passwort zurücksetzen",
           "Fields": {
             "Email": {
