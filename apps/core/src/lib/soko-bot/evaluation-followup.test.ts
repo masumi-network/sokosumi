@@ -90,7 +90,6 @@ it("measures the real SDK follow-up with a sanitized task observation", async ()
       }),
     },
   });
-  process.stdout.write(JSON.stringify({ sizes, parts }) + "\n");
   expect(sizes).toHaveLength(2);
   expect(sizes[1]).toBeLessThan(32768);
 });

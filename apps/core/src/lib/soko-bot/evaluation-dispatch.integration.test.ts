@@ -17,6 +17,8 @@ import {
 import { z } from "zod";
 
 const config = vi.hoisted(() => ({ raw: "" }));
+const EVALUATION_DATABASE_URL =
+  "postgresql://patrick@127.0.0.1:55439/soko_reliability_evaluation";
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     NETWORK: "Preprod",
@@ -28,10 +30,10 @@ vi.mock("@/config/env", () => ({
 vi.mock("@/lib/db/prisma", async () => {
   const { createPrismaClient } = await import("@sokosumi/database/client");
   const url = process.env.LOCAL_EVALUATION_DATABASE_URL;
-  if (
-    url !== "postgresql://patrick@127.0.0.1:55439/soko_reliability_evaluation"
-  )
-    throw new Error("Explicit disposable evaluation database required");
+  if (url !== EVALUATION_DATABASE_URL)
+    throw new Error(
+      `Explicit disposable evaluation database required: set LOCAL_EVALUATION_DATABASE_URL=${EVALUATION_DATABASE_URL}`,
+    );
   return { default: createPrismaClient(url) };
 });
 describe.skipIf(!process.env.LOCAL_EVALUATION_DATABASE_URL)(
