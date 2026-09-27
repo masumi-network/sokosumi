@@ -9,7 +9,7 @@
  * has to put it back. iOS cannot take that write during a touch scroll.
  */
 export const CHAT_MESSAGE_LIST_SCROLLER_CLASS =
-  "flex min-h-0 min-w-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-tertiary [&::-webkit-scrollbar-track]:bg-transparent";
+  "app-scrollbar flex min-h-0 min-w-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]";
 
 /**
  * The scroller's one child, without its padding. `shrink-0`, or the flex

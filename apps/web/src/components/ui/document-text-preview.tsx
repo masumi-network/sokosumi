@@ -12,22 +12,33 @@ import { cn } from "@/lib/utils";
 export function DocumentTextPreview({
   title,
   content,
+  showLetterhead = true,
 }: {
   title: string;
   content: string;
+  /**
+   * Whether to print the document's own name above the body.
+   *
+   * The offer preview has no other title, so it keeps the letterhead. Inside
+   * `DocumentViewer` the dialog header already shows the same icon and the
+   * same filename, and printing it again made one document look like two —
+   * an outer window with a smaller document card nested inside it.
+   */
+  showLetterhead?: boolean;
 }) {
   return (
-    <div className="bg-card-background h-full w-full overflow-y-auto p-4 md:p-6">
+    <div className="app-scrollbar bg-card-background h-full w-full overflow-y-auto p-4 md:p-6">
       <article className="bg-background border-border mx-auto max-w-2xl overflow-hidden rounded-xl border shadow-md">
-        {/* Document letterhead */}
-        <div className="border-border flex items-center gap-2.5 border-b px-7 py-3.5 md:px-10">
-          <span className="bg-primary-quinary text-primary flex size-7 shrink-0 items-center justify-center rounded-md">
-            <FileText className="size-4" aria-hidden />
-          </span>
-          <p className="text-foreground truncate text-sm font-medium">
-            {title}
-          </p>
-        </div>
+        {showLetterhead ? (
+          <div className="border-border flex items-center gap-2.5 border-b px-7 py-3.5 md:px-10">
+            <span className="bg-primary-quinary text-primary flex size-7 shrink-0 items-center justify-center rounded-md">
+              <FileText className="size-4" aria-hidden />
+            </span>
+            <p className="text-foreground truncate text-sm font-medium">
+              {title}
+            </p>
+          </div>
+        ) : null}
         {/* Document body */}
         <div className="px-7 py-7 md:px-10 md:py-9">
           <Markdown

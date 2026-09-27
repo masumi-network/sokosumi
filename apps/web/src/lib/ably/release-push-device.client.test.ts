@@ -14,6 +14,7 @@ import {
   hasAblyPushDeviceId,
   hasUnfinishedPushTeardown,
   notePushTeardownStarted,
+  readAblyPushDeviceId,
   releasePushDeviceOnSignOut,
 } from "./release-push-device.client";
 
@@ -569,5 +570,45 @@ describe("hasAblyPushDeviceId", () => {
     });
 
     expect(hasAblyPushDeviceId()).toBe(false);
+  });
+});
+
+describe("readAblyPushDeviceId", () => {
+  const getItem = vi.fn();
+  const setItem = vi.fn();
+  beforeEach(() => {
+    getItem.mockReset().mockReturnValue(null);
+    setItem.mockReset();
+    vi.stubGlobal("localStorage", { getItem, setItem });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+  it("unwraps the SDK device ID only for its owner", () => {
+    getItem.mockImplementation((key: string) =>
+      key === "sokosumi.push.deviceOwner"
+        ? "user-1"
+        : JSON.stringify({ value: "device-1" }),
+    );
+    expect(readAblyPushDeviceId("user-1")).toBe("device-1");
+    expect(readAblyPushDeviceId("user-2")).toBeNull();
+  });
+  it.each([
+    null,
+    "invalid-json",
+    '{"value":123}',
+    '{"value":"device-1","expires":1}',
+  ])("ignores missing, invalid, or expired storage: %s", (value) => {
+    getItem.mockImplementation((key: string) =>
+      key === "sokosumi.push.deviceOwner" ? "user-1" : value,
+    );
+    expect(readAblyPushDeviceId("user-1")).toBeNull();
+    expect(setItem).not.toHaveBeenCalled();
+  });
+  it("handles browsers that block storage", () => {
+    getItem.mockImplementation(() => {
+      throw new DOMException("Blocked", "SecurityError");
+    });
+    expect(readAblyPushDeviceId("user-1")).toBeNull();
   });
 });

@@ -28,10 +28,7 @@ import {
 } from "@/helpers/task-event-channel";
 import { resolveTaskName } from "@/helpers/task-name";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
-import {
-  correctTaskTags,
-  TASK_TAG_VOCABULARY_VERSION,
-} from "@/helpers/task-tags";
+import { TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
 import { notifyWorkspaceApproversOfPendingGrant } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -42,7 +39,6 @@ import {
   type AuthenticationContext,
   isCoworkerAuthContext,
   isSokoBotAuthContext,
-  requireOwnerUserContext,
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -52,11 +48,11 @@ import {
   taskEventDeprecatedOriginField,
   taskSchema,
 } from "@/schemas/task.schema";
-import { taskTagCorrectionsSchema } from "@/schemas/task-tag-suggestion.schema";
 import {
   createTaskForActor,
   type TaskDomainActor,
 } from "@/services/task-domain.service";
+import { classifyTaskTagsInline } from "@/services/task-tag-classification.service";
 import {
   readCachedTaskTagSuggestions,
   verifyTaskTagReceipt,
@@ -66,7 +62,6 @@ import { taskInclude } from "@/types/task";
 export const createTaskRequestSchema = z
   .object({
     tagSuggestionReceipt: z.string().max(4096).optional(),
-    tagCorrections: taskTagCorrectionsSchema.optional(),
     name: z
       .string()
       .trim()
@@ -197,7 +192,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       workspaceContext.organizationId,
     );
-    if (body.tagCorrections) requireOwnerUserContext(authContext);
     const runAt = body.runAt ? parseFutureRunAt(body.runAt) : null;
 
     const resolvedName = await resolveTaskName({
@@ -222,7 +216,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userId: userContext.userId,
       workspaceId: workspaceContext.workspaceId,
     };
-    const suggestedTags =
+    const receiptTags =
       authContext.actor === "user" &&
       authContext.authenticationMethod === "session"
         ? (verifyTaskTagReceipt(
@@ -231,6 +225,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             body,
           ) ?? (await readCachedTaskTagSuggestions(suggestionScope, body)))
         : null;
+    // Every other actor — a token, a delegated coworker, a Soko Bot — classifies
+    // here instead of waiting for the next `/sync/task-tags` tick. Bounded and
+    // failure-swallowing: null just leaves the row `pending` for that tick.
+    const suggestedTags =
+      receiptTags ??
+      (await classifyTaskTagsInline({
+        name: resolvedName,
+        description: body.description,
+      }));
 
     const task = await prisma.$transaction(async (tx) => {
       const createdTask = await createTaskForActor(
@@ -269,25 +272,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         tx,
       );
-      if (suggestedTags !== null || body.tagCorrections) {
+      if (suggestedTags !== null) {
         await tx.task.update({
           where: { id: createdTask.id },
           data: {
-            ...(suggestedTags !== null
-              ? {
-                  automaticTags: suggestedTags,
-                  tagClassificationState: "complete",
-                  tagClassificationLease: null,
-                  tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
-                }
-              : {}),
-            ...(body.tagCorrections
-              ? correctTaskTags(
-                  {},
-                  body.tagCorrections.add,
-                  body.tagCorrections.remove,
-                )
-              : {}),
+            automaticTags: suggestedTags,
+            tagClassificationState: "complete",
+            tagClassificationLease: null,
+            tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
           },
         });
       }

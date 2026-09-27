@@ -1,6 +1,12 @@
 import { z } from "@hono/zod-openapi";
 import { MAX_TASK_TAGS, taskTagIdSchema } from "@/helpers/task-tags";
 
+// A title alone is often enough to classify, and the old 40-character floor meant
+// roughly 50 typed characters before the composer showed anything. The client-side
+// gate in `use-task-tag-suggestions.ts` matches this number; spend stays bounded by
+// the debounce, the per-request cooldown, and the per-user rate limits, not by it.
+export const MIN_TASK_TAG_SUGGESTION_CHARACTERS = 15;
+
 export const taskTagSuggestionInputSchema = z
   .object({
     name: z.string().max(300).optional(),
@@ -11,8 +17,8 @@ export const taskTagSuggestionInputSchema = z
       `${value.name ?? ""}${value.description ?? ""}`.replace(
         /[^\p{L}\p{N}]/gu,
         "",
-      ).length >= 40,
-    "Provide at least 40 letters or numbers",
+      ).length >= MIN_TASK_TAG_SUGGESTION_CHARACTERS,
+    `Provide at least ${MIN_TASK_TAG_SUGGESTION_CHARACTERS} letters or numbers`,
   );
 
 export const taskTagSuggestionResponseSchema = z
@@ -21,13 +27,3 @@ export const taskTagSuggestionResponseSchema = z
     receipt: z.string(),
   })
   .openapi("TaskTagSuggestion");
-
-export const taskTagCorrectionsSchema = z
-  .object({
-    add: z.array(taskTagIdSchema).max(MAX_TASK_TAGS).default([]),
-    remove: z.array(taskTagIdSchema).max(10).default([]),
-  })
-  .refine(
-    (value) => !value.add.some((id) => value.remove.includes(id)),
-    "A tag cannot be both added and removed",
-  );

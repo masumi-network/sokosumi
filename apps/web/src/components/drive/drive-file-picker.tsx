@@ -198,7 +198,7 @@ function DriveFilePickerWorkspace({
 
         <div className="min-w-0 w-full">
           <div className="space-y-3 min-w-0 w-full">
-            <div className="min-w-0 overflow-x-auto">
+            <div className="app-scrollbar min-w-0 overflow-x-auto">
               <nav
                 className="text-muted-foreground flex flex-nowrap items-center gap-1 text-sm"
                 aria-label={t("breadcrumbNavLabel")}

@@ -309,3 +309,23 @@ describe("emitChatDirectMessageNotifications", () => {
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
 });
+
+it("strict fan-out propagates recipient failure to the outbox", async () => {
+  createNotificationMock.mockRejectedValueOnce(
+    new Error("notification persistence failed"),
+  );
+  await expect(
+    emitChatDirectMessageNotifications({
+      roomId: ROOM_ID,
+      roomName: "Room",
+      organizationId: "org_1",
+      messageId: MESSAGE_ID,
+      content: "ship it",
+      authorUserId: null,
+      authorName: "Bot",
+      recipientUserIds: [PEER_ID],
+      throwOnError: true,
+    }),
+  ).rejects.toThrow("notification persistence failed");
+  expect(createNotificationMock).toHaveBeenCalledOnce();
+});

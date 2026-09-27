@@ -110,18 +110,8 @@ function canonical(value: unknown): string {
   return JSON.stringify(value) ?? "null";
 }
 
-async function operation<T>(
-  actor: TableActor,
-  key: string,
-  request: unknown,
-  run: (
-    tx: Prisma.TransactionClient,
-    batchId: string,
-  ) => Promise<{ tableId: string; result: T }>,
-): Promise<T> {
-  if (Buffer.byteLength(JSON.stringify(request), "utf8") > 1_000_000)
-    throw unprocessableEntity("Table requests are limited to 1 MB");
-  const requestHash = createHash("sha256")
+function tableOperationRequestHash(actor: TableActor, request: unknown) {
+  return createHash("sha256")
     .update(
       canonical({
         request,
@@ -130,6 +120,48 @@ async function operation<T>(
       }),
     )
     .digest("hex");
+}
+
+/** Read-only replay: never recreates an operation whose ledger was removed. */
+export async function readTableOperation(
+  actor: TableActor,
+  key: string,
+  request: unknown,
+) {
+  const previous = await prisma.tableOperation.findUnique({
+    where: {
+      workspaceId_actorId_key: {
+        workspaceId: actor.workspaceId,
+        actorId: actor.actorId,
+        key,
+      },
+    },
+  });
+  if (!previous) throw conflict("Committed table operation is unavailable");
+  if (previous.requestHash !== tableOperationRequestHash(actor, request))
+    throw conflict("Retry key was already used for different input");
+  await requireDataTable(actor, previous.tableId);
+  return { tableId: previous.tableId, result: previous.result };
+}
+
+export type TableOperationCompletion = (
+  tx: Prisma.TransactionClient,
+  operation: { tableId: string; result: unknown; replayed: boolean },
+) => Promise<void>;
+
+async function operation<T>(
+  actor: TableActor,
+  key: string,
+  request: unknown,
+  run: (
+    tx: Prisma.TransactionClient,
+    batchId: string,
+  ) => Promise<{ tableId: string; result: T }>,
+  complete?: TableOperationCompletion,
+): Promise<T> {
+  if (Buffer.byteLength(JSON.stringify(request), "utf8") > 1_000_000)
+    throw unprocessableEntity("Table requests are limited to 1 MB");
+  const requestHash = tableOperationRequestHash(actor, request);
   try {
     return await serializableTransaction(async (tx) => {
       // A transaction-scoped lock also serializes the first use of an absent key.
@@ -149,6 +181,11 @@ async function operation<T>(
         if (previous.requestHash !== requestHash)
           throw conflict("Retry key was already used for different input");
         await requireDataTable(actor, previous.tableId, tx);
+        await complete?.(tx, {
+          tableId: previous.tableId,
+          result: previous.result,
+          replayed: true,
+        });
         return previous.result as T;
       }
       const batchId = randomUUID();
@@ -164,6 +201,7 @@ async function operation<T>(
           result: json(result),
         },
       });
+      await complete?.(tx, { tableId, result, replayed: false });
       return result;
     }, "Table changed concurrently. Reload and retry.");
   } catch (error) {
@@ -183,6 +221,17 @@ async function operation<T>(
         if (previous.requestHash !== requestHash)
           throw conflict("Retry key was already used for different input");
         await requireDataTable(actor, previous.tableId);
+        if (complete) {
+          return serializableTransaction(async (tx) => {
+            await requireDataTable(actor, previous.tableId, tx);
+            await complete(tx, {
+              tableId: previous.tableId,
+              result: previous.result,
+              replayed: true,
+            });
+            return previous.result as T;
+          }, "Table receipt recovery changed concurrently. Retry.");
+        }
         return previous.result as T;
       }
       throw conflict("Table identifier already exists");
@@ -259,6 +308,7 @@ function assertEditable(table: { archivedAt: Date | null }) {
 export async function createDataTable(
   actor: TableActor,
   input: z.infer<typeof createDataTableSchema>,
+  complete?: TableOperationCompletion,
 ) {
   const body = createDataTableSchema.parse(input);
   if (actor.actorKind !== "user" && !actor.ownerChat && !actor.taskId)
@@ -271,51 +321,57 @@ export async function createDataTable(
     }))
   )
     throw forbidden("This task may only enrich its selected table cells");
-  return operation(actor, body.key, { create: body }, async (tx, batchId) => {
-    if (actor.taskId) await scopeForTask(actor, "", tx);
-    if (
-      body.projectId &&
-      !(await tx.project.findFirst({
-        where: {
-          id: body.projectId,
+  return operation(
+    actor,
+    body.key,
+    { create: body },
+    async (tx, batchId) => {
+      if (actor.taskId) await scopeForTask(actor, "", tx);
+      if (
+        body.projectId &&
+        !(await tx.project.findFirst({
+          where: {
+            id: body.projectId,
+            workspaceId: actor.workspaceId,
+            closedAt: null,
+          },
+        }))
+      )
+        throw notFound("Project not found");
+      const columns = body.columns.map((column, position) => ({
+        ...column,
+        id: column.id ?? randomUUID(),
+        position,
+      }));
+      assertUnique(
+        columns.map((column) => column.id),
+        "column IDs",
+      );
+      assertUnique(suppliedIds(body.rows), "row IDs");
+      const table = await tx.dataTable.create({
+        data: {
           workspaceId: actor.workspaceId,
-          closedAt: null,
+          projectId: body.projectId,
+          title: body.title,
+          description: body.description,
+          createdBy: actor.actorId,
+          columns: { create: columns },
         },
-      }))
-    )
-      throw notFound("Project not found");
-    const columns = body.columns.map((column, position) => ({
-      ...column,
-      id: column.id ?? randomUUID(),
-      position,
-    }));
-    assertUnique(
-      columns.map((column) => column.id),
-      "column IDs",
-    );
-    assertUnique(suppliedIds(body.rows), "row IDs");
-    const table = await tx.dataTable.create({
-      data: {
-        workspaceId: actor.workspaceId,
-        projectId: body.projectId,
-        title: body.title,
-        description: body.description,
-        createdBy: actor.actorId,
-        columns: { create: columns },
-      },
-      include: tableInclude,
-    });
-    for (const row of body.rows) {
-      validateTableValues(columns, row.values, row.evidence);
-      const created = await tx.tableRow.create({
-        data: { ...row, tableId: table.id },
+        include: tableInclude,
       });
-      await change(tx, actor, table.id, batchId, null, created, created.id);
-    }
-    const result = dataTableSchema.parse(table);
-    await change(tx, actor, table.id, batchId, null, result);
-    return { tableId: table.id, result };
-  });
+      for (const row of body.rows) {
+        validateTableValues(columns, row.values, row.evidence);
+        const created = await tx.tableRow.create({
+          data: { ...row, tableId: table.id },
+        });
+        await change(tx, actor, table.id, batchId, null, created, created.id);
+      }
+      const result = dataTableSchema.parse(table);
+      await change(tx, actor, table.id, batchId, null, result);
+      return { tableId: table.id, result };
+    },
+    complete,
+  );
 }
 
 export async function listDataTables(
@@ -360,6 +416,7 @@ export async function mutateDataTable(
   actor: TableActor,
   id: string,
   input: z.infer<typeof tableMutationSchema>,
+  complete?: TableOperationCompletion,
 ) {
   const body = tableMutationSchema.parse(input);
   if (await scopeForTask(actor, id, prisma))
@@ -461,6 +518,7 @@ export async function mutateDataTable(
       );
       return { tableId: id, result };
     },
+    complete,
   );
 }
 
@@ -535,6 +593,7 @@ export async function batchTableRows(
   actor: TableActor,
   id: string,
   input: z.infer<typeof tableBatchSchema>,
+  complete?: TableOperationCompletion,
 ) {
   const body = tableBatchSchema.parse(input);
   if (actor.taskId && body.taskId && actor.taskId !== body.taskId)
@@ -662,6 +721,7 @@ export async function batchTableRows(
         result: tableBatchResultSchema.parse({ batchId, rows }),
       };
     },
+    complete,
   );
 }
 

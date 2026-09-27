@@ -66,7 +66,7 @@ export function VendorsTable({ vendors }: VendorsTableProps) {
               : t("empty")}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-md border">
+        <div className="app-scrollbar overflow-x-auto rounded-md border">
           <DataTable
             columns={columns}
             data={filtered}

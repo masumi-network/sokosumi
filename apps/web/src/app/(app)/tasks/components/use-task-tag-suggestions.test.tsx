@@ -97,41 +97,22 @@ describe("draft tag suggestions", () => {
     await act(async () => resolve(success()));
     expect(result.current.tags).toEqual([]);
     expect(result.current.tagSuggestionReceipt).toBeUndefined();
-    await advance(3799);
+    await advance(8799);
     expect(suggestTaskTags).toHaveBeenCalledTimes(1);
     await advance(1);
     expect(suggestTaskTags).toHaveBeenCalledTimes(2);
     expect(result.current.tags).toEqual(["research"]);
   });
 
-  it("invalidates suggestions and manual changes immediately when workspace changes", async () => {
+  it("invalidates suggestions immediately when the workspace changes", async () => {
     const { result, rerender } = renderHook(useTaskTagSuggestions, {
       initialProps: defaults,
     });
     await advance(1200);
-    act(() => result.current.toggleTag("design", true));
+    expect(result.current.tags).toEqual(["research"]);
     rerender({ ...defaults, workspaceKey: "user:another-org" });
     expect(result.current.tags).toEqual([]);
     expect(result.current.tagSuggestionReceipt).toBeUndefined();
-    expect(result.current.tagCorrections).toBeUndefined();
-  });
-
-  it("keeps manual choices and rejected suggestions across refreshed results", async () => {
-    const { result, rerender } = renderHook(useTaskTagSuggestions, {
-      initialProps: defaults,
-    });
-    await advance(1200);
-    act(() => {
-      result.current.toggleTag("research", false);
-      result.current.toggleTag("design", true);
-    });
-    rerender({ ...defaults, description: `${description} and pricing` });
-    await advance(5000);
-    expect(result.current.tags).toEqual(["design"]);
-    expect(result.current.tagCorrections).toEqual({
-      add: ["design"],
-      remove: ["research"],
-    });
   });
 
   it("backs off failed requests without retrying unchanged content", async () => {
@@ -142,7 +123,8 @@ describe("draft tag suggestions", () => {
       initialProps: defaults,
     });
     await advance(1200);
-    expect(result.current.status).toBe("unavailable");
+    // Backoff still applies; the composer just never says anything about it.
+    expect(result.current.status).toBeNull();
     await advance(120000);
     expect(suggestTaskTags).toHaveBeenCalledTimes(1);
     rerender({ ...defaults, description: `${description} including audience` });
@@ -181,5 +163,102 @@ describe("draft tag suggestions", () => {
     unmount();
     await advance(10000);
     expect(suggestTaskTags).toHaveBeenCalledTimes(1);
+  });
+  // Items 4/5: Patrick typed past 40 characters and saw nothing, because the gate
+  // counted only letters and digits at a floor of 40 — roughly 50 typed characters.
+  it("asks as soon as there are 15 letters or digits, and not before", async () => {
+    // 14 letters: one short of the shared minimum.
+    const { rerender } = renderHook(useTaskTagSuggestions, {
+      initialProps: { ...defaults, description: "Write blog posts" },
+    });
+    await advance(30000);
+    expect(suggestTaskTags).not.toHaveBeenCalled();
+    // 15 letters, and well under the 40 the old gate demanded.
+    rerender({ ...defaults, description: "Write blog postsx" });
+    await advance(1200);
+    expect(suggestTaskTags).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds the lower gate to the per-user budget of six requests a minute", async () => {
+    const { rerender } = renderHook(useTaskTagSuggestions, {
+      initialProps: { ...defaults, description: "Draft the launch plan" },
+    });
+    // Keep typing new words for a minute, pausing long enough each time that the
+    // debounce alone would let every one of them through.
+    for (let index = 0; index < 30; index++) {
+      rerender({
+        ...defaults,
+        description: `Draft the launch plan ${"word ".repeat(index + 1)}`,
+      });
+      await advance(2000);
+    }
+    expect(suggestTaskTags.mock.calls.length).toBeLessThanOrEqual(6);
+    expect(suggestTaskTags.mock.calls.length).toBeGreaterThan(0);
+  });
+
+  // Item 3: a Gateway outage, a policy rejection, a timeout or a rate limit must
+  // never reach the composer. Nothing is shown, nothing is thrown, no receipt is
+  // produced, so the create goes ahead untagged and the cron tags the row later.
+  it.each([
+    { label: "a 5xx outage", make: () => Response.json({}, { status: 503 }) },
+    {
+      label: "a policy rejection",
+      make: () => Response.json({}, { status: 403 }),
+    },
+    {
+      label: "a rate limit",
+      make: () =>
+        Response.json({}, { status: 429, headers: { "Retry-After": "60" } }),
+    },
+  ])("shows nothing at all through $label", async ({ make }) => {
+    vi.mocked(suggestTaskTags).mockResolvedValue(make());
+    const { result } = renderHook(useTaskTagSuggestions, {
+      initialProps: defaults,
+    });
+    await advance(1200);
+    expect(suggestTaskTags).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBeNull();
+    expect(result.current.tags).toEqual([]);
+    expect(result.current.tagSuggestionReceipt).toBeUndefined();
+  });
+
+  it.each([
+    {
+      label: "an aborted request",
+      error: () => new DOMException("The operation was aborted", "AbortError"),
+    },
+    {
+      label: "a dropped connection",
+      error: () => new TypeError("fetch failed"),
+    },
+  ])("shows nothing at all through $label", async ({ error }) => {
+    vi.mocked(suggestTaskTags).mockRejectedValue(error());
+    const { result } = renderHook(useTaskTagSuggestions, {
+      initialProps: defaults,
+    });
+    await advance(1200);
+    expect(result.current.status).toBeNull();
+    expect(result.current.tags).toEqual([]);
+    expect(result.current.tagSuggestionReceipt).toBeUndefined();
+  });
+
+  it("abandons a request the server never answers and shows nothing", async () => {
+    vi.mocked(suggestTaskTags).mockImplementation(
+      (_input, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("The operation was aborted", "AbortError")),
+          );
+        }),
+    );
+    const { result } = renderHook(useTaskTagSuggestions, {
+      initialProps: defaults,
+    });
+    await advance(1200);
+    expect(result.current.status).toBe("loading");
+    await advance(15000);
+    expect(result.current.status).toBeNull();
+    expect(result.current.tags).toEqual([]);
+    expect(result.current.tagSuggestionReceipt).toBeUndefined();
   });
 });

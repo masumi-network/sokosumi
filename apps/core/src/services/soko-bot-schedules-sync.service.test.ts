@@ -34,7 +34,7 @@ vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: proactiveGateMock,
   buildSystemBeatMessage: vi.fn(),
-  stampNudges: vi.fn(),
+  stageSokoBotNudges: vi.fn(),
 }));
 vi.mock("@/helpers/cron", () => ({
   computeNextRunWithMinimumInterval: computeNextRunMock,
@@ -56,6 +56,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   SokoBotBusyError: class SokoBotBusyError extends Error {},
+  SokoBotNoDestinationError: class SokoBotNoDestinationError extends Error {},
   SokoBotRetryableStartError: class SokoBotRetryableStartError extends Error {},
   sokoBotControlPlane: {
     reconcileTurn: reconcileTurnMock,
@@ -68,6 +69,7 @@ import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import { SokoBotRuntimeUnavailableError } from "@/lib/soko-bot/runtime-errors";
 import {
   SokoBotBusyError,
+  SokoBotNoDestinationError,
   SokoBotRetryableStartError,
 } from "@/services/soko-bot-control-plane.service";
 import {
@@ -370,6 +372,49 @@ describe("SokoBotSchedulesSyncService", () => {
     });
     expect(scheduleUpdateMock).not.toHaveBeenCalled();
   });
+
+  it.each([1, 5])(
+    "records missing destination distinctly at attempt %s without disabling the schedule",
+    async (attempt) => {
+      if (attempt > 1) {
+        runFindFirstMock.mockResolvedValue(
+          expiredClaimedRun({
+            attempt: attempt - 1,
+            schedule: {
+              ...dueSchedule,
+              consecutiveFailures: MAX_CONSECUTIVE_SCHEDULE_FAILURES - 1,
+            },
+          }),
+        );
+        dueScheduleFindFirstMock.mockResolvedValue(null);
+      }
+      startTurnMock.mockRejectedValue(
+        new SokoBotNoDestinationError(
+          "Restore an authorized conversation to resume delivery",
+        ),
+      );
+      const result = await new SokoBotSchedulesSyncService().syncDueSchedules({
+        shouldContinue: continueFor(1),
+      });
+      expect(result).toMatchObject(
+        attempt < 5 ? { deferred: 1, failed: 0 } : { failed: 1, deferred: 0 },
+      );
+      expect(runUpdateManyMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: attempt < 5 ? "PENDING" : "DEAD_LETTER",
+            errorKind: "no_destination",
+            leaseToken: null,
+            leaseExpiresAt: attempt < 5 ? expect.any(Date) : null,
+          }),
+        }),
+      );
+      expect(scheduleUpdateMock).not.toHaveBeenCalled();
+      expect(scheduleUpdateManyMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({ data: { enabled: false } }),
+      );
+    },
+  );
 
   it("advances an overdue schedule from now instead of replaying missed ticks", async () => {
     const now = new Date("2026-08-18T15:30:00.000Z");

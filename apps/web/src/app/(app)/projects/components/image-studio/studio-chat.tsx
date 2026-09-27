@@ -472,7 +472,7 @@ function StudioConversation({
 
       <div
         aria-live="polite"
-        className="min-h-48 flex-1 space-y-4 overflow-y-auto px-4 py-4"
+        className="app-scrollbar min-h-48 flex-1 space-y-4 overflow-y-auto px-4 py-4"
         ref={transcriptRef}
       >
         {agent.data.messages.length === 0 ? (

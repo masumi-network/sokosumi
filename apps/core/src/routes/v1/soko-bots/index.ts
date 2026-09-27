@@ -4,6 +4,7 @@ import { mountSokoBotApiKeyRoutes } from "./api-keys.js";
 import { mountSokoBotAvatarRoutes } from "./avatars.js";
 import { mountSokoBotEventRoutes } from "./events.js";
 import { sokoBotRouteGate } from "./helpers.js";
+import { mountSokoBotIntegrationAuthRoutes } from "./integration-auth.js";
 import mountGetIntegrationsCatalog from "./integrations/catalog/get.js";
 import mountGetMySokoBotActivity from "./me/activity/get.js";
 import mountClaimMySokoBotAvatar from "./me/avatar/post.js";
@@ -49,6 +50,7 @@ app.use("*", sokoBotRouteGate);
 
 mountSokoBotApiKeyRoutes(app);
 mountSokoBotEventRoutes(app);
+mountSokoBotIntegrationAuthRoutes(app);
 mountGetMySokoBot(app);
 mountGetMySokoBotActivity(app);
 mountGetMySokoBotUsage(app);

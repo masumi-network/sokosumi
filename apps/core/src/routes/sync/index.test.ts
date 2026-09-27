@@ -77,6 +77,14 @@ vi.mock("@/services/notification-follow-up-sync.service", () => ({
   },
 }));
 
+vi.mock("@/services/coworker-late-responses-sync.service", () => ({
+  syncLateCoworkerResponses: vi.fn(async () => ({
+    delivered: 0,
+    dropped: 0,
+    waiting: 0,
+  })),
+}));
+
 vi.mock("@/services/sync-lock.service", () => ({
   syncLockService: {
     acquireLock: acquireLockMock,

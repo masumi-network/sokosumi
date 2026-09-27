@@ -14,6 +14,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "find_coworkers",
   "create_task",
   "update_task",
+  "archive_task",
   "assign_task",
   "get_task_status",
   "reply_to_task",
@@ -30,6 +31,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_schedules",
   "create_schedule",
   "update_schedule",
+  "manage_reminder",
   "delete_schedule",
   "list_chats",
   "read_chat",
@@ -74,6 +76,7 @@ const DIRECT_READ_CAPABILITIES = [
 const SCHEDULE_CAPABILITIES = [
   "create_schedule",
   "update_schedule",
+  "manage_reminder",
   "delete_schedule",
 ] as const satisfies readonly SokoBotCapability[];
 
@@ -144,12 +147,7 @@ export function exceedsUnattendedHireBudget(params: {
 }
 
 export const SOKO_BOT_ROUTE_CAPABILITIES = {
-  DIRECT_RESPONSE: [
-    ...DIRECT_READ_CAPABILITIES,
-    ...SCHEDULE_CAPABILITIES,
-    ...CHAT_FILE_WRITE_CAPABILITIES,
-    "update_memory",
-  ],
+  DIRECT_RESPONSE: [...DIRECT_READ_CAPABILITIES],
   CLARIFY: [...DIRECT_READ_CAPABILITIES],
   DELEGATE_TASK: [
     ...DIRECT_READ_CAPABILITIES,
@@ -159,6 +157,8 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "find_coworkers",
     "create_task",
     "update_task",
+    "archive_task",
+    "request_user_decision",
     "assign_task",
     "reply_to_task",
     "update_assigned_task",
@@ -172,6 +172,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "find_agents",
     "get_agent_input_schema",
     "hire_agent",
+    "request_user_decision",
     "provide_job_input",
   ],
   MANAGE_WORK: [
@@ -180,6 +181,8 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "update_task",
+    "archive_task",
+    "request_user_decision",
     "assign_task",
     "reply_to_task",
     "update_assigned_task",
@@ -196,7 +199,34 @@ export const SOKO_BOT_MEMORY_LIMITS = {
   maxEntryLength: 500,
 } as const;
 
+export function capabilitiesForClassification(
+  classification: TurnClassification,
+): readonly SokoBotCapability[] {
+  const route = SOKO_BOT_ROUTE_CAPABILITIES[classification.route];
+  if (
+    classification.route !== "MANAGE_WORK" ||
+    classification.writeScope === "WORK"
+  )
+    return route;
+  if (!classification.writeScope) return DIRECT_READ_CAPABILITIES;
+  const writes: Record<
+    Exclude<NonNullable<TurnClassification["writeScope"]>, "WORK">,
+    readonly SokoBotCapability[]
+  > = {
+    MEMORY: ["update_memory"],
+    SCHEDULE: SCHEDULE_CAPABILITIES,
+    CHAT: ["post_chat", "open_direct_chat"],
+    FILE: ["upload_file"],
+    INTEGRATION: ["run_integration_tool", "request_user_decision"],
+  };
+  return [...DIRECT_READ_CAPABILITIES, ...writes[classification.writeScope]];
+}
+
 export interface TurnClassification {
+  writeScope?: "WORK" | "MEMORY" | "SCHEDULE" | "CHAT" | "FILE" | "INTEGRATION";
+  candidateTaskIds?: string[];
+  selectedIntentId?: string;
+  continuation?: "NEW" | "CONTINUE" | "CANCEL" | "AMBIGUOUS";
   schemaVersion: 1;
   route: SokoBotRoute;
   confidence: number;

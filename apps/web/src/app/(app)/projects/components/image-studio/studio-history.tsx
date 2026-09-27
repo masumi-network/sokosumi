@@ -61,7 +61,7 @@ export function StudioHistory({
         {labels.history}
       </h2>
       <div
-        className="flex gap-3 overflow-x-auto pb-2"
+        className="app-scrollbar flex gap-3 overflow-x-auto pb-2"
         onKeyDown={handleKeyDown}
         ref={listRef}
       >
