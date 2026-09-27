@@ -1,5 +1,8 @@
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
-import { patchTasksByIdTags } from "@/lib/clients/generated/core";
+import {
+  suggestTaskTags as coreSuggestTaskTags,
+  patchTasksByIdTags,
+} from "@/lib/clients/generated/core";
 import type { PatchTasksByIdTagsData } from "@/lib/clients/generated/core/types.gen";
 
 /** Pause, resume, and end each have their own Task Schedule route. */
@@ -3809,6 +3812,17 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function suggestTaskTags(body: {
+    name?: string;
+    description?: string | null;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSuggestTaskTags({ client, body }),
+      "Task tag suggestions unavailable",
+    );
+  }
+
   async function patchTaskTags(
     id: string,
     body: NonNullable<PatchTasksByIdTagsData["body"]>,
@@ -5762,6 +5776,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasksSummary,
     patchTask,
     patchTaskTags,
+    suggestTaskTags,
     putJobShare,
     putTaskShare,
     listTaskSchedules,

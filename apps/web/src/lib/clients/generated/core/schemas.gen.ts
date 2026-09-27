@@ -21258,6 +21258,26 @@ export const TaskActivitySummarySchema = {
     ]
 } as const;
 
+export const TaskTagSuggestionSchema = {
+    type: 'object',
+    properties: {
+        tags: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            },
+            maxItems: 5
+        },
+        receipt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'tags',
+        'receipt'
+    ]
+} as const;
+
 export const TaskScheduleSchema = {
     type: 'object',
     properties: {

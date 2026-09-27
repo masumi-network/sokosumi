@@ -6144,6 +6144,11 @@ export type TaskActivitySummary = {
     workedMinutes: number;
 };
 
+export type TaskTagSuggestion = {
+    tags: Array<TaskTagId>;
+    receipt: string;
+};
+
 export type TaskSchedule = {
     id: string;
     workspaceId: string;
@@ -44205,6 +44210,11 @@ export type GetTasksResponse = GetTasksResponses[keyof GetTasksResponses];
 
 export type PostTasksData = {
     body?: {
+        tagSuggestionReceipt?: string;
+        tagCorrections?: {
+            add?: Array<TaskTagId>;
+            remove?: Array<TaskTagId>;
+        };
         name?: string;
         description?: string | null;
         projectId?: string | null;
@@ -44422,6 +44432,112 @@ export type GetTasksSummaryResponses = {
 };
 
 export type GetTasksSummaryResponse = GetTasksSummaryResponses[keyof GetTasksSummaryResponses];
+
+export type SuggestTaskTagsData = {
+    body?: {
+        name?: string;
+        description?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/tasks/tag-suggestions';
+};
+
+export type SuggestTaskTagsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too many requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Suggestions unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SuggestTaskTagsError = SuggestTaskTagsErrors[keyof SuggestTaskTagsErrors];
+
+export type SuggestTaskTagsResponses = {
+    /**
+     * Suggested tags and signed receipt
+     */
+    200: {
+        data: TaskTagSuggestion;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SuggestTaskTagsResponse = SuggestTaskTagsResponses[keyof SuggestTaskTagsResponses];
 
 export type GetTasksSchedulesData = {
     body?: never;
