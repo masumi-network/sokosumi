@@ -1,4 +1,6 @@
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
+import { patchTasksByIdTags } from "@/lib/clients/generated/core";
+import type { PatchTasksByIdTagsData } from "@/lib/clients/generated/core/types.gen";
 
 /** Pause, resume, and end each have their own Task Schedule route. */
 export type TaskScheduleStateAction = "pause" | "resume" | "end";
@@ -3807,6 +3809,17 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function patchTaskTags(
+    id: string,
+    body: NonNullable<PatchTasksByIdTagsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => patchTasksByIdTags({ client, path: { id }, body }),
+      "Failed to update task tags",
+    );
+  }
+
   async function patchTask(
     id: string,
     body: NonNullable<PatchTasksByIdData["body"]>,
@@ -5748,6 +5761,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasks,
     getTasksSummary,
     patchTask,
+    patchTaskTags,
     putJobShare,
     putTaskShare,
     listTaskSchedules,

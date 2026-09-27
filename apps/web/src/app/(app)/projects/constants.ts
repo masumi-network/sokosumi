@@ -39,7 +39,8 @@ export const PROJECTS_BROWSE_LAYOUT_CLASS =
   "bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
 /** Toolbar shared by the Projects index and its loading shell. */
-export const PROJECTS_BROWSE_HEADER_ROW_CLASS = "flex items-center gap-3";
+export const PROJECTS_BROWSE_HEADER_ROW_CLASS =
+  "flex items-center justify-end gap-3";
 
 /**
  * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.

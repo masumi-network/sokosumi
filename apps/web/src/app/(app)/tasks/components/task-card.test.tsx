@@ -1,9 +1,11 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 
 import { TaskCard } from "./task-card";
+
+vi.mock("@/lib/actions/task/action", () => ({ updateTaskTags: vi.fn() }));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) =>
@@ -85,7 +87,7 @@ describe("TaskCard description preview", () => {
     ).toBeNull();
   });
 
-  it("renders descriptionPlain when present", () => {
+  it("preserves description in data but replaces card preview with tags", () => {
     const task = {
       ...buildTask(TaskVisibility.PUBLIC),
       description: "[CONTEXT.md](https://blob.example/CONTEXT.md)\n\nHello",
@@ -94,7 +96,8 @@ describe("TaskCard description preview", () => {
 
     render(<TaskCard task={task} />);
 
-    expect(screen.getByText("Hello")).toBeInTheDocument();
+    expect(screen.queryByText("Hello")).not.toBeInTheDocument();
+    expect(task.description).toContain("Hello");
   });
 });
 
@@ -146,4 +149,111 @@ describe("TaskCard actor cluster", () => {
     ).toBeInTheDocument();
     expect(screen.queryByLabelText(/Owner/)).not.toBeInTheDocument();
   });
+});
+
+describe("TaskCard project navigation", () => {
+  it("keeps project navigation separate from the full-card task link", () => {
+    const task = {
+      ...buildTask(TaskVisibility.PUBLIC),
+      project: { id: "project-1", name: "Long project name", logo: null },
+    };
+    render(<TaskCard task={task} />);
+    const project = screen.getByRole("link", { name: "openProject" });
+    expect(project).toHaveAttribute("href", "/projects/project-1");
+    expect(project.closest('[data-testid="task-detail-link"]')).toBeNull();
+    expect(screen.getByText("Long project name")).toBeInTheDocument();
+  });
+});
+
+describe("TaskCard density", () => {
+  it("tightens untagged cards without hiding their content or navigation", () => {
+    const task = buildTask(TaskVisibility.PRIVATE);
+    const { rerender } = render(<TaskCard task={task} />);
+    const normalClasses = screen.getByRole("article").className;
+    expect(screen.getByRole("heading")).toHaveClass("line-clamp-2");
+
+    rerender(<TaskCard task={task} compact />);
+
+    expect(screen.getByRole("article").className).not.toBe(normalClasses);
+    expect(screen.getByRole("article")).toHaveClass("p-2", "space-y-1");
+    expect(screen.getByRole("heading")).toHaveClass("line-clamp-1");
+    expect(screen.getByRole("link", { name: task.name })).toHaveAttribute(
+      "href",
+      "/tasks/task-1",
+    );
+    expect(screen.getByText("empty")).toBeInTheDocument();
+    expect(screen.getByText("noProject")).toBeInTheDocument();
+    expect(screen.getByLabelText("Private")).toBeInTheDocument();
+    expect(screen.getByText("Mar 1")).toBeInTheDocument();
+
+    rerender(<TaskCard task={task} compact={false} />);
+    expect(screen.getByRole("article").className).toBe(normalClasses);
+  });
+
+  it.each([false, true])(
+    "keeps project and tag controls separate from dragging (compact=%s)",
+    (compact) => {
+      const onPointerDown = vi.fn();
+      const onKeyDown = vi.fn();
+      const task: TaskWithCoworker = {
+        ...buildTask(TaskVisibility.PUBLIC),
+        name: "A long task title that remains available to assistive technology",
+        project: {
+          id: "project-1",
+          name: "A very long project name with international campaign details",
+          logo: null,
+        },
+        tags: {
+          manual: ["design", "writing", "research"],
+          automatic: [],
+          rejected: [],
+        },
+        runAt: "2030-01-02T09:00:00.000Z",
+      };
+      const { container } = render(
+        <TaskCard
+          task={task}
+          compact={compact}
+          dragHandleProps={{
+            attributes: {
+              role: "button",
+              tabIndex: 0,
+              "aria-disabled": false,
+              "aria-pressed": false,
+              "aria-roledescription": "draggable",
+              "aria-describedby": "drag-instructions",
+            },
+            listeners: { onPointerDown, onKeyDown },
+            isDragging: false,
+          }}
+        />,
+      );
+      const project = screen.getByRole("link", { name: "openProject" });
+      expect(project).toHaveAttribute("title", task.project?.name);
+      expect(screen.getByText(task.project?.name ?? "")).toHaveClass(
+        compact ? "line-clamp-1" : "line-clamp-2",
+      );
+      expect(screen.getByRole("link", { name: task.name })).toHaveAttribute(
+        "title",
+        task.name,
+      );
+      expect(screen.getByRole("button", { name: "showAll" })).toHaveTextContent(
+        compact ? "+2" : "+1",
+      );
+      expect(container.querySelector("time")).toHaveAttribute(
+        "dateTime",
+        task.runAt,
+      );
+      fireEvent.pointerDown(project);
+      fireEvent.keyDown(project, { key: "Enter" });
+      fireEvent.pointerDown(screen.getByRole("button", { name: "showAll" }));
+      fireEvent.keyDown(screen.getByRole("button", { name: "showAll" }), {
+        key: "Enter",
+      });
+      expect(onPointerDown).not.toHaveBeenCalled();
+      expect(onKeyDown).not.toHaveBeenCalled();
+      fireEvent.pointerDown(screen.getByRole("heading"));
+      expect(onPointerDown).toHaveBeenCalledOnce();
+    },
+  );
 });

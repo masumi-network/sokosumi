@@ -32,7 +32,7 @@ export function ProjectsLoadingView() {
         data-testid="projects-loading-toolbar"
         className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
       >
-        <Skeleton className="h-8 w-full rounded-lg" />
+        <Skeleton className="h-10 w-full rounded-md md:w-64 md:shrink-0" />
         <Skeleton className="hidden h-3 w-32 shrink-0 lg:inline-block" />
         <Skeleton
           data-testid="projects-loading-create"

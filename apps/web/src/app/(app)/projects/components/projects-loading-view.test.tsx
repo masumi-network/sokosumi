@@ -73,7 +73,10 @@ describe("ProjectsLoadingView", () => {
     expect(browse).not.toHaveClass("border");
     const header = screen.getByTestId("projects-loading-toolbar");
     expect(browse).not.toContainElement(header);
-    expect(header.querySelector('[data-slot="skeleton"]')).toHaveClass("h-8");
+    expect(header.querySelector('[data-slot="skeleton"]')).toHaveClass(
+      "h-10",
+      "md:w-64",
+    );
 
     const divide = browse.lastElementChild;
     for (const token of PROJECTS_BROWSE_DIVIDE_CLASS.split(/\s+/)) {
