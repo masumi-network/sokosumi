@@ -10,9 +10,28 @@ import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import type { SyncExecutionContext } from "@/routes/sync/handler";
 
-const BATCH_SIZE = 10;
+// Creates, edits and retries are interactive work and always go first. A burst of
+// them is still bounded, because every claim is one serial provider call.
+const QUEUED_BATCH_SIZE = 50;
+// Historical backfill is a fixed, finite set of rows, so a higher rate drains the
+// backlog sooner without raising total spend at all. Production measured 320-420ms
+// per task end to end, so 200 is roughly 65-85s of the ~260s usable budget below.
+const HISTORICAL_BATCH_SIZE = 200;
 const MAX_ATTEMPTS = 2;
 const LEASE_MS = 60_000;
+// One evaluation can take the classifier's full 12s request timeout plus its writes.
+const DEADLINE_RESERVE_MS = 15_000;
+// The cron fires every five minutes and every tick holds the same sync lock, so a
+// tick that ran all the way to the sync deadline would make the next tick lose the
+// lock and delay interactive work by a further interval. Historical work therefore
+// stops here first; the sync deadline above stays the outer bound for everything.
+const HISTORICAL_BUDGET_MS = 120_000;
+// Reported-cost ceiling for one tick. A full queued+historical tick costs about
+// $0.01 at the measured ~$0.0000373 per task, and the per-task input is capped at
+// 300 title plus 8,000 description characters, so this only stops a pathological
+// run. Selection caps, not cost, remain the primary bound, so a provider that
+// returns no billing metadata cannot make a tick unbounded either.
+const MAX_TICK_COST_USD = 0.05;
 
 export async function classifyPendingTaskTags(context: SyncExecutionContext) {
   return runPendingTaskTags(context, {});
@@ -59,6 +78,7 @@ async function runPendingTaskTags(
   context: SyncExecutionContext,
   scope: Prisma.TaskWhereInput,
 ) {
+  const startedAt = Date.now();
   // Discovery contains no task content; each evaluation enforces privacy options.
   let available = false;
   try {
@@ -82,10 +102,11 @@ async function runPendingTaskTags(
       ],
     },
     orderBy: [{ tagClassificationAvailableAt: "asc" }, { id: "asc" }],
-    take: BATCH_SIZE,
+    take: QUEUED_BATCH_SIZE,
   });
-  // Historical work consumes only capacity left by due creates/edits/retries.
-  // Existing state + lease fields are the durable cursor; no mass enqueue needed.
+  // Historical work runs behind every queued row, under its own cap and its own
+  // time budget. Existing state + lease fields are the durable cursor across
+  // ticks; no mass enqueue or migration is needed.
   const queued = tasks.length;
   const historicalWhere = {
     ...scope,
@@ -94,16 +115,16 @@ async function runPendingTaskTags(
     tagClassificationAttempts: { lt: MAX_ATTEMPTS },
     tagClassificationAvailableAt: { lte: new Date() },
   } satisfies Prisma.TaskWhereInput;
-  if (
-    queued < BATCH_SIZE &&
+  const historicalTimeLeft = () =>
     context.shouldContinue() &&
-    context.msRemaining() >= 15_000
-  ) {
+    context.msRemaining() >= DEADLINE_RESERVE_MS &&
+    Date.now() - startedAt < HISTORICAL_BUDGET_MS;
+  if (historicalTimeLeft()) {
     tasks.push(
       ...(await prisma.task.findMany({
         where: historicalWhere,
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        take: BATCH_SIZE - queued,
+        take: HISTORICAL_BATCH_SIZE,
       })),
     );
   }
@@ -119,18 +140,37 @@ async function runPendingTaskTags(
     costUsd: 0,
     unreportedCost: 0,
   };
+  let stopReason:
+    | "deadline"
+    | "historical_budget"
+    | "spend_ceiling"
+    | undefined;
   for (const task of tasks) {
-    if (!context.shouldContinue() || context.msRemaining() < 15_000) break;
+    const source =
+      task.tagClassificationState === "unclassified" ? "historical" : "queued";
+    if (
+      !context.shouldContinue() ||
+      context.msRemaining() < DEADLINE_RESERVE_MS
+    ) {
+      stopReason = "deadline";
+      break;
+    }
+    if (progress.costUsd >= MAX_TICK_COST_USD) {
+      stopReason = "spend_ceiling";
+      break;
+    }
+    // Queued work has already run; the next tick resumes the rest of history.
+    if (source === "historical" && !historicalTimeLeft()) {
+      stopReason = "historical_budget";
+      break;
+    }
     const log = createCoreLogger({
       operation: "task_tag_classification",
       taskId: task.id,
       workspaceId: task.workspaceId,
       revision: task.tagContentRevision,
       model: JEV_TASK_TAG_MODEL,
-      source:
-        task.tagClassificationState === "unclassified"
-          ? "historical"
-          : "queued",
+      source,
     });
     let outcome: "completed" | "failed" | "stale" = "failed";
     try {
@@ -263,6 +303,7 @@ async function runPendingTaskTags(
     ...progress,
     deferred:
       progress.selected - progress.completed - progress.failed - progress.stale,
+    ...(stopReason ? { stopReason } : {}),
   };
   try {
     batchLog.set({

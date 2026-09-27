@@ -33,18 +33,38 @@ the provider and falls back to the worker on cache failure or timeout.
 
 ## Historical work
 
-The normal five-minute worker selects due queued work first, then uses remaining
-capacity for oldest eligible nonarchived, unclassified tasks. The total remains
-ten tasks per tick: at most 120 attempts per hour, less when queued work, retries
-or the execution deadline consume capacity. Each unchanged revision has at most
-two attempts. Complete results, including empty classifications, and terminal
-failures are excluded. Existing state, revision and lease fields provide durable
-resume and race protection without a mass enqueue or schema migration.
+The normal five-minute worker selects due queued work first, then oldest eligible
+nonarchived, unclassified tasks. Queued and historical selection have separate
+caps: at most 50 queued and at most 200 historical rows per tick. Every queued row
+is evaluated before any history, so a large historical batch cannot delay an
+interactive create, edit or retry. Each unchanged revision still has at most two
+attempts. Complete results, including empty classifications, and terminal failures
+are excluded. Existing state, revision and lease fields provide durable resume and
+race protection without a mass enqueue or schema migration.
+
+Historical throughput is at most 2,400 attempts per hour per target, less when
+queued work, retries or any of the three stop conditions consume capacity. Raising
+the historical rate does not raise total spend: the backlog is a fixed, finite set
+of rows, so total cost is bounded by task count, not by how fast it is worked
+through. At the measured ~$0.0000373 per task the whole backlog observed on
+2026-09-27 costs about $0.71 on mainnet (19,006 rows) and $0.23 on preprod (6,105),
+whether it takes days or hours.
+
+Three guards bound one tick, and each is observable as `stopReason` in the batch
+log. The existing sync deadline (`LOCK_TIMEOUT - LOCK_TIMEOUT_BUFFER`, reserving 15
+seconds for one in-flight evaluation) remains the outer bound for all work.
+Historical work additionally stops 120 seconds into a tick, so a slow provider can
+never hold the sync lock past the next scheduled tick and delay queued work by a
+further interval; at the measured 320-420ms per task the 200-row cap is reached
+first, in roughly 65-85 seconds. A per-tick reported-cost ceiling of $0.05 stops a
+pathological run; the selection caps, not cost, are the primary bound, so a
+provider that returns no billing metadata cannot make a tick unbounded.
 
 The `task_tag_classification_batch` log records queued/historical selections,
-attempted/completed/failed/stale/deferred counts, remaining eligible history,
-validated token usage, reported cost and the count with unreported cost.
-Per-evaluation logs distinguish historical and queued sources. Suggestion logs
+attempted/completed/failed/stale/deferred counts, any `stopReason`, remaining
+eligible history, validated token usage, reported cost and the count with
+unreported cost. Per-evaluation logs distinguish historical and queued sources, so
+a full tick emits up to 250 evaluation events plus the batch event. Suggestion logs
 record validated usage and cost without authored content. Throughput is an upper
 bound, not a completion-time promise; estimate cost from actual reported usage
 and report missing cost separately.
