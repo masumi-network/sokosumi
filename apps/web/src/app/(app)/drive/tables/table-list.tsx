@@ -24,16 +24,15 @@ export function TableList({ workspaceId }: { workspaceId: string | null }) {
   });
   return (
     // Literally the surface Recents and browse render into, from their own
-    // helper, so switching tabs no longer switches page languages.
-    <section
-      className={cn(driveItemsPanelClass("list"), "space-y-4 p-4 md:p-6")}
-    >
+    // helper, so switching tabs no longer switches page languages. The tab
+    // already names the view, so the heading is for assistive technology.
+    <section className={cn(driveItemsPanelClass("grid"), "space-y-2")}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="sr-only">{t("tables")}</h2>
         <Button
           size="sm"
           variant="ghost"
-          className="ms-auto"
+          className="ms-auto h-8"
           onClick={() => {
             setArchived(!archived);
             setCursor(undefined);
@@ -75,14 +74,14 @@ export function TableList({ workspaceId }: { workspaceId: string | null }) {
           </p>
         </div>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {query.data?.items.map((table) => (
           <Link
             href={`/drive/tables/${table.id}`}
             key={table.id}
-            className="bg-card hover:bg-card-background-hover focus-visible:ring-ring flex min-w-0 items-center gap-3 rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2"
+            className="bg-background border-border hover:bg-card-background focus-visible:ring-ring flex min-w-0 items-center gap-2 rounded-lg border p-3 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2"
           >
-            <div className="bg-muted rounded-lg p-3">
+            <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg">
               <Table2 aria-hidden className="text-muted-foreground size-5" />
             </div>
             <div className="min-w-0">
