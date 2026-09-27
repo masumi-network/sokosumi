@@ -16,6 +16,7 @@ import { evaluationClassifierContext } from "./evaluation-dispatch";
  */
 export const SOKO_BOT_ROUTE_MODEL = "typesafe-ai/jev";
 const CLASSIFIER_VERSION = "soko-bot-classifier-jev-v1";
+const PRESET_VERSION = "soko-bot-system-route-v1";
 /**
  * Jev answers in ~350 ms but an occasional call hangs; two short attempts
  * recover that inside the old single 8 s budget.
@@ -134,6 +135,31 @@ export interface ClassificationResult {
   usage: ClassifierUsage | null;
 }
 
+/** A route Core chose itself for a turn whose prompt it wrote. */
+export interface PresetRoute {
+  route: SokoBotRoute;
+  writeScope?: NonNullable<TurnClassification["writeScope"]>;
+  reason: string;
+}
+
+/** A turn that skips Jev because Core already knows what it is for. */
+export function presetClassificationResult(
+  message: string,
+  preset: PresetRoute,
+): ClassificationResult {
+  return {
+    classification: {
+      ...baseClassification(preset.route, message, preset.reason, 1),
+      ...(preset.writeScope ? { writeScope: preset.writeScope } : {}),
+    },
+    model: null,
+    version: PRESET_VERSION,
+    latencyMs: 0,
+    failed: false,
+    usage: null,
+  };
+}
+
 export interface TurnClassifier {
   classify(
     message: string,
@@ -221,6 +247,15 @@ function isWriteScope(
   value: string,
 ): value is NonNullable<TurnClassification["writeScope"]> {
   return Object.hasOwn(WRITE_SCOPE_CRITERIA, value);
+}
+
+/** The write scope stored on an earlier turn's classification, if valid. */
+export function storedWriteScope(
+  classification: unknown,
+): PresetRoute["writeScope"] {
+  if (!classification || typeof classification !== "object") return undefined;
+  const scope = (classification as { writeScope?: unknown }).writeScope;
+  return typeof scope === "string" && isWriteScope(scope) ? scope : undefined;
 }
 
 function percent(probability: number): string {

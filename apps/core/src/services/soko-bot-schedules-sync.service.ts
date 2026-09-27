@@ -13,6 +13,7 @@ import {
   isRetryableSokoBotRuntimeError,
   SokoBotRuntimeUnavailableError,
 } from "@/lib/soko-bot/runtime-errors";
+import { systemScheduleRoute } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
   SokoBotNoDestinationError,
@@ -475,6 +476,9 @@ export class SokoBotSchedulesSyncService {
           clientTurnId: sokoBotScheduleClientTurnId(schedule.id, scheduledFor),
           message,
           source: "SCHEDULE",
+          // Built-in rhythms run on the route Core gives them; a schedule the
+          // owner or the bot wrote is classified like any message.
+          presetRoute: systemScheduleRoute(schedule.systemKey),
           scheduleReservation: {
             runId: run.id,
             attempt: run.attempt,

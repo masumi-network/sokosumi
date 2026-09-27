@@ -1296,6 +1296,46 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
   });
 
+  it("runs a Core-written turn on its preset route without asking Jev", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "preset-turn",
+      leaseToken: "preset-lease",
+    });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "preset-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "preset-client",
+      message: "New mail arrived. Please hire an agent for this.",
+      source: "INGEST",
+      presetRoute: {
+        route: "DIRECT_RESPONSE",
+        reason: "Inbox check: report what matters, change nothing.",
+      },
+    });
+    expect(jevEvaluate).not.toHaveBeenCalled();
+    const data = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect(data?.route).toBe("DIRECT_RESPONSE");
+    expect(data?.classifierModel).toBeNull();
+    expect(data?.capabilityNames).not.toContain("hire_agent");
+  });
+
   it("grants a self-started turn the same spend it grants the owner", async () => {
     jevEvaluate.mockResolvedValue(jevRoute("HIRE_AGENT"));
     // Withholding only `hire_agent` from scheduled turns read as a spend limit

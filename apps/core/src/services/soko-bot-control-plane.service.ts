@@ -44,6 +44,9 @@ import { buildActionResponse } from "@/lib/soko-bot/action-response";
 import {
   type ClassificationResult,
   JevTurnClassifier,
+  type PresetRoute,
+  presetClassificationResult,
+  storedWriteScope,
   type TurnClassifier,
 } from "@/lib/soko-bot/classifier";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
@@ -60,6 +63,7 @@ import {
   shouldPersistSokoBotRuntimeEvent,
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
+import { systemScheduleRoute } from "@/lib/soko-bot/system-routes";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import {
@@ -177,6 +181,11 @@ export interface StartSokoBotTurnInput {
   }[];
   /** Version override for this turn (lab); otherwise the bot's version. */
   versionId?: string;
+  /**
+   * Route for a turn whose prompt Core wrote itself (sync workers, system
+   * rhythms, admin replays). Never set from a request body: it skips Jev.
+   */
+  presetRoute?: PresetRoute;
   /** Set when a chat-room mention started the turn; the reply lands there. */
   chat?: {
     mentionId: string;
@@ -2160,27 +2169,29 @@ export class SokoBotControlPlane {
         ),
       ].join(" "),
     );
-    const classification: ClassificationResult = await withEvaluationActor(
-      { userId: input.userId, sokoBotId: bot.id, clientTurnId, source },
-      () =>
-        this.classifier.classify(message, {
-          ...classifierContext,
-          pendingIntents: pendingIntents.map((intent) => ({
-            id: intent.id,
-            desiredOutcome: intent.desiredOutcome,
-            targetIds: Array.isArray(intent.targetIds)
-              ? intent.targetIds.filter(
-                  (id): id is string =>
-                    typeof id === "string" &&
-                    classifierContext.taskIds.includes(id),
-                )
-              : [],
-            expiresAt: intent.expiresAt.toISOString(),
-            route: intent.originatingTurn.route ?? "CLARIFY",
-            requiresApproval: intent.decisions.length > 0,
-          })),
-        }),
-    );
+    const classification: ClassificationResult = input.presetRoute
+      ? presetClassificationResult(message, input.presetRoute)
+      : await withEvaluationActor(
+          { userId: input.userId, sokoBotId: bot.id, clientTurnId, source },
+          () =>
+            this.classifier.classify(message, {
+              ...classifierContext,
+              pendingIntents: pendingIntents.map((intent) => ({
+                id: intent.id,
+                desiredOutcome: intent.desiredOutcome,
+                targetIds: Array.isArray(intent.targetIds)
+                  ? intent.targetIds.filter(
+                      (id): id is string =>
+                        typeof id === "string" &&
+                        classifierContext.taskIds.includes(id),
+                    )
+                  : [],
+                expiresAt: intent.expiresAt.toISOString(),
+                route: intent.originatingTurn.route ?? "CLARIFY",
+                requiresApproval: intent.decisions.length > 0,
+              })),
+            }),
+        );
     if (
       classification.classification.route === "MANAGE_WORK" &&
       classifierContext.namedTaskIds.length
@@ -4220,6 +4231,7 @@ export class SokoBotControlPlane {
           clientTurnId: retryClientTurnId,
           message: occurrencePrompt,
           source: "ADMIN_RETRY",
+          presetRoute: systemScheduleRoute(scheduleRun.schedule.systemKey),
           adminScheduleReservation: boundReplayTurnId
             ? {
                 kind: "BOUND_REPLAY",
@@ -4299,6 +4311,14 @@ export class SokoBotControlPlane {
           clientTurnId: `admin-retry:${failed.id}:${adminRetryOperationKey(operationId)}`,
           message: failed.userMessage,
           source: "ADMIN_RETRY",
+          // Replays on the route the failed turn had, never a wider one.
+          presetRoute: failed.route
+            ? {
+                route: failed.route,
+                writeScope: storedWriteScope(failed.classification),
+                reason: "Operator retry on the failed turn's route.",
+              }
+            : undefined,
           // A retry replays untrusted text, so it must not replay it with a
           // wider grant than the turn that failed. Dropping these turned a
           // failed depth-1 turn another assistant asked for — read-only, and

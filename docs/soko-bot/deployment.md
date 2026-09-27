@@ -36,7 +36,10 @@ Optional, per network:
   picks the route through the Gateway evaluation API. It has no EU region, so
   this is an owner-approved exception to the EU-only model policy; requests set
   zero data retention and no prompt training. Without the key every turn
-  falls back to read-only CLARIFY.
+  falls back to read-only CLARIFY. Only text a person wrote is classified:
+  turns whose prompt Core writes (task-board and delegation events, inbox
+  sync, the stand-up and weekly wrap) run on fixed routes in
+  `apps/core/src/lib/soko-bot/system-routes.ts`, none of which can hire.
 
 Environment changes only apply to the *next* build, so redeploy after setting
 them.
