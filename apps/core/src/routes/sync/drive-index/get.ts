@@ -19,6 +19,14 @@ export default function mount(app: Hono) {
         // have an opinion about its category.
         const extraction = await processFileIndexJobs({
           shouldContinue: context.shouldContinue,
+          // Not just `shouldContinue`. That is checked before leasing and
+          // never during, so a job leased with a moment left still runs to
+          // completion — past the lock's expiry, which lets the next tick
+          // start this same pipeline alongside it. The budget makes the
+          // loop refuse a job it cannot finish, and holds back a tail for
+          // the three stages below, which extraction could otherwise
+          // starve for the whole tick.
+          msRemaining: context.msRemaining,
         });
         const suggestions = await processFileSuggestionJobs({
           shouldContinue: context.shouldContinue,

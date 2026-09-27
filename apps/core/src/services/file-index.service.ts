@@ -25,6 +25,7 @@ import {
   leaseNextFileIndexJob,
   registerFileIndexArtifact,
 } from "@/lib/files/index-jobs";
+import { PDF_TIMEOUT_MS } from "@/lib/files/pdf";
 
 /**
  * The indexer: fetch, extract, and swap a version's passages in under a
@@ -37,6 +38,74 @@ import {
  */
 
 const DOWNLOAD_TIMEOUT_MS = 20_000;
+
+/**
+ * The metadata lookup that precedes the download.
+ *
+ * It had no timeout at all, which made this job's worst case unknowable
+ * and therefore un-budgetable. The drain loop below now refuses to lease a
+ * job it cannot finish inside the sync window, and that refusal is only
+ * meaningful if there is a number to compare against. Ten seconds is
+ * generous for a HEAD against blob storage and small enough to keep the
+ * total inside the budget.
+ */
+const HEAD_TIMEOUT_MS = 10_000;
+
+/**
+ * What one extraction job can cost, in the worst case, end to end.
+ *
+ * `HEAD_TIMEOUT_MS` + `DOWNLOAD_TIMEOUT_MS` + `PDF_TIMEOUT_MS` + the write
+ * transaction. Each of the first three is a real ceiling enforced by an
+ * abort signal; ten seconds is allowed for the chunk write, which is many
+ * statements but all local.
+ *
+ * This number exists because the drain loop checked `shouldContinue()`
+ * before leasing and never during, so a job leased with 0.1 s left ran to
+ * completion regardless. At the documented production window — a
+ * `LOCK_TIMEOUT` of 120,000 minus a `LOCK_TIMEOUT_BUFFER` of 25,000, so
+ * 95 s — a job leased at 94.9 s finished around 135 s, which is 15 s past
+ * `LOCK_TIMEOUT`, at which point the lock becomes stealable and the next
+ * minute's tick runs the same pipeline concurrently. The lease and fence
+ * make that wasted work rather than corruption, but it is a tick spent
+ * racing itself. ADR 0039's "worst-case gap of about 25 s" was written
+ * before a twenty-second-per-item parser lived inside this loop.
+ */
+export const EXTRACTION_JOB_WORST_CASE_MS =
+  HEAD_TIMEOUT_MS + DOWNLOAD_TIMEOUT_MS + PDF_TIMEOUT_MS + 10_000;
+
+/**
+ * Held back from extraction for everything that runs after it.
+ *
+ * Extraction runs first in `drive-index`, and before this it could use the
+ * entire window: a handful of slow PDFs starved suggestion, table
+ * re-indexing and admission pruning for that whole tick, every minute,
+ * with nothing saying so.
+ *
+ * Twenty seconds because the three stages behind it are all bounded
+ * database work — no provider call is made by the tick itself — and
+ * because the window is not large enough to be generous. At 95 s, holding
+ * back 20 s and reserving 60 s for a job in flight leaves a 15 s leasing
+ * window. That is hundreds of ordinary text documents, or exactly one
+ * worst-case PDF.
+ *
+ * The cost is real and worth stating: a backlog of slow PDFs drains at
+ * roughly one per tick. Uploads do not wait on it — `nudgeFileIndexing`
+ * extracts in the request that created the work — so this affects
+ * catch-up, not the path a person is watching.
+ */
+export const SYNC_TAIL_RESERVE_MS = 20_000;
+
+/**
+ * Enough budget left to start a job that might take the worst case?
+ *
+ * Conservative on purpose: nothing here can tell a five-millisecond text
+ * file from a twenty-second PDF before leasing it, so the reserve has to
+ * assume the expensive one.
+ */
+function hasBudgetToLease(msRemaining: (() => number) | undefined): boolean {
+  if (!msRemaining) return true;
+  return msRemaining() >= EXTRACTION_JOB_WORST_CASE_MS + SYNC_TAIL_RESERVE_MS;
+}
 
 /**
  * Replace a version's chunks in one statement per chunk, filling the
@@ -69,11 +138,23 @@ export async function writeVersionChunks(input: {
   }
 }
 
-async function downloadBlob(objectKey: string): Promise<Uint8Array | null> {
+/**
+ * Exported for one test, and the test is the reason the export is worth
+ * it: every call in here has to be bounded, or
+ * `EXTRACTION_JOB_WORST_CASE_MS` is a number with nothing behind it and
+ * the lease budget built on it is a fiction. The `head` call had no
+ * timeout and nothing noticed.
+ */
+export async function downloadBlob(
+  objectKey: string,
+): Promise<Uint8Array | null> {
   const token = getEnv().BLOB_READ_WRITE_TOKEN;
   if (!token) return null;
 
-  const metadata = await head(objectKey, { token });
+  const metadata = await head(objectKey, {
+    token,
+    abortSignal: AbortSignal.timeout(HEAD_TIMEOUT_MS),
+  });
   if (metadata.size > FILE_EXTRACTION_MAX_BYTES) return null;
 
   const response = await fetch(metadata.url, {
@@ -272,11 +353,32 @@ export interface FileIndexSyncResult {
 export async function processFileIndexJobs(input: {
   shouldContinue: () => boolean;
   maxJobs?: number;
+  /**
+   * Budget left in the sync window. Optional because the in-process nudge
+   * bounds itself with its own clock and has no lock to overrun; when it
+   * is absent the worst-case reserve is not applied.
+   */
+  msRemaining?: () => number;
 }): Promise<FileIndexSyncResult> {
   const maxJobs = input.maxJobs ?? 25;
   const result: FileIndexSyncResult = { processed: 0, indexed: 0, failed: 0 };
 
   while (result.processed < maxJobs && input.shouldContinue()) {
+    if (!hasBudgetToLease(input.msRemaining)) {
+      // Deliberately before the lease, not after. A job leased here would
+      // run past the lock's expiry and let the next tick start the same
+      // pipeline beside it.
+      console.info(
+        "[files] extraction stopped early to stay inside the sync window",
+        {
+          processed: result.processed,
+          msRemaining: input.msRemaining?.() ?? null,
+          reserveMs: EXTRACTION_JOB_WORST_CASE_MS + SYNC_TAIL_RESERVE_MS,
+        },
+      );
+      break;
+    }
+
     const leased = await leaseNextFileIndexJob({
       pipeline: FileIndexJobPipeline.EXTRACT,
     });
