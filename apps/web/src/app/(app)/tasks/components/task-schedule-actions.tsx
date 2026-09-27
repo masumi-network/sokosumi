@@ -37,6 +37,7 @@ interface TaskScheduleActionsProps {
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   canCreatePrivate: boolean;
+  onChanged?: () => void;
 }
 
 const STATE_ACTION_TOAST = {
@@ -54,6 +55,7 @@ export function TaskScheduleActions({
   coworkerOptions,
   projectOptions,
   canCreatePrivate,
+  onChanged,
 }: TaskScheduleActionsProps) {
   const t = useTranslations("App.Tasks.Schedules");
   const tActions = useTranslations("App.Tasks.Schedules.Actions");
@@ -81,7 +83,8 @@ export function TaskScheduleActions({
       }
       toast.success(tActions(STATE_ACTION_TOAST[action]));
       setConfirming(null);
-      router.refresh();
+      if (onChanged) onChanged();
+      else router.refresh();
     });
   }
 
@@ -93,7 +96,8 @@ export function TaskScheduleActions({
         return;
       }
       toast.success(tActions("deleted"));
-      router.push(TASK_SCHEDULES_PATH);
+      if (onChanged) onChanged();
+      else router.push(TASK_SCHEDULES_PATH);
     });
   }
 
@@ -202,6 +206,7 @@ export function TaskScheduleActions({
           projectOptions={projectOptions}
           canCreatePrivate={canCreatePrivate}
           onClose={() => setIsEditOpen(false)}
+          onSaved={onChanged}
         />
       ) : null}
     </div>

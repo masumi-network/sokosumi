@@ -523,15 +523,21 @@ function CalendarView({
       getCalendarItemDateKey(item.scheduledAt, timeZone),
     );
     return (
-      <div className="flex flex-col gap-4" data-testid="calendar-agenda">
+      <div
+        className="bg-card-background flex flex-col gap-4 rounded-xl p-3"
+        data-testid="calendar-agenda"
+      >
         <h2 className="text-lg font-semibold">{t("agenda.upcoming")}</h2>
         {items.length === 0 ? (
-          <p className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
+          <p className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
             {t("empty.title")}
           </p>
         ) : null}
         {Array.from(days, ([day, dayItems]) => (
-          <section className="overflow-hidden rounded-xl border" key={day}>
+          <section
+            className="bg-background overflow-hidden rounded-lg border border-border"
+            key={day}
+          >
             <h3 className="bg-muted flex items-center justify-between gap-2 border-b px-3 py-2 text-sm font-semibold">
               <span>
                 {formatDate(dayItems[0].scheduledAt, {
@@ -574,7 +580,7 @@ function CalendarView({
   return (
     <>
       <div
-        className="workspace-calendar-theme -mx-4 overflow-x-auto rounded-none border-0 border-border bg-background md:mx-0 md:rounded-xl md:border"
+        className="workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
         data-can-create={canCreate ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
@@ -1119,9 +1125,9 @@ export function WorkspaceCalendar({
           </div>
         ) : null}
 
-        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:flex-nowrap">
+        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full">
           <Tabs
-            className="min-w-0 max-w-full max-sm:flex-1"
+            className="min-w-0 max-w-full"
             value={view}
             onValueChange={(value) => {
               const nextView = CALENDAR_VIEWS.find(
@@ -1187,23 +1193,25 @@ export function WorkspaceCalendar({
         />
       ) : null}
 
-      {visibleItems.length === 0 && view !== "agenda" ? (
-        <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-          {t("empty.title")}
-        </div>
-      ) : null}
-      <CalendarView
-        key={calendarRenderEpoch}
-        canCreate={canCreate}
-        coworkers={coworkers}
-        date={date}
-        items={visibleItems}
-        onDateClick={handleDateClick}
-        runHandlers={runHandlers}
-        sources={sources}
-        timeZone={timeZone}
-        view={view}
-      />
+      <div className="flex min-w-0 flex-col gap-4">
+        {visibleItems.length === 0 && view !== "agenda" ? (
+          <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
+            {t("empty.title")}
+          </div>
+        ) : null}
+        <CalendarView
+          key={calendarRenderEpoch}
+          canCreate={canCreate}
+          coworkers={coworkers}
+          date={date}
+          items={visibleItems}
+          onDateClick={handleDateClick}
+          runHandlers={runHandlers}
+          sources={sources}
+          timeZone={timeZone}
+          view={view}
+        />
+      </div>
       {view === "agenda" && nextCursor ? (
         <div className="flex justify-center" ref={agendaBoundaryRef}>
           <Button

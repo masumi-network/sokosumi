@@ -55,7 +55,6 @@ import {
   driveItemsListClass,
   driveItemsPanelClass,
 } from "@/app/drive/components/drive-view-layout";
-import { DriveViewModeSwitch } from "@/app/drive/components/drive-view-mode-switch";
 import {
   type DrivePrimaryView,
   DriveViewTabs,
@@ -92,6 +91,7 @@ import {
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1326,7 +1326,9 @@ function DrivePageWorkspace({
   }
 
   const filesViewModeSwitch = (
-    <DriveViewModeSwitch
+    <ListGridViewSwitch
+      className="hidden @2xl:flex"
+      data-testid="files-view-mode-switch"
       value={filesViewMode}
       onChange={handleFilesViewModeChange}
       labels={{
@@ -1705,7 +1707,7 @@ function DrivePageWorkspace({
       ) : emptyState ? (
         <div
           className={cn(
-            "bg-card-background border-border -mx-4 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
+            "bg-card-background flex flex-col items-center justify-center overflow-hidden rounded-xl px-4 py-12 text-center",
             PROJECTS_LIST_CARD_MIN_H_CLASS,
           )}
         >
