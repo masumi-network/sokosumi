@@ -3,7 +3,7 @@
 import { ArrowLeft, Check, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { DriveFilePreview } from "@/app/drive/components/drive-file-preview";
@@ -38,7 +38,7 @@ function fileExtension(name: string): string {
 
 export function FileDetailClient({ resourceId }: { resourceId: string }) {
   const t = useTranslations("App.Drive.Files");
-  const { data: session } = useSession();
+  const { data: session, isPending: sessionPending } = useSession();
   const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
   const store: FileStore =
@@ -53,35 +53,55 @@ export function FileDetailClient({ resourceId }: { resourceId: string }) {
   const [unavailable, setUnavailable] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  /**
+   * Which load is current.
+   *
+   * Two loads can be in flight at once, because the store changes the moment
+   * the session resolves. Without this, a stale reply could land last and
+   * win: a personal-scope request for an organization file 404s quickly, and
+   * it was overwriting the successful organization reply with "File
+   * unavailable". Only the newest run may write state.
+   */
+  const runRef = useRef(0);
+
   const load = useCallback(async () => {
+    const run = ++runRef.current;
+    const current = () => run === runRef.current;
+
     setLoading(true);
     try {
       const next = await fetchFileResource({ store, resourceId });
+      if (!current()) return;
       setResource(next);
       setUnavailable(false);
     } catch {
       // A missing document and a denied one look the same on purpose: the
       // screen must not confirm that a file exists to someone who cannot
       // open it.
-      setUnavailable(true);
+      if (current()) setUnavailable(true);
     } finally {
-      setLoading(false);
+      if (current()) setLoading(false);
     }
 
     try {
       const relatedResult = await fetchRelatedFiles({ store, resourceId });
+      if (!current()) return;
       setRelated(relatedResult.items);
       setRelatedState(relatedResult.state);
     } catch {
-      setRelatedState("unavailable");
+      if (current()) setRelatedState("unavailable");
     }
     // The store is derived from the session and is stable per render pass.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resourceId, store.scope, store.organizationId]);
 
   useEffect(() => {
+    // Waiting costs a moment of the loading state. Not waiting asks for the
+    // file in the personal drive before the active organization is known,
+    // which is a request we already know the answer to.
+    if (sessionPending) return;
     void load();
-  }, [load]);
+  }, [load, sessionPending]);
 
   async function decide(suggestionId: string, decision: "accept" | "reject") {
     if (!resource) return;
