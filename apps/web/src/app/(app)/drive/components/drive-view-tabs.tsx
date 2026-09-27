@@ -15,13 +15,11 @@ export type DrivePrimaryView = "recents" | "browse" | "tables";
 
 interface DriveViewTabsProps {
   activeView: DrivePrimaryView;
-  browseLabel: string;
   onViewChange: (view: DrivePrimaryView) => void;
 }
 
 export function DriveViewTabs({
   activeView,
-  browseLabel,
   onViewChange,
 }: DriveViewTabsProps) {
   const t = useTranslations("App.Drive");
@@ -45,7 +43,7 @@ export function DriveViewTabs({
           value="browse"
           className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
         >
-          {browseLabel}
+          {t("workspaceTab")}
         </TabsTrigger>
         <TabsTrigger
           value="tables"

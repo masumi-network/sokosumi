@@ -10,6 +10,7 @@ import { TableCell } from "@/app/drive/tables/table-cell";
 import { TableColumnDialog } from "@/app/drive/tables/table-column-dialog";
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { TableEditor } from "@/app/drive/tables/table-editor";
+import { TableList } from "@/app/drive/tables/table-list";
 import type { TableColumn, TableView } from "@/lib/clients/generated/core";
 
 const f = vi.hoisted(() => {
@@ -118,6 +119,7 @@ vi.mock("@/lib/services/data-table.client", () => ({
     query: vi.fn(),
     history: vi.fn(),
     agents: vi.fn(),
+    list: vi.fn(),
   },
 }));
 beforeEach(() => {
@@ -812,7 +814,9 @@ it("blocks link navigation when a cell save goes unresolved after listeners inst
   fireEvent.change(cell, { target: { value: "Pending value" } });
   fireEvent.blur(cell);
   await waitFor(() => expect(f.batch).toHaveBeenCalledTimes(1));
-  const link = screen.getByLabelText("backToFiles");
+  // The back affordance is the labelled link the other detail pages use, so
+  // its accessible name comes from its own text rather than an `aria-label`.
+  const link = screen.getByRole("link", { name: "backToFiles" });
   const click = new MouseEvent("click", { bubbles: true, cancelable: true });
   link.dispatchEvent(click);
   await waitFor(() =>
@@ -825,4 +829,164 @@ it("blocks link navigation when a cell save goes unresolved after listeners inst
   expect(click.defaultPrevented).toBe(true);
   expect(confirmSpy).not.toHaveBeenCalled();
   window.confirm = priorConfirm;
+});
+
+// ---------------------------------------------------------------------------
+// Independent-review regressions (findings F3–F7). Each one was live on the
+// preview at `a90e2b868`; each assertion fails against that code.
+// ---------------------------------------------------------------------------
+
+it("F3: a cell error wraps instead of painting across the next column", async () => {
+  // The shared TableCell primitive is `whitespace-nowrap`, which is right for
+  // a read-only grid. A cell error is prose: under nowrap the conflict message
+  // measured 536px on one line inside a 240px cell and was drawn over the
+  // neighbouring column's input. `max-w-64 break-words` cannot help while
+  // nowrap is inherited, so the reset has to be on the cell and the error box.
+  f.batch.mockRejectedValue({ error: "Conflict" });
+  render(<TableEditor id={f.column.tableId} />);
+  const cell = screen.getByRole("textbox", { name: "Company" });
+  fireEvent.focus(cell);
+  fireEvent.change(cell, { target: { value: "Conflicting value" } });
+  fireEvent.blur(cell);
+  const alert = await screen.findByRole("alert");
+  expect(alert.className).toContain("whitespace-normal");
+  const valueCell = cell.closest("td");
+  expect(valueCell?.className).toContain("whitespace-normal");
+  expect(valueCell?.className).not.toContain("whitespace-nowrap");
+});
+
+it("F4: value cells and the row checkbox align to the top of an uneven row", () => {
+  // A `long_text` column renders a Textarea that grows, so rows are uneven.
+  // Centred controls float in the middle of a tall band; the row's own
+  // checkbox floated worst of all.
+  f.columns = [
+    { ...f.column, type: "long_text" as const, name: "Notes" },
+  ] as TableColumn[];
+  render(<TableEditor id={f.column.tableId} />);
+  const valueCell = screen
+    .getByRole("textbox", { name: "Notes" })
+    .closest("td");
+  expect(valueCell?.className).toContain("align-top");
+  expect(valueCell?.className).not.toContain("align-middle");
+  const checkboxCell = screen
+    .getByRole("checkbox", { name: "selectRow" })
+    .closest("td");
+  expect(checkboxCell?.className).toContain("align-top");
+});
+
+it("F4b: a long-text cell is not the only filled cell in a dark row", () => {
+  // The shared Textarea carries `dark:bg-quinary`; the shared Input does not.
+  // Inside the grid that made a `long_text` cell paint a box while every
+  // other cell in the same row stayed transparent.
+  f.columns = [
+    { ...f.column, type: "long_text" as const, name: "Notes" },
+  ] as TableColumn[];
+  render(<TableEditor id={f.column.tableId} />);
+  expect(screen.getByRole("textbox", { name: "Notes" }).className).toContain(
+    "dark:bg-transparent",
+  );
+});
+
+it("F5: the back link to the Tables tab is present at every width", () => {
+  // The app chrome's chevron and the breadcrumb both go to `/drive`, which
+  // lands on Recents. This link is the only route back to the Tables tab, so
+  // hiding it below `md` stranded phone users — and removed it from the
+  // accessibility tree there.
+  render(<TableEditor id={f.column.tableId} />);
+  const link = screen.getByRole("link", { name: "backToFiles" });
+  expect(link).toHaveAttribute("href", "/drive?view=tables");
+  expect(link.className).not.toContain("hidden");
+  expect(link.className).not.toContain("md:inline-flex");
+});
+
+it("F6: archived-rows mode is announced as a checked state and shown on screen", async () => {
+  // Opened with the keyboard: Radix drives the pointer path off pointerdown,
+  // and the keyboard path is the one that matters for the a11y claim anyway.
+  const openMenu = () =>
+    fireEvent.keyDown(screen.getByRole("button", { name: "tableMenu" }), {
+      key: "Enter",
+    });
+  render(<TableEditor id={f.column.tableId} />);
+  openMenu();
+  const toggle = await screen.findByRole("menuitemcheckbox", {
+    name: "showArchivedRows",
+  });
+  expect(toggle).toHaveAttribute("aria-checked", "false");
+  expect(screen.queryByText("archivedRowsBadge")).not.toBeInTheDocument();
+
+  fireEvent.click(toggle);
+  // Nothing else on the page says the list is now archived rows: a shorter
+  // list of disabled inputs reads as "this table is empty".
+  await waitFor(() =>
+    expect(screen.getByText("archivedRowsBadge")).toBeInTheDocument(),
+  );
+
+  openMenu();
+  await waitFor(async () =>
+    expect(
+      await screen.findByRole("menuitemcheckbox", { name: "showArchivedRows" }),
+    ).toHaveAttribute("aria-checked", "true"),
+  );
+});
+
+it("F7: the CSV picker exposes exactly one control to assistive technology", () => {
+  render(<TableCreateDialog workspaceId={null} />);
+  fireEvent.click(screen.getByRole("button", { name: "newTable" }));
+  // The visible trigger and the filename readout duplicated the native input,
+  // so the picker appeared twice and "No file chosen" was announced twice.
+  expect(
+    screen.queryByRole("button", { name: "chooseCsv" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByLabelText("importCsv")).toBeInTheDocument();
+  const trigger = screen.getByText("chooseCsv").closest("button");
+  expect(trigger).toHaveAttribute("aria-hidden", "true");
+  expect(trigger).toHaveAttribute("tabindex", "-1");
+  // The colour utility has to sit on the same `has-[:focus-visible]` variant
+  // as the ring itself: a plain `focus-visible:` never matches the wrapper,
+  // which is not focusable, so the ring fell back to `currentColor` — it
+  // painted near-black instead of the shared blue halo.
+  const ringed = trigger?.parentElement;
+  expect(ringed?.className).toContain("has-[:focus-visible]:ring-ring");
+  expect(ringed?.className).not.toMatch(/(?:^|\s)focus-visible:ring-ring/);
+});
+
+// --- Round three: surface and whitespace -------------------------------------
+
+it("R5: the grid sits on the shared large-surface panel, not on bare page", () => {
+  const { container } = render(<TableEditor id={f.column.tableId} />);
+  const surface = container.querySelector("table")?.closest("div.rounded-xl");
+  expect(surface).not.toBeNull();
+  const classes = [...(surface?.classList ?? [])];
+  // `bg-card` is `--background` in dark mode and white-on-white in light, so
+  // the old surface was invisible against the page and read as a bare border.
+  expect(classes).toContain("bg-card-background");
+  expect(classes).not.toContain("bg-card");
+  expect(classes).not.toContain("border");
+});
+
+it("R5: rows still show a hover that is not the panel's own colour", () => {
+  const { container } = render(<TableEditor id={f.column.tableId} />);
+  const row = container.querySelector("tbody tr");
+  expect(row).not.toBeNull();
+  const classes = [...(row?.classList ?? [])];
+  expect(classes).toContain("hover:bg-card-background-hover");
+  // The primitive's default would now be the panel's own colour.
+  expect(classes).not.toContain("hover:bg-card-background");
+});
+
+it("R6: the editor adds no second page gutter on top of the app shell's", () => {
+  const { container } = render(<TableEditor id={f.column.tableId} />);
+  const outer = container.firstElementChild as HTMLElement;
+  // `<main>` in the app shell owns the single `p-4` gutter, and its comment
+  // says pages must not add one of their own.
+  expect(outer.className).not.toMatch(/\bp-4\b/);
+  expect(outer.className).not.toMatch(/\bmd:p-6\b/);
+});
+
+it("R1: the list owns no archived toggle of its own", () => {
+  render(<TableList workspaceId={null} archived={false} />);
+  // The page's filter row owns this now; the list only receives the state.
+  expect(screen.queryByRole("button", { name: /archiv/i })).toBeNull();
+  expect(screen.queryByText("showArchived")).toBeNull();
+  expect(screen.queryByText("showActive")).toBeNull();
 });

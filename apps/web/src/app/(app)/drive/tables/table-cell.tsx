@@ -93,11 +93,15 @@ export function TableCell({
         (event.target as HTMLElement).blur();
       }
     },
-    className: "min-w-40 border-0 bg-transparent shadow-none text-sm",
+    // `dark:bg-transparent` is for the Textarea branch: the shared Textarea
+    // carries `dark:bg-quinary`, so in dark mode a `long_text` cell painted a
+    // filled box while every other cell in the same row stayed transparent.
+    className:
+      "min-w-40 border-0 bg-transparent px-2 shadow-none text-sm dark:bg-transparent",
   };
   return (
-    <div className="min-w-48">
-      <div className="flex items-center">
+    <div className="group/cell min-w-48">
+      <div className="flex items-center gap-0.5">
         {column.type === "checkbox" || column.type === "single_select" ? (
           <select
             {...props}
@@ -138,9 +142,19 @@ export function TableCell({
             step={column.type === "number" ? "any" : undefined}
           />
         )}
+        {/* The affordance belongs to one cell out of hundreds, and painting
+        every one turned the grid into a field of icons, so it is revealed by
+        pointer or focus. This is a visual-noise fix, not a width fix: the
+        button keeps its 32px in flow whether or not it is painted, which is
+        deliberate — reclaiming that space would mean overlaying the button on
+        the text being edited, and nothing may sit on top of an open editor.
+        The button stays in the DOM, in the accessibility tree and in the tab
+        order, so a keyboard or screen-reader user is unaffected; focusing the
+        cell — which is also what a tap does — reveals it. */}
         <Button
           size="icon"
           variant="ghost"
+          className="text-muted-foreground size-8 shrink-0 opacity-0 transition-opacity group-focus-within/cell:opacity-100 group-hover/cell:opacity-100 focus-visible:opacity-100"
           aria-label={t("cellHistory", { column: column.name })}
           onClick={onHistory}
         >
@@ -148,8 +162,11 @@ export function TableCell({
         </Button>
       </div>
       {error && (
-        <div role="alert" className="text-destructive max-w-64 p-2 text-xs">
-          {error}
+        <div
+          role="alert"
+          className="text-destructive flex max-w-64 flex-wrap items-center gap-2 px-2 pb-2 text-xs whitespace-normal"
+        >
+          <span className="min-w-0 break-words">{error}</span>
           <Button
             size="sm"
             variant="outline"

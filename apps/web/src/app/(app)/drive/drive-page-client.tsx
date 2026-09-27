@@ -3,7 +3,6 @@
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Building2,
   Check,
   ChevronRight,
   Copy,
@@ -12,7 +11,6 @@ import {
   Folder,
   FolderPlus,
   Folders,
-  Home,
   ListFilter,
   MoreHorizontal,
   Search,
@@ -22,7 +20,12 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import {
+  parseAsBoolean,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryStates,
+} from "nuqs";
 import {
   type ReactElement,
   useCallback,
@@ -46,9 +49,11 @@ import {
   DriveSortControl,
   DriveSortMenuItems,
 } from "@/app/drive/components/drive-sort-control";
+import { DriveTablesFilters } from "@/app/drive/components/drive-tables-filters";
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
+  DRIVE_HEADER_CONTROL_CLASS,
   driveItemIconWellClass,
   driveItemMetaDesktopClass,
   driveItemMetaMobileClass,
@@ -156,6 +161,21 @@ function withoutLegacyDriveScopeParam(
   return next;
 }
 
+/**
+ * The query a drive navigation should carry forward.
+ *
+ * Drops the legacy `scope`, and `archived` — which only the Tables list reads.
+ * Every caller here rebuilds the query from the current URL and then navigates
+ * into browse or tasks, so without this a `?archived=true` left over from the
+ * Tables tab rides along into views that ignore it and ends up in shared links.
+ * `navigateToPrimaryView` clears it through nuqs for the same reason.
+ */
+function driveNavParams(params: URLSearchParams): URLSearchParams {
+  const next = withoutLegacyDriveScopeParam(params);
+  next.delete("archived");
+  return next;
+}
+
 function appendDownloadParam(url: string): string {
   try {
     const parsed = new URL(url);
@@ -226,7 +246,7 @@ export function DrivePageClient({
     ) {
       return;
     }
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     params.delete("folder");
     params.delete("view");
     params.delete("projectId");
@@ -270,6 +290,7 @@ function DrivePageWorkspace({
     assigneeId: parseAsString,
     sortBy: filesSortByParser,
     sortOrder: filesSortOrderParser,
+    archived: parseAsBoolean.withDefault(false),
   });
   const pathname = usePathname();
   const [uploading, setUploading] = useState(false);
@@ -360,6 +381,7 @@ function DrivePageWorkspace({
   const currentFolder = folderParam;
   const viewParam = driveNavQuery.view ?? searchParams.get("view");
   const isTablesView = viewParam === "tables";
+  const tablesArchived = driveNavQuery.archived;
   const isTasksView = viewParam === "tasks";
   const isBrowseView =
     !isTablesView &&
@@ -885,7 +907,7 @@ function DrivePageWorkspace({
   }
 
   function navigateToFolder(folderName: string) {
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     const newPath = currentFolder
       ? `${currentFolder}/${folderName}`
       : folderName;
@@ -898,7 +920,7 @@ function DrivePageWorkspace({
   }
 
   function navigateToBreadcrumb(index: number) {
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     if (index === -1) {
       params.delete("folder");
       params.set("view", "browse");
@@ -925,13 +947,14 @@ function DrivePageWorkspace({
         projectId: null,
         taskId: null,
         assigneeId: null,
+        archived: null,
       },
       { history: "push" },
     );
   }
 
   function navigateToTasksRoot() {
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.delete("folder");
     params.delete("projectId");
@@ -948,7 +971,7 @@ function DrivePageWorkspace({
         return next;
       });
     }
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.set("projectId", projectId);
     params.delete("folder");
@@ -964,7 +987,7 @@ function DrivePageWorkspace({
         return next;
       });
     }
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.set("taskId", taskId);
     params.delete("folder");
@@ -1316,6 +1339,22 @@ function DrivePageWorkspace({
     loadMore: t("loadMore"),
   };
 
+  const driveTablesFilterLabels = {
+    title: t("filterTitle"),
+    searchPlaceholder: t("filterSearchPlaceholder"),
+    emptyResults: t("filterEmptyResults"),
+    statusLabel: t("filterStatusLabel"),
+    active: t("filterStatusActive"),
+    archived: t("filterStatusArchived"),
+  };
+
+  function handleTablesArchivedChange(next: boolean) {
+    void setDriveNavQuery(
+      { archived: next ? true : null },
+      { history: "replace" },
+    );
+  }
+
   function handleFilesViewModeChange(next: FilesViewMode) {
     setFilesViewMode(next);
     document.cookie = serializeFilesViewModeCookie(next);
@@ -1367,7 +1406,6 @@ function DrivePageWorkspace({
           <div className="flex min-w-0 items-center gap-3 @xl:flex-1">
             <DriveViewTabs
               activeView={primaryView}
-              browseLabel={storeRootLabel}
               onViewChange={navigateToPrimaryView}
             />
           </div>
@@ -1382,7 +1420,10 @@ function DrivePageWorkspace({
                       placeholder={t("tasksSearchPlaceholder")}
                       value={searchQuery}
                       onChange={(e) => handleSearchChange(e.target.value)}
-                      className="w-64 max-w-full pl-8"
+                      className={cn(
+                        "w-64 max-w-full pl-8",
+                        DRIVE_HEADER_CONTROL_CLASS,
+                      )}
                     />
                   </div>
                 </div>
@@ -1409,7 +1450,10 @@ function DrivePageWorkspace({
                     placeholder={t("searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="w-64 max-w-full pl-8"
+                    className={cn(
+                      "w-64 max-w-full pl-8",
+                      DRIVE_HEADER_CONTROL_CLASS,
+                    )}
                   />
                 </div>
                 <Button
@@ -1456,44 +1500,51 @@ function DrivePageWorkspace({
                     placeholder={t("searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="w-64 max-w-full pl-8"
+                    className={cn(
+                      "w-64 max-w-full pl-8",
+                      DRIVE_HEADER_CONTROL_CLASS,
+                    )}
                   />
                 </div>
               </div>
             )}
             {isTablesView && (
-              <TableCreateDialog
-                key={activeOrganizationId ?? "personal"}
-                workspaceId={activeOrganizationId}
-              />
+              <>
+                <DriveTablesFilters
+                  archived={tablesArchived}
+                  onArchivedChange={handleTablesArchivedChange}
+                  labels={driveTablesFilterLabels}
+                />
+                <TableCreateDialog
+                  key={activeOrganizationId ?? "personal"}
+                  workspaceId={activeOrganizationId}
+                />
+              </>
             )}
             {!isTablesView && !isRecentsView && filesSortControl}
             {!isTablesView && filesViewModeSwitch}
           </div>
         </div>
 
-        {!isTasksView && isBrowseView ? (
+        {!isTasksView && isBrowseView && breadcrumbSegments.length > 0 ? (
           <nav
             className="app-scrollbar text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
             aria-label={t("breadcrumbNavLabel")}
           >
+            {/* The root crumb. It used to be an icon-plus-organization-name
+            chip that restated the tab sitting directly above it, so it is a
+            plain crumb now, named after the tab, and the whole nav is dropped
+            at the root where it would have been the only thing in it. Inside a
+            folder it stays: the tab is already selected there, so clicking it
+            does not fire a change and this is the only route back to the
+            root. */}
             <button
               type="button"
               onClick={() => navigateToBreadcrumb(-1)}
-              className={cn(
-                "hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors",
-                breadcrumbSegments.length === 0 &&
-                  "text-foreground font-medium",
-              )}
-              aria-label={storeRootLabel}
-              title={storeRootLabel}
+              className="hover:text-foreground whitespace-nowrap transition-colors"
+              title={t("workspaceTab")}
             >
-              {scope === "org" ? (
-                <Building2 className="size-4" aria-hidden />
-              ) : (
-                <Home className="size-4" aria-hidden />
-              )}
-              <span className="ml-1">{storeRootLabel}</span>
+              {t("workspaceTab")}
             </button>
             {breadcrumbSegments.map((segment, index) => (
               <span key={index} className="flex shrink-0 items-center gap-1">
@@ -1519,19 +1570,17 @@ function DrivePageWorkspace({
             className="app-scrollbar text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
             aria-label={t("breadcrumbNavLabel")}
           >
+            {/* Same root crumb as the browse trail. The tasks view keeps it at
+            every depth: its tab is the workspace tab, which is already
+            selected here, so this is the only control that leaves the tasks
+            list for the file root. */}
             <button
               type="button"
               onClick={() => navigateToBreadcrumb(-1)}
-              className="hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors"
-              aria-label={storeRootLabel}
-              title={storeRootLabel}
+              className="hover:text-foreground whitespace-nowrap transition-colors"
+              title={t("workspaceTab")}
             >
-              {scope === "org" ? (
-                <Building2 className="size-4" aria-hidden />
-              ) : (
-                <Home className="size-4" aria-hidden />
-              )}
-              <span className="ml-1">{storeRootLabel}</span>
+              {t("workspaceTab")}
             </button>
             {tasksBreadcrumbs.map((crumb, index) => (
               <span key={index} className="flex shrink-0 items-center gap-1">
@@ -1673,6 +1722,7 @@ function DrivePageWorkspace({
 
       {isTablesView ? (
         <TableList
+          archived={tablesArchived}
           key={activeOrganizationId ?? "personal"}
           workspaceId={activeOrganizationId}
         />
