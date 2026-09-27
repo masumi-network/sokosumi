@@ -71,12 +71,46 @@ function parseCoworkerResponseStatus(
   }
 }
 
-async function retrieveCoworkerResponseStatus(
+/** Final answer text of a Responses API payload: `output_text`, else its assistant message parts. */
+export function coworkerResponseText(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  const record = payload as Record<string, unknown>;
+  if (typeof record.output_text === "string" && record.output_text.trim()) {
+    return record.output_text.trim();
+  }
+  const output = Array.isArray(record.output) ? record.output : [];
+  const text = output
+    .flatMap((item) => {
+      const message = item as Record<string, unknown> | null;
+      if (message?.type !== "message" || !Array.isArray(message.content)) {
+        return [];
+      }
+      return message.content.map((part) => {
+        const content = part as Record<string, unknown> | null;
+        return content?.type === "output_text" &&
+          typeof content.text === "string"
+          ? content.text
+          : "";
+      });
+    })
+    .join("")
+    .trim();
+  return text || null;
+}
+
+/** One retrieve of a coworker response: its status and, when finished, its text. */
+export async function retrieveCoworkerResponse(
   params: PollCoworkerResponseStatusParams,
-): Promise<CoworkerResponsePollStatus> {
+): Promise<{ result: CoworkerResponsePollStatus; text: string | null }> {
   const fetchFn = params.fetchFn ?? fetch;
   const base = params.responsesApiBaseUrl.replace(/\/$/, "");
   const url = `${base}/responses/${encodeURIComponent(params.responseId)}`;
+  const failed = (cause: unknown) => ({
+    result: { status: "error" as const, responseId: params.responseId, cause },
+    text: null,
+  });
 
   let response: Response;
   try {
@@ -90,42 +124,35 @@ async function retrieveCoworkerResponseStatus(
       signal: AbortSignal.timeout(15_000),
     });
   } catch (error) {
-    return {
-      status: "error",
-      responseId: params.responseId,
-      cause: error,
-    };
+    return failed(error);
   }
 
   if (!response.ok) {
-    return {
-      status: "error",
-      responseId: params.responseId,
-      cause: new Error(`Coworker retrieve returned HTTP ${response.status}`),
-    };
+    return failed(
+      new Error(`Coworker retrieve returned HTTP ${response.status}`),
+    );
   }
 
   let payload: unknown;
   try {
     payload = await response.json();
   } catch (error) {
-    return {
-      status: "error",
-      responseId: params.responseId,
-      cause: error,
-    };
+    return failed(error);
   }
 
   const parsed = parseCoworkerResponseStatus(params.responseId, payload);
-  if (parsed) {
-    return parsed;
+  if (!parsed) {
+    return failed(
+      new Error("Coworker retrieve returned an unrecognized status"),
+    );
   }
+  return { result: parsed, text: coworkerResponseText(payload) };
+}
 
-  return {
-    status: "error",
-    responseId: params.responseId,
-    cause: new Error("Coworker retrieve returned an unrecognized status"),
-  };
+async function retrieveCoworkerResponseStatus(
+  params: PollCoworkerResponseStatusParams,
+): Promise<CoworkerResponsePollStatus> {
+  return (await retrieveCoworkerResponse(params)).result;
 }
 
 export async function pollCoworkerResponseStatus(
