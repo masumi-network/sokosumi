@@ -70,32 +70,31 @@ export function TaskCard({
             {task.name}
           </TaskDetailLink>
         </h3>
-        <TaskTags tags={task.tags} compact={compact} />
-        {task.project ? (
-          <Link
-            href={`/projects/${task.project.id}`}
-            title={task.project.name}
-            aria-label={t("openProject", { name: task.project.name })}
-            className="text-muted-foreground hover:text-foreground focus-visible:outline-ring relative z-10 flex min-h-8 min-w-0 items-center gap-2 rounded-sm text-xs hover:underline focus-visible:outline-2"
-            onPointerDown={(event) => event.stopPropagation()}
-            onKeyDown={(event) => event.stopPropagation()}
-          >
-            <ProjectAvatar
-              name={task.project.name}
-              logo={task.project.logo}
-              className="size-5 shrink-0 rounded-sm"
-            />
-            <span
-              className={cn(
-                "min-w-0 break-words",
-                compact ? "line-clamp-1" : "line-clamp-2",
-              )}
-            >
-              {task.project.name}
-            </span>
-          </Link>
-        ) : (
-          <p className="text-muted-foreground text-xs">{t("noProject")}</p>
+        {!compact && (
+          <>
+            <TaskTags tags={task.tags} />
+            {task.project ? (
+              <Link
+                href={`/projects/${task.project.id}`}
+                title={task.project.name}
+                aria-label={t("openProject", { name: task.project.name })}
+                className="text-muted-foreground hover:text-foreground focus-visible:outline-ring relative z-10 flex min-h-8 min-w-0 items-center gap-2 rounded-sm text-xs hover:underline focus-visible:outline-2"
+                onPointerDown={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
+                <ProjectAvatar
+                  name={task.project.name}
+                  logo={task.project.logo}
+                  className="size-5 shrink-0 rounded-sm"
+                />
+                <span className="min-w-0 line-clamp-2 break-words">
+                  {task.project.name}
+                </span>
+              </Link>
+            ) : (
+              <p className="text-muted-foreground text-xs">{t("noProject")}</p>
+            )}
+          </>
         )}
         {task.runAt ? (
           <TaskRunAtBadge runAt={task.runAt} className="flex" />

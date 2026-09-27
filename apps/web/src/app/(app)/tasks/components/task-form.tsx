@@ -62,7 +62,7 @@ import {
   updateTask,
 } from "@/lib/actions/task/action";
 import { useSession } from "@/lib/auth/auth.client";
-import { TaskStatus } from "@/lib/clients/generated/core";
+import { TaskStatus, type TaskTagId } from "@/lib/clients/generated/core";
 import type { Project } from "@/lib/clients/generated/core/types.gen";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -86,10 +86,12 @@ import {
   type TaskContextAttachmentsSelection,
 } from "./task-context-attachments";
 import { TaskCreatedCelebration } from "./task-created-celebration";
+import { TaskDraftTags } from "./task-draft-tags";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
 import { TaskRunAtModal } from "./task-run-at-modal";
 import { TaskStatusPicker } from "./task-status-picker";
+import { useTaskTagSuggestions } from "./use-task-tag-suggestions";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
 
@@ -210,6 +212,8 @@ function getTaskFormStatusLabel(
 }
 
 export interface TaskFormCreateInput {
+  tagSuggestionReceipt?: string;
+  tagCorrections?: { add: TaskTagId[]; remove: TaskTagId[] };
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -650,6 +654,18 @@ export function TaskForm({
     [labels],
   );
 
+  const draftTags = useTaskTagSuggestions({
+    name,
+    description,
+    workspaceKey: `${session?.user.id ?? ""}:${session?.session.activeOrganizationId ?? "personal"}`,
+    enabled:
+      mode === "create" &&
+      Boolean(session) &&
+      !createdTask &&
+      !isSubmitting &&
+      (!useWizard || step === 2),
+  });
+
   const handleSave = useCallback(async () => {
     if (isSaveDisabled || (useWizard && step === 1)) return;
     if (
@@ -704,6 +720,12 @@ export function TaskForm({
             session?.user.id,
           );
         const result = await createTaskHandler({
+          ...(draftTags.tagSuggestionReceipt
+            ? { tagSuggestionReceipt: draftTags.tagSuggestionReceipt }
+            : {}),
+          ...(draftTags.tagCorrections
+            ? { tagCorrections: draftTags.tagCorrections }
+            : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
           description: trimmedDescription,
           ...assigneeFields,
@@ -777,6 +799,8 @@ export function TaskForm({
       setIsSubmitting(false);
     }
   }, [
+    draftTags.tagSuggestionReceipt,
+    draftTags.tagCorrections,
     description,
     isSaveDisabled,
     mode,
@@ -1226,6 +1250,8 @@ export function TaskForm({
                   </div>
                 ) : null}
               </div>
+
+              {mode === "create" ? <TaskDraftTags {...draftTags} /> : null}
 
               {shouldShowProjectSelect || showPrivateControl ? (
                 <div className="space-y-1">

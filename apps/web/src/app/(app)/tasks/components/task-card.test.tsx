@@ -1,8 +1,10 @@
+import { DndContext } from "@dnd-kit/core";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 
+import { KanbanBoard } from "./kanban-board";
 import { TaskCard } from "./task-card";
 
 vi.mock("@/lib/actions/task/action", () => ({ updateTaskTags: vi.fn() }));
@@ -166,7 +168,7 @@ describe("TaskCard project navigation", () => {
 });
 
 describe("TaskCard density", () => {
-  it("tightens untagged cards without hiding their content or navigation", () => {
+  it("hides empty metadata in Compact and restores it in Normal", () => {
     const task = buildTask(TaskVisibility.PRIVATE);
     const { rerender } = render(<TaskCard task={task} />);
     const normalClasses = screen.getByRole("article").className;
@@ -181,17 +183,19 @@ describe("TaskCard density", () => {
       "href",
       "/tasks/task-1",
     );
-    expect(screen.getByText("empty")).toBeInTheDocument();
-    expect(screen.getByText("noProject")).toBeInTheDocument();
+    expect(screen.queryByText("empty")).not.toBeInTheDocument();
+    expect(screen.queryByText("noProject")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Private")).toBeInTheDocument();
     expect(screen.getByText("Mar 1")).toBeInTheDocument();
 
     rerender(<TaskCard task={task} compact={false} />);
     expect(screen.getByRole("article").className).toBe(normalClasses);
+    expect(screen.getByText("empty")).toBeInTheDocument();
+    expect(screen.getByText("noProject")).toBeInTheDocument();
   });
 
   it.each([false, true])(
-    "keeps project and tag controls separate from dragging (compact=%s)",
+    "hides metadata only in Compact while preserving task and drag controls (compact=%s)",
     (compact) => {
       const onPointerDown = vi.fn();
       const onKeyDown = vi.fn();
@@ -228,32 +232,97 @@ describe("TaskCard density", () => {
           }}
         />,
       );
-      const project = screen.getByRole("link", { name: "openProject" });
-      expect(project).toHaveAttribute("title", task.project?.name);
-      expect(screen.getByText(task.project?.name ?? "")).toHaveClass(
-        compact ? "line-clamp-1" : "line-clamp-2",
-      );
       expect(screen.getByRole("link", { name: task.name })).toHaveAttribute(
         "title",
         task.name,
-      );
-      expect(screen.getByRole("button", { name: "showAll" })).toHaveTextContent(
-        compact ? "+2" : "+1",
       );
       expect(container.querySelector("time")).toHaveAttribute(
         "dateTime",
         task.runAt,
       );
-      fireEvent.pointerDown(project);
-      fireEvent.keyDown(project, { key: "Enter" });
-      fireEvent.pointerDown(screen.getByRole("button", { name: "showAll" }));
-      fireEvent.keyDown(screen.getByRole("button", { name: "showAll" }), {
-        key: "Enter",
-      });
+      if (compact) {
+        expect(
+          screen.queryByRole("link", { name: "openProject" }),
+        ).not.toBeInTheDocument();
+        expect(
+          screen.queryByText(task.project?.name ?? ""),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
+        expect(
+          screen.queryByRole("button", { name: "showAll" }),
+        ).not.toBeInTheDocument();
+      } else {
+        const project = screen.getByRole("link", { name: "openProject" });
+        expect(project).toHaveAttribute("title", task.project?.name);
+        expect(screen.getByText(task.project?.name ?? "")).toHaveClass(
+          "line-clamp-2",
+        );
+        expect(screen.getByText("vocabulary.design")).toBeInTheDocument();
+        const overflow = screen.getByRole("button", { name: "showAll" });
+        expect(overflow).toHaveTextContent("+1");
+        fireEvent.pointerDown(project);
+        fireEvent.keyDown(project, { key: "Enter" });
+        fireEvent.pointerDown(overflow);
+        fireEvent.keyDown(overflow, { key: "Enter" });
+      }
       expect(onPointerDown).not.toHaveBeenCalled();
       expect(onKeyDown).not.toHaveBeenCalled();
       fireEvent.pointerDown(screen.getByRole("heading"));
       expect(onPointerDown).toHaveBeenCalledOnce();
+      const draggable = container.querySelector(
+        '[aria-roledescription="draggable"]',
+      );
+      expect(draggable).toHaveAttribute("tabindex", "0");
+      if (!draggable) throw new Error("Expected a drag handle");
+      fireEvent.keyDown(draggable, { key: " " });
+      expect(onKeyDown).toHaveBeenCalledOnce();
+    },
+  );
+});
+
+describe("Compact board card wiring", () => {
+  it.each([
+    { isDragEnabled: true, canDrag: true },
+    { isDragEnabled: true, canDrag: false },
+    { isDragEnabled: false, canDrag: true },
+  ])(
+    "hides metadata in draggable, static and prehydration cards (%j)",
+    ({ isDragEnabled, canDrag }) => {
+      const task: TaskWithCoworker = {
+        ...buildTask(TaskVisibility.PUBLIC),
+        project: { id: "project-1", name: "Launch project", logo: null },
+        tags: { manual: ["design"], automatic: [], rejected: [] },
+      };
+      const { container } = render(
+        <DndContext>
+          <KanbanBoard
+            tasks={[task]}
+            columns={[{ id: "todo", translationKey: "App.Tasks.Columns.todo" }]}
+            labels={{
+              columns: {
+                backlog: "Backlog",
+                todo: "To do",
+                "in-progress": "In progress",
+                "input-required": "Input required",
+                done: "Done",
+              },
+              emptyColumn: "Empty",
+            }}
+            isDragEnabled={isDragEnabled}
+            canDragTask={() => canDrag}
+            compact
+          />
+        </DndContext>,
+      );
+      expect(screen.getByRole("link", { name: task.name })).toHaveAttribute(
+        "href",
+        "/tasks/task-1",
+      );
+      expect(screen.queryByText("Launch project")).not.toBeInTheDocument();
+      expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
+      expect(Boolean(container.querySelector("[data-dnd-draggable]"))).toBe(
+        isDragEnabled && canDrag,
+      );
     },
   );
 });

@@ -2113,6 +2113,9 @@
         }
       },
       "Tags": {
+        "remove": "Eliminar la etiqueta {name}",
+        "suggesting": "Sugiriendo etiquetas…",
+        "suggestionsUnavailable": "Las sugerencias no están disponibles. Puedes elegir etiquetas o crear tu tarea.",
         "label": "Etiquetas",
         "empty": "Sin etiquetas todavía",
         "edit": "Editar etiquetas",

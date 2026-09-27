@@ -78,21 +78,33 @@ describe("TaskListItem privacy cue", () => {
 });
 
 describe("TaskListItem description preview", () => {
-  it("hides only the description when switching to Compact", () => {
+  it("hides description and project in Compact and restores them in Normal", () => {
     const task = {
       ...buildTask(TaskVisibility.PRIVATE),
       descriptionPlain: "Full instructions remain in task detail.",
+      project: { id: "project-1", name: "Launch project", logo: null },
     };
     const { rerender } = render(<TaskListItem task={task} />);
     expect(screen.getByText(task.descriptionPlain)).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: task.project.name }),
+    ).toBeInTheDocument();
     rerender(<TaskListItem task={task} compact />);
     expect(screen.queryByText(task.descriptionPlain)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: task.project.name }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ship filter/ })).toHaveAttribute(
       "href",
       "/tasks/task-1",
     );
     expect(screen.getByLabelText("Private")).toBeInTheDocument();
     expect(screen.getByText("Mar 1")).toBeInTheDocument();
+    rerender(<TaskListItem task={task} compact={false} />);
+    expect(
+      screen.getByRole("img", { name: task.project.name }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(task.descriptionPlain)).toBeInTheDocument();
   });
   it("shows an em dash instead of raw context attachment markdown", () => {
     const task = {

@@ -3021,6 +3021,9 @@ export type CreateCreditCheckoutSession = {
 export type CheckoutSessionAnalytics = {
     sessionId: string;
     currency: string | null;
+    /**
+     * Net revenue in major currency units (e.g. 49 for EUR 49.00): total after discounts, excluding tax and shipping.
+     */
     value: number | null;
     items: Array<{
         itemId: string;
@@ -6139,6 +6142,11 @@ export type TaskActivitySummary = {
      * Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.
      */
     workedMinutes: number;
+};
+
+export type TaskTagSuggestion = {
+    tags: Array<TaskTagId>;
+    receipt: string;
 };
 
 export type TaskSchedule = {
@@ -44202,6 +44210,11 @@ export type GetTasksResponse = GetTasksResponses[keyof GetTasksResponses];
 
 export type PostTasksData = {
     body?: {
+        tagSuggestionReceipt?: string;
+        tagCorrections?: {
+            add?: Array<TaskTagId>;
+            remove?: Array<TaskTagId>;
+        };
         name?: string;
         description?: string | null;
         projectId?: string | null;
@@ -44419,6 +44432,112 @@ export type GetTasksSummaryResponses = {
 };
 
 export type GetTasksSummaryResponse = GetTasksSummaryResponses[keyof GetTasksSummaryResponses];
+
+export type SuggestTaskTagsData = {
+    body?: {
+        name?: string;
+        description?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/tasks/tag-suggestions';
+};
+
+export type SuggestTaskTagsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too many requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Suggestions unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SuggestTaskTagsError = SuggestTaskTagsErrors[keyof SuggestTaskTagsErrors];
+
+export type SuggestTaskTagsResponses = {
+    /**
+     * Suggested tags and signed receipt
+     */
+    200: {
+        data: TaskTagSuggestion;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SuggestTaskTagsResponse = SuggestTaskTagsResponses[keyof SuggestTaskTagsResponses];
 
 export type GetTasksSchedulesData = {
     body?: never;

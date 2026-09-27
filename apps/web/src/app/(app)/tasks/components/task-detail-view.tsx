@@ -234,7 +234,13 @@ export async function TaskDetailView({
               }}
             />
 
-            <TaskFiles title={t("files")} files={task.files ?? []} />
+            <TaskFiles
+              taskId={task.id}
+              title={t("files")}
+              files={task.files ?? []}
+              expandLabel={t("expand")}
+              collapseLabel={t("collapse")}
+            />
 
             {task.jobs.length > 0 && (
               <Suspense

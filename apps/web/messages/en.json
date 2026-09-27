@@ -2113,6 +2113,9 @@
         }
       },
       "Tags": {
+        "remove": "Remove {name} tag",
+        "suggesting": "Suggesting tags…",
+        "suggestionsUnavailable": "Suggestions are unavailable. You can still choose tags or create your task.",
         "label": "Tags",
         "empty": "No tags yet",
         "edit": "Edit tags",
