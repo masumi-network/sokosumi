@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { classifyPendingTaskTags } from "./task-tag-classification.service";
+import {
+  classifyFixtureTaskTags,
+  classifyPendingTaskTags,
+} from "./task-tag-classification.service";
 
 const {
   availableMock,
@@ -333,6 +336,62 @@ describe("classifyPendingTaskTags", () => {
     { shouldContinue: () => true, msRemaining: () => 14_999 },
   ])("does not claim new work past the sync budget", async (budget) => {
     await classifyPendingTaskTags({ ...context, ...budget });
+    expect(updateManyMock).not.toHaveBeenCalled();
+    expect(classifyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("classifyFixtureTaskTags", () => {
+  it("restricts selection, claim, and persistence to the identified synthetic draft owner", async () => {
+    await classifyFixtureTaskTags(context, {
+      taskId: task.id,
+      ownerId: "fixture-owner",
+    });
+    const scope = {
+      id: task.id,
+      ownerId: "fixture-owner",
+      name: { startsWith: "SYNTHETIC " },
+      status: "DRAFT",
+    };
+    expect(findManyMock.mock.calls[0]![0].where).toMatchObject(scope);
+    expect(updateManyMock).toHaveBeenCalledTimes(2);
+    for (const [call] of updateManyMock.mock.calls) {
+      expect(call.where).toMatchObject(scope);
+      expect(call.where).toMatchObject({
+        workspaceId: task.workspaceId,
+        tagContentRevision: 4,
+      });
+    }
+    expect(classifyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { taskId: "", ownerId: "fixture-owner" },
+    { taskId: "task-1", ownerId: "" },
+  ])("does nothing for incomplete scope %j", async (scope) => {
+    await classifyFixtureTaskTags(context, scope);
+    expect(availableMock).not.toHaveBeenCalled();
+    expect(findManyMock).not.toHaveBeenCalled();
+    expect(classifyMock).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when a caller omits the required scope at runtime", async () => {
+    await Reflect.apply(classifyFixtureTaskTags, undefined, [
+      context,
+      undefined,
+    ]);
+    expect(availableMock).not.toHaveBeenCalled();
+    expect(findManyMock).not.toHaveBeenCalled();
+    expect(classifyMock).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to the queue when the fixture does not match", async () => {
+    findManyMock.mockResolvedValue([]);
+    await classifyFixtureTaskTags(context, {
+      taskId: task.id,
+      ownerId: "fixture-owner",
+    });
+    expect(findManyMock).toHaveBeenCalledTimes(1);
     expect(updateManyMock).not.toHaveBeenCalled();
     expect(classifyMock).not.toHaveBeenCalled();
   });

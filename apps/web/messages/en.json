@@ -2029,6 +2029,8 @@
         }
       },
       "Schedules": {
+        "viewList": "List view",
+        "viewGrid": "Grid view",
         "stateFilter": "Schedule state",
         "filterAll": "All",
         "state": {

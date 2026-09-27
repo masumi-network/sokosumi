@@ -97,11 +97,10 @@ function renderView(
 }
 
 describe("ProjectsView create control", () => {
-  it("sits in the list header row, beside the filter it shares a line with", () => {
+  it("sits above the content group beside search", () => {
     renderView();
 
-    const header = screen.getByTestId("projects-browse")
-      .firstElementChild as HTMLElement;
+    const header = screen.getByTestId("projects-toolbar");
 
     expect(header).toContainElement(
       screen.getByRole("button", { name: "New project" }),
@@ -115,8 +114,7 @@ describe("ProjectsView create control", () => {
     // The Instant contract test can only grep for the constant's name, which
     // an unused import would satisfy. Assert the tokens reach the DOM, as the
     // skeleton's own test does for its side of the pair.
-    const header = screen.getByTestId("projects-browse")
-      .firstElementChild as HTMLElement;
+    const header = screen.getByTestId("projects-toolbar");
 
     for (const token of PROJECTS_BROWSE_HEADER_ROW_CLASS.split(/\s+/)) {
       expect(header.className).toContain(token);
@@ -131,11 +129,16 @@ describe("ProjectsView create control", () => {
     );
   });
 
-  it("leaves no standalone create row above the list card", () => {
+  it("keeps the toolbar outside the grey content group", () => {
     const { container } = renderView();
 
     const shell = container.firstElementChild as HTMLElement;
-    expect(shell.firstElementChild).toBe(screen.getByTestId("projects-browse"));
+    expect(shell.firstElementChild).toBe(
+      screen.getByTestId("projects-toolbar"),
+    );
+    expect(screen.getByTestId("projects-browse")).not.toContainElement(
+      screen.getByLabelText("Filter projects"),
+    );
   });
 
   it("stays desktop-only, since below md the mobile FAB creates", () => {
@@ -146,13 +149,12 @@ describe("ProjectsView create control", () => {
     expect(button.className).toContain("md:inline-flex");
   });
 
-  it("lets the sort label yield on the band where it shares the line", () => {
+  it("hides the sort label on narrow widths so search remains usable", () => {
     renderView();
 
-    // Nothing in the row wraps, so across md–lg the label steps aside rather
-    // than squeezing the filter to a stub in a longer locale.
+    // Search keeps the available width on phones and small desktop panes.
     const label = screen.getByText("Sorted by recent activity");
-    expect(label.className).toContain("md:hidden");
+    expect(label.className).toContain("hidden");
     expect(label.className).toContain("lg:inline");
   });
 

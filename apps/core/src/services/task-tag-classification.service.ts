@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@sokosumi/database";
 import {
   classifyTaskTags,
   JEV_TASK_TAG_MODEL,
@@ -13,9 +14,30 @@ const BATCH_SIZE = 10;
 const MAX_ATTEMPTS = 2;
 const LEASE_MS = 60_000;
 
-/** One serial bounded batch; content invalidation is durable even if a process exits. */
 export async function classifyPendingTaskTags(context: SyncExecutionContext) {
-  // Capability discovery never contains task content. No automatic global fallback.
+  return runPendingTaskTags(context, {});
+}
+
+export async function classifyFixtureTaskTags(
+  context: SyncExecutionContext,
+  scope: { taskId: string; ownerId: string },
+) {
+  // Missing fixture identity must never broaden this into a queue-wide run.
+  if (!scope?.taskId || !scope.ownerId) return;
+  return runPendingTaskTags(context, {
+    id: scope.taskId,
+    ownerId: scope.ownerId,
+    name: { startsWith: "SYNTHETIC " },
+    status: "DRAFT",
+  });
+}
+
+/** One serial bounded batch; content invalidation is durable even if a process exits. */
+async function runPendingTaskTags(
+  context: SyncExecutionContext,
+  scope: Prisma.TaskWhereInput,
+) {
+  // Discovery contains no task content; each evaluation enforces privacy options.
   let available = false;
   try {
     available = await taskTagProviderAvailable(context.abortSignal);
@@ -25,6 +47,7 @@ export async function classifyPendingTaskTags(context: SyncExecutionContext) {
   if (!available) return;
   const tasks = await prisma.task.findMany({
     where: {
+      ...scope,
       archivedAt: null,
       tagClassificationState: { in: ["pending", "running"] },
       tagClassificationAvailableAt: { lte: new Date() },
@@ -50,6 +73,7 @@ export async function classifyPendingTaskTags(context: SyncExecutionContext) {
     });
     try {
       const claimWhere = {
+        ...scope,
         id: task.id,
         workspaceId: task.workspaceId,
         archivedAt: null,
@@ -94,6 +118,7 @@ export async function classifyPendingTaskTags(context: SyncExecutionContext) {
         continue;
       }
       const where = {
+        ...scope,
         id: task.id,
         workspaceId: task.workspaceId,
         archivedAt: null,
