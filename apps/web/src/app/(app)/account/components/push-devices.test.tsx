@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -22,7 +23,7 @@ const device: PushDevice = {
   state: "active",
 };
 const clients: QueryClient[] = [];
-function setup(userId = "user-1") {
+function setup(userId = "user-1", expanded = true) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
@@ -42,6 +43,8 @@ function setup(userId = "user-1") {
     );
   }
   const result = render(view(userId));
+  if (expanded)
+    fireEvent.click(screen.getByRole("button", { name: "Registered devices" }));
   return { ...result, switchUser: (id: string) => result.rerender(view(id)) };
 }
 beforeEach(() => {
@@ -55,6 +58,19 @@ afterEach(() => {
 });
 
 describe("push devices in notification settings", () => {
+  it("starts collapsed and fetches only after the reader opens it", async () => {
+    setup("user-1", false);
+    const trigger = screen.getByRole("button", { name: "Registered devices" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("button", { name: "Refresh" })).toBeNull();
+    expect(listPushDevices).not.toHaveBeenCalled();
+    await userEvent.click(trigger);
+    expect(await screen.findByRole("list")).toBeTruthy();
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    await userEvent.click(trigger);
+    expect(screen.queryByRole("list")).toBeNull();
+  });
+
   it("shows browser names and retains generic labels for older registrations", async () => {
     listPushDevices.mockResolvedValue([
       {
@@ -109,12 +125,12 @@ describe("push devices in notification settings", () => {
     expect(
       screen.getByRole("button", { name: "Refresh" }).hasAttribute("disabled"),
     ).toBe(true);
-    expect(screen.queryByText(/No devices registered/)).toBeNull();
+    expect(screen.queryByText(/No registered devices found/)).toBeNull();
   });
-  it("explains how to register devices when the list is empty", async () => {
+  it("shows an empty state when no devices are registered", async () => {
     listPushDevices.mockResolvedValue([]);
     setup();
-    expect(await screen.findByText(/No devices registered/)).toBeTruthy();
+    expect(await screen.findByText(/No registered devices found/)).toBeTruthy();
     expect(screen.queryByRole("list")).toBeNull();
   });
   it("shows a recoverable error and retries only when requested", async () => {
@@ -142,14 +158,20 @@ describe("push devices in notification settings", () => {
   it("does not reuse another user's device list", async () => {
     const result = setup();
     await screen.findByRole("list");
-    listPushDevices.mockResolvedValue([{ ...device, id: "other-device" }]);
+    listPushDevices.mockResolvedValue([
+      {
+        ...device,
+        id: "other-device",
+        browserDetails: { browser: "Firefox", operatingSystem: "Windows" },
+      },
+    ]);
     result.switchUser("user-2");
     await waitFor(() =>
       expect(
-        within(screen.getByRole("list")).queryByText("Device ID: device-1"),
+        within(screen.getByRole("list")).queryByText("Browser (Desktop)"),
       ).toBeNull(),
     );
-    expect(await screen.findByText("Device ID: other-device")).toBeTruthy();
+    expect(await screen.findByText("Firefox on Windows")).toBeTruthy();
     expect(listPushDevices).toHaveBeenCalledTimes(2);
   });
 });

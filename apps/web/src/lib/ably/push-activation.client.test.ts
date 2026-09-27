@@ -60,12 +60,16 @@ const calls: string[] = [];
 let clientConstructionError: Error | null = null;
 
 vi.mock("./push-client.client", () => ({
-  createAblyPushClient: () => {
+  createAblyPushClient: (userId: string) => {
     if (clientConstructionError) {
       throw clientConstructionError;
     }
     return {
-      getDevice: () => getDeviceMock(),
+      getDevice: async () => ({
+        id: "device-1",
+        clientId: `${userId}:instance`,
+        ...(await getDeviceMock()),
+      }),
       push: {
         activate: () => {
           calls.push("activate");
@@ -106,6 +110,10 @@ vi.mock("@/lib/utils/notification-service-worker", () => ({
 }));
 
 import { activatePush, deactivatePush } from "./push-activation.client";
+import {
+  hasPushDeviceIdentity,
+  rememberPushDeviceIdentity,
+} from "./push-device-identity.client";
 import { notePushTeardown, queuePushWork } from "./push-work-queue.client";
 
 describe("deactivatePush", () => {
@@ -452,6 +460,73 @@ describe("activatePush", () => {
     localStorage.clear();
   });
 
+  it("does not repeatedly reset a working legacy device when marker storage is full", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "legacy-device" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    const setItem = localStorage.setItem.bind(localStorage);
+    const storage = vi
+      .spyOn(localStorage, "setItem")
+      .mockImplementation((key, value) => {
+        if (key === "sokosumi.push.identifiedDevice")
+          throw new DOMException("Storage full", "QuotaExceededError");
+        setItem(key, value);
+      });
+    try {
+      await expect(
+        activatePush("user_1", { readerInitiated: false }),
+      ).rejects.toThrow("Storage full");
+      await expect(
+        activatePush("user_1", { readerInitiated: false }),
+      ).rejects.toThrow("Storage full");
+      expect(deactivateMock).not.toHaveBeenCalled();
+      expect(activateMock).not.toHaveBeenCalled();
+      expect(unsubscribeDeviceMock).not.toHaveBeenCalled();
+      expect(unsubscribeMock).not.toHaveBeenCalled();
+      expect(hasPushDeviceIdentity("user_1", "legacy-device")).toBe(false);
+    } finally {
+      storage.mockRestore();
+    }
+  });
+
+  it("replaces an existing unnamed registration once and marks the new device", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "legacy-device" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    let activations = 0;
+    activateMock.mockImplementation(async () => {
+      if (++activations === 2) {
+        localStorage.setItem(
+          "ably.push.deviceId",
+          JSON.stringify({ value: "device-1" }),
+        );
+      }
+    });
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(deactivateMock).toHaveBeenCalledTimes(1);
+    expect(hasPushDeviceIdentity("user_1", "device-1")).toBe(true);
+    expect(hasPushDeviceIdentity("user_1", "legacy-device")).toBe(false);
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(deactivateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not mark a migration whose channel binding failed", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "legacy-device" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    subscribeDeviceMock.mockRejectedValueOnce(new Error("Binding failed"));
+
+    await expect(activatePush("user_1")).rejects.toThrow("Binding failed");
+    expect(hasPushDeviceIdentity("user_1", "device-1")).toBe(false);
+  });
+
   it("records browser metadata after subscribing and keeps push active if recording fails", async () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     recordBrowserMock.mockRejectedValueOnce(new Error("metadata unavailable"));
@@ -704,7 +779,14 @@ describe("activatePush", () => {
    * teardown and re-registration on every activation and every repair.
    */
   it("keeps a device this browser already holds for this reader", async () => {
-    localStorage.setItem("ably.push.deviceId", "my-device");
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "my-device" }),
+    );
+    rememberPushDeviceIdentity("user_1", {
+      id: "my-device",
+      clientId: "user_1:instance",
+    });
     localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
     hasWebPushSubscriptionMock.mockResolvedValue(true);
 

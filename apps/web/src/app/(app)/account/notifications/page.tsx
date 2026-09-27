@@ -18,13 +18,11 @@ export default async function AccountNotificationsPage() {
     <div className="mx-auto w-full max-w-4xl px-4">
       <NotificationPreferences
         marketingOptIn={session.user.marketingOptIn ?? false}
+        pushDevices={<PushDevices userId={session.user.id} />}
       >
-        <div className="space-y-6">
-          <PushDevices userId={session.user.id} />
-          <ChatDisplayPreferences
-            showRoomUnreadCount={session.user.hideRoomUnreadCount !== true}
-          />
-        </div>
+        <ChatDisplayPreferences
+          showRoomUnreadCount={session.user.hideRoomUnreadCount !== true}
+        />
       </NotificationPreferences>
     </div>
   );

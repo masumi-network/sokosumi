@@ -4485,16 +4485,15 @@
         "kindFollowUpHint": "Un recordatorio un día después si no has abierto algo que te está esperando."
       },
       "PushDevices": {
-        "title": "Dispositivos para notificaciones push",
-        "description": "Dispositivos registrados para recibir notificaciones push. Los permisos del navegador y los ajustes de notificaciones siguen controlando la entrega.",
+        "title": "Dispositivos registrados",
+        "description": "La entrega también depende de los permisos del navegador de cada dispositivo.",
         "refresh": "Actualizar",
         "loading": "Cargando dispositivos…",
         "error": "No se pudieron cargar los dispositivos. Intenta actualizar la lista.",
-        "empty": "No hay dispositivos registrados. Activa Push para una categoría de notificaciones en cada dispositivo que quieras usar.",
+        "empty": "No se encontraron dispositivos registrados.",
         "thisDevice": "Este dispositivo",
         "deviceLabel": "{platform} ({formFactor})",
         "browserLabel": "{browser} en {operatingSystem}",
-        "deviceId": "ID del dispositivo: {id}",
         "states": {
           "active": "Registrado",
           "failing": "Problemas de entrega",

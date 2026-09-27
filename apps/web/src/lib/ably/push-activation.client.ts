@@ -15,6 +15,11 @@ import {
   isMissingPushDevice,
 } from "./push-device-health.client";
 import {
+  hasPushDeviceIdentity,
+  rememberPushDeviceIdentity,
+  reservePushDeviceIdentity,
+} from "./push-device-identity.client";
+import {
   forgetPushPreference,
   rememberPushPreference,
 } from "./push-preference.client";
@@ -31,6 +36,7 @@ import {
   hasAblyPushDeviceId,
   hasUnfinishedPushTeardown,
   notePushTeardownStarted,
+  readAblyPushDeviceId,
   readPushDeviceOwner,
   rememberPushDeviceOwner,
 } from "./release-push-device.client";
@@ -139,6 +145,12 @@ async function runActivation(
   const foreignRegistration =
     hasAblyPushDeviceId() && readPushDeviceOwner() !== userId;
 
+  // Older REST clients omitted clientId from registrations. SDK reactivation
+  // updates only the push recipient, so replace these devices once.
+  const legacyRegistration =
+    hasAblyPushDeviceId() &&
+    !hasPushDeviceIdentity(userId, readAblyPushDeviceId(userId));
+
   const restorePermissionRequest = answerPermissionFromStoredValue();
   try {
     const client = await createAblyPushClient(userId);
@@ -147,11 +159,18 @@ async function runActivation(
       repairOvertakenAcrossTabs(readerInitiated)
     )
       return false;
+    const initialDevice = await client.getDevice();
+    if (await abandonedToTeardown(teardownVersion)) return false;
+    // Refuse migration before teardown if storage cannot hold its completion
+    // marker. Otherwise each recovery could replace a working device again.
+    reservePushDeviceIdentity(userId, initialDevice.id);
     await client.push.activate();
     if (await abandonedToTeardown(teardownVersion)) return false;
     const fault = foreignRegistration
       ? "another-reader"
-      : await findPushDeviceFault(client, userId);
+      : legacyRegistration
+        ? "legacy-identity"
+        : await findPushDeviceFault(client, userId);
     if (await abandonedToTeardown(teardownVersion)) return false;
     if (fault) {
       // Recorded before the destructive steps below, and for a device held
@@ -255,6 +274,9 @@ async function runActivation(
       deliveryHealthy: true,
     }).catch((error) => console.error("Failed to record push repair", error));
     if (await abandonedToTeardown(teardownVersion)) return false;
+    const device = await client.getDevice();
+    if (await abandonedToTeardown(teardownVersion)) return false;
+    rememberPushDeviceIdentity(userId, device);
     return true;
   } finally {
     restorePermissionRequest();

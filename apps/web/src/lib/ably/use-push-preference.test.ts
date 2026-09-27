@@ -2,13 +2,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
-
+import { usePushDevices } from "@/app/account/components/use-push-devices";
 import {
   getPushRepairOutcome,
   recordPushRepairOutcome,
   subscribePushRepairOutcome,
 } from "./push-repair-outcome.client";
 import { usePushPreference } from "./use-push-preference";
+
+const { listDevices } = vi.hoisted(() => ({ listDevices: vi.fn() }));
+vi.mock("@/lib/services/push-devices.service", () => ({
+  listPushDevices: listDevices,
+}));
 
 let queryClient: QueryClient;
 
@@ -100,6 +105,44 @@ describe("usePushPreference", () => {
     });
     setAccountWriteResult(true);
     setAccountOptIn(false);
+  });
+
+  it("refreshes the registered device list after turning this browser on and off", async () => {
+    setAccountOptIn(true);
+    listDevices.mockResolvedValue([]);
+    const { result } = renderHook(
+      () => ({
+        preference: usePushPreference("user_1"),
+        devices: usePushDevices("user_1"),
+      }),
+      { wrapper },
+    );
+    await waitFor(() =>
+      expect(result.current.preference.canToggleDevice).toBe(true),
+    );
+    await waitFor(() =>
+      expect(result.current.devices.data?.devices).toEqual([]),
+    );
+    const device = {
+      id: "device",
+      platform: "browser",
+      formFactor: "desktop",
+      state: "active",
+    };
+    listDevices.mockResolvedValue([device]);
+    await act(async () => {
+      await result.current.preference.setDeviceEnabled(true);
+    });
+    await waitFor(() =>
+      expect(result.current.devices.data?.devices).toEqual([device]),
+    );
+    listDevices.mockResolvedValue([]);
+    await act(async () => {
+      await result.current.preference.setDeviceEnabled(false);
+    });
+    await waitFor(() =>
+      expect(result.current.devices.data?.devices).toEqual([]),
+    );
   });
 
   it("clears the repair notice after account settings restore this browser", async () => {

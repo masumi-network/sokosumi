@@ -4485,16 +4485,15 @@
         "kindFollowUpHint": "Eine Erinnerung einen Tag später, wenn du etwas nicht geöffnet hast, das auf dich wartet."
       },
       "PushDevices": {
-        "title": "Geräte für Push-Benachrichtigungen",
-        "description": "Für Push-Benachrichtigungen registrierte Geräte. Browser-Berechtigungen und Benachrichtigungseinstellungen bestimmen weiterhin die Zustellung.",
+        "title": "Registrierte Geräte",
+        "description": "Die Zustellung hängt auch von den Browser-Berechtigungen auf jedem Gerät ab.",
         "refresh": "Aktualisieren",
         "loading": "Geräte werden geladen…",
         "error": "Geräte konnten nicht geladen werden. Versuche, die Liste zu aktualisieren.",
-        "empty": "Keine Geräte registriert. Schalte auf jedem gewünschten Gerät Push für eine Benachrichtigungskategorie ein.",
+        "empty": "Keine registrierten Geräte gefunden.",
         "thisDevice": "Dieses Gerät",
         "deviceLabel": "{platform} ({formFactor})",
         "browserLabel": "{browser} auf {operatingSystem}",
-        "deviceId": "Geräte-ID: {id}",
         "states": {
           "active": "Registriert",
           "failing": "Zustellprobleme",
