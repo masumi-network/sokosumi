@@ -53,7 +53,9 @@ export function StudioGallery({
   selectedIds: string[];
 }) {
   return (
-    <section aria-label={labels.gallery} className="min-w-0">
+    // Named by the heading the studio renders above it, rather than by a
+    // duplicate label nobody can see.
+    <section aria-labelledby="studio-gallery-heading" className="min-w-0">
       <ul
         className={cn(
           "grid list-none grid-cols-2 gap-3 sm:grid-cols-3",

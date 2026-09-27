@@ -536,10 +536,19 @@ export function ImageStudio({
             </div>
           ) : null}
 
-          {/* One toolbar. The filters appear once there is something to
-              filter, so a project that has never generated anything shows a
-              composer and a hint, and nothing else. */}
-          <div className="flex min-h-8 flex-wrap items-center gap-2">
+          {/* The gallery's own header row, in the same rhythm the overview
+              uses for Briefing and Workspace. It exists so the row always has
+              a left-hand subject: without one, the Assistant button was a
+              single control floating alone on an otherwise empty line. The
+              filters join it once there is something to filter. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h2
+              className="text-muted-foreground text-xs font-medium"
+              id="studio-gallery-heading"
+            >
+              {labels.gallery}
+            </h2>
+
             {hasWork ? (
               <div className="flex flex-wrap items-center gap-1">
                 {FILTERS.map((value) => (
@@ -608,7 +617,7 @@ export function ImageStudio({
             // No border and no fixed height: an empty gallery is an absence,
             // not a panel. On a project that has never generated anything it
             // offers somewhere to start instead.
-            <div className="px-1 py-8">
+            <div className="px-1 pt-2 pb-8">
               <h3 className="text-base font-medium">
                 {filter === "all" ? labels.emptyTitle : labels.noneMatchFilter}
               </h3>
