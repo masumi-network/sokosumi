@@ -32,14 +32,37 @@ import {
 /**
  * An admission that has not dispatched within this window must reauthorize.
  *
- * **What it protects.** The admission transaction re-reads the actor's scope
- * epoch under the advisory lock and refuses if it has moved, so a granted
- * row attests: *at `admittedAt`, this actor's authorization scope hashed to
- * this epoch*. This window bounds how long that attestation may be acted on
- * — the maximum lag between a revocation committing and Files ceasing to
- * send that actor's document excerpts to the provider. It is deliberately
- * weaker than "no socket send after revocation commits"; the module contract
- * above says so and this number does not change that.
+ * **What it protects, and what it does not.** The admission transaction
+ * re-reads the actor's scope epoch under the advisory lock and refuses if
+ * it has moved, so a granted row attests: *at `admittedAt`, this actor's
+ * scope hashed to this epoch*. This window bounds how long that attestation
+ * may be acted on.
+ *
+ * **That is not an authorization control, and an earlier version of this
+ * comment implied it was.** `resolveScopeEpoch` hashes the count of
+ * evidence-scope rows and their `scopeVersion`s, and `scopeVersion` is
+ * never advanced anywhere in the application — the only write to
+ * `file_evidence_scope` outside creation sets the backfill cursor. So the
+ * epoch moves when a scope is *added* and stays byte-identical when access
+ * is taken away: removing a user from an organization, deleting a file, a
+ * task changing visibility. `evidence-scope.ts` says this at length and is
+ * the authority; this comment previously contradicted it, which is worse
+ * than saying nothing, because a docstring arguing for a property the code
+ * does not have is what the next reader will trust.
+ *
+ * On the label-suggest path it is weaker still, to the point of being
+ * inert: `resolveScopeEpoch` aggregates only over the source kinds
+ * `sourceKindsForActor` admits for the actor's kind, and `"worker"` — the
+ * kind that path builds — is in no entry of `SOURCE_ACTOR_CEILING`, so the
+ * aggregate covers no rows and the epoch is a constant. The comparison
+ * below can never deny for that caller. Pinned by "cannot refuse anything
+ * for the actor the label pipeline uses" in
+ * `file-suggestions.postgres.test.ts`.
+ *
+ * What the window is actually for is quota hygiene: a grant counted against
+ * the ceilings should not sit around indefinitely waiting to be spent. That
+ * argument is real and is the one below. Authorization is re-evaluated from
+ * the canonical source on every read, which is where the defence lives.
  *
  * **What it has to cover.** The time from the database committing the grant
  * to this process deciding to dispatch — `grantTransitMs` in the ranking
@@ -72,17 +95,14 @@ import {
  * or came close. The seconds are headroom bought cheaply, justified by the
  * ordering property rather than by the data.
  *
- * **Why the increase is negligible.** It adds 1,950 ms of authorization
- * staleness. The same admission row already counts against
- * `PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE` for a full 60,000 ms from
- * `admittedAt`, so the system is already built to accept a 60-second
- * consequence from one admission; this is 3.25% of that. That is an argument
- * about magnitude and not about equivalence — the two windows protect
- * different things, and the quota window is not an authorization control.
- * The honest version of the claim is: whatever exposure a revocation racing
- * an in-flight search creates, it is not meaningfully different at 2 s than
- * at 50 ms, because the content in question was on the reader's screen a
- * moment earlier and the search result itself is unaffected by any window.
+ * **Why the increase is negligible.** It adds 1,950 ms during which a
+ * counted grant may still be spent. The same admission row already counts
+ * against `PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE` for a full 60,000 ms from
+ * `admittedAt`, so the system already accepts a 60-second consequence from
+ * one admission; this is 3.25% of that. Both windows are quota hygiene,
+ * which is why the comparison is apt — the earlier version of this passage
+ * contrasted them as protecting "different things" and called only one an
+ * authorization control, which was the same mistake corrected above.
  *
  * **What this does not fix.** Cold-start rankings still fall back, at the
  * rank deadline, which is by design — see `RANK_DEADLINE_MS`. The cause is
@@ -103,10 +123,22 @@ import {
  * **One asymmetry a reader should know about.** `isAdmissionDispatchable`
  * has exactly one production call site, in `jev-ranking.ts`. The
  * label-suggest path in `file-suggestions.service.ts` admits and dispatches
- * without consulting this window at all, so on that path the bound above is
- * not enforced. Left as found and reported rather than changed here:
- * enforcing it would turn a slow background grant into a deferred indexing
- * job, which is a product decision rather than a tidy-up.
+ * without consulting this window, so on that path the bound above is not
+ * enforced.
+ *
+ * An earlier version of this paragraph justified that by saying enforcing
+ * it would turn a slow grant into a deferred indexing job, "a product
+ * decision rather than a tidy-up". **That was simply false**: the adjacent
+ * `!admission` branch in the same function already calls
+ * `deferFileIndexJob`, so deferring is exactly what that path does and no
+ * decision was being held open.
+ *
+ * The real reason to leave it is that enforcing it buys nothing. The window
+ * is quota hygiene, not authorization — see above — and the background path
+ * dispatches immediately after admission with no user waiting, so a grant
+ * that arrives a second stale has cost nobody anything. Adding the check
+ * there would convert a handful of good suggestion jobs into deferrals in
+ * exchange for a property the epoch cannot provide.
  */
 export const ADMISSION_VALID_MS = 2_000;
 

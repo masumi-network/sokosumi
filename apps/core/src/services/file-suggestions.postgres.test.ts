@@ -928,4 +928,157 @@ describe.skipIf(!enabled)("the shared admission ceiling", () => {
 
     await expect(admit(100)).resolves.not.toBeNull();
   });
+
+  it("refuses a request prepared under a since-changed scope epoch", async () => {
+    /**
+     * What the `preparedEpoch` parameter is for, and what nothing pinned.
+     *
+     * `admitJevRequest` re-reads the epoch at the admission point and
+     * denies if it differs from the one the caller prepared under. The
+     * label pipeline used to pass `await resolveScopeEpoch(...)` inline as
+     * that argument, one round trip before the identical call inside the
+     * function — a value compared against itself, which cannot differ.
+     * Deleting that self-comparison is only worth anything if the
+     * comparison itself works, which is what this checks.
+     *
+     * Deliberately an **interactive** actor, not the `worker` the label
+     * pipeline uses. See the test below for why that distinction is the
+     * whole story.
+     *
+     * The honest limit: this pins the mechanism in `jev-admission.ts`, not
+     * the call site. Restoring the inline `await` in
+     * `file-suggestions.service.ts` leaves this green, because no seam
+     * exists to add a scope between the payload being built and admission
+     * being asked for inside `runSuggestionJob`. Removing the comparison
+     * at `jev-admission.ts` turns it red.
+     */
+    const { admitJevRequest } = await import("@/lib/files/jev-admission");
+    const { resolveScopeEpoch } = await import("@/lib/files/evidence-scope");
+
+    const reader = {
+      userId: ceilingUserId,
+      organizationId: null,
+      kind: "interactive" as const,
+    };
+
+    const prepared = await resolveScopeEpoch({
+      workspaceId: ceilingWorkspaceId,
+      actor: reader,
+    });
+
+    // A scope the caller did not know about when it prepared.
+    await ensureEvidenceScope({
+      workspaceId: ceilingWorkspaceId,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+      sourceScope: FileSourceScope.USER,
+      sourceId: `epoch-shift-${randomUUID()}`,
+    });
+
+    const current = await resolveScopeEpoch({
+      workspaceId: ceilingWorkspaceId,
+      actor: reader,
+    });
+    // If these matched, the refusal below would hold for the wrong reason
+    // and the test would prove nothing.
+    expect(current).not.toBe(prepared);
+
+    const stale = await admitJevRequest({
+      workspaceId: ceilingWorkspaceId,
+      actor: reader,
+      purpose: "label-suggest",
+      payloadDigest: `stale-${randomUUID()}`,
+      inputTokens: 1,
+      model: "typesafe-ai/jev",
+      preparedEpoch: prepared,
+    });
+    expect(stale).toBeNull();
+
+    // And the refusal is about the epoch, not about quota or anything else
+    // the same call would trip over.
+    const fresh = await admitJevRequest({
+      workspaceId: ceilingWorkspaceId,
+      actor: reader,
+      purpose: "label-suggest",
+      payloadDigest: `fresh-${randomUUID()}`,
+      inputTokens: 1,
+      model: "typesafe-ai/jev",
+      preparedEpoch: current,
+    });
+    expect(fresh).not.toBeNull();
+  });
+
+  it("cannot refuse anything for the actor the label pipeline uses", async () => {
+    /**
+     * The finding that came out of writing the test above, which first
+     * asserted the epoch moved for a `worker` actor and went red.
+     *
+     * `resolveScopeEpoch` aggregates over
+     * `sourceKind IN sourceKindsForActor(actor.kind)`, and `"worker"`
+     * appears in no entry of `SOURCE_ACTOR_CEILING`. The list is therefore
+     * empty, the aggregate runs over no rows whatever the workspace holds,
+     * and the hash depends only on the workspace and actor identity.
+     *
+     * `runSuggestionJob` builds the only `worker` actor in the
+     * application. So on the one path that has a `preparedEpoch` at all,
+     * the check in `admitJevRequest` compares a constant to itself and can
+     * never deny. Capturing that constant at the right moment — the fix in
+     * `file-suggestions.service.ts` — is the correct shape and changes no
+     * outcome; this is the reason why, written down rather than left for
+     * the next reader to rediscover.
+     *
+     * Not fixed here. Adding `"worker"` to the ceiling would also widen
+     * `buildAuthorizedResourceSql`, which currently returns `FALSE` for an
+     * empty kind list, and that is an authorization change and not a
+     * comment correction.
+     */
+    const { resolveScopeEpoch, sourceKindsForActor } = await import(
+      "@/lib/files/evidence-scope"
+    );
+
+    expect(sourceKindsForActor("worker")).toEqual([]);
+
+    const before = await resolveScopeEpoch({
+      workspaceId: ceilingWorkspaceId,
+      actor: actorFor(),
+    });
+
+    await ensureEvidenceScope({
+      workspaceId: ceilingWorkspaceId,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+      sourceScope: FileSourceScope.USER,
+      sourceId: `worker-blind-${randomUUID()}`,
+    });
+
+    expect(
+      await resolveScopeEpoch({
+        workspaceId: ceilingWorkspaceId,
+        actor: actorFor(),
+      }),
+    ).toBe(before);
+
+    // And an interactive reader in the same workspace did see it, so the
+    // stability above is about the actor kind and not about the scope
+    // having failed to be created.
+    const reader = {
+      userId: ceilingUserId,
+      organizationId: null,
+      kind: "interactive" as const,
+    };
+    const readerBefore = await resolveScopeEpoch({
+      workspaceId: ceilingWorkspaceId,
+      actor: reader,
+    });
+    await ensureEvidenceScope({
+      workspaceId: ceilingWorkspaceId,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+      sourceScope: FileSourceScope.USER,
+      sourceId: `worker-blind-witness-${randomUUID()}`,
+    });
+    expect(
+      await resolveScopeEpoch({
+        workspaceId: ceilingWorkspaceId,
+        actor: reader,
+      }),
+    ).not.toBe(readerBefore);
+  });
 });

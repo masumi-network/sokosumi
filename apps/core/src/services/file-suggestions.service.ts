@@ -40,8 +40,19 @@ import { getJevScheduler } from "@/lib/files/jev-scheduler";
  *    invents a label, and it never creates a project.
  * 2. A manual decision wins. A pinned field is skipped entirely, and a
  *    rejected label is never offered again for that revision.
- * 3. A suggestion carries the extracted span that justifies it, so "Why?"
- *    shows evidence rather than an explanation the model made up.
+ * 3. A suggestion carries an extracted span, never an explanation the
+ *    model made up. **It is the document's opening, not the passage that
+ *    justifies that particular label** — this rule used to claim the
+ *    latter and the code has never done it. One boolean per label in one
+ *    call returns no per-label span, so every suggestion on a document
+ *    shows the same first 240 characters of chunk 0. For a label whose
+ *    support is on page 7 the quoted evidence is unrelated to it, and a
+ *    reader cannot tell that from a working per-label feature.
+ *
+ *    Closing it honestly needs either a product decision to stop calling
+ *    it justification, or a second question asking the model which passage
+ *    supports each label. Neither is done here; the claim is corrected so
+ *    the next reader is not misled by it.
  *
  * Suggestions are background work: they take the background share of the
  * provider quota and never borrow interactive capacity.
@@ -205,6 +216,48 @@ export async function runSuggestionJob(
    * every label at once, and a quota refusal now requeues instead of
    * pretending the work is done.
    */
+  /**
+   * Captured with the payload, not at the admission call.
+   *
+   * It used to be resolved inline as an argument to `admitJevRequest`,
+   * one round trip before that function makes the identical call and
+   * compares the two. A value compared against itself cannot differ, so
+   * the check could only ever produce false positives; the parameter
+   * exists to carry an epoch from the moment the payload was built, which
+   * is here.
+   *
+   * What the window is worth here is a separate question, and the honest
+   * answer is: nothing at all, today.
+   *
+   * `resolveScopeEpoch` aggregates over
+   * `sourceKind IN sourceKindsForActor(actor.kind)`, and `"worker"` — the
+   * kind built just above, and the only `worker` actor in the application
+   * — appears in no entry of `SOURCE_ACTOR_CEILING`. The list is empty,
+   * the aggregate therefore runs over no rows whatever the workspace
+   * holds, and the hash reduces to a function of the workspace and actor
+   * identity. On this path `admitJevRequest` compares a constant with
+   * itself and can never deny. Pinned by "cannot refuse anything for the
+   * actor the label pipeline uses" in `file-suggestions.postgres.test.ts`.
+   *
+   * Two further limits hold even once that is fixed. The epoch hashes the
+   * *count* of scope rows and their `scopeVersion`s, and `scopeVersion` is
+   * never advanced anywhere — the only write to `file_evidence_scope`
+   * outside creation is the backfill cursor. So it would move when a scope
+   * is added and still not when access is taken away. See
+   * `evidence-scope.ts`, which says the same at more length.
+   *
+   * Capturing the value at the right moment costs nothing and is the shape
+   * the parameter asks for, so it is done. Relying on it to catch a
+   * revocation would be a mistake. Widening the ceiling to admit `worker`
+   * is not done here: `buildAuthorizedResourceSql` returns `FALSE` for an
+   * empty kind list, so that edit is an authorization change rather than a
+   * correction, and it belongs in its own commit with its own review.
+   */
+  const preparedEpoch = await resolveScopeEpoch({
+    workspaceId: resource.workspaceId,
+    actor: workerActor,
+  });
+
   const request = buildJevLabelRequest({
     documentExcerpt: excerpt,
     vocabulary: shortlist.map((entry) => ({
@@ -243,10 +296,7 @@ export async function runSuggestionJob(
     payloadDigest: request.digest,
     inputTokens: request.tokens,
     model,
-    preparedEpoch: await resolveScopeEpoch({
-      workspaceId: resource.workspaceId,
-      actor: workerActor,
-    }),
+    preparedEpoch,
   });
   if (!admission) {
     // Local refusal, not a provider failure: give the slot back without
@@ -301,7 +351,9 @@ export async function runSuggestionJob(
         provenance: FileMetadataProvenance.MODEL,
         evidenceScopeId: scope.id,
         evidenceDigest: request.digest,
-        // An extracted span, quoted. Never a generated explanation.
+        // An extracted span, quoted, never a generated explanation — but
+        // the document's opening, not the passage supporting this label.
+        // Identical for every label on this document. See rule 3.
         evidenceSnippet: evidence.text.slice(0, 240),
         evidenceAnchor: evidence.anchor ?? undefined,
         contentRevision: resource.contentRevision,
