@@ -29,8 +29,75 @@ import {
  * The row records a digest of the serialized request, never the request.
  */
 
-/** An admission that has not dispatched within this window must reauthorize. */
-export const ADMISSION_VALID_MS = 50;
+/**
+ * An admission that has not dispatched within this window must reauthorize.
+ *
+ * **What it protects.** The admission transaction re-reads the actor's scope
+ * epoch under the advisory lock and refuses if it has moved, so a granted
+ * row attests: *at `admittedAt`, this actor's authorization scope hashed to
+ * this epoch*. This window bounds how long that attestation may be acted on
+ * — the maximum lag between a revocation committing and Files ceasing to
+ * send that actor's document excerpts to the provider. It is deliberately
+ * weaker than "no socket send after revocation commits"; the module contract
+ * above says so and this number does not change that.
+ *
+ * **What it has to cover.** The time from the database committing the grant
+ * to this process deciding to dispatch — `grantTransitMs` in the ranking
+ * log, emitted on every ranking. Measured on `d0b5ab652` against the
+ * preview, 163 grants over 81 rankings: p50 4 ms, p90 6 ms, p99 18 ms,
+ * **max 43 ms**. One cold-start observation, from the gate capture at
+ * `405ddcadd`: roughly **721 ms**. The full dataset and how it was gathered
+ * are in `evidence/ADMISSION-WINDOW-MEASUREMENT.md`.
+ *
+ * **Why 50 was wrong**, and the warm number is the damning one rather than
+ * the cold one: at steady state, warm, uncontended, the worst observed
+ * transit was 43 ms against a 50 ms window. A bound the happy path nearly
+ * misses is not a bound. The cold observation then exceeds it by 14×.
+ *
+ * **Why 2000.** Not a percentile: a p99 over that population is 18 ms, and
+ * sizing on it would rebuild the present failure, because the population is
+ * almost entirely warm and cold starts are the case that fails. The number
+ * comes from a property instead — it must exceed `RANK_DEADLINE_MS` (600),
+ * so that on the interactive path the rank deadline always binds first and
+ * this window can never be the reason a dispatch is refused that the
+ * deadline would have allowed. 2000 gives 3.3× over that deadline, 2.8× over
+ * the single cold observation, and 46× over warm p99. A single sample of a
+ * cold-start tail earns a multiple, not a percentage.
+ *
+ * The prior going in was "low seconds" and this lands inside it, but the
+ * measurement did not confirm the prior: nothing observed needed seconds.
+ * 1,000 would cover everything seen. The second second is headroom.
+ *
+ * **Why the increase is negligible.** It adds 1,950 ms of authorization
+ * staleness. The same admission row already counts against
+ * `PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE` for a full 60,000 ms from
+ * `admittedAt`, so the system is already built to accept a 60-second
+ * consequence from one admission; this is 3.25% of that. That is an argument
+ * about magnitude and not about equivalence — the two windows protect
+ * different things, and the quota window is not an authorization control.
+ * The honest version of the claim is: whatever exposure a revocation racing
+ * an in-flight search creates, it is not meaningfully different at 2 s than
+ * at 50 ms, because the content in question was on the reader's screen a
+ * moment earlier and the search result itself is unaffected by any window.
+ *
+ * **What this does not fix.** Cold-start rankings still fall back, at the
+ * rank deadline, which is by design — see `RANK_DEADLINE_MS`.
+ *
+ * **What it costs in signal.** `recordJevDispatch` with
+ * `expired-before-dispatch` should now approach never on the interactive
+ * path. That was the trace the original defect was found through, and it is
+ * replaced by a better one: `grantTransitMs` on every ranking shows the
+ * distribution rather than only its failures.
+ *
+ * **One asymmetry a reader should know about.** `isAdmissionDispatchable`
+ * has exactly one production call site, in `jev-ranking.ts`. The
+ * label-suggest path in `file-suggestions.service.ts` admits and dispatches
+ * without consulting this window at all, so on that path the bound above is
+ * not enforced. Left as found and reported rather than changed here:
+ * enforcing it would turn a slow background grant into a deferred indexing
+ * job, which is a product decision rather than a tidy-up.
+ */
+export const ADMISSION_VALID_MS = 2_000;
 
 /**
  * The window the shared ceiling counts over. One minute, matching the

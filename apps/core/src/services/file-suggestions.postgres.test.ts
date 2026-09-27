@@ -699,7 +699,7 @@ describe.skipIf(!enabled)("the shared admission ceiling", () => {
     expect(Number(row?.costUsd)).toBeCloseTo(0.0042, 6);
   });
 
-  it("mints both timestamps in the database, in UTC, 50ms apart", async () => {
+  it("mints both timestamps in the database, in UTC, one window apart", async () => {
     // The insert is raw SQL, and any error in it is swallowed into
     // `admission-denied` — a quiet outcome. So a completely broken INSERT
     // looks exactly like a quota refusal, and would drive
@@ -754,10 +754,10 @@ describe.skipIf(!enabled)("the shared admission ceiling", () => {
 
   it("issues a grant that is still dispatchable after slow grant work", async () => {
     // The window must start when the row commits, not when the function is
-    // entered. `ADMISSION_VALID_MS` is 50 ms and the grant's own work — an
-    // epoch round trip, queueing on the one advisory lock behind the rest of
-    // its own wave, then an aggregate scan — routinely exceeds that on a cold
-    // pool. Opened at function entry, the grant was **born expired**: the
+    // entered. The grant's own work — an epoch round trip, queueing on the
+    // one advisory lock behind the rest of its own wave, then an aggregate
+    // scan — exceeded the window on a cold pool when the window was 50 ms.
+    // Opened at function entry, the grant was **born expired**: the
     // caller's `isAdmissionDispatchable` check failed on a grant that had
     // just been issued. Observed in preprod as `admission-expired` with
     // `elapsedMs` of 405 and 511, both under the 600 ms rank deadline.
@@ -766,11 +766,14 @@ describe.skipIf(!enabled)("the shared admission ceiling", () => {
     // real advisory lock from another transaction so the admission has to
     // wait for it, which is exactly the self-inflicted queueing a concurrent
     // wave causes.
-    const { ADMISSION_LOCK_KEY, isAdmissionDispatchable } = await import(
-      "@/lib/files/jev-admission"
-    );
+    const { ADMISSION_LOCK_KEY, ADMISSION_VALID_MS, isAdmissionDispatchable } =
+      await import("@/lib/files/jev-admission");
 
-    const HELD_MS = 250;
+    // Hold the lock for longer than the window, whatever the window is. A
+    // literal 250 was only meaningful while the constant was 50; once it
+    // moved, the wait no longer exceeded the window and the test proved
+    // nothing while still passing.
+    const HELD_MS = ADMISSION_VALID_MS + 250;
     const blocker = prisma.$transaction(
       async (tx) => {
         await tx.$executeRawUnsafe(
@@ -794,7 +797,7 @@ describe.skipIf(!enabled)("the shared admission ceiling", () => {
 
     // The wait really did exceed the validity window, or this test proves
     // nothing about where the window starts.
-    expect(waitedMs).toBeGreaterThan(50);
+    expect(waitedMs).toBeGreaterThan(ADMISSION_VALID_MS);
     expect(isAdmissionDispatchable(grant)).toBe(true);
   }, 30_000);
 

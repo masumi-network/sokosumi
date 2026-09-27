@@ -303,7 +303,16 @@ export async function rerankFileCandidates(
   ) {
     if (failure) break;
     if (clock() >= deadline) {
-      failure = "rank-deadline";
+      /**
+       * Three sites produced the string `rank-deadline`, and the log carried
+       * whichever one won. They are three different stories — the budget was
+       * already gone before this wave; our own timeout fired while the
+       * provider had the call; the call threw and our signal had aborted —
+       * and a reader could not tell them apart. Suffixed so each reason maps
+       * to exactly one return site, which is the standard the acceptance
+       * gate applies.
+       */
+      failure = "rank-deadline:pre-wave";
       break;
     }
 
@@ -433,7 +442,7 @@ export async function rerankFileCandidates(
               admissionId: admission.id,
               outcome: "rank-deadline",
             });
-            return { failed: "rank-deadline" };
+            return { failed: "rank-deadline:aborted" };
           }
 
           // Settled before the record is written, and marked so the catch
@@ -464,7 +473,7 @@ export async function rerankFileCandidates(
           }
           return {
             failed: deadlineSignal?.aborted
-              ? "rank-deadline"
+              ? "rank-deadline:threw"
               : "evaluation:threw",
           };
         }

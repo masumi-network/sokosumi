@@ -91,8 +91,36 @@ export const SPEND_WINDOW_MS = 86_400_000;
 export const PER_WORKSPACE_INPUT_TOKENS_PER_DAY = 60_000_000;
 export const PER_WORKSPACE_USD_PER_DAY = 25;
 
-export const ADMISSION_QUEUE_MAX_MS = 50;
-/** Covers queueing, admissions and every wave — not one pair. */
+/**
+ * Covers queueing, admissions and every wave — not one pair.
+ *
+ * **A cold instance loses the rerank, and that is the intended behaviour.**
+ * Writing it down because it was previously true and unexplained, and 25% of
+ * a small sample reads as broken to anyone who has not been told otherwise.
+ *
+ * What was measured, on `d0b5ab652` against the preview (the numbers and the
+ * raw events are in `evidence/ADMISSION-WINDOW-MEASUREMENT.md`): warm, a
+ * whole ranking takes p50 366 ms and p99 605 ms, and 2 of 81 crossed this
+ * deadline — those two are the provider's own latency sitting near the cap,
+ * with healthy 4 ms grants. Cold, the admission round trip **alone** was
+ * about 721 ms, which is past this deadline before a single evaluation has
+ * been requested.
+ *
+ * So on a cold instance no setting of `ADMISSION_VALID_MS` recovers the
+ * rerank; only raising this deadline would, and raising it is the one thing
+ * it exists to prevent. The deadline's purpose is that a user waiting for
+ * search results never pays for a cold model stage, and the fallback is not
+ * a degraded answer — it is the deterministic fused order, the same order
+ * the reader would have had before this feature existed.
+ *
+ * Telling the two apart from outside the process is now possible and was
+ * not before: a `rank-deadline` event carries `grantTransitMs`, so ~700 ms
+ * reads as cold start and ~4 ms reads as a slow provider.
+ *
+ * (`ADMISSION_QUEUE_MAX_MS = 50` stood here, exported and referenced by
+ * nothing. Removed rather than left: it was the same number as the old
+ * admission window and a reader could easily take one for the other.)
+ */
 export const RANK_DEADLINE_MS = 600;
 
 export const BREAKER_WINDOW_MS = 60_000;

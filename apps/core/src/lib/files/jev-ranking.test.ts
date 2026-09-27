@@ -210,8 +210,63 @@ describe("rerankFileCandidates", () => {
         return now;
       },
     });
-    expect(outcome.fallbackReason).toBe("rank-deadline");
+    expect(outcome.fallbackReason).toBe("rank-deadline:pre-wave");
   });
+
+  /**
+   * Three places produce a deadline fallback, and until they were suffixed
+   * the log said the same word for all three.
+   *
+   * They are not the same event. `pre-wave` means the budget was spent
+   * before this wave opened — on a cold instance, by the admission round
+   * trip alone. `aborted` means we cut a call the provider still had.
+   * `threw` means the call failed while our own signal had already fired,
+   * so the failure is ours and not evidence about the provider. A reader
+   * diagnosing "ranking stopped working" needs to know which, and the
+   * acceptance gate requires a logged reason to name exactly one return
+   * site.
+   */
+  it("names which of the three deadline paths ended the ranking", async () => {
+    // Our own signal fires while the provider still has the call, and the
+    // call then returns normally: the abort is detected after the await.
+    const aborted = await rerankFileCandidates({
+      ...baseInput([candidate("a"), candidate("b")]),
+      evaluator: {
+        async evaluate({ signal }) {
+          await new Promise<void>((resolve) => {
+            if (signal?.aborted) return resolve();
+            signal?.addEventListener("abort", () => resolve(), { once: true });
+          });
+          return {
+            ok: true,
+            score: 3,
+            reason: null,
+            latencyMs: 1,
+            inputTokens: 1,
+            outputTokens: 1,
+            costUsd: "0.0001",
+            generationId: "gen-abort",
+          };
+        },
+      },
+    });
+    expect(aborted.fallbackReason).toBe("rank-deadline:aborted");
+
+    // Same signal, but the call throws rather than returning.
+    const threw = await rerankFileCandidates({
+      ...baseInput([candidate("a"), candidate("b")]),
+      evaluator: {
+        async evaluate({ signal }) {
+          await new Promise<void>((resolve) => {
+            if (signal?.aborted) return resolve();
+            signal?.addEventListener("abort", () => resolve(), { once: true });
+          });
+          throw new Error("socket closed");
+        },
+      },
+    });
+    expect(threw.fallbackReason).toBe("rank-deadline:threw");
+  }, 10_000);
 
   it("only ranks the head of a long window and leaves the tail in fused order", async () => {
     const candidates = Array.from({ length: 30 }, (_, index) =>
@@ -350,6 +405,26 @@ describe("rerankFileCandidates", () => {
     expect(outcome.fallbackReason).toBe("exact-match-head");
     expect(emitted).toHaveLength(1);
     expect(emitted[0].reason).toBe("exact-match-head");
+  });
+});
+
+describe("the admission window against the rank deadline", () => {
+  /**
+   * The property the window's size is chosen from, pinned so that changing
+   * either number without the other fails here.
+   *
+   * `ADMISSION_VALID_MS` was 50 and `RANK_DEADLINE_MS` 600, so a grant could
+   * expire while the ranking still had 550 ms of budget left — the window
+   * refused a dispatch the deadline would have allowed, and the fallback got
+   * labelled as an authorization problem when it was an arithmetic one. With
+   * the window wider than the deadline that ordering is impossible on the
+   * interactive path: whatever else fails, it is not this.
+   */
+  it("outlasts the deadline it shares a request with", async () => {
+    const { ADMISSION_VALID_MS } = await import("./jev-admission");
+    const { RANK_DEADLINE_MS } = await import("./jev-scheduler");
+
+    expect(ADMISSION_VALID_MS).toBeGreaterThan(RANK_DEADLINE_MS);
   });
 });
 
