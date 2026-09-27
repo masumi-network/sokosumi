@@ -1,0 +1,219 @@
+"use client";
+
+import { Check, FolderKanban, Layers, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useRef, useState } from "react";
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+
+import { type ScopeProject, useScopeProjects } from "./use-scope-projects";
+
+const WORKSPACE_VALUE = "__workspace__";
+const CREATE_VALUE = "__create_project__";
+const MANAGE_VALUE = "__manage_projects__";
+
+/**
+ * The trigger of the popover, sheet or dialog that holds the menu. Radix links
+ * the two through `aria-controls`. The menu unmounts on Create, so the create
+ * dialog cannot return focus to it.
+ */
+function openerOf(menu: Element | null): HTMLElement | null {
+  const host = menu?.closest('[role="dialog"][id]');
+  if (!host) return null;
+  const opener = document.querySelector(
+    `[aria-controls="${CSS.escape(host.id)}"]`,
+  );
+  return opener instanceof HTMLElement ? opener : null;
+}
+
+interface ProjectScopeMenuProps {
+  selectedProjectId: string | null;
+  /** A project id, or null for the workspace view. */
+  onSelect: (projectId: string | null) => void;
+  /** Gets the control that opened the menu, to take focus back on cancel. */
+  onCreate: (opener: HTMLElement | null) => void;
+  /** Closes whatever holds the menu. Runs after every choice. */
+  onDone?: () => void;
+  className?: string;
+}
+
+/**
+ * The one project list every switcher shows: search, the workspace view,
+ * Pinned, Recent, all projects, then Create and Manage. Search asks Core, so
+ * the list filters itself off.
+ */
+export function ProjectScopeMenu({
+  selectedProjectId,
+  onSelect,
+  onCreate,
+  onDone,
+  className,
+}: ProjectScopeMenuProps) {
+  const t = useTranslations("App.ProjectScope");
+  const router = useRouter();
+  const [search, setSearch] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
+  const projects = useScopeProjects({ search, selectedProjectId });
+
+  function choose(projectId: string | null) {
+    onSelect(projectId);
+    onDone?.();
+  }
+
+  function row(project: ScopeProject, group: string) {
+    return (
+      <CommandItem
+        key={`${group}-${project.id}`}
+        value={`${group}-${project.id}`}
+        data-testid={`project-scope-item-${project.id}`}
+        onSelect={() => choose(project.id)}
+      >
+        <ProjectAvatar
+          name={project.name}
+          logo={project.logo}
+          className="size-5 shrink-0"
+        />
+        <span className="min-w-0 flex-1 truncate">{project.name}</span>
+        <CurrentMark current={project.id === selectedProjectId} />
+      </CommandItem>
+    );
+  }
+
+  const shortlistIds = new Set(
+    [...projects.pinned, ...projects.recent].map((project) => project.id),
+  );
+  const rest = projects.isSearching
+    ? projects.all
+    : projects.all.filter((project) => !shortlistIds.has(project.id));
+
+  // Not `CommandEmpty` for "empty": Create and Manage are always mounted, so
+  // cmdk never counts the list as empty. The rows of a search Core has not
+  // answered yet are the last search's, so they cannot mean "none found".
+  const busy = projects.isPending || projects.isSearchPending;
+  const statusText = projects.isError
+    ? t("error")
+    : projects.isPending
+      ? t("loading")
+      : projects.isSearchPending
+        ? t("searching")
+        : projects.isSearching && rest.length === 0
+          ? t("empty")
+          : null;
+
+  return (
+    <Command ref={menuRef} shouldFilter={false} className={className}>
+      <CommandInput
+        autoFocus
+        placeholder={t("searchPlaceholder")}
+        value={search}
+        onValueChange={setSearch}
+      />
+      {/* Outside the listbox, which may hold only options, and always
+          mounted, so a screen reader hears each change. */}
+      <div
+        className={cn(
+          "flex items-center justify-between gap-2 px-3",
+          statusText && "py-2",
+        )}
+      >
+        <p role="status" className="text-muted-foreground text-sm">
+          {statusText}
+        </p>
+        {projects.isError ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={projects.refetch}
+          >
+            {t("retry")}
+          </Button>
+        ) : null}
+      </div>
+      <CommandList aria-busy={busy || undefined}>
+        {projects.isSearching ? null : (
+          <CommandGroup>
+            <CommandItem
+              value={WORKSPACE_VALUE}
+              data-testid="project-scope-workspace"
+              onSelect={() => choose(null)}
+            >
+              <Layers className="size-4 shrink-0" aria-hidden />
+              <span className="flex-1 truncate">{t("workspaceView")}</span>
+              <CurrentMark current={selectedProjectId === null} />
+            </CommandItem>
+          </CommandGroup>
+        )}
+
+        {!projects.isSearching && projects.pinned.length > 0 ? (
+          <CommandGroup heading={t("pinned")}>
+            {projects.pinned.map((project) => row(project, "pinned"))}
+          </CommandGroup>
+        ) : null}
+        {!projects.isSearching && projects.recent.length > 0 ? (
+          <CommandGroup heading={t("recent")}>
+            {projects.recent.map((project) => row(project, "recent"))}
+          </CommandGroup>
+        ) : null}
+        {rest.length > 0 ? (
+          <CommandGroup heading={projects.isSearching ? undefined : t("all")}>
+            {rest.map((project) => row(project, "all"))}
+          </CommandGroup>
+        ) : null}
+
+        <CommandSeparator alwaysRender />
+        <CommandGroup forceMount>
+          <CommandItem
+            forceMount
+            value={CREATE_VALUE}
+            data-testid="project-scope-create"
+            onSelect={() => {
+              const opener = openerOf(menuRef.current);
+              onDone?.();
+              onCreate(opener);
+            }}
+          >
+            <Plus className="size-4 shrink-0" aria-hidden />
+            <span className="flex-1 truncate">{t("create")}</span>
+          </CommandItem>
+          <CommandItem
+            forceMount
+            value={MANAGE_VALUE}
+            data-testid="project-scope-manage"
+            onSelect={() => {
+              onDone?.();
+              router.push("/projects");
+            }}
+          >
+            <FolderKanban className="size-4 shrink-0" aria-hidden />
+            <span className="flex-1 truncate">{t("manage")}</span>
+          </CommandItem>
+        </CommandGroup>
+      </CommandList>
+    </Command>
+  );
+}
+
+/** The check on the current choice, with words for assistive tech. */
+function CurrentMark({ current }: { current: boolean }) {
+  const t = useTranslations("App.ProjectScope");
+  return (
+    <>
+      <Check
+        className={cn("size-4 shrink-0", current ? "opacity-100" : "opacity-0")}
+        aria-hidden
+      />
+      {current ? <span className="sr-only">{t("current")}</span> : null}
+    </>
+  );
+}

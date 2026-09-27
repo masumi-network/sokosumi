@@ -1627,13 +1627,6 @@
         "visibilityLabel": "Visibilidad",
         "visibilityPrivate": "Privado"
       },
-      "ProjectSwitcher": {
-        "ariaLabel": "Proyecto",
-        "allProjects": "Todos los proyectos",
-        "searchPlaceholder": "Buscar proyectos...",
-        "empty": "No se encontraron proyectos.",
-        "create": "Crear proyecto..."
-      },
       "Jobs": {
         "filterButton": "Filtros",
         "agentLabel": "Agente",
@@ -2657,11 +2650,6 @@
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
-          "projects": "Proyectos",
-          "allProjects": "Todos los proyectos",
-          "projectsPanel": "Tus proyectos",
-          "pinnedProjects": "Fijados",
-          "recentProjects": "Proyectos recientes",
           "history": "Historial",
           "drive": "Archivos",
           "admin": "Administración",
@@ -2670,10 +2658,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Calendario",
-          "schedules": "Programaciones",
-          "projectsLoading": "Cargando proyectos…",
-          "projectsError": "No se pudieron cargar los proyectos.",
-          "retryProjects": "Reintentar"
+          "schedules": "Programaciones"
         },
         "ChatLists": {
           "title": "Chats Recientes",
@@ -6832,6 +6817,23 @@
         "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
         "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas."
       }
+    },
+    "ProjectScope": {
+      "label": "Proyecto",
+      "switchLabel": "Cambiar de proyecto",
+      "workspaceView": "Todos los proyectos",
+      "pinned": "Fijados",
+      "recent": "Recientes",
+      "all": "Proyectos",
+      "searchPlaceholder": "Buscar un proyecto...",
+      "empty": "No se encontraron proyectos.",
+      "loading": "Cargando proyectos...",
+      "error": "No se pudieron cargar los proyectos.",
+      "retry": "Reintentar",
+      "create": "Crear proyecto",
+      "manage": "Gestionar proyectos",
+      "current": "(actual)",
+      "searching": "Buscando proyectos..."
     }
   },
   "Share": {

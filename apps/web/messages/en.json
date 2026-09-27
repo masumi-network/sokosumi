@@ -1627,13 +1627,6 @@
         "visibilityLabel": "Visibility",
         "visibilityPrivate": "Private"
       },
-      "ProjectSwitcher": {
-        "ariaLabel": "Project",
-        "allProjects": "All projects",
-        "searchPlaceholder": "Search projects...",
-        "empty": "No projects found.",
-        "create": "Create project..."
-      },
       "Jobs": {
         "filterButton": "Filters",
         "agentLabel": "Agent",
@@ -2657,11 +2650,6 @@
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
-          "projects": "Projects",
-          "allProjects": "All projects",
-          "projectsPanel": "Your projects",
-          "pinnedProjects": "Pinned",
-          "recentProjects": "Recent projects",
           "history": "History",
           "drive": "Files",
           "admin": "Admin",
@@ -2670,10 +2658,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Calendar",
-          "schedules": "Schedules",
-          "projectsLoading": "Loading projects…",
-          "projectsError": "Could not load projects.",
-          "retryProjects": "Retry"
+          "schedules": "Schedules"
         },
         "ChatLists": {
           "title": "Recent Chats",
@@ -6832,6 +6817,23 @@
         "csvHeaders": "Give every CSV column a non-empty header.",
         "csvWidth": "Every CSV row must have the same number of columns."
       }
+    },
+    "ProjectScope": {
+      "label": "Project",
+      "switchLabel": "Switch project",
+      "workspaceView": "All projects",
+      "pinned": "Pinned",
+      "recent": "Recent",
+      "all": "Projects",
+      "searchPlaceholder": "Find a project...",
+      "empty": "No projects found.",
+      "loading": "Loading projects...",
+      "error": "Projects could not load.",
+      "retry": "Try again",
+      "create": "Create project",
+      "manage": "Manage projects",
+      "current": "(current)",
+      "searching": "Searching projects..."
     }
   },
   "Share": {

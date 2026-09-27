@@ -34,15 +34,17 @@ export function ProjectDetailHeader({
 
   return (
     <div className="space-y-4">
-      <Link
-        href={backHref}
-        className={`text-muted-foreground hover:text-foreground items-center gap-1.5 text-sm transition-colors ${
-          showBackOnMobile ? "inline-flex" : "hidden md:inline-flex"
-        }`}
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        <span>{backLabel}</span>
-      </Link>
+      {backHref !== "/projects" ? (
+        <Link
+          href={backHref}
+          className={`text-muted-foreground hover:text-foreground items-center gap-1.5 text-sm transition-colors ${
+            showBackOnMobile ? "inline-flex" : "hidden md:inline-flex"
+          }`}
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          <span>{backLabel}</span>
+        </Link>
+      ) : null}
 
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
