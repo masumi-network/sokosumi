@@ -64,6 +64,7 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-disabled-foreground: var(--disabled-foreground);
+  --color-scrollbar-thumb: var(--scrollbar-thumb);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -368,6 +369,7 @@
      --card and on --card-background: 3.23 and 3.10. --tertiary is not it,
      measuring 1.94 in light. */
   --disabled-foreground: hsla(0, 0.0%, 56.0%, 1);
+  --scrollbar-thumb: hsla(0, 0%, 56%, 1);
   --accent: hsla(300, 0%, 96%, 1);
   --accent-foreground: hsla(330, 0%, 9%, 1);
   --destructive: hsla(0, 74%, 42%, 1);
@@ -620,6 +622,7 @@
   /* 3.45 on --card and 3.12 on --card-background. --tertiary at 41.6% lands
      within a step of this in dark; it is light mode the two disagree about. */
   --disabled-foreground: hsla(0, 0.0%, 40.0%, 1);
+  --scrollbar-thumb: hsla(0, 0%, 40%, 1);
   --accent: hsla(0, 0%, 15%, 1);
   --accent-foreground: hsla(0, 0%, 98%, 1);
   --destructive: hsla(0, 84%, 60%, 1);
@@ -730,6 +733,51 @@
         var(--font-inter), ui-sans-serif, system-ui, sans-serif,
         "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
         "Noto Color Emoji";
+    }
+  }
+}
+
+/* Keep taskboard scrollbars native: DnD and drag-to-scroll use these ports.
+   High-contrast modes retain the platform's scrollbar colors and geometry. */
+@media (forced-colors: none) and (prefers-contrast: no-preference) {
+  .taskboard-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  @supports selector(::-webkit-scrollbar) {
+    .taskboard-scrollbar {
+      /* Non-auto standard properties override WebKit thumb/track styling. */
+      scrollbar-width: auto;
+      scrollbar-color: auto;
+    }
+
+    .taskboard-scrollbar::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+      background: transparent;
+    }
+
+    .taskboard-scrollbar::-webkit-scrollbar-track,
+    .taskboard-scrollbar::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+
+    .taskboard-scrollbar::-webkit-scrollbar-thumb {
+      min-width: 24px;
+      min-height: 24px;
+      border: 3px solid transparent;
+      border-radius: 999px;
+      background-color: var(--scrollbar-thumb);
+      background-clip: padding-box;
+    }
+
+    .taskboard-scrollbar::-webkit-scrollbar-thumb:hover {
+      background-color: var(--muted-foreground);
+    }
+
+    .taskboard-scrollbar::-webkit-scrollbar-thumb:active {
+      background-color: var(--foreground);
     }
   }
 }
