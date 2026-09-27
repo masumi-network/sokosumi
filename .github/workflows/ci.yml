@@ -126,9 +126,33 @@ jobs:
       - name: Run Tests
         run: pnpm exec turbo run test:ci --filter=@sokosumi/core
 
+      # `optInPostgresFiles` in apps/core/vitest.config.ts excludes every
+      # `*.postgres.test.ts` from `test:ci`, so a suite that is not named
+      # here does not run anywhere. Adding a file to that list without
+      # adding it here produces tests that exist, pass locally, and carry no
+      # information in CI — which is what happened to the six Files suites
+      # below: 2,140 lines covering the spend cap, the daily budgets and the
+      # admission ceiling, none of it executed by any CI job.
+      #
+      # If you add a `*.postgres.test.ts`, add it to both lists.
       - name: Test Projects API and Calendar erasure against PostgreSQL
         env: *migrated-db
-        run: RUN_DATABASE_INTEGRATION_TESTS=true pnpm --filter core test src/routes/v1/projects/get.postgres.test.ts src/helpers/project-activity.postgres.test.ts src/helpers/calendar-erasure.postgres.test.ts
+        run: |
+          RUN_DATABASE_INTEGRATION_TESTS=true pnpm --filter core test \
+            src/routes/v1/projects/get.postgres.test.ts \
+            src/helpers/project-activity.postgres.test.ts \
+            src/helpers/calendar-erasure.postgres.test.ts
+
+      - name: Test Files against PostgreSQL
+        env: *migrated-db
+        run: |
+          RUN_DATABASE_INTEGRATION_TESTS=true pnpm --filter core test \
+            src/services/file-search.postgres.test.ts \
+            src/services/file-suggestions.postgres.test.ts \
+            src/services/file-table-index.postgres.test.ts \
+            src/services/file-collections.postgres.test.ts \
+            src/services/file-related.postgres.test.ts \
+            src/services/file-backfill.postgres.test.ts
 
   packages:
     name: Test Packages
