@@ -12956,6 +12956,50 @@ export const ActivateEnterpriseContractRequestSchema = {
     }
 } as const;
 
+export const ExportLeaseSchema = {
+    type: 'object',
+    properties: {
+        token: {
+            type: 'string',
+            format: 'uuid'
+        },
+        durationMs: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'token',
+        'durationMs'
+    ]
+} as const;
+
+export const ReleaseExportLeaseResponseSchema = {
+    type: 'object',
+    properties: {
+        released: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'released'
+    ]
+} as const;
+
+export const ReleaseExportLeaseBodySchema = {
+    type: 'object',
+    properties: {
+        token: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'token'
+    ],
+    additionalProperties: false
+} as const;
+
 export const HistoryListSchema = {
     type: 'array',
     items: {

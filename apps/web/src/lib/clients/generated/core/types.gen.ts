@@ -3796,6 +3796,19 @@ export type ActivateEnterpriseContractRequest = {
     paymentReference?: string;
 };
 
+export type ExportLease = {
+    token: string;
+    durationMs: number;
+};
+
+export type ReleaseExportLeaseResponse = {
+    released: boolean;
+};
+
+export type ReleaseExportLeaseBody = {
+    token: string;
+};
+
 export type HistoryList = Array<HistoryItem>;
 
 export type HistoryItem = ({
@@ -25521,6 +25534,182 @@ export type PostEnterpriseContractsByIdCancelResponses = {
 };
 
 export type PostEnterpriseContractsByIdCancelResponse = PostEnterpriseContractsByIdCancelResponses[keyof PostEnterpriseContractsByIdCancelResponses];
+
+export type ReleaseExportLeaseData = {
+    body: ReleaseExportLeaseBody;
+    path?: never;
+    query?: never;
+    url: '/exports/leases';
+};
+
+export type ReleaseExportLeaseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Interactive session required
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid lease token
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Export admission unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ReleaseExportLeaseError = ReleaseExportLeaseErrors[keyof ReleaseExportLeaseErrors];
+
+export type ReleaseExportLeaseResponses = {
+    /**
+     * Export lease released or no longer owned
+     */
+    200: {
+        data: ReleaseExportLeaseResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ReleaseExportLeaseResponse2 = ReleaseExportLeaseResponses[keyof ReleaseExportLeaseResponses];
+
+export type AcquireExportLeaseData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/exports/leases';
+};
+
+export type AcquireExportLeaseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Interactive session required
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Export limit exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Export admission unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AcquireExportLeaseError = AcquireExportLeaseErrors[keyof AcquireExportLeaseErrors];
+
+export type AcquireExportLeaseResponses = {
+    /**
+     * Export admitted
+     */
+    200: {
+        data: ExportLease;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AcquireExportLeaseResponse = AcquireExportLeaseResponses[keyof AcquireExportLeaseResponses];
 
 export type GetHistoryData = {
     body?: never;
