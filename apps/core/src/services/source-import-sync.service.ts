@@ -5,6 +5,8 @@ import {
   buildTaskFilePathname,
   FILE_UPLOAD_MAX_SIZE_BYTES,
   getUrlBasename,
+  isUnexpectedHtmlImport,
+  resolveDownloadableFileUrl,
 } from "@sokosumi/utils";
 import { head, put } from "@vercel/blob";
 
@@ -125,7 +127,11 @@ async function importBlob(
     // result is uploaded to a public blob store, so an unguarded fetch on a
     // URL derived from untrusted job output would be an SSRF + exfiltration
     // primitive.
-    const response = await ssrfSafeFetch(blob.sourceUrl, {
+    // A link to a file and a link to a *page about* a file both end in
+    // `.md`. Download the file. The recorded sourceUrl keeps what the job
+    // actually emitted; only the fetch target is resolved.
+    const downloadUrl = resolveDownloadableFileUrl(blob.sourceUrl);
+    const response = await ssrfSafeFetch(downloadUrl, {
       signal: abortSignal,
       maxResponseBytes: MAX_IMPORT_SIZE_BYTES,
     });
@@ -142,6 +148,12 @@ async function importBlob(
       blob.name ??
       getUrlBasename(blob.sourceUrl) ??
       "file";
+
+    // A web page arriving under a document's name is a failed import, not a
+    // document whose contents happen to be someone's navigation menu.
+    if (isUnexpectedHtmlImport({ contentType, fileName: suggestedName })) {
+      throw new Error(`Refusing to import an HTML page as ${suggestedName}`);
+    }
 
     const arrayBuffer = await response.arrayBuffer();
     const sourceFile = new File([arrayBuffer], suggestedName, {
@@ -216,7 +228,8 @@ async function importTaskFile(
   try {
     const abortSignal = createImportAbortSignal(options);
     // SSRF guard: validate the source URL against private addresses
-    const response = await ssrfSafeFetch(taskFile.sourceUrl, {
+    const downloadUrl = resolveDownloadableFileUrl(taskFile.sourceUrl);
+    const response = await ssrfSafeFetch(downloadUrl, {
       signal: abortSignal,
       maxResponseBytes: MAX_IMPORT_SIZE_BYTES,
     });
@@ -233,6 +246,10 @@ async function importTaskFile(
       taskFile.name ??
       getUrlBasename(taskFile.sourceUrl) ??
       "file";
+
+    if (isUnexpectedHtmlImport({ contentType, fileName: suggestedName })) {
+      throw new Error(`Refusing to import an HTML page as ${suggestedName}`);
+    }
 
     const arrayBuffer = await response.arrayBuffer();
     const sourceFile = new File([arrayBuffer], suggestedName, {

@@ -613,4 +613,199 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
       expect(taskFileUpdateMock).toHaveBeenCalled();
     });
   });
+
+  describe("source URLs that name a page rather than a file", () => {
+    const BLOB_PAGE =
+      "https://github.com/masumi-network/sokosumi/blob/84d0a395284dd5dda58367470411a1e611c2c997/docs/image-studio/deployment.md";
+    const RAW_FILE =
+      "https://raw.githubusercontent.com/masumi-network/sokosumi/84d0a395284dd5dda58367470411a1e611c2c997/docs/image-studio/deployment.md";
+
+    /**
+     * The reported bug: a job linked a GitHub blob page ending in `.md`, the
+     * importer downloaded the HTML page and stored it as `deployment.md`, and
+     * opening the file showed GitHub's navigation menu rendered as Markdown.
+     */
+    function pendingMarkdownBlob(sourceUrl: string) {
+      return {
+        id: "blob-md",
+        name: "deployment.md",
+        sourceUrl,
+        status: BlobStatus.PENDING,
+        createdAt: new Date("2026-02-25T10:00:00.000Z"),
+        event: { jobId: "job-1" },
+      };
+    }
+
+    function onlyBlob(blob: ReturnType<typeof pendingMarkdownBlob>) {
+      blobFindManyMock.mockResolvedValue([blob]);
+      blobFindUniqueMock.mockResolvedValue(blob);
+      taskFileFindManyMock.mockResolvedValue([]);
+    }
+
+    it("downloads the raw file for a GitHub blob page", async () => {
+      onlyBlob(pendingMarkdownBlob(BLOB_PAGE));
+      blobHeadMock.mockResolvedValue({
+        contentType: "text/markdown",
+        size: 12,
+      });
+
+      const fetchMock = vi.fn(
+        async (_input: RequestInfo | URL): Promise<Response> =>
+          new Response("# Deployment\n\nReal markdown.", {
+            status: 200,
+            headers: { "content-type": "text/plain; charset=utf-8" },
+          }),
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+      await sourceImportSyncService.importPendingResultBlobs(
+        createImportOptions(),
+      );
+
+      expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
+        RAW_FILE,
+      ]);
+      expect(blobPutMock).toHaveBeenCalled();
+      expect(blobUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: BlobStatus.READY }),
+        }),
+      );
+    });
+
+    it("fails the import instead of storing a web page as Markdown", async () => {
+      onlyBlob(pendingMarkdownBlob("https://docs.example.com/guide.md"));
+
+      const fetchMock = vi.fn(async () => {
+        return new Response(
+          "<!DOCTYPE html><html><body>Navigation Menu</body></html>",
+          {
+            status: 200,
+            headers: { "content-type": "text/html; charset=utf-8" },
+          },
+        );
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+      await sourceImportSyncService.importPendingResultBlobs(
+        createImportOptions(),
+      );
+
+      expect(blobPutMock).not.toHaveBeenCalled();
+      expect(blobUpdateMock).toHaveBeenCalledWith({
+        where: { id: "blob-md" },
+        data: { status: BlobStatus.FAILED },
+      });
+    });
+
+    it("still imports an ordinary Markdown file untouched", async () => {
+      onlyBlob(pendingMarkdownBlob("https://example.com/notes.md"));
+      blobHeadMock.mockResolvedValue({
+        contentType: "text/markdown",
+        size: 9,
+      });
+
+      const fetchMock = vi.fn(
+        async (_input: RequestInfo | URL): Promise<Response> =>
+          new Response("# Notes", {
+            status: 200,
+            headers: { "content-type": "text/markdown" },
+          }),
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+      await sourceImportSyncService.importPendingResultBlobs(
+        createImportOptions(),
+      );
+
+      expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
+        "https://example.com/notes.md",
+      ]);
+      expect(blobUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: BlobStatus.READY }),
+        }),
+      );
+    });
+
+    it("still imports a page that is genuinely meant to be HTML", async () => {
+      const blob = {
+        ...pendingMarkdownBlob("https://example.com/report.html"),
+        name: "report.html",
+      };
+      onlyBlob(blob);
+      blobHeadMock.mockResolvedValue({ contentType: "text/html", size: 20 });
+
+      global.fetch = vi.fn(async () => {
+        return new Response("<html><body>Report</body></html>", {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        });
+      }) as unknown as typeof fetch;
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+      await sourceImportSyncService.importPendingResultBlobs(
+        createImportOptions(),
+      );
+
+      expect(blobPutMock).toHaveBeenCalled();
+      expect(blobUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: BlobStatus.READY }),
+        }),
+      );
+    });
+
+    it("downloads the raw file for a GitHub-linked task output too", async () => {
+      const taskFileId = "tfile_md";
+      const taskId = "tsk_md";
+      const pendingTaskFile = {
+        id: taskFileId,
+        taskId,
+        sourceUrl: BLOB_PAGE,
+        fileUrl: null,
+        name: "deployment.md",
+        status: "PENDING",
+        origin: "TASK_OUTPUT",
+        createdAt: new Date("2026-02-25T10:00:00.000Z"),
+      };
+
+      blobFindManyMock.mockResolvedValue([]);
+      taskFileFindManyMock.mockResolvedValue([pendingTaskFile]);
+      taskFileFindUniqueMock.mockResolvedValue({
+        ...pendingTaskFile,
+        task: { id: taskId },
+      });
+      blobHeadMock.mockResolvedValue({
+        contentType: "text/markdown",
+        size: 12,
+      });
+
+      const fetchMock = vi.fn(
+        async (_input: RequestInfo | URL): Promise<Response> =>
+          new Response("# Deployment", {
+            status: 200,
+            headers: { "content-type": "text/plain" },
+          }),
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+      await sourceImportSyncService.importPendingResultBlobs(
+        createImportOptions(),
+      );
+
+      expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
+        RAW_FILE,
+      ]);
+      expect(taskFileUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "READY" }),
+        }),
+      );
+    });
+  });
 });
