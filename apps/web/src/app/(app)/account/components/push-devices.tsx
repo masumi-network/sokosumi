@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, RefreshCw } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,11 +18,12 @@ interface PushDevicesProps {
 
 export function PushDevices({ userId }: PushDevicesProps) {
   const t = useTranslations("App.Account.PushDevices");
+  const formatter = useFormatter();
   const [open, setOpen] = useState(false);
   const query = usePushDevices(userId, open);
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={open} onOpenChange={setOpen} className="@container">
       <CollapsibleTrigger asChild>
         <Button
           type="button"
@@ -38,7 +39,7 @@ export function PushDevices({ userId }: PushDevicesProps) {
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent className="ms-7 space-y-3 pt-2 pb-3">
-        <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex flex-col items-start gap-2 @sm:flex-row @sm:justify-between">
           <p className="text-muted-foreground min-w-0 flex-1 text-xs leading-relaxed">
             {t("description")}
           </p>
@@ -77,6 +78,20 @@ export function PushDevices({ userId }: PushDevicesProps) {
                           platform: t(`platforms.${device.platform}`),
                           formFactor: t(`formFactors.${device.formFactor}`),
                         })}
+                  </p>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    {device.registeredAt ? (
+                      <time dateTime={device.registeredAt.toISOString()}>
+                        {t("registeredAt", {
+                          date: formatter.dateTime(
+                            device.registeredAt,
+                            "dateTimeMedium",
+                          ),
+                        })}
+                      </time>
+                    ) : (
+                      t("registrationDateUnavailable")
+                    )}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">

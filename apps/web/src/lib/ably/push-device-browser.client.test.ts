@@ -99,3 +99,43 @@ it("does not update a device belonging to another account", async () => {
   );
   expect(update).not.toHaveBeenCalled();
 });
+
+it("records registration time even when browser names are unknown", async () => {
+  vi.stubGlobal("navigator", { userAgent: "unknown" });
+  const registeredAt = new Date("2026-09-27T12:00:00.000Z");
+  await recordPushDeviceBrowser(
+    {
+      getDevice: vi
+        .fn()
+        .mockResolvedValue({ id: "device", clientId: "user-1:tab" }),
+    },
+    "user-1",
+    registeredAt,
+  );
+  expect(update).toHaveBeenCalledExactlyOnceWith("device", { registeredAt });
+});
+it("records browser details and registration time together", async () => {
+  vi.stubGlobal("navigator", { userAgent: "Macintosh Chrome/140" });
+  const registeredAt = new Date("2026-09-27T12:00:00.000Z");
+  await recordPushDeviceBrowser(
+    {
+      getDevice: vi
+        .fn()
+        .mockResolvedValue({ id: "device", clientId: "user-1:tab" }),
+    },
+    "user-1",
+    registeredAt,
+  );
+  expect(update).toHaveBeenCalledExactlyOnceWith("device", {
+    browser: "Chrome",
+    operatingSystem: "macOS",
+    registeredAt,
+  });
+});
+it("skips an empty update when browser names and registration date are unknown", async () => {
+  vi.stubGlobal("navigator", { userAgent: "unknown" });
+  const getDevice = vi.fn();
+  await recordPushDeviceBrowser({ getDevice }, "user-1");
+  expect(getDevice).not.toHaveBeenCalled();
+  expect(update).not.toHaveBeenCalled();
+});

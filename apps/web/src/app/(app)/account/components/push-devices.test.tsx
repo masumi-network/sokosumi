@@ -11,6 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
+import { createFormats } from "@/i18n/time-format";
 import type { PushDevice } from "@/lib/clients/generated/core/types.gen";
 import { PushDevices } from "./push-devices";
 
@@ -32,6 +33,8 @@ function setup(userId = "user-1", expanded = true) {
     return (
       <NextIntlClientProvider
         locale="en"
+        timeZone="Europe/Prague"
+        formats={createFormats("h23")}
         messages={{
           App: { Account: { PushDevices: messages.App.Account.PushDevices } },
         }}
@@ -58,6 +61,59 @@ afterEach(() => {
 });
 
 describe("push devices in notification settings", () => {
+  it("puts this device first without reordering other devices or mutating the response", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "device-1" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user-1");
+    const devices = [
+      {
+        ...device,
+        id: "other-a",
+        browserDetails: { browser: "Firefox", operatingSystem: "Windows" },
+      },
+      {
+        ...device,
+        id: "other-b",
+        browserDetails: { browser: "Safari", operatingSystem: "iOS" },
+      },
+      {
+        ...device,
+        browserDetails: { browser: "Chrome", operatingSystem: "macOS" },
+      },
+    ];
+    listPushDevices.mockResolvedValue(devices);
+    setup();
+    await screen.findByRole("list");
+    const rows = screen.getAllByRole("listitem");
+    expect(rows[0].textContent).toContain("Chrome on macOS");
+    expect(rows[0].textContent).toContain("This device");
+    expect(rows[1].textContent).toContain("Firefox on Windows");
+    expect(rows[2].textContent).toContain("Safari on iOS");
+    expect(devices.map(({ id }) => id)).toEqual([
+      "other-a",
+      "other-b",
+      "device-1",
+    ]);
+  });
+
+  it("shows the registration date in the reader's time zone and an honest fallback for older devices", async () => {
+    listPushDevices.mockResolvedValue([
+      { ...device, registeredAt: new Date("2026-09-27T10:30:00.000Z") },
+      { ...device, id: "older-device" },
+    ]);
+    setup();
+    const registered = await screen.findByText(
+      "Registered Sep 27, 2026, 12:30",
+    );
+    expect(registered.tagName).toBe("TIME");
+    expect(registered.getAttribute("dateTime")).toBe(
+      "2026-09-27T10:30:00.000Z",
+    );
+    expect(screen.getByText("Registration date unavailable")).toBeTruthy();
+  });
+
   it("starts collapsed and fetches only after the reader opens it", async () => {
     setup("user-1", false);
     const trigger = screen.getByRole("button", { name: "Registered devices" });

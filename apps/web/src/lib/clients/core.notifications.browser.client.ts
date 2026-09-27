@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/clients/generated/core/client";
+import { getNotificationsPushDevicesResponseTransformer } from "@/lib/clients/generated/core/transformers.gen";
 import type {
   GetNotificationsCountsErrors,
   GetNotificationsCountsResponse,
@@ -119,7 +120,7 @@ export const notificationsBrowserClient = {
         >({
           url: "/notifications/push-devices",
           cache: "no-store",
-          responseTransformer: transformMetaTimestampResponse,
+          responseTransformer: getNotificationsPushDevicesResponseTransformer,
         }),
       "Failed to fetch push devices",
     );

@@ -142,14 +142,13 @@ async function runActivation(
   // The id rather than the identity token, because the id is what a channel
   // subscription is keyed on (`build/push.js:74-77`) and the id is what
   // survives a release the sign-out cap cut short.
-  const foreignRegistration =
-    hasAblyPushDeviceId() && readPushDeviceOwner() !== userId;
+  const hadDeviceId = hasAblyPushDeviceId();
+  const foreignRegistration = hadDeviceId && readPushDeviceOwner() !== userId;
 
   // Older REST clients omitted clientId from registrations. SDK reactivation
   // updates only the push recipient, so replace these devices once.
   const legacyRegistration =
-    hasAblyPushDeviceId() &&
-    !hasPushDeviceIdentity(userId, readAblyPushDeviceId(userId));
+    hadDeviceId && !hasPushDeviceIdentity(userId, readAblyPushDeviceId(userId));
 
   const restorePermissionRequest = answerPermissionFromStoredValue();
   try {
@@ -165,6 +164,7 @@ async function runActivation(
     // marker. Otherwise each recovery could replace a working device again.
     reservePushDeviceIdentity(userId, initialDevice.id);
     await client.push.activate();
+    let registeredAt = hadDeviceId ? undefined : new Date();
     if (await abandonedToTeardown(teardownVersion)) return false;
     const fault = foreignRegistration
       ? "another-reader"
@@ -192,6 +192,7 @@ async function runActivation(
       if (await abandonedToTeardown(teardownVersion)) return false;
       if (repairOvertakenAcrossTabs(readerInitiated)) return false;
       await client.push.activate();
+      registeredAt = new Date();
       if (await abandonedToTeardown(teardownVersion)) return false;
       const remainingFault = await findPushDeviceFault(client, userId);
       if (remainingFault) {
@@ -252,7 +253,7 @@ async function runActivation(
     await getNotificationsPushChannel(client, userId).subscribeDevice();
     if (await abandonedToTeardown(teardownVersion)) return false;
 
-    await recordPushDeviceBrowser(client, userId).catch(() =>
+    await recordPushDeviceBrowser(client, userId, registeredAt).catch(() =>
       console.warn("Could not record push device browser details"),
     );
     if (await abandonedToTeardown(teardownVersion)) return false;

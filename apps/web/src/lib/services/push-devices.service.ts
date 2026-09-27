@@ -1,7 +1,7 @@
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type {
   PushDevice,
-  PushDeviceBrowserDetails,
+  PushDeviceBrowserUpdate,
 } from "@/lib/clients/generated/core/types.gen";
 
 export async function listPushDevices(): Promise<PushDevice[]> {
@@ -11,7 +11,7 @@ export async function listPushDevices(): Promise<PushDevice[]> {
 
 export async function updatePushDeviceBrowser(
   deviceId: string,
-  details: PushDeviceBrowserDetails,
+  details: PushDeviceBrowserUpdate,
 ): Promise<void> {
   await notificationsBrowserClient.updatePushDeviceBrowser(
     { id: deviceId },

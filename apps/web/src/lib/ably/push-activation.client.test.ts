@@ -511,8 +511,18 @@ describe("activatePush", () => {
     expect(deactivateMock).toHaveBeenCalledTimes(1);
     expect(hasPushDeviceIdentity("user_1", "device-1")).toBe(true);
     expect(hasPushDeviceIdentity("user_1", "legacy-device")).toBe(false);
+    expect(recordBrowserMock).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      "user_1",
+      expect.any(Date),
+    );
     await expect(activatePush("user_1")).resolves.toBe(true);
     expect(deactivateMock).toHaveBeenCalledTimes(1);
+    expect(recordBrowserMock).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      "user_1",
+      undefined,
+    );
   });
 
   it("does not mark a migration whose channel binding failed", async () => {
@@ -534,11 +544,58 @@ describe("activatePush", () => {
     expect(recordBrowserMock).toHaveBeenCalledWith(
       expect.any(Object),
       "user_1",
+      expect.any(Date),
     );
     expect(recordBrowserMock.mock.invocationCallOrder[0]).toBeGreaterThan(
       subscribeDeviceMock.mock.invocationCallOrder[0],
     );
     warning.mockRestore();
+  });
+
+  it("captures a fresh registration date only after activation succeeds", async () => {
+    let finish = () => {};
+    activateMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const work = activatePush("user_1");
+    await vi.waitFor(() => expect(activateMock).toHaveBeenCalledOnce());
+    expect(recordBrowserMock).not.toHaveBeenCalled();
+    const activatedAt = Date.now();
+    finish();
+    await expect(work).resolves.toBe(true);
+    const registeredAt = recordBrowserMock.mock.calls[0][2];
+    expect(registeredAt).toBeInstanceOf(Date);
+    expect(registeredAt.getTime()).toBeGreaterThanOrEqual(activatedAt);
+    expect(registeredAt.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("does not record a date when SDK activation fails", async () => {
+    activateMock.mockRejectedValueOnce(new Error("Activation failed"));
+    await expect(activatePush("user_1")).rejects.toThrow("Activation failed");
+    expect(recordBrowserMock).not.toHaveBeenCalled();
+  });
+
+  it("does not date an existing healthy registration during recovery", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "device-1" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    rememberPushDeviceIdentity("user_1", {
+      id: "device-1",
+      clientId: "user_1:instance",
+    });
+    await expect(
+      activatePush("user_1", { readerInitiated: false }),
+    ).resolves.toBe(true);
+    expect(recordBrowserMock).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Object),
+      "user_1",
+      undefined,
+    );
+    expect(deactivateMock).not.toHaveBeenCalled();
   });
 
   it("stops before binding when the device owner cannot be saved", async () => {

@@ -33,9 +33,10 @@ export function getPushDeviceBrowserDetails(): PushDeviceBrowserDetails | null {
 export async function recordPushDeviceBrowser(
   client: Pick<Ably.Rest, "getDevice">,
   userId: string,
+  registeredAt?: Date,
 ): Promise<void> {
   const details = getPushDeviceBrowserDetails();
-  if (!details) return;
+  if (!details && !registeredAt) return;
   const device = await client.getDevice();
   if (
     !("clientId" in device) ||
@@ -43,5 +44,8 @@ export async function recordPushDeviceBrowser(
     !device.clientId.startsWith(`${userId}:`)
   )
     return;
-  await updatePushDeviceBrowser(device.id, details);
+  await updatePushDeviceBrowser(device.id, {
+    ...details,
+    ...(registeredAt ? { registeredAt } : {}),
+  });
 }

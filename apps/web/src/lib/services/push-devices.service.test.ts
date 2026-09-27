@@ -37,3 +37,9 @@ it("forwards browser details and propagates update failures", async () => {
     "offline",
   );
 });
+
+it("forwards registration dates for unknown browsers", async () => {
+  const details = { registeredAt: new Date("2026-09-27T12:00:00.000Z") };
+  await updatePushDeviceBrowser("device", details);
+  expect(update).toHaveBeenCalledExactlyOnceWith({ id: "device" }, details);
+});

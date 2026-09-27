@@ -71,6 +71,35 @@ describe("core.notifications.browser.client", () => {
     );
   });
 
+  it("converts recorded registration dates and leaves old devices undated", async () => {
+    const registeredAt = "2026-09-26T12:00:00.000Z";
+    await withTransformer(getMock, {
+      data: [
+        {
+          id: "new",
+          platform: "browser",
+          formFactor: "desktop",
+          state: "active",
+          registeredAt,
+        },
+        {
+          id: "old",
+          platform: "browser",
+          formFactor: "desktop",
+          state: "active",
+        },
+      ],
+      meta: { timestamp: "2026-09-27T00:00:00Z" },
+    });
+    const { notificationsBrowserClient } = await import(
+      "./core.notifications.browser.client"
+    );
+    const response = await notificationsBrowserClient.getPushDevices();
+    expect(response.data[0].registeredAt).toEqual(new Date(registeredAt));
+    expect(response.data[1].registeredAt).toBeUndefined();
+    expect(response.meta.timestamp).toBeInstanceOf(Date);
+  });
+
   it("reads push devices with cookies and without caching", async () => {
     const devices = [
       {

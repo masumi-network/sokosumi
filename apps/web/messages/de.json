@@ -4485,6 +4485,8 @@
         "kindFollowUpHint": "Eine Erinnerung einen Tag später, wenn du etwas nicht geöffnet hast, das auf dich wartet."
       },
       "PushDevices": {
+        "registeredAt": "Registriert am {date}",
+        "registrationDateUnavailable": "Registrierungsdatum nicht verfügbar",
         "title": "Registrierte Geräte",
         "description": "Die Zustellung hängt auch von den Browser-Berechtigungen auf jedem Gerät ab.",
         "refresh": "Aktualisieren",

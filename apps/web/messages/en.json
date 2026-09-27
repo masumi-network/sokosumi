@@ -4521,6 +4521,8 @@
         "kindFollowUpHint": "One reminder a day later when you have not opened something that is waiting for you."
       },
       "PushDevices": {
+        "registeredAt": "Registered {date}",
+        "registrationDateUnavailable": "Registration date unavailable",
         "title": "Registered devices",
         "description": "Push delivery also depends on each device’s browser permissions.",
         "refresh": "Refresh",

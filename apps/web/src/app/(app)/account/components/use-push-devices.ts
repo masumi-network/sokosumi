@@ -9,10 +9,17 @@ export function usePushDevices(userId: string, enabled = true) {
   return useQuery({
     queryKey: getPushDevicesQueryKey(userId),
     enabled,
-    queryFn: async () => ({
-      devices: await listPushDevices(),
-      currentDeviceId: readAblyPushDeviceId(userId),
-    }),
+    queryFn: async () => {
+      const devices = await listPushDevices();
+      const currentDeviceId = readAblyPushDeviceId(userId);
+      return {
+        devices: devices.toSorted(
+          (a, b) =>
+            Number(b.id === currentDeviceId) - Number(a.id === currentDeviceId),
+        ),
+        currentDeviceId,
+      };
+    },
     retry: false,
   });
 }
