@@ -355,4 +355,58 @@ describe.skipIf(!enabled)("Files retrieval against PostgreSQL", () => {
     });
     expect(outcome.status).toBe("conflict");
   });
+
+  it("survives a table resource whose source id is not a uuid", async () => {
+    // The NATIVE_TABLE arm casts `sourceId` to uuid to join `data_table`.
+    // `sourceId` is a plain string column that holds a pathname for every
+    // other source kind, so the cast is only safe while every NATIVE_TABLE
+    // row happens to hold a well-formed id. One that does not is not a
+    // missing table in the results — Postgres raises on the cast and the
+    // whole authorized query fails, taking every other file in the
+    // workspace down with it.
+    // The arm is a semi-join, so an empty `data_table` never probes the
+    // cast at all. One real table in the workspace is what makes the join
+    // evaluate it — which is the ordinary state once tables are indexed.
+    const table = await prisma.dataTable.create({
+      data: { workspaceId, title: "A real table", createdBy: ownerId },
+      select: { id: true },
+    });
+
+    const planted = await prisma.fileResource.create({
+      data: {
+        workspaceId,
+        sourceKind: FileSourceKind.NATIVE_TABLE,
+        sourceScope: FileSourceScope.USER,
+        sourceId: "not-a-uuid",
+        ownerUserId: ownerId,
+        displayName: "broken-table",
+        normalizedName: "broken-table",
+        lifecycle: FileResourceLifecycle.ACTIVE,
+      },
+      select: { id: true },
+    });
+
+    try {
+      // Browsing, not searching: the text path only ever reaches rows that
+      // have indexed chunks, so it never sees this one. Listing the store
+      // scans every resource, which is where the cast is reached.
+      const browsed = await retrieveFileCandidates({
+        workspaceId,
+        actor: actorFor(ownerId),
+        query: null,
+        filters: {},
+        sortBy: "modified",
+        sortOrder: "desc",
+      });
+
+      const names = browsed.candidates.map(
+        (candidate) => candidate.displayName,
+      );
+      expect(names).toContain("aurora-research.txt");
+      expect(names).not.toContain("broken-table");
+    } finally {
+      await prisma.fileResource.delete({ where: { id: planted.id } });
+      await prisma.dataTable.delete({ where: { id: table.id } });
+    }
+  });
 });

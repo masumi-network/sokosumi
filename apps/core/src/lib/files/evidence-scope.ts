@@ -121,6 +121,12 @@ export async function ensureEvidenceScope(
  * a personal store belongs to its owner, an organization store to a member of
  * the active organization, and a task output follows current task visibility.
  */
+/**
+ * A uuid as Postgres will accept it, for guarding a cast on a text column.
+ */
+const UUID_TEXT_PATTERN =
+  "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$";
+
 export function buildAuthorizedResourceSql(input: {
   workspaceId: string;
   actor: FileActor;
@@ -187,11 +193,22 @@ export function buildAuthorizedResourceSql(input: {
     // and Soko Bot access is narrowed by `scopeForTask` to one task's rows,
     // and a whole-table index cannot express that narrowing. They see no
     // table content at all rather than more than they should.
+    // `sourceId` is a plain text column: every other source kind stores a
+    // pathname in it, so `::uuid` is only safe while every NATIVE_TABLE row
+    // happens to hold a well-formed id. One that does not is not a missing
+    // table in the results — Postgres raises 22P02 and the whole authorized
+    // query fails, so a single bad row takes down Drive listing and search
+    // for everyone in that workspace. The CASE is what bounds that blast
+    // radius to the one row: it evaluates its branches in order, so a
+    // sourceId that is not a uuid yields NULL and simply matches no table.
     arms.push(PrismaRaw.sql`(
       fr."sourceKind" = ${FileSourceKind.NATIVE_TABLE}::"FileSourceKind"
       AND EXISTS (
         SELECT 1 FROM data_table dt
-        WHERE dt.id = fr."sourceId"::uuid
+        WHERE dt.id = CASE
+            WHEN fr."sourceId" ~ ${UUID_TEXT_PATTERN}
+              THEN fr."sourceId"::uuid
+          END
           AND dt."workspaceId" = fr."workspaceId"
           AND dt."archivedAt" IS NULL
       )
