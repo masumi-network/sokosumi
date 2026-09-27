@@ -49,7 +49,7 @@ describe.each([
 ])(
   "$name captcha",
   ({ Component, placeholder, submit, send, errorFallback }) => {
-    it("shows the translated captcha error without reporting success", async () => {
+    it("applies the form error policy without reporting success", async () => {
       const error = {
         code: "VERIFICATION_FAILED",
         message: "Captcha verification failed",
@@ -64,11 +64,18 @@ describe.each([
       );
       await user.click(screen.getByRole("button", { name: submit }));
 
-      expect(captchaErrorMessageMock).toHaveBeenCalledWith(
-        error,
-        errorFallback,
-      );
-      expect(toast.error).toHaveBeenLastCalledWith("Translated captcha error");
+      if (Component === ForgotPasswordForm) {
+        expect(captchaErrorMessageMock).not.toHaveBeenCalled();
+        expect(toast.error).not.toHaveBeenCalled();
+      } else {
+        expect(captchaErrorMessageMock).toHaveBeenCalledWith(
+          error,
+          errorFallback,
+        );
+        expect(toast.error).toHaveBeenLastCalledWith(
+          "Translated captcha error",
+        );
+      }
       expect(toast.success).not.toHaveBeenCalled();
     });
 
