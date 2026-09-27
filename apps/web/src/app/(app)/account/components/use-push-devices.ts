@@ -5,19 +5,13 @@ import { useState } from "react";
 import { handleRevokedPushDevice } from "@/lib/ably/push-revocation.client";
 import { readAblyPushDeviceId } from "@/lib/ably/release-push-device.client";
 import type { PushDevice } from "@/lib/clients/generated/core/types.gen";
-import {
-  listPushDevices,
-  revokePushDevice,
-} from "@/lib/services/push-devices.service";
+import { revokePushDevice } from "@/lib/services/push-devices.service";
 import {
   getPushDevicesQueryKey,
+  getPushDevicesQueryOptions,
+  type PushDevicesData,
   refreshPushDevices,
 } from "@/queries/push-devices";
-
-interface PushDevicesData {
-  devices: PushDevice[];
-  currentDeviceId: string | null;
-}
 
 export function usePushDevices(userId: string, enabled = true) {
   const queryClient = useQueryClient();
@@ -27,20 +21,8 @@ export function usePushDevices(userId: string, enabled = true) {
   } | null>(null);
   const selectedDevice = selection?.userId === userId ? selection.device : null;
   const query = useQuery({
-    queryKey: getPushDevicesQueryKey(userId),
+    ...getPushDevicesQueryOptions(userId),
     enabled,
-    queryFn: async () => {
-      const devices = await listPushDevices();
-      const currentDeviceId = readAblyPushDeviceId(userId);
-      return {
-        devices: devices.toSorted(
-          (a, b) =>
-            Number(b.id === currentDeviceId) - Number(a.id === currentDeviceId),
-        ),
-        currentDeviceId,
-      };
-    },
-    retry: false,
   });
   const removal = useMutation({
     mutationFn: async (target: { userId: string; device: PushDevice }) => {
