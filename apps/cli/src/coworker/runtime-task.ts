@@ -216,3 +216,23 @@ export async function completeRuntimeTask(
   await verifyCoworker(options);
   return completeVerifiedTask(options, options.result);
 }
+
+export async function executeRuntimeTask(
+  options: TaskContext & {
+    execute: (task: RuntimeTask, signal?: AbortSignal) => Promise<string>;
+  },
+): Promise<CompletedRuntimeTask> {
+  const task = await startRuntimeTask(options);
+  let result: string;
+  try {
+    checkAbort(options.signal);
+    result = await options.execute(task, options.signal);
+  } catch {
+    throw new Error(
+      "Runtime execution failed. No completion was submitted. Inspect the Task before retrying.",
+    );
+  }
+  checkAbort(options.signal);
+  requireResult(result);
+  return completeVerifiedTask(options, result);
+}

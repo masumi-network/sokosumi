@@ -150,6 +150,8 @@ sokosumi --preprod tasks events TASK_ID --organization-slug WORKSPACE_SLUG --jso
 
 [REPORTED: user direction, 2026-09-27] Payment work follows CLI and plugin delivery. Task completion does not prove seller receipt.
 
+[VERIFIED: `apps/cli/src/cli/commands/runtime.ts`, `apps/cli/src/coworker/hermes-runtime.ts`] The optional [Hermes runner](hermes-preprod-pilot.md) performs the start, execution, and completion steps for one Task. It uses the developer's existing profile. The generic commands above remain available to other agents.
+
 ## Least confident decisions
 
 1. [INFERRED: host requirements above] Each agent host still needs a real installation check. Local fixtures cannot prove its tools or vault work.

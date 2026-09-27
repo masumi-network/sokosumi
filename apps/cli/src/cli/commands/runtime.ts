@@ -2,6 +2,10 @@ import { closeSync, openSync, readSync } from "node:fs";
 import { createCoworkerHttpClient } from "../../api/http-client.js";
 import type { CredentialStore } from "../../auth/secure-store.js";
 import {
+  executeHermesTask,
+  preflightHermesRuntime,
+} from "../../coworker/hermes-runtime.js";
+import {
   parseRuntimeKeyInput,
   type RuntimeCredential,
   readRuntimeCredential,
@@ -9,6 +13,7 @@ import {
 } from "../../coworker/runtime-credentials.js";
 import {
   completeRuntimeTask,
+  executeRuntimeTask,
   startRuntimeTask,
 } from "../../coworker/runtime-task.js";
 import { redactErrorMessage, redactSensitive } from "../../error-redaction.js";
@@ -16,12 +21,15 @@ import {
   type CommandOptions,
   type CommandOutput,
   optionString,
+  parsePositiveInteger,
   record,
   writeJson,
 } from "./command-helpers.js";
 
 export interface RuntimeDependencies {
   fetchImpl?: typeof fetch;
+  execute?: typeof executeHermesTask;
+  preflight?: typeof preflightHermesRuntime;
   credentialStore?: CredentialStore<RuntimeCredential>;
 }
 
@@ -31,6 +39,14 @@ const COMMON_OPTIONS = new Set([
   "api-key-stdin",
   "coworker-id",
   "organization-id",
+]);
+const RUN_OPTIONS = new Set([
+  "provider",
+  "model",
+  "hermes-path",
+  "hermes-home",
+  "runtime-directory",
+  "timeout-ms",
 ]);
 const COMPLETE_OPTIONS = new Set(["result-file"]);
 const NO_OPTIONS = new Set<string>();
@@ -135,15 +151,20 @@ export async function runRuntimeCommand({
 }): Promise<void> {
   const [, command, taskId, ...rest] = positionals;
   if (
-    !["start", "complete", "key-import"].includes(command) ||
+    !["start", "complete", "run", "key-import"].includes(command) ||
     (command === "key-import" ? taskId !== undefined : !taskId) ||
     rest.length
   ) {
     throw new Error(
-      "Use runtime start or complete with TASK_ID; key-import takes no Task ID",
+      "Use runtime start, complete, or run with TASK_ID; key-import takes no Task ID",
     );
   }
-  const commandOptions = command === "complete" ? COMPLETE_OPTIONS : NO_OPTIONS;
+  const commandOptions =
+    command === "run"
+      ? RUN_OPTIONS
+      : command === "complete"
+        ? COMPLETE_OPTIONS
+        : NO_OPTIONS;
   for (const name of Object.keys(options)) {
     if (
       (!COMMON_OPTIONS.has(name) && !commandOptions.has(name)) ||
@@ -172,6 +193,21 @@ export async function runRuntimeCommand({
       controller.signal,
       AbortSignal.timeout(900_000),
     ]);
+    const hermes =
+      command === "run"
+        ? {
+            provider: optionString(options, "provider"),
+            model: optionString(options, "model"),
+            hermesHome: requiredOption(options, "hermes-home"),
+            runtimeDirectory: requiredOption(options, "runtime-directory"),
+            hermesPath: optionString(options, "hermes-path"),
+            timeoutMs: parsePositiveInteger(
+              options["timeout-ms"],
+              "--timeout-ms",
+            ),
+            signal,
+          }
+        : undefined;
     const resultText =
       command === "complete"
         ? readRuntimeFile(
@@ -182,6 +218,8 @@ export async function runRuntimeCommand({
         : undefined;
     if (resultText !== undefined && !resultText.trim())
       throw new Error("Result file must not be empty");
+    if (hermes)
+      await (dependencies.preflight || preflightHermesRuntime)(hermes);
     if (options["api-key-stdin"] === true) {
       if (!readStdin && process.stdin.isTTY) {
         throw new Error(
@@ -203,11 +241,16 @@ export async function runRuntimeCommand({
       apiKey,
       fetchImpl: dependencies.fetchImpl,
     });
-    if (resultText?.includes(apiKey)) {
-      throw new Error(
-        "Task result contains the runtime credential. No result was submitted.",
-      );
-    }
+    const knownSecrets = [apiKey];
+    const rejectCredentialInResult = (text: string): string => {
+      if (apiKey && text.includes(apiKey)) {
+        throw new Error(
+          "Task result contains the runtime credential. No result was submitted.",
+        );
+      }
+      return text;
+    };
+    if (resultText !== undefined) rejectCredentialInResult(resultText);
     if (command === "key-import") {
       const response = record(await client.get("/v1/coworkers/me", signal));
       const coworker = record(response.data);
@@ -249,12 +292,26 @@ export async function runRuntimeCommand({
         );
       return;
     }
-    if (resultText === undefined)
-      throw new Error("runtime complete requires --result-file");
-    const result = await completeRuntimeTask({
-      ...context,
-      result: resultText,
-    });
+    const result =
+      hermes !== undefined
+        ? await executeRuntimeTask({
+            ...context,
+            execute: async (task) =>
+              rejectCredentialInResult(
+                await (dependencies.execute || executeHermesTask)({
+                  ...hermes,
+                  task: {
+                    ...task,
+                    name: redactErrorMessage(task.name, knownSecrets),
+                    description:
+                      task.description === null
+                        ? null
+                        : redactErrorMessage(task.description, knownSecrets),
+                  },
+                }),
+              ),
+          })
+        : await completeRuntimeTask({ ...context, result: resultText ?? "" });
     const safeResult = redactSensitive(result, [apiKey]);
     if (options.json) writeJson(stdout, safeResult);
     else {

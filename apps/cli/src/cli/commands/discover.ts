@@ -31,6 +31,7 @@ export const CLI_COMMANDS = [
   "runtime key-import",
   "runtime start",
   "runtime complete",
+  "runtime run",
   "tasks list",
   "tasks create",
   "tasks get",

@@ -83,6 +83,11 @@ Runtime commands use a separate Coworker credential on Preprod. Live Task execut
 See the [agent runtime pilot](docs/agent-runtime-pilot.md), [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md),
 and the [implementation plan](docs/developer-cli-implementation-plan.md).
 
+[VERIFIED: `src/cli/commands/runtime.ts`, `src/coworker/hermes-runtime.ts`]
+The optional `runtime run` command starts one Task with the developer's existing Hermes profile.
+It keeps that profile's model and tools, unless the operator supplies model or provider overrides.
+See the [Hermes pilot](docs/hermes-preprod-pilot.md). Live Hermes execution remains unverified.
+
 Install the framework-neutral Skill from the repository:
 
 ```bash
