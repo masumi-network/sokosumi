@@ -9,6 +9,7 @@ import { del, list } from "@vercel/blob";
 import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import {
   badRequest,
   notFound,
@@ -19,6 +20,7 @@ import { jsonErrorResponse } from "@/helpers/openapi";
 import { empty } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { deleteDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
+import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 
 const route = createRoute({
   method: "delete",
@@ -94,6 +96,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let cursor: string | undefined;
     let foundAnyBlobs = false;
     const BATCH_SIZE = 100;
+    // Every pathname this request removed, so the catalog can be told about
+    // all of them rather than none.
+    const deleted: string[] = [];
 
     do {
       const result = await list({
@@ -110,6 +115,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         for (let i = 0; i < pathnames.length; i += BATCH_SIZE) {
           const batch = pathnames.slice(i, i + BATCH_SIZE);
           await del(batch, { token });
+          deleted.push(...batch);
         }
       }
 
@@ -120,6 +126,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!foundAnyBlobs) {
       throw notFound("Folder not found");
     }
+
+    // Tombstone in the same request. Without this the documents stayed fully
+    // indexed: deleted files kept matching full-text search and kept
+    // returning content snippets.
+    const workspace = await resolveDriveTasksWorkspace({
+      userContext,
+      scope: body.scope,
+      organizationId: body.scope === "org" ? body.organizationId : undefined,
+    });
+    await tombstoneDriveUploadResources({
+      workspaceId: workspace.workspaceId,
+      scope,
+      pathnames: deleted,
+    });
 
     return empty(c);
   });

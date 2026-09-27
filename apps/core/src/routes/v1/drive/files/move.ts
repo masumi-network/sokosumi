@@ -16,6 +16,7 @@ import {
   assertDriveFolderPathNotReserved,
   resolveMovedFolderPath,
 } from "@/helpers/drive-folder-reserved-names";
+import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import {
   badRequest,
   conflict,
@@ -27,6 +28,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { moveDriveItemRequestSchema } from "@/schemas/drive-file.schema";
+import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
 const route = createRoute({
   method: "patch",
@@ -74,6 +76,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = await requireAuthorizedUserContext(authContext);
     const body = c.req.valid("json");
+
+    /**
+     * Tell the catalog what moved.
+     *
+     * Both branches below mutate Drive objects and neither used to say so,
+     * which left every relocated document indexed under its old pathname.
+     */
+    const reconcileMoves = async (
+      moves: readonly { fromPathname: string; toPathname: string }[],
+      scope: "user" | "organization",
+    ) => {
+      if (moves.length === 0) return;
+      const workspace = await resolveDriveTasksWorkspace({
+        userContext,
+        scope: scope === "user" ? "me" : "org",
+        organizationId:
+          scope === "organization"
+            ? (body.organizationId ?? undefined)
+            : undefined,
+      });
+      await reconcileDriveUploadMoves({
+        workspaceId: workspace.workspaceId,
+        scope,
+        moves,
+      });
+    };
 
     const env = getEnv();
     const token = env.BLOB_READ_WRITE_TOKEN;
@@ -151,6 +179,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         contentType: sourceMetadata.contentType,
         cacheControlMaxAge: maxAge,
       });
+
+      // Follow the object in the catalog. Without this the entry kept
+      // pointing at the vacated pathname, so a later upload there inherited
+      // this document's manual tags.
+      await reconcileMoves(
+        [{ fromPathname: body.sourcePathname, toPathname: targetPathname }],
+        scope,
+      );
 
       return ok(c, body);
     }
@@ -281,6 +317,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // Bounded-concurrency head + rename (10 concurrent operations)
       const limit = pLimit(10);
 
+      // Pairs that really moved, collected as they succeed so a partial
+      // failure reconciles exactly what happened and nothing more.
+      const moved: { fromPathname: string; toPathname: string }[] = [];
+
       const renameTasks = allPathnames.map((sourcePathname) =>
         limit(async () => {
           const relativePath = sourcePathname.slice(oldPrefix.length);
@@ -325,10 +365,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             }
             throw error;
           }
+
+          moved.push({ fromPathname: sourcePathname, toPathname: newPathname });
         }),
       );
 
       await Promise.all(renameTasks);
+
+      await reconcileMoves(moved, scope);
 
       return ok(c, body);
     }

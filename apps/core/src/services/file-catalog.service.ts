@@ -376,3 +376,54 @@ export async function adoptDriveUploadResource(input: {
 
   return resource.id;
 }
+
+/**
+ * Apply a completed blob mutation to the catalog.
+ *
+ * Four routes mutate Drive objects: single-file delete, folder delete, file
+ * move and folder rename. Only the first told the catalog. The other three
+ * left tombstoned or relocated documents fully indexed, so a deleted
+ * document kept matching full-text search and kept returning content
+ * snippets — and a later upload into a vacated pathname inherited the moved
+ * file's manual tags, which is exactly what `tombstoneDriveUploadResource`'s
+ * own comment says must be impossible.
+ *
+ * These two wrappers exist so a route reconciles by handing over the
+ * pathnames it actually changed. Both delegate to the per-pathname helpers,
+ * which are idempotent and return quietly for a pathname the catalog has
+ * never seen — a Drive folder holds folder markers and pre-catalog uploads
+ * as well as catalogued files.
+ */
+export async function tombstoneDriveUploadResources(input: {
+  workspaceId: string;
+  scope: "user" | "organization";
+  pathnames: readonly string[];
+}): Promise<void> {
+  for (const pathname of input.pathnames) {
+    await tombstoneDriveUploadResource({
+      workspaceId: input.workspaceId,
+      scope: input.scope,
+      pathname,
+    });
+  }
+}
+
+export async function reconcileDriveUploadMoves(input: {
+  workspaceId: string;
+  scope: "user" | "organization";
+  moves: readonly { fromPathname: string; toPathname: string }[];
+}): Promise<void> {
+  for (const move of input.moves) {
+    // A move changes the folder, not the filename, so the display name is
+    // the destination's last segment — which for a pure relocation is the
+    // name the document already had.
+    const displayName = move.toPathname.split("/").pop() ?? move.toPathname;
+    await renameDriveUploadResource({
+      workspaceId: input.workspaceId,
+      scope: input.scope,
+      fromPathname: move.fromPathname,
+      toPathname: move.toPathname,
+      displayName,
+    });
+  }
+}

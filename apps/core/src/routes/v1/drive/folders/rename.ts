@@ -11,6 +11,7 @@ import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { assertDriveFolderPathNotReserved } from "@/helpers/drive-folder-reserved-names";
+import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import {
   badRequest,
   conflict,
@@ -22,6 +23,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { renameDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
+import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
 const route = createRoute({
   method: "patch",
@@ -178,6 +180,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Bounded-concurrency head + rename (10 concurrent operations)
     const limit = pLimit(10);
 
+    // Pairs that really moved, collected as they succeed so a partial
+    // failure reconciles exactly what happened and nothing more.
+    const moved: { fromPathname: string; toPathname: string }[] = [];
+
     const renameTasks = allPathnames.map((sourcePathname) =>
       limit(async () => {
         const relativePath = sourcePathname.slice(oldPrefix.length);
@@ -222,10 +228,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
           throw error;
         }
+
+        moved.push({ fromPathname: sourcePathname, toPathname: newPathname });
       }),
     );
 
     await Promise.all(renameTasks);
+
+    // Follow the objects in the catalog. Without this every document under
+    // the renamed folder stayed indexed at its old pathname.
+    if (moved.length > 0) {
+      const workspace = await resolveDriveTasksWorkspace({
+        userContext,
+        scope: body.scope,
+        organizationId: body.scope === "org" ? body.organizationId : undefined,
+      });
+      await reconcileDriveUploadMoves({
+        workspaceId: workspace.workspaceId,
+        scope,
+        moves: moved,
+      });
+    }
 
     return ok(c, body);
   });
