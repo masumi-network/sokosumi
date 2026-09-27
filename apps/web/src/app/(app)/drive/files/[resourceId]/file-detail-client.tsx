@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { DriveFilePreview } from "@/app/drive/components/drive-file-preview";
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -174,6 +175,14 @@ export function FileDetailClient({ resourceId }: { resourceId: string }) {
           </p>
         </div>
       </div>
+
+      <DriveFilePreview
+        resourceId={resourceId}
+        store={store}
+        displayName={resource.displayName}
+        mimeType={resource.mimeType}
+        sizeBytes={resource.sizeBytes}
+      />
 
       <section className="bg-card-background flex flex-col gap-4 rounded-lg border p-4">
         <div>

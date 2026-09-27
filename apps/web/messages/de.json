@@ -6402,7 +6402,13 @@
           "PENDING": "Wird verarbeitet",
           "UNSUPPORTED": "Nur Dateiname",
           "FAILED": "Nicht lesbar"
-        }
+        },
+        "previewHeading": "Vorschau",
+        "previewOpen": "Öffnen",
+        "previewDownload": "Herunterladen",
+        "previewLoading": "Vorschau wird geladen",
+        "previewUnavailable": "Diese Vorschau konnte nicht geladen werden. Der Download funktioniert weiterhin.",
+        "previewNotRenderable": "Für diesen Dateityp gibt es keine Vorschau. Lade sie herunter, um sie zu öffnen."
       }
     },
     "SokoBot": {

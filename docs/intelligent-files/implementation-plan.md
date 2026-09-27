@@ -239,10 +239,34 @@ Requested tags/categories/vocabulary; suggestions with an evidence "Why?"; manua
 corrections that persist across reindexing through `FileFieldOverride`; explicitly
 confirmed project links that state they change no access; upload and background
 processing states; filters, list/grid, saved collections and bounded bulk editing;
-document detail with metadata and related documents; Files in global search with
+document detail with metadata, **an in-place preview** and related documents; Files
+in global search with
 escaped snippets, keyboard semantics and deep links; mobile sheets and full-screen
 detail. The state contract table in the product specification is the acceptance list
 for empty, loading, partial, failed, revoked, conflict, offline and deleted states.
+
+### The content proxy
+
+The detail preview reads bytes through `GET /v1/drive/resources/{id}/content`,
+authorized per request by the same `buildAuthorizedResourceSql` gate as every other
+Files read, and proxied same-origin by `/api/drive/files/{id}/content` so the browser
+never needs a Core credential. `FileVersion.objectKey` stays server-side, which is
+what keeps the detail shell free of URL data: a reader never acquires a storage link
+that outlives their access.
+
+What it does **not** do, stated plainly: Drive objects live in a *public-access* Blob
+store, so anyone who already holds a storage URL can still fetch it without passing
+this route. The proxy stops the product handing those URLs out; it does not revoke
+ones already held. Closing that would mean moving the drive store to private access
+and migrating every existing object, which is not this branch.
+
+Two rules make it safe to serve reader-supplied bytes from our own origin:
+`content-disposition` is `inline` only for a small allowlist (plain text, Markdown,
+CSV, JSON, PDF, PNG/JPEG/GIF/WebP) and `attachment` for everything else, so a stored
+`.html` or `.svg` cannot execute as a same-origin document; and every response carries
+`X-Content-Type-Options: nosniff` plus `Content-Security-Policy: sandbox; default-src
+'none'`. Filenames are stripped of quotes, backslashes and control characters before
+they reach the header, with the real name carried in `filename*`.
 
 ## 9. Verification
 

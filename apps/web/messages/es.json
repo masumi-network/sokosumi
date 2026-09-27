@@ -6402,7 +6402,13 @@
           "PENDING": "En proceso",
           "UNSUPPORTED": "Solo el nombre",
           "FAILED": "No se pudo leer"
-        }
+        },
+        "previewHeading": "Vista previa",
+        "previewOpen": "Abrir",
+        "previewDownload": "Descargar",
+        "previewLoading": "Cargando vista previa",
+        "previewUnavailable": "No se pudo cargar esta vista previa. La descarga sigue funcionando.",
+        "previewNotRenderable": "No hay vista previa para este tipo de archivo. Descárgalo para abrirlo."
       }
     },
     "SokoBot": {

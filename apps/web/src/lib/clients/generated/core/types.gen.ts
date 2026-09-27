@@ -24554,6 +24554,99 @@ export type GetDriveResourcesByIdResponses = {
 
 export type GetDriveResourcesByIdResponse = GetDriveResourcesByIdResponses[keyof GetDriveResourcesByIdResponses];
 
+export type GetDriveResourcesByIdContentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        /**
+         * Force an attachment even for a type that would otherwise render in place.
+         */
+        download?: 'true' | 'false';
+    };
+    url: '/drive/resources/{id}/content';
+};
+
+export type GetDriveResourcesByIdContentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - file storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdContentError = GetDriveResourcesByIdContentErrors[keyof GetDriveResourcesByIdContentErrors];
+
+export type GetDriveResourcesByIdContentResponses = {
+    /**
+     * File bytes
+     */
+    200: Blob | File;
+};
+
+export type GetDriveResourcesByIdContentResponse = GetDriveResourcesByIdContentResponses[keyof GetDriveResourcesByIdContentResponses];
+
 export type GetDriveResourcesByIdRelatedData = {
     body?: never;
     path: {

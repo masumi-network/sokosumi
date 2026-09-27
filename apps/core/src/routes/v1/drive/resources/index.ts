@@ -1,5 +1,6 @@
 import { createNestedOpenAPIHono } from "@/lib/hono";
 
+import mountContent from "./[id]/content/get.js";
 import mountGet from "./[id]/get.js";
 import mountPatchMetadata from "./[id]/metadata/patch.js";
 import mountReindex from "./[id]/reindex/post.js";
@@ -15,6 +16,7 @@ const app = createNestedOpenAPIHono();
 mountSelectionToken(app);
 mountMetadataBatch(app);
 mountGet(app);
+mountContent(app);
 mountRelated(app);
 mountPatchMetadata(app);
 mountSuggestionDecision(app);
