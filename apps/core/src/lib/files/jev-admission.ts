@@ -244,7 +244,16 @@ export async function admitJevRequest(input: {
          * what the column default uses — is transaction-start and would
          * reintroduce the bug.
          *
-         * Three sharp edges, all load-bearing:
+         * `clock_timestamp()` is **volatile**, so calling it twice reads the
+         * clock twice. Each reading rounds independently into `TIMESTAMP(3)`,
+         * and when the pair straddles a millisecond boundary the stored gap
+         * is 51 rather than 50. Measured on this schema: 3 in 4000 trials.
+         * That is an intermittent test failure nobody reproduces and a
+         * window that is quietly wrong by a millisecond. The CTE takes one
+         * reading and derives both columns from it — 4000 of 4000 at exactly
+         * 50 — which is what lets the test below assert equality at all.
+         *
+         * Three further sharp edges, all load-bearing:
          *
          * - the table is `file_authorization_admission` via `@@map`, not the
          *   model name, and its columns are camelCase so they stay quoted;
@@ -264,11 +273,13 @@ export async function admitJevRequest(input: {
          */
         const [row] = await tx.$queryRaw<{ id: string; expiresAt: Date }[]>(
           PrismaRaw.sql`
+            WITH t AS (SELECT clock_timestamp() AS ts)
             INSERT INTO "file_authorization_admission" (
               "id", "workspaceId", "actorFingerprint", "epochVector",
               "purpose", "payloadDigest", "provider", "model", "inputTokens",
               "admittedAt", "expiresAt"
-            ) VALUES (
+            )
+            SELECT
               ${uuidv7()}::uuid,
               ${input.workspaceId}::uuid,
               ${fileActorFingerprint(input.actor, input.workspaceId)},
@@ -278,10 +289,10 @@ export async function admitJevRequest(input: {
               'vercel-ai-gateway',
               ${input.model},
               ${input.inputTokens},
-              clock_timestamp() AT TIME ZONE 'UTC',
-              (clock_timestamp() + ${ADMISSION_VALID_MS} * interval '1 millisecond')
+              t.ts AT TIME ZONE 'UTC',
+              (t.ts + ${ADMISSION_VALID_MS} * interval '1 millisecond')
                 AT TIME ZONE 'UTC'
-            )
+            FROM t
             RETURNING "id", "expiresAt"
           `,
         );

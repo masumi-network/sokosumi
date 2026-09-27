@@ -736,7 +736,12 @@ describe.skipIf(!enabled)("the shared admission ceiling", () => {
       select: { admittedAt: true, expiresAt: true },
     });
 
-    // The window is exactly the constant, taken from one clock.
+    // Exactly the constant, and this equality is only sound because the
+    // INSERT takes **one** `clock_timestamp()` reading in a CTE and derives
+    // both columns from it. Two readings round independently into
+    // TIMESTAMP(3) and straddle a millisecond boundary about 3 times in 4000,
+    // which would make this assertion an intermittent failure rather than a
+    // check.
     expect(row.expiresAt.getTime() - row.admittedAt.getTime()).toBe(
       ADMISSION_VALID_MS,
     );
