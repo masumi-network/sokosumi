@@ -2158,7 +2158,6 @@
           "clear": "Filter zurücksetzen",
           "noMatches": "Keine Projekte passen zu „{query}“."
         },
-        "sortedBy": "Nach letzter Aktivität sortiert",
         "lastActivity": "Letzte Aktivität",
         "created": "Erstellt",
         "pin": "Projekt anheften",

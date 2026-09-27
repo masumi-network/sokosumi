@@ -2158,7 +2158,6 @@
           "clear": "Clear filter",
           "noMatches": "No projects match \"{query}\"."
         },
-        "sortedBy": "Sorted by recent activity",
         "lastActivity": "Last activity",
         "created": "Created",
         "pin": "Pin project",
