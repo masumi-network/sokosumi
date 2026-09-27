@@ -18217,6 +18217,126 @@ export const NotificationCountsSchema = {
     ]
 } as const;
 
+export const PushDeviceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        browserDetails: {
+            $ref: '#/components/schemas/PushDeviceBrowserDetails'
+        },
+        registeredAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        platform: {
+            type: 'string',
+            enum: [
+                'browser',
+                'ios',
+                'android',
+                'unknown'
+            ]
+        },
+        formFactor: {
+            type: 'string',
+            enum: [
+                'phone',
+                'tablet',
+                'desktop',
+                'tv',
+                'watch',
+                'car',
+                'embedded',
+                'other'
+            ]
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'active',
+                'failing',
+                'failed',
+                'unknown'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'platform',
+        'formFactor',
+        'state'
+    ]
+} as const;
+
+export const PushDeviceBrowserDetailsSchema = {
+    type: 'object',
+    properties: {
+        browser: {
+            type: 'string',
+            enum: [
+                'Chrome',
+                'Edge',
+                'Firefox',
+                'Safari',
+                'Opera',
+                'Samsung Internet'
+            ]
+        },
+        operatingSystem: {
+            type: 'string',
+            enum: [
+                'macOS',
+                'Windows',
+                'Windows Phone',
+                'Android',
+                'iOS',
+                'Linux',
+                'ChromeOS'
+            ]
+        }
+    },
+    required: [
+        'browser',
+        'operatingSystem'
+    ]
+} as const;
+
+export const PushDeviceBrowserUpdateSchema = {
+    type: 'object',
+    properties: {
+        browser: {
+            type: 'string',
+            enum: [
+                'Chrome',
+                'Edge',
+                'Firefox',
+                'Safari',
+                'Opera',
+                'Samsung Internet'
+            ]
+        },
+        operatingSystem: {
+            type: 'string',
+            enum: [
+                'macOS',
+                'Windows',
+                'Windows Phone',
+                'Android',
+                'iOS',
+                'Linux',
+                'ChromeOS'
+            ]
+        },
+        registeredAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    additionalProperties: false
+} as const;
+
 export const MarkAllReadResponseSchema = {
     type: 'object',
     properties: {
