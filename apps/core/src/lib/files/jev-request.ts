@@ -346,6 +346,49 @@ export function boundLabelVocabulary(
   }));
 }
 
+/**
+ * The document excerpt for a label request, built from a document's chunks.
+ *
+ * ## Why this is not just `chunks.join`
+ *
+ * It was, and the waste was invisible while the corpus was Markdown. The
+ * budget is `LABEL_EVALUATION_CEILINGS.components.excerpt` — 2,048 — and
+ * `fitWithin` only ever *halves* it, never raises it, so the request can
+ * never carry more than 2,048 tokens of document. `conservativeTokenCount`
+ * counts code points, so 2,048 tokens is at most 2,048 code points.
+ *
+ * A fully indexed document is up to `FILE_CHUNK_MAX_PER_VERSION` chunks of
+ * `FILE_CHUNK_TARGET_CHARS`, so joining them all builds an 800,000
+ * character string, walks all of it to count tokens, and then discards
+ * 99.7% of it. PDFs are what made that matter: a long document used to be
+ * the exception and is now ordinary.
+ *
+ * ## Why this is safe rather than merely cheaper
+ *
+ * Keeping any prefix longer than the budget produces a byte-identical
+ * request, because the truncation that follows can never reach past it.
+ * `EXCERPT_CHUNK_MARGIN` is the multiple of the budget kept, and it is
+ * generous precisely so the equivalence does not depend on arithmetic
+ * being exactly right. There is a test asserting the two requests are
+ * identical for a document far past the cap.
+ */
+const EXCERPT_CHUNK_MARGIN = 4;
+
+export function labelExcerptFromChunks(chunks: { text: string }[]): string {
+  const keepChars =
+    LABEL_EVALUATION_CEILINGS.components.excerpt * EXCERPT_CHUNK_MARGIN;
+
+  const kept: string[] = [];
+  let length = 0;
+  for (const chunk of chunks) {
+    kept.push(chunk.text);
+    length += chunk.text.length + 2;
+    if (length >= keepChars) break;
+  }
+
+  return kept.join("\n\n");
+}
+
 export function buildJevLabelRequest(
   input: JevLabelInput,
 ): JevLabelRequestResult {

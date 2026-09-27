@@ -6,6 +6,7 @@ import {
   conservativeTokenCount,
   isJevRequestRejection,
   LABEL_EVALUATION_CEILINGS,
+  labelExcerptFromChunks,
   PROVIDER_FRAMING_TOKEN_ALLOWANCE,
   RELATED_PAIR_CEILINGS,
   SEARCH_PAIR_CEILINGS,
@@ -368,5 +369,58 @@ describe("what the prompt tells the model", () => {
 
     // Both ladders still span the same 0–3 scale the ranking stage reads.
     expect(RUBRICS.relatedness.map((rung) => rung.score)).toEqual([3, 2, 1]);
+  });
+});
+
+describe("the label excerpt, against document volume", () => {
+  /**
+   * The claim this pins is equivalence, not size. Slicing the chunk list
+   * before joining is only safe if the request that comes out is the same
+   * request. If it ever is not, the label call quietly starts asking about
+   * a different document than it used to.
+   */
+  it("builds the same request as joining every chunk would", () => {
+    const chunks = Array.from({ length: 400 }, (_, index) => ({
+      text: `Chunk ${index}. ${"contract liability indemnity ".repeat(60)}`,
+    }));
+    const vocabulary = [
+      { id: "l1", name: "Legal", description: "Legal documents" },
+      { id: "l2", name: "Finance", description: "Financial documents" },
+    ];
+
+    const everything = chunks.map((chunk) => chunk.text).join("\n\n");
+    const sliced = labelExcerptFromChunks(chunks);
+
+    // The slice really is a small fraction of the whole, or this proves
+    // nothing about having avoided the work.
+    expect(sliced.length).toBeLessThan(everything.length / 10);
+
+    const fromEverything = buildJevLabelRequest({
+      documentExcerpt: everything,
+      vocabulary,
+      projects: [],
+    });
+    const fromSliced = buildJevLabelRequest({
+      documentExcerpt: sliced,
+      vocabulary,
+      projects: [],
+    });
+
+    expect(isJevRequestRejection(fromEverything)).toBe(false);
+    expect(isJevRequestRejection(fromSliced)).toBe(false);
+    if (isJevRequestRejection(fromEverything)) return;
+    if (isJevRequestRejection(fromSliced)) return;
+
+    // Byte-identical on the wire, and identically priced.
+    expect(fromSliced.serialized).toBe(fromEverything.serialized);
+    expect(fromSliced.tokens).toBe(fromEverything.tokens);
+    expect(fromSliced.digest).toBe(fromEverything.digest);
+  });
+
+  it("keeps a short document whole", () => {
+    const chunks = [{ text: "One short note." }, { text: "And another." }];
+    expect(labelExcerptFromChunks(chunks)).toBe(
+      "One short note.\n\nAnd another.",
+    );
   });
 });

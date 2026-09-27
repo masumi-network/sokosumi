@@ -25,6 +25,7 @@ import { gatewayJevEvaluator, isJevConfigured } from "@/lib/files/jev-client";
 import {
   buildJevLabelRequest,
   isJevRequestRejection,
+  labelExcerptFromChunks,
 } from "@/lib/files/jev-request";
 import { FILES_RANKING_MODEL } from "@/lib/files/jev-rubrics";
 import { getJevScheduler } from "@/lib/files/jev-scheduler";
@@ -166,9 +167,11 @@ export async function runSuggestionJob(
     return { suggested: 0, skipped: "no-vocabulary" };
   }
 
-  const excerpt = resource.versions[0].chunks
-    .map((chunk) => chunk.text)
-    .join("\n\n");
+  // Only as much of the document as the excerpt budget can carry. See
+  // `labelExcerptFromChunks`: joining every chunk built an 800,000
+  // character string to send 2,048 tokens of it, which PDFs turned from a
+  // rare case into the ordinary one.
+  const excerpt = labelExcerptFromChunks(resource.versions[0].chunks);
 
   const scheduler = getJevScheduler();
   const evaluator = dependencies.evaluator ?? gatewayJevEvaluator;

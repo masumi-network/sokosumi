@@ -77,6 +77,7 @@
     "neverthrow": "8.2.0",
     "p-limit": "7.3.3",
     "p-timeout": "7.0.2",
+    "pdfjs-dist": "6.3.289",
     "pg": "8.23.0",
     "resend": "6.30.0",
     "resumable-stream": "2.2.13",

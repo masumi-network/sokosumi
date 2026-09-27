@@ -3,6 +3,11 @@ import { createHash } from "node:crypto";
 import { FileExtractionState } from "@sokosumi/database";
 
 import { extractOoxmlText, ooxmlKindFor } from "@/lib/files/ooxml";
+import {
+  extractPdfText,
+  type PdfExtractDependencies,
+  type PdfFailure,
+} from "@/lib/files/pdf";
 
 /**
  * Turning bytes into searchable passages, inside explicit budgets.
@@ -58,22 +63,27 @@ const NAME_ONLY_MIME_PREFIXES = ["audio/", "video/", "image/"];
  * and `lib/files/ooxml.ts` takes the text out of the parts that carry prose
  * without an XML parser and inside explicit caps.
  *
- * **PDF is not**, and that is a decision rather than an oversight. Nothing
- * in this repository can parse one, and every credible option is a large
- * new dependency interpreting reader-supplied bytes in the same process as
- * the API. A half-working reader is worse than none here: a PDF silently
- * indexed as empty looks searched and is not, which is exactly the failure
- * an honest `UNSUPPORTED` avoids. Doing it properly means the sandboxed
- * parser the reason string has always promised — a separate process with
- * its own memory and time limits.
+ * **PDF is now read too**, by the sandboxed parser this comment used to
+ * promise: `lib/files/pdf.ts` runs `pdfjs-dist` in a child process with its
+ * own heap, killed from the outside on a wall clock, with page and output
+ * caps enforced inside the page loop. The reasoning for the process
+ * boundary and for each bound is there rather than repeated here.
  *
- * Legacy binary Office (`.doc`, `.ppt`, `.xls`) and OCR are out for the
- * same reason.
+ * What has not changed is the standard the old comment set. A PDF we cannot
+ * read is `UNSUPPORTED` **with a named reason** — a missing parser, a
+ * password, a timeout, a scan with no text layer — and is still findable by
+ * name and still downloadable. It is never silently indexed as empty, which
+ * would look searched and not be.
+ *
+ * Legacy binary Office (`.doc`, `.ppt`, `.xls`) and OCR remain out. OCR in
+ * particular is a deliberate refusal rather than a gap: a scanned page has
+ * no text layer, and guessing at its contents produces exactly the
+ * confidently-wrong index this module exists to avoid.
  */
 export type ExtractionTreatment =
   | "text"
   | "ooxml"
-  | "unsupported-pdf"
+  | "pdf"
   | "unsupported-binary-document"
   | "unsupported-media"
   | "unsupported-unknown";
@@ -110,7 +120,7 @@ export function classifyExtraction(input: {
   }
 
   if (mime === "application/pdf" || extension === "pdf") {
-    return "unsupported-pdf";
+    return "pdf";
   }
 
   if (
@@ -130,7 +140,7 @@ export function classifyExtraction(input: {
 export function extractionStateForTreatment(
   treatment: ExtractionTreatment,
 ): FileExtractionState {
-  return treatment === "text" || treatment === "ooxml"
+  return treatment === "text" || treatment === "ooxml" || treatment === "pdf"
     ? FileExtractionState.INDEXED
     : FileExtractionState.UNSUPPORTED;
 }
@@ -142,9 +152,8 @@ export function extractionReasonForTreatment(
   switch (treatment) {
     case "text":
     case "ooxml":
+    case "pdf":
       return null;
-    case "unsupported-pdf":
-      return "PDF text is not read in this version. The file is findable by name and can be downloaded.";
     case "unsupported-binary-document":
       return "This older Office format needs a sandboxed parser that is not available yet.";
     case "unsupported-media":
@@ -281,7 +290,24 @@ export function extractDocument(input: {
  * Text files and OOXML documents converge here so a Word file is bounded by
  * exactly the same caps as a Markdown one.
  */
-function resultFromText(decoded: string): ExtractionResult {
+function resultFromText(
+  decoded: string,
+  /**
+   * What the extractor already discarded before handing the text over.
+   *
+   * Text and OOXML give us the whole document, so the budgets below are the
+   * only thing that can make a result partial and coverage can be measured
+   * against the text itself. A PDF is different: the parser stops at its
+   * own page and character caps, so the text arriving here may already be
+   * a prefix. Without this, a 900-page document read to page 200 would
+   * compute coverage 1.0 over the 200 pages it received and be recorded as
+   * fully INDEXED, which is the quiet lie this module exists to avoid.
+   */
+  source: { truncated: boolean; coverage: number } = {
+    truncated: false,
+    coverage: 1,
+  },
+): ExtractionResult {
   const normalized = normalizeExtractedText(decoded);
   const truncated = normalized.length > FILE_EXTRACTION_MAX_CHARS;
   const usable = truncated
@@ -305,11 +331,18 @@ function resultFromText(decoded: string): ExtractionResult {
     };
   }
 
-  const partial = truncated || chunkCapped || coverage < 0.999;
+  // Coverage of the whole document, not of the slice we were handed: the
+  // two differ exactly when the extractor stopped early.
+  const wholeDocumentCoverage = coverage * source.coverage;
+  const partial =
+    truncated ||
+    chunkCapped ||
+    source.truncated ||
+    wholeDocumentCoverage < 0.999;
 
   return {
     state: partial ? FileExtractionState.PARTIAL : FileExtractionState.INDEXED,
-    coverage,
+    coverage: wholeDocumentCoverage,
     reason: partial
       ? "Only the beginning of this file is indexed; it is longer than the extraction budget."
       : null,
@@ -333,12 +366,21 @@ export async function extractDocumentAsync(input: {
   bytes: Uint8Array;
   mimeType: string | null;
   displayName: string;
+  /**
+   * Passed through to the sandboxed PDF parser. Tests lower its caps to
+   * reach the truncated case without a 200-page fixture; production passes
+   * nothing and gets the exported constants.
+   */
+  pdfOptions?: PdfExtractDependencies;
 }): Promise<ExtractionResult> {
   const treatment = classifyExtraction({
     mimeType: input.mimeType,
     displayName: input.displayName,
   });
 
+  if (treatment === "pdf") {
+    return extractPdfDocument(input.bytes, input.pdfOptions);
+  }
   if (treatment !== "ooxml") return extractDocument(input);
 
   if (input.bytes.byteLength > FILE_EXTRACTION_MAX_BYTES) {
@@ -370,4 +412,77 @@ export async function extractDocumentAsync(input: {
   }
 
   return resultFromText(text);
+}
+
+/**
+ * A reason for each way a PDF can fail to be read.
+ *
+ * Every one of them is `UNSUPPORTED` with something a person can act on,
+ * because the alternative — one reason for seven causes — is what makes a
+ * broken deployment indistinguishable from a scanned document.
+ */
+function pdfFailureReason(failure: PdfFailure): string {
+  switch (failure) {
+    case "parser-unavailable":
+      return "PDF text is not read in this deployment. The file is findable by name and can be downloaded.";
+    case "encrypted":
+      return "This PDF is password-protected, so its text cannot be read.";
+    case "no-text-layer":
+      return "This PDF has no text layer, so it is probably a scan. Text is not read from images.";
+    case "timeout":
+      return "This PDF took too long to read and was stopped. It is findable by name and can be downloaded.";
+    case "out-of-memory":
+      return "This PDF needed more memory to read than the reader allows.";
+    case "unreadable":
+      return "This PDF could not be parsed. It may be damaged or not really a PDF.";
+    default:
+      return "The PDF reader stopped unexpectedly on this file.";
+  }
+}
+
+/**
+ * The PDF arm, deliberately the same shape as the OOXML one above.
+ *
+ * Read the text out of the format, then converge on `resultFromText`. A PDF
+ * is chunked, indexed and ranked by exactly the caps a Markdown file is.
+ * The only addition is the coverage the parser reports, because it is the
+ * one extractor that can stop before the end of its input.
+ */
+async function extractPdfDocument(
+  bytes: Uint8Array,
+  options: PdfExtractDependencies = {},
+): Promise<ExtractionResult> {
+  if (bytes.byteLength > FILE_EXTRACTION_MAX_BYTES) {
+    return {
+      state: FileExtractionState.PARTIAL,
+      coverage: 0,
+      reason: "This file is larger than the extraction limit.",
+      chunks: [],
+      extractorVersion: FILE_EXTRACTOR_VERSION,
+    };
+  }
+
+  const outcome = await extractPdfText(bytes, options);
+
+  if (!outcome.ok) {
+    return {
+      state: FileExtractionState.UNSUPPORTED,
+      coverage: 0,
+      reason: pdfFailureReason(outcome.failure),
+      chunks: [],
+      extractorVersion: FILE_EXTRACTOR_VERSION,
+    };
+  }
+
+  // Pages are the denominator a reader would use, and the only one we
+  // actually know when the parser stopped early.
+  const pageCoverage =
+    outcome.totalPages > 0
+      ? Math.min(1, outcome.pages / outcome.totalPages)
+      : 1;
+
+  return resultFromText(outcome.text, {
+    truncated: outcome.truncated,
+    coverage: pageCoverage,
+  });
 }

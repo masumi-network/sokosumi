@@ -223,19 +223,25 @@ describe("extractDocumentAsync", () => {
     expect(result.chunks[0].text).toContain("bicycle commuters");
   });
 
-  it("marks a PDF unsupported, with a reason, rather than indexing it empty", async () => {
+  it("marks a damaged PDF unsupported, with a reason, rather than indexing it empty", async () => {
+    /**
+     * These bytes are a PDF header and nothing else. They used to be
+     * refused before any parser saw them; now they reach the sandboxed
+     * reader and come back as unparseable. The reason string therefore
+     * changed, and the assertion it was making did not: an unreadable
+     * document says why, and indexes nothing, rather than being recorded
+     * as searched and empty.
+     */
     const result = await extractDocumentAsync({
       bytes: new TextEncoder().encode("%PDF-1.4 ..."),
       mimeType: "application/pdf",
-      displayName: "scan.pdf",
+      displayName: "damaged.pdf",
     });
 
     expect(result.state).toBe("UNSUPPORTED");
     expect(result.chunks).toHaveLength(0);
-    expect(result.reason).toContain("PDF text is not read");
-    // The promise the reader is given: still findable, still downloadable.
-    expect(result.reason).toContain("findable by name");
-  });
+    expect(result.reason).toContain("could not be parsed");
+  }, 30_000);
 
   it("marks an unopenable Office file unsupported rather than throwing", async () => {
     const result = await extractDocumentAsync({
