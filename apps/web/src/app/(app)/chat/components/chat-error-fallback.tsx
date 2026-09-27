@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export function ChatErrorFallback() {
+export function ChatErrorFallback({ roomId }: { roomId?: string | null }) {
   const t = useTranslations("App.Chat.Chat");
 
   const handleRetry = () => {
@@ -30,6 +30,11 @@ export function ChatErrorFallback() {
           <p className="text-muted-foreground">
             {t("errorFallbackDescription")}
           </p>
+          {roomId ? (
+            <p className="text-muted-foreground font-mono text-xs">
+              {t("errorReference", { roomId })}
+            </p>
+          ) : null}
         </CardContent>
         <CardFooter>
           <Button onClick={handleRetry} variant="primary" className="w-full">

@@ -1480,6 +1480,7 @@
         },
         "chatErrorTitle": "Error en el chat",
         "errorFallbackDescription": "Hubo un problema con la interfaz del chat. Por favor, recarga la página o contacta con soporte si el problema persiste.",
+        "errorReference": "Referencia: sala {roomId}",
         "pastedImage": "Imagen pegada",
         "errorTitle": "Error",
         "errorDescription": "Hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo.",

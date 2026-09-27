@@ -1489,6 +1489,7 @@
         },
         "chatErrorTitle": "Chat Error",
         "errorFallbackDescription": "Something went wrong with the chat interface. Please try refreshing or contact support if the issue persists.",
+        "errorReference": "Reference: room {roomId}",
         "pastedImage": "Pasted image",
         "errorTitle": "Error",
         "errorDescription": "An error occurred while processing your message. Please try again.",
