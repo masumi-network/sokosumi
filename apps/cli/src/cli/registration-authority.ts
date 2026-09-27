@@ -50,6 +50,43 @@ export function requireOrganizationWorkspacesForRegistration(
   }
 }
 
+export function requireSelectedOrganizationWorkspace(
+  workspaces: readonly OrganizationWorkspace[],
+  workspaceId: string | undefined,
+): OrganizationWorkspace {
+  const selectedId = workspaceId?.trim();
+  if (!selectedId) {
+    throw new Error(
+      "workspace id is required. Run `sokosumi --preprod workspaces list` and pass its organization ID as --workspace-id.",
+    );
+  }
+  const workspace = workspaces.find(
+    (candidate) => candidate.organizationId === selectedId,
+  );
+  if (!workspace) {
+    throw new Error(
+      `Workspace ${selectedId} is not in your organization memberships. Run \`sokosumi workspaces list\` and choose one you belong to.`,
+    );
+  }
+  return workspace;
+}
+
+export function isPreprodCoworkerRegistrationTarget(
+  target: string | undefined,
+): boolean {
+  return target === "preprod";
+}
+
+export function requirePreprodCoworkerRegistration(
+  target: string | undefined,
+): void {
+  if (!isPreprodCoworkerRegistrationTarget(target)) {
+    throw new Error(
+      "Coworker registration is Preprod only. Select Preprod with --preprod.",
+    );
+  }
+}
+
 export function requireAdministeredVendorForRegistration(
   vendors: readonly Vendor[],
   vendorId: string,

@@ -1,21 +1,14 @@
 import { describe, expect, it } from "vitest";
-import {
-  correctTaskTags,
-  mapTaskTags,
-  parseTaskTagAnswers,
-  TASK_TAG_IDS,
-} from "./task-tags";
+import { mapTaskTags, parseTaskTagAnswers, TASK_TAG_IDS } from "./task-tags";
 
-describe("task tag corrections", () => {
-  it("keeps manual choices and rejects removed suggestions across new classifications", () => {
-    const corrections = correctTaskTags(
-      { manualTags: ["writing"] },
-      ["research"],
-      ["social"],
-    );
+describe("stored task tags", () => {
+  // Tags are automatic now and nothing writes these two columns any more, but rows
+  // a user corrected while the editor existed keep their choices and keep winning.
+  it("still prefers legacy manual choices and suppresses legacy rejections", () => {
     expect(
       mapTaskTags({
-        ...corrections,
+        manualTags: ["writing", "research"],
+        rejectedTags: ["social"],
         automaticTags: ["social", "research", "marketing"],
       }),
     ).toEqual({
@@ -23,9 +16,6 @@ describe("task tag corrections", () => {
       rejected: ["social"],
       automatic: ["marketing"],
     });
-    expect(
-      correctTaskTags(corrections, ["social"], ["writing"]).rejectedTags,
-    ).toEqual(["writing"]);
   });
   it("bounds visible tags and filters unknown persisted IDs", () => {
     expect(

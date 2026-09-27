@@ -1,7 +1,7 @@
 import Foundation
 import HTTPTypes
 import OpenAPIRuntime
-import SokosumiAuth
+@testable import SokosumiAuth
 import Testing
 
 struct BearerMiddlewareTests {

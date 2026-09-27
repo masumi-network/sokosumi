@@ -1,5 +1,5 @@
 import Foundation
-import SokosumiAuth
+@testable import SokosumiAuth
 
 /// Canned token-endpoint answers; records the last form POST for assertions.
 final class StubTokenTransport: TokenEndpointTransport, @unchecked Sendable {

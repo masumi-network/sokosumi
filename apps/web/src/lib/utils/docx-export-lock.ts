@@ -13,9 +13,8 @@
  * while those globals stay ambient. It trades export throughput for
  * correctness (SOK-1017).
  *
- * It bounds exports against each other only. While a conversion runs, the
- * swapped `globalThis.fetch` still reaches unrelated requests on the same
- * instance, which is what SOK-1121 removes.
+ * The fetch guard uses async context to exclude unrelated requests. The DOM
+ * globals remain shared with unrelated requests until SOK-1121 isolates them.
  */
 export const DOCX_QUEUE_WAIT_TIMEOUT_MS = 10_000;
 

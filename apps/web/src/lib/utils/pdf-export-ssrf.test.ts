@@ -43,7 +43,8 @@ describe("pdf-export-ssrf helpers", () => {
       },
     } as unknown as Page;
 
-    installPdfExportRequestGuard(page);
+    const controller = new AbortController();
+    installPdfExportRequestGuard(page, controller.signal);
     const handler = handlers[0];
     expect(handler).toBeTypeOf("function");
 
@@ -82,6 +83,7 @@ describe("pdf-export-ssrf helpers", () => {
       {
         method: "GET",
         maxResponseBytes: MAX_PDF_RESOURCE_BYTES,
+        signal: controller.signal,
       },
     );
     expect(respondMock).toHaveBeenCalledWith(
@@ -102,7 +104,8 @@ describe("pdf-export-ssrf helpers", () => {
       },
     } as unknown as Page;
 
-    installPdfExportRequestGuard(page);
+    const controller = new AbortController();
+    installPdfExportRequestGuard(page, controller.signal);
     ssrfSafeFetchMock.mockRejectedValue(new Error("connection refused"));
 
     const abortMock = vi.fn().mockResolvedValue(undefined);
@@ -127,4 +130,44 @@ describe("pdf-export-ssrf helpers", () => {
     );
     warnSpy.mockRestore();
   });
+});
+
+it("cancels a stalled PDF resource download with the operation signal", async () => {
+  let handle: ((request: HTTPRequest) => void) | undefined;
+  const page = {
+    on: (_event: string, callback: (request: HTTPRequest) => void) => {
+      handle = callback;
+    },
+  } as Page;
+  const controller = new AbortController();
+  installPdfExportRequestGuard(page, controller.signal);
+  const aborted = vi.fn();
+  ssrfSafeFetchMock.mockImplementation(
+    (_url: string, init: { signal: AbortSignal }) =>
+      new Promise((_resolve, reject) => {
+        init.signal.addEventListener(
+          "abort",
+          () => {
+            aborted();
+            reject(init.signal.reason);
+          },
+          { once: true },
+        );
+      }),
+  );
+  const abort = vi.fn().mockResolvedValue(undefined);
+  const request: Pick<HTTPRequest, "url" | "method" | "abort"> = {
+    url: () => "https://cdn.example/slow.png",
+    method: () => "GET",
+    abort,
+  };
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    handle?.(request as HTTPRequest);
+    controller.abort();
+    await vi.waitFor(() => expect(abort).toHaveBeenCalled());
+    expect(aborted).toHaveBeenCalledOnce();
+  } finally {
+    warn.mockRestore();
+  }
 });

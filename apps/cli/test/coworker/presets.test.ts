@@ -15,4 +15,6 @@ test("register next-step copy names a Coworker, not a Hire listing", () => {
   assert.match(copy, /Coworker runtime/);
   assert.match(copy, /chat \+ Tasks/);
   assert.match(copy, /not a Hire Agent/);
+  assert.match(copy, /organizer provisions/);
+  assert.match(copy, /coworkers connect/);
 });
