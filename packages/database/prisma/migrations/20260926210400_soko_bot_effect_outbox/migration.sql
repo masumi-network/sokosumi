@@ -4,21 +4,24 @@
 -- over later feature migrations (which may have removed indexes).
 DO $soko_migration$
 BEGIN
-  IF EXISTS (SELECT 1 FROM "_prisma_migrations" WHERE migration_name = '20260926204445_soko_bot_effect_outbox') THEN
-    IF EXISTS (
-      SELECT 1 FROM "_prisma_migrations"
-      WHERE migration_name = '20260926204445_soko_bot_effect_outbox'
-        AND checksum = '406f5cbaa44912ba3223fb443784fa3eca209666dfe7aca1193e906b01614643'
-        AND finished_at IS NOT NULL AND rolled_back_at IS NULL
-    ) AND NOT EXISTS (
-      SELECT 1 FROM "_prisma_migrations"
-      WHERE migration_name = '20260926204445_soko_bot_effect_outbox'
-        AND finished_at IS NOT NULL AND rolled_back_at IS NULL
-        AND checksum <> '406f5cbaa44912ba3223fb443784fa3eca209666dfe7aca1193e906b01614643'
-    ) THEN
-      RETURN;
+  -- Prisma shadow replay has no migration history table.
+  IF to_regclass('"_prisma_migrations"') IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM "_prisma_migrations" WHERE migration_name = '20260926204445_soko_bot_effect_outbox') THEN
+      IF EXISTS (
+        SELECT 1 FROM "_prisma_migrations"
+        WHERE migration_name = '20260926204445_soko_bot_effect_outbox'
+          AND checksum = '406f5cbaa44912ba3223fb443784fa3eca209666dfe7aca1193e906b01614643'
+          AND finished_at IS NOT NULL AND rolled_back_at IS NULL
+      ) AND NOT EXISTS (
+        SELECT 1 FROM "_prisma_migrations"
+        WHERE migration_name = '20260926204445_soko_bot_effect_outbox'
+          AND finished_at IS NOT NULL AND rolled_back_at IS NULL
+          AND checksum <> '406f5cbaa44912ba3223fb443784fa3eca209666dfe7aca1193e906b01614643'
+      ) THEN
+        RETURN;
+      END IF;
+      RAISE EXCEPTION 'Former migration 20260926204445_soko_bot_effect_outbox is not an exact successful application; reconcile without changing its history';
     END IF;
-    RAISE EXCEPTION 'Former migration 20260926204445_soko_bot_effect_outbox is not an exact successful application; reconcile without changing its history';
   END IF;
 
 -- AlterTable

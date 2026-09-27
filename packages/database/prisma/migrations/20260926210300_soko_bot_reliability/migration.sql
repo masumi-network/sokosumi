@@ -4,21 +4,24 @@
 -- over later feature migrations (which may have removed indexes).
 DO $soko_migration$
 BEGIN
-  IF EXISTS (SELECT 1 FROM "_prisma_migrations" WHERE migration_name = '20260926203732_soko_bot_reliability') THEN
-    IF EXISTS (
-      SELECT 1 FROM "_prisma_migrations"
-      WHERE migration_name = '20260926203732_soko_bot_reliability'
-        AND checksum = '2eee4e375f18022ae78163476af20b5dcc5dbf0dd83abc1b519a109e89001e4a'
-        AND finished_at IS NOT NULL AND rolled_back_at IS NULL
-    ) AND NOT EXISTS (
-      SELECT 1 FROM "_prisma_migrations"
-      WHERE migration_name = '20260926203732_soko_bot_reliability'
-        AND finished_at IS NOT NULL AND rolled_back_at IS NULL
-        AND checksum <> '2eee4e375f18022ae78163476af20b5dcc5dbf0dd83abc1b519a109e89001e4a'
-    ) THEN
-      RETURN;
+  -- Prisma shadow replay has no migration history table.
+  IF to_regclass('"_prisma_migrations"') IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM "_prisma_migrations" WHERE migration_name = '20260926203732_soko_bot_reliability') THEN
+      IF EXISTS (
+        SELECT 1 FROM "_prisma_migrations"
+        WHERE migration_name = '20260926203732_soko_bot_reliability'
+          AND checksum = '2eee4e375f18022ae78163476af20b5dcc5dbf0dd83abc1b519a109e89001e4a'
+          AND finished_at IS NOT NULL AND rolled_back_at IS NULL
+      ) AND NOT EXISTS (
+        SELECT 1 FROM "_prisma_migrations"
+        WHERE migration_name = '20260926203732_soko_bot_reliability'
+          AND finished_at IS NOT NULL AND rolled_back_at IS NULL
+          AND checksum <> '2eee4e375f18022ae78163476af20b5dcc5dbf0dd83abc1b519a109e89001e4a'
+      ) THEN
+        RETURN;
+      END IF;
+      RAISE EXCEPTION 'Former migration 20260926203732_soko_bot_reliability is not an exact successful application; reconcile without changing its history';
     END IF;
-    RAISE EXCEPTION 'Former migration 20260926203732_soko_bot_reliability is not an exact successful application; reconcile without changing its history';
   END IF;
 
 /*
