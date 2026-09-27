@@ -1,7 +1,7 @@
 "use client";
 
 import { FileIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useState } from "react";
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { TaskFileStatusBadge } from "@/components/tasks/task-file-status-badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,10 @@ function TaskFilesContent({
   className,
 }: TaskFilesProps) {
   const [expanded, setExpanded] = useState(false);
+  // Next retains inactive routes in Activity; reset when hidden, not on refresh.
+  useLayoutEffect(() => {
+    return () => setExpanded(false);
+  }, []);
   const contentId = useId();
   const isExpandable = files.length > 3;
   const visibleFiles = expanded ? files : files.slice(0, 3);

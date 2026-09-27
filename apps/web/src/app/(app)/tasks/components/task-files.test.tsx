@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { Activity, StrictMode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { type TaskFileListItem, TaskFiles } from "./task-files";
@@ -155,6 +156,51 @@ describe("TaskFiles", () => {
       "aria-expanded",
       "false",
     );
+  });
+
+  it("resets a cached route on reactivation but preserves refresh and an edit overlay", async () => {
+    const user = userEvent.setup();
+    function CachedTask({
+      mode = "visible",
+      editing = false,
+      files = makeFiles(5),
+    }: {
+      mode?: "hidden" | "visible";
+      editing?: boolean;
+      files?: TaskFileListItem[];
+    }) {
+      return (
+        <StrictMode>
+          <Activity mode={mode}>{filesView(files)}</Activity>
+          {editing ? <dialog open aria-label="Edit task" /> : null}
+        </StrictMode>
+      );
+    }
+
+    const { rerender } = render(<CachedTask />);
+    await user.click(screen.getByRole("button", { name: "Expand" }));
+    const toggle = screen.getByRole("button", { name: "Show less" });
+    rerender(<CachedTask files={makeFiles(6)} />);
+    expect(screen.getByRole("button", { name: "Show less" })).toBe(toggle);
+    expect(screen.getAllByRole("link")).toHaveLength(6);
+
+    // Intercepted edit overlays are siblings; the detail page stays active.
+    rerender(<CachedTask editing />);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    rerender(<CachedTask />);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+    // Next hides the retained page when another route becomes active.
+    rerender(<CachedTask mode="hidden" />);
+    expect(
+      screen.queryByRole("heading", { name: "Files" }),
+    ).not.toBeInTheDocument();
+    rerender(<CachedTask />);
+    expect(screen.getByRole("button", { name: "Expand" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.getAllByRole("link")).toHaveLength(3);
   });
 
   it("preserves readiness and file metadata across expansion and processing updates", async () => {
