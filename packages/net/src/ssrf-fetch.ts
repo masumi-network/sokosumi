@@ -27,6 +27,9 @@ export interface SsrfSafeFetchInit {
   headers?: Record<string, string>;
   body?: string;
   signal?: AbortSignal;
+  /** Called before buffering each response chunk, including redirect/error bodies.
+   * Throw to abort the response, for example when a shared byte budget expires. */
+  onResponseBytes?: (bytes: number) => void;
   /**
    * Reject with {@link SsrfError} if `Content-Length` exceeds this or if the
    * streamed body grows past it (closes chunked oversize DoS). Required so a
@@ -125,6 +128,14 @@ function guardedRequest(url: URL, init: SsrfSafeFetchInit): Promise<Response> {
 
         message.on("data", (chunk: Buffer) => {
           if (rejectedForSize) {
+            return;
+          }
+          try {
+            init.onResponseBytes?.(chunk.byteLength);
+          } catch (error) {
+            rejectedForSize = true;
+            message.destroy();
+            reject(error);
             return;
           }
           received += chunk.byteLength;
