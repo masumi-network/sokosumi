@@ -1,0 +1,309 @@
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ImageStudio } from "./image-studio";
+import { TEST_CATALOG } from "./studio-fixtures";
+import {
+  isActive,
+  type StudioAsset,
+  type StudioJob,
+  type StudioLabels,
+} from "./types";
+
+/**
+ * The gallery with work in it.
+ *
+ * Every capture of this studio on the preview is of an empty project, because
+ * generating costs money — so the dense states are pinned here instead: a full
+ * grid, the review badges, the running and queued tiles, the failed-generation
+ * notice, and selecting two versions to compare. These are the states whose
+ * surface treatment changed when the project became one card, and they are the
+ * part of that change a screenshot has never shown.
+ */
+
+const mocks = vi.hoisted(() => ({
+  review: vi.fn(),
+  cancel: vi.fn(),
+  clear: vi.fn(),
+  eve: vi.fn(),
+  refresh: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+  usePathname: () => "/projects/p/studio",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+  useFormatter: () => ({ dateTime: () => "today" }),
+}));
+
+vi.mock("@/lib/actions/image-studio/action", () => ({
+  reviewImageVersion: mocks.review,
+  clearImageVersionReview: mocks.clear,
+  requestImageJobCancel: mocks.cancel,
+}));
+
+vi.mock("eve/react", () => ({ useEveAgent: mocks.eve }));
+
+vi.mock("./use-studio-state", () => ({
+  useStudioState: ({
+    initialState,
+  }: {
+    initialState: { assets: StudioAsset[]; jobs: StudioJob[] };
+  }) => ({
+    state: initialState,
+    selectedAsset: initialState.assets[0] ?? null,
+    selectAsset: vi.fn(),
+    // The real hook hands down only the jobs still going somewhere. Passing
+    // every job made a settled failure render as a pending tile as well as in
+    // its notice.
+    activeJobs: initialState.jobs.filter((job) => isActive(job)),
+    applyAsset: vi.fn(),
+    refresh: mocks.refresh,
+    loadOlder: vi.fn(),
+    hasOlder: false,
+    error: null,
+  }),
+}));
+
+vi.mock("./use-generation-queue", () => ({
+  useGenerationQueue: () => ({
+    queued: [],
+    enqueue: vi.fn(),
+    waitingForSlot: false,
+    lastError: null,
+    clearError: vi.fn(),
+  }),
+}));
+
+const LABELS = new Proxy(
+  { examplePrompts: ["Example one", "Example two"] } as Record<string, unknown>,
+  { get: (target, key: string) => target[key] ?? key },
+) as unknown as StudioLabels;
+
+const ASSET = {
+  id: "a",
+  rootId: "a",
+  parentId: null,
+  version: 1,
+  prompt: "sample",
+  model: "vendor/model-a",
+  width: 1024,
+  height: 1024,
+  bytes: 1000,
+  contentType: "image/png",
+  createdAt: "2026-09-26T00:00:00Z",
+  jobId: "j",
+  settings: {},
+  contentPath: "/a",
+  review: null,
+} as unknown as StudioAsset;
+
+/**
+ * The viewport, as the panel reads it.
+ *
+ * `useIsOverlayWidth` asks `matchMedia` whether the layout is at least `xl`,
+ * so a test that wants the overlay says "no" and a test that wants the column
+ * says "yes". happy-dom's own `matchMedia` always answers false, which is the
+ * overlay case — stating it either way keeps each test honest about which
+ * layout it is about.
+ */
+function setViewport(wide: boolean) {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: wide,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
+
+function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
+  return render(
+    <ImageStudio
+      initialSelectedAssetId={null}
+      initialState={
+        { catalog: TEST_CATALOG, assets, jobs, sessions: [] } as never
+      }
+      labels={LABELS}
+      projectId="p"
+      resumeSessionId={null}
+    />,
+  );
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.unstubAllGlobals();
+  window.sessionStorage.clear();
+  setViewport(false);
+  mocks.eve.mockReturnValue({
+    status: "ready",
+    error: undefined,
+    session: null,
+    data: { messages: [] },
+    send: vi.fn(),
+    prewarm: vi.fn(),
+  });
+  mocks.review.mockResolvedValue({
+    ...ASSET,
+    review: { decision: "APPROVED" },
+  });
+  mocks.cancel.mockResolvedValue({ accepted: true });
+});
+
+const MODELS = [
+  "vendor/model-a",
+  "vendor/model-b",
+  "vendor/model-a/edit",
+] as const;
+
+function manyAssets(count: number): StudioAsset[] {
+  return Array.from({ length: count }, (_, i) => ({
+    ...ASSET,
+    id: `v${i}`,
+    rootId: `root-${i % 5}`,
+    version: count - i,
+    model: MODELS[i % MODELS.length],
+    width: i % 3 === 1 ? 1024 : 1536,
+    height: i % 3 === 1 ? 1536 : 1024,
+    settings: {
+      aspectRatio: i % 3 === 1 ? "2:3" : "1:1",
+      resolution: i % 2 ? "2K" : "1K",
+      outputFormat: "png",
+      seed: null,
+      placementId: i % 4 === 1 ? "reels" : null,
+    },
+    ...(i % 5 === 0
+      ? {
+          review: {
+            decision: "APPROVED",
+            feedback: "Use this one.",
+            createdAt: "2026-09-26T00:00:00Z",
+          },
+        }
+      : i % 5 === 2
+        ? {
+            review: {
+              decision: "REJECTED",
+              feedback: "Too warm.",
+              createdAt: "2026-09-26T00:00:00Z",
+            },
+          }
+        : {}),
+  })) as unknown as StudioAsset[];
+}
+
+function job(id: string, status: string, error?: string) {
+  return {
+    id,
+    status,
+    kind: "GENERATE",
+    model: MODELS[0],
+    prompt: `prompt for ${id}`,
+    settings: {},
+    referenceAssetIds: [],
+    error: error ?? null,
+    parentAssetId: null,
+    assetId: null,
+    createdAt: "2026-09-26T00:00:00Z",
+    submittedAt: "2026-09-26T00:00:00Z",
+    settledAt: null,
+    cancelRequestedAt: null,
+    retryMayDuplicateCharge: false,
+  } as unknown as StudioJob;
+}
+
+describe("a gallery with work in it", () => {
+  beforeEach(() => setViewport(true));
+
+  it("renders a full grid of versions with their provenance", () => {
+    mount(manyAssets(14));
+
+    expect(document.querySelectorAll("figure[data-asset-id]")).toHaveLength(14);
+    // The model is on every tile, which is the provenance requirement, and
+    // the filters appear because there is now something to filter.
+    for (const name of [
+      "filterAll",
+      "filterApproved",
+      "filterRejected",
+      "filterUndecided",
+    ]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+    // Decisions are carried by an icon *and* a word, never colour alone.
+    expect(screen.getAllByText("approved").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("rejected").length).toBeGreaterThan(0);
+  });
+
+  it("narrows to a decision and back", () => {
+    mount(manyAssets(14));
+    const all = document.querySelectorAll("figure[data-asset-id]").length;
+
+    fireEvent.click(screen.getByRole("button", { name: "filterApproved" }));
+    const approved = document.querySelectorAll("figure[data-asset-id]").length;
+    expect(approved).toBeGreaterThan(0);
+    expect(approved).toBeLessThan(all);
+
+    fireEvent.click(screen.getByRole("button", { name: "filterAll" }));
+    expect(document.querySelectorAll("figure[data-asset-id]")).toHaveLength(
+      all,
+    );
+  });
+
+  it("shows running and queued work as tiles, and a failure as a notice", () => {
+    mount(manyAssets(6), [
+      job("running", "RUNNING"),
+      job("queued", "QUEUED"),
+      job("failed", "FAILED", "The provider refused it."),
+    ]);
+
+    // Pending work sits in the grid with the results, not in a separate list.
+    // `getAllBy`: the label is exact text on more than one node in the tile.
+    expect(screen.getAllByText("generating").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("queued").length).toBeGreaterThan(0);
+    // Its cancel control is on the tile it belongs to, one per active job,
+    // rather than in a separate row of buttons above the gallery.
+    const pendingTiles = [...document.querySelectorAll("li")].filter((li) =>
+      /generating|queued/.test(li.textContent ?? ""),
+    );
+    expect(pendingTiles).toHaveLength(2);
+    for (const tile of pendingTiles) {
+      expect(
+        within(tile as HTMLElement).getByRole("button", { name: "cancel" }),
+      ).toBeInTheDocument();
+    }
+    // A settled failure is stated above the gallery, with its reason.
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "The provider refused it.",
+    );
+  });
+
+  it("offers comparison once two versions are selected", () => {
+    mount(manyAssets(6));
+
+    const compare = () =>
+      screen.getByRole("button", { name: "compareSelected" });
+    expect(
+      screen.queryByRole("button", { name: "compareSelected" }),
+    ).toBeNull();
+
+    const [first, second] = screen.getAllByRole("button", { name: "select" });
+    fireEvent.click(first);
+    // One is not a comparison.
+    expect(compare()).toBeDisabled();
+
+    fireEvent.click(second);
+    expect(compare()).toBeEnabled();
+
+    fireEvent.click(compare());
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getAllByRole("textbox")).toHaveLength(2);
+  });
+});

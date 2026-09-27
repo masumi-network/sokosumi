@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG } from "./studio-fixtures";
-import type { StudioAsset, StudioJob, StudioLabels } from "./types";
+import {
+  isActive,
+  type StudioAsset,
+  type StudioJob,
+  type StudioLabels,
+} from "./types";
 import { focusableWithin } from "./use-modal-overlay";
 
 /**
@@ -56,7 +61,10 @@ vi.mock("./use-studio-state", () => ({
     state: initialState,
     selectedAsset: initialState.assets[0] ?? null,
     selectAsset: vi.fn(),
-    activeJobs: initialState.jobs,
+    // The real hook hands down only the jobs still going somewhere. Passing
+    // every job made a settled failure render as a pending tile as well as in
+    // its notice.
+    activeJobs: initialState.jobs.filter((job) => isActive(job)),
     applyAsset: vi.fn(),
     refresh: mocks.refresh,
     loadOlder: vi.fn(),
