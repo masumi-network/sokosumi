@@ -14,6 +14,7 @@ import { EnterpriseContractSummary } from "@/components/billing/enterprise-contr
 import { getFeaturedCoworkers } from "@/components/billing/get-featured-coworkers";
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
+import { SubscriptionCheckoutReturn } from "@/components/billing/subscription-checkout-return";
 import {
   getPlanTranslationKey,
   type SubscriptionPlanView,
@@ -38,6 +39,7 @@ const PLAN_ORDER = [
 interface BillingPageProps {
   searchParams: Promise<{
     cancel?: string;
+    checkout_session_id?: string;
     session_id?: string;
     status?: string;
     tab?: string;
@@ -281,9 +283,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               `Plans.${getPlanTranslationKey(currentPlan)}.name`,
             ),
           })}
-          returnPath="/billing?tab=subscription"
           status={subscriptionStatus}
         />
+        <SubscriptionCheckoutReturn sessionId={query.checkout_session_id} />
       </div>
     );
   }
@@ -394,9 +396,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             `Plans.${getPlanTranslationKey(currentPlan)}.name`,
           ),
         })}
-        returnPath="/billing?tab=subscription"
         status={subscriptionStatus}
       />
+      <SubscriptionCheckoutReturn sessionId={query.checkout_session_id} />
     </div>
   );
 }

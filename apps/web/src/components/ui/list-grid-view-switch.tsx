@@ -4,22 +4,26 @@ import { LayoutGrid, List } from "lucide-react";
 import type { ReactElement } from "react";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
+import { cn } from "@/lib/utils";
 
-export interface DriveViewModeSwitchProps {
-  value: FilesViewMode;
-  onChange: (value: FilesViewMode) => void;
+export interface ListGridViewSwitchProps {
+  value: "list" | "grid";
+  onChange: (value: "list" | "grid") => void;
+  className?: string;
+  "data-testid"?: string;
   labels: {
     list: string;
     grid: string;
   };
 }
 
-export function DriveViewModeSwitch({
+export function ListGridViewSwitch({
   value,
   onChange,
   labels,
-}: DriveViewModeSwitchProps): ReactElement {
+  className,
+  "data-testid": testId,
+}: ListGridViewSwitchProps): ReactElement {
   return (
     <ToggleGroup
       type="single"
@@ -31,9 +35,9 @@ export function DriveViewModeSwitch({
       }}
       variant="outline"
       size="sm"
-      className="bg-background hidden @2xl:flex"
+      className={cn("bg-background", className)}
       aria-label={`${labels.list} / ${labels.grid}`}
-      data-testid="files-view-mode-switch"
+      data-testid={testId}
     >
       <ToggleGroupItem value="list" aria-label={labels.list} className="px-2.5">
         <List className="size-4" aria-hidden />

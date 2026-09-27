@@ -60,7 +60,6 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
           empty: {
             title: t("empty.title"),
             description: t("empty.description"),
-            action: t("empty.action"),
           },
           loadMore: t("list.loadMore"),
           loading: t("list.loading"),

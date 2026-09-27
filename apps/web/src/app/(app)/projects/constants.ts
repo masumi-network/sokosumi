@@ -38,14 +38,9 @@ export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 export const PROJECTS_BROWSE_LAYOUT_CLASS =
   "bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
-/**
- * Header row of the browse card: filter, sort label, and the desktop create
- * control on one line, divided from the rows it labels. Shared by live
- * `ProjectsView` and the Instant skeleton so the swap keeps its 52px height
- * (`h-8` control inside `py-2.5`).
- */
+/** Toolbar shared by the Projects index and its loading shell. */
 export const PROJECTS_BROWSE_HEADER_ROW_CLASS =
-  "border-border flex items-center gap-3 border-b px-4 py-2.5";
+  "flex items-center justify-end gap-3";
 
 /**
  * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.

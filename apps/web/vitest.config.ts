@@ -36,6 +36,7 @@ const DOM_TEST_TS = [
   "src/lib/ui-preferences/sidebar-state.test.ts",
   "src/lib/ui-preferences/chat-unreads-filter.test.ts",
   "src/lib/analytics/consent.test.ts",
+  "src/lib/analytics/internal-traffic.test.ts",
   "src/lib/auth/auth.utils.test.ts",
   "src/lib/auth/finish-auth.client.test.ts",
   "src/lib/auth/sign-out.client.test.ts",
