@@ -4499,7 +4499,14 @@
           "car": "Auto",
           "embedded": "Eingebettetes Gerät",
           "other": "Sonstiges"
-        }
+        },
+        "remove": "Entfernen",
+        "removeNamedDevice": "{device} entfernen",
+        "removeTitle": "Dieses Gerät entfernen?",
+        "removeDescription": "Push-Benachrichtigungen werden auf {device} deaktiviert. Du kannst sie auf diesem Gerät wieder aktivieren.",
+        "removeConfirm": "Gerät entfernen",
+        "cancel": "Abbrechen",
+        "removeError": "Dieses Gerät konnte nicht entfernt werden. Prüfe deine Verbindung und versuche es erneut."
       },
       "ChatDisplay": {
         "title": "Chat-Anzeige",

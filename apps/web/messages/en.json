@@ -4535,7 +4535,14 @@
           "car": "Car",
           "embedded": "Embedded device",
           "other": "Other"
-        }
+        },
+        "remove": "Remove",
+        "removeNamedDevice": "Remove {device}",
+        "removeTitle": "Remove this device?",
+        "removeDescription": "Push notifications will stop on {device}. You can turn them on again from that device.",
+        "removeConfirm": "Remove device",
+        "cancel": "Cancel",
+        "removeError": "Unable to remove this device. Check your connection and try again."
       },
       "ChatDisplay": {
         "title": "Chat display",

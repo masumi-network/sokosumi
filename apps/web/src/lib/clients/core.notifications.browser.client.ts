@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/clients/generated/core/client";
 import { getNotificationsPushDevicesResponseTransformer } from "@/lib/clients/generated/core/transformers.gen";
 import type {
+  DeleteNotificationsPushDevicesByIdData,
+  DeleteNotificationsPushDevicesByIdErrors,
+  DeleteNotificationsPushDevicesByIdResponse,
+  DeleteNotificationsPushDevicesByIdResponses,
   GetNotificationsCountsErrors,
   GetNotificationsCountsResponse,
   GetNotificationsCountsResponses,
@@ -30,6 +34,14 @@ import type {
   PatchNotificationsReadErrors,
   PatchNotificationsReadResponse,
   PatchNotificationsReadResponses,
+  PostNotificationsPushDevicesActivationsData,
+  PostNotificationsPushDevicesActivationsErrors,
+  PostNotificationsPushDevicesActivationsResponse,
+  PostNotificationsPushDevicesActivationsResponses,
+  PutNotificationsPushDevicesByIdSubscriptionData,
+  PutNotificationsPushDevicesByIdSubscriptionErrors,
+  PutNotificationsPushDevicesByIdSubscriptionResponse,
+  PutNotificationsPushDevicesByIdSubscriptionResponses,
 } from "@/lib/clients/generated/core/types.gen";
 import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
@@ -37,6 +49,8 @@ import { attachCoreRequestIdInterceptor } from "@/lib/clients/utils/core-request
 import { executeCoreOperation } from "./core.request";
 
 const PUSH_DEVICE_METADATA_TIMEOUT_MS = 3000;
+// Allow Core’s consent transaction to settle before surfacing a timeout.
+const PUSH_DEVICE_CONTROL_TIMEOUT_MS = 65_000;
 
 let notificationsGeneratedClient: ReturnType<typeof createClient> | undefined;
 
@@ -87,6 +101,69 @@ async function transformNotificationItemResponse(data: unknown) {
 }
 
 export const notificationsBrowserClient = {
+  async beginPushActivation(
+    body: PostNotificationsPushDevicesActivationsData["body"],
+  ): Promise<PostNotificationsPushDevicesActivationsResponse> {
+    return executeCoreOperation(
+      getNotificationsGeneratedClient,
+      (client) =>
+        client.post<
+          PostNotificationsPushDevicesActivationsResponses,
+          PostNotificationsPushDevicesActivationsErrors
+        >({
+          url: "/notifications/push-devices/activations",
+
+          body,
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          signal: AbortSignal.timeout(PUSH_DEVICE_CONTROL_TIMEOUT_MS),
+          responseTransformer: transformMetaTimestampResponse,
+        }),
+      "Failed to begin push activation",
+    );
+  },
+  async subscribePushDevice(
+    path: PutNotificationsPushDevicesByIdSubscriptionData["path"],
+    body: PutNotificationsPushDevicesByIdSubscriptionData["body"],
+  ): Promise<PutNotificationsPushDevicesByIdSubscriptionResponse> {
+    return executeCoreOperation(
+      getNotificationsGeneratedClient,
+      (client) =>
+        client.put<
+          PutNotificationsPushDevicesByIdSubscriptionResponses,
+          PutNotificationsPushDevicesByIdSubscriptionErrors
+        >({
+          url: "/notifications/push-devices/{id}/subscription",
+          path,
+          body,
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          signal: AbortSignal.timeout(PUSH_DEVICE_CONTROL_TIMEOUT_MS),
+          responseTransformer: transformMetaTimestampResponse,
+        }),
+      "Failed to subscribe push device",
+    );
+  },
+  async revokePushDevice(
+    path: DeleteNotificationsPushDevicesByIdData["path"],
+  ): Promise<DeleteNotificationsPushDevicesByIdResponse> {
+    return executeCoreOperation(
+      getNotificationsGeneratedClient,
+      (client) =>
+        client.delete<
+          DeleteNotificationsPushDevicesByIdResponses,
+          DeleteNotificationsPushDevicesByIdErrors
+        >({
+          url: "/notifications/push-devices/{id}",
+          path,
+          cache: "no-store",
+          signal: AbortSignal.timeout(PUSH_DEVICE_CONTROL_TIMEOUT_MS),
+          responseTransformer: transformMetaTimestampResponse,
+        }),
+      "Failed to revoke push device",
+    );
+  },
+
   async updatePushDeviceBrowser(
     path: PatchNotificationsPushDevicesByIdBrowserData["path"],
     body: PatchNotificationsPushDevicesByIdBrowserData["body"],

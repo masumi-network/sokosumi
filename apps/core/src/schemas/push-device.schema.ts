@@ -65,3 +65,29 @@ export const pushDeviceSchema = z
   .openapi("PushDevice");
 
 export type PushDevice = z.infer<typeof pushDeviceSchema>;
+
+export const pushDeviceActivationRequestSchema = z
+  .object({
+    consentId: z.uuid().optional(),
+    deviceId: z.string().min(1).max(256),
+    readerInitiated: z.boolean(),
+  })
+  .strict()
+  .openapi("PushDeviceActivationRequest");
+
+export const pushDeviceActivationSchema = z
+  .object({
+    id: z.uuid(),
+    revision: z.number().int().nonnegative(),
+    revoked: z.boolean(),
+    replaceDevice: z.boolean(),
+  })
+  .openapi("PushDeviceActivation");
+
+export const pushDeviceSubscriptionRequestSchema = z
+  .object({
+    consentId: z.uuid(),
+    revision: z.number().int().nonnegative().max(2147483647),
+  })
+  .strict()
+  .openapi("PushDeviceSubscriptionRequest");

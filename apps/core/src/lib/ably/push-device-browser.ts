@@ -1,4 +1,3 @@
-import { makeUserNotificationsChannelName } from "@sokosumi/utils";
 import { z } from "zod";
 import { badGateway, notFound } from "@/helpers/error";
 import {
@@ -6,7 +5,11 @@ import {
   pushDeviceSchema,
 } from "@/schemas/push-device.schema";
 import { getPushAdminRestClient } from "./client";
-import { getNotificationChannelEnvironment } from "./notification-channel-environment";
+import {
+  getOwnedPushDevice,
+  getPushDeviceChannel,
+  isPushDeviceSubscribed,
+} from "./push-device-ownership";
 
 const ABLY_PROTOCOL_VERSION = 2;
 
@@ -16,53 +19,15 @@ export async function updatePushDeviceBrowser(
   update: PushDeviceBrowserUpdate,
 ): Promise<void> {
   const client = getPushAdminRestClient();
-  const channel = makeUserNotificationsChannelName(
-    userId,
-    getNotificationChannelEnvironment(),
-  );
-  const device = await client.push.admin.deviceRegistrations
-    .get(deviceId)
-    .catch((error: unknown) => {
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "statusCode" in error &&
-        error.statusCode === 404
-      )
-        throw notFound("Push device not found");
-      throw badGateway("Unable to update push device");
-    });
+  const channel = getPushDeviceChannel(userId);
+  const device = await getOwnedPushDevice(client, userId, deviceId);
   if (
-    device.id !== deviceId ||
+    !device ||
     device.platform !== "browser" ||
-    !device.clientId?.startsWith(`${userId}:`)
-  )
+    !(await isPushDeviceSubscribed(client, channel, deviceId))
+  ) {
     throw notFound("Push device not found");
-
-  let subscribed = false;
-  try {
-    let page = await client.push.admin.channelSubscriptions.list({
-      channel,
-      deviceId,
-      limit: 1,
-    });
-    while (page) {
-      if (
-        page.items.some(
-          (item) => item.channel === channel && item.deviceId === deviceId,
-        )
-      ) {
-        subscribed = true;
-        break;
-      }
-      const next = await page.next();
-      if (!next) break;
-      page = next;
-    }
-  } catch {
-    throw badGateway("Unable to update push device");
   }
-  if (!subscribed) throw notFound("Push device not found");
 
   const metadata = z
     .record(z.string(), z.unknown())

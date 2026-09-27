@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listPushDevices } from "./push-devices";
 
-const { list, get, getClient, environment } = vi.hoisted(() => ({
+const { list, get, getClient, environment, findRevoked } = vi.hoisted(() => ({
+  findRevoked: vi.fn(),
   list: vi.fn(),
   get: vi.fn(),
   getClient: vi.fn(),
   environment: vi.fn(),
+}));
+vi.mock("@/lib/db/prisma", () => ({
+  default: { pushDeviceRegistration: { findMany: findRevoked } },
 }));
 vi.mock("./client", () => ({ getPushAdminRestClient: getClient }));
 vi.mock("./notification-channel-environment", () => ({
@@ -41,6 +45,7 @@ function device(
 describe("listPushDevices", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    findRevoked.mockResolvedValue([]);
     getClient.mockReturnValue({
       push: {
         admin: { channelSubscriptions: { list }, deviceRegistrations: { get } },
@@ -215,5 +220,31 @@ describe("listPushDevices", () => {
     environment.mockReturnValue({ network: "Preprod", vercelEnv: "preview" });
     await expect(listPushDevices("user-1")).rejects.toThrow();
     expect(list).not.toHaveBeenCalled();
+  });
+
+  it("omits completed revocations while Ably listing catches up", async () => {
+    list.mockResolvedValue(
+      page([
+        { channel, deviceId: "revoked" },
+        { channel, deviceId: "live" },
+      ]),
+    );
+    get.mockImplementation(async (id: string) => device(id));
+    findRevoked.mockResolvedValue([{ deviceId: "revoked" }]);
+    expect((await listPushDevices("user-1")).map((item) => item.id)).toEqual([
+      "live",
+    ]);
+    expect(findRevoked).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          consent: {
+            userId: "user-1",
+            channel,
+            revokedAt: { not: null },
+            revocationCompletedAt: { not: null },
+          },
+        }),
+      }),
+    );
   });
 });

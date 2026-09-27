@@ -15,8 +15,19 @@ import { createFormats } from "@/i18n/time-format";
 import type { PushDevice } from "@/lib/clients/generated/core/types.gen";
 import { PushDevices } from "./push-devices";
 
-const { listPushDevices } = vi.hoisted(() => ({ listPushDevices: vi.fn() }));
-vi.mock("@/lib/services/push-devices.service", () => ({ listPushDevices }));
+const { listPushDevices, revokePushDevice, handleRevokedPushDevice } =
+  vi.hoisted(() => ({
+    listPushDevices: vi.fn(),
+    revokePushDevice: vi.fn(),
+    handleRevokedPushDevice: vi.fn(),
+  }));
+vi.mock("@/lib/services/push-devices.service", () => ({
+  listPushDevices,
+  revokePushDevice,
+}));
+vi.mock("@/lib/ably/push-revocation.client", () => ({
+  handleRevokedPushDevice,
+}));
 const device: PushDevice = {
   id: "device-1",
   platform: "browser",
@@ -54,8 +65,11 @@ beforeEach(() => {
   vi.resetAllMocks();
   localStorage.clear();
   listPushDevices.mockResolvedValue([device]);
+  revokePushDevice.mockResolvedValue(undefined);
+  handleRevokedPushDevice.mockResolvedValue(undefined);
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   cleanup();
   clients.splice(0).forEach((client) => client.clear());
 });
@@ -165,8 +179,8 @@ describe("push devices in notification settings", () => {
     expect(screen.getByText("Delivery failed")).toBeTruthy();
     expect(screen.getByText("Status unknown")).toBeTruthy();
     expect(
-      screen.queryByRole("button", { name: /remove|revoke|rename/i }),
-    ).toBeNull();
+      screen.getAllByRole("button", { name: "Remove Browser (Desktop)" }),
+    ).toHaveLength(4);
   });
   it("does not mark a previous owner's device as current", async () => {
     localStorage.setItem(
@@ -263,5 +277,196 @@ describe("push devices in notification settings", () => {
     );
     expect(await screen.findByText("Firefox on Windows")).toBeTruthy();
     expect(listPushDevices).toHaveBeenCalledTimes(2);
+  });
+  it("names the target, focuses Cancel, and returns focus without removing on Escape", async () => {
+    listPushDevices.mockResolvedValue([
+      {
+        ...device,
+        browserDetails: { browser: "Chrome", operatingSystem: "macOS" },
+      },
+    ]);
+    setup();
+    const trigger = await screen.findByRole("button", {
+      name: "Remove Chrome on macOS",
+    });
+    await userEvent.click(trigger);
+    const dialog = screen.getByRole("alertdialog", {
+      name: "Remove this device?",
+    });
+    expect(
+      within(dialog).getByText(
+        "Push notifications will stop on Chrome on macOS. You can turn them on again from that device.",
+      ),
+    ).toBeTruthy();
+    expect(document.activeElement).toBe(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    );
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(document.activeElement).toBe(trigger);
+    expect(revokePushDevice).not.toHaveBeenCalled();
+  });
+
+  it("prevents duplicate removal while pending and immediately removes the row before a slow refresh", async () => {
+    let resolveRemoval: () => void = () => {};
+    revokePushDevice.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveRemoval = resolve;
+      }),
+    );
+    setup();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Remove Browser (Desktop)" }),
+    );
+    const confirm = screen.getByRole("button", { name: "Remove device" });
+    await userEvent.click(confirm);
+    expect(confirm.hasAttribute("disabled")).toBe(true);
+    expect(confirm.getAttribute("aria-busy")).toBe("true");
+    expect(
+      confirm
+        .querySelector("svg")
+        ?.classList.contains("motion-safe:animate-spin"),
+    ).toBe(true);
+    fireEvent.click(confirm);
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+    expect(revokePushDevice).toHaveBeenCalledTimes(1);
+    expect(revokePushDevice).toHaveBeenCalledWith("device-1");
+    listPushDevices.mockReturnValue(new Promise<PushDevice[]>(() => {}));
+    resolveRemoval();
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(screen.queryByRole("listitem")).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Registered devices" }),
+    );
+    expect(handleRevokedPushDevice).not.toHaveBeenCalled();
+    expect(listPushDevices).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps failed removal open with a safe error and lets the reader retry", async () => {
+    revokePushDevice.mockRejectedValueOnce(new Error("provider secret"));
+    setup();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Remove Browser (Desktop)" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove device" }),
+    );
+    const message = await screen.findByText(
+      "Unable to remove this device. Check your connection and try again.",
+    );
+    expect(message.getAttribute("role")).toBe("alert");
+    expect(screen.queryByText("provider secret")).toBeNull();
+    listPushDevices.mockResolvedValue([]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove device" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(revokePushDevice).toHaveBeenCalledTimes(2);
+    expect(
+      await screen.findByText("No registered devices found."),
+    ).toBeTruthy();
+  });
+
+  it("turns this browser off after server removal and does not retry a successful revoke when local cleanup fails", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "device-1" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user-1");
+    handleRevokedPushDevice.mockRejectedValueOnce(
+      new Error("local cleanup failed"),
+    );
+    setup();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Remove Browser (Desktop)" }),
+    );
+    listPushDevices.mockResolvedValue([]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove device" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(handleRevokedPushDevice).toHaveBeenCalledWith("user-1");
+    expect(revokePushDevice).toHaveBeenCalledTimes(1);
+    expect(warning).toHaveBeenCalledExactlyOnceWith(
+      "Unable to clean up the removed push device in this browser",
+    );
+    expect(screen.queryByRole("listitem")).toBeNull();
+    expect(
+      screen.queryByText(
+        "Unable to remove this device. Check your connection and try again.",
+      ),
+    ).toBeNull();
+  });
+  it("discards an older list response after successful removal", async () => {
+    setup();
+    await screen.findByRole("list");
+    let resolveStaleRead: (devices: PushDevice[]) => void = () => {};
+    listPushDevices.mockReturnValueOnce(
+      new Promise<PushDevice[]>((resolve) => {
+        resolveStaleRead = resolve;
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove Browser (Desktop)" }),
+    );
+    listPushDevices.mockResolvedValue([]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove device" }),
+    );
+    await screen.findByText("No registered devices found.");
+    resolveStaleRead([device]);
+    await waitFor(() => expect(screen.queryByRole("listitem")).toBeNull());
+    expect(listPushDevices).toHaveBeenCalledTimes(3);
+  });
+
+  it("closes an old account's confirmation when the account changes", async () => {
+    const result = setup();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Remove Browser (Desktop)" }),
+    );
+    listPushDevices.mockResolvedValue([]);
+    result.switchUser("user-2");
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(revokePushDevice).not.toHaveBeenCalled();
+  });
+  it("finishes removal while local browser cleanup is still waiting", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "device-1" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user-1");
+    const otherDevice = {
+      ...device,
+      id: "other-device",
+      browserDetails: { browser: "Safari", operatingSystem: "iOS" },
+    };
+    listPushDevices.mockResolvedValue([device, otherDevice]);
+    handleRevokedPushDevice.mockReturnValue(new Promise<void>(() => {}));
+    setup();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Remove Browser (Desktop)" }),
+    );
+    listPushDevices.mockResolvedValue([otherDevice]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove device" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(handleRevokedPushDevice).toHaveBeenCalledWith("user-1");
+    expect(
+      screen.queryByRole("button", { name: "Remove Browser (Desktop)" }),
+    ).toBeNull();
+    const remaining = screen.getByRole("button", {
+      name: "Remove Safari on iOS",
+    });
+    expect(remaining.hasAttribute("disabled")).toBe(false);
+    await userEvent.click(remaining);
+    expect(
+      screen
+        .getByRole("button", { name: "Remove device" })
+        .getAttribute("aria-busy"),
+    ).toBe("false");
   });
 });

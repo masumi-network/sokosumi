@@ -3,12 +3,21 @@
 import type Ably from "ably";
 
 import {
+  beginPushActivation,
+  subscribePushDevice,
+} from "@/lib/services/push-devices.service";
+
+import {
   getExistingNotificationServiceWorker,
   hasWebPushSubscription,
 } from "@/lib/utils/notification-service-worker";
 
 import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
 import { createAblyPushClient } from "./push-client.client";
+import {
+  readPushConsentId,
+  rememberPushConsentId,
+} from "./push-consent.client";
 import { recordPushDeviceBrowser } from "./push-device-browser.client";
 import {
   findPushDeviceFault,
@@ -25,6 +34,7 @@ import {
 } from "./push-preference.client";
 import { rememberPushRenewal, revokePushRenewal } from "./push-renewal.client";
 import { recordPushRepairOutcome } from "./push-repair-outcome.client";
+import { stopRevokedPushDevice } from "./push-revocation.client";
 import {
   getPushTeardownVersion,
   notePushTeardown,
@@ -52,29 +62,24 @@ interface ActivatePushOptions {
  * Ably. It asks the reader for nothing: `answerPermissionFromStoredValue`
  * answers the SDK's own permission request from `Notification.permission` for
  * the duration, so the caller has to hold the permission already.
- * `subscribeDevice` then binds the device to the reader's own notifications
+ * Core then binds the device to the reader's own notifications
  * channel, which is the channel Core publishes the push payload on.
  */
 export async function activatePush(
   userId: string,
   options?: ActivatePushOptions,
 ): Promise<boolean> {
-  // The reader is asking for push on, which answers any teardown this browser
-  // was left in the middle of. Said here rather than after the run, because
-  // what it clears is a note that would otherwise outlast a run this page
-  // does not finish either. A repair does not: nobody pressed anything for
-  // that one, and the note is shared across tabs while the queue is not.
+  // Remember intent now. Clear an earlier teardown only after Core permits
+  // activation, so a failed preflight leaves a revoked browser visibly off.
   const readerInitiated = options?.readerInitiated !== false;
-  if (readerInitiated) {
-    forgetUnfinishedPushTeardown();
-    rememberPushPreference(userId);
-  }
+  if (readerInitiated) rememberPushPreference(userId);
 
-  // The same reader asking twice gets the run already going. A repair on open
-  // and a reader pressing the Push cell a second later are the same request.
+  // Only matching intent joins the existing run. An explicit enable must not
+  // inherit the result of a repair that found this device revoked.
   const teardownVersion = getPushTeardownVersion();
   if (
     inFlightActivation?.userId === userId &&
+    inFlightActivation.readerInitiated === readerInitiated &&
     inFlightActivation.teardownVersion === teardownVersion
   ) {
     return inFlightActivation.work;
@@ -85,6 +90,7 @@ export async function activatePush(
   // would answer the second reader with the first reader's subscription.
   const entry = {
     userId,
+    readerInitiated,
     teardownVersion,
     work: queuePushWork(() =>
       runActivation(userId, readerInitiated, teardownVersion),
@@ -107,6 +113,7 @@ export async function activatePush(
 /** The activation running now, and the reader it is running for. */
 let inFlightActivation: {
   userId: string;
+  readerInitiated: boolean;
   teardownVersion: string;
   work: Promise<boolean>;
 } | null = null;
@@ -163,14 +170,33 @@ async function runActivation(
     // Refuse migration before teardown if storage cannot hold its completion
     // marker. Otherwise each recovery could replace a working device again.
     reservePushDeviceIdentity(userId, initialDevice.id);
+    const consent = await beginPushActivation({
+      consentId: readPushConsentId(userId),
+      deviceId: initialDevice.id,
+      readerInitiated,
+    });
+    if (await abandonedToTeardown(teardownVersion)) return false;
+    rememberPushConsentId(userId, consent.id);
+    if (consent.revoked) {
+      await stopRevokedPushDevice(userId);
+      return false;
+    }
+    if (repairOvertakenAcrossTabs(readerInitiated)) return false;
+    if (readerInitiated) {
+      // A revoked repair ahead of this request can clear its queued intent.
+      rememberPushPreference(userId);
+      forgetUnfinishedPushTeardown();
+    }
     await client.push.activate();
     let registeredAt = hadDeviceId ? undefined : new Date();
     if (await abandonedToTeardown(teardownVersion)) return false;
     const fault = foreignRegistration
       ? "another-reader"
-      : legacyRegistration
-        ? "legacy-identity"
-        : await findPushDeviceFault(client, userId);
+      : consent.replaceDevice
+        ? "revoked-registration"
+        : legacyRegistration
+          ? "legacy-identity"
+          : await findPushDeviceFault(client, userId);
     if (await abandonedToTeardown(teardownVersion)) return false;
     if (fault) {
       // Recorded before the destructive steps below, and for a device held
@@ -250,7 +276,16 @@ async function runActivation(
       );
       throw error;
     }
-    await getNotificationsPushChannel(client, userId).subscribeDevice();
+    const activatedDevice = await client.getDevice();
+    if (await abandonedToTeardown(teardownVersion)) return false;
+    const subscribed = await subscribePushDevice(activatedDevice.id, {
+      consentId: consent.id,
+      revision: consent.revision,
+    });
+    if (!subscribed) {
+      await stopRevokedPushDevice(userId);
+      return false;
+    }
     if (await abandonedToTeardown(teardownVersion)) return false;
 
     await recordPushDeviceBrowser(client, userId, registeredAt).catch(() =>

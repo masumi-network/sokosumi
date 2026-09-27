@@ -41,6 +41,21 @@ describe("usePushRecovery", () => {
     expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
   });
 
+  it.each([true, false])(
+    "clears cached absence only after successful recovery: %s",
+    async (recovered) => {
+      const key = getPushDevicesQueryKey("reader");
+      queryClient.setQueryData(key, { devices: [], currentDeviceId: "device" });
+      heal.mockResolvedValue(recovered);
+      renderHook(() => usePushRecovery("reader"), { wrapper });
+      await act(async () => {});
+      expect(queryClient.getQueryData(key)).toEqual({
+        devices: [],
+        currentDeviceId: recovered ? null : "device",
+      });
+    },
+  );
+
   beforeEach(() => {
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
