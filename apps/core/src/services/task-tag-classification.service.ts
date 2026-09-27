@@ -10,9 +10,46 @@ import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import type { SyncExecutionContext } from "@/routes/sync/handler";
 
-const BATCH_SIZE = 10;
+// Creates, edits and retries are interactive work and always go first. A burst of
+// them is still bounded, because every claim is one serial provider call.
+const QUEUED_BATCH_SIZE = 50;
+// Historical backfill is a fixed, finite set of rows, so a higher rate drains the
+// backlog sooner without raising total spend at all. Production measured 310-435ms
+// per task end to end, so 200 is roughly 62-87s of the ~260s usable budget below.
+const HISTORICAL_BATCH_SIZE = 200;
 const MAX_ATTEMPTS = 2;
 const LEASE_MS = 60_000;
+// One evaluation can take the classifier's full 12s request timeout plus its writes.
+const DEADLINE_RESERVE_MS = 15_000;
+// The sync deadline is `LOCK_TIMEOUT - LOCK_TIMEOUT_BUFFER`, 275s on the defaults
+// production runs on, and the cron fires every 300s. A tick that ran to that
+// deadline would still release its lock in time, but only by ~25s, and cron jitter,
+// a slow release or a function killed at vercel.json's 300s maxDuration all eat
+// that margin; a tick that is still holding the lock makes the next one 409 and
+// skips it entirely. Up to 250 rows could reach the deadline where 10 never could,
+// so a tick stops claiming new work here and leaves a wide margin instead. The sync
+// deadline above stays the outer bound.
+const TICK_BUDGET_MS = 120_000;
+// Reported-cost ceiling for one tick. A full 250-row tick costs about $0.01 at the
+// measured ~$0.0000373 per task, and the per-task input is capped at 300 title plus
+// 8,000 description characters, so even an all-maximum-length tick is around $0.03.
+// It covers queued rows too: exempting them would leave 50 rows with no cost bound
+// at all, and at ~9x the worst legitimate spend it cannot defer them in practice.
+// Selection caps, not cost, remain the primary bound, so a provider that returns no
+// billing metadata cannot make a tick unbounded either.
+const MAX_TICK_COST_USD = 0.05;
+// Only the columns this worker reads. A 250-row batch must not pull whole task
+// rows, whose descriptions have no length cap in the database.
+const TASK_FIELDS = {
+  id: true,
+  workspaceId: true,
+  name: true,
+  description: true,
+  tagContentRevision: true,
+  tagClassificationAttempts: true,
+  tagClassificationState: true,
+  tagClassificationLease: true,
+} satisfies Prisma.TaskSelect;
 
 export async function classifyPendingTaskTags(context: SyncExecutionContext) {
   return runPendingTaskTags(context, {});
@@ -59,6 +96,7 @@ async function runPendingTaskTags(
   context: SyncExecutionContext,
   scope: Prisma.TaskWhereInput,
 ) {
+  const startedAt = Date.now();
   // Discovery contains no task content; each evaluation enforces privacy options.
   let available = false;
   try {
@@ -82,10 +120,12 @@ async function runPendingTaskTags(
       ],
     },
     orderBy: [{ tagClassificationAvailableAt: "asc" }, { id: "asc" }],
-    take: BATCH_SIZE,
+    take: QUEUED_BATCH_SIZE,
+    select: TASK_FIELDS,
   });
-  // Historical work consumes only capacity left by due creates/edits/retries.
-  // Existing state + lease fields are the durable cursor; no mass enqueue needed.
+  // Historical work runs behind every queued row, under its own cap and its own
+  // time budget. Existing state + lease fields are the durable cursor across
+  // ticks; no mass enqueue or migration is needed.
   const queued = tasks.length;
   const historicalWhere = {
     ...scope,
@@ -94,16 +134,17 @@ async function runPendingTaskTags(
     tagClassificationAttempts: { lt: MAX_ATTEMPTS },
     tagClassificationAvailableAt: { lte: new Date() },
   } satisfies Prisma.TaskWhereInput;
-  if (
-    queued < BATCH_SIZE &&
+  const timeLeft = () =>
     context.shouldContinue() &&
-    context.msRemaining() >= 15_000
-  ) {
+    context.msRemaining() >= DEADLINE_RESERVE_MS &&
+    Date.now() - startedAt < TICK_BUDGET_MS;
+  if (timeLeft()) {
     tasks.push(
       ...(await prisma.task.findMany({
         where: historicalWhere,
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        take: BATCH_SIZE - queued,
+        take: HISTORICAL_BATCH_SIZE,
+        select: TASK_FIELDS,
       })),
     );
   }
@@ -119,18 +160,33 @@ async function runPendingTaskTags(
     costUsd: 0,
     unreportedCost: 0,
   };
+  let stopReason: "deadline" | "tick_budget" | "spend_ceiling" | undefined;
   for (const task of tasks) {
-    if (!context.shouldContinue() || context.msRemaining() < 15_000) break;
+    const source =
+      task.tagClassificationState === "unclassified" ? "historical" : "queued";
+    if (
+      !context.shouldContinue() ||
+      context.msRemaining() < DEADLINE_RESERVE_MS
+    ) {
+      stopReason = "deadline";
+      break;
+    }
+    if (progress.costUsd >= MAX_TICK_COST_USD) {
+      stopReason = "spend_ceiling";
+      break;
+    }
+    // Whatever is left keeps its durable state and resumes on the next tick.
+    if (Date.now() - startedAt >= TICK_BUDGET_MS) {
+      stopReason = "tick_budget";
+      break;
+    }
     const log = createCoreLogger({
       operation: "task_tag_classification",
       taskId: task.id,
       workspaceId: task.workspaceId,
       revision: task.tagContentRevision,
       model: JEV_TASK_TAG_MODEL,
-      source:
-        task.tagClassificationState === "unclassified"
-          ? "historical"
-          : "queued",
+      source,
     });
     let outcome: "completed" | "failed" | "stale" = "failed";
     try {
@@ -263,6 +319,7 @@ async function runPendingTaskTags(
     ...progress,
     deferred:
       progress.selected - progress.completed - progress.failed - progress.stale,
+    ...(stopReason ? { stopReason } : {}),
   };
   try {
     batchLog.set({
