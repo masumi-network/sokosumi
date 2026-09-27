@@ -180,7 +180,7 @@ export function TaskScheduleDialog({
         if (!open && !isSaving) onClose();
       }}
     >
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="app-scrollbar max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {schedule ? t("editTitle") : t("createTitle")}

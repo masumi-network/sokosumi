@@ -641,7 +641,7 @@ export function CreateOrganizationWizard({
         {/* `m-auto` on the child, not `justify-center` on the scroller: a
             centered flex child that outgrows its container gets clipped at the
             top with no way to scroll back up. */}
-        <div className="flex min-h-0 flex-col items-center overflow-y-auto px-6 py-6 text-center sm:px-16">
+        <div className="app-scrollbar flex min-h-0 flex-col items-center overflow-y-auto px-6 py-6 text-center sm:px-16">
           <div
             key={step}
             className="animate-in fade-in-0 slide-in-from-bottom-1 my-auto w-full duration-200 ease-out motion-reduce:animate-none"

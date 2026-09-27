@@ -60,7 +60,7 @@ export function GroupedInputTabs({
       onValueChange={handleTabChange}
       className={cn("w-full min-w-0 gap-4", className)}
     >
-      <div className="w-full overflow-x-auto">
+      <div className="app-scrollbar w-full overflow-x-auto">
         <TabsList
           className="mb-2 w-max min-w-full justify-start border"
           activeClassName="bg-primary"
