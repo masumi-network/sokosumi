@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -42,6 +43,7 @@ import {
   type QueuedGeneration,
   useGenerationQueue,
 } from "./use-generation-queue";
+import { useIsOverlayWidth, useModalOverlay } from "./use-modal-overlay";
 import { type StudioErrorCode, useStudioState } from "./use-studio-state";
 
 /** Which images the lightbox is showing, and why. */
@@ -57,9 +59,12 @@ const FILTERS: readonly StudioFilter[] = [
 /**
  * Whether a keypress happened somewhere a single letter means something else.
  *
- * The review shortcuts are bare letters, and a Radix menu or popover uses
- * bare letters for typeahead. Without this, opening the model menu and typing
- * "a" to jump to a model also approved whatever was selected in the gallery.
+ * The review shortcuts are bare letters. A Radix menu or popover uses bare
+ * letters for typeahead, so opening the model menu and typing "a" to jump to
+ * a model also approved whatever was selected in the gallery. The assistant
+ * is here for the same reason from the other direction: it is a conversation
+ * about the work, not the gallery, and a letter pressed on one of its buttons
+ * is not a verdict on an image.
  */
 function inTextOrMenu(node: HTMLElement | null): boolean {
   if (!node) return false;
@@ -72,7 +77,7 @@ function inTextOrMenu(node: HTMLElement | null): boolean {
   }
   return Boolean(
     node.closest(
-      '[data-slot="dropdown-menu-content"], [data-slot="popover-content"]',
+      '[data-slot="dropdown-menu-content"], [data-slot="popover-content"], #studio-assistant',
     ),
   );
 }
@@ -122,6 +127,24 @@ export function ImageStudio({
    */
   const [chatOpen, setChatOpen] = useState(() => resumeSessionId !== null);
   const [prompt, setPrompt] = useState("");
+  const assistantRef = useRef<HTMLDivElement>(null);
+  /**
+   * Below `xl` the assistant covers the gallery, so it owes the page the
+   * things a modal owes it. Above `xl` it sits beside the gallery and owes it
+   * nothing — the same component, two different contracts.
+   */
+  // Called unconditionally: `chatOpen && useIsOverlayWidth()` would skip the
+  // hook on every render where the panel is shut.
+  const overlayWidth = useIsOverlayWidth();
+  const assistantIsModal = chatOpen && overlayWidth;
+  const assistantIsModalRef = useRef(assistantIsModal);
+  assistantIsModalRef.current = assistantIsModal;
+  const closeChat = useCallback(() => setChatOpen(false), []);
+  useModalOverlay({
+    active: assistantIsModal,
+    contentRef: assistantRef,
+    onDismiss: closeChat,
+  });
   const [cancelRequestedJobIds, setCancelRequestedJobIds] = useState<string[]>(
     [],
   );
@@ -302,6 +325,10 @@ export function ImageStudio({
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
+        // Nothing in the gallery is reachable while the assistant is covering
+        // it, so nothing in the gallery may be decided either — not even by a
+        // keypress whose target is the body.
+        assistantIsModalRef.current ||
         inTextOrMenu(event.target as HTMLElement | null)
       ) {
         return;
@@ -650,25 +677,53 @@ export function ImageStudio({
         </div>
 
         {chatOpen ? (
-          <>
-            {/* Below xl the assistant is an overlay, because a 22rem column
-                does not exist there and pushing the gallery off the bottom of
-                the page to make room for it is not an answer. */}
-            <button
-              aria-label={labels.chatCollapse}
-              className="bg-overlay fixed inset-0 z-40 backdrop-blur-sm xl:hidden"
-              onClick={() => setChatOpen(false)}
-              type="button"
+          // Backdrop and panel share one container so that the `inert` sweep,
+          // which spares the kept element's own subtree and nothing else, can
+          // keep both. Split apart, the backdrop was made inert along with the
+          // page and stopped being clickable.
+          <div
+            className={cn(
+              "min-w-0",
+              // Below xl the assistant covers the page, because a 22rem column
+              // does not exist at that width and pushing the gallery off the
+              // bottom to make room for one is not an answer. `max-xl:` rather
+              // than a set of `xl:` resets, so the two positions never depend
+              // on which utility Tailwind emits last.
+              "max-xl:pointer-events-none max-xl:fixed max-xl:inset-0 max-xl:z-50",
+              "xl:sticky xl:top-4 xl:h-[calc(100dvh-10rem)]",
+            )}
+            ref={assistantRef}
+          >
+            {/* A scrim, not a control. As a <button> it was the first
+                focusable thing in the panel's focus scope, so opening the
+                assistant put focus on an invisible full-screen target and Tab
+                cycled through it. Escape and the panel's own close button are
+                the keyboard ways out; this is the pointer one. */}
+            <div
+              aria-hidden
+              className="bg-overlay pointer-events-auto absolute inset-0 backdrop-blur-sm xl:hidden"
+              onClick={closeChat}
             />
             <aside
-              id="studio-assistant"
-              // `max-xl:` rather than a set of `xl:` resets, so the two
-              // positions never depend on which utility Tailwind emits last.
+              // A dialog only while it is behaving like one. At `xl` this is a
+              // column beside the gallery, and announcing it as a modal there
+              // would promise a focus trap that deliberately does not exist.
+              {...(assistantIsModal
+                ? {
+                    "aria-label": labels.chatTitle,
+                    "aria-modal": true,
+                    role: "dialog" as const,
+                  }
+                : {})}
               className={cn(
-                "min-w-0",
-                "max-xl:fixed max-xl:inset-x-0 max-xl:bottom-0 max-xl:z-50 max-xl:h-[75dvh]",
-                "xl:sticky xl:top-4 xl:h-[calc(100dvh-10rem)]",
+                "pointer-events-auto min-w-0 outline-none",
+                "max-xl:absolute max-xl:inset-x-0 max-xl:bottom-0 max-xl:h-[75dvh]",
+                "xl:h-full",
               )}
+              id="studio-assistant"
+              // Somewhere for focus to land when the panel holds nothing
+              // focusable of its own.
+              tabIndex={-1}
             >
               <StudioChat
                 catalog={catalog}
@@ -676,14 +731,14 @@ export function ImageStudio({
                 contextSummary={contextSummary}
                 labels={labels}
                 onActivity={() => void refresh()}
-                onClose={() => setChatOpen(false)}
+                onClose={closeChat}
                 projectId={projectId}
                 resumeSessionId={resumeSessionId}
                 selectedAsset={selectedAsset}
                 target={target}
               />
             </aside>
-          </>
+          </div>
         ) : null}
       </div>
 
