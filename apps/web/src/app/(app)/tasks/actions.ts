@@ -317,11 +317,11 @@ export async function loadCreateTaskModalData() {
  * trip: assignees and projects of the active workspace plus the create data
  * the modal would otherwise load itself.
  */
-export async function loadNewTaskWizardOptions() {
+export async function loadNewTaskWizardOptions(projectId?: string | null) {
   const session = await getSession();
   const [coworkerOptions, projectOptions, createData] = await Promise.all([
     listTaskAssigneeOptions(session?.session.activeOrganizationId ?? null),
-    getProjectFilterOptions(),
+    getProjectFilterOptions(projectId),
     loadCreateTaskData(session?.user.id ?? null),
   ]);
 
