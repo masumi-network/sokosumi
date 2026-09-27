@@ -4493,6 +4493,7 @@
         "empty": "Keine Geräte registriert. Schalte auf jedem gewünschten Gerät Push für eine Benachrichtigungskategorie ein.",
         "thisDevice": "Dieses Gerät",
         "deviceLabel": "{platform} ({formFactor})",
+        "browserLabel": "{browser} auf {operatingSystem}",
         "deviceId": "Geräte-ID: {id}",
         "states": {
           "active": "Registriert",

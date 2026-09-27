@@ -55,6 +55,19 @@ afterEach(() => {
 });
 
 describe("push devices in notification settings", () => {
+  it("shows browser names and retains generic labels for older registrations", async () => {
+    listPushDevices.mockResolvedValue([
+      {
+        ...device,
+        browserDetails: { browser: "Chrome", operatingSystem: "macOS" },
+      },
+      { ...device, id: "old" },
+    ]);
+    setup();
+    expect(await screen.findByText("Chrome on macOS")).toBeTruthy();
+    expect(screen.getByText("Browser (Desktop)")).toBeTruthy();
+  });
+
   it("lists registration states and marks only this owner's current device", async () => {
     localStorage.setItem(
       "ably.push.deviceId",

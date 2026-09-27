@@ -9,6 +9,7 @@ import {
 
 import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
 import { createAblyPushClient } from "./push-client.client";
+import { recordPushDeviceBrowser } from "./push-device-browser.client";
 import {
   findPushDeviceFault,
   isMissingPushDevice,
@@ -230,6 +231,11 @@ async function runActivation(
       throw error;
     }
     await getNotificationsPushChannel(client, userId).subscribeDevice();
+    if (await abandonedToTeardown(teardownVersion)) return false;
+
+    await recordPushDeviceBrowser(client, userId).catch(() =>
+      console.warn("Could not record push device browser details"),
+    );
     if (await abandonedToTeardown(teardownVersion)) return false;
 
     const repaired = await hasWebPushSubscription();

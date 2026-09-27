@@ -4493,6 +4493,7 @@
         "empty": "No hay dispositivos registrados. Activa Push para una categoría de notificaciones en cada dispositivo que quieras usar.",
         "thisDevice": "Este dispositivo",
         "deviceLabel": "{platform} ({formFactor})",
+        "browserLabel": "{browser} en {operatingSystem}",
         "deviceId": "ID del dispositivo: {id}",
         "states": {
           "active": "Registrado",

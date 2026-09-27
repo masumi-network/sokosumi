@@ -55,10 +55,12 @@ export function PushDevices({ userId }: PushDevicesProps) {
             >
               <div className="min-w-0 space-y-1">
                 <p className="text-sm font-medium">
-                  {t("deviceLabel", {
-                    platform: t(`platforms.${device.platform}`),
-                    formFactor: t(`formFactors.${device.formFactor}`),
-                  })}
+                  {device.browserDetails
+                    ? t("browserLabel", device.browserDetails)
+                    : t("deviceLabel", {
+                        platform: t(`platforms.${device.platform}`),
+                        formFactor: t(`formFactors.${device.formFactor}`),
+                      })}
                 </p>
                 <p className="text-xs break-all">
                   {t("deviceId", { id: device.id })}

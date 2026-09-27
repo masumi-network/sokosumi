@@ -47,6 +47,13 @@ beforeEach(() => {
   rememberRenewalMock.mockReset().mockResolvedValue(undefined);
   revokeRenewalMock.mockReset().mockResolvedValue(undefined);
 });
+const recordBrowserMock = vi.fn();
+vi.mock("./push-device-browser.client", () => ({
+  recordPushDeviceBrowser: (...args: unknown[]) => recordBrowserMock(...args),
+}));
+beforeEach(() => {
+  recordBrowserMock.mockReset().mockResolvedValue(undefined);
+});
 const calls: string[] = [];
 
 /** Set to make the singleton throw the way a first construction can. */
@@ -443,6 +450,20 @@ describe("activatePush", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     localStorage.clear();
+  });
+
+  it("records browser metadata after subscribing and keeps push active if recording fails", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    recordBrowserMock.mockRejectedValueOnce(new Error("metadata unavailable"));
+    expect(await activatePush("user_1")).toBe(true);
+    expect(recordBrowserMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "user_1",
+    );
+    expect(recordBrowserMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+      subscribeDeviceMock.mock.invocationCallOrder[0],
+    );
+    warning.mockRestore();
   });
 
   it("stops before binding when the device owner cannot be saved", async () => {
@@ -1130,6 +1151,7 @@ describe("activatePush", () => {
     subscribeDeviceMock.mockRejectedValueOnce(new Error("channel failed"));
     await expect(activatePush("user_1")).rejects.toThrow("channel failed");
     expect(rememberRenewalMock).not.toHaveBeenCalled();
+    expect(recordBrowserMock).not.toHaveBeenCalled();
   });
 
   it("keeps foreground activation usable when renewal storage fails", async () => {

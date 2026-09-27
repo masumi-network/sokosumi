@@ -4529,6 +4529,7 @@
         "empty": "No devices registered. Turn on Push for a notification category on each device you want to use.",
         "thisDevice": "This device",
         "deviceLabel": "{platform} ({formFactor})",
+        "browserLabel": "{browser} on {operatingSystem}",
         "deviceId": "Device ID: {id}",
         "states": {
           "active": "Registered",

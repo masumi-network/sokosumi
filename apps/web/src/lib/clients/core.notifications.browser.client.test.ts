@@ -44,6 +44,33 @@ describe("core.notifications.browser.client", () => {
     });
   });
 
+  it("records coarse details with cookies, JSON, and a bounded request", async () => {
+    await withTransformer(patchMock, {
+      data: { success: true },
+      meta: { timestamp: "2026-09-27T00:00:00Z" },
+    });
+    const { notificationsBrowserClient } = await import(
+      "./core.notifications.browser.client"
+    );
+    const body = { browser: "Chrome", operatingSystem: "macOS" } as const;
+    await notificationsBrowserClient.updatePushDeviceBrowser(
+      { id: "device" },
+      body,
+    );
+    expect(patchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "/notifications/push-devices/{id}/browser",
+        path: { id: "device" },
+        body,
+        headers: { "Content-Type": "application/json" },
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(createClientMock).toHaveBeenCalledWith(
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+
   it("reads push devices with cookies and without caching", async () => {
     const devices = [
       {
