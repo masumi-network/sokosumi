@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -24,6 +25,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell as TableCellShell,
+  TableHead,
+  TableHeader,
+  TableRow as TableRowShell,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useSession } from "@/lib/auth/auth.client";
 import type {
@@ -43,6 +52,14 @@ import {
   tableHistoryText,
   tableValueText,
 } from "./table-value";
+
+/**
+ * Toolbar controls: 40px where a finger lands, and the 32px the Files toolbar
+ * uses once there is a pointer. `Button size="sm"` keeps the small padding and
+ * gap at both widths; only the height responds.
+ */
+const TOOLBAR_CONTROL = "h-10 md:h-8";
+const TOOLBAR_ICON_CONTROL = "size-10 md:size-8";
 
 export function TableEditor({ id }: { id: string }) {
   const t = useTranslations("App.Tables");
@@ -339,8 +356,13 @@ function TableWorkspace({
   return (
     <div className="flex min-w-0 flex-col gap-4 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button asChild variant="ghost" size="icon">
+        <div className="flex min-w-0 items-center gap-2">
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className={TOOLBAR_ICON_CONTROL}
+          >
             <Link href="/drive?view=tables" aria-label={t("backToFiles")}>
               <ArrowLeft className="size-4" />
             </Link>
@@ -356,7 +378,9 @@ function TableWorkspace({
         </div>
         <div className="flex items-center gap-2">
           <Button
+            size="sm"
             variant="outline"
+            className={TOOLBAR_CONTROL}
             onClick={() => {
               setHistoryCursor(undefined);
               setHistoryCell({});
@@ -367,7 +391,12 @@ function TableWorkspace({
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" aria-label={t("tableMenu")}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className={TOOLBAR_ICON_CONTROL}
+                aria-label={t("tableMenu")}
+              >
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -399,7 +428,8 @@ function TableWorkspace({
       <div className="flex flex-wrap items-center gap-2">
         <select
           className={withEditableTextSize(
-            "bg-background h-10 rounded-md border px-3 py-2",
+            "bg-background rounded-md border px-2",
+            TOOLBAR_CONTROL,
           )}
           aria-label={t("view")}
           value={view?.id ?? ""}
@@ -416,11 +446,17 @@ function TableWorkspace({
             </option>
           ))}
         </select>
-        <Button variant="outline" onClick={() => setDialog("views")}>
+        <Button
+          size="sm"
+          variant="outline"
+          className={TOOLBAR_CONTROL}
+          onClick={() => setDialog("views")}
+        >
           {t("configureView")}
         </Button>
         <Button
-          variant="outline"
+          size="sm"
+          className={TOOLBAR_CONTROL}
           disabled={pending || !!table.archivedAt}
           onClick={() =>
             void run(
@@ -436,14 +472,19 @@ function TableWorkspace({
           {t("addRow")}
         </Button>
         <Button
+          size="sm"
           variant="outline"
+          className={TOOLBAR_CONTROL}
           disabled={!!table.archivedAt}
           onClick={() => setColumn("new")}
         >
+          <Plus aria-hidden className="size-4" />
           {t("addColumn")}
         </Button>
         <Button
+          size="sm"
           variant="ghost"
+          className={TOOLBAR_CONTROL}
           onClick={() => {
             setArchivedRows(!archivedRows);
             setSelected([]);
@@ -452,12 +493,16 @@ function TableWorkspace({
         >
           {archivedRows ? t("showActive") : t("showArchived")}
         </Button>
+        {/* Selection actions sit in their own trailing group so selecting a
+        row cannot reflow the controls the pointer just left. */}
         {selected.length > 0 && (
-          <>
+          <div className="flex flex-wrap items-center gap-2 md:ms-auto">
             <span className="text-muted-foreground text-sm">
               {t("selected", { count: selected.length })}
             </span>
             <Button
+              size="sm"
+              className={TOOLBAR_CONTROL}
               disabled={!!table.archivedAt}
               onClick={() => {
                 setEnrichmentKey(crypto.randomUUID());
@@ -470,7 +515,9 @@ function TableWorkspace({
               {t("askAgent")}
             </Button>
             <Button
+              size="sm"
               variant="outline"
+              className={TOOLBAR_CONTROL}
               disabled={pending || !!table.archivedAt}
               onClick={() =>
                 void run(async () => {
@@ -493,39 +540,56 @@ function TableWorkspace({
             >
               {archivedRows ? t("restoreRows") : t("archiveRows")}
             </Button>
-          </>
+          </div>
         )}
       </div>
       {error && (
-        <p role="alert" className="text-destructive text-sm">
-          {error}
-          {retryAction && (
+        <Alert variant="destructive">
+          <AlertDescription className="flex flex-wrap items-center gap-2">
+            <span className="min-w-0 break-words">{error}</span>
+            {retryAction && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={() => void run(retryAction, retrySlot)}
+              >
+                {t("retry")}
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+      {rows.error && (
+        <Alert variant="destructive">
+          <AlertDescription className="flex flex-wrap items-center gap-2">
+            <span className="min-w-0 break-words">
+              {tableError(rows.error, t)}
+            </span>
             <Button
-              disabled={pending}
-              onClick={() => void run(retryAction, retrySlot)}
+              size="sm"
+              variant="outline"
+              onClick={() => void rows.refetch()}
             >
               {t("retry")}
             </Button>
-          )}
-        </p>
+          </AlertDescription>
+        </Alert>
       )}
-      {rows.error && (
-        <p role="alert" className="text-destructive text-sm">
-          {tableError(rows.error, t)}{" "}
-          <Button onClick={() => void rows.refetch()}>{t("retry")}</Button>
-        </p>
-      )}
-      <div className="max-w-full overflow-x-auto rounded-lg border">
-        <table className="w-full border-collapse text-sm">
+      <div className="bg-card min-w-0 overflow-hidden rounded-xl border">
+        <Table className="border-collapse">
           <caption className="sr-only">{table.title}</caption>
-          <thead className="bg-muted">
-            <tr>
-              <th className="w-12 p-3">
+          <TableHeader className="bg-card-background">
+            <TableRowShell className="hover:bg-card-background">
+              <TableHead className="w-12 px-3">
                 <Checkbox
                   aria-label={t("selectAll")}
                   checked={
-                    !!rows.data?.rows.length &&
-                    selected.length === rows.data.rows.length
+                    !rows.data?.rows.length || !selected.length
+                      ? false
+                      : selected.length === rows.data.rows.length
+                        ? true
+                        : "indeterminate"
                   }
                   onCheckedChange={(checked) =>
                     setSelected(
@@ -535,20 +599,23 @@ function TableWorkspace({
                     )
                   }
                 />
-              </th>
+              </TableHead>
               {columns.map((column) => (
-                <th
+                <TableHead
                   scope="col"
-                  className="min-w-48 border-s px-2 py-1 text-start font-medium"
+                  className="min-w-48 border-s px-3"
                   key={column.id}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span title={column.description}>{column.name}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="truncate" title={column.description}>
+                      {column.name}
+                    </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="text-muted-foreground size-7 shrink-0"
                           aria-label={t("columnMenu", { column: column.name })}
                         >
                           <MoreHorizontal className="size-4" />
@@ -605,14 +672,17 @@ function TableWorkspace({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRowShell>
+          </TableHeader>
+          <TableBody>
             {displayedRows.map((row) => (
-              <tr key={row.id} className="border-t">
-                <td className="p-3">
+              <TableRowShell
+                key={row.id}
+                data-state={selected.includes(row.id) ? "selected" : undefined}
+              >
+                <TableCellShell className="w-12 px-3">
                   <Checkbox
                     aria-label={t("selectRow")}
                     checked={selected.includes(row.id)}
@@ -624,9 +694,12 @@ function TableWorkspace({
                       )
                     }
                   />
-                </td>
+                </TableCellShell>
                 {columns.map((column) => (
-                  <td key={column.id} className="border-s p-1 align-top">
+                  <TableCellShell
+                    key={column.id}
+                    className="border-s p-1 align-middle"
+                  >
                     <TableCell
                       column={column}
                       row={row}
@@ -655,12 +728,12 @@ function TableWorkspace({
                         setDialog("history");
                       }}
                     />
-                  </td>
+                  </TableCellShell>
                 ))}
-              </tr>
+              </TableRowShell>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
         {rows.isPending ? (
           <p role="status" className="p-6 text-sm">
             {t("loading")}
@@ -672,34 +745,38 @@ function TableWorkspace({
             </p>
           )
         )}
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <p role="status" className="text-muted-foreground text-xs">
-          {t("liveUpdates")}
-        </p>
-        <div className="flex gap-2">
-          {cursor && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                void setCursor(null);
-                setSelected([]);
-              }}
-            >
-              {t("firstPage")}
-            </Button>
-          )}
-          {rows.data?.nextCursor && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                void setCursor(rows.data?.nextCursor ?? null);
-                setSelected([]);
-              }}
-            >
-              {t("nextPage")}
-            </Button>
-          )}
+        {/* Pagination and the live-update note belong to the grid, so they
+        ride inside its surface the way every other table in the app does. */}
+        <div className="bg-card-background flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2">
+          <p role="status" className="text-muted-foreground text-xs">
+            {t("liveUpdates")}
+          </p>
+          <div className="flex gap-2">
+            {cursor && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  void setCursor(null);
+                  setSelected([]);
+                }}
+              >
+                {t("firstPage")}
+              </Button>
+            )}
+            {rows.data?.nextCursor && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  void setCursor(rows.data?.nextCursor ?? null);
+                  setSelected([]);
+                }}
+              >
+                {t("nextPage")}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
       {column && (
@@ -795,7 +872,7 @@ function TableWorkspace({
                 <select
                   id="filter-column"
                   className={withEditableTextSize(
-                    "bg-background h-10 rounded-md border px-2",
+                    "bg-background h-10 rounded-md border px-3",
                   )}
                   value={definition.filters?.[0]?.columnId ?? ""}
                   onChange={(event) =>
@@ -825,7 +902,7 @@ function TableWorkspace({
                     <select
                       aria-label={t("operator")}
                       className={withEditableTextSize(
-                        "bg-background h-10 rounded-md border px-2",
+                        "bg-background h-10 rounded-md border px-3",
                       )}
                       value={definition.filters[0].operator}
                       onChange={(event) =>
@@ -860,12 +937,36 @@ function TableWorkspace({
                   </>
                 )}
               </div>
-              <Button
-                variant="outline"
-                onClick={() => handleDefinition({ ...definition, sort: null })}
-              >
-                {t("clearSort")}
-              </Button>
+              <div className="grid gap-2">
+                <span className="text-sm font-medium">{t("sort")}</span>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-muted-foreground min-w-0 text-sm">
+                    {definition.sort
+                      ? t("sortedBy", {
+                          column:
+                            table.columns.find(
+                              (column) =>
+                                column.id === definition.sort?.columnId,
+                            )?.name ?? t("unknown"),
+                          direction:
+                            definition.sort.direction === "asc"
+                              ? t("ascending")
+                              : t("descending"),
+                        })
+                      : t("noSort")}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!definition.sort}
+                    onClick={() =>
+                      handleDefinition({ ...definition, sort: null })
+                    }
+                  >
+                    {t("clearSort")}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
           {dialog === "history" && (
@@ -881,7 +982,7 @@ function TableWorkspace({
                   className="rounded-md border p-3 text-sm"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span>
+                    <span className="text-muted-foreground min-w-0 truncate">
                       {change.actorName ?? change.actorKind} ·{" "}
                       {format.dateTime(
                         new Date(change.createdAt),
@@ -912,9 +1013,9 @@ function TableWorkspace({
                       {t("undoBatch")}
                     </Button>
                   </div>
-                  <dl className="mt-2 grid gap-1">
+                  <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
                     <dt className="text-muted-foreground">{t("before")}</dt>
-                    <dd className="break-words text-sm">
+                    <dd className="min-w-0 break-words text-sm">
                       {tableHistoryText(change.before, {
                         archived: t("archived"),
                         active: t("active"),
@@ -925,7 +1026,7 @@ function TableWorkspace({
                       })}
                     </dd>
                     <dt className="text-muted-foreground">{t("after")}</dt>
-                    <dd className="break-words text-sm">
+                    <dd className="min-w-0 break-words text-sm">
                       {tableHistoryText(change.after, {
                         archived: t("archived"),
                         active: t("active"),
@@ -1004,7 +1105,7 @@ function TableWorkspace({
                   id="table-agent"
                   disabled={pending || !!enrichmentRequest}
                   className={withEditableTextSize(
-                    "bg-background h-10 rounded-md border px-2",
+                    "bg-background h-10 rounded-md border px-3",
                   )}
                   value={agent}
                   onChange={(event) => setAgent(event.target.value)}
@@ -1054,17 +1155,21 @@ function TableWorkspace({
             </div>
           )}
           {error && (
-            <p role="alert" className="text-destructive text-sm">
-              {error}
-              {retryAction && (
-                <Button
-                  disabled={pending}
-                  onClick={() => void run(retryAction, retrySlot)}
-                >
-                  {t("retry")}
-                </Button>
-              )}
-            </p>
+            <Alert variant="destructive">
+              <AlertDescription className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 break-words">{error}</span>
+                {retryAction && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => void run(retryAction, retrySlot)}
+                  >
+                    {t("retry")}
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
           )}
           {dialog !== "history" && (
             <DialogFooter>

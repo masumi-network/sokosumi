@@ -93,11 +93,11 @@ export function TableCell({
         (event.target as HTMLElement).blur();
       }
     },
-    className: "min-w-40 border-0 bg-transparent shadow-none text-sm",
+    className: "min-w-40 border-0 bg-transparent px-2 shadow-none text-sm",
   };
   return (
-    <div className="min-w-48">
-      <div className="flex items-center">
+    <div className="group/cell min-w-48">
+      <div className="flex items-center gap-0.5">
         {column.type === "checkbox" || column.type === "single_select" ? (
           <select
             {...props}
@@ -138,9 +138,15 @@ export function TableCell({
             step={column.type === "number" ? "any" : undefined}
           />
         )}
+        {/* The affordance belongs to one cell out of hundreds. Keeping every
+        one painted turned the grid into a field of icons and truncated the
+        values they sit next to, so it is revealed by pointer or focus. It
+        stays in the DOM and in the tab order, and focusing the cell — which
+        is also what a tap does — reveals it. */}
         <Button
           size="icon"
           variant="ghost"
+          className="text-muted-foreground size-8 shrink-0 opacity-0 transition-opacity group-focus-within/cell:opacity-100 group-hover/cell:opacity-100 focus-visible:opacity-100"
           aria-label={t("cellHistory", { column: column.name })}
           onClick={onHistory}
         >
@@ -148,8 +154,11 @@ export function TableCell({
         </Button>
       </div>
       {error && (
-        <div role="alert" className="text-destructive max-w-64 p-2 text-xs">
-          {error}
+        <div
+          role="alert"
+          className="text-destructive flex max-w-64 flex-wrap items-center gap-2 px-2 pb-2 text-xs"
+        >
+          <span className="min-w-0 break-words">{error}</span>
           <Button
             size="sm"
             variant="outline"
