@@ -2558,7 +2558,11 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     showOutboundSentTick || isOutboundSentTickActive(message.id, clientTurnId);
   const isDeleted = message.deletedAt != null;
   const thoughtView = useMemo(() => {
-    if (message.sender.type !== "coworker" || isDeleted) {
+    if (
+      (message.sender.type !== "coworker" &&
+        message.sender.type !== "sokoBot") ||
+      isDeleted
+    ) {
       return null;
     }
     return resolveCoworkerThoughtViewModel({
