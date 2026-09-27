@@ -41,6 +41,11 @@ describe("hideOthers", () => {
       expect(document.getElementById(id)).not.toHaveAttribute("inert");
     }
 
+    // It stops at <body>: one step further would mark <head>, which means
+    // nothing and leaves a stray attribute on the document.
+    expect(document.head).not.toHaveAttribute("inert");
+    expect(document.body).not.toHaveAttribute("inert");
+
     release();
     for (const id of ["gallery", "header", "footer"]) {
       expect(document.getElementById(id)).not.toHaveAttribute("inert");

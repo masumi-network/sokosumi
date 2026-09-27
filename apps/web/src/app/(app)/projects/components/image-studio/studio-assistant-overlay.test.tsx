@@ -232,6 +232,23 @@ describe("the assistant while it covers the gallery", () => {
     expect(document.activeElement).toBe(last);
   });
 
+  it("stops the page behind it from scrolling under it", () => {
+    const scroller = document.createElement("main");
+    scroller.setAttribute("data-app-main", "");
+    scroller.style.overflow = "auto";
+    document.body.appendChild(scroller);
+
+    mount([ASSET]);
+    openAssistant();
+    expect(scroller.style.overflow).toBe("hidden");
+
+    fireEvent.keyDown(document.activeElement ?? document, { key: "Escape" });
+    // Put back what was there, not a guess at what it should be.
+    expect(scroller.style.overflow).toBe("auto");
+
+    scroller.remove();
+  });
+
   it("does not let a bare letter decide an image nobody can see", async () => {
     mount([ASSET]);
     openAssistant();

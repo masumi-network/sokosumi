@@ -67,7 +67,9 @@ export function focusableWithin(root: HTMLElement): HTMLElement[] {
 export function hideOthers(kept: HTMLElement): () => void {
   const marked: HTMLElement[] = [];
   let node: HTMLElement = kept;
-  while (node.parentElement) {
+  // Up to `<body>` and no further. One more step would mark `<head>`, which
+  // means nothing and leaves a stray attribute on the document.
+  while (node !== document.body && node.parentElement) {
     const parent = node.parentElement;
     for (const sibling of Array.from(parent.children)) {
       if (sibling === node || !(sibling instanceof HTMLElement)) continue;
@@ -79,6 +81,25 @@ export function hideOthers(kept: HTMLElement): () => void {
   }
   return () => {
     for (const element of marked) element.removeAttribute("inert");
+  };
+}
+
+/**
+ * Stop the page behind the sheet from scrolling under it.
+ *
+ * The application scrolls `main[data-app-main]`, not the document, and that
+ * element already sets `scrollbar-gutter: stable` — so hiding its overflow
+ * takes the scroll away without the content jumping sideways by a scrollbar
+ * width. If the marker is ever absent this does nothing rather than locking
+ * the wrong element.
+ */
+function lockPageScroll(): () => void {
+  const scroller = document.querySelector<HTMLElement>("main[data-app-main]");
+  if (!scroller) return () => {};
+  const previous = scroller.style.overflow;
+  scroller.style.overflow = "hidden";
+  return () => {
+    scroller.style.overflow = previous;
   };
 }
 
@@ -117,6 +138,7 @@ export function useModalOverlay({
         ? document.activeElement
         : null;
     const release = hideOthers(content);
+    const unlock = lockPageScroll();
 
     (focusableWithin(content)[0] ?? content).focus();
 
@@ -154,6 +176,7 @@ export function useModalOverlay({
     document.addEventListener("keydown", onKeyDown, true);
     return () => {
       document.removeEventListener("keydown", onKeyDown, true);
+      unlock();
       release();
       // Where focus is by now, not where it was. React has usually detached
       // the panel before this runs, which drops focus to `<body>` — so "still
