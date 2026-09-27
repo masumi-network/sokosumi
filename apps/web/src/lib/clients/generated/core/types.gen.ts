@@ -5398,6 +5398,13 @@ export type NotificationCounts = {
     mentions: number;
 };
 
+export type PushDevice = {
+    id: string;
+    platform: 'browser' | 'ios' | 'android' | 'unknown';
+    formFactor: 'phone' | 'tablet' | 'desktop' | 'tv' | 'watch' | 'car' | 'embedded' | 'other';
+    state: 'active' | 'failing' | 'failed' | 'unknown';
+};
+
 export type MarkAllReadResponse = {
     /**
      * Number of notifications marked as read
@@ -38947,6 +38954,94 @@ export type GetNotificationsCountsResponses = {
 };
 
 export type GetNotificationsCountsResponse = GetNotificationsCountsResponses[keyof GetNotificationsCountsResponses];
+
+export type GetNotificationsPushDevicesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/notifications/push-devices';
+};
+
+export type GetNotificationsPushDevicesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unable to retrieve push devices
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device listing is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetNotificationsPushDevicesError = GetNotificationsPushDevicesErrors[keyof GetNotificationsPushDevicesErrors];
+
+export type GetNotificationsPushDevicesResponses = {
+    /**
+     * Push devices retrieved
+     */
+    200: {
+        data: Array<PushDevice>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetNotificationsPushDevicesResponse = GetNotificationsPushDevicesResponses[keyof GetNotificationsPushDevicesResponses];
 
 export type PatchNotificationsByIdReadData = {
     body?: never;

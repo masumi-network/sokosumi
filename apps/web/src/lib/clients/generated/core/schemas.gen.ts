@@ -18217,6 +18217,52 @@ export const NotificationCountsSchema = {
     ]
 } as const;
 
+export const PushDeviceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        platform: {
+            type: 'string',
+            enum: [
+                'browser',
+                'ios',
+                'android',
+                'unknown'
+            ]
+        },
+        formFactor: {
+            type: 'string',
+            enum: [
+                'phone',
+                'tablet',
+                'desktop',
+                'tv',
+                'watch',
+                'car',
+                'embedded',
+                'other'
+            ]
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'active',
+                'failing',
+                'failed',
+                'unknown'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'platform',
+        'formFactor',
+        'state'
+    ]
+} as const;
+
 export const MarkAllReadResponseSchema = {
     type: 'object',
     properties: {
