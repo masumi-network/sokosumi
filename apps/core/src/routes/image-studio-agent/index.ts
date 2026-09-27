@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { IMAGE_STUDIO_CATALOG } from "@/lib/image-studio/catalog";
+import { getImageCatalog } from "@/lib/image-studio/catalog";
+import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
 
 import {
   assetContentPath,
@@ -74,7 +75,8 @@ app.post("/sessions/:eveSessionId/authorize", async (c) => {
 app.get("/options", async (c) => {
   const context = await authorize(c.req.raw);
   if (context instanceof Response) return context;
-  return c.json({ ok: true, catalog: IMAGE_STUDIO_CATALOG });
+  await ensureImageCatalogFresh();
+  return c.json({ ok: true, catalog: getImageCatalog() });
 });
 
 app.get("/versions", async (c) => {
@@ -137,7 +139,6 @@ app.post("/generations", async (c) => {
       resolution: raw.resolution,
       outputFormat: raw.outputFormat,
       seed: raw.seed,
-      placementId: raw.placementId,
     },
   });
   if (!parsed.success) {
