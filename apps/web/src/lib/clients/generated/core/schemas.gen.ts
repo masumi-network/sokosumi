@@ -17001,6 +17001,40 @@ export const ProjectImageStudioCatalogSchema = {
                     notes: {
                         type: 'string'
                     },
+                    price: {
+                        type: 'object',
+                        properties: {
+                            perImageUsd: {
+                                type: 'object',
+                                properties: {
+                                    '0.5K': {
+                                        type: 'number'
+                                    },
+                                    '1K': {
+                                        type: 'number'
+                                    },
+                                    '2K': {
+                                        type: 'number'
+                                    }
+                                }
+                            },
+                            basis: {
+                                type: 'string'
+                            },
+                            sourceUrl: {
+                                type: 'string'
+                            },
+                            verifiedAt: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'perImageUsd',
+                            'basis',
+                            'sourceUrl',
+                            'verifiedAt'
+                        ]
+                    },
                     sourceUrls: {
                         type: 'array',
                         items: {
@@ -17024,6 +17058,7 @@ export const ProjectImageStudioCatalogSchema = {
                     'maxReferences',
                     'dimensionMode',
                     'notes',
+                    'price',
                     'sourceUrls',
                     'verifiedAt'
                 ]

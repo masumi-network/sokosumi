@@ -25,7 +25,6 @@ const mocks = vi.hoisted(() => ({
   review: vi.fn(),
   cancel: vi.fn(),
   clear: vi.fn(),
-  eve: vi.fn(),
   refresh: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -45,8 +44,6 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   clearImageVersionReview: mocks.clear,
   requestImageJobCancel: mocks.cancel,
 }));
-
-vi.mock("eve/react", () => ({ useEveAgent: mocks.eve }));
 
 vi.mock("./use-studio-state", () => ({
   useStudioState: ({
@@ -102,28 +99,6 @@ const ASSET = {
   review: null,
 } as unknown as StudioAsset;
 
-/**
- * The viewport, as the panel reads it.
- *
- * `useIsOverlayWidth` asks `matchMedia` whether the layout is at least `xl`,
- * so a test that wants the overlay says "no" and a test that wants the column
- * says "yes". happy-dom's own `matchMedia` always answers false, which is the
- * overlay case — stating it either way keeps each test honest about which
- * layout it is about.
- */
-function setViewport(wide: boolean) {
-  vi.stubGlobal("matchMedia", (query: string) => ({
-    matches: wide,
-    media: query,
-    onchange: null,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  }));
-}
-
 function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
   return render(
     <ImageStudio
@@ -133,7 +108,6 @@ function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
       }
       labels={LABELS}
       projectId="p"
-      resumeSessionId={null}
     />,
   );
 }
@@ -141,16 +115,6 @@ function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
-  window.sessionStorage.clear();
-  setViewport(false);
-  mocks.eve.mockReturnValue({
-    status: "ready",
-    error: undefined,
-    session: null,
-    data: { messages: [] },
-    send: vi.fn(),
-    prewarm: vi.fn(),
-  });
   mocks.review.mockResolvedValue({
     ...ASSET,
     review: { decision: "APPROVED" },
@@ -220,9 +184,19 @@ function job(id: string, status: string, error?: string) {
   } as unknown as StudioJob;
 }
 
-describe("a gallery with work in it", () => {
-  beforeEach(() => setViewport(true));
+/** A finished job, with real Dates, so the elapsed arithmetic is exercised. */
+function settledJob(id: string, assetId: string, elapsedMs: number) {
+  const submittedAt = new Date("2026-09-26T00:00:00Z");
+  return {
+    ...job(id, "SUCCEEDED"),
+    assetId,
+    createdAt: submittedAt,
+    submittedAt,
+    settledAt: new Date(submittedAt.getTime() + elapsedMs),
+  } as unknown as StudioJob;
+}
 
+describe("a gallery with work in it", () => {
   it("renders a full grid of versions with their provenance", () => {
     mount(manyAssets(14));
 
@@ -283,6 +257,82 @@ describe("a gallery with work in it", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "The provider refused it.",
     );
+  });
+
+  /**
+   * The active filter used to be `bg-secondary text-foreground`.
+   *
+   * Both tokens follow the page in the same direction and `--secondary` is its
+   * inverse, so the pair rendered near-black on near-black in light mode and
+   * near-white on white in dark: the one chip saying what the gallery was
+   * narrowed to was the one chip nobody could read, in both themes. This pins
+   * the pairing rather than the colour, because the pairing is the bug.
+   */
+  it("pairs the active filter's fill with its own foreground token", () => {
+    mount(manyAssets(6));
+
+    const active = screen.getByRole("button", { name: "filterAll" });
+    expect(active.className).toContain("bg-secondary");
+    expect(active.className).toContain("text-secondary-foreground");
+    expect(active.className).not.toMatch(/(^|\s)text-foreground(\s|$)/);
+  });
+
+  it("pairs the rejected badge the same way", () => {
+    mount(manyAssets(6));
+
+    const badge = screen
+      .getAllByText("rejected")
+      .map((node) => node.closest("span"))
+      .find((node) => node?.className.includes("bg-secondary"));
+    expect(badge?.className).toContain("text-secondary-foreground");
+    expect(badge?.className).not.toContain("text-muted-foreground");
+  });
+
+  /**
+   * What a batch across several models is actually read for.
+   *
+   * The time is measured — the provider's own submit-to-settle interval, off
+   * the job row. The money is not: nothing in this studio records what fal
+   * billed, so the tile shows the published list price for these settings and
+   * marks it as an approximation.
+   */
+  it("shows each version's generation time and estimated cost", () => {
+    mount(
+      [
+        {
+          ...ASSET,
+          id: "v1",
+          settings: {
+            aspectRatio: "1:1",
+            resolution: "1K",
+            outputFormat: "png",
+            seed: null,
+            placementId: null,
+          },
+        } as unknown as StudioAsset,
+      ],
+      [settledJob("j1", "v1", 3_200)],
+    );
+
+    const tile = document.querySelector("figure[data-asset-id]");
+    expect(tile).not.toBeNull();
+    expect(tile?.textContent).toContain("3.2s");
+    // Model A is $0.04 an image at 1K in TEST_CATALOG, and the tilde is what
+    // says this is a list price rather than a charge.
+    expect(tile?.textContent).toContain("~$0.04");
+  });
+
+  it("says nothing about time for a version whose job is off the page", () => {
+    mount(
+      [{ ...ASSET, id: "v1" } as unknown as StudioAsset],
+      // No job carries this version, which is what an older version looks like
+      // once its job has fallen out of the most recent page of them.
+      [settledJob("j1", "somebody-else", 3_200)],
+    );
+
+    const text = document.querySelector("figure[data-asset-id]")?.textContent;
+    // No invented duration, and no zero either: absent is not "took no time".
+    expect(text).not.toMatch(/\d+(\.\d+)?s/);
   });
 
   it("offers comparison once two versions are selected", () => {

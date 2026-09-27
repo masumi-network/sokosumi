@@ -212,6 +212,24 @@ export const imageStudioCatalogSchema = z
         maxReferences: z.number().int(),
         dimensionMode: z.enum(["aspect-ratio", "image-size"]),
         notes: z.string(),
+        /**
+         * The provider's published list price, never a charge. Nothing in this
+         * studio records what a job actually cost, so a client showing money
+         * has to say it is an estimate and say where the number came from —
+         * which is what `basis` and `sourceUrl` are for.
+         */
+        price: z.object({
+          /**
+           * USD per image by resolution tier. `partialRecord`, not `record`: a
+           * plain record over an enum is exhaustive in Zod 4, and no model
+           * offers every tier — the two 2K-and-1K models have no 0.5K entry to
+           * give, and demanding one rejected the real catalog.
+           */
+          perImageUsd: z.partialRecord(z.enum(IMAGE_RESOLUTIONS), z.number()),
+          basis: z.string(),
+          sourceUrl: z.string(),
+          verifiedAt: z.string(),
+        }),
         sourceUrls: z.array(z.string()),
         verifiedAt: z.string(),
       }),

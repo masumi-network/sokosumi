@@ -20,6 +20,38 @@ export const IMAGE_OUTPUT_FORMATS = ["png", "jpeg", "webp"] as const;
 export const DEFAULT_IMAGE_MODEL_ID = "gemini-flash";
 
 const VERIFIED_AT = "2026-09-26";
+/**
+ * Separate from `VERIFIED_AT`: a price moves for reasons a capability does
+ * not, and dating them together would let a stale figure ride along behind a
+ * capability re-check.
+ */
+const PRICES_VERIFIED_AT = "2026-09-27";
+
+/**
+ * What the provider lists for one image, so a client can price a batch.
+ *
+ * An estimate and nothing more. Sokosumi does not read a per-job cost back
+ * from fal, and no image studio job carries a charged amount, so this is the
+ * provider's published list price for the endpoint at a given resolution —
+ * read off the model's own pricing page on the date in `verifiedAt`. It is
+ * here rather than in the browser for the same reason every capability is:
+ * the UI must not be a second, unverified source of what the provider does.
+ *
+ * `basis` is meant to be shown. A figure a person cannot interrogate is worse
+ * than no figure when the thing being estimated is money.
+ */
+export interface ImagePrice {
+  /**
+   * USD per image, keyed by the studio's resolution tiers. A resolution the
+   * model does not offer is absent, and a caller that finds nothing must say
+   * the price is unknown rather than fall back to another tier's number.
+   */
+  perImageUsd: Partial<Record<(typeof IMAGE_RESOLUTIONS)[number], number>>;
+  /** How the figure was arrived at, in the provider's own terms. */
+  basis: string;
+  sourceUrl: string;
+  verifiedAt: string;
+}
 
 export interface ImageModel {
   id: string;
@@ -34,6 +66,8 @@ export interface ImageModel {
   maxReferences: number;
   dimensionMode: "aspect-ratio" | "image-size";
   notes: string;
+  /** The provider's list price. Never a charge; see `ImagePrice`. */
+  price: ImagePrice;
   sourceUrls: string[];
   verifiedAt: string;
 }
@@ -56,6 +90,16 @@ export const IMAGE_MODELS: ImageModel[] = [
     dimensionMode: "aspect-ratio",
     notes:
       "Studio exposes up to 2K and four references. Pixel dimensions are chosen by the model; seed does not guarantee identical results.",
+    price: {
+      // "$0.08 per image. 2K and 4K outputs will be charged at 1.5 times and
+      // 2 times the standard rate, respectively. 512x512 resolution outputs
+      // will be charged at 0.75 times the standard rate."
+      perImageUsd: { "0.5K": 0.06, "1K": 0.08, "2K": 0.12 },
+      basis:
+        "$0.08 per image, x0.75 at 0.5K and x1.5 at 2K, as fal lists it. Editing with references is priced the same per image.",
+      sourceUrl: "https://fal.ai/models/fal-ai/gemini-3.1-flash-image-preview",
+      verifiedAt: PRICES_VERIFIED_AT,
+    },
     sourceUrls: [
       "https://fal.ai/models/fal-ai/gemini-3.1-flash-image-preview/api",
       "https://fal.ai/models/fal-ai/gemini-3.1-flash-image-preview/edit/api",
@@ -77,6 +121,15 @@ export const IMAGE_MODELS: ImageModel[] = [
     dimensionMode: "aspect-ratio",
     notes:
       "No 0.5K option. Studio caps output at 2K and four references; actual dimensions come from the provider.",
+    price: {
+      // "$0.15 per image", with "4K outputs charged at double the standard
+      // rate". Studio never asks for 4K, so both tiers it offers are $0.15.
+      perImageUsd: { "1K": 0.15, "2K": 0.15 },
+      basis:
+        "$0.15 per image at every resolution this studio offers, as fal lists it. Only 4K costs more, and the studio never asks for it.",
+      sourceUrl: "https://fal.ai/models/fal-ai/gemini-3-pro-image-preview",
+      verifiedAt: PRICES_VERIFIED_AT,
+    },
     sourceUrls: [
       "https://fal.ai/models/fal-ai/gemini-3-pro-image-preview/api",
       "https://fal.ai/models/fal-ai/gemini-3-pro-image-preview/edit/api",
@@ -98,6 +151,20 @@ export const IMAGE_MODELS: ImageModel[] = [
     dimensionMode: "image-size",
     notes:
       "Studio maps 1K/2K to a longest edge near 1024/2048 pixels, aligned to 32 pixels. Aspect ratios can differ slightly after alignment. No WebP.",
+    price: {
+      // Priced by area, not per image: "$0.03 for the first megapixel of
+      // output, plus $0.015 per extra megapixel of input and output". So one
+      // figure per tier can only be a bound, and these are the square frame —
+      // the largest area this studio can ask for at a fixed longest edge.
+      // 1024x1024 is 1 MP, which is fal's own $0.03 example; 2048x2048 is 4,
+      // so $0.03 + 3 x $0.015. Wider frames cost less, and references add
+      // input megapixels this figure does not carry.
+      perImageUsd: { "1K": 0.03, "2K": 0.075 },
+      basis:
+        "$0.03 for the first megapixel of output plus $0.015 per extra megapixel, as fal lists it. Shown for a square frame, which is the most this studio can ask for at each resolution, so wider frames cost less.",
+      sourceUrl: "https://fal.ai/models/fal-ai/flux-2-pro",
+      verifiedAt: PRICES_VERIFIED_AT,
+    },
     sourceUrls: [
       "https://fal.ai/models/fal-ai/flux-2-pro/api",
       "https://fal.ai/models/fal-ai/flux-2-pro/edit/api",

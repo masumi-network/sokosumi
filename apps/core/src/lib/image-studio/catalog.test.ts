@@ -86,6 +86,37 @@ describe("verified image catalog", () => {
     ).toThrow();
   });
 
+  /**
+   * The estimate a client shows is only as good as this table's coverage, and
+   * the failure it guards against is quiet: add a resolution to a model, forget
+   * its price, and the composer stops totalling that batch with no error
+   * anywhere. A missing tier has to fail here, where the two lists live.
+   */
+  it("publishes a price for every resolution each model offers", () => {
+    for (const model of IMAGE_MODELS) {
+      for (const resolution of model.resolutions) {
+        expect(
+          model.price.perImageUsd[
+            resolution as keyof typeof model.price.perImageUsd
+          ],
+          `${model.id} has no published price at ${resolution}`,
+        ).toBeGreaterThan(0);
+      }
+      // A figure about money has to say where it came from and when.
+      expect(model.price.sourceUrl).toMatch(/^https:/);
+      expect(model.price.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(model.price.basis.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("prices no resolution a model cannot run", () => {
+    for (const model of IMAGE_MODELS) {
+      for (const priced of Object.keys(model.price.perImageUsd)) {
+        expect(model.resolutions).toContain(priced);
+      }
+    }
+  });
+
   it("rejects reference counts beyond the Studio limit", () => {
     expect(() => resolveImageSettings("flux-2-pro", settings, 5)).toThrow(
       "references",

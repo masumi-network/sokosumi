@@ -1,13 +1,12 @@
 "use client";
 
-import { AlertTriangle, Columns2, MessagesSquare, X } from "lucide-react";
+import { AlertTriangle, Columns2, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   useTransition,
 } from "react";
@@ -20,17 +19,12 @@ import {
 } from "@/lib/actions/image-studio/action";
 import { cn } from "@/lib/utils";
 
-import {
-  defaultModel,
-  modelIdForRepeat,
-  settingsOf,
-  summarizeTarget,
-} from "./catalog";
-import { StudioChat } from "./studio-chat";
+import { defaultModel, modelIdForRepeat, settingsOf } from "./catalog";
 import { StudioComposer } from "./studio-composer";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
 import {
+  elapsedByAssetId,
   isActive,
   type StudioAsset,
   type StudioFilter,
@@ -43,7 +37,6 @@ import {
   type QueuedGeneration,
   useGenerationQueue,
 } from "./use-generation-queue";
-import { useIsOverlayWidth, useModalOverlay } from "./use-modal-overlay";
 import { type StudioErrorCode, useStudioState } from "./use-studio-state";
 
 /** Which images the lightbox is showing, and why. */
@@ -61,10 +54,7 @@ const FILTERS: readonly StudioFilter[] = [
  *
  * The review shortcuts are bare letters. A Radix menu or popover uses bare
  * letters for typeahead, so opening the model menu and typing "a" to jump to
- * a model also approved whatever was selected in the gallery. The assistant
- * is here for the same reason from the other direction: it is a conversation
- * about the work, not the gallery, and a letter pressed on one of its buttons
- * is not a verdict on an image.
+ * a model also approved whatever was selected in the gallery.
  */
 function inTextOrMenu(node: HTMLElement | null): boolean {
   if (!node) return false;
@@ -77,7 +67,7 @@ function inTextOrMenu(node: HTMLElement | null): boolean {
   }
   return Boolean(
     node.closest(
-      '[data-slot="dropdown-menu-content"], [data-slot="popover-content"], #studio-assistant',
+      '[data-slot="dropdown-menu-content"], [data-slot="popover-content"]',
     ),
   );
 }
@@ -86,27 +76,29 @@ function inTextOrMenu(node: HTMLElement | null): boolean {
  * The studio.
  *
  * Gallery-first: the results are the page. Above them sits one composer with
- * one obvious action, and everything that qualifies a generation is a
- * summary that opens on demand rather than a row of controls that is always
- * there. The assistant is a panel you call for, not a column that occupies a
- * quarter of the width whether or not there is a conversation in it.
+ * one obvious action, and everything that qualifies a generation is a summary
+ * that opens on demand rather than a row of controls that is always there.
  *
- * What the person is aiming at — models, placement, frame — is held here
- * rather than inside the composer, because the assistant has to be told the
- * same thing, and two copies of that state would drift.
+ * There is no conversational assistant here, by design. Generating images is a
+ * form — a brief, some models, a frame — and the thing worth optimising is how
+ * many models one brief can reach and how quickly their results can be read
+ * side by side. A chat column bought none of that and spent a quarter of the
+ * width on it.
+ *
+ * What the person is aiming at — models, placement, frame — is still held here
+ * rather than inside the composer, because the lightbox's "new variation" and
+ * the gallery's reference selection both read from it.
  */
 export function ImageStudio({
   initialSelectedAssetId,
   initialState,
   labels,
   projectId,
-  resumeSessionId,
 }: {
   initialSelectedAssetId: string | null;
   initialState: StudioState;
   labels: StudioLabels;
   projectId: string;
-  resumeSessionId: string | null;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -116,35 +108,7 @@ export function ImageStudio({
   const [filter, setFilter] = useState<StudioFilter>("all");
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [viewing, setViewing] = useState<Viewing>(null);
-  /**
-   * The assistant opens on a project that already has a conversation, and
-   * waits to be asked for on one that does not.
-   *
-   * It used to be open always, which on a new project meant a quarter of the
-   * width was a panel with nothing in it — and an empty panel beside an empty
-   * gallery reads as two things being broken rather than one thing not
-   * started yet.
-   */
-  const [chatOpen, setChatOpen] = useState(() => resumeSessionId !== null);
   const [prompt, setPrompt] = useState("");
-  const assistantRef = useRef<HTMLDivElement>(null);
-  /**
-   * Below `xl` the assistant covers the gallery, so it owes the page the
-   * things a modal owes it. Above `xl` it sits beside the gallery and owes it
-   * nothing — the same component, two different contracts.
-   */
-  // Called unconditionally: `chatOpen && useIsOverlayWidth()` would skip the
-  // hook on every render where the panel is shut.
-  const overlayWidth = useIsOverlayWidth();
-  const assistantIsModal = chatOpen && overlayWidth;
-  const assistantIsModalRef = useRef(assistantIsModal);
-  assistantIsModalRef.current = assistantIsModal;
-  const closeChat = useCallback(() => setChatOpen(false), []);
-  useModalOverlay({
-    active: assistantIsModal,
-    contentRef: assistantRef,
-    onDismiss: closeChat,
-  });
   const [cancelRequestedJobIds, setCancelRequestedJobIds] = useState<string[]>(
     [],
   );
@@ -325,10 +289,6 @@ export function ImageStudio({
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
-        // Nothing in the gallery is reachable while the assistant is covering
-        // it, so nothing in the gallery may be decided either — not even by a
-        // keypress whose target is the body.
-        assistantIsModalRef.current ||
         inTextOrMenu(event.target as HTMLElement | null)
       ) {
         return;
@@ -425,15 +385,12 @@ export function ImageStudio({
     undecided: labels.filterUndecided,
   };
 
-  const contextSummary = summarizeTarget(
-    catalog,
-    target,
-    selectedAsset?.version ?? null,
-    {
-      models: (count) => t("modelCount", { count }),
-      version: labels.version,
-    },
-  );
+  /**
+   * How long each finished version took, from the jobs the state already
+   * carries. No extra request: the studio polls jobs anyway, and the timings
+   * are on the rows it gets back.
+   */
+  const elapsed = useMemo(() => elapsedByAssetId(state.jobs), [state.jobs]);
 
   const hasWork =
     state.assets.length > 0 || activeJobs.length > 0 || queue.queued.length > 0;
@@ -453,302 +410,225 @@ export function ImageStudio({
         </Notice>
       ) : null}
 
-      <div
-        className={cn(
-          "grid min-w-0 gap-4",
-          chatOpen && "xl:grid-cols-[minmax(0,1fr)_22rem] xl:gap-6",
-        )}
-      >
-        <div className="min-w-0 space-y-4">
-          <StudioComposer
-            busy={pending}
-            catalog={catalog}
-            labels={labels}
-            onClearReferences={() => setCheckedIds([])}
-            onGenerate={queue.enqueue}
-            onPromptChange={setPrompt}
-            onTargetChange={setTarget}
-            projectId={projectId}
-            prompt={prompt}
-            referenceAssets={checkedAssets}
-            target={target}
-          />
+      <div className="min-w-0 space-y-4">
+        <StudioComposer
+          busy={pending}
+          catalog={catalog}
+          labels={labels}
+          onClearReferences={() => setCheckedIds([])}
+          onGenerate={queue.enqueue}
+          onPromptChange={setPrompt}
+          onTargetChange={setTarget}
+          projectId={projectId}
+          prompt={prompt}
+          referenceAssets={checkedAssets}
+          target={target}
+        />
 
-          {queue.waitingForSlot ? (
-            <p className="text-muted-foreground px-1 text-xs leading-relaxed">
-              <span className="text-foreground font-medium">
-                {labels.waitingForSlotBody}
-              </span>{" "}
-              {labels.queueNotDurable}
-            </p>
-          ) : null}
+        {queue.waitingForSlot ? (
+          <p className="text-muted-foreground px-1 text-xs leading-relaxed">
+            <span className="text-foreground font-medium">
+              {labels.waitingForSlotBody}
+            </span>{" "}
+            {labels.queueNotDurable}
+          </p>
+        ) : null}
 
-          {settledProblemJob?.retryMayDuplicateCharge ? (
-            <div
-              className="border-border bg-background rounded-lg border p-4"
-              role="alert"
-            >
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-medium">
-                    {labels.uncertainTitle}
-                  </h3>
-                  <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-                    {labels.uncertainBody}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      onClick={() => void refresh()}
-                      size="sm"
-                      variant="secondary"
-                    >
-                      {labels.checkAgain}
-                    </Button>
-                    <Button
-                      onClick={() => repeat(settledProblemJob, "job")}
-                      size="sm"
-                      variant="outline"
-                    >
-                      {labels.submitAnyway}
-                    </Button>
-                  </div>
+        {settledProblemJob?.retryMayDuplicateCharge ? (
+          <div
+            className="border-border bg-background rounded-lg border p-4"
+            role="alert"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-medium">{labels.uncertainTitle}</h3>
+                <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                  {labels.uncertainBody}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => void refresh()}
+                    size="sm"
+                    variant="secondary"
+                  >
+                    {labels.checkAgain}
+                  </Button>
+                  <Button
+                    onClick={() => repeat(settledProblemJob, "job")}
+                    size="sm"
+                    variant="outline"
+                  >
+                    {labels.submitAnyway}
+                  </Button>
                 </div>
               </div>
             </div>
-          ) : settledProblemJob ? (
-            <div
-              className="border-border bg-background rounded-lg border p-4"
-              role="alert"
+          </div>
+        ) : settledProblemJob ? (
+          <div
+            className="border-border bg-background rounded-lg border p-4"
+            role="alert"
+          >
+            <h3 className="text-sm font-medium">{labels.failed}</h3>
+            <p className="text-muted-foreground mt-1 text-sm break-words">
+              {settledProblemJob.error ?? ""}
+            </p>
+            <Button
+              className="mt-3"
+              onClick={() => repeat(settledProblemJob, "job")}
+              size="sm"
+              variant="secondary"
             >
-              <h3 className="text-sm font-medium">{labels.failed}</h3>
-              <p className="text-muted-foreground mt-1 text-sm break-words">
-                {settledProblemJob.error ?? ""}
-              </p>
-              <Button
-                className="mt-3"
-                onClick={() => repeat(settledProblemJob, "job")}
-                size="sm"
-                variant="secondary"
-              >
-                {labels.tryAgain}
-              </Button>
+              {labels.tryAgain}
+            </Button>
+          </div>
+        ) : null}
+
+        {/* The gallery's own header row, in the same rhythm the overview
+              uses for Briefing and Workspace. Its left-hand subject is the
+              heading, so the row reads as a section rather than as a strip of
+              controls. The filters join it once there is something to
+              filter. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h2
+            className="text-muted-foreground text-xs font-medium"
+            id="studio-gallery-heading"
+          >
+            {labels.gallery}
+          </h2>
+
+          {hasWork ? (
+            <div className="flex flex-wrap items-center gap-1">
+              {FILTERS.map((value) => (
+                <button
+                  aria-pressed={filter === value}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                    "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
+                    // `text-secondary-foreground`, never `text-foreground`:
+                    // --secondary is the inverse of the page in both themes
+                    // (near-black on light, white on dark) and --foreground
+                    // follows the page, so the pair rendered near-black on
+                    // near-black in light mode and near-white on white in
+                    // dark. The active filter was the one chip nobody could
+                    // read. --secondary-foreground is the token that inverts
+                    // with it.
+                    filter === value
+                      ? "bg-secondary text-secondary-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  key={value}
+                  onClick={() => setFilter(value)}
+                  type="button"
+                >
+                  {filterLabel[value]}
+                </button>
+              ))}
             </div>
           ) : null}
 
-          {/* The gallery's own header row, in the same rhythm the overview
-              uses for Briefing and Workspace. It exists so the row always has
-              a left-hand subject: without one, the Assistant button was a
-              single control floating alone on an otherwise empty line. The
-              filters join it once there is something to filter. */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <h2
-              className="text-muted-foreground text-xs font-medium"
-              id="studio-gallery-heading"
-            >
-              {labels.gallery}
-            </h2>
+          <span className="grow" />
 
-            {hasWork ? (
-              <div className="flex flex-wrap items-center gap-1">
-                {FILTERS.map((value) => (
+          {checkedIds.length > 0 ? (
+            <>
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {t("selectedCount", { count: checkedIds.length })}
+              </span>
+              <Button
+                disabled={checkedIds.length < 2}
+                onClick={() => setViewing({ mode: "compare" })}
+                size="sm"
+                title={
+                  checkedIds.length < 2 ? labels.compareNeedsTwo : undefined
+                }
+                variant="secondary"
+              >
+                <Columns2 aria-hidden />
+                {labels.compareSelected}
+              </Button>
+              <Button
+                onClick={() => setCheckedIds([])}
+                size="sm"
+                variant="ghost"
+              >
+                {labels.clearSelection}
+              </Button>
+            </>
+          ) : null}
+        </div>
+
+        {showsNothing ? (
+          // No border and no fixed height: an empty gallery is an absence,
+          // not a panel. On a project that has never generated anything it
+          // offers somewhere to start instead.
+          <div className="px-1 pt-2 pb-8">
+            <h3 className="text-base font-medium">
+              {filter === "all" ? labels.emptyTitle : labels.noneMatchFilter}
+            </h3>
+            <p className="text-muted-foreground mt-1 max-w-prose text-sm leading-relaxed text-pretty">
+              {labels.emptyBody}
+            </p>
+            {filter === "all" ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {labels.examplePrompts.map((example) => (
                   <button
-                    aria-pressed={filter === value}
-                    className={cn(
-                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                      "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
-                      filter === value
-                        ? "bg-secondary text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                    key={value}
-                    onClick={() => setFilter(value)}
+                    className="border-border text-muted-foreground hover:text-foreground hover:border-primary-tertiary focus-visible:ring-ring-halo rounded-md border px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-[3px]"
+                    key={example}
+                    onClick={() => setPrompt(example)}
                     type="button"
                   >
-                    {filterLabel[value]}
+                    {example}
                   </button>
                 ))}
               </div>
-            ) : null}
-
-            <span className="grow" />
-
-            {checkedIds.length > 0 ? (
-              <>
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {t("selectedCount", { count: checkedIds.length })}
-                </span>
-                <Button
-                  disabled={checkedIds.length < 2}
-                  onClick={() => setViewing({ mode: "compare" })}
-                  size="sm"
-                  title={
-                    checkedIds.length < 2 ? labels.compareNeedsTwo : undefined
-                  }
-                  variant="secondary"
-                >
-                  <Columns2 aria-hidden />
-                  {labels.compareSelected}
-                </Button>
-                <Button
-                  onClick={() => setCheckedIds([])}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {labels.clearSelection}
-                </Button>
-              </>
-            ) : null}
-
-            <Button
-              aria-controls="studio-assistant"
-              aria-expanded={chatOpen}
-              aria-label={chatOpen ? labels.chatCollapse : labels.chatExpand}
-              onClick={() => setChatOpen((open) => !open)}
-              size="sm"
-              variant={chatOpen ? "secondary" : "ghost"}
-            >
-              <MessagesSquare aria-hidden />
-              {labels.assistant}
-            </Button>
-          </div>
-
-          {showsNothing ? (
-            // No border and no fixed height: an empty gallery is an absence,
-            // not a panel. On a project that has never generated anything it
-            // offers somewhere to start instead.
-            <div className="px-1 pt-2 pb-8">
-              <h3 className="text-base font-medium">
-                {filter === "all" ? labels.emptyTitle : labels.noneMatchFilter}
-              </h3>
-              <p className="text-muted-foreground mt-1 max-w-prose text-sm leading-relaxed text-pretty">
-                {labels.emptyBody}
-              </p>
-              {filter === "all" ? (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {labels.examplePrompts.map((example) => (
-                    <button
-                      className="border-border text-muted-foreground hover:text-foreground hover:border-primary-tertiary focus-visible:ring-ring-halo rounded-md border px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-[3px]"
-                      key={example}
-                      onClick={() => setPrompt(example)}
-                      type="button"
-                    >
-                      {example}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <Button
-                  className="mt-3"
-                  onClick={() => setFilter("all")}
-                  size="sm"
-                  variant="secondary"
-                >
-                  {labels.clearFilter}
-                </Button>
-              )}
-            </div>
-          ) : (
-            <>
-              <StudioGallery
-                activeJobs={activeJobs}
-                assets={visibleAssets}
-                cancelRequestedJobIds={cancelRequestedJobIds}
-                catalog={catalog}
-                labels={labels}
-                onCancelJob={handleCancelJob}
-                onOpen={(assetId) => {
-                  selectAsset(assetId);
-                  setViewing({ mode: "single" });
-                }}
-                onToggleSelect={(assetId) =>
-                  setCheckedIds((current) =>
-                    current.includes(assetId)
-                      ? current.filter((id) => id !== assetId)
-                      : [...current, assetId],
-                  )
-                }
-                projectId={projectId}
-                queued={queue.queued}
-                selectedIds={checkedIds}
-              />
-              {hasOlder ? (
-                <Button
-                  onClick={() => void loadOlder()}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {labels.loadOlder}
-                </Button>
-              ) : null}
-            </>
-          )}
-        </div>
-
-        {chatOpen ? (
-          // Backdrop and panel share one container so that the `inert` sweep,
-          // which spares the kept element's own subtree and nothing else, can
-          // keep both. Split apart, the backdrop was made inert along with the
-          // page and stopped being clickable.
-          <div
-            className={cn(
-              "min-w-0",
-              // Below xl the assistant covers the page, because a 22rem column
-              // does not exist at that width and pushing the gallery off the
-              // bottom to make room for one is not an answer. `max-xl:` rather
-              // than a set of `xl:` resets, so the two positions never depend
-              // on which utility Tailwind emits last.
-              "max-xl:pointer-events-none max-xl:fixed max-xl:inset-0 max-xl:z-50",
-              "xl:sticky xl:top-4 xl:h-[calc(100dvh-10rem)]",
+            ) : (
+              <Button
+                className="mt-3"
+                onClick={() => setFilter("all")}
+                size="sm"
+                variant="secondary"
+              >
+                {labels.clearFilter}
+              </Button>
             )}
-            ref={assistantRef}
-          >
-            {/* A scrim, not a control. As a <button> it was the first
-                focusable thing in the panel's focus scope, so opening the
-                assistant put focus on an invisible full-screen target and Tab
-                cycled through it. Escape and the panel's own close button are
-                the keyboard ways out; this is the pointer one. */}
-            <div
-              aria-hidden
-              className="bg-overlay pointer-events-auto absolute inset-0 backdrop-blur-sm xl:hidden"
-              onClick={closeChat}
-            />
-            <aside
-              // A dialog only while it is behaving like one. At `xl` this is a
-              // column beside the gallery, and announcing it as a modal there
-              // would promise a focus trap that deliberately does not exist.
-              {...(assistantIsModal
-                ? {
-                    "aria-label": labels.chatTitle,
-                    "aria-modal": true,
-                    role: "dialog" as const,
-                  }
-                : {})}
-              className={cn(
-                "pointer-events-auto min-w-0 outline-none",
-                "max-xl:absolute max-xl:inset-x-0 max-xl:bottom-0 max-xl:h-[75dvh]",
-                "xl:h-full",
-              )}
-              id="studio-assistant"
-              // Somewhere for focus to land when the panel holds nothing
-              // focusable of its own.
-              tabIndex={-1}
-            >
-              <StudioChat
-                catalog={catalog}
-                className="rounded-b-none xl:rounded-b-xl"
-                contextSummary={contextSummary}
-                labels={labels}
-                onActivity={() => void refresh()}
-                onClose={closeChat}
-                projectId={projectId}
-                resumeSessionId={resumeSessionId}
-                selectedAsset={selectedAsset}
-                target={target}
-              />
-            </aside>
           </div>
-        ) : null}
+        ) : (
+          <>
+            <StudioGallery
+              activeJobs={activeJobs}
+              assets={visibleAssets}
+              cancelRequestedJobIds={cancelRequestedJobIds}
+              catalog={catalog}
+              elapsedByAssetId={elapsed}
+              labels={labels}
+              onCancelJob={handleCancelJob}
+              onOpen={(assetId) => {
+                selectAsset(assetId);
+                setViewing({ mode: "single" });
+              }}
+              onToggleSelect={(assetId) =>
+                setCheckedIds((current) =>
+                  current.includes(assetId)
+                    ? current.filter((id) => id !== assetId)
+                    : [...current, assetId],
+                )
+              }
+              projectId={projectId}
+              queued={queue.queued}
+              selectedIds={checkedIds}
+            />
+            {hasOlder ? (
+              <Button
+                onClick={() => void loadOlder()}
+                size="sm"
+                variant="ghost"
+              >
+                {labels.loadOlder}
+              </Button>
+            ) : null}
+          </>
+        )}
       </div>
 
       {lightboxAssets.length > 0 ? (

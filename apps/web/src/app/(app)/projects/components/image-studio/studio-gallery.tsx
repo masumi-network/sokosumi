@@ -5,13 +5,21 @@ import { Check, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import { placementById, placementName, resolveModel } from "./catalog";
+import {
+  formatUsd,
+  modelById,
+  placementById,
+  placementName,
+  priceForImage,
+  resolveModel,
+} from "./catalog";
 import { StudioImage } from "./studio-image";
-import type {
-  StudioAsset,
-  StudioCatalog,
-  StudioJob,
-  StudioLabels,
+import {
+  formatElapsed,
+  type StudioAsset,
+  type StudioCatalog,
+  type StudioJob,
+  type StudioLabels,
 } from "./types";
 import type { QueuedGeneration } from "./use-generation-queue";
 
@@ -30,6 +38,7 @@ export function StudioGallery({
   assets,
   cancelRequestedJobIds,
   catalog,
+  elapsedByAssetId,
   labels,
   onCancelJob,
   onOpen,
@@ -43,6 +52,13 @@ export function StudioGallery({
   /** Jobs the provider has agreed to stop, which may still finish anyway. */
   cancelRequestedJobIds: string[];
   catalog: StudioCatalog;
+  /**
+   * How long the provider took, per version, in milliseconds.
+   *
+   * Read from the jobs the state carries, so a version older than that page is
+   * simply absent and its tile says nothing about time.
+   */
+  elapsedByAssetId: Record<string, number>;
   labels: StudioLabels;
   onCancelJob: (jobId: string) => void;
   onOpen: (assetId: string) => void;
@@ -118,11 +134,28 @@ export function StudioGallery({
               : decision === "REJECTED"
                 ? labels.rejected
                 : labels.undecided;
+          const elapsed = elapsedByAssetId[asset.id] ?? null;
+          // The provider's list price for this model at the resolution this
+          // version actually ran at. An estimate, never a charge: nothing in
+          // this studio records what fal billed for a job.
+          const catalogModel = modelById(catalog, model.id);
+          const estimateUsd = catalogModel
+            ? priceForImage(catalogModel, asset.settings?.resolution)
+            : null;
           // Everything the caption cannot fit, kept reachable on hover and
-          // for the accessible name.
+          // for the accessible name. The catalog id is in here rather than on
+          // the caption: the label is what a person compares models by, and
+          // the id is what they would quote in a bug report.
           const provenance = [
             model.label,
+            model.id,
             `${asset.width}×${asset.height}`,
+            elapsed === null
+              ? null
+              : `${labels.generationTime} ${formatElapsed(elapsed)}`,
+            estimateUsd === null
+              ? null
+              : `${labels.estimatedCost} ~${formatUsd(estimateUsd)}`,
             placement
               ? `${placementName(placement)} · ${placement.aspectRatio} · ${placement.width}×${placement.height}`
               : null,
@@ -210,6 +243,35 @@ export function StudioGallery({
                     </span>
                   </div>
 
+                  {/* What it cost to make, which is what a batch across
+                      several models is read for. Time is measured; the money
+                      is the provider's published price for these settings and
+                      is marked as an approximation, because nothing here reads
+                      back what was actually billed. */}
+                  {elapsed !== null || estimateUsd !== null ? (
+                    <p
+                      className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs tabular-nums"
+                      title={provenance}
+                    >
+                      {elapsed !== null ? (
+                        <span className="shrink-0">
+                          <span className="sr-only">
+                            {labels.generationTime}{" "}
+                          </span>
+                          {formatElapsed(elapsed)}
+                        </span>
+                      ) : null}
+                      {estimateUsd !== null ? (
+                        <span className="shrink-0">
+                          <span className="sr-only">
+                            {labels.estimatedCost}{" "}
+                          </span>
+                          ~{formatUsd(estimateUsd)}
+                        </span>
+                      ) : null}
+                    </p>
+                  ) : null}
+
                   {placement ? (
                     // Its own line: with the platform prefix these names do
                     // not survive sharing a row with anything, and the
@@ -244,9 +306,13 @@ function Badge({
       className={cn(
         "absolute top-2 left-2 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium",
         // Never colour alone: each badge carries its own icon and word.
+        // Each fill is paired with its own foreground token. --muted-foreground
+        // is a page-side text role, so on --secondary — the inverse of the
+        // page — it read as 44% grey on near-black in light mode and 72% grey
+        // on white in dark: about 4:1 and about 2:1, and this word is 12px.
         tone === "approved"
           ? "bg-primary text-primary-foreground"
-          : "bg-secondary text-muted-foreground",
+          : "bg-secondary text-secondary-foreground",
       )}
     >
       {children}

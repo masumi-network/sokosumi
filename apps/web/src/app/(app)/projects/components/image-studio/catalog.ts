@@ -129,6 +129,51 @@ export function clampToModel(
 }
 
 /**
+ * The provider's list price for one image from this model at this resolution.
+ *
+ * `null` rather than a guess. There is deliberately no fallback to another
+ * tier's figure: a plausible wrong number about money is worse than an absent
+ * one, so a caller that gets `null` has to say the price is unknown.
+ */
+export function priceForImage(
+  model: StudioModel,
+  resolution: StudioSettings["resolution"] | null | undefined,
+): number | null {
+  if (!resolution) return null;
+  return model.price.perImageUsd[resolution] ?? null;
+}
+
+/**
+ * What a batch would cost at list price, or `null` if any leg is unpriced.
+ *
+ * All-or-nothing on purpose. A total that quietly left out the one model with
+ * no published figure would still read as the price of the whole batch, which
+ * is the one way an estimate can be worse than no estimate.
+ */
+export function estimateBatchUsd(
+  legs: readonly { model: StudioModel; settings: StudioSettings }[],
+): number | null {
+  let total = 0;
+  for (const leg of legs) {
+    const price = priceForImage(leg.model, leg.settings.resolution);
+    if (price === null) return null;
+    total += price;
+  }
+  return total;
+}
+
+/**
+ * Money, to the cent.
+ *
+ * Not `Intl.NumberFormat`: these are US dollars because fal bills in US
+ * dollars, and localising the symbol would imply the amount had been
+ * converted. Two places always, so $0.90 does not render as $0.9.
+ */
+export function formatUsd(amount: number): string {
+  return `$${amount.toFixed(2)}`;
+}
+
+/**
  * Whether a model can honour a placement's aspect ratio.
  *
  * A placement is a recommendation about framing, so a model that cannot frame
@@ -200,36 +245,4 @@ export function modelIdForRepeat(
   return (
     resolveModel(catalog, endpoint).id ?? defaultModel(catalog)?.id ?? null
   );
-}
-
-/**
- * The same target, written for a person rather than for the model.
- *
- * `describeTarget` in the chat is the sentence the agent reads, and it is
- * deliberately explicit — "model: …; placement: … (2:3, target 1000x1500)".
- * Putting that string on screen is how the panel came to be captioned with a
- * line of key-value pairs. This is the reader's copy: the same facts in the
- * words the composer uses, and nothing it already shows twice.
- */
-export function summarizeTarget(
-  catalog: StudioCatalog,
-  target: { modelIds: string[]; placementId: string | null },
-  selectedVersion: number | null,
-  labels: { models: (count: number) => string; version: string },
-): string {
-  const models = target.modelIds
-    .map((id) => modelById(catalog, id)?.label)
-    .filter((label): label is string => Boolean(label));
-  const placement = placementById(catalog, target.placementId);
-  return [
-    models.length === 1
-      ? models[0]
-      : models.length
-        ? labels.models(models.length)
-        : null,
-    placement ? placementName(placement) : null,
-    selectedVersion !== null ? `${labels.version} ${selectedVersion}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
 }

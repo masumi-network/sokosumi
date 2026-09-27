@@ -26,9 +26,12 @@ import { cn } from "@/lib/utils";
 import {
   applyPlacement,
   clampToModel,
+  estimateBatchUsd,
+  formatUsd,
   modelSupportsPlacement,
   placementById,
   placementName,
+  priceForImage,
 } from "./catalog";
 import {
   assetContentUrl,
@@ -44,15 +47,37 @@ import type { QueuedGeneration } from "./use-generation-queue";
 /**
  * The most a single press of Generate may buy.
  *
- * Four is enough for the thing this composer is for — the same prompt on
- * three models, side by side, plus one — and small enough that a mis-click
- * costs very little. Core's own per-project concurrency is lower than this on
- * purpose: the overflow waits in the queue instead of coming back as an error,
- * which is what makes asking for four feel like one action.
+ * Twelve, and the number is picked against three separate limits rather than
+ * chosen for feel.
+ *
+ * It is the whole catalog at the highest copy count: three models times four
+ * copies. The point of this composer is one brief across every model at once,
+ * so the ceiling has to be at least the cross-product, or the top copy counts
+ * are permanently greyed out the moment a second model is selected — which is
+ * what a ceiling of four did.
+ *
+ * It is four times Core's in-flight limit of three per project
+ * (`IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT`), which is the safe direction.
+ * Twelve at once is not twelve in flight: `useGenerationQueue` sends one at a
+ * time, is told `image_studio_project_busy` when Core is full, and waits. So
+ * the client never exceeds Core's limit, and it does not duplicate the number
+ * either — it learns it by being refused.
+ *
+ * And it is under a third of Core's hourly allowance of forty per user
+ * (`IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR`), so three full batches fit in
+ * an hour with room over. A fourth would be refused, and that refusal is the
+ * one thing the queue reports rather than retries, so it arrives as a sentence
+ * instead of as a stall.
  */
-export const MAX_BATCH = 4;
+export const MAX_BATCH = 12;
 
-/** Copies-per-model offered. Kept short; the batch ceiling is the real limit. */
+/**
+ * Runs per model offered.
+ *
+ * Four is the top because four times the three-model catalog is the ceiling.
+ * The chips disable themselves against the ceiling, so this list can grow with
+ * the catalog without becoming a way to ask for more than a batch may hold.
+ */
 const COPY_CHOICES = [1, 2, 3, 4] as const;
 
 function chipClass(active: boolean, disabled = false): string {
@@ -196,9 +221,81 @@ export function StudioComposer({
     : 0;
   const references = referenceAssets.slice(0, referenceLimit);
 
-  const totalJobs = Math.min(selectedModels.length * copies, MAX_BATCH);
+  /**
+   * The chosen models that can actually serve the active placement.
+   *
+   * A model's menu entry is already disabled while a placement it cannot frame
+   * is chosen, but one selected beforehand stays selected — so this is what
+   * both the plan and the submission are built from.
+   */
+  const eligibleModels = useMemo(
+    () =>
+      placement
+        ? selectedModels.filter((model) =>
+            modelSupportsPlacement(model, placement),
+          )
+        : selectedModels,
+    [placement, selectedModels],
+  );
+
+  /** Every catalog model that can frame the active placement. */
+  const selectableModels = useMemo(
+    () =>
+      placement
+        ? catalog.models.filter((model) =>
+            modelSupportsPlacement(model, placement),
+          )
+        : catalog.models,
+    [catalog.models, placement],
+  );
+
+  /**
+   * Exactly what one press of Generate would buy.
+   *
+   * Computed once and used three times — the sentence above the button, the
+   * estimate inside it, and the requests `submit` enqueues. They have to be the
+   * same batch: an estimate about a different purchase from the one the button
+   * makes is worse than no estimate at all.
+   *
+   * The ceiling is applied to the *factors*, not by clipping the finished list.
+   * Clipping was the old behaviour, and it made the line above the button a
+   * lie the moment the pair ran past the ceiling: selecting a fourth model
+   * after choosing four copies promised sixteen images and bought twelve.
+   * Bringing the copy count down instead keeps the sentence true, and the copy
+   * chips show the clamp, so the loss is visible where the choice is made.
+   */
+  const plan = useMemo(() => {
+    // Only reachable if the catalog ever grows past the ceiling. One run each
+    // of as many models as will fit beats several runs of an arbitrary few.
+    const models = eligibleModels.slice(0, MAX_BATCH);
+    const each = models.length
+      ? Math.max(1, Math.min(copies, Math.floor(MAX_BATCH / models.length)))
+      : 0;
+    const legs: { model: StudioModel; settings: StudioSettings }[] = [];
+    // Round-robin across models rather than all of model A then all of model
+    // B. The queue drains in this order, so the first pass covers every model
+    // asked for — the batch is comparable while it is still arriving, which is
+    // the entire reason to run one brief on several models.
+    for (let copy = 0; copy < each; copy += 1) {
+      for (const model of models) {
+        legs.push({ model, settings: clampToModel(model, settings) });
+      }
+    }
+    return { copies: each, legs, models };
+  }, [copies, eligibleModels, settings]);
+
+  /**
+   * What the batch costs at the providers' published list prices.
+   *
+   * `null` when any model in it has no published figure for the resolution it
+   * would run at, in which case the line says how much work is being bought
+   * and stays silent about money.
+   */
+  const estimateUsd = useMemo(() => estimateBatchUsd(plan.legs), [plan.legs]);
+
+  const totalJobs = plan.legs.length;
   const canGenerate =
-    !busy && prompt.trim().length > 0 && selectedModels.length > 0;
+    !busy && prompt.trim().length > 0 && eligibleModels.length > 0;
 
   function toggleModel(model: StudioModel) {
     onTargetChange((current) => {
@@ -271,34 +368,24 @@ export function StudioComposer({
 
   function submit() {
     if (!canGenerate) return;
-    const requests: QueuedGeneration[] = [];
-    // Round-robin across models rather than all of model A then all of model
-    // B, so a batch clipped by the ceiling still covers every model asked for.
-    // Belt and braces: never build a request whose model cannot frame the
-    // active placement, whatever route the selection arrived by.
-    const eligible = placement
-      ? selectedModels.filter((model) =>
-          modelSupportsPlacement(model, placement),
-        )
-      : selectedModels;
-    outer: for (let copy = 0; copy < copies; copy += 1) {
-      for (const model of eligible) {
-        if (requests.length >= MAX_BATCH) break outer;
-        const id = crypto.randomUUID();
-        requests.push({
-          id,
-          prompt: prompt.trim(),
-          modelId: model.id,
-          modelLabel: model.label,
-          settings: clampToModel(model, settings),
-          parentAssetId: references[0]?.id ?? null,
-          referenceAssetIds: references.map((asset) => asset.id),
-          // One key per request, never shared across the batch: these are
-          // deliberately different images, not retries of one.
-          idempotencyKey: `ui:${id}`,
-        });
-      }
-    }
+    // Straight from the plan, so the batch bought is the batch the line above
+    // the button described — including its model order and its clamped
+    // settings. Nothing is decided a second time here.
+    const requests: QueuedGeneration[] = plan.legs.map((leg) => {
+      const id = crypto.randomUUID();
+      return {
+        id,
+        prompt: prompt.trim(),
+        modelId: leg.model.id,
+        modelLabel: leg.model.label,
+        settings: leg.settings,
+        parentAssetId: references[0]?.id ?? null,
+        referenceAssetIds: references.map((asset) => asset.id),
+        // One key per request, never shared across the batch: these are
+        // deliberately different images, not retries of one.
+        idempotencyKey: `ui:${id}`,
+      };
+    });
     onGenerate(requests);
     onPromptChange("");
   }
@@ -312,7 +399,7 @@ export function StudioComposer({
     settings.aspectRatio,
     settings.resolution,
     settings.outputFormat,
-    copies > 1 ? t("copyCount", { count: copies }) : null,
+    plan.copies > 1 ? t("copyCount", { count: plan.copies }) : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -388,7 +475,29 @@ export function StudioComposer({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-80">
-            <DropdownMenuLabel>{labels.model}</DropdownMenuLabel>
+            <div className="flex items-center justify-between gap-2 pr-1">
+              <DropdownMenuLabel>{labels.model}</DropdownMenuLabel>
+              {/* One brief on every model is the thing this composer is for,
+                  so it is one click rather than one click per model. Only the
+                  models that can frame the active placement are taken, which
+                  is the same rule that greys the entries out below. */}
+              <Button
+                className="h-7 px-2 text-xs"
+                disabled={selectableModels.every((model) =>
+                  selectedModelIds.includes(model.id),
+                )}
+                onClick={() =>
+                  onTargetChange((current) => ({
+                    ...current,
+                    modelIds: selectableModels.map((model) => model.id),
+                  }))
+                }
+                size="sm"
+                variant="ghost"
+              >
+                {labels.selectAllModels}
+              </Button>
+            </div>
             {catalog.models.map((model) => {
               const blocked = Boolean(
                 placement && !modelSupportsPlacement(model, placement),
@@ -560,28 +669,119 @@ export function StudioComposer({
             </Row>
 
             <Row label={labels.copies}>
-              {COPY_CHOICES.map((count) => (
-                <button
-                  aria-pressed={copies === count}
-                  className={chipClass(
-                    copies === count,
-                    selectedModels.length * count > MAX_BATCH && count > 1,
-                  )}
-                  disabled={
-                    selectedModels.length * count > MAX_BATCH && count > 1
-                  }
-                  key={count}
-                  onClick={() => setCopies(count)}
-                  type="button"
-                >
-                  {count}
-                </button>
-              ))}
+              {COPY_CHOICES.map((count) => {
+                // Against the models that will actually run, and against the
+                // plan rather than the raw choice: this is where the ceiling
+                // becomes visible, so `plan.copies` is what reads as pressed.
+                const overCeiling =
+                  eligibleModels.length * count > MAX_BATCH && count > 1;
+                return (
+                  <button
+                    aria-pressed={plan.copies === count}
+                    className={chipClass(plan.copies === count, overCeiling)}
+                    disabled={overCeiling}
+                    key={count}
+                    onClick={() => setCopies(count)}
+                    type="button"
+                  >
+                    {count}
+                  </button>
+                );
+              })}
             </Row>
+            <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+              {t("batchCeiling", { count: MAX_BATCH })}
+            </p>
           </PopoverContent>
         </Popover>
 
         <span className="grow" />
+
+        {/* What the press will buy, said before the press, in fal Sandbox's
+            shape: how many runs, across how many models, and what that is
+            worth. A button rather than a caption because the money in it is an
+            estimate, and an estimate nobody can interrogate is the wrong way
+            to talk about a charge — so it opens and shows its working. */}
+        {totalJobs > 0 ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-xs font-medium"
+                size="sm"
+                variant="ghost"
+              >
+                <span className="min-w-0 truncate tabular-nums">
+                  {estimateUsd === null
+                    ? t("runPlan", {
+                        copies: plan.copies,
+                        models: plan.models.length,
+                      })
+                    : t("runPlanEstimated", {
+                        copies: plan.copies,
+                        models: plan.models.length,
+                        cost: formatUsd(estimateUsd),
+                      })}
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="w-88 max-w-[calc(100vw-2rem)] space-y-3"
+            >
+              <div>
+                <p className="text-sm font-medium">{labels.estimateTitle}</p>
+                <p className="text-muted-foreground mt-1 text-xs leading-relaxed text-pretty">
+                  {labels.estimateNotCharge}
+                </p>
+              </div>
+
+              {estimateUsd === null ? (
+                <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                  {labels.estimateUnpriced}
+                </p>
+              ) : null}
+
+              <ul className="space-y-2">
+                {plan.models.map((model) => {
+                  const resolution = clampToModel(model, settings).resolution;
+                  const price = priceForImage(model, resolution);
+                  return (
+                    <li key={model.id}>
+                      <div className="flex min-w-0 items-baseline gap-2">
+                        <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
+                          {model.label}
+                        </span>
+                        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                          {price === null
+                            ? labels.estimateNoPrice
+                            : t("estimateEach", {
+                                cost: formatUsd(price),
+                                count: plan.copies,
+                              })}
+                        </span>
+                      </div>
+                      {/* The provider's own wording for how the figure is
+                          arrived at, rather than our paraphrase of it. */}
+                      <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
+                        {model.price.basis}
+                      </p>
+                      <a
+                        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-[3px]"
+                        href={model.price.sourceUrl}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {t("estimateCheckedOn", {
+                          date: model.price.verifiedAt,
+                        })}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </PopoverContent>
+          </Popover>
+        ) : null}
 
         <Button
           disabled={!canGenerate}

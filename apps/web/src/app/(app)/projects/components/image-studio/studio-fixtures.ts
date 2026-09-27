@@ -10,6 +10,11 @@ import type { StudioCatalog } from "./types";
  * options when several are selected, and refusing a placement a model cannot
  * frame. A fixture where every model supports everything would pass while the
  * product was broken.
+ *
+ * The prices differ the same way and on purpose: Model B has no published
+ * figure at 2K, so a batch that lands there cannot be totalled. That is a real
+ * state the real catalog can reach, and the composer has to say so rather than
+ * quietly total the legs it does have prices for.
  */
 export const TEST_CATALOG: StudioCatalog = {
   defaultModelId: "model-a",
@@ -27,6 +32,12 @@ export const TEST_CATALOG: StudioCatalog = {
       maxReferences: 4,
       dimensionMode: "aspect-ratio",
       notes: "",
+      price: {
+        perImageUsd: { "0.5K": 0.02, "1K": 0.04, "2K": 0.08 },
+        basis: "Four cents an image at 1K, for the sake of the arithmetic.",
+        sourceUrl: "https://example.test/model-a/pricing",
+        verifiedAt: "2026-09-27",
+      },
       sourceUrls: [],
       verifiedAt: "2026-09-26",
     },
@@ -43,6 +54,13 @@ export const TEST_CATALOG: StudioCatalog = {
       maxReferences: 2,
       dimensionMode: "image-size",
       notes: "",
+      price: {
+        // No 2K figure, deliberately. See the note above.
+        perImageUsd: { "1K": 0.1 },
+        basis: "Ten cents an image at 1K, and nothing published for 2K.",
+        sourceUrl: "https://example.test/model-b/pricing",
+        verifiedAt: "2026-09-27",
+      },
       sourceUrls: [],
       verifiedAt: "2026-09-26",
     },

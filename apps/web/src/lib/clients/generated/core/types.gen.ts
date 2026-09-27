@@ -5079,6 +5079,16 @@ export type ProjectImageStudioCatalog = {
         maxReferences: number;
         dimensionMode: 'aspect-ratio' | 'image-size';
         notes: string;
+        price: {
+            perImageUsd: {
+                '0.5K'?: number;
+                '1K'?: number;
+                '2K'?: number;
+            };
+            basis: string;
+            sourceUrl: string;
+            verifiedAt: string;
+        };
         sourceUrls: Array<string>;
         verifiedAt: string;
     }>;

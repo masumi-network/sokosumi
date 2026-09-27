@@ -25,13 +25,11 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
   ImageStudio: (props: {
     initialSelectedAssetId: string | null;
     projectId: string;
-    resumeSessionId: string | null;
   }) => (
     <div
       data-testid="image-studio"
       data-project={props.projectId}
       data-selected={props.initialSelectedAssetId ?? ""}
-      data-session={props.resumeSessionId ?? ""}
     />
   ),
 }));
@@ -51,12 +49,9 @@ const PROJECT = {
   updatedAt: new Date("2026-05-27T10:00:00.000Z"),
 };
 
-function studioState(
-  overrides: Partial<{
-    assets: { id: string }[];
-    sessions: { eveSessionId: string }[];
-  }> = {},
-) {
+function studioState(overrides: Partial<{ assets: { id: string }[] }> = {}) {
+  // `sessions` is still in Core's payload — the agent surface uses it — but the
+  // studio page no longer reads it, so nothing here needs to fake one.
   return { assets: [], sessions: [], ...overrides };
 }
 
@@ -190,30 +185,6 @@ describe("StudioPage", () => {
     expect(screen.getByTestId("image-studio")).toHaveAttribute(
       "data-selected",
       "",
-    );
-  });
-
-  it("resumes only a conversation Core reports as bound to this project", async () => {
-    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
-    imageStudioServiceMock.getState.mockResolvedValue(
-      studioState({ sessions: [{ eveSessionId: "session-mine" }] }),
-    );
-
-    const { default: StudioPage } = await import("./page");
-
-    render(
-      await StudioPage({
-        searchParams: Promise.resolve({
-          projectId: "project-1",
-          s: "session-someone-elses",
-        }),
-      }),
-    );
-
-    // A session id in the URL is a request to resume, not a right to.
-    expect(screen.getByTestId("image-studio")).toHaveAttribute(
-      "data-session",
-      "session-mine",
     );
   });
 });

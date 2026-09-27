@@ -15,7 +15,7 @@ import { StudioProjectPicker } from "./components/studio-project-picker";
 export const instant = false;
 
 interface StudioPageProps {
-  searchParams: Promise<{ projectId?: string; s?: string; v?: string }>;
+  searchParams: Promise<{ projectId?: string; v?: string }>;
 }
 
 /**
@@ -62,14 +62,6 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
 
   const state = await loadStudioState(project.id, query.v);
 
-  // A session id in the URL is a request to resume, not a right to. Only a
-  // conversation Core reports as bound to this project is handed to the client.
-  const resumeSessionId =
-    query.s &&
-    state.sessions.some((session) => session.eveSessionId === query.s)
-      ? query.s
-      : (state.sessions[0]?.eveSessionId ?? null);
-
   const initialSelectedAssetId =
     query.v && state.assets.some((asset) => asset.id === query.v)
       ? query.v
@@ -92,7 +84,6 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         initialState={state}
         labels={buildStudioLabels(t)}
         projectId={project.id}
-        resumeSessionId={resumeSessionId}
       />
     </StudioPageShell>
   );
