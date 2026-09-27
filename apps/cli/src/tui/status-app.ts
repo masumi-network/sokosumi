@@ -44,16 +44,6 @@ import {
 } from "../auth/oauth.js";
 import { type AuthLoginOptions, runAuthLogin } from "../cli/auth-login.js";
 import { CLI_VERSION } from "../cli/metadata.js";
-import {
-  administeredVendors,
-  describeRegistrationAdminVendorRequirement,
-  describeRegistrationWorkspaceRequirement,
-  isPreprodCoworkerRegistrationTarget,
-} from "../cli/registration-authority.js";
-import {
-  COWORKER_FRAMEWORK_PRESETS,
-  describeRegisterNextStep,
-} from "../coworker/presets.js";
 import { SelectInput, type SelectItem } from "./select-input.js";
 import { TUI_THEME } from "./theme.js";
 
@@ -85,13 +75,12 @@ type AuthScreen =
   | "api-key-input"
   | "api-key-target"
   | "api-key-wait"
-  | "register"
   | "vendors"
   | "workspaces"
   | "success"
   | "error";
 
-type HomeAction = "register" | "vendors" | "workspaces" | "sign-out";
+type HomeAction = "vendors" | "workspaces" | "sign-out";
 
 function adaptSelectHandler<T>(
   handler: (value: T) => void,
@@ -518,11 +507,7 @@ function StatusApp({
 
   useEffect(() => {
     if (route !== "signed-in") return;
-    if (
-      screen !== "vendors" &&
-      screen !== "workspaces" &&
-      screen !== "register"
-    ) {
+    if (screen !== "vendors" && screen !== "workspaces") {
       return;
     }
     let cancelled = false;
@@ -535,19 +520,10 @@ function StatusApp({
           const { vendors: nextVendors } =
             await fetchVendorMemberships(coreClient);
           if (!cancelled) setVendors(nextVendors);
-        } else if (screen === "workspaces") {
+        } else {
           const { organizationWorkspaces } =
             await fetchOrganizationWorkspaces(coreClient);
           if (!cancelled) setWorkspaces(organizationWorkspaces);
-        } else {
-          const [vendorResult, workspaceResult] = await Promise.all([
-            fetchVendorMemberships(coreClient),
-            fetchOrganizationWorkspaces(coreClient),
-          ]);
-          if (!cancelled) {
-            setVendors(vendorResult.vendors);
-            setWorkspaces(workspaceResult.organizationWorkspaces);
-          }
         }
       } catch (error: unknown) {
         if (!cancelled) {
@@ -882,11 +858,7 @@ function StatusApp({
       }
 
       if (route === "signed-in") {
-        if (
-          screen === "register" ||
-          screen === "vendors" ||
-          screen === "workspaces"
-        ) {
+        if (screen === "vendors" || screen === "workspaces") {
           setScreen("home");
           setMessage("");
           setPhase("idle");
@@ -920,7 +892,6 @@ function StatusApp({
   };
 
   const homeItems: SelectorItem<HomeAction>[] = [
-    { value: "register", label: "Register a Coworker" },
     { value: "vendors", label: "Vendors", hint: "memberships you administer" },
     {
       value: "workspaces",
@@ -1151,49 +1122,7 @@ function StatusApp({
   }
 
   let signedInContent: React.ReactNode;
-  if (screen === "register") {
-    const adminVendors = administeredVendors(vendors);
-    const missingWorkspace = !resourceLoading && workspaces.length === 0;
-    const missingAdminVendor = !resourceLoading && adminVendors.length === 0;
-    const preprodOnly = !isPreprodCoworkerRegistrationTarget(
-      selectedConfig.target,
-    );
-    const registrationBlocked =
-      preprodOnly || missingWorkspace || missingAdminVendor;
-    const rawWebUrl = String(env.SOKOSUMI_WEB_URL || "").trim();
-    const webBase = rawWebUrl ? sanitizeApiUrl(rawWebUrl) : "";
-    const gateHint = preprodOnly
-      ? "Coworker registration is Preprod only. Restart with `sokosumi --preprod` to register."
-      : resourceLoading
-        ? "Checking workspace and Vendor admin authority…"
-        : missingWorkspace
-          ? describeRegistrationWorkspaceRequirement(webBase || undefined)
-          : missingAdminVendor
-            ? describeRegistrationAdminVendorRequirement(webBase || undefined)
-            : "Choose a preset to see the next step. An organizer must provision its Coworker ID first. Then use `coworkers connect` for the selected Workspace.";
-    signedInContent = React.createElement(
-      Box,
-      { flexDirection: "column", width: "100%" },
-      React.createElement(Text, { bold: true }, "Register a Coworker"),
-      React.createElement(Text, { dimColor: true }, gateHint),
-      registrationBlocked
-        ? null
-        : React.createElement(SelectInput, {
-            items: COWORKER_FRAMEWORK_PRESETS.map((preset) => ({
-              value: preset.id,
-              label: preset.label,
-            })),
-            onSelect: adaptSelectHandler<string>((presetId) => {
-              const preset = COWORKER_FRAMEWORK_PRESETS.find(
-                (candidate) => candidate.id === presetId,
-              );
-              if (preset) setMessage(describeRegisterNextStep(preset));
-            }),
-            listen: !busy && !resourceLoading,
-          }),
-      messageLine(message, phase),
-    );
-  } else if (screen === "vendors") {
+  if (screen === "vendors") {
     const vendorItems: SelectorItem<string>[] = vendors.length
       ? vendors.map((vendor) => ({
           value: vendor.id,
@@ -1285,6 +1214,11 @@ function StatusApp({
       React.createElement(
         Text,
         { dimColor: true },
+        "sokosumi coworkers register --vendor-id <id>",
+      ),
+      React.createElement(
+        Text,
+        { dimColor: true },
         "sokosumi coworkers update --id <id> --name <name>",
       ),
       React.createElement(
@@ -1305,8 +1239,7 @@ function StatusApp({
     route: "signed-in",
     target: targetLabel,
     authMethod: authState.authMethod,
-    showBackHint:
-      screen === "register" || screen === "vendors" || screen === "workspaces",
+    showBackHint: screen === "vendors" || screen === "workspaces",
     children: signedInContent,
   });
 }
