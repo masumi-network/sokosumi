@@ -39,6 +39,7 @@ import type { AdminSokoBotQuality } from "@/lib/clients/generated/core";
 
 function qualityFixture(): AdminSokoBotQuality {
   return {
+    reliability: { fulfillment: {}, delivery: {}, invalidActionClaims: 0 },
     overall: { turns: 30, judged: 30, avgScore: 4 },
     proactive: { sent: 8, actedOn: 3, thumbsUp: 4, thumbsDown: 2 },
     daily: Array.from({ length: 30 }, (_, index) => ({

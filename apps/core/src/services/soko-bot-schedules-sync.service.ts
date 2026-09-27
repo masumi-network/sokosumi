@@ -15,19 +15,21 @@ import {
 } from "@/lib/soko-bot/runtime-errors";
 import {
   SokoBotBusyError,
+  SokoBotNoDestinationError,
   SokoBotRetryableStartError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
 import {
   buildSystemBeatMessage,
   proactiveGate,
-  stampNudges,
+  stageSokoBotNudges,
 } from "@/services/soko-bot-proactive.service";
 
 const SCHEDULE_LEASE_MS = 5 * 60 * 1_000;
 const BUSY_RETRY_DELAY_MS = 60_000;
 const MAX_BUSY_ATTEMPTS = 5;
 const MAX_TRANSIENT_ATTEMPTS = 5;
+const MAX_NO_DESTINATION_ATTEMPTS = 5;
 const MAX_RETRY_DELAY_MS = 15 * 60 * 1_000;
 export const MAX_CONSECUTIVE_SCHEDULE_FAILURES = 5;
 const MIN_SCHEDULE_INTERVAL_MS = 60_000;
@@ -485,7 +487,12 @@ export class SokoBotSchedulesSyncService {
         reconciliationLeaseToken = started.reconciliationLeaseToken;
         startedFresh = true;
         if (nudgeKeys.length > 0) {
-          await stampNudges(schedule.sokoBotId, nudgeKeys, new Date());
+          await stageSokoBotNudges(
+            schedule.sokoBotId,
+            nudgeKeys,
+            new Date(),
+            started.turnId,
+          );
         }
       }
 
@@ -539,12 +546,15 @@ export class SokoBotSchedulesSyncService {
       }
       return "deferred";
     } catch (error) {
+      const noDestination = error instanceof SokoBotNoDestinationError;
       const transient = isRetryableScheduleFailure(error);
-      const maxAttempts =
-        error instanceof SokoBotBusyError
+      const maxAttempts = noDestination
+        ? MAX_NO_DESTINATION_ATTEMPTS
+        : error instanceof SokoBotBusyError
           ? MAX_BUSY_ATTEMPTS
           : MAX_TRANSIENT_ATTEMPTS;
-      const retrying = transient && claimed.run.attempt < maxAttempts;
+      const retrying =
+        (transient || noDestination) && claimed.run.attempt < maxAttempts;
       const settled = await prisma.$transaction(async (tx) => {
         const updated = await tx.sokoBotScheduleRun.updateMany({
           where: {
@@ -554,14 +564,19 @@ export class SokoBotSchedulesSyncService {
             leaseToken: claimed.run.leaseToken,
           },
           data: {
-            status: retrying ? "PENDING" : transient ? "DEAD_LETTER" : "FAILED",
+            status: retrying
+              ? "PENDING"
+              : transient || noDestination
+                ? "DEAD_LETTER"
+                : "FAILED",
             completedAt: retrying ? null : new Date(),
             leaseToken: null,
             leaseExpiresAt: retrying
               ? new Date(Date.now() + retryDelayMs(claimed.run.attempt))
               : null,
-            errorKind:
-              error instanceof SokoBotBusyError
+            errorKind: noDestination
+              ? "no_destination"
+              : error instanceof SokoBotBusyError
                 ? "bot_busy"
                 : transient
                   ? "runtime_transient"
@@ -570,7 +585,10 @@ export class SokoBotSchedulesSyncService {
           },
         });
         if (updated.count === 0) return false;
-        if (!retrying) {
+        // A missing room is configuration, not schedule execution failure.
+        // Bound this occurrence, while keeping future occurrences eligible
+        // once the owner restores an authorized destination.
+        if (!retrying && !noDestination) {
           await tx.sokoBotSchedule.update({
             where: { id: claimed.schedule.id },
             data: this.scheduleFailureUpdate(

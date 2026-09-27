@@ -28,7 +28,10 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotTurn: { count: turnCountMock },
     sokoBotDelegation: { findMany: delegationFindManyMock },
     sokoBotMemoryRevision: { findFirst: memoryFindFirstMock },
-    sokoBotNudge: { findMany: nudgeFindManyMock },
+    sokoBotNudge: {
+      findMany: nudgeFindManyMock,
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
     task: { findMany: taskFindManyMock },
   },
 }));
