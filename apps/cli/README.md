@@ -1,23 +1,25 @@
-# Sokosumi Developer CLI
+# Sokosumi CLI
 
 Private workspace package `@sokosumi/cli`; package path `apps/cli`; binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
 
-## Planned direction
+## Product direction
 
-[REPORTED: user direction, 2026-09-24] The MVP onboards an existing hosted agent as a private Coworker in a selected Preprod Workspace, then proves an MPS payment reaches its Cardano Preprod wallet. Core permission changes are outside this CLI work. Current Core requires a platform admin to create the Coworker record. Global listing requires a separate waitlist request and platform-admin approval. Cardano x402 buyers reach Coworkers through Sokosumi after the MPS-first MVP.
+[CORRECTION, REPORTED: user product direction, 2026-09-27]
+The CLI and its Skill are a continuing integration for existing agents. Private Workspace setup is the first path.
+Developer onboarding and global listing follow that path. The hackathon is the first milestone, not the architecture.
+The agent can stay on its operator's hardware or cloud host. Hermes is an optional adapter.
 
-## Hackathon track
+[VERIFIED: `src/cli/commands/coworkers.ts`, `src/cli/registration-authority.ts`]
+Discover existing Workspaces, Vendors, and Coworkers before proposing a new record. Reuse suitable records.
+The current path uses a selected organization Workspace on Preprod. It does not accept a personal Workspace for connection.
+Core still requires platform-admin authority to create a Coworker. CLI connection requires Vendor-admin and organization membership.
+Platform-admin status does not bypass those CLI connection checks. See the [role-aware Skill](skills/sokosumi/SKILL.md).
 
-[REPORTED: user decision, 2026-09-25] Start with one existing agent per developer on Preprod.
+[REPORTED: first milestone] Prove a real Task with the existing agent before broadening the flow.
+[OPEN] Live runtime execution and seller receipt remain unverified. Payment submission and global publication remain separate work.
+The [implementation plan](docs/developer-cli-implementation-plan.md) retains the milestone history.
 
-1. An organizer selects an organization Workspace and invites the intended developers.
-2. Each developer creates their own Vendor. The admin provisions one private Coworker under that Vendor and returns its ID.
-3. The developer connects that Coworker to the selected Workspace and creates their own `coworker_*` runtime key.
-4. Each developer completes a real Task and proves receipt of a Preprod payment.
-
-[OPEN] Payment receipt has not been verified. The detailed [hackathon track](docs/developer-cli-implementation-plan.md#hackathon-track) lists the remaining blockers.
-
-### Organizer setup
+### Private Workspace setup and platform-admin handoff
 
 [VERIFIED: source only] Web has Workspace creation and developer invitations.
 Use the Workspace switcher to create or select the organization, then invite the intended developers.
@@ -29,7 +31,8 @@ See the [creation wizard](../web/src/components/organizations/create-organizatio
 and [invitation form](../web/src/components/organizations/organization-member-invite/form.tsx).
 
 [VERIFIED: `src/cli/commands/admin.ts`, `src/api/services/admin-workspace-service.ts`]
-A platform admin can add an existing Preprod account by email and assign an available Seat.
+When adding another user, a platform admin can add their existing Preprod account and assign an available Seat.
+These member commands are optional for private setup with the current account.
 Use the selected Workspace's slug. Organization admin alone does not satisfy the CLI's platform-admin check.
 Core authorizes each request.
 
@@ -49,13 +52,14 @@ The CLI does not purchase Seats or reassign another member's Seat. Capacity chan
 If a write reports uncertain completion, inspect `admin members` before retrying.
 Coworker provisioning and connection can continue when no Seat is available.
 
-[VERIFIED: `src/cli/commands/coworkers.ts`] Sign in to Preprod as a platform admin.
-Ask each developer for their Vendor ID and final Coworker name. Confirm the intended account before provisioning:
+[VERIFIED: `src/cli/commands/coworkers.ts`] Discover existing records first. Provision only when the intended Coworker is missing.
+A platform admin uses the chosen Vendor ID and final name. A user without that role needs a platform-admin handoff.
+Confirm the intended account before provisioning:
 
 ```bash
 pnpm --filter @sokosumi/cli sokosumi -- --preprod auth login
 pnpm --filter @sokosumi/cli sokosumi -- --preprod auth whoami --json
-pnpm --filter @sokosumi/cli sokosumi -- --preprod coworkers provision --vendor-id VENDOR_ID --name "Developer Agent" --capability tasks --json
+pnpm --filter @sokosumi/cli sokosumi -- --preprod coworkers provision --vendor-id VENDOR_ID --name "Workspace Coworker" --capability tasks --json
 ```
 
 [VERIFIED: `src/api/models/user-identity.ts`, `src/cli/commands/coworkers.ts`]
@@ -64,9 +68,9 @@ The CLI verifies that the returned Coworker belongs to the requested Vendor and 
 If creation cannot be confirmed, inspect the Coworker list before retrying. Core errors retain their status and request details.
 
 [CORRECTION, VERIFIED: `src/cli/commands/coworkers.ts`] The handoff now includes both `handoff.coworkerId` and `handoff.vendorId`.
-Give these IDs to the developer, plus the organization ID and Workspace slug from `admin members`.
-They use `coworkers connect` and `coworkers api-key` below.
-Organizer membership in that Vendor or Workspace is not required. The developer creates and keeps the runtime key.
+Keep these IDs with the selected organization ID and Workspace slug. If provisioning for someone else, give them these non-secret IDs.
+The connecting account uses `coworkers connect` below and must have the required Vendor and organization memberships.
+Provisioning itself does not require those memberships. The trusted operator creates and keeps the runtime key.
 [VERIFIED: `../core/src/routes/v1/coworkers/coworker-management-access.ts`] Vendor admins can manage the Vendor's Coworkers.
 Provisioning under a Vendor does not assign the Coworker to a person by email.
 
@@ -75,7 +79,7 @@ Core checks platform admin access and Vendor existence, then creates the Coworke
 Provisioning does not grant Workspace access. Private profiles are still returned by Core's
 `scope=all` list; private means restricted Workspace selection here.
 [List route](../core/src/routes/v1/coworkers/get.ts)
-[OPEN] This flow still needs a live Preprod pilot.
+[OPEN] The complete runtime flow still needs a live Preprod test.
 
 [CORRECTION, VERIFIED: `src/cli/commands/runtime.ts`, `src/coworker/runtime-credentials.ts`, `src/coworker/runtime-task.ts`]
 The earlier README listed runtime execution as planned work. An existing agent can now start and complete an assigned Task.
@@ -84,14 +88,14 @@ See the [agent runtime pilot](docs/agent-runtime-pilot.md), [ADR 0004](docs/adr/
 and the [implementation plan](docs/developer-cli-implementation-plan.md).
 
 [VERIFIED: `src/cli/commands/runtime.ts`, `src/coworker/hermes-runtime.ts`]
-The optional `runtime run` command starts one Task with the developer's existing Hermes profile.
+The optional `runtime run` command starts one Task with the operator's existing Hermes profile.
 It keeps that profile's model and tools, unless the operator supplies model or provider overrides.
 See the [Hermes pilot](docs/hermes-preprod-pilot.md). Live Hermes execution remains unverified.
 
 Install the framework-neutral Skill from the repository:
 
 ```bash
-npx skills add https://github.com/masumi-network/sokosumi --skill sokosumi
+npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill sokosumi
 ```
 
 This installs Skill files only. It does not install the CLI executable. The CLI package remains private, so its public release path is still open.
@@ -129,14 +133,14 @@ SOKOSUMI_API_KEY=soko_preprod_... pnpm --filter @sokosumi/cli sokosumi -- auth s
 pnpm --filter @sokosumi/cli sokosumi -- auth logout
 ```
 
-For hackathon participants, connect the organizer-provisioned Coworker:
+Connect the selected existing or newly provisioned Coworker with the required Vendor and organization memberships:
 
 ```bash
 pnpm --filter @sokosumi/cli sokosumi -- --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID --json
 ```
 
 [VERIFIED: `src/cli/commands/workspaces.ts`, `src/api/services/organization-workspace-service.ts`]
-Before organization Task creation, check the developer's Seat eligibility:
+Before organization Task creation, check the account's Seat eligibility:
 
 ```bash
 pnpm --filter @sokosumi/cli sokosumi -- --preprod workspaces check ORGANIZATION_ID --json
@@ -168,7 +172,7 @@ Use the organization ID from `workspaces list` as `--workspace-id`. Coworker
 These commands work on Preprod only. `coworkers register` requires platform admin
 access. That command creates the Coworker, then asks Core to grant Workspace
 access. It also requires the caller to administer the Vendor and belong to the Workspace.
-Use `provision` for the organizer handoff to a developer's Vendor.
+Use `provision` for a platform-admin creation step under the selected Vendor.
 `register` reports success only when Core returns `GRANTED`. If the Coworker
 record is created but access is pending or fails, retry with `coworkers connect`.
 Core keeps its existing role checks. `coworkers connect` attaches an existing
