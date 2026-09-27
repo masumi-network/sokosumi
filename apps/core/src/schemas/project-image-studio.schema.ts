@@ -136,6 +136,19 @@ export const imageStudioJobSchema = z
      * a second time.
      */
     retryMayDuplicateCharge: z.boolean(),
+    /**
+     * Credits debited when this job was reserved, in the same user-facing decimal
+     * the rest of the API uses. Null for a job created before the studio charged
+     * for generation.
+     */
+    credits: z.number().nullable(),
+    /**
+     * True once the charge has been paid back. Every terminal failure refunds, so
+     * a failed generation reads as having cost nothing — which is what it cost.
+     * Never true for `SUBMISSION_UNCERTAIN`: the provider may have charged us and
+     * nothing is refunded automatically there.
+     */
+    refunded: z.boolean(),
   })
   .openapi("ProjectImageJob");
 

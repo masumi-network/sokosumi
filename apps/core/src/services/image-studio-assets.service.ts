@@ -2,6 +2,7 @@ import {
   ProjectImageJobStatus,
   type ProjectImageReviewDecision,
 } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/utils";
 import { get } from "@vercel/blob";
 
 import { internalServerError, notFound } from "@/helpers/error";
@@ -326,6 +327,16 @@ export interface JobView {
   cancelRequestedAt: Date | null;
   /** True when a retry could buy a second image. */
   retryMayDuplicateCharge: boolean;
+  /**
+   * Credits debited when this job was reserved. Null for a job created before
+   * the studio charged for generation.
+   */
+  credits: number | null;
+  /**
+   * True once the charge has been paid back. Set for every terminal failure, so
+   * a failed generation reads as having cost nothing — which is what it cost.
+   */
+  refunded: boolean;
 }
 
 /**
@@ -357,6 +368,8 @@ export async function getJob(options: {
       submittedAt: true,
       settledAt: true,
       cancelRequestedAt: true,
+      chargedCents: true,
+      refundTransactionId: true,
       asset: { select: { id: true } },
     },
   });
@@ -388,6 +401,8 @@ export async function listJobs(options: {
       submittedAt: true,
       settledAt: true,
       cancelRequestedAt: true,
+      chargedCents: true,
+      refundTransactionId: true,
       asset: { select: { id: true } },
     },
   });
@@ -408,6 +423,8 @@ function toJobView(job: {
   submittedAt: Date | null;
   settledAt: Date | null;
   cancelRequestedAt: Date | null;
+  chargedCents: bigint | null;
+  refundTransactionId: string | null;
   asset: { id: string } | null;
 }): JobView {
   return {
@@ -427,5 +444,8 @@ function toJobView(job: {
     cancelRequestedAt: job.cancelRequestedAt,
     retryMayDuplicateCharge:
       job.status === ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
+    credits:
+      job.chargedCents != null ? convertCentsToCredits(job.chargedCents) : null,
+    refunded: job.refundTransactionId != null,
   };
 }

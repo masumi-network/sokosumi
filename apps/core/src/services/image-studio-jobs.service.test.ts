@@ -15,6 +15,7 @@ const {
   uploadReferenceMock,
   readAssetBytesMock,
   requireProjectAccessMock,
+  createTaskEventTransactionMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
@@ -30,6 +31,11 @@ const {
   uploadReferenceMock: vi.fn(),
   readAssetBytesMock: vi.fn(),
   requireProjectAccessMock: vi.fn(),
+  createTaskEventTransactionMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/task-credits", () => ({
+  createTaskEventTransaction: createTaskEventTransactionMock,
 }));
 
 vi.mock("@/config/env", () => ({
@@ -55,6 +61,7 @@ vi.mock("@/lib/db/prisma", () => {
       create: vi.fn(),
     },
     project: { findUnique: vi.fn() },
+    transaction: { create: vi.fn() },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
   return { default: client };
@@ -98,6 +105,9 @@ import {
   readPngDimensions,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
+
+// Credits are covered end to end in `image-studio-credits.test.ts`; this suite is
+// about submission, and only stubs the debit so reservation can get past it.
 
 const BASE_INPUT = {
   projectId: "project-1",
@@ -149,7 +159,9 @@ describe("image studio job submission", () => {
       projectId: "project-1",
       workspaceId: "workspace-1",
       userId: "user-1",
+      organizationId: null,
     });
+    createTaskEventTransactionMock.mockResolvedValue("txn-debit-1");
     jobCountMock.mockResolvedValue(0);
     jobFindUniqueMock.mockResolvedValue(null);
     jobCreateMock.mockImplementation(async () => jobRow());
@@ -161,14 +173,10 @@ describe("image studio job submission", () => {
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
   });
 
-  it("persists the chosen model and placement before submitting the model-specific payload", async () => {
+  it("persists the chosen model before submitting the model-specific payload", async () => {
     const stored = jobRow({
       model: "fal-ai/flux-2-pro",
-      settings: {
-        ...BASE_INPUT.settings,
-        placementId: "pinterest-pin",
-        aspectRatio: "2:3",
-      },
+      settings: { ...BASE_INPUT.settings, aspectRatio: "2:3" },
     });
     jobCreateMock.mockResolvedValue(stored);
     jobFindUniqueOrThrowMock.mockResolvedValue(stored);
@@ -179,16 +187,13 @@ describe("image studio job submission", () => {
     await createImageJob({
       ...BASE_INPUT,
       modelId: "flux-2-pro",
-      settings: { ...BASE_INPUT.settings, placementId: "pinterest-pin" },
+      settings: { ...BASE_INPUT.settings, aspectRatio: "2:3" },
     });
     expect(jobCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           model: "fal-ai/flux-2-pro",
-          settings: expect.objectContaining({
-            placementId: "pinterest-pin",
-            aspectRatio: "2:3",
-          }),
+          settings: expect.objectContaining({ aspectRatio: "2:3" }),
         }),
       }),
     );
@@ -205,6 +210,22 @@ describe("image studio job submission", () => {
     );
   });
 
+  it("sends only the provider fields the chosen endpoint declares", async () => {
+    // `num_images` and `limit_generations` are Gemini's fields. Sending them to
+    // a model that never declared them is a 422 on a generation that would
+    // otherwise have worked.
+    const stored = jobRow({ model: "fal-ai/flux-2-pro" });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+    await createImageJob({ ...BASE_INPUT, modelId: "flux-2-pro" });
+    const input = submitToQueueMock.mock.calls[0]![0].input;
+    expect(input).not.toHaveProperty("num_images");
+    expect(input).not.toHaveProperty("limit_generations");
+    expect(input).not.toHaveProperty("aspect_ratio");
+    expect(input).toHaveProperty("image_size");
+  });
+
   it.each([
     { modelId: "unverified-model" },
     {
@@ -215,14 +236,14 @@ describe("image studio job submission", () => {
       modelId: "gemini-pro",
       settings: { ...BASE_INPUT.settings, resolution: "0.5K" },
     },
-    { settings: { ...BASE_INPUT.settings, placementId: "made-up" } },
   ])(
-    "rejects incompatible model/placement settings before reserving or spending",
+    "rejects incompatible model settings before reserving or spending",
     async (invalid) => {
       await expect(
         createImageJob({ ...BASE_INPUT, ...invalid }),
       ).rejects.toMatchObject({ status: 422 });
       expect(jobCreateMock).not.toHaveBeenCalled();
+      expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
       expect(submitToQueueMock).not.toHaveBeenCalled();
       expect(uploadReferenceMock).not.toHaveBeenCalled();
     },
