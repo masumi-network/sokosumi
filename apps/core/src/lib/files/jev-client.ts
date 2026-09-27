@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 
 import { getEnv } from "@/config/env";
 import type { SerializedJevRequest } from "@/lib/files/jev-request";
@@ -75,13 +76,60 @@ export interface JevEvaluationOutcome {
  * Set when the Gateway rejected a request that carried the retention
  * options. Nothing clears it: a process that cannot ask for zero retention
  * does not send document text at all.
+ *
+ * ## It is per-instance, and that is why it has to be loud
+ *
+ * This is process state. On a multi-instance deployment one instance can
+ * latch off while its siblings keep calling, so the feature goes half-dead:
+ * some searches rerank and some silently do not, and no aggregate metric
+ * moves enough to notice. Whether it should ever reset is a separate
+ * question; being able to see that it happened is not optional, so latching
+ * reports itself once, with the instance it happened on.
+ *
+ * Two places already record it besides the report below. Every subsequent
+ * evaluation returns `provider-options-rejected`, which
+ * `recordJevDispatch` writes against the admission row, and the search
+ * response carries it as `fallbackReason`, which the UI already shows as a
+ * deterministic-order explanation.
  */
 let providerOptionsRejected = false;
+
+function latchProviderOptionsRejected(status: number): void {
+  if (providerOptionsRejected) return;
+  providerOptionsRejected = true;
+
+  // `captureMessage` rather than a new counter: this is what the rest of
+  // Core uses to say "something noteworthy that is not an exception".
+  Sentry.captureMessage(
+    "Files Jev evaluator latched off: the Gateway rejected the retention options",
+    {
+      level: "error",
+      extra: {
+        status,
+        // Which instance, because the latch is per-process and its
+        // siblings are probably still calling.
+        instanceId: getEnv().INSTANCE_ID,
+        model: FILES_RANKING_MODEL,
+        consequence:
+          "This instance will not send document text to Jev again until it restarts; Files falls back to deterministic ordering here.",
+      },
+    },
+  );
+}
 
 export function isJevConfigured(): boolean {
   if (providerOptionsRejected) return false;
   const env = getEnv();
   return env.FILES_JEV_ENABLED && Boolean(env.AI_GATEWAY_API_KEY);
+}
+
+/**
+ * Whether this instance has latched off, separately from whether the
+ * feature is configured. A caller reporting why ranking was deterministic
+ * needs to tell "switched off" apart from "refused by the provider".
+ */
+export function isJevProviderLatched(): boolean {
+  return providerOptionsRejected;
 }
 
 /** Exposed for tests; production has no reason to clear the latch. */
@@ -270,7 +318,7 @@ export const gatewayJevEvaluator: JevEvaluator = {
         // without reading a body that can echo the document text back, so
         // this fails closed for the process rather than retrying weaker.
         if (response.status === 400 || response.status === 422) {
-          providerOptionsRejected = true;
+          latchProviderOptionsRejected(response.status);
           return failure("provider-options-rejected", latencyMs);
         }
         // Status only. A body can carry back the document text we sent.

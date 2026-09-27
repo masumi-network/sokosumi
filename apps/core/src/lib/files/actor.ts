@@ -22,11 +22,38 @@ export interface FileActor {
   kind: FileActorKind;
 }
 
-export function resolveFileActor(userContext: UserContext): FileActor {
+/**
+ * Build the actor a Files query runs as.
+ *
+ * `organizationId` is **the store this request resolved to**, not whatever
+ * the caller's session happens to have active. Taking the session's value
+ * was wrong in both directions:
+ *
+ * - An API-key or OAuth caller has no active organization — those contexts
+ *   are always built with `organizationId: null` — so the organization arm
+ *   of the authorized relation never fired and an authorized integration
+ *   saw an empty organization Drive. It failed closed, so nothing leaked,
+ *   but "my files are gone" is still the wrong answer.
+ * - A session user *with* an active organization asking for their personal
+ *   drive got the mirror of it: the personal arm requires a null
+ *   organization, so it did not fire either.
+ *
+ * The caller passes the scope it has already authorized through
+ * `requireDriveFileAccess`, and the SQL still re-checks membership, so this
+ * narrows the query to the right store without widening what may be read.
+ */
+export function resolveFileActor(
+  userContext: UserContext,
+  scope?: { organizationId: string | null },
+): FileActor {
+  const organizationId = scope
+    ? scope.organizationId
+    : userContext.organizationId;
+
   if (userContext.source === "context") {
     return {
       userId: userContext.userId,
-      organizationId: userContext.organizationId,
+      organizationId,
       kind: "coworker",
     };
   }
@@ -41,7 +68,7 @@ export function resolveFileActor(userContext: UserContext): FileActor {
 
   return {
     userId: userContext.userId,
-    organizationId: userContext.organizationId,
+    organizationId,
     kind,
   };
 }

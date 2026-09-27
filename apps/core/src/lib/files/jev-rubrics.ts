@@ -8,7 +8,7 @@
  */
 
 /** Which rubric to ask. The caller names the judgement, not the wire shape. */
-export type JevRubricKey = "relevance" | "belongs";
+export type JevRubricKey = "relevance" | "relatedness" | "belongs";
 
 export interface RubricRung {
   readonly id: string;
@@ -41,6 +41,29 @@ export const RUBRICS: Record<JevRubricKey, readonly RubricRung[]> = {
       id: "mentions",
       score: 1,
       instructions: `${UNTRUSTED} Does the document mention the subject of the query at all? Answer false when unclear.`,
+    },
+  ],
+  /**
+   * Related documents are judged against the seed passages, not a query.
+   * They used to reuse the `relevance` rungs, which ask about "the query" —
+   * a field a related-pair request does not contain. The model was being
+   * asked about something that was not in front of it.
+   */
+  relatedness: [
+    {
+      id: "same_topic",
+      score: 3,
+      instructions: `${UNTRUSTED} Is the candidate about the same topic as the seed passages? Answer false when unclear.`,
+    },
+    {
+      id: "clearly_related",
+      score: 2,
+      instructions: `${UNTRUSTED} Is the candidate clearly related to the seed passages, even if its topic differs? Answer false when unclear.`,
+    },
+    {
+      id: "same_area",
+      score: 1,
+      instructions: `${UNTRUSTED} Does the candidate fall in the same broad subject area as the seed passages? Answer false when unclear.`,
     },
   ],
   belongs: [

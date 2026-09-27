@@ -196,7 +196,10 @@ export async function rerankFileCandidates(
 
           const outcome = await evaluator.evaluate({
             request,
-            rubric: "relevance",
+            // Related pairs carry seed passages and no query, so they are
+            // judged by the seed-based rungs. Asking the query rungs about
+            // a request with no query was the defect here.
+            rubric: isRelated ? "relatedness" : "relevance",
           });
 
           scheduler.settle(outcome.ok ? "ok" : "failed");

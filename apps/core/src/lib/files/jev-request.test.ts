@@ -11,7 +11,7 @@ import {
   SEARCH_PAIR_CEILINGS,
   truncateToTokenBudget,
 } from "./jev-request";
-import { rubricEnvelopeTokens } from "./jev-rubrics";
+import { RUBRICS, rubricEnvelopeTokens } from "./jev-rubrics";
 
 describe("conservativeTokenCount", () => {
   it("counts code points, so an emoji is one and not two", () => {
@@ -239,5 +239,61 @@ describe("what the ceiling actually counts", () => {
         SEARCH_PAIR_CEILINGS.components.candidate +
         rubricEnvelopeTokens("relevance"),
     );
+  });
+});
+
+describe("what the prompt tells the model", () => {
+  /**
+   * The state and the questions have to agree. They did not: the state's
+   * `rubric` field described a 0–3 ordinal long after the ordinal question
+   * became a ladder of booleans, and a related-pair request was judged by
+   * rungs that ask about "the query" — a field it does not contain.
+   */
+  it("no longer describes a scale the model is not asked for", () => {
+    const search = buildJevSearchPairRequest({
+      query: "commuter research",
+      candidateId: "resource-1",
+      candidateTitle: "Commuters",
+      candidateExcerpt: "Findings about bicycle commuters.",
+    });
+    if (isJevRequestRejection(search)) throw new Error("unexpected rejection");
+
+    expect(search.serialized).not.toContain("0 unrelated");
+    expect(search.serialized).not.toContain("Rate how");
+    expect(search.body).not.toHaveProperty("rubric");
+    expect(search.body.context).toContain("`query`");
+  });
+
+  it("describes the seeds, not a query, for a related pair", () => {
+    const related = buildJevRelatedPairRequest({
+      seedPassages: ["Bicycle commuters in the Aurora audience."],
+      candidateId: "resource-2",
+      candidateTitle: "Quarterly strategy",
+      candidateExcerpt: "Commuters are one segment we cover.",
+    });
+    if (isJevRequestRejection(related)) throw new Error("unexpected rejection");
+
+    // The request has no query field, so the prompt must not mention one.
+    expect(related.body).not.toHaveProperty("query");
+    expect(related.body.context).toContain("`seeds`");
+    expect(related.body.context).not.toContain("`query`");
+  });
+
+  it("asks a related pair the seed rungs, and a search pair the query rungs", () => {
+    const relatedness = RUBRICS.relatedness.map((rung) => rung.id);
+    const relevance = RUBRICS.relevance.map((rung) => rung.id);
+
+    // Every relatedness rung talks about the seeds; no relevance rung does.
+    for (const rung of RUBRICS.relatedness) {
+      expect(rung.instructions).toContain("seed passages");
+      expect(rung.instructions).not.toContain("the query");
+    }
+    for (const rung of RUBRICS.relevance) {
+      expect(rung.instructions).toContain("query");
+    }
+    expect(relatedness).not.toEqual(relevance);
+
+    // Both ladders still span the same 0–3 scale the ranking stage reads.
+    expect(RUBRICS.relatedness.map((rung) => rung.score)).toEqual([3, 2, 1]);
   });
 });

@@ -156,32 +156,77 @@ export async function searchFiles(
     position = 0;
   }
 
-  const scannedIds = entries
-    .slice(position, position + Math.min(input.limit, SEARCH_PAGE_MAX) + 20)
-    .map((entry) => entry.r);
+  /**
+   * Fill the page, fetching more of the window when entries drop out.
+   *
+   * One prefetch of `limit + 20` was not enough. Once more than 20 of the
+   * scanned entries had genuinely moved, the walk ran past what had been
+   * fetched and treated every further entry as missing — dropping live
+   * files, and advancing the cursor past them so they never returned. Now
+   * the walk is bounded by what we actually looked up, and we look up more
+   * until the page is full or the window ends.
+   */
+  const pageLimit = Math.min(input.limit, SEARCH_PAGE_MAX);
+  const byId = new Map<string, LiveResource>();
+  const current = new Map<
+    string,
+    { contentRevision: number; metadataRevision: number }
+  >();
+  const collected: string[] = [];
+  let cursorPosition = position;
+  let omitted = 0;
+  let scanned = 0;
 
-  const live = await loadLiveResources({
-    workspaceId: input.workspaceId,
-    actor: input.actor,
-    resourceIds: scannedIds,
-  });
+  // Bounded so a window of tombstones cannot turn one request into an
+  // unbounded scan; the page simply comes back short and `hasMore` is true.
+  const MAX_FETCH_ROUNDS = 5;
 
-  const page = takeWindowPage({
-    entries,
-    from: position,
-    limit: input.limit,
-    current: new Map(
-      live.map((resource) => [
-        resource.id,
-        {
-          contentRevision: resource.contentRevision,
-          metadataRevision: resource.metadataRevision,
-        },
-      ]),
-    ),
-  });
+  for (let round = 0; round < MAX_FETCH_ROUNDS; round += 1) {
+    if (collected.length >= pageLimit) break;
+    if (cursorPosition >= entries.length) break;
 
-  const byId = new Map(live.map((resource) => [resource.id, resource]));
+    const batch = entries
+      .slice(
+        cursorPosition,
+        cursorPosition + (pageLimit - collected.length) + 20,
+      )
+      .map((entry) => entry.r);
+    if (batch.length === 0) break;
+
+    const live = await loadLiveResources({
+      workspaceId: input.workspaceId,
+      actor: input.actor,
+      resourceIds: batch,
+    });
+    for (const resource of live) {
+      byId.set(resource.id, resource);
+      current.set(resource.id, {
+        contentRevision: resource.contentRevision,
+        metadataRevision: resource.metadataRevision,
+      });
+    }
+
+    const round_page = takeWindowPage({
+      entries,
+      from: cursorPosition,
+      limit: pageLimit - collected.length,
+      current,
+      available: batch.length,
+    });
+
+    collected.push(...round_page.resourceIds);
+    omitted += round_page.omitted;
+    scanned += round_page.scanned;
+    cursorPosition = round_page.nextPosition;
+  }
+
+  const page = {
+    resourceIds: collected,
+    nextPosition: cursorPosition,
+    hasMore: cursorPosition < entries.length,
+    scanned,
+    omitted,
+  };
   const items = await hydrateResources({
     resources: page.resourceIds
       .map((id) => byId.get(id))

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   gatewayJevEvaluator,
   isJevConfigured,
+  isJevProviderLatched,
   jevRouteAvailable,
   resetJevProviderLatchForTests,
 } from "./jev-client";
@@ -13,12 +14,18 @@ const MODEL = "typesafe-ai/jev";
 const env = {
   FILES_JEV_ENABLED: true,
   AI_GATEWAY_API_KEY: "test-gateway-key",
+  INSTANCE_ID: "instance-7",
   // Deliberately present and wrong: the model must come from the pinned
   // literal, not from anything a deployment can set.
   FILES_RANKING_MODEL: "someone-else/model",
 };
 
 vi.mock("@/config/env", () => ({ getEnv: () => env }));
+
+const { captureMessageMock } = vi.hoisted(() => ({
+  captureMessageMock: vi.fn(),
+}));
+vi.mock("@sentry/node", () => ({ captureMessage: captureMessageMock }));
 
 const request: SerializedJevRequest = {
   body: { rubric: "Rate how well…", query: "invoice", candidate: { id: "r1" } },
@@ -47,6 +54,7 @@ let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   resetJevProviderLatchForTests();
+  captureMessageMock.mockClear();
   env.FILES_JEV_ENABLED = true;
   env.AI_GATEWAY_API_KEY = "test-gateway-key";
   fetchMock = vi.fn();
@@ -330,8 +338,41 @@ describe("failing closed on the retention request", () => {
       });
       expect(second.reason).toBe("provider-options-rejected");
       expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(isJevProviderLatched()).toBe(true);
     },
   );
+
+  it("reports the latch once, naming the instance", async () => {
+    // The latch is per-process: on a multi-instance deployment one instance
+    // can go quiet while its siblings keep calling, and nothing else would
+    // surface that the feature is half-dead.
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+    } as unknown as Response);
+
+    await gatewayJevEvaluator.evaluate({ request, rubric: "relevance" });
+    await gatewayJevEvaluator.evaluate({ request, rubric: "relevance" });
+
+    expect(isJevProviderLatched()).toBe(true);
+    // Once, not once per refused call.
+    expect(captureMessageMock).toHaveBeenCalledTimes(1);
+
+    const [message, context] = captureMessageMock.mock.calls[0];
+    expect(message).toContain("latched off");
+    expect(context.level).toBe("error");
+    expect(context.extra.instanceId).toBe("instance-7");
+    expect(context.extra.status).toBe(400);
+  });
+
+  it("separates being latched from being switched off", async () => {
+    expect(isJevProviderLatched()).toBe(false);
+    env.FILES_JEV_ENABLED = false;
+    // Disabled, but not latched: a caller explaining a deterministic
+    // ordering needs to tell those two apart.
+    expect(isJevConfigured()).toBe(false);
+    expect(isJevProviderLatched()).toBe(false);
+  });
 
   it("does not latch on a transient server error", async () => {
     fetchMock.mockResolvedValue({

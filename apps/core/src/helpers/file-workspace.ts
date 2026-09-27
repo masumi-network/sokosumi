@@ -47,7 +47,12 @@ export async function resolveFileRequestContext(input: {
 
   return {
     workspaceId: workspace.workspaceId,
-    actor: resolveFileActor(userContext),
+    // The store this request is for, which `requireDriveFileAccess` has
+    // just authorized — not the caller's active organization, which an
+    // API-key or OAuth context never has.
+    actor: resolveFileActor(userContext, {
+      organizationId: storeScope === "organization" ? ownerId : null,
+    }),
     scope: storeScope,
     ownerId,
   };

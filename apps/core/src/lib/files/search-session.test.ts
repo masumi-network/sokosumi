@@ -163,3 +163,109 @@ describe("takeWindowPage", () => {
     expect(second.hasMore).toBe(false);
   });
 });
+
+describe("paging past entries the caller did not fetch", () => {
+  /**
+   * Absence from `current` used to mean the same thing whether a resource
+   * had been looked up and found gone, or never looked up at all. The
+   * caller prefetches a bounded slice, so once more than that slice's slack
+   * had genuinely dropped out, the walk ran on into unfetched territory and
+   * counted **live** files as missing — then moved the cursor past them, so
+   * they never came back on a later page.
+   */
+  function entriesFor(count: number): WindowEntry[] {
+    return Array.from({ length: count }, (_, index) => ({
+      r: `resource-${index}`,
+      c: 1,
+      m: 1,
+    }));
+  }
+
+  it("stops at the end of what was fetched instead of inventing omissions", () => {
+    const entries = entriesFor(50);
+    // Only the first five were looked up; they are all alive.
+    const current = new Map(
+      entries
+        .slice(0, 5)
+        .map((entry) => [entry.r, { contentRevision: 1, metadataRevision: 1 }]),
+    );
+
+    const page = takeWindowPage({
+      entries,
+      from: 0,
+      limit: 20,
+      current,
+      available: 5,
+    });
+
+    expect(page.resourceIds).toHaveLength(5);
+    // Crucially: nothing was declared omitted, and the cursor did not run
+    // past the five we actually know about.
+    expect(page.omitted).toBe(0);
+    expect(page.nextPosition).toBe(5);
+    expect(page.hasMore).toBe(true);
+  });
+
+  it("still omits an entry that was fetched and has moved", () => {
+    const entries = entriesFor(4);
+    const current = new Map(
+      entries.map((entry) => [
+        entry.r,
+        entry.r === "resource-1"
+          ? { contentRevision: 2, metadataRevision: 1 }
+          : { contentRevision: 1, metadataRevision: 1 },
+      ]),
+    );
+
+    const page = takeWindowPage({
+      entries,
+      from: 0,
+      limit: 10,
+      current,
+      available: 4,
+    });
+
+    expect(page.resourceIds).toEqual([
+      "resource-0",
+      "resource-2",
+      "resource-3",
+    ]);
+    expect(page.omitted).toBe(1);
+  });
+
+  it("treats a fetched-but-absent entry as gone, as before", () => {
+    const entries = entriesFor(3);
+    const current = new Map([
+      ["resource-0", { contentRevision: 1, metadataRevision: 1 }],
+      ["resource-2", { contentRevision: 1, metadataRevision: 1 }],
+    ]);
+
+    const page = takeWindowPage({
+      entries,
+      from: 0,
+      limit: 10,
+      current,
+      available: 3,
+    });
+
+    expect(page.resourceIds).toEqual(["resource-0", "resource-2"]);
+    expect(page.omitted).toBe(1);
+    expect(page.nextPosition).toBe(3);
+  });
+
+  it("behaves as it always did when the caller vouches for everything", () => {
+    const entries = entriesFor(3);
+    const current = new Map(
+      entries.map((entry) => [
+        entry.r,
+        { contentRevision: 1, metadataRevision: 1 },
+      ]),
+    );
+
+    // No `available`: the caller is saying the map covers the whole window.
+    const page = takeWindowPage({ entries, from: 0, limit: 10, current });
+
+    expect(page.resourceIds).toHaveLength(3);
+    expect(page.hasMore).toBe(false);
+  });
+});

@@ -223,6 +223,20 @@ export interface WindowPageInput {
   limit: number;
   /** Current revisions for the scanned entries, by resource id. */
   current: Map<string, { contentRevision: number; metadataRevision: number }>;
+  /**
+   * How many entries from `from` the `current` map actually covers.
+   *
+   * Absence from `current` means two very different things: "this resource
+   * is gone" for an entry that was looked up, and "nobody asked" for one
+   * beyond the caller's prefetch. Conflating them dropped **live** files:
+   * the caller fetched `limit + 20` entries, and once more than 20 had
+   * genuinely moved the walk ran past the prefetch and counted every
+   * further entry as missing. `nextPosition` then advanced past them, so
+   * they never came back on a later page either.
+   *
+   * The walk stops here instead, and the caller fetches more.
+   */
+  available?: number;
 }
 
 export interface WindowPage {
@@ -243,10 +257,17 @@ export interface WindowPage {
 export function takeWindowPage(input: WindowPageInput): WindowPage {
   const limit = Math.min(Math.max(input.limit, 1), SEARCH_PAGE_MAX);
   const resourceIds: string[] = [];
-  let position = Math.min(Math.max(input.from, 0), input.entries.length);
+  const start = Math.min(Math.max(input.from, 0), input.entries.length);
+  let position = start;
   let omitted = 0;
 
-  while (position < input.entries.length && resourceIds.length < limit) {
+  // Never walk past what `current` can answer for.
+  const end =
+    input.available === undefined
+      ? input.entries.length
+      : Math.min(input.entries.length, start + Math.max(input.available, 0));
+
+  while (position < end && resourceIds.length < limit) {
     const entry = input.entries[position];
     position += 1;
 
@@ -268,7 +289,7 @@ export function takeWindowPage(input: WindowPageInput): WindowPage {
     resourceIds,
     nextPosition: position,
     hasMore: position < input.entries.length,
-    scanned: position - Math.min(Math.max(input.from, 0), input.entries.length),
+    scanned: position - start,
     omitted,
   };
 }

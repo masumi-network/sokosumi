@@ -151,12 +151,22 @@ export function isJevRequestRejection(
   return "rejected" in result;
 }
 
-const SEARCH_RUBRIC =
-  "Rate how well the document answers the search query. 0 unrelated, 1 mentions it, 2 partly answers, 3 directly answers.";
-const RELATED_RUBRIC =
-  "Rate how closely the candidate relates to the seed passages. 0 unrelated, 1 same broad area, 2 clearly related, 3 same topic.";
-const LABEL_RUBRIC =
-  "Choose the vocabulary entries the document belongs to. Use only the supplied ids. Answer with ids, never new names.";
+/**
+ * What the state *is*, not how to score it.
+ *
+ * These used to describe a 0–3 ordinal — "0 unrelated, 1 mentions it, 2
+ * partly answers, 3 directly answers" — which stopped being true when the
+ * ordinal question became a ladder of booleans. The prompt was asking for a
+ * scale while the questions asked for yes or no, so the two halves of the
+ * same request disagreed. The scale now lives only in the rungs, and these
+ * strings say what the fields mean.
+ */
+const SEARCH_CONTEXT =
+  "A reader searched for `query`. `candidate` is one document from the results, with its title and an excerpt.";
+const RELATED_CONTEXT =
+  "`seeds` are passages from the document a reader is looking at. `candidate` is a different document, with its title and an excerpt.";
+const LABEL_CONTEXT =
+  "`document` is an excerpt of one file. `vocabulary` is the workspace's own set of labels, each with an id, a name and a description.";
 
 function finalize(
   body: Record<string, unknown>,
@@ -222,7 +232,7 @@ export function buildJevSearchPairRequest(
   return fitWithin(
     SEARCH_PAIR_CEILINGS,
     (excerptBudget) => ({
-      rubric: SEARCH_RUBRIC,
+      context: SEARCH_CONTEXT,
       query,
       candidate: {
         id: input.candidateId,
@@ -252,7 +262,7 @@ export function buildJevRelatedPairRequest(
   return fitWithin(
     RELATED_PAIR_CEILINGS,
     (excerptBudget) => ({
-      rubric: RELATED_RUBRIC,
+      context: RELATED_CONTEXT,
       seeds: boundedSeeds,
       candidate: {
         id: input.candidateId,
@@ -261,7 +271,7 @@ export function buildJevRelatedPairRequest(
       },
     }),
     RELATED_PAIR_CEILINGS.components.candidate,
-    "relevance",
+    "relatedness",
   );
 }
 
@@ -294,7 +304,7 @@ export function buildJevLabelRequest(input: JevLabelInput): JevRequestResult {
   return fitWithin(
     LABEL_EVALUATION_CEILINGS,
     (excerptBudget) => ({
-      rubric: LABEL_RUBRIC,
+      context: LABEL_CONTEXT,
       document: truncateToTokenBudget(input.documentExcerpt, excerptBudget),
       vocabulary,
       projects,
