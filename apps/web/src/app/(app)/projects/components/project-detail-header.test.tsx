@@ -22,10 +22,9 @@ describe("ProjectDetailHeader", () => {
     expect(root?.className).not.toContain("px-4");
     expect(root?.className).not.toContain("md:px-0");
 
-    const back = screen.getByRole("link", { name: "Back" });
-    expect(back).toHaveAttribute("href", "/projects");
-    expect(back.className).toContain("hidden");
-    expect(back.className).toContain("md:inline-flex");
+    expect(
+      screen.queryByRole("link", { name: "Back" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
       "href",
       "https://www.example.com/about",
@@ -35,7 +34,7 @@ describe("ProjectDetailHeader", () => {
     expect(screen.getByRole("button", { name: "Actions" })).toBeInTheDocument();
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 
-    const titleRow = root?.children[1];
+    const titleRow = root?.children[0];
     const metadata = root?.querySelector("dl");
     expect(titleRow).toBeTruthy();
     expect(metadata).toBeTruthy();

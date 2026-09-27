@@ -1627,13 +1627,6 @@
         "visibilityLabel": "Sichtbarkeit",
         "visibilityPrivate": "Privat"
       },
-      "ProjectSwitcher": {
-        "ariaLabel": "Projekt",
-        "allProjects": "Alle Projekte",
-        "searchPlaceholder": "Projekte suchen...",
-        "empty": "Keine Projekte gefunden.",
-        "create": "Projekt erstellen..."
-      },
       "Jobs": {
         "filterButton": "Filter",
         "agentLabel": "Agent",
@@ -2657,11 +2650,6 @@
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
-          "projects": "Projekte",
-          "allProjects": "Alle Projekte",
-          "projectsPanel": "Deine Projekte",
-          "pinnedProjects": "Angeheftet",
-          "recentProjects": "Zuletzt verwendete Projekte",
           "history": "Verlauf",
           "drive": "Dateien",
           "admin": "Administration",
@@ -2670,10 +2658,7 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Kalender",
-          "schedules": "Zeitpläne",
-          "projectsLoading": "Projekte werden geladen…",
-          "projectsError": "Projekte konnten nicht geladen werden.",
-          "retryProjects": "Erneut versuchen"
+          "schedules": "Zeitpläne"
         },
         "ChatLists": {
           "title": "Letzte Chats",
@@ -6830,6 +6815,26 @@
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
         "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben."
       }
+    },
+    "ProjectScope": {
+      "clearSearch": "Suche löschen",
+      "close": "Schließen",
+      "label": "Projekt",
+      "switchLabel": "Projekt wechseln",
+      "workspaceView": "Alles",
+      "workspaceDescription": "Enthält auch Arbeit ohne Projekt",
+      "pinned": "Angepinnt",
+      "recent": "Zuletzt",
+      "all": "Projekte",
+      "searchPlaceholder": "Projekt suchen...",
+      "empty": "Keine Projekte gefunden.",
+      "loading": "Projekte werden geladen...",
+      "error": "Projekte konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "create": "Projekt erstellen",
+      "manage": "Projekte verwalten",
+      "current": "(aktuell)",
+      "searching": "Projekte werden gesucht..."
     }
   },
   "Share": {
