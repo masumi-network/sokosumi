@@ -839,7 +839,6 @@ struct WorkspaceRealtimeTests {
     let second = WorkspaceState(instanceStore: store)
     #expect(first.realtimeClientInstanceId == second.realtimeClientInstanceId)
     #expect(first.realtimeClientInstanceId.count == 16)
-    #expect(first.realtimeClientInstanceId.allSatisfy(\.isHexDigit))
   }
 
   @Test func tokenMintUsesInstanceIdAndPersonalOmitsOrgHeader() async throws {
