@@ -114,19 +114,24 @@ export async function rerankFileCandidates(
   /**
    * Reasons that are configuration or triviality rather than a failure.
    *
-   * A disabled model and a list too short to reorder would otherwise put a
-   * line on every single search in an environment with the flag off.
+   * A disabled model and a single-document corpus would otherwise put a line
+   * on every search in an environment with the flag off. `exact-match-head`
+   * is deliberately **not** quiet: it reads like the same non-event and is
+   * actually ranking being switched off by a filename.
    */
-  const QUIET_REASONS = new Set(["model-disabled", "nothing-to-reorder"]);
+  const QUIET_REASONS = new Set(["model-disabled", "single-candidate"]);
 
   const unchanged = (reason: string | null): RankingOutcome => {
     /**
      * Say why the model stage did not apply.
      *
      * This exists because a real search against the real provider fell back
-     * and **nothing anywhere could say which of five causes it was**.
-     * `fallbackReason` was computed and discarded; the latch reports to
-     * Sentry; nothing on this path logged. From outside the process a silent
+     * and **nothing anywhere could say why**. `fallbackReason` was computed
+     * and discarded; the latch reports to Sentry; nothing on this path
+     * logged. (An earlier version of this comment said "which of five
+     * causes"; there are about ten return shapes here, three of them
+     * interpolated strings, so the number was wrong and is not replaced with
+     * another one.) From outside the process a silent
      * fallback is indistinguishable from a healthy deterministic search, so a
      * feature that turns itself off does it invisibly.
      *
@@ -166,7 +171,8 @@ export async function rerankFileCandidates(
 
   const configured = input.configured ?? isJevConfigured;
   if (!configured()) return unchanged("model-disabled");
-  if (input.candidates.length < 2) return unchanged("nothing-to-reorder");
+  // One document. Genuinely nothing to order, and not worth a line.
+  if (input.candidates.length < 2) return unchanged("single-candidate");
 
   const isRelated = (input.seedPassages?.length ?? 0) > 0;
   const headSize = isRelated
@@ -183,7 +189,17 @@ export async function rerankFileCandidates(
   const head = rankable.slice(0, headSize);
   const tail = rankable.slice(headSize);
 
-  if (head.length < 2) return unchanged("nothing-to-reorder");
+  /**
+   * Fewer than two candidates *survived the exact-match filter*, which is a
+   * different thing from having fewer than two documents.
+   *
+   * Exact filename matches are pulled out above and never reach the model, so
+   * a query that happens to equal a filename removes that document from the
+   * rankable set. In a small corpus that silently disables ranking, and it
+   * looks exactly like a model problem while being a filename coincidence.
+   * It shares no reason string with the trivial case for that reason.
+   */
+  if (head.length < 2) return unchanged("exact-match-head");
 
   const scheduler = input.scheduler ?? getJevScheduler();
   const evaluator = input.evaluator ?? gatewayJevEvaluator;

@@ -303,12 +303,51 @@ describe("rerankFileCandidates", () => {
     expect(scheduler.isBreakerOpen()).toBe(true);
   });
 
-  it("does nothing when there is nothing to reorder", async () => {
+  it("does nothing, quietly, when there is only one document", async () => {
     const outcome = await rerankFileCandidates({
       ...baseInput([candidate("only")]),
       evaluator: evaluatorReturning(() => 3),
     });
-    expect(outcome.fallbackReason).toBe("nothing-to-reorder");
+    expect(outcome.fallbackReason).toBe("single-candidate");
+  });
+
+  it("names an exact-match head separately, and loudly", async () => {
+    // Two documents, one of which the query matched by exact filename. That
+    // one is pulled out of the rankable set, leaving a head of one — so
+    // ranking is disabled by a filename coincidence, not by a shortage of
+    // documents. It used to share `nothing-to-reorder` with the trivial case
+    // above *and* be suppressed along with it, which is the exact failure the
+    // logging change exists to prevent.
+    const { emitted, rankingLog } = (() => {
+      const out: Record<string, unknown>[] = [];
+      let pending: Record<string, unknown> = {};
+      return {
+        emitted: out,
+        rankingLog: {
+          set(fields: Record<string, unknown>) {
+            pending = { ...pending, ...fields };
+          },
+          emit() {
+            out.push(pending);
+            pending = {};
+          },
+        },
+      };
+    })();
+
+    const outcome = await rerankFileCandidates({
+      ...baseInput([
+        candidate("doc-a", { exactNameMatch: true }),
+        candidate("doc-b"),
+      ]),
+      configured: () => true,
+      evaluator: evaluatorReturning(() => 3),
+      rankingLog,
+    });
+
+    expect(outcome.fallbackReason).toBe("exact-match-head");
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].reason).toBe("exact-match-head");
   });
 });
 

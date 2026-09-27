@@ -45,7 +45,7 @@ const SHARED_WINDOW_MS = 60_000;
  * being counted. An arbitrary constant — it only has to be unique among the
  * advisory locks this application takes.
  */
-const ADMISSION_LOCK_KEY = 8_143_072_901_553_001n;
+export const ADMISSION_LOCK_KEY = 8_143_072_901_553_001n;
 
 /** How long an admission row is kept after its window has passed. */
 const ADMISSION_RETENTION_DAYS = 30;
@@ -72,10 +72,7 @@ export async function admitJevRequest(input: {
   model: string;
   /** The epoch this request was prepared under; a change denies admission. */
   preparedEpoch: string;
-  now?: Date;
 }): Promise<AdmissionGrant | null> {
-  const now = input.now ?? new Date();
-
   // Re-read the authorization clocks at the admission point rather than
   // trusting the value retrieval used a moment ago.
   const currentEpoch = await resolveScopeEpoch({
@@ -83,10 +80,6 @@ export async function admitJevRequest(input: {
     actor: input.actor,
   });
   if (currentEpoch !== input.preparedEpoch) return null;
-
-  const expiresAt = new Date(now.getTime() + ADMISSION_VALID_MS);
-  const windowStart = new Date(now.getTime() - SHARED_WINDOW_MS);
-  const dayStart = new Date(now.getTime() - SPEND_WINDOW_MS);
 
   /**
    * The ceiling that actually holds across runtimes.
@@ -126,6 +119,41 @@ export async function admitJevRequest(input: {
         await tx.$executeRaw(
           PrismaRaw.sql`SELECT pg_advisory_xact_lock(${ADMISSION_LOCK_KEY})`,
         );
+
+        /**
+         * The clock starts here, and the position of this line is the whole
+         * fix.
+         *
+         * `ADMISSION_VALID_MS` is 50, and the module contract above puts the
+         * linearization point at *the transaction that writes the row*. The
+         * window was previously opened at function entry, so it was spent on
+         * our own work before the caller ever held the grant: a
+         * `resolveScopeEpoch` round trip, then queueing on
+         * `ADMISSION_LOCK_KEY` behind the rest of its own wave, then an
+         * aggregate scan. On a cold pool that exceeds 50 ms comfortably, so
+         * the caller's `isAdmissionDispatchable` check was already false and
+         * the grant was **born expired**. Observed in preprod as
+         * `reason: "admission-expired"` with `elapsedMs` of 405 and 511 —
+         * both under the 600 ms rank deadline, which is why a deadline could
+         * never have explained it.
+         *
+         * Widening the 50 ms would have been the wrong fix: it is a security
+         * property, not a tuning constant. It bounds how long a grant issued
+         * before a revocation commits may still open a socket. Moving where
+         * the window *starts* preserves that bound exactly and removes only
+         * the self-defeat.
+         *
+         * `clock_timestamp()`, not `now()`: `now()` is fixed at transaction
+         * start in Postgres, so it would be captured **before** the lock wait
+         * and reintroduce the bug it is here to remove.
+         */
+        const [clock] = await tx.$queryRaw<{ committedAt: Date }[]>(
+          PrismaRaw.sql`SELECT clock_timestamp() AS "committedAt"`,
+        );
+        const committedAt = clock?.committedAt ?? new Date();
+        const expiresAt = new Date(committedAt.getTime() + ADMISSION_VALID_MS);
+        const windowStart = new Date(committedAt.getTime() - SHARED_WINDOW_MS);
+        const dayStart = new Date(committedAt.getTime() - SPEND_WINDOW_MS);
 
         /**
          * One scan, five numbers. The outer filter is the *day* window and
@@ -205,7 +233,7 @@ export async function admitJevRequest(input: {
             provider: "vercel-ai-gateway",
             model: input.model,
             inputTokens: input.inputTokens,
-            admittedAt: now,
+            admittedAt: committedAt,
             expiresAt,
           },
           select: { id: true, expiresAt: true },

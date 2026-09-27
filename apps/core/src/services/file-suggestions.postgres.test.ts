@@ -699,6 +699,52 @@ describe.skipIf(!enabled)("the shared admission ceiling", () => {
     expect(Number(row?.costUsd)).toBeCloseTo(0.0042, 6);
   });
 
+  it("issues a grant that is still dispatchable after slow grant work", async () => {
+    // The window must start when the row commits, not when the function is
+    // entered. `ADMISSION_VALID_MS` is 50 ms and the grant's own work — an
+    // epoch round trip, queueing on the one advisory lock behind the rest of
+    // its own wave, then an aggregate scan — routinely exceeds that on a cold
+    // pool. Opened at function entry, the grant was **born expired**: the
+    // caller's `isAdmissionDispatchable` check failed on a grant that had
+    // just been issued. Observed in preprod as `admission-expired` with
+    // `elapsedMs` of 405 and 511, both under the 600 ms rank deadline.
+    //
+    // This reproduces it honestly rather than by mocking a clock: hold the
+    // real advisory lock from another transaction so the admission has to
+    // wait for it, which is exactly the self-inflicted queueing a concurrent
+    // wave causes.
+    const { ADMISSION_LOCK_KEY, isAdmissionDispatchable } = await import(
+      "@/lib/files/jev-admission"
+    );
+
+    const HELD_MS = 250;
+    const blocker = prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRawUnsafe(
+          `SELECT pg_advisory_xact_lock(${ADMISSION_LOCK_KEY})`,
+        );
+        await tx.$executeRawUnsafe(`SELECT pg_sleep(${HELD_MS / 1000})`);
+      },
+      { timeout: 15_000 },
+    );
+
+    // Let the blocker take the lock before the admission asks for it.
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    const startedAt = Date.now();
+    const grant = await admit(10);
+    const waitedMs = Date.now() - startedAt;
+    await blocker;
+
+    expect(grant).not.toBeNull();
+    if (!grant) return;
+
+    // The wait really did exceed the validity window, or this test proves
+    // nothing about where the window starts.
+    expect(waitedMs).toBeGreaterThan(50);
+    expect(isAdmissionDispatchable(grant)).toBe(true);
+  }, 30_000);
+
   it("admits a whole search wave at once, not one of it", async () => {
     // `rerankFileCandidates` fires `PER_QUERY_MAX_CONCURRENT` admissions in
     // one `Promise.all`, so this is one ordinary search, not a stress test.
