@@ -117,6 +117,85 @@ test("resource commands reject mismatched target API keys before Core requests",
   assert.equal(requested, false);
 });
 
+test("Coworker registration defaults to Preprod", async () => {
+  let requests = 0;
+  await assert.rejects(
+    runCli(["coworkers", "register", "--json"], {
+      env: { SOKOSUMI_AUTH_TOKEN: "auth-token" },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async <T>() => {
+          requests += 1;
+          return { data: [] } as T;
+        },
+        post: async <T>() => ({}) as T,
+        patch: async <T>() => ({}) as T,
+      },
+      stdout: { write: () => undefined },
+    }),
+    /organization workspace/,
+  );
+  assert.equal(requests, 1);
+});
+
+test("developer connects a provisioned Coworker through CLI arguments", async () => {
+  const calls: { method: string; path: string; body?: unknown }[] = [];
+  const output: string[] = [];
+  await runCli(
+    [
+      "coworkers",
+      "connect",
+      "cw-1",
+      "--vendor-id",
+      "vendor-1",
+      "--workspace-id",
+      "org-1",
+      "--json",
+    ],
+    {
+      env: { SOKOSUMI_AUTH_TOKEN: "auth-token" },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async <T>(path: string) => {
+          calls.push({ method: "GET", path });
+          if (path === "/v1/coworkers/cw-1")
+            return { data: { id: "cw-1", vendor: { id: "vendor-1" } } } as T;
+          if (path.endsWith("/organizations"))
+            return { data: [{ id: "org-1", role: "member" }] } as T;
+          if (path.endsWith("/vendors/me"))
+            return { data: [{ id: "vendor-1", role: "admin" }] } as T;
+          throw new Error(`Unexpected GET ${path}`);
+        },
+        post: async <T>(path: string, body: unknown) => {
+          calls.push({ method: "POST", path, body });
+          return {
+            data: {
+              id: "access-1",
+              coworkerId: "cw-1",
+              workspaceId: "workspace-1",
+              status: "GRANTED",
+            },
+          } as T;
+        },
+        patch: async <T>() => ({}) as T,
+      },
+      stdout: { write: (value) => output.push(value) },
+    },
+  );
+
+  assert.deepEqual(calls, [
+    { method: "GET", path: "/v1/users/me/organizations" },
+    { method: "GET", path: "/v1/vendors/me" },
+    { method: "GET", path: "/v1/coworkers/cw-1" },
+    {
+      method: "POST",
+      path: "/v1/coworkers/cw-1/workspace-access",
+      body: { organizationId: "org-1" },
+    },
+  ]);
+  assert.equal(JSON.parse(output.join("")).workspaceAccess.status, "GRANTED");
+});
+
 test("preflight rejects unauthenticated resource commands before Core", async () => {
   let coreCalls = 0;
   const output: string[] = [];
@@ -214,6 +293,14 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
   for (const name of GLOBAL_VALUE_OPTIONS) {
     assert.match(help, new RegExp(`--${escape(name)}\\b`));
   }
+  assert.match(
+    help,
+    /Give its ID and your final Coworker name to the organizer/,
+  );
+  assert.match(
+    help,
+    /coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID/,
+  );
 
   const globalIndex = help.indexOf("Global options:");
   assert.notEqual(globalIndex, -1);
