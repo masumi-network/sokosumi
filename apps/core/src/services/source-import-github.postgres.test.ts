@@ -42,8 +42,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
  *    carries a fresh UUID, so no other process knows it exists, let alone
  *    writes to it. Isolation therefore holds for the whole run, not at one
  *    checkpoint.
- * 4. `afterAll` disconnects and drops it. A database left by a crashed run
- *    is inert and named `files_import_test_*`.
+ * 4. Cleanup names that one generated database and nothing else: a plain
+ *    `DROP DATABASE`, never `FORCE`, and never a scan for databases that
+ *    merely look like this suite's. If the drop does not succeed the copy is
+ *    left in place and its exact name is printed, because an inert leftover
+ *    costs a manual `DROP DATABASE "<name>"` while dropping the wrong one
+ *    costs a concurrent run its data.
  *
  * The zero-pending assertion is kept as a cheap invariant: in a database
  * this suite just created it should be trivially true, and if it ever is
@@ -56,6 +60,11 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
  *   RUN_NETWORK_INTEGRATION_TESTS=true                                 \
  *   pnpm --filter @sokosumi/core exec vitest run                       \
  *     src/services/source-import-github.postgres.test.ts
+ *
+ * A run killed outright can leave one `files_import_test_<uuid>` copy behind.
+ * Nothing reclaims it automatically, on purpose: dropping databases that only
+ * look like this suite's is how one run destroys another's. Drop it by hand,
+ * by the name the run printed.
  *
  * No credentials are used against GitHub: both URLs are public,
  * unauthenticated GETs.
@@ -95,25 +104,6 @@ async function provisionIsolatedDatabase(source: string): Promise<string> {
   const admin = new Client({ connectionString: maintenanceUrl(source) });
   await admin.connect();
   try {
-    // Sweep copies a previous run failed to drop. Vitest skips `afterAll`
-    // when `beforeAll` throws, so an aborted run does leak one; the prefix
-    // is only ever produced here, so this cannot remove anything else.
-    //
-    // Copies with a live connection are left alone: those belong to another
-    // run of this suite happening right now, not to a crash.
-    const stale = await admin.query<{ datname: string }>(
-      `SELECT datname FROM pg_database d
-        WHERE datname LIKE 'files_import_test_%'
-          AND NOT EXISTS (
-            SELECT 1 FROM pg_stat_activity a WHERE a.datname = d.datname
-          )`,
-    );
-    for (const row of stale.rows) {
-      await admin.query(
-        `DROP DATABASE IF EXISTS "${row.datname}" WITH (FORCE)`,
-      );
-    }
-
     // Identifiers cannot be bound as parameters. Both are quoted; the name
     // is generated here and the template comes from the operator's own URL.
     await admin.query(
@@ -129,25 +119,49 @@ async function provisionIsolatedDatabase(source: string): Promise<string> {
   return name;
 }
 
+/**
+ * Give back the one database this run created, and nothing else.
+ *
+ * `name` is the exact string `provisionIsolatedDatabase` generated, never a
+ * pattern, so no other run's copy is reachable from here. The drop is plain:
+ * `FORCE` would terminate whatever is attached, and this has no way to know
+ * that what is attached is not another process. A drop that does not succeed
+ * therefore leaves the copy alone and reports its name; it holds no data
+ * anyone needs and a human can remove it with the printed statement.
+ */
 async function dropIsolatedDatabase(
   source: string,
   name: string,
 ): Promise<void> {
   const { Client } = await import("pg");
   const admin = new Client({ connectionString: maintenanceUrl(source) });
-  await admin.connect();
   try {
-    try {
-      await admin.query(`DROP DATABASE IF EXISTS "${name}"`);
-    } catch {
-      // Only if something is still attached. FORCE terminates those
-      // backends, which the plain drop above avoids so that a tidy run
-      // never has its own sockets killed underneath it.
-      await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
-    }
+    await admin.connect();
+    await admin.query(`DROP DATABASE IF EXISTS "${name}"`);
+  } catch (error) {
+    console.warn(
+      `[source-import-github.postgres] could not drop the throwaway database ` +
+        `"${name}"; it is left in place. Remove it with: DROP DATABASE "${name}"`,
+      error,
+    );
   } finally {
-    await admin.end();
+    await admin.end().catch(() => {});
   }
+}
+
+/**
+ * Disconnect and hand back this run's copy, exactly once.
+ *
+ * Prisma has to let go first: the drop is deliberately not forced, so an open
+ * pool would keep the database alive and leak it.
+ */
+async function releaseProvisionedDatabase(): Promise<void> {
+  const allocated = provisionedDatabase;
+  provisionedDatabase = null;
+  if (!allocated) return;
+
+  await prismaHolder.client?.$disconnect().catch(() => {});
+  await dropIsolatedDatabase(templateDatabaseUrl as string, allocated);
 }
 
 /** The exact URL from the report: a page *about* a Markdown file. */
@@ -255,58 +269,63 @@ describe.skipIf(!enabled)("GitHub-linked import against PostgreSQL", () => {
       templateDatabaseUrl as string,
     );
 
-    const { default: prisma } = await import("@/lib/db/prisma");
+    try {
+      const { default: prisma } = await import("@/lib/db/prisma");
 
-    await assertNoForeignPendingWork();
+      await assertNoForeignPendingWork();
 
-    const user = await prisma.user.create({
-      data: {
-        name: "Import fixture",
-        email: `import-fixture-${suffix}@example.test`,
-        emailVerified: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
-    userId = user.id;
+      const user = await prisma.user.create({
+        data: {
+          name: "Import fixture",
+          email: `import-fixture-${suffix}@example.test`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+      userId = user.id;
 
-    const workspace = await prisma.workspace.create({
-      data: { userId },
-      select: { id: true },
-    });
-    workspaceId = workspace.id;
+      const workspace = await prisma.workspace.create({
+        data: { userId },
+        select: { id: true },
+      });
+      workspaceId = workspace.id;
 
-    const task = await prisma.task.create({
-      data: {
-        ownerId: userId,
-        creatorUserId: userId,
-        workspaceId,
-        name: `Import fixture task ${suffix}`,
-      },
-      select: { id: true },
-    });
-    taskId = task.id;
+      const task = await prisma.task.create({
+        data: {
+          ownerId: userId,
+          creatorUserId: userId,
+          workspaceId,
+          name: `Import fixture task ${suffix}`,
+        },
+        select: { id: true },
+      });
+      taskId = task.id;
+    } catch (error) {
+      // Release here rather than leaning on `afterAll`: its teardown is
+      // written against fixtures that were never created. Releasing reports
+      // rather than throws, so the original failure is what surfaces.
+      await releaseProvisionedDatabase();
+      throw error;
+    }
   });
 
   afterAll(async () => {
-    if (!enabled) return;
-    const { default: prisma } = await import("@/lib/db/prisma");
-    await prisma.taskFile.deleteMany({ where: { taskId } });
-    await prisma.task.deleteMany({ where: { id: taskId } });
-    await prisma.workspace.deleteMany({ where: { id: workspaceId } });
-    await prisma.user.deleteMany({ where: { id: userId } });
+    // This still runs when `beforeAll` threw, and that path has already
+    // released the copy — there is nothing left to talk to.
+    if (!enabled || !provisionedDatabase) return;
+    try {
+      const { default: prisma } = await import("@/lib/db/prisma");
+      await prisma.taskFile.deleteMany({ where: { taskId } });
+      await prisma.task.deleteMany({ where: { id: taskId } });
+      await prisma.workspace.deleteMany({ where: { id: workspaceId } });
+      await prisma.user.deleteMany({ where: { id: userId } });
 
-    // A failure part-way through must not leave pending work behind.
-    await assertNoForeignPendingWork();
-
-    // The copy exists only for this run.
-    await prisma.$disconnect();
-    if (provisionedDatabase) {
-      await dropIsolatedDatabase(
-        templateDatabaseUrl as string,
-        provisionedDatabase,
-      );
-      provisionedDatabase = null;
+      // A failure part-way through must not leave pending work behind.
+      await assertNoForeignPendingWork();
+    } finally {
+      // Whatever the teardown found, the copy exists only for this run.
+      await releaseProvisionedDatabase();
     }
   });
 
