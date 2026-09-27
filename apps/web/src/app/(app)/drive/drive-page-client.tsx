@@ -1741,6 +1741,9 @@ function DrivePageWorkspace({
           }
           viewMode={layoutMode}
           isMobile={isMobile}
+          // Global search's "See all files" arrives with the query already
+          // typed; dropping it made the reader type it a second time.
+          initialQuery={searchParams.get("q") ?? ""}
         />
       ) : isRecentsView ? (
         <DriveRecentsPanel

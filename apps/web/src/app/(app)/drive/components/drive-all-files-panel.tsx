@@ -63,6 +63,8 @@ export interface DriveAllFilesPanelProps {
   store: FileStore;
   viewMode: FilesViewMode;
   isMobile: boolean;
+  /** The `q` the reader arrived with, from global search's "See all files". */
+  initialQuery?: string;
 }
 
 interface SearchState {
@@ -77,11 +79,15 @@ export function DriveAllFilesPanel({
   store,
   viewMode,
   isMobile,
+  initialQuery = "",
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
 
-  const [query, setQuery] = useState("");
-  const [appliedQuery, setAppliedQuery] = useState("");
+  // "See all files" in global search navigates to `/drive?view=all&q=…`.
+  // The panel used to start empty and drop it, so the reader arrived at an
+  // unfiltered list and had to retype what they had just typed.
+  const [query, setQuery] = useState(initialQuery);
+  const [appliedQuery, setAppliedQuery] = useState(initialQuery);
   const [filters, setFilters] = useState<FileSearchFilterState>({
     ...EMPTY_FILE_FILTERS,
   });
@@ -106,7 +112,18 @@ export function DriveAllFilesPanel({
   const storeKey = `${store.scope}:${store.organizationId ?? ""}`;
 
   const runSearch = useCallback(
-    async (input: { query: string; filters: FileSearchFilterState }) => {
+    async (input: {
+      query: string;
+      filters: FileSearchFilterState;
+      /**
+       * Keep whatever is selected, narrowed to rows that came back.
+       *
+       * The refresh after a partial bulk edit deliberately leaves the failed
+       * rows selected so the reader can retry exactly those — and then this
+       * function cleared them a tick later, defeating the comment above it.
+       */
+      keepSelection?: boolean;
+    }) => {
       const sequence = sequenceRef.current + 1;
       sequenceRef.current = sequence;
       abortRef.current?.abort();
@@ -133,8 +150,16 @@ export function DriveAllFilesPanel({
           loadingMore: false,
           error: null,
         });
-        setSelectedIds([]);
-        setSelectionToken(null);
+        if (input.keepSelection) {
+          // A row that is no longer in the result set cannot be retried, so
+          // it does not stay selected either.
+          setSelectedIds((current) =>
+            current.filter((id) => page.items.some((item) => item.id === id)),
+          );
+        } else {
+          setSelectedIds([]);
+          setSelectionToken(null);
+        }
       } catch {
         if (controller.signal.aborted) return;
         if (sequence !== sequenceRef.current) return;
@@ -312,7 +337,7 @@ export function DriveAllFilesPanel({
         setSelectedIds(failed.map((outcome) => outcome.resourceId));
       }
       setSelectionToken(null);
-      await runSearch({ query: appliedQuery, filters });
+      await runSearch({ query: appliedQuery, filters, keepSelection: true });
     } catch {
       toast.error(t("bulkError"));
     } finally {
