@@ -55,10 +55,16 @@ export function focusableWithin(root: HTMLElement): HTMLElement[] {
  * Take the rest of the document out of play while `kept` is on top of it.
  *
  * `inert` rather than `aria-hidden`, because the bug being fixed was not only
- * that a screen reader could still reach the page underneath — it was that
- * Tab could, and that a bare `a` keypress still landed on the gallery behind
- * the panel. `aria-hidden` addresses none of that; `inert` removes the subtree
- * from the tab order, from hit testing and from the accessibility tree at once.
+ * that a screen reader could still reach the page underneath — the keyboard
+ * and the pointer could too. `aria-hidden` addresses neither; `inert` removes
+ * the subtree from the tab order, from hit testing and from the accessibility
+ * tree at once.
+ *
+ * What it does *not* do is stop the studio's global review shortcuts. Those
+ * are a listener on `window`, and a keypress whose target is `<body>` reaches
+ * it whatever is inert. Suspending them while the panel is modal is a separate
+ * guard in the studio's own keydown handler, and this is not a substitute
+ * for it.
  *
  * Only the siblings along `kept`'s ancestor chain are marked, never an
  * ancestor of `kept` itself, and an element that was already inert is left
