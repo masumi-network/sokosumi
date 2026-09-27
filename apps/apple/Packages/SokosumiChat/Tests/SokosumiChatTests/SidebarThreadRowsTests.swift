@@ -1,6 +1,6 @@
 import CoreAPI
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 /// Row 24g2: a room's unread Threads inset under its sidebar row, as web's `ChatRoomThreadRows` lists them
