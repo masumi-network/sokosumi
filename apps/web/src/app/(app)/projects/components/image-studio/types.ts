@@ -27,6 +27,24 @@ export function isActive(job: StudioJob): boolean {
 }
 
 /**
+ * A timestamp on a studio row, as epoch milliseconds.
+ *
+ * The generated types say `Date`, and on these rows that is not true. The
+ * studio reads its state by two routes — the server component hands the first
+ * copy down, and the poll goes through this app's own `/state` handler, which
+ * is `NextResponse.json` and therefore stringifies every date. So the same
+ * field is a `Date` on one path and an ISO string on the other, and calling
+ * `.getTime()` on it took the whole studio into the error boundary on the
+ * deployment. The rest of this folder already casts these to `string` for the
+ * same reason; this accepts either and says so.
+ */
+function epochMs(value: Date | string | null | undefined): number | null {
+  if (!value) return null;
+  const ms = value instanceof Date ? value.getTime() : Date.parse(value);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
  * How long the provider spent on a job, in milliseconds.
  *
  * `submittedAt` to `settledAt` is the provider's own time, which is the number
@@ -35,13 +53,15 @@ export function isActive(job: StudioJob): boolean {
  * that wait is this studio's doing rather than the model's, so it is only the
  * fallback for a job that somehow settled without a submission timestamp.
  *
- * `null` for anything still running, and for a negative interval — clock skew
- * between the rows is not a generation that took less than no time.
+ * `null` for anything still running, for an unreadable timestamp, and for a
+ * negative interval — clock skew between the rows is not a generation that took
+ * less than no time.
  */
 export function generationElapsedMs(job: StudioJob): number | null {
-  if (!job.settledAt) return null;
-  const started = job.submittedAt ?? job.createdAt;
-  const elapsed = job.settledAt.getTime() - started.getTime();
+  const settled = epochMs(job.settledAt);
+  const started = epochMs(job.submittedAt) ?? epochMs(job.createdAt);
+  if (settled === null || started === null) return null;
+  const elapsed = settled - started;
   return elapsed >= 0 ? elapsed : null;
 }
 

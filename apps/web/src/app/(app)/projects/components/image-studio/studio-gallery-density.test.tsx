@@ -184,15 +184,30 @@ function job(id: string, status: string, error?: string) {
   } as unknown as StudioJob;
 }
 
-/** A finished job, with real Dates, so the elapsed arithmetic is exercised. */
-function settledJob(id: string, assetId: string, elapsedMs: number) {
+/**
+ * A finished job.
+ *
+ * `shape` exists because the two routes the studio reads state by disagree: the
+ * server component hands down real `Date`s and the poll goes through
+ * `NextResponse.json`, which stringifies them. The generated type claims `Date`
+ * either way, and believing it took the studio into the error boundary on the
+ * deployment — so both shapes are tested.
+ */
+function settledJob(
+  id: string,
+  assetId: string,
+  elapsedMs: number,
+  shape: "date" | "iso" = "iso",
+) {
   const submittedAt = new Date("2026-09-26T00:00:00Z");
+  const settledAt = new Date(submittedAt.getTime() + elapsedMs);
+  const as = (value: Date) => (shape === "date" ? value : value.toISOString());
   return {
     ...job(id, "SUCCEEDED"),
     assetId,
-    createdAt: submittedAt,
-    submittedAt,
-    settledAt: new Date(submittedAt.getTime() + elapsedMs),
+    createdAt: as(submittedAt),
+    submittedAt: as(submittedAt),
+    settledAt: as(settledAt),
   } as unknown as StudioJob;
 }
 
@@ -320,6 +335,29 @@ describe("a gallery with work in it", () => {
     // Model A is $0.04 an image at 1K in TEST_CATALOG, and the tilde is what
     // says this is a list price rather than a charge.
     expect(tile?.textContent).toContain("~$0.04");
+  });
+
+  it("reads the same timing when the dates arrive as Date objects", () => {
+    mount(
+      [
+        {
+          ...ASSET,
+          id: "v1",
+          settings: {
+            aspectRatio: "1:1",
+            resolution: "1K",
+            outputFormat: "png",
+            seed: null,
+            placementId: null,
+          },
+        } as unknown as StudioAsset,
+      ],
+      [settledJob("j1", "v1", 3_200, "date")],
+    );
+
+    expect(
+      document.querySelector("figure[data-asset-id]")?.textContent,
+    ).toContain("3.2s");
   });
 
   it("says nothing about time for a version whose job is off the page", () => {
