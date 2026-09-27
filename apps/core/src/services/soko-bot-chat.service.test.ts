@@ -40,6 +40,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
+        sokoBotTurn: { findUnique: turnFindUnique },
         chatRoomMention: { updateMany: mentionUpdateMany },
         chatRoomMessage: {
           update: messageUpdate,
@@ -70,11 +71,11 @@ vi.mock("@/helpers/chat-human-mentions", () => ({
 }));
 
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
+import prisma from "@/lib/db/prisma";
 
 import {
-  deliverSokoBotTurnToDirectRoom,
-  finalizeSokoBotChatTurn,
   introduceSokoBot,
+  persistSokoBotChatTurn,
   publishSokoBotChatProgress,
 } from "./soko-bot-chat.service";
 
@@ -120,21 +121,17 @@ beforeEach(() => {
   publish.mockResolvedValue(undefined);
 });
 
-describe("finalizeSokoBotChatTurn", () => {
-  it("publishes a successful response once and preserves its completion clock on retry", async () => {
+describe("persistSokoBotChatTurn", () => {
+  it("persists a successful response once and preserves its completion clock on retry", async () => {
     mentionUpdateMany
       .mockResolvedValueOnce({ count: 1 })
       .mockResolvedValueOnce({ count: 0 });
-    await finalizeSokoBotChatTurn("turn-a");
-    await finalizeSokoBotChatTurn("turn-a");
-    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
-      userIds: ["reader"],
-      roomId: "room-a",
-      collections: ["active"],
-    });
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    expect(publishChatRoomsChanged).not.toHaveBeenCalled();
     expect(messageUpdate).toHaveBeenCalledOnce();
     expect(roomUpdate).toHaveBeenCalledOnce();
-    expect(publish).toHaveBeenCalledTimes(2);
+    expect(publish).not.toHaveBeenCalled();
     expect(mentionUpdateMany).toHaveBeenCalledWith({
       where: { id: "mention-a", status: { in: ["pending", "sent"] } },
       data: { status: "responded", error: null },
@@ -146,39 +143,8 @@ describe("finalizeSokoBotChatTurn", () => {
     expect(messageUpdate.mock.calls[0][0].data).not.toHaveProperty("createdAt");
   });
 
-  it("writes the human mention rows with the answer and notifies once published", async () => {
-    persistChatHumanMentionsMock.mockResolvedValueOnce(["user_1"]);
-
-    await finalizeSokoBotChatTurn("turn-a");
-
-    expect(persistChatHumanMentionsMock).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        messageId: "response-a",
-        roomId: "room-a",
-        content: "The answer is ready.",
-      },
-    );
-    expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
-      messageId: "response-a",
-      mentionedUserIds: ["user_1"],
-    });
-  });
-
-  it("notifies nobody when the answer names no member", async () => {
-    await finalizeSokoBotChatTurn("turn-a");
-
-    expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
-    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
-  });
-
-  it("writes no mention rows for a turn that failed", async () => {
-    turnFindUnique.mockResolvedValue(
-      completedTurn({ status: "FAILED", finalAnswer: null }),
-    );
-
-    await finalizeSokoBotChatTurn("turn-a");
-
+  it("leaves human mention activation and notification to audience-checked delivery", async () => {
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     expect(persistChatHumanMentionsMock).not.toHaveBeenCalled();
     expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
   });
@@ -187,33 +153,19 @@ describe("finalizeSokoBotChatTurn", () => {
     turnFindUnique.mockResolvedValue(
       completedTurn({ finalAnswer: "", chainDepth: 0 }),
     );
-    await finalizeSokoBotChatTurn("turn-a");
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     expect(mentionUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "failed" }),
       }),
     );
     expect(publishChatRoomsChanged).not.toHaveBeenCalled();
-    expect(publish).toHaveBeenCalledTimes(2);
-  });
-
-  it("publishes the response while control fan-out is pending", async () => {
-    const control = Promise.withResolvers<void>();
-    vi.mocked(publishChatRoomsChanged).mockReturnValueOnce(control.promise);
-    const finishing = finalizeSokoBotChatTurn("turn-a");
-    try {
-      await vi.waitFor(() =>
-        expect(publish).toHaveBeenCalledWith("response-a", "update"),
-      );
-    } finally {
-      control.resolve();
-      await finishing;
-    }
+    expect(publish).not.toHaveBeenCalled();
   });
 
   it("does not overwrite a response after another finalizer wins", async () => {
     mentionUpdateMany.mockResolvedValue({ count: 0 });
-    await finalizeSokoBotChatTurn("turn-a");
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     expect(messageUpdate).not.toHaveBeenCalled();
     expect(roomUpdate).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
@@ -224,7 +176,7 @@ describe("finalizeSokoBotChatTurn", () => {
       completedTurn({ status: "FAILED", finalAnswer: null }),
     );
     mentionUpdateMany.mockResolvedValue({ count: 0 });
-    await finalizeSokoBotChatTurn("turn-a");
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     expect(messageUpdate).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
   });
@@ -233,7 +185,7 @@ describe("finalizeSokoBotChatTurn", () => {
     turnFindUnique.mockResolvedValue(
       completedTurn({ status: "FAILED", finalAnswer: null }),
     );
-    await finalizeSokoBotChatTurn("turn-a");
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     expect(messageUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -250,8 +202,9 @@ describe("finalizeSokoBotChatTurn", () => {
       completedTurn({ chainDepth: 1, finalAnswer: "" }),
     );
     mentionUpdateMany.mockResolvedValue({ count: 0 });
-    await finalizeSokoBotChatTurn("turn-a");
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     expect(messageDelete).not.toHaveBeenCalled();
+    expect(messageUpdate).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
   });
 });
@@ -281,67 +234,6 @@ describe("introduceSokoBot", () => {
     expect(result).toEqual({ messageId: "msg-existing" });
     expect(messageCreate).not.toHaveBeenCalled();
     expect(publishChatRoomsChanged).not.toHaveBeenCalled();
-  });
-});
-
-describe("deliverSokoBotTurnToDirectRoom", () => {
-  const scheduledTurn = {
-    source: "SCHEDULE",
-    status: "COMPLETED",
-    finalAnswer: "@owner the digest is ready.",
-    userId: "owner",
-    chatMention: null,
-    sokoBotId: "bot-a",
-  };
-
-  it("writes the human mention rows with the answer and notifies once published", async () => {
-    turnFindUnique.mockResolvedValue(scheduledTurn);
-    persistChatHumanMentionsMock.mockResolvedValueOnce(["owner"]);
-
-    await deliverSokoBotTurnToDirectRoom("turn-a");
-
-    expect(persistChatHumanMentionsMock).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        messageId: "msg-new",
-        roomId: "room-a",
-        content: "@owner the digest is ready.",
-      },
-    );
-    expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
-      messageId: "msg-new",
-      mentionedUserIds: ["owner"],
-    });
-  });
-
-  it("notifies nobody when the answer names no member", async () => {
-    turnFindUnique.mockResolvedValue({
-      ...scheduledTurn,
-      finalAnswer: "Here is the digest.",
-    });
-
-    await deliverSokoBotTurnToDirectRoom("turn-a");
-
-    expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
-    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
-  });
-
-  it("invalidates readers after posting a non-chat turn into the direct room", async () => {
-    turnFindUnique.mockResolvedValue({
-      source: "SCHEDULE",
-      status: "COMPLETED",
-      finalAnswer: "Here is the digest.",
-      userId: "owner",
-      chatMention: null,
-      sokoBotId: "bot-a",
-    });
-    await deliverSokoBotTurnToDirectRoom("turn-a");
-    expect(messageCreate).toHaveBeenCalledOnce();
-    expect(publishChatRoomsChanged).toHaveBeenCalledExactlyOnceWith({
-      userIds: ["reader"],
-      roomId: "room-a",
-      collections: ["active"],
-    });
   });
 });
 

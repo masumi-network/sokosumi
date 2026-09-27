@@ -5,6 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 
 const {
+  metadataUpsertMock,
+  metadataUpdateMock,
+  inboxFindManyMock,
   botFindManyMock,
   delegationFindManyMock,
   eventFindManyMock,
@@ -15,6 +18,13 @@ const {
   taskFindManyMock,
   watchUpsertMock,
 } = vi.hoisted(() => ({
+  metadataUpsertMock: vi.fn().mockResolvedValue({
+    key: "board",
+    cursorId: null,
+    createdAt: new Date(0),
+  }),
+  metadataUpdateMock: vi.fn(),
+  inboxFindManyMock: vi.fn().mockResolvedValue([]),
   botFindManyMock: vi.fn(),
   delegationFindManyMock: vi.fn(),
   eventFindManyMock: vi.fn(),
@@ -28,6 +38,8 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    syncMetadata: { upsert: metadataUpsertMock, update: metadataUpdateMock },
+    sokoBotEventInbox: { findMany: inboxFindManyMock },
     sokoBot: { findMany: botFindManyMock },
     sokoBotDelegation: { findMany: delegationFindManyMock },
     sokoBotTaskWatch: { upsert: watchUpsertMock },
@@ -48,7 +60,7 @@ vi.mock("@/services/soko-bot-proactive.service", () => ({
   findAttentionItems: findAttentionItemsMock,
   followUpsBlock: followUpsBlockMock,
   proactiveGate: proactiveGateMock,
-  stampNudges: vi.fn(),
+  stageSokoBotNudges: vi.fn(),
 }));
 
 import {
@@ -157,6 +169,7 @@ describe("SokoBotTaskboardSyncService private Task visibility", () => {
       assigneeId: null,
       assigneeSokoBotId: null,
       updatedAt: new Date(),
+      sokoBotDelegations: [],
       sokoBotWatches: [
         {
           id: "watch-public",
@@ -172,6 +185,7 @@ describe("SokoBotTaskboardSyncService private Task visibility", () => {
       assigneeId: null,
       assigneeSokoBotId: null,
       updatedAt: new Date(),
+      sokoBotDelegations: [],
       sokoBotWatches: [
         {
           id: "watch-secret",
@@ -276,4 +290,133 @@ describe("SokoBotTaskboardSyncService private Task visibility", () => {
     expect(startedMessage).not.toContain("secret-1");
     expect(startedMessage).not.toContain("Offer terms are confidential");
   });
+});
+
+describe("taskboard occurrence cursor", () => {
+  it("does not re-enqueue a consumed trailing event with an earlier pending event", async () => {
+    vi.clearAllMocks();
+    const at = new Date("2026-09-26T10:00:00Z");
+    botFindManyMock.mockResolvedValue([
+      {
+        id: ALICE_BOT_ID,
+        userId: ALICE_USER_ID,
+        workspaceId: ALICE_WORKSPACE_ID,
+        name: "Atlas",
+        followWholeBoard: true,
+        ingestTimezone: "UTC",
+        memoryRevisions: [],
+      },
+    ]);
+    delegationFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([
+      {
+        id: "task-1",
+        name: "Task",
+        status: "READY",
+        assigneeId: null,
+        assigneeSokoBotId: ALICE_BOT_ID,
+        updatedAt: at,
+        sokoBotDelegations: [],
+        sokoBotWatches: [
+          {
+            id: "watch",
+            lastSeenEventAt: new Date(0),
+            lastSeenEventId: "old",
+            lastSeenStatus: "READY",
+          },
+        ],
+      },
+    ]);
+    eventFindManyMock.mockResolvedValue([
+      {
+        id: "event-1",
+        createdAt: at,
+        status: "READY",
+        comment: "first",
+        userId: "human",
+        user: { name: "Human" },
+      },
+      {
+        id: "event-2",
+        createdAt: at,
+        status: "READY",
+        comment: "second",
+        userId: "human",
+        user: { name: "Human" },
+      },
+    ]);
+    inboxFindManyMock.mockResolvedValue([{ eventId: "event-2" }]);
+    findAttentionItemsMock.mockResolvedValue([]);
+    followUpsBlockMock.mockResolvedValue([]);
+    proactiveGateMock.mockResolvedValue({ ok: true });
+    startTurnMock.mockResolvedValue({ turnId: "turn", status: "RUNNING" });
+    await new SokoBotTaskboardSyncService().syncTaskboard({
+      abortSignal: new AbortController().signal,
+      shouldContinue: () => true,
+    });
+    expect(startTurnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventBatch: [
+          expect.objectContaining({ eventId: "event-1", taskCursorAt: at }),
+        ],
+      }),
+    );
+    inboxFindManyMock.mockResolvedValue([]);
+  });
+});
+
+it("baselines assigned historical work and bounds the board page after cutover", async () => {
+  vi.clearAllMocks();
+  const cutover = new Date("2026-09-26");
+  metadataUpsertMock.mockResolvedValue({
+    key: "board",
+    cursorId: "previous",
+    createdAt: cutover,
+  });
+  botFindManyMock.mockResolvedValue([
+    {
+      id: ALICE_BOT_ID,
+      userId: ALICE_USER_ID,
+      workspaceId: ALICE_WORKSPACE_ID,
+      name: "Atlas",
+      followWholeBoard: true,
+      ingestTimezone: "UTC",
+      memoryRevisions: [],
+    },
+  ]);
+  taskFindManyMock.mockResolvedValue(
+    Array.from({ length: 50 }, (_, i) => ({
+      id: `task-${i}`,
+      name: "Old task",
+      status: "READY",
+      updatedAt: new Date("2026-01-01"),
+      assigneeSokoBotId: ALICE_BOT_ID,
+      sokoBotDelegations: [],
+      sokoBotWatches: [],
+    })),
+  );
+  findAttentionItemsMock.mockResolvedValue([]);
+  followUpsBlockMock.mockResolvedValue([]);
+  await new SokoBotTaskboardSyncService().syncTaskboard({
+    abortSignal: new AbortController().signal,
+    shouldContinue: () => true,
+  });
+  expect(taskFindManyMock).toHaveBeenCalledTimes(1);
+  expect(taskFindManyMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      take: 50,
+      where: expect.objectContaining({ id: { gt: "previous" } }),
+    }),
+  );
+  expect(watchUpsertMock).toHaveBeenCalledTimes(50);
+  expect(startTurnMock).not.toHaveBeenCalled();
+  expect(eventFindManyMock).not.toHaveBeenCalled();
+  expect(findAttentionItemsMock).toHaveBeenCalledWith(
+    expect.objectContaining({ cutoverAt: cutover }),
+  );
+  expect(metadataUpdateMock).toHaveBeenCalledWith(
+    expect.objectContaining({
+      data: expect.objectContaining({ cursorId: "task-49" }),
+    }),
+  );
 });

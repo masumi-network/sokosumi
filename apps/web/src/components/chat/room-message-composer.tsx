@@ -29,7 +29,7 @@ const POINTER_SUBMIT_CLICK_GUARD_MS = 400;
  * padding keeps a single line at 3rem without tightening multiline drafts.
  */
 export const ROOM_COMPOSER_TEXTAREA_CLASSNAME = withEditableTextSize(
-  "box-border max-h-40 min-h-12 field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 md:py-3.5 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",
+  "app-scrollbar box-border max-h-40 min-h-12 field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 md:py-3.5 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",
 );
 
 /**
@@ -171,7 +171,7 @@ export function RoomMessageComposer({
           {children}
           {belowEditor}
           <div className="flex items-center justify-between gap-2 px-4 pt-2 pb-3">
-            <div className="text-muted-foreground flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+            <div className="app-scrollbar text-muted-foreground flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
               {toolbarStart}
             </div>
             <div className="flex shrink-0 items-center gap-2">

@@ -822,7 +822,7 @@ function TableWorkspace({
           if (!open) setDialog(null);
         }}
       >
-        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-xl">
+        <DialogContent className="app-scrollbar max-h-[85dvh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>
               {dialog === "views"

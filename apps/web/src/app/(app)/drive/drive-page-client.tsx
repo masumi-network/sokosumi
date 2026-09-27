@@ -1513,7 +1513,7 @@ function DrivePageWorkspace({
 
         {!isTasksView && isBrowseView && breadcrumbSegments.length > 0 ? (
           <nav
-            className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
+            className="app-scrollbar text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
             aria-label={t("breadcrumbNavLabel")}
           >
             {/* The root crumb. It used to be an icon-plus-organization-name
@@ -1552,7 +1552,7 @@ function DrivePageWorkspace({
         ) : null}
         {isTasksView ? (
           <nav
-            className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
+            className="app-scrollbar text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
             aria-label={t("breadcrumbNavLabel")}
           >
             {/* Same root crumb as the browse trail. The tasks view keeps it at
@@ -2331,7 +2331,7 @@ function DrivePageWorkspace({
             </DialogTitle>
             <DialogDescription>{t("moveDialogDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="max-h-96 space-y-2 overflow-y-auto">
+          <div className="app-scrollbar max-h-96 space-y-2 overflow-y-auto">
             {loadingAllFolders ? (
               <p className="text-muted-foreground text-sm">
                 {t("loadingFolders")}

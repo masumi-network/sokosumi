@@ -226,6 +226,15 @@ export type AdminSokoBotOwner = {
 };
 
 export type AdminSokoBotQuality = {
+    reliability: {
+        fulfillment: {
+            [key: string]: number;
+        };
+        delivery: {
+            [key: string]: number;
+        };
+        invalidActionClaims: number;
+    };
     overall: {
         turns: number;
         judged: number;
@@ -582,6 +591,9 @@ export type SokoBotTurn = {
     delegations?: Array<SokoBotDelegation>;
     pendingDecisions?: Array<SokoBotPendingDecision>;
     toolCalls?: Array<SokoBotToolCall>;
+    evaluation?: {
+        [key: string]: unknown;
+    } | null;
     contextSummary?: SokoBotContextSummary;
     contextPacket?: unknown;
     requestedBy?: {

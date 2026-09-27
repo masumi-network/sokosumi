@@ -103,7 +103,7 @@ function SeenByDetail({
   const format = useFormatter();
 
   return (
-    <div className="max-h-64 overflow-y-auto">
+    <div className="app-scrollbar max-h-64 overflow-y-auto">
       <h3 className="text-muted-foreground px-2 pt-1 pb-0.5 text-xs font-medium">
         {t("readersTitle")}
       </h3>

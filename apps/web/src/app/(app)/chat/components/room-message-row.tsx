@@ -1935,7 +1935,7 @@ function MessageEditComposer({
               onCancel();
             }
           }}
-          className="min-h-10 max-h-40 overflow-y-auto px-3 py-2.5 leading-6"
+          className="app-scrollbar min-h-10 max-h-40 overflow-y-auto px-3 py-2.5 leading-6"
         />
       </div>
       {editOverLimit || showEditContentCount ? (

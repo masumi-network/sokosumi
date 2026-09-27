@@ -580,7 +580,7 @@ function CalendarView({
   return (
     <>
       <div
-        className="workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
+        className="app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
         data-can-create={canCreate ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
@@ -1141,7 +1141,7 @@ export function WorkspaceCalendar({
             <TabsList
               className={cn(
                 SEGMENTED_TABS_LIST_CLASS_NAME,
-                "h-auto max-w-full w-fit flex-wrap max-sm:w-full max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+                "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:w-full max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
               )}
               data-testid="calendar-views"
             >

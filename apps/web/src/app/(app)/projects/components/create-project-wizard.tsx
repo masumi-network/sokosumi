@@ -189,7 +189,7 @@ export function CreateProjectWizard({
           </span>
         </div>
 
-        <div className="flex min-h-0 flex-col overflow-y-auto px-6 py-6 sm:px-16">
+        <div className="app-scrollbar flex min-h-0 flex-col overflow-y-auto px-6 py-6 sm:px-16">
           <div
             key={isBrandStep ? "brand" : step}
             className="animate-in fade-in-0 slide-in-from-bottom-1 my-auto w-full duration-200 ease-out motion-reduce:animate-none"
@@ -295,7 +295,7 @@ export function CreateProjectWizard({
                     </dt>
                     <dd>
                       {briefing.trim() ? (
-                        <p className="text-foreground max-h-40 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
+                        <p className="app-scrollbar text-foreground max-h-40 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
                           {briefing.trim()}
                         </p>
                       ) : (
