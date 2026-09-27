@@ -96,7 +96,15 @@ function DocumentTextBody({
     );
   }
 
-  return <DocumentTextPreview title={fileName} content={state.content} />;
+  // The dialog header above already names this file; a second letterhead
+  // here read as a nested document.
+  return (
+    <DocumentTextPreview
+      title={fileName}
+      content={state.content}
+      showLetterhead={false}
+    />
+  );
 }
 
 /** Bound so a hung connection cannot pin the viewer on the loading skeleton. */

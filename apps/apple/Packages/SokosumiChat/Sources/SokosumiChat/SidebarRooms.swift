@@ -217,14 +217,14 @@ public func resolveRoomAttention(_ room: Components.Schemas.ChatRoom, showUnread
 
 /// Web's `roomBadgeCountsMentions`: Core writes a notification for every message only in a Direct of two
 /// humans or fewer, so there the badge counts messages; everywhere else, a group Direct included, mentions.
-public func roomBadgeCountsMentions(_ room: Components.Schemas.ChatRoom) -> Bool {
+func roomBadgeCountsMentions(_ room: Components.Schemas.ChatRoom) -> Bool {
   !(room.kind == .direct && room.userMembers.count <= 2)
 }
 
 /// Web's `roomAttentionAfterRead`: the room the moment the reader reads it, before Core answers. A read
 /// empties Room unread, the badge and a hand-set mark; it does not Look the room's Threads, so the Thread
 /// half stays and is all that is left of the total (ADR 0037).
-public func roomAttentionAfterRead(_ room: Components.Schemas.ChatRoom) -> Components.Schemas.ChatRoom {
+func roomAttentionAfterRead(_ room: Components.Schemas.ChatRoom) -> Components.Schemas.ChatRoom {
   var room = room
   let threadUnread = room.threadUnreadCount ?? 0
   room.unreadCount = threadUnread

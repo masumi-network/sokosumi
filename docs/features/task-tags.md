@@ -16,8 +16,9 @@ and grant-pending tasks use existing mutation restrictions.
 `TASK_TAG_CLASSIFICATION_ENABLED=true` is the default; set it to `false` to stop
 automatic inference. A configured `AI_GATEWAY_API_KEY` is required. The cron-authenticated
 `/sync/task-tags` endpoint reuses the existing sync lock/deadline, handles at most
-10 tasks serially, and permits at most two attempts per content revision. Leases,
-revision/workspace checks, and compare-and-set writes discard obsolete results.
+50 queued and 200 historical tasks serially per tick, and permits at most two
+attempts per content revision. Leases, revision/workspace checks, and
+compare-and-set writes discard obsolete results.
 Human corrections are never overwritten by the worker.
 
 Jev uses Gateway `/v1/evaluate`, model `typesafe-ai/jev`, ten boolean questions,

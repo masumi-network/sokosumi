@@ -2158,7 +2158,6 @@
           "clear": "Borrar filtro",
           "noMatches": "Ningún proyecto coincide con «{query}»."
         },
-        "sortedBy": "Ordenado por actividad reciente",
         "lastActivity": "Última actividad",
         "created": "Creado",
         "pin": "Fijar proyecto",

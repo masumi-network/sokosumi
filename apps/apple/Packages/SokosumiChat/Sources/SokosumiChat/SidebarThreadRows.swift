@@ -57,7 +57,7 @@ public enum SidebarRoomListItem: Identifiable, Equatable, Sendable {
 
 /// The room's inset unread Threads: `unreadThreads` exactly as Core sends it (newest unread reply first,
 /// capped at three by Core), none for a muted room, which lists nothing (web's room mute outranks them).
-public func sidebarThreadRows(_ room: Components.Schemas.ChatRoom) -> [SidebarThreadRow] {
+func sidebarThreadRows(_ room: Components.Schemas.ChatRoom) -> [SidebarThreadRow] {
   guard room.mutedAt == nil, let threads = room.unreadThreads, !threads.isEmpty else { return [] }
   let names = MessageMentions(room: room).previewNames
   return threads.map {
@@ -71,7 +71,7 @@ public func sidebarThreadRows(_ room: Components.Schemas.ChatRoom) -> [SidebarTh
 
 /// What the cap left out: `unreadThreadCount` past the listed rows, falling back to the listed count for a
 /// summary that predates it. Zero while nothing is listed, since web then draws no rows at all.
-public func sidebarMoreThreadsCount(_ room: Components.Schemas.ChatRoom) -> Int {
+func sidebarMoreThreadsCount(_ room: Components.Schemas.ChatRoom) -> Int {
   let listed = room.unreadThreads?.count ?? 0
   guard listed > 0 else { return 0 }
   return max(0, (room.unreadThreadCount ?? listed) - listed)

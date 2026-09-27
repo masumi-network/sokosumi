@@ -38,7 +38,7 @@ public actor OAuthSession {
   public private(set) var generation = 0
   private var refreshTask: Task<String, any Error>?
 
-  public init(
+  init(
     configuration: OAuthConfiguration,
     store: any TokenStore,
     transport: any TokenEndpointTransport,
@@ -50,13 +50,13 @@ public actor OAuthSession {
     self.now = now
   }
 
-  public var isSignedIn: Bool {
+  var isSignedIn: Bool {
     store.load() != nil
   }
 
   /// Completes sign-in from the `ASWebAuthenticationSession` callback URL
   /// (`com.sokosumi.app:/auth?code=…&state=…`), exchanging the code with PKCE.
-  public func signIn(callbackURL: URL, expectedState: String, codeVerifier: String) async throws {
+  func signIn(callbackURL: URL, expectedState: String, codeVerifier: String) async throws {
     guard
       let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
       components.scheme == OAuthConfiguration.callbackScheme,
@@ -90,7 +90,7 @@ public actor OAuthSession {
   /// A usable access token: cached while fresh, silently refreshed via
   /// `offline_access` when expired. Throws `needsSignIn` when the refresh
   /// token is dead so the UI returns to sign-in.
-  public func validAccessToken() async throws -> String {
+  func validAccessToken() async throws -> String {
     guard let tokens = store.load() else {
       throw OAuthError.needsSignIn
     }
@@ -119,7 +119,7 @@ public actor OAuthSession {
 
   /// True only when the store confirms the tokens are gone.
   @discardableResult
-  public func signOut() -> Bool {
+  func signOut() -> Bool {
     generation += 1
     refreshTask?.cancel()
     refreshTask = nil

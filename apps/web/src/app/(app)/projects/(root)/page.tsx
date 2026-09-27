@@ -77,7 +77,6 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
             placeholder: t("list.filter.placeholder"),
             clear: t("list.filter.clear"),
           },
-          sortedBy: t("list.sortedBy"),
           noMatches: t("list.filter.noMatches", { query }),
         }}
       />
