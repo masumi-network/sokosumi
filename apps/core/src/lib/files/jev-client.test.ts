@@ -12,8 +12,10 @@ const MODEL = "typesafe-ai/jev";
 
 const env = {
   FILES_JEV_ENABLED: true,
-  FILES_RANKING_MODEL: MODEL,
   AI_GATEWAY_API_KEY: "test-gateway-key",
+  // Deliberately present and wrong: the model must come from the pinned
+  // literal, not from anything a deployment can set.
+  FILES_RANKING_MODEL: "someone-else/model",
 };
 
 vi.mock("@/config/env", () => ({ getEnv: () => env }));
@@ -119,6 +121,38 @@ describe("the request it sends", () => {
   });
 });
 
+describe("the model it addresses", () => {
+  it("sends the pinned literal, never a value from the environment", async () => {
+    fetchMock.mockResolvedValue(
+      reply({ directly_answers: true, partly_answers: true, mentions: true }),
+    );
+
+    await gatewayJevEvaluator.evaluate({ request, rubric: "relevance" });
+
+    // `env.FILES_RANKING_MODEL` is set to another model above. A free-form
+    // env string used to decide this, so a typo in a deployment's config
+    // would have sent document text to whatever it named.
+    expect(sentBody().model).toBe(MODEL);
+    expect(sentBody().model).not.toBe(env.FILES_RANKING_MODEL);
+  });
+
+  it("rejects a reply that came back from a different model", async () => {
+    fetchMock.mockResolvedValue(
+      reply(
+        { directly_answers: true, partly_answers: true, mentions: true },
+        { model: "someone-else/model" },
+      ),
+    );
+
+    const outcome = await gatewayJevEvaluator.evaluate({
+      request,
+      rubric: "relevance",
+    });
+
+    expect(outcome.reason).toBe("model-mismatch");
+  });
+});
+
 describe("the ordinal it derives", () => {
   it.each([
     [{ directly_answers: true, partly_answers: true, mentions: true }, 3],
@@ -137,10 +171,33 @@ describe("the ordinal it derives", () => {
     expect(outcome.score).toBe(expected);
   });
 
-  it("takes the highest true rung even when a lower one disagrees", async () => {
-    // A model may answer "directly answers" without conceding "mentions".
+  it.each([
+    [{ directly_answers: true, partly_answers: false, mentions: false }],
+    [{ directly_answers: true, partly_answers: true, mentions: false }],
+    [{ directly_answers: false, partly_answers: true, mentions: false }],
+  ])("refuses the self-contradictory set %o", async (answers) => {
+    // The rungs are nested claims: directly answering implies mentioning.
+    // An answer set that breaks that is not a confident 3, it is a reply we
+    // cannot trust. This test previously asserted the opposite — that the
+    // highest true rung wins regardless — which is what made the ladder fail
+    // open.
+    fetchMock.mockResolvedValue(reply(answers));
+
+    const outcome = await gatewayJevEvaluator.evaluate({
+      request,
+      rubric: "relevance",
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.score).toBeNull();
+    // A distinct reason, not "invalid-answers": the reply parsed fine, it
+    // just disagreed with itself.
+    expect(outcome.reason).toBe("contradictory-answers");
+  });
+
+  it("still accepts a properly nested set", async () => {
     fetchMock.mockResolvedValue(
-      reply({ directly_answers: true, partly_answers: false, mentions: false }),
+      reply({ directly_answers: false, partly_answers: true, mentions: true }),
     );
 
     const outcome = await gatewayJevEvaluator.evaluate({
@@ -148,7 +205,8 @@ describe("the ordinal it derives", () => {
       rubric: "relevance",
     });
 
-    expect(outcome.score).toBe(3);
+    expect(outcome.ok).toBe(true);
+    expect(outcome.score).toBe(2);
   });
 
   it("refuses a partial answer rather than scoring it low", async () => {

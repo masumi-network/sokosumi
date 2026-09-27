@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-
 import {
   buildJevLabelRequest,
   buildJevRelatedPairRequest,
@@ -7,10 +6,12 @@ import {
   conservativeTokenCount,
   isJevRequestRejection,
   LABEL_EVALUATION_CEILINGS,
+  PROVIDER_FRAMING_TOKEN_ALLOWANCE,
   RELATED_PAIR_CEILINGS,
   SEARCH_PAIR_CEILINGS,
   truncateToTokenBudget,
 } from "./jev-request";
+import { rubricEnvelopeTokens } from "./jev-rubrics";
 
 describe("conservativeTokenCount", () => {
   it("counts code points, so an emoji is one and not two", () => {
@@ -172,5 +173,71 @@ describe("buildJevLabelRequest", () => {
     });
     if (isJevRequestRejection(result)) throw new Error("unexpected rejection");
     expect(result.serialized).toContain("label-7");
+  });
+});
+
+describe("what the ceiling actually counts", () => {
+  /**
+   * The budget is supposed to be "tokens in the entire request". It stopped
+   * being that when the rubric moved into the transport's question map: the
+   * measurement kept counting only the state and added a flat 64 for
+   * everything else, under-reporting a relevance call by about 686 tokens.
+   */
+  it("counts the transport envelope, not just the state", () => {
+    const result = buildJevSearchPairRequest({
+      query: "commuter research",
+      candidateId: "resource-1",
+      candidateTitle: "Commuters",
+      candidateExcerpt: "Findings about bicycle commuters.",
+    });
+    expect(isJevRequestRejection(result)).toBe(false);
+    if (isJevRequestRejection(result)) return;
+
+    const stateOnly = conservativeTokenCount(result.serialized);
+    const envelope = rubricEnvelopeTokens("relevance");
+
+    // The reported figure is the state plus the envelope plus the small
+    // remaining slack — not the state plus 64.
+    expect(result.tokens).toBe(
+      stateOnly + envelope + PROVIDER_FRAMING_TOKEN_ALLOWANCE,
+    );
+    expect(result.tokens).toBeGreaterThan(stateOnly + 600);
+  });
+
+  it("charges a label request its own, smaller envelope", () => {
+    const result = buildJevLabelRequest({
+      documentExcerpt: "Findings about bicycle commuters.",
+      vocabulary: [{ id: "label-1", name: "Commuting", description: null }],
+      projects: [],
+    });
+    expect(isJevRequestRejection(result)).toBe(false);
+    if (isJevRequestRejection(result)) return;
+
+    expect(result.tokens).toBe(
+      conservativeTokenCount(result.serialized) +
+        rubricEnvelopeTokens("belongs") +
+        PROVIDER_FRAMING_TOKEN_ALLOWANCE,
+    );
+  });
+
+  it("measures the envelope rather than hard-coding it", () => {
+    // Two rungs versus three, so the figures must differ — and both must be
+    // far above the flat allowance they replaced.
+    const relevance = rubricEnvelopeTokens("relevance");
+    const belongs = rubricEnvelopeTokens("belongs");
+
+    expect(relevance).toBeGreaterThan(belongs);
+    expect(belongs).toBeGreaterThan(PROVIDER_FRAMING_TOKEN_ALLOWANCE * 5);
+  });
+
+  it("still leaves the documented content budget intact", () => {
+    // Raising the totals was to absorb the envelope, not to shrink what a
+    // document may contribute.
+    expect(SEARCH_PAIR_CEILINGS.components.candidate).toBe(640);
+    expect(SEARCH_PAIR_CEILINGS.total).toBeGreaterThan(
+      SEARCH_PAIR_CEILINGS.components.query +
+        SEARCH_PAIR_CEILINGS.components.candidate +
+        rubricEnvelopeTokens("relevance"),
+    );
   });
 });

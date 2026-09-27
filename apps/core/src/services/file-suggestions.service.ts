@@ -6,7 +6,6 @@ import {
   FileMetadataState,
 } from "@sokosumi/database";
 
-import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
 import {
@@ -26,6 +25,7 @@ import {
   buildJevLabelRequest,
   isJevRequestRejection,
 } from "@/lib/files/jev-request";
+import { FILES_RANKING_MODEL } from "@/lib/files/jev-rubrics";
 import { getJevScheduler } from "@/lib/files/jev-scheduler";
 
 /**
@@ -168,7 +168,7 @@ export async function runSuggestionJob(
 
   const scheduler = getJevScheduler();
   const evaluator = dependencies.evaluator ?? gatewayJevEvaluator;
-  const model = getEnv().FILES_RANKING_MODEL;
+  const model = FILES_RANKING_MODEL;
   let suggested = 0;
 
   /**

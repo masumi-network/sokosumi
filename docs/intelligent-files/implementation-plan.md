@@ -75,6 +75,14 @@ send a title and a description, Files would send document body text, which is a
 larger surface to turn on without a human saying so. Flipping the default is a
 one-line change once someone decides to.
 
+An earlier version of this document also justified the default on the grounds that
+reported usage had been reconciled against the serialized-input ceilings. **That
+was not true**, and not only because the reconciliation needs live calls we are not
+authorized to make: the ceiling it named excluded most of the request, so there was
+nothing meaningful to reconcile against. The ceiling now covers the whole request
+(see §7), which makes that reconciliation possible to do later — it still has not
+been done.
+
 This branch adds no EU routing and no ZDR claim to any surface. An independently
 configured workspace restriction that already blocks external inference is still
 honoured — dropping the EU requirement from *this feature* does not authorise
@@ -217,11 +225,30 @@ independent; `hasMore` means unconsumed positions, not additional corpus matches
 - Transport: AI Gateway, model id `typesafe-ai/jev`, evaluation shape (typed
   questions over supplied state) — not the chat streaming interface, and not
   `@sokosumi/ai-provider`, which is the chat provider and stays untouched.
-- Budget unit is tokens in the **entire canonical serialized request**. Ceilings:
-  search pair 1,024, related pair 2,048, label/category/project evaluation 4,096.
-  Fields are bounded, truncated at safe boundaries, re-serialized and re-measured;
-  JSON is never chopped. If the request still exceeds the ceiling, it is rejected,
-  not sent.
+- Budget unit is tokens in the **entire request sent to the Gateway** — the state,
+  and the envelope the transport wraps around it. Ceilings: search pair 1,700,
+  related pair 2,800, label/category/project evaluation 4,400. Fields are bounded,
+  truncated at safe boundaries, re-serialized and re-measured; JSON is never
+  chopped. If the request still exceeds the ceiling, it is rejected, not sent.
+- **Corrected figures.** The ceilings above were 1,024 / 2,048 / 4,096 when the
+  rubric and the question lived in the measured body. Once the ladder moved into
+  the transport's question map, the measurement kept counting only the state and
+  added a flat 64 for "framing", which under-counted **every** call:
+
+  | Call | Envelope, measured | Old allowance | Under-count |
+  | --- | --- | --- | --- |
+  | Search or related pair (`relevance`, three rungs) | 750 | 64 | **686** |
+  | Label evaluation (`belongs`, two rungs) | 603 | 64 | **539** |
+
+  `rubricEnvelopeTokens` now serializes the real envelope and counts it, so the
+  figure follows the rubrics when one is reworded. The totals rose by roughly the
+  under-count so the **content** budgets are unchanged: a search pair still gets
+  128 tokens of query and 640 of candidate.
+
+  For re-deriving cost: a search rerank is up to 24 pair calls, each now bounded at
+  1,700 tokens of input rather than 1,024 — so the worst-case input for one
+  reranked search is about **40,800 tokens**, not 24,576. A label pass is one call
+  per candidate label at 4,400.
 - Scheduler: global token buckets (3,600 req/min, 60 req/s, burst 12, 24 concurrent),
   ≤6 per query, per-workspace ≤30 req/s. Interactive work reserves 80 %; background
   labelling takes ≤20 % and never borrows interactive capacity.

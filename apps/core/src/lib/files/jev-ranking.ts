@@ -1,4 +1,3 @@
-import { getEnv } from "@/config/env";
 import type { FileActor } from "@/lib/files/actor";
 import {
   admitJevRequest,
@@ -12,6 +11,7 @@ import {
   buildJevSearchPairRequest,
   isJevRequestRejection,
 } from "@/lib/files/jev-request";
+import { FILES_RANKING_MODEL } from "@/lib/files/jev-rubrics";
 import type { JevWorkClass } from "@/lib/files/jev-scheduler";
 import {
   getJevScheduler,
@@ -116,7 +116,7 @@ export async function rerankFileCandidates(
   const admit = input.admit ?? admitJevRequest;
   const recordDispatch = input.recordDispatch ?? recordJevDispatch;
   const clock = input.now ?? (() => Date.now());
-  const model = getEnv().FILES_RANKING_MODEL;
+  const model = FILES_RANKING_MODEL;
   const workClass = input.workClass ?? "interactive";
   const deadline = clock() + RANK_DEADLINE_MS;
 

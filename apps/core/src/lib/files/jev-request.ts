@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
 
+import {
+  type JevRubricKey,
+  rubricEnvelopeTokens,
+} from "@/lib/files/jev-rubrics";
+
 /**
  * Building a Jev request inside an exact token ceiling.
  *
@@ -11,14 +16,34 @@ import { createHash } from "node:crypto";
  *
  * We do not have Jev's tokenizer. Rather than estimate from characters and
  * hope, this module uses a documented **upper bound**: no byte-pair
- * tokenizer emits more tokens than the input has Unicode code points, plus a
- * fixed allowance for provider-added framing. Over-counting costs us a few
- * characters of excerpt; under-counting would silently blow a paid budget.
- * Reconciling reported usage against this bound needs live calls, which are
- * not authorized, so `FILES_JEV_ENABLED` stays off by default.
+ * tokenizer emits more tokens than the input has Unicode code points.
+ * Over-counting costs us a few characters of excerpt; under-counting would
+ * silently blow a paid budget.
+ *
+ * ## What "the entire request" had stopped meaning
+ *
+ * The bound used to add a flat 64-token allowance for "provider-added
+ * framing we cannot see". That was true when the rubric and the question
+ * lived in this body. They do not any more: the transport wraps this body
+ * under `state` and adds the model id, the whole question map with an
+ * instruction paragraph per rung, and the retention options. Measured,
+ * that envelope is **750 code points for a relevance call and 603 for a
+ * `belongs` call** — so the ceiling was under-counting every request by
+ * roughly 540 to 690 tokens, and the docstring above was describing a
+ * measurement that no longer happened.
+ *
+ * `rubricEnvelopeTokens` now serializes the real envelope and counts it, so
+ * the figure follows the rubrics automatically when one is reworded. Live
+ * reconciliation against reported usage still needs calls we are not
+ * authorized to make, so `FILES_JEV_ENABLED` stays off by default — but the
+ * ceiling it would be reconciled against is now the whole request.
  */
 
-/** Conservative allowance for provider-added framing we cannot see. */
+/**
+ * Slack above the measured envelope, for transport framing we genuinely
+ * cannot see — HTTP headers the provider adds, a chat template, a BOS
+ * token. Small on purpose: the large, knowable part is measured now.
+ */
 export const PROVIDER_FRAMING_TOKEN_ALLOWANCE = 64;
 
 export interface TokenCeilings {
@@ -27,19 +52,26 @@ export interface TokenCeilings {
   components: Record<string, number>;
 }
 
+/**
+ * Totals now cover the envelope as well as the content, so they had to rise
+ * by about what the old measurement was missing. The **content** budgets are
+ * unchanged: a search pair still gets 128 tokens of query and 640 of
+ * candidate. What changed is that the ceiling no longer pretends the
+ * question map is free.
+ */
 export const SEARCH_PAIR_CEILINGS: TokenCeilings = {
-  total: 1_024,
-  components: { query: 128, candidate: 640, framing: 256 },
+  total: 1_700,
+  components: { query: 128, candidate: 640 },
 };
 
 export const RELATED_PAIR_CEILINGS: TokenCeilings = {
-  total: 2_048,
-  components: { seeds: 768, candidate: 1_024, framing: 256 },
+  total: 2_800,
+  components: { seeds: 768, candidate: 1_024 },
 };
 
 export const LABEL_EVALUATION_CEILINGS: TokenCeilings = {
-  total: 4_096,
-  components: { excerpt: 2_048, vocabulary: 1_536, framing: 512 },
+  total: 4_400,
+  components: { excerpt: 2_048, vocabulary: 1_536 },
 };
 
 /**
@@ -129,10 +161,15 @@ const LABEL_RUBRIC =
 function finalize(
   body: Record<string, unknown>,
   ceilings: TokenCeilings,
+  rubric: JevRubricKey,
 ): JevRequestResult {
   const serialized = JSON.stringify(body);
+  // The state, plus everything the transport wraps around it. Counting only
+  // the state is what let a relevance call under-report by ~686 tokens.
   const tokens =
-    conservativeTokenCount(serialized) + PROVIDER_FRAMING_TOKEN_ALLOWANCE;
+    conservativeTokenCount(serialized) +
+    rubricEnvelopeTokens(rubric) +
+    PROVIDER_FRAMING_TOKEN_ALLOWANCE;
 
   if (tokens > ceilings.total) {
     // Ids and rubric are fixed overhead: if they alone no longer fit, the
@@ -160,11 +197,12 @@ function fitWithin(
   ceilings: TokenCeilings,
   build: (excerptBudget: number) => Record<string, unknown>,
   initialExcerptBudget: number,
+  rubric: JevRubricKey,
 ): JevRequestResult {
   let budget = initialExcerptBudget;
 
   for (let attempt = 0; attempt < 12; attempt += 1) {
-    const result = finalize(build(budget), ceilings);
+    const result = finalize(build(budget), ceilings, rubric);
     if (!isJevRequestRejection(result)) return result;
     if (budget <= 0) return result;
     budget = Math.floor(budget / 2);
@@ -193,6 +231,7 @@ export function buildJevSearchPairRequest(
       },
     }),
     SEARCH_PAIR_CEILINGS.components.candidate,
+    "relevance",
   );
 }
 
@@ -222,6 +261,7 @@ export function buildJevRelatedPairRequest(
       },
     }),
     RELATED_PAIR_CEILINGS.components.candidate,
+    "relevance",
   );
 }
 
@@ -260,5 +300,6 @@ export function buildJevLabelRequest(input: JevLabelInput): JevRequestResult {
       projects,
     }),
     LABEL_EVALUATION_CEILINGS.components.excerpt,
+    "belongs",
   );
 }

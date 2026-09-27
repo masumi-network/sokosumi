@@ -151,17 +151,19 @@ const baseEnvSchema = z.object({
     .startsWith("mistral/")
     .default("mistral/mistral-medium-3.5"),
   /**
-   * Model that reorders Files search candidates and scores taxonomy
-   * suggestions. Jev is an evaluation model reached through AI Gateway; it
-   * never sees a document the reader is not already authorized to read.
-   */
-  FILES_RANKING_MODEL: z.string().min(1).default("typesafe-ai/jev"),
-  /**
-   * Off by default, and it must stay off until reported usage has been
-   * reconciled against the serialized-input ceilings in
-   * `lib/files/jev-request.ts` on a route we are allowed to call. Disabled
-   * means Files ranks with deterministic filename and full-text order — the
-   * product works, it just does not reorder semantically.
+   * Off by default. Files would send document body text, which is a larger
+   * surface than the task-tag classifier's title and description, so turning
+   * it on is a decision someone makes rather than a default.
+   *
+   * Reported usage has **not** been reconciled against the ceilings in
+   * `lib/files/jev-request.ts`; that needs live calls we are not authorized
+   * to make. Until recently it could not have been done at all, because the
+   * ceiling counted only the state and missed the transport envelope — ~686
+   * tokens on a relevance call. It now covers the whole request, so the
+   * reconciliation is possible once someone is allowed to run it.
+   *
+   * Disabled means Files ranks with deterministic filename and full-text
+   * order — the product works, it just does not reorder semantically.
    */
   FILES_JEV_ENABLED: z
     .enum(["true", "false"])
