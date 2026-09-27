@@ -87,11 +87,19 @@ export interface JevEvaluationOutcome {
  * question; being able to see that it happened is not optional, so latching
  * reports itself once, with the instance it happened on.
  *
- * Two places already record it besides the report below. Every subsequent
- * evaluation returns `provider-options-rejected`, which
- * `recordJevDispatch` writes against the admission row, and the search
- * response carries it as `fallbackReason`, which the UI already shows as a
- * deterministic-order explanation.
+ * One place records it besides the report below: every subsequent evaluation
+ * returns `provider-options-rejected`, which `recordJevDispatch` writes
+ * against the admission row.
+ *
+ * **Nowhere else.** An earlier version of this comment claimed the search
+ * response carries the reason as `fallbackReason` and that the UI shows it.
+ * Neither is true — `fallbackReason` is computed by `jev-ranking.ts` and read
+ * by nothing but its tests, it is absent from `fileSearchMetaSchema`, and no
+ * web code references it. A reader who trusts that sentence stops looking for
+ * an explanation that was never there, so it is corrected rather than
+ * softened. From outside the process a fallback is visible only as
+ * `rankingMode: "deterministic"`, which is also what a healthy search
+ * returns; surfacing the reason is a recorded follow-up.
  */
 let providerOptionsRejected = false;
 
