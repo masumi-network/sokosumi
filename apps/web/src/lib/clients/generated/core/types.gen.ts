@@ -45140,10 +45140,6 @@ export type GetTasksResponse = GetTasksResponses[keyof GetTasksResponses];
 export type PostTasksData = {
     body?: {
         tagSuggestionReceipt?: string;
-        tagCorrections?: {
-            add?: Array<TaskTagId>;
-            remove?: Array<TaskTagId>;
-        };
         name?: string;
         description?: string | null;
         projectId?: string | null;
@@ -47552,99 +47548,6 @@ export type PatchTasksByIdResponses = {
 };
 
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
-
-export type PatchTasksByIdTagsData = {
-    body?: {
-        add?: Array<TaskTagId>;
-        remove?: Array<TaskTagId>;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/tasks/{id}/tags';
-};
-
-export type PatchTasksByIdTagsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchTasksByIdTagsError = PatchTasksByIdTagsErrors[keyof PatchTasksByIdTagsErrors];
-
-export type PatchTasksByIdTagsResponses = {
-    /**
-     * Persisted task tags
-     */
-    200: {
-        data: TaskTags;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchTasksByIdTagsResponse = PatchTasksByIdTagsResponses[keyof PatchTasksByIdTagsResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;

@@ -96,8 +96,19 @@ describe("POST /tasks/tag-suggestions", () => {
     expect((await request(input, app(user, false))).status).not.toBe(200);
     expect(mocks.suggest).not.toHaveBeenCalled();
   });
+  it("admits short authored content the old 40-character floor rejected", async () => {
+    // 16 letters. Before the shared minimum came down to 15 this was a 422, which
+    // is why the composer showed nothing until roughly 50 characters were typed.
+    const body = { name: "Design new logo set" };
+    expect((await request(body)).status).toBe(200);
+    expect(mocks.suggest).toHaveBeenCalledWith(
+      { userId: "user", workspaceId: "workspace" },
+      body,
+    );
+  });
   it.each([
     { name: "tiny" },
+    { name: "Design a logo" },
     { name: "x".repeat(301) },
     { description: "x".repeat(8001) },
     { description: "! ".repeat(50) },

@@ -22,8 +22,6 @@ import {
   type TaskLink,
   TaskLinkRelation,
   TaskStatus,
-  type TaskTagId,
-  type TaskTags,
   type UserWritableTaskLinkRelation,
 } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
@@ -40,7 +38,6 @@ import {
 
 interface CreateTaskParameters extends AuthenticatedRequest {
   tagSuggestionReceipt?: string;
-  tagCorrections?: { add: TaskTagId[]; remove: TaskTagId[] };
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -162,7 +159,6 @@ interface DeleteTaskLinkParameters extends AuthenticatedRequest {
 interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   name?: string;
   tagSuggestionReceipt?: string;
-  tagCorrections?: { add: TaskTagId[]; remove: TaskTagId[] };
   taskId: string;
   description: string;
   assigneeId: string | null;
@@ -360,7 +356,6 @@ function resolveAssigneeWrite(
 
 async function createTaskFromDescription(input: {
   tagSuggestionReceipt?: string;
-  tagCorrections?: { add: TaskTagId[]; remove: TaskTagId[] };
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -396,7 +391,6 @@ async function createTaskFromDescription(input: {
     ...(input.tagSuggestionReceipt
       ? { tagSuggestionReceipt: input.tagSuggestionReceipt }
       : {}),
-    ...(input.tagCorrections ? { tagCorrections: input.tagCorrections } : {}),
     description: trimmedDescription,
     ...assigneeWrite,
     projectId: normalizedProjectId ?? null,
@@ -529,7 +523,6 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   async ({
     name,
     tagSuggestionReceipt,
-    tagCorrections,
     description,
     assigneeId,
     assigneeSokoBotId,
@@ -546,7 +539,6 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         ...(name ? { name } : {}),
         description,
         tagSuggestionReceipt,
-        tagCorrections,
         assigneeId,
         assigneeSokoBotId,
         assigneeUserId,
@@ -867,7 +859,6 @@ export const createTaskAndLink = withSession<
     taskId,
     name,
     tagSuggestionReceipt,
-    tagCorrections,
     description,
     assigneeId,
     assigneeSokoBotId,
@@ -894,7 +885,6 @@ export const createTaskAndLink = withSession<
         description,
         name,
         tagSuggestionReceipt,
-        tagCorrections,
         assigneeId,
         assigneeSokoBotId,
         assigneeUserId,
@@ -948,20 +938,3 @@ export const createTaskAndLink = withSession<
     }
   },
 );
-
-export const updateTaskTags = withSession<
-  AuthenticatedRequest & {
-    taskId: string;
-    add: TaskTagId[];
-    remove: TaskTagId[];
-  },
-  ActionResultDto<TaskTags, ActionError>
->(async ({ taskId, add, remove }) => {
-  try {
-    const tags = await taskService.patchTaskTags(taskId, { add, remove });
-    revalidateTaskMutationRoutes(taskId);
-    return toActionResult(ok(tags));
-  } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
-  }
-});
