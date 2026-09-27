@@ -1,5 +1,8 @@
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
-import { patchTasksByIdTags } from "@/lib/clients/generated/core";
+import {
+  suggestTaskTags as coreSuggestTaskTags,
+  patchTasksByIdTags,
+} from "@/lib/clients/generated/core";
 import type { PatchTasksByIdTagsData } from "@/lib/clients/generated/core/types.gen";
 
 /** Pause, resume, and end each have their own Task Schedule route. */
@@ -130,6 +133,7 @@ import {
   browseSokoBotSkills as coreBrowseSokoBotSkills,
   cancelMySokoBotTurn as coreCancelMySokoBotTurn,
   claimCoupon as coreClaimCoupon,
+  completeMySokoBotIntegrationAuth as coreCompleteMySokoBotIntegrationAuth,
   connectMySokoBotIntegration as coreConnectMySokoBotIntegration,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
@@ -3809,6 +3813,17 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function suggestTaskTags(body: {
+    name?: string;
+    description?: string | null;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSuggestTaskTags({ client, body }),
+      "Task tag suggestions unavailable",
+    );
+  }
+
   async function patchTaskTags(
     id: string,
     body: NonNullable<PatchTasksByIdTagsData["body"]>,
@@ -4762,6 +4777,15 @@ export function createCoreClient(getClient: GetCoreClient) {
       (client) =>
         coreFinalizeMySokoBotIntegration({ client, path: { provider } }),
       "Failed to finish the integration",
+    );
+  }
+
+  async function completeMySokoBotIntegrationAuth(sessionUri: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreCompleteMySokoBotIntegrationAuth({ client, body: { sessionUri } }),
+      "Failed to verify the integration",
     );
   }
 
@@ -5762,6 +5786,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasksSummary,
     patchTask,
     patchTaskTags,
+    suggestTaskTags,
     putJobShare,
     putTaskShare,
     listTaskSchedules,
@@ -5796,6 +5821,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     searchSokoBotIntegrationCatalog,
     connectMySokoBotIntegration,
     finalizeMySokoBotIntegration,
+    completeMySokoBotIntegrationAuth,
     disconnectMySokoBotIntegration,
     listMySokoBotSkills,
     getSokoBotTeam,

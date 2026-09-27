@@ -1,6 +1,10 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: () => ({ value: "grid" }) }),
+}));
+
 const getSessionMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const loadTaskScheduleAssigneeOptionsMock = vi.fn();
@@ -46,7 +50,7 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
   },
 }));
 
-import { SchedulesPageContent } from "./page";
+import { SchedulesPageContent } from "./schedules-page-content";
 
 const PROJECT = { id: "project-1", name: "Release planning" };
 const SCHEDULE = { id: "schedule-1", name: "Weekly report" };
@@ -86,6 +90,7 @@ describe("SchedulesPage", () => {
       scheduleState: "PAUSED",
     });
 
+    expect(props.defaultViewMode).toBe("grid");
     expect(listSchedulesMock).toHaveBeenCalledWith({
       projectId: PROJECT.id,
       state: "PAUSED",

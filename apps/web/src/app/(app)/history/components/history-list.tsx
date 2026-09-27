@@ -64,8 +64,8 @@ export function HistoryList({
   return (
     <div key={filterResetKey} className="flex flex-col gap-5">
       {hasHistory ? (
-        <div className="bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
-          <ul className="divide-border divide-y">
+        <div className="bg-card-background overflow-hidden rounded-xl p-2">
+          <ul className="flex flex-col gap-2">
             {items.map((item) => (
               <li key={`${item.kind}:${item.id}`}>
                 <HistoryListItem
@@ -105,7 +105,7 @@ export function HistoryList({
 
 function HistoryEmptyState({ labels }: { labels: HistoryListLabels["empty"] }) {
   return (
-    <div className="bg-card-background border-border flex min-h-[320px] flex-col items-center justify-center rounded-xl border px-6 py-12 text-center">
+    <div className="bg-card-background flex min-h-[320px] flex-col items-center justify-center rounded-xl px-6 py-12 text-center">
       <div className="max-w-sm">
         <h2 className="text-foreground text-lg font-semibold">
           {labels.title}

@@ -179,6 +179,14 @@ export const sokoBotService = {
     return response.data.status;
   },
 
+  async completeIntegrationAuth(
+    sessionUri: string,
+  ): Promise<{ provider: string; status: string }> {
+    const response =
+      await coreClient.completeMySokoBotIntegrationAuth(sessionUri);
+    return response.data;
+  },
+
   async disconnectIntegration(provider: string): Promise<void> {
     await coreClient.disconnectMySokoBotIntegration(provider);
   },

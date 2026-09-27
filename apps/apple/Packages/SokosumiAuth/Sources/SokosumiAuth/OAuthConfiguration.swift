@@ -70,7 +70,7 @@ public struct OAuthConfiguration: Sendable {
   }
 }
 
-public enum OAuthError: Error, Equatable {
+enum OAuthError: Error, Equatable {
   case invalidAuthorizeURL
   case invalidCallbackURL
   case stateMismatch

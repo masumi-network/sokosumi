@@ -1,10 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { classifyPendingTaskTags } from "./task-tag-classification.service";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  classifyFixtureTaskTags,
+  classifyPendingTaskTags,
+} from "./task-tag-classification.service";
 
 const {
   availableMock,
   classifyMock,
   findManyMock,
+  countMock,
   updateManyMock,
   logSetMock,
   logEmitMock,
@@ -12,6 +16,7 @@ const {
   availableMock: vi.fn(),
   classifyMock: vi.fn(),
   findManyMock: vi.fn(),
+  countMock: vi.fn(),
   updateManyMock: vi.fn(),
   logSetMock: vi.fn(),
   logEmitMock: vi.fn(),
@@ -22,7 +27,13 @@ vi.mock("@/clients/task-tag-classifier", () => ({
   classifyTaskTags: classifyMock,
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { task: { findMany: findManyMock, updateMany: updateManyMock } },
+  default: {
+    task: {
+      findMany: findManyMock,
+      updateMany: updateManyMock,
+      count: countMock,
+    },
+  },
 }));
 vi.mock("@/lib/evlog", () => ({
   createCoreLogger: () => ({ set: logSetMock, emit: logEmitMock }),
@@ -34,6 +45,8 @@ const task = {
   description: "Private description",
   tagContentRevision: 4,
   tagClassificationAttempts: 0,
+  tagClassificationState: "pending",
+  tagClassificationLease: null,
   automaticTags: ["writing"],
   manualTags: ["design"],
   rejectedTags: ["research"],
@@ -44,10 +57,14 @@ const context = {
   msRemaining: () => 60_000,
   shouldContinue: () => true,
 };
+afterEach(() => {
+  vi.useRealTimers();
+});
 beforeEach(() => {
   vi.resetAllMocks();
   availableMock.mockResolvedValue(true);
-  findManyMock.mockResolvedValue([task]);
+  findManyMock.mockResolvedValue([]).mockResolvedValueOnce([task]);
+  countMock.mockResolvedValue(0);
   updateManyMock.mockResolvedValue({ count: 1 });
   classifyMock.mockResolvedValue({
     ok: true,
@@ -86,7 +103,17 @@ describe("classifyPendingTaskTags", () => {
             },
           ],
         },
-        take: 10,
+        take: 50,
+        select: {
+          id: true,
+          workspaceId: true,
+          name: true,
+          description: true,
+          tagContentRevision: true,
+          tagClassificationAttempts: true,
+          tagClassificationState: true,
+          tagClassificationLease: true,
+        },
       }),
     );
     const claim = updateManyMock.mock.calls[0]![0];
@@ -96,7 +123,8 @@ describe("classifyPendingTaskTags", () => {
         workspaceId: task.workspaceId,
         archivedAt: null,
         tagContentRevision: 4,
-        tagClassificationState: { in: ["pending", "running"] },
+        tagClassificationState: "pending",
+        tagClassificationLease: null,
         tagClassificationAvailableAt: { lte: expect.any(Date) },
         tagClassificationAttempts: 0,
       },
@@ -135,7 +163,7 @@ describe("classifyPendingTaskTags", () => {
     expect(JSON.stringify(logSetMock.mock.calls)).not.toContain(
       task.description,
     );
-    expect(logEmitMock).toHaveBeenCalledTimes(1);
+    expect(logEmitMock).toHaveBeenCalledTimes(2);
   });
   it("does not evaluate when another worker already owns the claim", async () => {
     updateManyMock.mockResolvedValue({ count: 0 });
@@ -161,9 +189,12 @@ describe("classifyPendingTaskTags", () => {
   it.each([0, 1])(
     "bounds failures after attempt %s and preserves existing tags",
     async (attempts) => {
-      findManyMock.mockResolvedValue([
-        { ...task, tagClassificationAttempts: attempts },
-      ]);
+      findManyMock
+        .mockReset()
+        .mockResolvedValue([])
+        .mockResolvedValueOnce([
+          { ...task, tagClassificationAttempts: attempts },
+        ]);
       classifyMock.mockResolvedValue({ ok: false, reason: "http_503" });
       await classifyPendingTaskTags(context);
       expect(updateManyMock.mock.calls[1]![0]).toEqual({
@@ -193,20 +224,23 @@ describe("classifyPendingTaskTags", () => {
       outcome: "failed",
       reason: "provider_or_validation_error",
     });
-    expect(logEmitMock).toHaveBeenCalledTimes(1);
+    expect(logEmitMock).toHaveBeenCalledTimes(2);
     expect(updateManyMock.mock.calls[1]![0].data.tagClassificationState).toBe(
       "pending",
     );
   });
   it("recovers an expired final lease within the batch without another evaluation", async () => {
-    findManyMock.mockResolvedValue([
-      {
-        ...task,
-        tagClassificationState: "running",
-        tagClassificationAttempts: 2,
-        tagClassificationLease: "expired-lease",
-      },
-    ]);
+    findManyMock
+      .mockReset()
+      .mockResolvedValue([])
+      .mockResolvedValueOnce([
+        {
+          ...task,
+          tagClassificationState: "running",
+          tagClassificationAttempts: 2,
+          tagClassificationLease: "expired-lease",
+        },
+      ]);
     await classifyPendingTaskTags(context);
     expect(findManyMock.mock.calls[0]![0].where).toMatchObject({
       OR: [
@@ -233,14 +267,17 @@ describe("classifyPendingTaskTags", () => {
     expect(classifyMock).not.toHaveBeenCalled();
   });
   it("leaves a renewed final lease untouched when recovery loses its compare-and-set", async () => {
-    findManyMock.mockResolvedValue([
-      {
-        ...task,
-        tagClassificationState: "running",
-        tagClassificationAttempts: 2,
-        tagClassificationLease: "expired-lease",
-      },
-    ]);
+    findManyMock
+      .mockReset()
+      .mockResolvedValue([])
+      .mockResolvedValueOnce([
+        {
+          ...task,
+          tagClassificationState: "running",
+          tagClassificationAttempts: 2,
+          tagClassificationLease: "expired-lease",
+        },
+      ]);
     updateManyMock.mockResolvedValue({ count: 0 });
     await classifyPendingTaskTags(context);
     expect(updateManyMock).toHaveBeenCalledTimes(1);
@@ -251,7 +288,10 @@ describe("classifyPendingTaskTags", () => {
     });
   });
   it("retains usage when persistence fails and processes the next task", async () => {
-    findManyMock.mockResolvedValue([task, { ...task, id: "task-2" }]);
+    findManyMock
+      .mockReset()
+      .mockResolvedValue([])
+      .mockResolvedValueOnce([task, { ...task, id: "task-2" }]);
     updateManyMock
       .mockResolvedValueOnce({ count: 1 })
       .mockRejectedValueOnce(new Error("private database failure"));
@@ -274,7 +314,10 @@ describe("classifyPendingTaskTags", () => {
     );
   });
   it("continues after a provider exception", async () => {
-    findManyMock.mockResolvedValue([task, { ...task, id: "task-2" }]);
+    findManyMock
+      .mockReset()
+      .mockResolvedValue([])
+      .mockResolvedValueOnce([task, { ...task, id: "task-2" }]);
     classifyMock.mockRejectedValueOnce(new Error("private provider response"));
     await classifyPendingTaskTags(context);
     expect(classifyMock).toHaveBeenCalledTimes(2);
@@ -308,7 +351,10 @@ describe("classifyPendingTaskTags", () => {
   it.each(["claim", "release"])(
     "continues after a per-task %s database failure",
     async (stage) => {
-      findManyMock.mockResolvedValue([task, { ...task, id: "task-2" }]);
+      findManyMock
+        .mockReset()
+        .mockResolvedValue([])
+        .mockResolvedValueOnce([task, { ...task, id: "task-2" }]);
       if (stage === "release") {
         updateManyMock.mockResolvedValueOnce({ count: 1 });
         classifyMock.mockResolvedValueOnce({ ok: false, reason: "http_503" });
@@ -335,5 +381,562 @@ describe("classifyPendingTaskTags", () => {
     await classifyPendingTaskTags({ ...context, ...budget });
     expect(updateManyMock).not.toHaveBeenCalled();
     expect(classifyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("classifyFixtureTaskTags", () => {
+  it("restricts selection, claim, and persistence to the identified synthetic draft owner", async () => {
+    await classifyFixtureTaskTags(context, {
+      taskId: task.id,
+      ownerId: "fixture-owner",
+    });
+    const scope = {
+      id: task.id,
+      ownerId: "fixture-owner",
+      name: { startsWith: "SYNTHETIC " },
+      status: "DRAFT",
+    };
+    expect(findManyMock.mock.calls[0]![0].where).toMatchObject(scope);
+    expect(updateManyMock).toHaveBeenCalledTimes(2);
+    for (const [call] of updateManyMock.mock.calls) {
+      expect(call.where).toMatchObject(scope);
+      expect(call.where).toMatchObject({
+        workspaceId: task.workspaceId,
+        tagContentRevision: 4,
+      });
+    }
+    expect(classifyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { taskId: "", ownerId: "fixture-owner" },
+    { taskId: "task-1", ownerId: "" },
+  ])("does nothing for incomplete scope %j", async (scope) => {
+    await classifyFixtureTaskTags(context, scope);
+    expect(availableMock).not.toHaveBeenCalled();
+    expect(findManyMock).not.toHaveBeenCalled();
+    expect(classifyMock).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when a caller omits the required scope at runtime", async () => {
+    await Reflect.apply(classifyFixtureTaskTags, undefined, [
+      context,
+      undefined,
+    ]);
+    expect(availableMock).not.toHaveBeenCalled();
+    expect(findManyMock).not.toHaveBeenCalled();
+    expect(classifyMock).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to the queue when the fixture does not match", async () => {
+    findManyMock.mockReset().mockResolvedValue([]).mockResolvedValueOnce([]);
+    await classifyFixtureTaskTags(context, {
+      taskId: task.id,
+      ownerId: "fixture-owner",
+    });
+    expect(findManyMock).toHaveBeenCalledTimes(2);
+    for (const [query] of findManyMock.mock.calls) {
+      expect(query.where).toMatchObject({
+        id: task.id,
+        ownerId: "fixture-owner",
+      });
+    }
+    expect(updateManyMock).not.toHaveBeenCalled();
+    expect(classifyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("historical tag backfill", () => {
+  const historical = {
+    ...task,
+    id: "old-task",
+    tagClassificationState: "unclassified",
+  };
+
+  it("queues history after queued tasks and claims the exact historical revision", async () => {
+    findManyMock
+      .mockReset()
+      .mockResolvedValueOnce([task])
+      .mockResolvedValueOnce([historical]);
+    await classifyPendingTaskTags(context);
+    expect(findManyMock.mock.calls[1]![0]).toEqual({
+      where: {
+        archivedAt: null,
+        tagClassificationState: "unclassified",
+        tagClassificationAttempts: { lt: 2 },
+        tagClassificationAvailableAt: { lte: expect.any(Date) },
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: 200,
+      select: {
+        id: true,
+        workspaceId: true,
+        name: true,
+        description: true,
+        tagContentRevision: true,
+        tagClassificationAttempts: true,
+        tagClassificationState: true,
+        tagClassificationLease: true,
+      },
+    });
+    expect(updateManyMock.mock.calls[0]![0].where.id).toBe(task.id);
+    expect(updateManyMock.mock.calls[2]![0].where).toMatchObject({
+      id: historical.id,
+      workspaceId: historical.workspaceId,
+      tagContentRevision: 4,
+      tagClassificationState: "unclassified",
+      tagClassificationLease: null,
+      tagClassificationAttempts: 0,
+    });
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selected: 2,
+        queued: 1,
+        historical: 1,
+        completed: 2,
+        failed: 0,
+        stale: 0,
+        remainingHistorical: 0,
+        usage: { inputTokens: 24, outputTokens: 16 },
+        costUsd: 0.00024,
+      }),
+    );
+  });
+
+  it("evaluates every queued task before any history when the queued cap is full", async () => {
+    findManyMock
+      .mockReset()
+      .mockResolvedValueOnce(
+        Array.from({ length: 50 }, (_, index) => ({
+          ...task,
+          id: `queued-${index}`,
+        })),
+      )
+      .mockResolvedValueOnce([historical]);
+    await classifyPendingTaskTags(context);
+    expect(findManyMock).toHaveBeenCalledTimes(2);
+    expect(findManyMock.mock.calls[1]![0].take).toBe(200);
+    expect(classifyMock).toHaveBeenCalledTimes(51);
+    // Claim and persist writes alternate, so history may not touch the DB until
+    // every queued row has been written.
+    const written = updateManyMock.mock.calls.map(([call]) => call.where.id);
+    expect(written).toHaveLength(102);
+    expect(written.slice(0, 100)).not.toContain(historical.id);
+    expect(written.slice(100)).toEqual([historical.id, historical.id]);
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({ selected: 51, queued: 50, historical: 1 }),
+    );
+  });
+
+  it("evaluates a full historical cap in one tick", async () => {
+    findManyMock
+      .mockReset()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(
+        Array.from({ length: 200 }, (_, index) => ({
+          ...historical,
+          id: `old-${index}`,
+        })),
+      );
+    await classifyPendingTaskTags(context);
+    expect(findManyMock.mock.calls[1]![0].take).toBe(200);
+    expect(classifyMock).toHaveBeenCalledTimes(200);
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selected: 200,
+        queued: 0,
+        historical: 200,
+        attempted: 200,
+        completed: 200,
+        failed: 0,
+        stale: 0,
+        deferred: 0,
+      }),
+    );
+  });
+
+  it("commits partial progress and defers the rest at the sync deadline", async () => {
+    findManyMock
+      .mockReset()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(
+        Array.from({ length: 10 }, (_, index) => ({
+          ...historical,
+          id: `old-${index}`,
+        })),
+      );
+    let msRemaining = 60_000;
+    classifyMock.mockImplementation(() => {
+      msRemaining -= 20_000;
+      return Promise.resolve({
+        ok: true,
+        tags: [],
+        usage: { inputTokens: 1, outputTokens: 1 },
+        costUsd: "0",
+      });
+    });
+    await classifyPendingTaskTags({
+      ...context,
+      msRemaining: () => msRemaining,
+    });
+    expect(classifyMock).toHaveBeenCalledTimes(3);
+    // Exactly one claim and one persist per attempted row: nothing is left leased.
+    expect(updateManyMock.mock.calls.map(([call]) => call.where.id)).toEqual([
+      "old-0",
+      "old-0",
+      "old-1",
+      "old-1",
+      "old-2",
+      "old-2",
+    ]);
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selected: 10,
+        historical: 10,
+        completed: 3,
+        deferred: 7,
+        stopReason: "deadline",
+      }),
+    );
+  });
+
+  it("stops history when the tick has spent its time budget", async () => {
+    vi.useFakeTimers();
+    findManyMock
+      .mockReset()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(
+        Array.from({ length: 10 }, (_, index) => ({
+          ...historical,
+          id: `old-${index}`,
+        })),
+      );
+    classifyMock.mockImplementation(() => {
+      vi.advanceTimersByTime(30_000);
+      return Promise.resolve({
+        ok: true,
+        tags: [],
+        usage: { inputTokens: 1, outputTokens: 1 },
+        costUsd: "0",
+      });
+    });
+    await classifyPendingTaskTags(context);
+    expect(classifyMock).toHaveBeenCalledTimes(4);
+    expect(updateManyMock).toHaveBeenCalledTimes(8);
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        completed: 4,
+        deferred: 6,
+        stopReason: "tick_budget",
+      }),
+    );
+  });
+
+  it("stops queued work at the same tick budget so the lock is released early", async () => {
+    vi.useFakeTimers();
+    findManyMock
+      .mockReset()
+      .mockResolvedValue([])
+      .mockResolvedValueOnce(
+        Array.from({ length: 50 }, (_, index) => ({
+          ...task,
+          id: `queued-${index}`,
+        })),
+      );
+    // A provider at its 12s request timeout would otherwise run 50 queued rows
+    // for 600s, far past the deadline and into the next scheduled tick.
+    classifyMock.mockImplementation(() => {
+      vi.advanceTimersByTime(12_000);
+      return Promise.resolve({
+        ok: true,
+        tags: [],
+        usage: { inputTokens: 1, outputTokens: 1 },
+        costUsd: "0",
+      });
+    });
+    await classifyPendingTaskTags(context);
+    expect(classifyMock).toHaveBeenCalledTimes(10);
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selected: 50,
+        queued: 50,
+        completed: 10,
+        deferred: 40,
+        stopReason: "tick_budget",
+      }),
+    );
+  });
+
+  it("does not select history at all when the budget is gone before selection", async () => {
+    vi.useFakeTimers();
+    findManyMock
+      .mockReset()
+      .mockResolvedValue([historical])
+      .mockResolvedValueOnce([task]);
+    availableMock.mockImplementation(() => {
+      vi.advanceTimersByTime(130_000);
+      return Promise.resolve(true);
+    });
+    await classifyPendingTaskTags(context);
+    expect(findManyMock).toHaveBeenCalledTimes(1);
+    expect(updateManyMock).not.toHaveBeenCalled();
+    expect(classifyMock).not.toHaveBeenCalled();
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queued: 1,
+        historical: 0,
+        completed: 0,
+        deferred: 1,
+        stopReason: "tick_budget",
+      }),
+    );
+  });
+
+  it("stops the tick at the bounded per-tick reported spend ceiling", async () => {
+    findManyMock
+      .mockReset()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(
+        Array.from({ length: 10 }, (_, index) => ({
+          ...historical,
+          id: `old-${index}`,
+        })),
+      );
+    classifyMock.mockResolvedValue({
+      ok: true,
+      tags: [],
+      usage: { inputTokens: 1, outputTokens: 1 },
+      costUsd: "0.03",
+    });
+    await classifyPendingTaskTags(context);
+    expect(classifyMock).toHaveBeenCalledTimes(2);
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attempted: 2,
+        completed: 2,
+        costUsd: 0.06,
+        deferred: 8,
+        stopReason: "spend_ceiling",
+      }),
+    );
+  });
+
+  it("keeps a historical batch going when one row loses its claim", async () => {
+    findManyMock
+      .mockReset()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(
+        Array.from({ length: 5 }, (_, index) => ({
+          ...historical,
+          id: `old-${index}`,
+        })),
+      );
+    updateManyMock.mockImplementation(({ where }) =>
+      Promise.resolve({
+        count: where.id === "old-2" && where.tagClassificationState ? 0 : 1,
+      }),
+    );
+    await classifyPendingTaskTags(context);
+    expect(classifyMock).toHaveBeenCalledTimes(4);
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selected: 5,
+        completed: 4,
+        stale: 1,
+        deferred: 0,
+      }),
+    );
+  });
+
+  it("resumes remaining history next tick without reclassifying complete empty results", async () => {
+    const remaining = [historical, { ...historical, id: "old-task-2" }];
+    findManyMock.mockReset().mockImplementation(({ where }) => {
+      if (where.tagClassificationState === "unclassified")
+        return Promise.resolve(remaining.splice(0, 1));
+      return Promise.resolve([]);
+    });
+    classifyMock.mockResolvedValue({
+      ok: true,
+      tags: [],
+      usage: { inputTokens: 1, outputTokens: 1 },
+      costUsd: "0",
+    });
+    await classifyPendingTaskTags(context);
+    await classifyPendingTaskTags(context);
+    await classifyPendingTaskTags(context);
+    expect(classifyMock).toHaveBeenCalledTimes(2);
+    expect(updateManyMock.mock.calls[1]![0].data).toMatchObject({
+      automaticTags: [],
+      tagClassificationState: "complete",
+    });
+    expect(updateManyMock.mock.calls[3]![0].where.id).toBe("old-task-2");
+  });
+
+  it("does not classify history when its revision/state/lease claim loses", async () => {
+    findManyMock
+      .mockReset()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([historical]);
+    updateManyMock.mockResolvedValue({ count: 0 });
+    await classifyPendingTaskTags(context);
+    expect(classifyMock).not.toHaveBeenCalled();
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({ stale: 1, completed: 0 }),
+    );
+  });
+
+  it("keeps historical fixture selection, writes and progress count exactly scoped", async () => {
+    findManyMock
+      .mockReset()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([historical]);
+    await classifyFixtureTaskTags(context, {
+      taskId: historical.id,
+      ownerId: "fixture-owner",
+    });
+    for (const [query] of [
+      ...findManyMock.mock.calls,
+      ...updateManyMock.mock.calls,
+      ...countMock.mock.calls,
+    ]) {
+      expect(query.where).toMatchObject({
+        id: historical.id,
+        ownerId: "fixture-owner",
+        name: { startsWith: "SYNTHETIC " },
+        status: "DRAFT",
+      });
+    }
+    expect(classifyMock).toHaveBeenCalledTimes(1);
+  });
+  it("reports missing provider billing without pretending failed attempts were free", async () => {
+    findManyMock
+      .mockReset()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([historical]);
+    classifyMock.mockRejectedValue(new Error("private provider details"));
+    await classifyPendingTaskTags(context);
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attempted: 1,
+        failed: 1,
+        costUsd: 0,
+        unreportedCost: 1,
+      }),
+    );
+    expect(updateManyMock.mock.calls[1]![0].data).toMatchObject({
+      tagClassificationState: "pending",
+    });
+    expect(updateManyMock.mock.calls[1]![0].data).not.toHaveProperty(
+      "manualTags",
+    );
+    expect(updateManyMock.mock.calls[1]![0].data).not.toHaveProperty(
+      "rejectedTags",
+    );
+  });
+
+  it("counts a lost failure-release claim as stale", async () => {
+    classifyMock.mockResolvedValue({ ok: false, reason: "http_503" });
+    updateManyMock
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
+    await classifyPendingTaskTags(context);
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({ stale: 1, failed: 0 }),
+    );
+  });
+
+  it("keeps completed work successful if the progress count fails", async () => {
+    countMock.mockRejectedValue(new Error("private database details"));
+    await expect(classifyPendingTaskTags(context)).resolves.toBeUndefined();
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        completed: 1,
+        progressError: "database_error",
+      }),
+    );
+    expect(JSON.stringify(logSetMock.mock.calls)).not.toContain(
+      "private database details",
+    );
+  });
+
+  it("does not widen historical eligibility to completed, failed, archived or exhausted rows", async () => {
+    await classifyPendingTaskTags(context);
+    expect(findManyMock.mock.calls[1]![0].where).toEqual({
+      archivedAt: null,
+      tagClassificationState: "unclassified",
+      tagClassificationAttempts: { lt: 2 },
+      tagClassificationAvailableAt: { lte: expect.any(Date) },
+    });
+    expect(countMock.mock.calls[0]![0].where).toEqual(
+      findManyMock.mock.calls[1]![0].where,
+    );
+  });
+  it("prepares only a pristine exact fixture revision and never resets its completed rerun", async () => {
+    const row = {
+      ...historical,
+      ownerId: "fixture-owner",
+      name: "SYNTHETIC history",
+      tagContentRevision: 1,
+      tagClassificationState: "pending",
+      automaticTags: [],
+    };
+    findManyMock.mockReset().mockImplementation(({ where }) => {
+      const state = where.tagClassificationState;
+      return Promise.resolve(
+        (
+          typeof state === "string"
+            ? row.tagClassificationState === state
+            : state.in.includes(row.tagClassificationState)
+        )
+          ? [{ ...row }]
+          : [],
+      );
+    });
+    updateManyMock.mockImplementation(({ where, data }) => {
+      if (
+        where.tagClassificationState &&
+        where.tagClassificationState !== row.tagClassificationState
+      )
+        return Promise.resolve({ count: 0 });
+      Object.assign(row, data);
+      return Promise.resolve({ count: 1 });
+    });
+    await classifyFixtureTaskTags(context, {
+      taskId: row.id,
+      ownerId: row.ownerId,
+      backfill: true,
+    });
+    expect(updateManyMock.mock.calls[0]![0]).toEqual({
+      where: {
+        id: row.id,
+        ownerId: row.ownerId,
+        name: { startsWith: "SYNTHETIC " },
+        status: "DRAFT",
+        archivedAt: null,
+        tagClassificationState: "pending",
+        tagContentRevision: 1,
+        tagClassificationAttempts: 0,
+        tagClassificationLease: null,
+        automaticTags: { isEmpty: true },
+      },
+      data: { tagClassificationState: "unclassified" },
+    });
+    expect(logSetMock).toHaveBeenCalledWith({
+      source: "historical",
+      prepared: 1,
+    });
+    expect(row.tagClassificationState).toBe("complete");
+    await classifyFixtureTaskTags(context, {
+      taskId: row.id,
+      ownerId: row.ownerId,
+      backfill: true,
+    });
+    expect(logSetMock).toHaveBeenCalledWith({
+      source: "historical",
+      prepared: 0,
+    });
+    expect(classifyMock).toHaveBeenCalledTimes(1);
+    expect(row.manualTags).toEqual(["design"]);
+    expect(row.rejectedTags).toEqual(["research"]);
   });
 });

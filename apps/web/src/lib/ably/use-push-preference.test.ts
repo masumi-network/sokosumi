@@ -2,13 +2,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
-
+import { usePushDevices } from "@/app/account/components/use-push-devices";
 import {
   getPushRepairOutcome,
   recordPushRepairOutcome,
   subscribePushRepairOutcome,
 } from "./push-repair-outcome.client";
 import { usePushPreference } from "./use-push-preference";
+
+const { listDevices } = vi.hoisted(() => ({ listDevices: vi.fn() }));
+vi.mock("@/lib/services/push-devices.service", () => ({
+  listPushDevices: listDevices,
+}));
 
 let queryClient: QueryClient;
 
@@ -100,6 +105,271 @@ describe("usePushPreference", () => {
     });
     setAccountWriteResult(true);
     setAccountOptIn(false);
+  });
+
+  it.each([
+    { remainingDevices: [] },
+    {
+      remainingDevices: [
+        {
+          id: "other-device",
+          platform: "browser",
+          formFactor: "desktop",
+          state: "active",
+        },
+      ],
+    },
+  ])(
+    "reports this browser off after refresh omits it, even with a local subscription: $remainingDevices",
+    async ({ remainingDevices }) => {
+      setAccountOptIn(true);
+      setDeviceSubscribed(true);
+      localStorage.setItem(
+        "ably.push.deviceId",
+        JSON.stringify({ value: "current-device" }),
+      );
+      localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+      onTestFinished(() => {
+        localStorage.removeItem("ably.push.deviceId");
+        localStorage.removeItem("sokosumi.push.deviceOwner");
+      });
+      const device = {
+        id: "current-device",
+        platform: "browser",
+        formFactor: "desktop",
+        state: "active",
+      };
+      listDevices.mockResolvedValue([device]);
+      const { result } = renderHook(
+        () => ({
+          preference: usePushPreference("user_1"),
+          devices: usePushDevices("user_1"),
+        }),
+        { wrapper },
+      );
+      await waitFor(() =>
+        expect(result.current.devices.data?.devices).toEqual([device]),
+      );
+      await waitFor(() =>
+        expect(result.current.preference.isDeviceEnabled).toBe(true),
+      );
+
+      listDevices.mockResolvedValue(remainingDevices);
+      await act(async () => {
+        await result.current.devices.refetch();
+      });
+      expect(result.current.devices.isError).toBe(false);
+      await waitFor(() =>
+        expect(result.current.devices.data?.devices).toEqual(remainingDevices),
+      );
+      await waitFor(() =>
+        expect(result.current.preference.isDeviceEnabled).toBe(false),
+      );
+      expect(result.current.preference.isAccountEnabled).toBe(true);
+      expect(deactivatePushMock).not.toHaveBeenCalled();
+      expect(activatePushMock).not.toHaveBeenCalled();
+
+      listDevices.mockResolvedValue([device]);
+      await act(async () => {
+        await result.current.devices.refetch();
+      });
+      await waitFor(() =>
+        expect(result.current.preference.isDeviceEnabled).toBe(true),
+      );
+    },
+  );
+
+  it("keeps browser state when the registered device list fails to load", async () => {
+    setDeviceSubscribed(true);
+    listDevices.mockRejectedValue(new Error("Core unavailable"));
+    const { result } = renderHook(
+      () => ({
+        preference: usePushPreference("user_1"),
+        devices: usePushDevices("user_1"),
+      }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.devices.isError).toBe(true));
+    await waitFor(() =>
+      expect(result.current.preference.isDeviceEnabled).toBe(true),
+    );
+  });
+
+  it("does not load the registered device list for the banner alone", async () => {
+    setDeviceSubscribed(true);
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isDeviceEnabled).toBe(true));
+    expect(listDevices).not.toHaveBeenCalled();
+  });
+
+  it("drops stale absence after enabling push while the device list is collapsed", async () => {
+    setAccountOptIn(true);
+    setDeviceSubscribed(true);
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "current-device" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    onTestFinished(() => {
+      localStorage.removeItem("ably.push.deviceId");
+      localStorage.removeItem("sokosumi.push.deviceOwner");
+    });
+    listDevices.mockResolvedValue([]);
+    const { result, rerender } = renderHook(
+      ({ expanded }) => ({
+        preference: usePushPreference("user_1"),
+        devices: usePushDevices("user_1", expanded),
+      }),
+      { wrapper, initialProps: { expanded: true } },
+    );
+    await waitFor(() =>
+      expect(result.current.devices.data?.devices).toEqual([]),
+    );
+    await waitFor(() =>
+      expect(result.current.preference.isDeviceEnabled).toBe(false),
+    );
+    rerender({ expanded: false });
+    await act(async () => {
+      await result.current.preference.setDeviceEnabled(true);
+    });
+    await waitFor(() =>
+      expect(result.current.preference.isDeviceEnabled).toBe(true),
+    );
+    expect(listDevices).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps this browser off when enabling push fails with the list collapsed", async () => {
+    setAccountOptIn(true);
+    setDeviceSubscribed(true);
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "current-device" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    onTestFinished(() => {
+      localStorage.removeItem("ably.push.deviceId");
+      localStorage.removeItem("sokosumi.push.deviceOwner");
+    });
+    listDevices.mockResolvedValue([]);
+    const { result, rerender } = renderHook(
+      ({ expanded }) => ({
+        preference: usePushPreference("user_1"),
+        devices: usePushDevices("user_1", expanded),
+      }),
+      { wrapper, initialProps: { expanded: true } },
+    );
+    await waitFor(() =>
+      expect(result.current.preference.isDeviceKnown).toBe(true),
+    );
+    await waitFor(() =>
+      expect(result.current.devices.data?.currentDeviceId).toBe(
+        "current-device",
+      ),
+    );
+    expect(result.current.preference.isDeviceEnabled).toBe(false);
+    rerender({ expanded: false });
+    activatePushMock.mockRejectedValueOnce(new Error("Core unavailable"));
+    await act(async () => {
+      await expect(
+        result.current.preference.setDeviceEnabled(true),
+      ).rejects.toThrow("Core unavailable");
+    });
+    expect(result.current.preference.isDeviceEnabled).toBe(false);
+    expect(listDevices).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not apply a device list captured before the browser changed its device ID", async () => {
+    setDeviceSubscribed(true);
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "old-device" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    onTestFinished(() => {
+      localStorage.removeItem("ably.push.deviceId");
+      localStorage.removeItem("sokosumi.push.deviceOwner");
+    });
+    const pending = Promise.withResolvers<[]>();
+    listDevices.mockReturnValue(pending.promise);
+    const { result } = renderHook(
+      () => ({
+        preference: usePushPreference("user_1"),
+        devices: usePushDevices("user_1"),
+      }),
+      { wrapper },
+    );
+    await waitFor(() => expect(listDevices).toHaveBeenCalledTimes(1));
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "new-device" }),
+    );
+    await act(async () => {
+      pending.resolve([]);
+    });
+    await waitFor(() =>
+      expect(result.current.devices.data?.currentDeviceId).toBeNull(),
+    );
+    expect(result.current.preference.isDeviceEnabled).toBe(true);
+  });
+
+  it("reports remote revocation as off even before local unsubscribe finishes", async () => {
+    setAccountOptIn(true);
+    setDeviceSubscribed(true);
+    await recordPushRepairOutcome({ deliveryHealthy: true });
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isDeviceEnabled).toBe(true));
+    try {
+      await act(async () => {
+        localStorage.setItem("sokosumi.push.teardownStarted", "1");
+        await recordPushRepairOutcome({ notify: true });
+      });
+      await waitFor(() => expect(result.current.isDeviceEnabled).toBe(false));
+      expect(getPushRepairOutcome()).toBe("healthy");
+    } finally {
+      localStorage.removeItem("sokosumi.push.teardownStarted");
+    }
+  });
+
+  it("refreshes the registered device list after turning this browser on and off", async () => {
+    setAccountOptIn(true);
+    listDevices.mockResolvedValue([]);
+    const { result } = renderHook(
+      () => ({
+        preference: usePushPreference("user_1"),
+        devices: usePushDevices("user_1"),
+      }),
+      { wrapper },
+    );
+    await waitFor(() =>
+      expect(result.current.preference.canToggleDevice).toBe(true),
+    );
+    await waitFor(() =>
+      expect(result.current.devices.data?.devices).toEqual([]),
+    );
+    const device = {
+      id: "device",
+      platform: "browser",
+      formFactor: "desktop",
+      state: "active",
+    };
+    listDevices.mockResolvedValue([device]);
+    await act(async () => {
+      await result.current.preference.setDeviceEnabled(true);
+    });
+    await waitFor(() =>
+      expect(result.current.devices.data?.devices).toEqual([device]),
+    );
+    listDevices.mockResolvedValue([]);
+    await act(async () => {
+      await result.current.preference.setDeviceEnabled(false);
+    });
+    await waitFor(() =>
+      expect(result.current.devices.data?.devices).toEqual([]),
+    );
   });
 
   it("clears the repair notice after account settings restore this browser", async () => {

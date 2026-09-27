@@ -42,7 +42,7 @@ export function KanbanBoard({
   statusLabels,
 }: KanbanBoardProps) {
   return (
-    <DragScrollContainer className="-mx-2 flex h-full min-h-[calc(100dvh-8.5rem)] w-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-tertiary [&::-webkit-scrollbar-track]:bg-transparent">
+    <DragScrollContainer className="-mx-2 flex h-full min-h-[calc(100dvh-8.5rem)] w-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 taskboard-scrollbar">
       {columns.map((column) => {
         const columnTasks = tasks
           .filter((task) => task.columnId === column.id)

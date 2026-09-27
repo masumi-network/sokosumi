@@ -1,5 +1,5 @@
-import type { DragEndEvent } from "@dnd-kit/core";
-import { render, screen, waitFor } from "@testing-library/react";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps, ReactNode } from "react";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import type { AgentJobStatus } from "@/lib/clients/generated/core";
 import { TaskStatus } from "@/lib/clients/generated/core";
+import { parseTasksDensity } from "@/lib/ui-preferences/tasks-density";
 import { TasksView } from "./tasks-view";
 
 const {
@@ -53,8 +54,14 @@ vi.mock("@dnd-kit/core", () => ({
 }));
 
 vi.mock("./kanban-board", () => ({
-  KanbanBoard: ({ tasks }: { tasks: TaskWithCoworker[] }) => (
-    <div>
+  KanbanBoard: ({
+    tasks,
+    compact,
+  }: {
+    tasks: TaskWithCoworker[];
+    compact: boolean;
+  }) => (
+    <div data-testid="board-density" data-compact={compact}>
       {tasks.map((task) => (
         <div
           key={task.id}
@@ -125,13 +132,21 @@ vi.mock("./jobs-view-filters", () => ({ JobsViewFilters: () => null }));
 vi.mock("./tasks-view-filters", () => ({
   TasksViewFilters: () => <button type="button">Filters</button>,
 }));
-vi.mock("./tasks-project-switcher", () => ({
-  TasksProjectSwitcher: () => <button type="button">Project</button>,
+vi.mock("./task-list-view", () => ({
+  TaskListView: ({ compact }: { compact: boolean }) => (
+    <div data-testid="list-density" data-compact={compact} />
+  ),
 }));
-vi.mock("./task-list-view", () => ({ TaskListView: () => null }));
-vi.mock("./task-list-item", () => ({ TaskListItem: () => null }));
-vi.mock("./task-card", () => ({ TaskCard: () => null }));
-vi.mock("./view-mode-switch", () => ({ ViewModeSwitch: () => null }));
+vi.mock("./task-list-item", () => ({
+  TaskListItem: ({ compact }: { compact: boolean }) => (
+    <div data-testid="list-overlay" data-compact={compact} />
+  ),
+}));
+vi.mock("./task-card", () => ({
+  TaskCard: ({ compact }: { compact: boolean }) => (
+    <div data-testid="board-overlay" data-compact={compact} />
+  ),
+}));
 vi.mock("@/app/components/list-mobile-create-fab", () => ({
   ListMobileCreateFab: ({
     ariaLabel,
@@ -244,7 +259,10 @@ const EMPTY_JOBS_FILTERS: JobsListFilters = {
   projectId: null,
 };
 
-function renderBoard(tasks: TaskWithCoworker[] = [TASK]) {
+function renderBoard(
+  tasks: TaskWithCoworker[] = [TASK],
+  defaultDensity?: ComponentProps<typeof TasksView>["defaultDensity"],
+) {
   return render(
     <TasksView
       tasks={tasks}
@@ -265,11 +283,52 @@ function renderBoard(tasks: TaskWithCoworker[] = [TASK]) {
       initialFilters={EMPTY_FILTERS}
       initialJobsListFilters={EMPTY_JOBS_FILTERS}
       defaultViewMode="board"
+      defaultDensity={defaultDensity}
       canCreateTask
       labels={labels}
     />,
   );
 }
+
+it("applies Display density to board and list and restores the saved preference", async () => {
+  document.cookie = "tasks_density=; max-age=0; path=/";
+  const user = userEvent.setup();
+  const { unmount } = renderBoard();
+  await user.click(screen.getByRole("button", { name: "Display" }));
+  await user.click(screen.getByRole("radio", { name: "Compact" }));
+  expect(screen.getByTestId("board-density")).toHaveAttribute(
+    "data-compact",
+    "true",
+  );
+  expect(document.cookie).toContain("tasks_density=compact");
+
+  await user.click(screen.getByRole("button", { name: "Display" }));
+  await user.click(screen.getByRole("radio", { name: "List" }));
+  expect(screen.getByTestId("list-density")).toHaveAttribute(
+    "data-compact",
+    "true",
+  );
+
+  const saved = document.cookie
+    .split("; ")
+    .find((cookie) => cookie.startsWith("tasks_density="))
+    ?.split("=")[1];
+  unmount();
+  renderBoard([TASK], parseTasksDensity(saved) ?? undefined);
+  expect(screen.getByTestId("board-density")).toHaveAttribute(
+    "data-compact",
+    "true",
+  );
+  await user.click(screen.getByRole("button", { name: "Display" }));
+  expect(screen.getByRole("radio", { name: "Compact" })).toBeChecked();
+  await user.click(screen.getByRole("radio", { name: "Normal" }));
+  expect(screen.getByTestId("board-density")).toHaveAttribute(
+    "data-compact",
+    "false",
+  );
+  expect(document.cookie).toContain("tasks_density=normal");
+  document.cookie = "tasks_density=; max-age=0; path=/";
+});
 
 /** Drives the board's real drop handler with the event dnd-kit would emit. */
 async function dropOnTodo(taskId: string, fromColumn: KanbanColumnId) {
@@ -403,12 +462,38 @@ describe("TasksView without the task-board guide", () => {
         "active",
       );
       expect(screen.getByRole("tab", { name: "Jobs" })).toBeEnabled();
-      expect(screen.getByRole("button", { name: "Project" })).toBeEnabled();
       expect(screen.getByRole("button", { name: "Filters" })).toBeEnabled();
       await user.click(screen.getByRole("button", { name: "createTaskFab" }));
       expect(openCreateTaskMock).toHaveBeenCalledOnce();
       expect(window.localStorage.getItem(key)).toBe(storedValue);
       unmount();
     },
+  );
+});
+
+it("keeps board and list drag overlays in Compact", async () => {
+  const user = userEvent.setup();
+  renderBoard([TASK], "compact");
+  const onDragStart = dndContextPropsSpy.mock.calls.at(-1)?.[0]
+    ?.onDragStart as (event: DragStartEvent) => void;
+  act(() =>
+    onDragStart({
+      activatorEvent: new Event("pointerdown"),
+      active: {
+        id: TASK.id,
+        data: { current: { columnId: TASK.columnId } },
+        rect: { current: { initial: new DOMRect(), translated: null } },
+      },
+    }),
+  );
+  expect(screen.getByTestId("board-overlay")).toHaveAttribute(
+    "data-compact",
+    "true",
+  );
+  await user.click(screen.getByRole("button", { name: "Display" }));
+  await user.click(screen.getByRole("radio", { name: "List" }));
+  expect(screen.getByTestId("list-overlay")).toHaveAttribute(
+    "data-compact",
+    "true",
   );
 });

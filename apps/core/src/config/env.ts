@@ -25,10 +25,10 @@ const baseEnvSchema = z.object({
   // Database
   DATABASE_URL: z.url(),
 
-  // Jev remains disabled until EU inference and required retention are supported.
+  // Task tags use global Jev routing with enforced retention/no-training options.
   TASK_TAG_CLASSIFICATION_ENABLED: z
     .enum(["true", "false"])
-    .default("false")
+    .default("true")
     .transform((value) => value === "true"),
 
   // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
@@ -274,6 +274,7 @@ const baseEnvSchema = z.object({
   ABLY_PUBLISH_ONLY_KEY: z.string().min(1),
   /** Subscribe-only key used to mint client TokenRequests (SOK-741). */
   ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1),
+  ABLY_PUSH_ADMIN_KEY: z.string().min(1).optional(),
 
   // Optional outbound webhooks
   WEBHOOK_USER_CREATED: z.url().optional(),

@@ -28,7 +28,6 @@ import {
   useSyncExternalStore,
   useTransition,
 } from "react";
-import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
@@ -61,7 +60,6 @@ import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
   isTaskDraggableForViewFilters,
-  mergeProjectFilterOptions,
   type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
@@ -127,7 +125,6 @@ import {
   TaskReopenToReadyDialog,
   type TaskReopenToReadyDialogLabels,
 } from "./task-reopen-to-ready-dialog";
-import { TasksProjectSwitcher } from "./tasks-project-switcher";
 import { TasksViewFilters } from "./tasks-view-filters";
 import { ViewModeSwitch } from "./view-mode-switch";
 
@@ -348,27 +345,15 @@ export function TasksView({
     }
     showCalendarClientUpgradeModal();
   };
-  const [createdProjects, setCreatedProjects] = useState<ProjectFilterOption[]>(
-    [],
-  );
-  const resolvedProjectOptions = useMemo(
-    () => mergeProjectFilterOptions(projectOptions, createdProjects),
-    [createdProjects, projectOptions],
-  );
   const routeFilters = useMemo(
     () =>
       getTasksFiltersFromSearchParams(
         searchParams,
         activeOrganizationId,
         coworkerOptions,
-        resolvedProjectOptions,
+        projectOptions,
       ),
-    [
-      activeOrganizationId,
-      coworkerOptions,
-      resolvedProjectOptions,
-      searchParams,
-    ],
+    [activeOrganizationId, coworkerOptions, projectOptions, searchParams],
   );
   const [viewMode, setViewMode] = useState<TasksViewMode>(
     defaultViewMode ?? "board",
@@ -400,14 +385,9 @@ export function TasksView({
         searchParams,
         activeOrganizationId,
         jobAgentOptions,
-        resolvedProjectOptions,
+        projectOptions,
       ),
-    [
-      activeOrganizationId,
-      jobAgentOptions,
-      resolvedProjectOptions,
-      searchParams,
-    ],
+    [activeOrganizationId, jobAgentOptions, projectOptions, searchParams],
   );
   const [columnCursorById, setColumnCursorById] = useState<
     Record<KanbanColumnId, string | null>
@@ -480,13 +460,6 @@ export function TasksView({
     routeFilters.projectId ?? jobsRouteFilters.projectId;
   const defaultProjectId = selectedProjectId;
 
-  const handleProjectCreated = useCallback((project: ProjectFilterOption) => {
-    flushSync(() => {
-      setCreatedProjects((current) =>
-        mergeProjectFilterOptions(current, [project]),
-      );
-    });
-  }, []);
   const isTaskPaginationInSync =
     routeTasksFiltersResetKey === serverTasksFiltersResetKey;
   const isJobsPaginationInSync =
@@ -1237,16 +1210,11 @@ export function TasksView({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <TasksProjectSwitcher
-            projectOptions={resolvedProjectOptions}
-            selectedProjectId={selectedProjectId}
-            onProjectCreated={handleProjectCreated}
-          />
           {activeTab === "tasks" ? (
             <TasksViewFilters
               activeOrganizationId={activeOrganizationId}
               coworkerOptions={coworkerOptions}
-              projectOptions={resolvedProjectOptions}
+              projectOptions={projectOptions}
               labels={labels.filters}
             />
           ) : null}
@@ -1263,7 +1231,7 @@ export function TasksView({
             <JobsViewFilters
               activeOrganizationId={activeOrganizationId}
               agentOptions={jobAgentOptions}
-              projectOptions={resolvedProjectOptions}
+              projectOptions={projectOptions}
               filtersLabels={{
                 title: labels.filters.title,
                 searchPlaceholder: labels.filters.searchPlaceholder,
@@ -1450,7 +1418,7 @@ export function TasksView({
       ) : null}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}
-        projectOptions={resolvedProjectOptions}
+        projectOptions={projectOptions}
         defaultProjectId={defaultProjectId}
         initialCreateTaskOpen={initialCreateTaskOpen}
       />

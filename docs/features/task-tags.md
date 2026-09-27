@@ -13,10 +13,12 @@ and grant-pending tasks use existing mutation restrictions.
 
 ## Classification and enablement
 
-`TASK_TAG_CLASSIFICATION_ENABLED=false` is the default. The cron-authenticated
+`TASK_TAG_CLASSIFICATION_ENABLED=true` is the default; set it to `false` to stop
+automatic inference. A configured `AI_GATEWAY_API_KEY` is required. The cron-authenticated
 `/sync/task-tags` endpoint reuses the existing sync lock/deadline, handles at most
-10 tasks serially, and permits at most two attempts per content revision. Leases,
-revision/workspace checks, and compare-and-set writes discard obsolete results.
+50 queued and 200 historical tasks serially per tick, and permits at most two
+attempts per content revision. Leases, revision/workspace checks, and
+compare-and-set writes discard obsolete results.
 Human corrections are never overwritten by the worker.
 
 Jev uses Gateway `/v1/evaluate`, model `typesafe-ai/jev`, ten boolean questions,
@@ -26,21 +28,43 @@ at least 0.85. At most five tags appear, prioritizing manual choices. Logs conta
 model, task/workspace IDs, revision, outcome, usage, Gateway cost and generation ID
 when returned; they never include task text or raw provider errors.
 
-Before any content is sent, live capability discovery must advertise EU and ZDR.
-Every evaluation also explicitly requires EU inference, zero retention, and no
-prompt training. There is no global-region fallback. As of 2026-09-26 Jev's
-Gateway catalog has no EU regions and advertises no ZDR. Production enablement is
-blocked even if the feature flag is set. Endpoint-specific routing evidence takes
-precedence over generic provider retention claims. Gateway control-plane residency
-must also satisfy organizational policy before enablement. No live inference was
-performed during this implementation.
+Non-EU routing is authorized for this classifier. Other features' residency
+settings are unchanged. Every evaluation still sets `zeroDataRetention: true`
+and `disallowPromptTraining: true`; policy rejection never retries with weaker
+options. Discovery verifies that Jev is listed, while Gateway enforces privacy
+per request. The public catalog's aggregate flags are not a reliable route gate:
+on 2026-09-26 it reported `zdr: "none"`, but an authenticated synthetic evaluation
+with both privacy options returned HTTP 200. Gateway skipped DigitalOcean as
+`zdr_ineligible_model` and used `typesafe-ai`. The synthetic software task returned
+`development` at probability 0.94; the reported cost was $0.000034608 (824 input,
+164 output tokens). This proves live provider operation, not production rollout.
+See [evaluation options](https://vercel.com/docs/ai-gateway/modalities/evaluation)
+and [ZDR enforcement](https://vercel.com/docs/ai-gateway/security-and-compliance/zdr).
+
+Deployment needs the task-tag migration, Core Gateway credentials with account
+access to the compliant route, and the existing authenticated `/sync/task-tags`
+cron (every five minutes). Creation and title/description edits enqueue work via
+the database trigger. Enabling also drains tasks already `pending` from earlier
+creates/edits while disabled; untouched `unclassified` tasks remain untouched.
+Vercel preview deployments do not run production crons, so preview verification
+must invoke the authenticated sync route explicitly. For fixture-only verification,
+`/sync/task-tags?fixtureTaskId=<uuid>&fixtureOwnerId=<owner>` requires the same
+cron authentication and is accepted only with `VERCEL_ENV=preview`. Both IDs are
+required; malformed or unknown parameters never fall through to the global
+queue. Selection and persistence are constrained to that owner’s one unarchived
+Draft task whose name starts with `SYNTHETIC `. This does not enqueue old tasks,
+change retries, or bypass revision/lease guards. Use only synthetic test-owned
+fixtures and a branch-specific preview credential. Missing configuration,
+unavailable discovery, or privacy-compatible routing failure leaves creation and
+manual corrections independent of classification. No production deployment or
+backfill is part of this change.
 
 ## Bounded existing-task backfill design (not executed)
 
 Backfill is a separate, explicitly approved operational action, not migration or
 read behavior. A future operator command must default to dry-run and require one
 workspace ID, a maximum of 100 eligible tasks, an explicit USD budget, and a saved
-cursor. It first verifies current endpoint residency/retention and credentials.
+cursor. It first verifies current routing/retention requirements and credentials.
 Select only unarchived `unclassified` tasks for that workspace in `(createdAt,id)`
 order, at most ten at a time. Transactionally compare revision and state before
 setting `pending`; never reset completed/failed work, attempts, manual choices,
