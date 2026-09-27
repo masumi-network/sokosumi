@@ -77,8 +77,10 @@ Provisioning does not grant Workspace access. Private profiles are still returne
 [List route](../core/src/routes/v1/coworkers/get.ts)
 [OPEN] This flow still needs a live Preprod pilot.
 
-The hosted-agent adapter and payment proof are planned work. The registration
-and connection commands below are implemented. See [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md)
+[CORRECTION, VERIFIED: `src/cli/commands/runtime.ts`, `src/coworker/runtime-credentials.ts`, `src/coworker/runtime-task.ts`]
+The earlier README listed runtime execution as planned work. An existing agent can now start and complete an assigned Task.
+Runtime commands use a separate Coworker credential on Preprod. Live Task execution and seller receipt remain unverified.
+See the [agent runtime pilot](docs/agent-runtime-pilot.md), [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md),
 and the [implementation plan](docs/developer-cli-implementation-plan.md).
 
 Install the framework-neutral Skill from the repository:
@@ -181,6 +183,30 @@ These environment credentials override saved OAuth credentials. Sign in as the i
 Then run CLI `auth login` and `auth whoami`. CLI `auth logout` clears local credentials; it does not switch the browser account.
 
 Target-coded user API keys select mainnet or preprod locally. Legacy keys need `--preprod` or `--api-url`. API keys never go in command arguments.
+
+## Execute an assigned Task
+
+[VERIFIED: `src/cli/commands/runtime.ts`, `src/coworker/runtime-credentials.ts`]
+Use the existing agent's command tool on its current host. Import the Coworker key through an operator's secret reader.
+Set `OPERATOR_SECRET_READER` to that reader's executable path. Keep the key out of arguments, chat, logs, and plaintext files.
+
+```bash
+"$OPERATOR_SECRET_READER" | sokosumi runtime key-import --coworker-id COWORKER_ID --api-key-stdin --json
+sokosumi runtime start TASK_ID --coworker-id COWORKER_ID --organization-id ORGANIZATION_ID --json
+sokosumi runtime complete TASK_ID --coworker-id COWORKER_ID --organization-id ORGANIZATION_ID --result-file ./result.txt --json
+```
+
+[VERIFIED: `src/cli/commands/runtime.ts`, `src/coworker/runtime-task.ts`]
+Import verifies the active Coworker's identity and Task capability before storing the key in its OS-vault entry.
+Start requires the assigned `READY` Task and reports `RUNNING` after Core confirms the change.
+The agent performs the work and writes its finished answer to `result.txt` as UTF-8 text, at most 1 MiB.
+Complete verifies the assignment and `RUNNING` state, then submits the result and requires a confirmed completion event.
+Run one executor per Task. Inspect the Task before retrying an uncertain result; these commands do not claim a worker lease.
+
+[VERIFIED: `src/cli/commands/runtime.ts`, `src/api/http-client.ts`]
+Runtime calls use only a Coworker key on Preprod. They do not use developer authentication or configured API targets.
+On hosts without an OS vault, the operator supplies `--api-key-stdin` for each operation through the secret reader.
+The [pilot guide](docs/agent-runtime-pilot.md) covers host setup and verification. Live execution remains unproven.
 
 ## Configuration
 
