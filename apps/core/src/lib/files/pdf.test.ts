@@ -198,6 +198,48 @@ describe("the bounds, each one watched firing", () => {
   );
 
   it(
+    "still returns the text of a page the cap stopped mid-way",
+    async () => {
+      /**
+       * The failure mode that comes free with streaming, and the reason
+       * the append sits outside the try.
+       *
+       * The child now reads pages through `streamTextContent()` and
+       * breaks at the cap, so the cap can fire *within* a page — which is
+       * the whole point, because `getTextContent()` materialised every
+       * text item on the page before the cap could be consulted, and a
+       * page of two million tiny operators cost 871 MiB at 4.6 MiB of
+       * input.
+       *
+       * Breaking out of a `for await` cancels pdfjs's text-content
+       * intent, and the iterator then rejects. Append the accumulated
+       * text inside the try and that rejection throws first, so the page
+       * contributes nothing: a capped document comes back with no text
+       * layer, which is reported as `no-text-layer` and reads to a user
+       * as a scanned page. A wrong answer delivered calmly, which is the
+       * exact class of bug this parser keeps producing.
+       *
+       * One page, far over the cap. If the text survives, the append is
+       * outside the try and the rejection is being swallowed only
+       * because we are the one who stopped it.
+       */
+      const bytes = buildPdfFixture({ pages: ["z".repeat(20_000)] });
+
+      const outcome = await extractPdfText(bytes, { maxOutputChars: 500 });
+
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect(outcome.truncated).toBe(true);
+      expect(outcome.pages).toBe(1);
+      // Not empty, and not the whole page either.
+      expect(outcome.text.length).toBeGreaterThan(0);
+      expect(outcome.text.length).toBeLessThan(20_000);
+      expect(outcome.text.replace(/\s/gu, "").startsWith("zzzz")).toBe(true);
+    },
+    TIMEOUT,
+  );
+
+  it(
     "stops at the output character cap, mid-document",
     async () => {
       // No spaces: the fixture preserves non-whitespace exactly, so the

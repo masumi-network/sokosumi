@@ -196,6 +196,24 @@ async function main() {
   // Page cap and character cap, both checked as the loop runs. The loop is
   // the only place either could be exceeded, so it is the only place they
   // are enforced.
+  //
+  // Streamed, not collected. getTextContent() is a thin wrapper that
+  // drains streamTextContent() into one items array and returns it, so the
+  // character cap could not be consulted until every text item on the page
+  // existed in memory. A page carrying two million tiny text-showing
+  // operators -- ordinary for a plotted chart, a map, or a CAD or GIS
+  // export -- therefore built a two-million-element array before MAX_CHARS
+  // got a vote. Measured: 871 MiB combined at 4.6 MiB of input, and a
+  // timeout at 9.3 MiB. The cost is the items array, not the string.
+  //
+  // That is the same pre-check-versus-post-check defect ooxml.ts already
+  // records as its own worst bug: a bound that is only tested after the
+  // work that would exceed it.
+  //
+  // Streaming and breaking at the cap, on the same documents: 4.6 MiB goes
+  // from 17.6 s and 801 MiB to 1.2 s and 275 MiB, and 9.3 MiB from a
+  // timeout to 1.9 s and 439 MiB. Identical output wherever the collecting
+  // version succeeded.
   const pageCount = Math.min(doc.numPages, MAX_PAGES);
   let text = "";
   let truncated = doc.numPages > MAX_PAGES;
@@ -205,12 +223,40 @@ async function main() {
     let page;
     try {
       page = await doc.getPage(pageNo);
-      const content = await page.getTextContent();
       let pageText = "";
-      for (const item of content.items) {
-        if (typeof item.str !== "string") continue;
-        pageText += item.str;
-        if (item.hasEOL) pageText += "\\n";
+      let capped = false;
+      // The accumulated text is appended after this block, never inside
+      // it. Breaking out of the for-await cancels pdfjs's text-content
+      // intent, which then rejects; appending inside would put the append
+      // after the throw and discard everything read so far. A capped
+      // document would come back with no text layer, which presents to a
+      // reader as a scanned page -- a silent wrong answer, not an error.
+      try {
+        for await (const chunk of page.streamTextContent()) {
+          for (const item of chunk.items) {
+            if (typeof item.str !== "string") continue;
+            pageText += item.str;
+            if (item.hasEOL) pageText += "\\n";
+          }
+          if (text.length + pageText.length >= MAX_CHARS) {
+            capped = true;
+            break;
+          }
+        }
+      } catch (error) {
+        // Swallowed only when we are the one who stopped it. Any other
+        // rejection is a real read failure and belongs to the handler
+        // below.
+        //
+        // Not covered by a test, and that is a gap rather than an
+        // oversight: pdfjs recovers from a corrupted content stream
+        // rather than rejecting -- corrupting a page's deflate payload at
+        // three different offsets returned the page's text in full every
+        // time -- so no fixture in this suite can produce the rejection
+        // this condition discriminates. Removing the !capped test leaves the
+        // suite green. Written down so the next reader does not mistake
+        // green for covered.
+        if (!capped) throw error;
       }
       text += (pagesRead > 0 ? "\\n\\n" : "") + pageText;
       pagesRead += 1;
