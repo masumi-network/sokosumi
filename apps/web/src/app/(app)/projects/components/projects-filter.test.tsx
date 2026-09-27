@@ -71,6 +71,7 @@ describe("ProjectsFilter", () => {
     await userEvent.click(screen.getByRole("button", { name: "Clear filter" }));
 
     expect(setQueryStateMock).toHaveBeenLastCalledWith("");
+    expect(screen.getByLabelText("Filter projects")).toHaveFocus();
   });
 
   it("clears the param on Escape", async () => {
@@ -80,5 +81,6 @@ describe("ProjectsFilter", () => {
     await userEvent.type(screen.getByLabelText("Filter projects"), "{Escape}");
 
     expect(setQueryStateMock).toHaveBeenLastCalledWith("");
+    expect(screen.getByLabelText("Filter projects")).toHaveFocus();
   });
 });

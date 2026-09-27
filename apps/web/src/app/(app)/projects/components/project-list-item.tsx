@@ -54,7 +54,7 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
           // Square by design: the row runs the full width of the card, so its
           // own radius would round the hover fill inside straight dividers.
           // The card's overflow-hidden rounds the first and last rows for us.
-          "flex min-w-0 flex-1 flex-row items-center gap-4 rounded-none px-4 py-3",
+          "flex min-w-0 flex-1 flex-col items-stretch gap-2 rounded-none px-4 py-3 sm:flex-row sm:items-center sm:gap-4",
           "active:scale-[0.995]",
         )}
       >
