@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { v7 as uuidv7 } from "uuid";
 
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
@@ -151,7 +152,10 @@ export async function admitJevRequest(input: {
           PrismaRaw.sql`SELECT clock_timestamp() AS "committedAt"`,
         );
         const committedAt = clock?.committedAt ?? new Date();
-        const expiresAt = new Date(committedAt.getTime() + ADMISSION_VALID_MS);
+        // Only the counting windows. They are 60 s and 24 h, compared
+        // against DB-written `admittedAt` columns in the same clock domain,
+        // so a few milliseconds here buys no correctness and moving them
+        // would buy none either.
         const windowStart = new Date(committedAt.getTime() - SHARED_WINDOW_MS);
         const dayStart = new Date(committedAt.getTime() - SPEND_WINDOW_MS);
 
@@ -220,24 +224,69 @@ export async function admitJevRequest(input: {
         }
         if (workspaceDaySpend >= PER_WORKSPACE_USD_PER_DAY) return null;
 
-        return await tx.fileAuthorizationAdmission.create({
-          data: {
-            workspaceId: input.workspaceId,
-            actorFingerprint: fileActorFingerprint(
-              input.actor,
-              input.workspaceId,
-            ),
-            epochVector: currentEpoch,
-            purpose: input.purpose,
-            payloadDigest: input.payloadDigest,
-            provider: "vercel-ai-gateway",
-            model: input.model,
-            inputTokens: input.inputTokens,
-            admittedAt: committedAt,
-            expiresAt,
-          },
-          select: { id: true, expiresAt: true },
-        });
+        /**
+         * Both timestamps are minted by the INSERT itself.
+         *
+         * The previous attempt took `clock_timestamp()` right after the lock
+         * and called that "the row write". It was not: the aggregate scan
+         * above, this insert, the COMMIT and the return hop all still sat
+         * inside the 50 ms. That removed two of the three pre-commit
+         * consumers the comment above names and left the third, three lines
+         * below naming it.
+         *
+         * Minting here leaves only COMMIT plus the return hop to fra1 inside
+         * the window. **Whether those two fit in 50 ms is not yet known** —
+         * the `grantAgeMs` recorded on the `admission-expired` path is there
+         * to measure it rather than to assert it.
+         *
+         * Raw SQL because Prisma cannot express a server-side
+         * `clock_timestamp()` in `create`, and `CURRENT_TIMESTAMP` — which is
+         * what the column default uses — is transaction-start and would
+         * reintroduce the bug.
+         *
+         * Three sharp edges, all load-bearing:
+         *
+         * - the table is `file_authorization_admission` via `@@map`, not the
+         *   model name, and its columns are camelCase so they stay quoted;
+         * - `id` is `@default(uuid(7))`, which is a **Prisma-side** default
+         *   and not a DDL one, so a raw insert must supply it or violate
+         *   NOT NULL. Minted here as v7; `gen_random_uuid()` is v4 and would
+         *   quietly drop the time ordering the rest of the table has;
+         * - `admittedAt` and `expiresAt` are `TIMESTAMP(3)` — **without**
+         *   time zone — while `clock_timestamp()` returns `timestamptz`.
+         *   The implicit cast resolves through the session `TimeZone`, so on
+         *   a session that is not UTC this would write local wall time into
+         *   a column the application reads back as UTC, and the error would
+         *   be hours rather than milliseconds. `AT TIME ZONE 'UTC'` is
+         *   explicit for that reason and must not be removed. Prisma's own
+         *   writes are safe only because both sides of the round trip are
+         *   symmetric; hand-writing one side breaks that symmetry.
+         */
+        const [row] = await tx.$queryRaw<{ id: string; expiresAt: Date }[]>(
+          PrismaRaw.sql`
+            INSERT INTO "file_authorization_admission" (
+              "id", "workspaceId", "actorFingerprint", "epochVector",
+              "purpose", "payloadDigest", "provider", "model", "inputTokens",
+              "admittedAt", "expiresAt"
+            ) VALUES (
+              ${uuidv7()}::uuid,
+              ${input.workspaceId}::uuid,
+              ${fileActorFingerprint(input.actor, input.workspaceId)},
+              ${currentEpoch},
+              ${input.purpose},
+              ${input.payloadDigest},
+              'vercel-ai-gateway',
+              ${input.model},
+              ${input.inputTokens},
+              clock_timestamp() AT TIME ZONE 'UTC',
+              (clock_timestamp() + ${ADMISSION_VALID_MS} * interval '1 millisecond')
+                AT TIME ZONE 'UTC'
+            )
+            RETURNING "id", "expiresAt"
+          `,
+        );
+        if (!row) return null;
+        return { id: row.id, expiresAt: row.expiresAt };
       },
       { isolationLevel: "ReadCommitted" },
     );

@@ -112,6 +112,16 @@ export async function rerankFileCandidates(
   const rankingStartedAt = clock();
 
   /**
+   * Set only when a grant arrived already expired; see the dispatch check.
+   *
+   * Declared here rather than beside `failure` below because `unchanged`
+   * closes over it and the early returns for `model-disabled`,
+   * `single-candidate` and `exact-match-head` all run before that point — a
+   * later `let` puts those three in the temporal dead zone.
+   */
+  let expiredByMs: number | null = null;
+
+  /**
    * Reasons that are configuration or triviality rather than a failure.
    *
    * A disabled model and a single-document corpus would otherwise put a line
@@ -157,6 +167,9 @@ export async function rerankFileCandidates(
         reason,
         candidates: input.candidates.length,
         elapsedMs: clock() - rankingStartedAt,
+        // Only on the one path where it means something. Absent elsewhere
+        // rather than null, so it cannot be read as "measured, and zero".
+        ...(expiredByMs === null ? {} : { expiredByMs }),
       });
       log.emit();
     }
@@ -284,6 +297,20 @@ export async function rerankFileCandidates(
               admissionId: admission.id,
               outcome: "expired-before-dispatch",
             });
+            /**
+             * How stale the grant already was, in milliseconds past expiry.
+             *
+             * Recorded to settle a question rather than to assert an answer.
+             * `expiresAt` is minted by the database at the INSERT;
+             * `Date.now()` here is this process's clock in another host. Two
+             * explanations remain for a grant that arrives expired, and this
+             * number separates them: an overage that is roughly constant and
+             * does not move with load reads as clock skew between the two
+             * domains, while one that varies with cold starts reads as the
+             * commit-plus-return-hop simply not fitting in
+             * `ADMISSION_VALID_MS`.
+             */
+            expiredByMs = Date.now() - admission.expiresAt.getTime();
             return { failed: "admission-expired" };
           }
 

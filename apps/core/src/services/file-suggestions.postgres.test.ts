@@ -699,6 +699,54 @@ describe.skipIf(!enabled)("the shared admission ceiling", () => {
     expect(Number(row?.costUsd)).toBeCloseTo(0.0042, 6);
   });
 
+  it("mints both timestamps in the database, in UTC, 50ms apart", async () => {
+    // The insert is raw SQL, and any error in it is swallowed into
+    // `admission-denied` — a quiet outcome. So a completely broken INSERT
+    // looks exactly like a quota refusal, and would drive
+    // `admission-expired` to zero, which is what "fixed" looks like. This
+    // asserts the row is really written and really correct.
+    //
+    // `admittedAt`/`expiresAt` are TIMESTAMP(3), without time zone, while
+    // `clock_timestamp()` is timestamptz. Without an explicit
+    // `AT TIME ZONE 'UTC'` the implicit cast goes through the session's
+    // TimeZone and can write local wall time — an error of hours, not
+    // milliseconds. The drift check below catches that.
+    //
+    // **It is only decisive on a session that is not UTC.** On a UTC session
+    // the cast is a no-op and removing it is genuinely harmless, so this
+    // test passes either way and that is correct rather than weak. To see it
+    // fail, point `DATABASE_URL` at a session with another zone:
+    //
+    //   ?options=-c%20TimeZone%3DAmerica/New_York
+    //
+    // Verified that way: dropping the cast writes 13:32 where the row should
+    // read 17:32, a four-hour error. Neon's session default is not something
+    // this branch has observed, which is exactly why the cast is explicit.
+    const { ADMISSION_VALID_MS } = await import("@/lib/files/jev-admission");
+
+    const before = Date.now();
+    const grant = await admit(10);
+    const after = Date.now();
+
+    expect(grant).not.toBeNull();
+    if (!grant) return;
+
+    const row = await prisma.fileAuthorizationAdmission.findUniqueOrThrow({
+      where: { id: grant.id },
+      select: { admittedAt: true, expiresAt: true },
+    });
+
+    // The window is exactly the constant, taken from one clock.
+    expect(row.expiresAt.getTime() - row.admittedAt.getTime()).toBe(
+      ADMISSION_VALID_MS,
+    );
+
+    // And that clock agrees with ours to within the round trip, rather than
+    // being off by a time-zone offset.
+    expect(row.admittedAt.getTime()).toBeGreaterThanOrEqual(before - 5_000);
+    expect(row.admittedAt.getTime()).toBeLessThanOrEqual(after + 5_000);
+  });
+
   it("issues a grant that is still dispatchable after slow grant work", async () => {
     // The window must start when the row commits, not when the function is
     // entered. `ADMISSION_VALID_MS` is 50 ms and the grant's own work — an
