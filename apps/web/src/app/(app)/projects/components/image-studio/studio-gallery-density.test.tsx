@@ -142,7 +142,6 @@ function manyAssets(count: number): StudioAsset[] {
       resolution: i % 2 ? "2K" : "1K",
       outputFormat: "png",
       seed: null,
-      placementId: i % 4 === 1 ? "reels" : null,
     },
     ...(i % 5 === 0
       ? {
@@ -322,7 +321,6 @@ describe("a gallery with work in it", () => {
             resolution: "1K",
             outputFormat: "png",
             seed: null,
-            placementId: null,
           },
         } as unknown as StudioAsset,
       ],
@@ -348,7 +346,6 @@ describe("a gallery with work in it", () => {
             resolution: "1K",
             outputFormat: "png",
             seed: null,
-            placementId: null,
           },
         } as unknown as StudioAsset,
       ],

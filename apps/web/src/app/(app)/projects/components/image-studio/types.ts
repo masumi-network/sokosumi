@@ -12,7 +12,6 @@ export type StudioState = ProjectImageStudioState;
 export type StudioSettings = ProjectImageSettings;
 export type StudioCatalog = ProjectImageStudioCatalog;
 export type StudioModel = StudioCatalog["models"][number];
-export type StudioPlacement = StudioCatalog["placements"][number];
 
 /** Job statuses that are still going somewhere. */
 export const ACTIVE_JOB_STATUSES: readonly StudioJob["status"][] = [
@@ -108,7 +107,6 @@ export function assetContentUrl(projectId: string, assetId: string): string {
  */
 export interface StudioTarget {
   modelIds: string[];
-  placementId: string | null;
   settings: StudioSettings;
 }
 
@@ -118,9 +116,9 @@ export type StudioFilter = "all" | "approved" | "rejected" | "undecided";
 /**
  * Every visible string, resolved on the server.
  *
- * Two kinds of string are deliberately absent. Model and placement names come
- * from Core's catalog and are rendered as they arrive, because they are
- * product names ("FLUX.2 Pro", "Instagram Reels") rather than prose. And any
+ * Two kinds of string are deliberately absent. Model names come from Core's
+ * catalog and are rendered as they arrive, because they are product names
+ * ("FLUX.2 Pro") rather than prose. And any
  * string that interpolates a number the server cannot know — "3 selected",
  * "Generate 4 images" — is resolved in the client with `useTranslations`,
  * because next-intl parses `{count}` as an ICU argument and returns the
@@ -165,22 +163,16 @@ export interface StudioLabels {
   errorRefreshFailed: string;
   errorLoadOlderFailed: string;
 
-  // Composer and the model/placement catalog.
+  // Composer and the model catalog.
   composerTitle: string;
   model: string;
-  placement: string;
-  placementNone: string;
-  placementTarget: string;
-  placementNotOutput: string;
   aspectRatio: string;
   resolution: string;
   outputFormat: string;
   copies: string;
   selectAllModels: string;
-  frameSetByPlacement: string;
   generateOne: string;
   moreOptions: string;
-  modelUnsupportedForPlacement: string;
   modelNotInCatalog: string;
 
   // The in-page batch queue.

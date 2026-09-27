@@ -3,16 +3,15 @@ import type {
   StudioCatalog,
   StudioJob,
   StudioModel,
-  StudioPlacement,
   StudioSettings,
 } from "./types";
 
 /**
  * Reading the catalog Core sends, and nothing else.
  *
- * Every model name, aspect ratio, resolution and placement the studio offers
- * comes from `state.catalog`. Nothing in this file contains a fal endpoint, a
- * platform dimension or a model id of its own: an endpoint the catalog does
+ * Every model name, aspect ratio and resolution the studio offers comes from
+ * `state.catalog`. Nothing in this file contains a fal endpoint or a model id
+ * of its own: an endpoint the catalog does
  * not list is reported as itself rather than guessed at, and a combination the
  * catalog does not list is not offered. That is the whole point of the shared
  * capability catalog — the UI must not be a second, unverified source of what
@@ -60,25 +59,6 @@ export function modelById(
 ): StudioModel | null {
   if (!id) return null;
   return catalog.models.find((model) => model.id === id) ?? null;
-}
-
-export function placementById(
-  catalog: StudioCatalog,
-  id: string | null | undefined,
-): StudioPlacement | null {
-  if (!id) return null;
-  return catalog.placements.find((placement) => placement.id === id) ?? null;
-}
-
-/**
- * A placement's name, including the platform it belongs to.
- *
- * The catalog labels Instagram's and Facebook's Reels placements identically
- * ("Reels image concept") and distinguishes them only by `platform`, so the
- * label alone renders two chips nobody can tell apart.
- */
-export function placementName(placement: StudioPlacement): string {
-  return `${placement.platform} · ${placement.label}`;
 }
 
 /**
@@ -174,50 +154,11 @@ export function formatUsd(amount: number): string {
 }
 
 /**
- * Whether a model can honour a placement's aspect ratio.
- *
- * A placement is a recommendation about framing, so a model that cannot frame
- * that way cannot serve it. Offering the chip anyway and quietly generating
- * 1:1 for a 9:16 Reels concept is exactly the "unsupported combination"
- * the brief rules out.
- */
-export function modelSupportsPlacement(
-  model: StudioModel,
-  placement: StudioPlacement,
-): boolean {
-  return model.aspectRatios.includes(placement.aspectRatio);
-}
-
-/**
- * Apply a placement to settings, or clear it.
- *
- * The placement drives the aspect ratio and nothing else. Resolution stays a
- * model setting, because the studio generates up to 2K and a placement's
- * pixel target is the platform's advice about the finished asset, not a size
- * this studio promises to output.
- */
-export function applyPlacement(
-  settings: StudioSettings,
-  placement: StudioPlacement | null,
-): StudioSettings {
-  if (!placement) {
-    const { placementId: _dropped, ...rest } = settings;
-    return { ...rest, placementId: null };
-  }
-  return {
-    ...settings,
-    placementId: placement.id,
-    aspectRatio: placement.aspectRatio as StudioSettings["aspectRatio"],
-  };
-}
-
-/**
  * The settings a follow-up generation inherits.
  *
  * Read from the asset or job being acted on, never from a default and never
- * from whatever happens to be selected. A landscape 2K Reels original that
- * regenerates as a square 1K with no placement reads as the product ignoring
- * the request, and `placementId` is in here precisely so it survives.
+ * from whatever happens to be selected. A landscape 2K original that
+ * regenerates as a square 1K reads as the product ignoring the request.
  */
 export function settingsOf(
   source: StudioAsset | StudioJob | null,
@@ -227,7 +168,6 @@ export function settingsOf(
     resolution: source?.settings?.resolution ?? "1K",
     outputFormat: source?.settings?.outputFormat ?? "png",
     seed: source?.settings?.seed ?? null,
-    placementId: source?.settings?.placementId ?? null,
   };
 }
 

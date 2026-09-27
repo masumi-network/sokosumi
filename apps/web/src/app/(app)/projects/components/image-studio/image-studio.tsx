@@ -85,9 +85,9 @@ function inTextOrMenu(node: HTMLElement | null): boolean {
  * side by side. A chat column bought none of that and spent a quarter of the
  * width on it.
  *
- * What the person is aiming at — models, placement, frame — is still held here
- * rather than inside the composer, because the lightbox's "new variation" and
- * the gallery's reference selection both read from it.
+ * What the person is aiming at — models and frame — is still held here rather
+ * than inside the composer, because the lightbox's "new variation" and the
+ * gallery's reference selection both read from it.
  */
 export function ImageStudio({
   initialSelectedAssetId,
@@ -131,13 +131,11 @@ export function ImageStudio({
     const model = defaultModel(catalog);
     return {
       modelIds: model ? [model.id] : [],
-      placementId: null,
       settings: {
         aspectRatio: "1:1",
         resolution: "1K",
         outputFormat: "png",
         seed: null,
-        placementId: null,
       },
     };
   });
@@ -310,10 +308,10 @@ export function ImageStudio({
   /**
    * Repeat a piece of work on its own terms.
    *
-   * Settings come from the thing being repeated — including its placement —
-   * never from a default and never from whatever is currently selected.
-   * Forcing 1:1/1K turned a landscape 2K original into a square thumbnail,
-   * which reads as the product ignoring the request.
+   * Settings come from the thing being repeated, never from a default and
+   * never from whatever is currently selected. Forcing 1:1/1K turned a
+   * landscape 2K original into a square thumbnail, which reads as the product
+   * ignoring the request.
    */
   function repeat(source: StudioAsset | StudioJob, from: "asset" | "job") {
     const id = crypto.randomUUID();

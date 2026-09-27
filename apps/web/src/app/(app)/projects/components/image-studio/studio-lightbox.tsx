@@ -14,7 +14,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-import { placementById, placementName, resolveModel } from "./catalog";
+import { resolveModel } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
   assetContentUrl,
@@ -287,13 +287,7 @@ function ImagePane({
   );
 }
 
-/**
- * Everything the studio kept about how this image was made.
- *
- * The dimensions shown are the asset's own, never the placement's target —
- * a placement is what was aimed at, and saying otherwise would turn a
- * recommendation into a claim about the bytes on screen.
- */
+/** Everything the studio kept about how this image was made. */
 function Metadata({
   asset,
   catalog,
@@ -308,7 +302,6 @@ function Metadata({
   labels: StudioLabels;
 }) {
   const model = resolveModel(catalog, asset.model);
-  const placement = placementById(catalog, asset.settings?.placementId ?? null);
 
   return (
     <dl className="space-y-1.5 text-xs">
@@ -328,14 +321,6 @@ function Metadata({
           {asset.settings?.resolution ?? "—"}
         </span>
       </Field>
-      {placement ? (
-        <Field label={labels.placement}>
-          <span>{placementName(placement)}</span>
-          <span className="text-muted-foreground block tabular-nums">
-            {labels.placementTarget}: {placement.width}×{placement.height}
-          </span>
-        </Field>
-      ) : null}
       <Field label={labels.seed}>
         <span className="tabular-nums">
           {asset.settings?.seed ?? labels.noSeed}

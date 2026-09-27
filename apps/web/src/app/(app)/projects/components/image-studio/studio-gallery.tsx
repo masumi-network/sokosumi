@@ -5,14 +5,7 @@ import { Check, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import {
-  formatUsd,
-  modelById,
-  placementById,
-  placementName,
-  priceForImage,
-  resolveModel,
-} from "./catalog";
+import { formatUsd, modelById, priceForImage, resolveModel } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
   formatElapsed,
@@ -29,9 +22,9 @@ import type { QueuedGeneration } from "./use-generation-queue";
  * Bulk creation only means anything if the results arrive somewhere they can
  * be read together. The picture carries the judgement; the caption carries
  * only what you cannot see by looking — which version it is, whether it has
- * been decided on, which model made it and what it was made for. Its exact
- * pixel size, its prompt, its lineage and its note are one click away, which
- * is where things you compare rather than scan belong.
+ * been decided on, and which model made it. Its exact pixel size, its prompt,
+ * its lineage and its note are one click away, which is where things you
+ * compare rather than scan belong.
  */
 export function StudioGallery({
   activeJobs,
@@ -123,10 +116,6 @@ export function StudioGallery({
         {assets.map((asset) => {
           const selected = selectedIds.includes(asset.id);
           const model = resolveModel(catalog, asset.model);
-          const placement = placementById(
-            catalog,
-            asset.settings?.placementId ?? null,
-          );
           const decision = asset.review?.decision ?? null;
           const decisionLabel =
             decision === "APPROVED"
@@ -156,9 +145,6 @@ export function StudioGallery({
             estimateUsd === null
               ? null
               : `${labels.estimatedCost} ~${formatUsd(estimateUsd)}`,
-            placement
-              ? `${placementName(placement)} · ${placement.aspectRatio} · ${placement.width}×${placement.height}`
-              : null,
             model.known ? null : labels.modelNotInCatalog,
           ]
             .filter(Boolean)
@@ -269,19 +255,6 @@ export function StudioGallery({
                           ~{formatUsd(estimateUsd)}
                         </span>
                       ) : null}
-                    </p>
-                  ) : null}
-
-                  {placement ? (
-                    // Its own line: with the platform prefix these names do
-                    // not survive sharing a row with anything, and the
-                    // platform is the part that tells two Reels placements
-                    // apart.
-                    <p
-                      className="text-muted-foreground truncate text-xs"
-                      title={provenance}
-                    >
-                      {placementName(placement)}
                     </p>
                   ) : null}
                 </figcaption>

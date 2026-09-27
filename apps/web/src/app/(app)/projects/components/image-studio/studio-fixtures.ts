@@ -3,13 +3,12 @@ import type { StudioCatalog } from "./types";
 /**
  * A catalog shaped like the one Core sends, for tests only.
  *
- * Deliberately not a copy of the real one. It carries three models whose
+ * Deliberately not a copy of the real one. It carries two models whose
  * capabilities *differ* — one without 0.5K, one without a seed, one with a
- * ratio the others lack — because everything interesting in the UI happens at
- * those differences: clamping when the model changes, intersecting the
- * options when several are selected, and refusing a placement a model cannot
- * frame. A fixture where every model supports everything would pass while the
- * product was broken.
+ * ratio the other lacks — because everything interesting in the UI happens at
+ * those differences: clamping when the model changes and intersecting the
+ * options when several are selected. A fixture where every model supports
+ * everything would pass while the product was broken.
  *
  * The prices differ the same way and on purpose: Model B has no published
  * figure at 2K, so a batch that lands there cannot be totalled. That is a real
@@ -65,28 +64,8 @@ export const TEST_CATALOG: StudioCatalog = {
       verifiedAt: "2026-09-26",
     },
   ],
-  placements: [
-    {
-      id: "reels",
-      platform: "instagram",
-      label: "Instagram Reels",
-      aspectRatio: "9:16",
-      width: 1080,
-      height: 1920,
-      notes: "",
-      sourceUrl: "https://example.test/reels",
-      verifiedAt: "2026-09-26",
-    },
-    {
-      id: "square",
-      platform: "x",
-      label: "X square",
-      aspectRatio: "1:1",
-      width: 1200,
-      height: 1200,
-      notes: "",
-      sourceUrl: "https://example.test/x",
-      verifiedAt: "2026-09-26",
-    },
-  ],
+  // Placement is gone from the product. The field is still required by the
+  // generated Core type until Core's own branch drops it from the payload, so
+  // it stays here as an empty list rather than as two rows nothing reads.
+  placements: [],
 };
