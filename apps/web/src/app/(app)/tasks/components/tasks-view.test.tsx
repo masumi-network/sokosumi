@@ -1,5 +1,5 @@
-import type { DragEndEvent } from "@dnd-kit/core";
-import { render, screen, waitFor } from "@testing-library/react";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps, ReactNode } from "react";
 import { toast } from "sonner";
@@ -140,8 +140,16 @@ vi.mock("./task-list-view", () => ({
     <div data-testid="list-density" data-compact={compact} />
   ),
 }));
-vi.mock("./task-list-item", () => ({ TaskListItem: () => null }));
-vi.mock("./task-card", () => ({ TaskCard: () => null }));
+vi.mock("./task-list-item", () => ({
+  TaskListItem: ({ compact }: { compact: boolean }) => (
+    <div data-testid="list-overlay" data-compact={compact} />
+  ),
+}));
+vi.mock("./task-card", () => ({
+  TaskCard: ({ compact }: { compact: boolean }) => (
+    <div data-testid="board-overlay" data-compact={compact} />
+  ),
+}));
 vi.mock("@/app/components/list-mobile-create-fab", () => ({
   ListMobileCreateFab: ({
     ariaLabel,
@@ -464,5 +472,32 @@ describe("TasksView without the task-board guide", () => {
       expect(window.localStorage.getItem(key)).toBe(storedValue);
       unmount();
     },
+  );
+});
+
+it("keeps board and list drag overlays in Compact", async () => {
+  const user = userEvent.setup();
+  renderBoard([TASK], "compact");
+  const onDragStart = dndContextPropsSpy.mock.calls.at(-1)?.[0]
+    ?.onDragStart as (event: DragStartEvent) => void;
+  act(() =>
+    onDragStart({
+      activatorEvent: new Event("pointerdown"),
+      active: {
+        id: TASK.id,
+        data: { current: { columnId: TASK.columnId } },
+        rect: { current: { initial: new DOMRect(), translated: null } },
+      },
+    }),
+  );
+  expect(screen.getByTestId("board-overlay")).toHaveAttribute(
+    "data-compact",
+    "true",
+  );
+  await user.click(screen.getByRole("button", { name: "Display" }));
+  await user.click(screen.getByRole("radio", { name: "List" }));
+  expect(screen.getByTestId("list-overlay")).toHaveAttribute(
+    "data-compact",
+    "true",
   );
 });

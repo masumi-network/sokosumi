@@ -75,7 +75,7 @@ export function TaskListItem({
           </div>
           {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
           <TaskMetaDetails
-            project={task.project}
+            project={compact ? null : task.project}
             assignee={task.assignee}
             participants={task.participants}
             commentsCount={task.commentsCount}
