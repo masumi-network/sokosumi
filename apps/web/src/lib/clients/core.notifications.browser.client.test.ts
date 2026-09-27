@@ -44,6 +44,91 @@ describe("core.notifications.browser.client", () => {
     });
   });
 
+  it("records coarse details with cookies, JSON, and a bounded request", async () => {
+    await withTransformer(patchMock, {
+      data: { success: true },
+      meta: { timestamp: "2026-09-27T00:00:00Z" },
+    });
+    const { notificationsBrowserClient } = await import(
+      "./core.notifications.browser.client"
+    );
+    const body = { browser: "Chrome", operatingSystem: "macOS" } as const;
+    await notificationsBrowserClient.updatePushDeviceBrowser(
+      { id: "device" },
+      body,
+    );
+    expect(patchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "/notifications/push-devices/{id}/browser",
+        path: { id: "device" },
+        body,
+        headers: { "Content-Type": "application/json" },
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(createClientMock).toHaveBeenCalledWith(
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+
+  it("converts recorded registration dates and leaves old devices undated", async () => {
+    const registeredAt = "2026-09-26T12:00:00.000Z";
+    await withTransformer(getMock, {
+      data: [
+        {
+          id: "new",
+          platform: "browser",
+          formFactor: "desktop",
+          state: "active",
+          registeredAt,
+        },
+        {
+          id: "old",
+          platform: "browser",
+          formFactor: "desktop",
+          state: "active",
+        },
+      ],
+      meta: { timestamp: "2026-09-27T00:00:00Z" },
+    });
+    const { notificationsBrowserClient } = await import(
+      "./core.notifications.browser.client"
+    );
+    const response = await notificationsBrowserClient.getPushDevices();
+    expect(response.data[0].registeredAt).toEqual(new Date(registeredAt));
+    expect(response.data[1].registeredAt).toBeUndefined();
+    expect(response.meta.timestamp).toBeInstanceOf(Date);
+  });
+
+  it("reads push devices with cookies and without caching", async () => {
+    const devices = [
+      {
+        id: "device-1",
+        platform: "browser",
+        formFactor: "desktop",
+        state: "active",
+      },
+    ];
+    await withTransformer(getMock, {
+      data: devices,
+      meta: { timestamp: "2026-09-27T00:00:00Z", requestId: "request-1" },
+    });
+    const { notificationsBrowserClient } = await import(
+      "./core.notifications.browser.client"
+    );
+    const response = await notificationsBrowserClient.getPushDevices();
+    expect(response.data).toEqual(devices);
+    expect(createClientMock).toHaveBeenCalledWith(
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(getMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "/notifications/push-devices",
+        cache: "no-store",
+      }),
+    );
+  });
+
   it("creates a cookie-credentials client and lists notifications", async () => {
     await withTransformer(getMock, {
       data: [

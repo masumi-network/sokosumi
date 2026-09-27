@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  Loader2,
   type LucideIcon,
   Share,
   Smartphone,
@@ -192,6 +193,7 @@ function BrowserNotice({
             // takes to answer it. Every other control on this card refuses a
             // press the same way.
             aria-disabled={action.saving || undefined}
+            aria-busy={action.saving}
             onClick={() => {
               if (action.saving) {
                 return;
@@ -215,6 +217,12 @@ function BrowserNotice({
               action.saving && "opacity-50",
             )}
           >
+            {action.saving ? (
+              <Loader2
+                className="size-4 shrink-0 motion-safe:animate-spin"
+                aria-hidden="true"
+              />
+            ) : null}
             {t(action.labelKey)}
           </Button>
         ) : null}

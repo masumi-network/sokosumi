@@ -7,8 +7,10 @@ const subscribeDevice = vi.hoisted(() => vi.fn());
 const unsubscribeDevice = vi.hoisted(() => vi.fn());
 
 vi.mock("../push-client.client", () => ({
-  createAblyPushClient: () => ({
+  createAblyPushClient: (userId: string) => ({
     getDevice: async () => ({
+      id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      clientId: `${userId}:instance`,
       deviceIdentityToken: localStorage.getItem(
         "ably.push.deviceIdentityToken",
       ),

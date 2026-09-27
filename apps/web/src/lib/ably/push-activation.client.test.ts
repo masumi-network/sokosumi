@@ -47,18 +47,29 @@ beforeEach(() => {
   rememberRenewalMock.mockReset().mockResolvedValue(undefined);
   revokeRenewalMock.mockReset().mockResolvedValue(undefined);
 });
+const recordBrowserMock = vi.fn();
+vi.mock("./push-device-browser.client", () => ({
+  recordPushDeviceBrowser: (...args: unknown[]) => recordBrowserMock(...args),
+}));
+beforeEach(() => {
+  recordBrowserMock.mockReset().mockResolvedValue(undefined);
+});
 const calls: string[] = [];
 
 /** Set to make the singleton throw the way a first construction can. */
 let clientConstructionError: Error | null = null;
 
 vi.mock("./push-client.client", () => ({
-  createAblyPushClient: () => {
+  createAblyPushClient: (userId: string) => {
     if (clientConstructionError) {
       throw clientConstructionError;
     }
     return {
-      getDevice: () => getDeviceMock(),
+      getDevice: async () => ({
+        id: "device-1",
+        clientId: `${userId}:instance`,
+        ...(await getDeviceMock()),
+      }),
       push: {
         activate: () => {
           calls.push("activate");
@@ -99,6 +110,10 @@ vi.mock("@/lib/utils/notification-service-worker", () => ({
 }));
 
 import { activatePush, deactivatePush } from "./push-activation.client";
+import {
+  hasPushDeviceIdentity,
+  rememberPushDeviceIdentity,
+} from "./push-device-identity.client";
 import { notePushTeardown, queuePushWork } from "./push-work-queue.client";
 
 describe("deactivatePush", () => {
@@ -445,6 +460,144 @@ describe("activatePush", () => {
     localStorage.clear();
   });
 
+  it("does not repeatedly reset a working legacy device when marker storage is full", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "legacy-device" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    const setItem = localStorage.setItem.bind(localStorage);
+    const storage = vi
+      .spyOn(localStorage, "setItem")
+      .mockImplementation((key, value) => {
+        if (key === "sokosumi.push.identifiedDevice")
+          throw new DOMException("Storage full", "QuotaExceededError");
+        setItem(key, value);
+      });
+    try {
+      await expect(
+        activatePush("user_1", { readerInitiated: false }),
+      ).rejects.toThrow("Storage full");
+      await expect(
+        activatePush("user_1", { readerInitiated: false }),
+      ).rejects.toThrow("Storage full");
+      expect(deactivateMock).not.toHaveBeenCalled();
+      expect(activateMock).not.toHaveBeenCalled();
+      expect(unsubscribeDeviceMock).not.toHaveBeenCalled();
+      expect(unsubscribeMock).not.toHaveBeenCalled();
+      expect(hasPushDeviceIdentity("user_1", "legacy-device")).toBe(false);
+    } finally {
+      storage.mockRestore();
+    }
+  });
+
+  it("replaces an existing unnamed registration once and marks the new device", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "legacy-device" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    let activations = 0;
+    activateMock.mockImplementation(async () => {
+      if (++activations === 2) {
+        localStorage.setItem(
+          "ably.push.deviceId",
+          JSON.stringify({ value: "device-1" }),
+        );
+      }
+    });
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(deactivateMock).toHaveBeenCalledTimes(1);
+    expect(hasPushDeviceIdentity("user_1", "device-1")).toBe(true);
+    expect(hasPushDeviceIdentity("user_1", "legacy-device")).toBe(false);
+    expect(recordBrowserMock).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      "user_1",
+      expect.any(Date),
+    );
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(deactivateMock).toHaveBeenCalledTimes(1);
+    expect(recordBrowserMock).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      "user_1",
+      undefined,
+    );
+  });
+
+  it("does not mark a migration whose channel binding failed", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "legacy-device" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    subscribeDeviceMock.mockRejectedValueOnce(new Error("Binding failed"));
+
+    await expect(activatePush("user_1")).rejects.toThrow("Binding failed");
+    expect(hasPushDeviceIdentity("user_1", "device-1")).toBe(false);
+  });
+
+  it("records browser metadata after subscribing and keeps push active if recording fails", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    recordBrowserMock.mockRejectedValueOnce(new Error("metadata unavailable"));
+    expect(await activatePush("user_1")).toBe(true);
+    expect(recordBrowserMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "user_1",
+      expect.any(Date),
+    );
+    expect(recordBrowserMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+      subscribeDeviceMock.mock.invocationCallOrder[0],
+    );
+    warning.mockRestore();
+  });
+
+  it("captures a fresh registration date only after activation succeeds", async () => {
+    let finish = () => {};
+    activateMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const work = activatePush("user_1");
+    await vi.waitFor(() => expect(activateMock).toHaveBeenCalledOnce());
+    expect(recordBrowserMock).not.toHaveBeenCalled();
+    const activatedAt = Date.now();
+    finish();
+    await expect(work).resolves.toBe(true);
+    const registeredAt = recordBrowserMock.mock.calls[0][2];
+    expect(registeredAt).toBeInstanceOf(Date);
+    expect(registeredAt.getTime()).toBeGreaterThanOrEqual(activatedAt);
+    expect(registeredAt.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("does not record a date when SDK activation fails", async () => {
+    activateMock.mockRejectedValueOnce(new Error("Activation failed"));
+    await expect(activatePush("user_1")).rejects.toThrow("Activation failed");
+    expect(recordBrowserMock).not.toHaveBeenCalled();
+  });
+
+  it("does not date an existing healthy registration during recovery", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "device-1" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    rememberPushDeviceIdentity("user_1", {
+      id: "device-1",
+      clientId: "user_1:instance",
+    });
+    await expect(
+      activatePush("user_1", { readerInitiated: false }),
+    ).resolves.toBe(true);
+    expect(recordBrowserMock).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Object),
+      "user_1",
+      undefined,
+    );
+    expect(deactivateMock).not.toHaveBeenCalled();
+  });
+
   it("stops before binding when the device owner cannot be saved", async () => {
     // No device id: a run that finds one takes the replacement path, and that
     // path drops the browser subscription itself. The drop under test is the
@@ -683,7 +836,14 @@ describe("activatePush", () => {
    * teardown and re-registration on every activation and every repair.
    */
   it("keeps a device this browser already holds for this reader", async () => {
-    localStorage.setItem("ably.push.deviceId", "my-device");
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "my-device" }),
+    );
+    rememberPushDeviceIdentity("user_1", {
+      id: "my-device",
+      clientId: "user_1:instance",
+    });
     localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
     hasWebPushSubscriptionMock.mockResolvedValue(true);
 
@@ -1130,6 +1290,7 @@ describe("activatePush", () => {
     subscribeDeviceMock.mockRejectedValueOnce(new Error("channel failed"));
     await expect(activatePush("user_1")).rejects.toThrow("channel failed");
     expect(rememberRenewalMock).not.toHaveBeenCalled();
+    expect(recordBrowserMock).not.toHaveBeenCalled();
   });
 
   it("keeps foreground activation usable when renewal storage fails", async () => {
