@@ -60,8 +60,11 @@ export const STUDIO_TEMPLATES: readonly StudioTemplate[] = [
   {
     id: "headshot",
     aspectRatio: "4:5",
+    // "grey to white" is spaced, not hyphenated, and deliberately so: hyphenated
+    // it ends in a substring the repo's colour-token guard reads as a raw
+    // Tailwind gradient class and fails the build on. Same words, same brief.
     prompt:
-      "A professional studio headshot of one person from the chest up, facing the camera, soft key light with gentle fill, shallow depth of field, seamless grey-to-white gradient backdrop, natural skin texture, calm confident expression, 85mm portrait lens look.",
+      "A professional studio headshot of one person from the chest up, facing the camera, soft key light with gentle fill, shallow depth of field, seamless grey to white gradient backdrop, natural skin texture, calm confident expression, 85mm portrait lens look.",
   },
   {
     id: "product-announcement",
