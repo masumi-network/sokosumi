@@ -1,7 +1,21 @@
 import { randomUUID } from "node:crypto";
 import type { createPrismaClient } from "@sokosumi/database/client";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import { jevRoute } from "@/test/jev-routes";
 
+const jevEvaluate = vi.hoisted(() => vi.fn());
+vi.mock("ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("ai")>()),
+  experimental_evaluate: jevEvaluate,
+}));
 vi.mock("@/lib/db/prisma", async () => {
   const value = process.env.LOCAL_RELIABILITY_DATABASE_URL;
   if (!value) throw new Error("Explicit disposable local database required");
@@ -42,6 +56,11 @@ vi.mock("@/services/soko-bot-delivery.service", () => ({
   enqueueSokoBotDelivery: vi.fn(),
   deliverSokoBotTurnOutbox: vi.fn().mockResolvedValue(undefined),
 }));
+
+// Jev answers every classification; tests that need another route script it.
+beforeEach(() => {
+  jevEvaluate.mockResolvedValue(jevRoute("DIRECT_RESPONSE"));
+});
 
 describe.skipIf(!process.env.LOCAL_RELIABILITY_DATABASE_URL)(
   "confirmation proof (isolated local database)",

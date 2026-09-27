@@ -32,8 +32,11 @@ Optional, per network:
   the avatar picker offers no pictures and the sidebar shows a plain icon
   instead of the bot faces. `/sync/soko-bot-avatars` keeps the pool topped up
   every 30 minutes and is a no-op while the key is unset.
-- `SOKO_BOT_CLASSIFIER_MODE=model` — route classification by model instead of
-  the deterministic default.
+- `AI_GATEWAY_API_KEY` — also routes every turn. Jev (`typesafe-ai/jev`)
+  picks the route through the Gateway evaluation API. It has no EU region, so
+  this is an owner-approved exception to the EU-only model policy; requests set
+  zero data retention and no prompt training. Without the key every turn
+  falls back to read-only CLARIFY.
 
 Environment changes only apply to the *next* build, so redeploy after setting
 them.

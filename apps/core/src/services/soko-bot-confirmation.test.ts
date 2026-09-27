@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { jevRoute } from "@/test/jev-routes";
 
 const {
   resolveDecision,
@@ -16,6 +17,11 @@ const {
   turnUpdate: vi.fn(),
   turnFindFirst: vi.fn(),
   transaction: vi.fn(),
+}));
+const jevEvaluate = vi.hoisted(() => vi.fn());
+vi.mock("ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("ai")>()),
+  experimental_evaluate: jevEvaluate,
 }));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: vi.fn().mockResolvedValue({ disabled: true }),
@@ -104,6 +110,12 @@ function confirmation() {
     },
   };
 }
+
+// Jev answers every classification; tests that need another route script it.
+beforeEach(() => {
+  jevEvaluate.mockResolvedValue(jevRoute("DIRECT_RESPONSE"));
+});
+
 describe("trusted scoped owner confirmation", () => {
   beforeEach(() => {
     vi.clearAllMocks();

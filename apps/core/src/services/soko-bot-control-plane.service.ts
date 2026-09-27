@@ -43,7 +43,8 @@ import {
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
 import {
   type ClassificationResult,
-  ExternalTurnClassifier,
+  JevTurnClassifier,
+  type TurnClassifier,
 } from "@/lib/soko-bot/classifier";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
 import {
@@ -587,9 +588,7 @@ export class SokoBotControlPlane {
   constructor(
     private readonly runtime: SokoBotRuntime = getSokoBotRuntime(),
     private readonly contextBuilder: ContextPacketBuilder = new ContextPacketBuilder(),
-    private readonly classifier: ExternalTurnClassifier = new ExternalTurnClassifier(
-      getEnv().SOKO_BOT_CLASSIFIER_MODE === "model",
-    ),
+    private readonly classifier: TurnClassifier = new JevTurnClassifier(),
   ) {}
 
   private async startRuntimeWithAcceptanceRetry(
@@ -2421,10 +2420,7 @@ export class SokoBotControlPlane {
               ? input.chat?.requestedByUserId
               : null,
             chainDepth: input.chat?.chainDepth ?? 0,
-            classification: jsonInput({
-              ...classification.classification,
-              inference: classification.usage?.inference ?? null,
-            }),
+            classification: jsonInput(classification.classification),
             classifierModel: classification.model,
             classifierVersion: classification.version,
             classifierLatencyMs: classification.latencyMs,

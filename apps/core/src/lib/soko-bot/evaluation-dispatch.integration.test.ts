@@ -423,7 +423,7 @@ describe.skipIf(!process.env.LOCAL_EVALUATION_DATABASE_URL)(
         count: () => calls,
       };
     }
-    it.each(["selector", "agent", "judge"])(
+    it.each(["agent", "judge"])(
       "%s SDK receives capped output and durable verified cost before returning",
       async (role) => {
         const test = await dispatch("ok", role);

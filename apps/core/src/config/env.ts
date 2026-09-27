@@ -176,9 +176,6 @@ const baseEnvSchema = z.object({
   SOKO_BOT_RUNTIME_ADAPTER: z
     .enum(["in-memory", "in-process"])
     .default("in-process"),
-  SOKO_BOT_CLASSIFIER_MODE: z
-    .enum(["deterministic", "model"])
-    .default("deterministic"),
   SOKO_BOT_CREDITS_PER_USD: z.coerce.number().positive().default(100),
   SOKO_BOT_MIN_TURN_CREDITS: z.coerce.number().positive().default(0.1),
   /** Most credits one hire may commit on a turn no owner asked for. */

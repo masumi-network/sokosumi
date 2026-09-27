@@ -63,7 +63,7 @@ describe("Soko Bot EU model policy", () => {
     ).rejects.toThrow("not approved");
     expect(execute).not.toHaveBeenCalled();
   });
-  it.each(["selector", "agent", "judge"] as const)(
+  it.each(["agent", "judge"] as const)(
     "pins %s requests with no SDK retries",
     (role) => {
       expect(
