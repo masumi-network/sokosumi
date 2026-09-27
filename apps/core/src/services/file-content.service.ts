@@ -63,6 +63,25 @@ export function isInlineRenderable(mimeType: string | null): boolean {
 }
 
 /**
+ * The policy that keeps served bytes from acting like a page of ours.
+ *
+ * `sandbox` with no tokens gives the response an opaque origin and no
+ * scripting, which is what we want for everything — except that it also
+ * stops the browser's built-in PDF viewer, which needs to run script inside
+ * the frame. A PDF served under the strict policy renders as an empty grey
+ * box, which is how this was found.
+ *
+ * So a PDF gets `allow-scripts` and nothing else. The origin stays opaque:
+ * without `allow-same-origin` the frame cannot read this origin's cookies,
+ * storage or DOM, so what it may run it can do nothing with.
+ */
+export function contentSecurityPolicyFor(contentType: string): string {
+  const base = contentType.split(";")[0].trim().toLowerCase();
+  if (base === "application/pdf") return "sandbox allow-scripts";
+  return "sandbox; default-src 'none'";
+}
+
+/**
  * A filename safe to put in a header.
  *
  * Quotes, backslashes, control characters and newlines are what turn a

@@ -6,6 +6,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   contentDispositionFor,
+  contentSecurityPolicyFor,
   openFileContentStream,
 } from "@/services/file-content.service";
 
@@ -85,11 +86,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         result.inline,
       ),
       // Two belts for user-supplied bytes served from our own origin: never
-      // let the browser re-guess the type, and strip the document of an
-      // origin, scripts and forms even if something slips past the inline
-      // allowlist.
+      // let the browser re-guess the type, and give the document an opaque
+      // origin so it cannot reach this one even if something slips past the
+      // inline allowlist.
       "x-content-type-options": "nosniff",
-      "content-security-policy": "sandbox; default-src 'none'",
+      "content-security-policy": contentSecurityPolicyFor(result.contentType),
     });
   });
 }

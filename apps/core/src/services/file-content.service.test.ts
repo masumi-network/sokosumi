@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   contentDispositionFor,
+  contentSecurityPolicyFor,
   isInlineRenderable,
 } from "./file-content.service";
 
@@ -95,5 +96,33 @@ describe("contentDispositionFor", () => {
       'filename="file"',
     );
     expect(contentDispositionFor("", true)).toContain('filename="file"');
+  });
+});
+
+describe("contentSecurityPolicyFor", () => {
+  it("gives ordinary content an opaque origin and nothing else", () => {
+    expect(contentSecurityPolicyFor("text/markdown")).toBe(
+      "sandbox; default-src 'none'",
+    );
+  });
+
+  it.each(["text/html", "image/svg+xml", "application/octet-stream"])(
+    "keeps %s under the strict policy",
+    (type) => {
+      expect(contentSecurityPolicyFor(type)).toBe(
+        "sandbox; default-src 'none'",
+      );
+    },
+  );
+
+  it("lets a PDF script so the built-in viewer works, but stays opaque", () => {
+    // Found on preprod: the strict policy renders a PDF as an empty grey box
+    // because Chrome's viewer runs script inside the frame.
+    const policy = contentSecurityPolicyFor("application/pdf; charset=binary");
+
+    expect(policy).toBe("sandbox allow-scripts");
+    // The part that matters: no same-origin, so the frame cannot reach this
+    // origin's cookies, storage or DOM.
+    expect(policy).not.toContain("allow-same-origin");
   });
 });
