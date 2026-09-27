@@ -9,6 +9,7 @@ import {
   driveItemBodyClass,
   driveItemIconWellClass,
   driveItemMetaDesktopClass,
+  driveItemMetaMobileClass,
   driveItemNameClass,
   driveItemsListClass,
   driveItemsPanelClass,
@@ -98,9 +99,19 @@ export function TableList({ workspaceId }: { workspaceId: string | null }) {
               <div className={driveItemIconWellClass("list")}>
                 <Table2 aria-hidden className="text-muted-foreground size-5" />
               </div>
-              <h3 className={cn(driveItemNameClass(), "min-w-0 flex-1")}>
-                {table.title}
-              </h3>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <h3 className={driveItemNameClass()}>{table.title}</h3>
+                <div className={driveItemMetaMobileClass("list")}>
+                  <span>
+                    {t("columnCount", { count: table.columns.length })}
+                  </span>
+                  <span>
+                    {format.dateTime(new Date(table.updatedAt), {
+                      dateStyle: "medium",
+                    })}
+                  </span>
+                </div>
+              </div>
               <div className={driveItemMetaDesktopClass("list")}>
                 <span>{t("columnCount", { count: table.columns.length })}</span>
                 <span>
