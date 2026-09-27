@@ -56,9 +56,12 @@ function evaluatorReturning(
       return {
         ok: score !== null,
         score,
-        reason: score === null ? "unparseable" : null,
+        reason: score === null ? "invalid-answers" : null,
         latencyMs: 1,
         inputTokens: request.tokens,
+        outputTokens: 2,
+        costUsd: "0.0001",
+        generationId: "gen-test",
       };
     },
   };
@@ -146,6 +149,9 @@ describe("rerankFileCandidates", () => {
       reason: null,
       latencyMs: 1,
       inputTokens: 100,
+      outputTokens: 2,
+      costUsd: "0.0001",
+      generationId: "gen-test",
     }));
     await rerankFileCandidates({
       ...baseInput([

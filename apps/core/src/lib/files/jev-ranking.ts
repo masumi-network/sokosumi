@@ -192,7 +192,7 @@ export async function rerankFileCandidates(
 
           const outcome = await evaluator.evaluate({
             request,
-            questionName: "relevance",
+            rubric: "relevance",
           });
 
           scheduler.settle(outcome.ok ? "ok" : "failed");

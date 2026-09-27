@@ -43,11 +43,52 @@ disabled, over budget or returns anything invalid, the deterministic
 filename + full-text ordering is the result. That fallback is the absence of a model,
 not a second provider.
 
-The historical catalog findings stand: Jev has no `regions` field, `has_zdr=false`,
-`no_training=all`. This branch does not claim otherwise and does not add EU routing
-or ZDR claims to any surface. An independently configured workspace restriction that
-already blocks external inference is still honoured — dropping the EU requirement
-from *this feature* does not authorise bypassing an existing restriction.
+### Retention: corrected against what main ships
+
+An earlier revision of this section treated the public catalog as the last word:
+Jev has no `regions` field, `has_zdr=false`, `no_training=all`, therefore zero
+retention is unavailable. **Main's shipped task-tag classifier contradicts that**,
+and it is the working integration. It sends
+`providerOptions.gateway.{zeroDataRetention: true, disallowPromptTraining: true}`
+on every evaluation, and its own comment records why: *the public catalog omits the
+TypeSafe ZDR route, so its aggregate retention flags must not be used to reject a
+route the Gateway can enforce per request*. It ships enabled by default over task
+titles and descriptions.
+
+So the catalog flags are **not** authoritative about what the Gateway will enforce,
+and this plan no longer says they are. What replaces that claim, precisely:
+
+- Files asks for the same two retention options on **every** call, and a call is
+  never retried without them. If the Gateway rejects a request carrying them, the
+  evaluator latches off for the life of the process rather than downgrading
+  (`jev-client.ts`, `provider-options-rejected`).
+- **Retention is requested, not verified.** Nothing in a successful reply attests
+  that either option was honoured, so no surface, log or document on this branch
+  describes Files as ZDR-verified. Upstream flags are not treated as proof either
+  way — that cuts in both directions.
+- The availability probe checks only that the model id exists in the catalog. It
+  deliberately ignores the catalog's retention flags, for the reason above.
+
+`FILES_JEV_ENABLED` still defaults to **false**, unlike the task-tag feature's
+default-on flag. That is a scope judgement rather than a retention claim: task tags
+send a title and a description, Files would send document body text, which is a
+larger surface to turn on without a human saying so. Flipping the default is a
+one-line change once someone decides to.
+
+This branch adds no EU routing and no ZDR claim to any surface. An independently
+configured workspace restriction that already blocks external inference is still
+honoured — dropping the EU requirement from *this feature* does not authorise
+bypassing an existing restriction.
+
+### The request contract
+
+Files uses main's verified shape, not the guess this plan originally carried:
+`state` is an object, `questions` is a map of `{id: {type, instructions}}`, and the
+reply is `{model, answers, usage, providerMetadata}`, Zod-validated. Only
+`type: "boolean"` is demonstrated by the shipped integration, so the 0–3 relevance
+rubric is asked as a ladder of boolean rungs and the ordinal is derived from the
+highest true rung. `type: "choice"` stays unused until it is confirmed against the
+official contract.
 
 No paid live inference is authorised. Every model test on this branch uses mocked or
 synthetic fixtures, and no result from those tests may be described as a live Jev

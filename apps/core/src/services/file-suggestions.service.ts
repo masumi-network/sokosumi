@@ -170,8 +170,9 @@ export async function runSuggestionJob(
   const model = getEnv().FILES_RANKING_MODEL;
   let suggested = 0;
 
-  // One bounded request per candidate label. The rubric asks a single ordinal
-  // question, so a reply is a number we can validate, not prose to parse.
+  // One bounded request per candidate label. The rubric is a short ladder of
+  // boolean questions, so a reply is a set of booleans we can validate and
+  // place on the 0-3 scale, not prose to parse.
   for (const entry of shortlist) {
     const request = buildJevLabelRequest({
       documentExcerpt: excerpt,
@@ -213,7 +214,7 @@ export async function runSuggestionJob(
 
     const outcome = await evaluator.evaluate({
       request,
-      questionName: "belongs",
+      rubric: "belongs",
     });
     scheduler.settle(outcome.ok ? "ok" : "failed");
     await recordJevDispatch({
