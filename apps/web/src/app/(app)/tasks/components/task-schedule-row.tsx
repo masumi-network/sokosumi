@@ -16,11 +16,15 @@ import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import type { TaskSchedule } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
+import type { SchedulesViewMode } from "@/lib/ui-preferences/schedules-view-mode";
+import { cn } from "@/lib/utils";
+
 import { TaskScheduleActions } from "./task-schedule-actions";
 import { TaskScheduleStateBadge } from "./task-schedule-state-badge";
 
 interface TaskScheduleRowProps {
   schedule: TaskSchedule;
+  viewMode?: SchedulesViewMode;
   /** Names and avatars of stored assignees, wider than the create picker. */
   assigneeDisplayOptions: CoworkerOption[];
   /** The create picker's choices, for the edit dialog. */
@@ -48,6 +52,7 @@ function toAssigneeView(option: CoworkerOption): TaskAssigneeView {
  */
 export function TaskScheduleRow({
   schedule,
+  viewMode = "list",
   assigneeDisplayOptions,
   coworkerOptions,
   projectOptions,
@@ -82,7 +87,10 @@ export function TaskScheduleRow({
 
   return (
     <li
-      className="bg-background hover:bg-card-background-hover relative flex flex-col gap-3 rounded-lg border border-border p-3 transition-colors lg:flex-row lg:items-center"
+      className={cn(
+        "bg-background hover:bg-card-background-hover relative flex min-w-0 flex-col gap-3 rounded-lg border border-border p-3 transition-colors",
+        viewMode === "list" && "lg:flex-row lg:items-center",
+      )}
       data-testid="schedule-row"
     >
       <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -110,7 +118,14 @@ export function TaskScheduleRow({
               schedule={schedule}
             />
           </div>
-          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          <div
+            className={cn(
+              "text-muted-foreground flex gap-x-3 gap-y-1 text-xs",
+              viewMode === "grid"
+                ? "flex-col items-start"
+                : "flex-wrap items-center",
+            )}
+          >
             <span>{assigneeLabel}</span>
             <span className="flex min-w-0 items-center gap-1.5">
               {project ? (

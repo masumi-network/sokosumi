@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
-  PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
   PROJECTS_PAGE_SHELL_CLASS,
@@ -117,7 +116,7 @@ describe("projects list CLS layout pairing", () => {
     );
   });
 
-  it("skeleton and live browse share PROJECTS_BROWSE_LAYOUT_CLASS + divide", () => {
+  it("skeleton and live browse share a borderless grey content group", () => {
     const loading = stripComments(
       readApp("projects/components/projects-loading-view.tsx"),
     );
@@ -125,13 +124,10 @@ describe("projects list CLS layout pairing", () => {
       readApp("projects/components/projects-view.tsx"),
     );
 
-    expect(loading).toMatch(/PROJECTS_BROWSE_LAYOUT_CLASS/);
-    expect(view).toMatch(/PROJECTS_BROWSE_LAYOUT_CLASS/);
+    expect(loading).toContain("bg-card-background overflow-hidden rounded-xl");
+    expect(view).toContain("bg-card-background overflow-hidden rounded-xl");
     expect(loading).toMatch(/PROJECTS_BROWSE_DIVIDE_CLASS/);
     expect(view).toMatch(/PROJECTS_BROWSE_DIVIDE_CLASS/);
-    expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("rounded-none");
-    expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:rounded-xl");
-    expect(PROJECTS_BROWSE_LAYOUT_CLASS).not.toContain("grid-cols-2");
     expect(PROJECTS_BROWSE_DIVIDE_CLASS).toBe("divide-border divide-y");
   });
 
@@ -143,14 +139,9 @@ describe("projects list CLS layout pairing", () => {
       readApp("projects/components/projects-view.tsx"),
     );
 
-    // The header row carries the filter, the sort label, and the desktop
-    // create button. Both sides must reserve the same 52px or the Instant
-    // swap drops every row by the header's height.
     expect(loading).toMatch(/PROJECTS_BROWSE_HEADER_ROW_CLASS/);
     expect(view).toMatch(/PROJECTS_BROWSE_HEADER_ROW_CLASS/);
-    expect(PROJECTS_BROWSE_HEADER_ROW_CLASS).toContain("px-4");
-    expect(PROJECTS_BROWSE_HEADER_ROW_CLASS).toContain("py-2.5");
-    expect(PROJECTS_BROWSE_HEADER_ROW_CLASS).toContain("border-b");
+    expect(PROJECTS_BROWSE_HEADER_ROW_CLASS).not.toContain("border");
   });
 
   it("page and Instant shell share PROJECTS_PAGE_SHELL_CLASS", () => {

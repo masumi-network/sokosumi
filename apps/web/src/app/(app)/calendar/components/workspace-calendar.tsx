@@ -523,7 +523,10 @@ function CalendarView({
       getCalendarItemDateKey(item.scheduledAt, timeZone),
     );
     return (
-      <div className="flex flex-col gap-4" data-testid="calendar-agenda">
+      <div
+        className="bg-card-background flex flex-col gap-4 rounded-xl p-3"
+        data-testid="calendar-agenda"
+      >
         <h2 className="text-lg font-semibold">{t("agenda.upcoming")}</h2>
         {items.length === 0 ? (
           <p className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
@@ -577,7 +580,7 @@ function CalendarView({
   return (
     <>
       <div
-        className="workspace-calendar-theme overflow-x-auto rounded-lg border border-border bg-background"
+        className="workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
         data-can-create={canCreate ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
@@ -1190,7 +1193,7 @@ export function WorkspaceCalendar({
         />
       ) : null}
 
-      <div className="bg-card-background flex min-w-0 flex-col gap-4 rounded-xl p-2">
+      <div className="flex min-w-0 flex-col gap-4">
         {visibleItems.length === 0 && view !== "agenda" ? (
           <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
             {t("empty.title")}

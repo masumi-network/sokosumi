@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { connection } from "next/server";
 
 import { TaskSchedulesView } from "@/app/tasks/components/task-schedules-view";
@@ -12,6 +13,11 @@ import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 
+import {
+  parseSchedulesViewMode,
+  SCHEDULES_VIEW_MODE_COOKIE_NAME,
+} from "@/lib/ui-preferences/schedules-view-mode";
+
 export interface SchedulesSearchParams {
   projectId?: string | string[];
   scheduleState?: string | string[];
@@ -24,6 +30,10 @@ export async function SchedulesPageContent({
 }) {
   await connection();
   const [params, session] = await Promise.all([searchParams, getSession()]);
+  const cookieStore = await cookies();
+  const defaultViewMode = parseSchedulesViewMode(
+    cookieStore.get(SCHEDULES_VIEW_MODE_COOKIE_NAME)?.value,
+  );
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const requestedProjectId = firstQueryString(params.projectId) ?? null;
   const state = parseTaskScheduleStateFilter(params.scheduleState);
@@ -48,6 +58,7 @@ export async function SchedulesPageContent({
       <TaskSchedulesView
         // A new filter starts a new first page, so appended pages reset.
         key={`${projectId ?? ""}:${state ?? ""}`}
+        defaultViewMode={defaultViewMode}
         schedules={schedules}
         nextCursor={nextCursor}
         coworkerOptions={assigneeOptions.selectableOptions}

@@ -11,7 +11,6 @@ import { loadMoreProjects } from "@/app/projects/actions";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
-  PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
 } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
@@ -32,7 +31,6 @@ export interface ProjectsViewLabels {
   empty: {
     title: string;
     description: string;
-    action: string;
   };
   loadMore: string;
   loading: string;
@@ -101,8 +99,6 @@ export function ProjectsView({
   const hasLoadedProjects = items.length > 0;
   const isFiltering = query.length > 0;
   const showEmptyState = !hasLoadedProjects && cursor === null;
-  // An unfiltered, empty workspace has nothing to filter, so the header row
-  // would only offer a search over zero projects.
   const hasNothingAtAll = showEmptyState && !isFiltering;
 
   function handleLoadMore() {
@@ -127,35 +123,29 @@ export function ProjectsView({
       <div
         className={cn("flex flex-col gap-5", LIST_MOBILE_CREATE_FAB_CLEARANCE)}
       >
+        <div
+          data-testid="projects-toolbar"
+          className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
+        >
+          <ProjectsFilter labels={labels.filter} />
+          <span className="text-muted-foreground hidden shrink-0 text-xs whitespace-nowrap lg:inline">
+            {labels.sortedBy}
+          </span>
+          <AddProjectButton
+            label={labels.newProject}
+            className="hidden md:inline-flex"
+          />
+        </div>
         {hasNothingAtAll ? (
           <ProjectsEmptyState labels={labels.empty} />
         ) : (
           <div
             data-testid="projects-browse"
             className={cn(
-              PROJECTS_BROWSE_LAYOUT_CLASS,
+              "bg-card-background overflow-hidden rounded-xl",
               PROJECTS_LIST_CARD_MIN_H_CLASS,
             )}
           >
-            <div className={PROJECTS_BROWSE_HEADER_ROW_CLASS}>
-              <ProjectsFilter labels={labels.filter} />
-              {/* Plain text, not a control: the Core route has one fixed
-                  ordering, so a chip here would promise a menu that cannot
-                  exist yet. Nothing in this row wraps, so the label yields
-                  across md–lg, where the create button shares the line and a
-                  longer locale would otherwise squeeze the filter to a stub. */}
-              <span className="text-muted-foreground inline shrink-0 text-xs whitespace-nowrap md:hidden lg:inline">
-                {labels.sortedBy}
-              </span>
-              {/* Create lives on the line it acts on, so the page carries no
-                  row that exists only to hold a button. Below md the mobile
-                  FAB is the create control, so this one stays desktop-only. */}
-              <AddProjectButton
-                label={labels.newProject}
-                className="hidden md:inline-flex"
-              />
-            </div>
-
             {hasLoadedProjects ? (
               <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
                 {items.map((project) => (
@@ -204,7 +194,7 @@ export function ProjectsView({
   );
 }
 
-/** Sits inside the list card, under its header row — so no chrome of its own. */
+/** Search feedback stays inside the content group; controls remain above it. */
 function ProjectsNoMatches({ message }: { message: string }) {
   return (
     <div
@@ -224,7 +214,7 @@ function ProjectsEmptyState({
   return (
     <div
       className={cn(
-        "bg-card-background border-border flex flex-col items-center justify-center rounded-xl border px-6 py-12 text-center",
+        "bg-card-background flex flex-col items-center justify-center rounded-xl px-6 py-12 text-center",
         PROJECTS_LIST_CARD_MIN_H_CLASS,
       )}
     >
@@ -235,7 +225,6 @@ function ProjectsEmptyState({
         <p className="text-muted-foreground mt-2 text-sm">
           {labels.description}
         </p>
-        <AddProjectButton label={labels.action} className="mt-6" />
       </div>
     </div>
   );

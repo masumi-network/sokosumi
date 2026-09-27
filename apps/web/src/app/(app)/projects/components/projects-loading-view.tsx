@@ -2,7 +2,6 @@ import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
-  PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
   PROJECTS_PAGE_SHELL_CLASS,
@@ -29,29 +28,25 @@ export function ProjectsLoadingView() {
       data-testid="projects-loading"
       className={cn("flex flex-col gap-5", LIST_MOBILE_CREATE_FAB_CLEARANCE)}
     >
+      <div
+        data-testid="projects-loading-toolbar"
+        className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
+      >
+        <Skeleton className="h-8 w-full rounded-lg" />
+        <Skeleton className="hidden h-3 w-32 shrink-0 lg:inline-block" />
+        <Skeleton
+          data-testid="projects-loading-create"
+          className="hidden h-8 w-[7.25rem] shrink-0 rounded-md md:inline-flex"
+        />
+      </div>
       {/* min-h matches empty/browse so Instant / empty swap does not thrash CLS. */}
       <div
         data-testid="projects-loading-browse"
         className={cn(
-          PROJECTS_BROWSE_LAYOUT_CLASS,
+          "bg-card-background overflow-hidden rounded-xl",
           PROJECTS_LIST_CARD_MIN_H_CLASS,
         )}
       >
-        {/* Shares the live header row class so the Instant swap does not drop
-            the rows by its height. Skeletons only: no copy, so no locale
-            flash. Each child mirrors one live control's footprint and
-            breakpoint band. */}
-        <div className={PROJECTS_BROWSE_HEADER_ROW_CLASS}>
-          <Skeleton className="h-8 w-full rounded-lg" />
-          <Skeleton className="inline-block h-3 w-32 shrink-0 md:hidden lg:inline-block" />
-          {/* Matches sm Button footprint without English (or other locale)
-              text. Desktop only, like the live create control. */}
-          <Skeleton
-            data-testid="projects-loading-create"
-            className="hidden h-8 w-[7.25rem] shrink-0 rounded-md md:inline-flex"
-          />
-        </div>
-
         <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
           {Array.from({ length: 4 }, (_, index) => (
             <ProjectListItemSkeleton key={index} />

@@ -2041,6 +2041,8 @@
         "elenaAvatarAlt": "Elena avatar"
       },
       "Schedules": {
+        "viewList": "Vista de lista",
+        "viewGrid": "Vista de cuadrícula",
         "stateFilter": "Estado de la programación",
         "filterAll": "Todas",
         "state": {

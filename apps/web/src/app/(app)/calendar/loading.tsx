@@ -6,9 +6,7 @@ export default function CalendarLoading() {
       <Skeleton className="h-16 w-full" />
       <Skeleton className="h-10 w-full" />
       <div className="bg-card-background rounded-xl p-2">
-        <div className="bg-background rounded-lg border border-border p-3">
-          <Skeleton className="h-140 w-full" />
-        </div>
+        <Skeleton className="h-140 w-full" />
       </div>
     </div>
   );

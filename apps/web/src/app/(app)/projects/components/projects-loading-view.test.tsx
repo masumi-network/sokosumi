@@ -7,7 +7,6 @@ import {
 } from "@/app/projects/components/projects-loading-view";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
-  PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
 } from "@/app/projects/constants";
@@ -34,11 +33,10 @@ describe("ProjectsPageSkeleton", () => {
     expect(createSlot.tagName).not.toBe("BUTTON");
   });
 
-  it("reserves the create control inside the list header row", () => {
+  it("reserves the create control above the list", () => {
     render(<ProjectsPageSkeleton />);
 
-    const header = screen.getByTestId("projects-loading-browse")
-      .firstElementChild as HTMLElement;
+    const header = screen.getByTestId("projects-loading-toolbar");
 
     expect(header).toContainElement(
       screen.getByTestId("projects-loading-create"),
@@ -53,10 +51,9 @@ describe("ProjectsLoadingView", () => {
     const create = screen.getByTestId("projects-loading-create");
     expect(create.className).toContain("hidden");
     expect(create.className).toContain("md:inline-flex");
-    // The list card is the first thing in the shell: no row above it whose
-    // only job was holding the create button.
+    // Loading toolbar reserves the same space as the live controls.
     expect(container.firstElementChild?.firstElementChild).toBe(
-      screen.getByTestId("projects-loading-browse"),
+      screen.getByTestId("projects-loading-toolbar"),
     );
     expect(container.firstElementChild?.className).toContain(
       "pb-[calc(3.5rem+1rem)]",
@@ -68,24 +65,15 @@ describe("ProjectsLoadingView", () => {
     const { container } = render(<ProjectsLoadingView />);
 
     const browse = screen.getByTestId("projects-loading-browse");
-    for (const token of PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/)) {
-      expect(browse.className).toContain(token);
-    }
-    expect(browse.className).toContain(PROJECTS_LIST_CARD_MIN_H_CLASS);
-    expect(browse.className).not.toContain("grid-cols-2");
-    expect(browse.className).toContain("rounded-none");
-    expect(browse.className).toContain("md:rounded-xl");
-
-    // Header row first, then the divided rows. The header has to reserve the
-    // live one's height (px-4 py-2.5 around an h-8 input) or the Instant swap
-    // drops every row by ~53px when the real filter appears.
-    const header = browse.firstElementChild;
-    expect(header?.className).toContain("border-b");
-    expect(header?.className).toContain("px-4");
-    expect(header?.className).toContain("py-2.5");
-    expect(
-      header?.querySelector('[data-slot="skeleton"]')?.className,
-    ).toContain("h-8");
+    expect(browse).toHaveClass(
+      "bg-card-background",
+      "rounded-xl",
+      PROJECTS_LIST_CARD_MIN_H_CLASS,
+    );
+    expect(browse).not.toHaveClass("border");
+    const header = screen.getByTestId("projects-loading-toolbar");
+    expect(browse).not.toContainElement(header);
+    expect(header.querySelector('[data-slot="skeleton"]')).toHaveClass("h-8");
 
     const divide = browse.lastElementChild;
     for (const token of PROJECTS_BROWSE_DIVIDE_CLASS.split(/\s+/)) {

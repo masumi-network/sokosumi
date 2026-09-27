@@ -353,11 +353,13 @@ describe("WorkspaceCalendar", () => {
 
     expect(screen.getByTestId("calendar-week")).toHaveClass(
       "workspace-calendar-theme",
-      "bg-background",
+      "bg-card-background",
       "overflow-x-auto",
-      "rounded-lg",
+      "rounded-xl",
+    );
+    expect(screen.getByTestId("calendar-week")).not.toHaveClass(
       "border",
-      "border-border",
+      "bg-background",
     );
   });
 

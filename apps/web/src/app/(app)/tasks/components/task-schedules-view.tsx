@@ -13,6 +13,7 @@ import {
 } from "@/app/tasks/utils/task-schedules-filters";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
+import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
@@ -28,6 +29,10 @@ import {
 } from "@/lib/clients/generated/core";
 import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import {
+  type SchedulesViewMode,
+  serializeSchedulesViewModeCookie,
+} from "@/lib/ui-preferences/schedules-view-mode";
 import { cn } from "@/lib/utils";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
 import { TaskScheduleRow } from "./task-schedule-row";
@@ -36,6 +41,7 @@ import { TasksProjectSwitcher } from "./tasks-project-switcher";
 const ALL_STATES = "all";
 
 interface TaskSchedulesViewProps {
+  defaultViewMode?: SchedulesViewMode;
   schedules: TaskSchedule[];
   nextCursor: string | null;
   coworkerOptions: CoworkerOption[];
@@ -55,6 +61,7 @@ interface TaskSchedulesViewProps {
  */
 export function TaskSchedulesView({
   schedules,
+  defaultViewMode = "list",
   nextCursor,
   coworkerOptions,
   assigneeDisplayOptions,
@@ -66,6 +73,7 @@ export function TaskSchedulesView({
   currentUserId,
 }: TaskSchedulesViewProps) {
   const t = useTranslations("App.Tasks.Schedules");
+  const [viewMode, setViewMode] = useState(defaultViewMode);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -182,6 +190,15 @@ export function TaskSchedulesView({
           ))}
         </TabsList>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <ListGridViewSwitch
+            value={viewMode}
+            data-testid="schedules-view-mode-switch"
+            onChange={(next) => {
+              setViewMode(next);
+              document.cookie = serializeSchedulesViewModeCookie(next);
+            }}
+            labels={{ list: t("viewList"), grid: t("viewGrid") }}
+          />
           <TasksProjectSwitcher
             projectOptions={projectOptions}
             selectedProjectId={selectedProjectId}
@@ -211,7 +228,14 @@ export function TaskSchedulesView({
             </p>
           </div>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul
+            data-view={viewMode}
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3"
+                : "flex flex-col gap-2"
+            }
+          >
             {rows.map((schedule) => (
               <TaskScheduleRow
                 assigneeDisplayOptions={assigneeDisplayOptions}
@@ -222,6 +246,7 @@ export function TaskSchedulesView({
                 key={schedule.id}
                 projectOptions={projectOptions}
                 schedule={schedule}
+                viewMode={viewMode}
               />
             ))}
           </ul>

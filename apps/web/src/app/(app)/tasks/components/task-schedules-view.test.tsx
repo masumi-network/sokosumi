@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -194,6 +194,31 @@ describe("TaskSchedulesView", () => {
     expect(paused).toHaveTextContent("unassigned");
   });
 
+  it("switches layout without losing metadata, appended pages or actions and saves the preference", async () => {
+    const user = userEvent.setup();
+    loadMoreTaskSchedulesMock.mockResolvedValue({
+      schedules: [schedule({ id: "second", name: "Second schedule" })],
+      nextCursor: null,
+    });
+    renderView([schedule({})], { nextCursor: "next" });
+    expect(screen.getByRole("radio", { name: "viewList" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    await user.click(screen.getByRole("radio", { name: "viewGrid" }));
+    expect(document.cookie).toContain("schedules_view_mode=grid");
+    expect(screen.getByRole("list")).toHaveAttribute("data-view", "grid");
+    expect(screen.getAllByTestId("schedule-row")).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "edit" })).toHaveLength(2);
+    expect(screen.getAllByTestId("schedule-row")[0]).toHaveTextContent(
+      "nextRun(Mon, 9:00)",
+    );
+    await user.click(screen.getByRole("radio", { name: "viewList" }));
+    expect(document.cookie).toContain("schedules_view_mode=list");
+    expect(screen.getByRole("list")).toHaveAttribute("data-view", "list");
+  });
+
   it("filters by state through the URL, keeping the other params", async () => {
     const user = userEvent.setup();
     renderView([schedule({})]);
@@ -296,7 +321,9 @@ describe("TaskSchedulesView", () => {
       scheduleId: "older",
       action: "pause",
     });
-    expect(screen.queryByRole("link", { name: "Older schedule" })).toBeNull();
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: "Older schedule" })).toBeNull(),
+    );
     loadMoreTaskSchedulesMock.mockResolvedValue({
       schedules: [{ ...older, state: "PAUSED" }],
       nextCursor: null,
@@ -315,7 +342,9 @@ describe("TaskSchedulesView", () => {
     const user = userEvent.setup();
     const initial = [schedule({})];
     const view = renderView(initial, { nextCursor: "old-cursor" });
-    await user.click(screen.getByRole("button", { name: "pause" }));
+    await act(async () => {
+      await user.click(screen.getByRole("button", { name: "pause" }));
+    });
     view.rerender(
       <TaskSchedulesView
         schedules={initial}
